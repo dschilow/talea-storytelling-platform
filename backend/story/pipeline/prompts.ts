@@ -607,6 +607,12 @@ gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glu
 - Quick exchanges (3+ back-and-forth) create energy and humor
 - At least 25% of total text must be dialogue
 
+**ACTIVE PRESENCE (CRITICAL – #1 source of quality failures):**
+- EVERY character listed in a chapter MUST have at least ONE spoken line AND ONE physical action.
+- If a character is listed but you cannot give them meaningful action → INVENT a reason for them to act.
+- NO character may be merely "mentioned" or "present" without doing something visible.
+- Check: After writing each chapter, verify EVERY listed character has dialogue + action.
+
 ::: HARD CONSTRAINTS :::
 1. LANGUAGE: ${outputLang} ONLY.${umlautRule}
 2. FORMAT: Single valid JSON object.
@@ -631,10 +637,11 @@ ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactR
 ${beatLines}
 
 ::: STORY STRUCTURE REQUIREMENTS :::
-- Chapter 1-2: Show CONCRETE STAKES (what is physically lost if they fail?)
-- Chapter 3: Rising action with a complication
-- Chapter 3-4: LOWPOINT – a real setback with physical emotional reaction (somatic marker!)
-- Chapter 5: Resolution – show what was WON + a small PRICE paid (torn shirt, late for dinner, etc.)
+- Chapter 1: HOOK + STAKES. Within the first 3 sentences, something must GO WRONG. By end of Ch 1, show CONCRETELY what is lost if they fail (e.g. "If they don't find the path, they sleep in the forest tonight").
+- Chapter 2: DISCOVERY + TEMPTATION. Introduce something exciting but dangerous. End with a decision point.
+- Chapter 3: COMPLICATION. Things get worse. A plan fails. Someone makes a mistake.
+- Chapter 3-4: LOWPOINT – a REAL setback: something breaks, someone gets hurt (scraped knee, torn jacket), a tool fails. Show the PHYSICAL emotional reaction (somatic marker!). The characters must feel DEFEATED for at least 2-3 sentences before recovering.
+- Chapter 5: RESOLUTION – show EXACTLY what was won + a SMALL TANGIBLE PRICE paid (lost hat, ruined shoes, late for dinner). The ENDING must CALLBACK to the BEGINNING (e.g. if Ch 1 started with being lost → Ch 5 must show them finding their way home).
 
 ::: OUTPUT FORMAT :::
 Write a JSON object. Start with "_planning" to think before writing.
@@ -646,14 +653,19 @@ Write a JSON object. Start with "_planning" to think before writing.
       "[child1]": "2 typical words + sentence style (e.g. 'short, impulsive, uses zack/los!')",
       "[child2]": "2 typical words + sentence style (e.g. 'measured, uses Moment/logisch')"
     },
+    "character_activity_check": {
+      "ch1": ["list every character who MUST speak and act in this chapter"],
+      "ch2": ["list every character who MUST speak and act"],
+      "ch3": ["..."], "ch4": ["..."], "ch5": ["..."]
+    },
     "somatic_markers": ["5 physical sensations I will use instead of emotion words"],
     "humor_beats": ["2 concrete funny moments I will include (situation, not wordplay)"],
     "paragraph_commitment": "I will write flowing paragraphs of 2-5 sentences, NEVER single-sentence chains.",
-    "chapter_plans": [
-      { "ch": 1, "stakes": "What is lost if they fail?", "ending_hook": "Cliffhanger/shift" },
-      { "ch": 3, "lowpoint": "What goes wrong?" },
-      { "ch": 5, "payoff": "What is won?", "price": "What small thing is lost?" }
-    ]
+    "stakes": "What CONCRETELY is lost if they fail? (must appear in Ch 1)",
+    "lowpoint": "What SPECIFICALLY goes wrong in Ch 3-4? What breaks/fails? How do characters physically react?",
+    "payoff": "What is WON in Ch 5?",
+    "price": "What small tangible thing is LOST/sacrificed?",
+    "callback": "How does Ch 5 connect back to Ch 1?"
   },
   "title": "${titleHint}",
   "description": "Teaser sentence that plants a QUESTION in the reader's mind",
@@ -694,7 +706,7 @@ export function buildFullStoryRewritePrompt(input: {
   const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
   const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
   const avatarRule = focusChildNames.length >= 2
-    ? `- ${focusChildNames.join(" and ")} must be active in EVERY beat (each beat: at least one action + one dialogue line per child).`
+    ? `- ${focusChildNames.join(" and ")} must be active in EVERY beat(each beat: at least one action + one dialogue line per child).`
     : focusChildNames.length === 1
       ? `- ${focusChildNames[0]} must be active in EVERY beat.`
       : "";
@@ -711,7 +723,7 @@ export function buildFullStoryRewritePrompt(input: {
         : "- Humor: Optional.";
 
   const originalText = originalDraft.chapters
-    .map(ch => `--- Beat ${ch.chapter} ---\n${ch.text}`)
+    .map(ch => `-- - Beat ${ch.chapter} ---\n${ch.text} `)
     .join("\n\n");
 
   const outputLang = isGerman ? "German" : targetLanguage;
@@ -721,63 +733,63 @@ export function buildFullStoryRewritePrompt(input: {
 
   return `TASK: Rewrite this story so it sounds like a REAL PUBLISHED children's book. The draft was rejected for sounding AI-generated.
 
-::: CRITIC FEEDBACK (MUST FIX) :::
+::: CRITIC FEEDBACK(MUST FIX) :::
 ${qualityIssues || "- General prose improvement needed. Too flat, robot-style prose."}
 
 ${goldenExampleRef}
 
-::: THE REWRITE RULES (focus on these 4 things) :::
+::: THE REWRITE RULES(focus on these 4 things) :::
 
-1. **PARAGRAPH STRUCTURE (THE #1 PROBLEM)**
-   The draft likely has single-sentence chains: "He ran. She said. He nodded."
-   FIX: Rewrite into flowing paragraphs of 2-5 sentences where action, dialogue, and detail blend:
-   "Der Laden roch nach altem Holz. Bruno wischte die Theke, ohne aufzusehen. 'Drei Saecke Mehl', sagte er. 'Und Glueck.'"
+  1. ** PARAGRAPH STRUCTURE(THE #1 PROBLEM) **
+    The draft likely has single - sentence chains: "He ran. She said. He nodded."
+  FIX: Rewrite into flowing paragraphs of 2 - 5 sentences where action, dialogue, and detail blend:
+  "Der Laden roch nach altem Holz. Bruno wischte die Theke, ohne aufzusehen. 'Drei Saecke Mehl', sagte er. 'Und Glueck.'"
 
-2. **EMOTION = BODY, NEVER LABELS**
-   Find every "he was nervous/happy/sad" and replace with physical sensation:
-   - "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
-   - "Sie war gluecklich" → "Ihre Zehen wackelten in den Stiefeln."
+  2. ** EMOTION = BODY, NEVER LABELS **
+    Find every "he was nervous/happy/sad" and replace with physical sensation:
+    - "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
+      - "Sie war gluecklich" → "Ihre Zehen wackelten in den Stiefeln."
 
-3. **DISTINCT VOICES**
-   Each character must sound different by sentence length, word choice, and attitude.
+  3. ** DISTINCT VOICES **
+    Each character must sound different by sentence length, word choice, and attitude.
    If you can swap two characters' dialogue lines without it sounding wrong → FIX IT.
 
-4. **DIALOGUE ANCHORING**
-   Every dialogue line needs a physical action anchor. No talking heads.
-   Bad: "Hallo", sagte Tom.  Good: Tom trat gegen den Dreck. "Hallo."
+  4. ** DIALOGUE ANCHORING **
+    Every dialogue line needs a physical action anchor.No talking heads.
+      Bad: "Hallo", sagte Tom.Good: Tom trat gegen den Dreck. "Hallo."
 
-::: HARD RULES :::
-1) Language: ONLY ${outputLang}.${umlautRule}
-2) Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
+::: HARD RULES:::
+  1) Language: ONLY ${outputLang}.${umlautRule}
+  2) Length: ${totalWordMin} -${totalWordMax} words.Chapters: ${wordsPerChapter.min} -${wordsPerChapter.max}.
    → IF TOO SHORT: Add dialogue exchanges and sensory details, not filler.
 3) Cast Lock: ${allowedNames || "(none)"}. No new names.
-${humorRewriteLine}
-5) NEVER copy Goal/Conflict/Setting text into the story. Dramatize!
-6) BANNED: "plötzlich", emotion labels, single-sentence chains, moral lectures.
+    ${humorRewriteLine}
+  5) NEVER copy Goal / Conflict / Setting text into the story.Dramatize!
+  6) BANNED: "plötzlich", emotion labels, single - sentence chains, moral lectures.
 
-${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
+    ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
-::: ORIGINAL DRAFT (REWRITE COMPLETELY) :::
+::: ORIGINAL DRAFT(REWRITE COMPLETELY) :::
 ${originalText}
 
-::: OUTPUT FORMAT :::
-{
-  "_planning": {
-    "paragraph_fix": "I will merge single-sentence chains into flowing paragraphs of 2-5 sentences.",
-    "emotion_replacements": ["3 specific emotion words I found and will replace with body actions"],
-    "voice_signatures": {
-      "[character1]": "sentence style + 2 typical words",
-      "[character2]": "sentence style + 2 typical words"
+::: OUTPUT FORMAT:::
+  {
+    "_planning": {
+      "paragraph_fix": "I will merge single-sentence chains into flowing paragraphs of 2-5 sentences.",
+        "emotion_replacements": ["3 specific emotion words I found and will replace with body actions"],
+          "voice_signatures": {
+        "[character1]": "sentence style + 2 typical words",
+          "[character2]": "sentence style + 2 typical words"
+      },
+      "fix_strategy": "How I will fix the critic feedback issues"
     },
-    "fix_strategy": "How I will fix the critic feedback issues"
-  },
-  "title": "Story title",
-  "description": "Teaser sentence",
-  "chapters": [
-    { "chapter": 1, "text": "Full prose in flowing paragraphs..." }
-  ]
-}`;
+    "title": "Story title",
+      "description": "Teaser sentence",
+        "chapters": [
+          { "chapter": 1, "text": "Full prose in flowing paragraphs..." }
+        ]
+  } `;
 }
 
 
@@ -813,7 +825,7 @@ export function buildChapterExpansionPrompt(input: {
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const missingLine = requiredCharacters?.length
-    ? `\n**MISSING CHARACTERS (MUST BE INCLUDED WITH FOCUS):** ${requiredCharacters.join(", ")}\nName each missing character doing a short concrete action. Total limit remains max ${focusMaxActive} active characters.`
+    ? `\n ** MISSING CHARACTERS(MUST BE INCLUDED WITH FOCUS):** ${requiredCharacters.join(", ")} \nName each missing character doing a short concrete action.Total limit remains max ${focusMaxActive} active characters.`
     : "";
 
   const contextLines = [
@@ -822,40 +834,40 @@ export function buildChapterExpansionPrompt(input: {
   ].filter(Boolean).join("\n");
 
   return `# TASK
-Expand the chapter without changing the plot. Show, don't tell!
-IMPORTANT: Vivid prose! Concrete details (smell, taste, feel), dialogue-humor, sentence variation.
-No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
+Expand the chapter without changing the plot.Show, don't tell!
+  IMPORTANT: Vivid prose! Concrete details(smell, taste, feel), dialogue - humor, sentence variation.
+No feeling - diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
 
-::: THE "10.0/10.0" QUALITY BENCHMARK :::
-A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
-A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+::: THE "10.0/10.0" QUALITY BENCHMARK:::
+A score of 0.0 means: AI - generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions("he was sad").
+A score of 10.0 means: A published, award - winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
 YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 
 # SCENE
-- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
-- Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
-- Characters: ${allowedNames}
+    - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
+  - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
+  - Characters: ${allowedNames}
 ${artifactName && chapter.artifactUsage ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
-- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min}-${ageRange.max}
+  - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min} -${ageRange.max}
 ${missingLine}
 
 # LENGTH TARGET
-**${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences**
+    ** ${lengthTargets.wordMin} -${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin} -${lengthTargets.sentenceMax} sentences **
 
 # RULES
-1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
+  1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
 2. No new characters.
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
-4. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-5. Chapter rhythm: short/fast -> calm/emotional -> short/fast.
-6. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
-7. Expand via concrete action + 2-3 dialogue lines.
+  4. No meta - labels in the text.NEVER copy the Goal, Conflict, or Setting text directly into the story.
+5. Chapter rhythm: short / fast -> calm / emotional -> short / fast.
+6. At least 1 inner child - moment of ${emotionalFocus} (body signal + thought).
+  7. Expand via concrete action + 2 - 3 dialogue lines.
 8. Max 1 comparison per paragraph, no metaphor chains.
 9. No preview, meta or summary sentences.
 10. No explanatory sentences about object rules.
-11. Dialogues must sound distinguishable; no speaker-tag formula loops.
-12. Running gag sparsely: same sound-word/catchphrase max 2x.
-13. If output is German: use true umlauts (�, �, �, �), no ae/oe/ue. NO English words in output.
+11. Dialogues must sound distinguishable; no speaker - tag formula loops.
+12. Running gag sparsely: same sound - word / catchphrase max 2x.
+13. If output is German: use true umlauts(�, �, �, �), no ae/oe/ue. NO English words in output.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL

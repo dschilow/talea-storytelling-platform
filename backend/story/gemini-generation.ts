@@ -60,6 +60,7 @@ interface GeminiGenerationRequest {
   userPrompt: string;
   maxTokens: number;
   temperature?: number;
+  thinkingBudget?: number; // Thinking tokens for internal reasoning (default: 4096)
 }
 
 interface GeminiUsage {
@@ -105,9 +106,11 @@ export async function generateWithGemini(
     ],
     generationConfig: {
       temperature: request.temperature ?? 0.85,
-      maxOutputTokens: request.maxTokens || 65536, // Use requested maxTokens, fallback to 65536
+      maxOutputTokens: request.maxTokens || 65536,
       responseMimeType: "application/json",
-      // thinkingConfig removed - we strictly use "_planning" field in JSON for CoT
+      thinkingConfig: {
+        thinkingBudget: request.thinkingBudget ?? 4096, // Internal reasoning before story generation
+      },
     },
     safetySettings: [
       {

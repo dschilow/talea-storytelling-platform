@@ -248,15 +248,18 @@ function gateCharacterIntegration(
       // Check action using any matching name form (full name or individual parts)
       const hasAction = checkCharacterHasAction(ch.text, name)
         || nameParts.some(part => checkCharacterHasAction(ch.text, part.charAt(0).toUpperCase() + part.slice(1)));
+      // Only flag PASSIVE_CHARACTER as serious for avatar/protagonist slots
+      // Pool characters being briefly mentioned is acceptable and shouldn't trigger rewrites
+      const isAvatarSlot = slot.includes("AVATAR") || slot.includes("PROTAGONIST");
       if (!hasAction) {
         issues.push({
-          gate: "CHARACTER_INTEGRATION",
+          gate: isAvatarSlot ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
           chapter: ch.chapter,
           code: "PASSIVE_CHARACTER",
           message: isDE
-            ? `${name} ist nur erwaehnt, hat aber keine aktive Handlung`
-            : `${name} is only mentioned, no active action`,
-          severity: "WARNING",
+            ? `${name} ${isAvatarSlot ? "ist nur erwaehnt, hat aber keine aktive Handlung" : `in Kapitel ${ch.chapter}: keine aktive Handlung und kein Dialog`}`
+            : `${name} ${isAvatarSlot ? "is only mentioned, no active action" : `in chapter ${ch.chapter}: no active action or dialogue`}`,
+          severity: isAvatarSlot ? "ERROR" : "WARNING",
         });
       }
     }
@@ -379,8 +382,10 @@ function gateCastLock(
     /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|kein|keine|keinen|keinem|keiner)\s+/i,
     // Demonstrative + Noun: "Diese Vorstellung", "Jeder Herzschlag"
     /^(?:dies|diese|dieser|dieses|diesen|diesem|jeder|jede|jedes|jeden|jedem|jener|jene|jenes|jenen|jenem|welch|welche|welcher|welches|welchen|welchem|solch|solche|solcher|solches|manch|manche|mancher|manches)\s+/i,
-    // Quantifier + Noun: "Zehn Grad", "Drei Kinder"
-    /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz)\s+/i,
+    // Quantifier + Noun: "Zehn Grad", "Drei Kinder", "Minuten Zeitverschwendung"
+    /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz|minuten?|stunden?|tage?)\s+/i,
+    // Genitive possessive: "Omas Küche", "Vaters Stuhl", "Brunos Laden"
+    /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto)$/i,
   ] : [];
 
   for (const ch of draft.chapters) {
@@ -458,18 +463,18 @@ function gateRepetitionLimiter(
 
   const bannedWordPatterns = isDE
     ? [
-        { token: "plötzlich", regex: /\bpl(?:ö|oe|o)tzlich\b/gi, maxPerChapter: 0, hard: false },
-        { token: "irgendwie", regex: /\birgendwie\b/gi, maxPerChapter: 0, hard: false },
-        { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi, maxPerChapter: 1, hard: false },
-        { token: "ziemlich", regex: /\bziemlich\b/gi, maxPerChapter: 1, hard: false },
-        { token: "wirklich", regex: /\bwirklich\b/gi, maxPerChapter: 2, hard: false },
-        { token: "sehr", regex: /\bsehr\b/gi, maxPerChapter: 2, hard: false },
-        { token: "Es war einmal", regex: /\bes\s+war\s+einmal\b/gi, maxPerChapter: 0, hard: true },
-      ]
+      { token: "plötzlich", regex: /\bpl(?:ö|oe|o)tzlich\b/gi, maxPerChapter: 0, hard: false },
+      { token: "irgendwie", regex: /\birgendwie\b/gi, maxPerChapter: 0, hard: false },
+      { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi, maxPerChapter: 1, hard: false },
+      { token: "ziemlich", regex: /\bziemlich\b/gi, maxPerChapter: 1, hard: false },
+      { token: "wirklich", regex: /\bwirklich\b/gi, maxPerChapter: 2, hard: false },
+      { token: "sehr", regex: /\bsehr\b/gi, maxPerChapter: 2, hard: false },
+      { token: "Es war einmal", regex: /\bes\s+war\s+einmal\b/gi, maxPerChapter: 0, hard: true },
+    ]
     : [
-        { token: "suddenly", regex: /\bsuddenly\b/gi, maxPerChapter: 0, hard: false },
-        { token: "really", regex: /\breally\b/gi, maxPerChapter: 2, hard: false },
-      ];
+      { token: "suddenly", regex: /\bsuddenly\b/gi, maxPerChapter: 0, hard: false },
+      { token: "really", regex: /\breally\b/gi, maxPerChapter: 2, hard: false },
+    ];
 
   for (const ch of draft.chapters) {
     for (const banned of bannedWordPatterns) {
@@ -767,42 +772,42 @@ function gatePoeticDensity(
 
   const poeticPatterns = isDE
     ? [
-        /\b(?:ruine|nacht|stille|zeit|schatten|licht|wald|haus)\s+atmete\b/gi,
-        /\b(?:schuld|angst|stille|zeit)\s+lag\s+wie\b/gi,
-        /\b(?:loch|schatten)\s+starrte\b/gi,
-        /\bstimme\s+(?:fiel|schnitt)\b/gi,
-        /\b(?:wald|nacht|ruine|stille)\s+hielt\s+den\s+atem\b/gi,
-        /\b(?:moment|zeit|stille)\s+(?:war|wurde)\s+schwer\s+wie\b/gi,
-        /\b(?:schuld|zweifel|angst)\s+wie\s+(?:ein|eine)\s+(?:jacke|kiesel|stein|last)\b/gi,
-        /\bwie\s+(?:ein|eine|der|die|das)\s+(?:kiesel|garn|stahl|klinge|asche|gesetz)\b/gi,
-        // Personifizierung von Natur/Objekten
-        /\b(?:wasser|wind|wald|nacht|stille|sonne|mond|regen|bach|fluss|see)\s+(?:kicherte?|lachte|sang|fl[üu]sterte|rief|tanzte|seufzte|weinte|l[äa]chelte|nickte|summte|murmelte)\b/gi,
-        // "klangen nervös/traurig" = Synästhesie
-        /\b\w+(?:spiele?|glocken?|t[öo]ne?|stimmen?)\s+klangen?\s+(?:nerv[öo]s|traurig|fr[öo]hlich|m[üu]de|[äa]ngstlich|einsam|leise)\b/gi,
-        // Meta-Narration
-        /\b(?:die\s+)?(?:geschichte|szene|handlung|erz[äa]hlung)\s+(?:schlie[ßs]t|endet|schloss|endete|begann)\s+mit\b/gi,
-        // Lehrsätze im Dialog
-        /\b(?:wir\s+haben\s+gelernt|wir\s+haben\s+verstanden|das\s+bedeutet\s+dass|die\s+lektion|das\s+lehrt\s+uns)\b/gi,
-        // Atmosphärische Füllung: "roch nach feuchtem/nassem..."
-        /\broch\s+(?:es\s+)?nach\s+(?:feuchtem?|nassem?|altem?|s[üu][ßs]em?|frischem?)\s+\w+/gi,
-        // "Der Wind trug..."
-        /\b(?:der\s+)?wind\s+trug\b/gi,
-      ]
+      /\b(?:ruine|nacht|stille|zeit|schatten|licht|wald|haus)\s+atmete\b/gi,
+      /\b(?:schuld|angst|stille|zeit)\s+lag\s+wie\b/gi,
+      /\b(?:loch|schatten)\s+starrte\b/gi,
+      /\bstimme\s+(?:fiel|schnitt)\b/gi,
+      /\b(?:wald|nacht|ruine|stille)\s+hielt\s+den\s+atem\b/gi,
+      /\b(?:moment|zeit|stille)\s+(?:war|wurde)\s+schwer\s+wie\b/gi,
+      /\b(?:schuld|zweifel|angst)\s+wie\s+(?:ein|eine)\s+(?:jacke|kiesel|stein|last)\b/gi,
+      /\bwie\s+(?:ein|eine|der|die|das)\s+(?:kiesel|garn|stahl|klinge|asche|gesetz)\b/gi,
+      // Personifizierung von Natur/Objekten
+      /\b(?:wasser|wind|wald|nacht|stille|sonne|mond|regen|bach|fluss|see)\s+(?:kicherte?|lachte|sang|fl[üu]sterte|rief|tanzte|seufzte|weinte|l[äa]chelte|nickte|summte|murmelte)\b/gi,
+      // "klangen nervös/traurig" = Synästhesie
+      /\b\w+(?:spiele?|glocken?|t[öo]ne?|stimmen?)\s+klangen?\s+(?:nerv[öo]s|traurig|fr[öo]hlich|m[üu]de|[äa]ngstlich|einsam|leise)\b/gi,
+      // Meta-Narration
+      /\b(?:die\s+)?(?:geschichte|szene|handlung|erz[äa]hlung)\s+(?:schlie[ßs]t|endet|schloss|endete|begann)\s+mit\b/gi,
+      // Lehrsätze im Dialog
+      /\b(?:wir\s+haben\s+gelernt|wir\s+haben\s+verstanden|das\s+bedeutet\s+dass|die\s+lektion|das\s+lehrt\s+uns)\b/gi,
+      // Atmosphärische Füllung: "roch nach feuchtem/nassem..."
+      /\broch\s+(?:es\s+)?nach\s+(?:feuchtem?|nassem?|altem?|s[üu][ßs]em?|frischem?)\s+\w+/gi,
+      // "Der Wind trug..."
+      /\b(?:der\s+)?wind\s+trug\b/gi,
+    ]
     : [
-        /\b(?:night|silence|time|shadow|light|house|forest)\s+breathed\b/gi,
-        /\b(?:guilt|fear|silence|time)\s+lay\s+like\b/gi,
-        /\b(?:hole|shadow)\s+stared\b/gi,
-        /\bvoice\s+(?:fell|cut)\b/gi,
-        /\b(?:forest|night|ruin|silence)\s+held\s+its\s+breath\b/gi,
-        /\b(?:moment|time|silence)\s+(?:was|became)\s+heavy\s+as\b/gi,
-        /\blike\s+(?:a|an|the)\s+(?:blade|steel|ash|law)\b/gi,
-        // Personification of nature/objects
-        /\b(?:water|wind|forest|night|silence|sun|moon|rain)\s+(?:giggled|laughed|sang|whispered|called|danced|sighed|wept|smiled|nodded|hummed)\b/gi,
-        // Meta-narration
-        /\b(?:the\s+)?(?:story|scene|narrative)\s+(?:closes|ends|ended|closed)\s+with\b/gi,
-        // Teaching sentences in dialogue
-        /\b(?:we\s+(?:have\s+)?learned|we\s+(?:have\s+)?understood|the\s+lesson|this\s+teaches\s+us)\b/gi,
-      ];
+      /\b(?:night|silence|time|shadow|light|house|forest)\s+breathed\b/gi,
+      /\b(?:guilt|fear|silence|time)\s+lay\s+like\b/gi,
+      /\b(?:hole|shadow)\s+stared\b/gi,
+      /\bvoice\s+(?:fell|cut)\b/gi,
+      /\b(?:forest|night|ruin|silence)\s+held\s+its\s+breath\b/gi,
+      /\b(?:moment|time|silence)\s+(?:was|became)\s+heavy\s+as\b/gi,
+      /\blike\s+(?:a|an|the)\s+(?:blade|steel|ash|law)\b/gi,
+      // Personification of nature/objects
+      /\b(?:water|wind|forest|night|silence|sun|moon|rain)\s+(?:giggled|laughed|sang|whispered|called|danced|sighed|wept|smiled|nodded|hummed)\b/gi,
+      // Meta-narration
+      /\b(?:the\s+)?(?:story|scene|narrative)\s+(?:closes|ends|ended|closed)\s+with\b/gi,
+      // Teaching sentences in dialogue
+      /\b(?:we\s+(?:have\s+)?learned|we\s+(?:have\s+)?understood|the\s+lesson|this\s+teaches\s+us)\b/gi,
+    ];
 
   const maxPoeticHits = ageMax <= 8 ? 2 : 3;
   for (const ch of draft.chapters) {
@@ -840,30 +845,30 @@ function gateTellPatternOveruse(
   // 10/10 Quality: Strict ban on emotion labels ("Somatic Marker" Enforcement)
   const tellPatterns = isDE
     ? [
-        /\b(?:er|sie|es|man)\s+sp(?:u|ue)rte\b/gi,
-        /\b(?:er|sie|es|man)\s+f(?:ue|u)hlte\s+sich\b/gi,
-        /\bwar\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s|fr(?:oe|o)hlich|begeistert|stolz|entt(?:ae|a)uscht)\b/gi,
-        /\bwurde\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s)\b/gi,
-        /\binnerlich\s+(?:zog|machte|wurde)\b/gi,
-        /\bstille\s+fiel\b/gi,
-        /\b(?:er|sie|es|man)\s+merkte\b/gi,
-        /\bherz\s+(?:klopfte|pochte|haemmerte)\s+wild\b/gi, // Cliché
-        /\b(?:traurig|w(?:ue|u)tend|nerv(?:oe|o)s|gl(?:ue|u)cklich)\s+(?:sagte|rief|fragte|antwortete)\b/gi, // Adverb tells
-        /\bpl(?:oe|o)tzlich\b/gi, // Ban "suddenly"
-        /\bauf\s+einmal\b/gi,
-      ]
+      /\b(?:er|sie|es|man)\s+sp(?:u|ue)rte\b/gi,
+      /\b(?:er|sie|es|man)\s+f(?:ue|u)hlte\s+sich\b/gi,
+      /\bwar\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s|fr(?:oe|o)hlich|begeistert|stolz|entt(?:ae|a)uscht)\b/gi,
+      /\bwurde\s+(?:traurig|gl(?:ue|u)cklich|w(?:ue|u)tend|froh|nerv(?:oe|o)s)\b/gi,
+      /\binnerlich\s+(?:zog|machte|wurde)\b/gi,
+      /\bstille\s+fiel\b/gi,
+      /\b(?:er|sie|es|man)\s+merkte\b/gi,
+      /\bherz\s+(?:klopfte|pochte|haemmerte)\s+wild\b/gi, // Cliché
+      /\b(?:traurig|w(?:ue|u)tend|nerv(?:oe|o)s|gl(?:ue|u)cklich)\s+(?:sagte|rief|fragte|antwortete)\b/gi, // Adverb tells
+      /\bpl(?:oe|o)tzlich\b/gi, // Ban "suddenly"
+      /\bauf\s+einmal\b/gi,
+    ]
     : [
-        /\b(?:he|she|it|they)\s+felt\b/gi,
-        /\b(?:he|she|it|they)\s+was\s+(?:sad|happy|angry|glad|nervous|excited|proud|disappointed|scared)\b/gi,
-        /\b(?:he|she|it|they)\s+became\s+(?:sad|happy|angry|nervous)\b/gi,
-        /\binside\s+(?:him|her|them)\s+(?:something\s+)?(?:tightened|pressed|pulled)\b/gi,
-        /\bsilence\s+fell\b/gi,
-        /\b(?:he|she|it|they)\s+noticed\b/gi,
-        /\bheart\s+(?:pounded|raced|thumped)\b/gi, // Cliché
-        /\b(?:sadly|happily|angrily|nervously|excitedly)\s+(?:said|asked|shouted)\b/gi, // Adverb tells
-        /\bsuddenly\b/gi, // Ban "suddenly"
-        /\ball\s+of\s+a\s+sudden\b/gi,
-      ];
+      /\b(?:he|she|it|they)\s+felt\b/gi,
+      /\b(?:he|she|it|they)\s+was\s+(?:sad|happy|angry|glad|nervous|excited|proud|disappointed|scared)\b/gi,
+      /\b(?:he|she|it|they)\s+became\s+(?:sad|happy|angry|nervous)\b/gi,
+      /\binside\s+(?:him|her|them)\s+(?:something\s+)?(?:tightened|pressed|pulled)\b/gi,
+      /\bsilence\s+fell\b/gi,
+      /\b(?:he|she|it|they)\s+noticed\b/gi,
+      /\bheart\s+(?:pounded|raced|thumped)\b/gi, // Cliché
+      /\b(?:sadly|happily|angrily|nervously|excitedly)\s+(?:said|asked|shouted)\b/gi, // Adverb tells
+      /\bsuddenly\b/gi, // Ban "suddenly"
+      /\ball\s+of\s+a\s+sudden\b/gi,
+    ];
 
   let repeatedTellHits = 0;
   let hitExamples: string[] = [];
@@ -1013,29 +1018,29 @@ function gateEndingPayoff(
 
   const cliffhangerPatterns = isDE
     ? [
-        /\?\s*$/,          // endet mit Frage
-        /\.\.\.\s*$/,      // endet mit ...
-        /doch dann\s*$/,
-        /was w[uü]rde\s/,
-        // Offene Spannungs-Sätze ohne Auflösung
-        /war greifbar\.?\s*$/i,
-        /lag im raum\.?\s*$/i,
-        /blieb unklar\.?\s*$/i,
-        /schien unm[öo]glich\.?\s*$/i,
-        /\bein falscher schritt\b/i,
-        /\bwürde ihren untergang\b/i,
-        /\bwerdet ihr zu stein\b/i,
-        /\bschatten wurden l[äa]nger\b/i,
-      ]
+      /\?\s*$/,          // endet mit Frage
+      /\.\.\.\s*$/,      // endet mit ...
+      /doch dann\s*$/,
+      /was w[uü]rde\s/,
+      // Offene Spannungs-Sätze ohne Auflösung
+      /war greifbar\.?\s*$/i,
+      /lag im raum\.?\s*$/i,
+      /blieb unklar\.?\s*$/i,
+      /schien unm[öo]glich\.?\s*$/i,
+      /\bein falscher schritt\b/i,
+      /\bwürde ihren untergang\b/i,
+      /\bwerdet ihr zu stein\b/i,
+      /\bschatten wurden l[äa]nger\b/i,
+    ]
     : [
-        /\?\s*$/,
-        /\.\.\.\s*$/,
-        /but then\s*$/,
-        /what would\s/,
-        /\bwas palpable\.?\s*$/i,
-        /\bone wrong move\b/i,
-        /\btheir doom\b/i,
-      ];
+      /\?\s*$/,
+      /\.\.\.\s*$/,
+      /but then\s*$/,
+      /what would\s/,
+      /\bwas palpable\.?\s*$/i,
+      /\bone wrong move\b/i,
+      /\btheir doom\b/i,
+    ];
 
   for (const pattern of cliffhangerPatterns) {
     if (pattern.test(lastSentence.trim())) {
@@ -1054,22 +1059,22 @@ function gateEndingPayoff(
 
   const endingUnresolvedPatterns = isDE
     ? [
-        /\bungewiss\b/i,
-        /\bunbekannt\b/i,
-        /\boffen\b/i,
-        /\bam naechsten morgen\b/i,
-        /\bam nächsten morgen\b/i,
-        /\bneue[nr]?\s+r[aä]tsel\b/i,
-        /\bbald\b/i,
-      ]
+      /\bungewiss\b/i,
+      /\bunbekannt\b/i,
+      /\boffen\b/i,
+      /\bam naechsten morgen\b/i,
+      /\bam nächsten morgen\b/i,
+      /\bneue[nr]?\s+r[aä]tsel\b/i,
+      /\bbald\b/i,
+    ]
     : [
-        /\buncertain\b/i,
-        /\bunknown\b/i,
-        /\bopen\b/i,
-        /\bnext morning\b/i,
-        /\bnew puzzle\b/i,
-        /\bsoon\b/i,
-      ];
+      /\buncertain\b/i,
+      /\bunknown\b/i,
+      /\bopen\b/i,
+      /\bnext morning\b/i,
+      /\bnew puzzle\b/i,
+      /\bsoon\b/i,
+    ];
 
   const closingWindow = lastSentences.slice(Math.max(0, lastSentences.length - 3)).join(" ");
   if (endingUnresolvedPatterns.some(pattern => pattern.test(closingWindow))) {
@@ -1348,17 +1353,17 @@ function gateMetaForeshadowPhrases(
 
   const patterns = isDE
     ? [
-        /\bbald\s+w(?:u|ue|ü)rden?\s+(?:sie|er|es)\s+(?:wissen|erfahren|sehen|verstehen|merken|begreifen)\b/i,
-        /\bein\s+(?:leiser\s+)?ausblick\s+blieb\b/i,
-        /\b(?:der|ein)\s+ausblick\s+blieb\b/i,
-        /\bnoch\s+wussten\s+sie\s+nicht\b/i,
-      ]
+      /\bbald\s+w(?:u|ue|ü)rden?\s+(?:sie|er|es)\s+(?:wissen|erfahren|sehen|verstehen|merken|begreifen)\b/i,
+      /\bein\s+(?:leiser\s+)?ausblick\s+blieb\b/i,
+      /\b(?:der|ein)\s+ausblick\s+blieb\b/i,
+      /\bnoch\s+wussten\s+sie\s+nicht\b/i,
+    ]
     : [
-        /\bsoon\s+(?:they|he|she)\s+would\s+(?:know|learn|see|understand|realize)\b/i,
-        /\ba\s+quiet\s+outlook\s+remained\b/i,
-        /\ban?\s+outlook\s+remained\b/i,
-        /\bthey\s+did\s+not\s+yet\s+know\b/i,
-      ];
+      /\bsoon\s+(?:they|he|she)\s+would\s+(?:know|learn|see|understand|realize)\b/i,
+      /\ba\s+quiet\s+outlook\s+remained\b/i,
+      /\ban?\s+outlook\s+remained\b/i,
+      /\bthey\s+did\s+not\s+yet\s+know\b/i,
+    ];
 
   for (const chapter of draft.chapters) {
     if (!patterns.some(pattern => pattern.test(chapter.text))) continue;
@@ -1387,19 +1392,19 @@ function gateRuleExpositionTell(
 
   const sentencePatterns = isDE
     ? [
-        /\bzeigt\s+m(?:oe|ö)gliche[nr]?\s+\w+/i,
-        /\bbedeutet\s*,?\s*dass\b/i,
-        /\b(?:regel|gesetz)\s+(?:lautet|ist)\b/i,
-        /\bfunktioniert\s+so\b/i,
-        /^(?:das|der|die)\s+[a-zäöüß\-]{3,}\s+(?:zeigt|bedeutet|kann|funktioniert)\b[^.!?]{0,80}\b(?:dass|wenn|immer|nur|m(?:oe|ö)glich|regel|hei(?:ss|ß)t)\b/i,
-      ]
+      /\bzeigt\s+m(?:oe|ö)gliche[nr]?\s+\w+/i,
+      /\bbedeutet\s*,?\s*dass\b/i,
+      /\b(?:regel|gesetz)\s+(?:lautet|ist)\b/i,
+      /\bfunktioniert\s+so\b/i,
+      /^(?:das|der|die)\s+[a-zäöüß\-]{3,}\s+(?:zeigt|bedeutet|kann|funktioniert)\b[^.!?]{0,80}\b(?:dass|wenn|immer|nur|m(?:oe|ö)glich|regel|hei(?:ss|ß)t)\b/i,
+    ]
     : [
-        /\bshows?\s+possible\s+\w+/i,
-        /\bmeans?\s+that\b/i,
-        /\bthe\s+rule\s+is\b/i,
-        /\bworks?\s+like\s+this\b/i,
-        /^(?:the|this)\s+[a-z\-]{3,}\s+(?:shows?|means?|can|works?)\b[^.!?]{0,80}\b(?:that|when|always|only|rule)\b/i,
-      ];
+      /\bshows?\s+possible\s+\w+/i,
+      /\bmeans?\s+that\b/i,
+      /\bthe\s+rule\s+is\b/i,
+      /\bworks?\s+like\s+this\b/i,
+      /^(?:the|this)\s+[a-z\-]{3,}\s+(?:shows?|means?|can|works?)\b[^.!?]{0,80}\b(?:that|when|always|only|rule)\b/i,
+    ];
 
   for (const chapter of draft.chapters) {
     const sentences = splitSentences(chapter.text);
@@ -1432,19 +1437,19 @@ function gateNarrativeSummaryMeta(
 
   const summaryPatterns = isDE
     ? [
-        /\bdie\s+konsequenz\s+war\s+klar\b/i,
-        /\bder\s+preis\?\b/i,
-        /\bder\s+gewinn\?\b/i,
-        /\bkurz\s+gesagt\b/i,
-        /\bdie\s+frage\s+war\b/i,
-      ]
+      /\bdie\s+konsequenz\s+war\s+klar\b/i,
+      /\bder\s+preis\?\b/i,
+      /\bder\s+gewinn\?\b/i,
+      /\bkurz\s+gesagt\b/i,
+      /\bdie\s+frage\s+war\b/i,
+    ]
     : [
-        /\bthe\s+consequence\s+was\s+clear\b/i,
-        /\bthe\s+price\?\b/i,
-        /\bthe\s+gain\?\b/i,
-        /\bin\s+short\b/i,
-        /\bthe\s+question\s+was\b/i,
-      ];
+      /\bthe\s+consequence\s+was\s+clear\b/i,
+      /\bthe\s+price\?\b/i,
+      /\bthe\s+gain\?\b/i,
+      /\bin\s+short\b/i,
+      /\bthe\s+question\s+was\b/i,
+    ];
 
   for (const chapter of draft.chapters) {
     const hasSummaryMeta = summaryPatterns.some(pattern => pattern.test(chapter.text));
@@ -1473,22 +1478,22 @@ function gateNarrativeNaturalness(
 
   const protocolMetaPatterns = isDE
     ? [
-        /\bdie\s+szene\s+endete\b/i,
-        /\bdie\s+szenerie\s+endete\b/i,
-        /\bdie\s+handlung\s+r(?:ue|ü)ckte\s+vor\b/i,
-        /\bnichts\s+mit\s+konflikt\b/i,
-        /\bkeine\s+konflikt\b/i,
-        /\bwir\s+ersetzen\s+es\b/i,
-        /\bich\s+idee\b/i,
-        /\bein\s+warmes?\s+ende\s+folgte\b/i,
-      ]
+      /\bdie\s+szene\s+endete\b/i,
+      /\bdie\s+szenerie\s+endete\b/i,
+      /\bdie\s+handlung\s+r(?:ue|ü)ckte\s+vor\b/i,
+      /\bnichts\s+mit\s+konflikt\b/i,
+      /\bkeine\s+konflikt\b/i,
+      /\bwir\s+ersetzen\s+es\b/i,
+      /\bich\s+idee\b/i,
+      /\bein\s+warmes?\s+ende\s+folgte\b/i,
+    ]
     : [
-        /\bthe\s+scene\s+ended\b/i,
-        /\bthe\s+action\s+moved\s+forward\b/i,
-        /\bno\s+conflict\b/i,
-        /\bwe\s+replace\s+it\b/i,
-        /\ba\s+warm\s+ending\s+followed\b/i,
-      ];
+      /\bthe\s+scene\s+ended\b/i,
+      /\bthe\s+action\s+moved\s+forward\b/i,
+      /\bno\s+conflict\b/i,
+      /\bwe\s+replace\s+it\b/i,
+      /\ba\s+warm\s+ending\s+followed\b/i,
+    ];
 
   const reportSentencePattern = isDE
     ? /^(?:wir|sie|er|die\s+kinder|[A-ZÄÖÜ][a-zäöüß]+)\s+(?:ging(?:en)?|lief(?:en)?|stand(?:en)?|war(?:en)?|hatte(?:n)?|machte(?:n)?|nahm(?:en)?|legte(?:n)?|zeigte(?:n)?|sagte(?:n)?|fragte(?:n)?|nickte(?:n)?|blieb(?:en)?)\b/i
@@ -1568,16 +1573,16 @@ function gateSceneContinuity(
 
   const settingTerms = isDE
     ? [
-        "zimmer", "kammer", "truhe", "keller", "dachboden", "werkstatt", "uhr", "lavendel",
-        "wald", "markt", "fest", "platz", "hof", "kueche", "küche", "tor", "bruecke", "brücke",
-        "halle", "saal", "schloss", "schlafzimmer", "speisesaal", "brunnen", "fluss", "ufer",
-        "muehle", "mühle", "garten", "thronsaal", "flur", "treppe",
-      ]
+      "zimmer", "kammer", "truhe", "keller", "dachboden", "werkstatt", "uhr", "lavendel",
+      "wald", "markt", "fest", "platz", "hof", "kueche", "küche", "tor", "bruecke", "brücke",
+      "halle", "saal", "schloss", "schlafzimmer", "speisesaal", "brunnen", "fluss", "ufer",
+      "muehle", "mühle", "garten", "thronsaal", "flur", "treppe",
+    ]
     : [
-        "room", "chamber", "chest", "cellar", "attic", "workshop", "clock", "lavender",
-        "forest", "market", "festival", "square", "yard", "kitchen", "gate", "bridge",
-        "hall", "castle", "bedroom", "dining hall", "well", "river", "shore", "mill", "garden", "stair",
-      ];
+      "room", "chamber", "chest", "cellar", "attic", "workshop", "clock", "lavender",
+      "forest", "market", "festival", "square", "yard", "kitchen", "gate", "bridge",
+      "hall", "castle", "bedroom", "dining hall", "well", "river", "shore", "mill", "garden", "stair",
+    ];
   const hardLocationOpening = isDE
     ? /\b(?:im|in der|in den|in einem|am|auf dem)\s+(?:schloss|saal|thronsaal|halle|zimmer|schlafzimmer|speisesaal|keller|brunnen|fluss|ufer|markt|wald|hof|muehle|mühle|garten|flur)\b/i
     : /\b(?:in|at|inside|on)\s+(?:the\s+)?(?:castle|hall|room|bedroom|dining\s+hall|cellar|well|river|shore|market|forest|yard|mill|garden|corridor)\b/i;
@@ -1634,13 +1639,13 @@ function gateCanonFusion(draft: StoryDraft, cast: CastSet, language: string): Qu
   // Extra regex patterns for belonging language
   const extraPatterns = isDE
     ? [
-        /als\s+(?:ob|wäre|hätte)\s+(?:er|sie|es)\s+schon\s+immer/gi,
-        /geh[öo]r(?:te|en)\s+(?:schon|seit)\s+(?:immer|jeher|langem)/gi,
-      ]
+      /als\s+(?:ob|wäre|hätte)\s+(?:er|sie|es)\s+schon\s+immer/gi,
+      /geh[öo]r(?:te|en)\s+(?:schon|seit)\s+(?:immer|jeher|langem)/gi,
+    ]
     : [
-        /as\s+(?:if|though)\s+(?:they|he|she)\s+had\s+always/gi,
-        /belonged?\s+here\s+(?:since|from\s+the\s+start)/gi,
-      ];
+      /as\s+(?:if|though)\s+(?:they|he|she)\s+had\s+always/gi,
+      /belonged?\s+here\s+(?:since|from\s+the\s+start)/gi,
+    ];
 
   for (const chapter of draft.chapters) {
     for (const pattern of extraPatterns) {
@@ -1875,17 +1880,17 @@ function gateStakesAndLowpoint(
 
   const stakesPatterns = isDE
     ? [
-        /wenn\s+wir[^.!?]{0,90}(dann|verlieren|verpassen|zu\s+sp(?:ae|ä)t|schaffen)/i,
-        /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
-        /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
-        /\bverlieren\s+wir\b/i,
-        /\bdroht\b[^.!?]{0,70}\b(verlust|zu\s+sp(?:ae|ä)t|weg|gefangen)\b/i,
-      ]
+      /wenn\s+wir[^.!?]{0,90}(dann|verlieren|verpassen|zu\s+sp(?:ae|ä)t|schaffen)/i,
+      /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
+      /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
+      /\bverlieren\s+wir\b/i,
+      /\bdroht\b[^.!?]{0,70}\b(verlust|zu\s+sp(?:ae|ä)t|weg|gefangen)\b/i,
+    ]
     : [
-        /if\s+we[^.!?]{0,90}then/i,
-        /if\s+we[^.!?]{0,80}don't\s+(make|reach|find|solve)/i,
-        /otherwise[^.!?]{0,80}(lose|miss|fail|stuck)/i,
-      ];
+      /if\s+we[^.!?]{0,90}then/i,
+      /if\s+we[^.!?]{0,80}don't\s+(make|reach|find|solve)/i,
+      /otherwise[^.!?]{0,80}(lose|miss|fail|stuck)/i,
+    ];
   const stakesConnectorPattern = isDE
     ? /\b(wenn|falls|sonst|ohne|bevor|damit|droht)\b/i
     : /\b(if|otherwise|unless|without|before|or\s+else|at\s+risk)\b/i;
@@ -1941,11 +1946,11 @@ function gateStakesAndLowpoint(
   const lowpointCandidates = draft.chapters.filter(ch => ch.chapter === 3 || ch.chapter === 4);
   const setbackPatterns = isDE
     ? [
-        /scheiter|fehl(?!erlos)|falsch|verlor|blockier|geschlossen|schlie(?:s|ß)t|bricht|sackgasse|nicht\s+weiter|zu\s+sp(?:ae|ä)t/i,
-      ]
+      /scheiter|fehl(?!erlos)|falsch|verlor|blockier|geschlossen|schlie(?:s|ß)t|bricht|sackgasse|nicht\s+weiter|zu\s+sp(?:ae|ä)t/i,
+    ]
     : [
-        /fail|wrong|lost|blocked|closed|collapse|dead\s*end|can't\s+go\s+on|too\s+late/i,
-      ];
+      /fail|wrong|lost|blocked|closed|collapse|dead\s*end|can't\s+go\s+on|too\s+late/i,
+    ];
   const emotionPatterns = isDE
     ? [/zitter|schluck|magen|bauch|traute?\s+sich\s+nicht|zweifel|angst|herz/i]
     : [/trembl|swallow|stomach|doubt|fear|heart/i];
@@ -1985,20 +1990,20 @@ function gateStakesAndLowpoint(
   if (lowpointChapter) {
     const lowpointSoftenerPatterns = isDE
       ? [
-          /\bkein(?:e|en)?\s+katastrophe\b/i,
-          /\bnur\s+ein\s+kleiner\s+schreck\b/i,
-          /\bnichts\s+schlimmes\b/i,
-          /\bohne\s+echte\s+folgen\b/i,
-          /\bnur\s+eine?\s+kleine?\s+verzoegerung\b/i,
-          /\bnur\s+eine?\s+kleine?\s+verzögerung\b/i,
-        ]
+        /\bkein(?:e|en)?\s+katastrophe\b/i,
+        /\bnur\s+ein\s+kleiner\s+schreck\b/i,
+        /\bnichts\s+schlimmes\b/i,
+        /\bohne\s+echte\s+folgen\b/i,
+        /\bnur\s+eine?\s+kleine?\s+verzoegerung\b/i,
+        /\bnur\s+eine?\s+kleine?\s+verzögerung\b/i,
+      ]
       : [
-          /\bnot\s+a\s+disaster\b/i,
-          /\bjust\s+a\s+small\s+scare\b/i,
-          /\bnothing\s+serious\b/i,
-          /\bwithout\s+real\s+consequences\b/i,
-          /\bjust\s+a\s+small\s+delay\b/i,
-        ];
+        /\bnot\s+a\s+disaster\b/i,
+        /\bjust\s+a\s+small\s+scare\b/i,
+        /\bnothing\s+serious\b/i,
+        /\bwithout\s+real\s+consequences\b/i,
+        /\bjust\s+a\s+small\s+delay\b/i,
+      ];
 
     if (lowpointSoftenerPatterns.some(pattern => pattern.test(lowpointChapter.text))) {
       issues.push({
@@ -2194,17 +2199,17 @@ function gateHumorPresence(
   const minHumorMoments = level >= 3 ? 3 : level >= 2 ? 2 : 1;
   const humorPatterns = isDE
     ? [
-        /\b(lacht|lachen|lachte|kichert|kicherte|kichernd|grinst|grinste|prustet|prustete)\b/i,
-        /\b(hihi|haha|hehe|kicher|prust)\b/i,
-        /\b(witz|scherz|komisch|lustig)\b/i,
-        /\b(stolperte[^.!?]{0,50}und[^.!?]{0,50}lachte)\b/i,
-      ]
+      /\b(lacht|lachen|lachte|kichert|kicherte|kichernd|grinst|grinste|prustet|prustete)\b/i,
+      /\b(hihi|haha|hehe|kicher|prust)\b/i,
+      /\b(witz|scherz|komisch|lustig)\b/i,
+      /\b(stolperte[^.!?]{0,50}und[^.!?]{0,50}lachte)\b/i,
+    ]
     : [
-        /\b(laugh|laughed|giggle|giggled|grin|grinned|snort|snorted|chuckle|chuckled)\b/i,
-        /\b(ha-ha|haha|hehe|teehee)\b/i,
-        /\b(joke|funny|playful|comical)\b/i,
-        /\b(stumbled[^.!?]{0,50}and[^.!?]{0,50}laughed)\b/i,
-      ];
+      /\b(laugh|laughed|giggle|giggled|grin|grinned|snort|snorted|chuckle|chuckled)\b/i,
+      /\b(ha-ha|haha|hehe|teehee)\b/i,
+      /\b(joke|funny|playful|comical)\b/i,
+      /\b(stumbled[^.!?]{0,50}and[^.!?]{0,50}laughed)\b/i,
+    ];
 
   let humorChapterHits = 0;
   for (const chapter of draft.chapters) {
@@ -3318,11 +3323,11 @@ function shouldFlagUnlockedName(text: string, token: string, matchIndex: number,
 
   if (/\s+/.test(normalized)) return true;
 
-    if (hasGermanNameHonorificPrefix(text, matchIndex)) return true;
-    
-    if (isLikelyCharacterAction(text, token, matchIndex)) return true;
+  if (hasGermanNameHonorificPrefix(text, matchIndex)) return true;
 
-    return false;
+  if (isLikelyCharacterAction(text, token, matchIndex)) return true;
+
+  return false;
 }
 
 function hasGermanNameHonorificPrefix(text: string, matchIndex: number): boolean {
