@@ -590,12 +590,12 @@ export function buildFullStoryPrompt(input: {
     const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
       ? ` [${artifactName}]`
       : "";
-    const settingCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), 64);
-    const actionCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), 120);
-    const pressureCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), 120);
-    const turnCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), 92);
+    const settingCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), 52);
+    const actionCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), 92);
+    const pressureCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), 92);
+    const turnCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), 74);
     const artifactCue = directive.artifactUsage
-      ? trimDirectiveText(sanitizeDirectiveNarrativeText(directive.artifactUsage), 92)
+      ? trimDirectiveText(sanitizeDirectiveNarrativeText(directive.artifactUsage), 74)
       : "";
 
     return `CH ${idx + 1}
@@ -603,7 +603,7 @@ export function buildFullStoryPrompt(input: {
 - Must happen: ${actionCue}
 - Pressure now: ${pressureCue}
 - End shift: ${turnCue}
-- On stage: ${uniqueCast.join(", ") || "none"}${artifactCue ? `\n- Artifact move: ${artifactCue}` : ""}${fusionHint ? `\n- Extra cue: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 70)}` : ""}`;
+- On stage: ${uniqueCast.join(", ") || "none"}${artifactCue ? `\n- Artifact move: ${artifactCue}` : ""}${fusionHint ? `\n- Extra cue: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 58)}` : ""}`;
   }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
@@ -635,18 +635,18 @@ export function buildFullStoryPrompt(input: {
     let specialRule = "Every listed character gets at least one physical action and one spoken line.";
     if (idx === 0) {
       specialRule += isGerman
-        ? " Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... dann/sonst ...\"."
-        : " Include one explicit stakes sentence with \"if ... then/otherwise ...\".";
+        ? " Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
+        : " Include one explicit stakes sentence with \"if ... otherwise ...\" and one concrete thing at risk (key, path, map).";
     }
     if (idx === 2 || idx === 3) {
       specialRule += isGerman
-        ? " Konkreter Rueckschlag (etwas bricht/geht verloren) plus koerperliche Reaktion."
-        : " Include a concrete setback (something breaks/is lost) plus a somatic reaction.";
+        ? " Konkreter Rueckschlag (brach/verlor/blockiert/zu spaet) plus Koerpersignal (Magen/schluckte/zitterte)."
+        : " Include a concrete setback (broke/lost/blocked/too late) plus one body reaction (stomach/swallowed/trembled).";
     }
     if (idx === directives.length - 1) {
       specialRule += isGerman
-        ? " Zeige konkreten Gewinn plus kleinen, greifbaren Preis."
-        : " Show a concrete payoff plus one small tangible price.";
+        ? " Zeige konkreten Gewinn (geschafft/gefunden/gerettet + Objekt) UND kleinen Preis mit Marker (aber/kostete/musste/riss/kaputt)."
+        : " Show concrete payoff (saved/found/solved + object) AND a small cost marker (but/cost/had to/tore/broke).";
     }
 
     return `- Ch${idx + 1}: ${uniqueCast.join(", ") || "none"}. ${specialRule}`;
@@ -675,6 +675,10 @@ ${geminiMicroExamples}
 7. Never copy Goal/Conflict/Setting wording verbatim. Dramatize into scene action.
 8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Paraphrase every beat cue.
 9. Keep optional metadata ultra-short; spend tokens on chapter prose.
+10. Validator anchors (must be natural prose, not checklist text):
+   - Ch1 includes one "Wenn ... sonst ..." sentence with concrete loss.
+   - Ch3 or Ch4 contains setback + body reaction.
+   - Final chapter includes concrete win + small cost line using "aber" or "kostete/musste".
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -977,11 +981,7 @@ export function buildChapterExpansionPrompt(input: {
 Expand the chapter without changing the plot.Show, don't tell!
   IMPORTANT: Vivid prose! Concrete details(smell, taste, feel), dialogue - humor, sentence variation.
 No feeling - diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
-
-::: THE "10.0/10.0" QUALITY BENCHMARK:::
-A score of 0.0 means: AI - generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions("he was sad").
-A score of 10.0 means: A published, award - winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
-YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+Target quality: published children's fiction (concrete action, distinct voices, emotional subtext), never report-style prose.
 
 # SCENE
     - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
@@ -1198,11 +1198,7 @@ export function buildStoryChapterRevisionPrompt(input: {
   ].filter(Boolean).join("\n");
 
   return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
-
-::: THE "10.0/10.0" QUALITY BENCHMARK :::
-A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
-A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
-YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+Target quality: published children's fiction (concrete action, distinct voices, emotional subtext), never report-style prose.
 
 ISSUES:
 ${issueList}

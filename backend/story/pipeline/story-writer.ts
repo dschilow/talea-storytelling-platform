@@ -106,6 +106,8 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "MISSING_LOWPOINT",
   "LOWPOINT_EMOTION_THIN",
   "LOWPOINT_TOO_SOFT",
+  "MISSING_INNER_CHILD_MOMENT",
+  "NO_CHILD_ERROR_CORRECTION_ARC",
   "ENDING_PAYOFF_ABSTRACT",
   "ENDING_PRICE_MISSING",
   "ENDING_WARMTH_MISSING",
@@ -117,6 +119,22 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "REPORT_STYLE_OVERUSE",
   "PARAGRAPH_CHOPPY",
 ]);
+
+const FLASH_EMERGENCY_POLISH_CODES = new Set([
+  "MISSING_EXPLICIT_STAKES",
+  "STAKES_TOO_ABSTRACT",
+  "MISSING_LOWPOINT",
+  "LOWPOINT_EMOTION_THIN",
+  "LOWPOINT_TOO_SOFT",
+  "MISSING_INNER_CHILD_MOMENT",
+  "NO_CHILD_ERROR_CORRECTION_ARC",
+  "ENDING_PAYOFF_ABSTRACT",
+  "ENDING_PRICE_MISSING",
+  "ENDING_WARMTH_MISSING",
+  "GOAL_THREAD_WEAK_ENDING",
+]);
+
+const FLASH_EMERGENCY_POLISH_MAX_CALLS = 3;
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -204,6 +222,47 @@ ${storyLanguageRule}`.trim();
       return isGeminiModel ? Math.min(safeMax, 8192) : safeMax;
     };
 
+    const resolveGeminiThinkingBudget = (
+      step: "full" | "recovery" | "expand" | "warning-polish" | "rewrite" | "title",
+    ): number | undefined => {
+      if (!isGeminiModel) return undefined;
+      if (isGeminiFlashModel) {
+        switch (step) {
+          case "full":
+            return 896;
+          case "recovery":
+            return 640;
+          case "rewrite":
+            return 384;
+          case "expand":
+          case "warning-polish":
+            return 192;
+          case "title":
+            return 64;
+          default:
+            return 256;
+        }
+      }
+      if (isGemini3) {
+        switch (step) {
+          case "full":
+            return 1536;
+          case "recovery":
+            return 1024;
+          case "rewrite":
+            return 768;
+          case "expand":
+          case "warning-polish":
+            return 320;
+          case "title":
+            return 96;
+          default:
+            return 384;
+        }
+      }
+      return 512;
+    };
+
     const callStoryModel = async (input: {
       systemPrompt: string;
       userPrompt: string;
@@ -215,6 +274,7 @@ ${storyLanguageRule}`.trim();
       logMetadata?: Record<string, any>;
       reasoningEffort?: "low" | "medium" | "high";
       seed?: number;
+      thinkingBudget?: number;
     }) => {
       if (isGeminiModel) {
         const geminiResponse = await generateWithGemini({
@@ -223,6 +283,9 @@ ${storyLanguageRule}`.trim();
           model,
           maxTokens: clampMaxTokens(input.maxTokens),
           temperature: input.temperature,
+          thinkingBudget: input.thinkingBudget,
+          logSource: input.logSource,
+          logMetadata: input.logMetadata,
         });
         return {
           content: geminiResponse.content,
@@ -342,6 +405,7 @@ ${storyLanguageRule}`.trim();
       temperature: storyTemperature,
       reasoningEffort: isReasoningModel ? "high" : "medium",
       seed: generationSeed,
+      thinkingBudget: resolveGeminiThinkingBudget("full"),
       context: "story-writer-full",
       logSource: "phase6-story-llm",
       logMetadata: { storyId: normalizedRequest.storyId, step: "full", candidateTag, promptMode: activePromptMode },
@@ -381,6 +445,7 @@ ${storyLanguageRule}`.trim();
             temperature: storyTemperature,
             reasoningEffort: isReasoningModel ? "high" : "medium",
             seed: typeof generationSeed === "number" ? generationSeed + 173 : undefined,
+            thinkingBudget: resolveGeminiThinkingBudget("recovery"),
             context: "story-writer-full-recovery",
             logSource: "phase6-story-llm",
             logMetadata: {
@@ -497,6 +562,7 @@ ${storyLanguageRule}`.trim();
             responseFormat: "json_object",
             maxTokens,
             temperature: 0.4,
+            thinkingBudget: resolveGeminiThinkingBudget("expand"),
             context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter, candidateTag },
@@ -547,12 +613,14 @@ ${storyLanguageRule}`.trim();
         return { draft: draftInput, changed: false };
       }
 
+      const chapterCount = draftInput.chapters.length;
       const chapterIssues = new Map<number, string[]>();
       for (const issue of polishIssues) {
-        if (issue.chapter <= 0) continue;
-        const list = chapterIssues.get(issue.chapter) ?? [];
+        const targetChapter = resolveIssueTargetChapter(issue, chapterCount);
+        if (targetChapter <= 0) continue;
+        const list = chapterIssues.get(targetChapter) ?? [];
         list.push(`[${issue.code}] ${issue.message}`);
-        chapterIssues.set(issue.chapter, list);
+        chapterIssues.set(targetChapter, list);
       }
       if (chapterIssues.size === 0) {
         return { draft: draftInput, changed: false };
@@ -565,8 +633,14 @@ ${storyLanguageRule}`.trim();
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
       let usage: TokenUsage | undefined;
+      const isPolishBudgetExceeded = () =>
+        ((totalUsage?.totalTokens || 0) + (usage?.totalTokens || 0)) >= maxStoryTokens;
 
       for (const [chapterNo, issues] of ranked) {
+        if (isPolishBudgetExceeded()) {
+          console.warn("[story-writer] Stopping warning polish due to token budget ceiling.");
+          break;
+        }
         const chapter = updatedChapters.find(ch => ch.chapter === chapterNo);
         const directive = directives.find(d => d.chapter === chapterNo);
         if (!chapter || !directive) continue;
@@ -592,9 +666,9 @@ ${storyLanguageRule}`.trim();
         });
 
         const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
-        const polishReasoningMultiplier = isReasoningModel ? 1.2 : 1;
-        const polishMinTokens = isReasoningModel ? 850 : 450;
-        const polishMaxTokensCap = isReasoningModel ? 1900 : 1500;
+        const polishReasoningMultiplier = isGeminiFlashModel ? 1.05 : (isReasoningModel ? 1.2 : 1);
+        const polishMinTokens = isGeminiFlashModel ? 380 : (isReasoningModel ? 850 : 450);
+        const polishMaxTokensCap = isGeminiFlashModel ? 1200 : (isReasoningModel ? 1900 : 1500);
         const maxTokens = Math.min(polishMaxTokensCap, Math.max(polishMinTokens, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
@@ -605,6 +679,7 @@ ${storyLanguageRule}`.trim();
             maxTokens,
             temperature: 0.35,
             reasoningEffort: "low",
+            thinkingBudget: resolveGeminiThinkingBudget("warning-polish"),
             context: `story-writer-warning-polish-${chapterNo}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo, candidateTag },
@@ -751,6 +826,7 @@ ${storyLanguageRule}`.trim();
           temperature: 0.4,
           reasoningEffort: isReasoningModel ? "low" : "medium",
           seed: typeof generationSeed === "number" ? generationSeed + rewriteAttempt : undefined,
+          thinkingBudget: resolveGeminiThinkingBudget("rewrite"),
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt, candidateTag },
@@ -853,7 +929,14 @@ ${storyLanguageRule}`.trim();
       }
     }
 
-    const emergencyWarningPolishCalls = maxWarningPolishCalls;
+    const emergencyWarningPolishCalls = maxWarningPolishCalls > 0
+      ? maxWarningPolishCalls
+      : (
+        isGeminiFlashModel
+        && maxRewritePasses === 0
+        ? resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length)
+        : 0
+      );
 
     if (canRunPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
       const warningPolish = await applyWarningPolish(draft, qualityReport, emergencyWarningPolishCalls);
@@ -919,6 +1002,7 @@ ${storyLanguageRule}`.trim();
           responseFormat: "json_object",
           maxTokens: 450,
           temperature: 0.6,
+          thinkingBudget: resolveGeminiThinkingBudget("title"),
           context: "story-title",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "title", candidateTag },
@@ -1505,6 +1589,64 @@ function getRewriteWarningIssues(report: { issues: QualityIssue[] }): QualityIss
 
 function getWarningPolishIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
   return report.issues.filter(issue => issue.severity === "WARNING" && WARNING_POLISH_CODES.has(issue.code));
+}
+
+function resolveIssueTargetChapter(
+  issue: { chapter: number; code: string },
+  chapterCount: number,
+): number {
+  if (issue.chapter > 0) {
+    return Math.min(chapterCount, issue.chapter);
+  }
+
+  if (chapterCount <= 0) return 0;
+
+  if (issue.code === "MISSING_EXPLICIT_STAKES" || issue.code === "STAKES_TOO_ABSTRACT") {
+    return 1;
+  }
+
+  if (
+    issue.code === "MISSING_LOWPOINT"
+    || issue.code === "LOWPOINT_EMOTION_THIN"
+    || issue.code === "LOWPOINT_TOO_SOFT"
+    || issue.code === "MISSING_INNER_CHILD_MOMENT"
+    || issue.code === "NO_CHILD_ERROR_CORRECTION_ARC"
+  ) {
+    if (chapterCount >= 4) return 3;
+    return Math.max(1, Math.min(chapterCount, 2));
+  }
+
+  if (
+    issue.code === "GOAL_THREAD_WEAK_ENDING"
+    || issue.code === "ENDING_PAYOFF_ABSTRACT"
+    || issue.code === "ENDING_PRICE_MISSING"
+    || issue.code === "ENDING_WARMTH_MISSING"
+  ) {
+    return chapterCount;
+  }
+
+  if (issue.code === "TELL_PATTERN_OVERUSE") {
+    return Math.max(1, Math.min(chapterCount, 2));
+  }
+
+  return 0;
+}
+
+function resolveEmergencyPolishCalls(
+  issues: Array<{ chapter: number; code: string; severity: "ERROR" | "WARNING" }>,
+  chapterCount: number,
+): number {
+  if (issues.length === 0 || chapterCount <= 0) return 0;
+
+  const targetChapters = new Set<number>();
+  for (const issue of issues) {
+    if (!FLASH_EMERGENCY_POLISH_CODES.has(issue.code)) continue;
+    const chapter = resolveIssueTargetChapter(issue, chapterCount);
+    if (chapter > 0) targetChapters.add(chapter);
+  }
+
+  if (targetChapters.size === 0) return 0;
+  return Math.min(FLASH_EMERGENCY_POLISH_MAX_CALLS, targetChapters.size);
 }
 
 function prioritizeIssuesForRewrite(issues: QualityIssue[]): QualityIssue[] {

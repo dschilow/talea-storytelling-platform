@@ -6,6 +6,8 @@
  */
 
 import { secret } from "encore.dev/config";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
 
 const geminiApiKey = secret("GeminiAPIKey");
 const MAX_RETRIES = 3;
@@ -115,7 +117,9 @@ interface GeminiGenerationRequest {
   model?: string;
   maxTokens: number;
   temperature?: number;
-  thinkingBudget?: number; // Thinking tokens for internal reasoning (default: 4096)
+  thinkingBudget?: number; // Optional override for internal reasoning tokens.
+  logSource?: string;
+  logMetadata?: Record<string, any>;
 }
 
 interface GeminiUsage {
@@ -129,6 +133,40 @@ interface GeminiGenerationResponse {
   content: string;
   usage: GeminiUsage;
   finishReason: string;
+}
+
+async function logGeminiLlmEvent(input: {
+  source: string;
+  request: any;
+  response: any;
+  metadata?: Record<string, any>;
+}) {
+  try {
+    await publishWithTimeout(logTopic as any, {
+      source: input.source,
+      timestamp: new Date(),
+      request: input.request,
+      response: input.response,
+      metadata: input.metadata ?? null,
+    });
+  } catch (error) {
+    console.warn("[gemini-generation] Failed to publish LLM event log", error);
+  }
+}
+
+function resolveDefaultThinkingBudget(modelName: string, maxTokens: number): number {
+  const normalized = (modelName || "").toLowerCase();
+  if (normalized.includes("flash")) {
+    if (maxTokens >= 7000) return 896;
+    if (maxTokens >= 3500) return 640;
+    return 192;
+  }
+  if (normalized.includes("gemini-3")) {
+    if (maxTokens >= 9000) return 1536;
+    if (maxTokens >= 4500) return 1024;
+    return 320;
+  }
+  return 512;
 }
 
 /**
@@ -145,52 +183,53 @@ export async function generateWithGemini(
     );
   }
   const modelCandidates = resolveGeminiModelCandidates(request.model);
-
-  const payload = {
-    systemInstruction: {
-      parts: [{ text: request.systemPrompt }]
-    },
-    contents: [
-      {
-        parts: [
-          {
-            text: request.userPrompt
-          }
-        ]
-      }
-    ],
-    generationConfig: {
-      temperature: request.temperature ?? 0.85,
-      maxOutputTokens: request.maxTokens || 65536,
-      responseMimeType: "application/json",
-      thinkingConfig: {
-        thinkingBudget: request.thinkingBudget ?? 4096, // Internal reasoning before story generation
-      },
-    },
-    safetySettings: [
-      {
-        category: "HARM_CATEGORY_HARASSMENT",
-        threshold: "BLOCK_NONE"
-      },
-      {
-        category: "HARM_CATEGORY_HATE_SPEECH",
-        threshold: "BLOCK_NONE"
-      },
-      {
-        category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        threshold: "BLOCK_NONE"
-      },
-      {
-        category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-        threshold: "BLOCK_NONE"
-      }
-    ]
-  };
+  const maxOutputTokens = request.maxTokens || 65536;
 
   let lastError: Error | null = null;
 
   for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
     const modelName = modelCandidates[modelIndex];
+    const thinkingBudget = request.thinkingBudget ?? resolveDefaultThinkingBudget(modelName, maxOutputTokens);
+    const payload = {
+      systemInstruction: {
+        parts: [{ text: request.systemPrompt }]
+      },
+      contents: [
+        {
+          parts: [
+            {
+              text: request.userPrompt
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: request.temperature ?? 0.85,
+        maxOutputTokens,
+        responseMimeType: "application/json",
+        thinkingConfig: {
+          thinkingBudget,
+        },
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
+    };
     const hasFallback = modelIndex < modelCandidates.length - 1;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${apiKey}`;
     let data: any = null;
@@ -199,7 +238,7 @@ export async function generateWithGemini(
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
       console.log(
-        `[gemini-generation] Calling Gemini API model=${modelName} (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${request.maxTokens}...`
+        `[gemini-generation] Calling Gemini API model=${modelName} (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${maxOutputTokens}, thinkingBudget=${thinkingBudget}...`
       );
       const startTime = Date.now();
 
@@ -335,6 +374,16 @@ export async function generateWithGemini(
       finishReason,
       maxOutputTokensRequested: request.maxTokens,
       responseTimeMs: responseTime,
+    });
+
+    await logGeminiLlmEvent({
+      source: request.logSource || "gemini-story-generation",
+      request: {
+        model: modelName,
+        payload,
+      },
+      response: data,
+      metadata: request.logMetadata,
     });
 
     return {
