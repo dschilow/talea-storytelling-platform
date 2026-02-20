@@ -75,13 +75,30 @@ function chunkUnits(units: string[], targetSegments: number): string[] {
   return result.filter(Boolean);
 }
 
+function normalizeWhitespace(text: string): string {
+  return String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function preservesSourceText(source: string, segments: string[]): boolean {
+  return normalizeWhitespace(source) === normalizeWhitespace(segments.join(" "));
+}
+
 function splitSentences(text: string): string[] {
-  const matches = text.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) || [];
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) return [];
+
+  // Lossless sentence splitting: keep punctuation, quotes, and inline dialogue tags.
+  const matches = normalized.match(/.+?(?:[.!?]+(?:["'”’»)\]]+)?(?=\s+|$)|$)/g) || [];
   return matches.map((part) => part.trim()).filter(Boolean);
 }
 
 function splitClauses(text: string): string[] {
-  const matches = text.match(/[^,;:]+(?:[,;:]|$)/g) || [];
+  const normalized = normalizeWhitespace(text);
+  if (!normalized) return [];
+
+  const matches = normalized.match(/.+?(?:[,;:](?=\s+|$)|$)/g) || [];
   return matches.map((part) => part.trim()).filter(Boolean);
 }
 
@@ -103,14 +120,22 @@ export function buildChapterTextSegments(content: string, hasPrimary: boolean, h
 
   if (paragraphs.length >= desiredSegments) return paragraphs;
 
-  const sentenceSegments = chunkUnits(splitSentences(joined), desiredSegments);
-  if (sentenceSegments.length >= desiredSegments) return sentenceSegments;
+  const sentenceUnits = splitSentences(joined);
+  const sentenceSegments = chunkUnits(sentenceUnits, desiredSegments);
+  if (sentenceSegments.length >= desiredSegments && preservesSourceText(joined, sentenceSegments)) {
+    return sentenceSegments;
+  }
 
-  const clauseSegments = chunkUnits(splitClauses(joined), desiredSegments);
-  if (clauseSegments.length >= desiredSegments) return clauseSegments;
+  const clauseUnits = splitClauses(joined);
+  const clauseSegments = chunkUnits(clauseUnits, desiredSegments);
+  if (clauseSegments.length >= desiredSegments && preservesSourceText(joined, clauseSegments)) {
+    return clauseSegments;
+  }
 
   const wordSegments = splitWordChunks(joined, desiredSegments);
-  if (wordSegments.length >= desiredSegments) return wordSegments;
+  if (wordSegments.length >= desiredSegments && preservesSourceText(joined, wordSegments)) {
+    return wordSegments;
+  }
 
   return paragraphs.length > 0 ? paragraphs : [joined];
 }
