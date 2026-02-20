@@ -537,7 +537,12 @@ export function buildFullStoryPrompt(input: {
   // We integrate the "Scene-Sequel" pacing and "Somatic Marker" emotion rules directly.
   return `::: SYSTEM INSTRUCTION :::
 You are the world's greatest children's book author (a fusion of Astrid Lindgren's warmth, Roald Dahl's wit, and Cornelia Funke's imagery).
-You are writing a "10/10" quality bestseller.
+You are writing a "10.0/10.0" quality bestseller.
+
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 
 ::: THE "10/10" WRITING METHODOLOGY :::
 
@@ -583,6 +588,7 @@ You are writing a "10/10" quality bestseller.
     *   **The "Summary Trap":** Do not summarize events ("They had a great adventure"). PLAY THE ADVENTURE OUT.
     *   **The "Lesson Hammer":** Do not preach. The moral must be invisible.
     *   **The "Adjective Soup":** Do not stack adjectives ("The big, red, shiny, beautiful ball"). Pick ONE perfect word ("The ruby-red ball").
+    *   **The "Prompt Leak":** NEVER copy the Goal, Conflict, or Setting text directly into the story. NEVER use meta-phrases like "The scene leads to the next beat" or "A new beat started". Dramatize the instructions into natural prose.
 
 ::: CRITICAL CONSTRAINTS :::
 1. LANGUAGE: ${outputLang} ONLY. ${umlautRule}
@@ -591,6 +597,7 @@ You are writing a "10/10" quality bestseller.
    -> FAILURE MODE: Stories under ${totalWordMin} words will be REJECTED. Expand interactions!
 4. CAST: Only ${allowedNames.join(", ")}. No new names.
 5. SAFETY: ${safetyRule}
+6. HUMOR: ${humorRule}
 
 ${avatarRule ? `::: AVATAR RULES :::\n${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -598,11 +605,17 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
 ::: CHARACTER VOICES :::
 ${characterProfiles.join("\n")}
+${childVoiceContract ? `\n${childVoiceContract}` : ""}
 ${memorySection}
 ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misinterpretation -> Mastery (Child solves it, not the artifact).\n` : ""}
 
 ::: PROMPTED STORY BEATS :::
+(DRAMATIZE THESE BEATS. DO NOT COPY THE TEXT LITERALLY. NO META-LANGUAGE.)
 ${beatLines}
+
+${goldenExample}
+
+${antiPatterns}
 
 ::: OUTPUT FORMAT :::
 You must output a single JSON object with a "_planning" field. Use this field to "think" before writing.
@@ -612,6 +625,8 @@ You must output a single JSON object with a "_planning" field. Use this field to
     "theme_focus": "One word theme (e.g. 'Courage')",
     "somatic_vocabulary": ["List 5 physical sensations you will use instead of emotion words"],
     "pacing_check": "How will you ensure sentence length variety?",
+    "anti_leak_check": "Confirm you will NOT use meta-phrases like 'next beat' or copy the prompt text.",
+    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)",
     "chapter_plans": [
       { "chapter": 1, "goal": "Specific goal", "conflict": "Specific obstacle", "ending": "Cliffhanger/Shift" }
     ]
@@ -678,10 +693,15 @@ export function buildFullStoryRewritePrompt(input: {
   const outputLang = isGerman ? "German" : targetLanguage;
   const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII. No English words." : "";
 
-  return `TASK: Rewrite this story to "10/10" quality standards. The previous draft was rejected for being too flat/generic.
+  return `TASK: Rewrite this story to "10.0/10.0" quality standards. The previous draft was rejected for being too flat/generic.
 
 ::: CRITIC FEEDBACK (MUST FIX) :::
 ${qualityIssues || "- General prose improvement needed. Too short, flat characters."}
+
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 
 ::: THE "10/10" WRITING STANDARD :::
 1.  **SHOW, DON'T TELL (SOMATIC MARKERS)**
@@ -699,6 +719,10 @@ ${qualityIssues || "- General prose improvement needed. Too short, flat characte
     *   Every dialogue line needs a physical anchor.
     *   *Bad:* "Hello," said Tom.
     *   *Good:* Tom kicked the dirt. "Hello."
+
+4.  **PROMPT LEAK PREVENTION**
+    *   NEVER copy the Goal, Conflict, or Setting text directly into the story.
+    *   NEVER use meta-phrases like "The scene leads to the next beat" or "A new beat started".
 
 ::: HARD RULES :::
 1) Language: ONLY ${outputLang}.${umlautRule}
@@ -724,7 +748,9 @@ Output a single JSON object. Start with a "_planning" field where you explicitly
   "_planning": {
     "fix_strategy": "Example: I will extend Chapter 2 by adding a scene where...",
     "somatic_check": "List 3 emotion words I am deleting and replacing with actions...",
-    "pacing_check": "How I ensure the low-point in Ch 3 hits hard..."
+    "pacing_check": "How I ensure the low-point in Ch 3 hits hard...",
+    "anti_leak_check": "Confirm you will NOT use meta-phrases like 'next beat' or copy the prompt text.",
+    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
   "title": "Story title",
   "description": "Teaser sentence",
@@ -779,6 +805,11 @@ Expand the chapter without changing the plot. Show, don't tell!
 IMPORTANT: Vivid prose! Concrete details (smell, taste, feel), dialogue-humor, sentence variation.
 No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
 
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+
 # SCENE
 - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
 - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
@@ -794,7 +825,7 @@ ${missingLine}
 1. ONLY these names: ${allowedNames}
 2. No new characters.
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
-4. No meta-labels in the text.
+4. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
 5. Chapter rhythm: short/fast -> calm/emotional -> short/fast.
 6. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
 7. Expand via concrete action + 2-3 dialogue lines.
@@ -810,7 +841,14 @@ ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 ${originalText}
 
 # OUTPUT
-JSON: { "text": "Chapter text" }`;
+JSON: 
+{
+  "_planning": {
+    "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
+    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
+  },
+  "text": "Chapter text" 
+}`;
 }
 
 // â”€â”€â”€ Legacy functions (fÃ¼r KompatibilitÃ¤t) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -859,6 +897,11 @@ export function buildStoryChapterPrompt(input: {
 
   return `You are a professional children's story author.
 
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+
 Write Chapter ${chapter.chapter} for a ${ageRange.min}-${ageRange.max} year old audience in ${isGerman ? "German" : language}.
 Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}.
 
@@ -889,12 +932,21 @@ STRICT RULES:
 11) End naturally with momentum or a warm closure (except final chapter); never use label phrases like "Der Ausblick:" or "Outlook:".
 12) Avoid repetitive speaker formulas ("said ... briefly/quietly", "his/her voice was ...").
 13) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
-14) No summary-meta lines like "The consequence was clear", "Der Preis?", or "Der Gewinn?".
+14) No summary-meta lines like "The consequence was clear", "Der Preis?", or "Der Gewinn?". NEVER copy the Goal, Conflict, or Setting text directly into the story.
 15) No diagnostic emotion labels ("he was very sad/nervous/scared"); show through actions and dialogue.
 ${strict ? "16) Do not include any instruction text or meta commentary in the output." : ""}
 
+PROMPT LEAK PREVENTION:
+You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.
+You must translate these abstract concepts into concrete, in-world actions and dialogue.
+
 Return JSON:
-{ "text": "Chapter text" }`;
+{
+  "_planning": {
+    "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead."
+  },
+  "text": "Chapter text"
+}`;
 }
 
 export function resolveLengthTargets(input: {
@@ -974,6 +1026,11 @@ export function buildStoryChapterRevisionPrompt(input: {
 
   return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
 
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+
 ISSUES:
 ${issueList}
 
@@ -993,7 +1050,7 @@ RULES:
 1) Use only these names: ${allowedNames || "none"}.
 2) No new proper names.
 2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
-3) No meta instructions, labels, previews, or summary lines in prose.
+3) No meta instructions, labels, previews, or summary lines in prose. NEVER copy the Goal, Conflict, or Setting text directly into the story.
 4) Every character must act or speak.
 5) Remove stock phrases and repetitive speaker formulas.
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
@@ -1003,11 +1060,22 @@ RULES:
 10) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
 11) Use normal prose paragraphs (mostly 2-4 sentences); no one-sentence report chains.
 12) No meta/report lines like "Die Szene endete" / "The scene ended".
+
+PROMPT LEAK PREVENTION:
+You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.
+You must translate these abstract concepts into concrete, in-world actions and dialogue.
+
 ORIGINAL TEXT:
 ${originalText}
 
 Return JSON:
-{ "text": "Chapter text" }`;
+{
+  "_planning": {
+    "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
+    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
+  },
+  "text": "Chapter text"
+}`;
 }
 
 export function buildTemplatePhraseRewritePrompt(input: {
@@ -1036,6 +1104,11 @@ export function buildTemplatePhraseRewritePrompt(input: {
 
   return `Edit the chapter below to remove template phrases while keeping the plot. Write the output in ${isGerman ? "German" : language}.
 
+::: THE "10.0/10.0" QUALITY BENCHMARK :::
+A score of 0.0 means: AI-generated filler, passive characters, "tell instead of show", repetitive sentence structures, and abstract emotions ("he was sad").
+A score of 10.0 means: A published, award-winning children's book. It has a unique voice, perfect pacing, characters that drive the plot through action, vivid sensory details (smell, sound, touch), and dialogue that crackles with personality.
+YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
+
 TEMPLATE PHRASES TO REMOVE:
 ${phraseLabels.length ? phraseLabels.map(l => `- ${l}`).join("\n") : "- none"}
 
@@ -1056,17 +1129,27 @@ RULES:
 2) No new proper names or new characters.
 2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
 3) Replace template phrases with concrete action + short dialogue lines.
-3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Der Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was".
+3b) Do NOT output headings or labels like "Ort:", "Stimmung:", "Ziel:", "Hindernis:", "Handlung:", "Action:", "Mini-Problem:", "Mini-Aufloesung:", "Mini-Resolution:", "Hook:", "Ausblick:", "Der Ausblick:", "Epilog:", "Scene:", "Mood:", "Goal:", "Obstacle:", "Outlook:", "Sichtbare Aktion:", "Aktion fortgesetzt:", "Visible action:", "Action continued:". Also never start sentences with "Ihr Ziel war", "Ein Hindernis war", "Her goal was", "An obstacle was". NEVER copy the Goal, Conflict, or Setting text directly into the story.
 4) Keep the chapter length within ${lengthTargets.wordMin}-${lengthTargets.wordMax} words.
 5) Do not change the plot beats, only the wording.
 6) Remove summary-meta phrases ("Die Konsequenz war klar", "Der Preis?", "The consequence was clear", "The price?") and repetitive speaker formulas.
 ${missingLine ? `7) ${missingLine}\n` : ""}
 
+PROMPT LEAK PREVENTION:
+You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.
+You must translate these abstract concepts into concrete, in-world actions and dialogue.
+
 ORIGINAL TEXT:
 ${originalText}
 
 Return JSON:
-{ "text": "Chapter text" }`;
+{
+  "_planning": {
+    "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
+    "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
+  },
+  "text": "Chapter text"
+}`;
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
