@@ -1,5 +1,5 @@
 const GEMINI_PRO_PREVIEW_MODELS = new Set([
-  "gemini-3.0-pro-preview",
+  "gemini-3-pro-preview",
   "gemini-3.1-pro-preview",
 ]);
 const GEMINI_FLASH_PREVIEW_MODEL = "gemini-3-flash-preview";
@@ -11,7 +11,10 @@ function isGemini31SchemaRejection(error: unknown): boolean {
 
   return (
     lowered.includes("config.aimodel") &&
-    (lowered.includes("gemini-3.1-pro-preview") || lowered.includes("gemini-3.0-pro-preview")) &&
+    (
+      lowered.includes("gemini-3.1-pro-preview") ||
+      lowered.includes("gemini-3-pro-preview")
+    ) &&
     (lowered.includes("invalid type") || lowered.includes("expected"))
   );
 }

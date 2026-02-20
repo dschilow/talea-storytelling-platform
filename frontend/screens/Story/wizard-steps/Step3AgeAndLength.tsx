@@ -12,7 +12,7 @@ type AIModel =
   | 'gpt-5-mini'
   | 'gpt-5.2'
   | 'gemini-3-flash-preview'
-  | 'gemini-3.0-pro-preview'
+  | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
 
 type ModelOption = {
@@ -45,8 +45,8 @@ const lengths = [
 
 const models: ModelOption[] = [
   {
-    id: 'gemini-3.0-pro-preview',
-    title: 'Gemini 3.0 Pro Preview',
+    id: 'gemini-3-pro-preview',
+    title: 'Gemini 3 Pro Preview',
     subtitle: 'Google AI',
     cost: 'Preview',
     tone: '#9b8b79',

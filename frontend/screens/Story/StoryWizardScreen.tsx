@@ -43,7 +43,7 @@ interface StoryConfig {
     | 'gpt-5-mini'
     | 'gpt-5.2'
     | 'gemini-3-flash-preview'
-    | 'gemini-3.0-pro-preview'
+    | 'gemini-3-pro-preview'
     | 'gemini-3.1-pro-preview';
 
   length: 'short' | 'medium' | 'long';
