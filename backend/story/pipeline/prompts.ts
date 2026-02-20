@@ -555,16 +555,20 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
     *   *Good:* "Lisa's toes wiggled in her boots. A bubble of giggles rose in her throat."
     *   *Bad:* "Mia was angry."
     *   *Good:* "Mia's knee trembled. She bit her lip. The band-aid stuck crookedly."
+    *   **Imagery Limit:** Maximum ONE comparison ("like a...", "as if...") per paragraph. Do not over-decorate.
 
 2.  **THE RHYTHM & PACING RULE (THE "EAR TEST")**
     *   You write PROSE, not a script. The text must sing.
     *   **The "Rule of Three":** Use triads for descriptions (e.g., "The box was old, rusty, and smelled like forgotten attic dust").
-    *   **Sentence Variance:** NEVER allow three sentences of the same length in a row.
+    *   **Sentence Variance:** NEVER allow three sentences of the same length in a row. Keep sentences short and punchy for 6-8 year olds. NO long, winding sentences (Schachtelsätze).
     *   **Short Beats:** Use 2-5 word sentences to spike tension. (e.g., "Then it stopped.", "Silence fell.")
     *   **No "And then" Chains:** Avoid starting sentences with "And" or "Then". Use strong verbs.
     *   **Max 1 "Plan" Sentence:** Per scene, allow ONLY ONE sentence like "We must..." or "The plan is...". The rest MUST be action, sensory details, and dialogue.
+    *   **BANNED WORD:** NEVER use the word "plötzlich" (suddenly). Find a better way to show sudden action.
 
 3.  **DIALOGUE ANCHORING & DISTINCT VOICES (NO "PING-PONG")**
+    *   **Dialogue Ratio:** At least 25% of the total text MUST be dialogue. Characters must talk to each other frequently.
+    *   **Active Presence:** Every character present in a chapter MUST actively do something or speak. No passive observers.
     *   **Rule:** Every dialogue block MUST include a "Stage Business" action.
     *   **Distinct Voices (Audio-Test):** Characters MUST sound different. Give each character 2 typical words they use exclusively.
         *   *Example:* Adrian: short, brave ("Ich mach das!", "zack", "easy"). Alexander: short, smart but childish ("Warte—erst gucken!", "Moment", "logisch"). Mia: emotional, direct ("Aua! Hör auf!", "echt jetzt", "mega").
@@ -579,9 +583,10 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 
 4.  **SCENE STRUCTURE (THE "MICRO-ARC")**
     *   Goal -> Conflict -> Disaster -> Reaction -> New Goal.
-    *   Chapter Start: The character wants something *specific* (not just "to explore").
-    *   Chapter Middle: Something gets in the way.
-    *   Chapter End: The situation has changed. It's not just a pause; it's a cliffhanger or a realization.
+    *   **Early Stakes:** In Chapter 1 or 2, explicitly show what happens if the characters fail (the stakes).
+    *   **The Lowpoint:** In Chapter 4, show a strong, physical emotional reaction to a major setback.
+    *   **The Payoff:** The ending (Chapter 5) must be concrete. Show exactly what was won/secured. Include a small, tangible price or compromise (e.g., a torn shirt, a lost button, being late for dinner).
+    *   **Artifact Arc:** Introduce the magical artifact early (Chapter 1 or 2) and use it actively in at least TWO different scenes.
     *   **Setpiece-Upgrade:** Include 1 mini-puzzle (max 3 sentences) that kids can guess. End the story with a callback (e.g., a recurring sound or object) as a final laugh.
     *   **Magic Mechanics:** Explain how magic or artifacts work simply and clearly (e.g., "The eye glowed blue, cooling the overheated hive").
     *   **Active NPCs:** Companions (like a goblin or fairy) MUST actively help solve problems, not just stand around.
@@ -717,19 +722,29 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
     *   **FORBIDDEN:** Abstract emotion words ("sad", "happy", "excited").
     *   **REQUIRED:** Physical sensations. "Shoulders ignored gravity" (happy). "Stomach turned to ice" (scared).
     *   *Fix:* Take every emotion word in the draft and replace it with a physical action.
+    *   **Imagery Limit:** Maximum ONE comparison ("like a...", "as if...") per paragraph.
 
 2.  **RHYTHM & PACING (EAR TEST)**
     *   **Rule of Three:** Use triads for descriptions.
-    *   **Sentence Variance:** Combine short (2-5 words) and medium (8-15 words) sentences.
+    *   **Sentence Variance:** Combine short (2-5 words) and medium (8-15 words) sentences. Keep sentences short for 6-8 year olds.
     *   **NO:** Three sentences of the same length in a row.
     *   **NO:** Chains of "He did this. Then he did that." Use strong verbs.
+    *   **BANNED WORD:** NEVER use the word "plötzlich" (suddenly).
 
-3.  **DIALOGUE ANCHORING**
+3.  **DIALOGUE ANCHORING & ACTIVE PRESENCE**
+    *   **Dialogue Ratio:** At least 25% of the total text MUST be dialogue.
+    *   **Active Presence:** Every character present in a chapter MUST actively do something or speak.
     *   Every dialogue line needs a physical anchor.
     *   *Bad:* "Hello," said Tom.
     *   *Good:* Tom kicked the dirt. "Hello."
 
-4.  **PROMPT LEAK PREVENTION**
+4.  **SCENE STRUCTURE & STAKES**
+    *   **Early Stakes:** In Chapter 1 or 2, explicitly show what happens if the characters fail.
+    *   **The Lowpoint:** In Chapter 4, show a strong, physical emotional reaction to a major setback.
+    *   **The Payoff:** The ending (Chapter 5) must be concrete. Show exactly what was won/secured. Include a small, tangible price or compromise.
+    *   **Artifact Arc:** Ensure the magical artifact is introduced early and used actively in at least TWO different scenes.
+
+5.  **PROMPT LEAK PREVENTION**
     *   NEVER copy the Goal, Conflict, or Setting text directly into the story.
     *   NEVER use meta-phrases like "The scene leads to the next beat" or "A new beat started".
 
