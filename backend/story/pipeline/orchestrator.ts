@@ -331,16 +331,23 @@ export class StoryPipelineOrchestrator {
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
-      // Cost-safe default: 1 candidate. Optional adaptive 2nd candidate is opt-in.
+      const selectedStoryModel = String((normalized.rawConfig as any)?.aiModel || "");
+      const isGeminiFlashModel = selectedStoryModel.startsWith("gemini-3-flash");
+      const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 2);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      const defaultCandidateCount = 1;
+      // Quality-first default: use configured candidate count (usually 2).
+      // Gemini Flash is high-variance in narrative quality, so force at least 3 candidates by default.
+      const defaultCandidateCount = isGeminiFlashModel
+        ? Math.max(3, Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 3)
+        : (Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 2);
       const releaseCandidateCount = releaseEnabled
-        ? Math.max(1, Math.min(2, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
+        ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
         : 1;
       const enableAdaptiveSecondCandidate = Boolean((normalized.rawConfig as any)?.enableAdaptiveSecondCandidate);
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !Number.isFinite(explicitCandidateCount) &&
+        releaseCandidateCount === 1 &&
         enableAdaptiveSecondCandidate;
       const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-4.1-mini");
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
@@ -1303,4 +1310,3 @@ async function fetchArtifactMeta(artifactId?: string | null): Promise<any | null
     return null;
   }
 }
-

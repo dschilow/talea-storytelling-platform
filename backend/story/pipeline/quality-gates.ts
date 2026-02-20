@@ -1127,10 +1127,10 @@ function gateEndingPayoff(
   }
 
   const payoffVerbPattern = isDE
-    ? /\b(geschafft|gerettet|gefunden|geloest|repariert|befreit|erreicht|zurueckgebracht|sicher)\b/i
+    ? /\b(geschafft|gerettet|gefunden|geloest|repariert|befreit|erreicht|zurueckgebracht|sicher|gesichert|bewahrt|wiederhergestellt)\b/i
     : /\b(done|saved|found|solved|repaired|freed|reached|brought\s+back|safe)\b/i;
   const payoffConcreteNounPattern = isDE
-    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel)\b/i
+    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|erbe|m(?:u|ü)hle|feder|kiste|schloss)\b/i
     : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal)\b/i;
   const payoffWindow = lastSentences.slice(Math.max(0, lastSentences.length - 5)).join(" ");
   const hasConcretePayoff = payoffVerbPattern.test(payoffWindow) && payoffConcreteNounPattern.test(payoffWindow);
@@ -1147,7 +1147,7 @@ function gateEndingPayoff(
   }
 
   const pricePattern = isDE
-    ? /\b(aber|doch|kostete|preis|verzichtete|musste|mussten|gaben|gab|tauschte|erschoepft|mued[e]?)\b/i
+    ? /\b(aber|doch|kostete|preis|verzichtete|musste|mussten|gaben|gab|tauschte|erschoepft|mued[e]?|fehlte|riss|kaputt|flick|zerriss)\b/i
     : /\b(but|cost|price|gave\s+up|had\s+to|sacrificed|traded|tired)\b/i;
   if (!pricePattern.test(payoffWindow)) {
     issues.push({
@@ -1881,7 +1881,9 @@ function gateStakesAndLowpoint(
   const stakesPatterns = isDE
     ? [
       /wenn\s+wir[^.!?]{0,90}(dann|verlieren|verpassen|zu\s+sp(?:ae|ä)t|schaffen)/i,
+      /wenn\s+wir[^.!?]{0,90}(schlafen|bleiben|landen|st(?:u|ü)rzen|unter\s+tr(?:u|ü)mmern)/i,
       /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
+      /wenn\s+[^.!?]{0,90}(einst(?:u|ü)rzt|zusammenbricht|kaputtgeht|zerbricht)/i,
       /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
       /\bverlieren\s+wir\b/i,
       /\bdroht\b[^.!?]{0,70}\b(verlust|zu\s+sp(?:ae|ä)t|weg|gefangen)\b/i,
@@ -1895,10 +1897,10 @@ function gateStakesAndLowpoint(
     ? /\b(wenn|falls|sonst|ohne|bevor|damit|droht)\b/i
     : /\b(if|otherwise|unless|without|before|or\s+else|at\s+risk)\b/i;
   const stakesConsequencePattern = isDE
-    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|verlust|keine?\s+chance|kein\s+zuhause|fuer\s+immer)\b/i
+    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|verlust|keine?\s+chance|kein\s+zuhause|fuer\s+immer|unter\s+tr(?:u|ü)mmern|einst(?:u|ü)rzt|zusammenbricht)\b/i
     : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever)\b/i;
   const stakesConcreteNounPattern = isDE
-    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|licht|bruecke)\b/i
+    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|licht|bruecke|m(?:u|ü)hle|feder|kiste|erbe)\b/i
     : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal|bridge)\b/i;
   const openingSentences = splitSentences(firstTwoText).slice(0, 16);
 
@@ -2763,6 +2765,7 @@ function countDialogueLines(text: string): number {
 }
 
 function checkCharacterHasAction(text: string, name: string): boolean {
+  if (!text || !name) return false;
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const actionPatterns = [
     new RegExp(`${escapedName}\\s+\\w+(?:te|t|en|ete|ierte|te sich)\\b`, "i"),
@@ -2771,7 +2774,25 @@ function checkCharacterHasAction(text: string, name: string): boolean {
     new RegExp(`${escapedName}\\s+(?:said|asked|whispered|shouted|called|laughed|nodded|grabbed|took|lifted|placed|turned|jumped|ran|walked|looked|smiled|stood|sat|pulled|pushed|opened|closed|threw|caught|held)\\b`, "i"),
   ];
 
-  return actionPatterns.some(p => p.test(text));
+  if (actionPatterns.some(p => p.test(text))) return true;
+
+  const quoteChars = "\"\u201E\u201C\u201D\u00BB\u00AB\u201A\u2018\u2019";
+  const fallbackPatterns = [
+    new RegExp(`${escapedName}[^.!?\\n]{0,70}\\b[\\p{L}]{4,}(?:te|ten|tet|t|st|en)\\b`, "iu"),
+    new RegExp(`[${quoteChars}][^${quoteChars}]{2,180}[${quoteChars}][^.!?\\n]{0,45}${escapedName}`, "iu"),
+    new RegExp(`${escapedName}[^.!?\\n]{0,45}[${quoteChars}]`, "iu"),
+  ];
+  if (fallbackPatterns.some(pattern => pattern.test(text))) return true;
+
+  const loweredText = text.toLowerCase();
+  const loweredName = name.toLowerCase();
+  let matchIndex = loweredText.indexOf(loweredName);
+  while (matchIndex !== -1) {
+    if (isLikelyCharacterAction(text, name, matchIndex)) return true;
+    matchIndex = loweredText.indexOf(loweredName, matchIndex + loweredName.length);
+  }
+
+  return false;
 }
 
 function isLikelyCharacterAction(text: string, name: string, matchIndex?: number): boolean {

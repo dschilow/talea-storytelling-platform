@@ -443,6 +443,32 @@ Never copy the Goal/Conflict/Setting text verbatim into the story. Dramatize!
 ${badExamples}`;
 }
 
+function buildGeminiFlashMicroExamplesBlock(isGerman: boolean): string {
+  if (isGerman) {
+    return `# MICRO-EXAMPLES (target rhythm + subtext)
+Beispiel Stakes:
+"Wenn wir den Schlüssel jetzt verlieren, schlafen wir im Regen", sagte Leni und zog Ben am Ärmel.
+Ben schluckte. "Dann laufen wir. Jetzt."
+
+Beispiel Lowpoint + Preis:
+Die Brücke knackte. Ein Brett brach weg.
+Tom rutschte auf die Knie, presste die Lippen zusammen und hielt den Rucksack hoch.
+"Nicht hinsehen. Zieh."
+Später war der Weg frei, aber sein Schuh blieb im Schlamm zurück.`;
+  }
+
+  return `# MICRO-EXAMPLES (target rhythm + subtext)
+Stakes example:
+"If we lose the key now, we sleep outside in the rain," Leni said, tugging Ben's sleeve.
+Ben swallowed. "Then we run. Now."
+
+Lowpoint + price example:
+The bridge cracked. A plank snapped.
+Tom dropped to his knees, jaw tight, and held the bag up.
+"Don't look down. Pull."
+Later they made it through, but his shoe stayed in the mud.`;
+}
+
 // --- Optimized Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
 // KEY INSIGHT: Gemini Flash responds best to EXAMPLES, not to rule lists.
 // V6 changes:
@@ -457,6 +483,7 @@ export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];
   cast: CastSet;
   dna: TaleDNA | StoryDNA;
+  model?: string;
   language: string;
   ageRange: { min: number; max: number };
   tone?: string;
@@ -472,9 +499,11 @@ export function buildFullStoryPrompt(input: {
   userPrompt?: string;
   promptMode?: "full" | "compact";
 }): string {
-  const { directives, cast, dna, language, ageRange, tone, humorLevel, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
+  const { directives, cast, dna, model, language, ageRange, tone, humorLevel, totalWordMin, totalWordMax, wordsPerChapter, stylePackText, fusionSections, avatarMemories, userPrompt } = input;
   const promptMode = input.promptMode ?? "full";
   const isCompactPrompt = promptMode === "compact";
+  const modelName = String(model || "").toLowerCase();
+  const isGeminiFlashModel = modelName.startsWith("gemini-3-flash");
   const isGerman = language === "de";
   const targetLanguage = isGerman ? "Deutsch" : language;
   const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
@@ -570,6 +599,93 @@ export function buildFullStoryPrompt(input: {
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
+  const geminiMicroExamples = buildGeminiFlashMicroExamplesBlock(isGerman);
+  const chapterChecklist = directives.map((directive, idx) => {
+    const castNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+      .filter((name): name is string => Boolean(name));
+    const uniqueCast = Array.from(new Set(castNames));
+
+    let specialRule = "Every listed character gets at least one physical action and one spoken line.";
+    if (idx === 0) {
+      specialRule += isGerman
+        ? " Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... dann/sonst ...\"."
+        : " Include one explicit stakes sentence with \"if ... then/otherwise ...\".";
+    }
+    if (idx === 2 || idx === 3) {
+      specialRule += isGerman
+        ? " Konkreter Rueckschlag (etwas bricht/geht verloren) plus koerperliche Reaktion."
+        : " Include a concrete setback (something breaks/is lost) plus a somatic reaction.";
+    }
+    if (idx === directives.length - 1) {
+      specialRule += isGerman
+        ? " Zeige konkreten Gewinn plus kleinen, greifbaren Preis."
+        : " Show a concrete payoff plus one small tangible price.";
+    }
+
+    return `- Ch${idx + 1}: ${uniqueCast.join(", ") || "none"}. ${specialRule}`;
+  }).join("\n");
+
+  if (isGeminiFlashModel) {
+    return `You are writing a REAL children's book chapter sequence, not a template report.
+Write natural, vivid prose with emotional subtext and clear scene momentum.
+
+${geminiMicroExamples}
+
+# NON-NEGOTIABLE QUALITY TARGET
+- Prose must read like published children's fiction, never like prompt output.
+- Use paragraphs that breathe (usually 2-4 sentences), varied rhythm, concrete sensory detail.
+- Dialogue must be character-specific and anchored to action (no talking heads).
+- No moral lecture, no meta narration, no scene labels, no protocol/report tone.
+- BANNED fillers: "plötzlich", "auf einmal", "suddenly", repetitive "dann" sentence starts.
+
+# HARD CONSTRAINTS
+1. Language: ${outputLang} only.${umlautRule}
+2. Format: single valid JSON object.
+3. Length: total ${totalWordMin}-${totalWordMax} words. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
+4. Cast lock: only ${allowedNames.join(", ")}. No new names.
+5. Safety: ${safetyRule}
+6. ${humorRule}
+7. Never copy Goal/Conflict/Setting wording verbatim. Dramatize into scene action.
+
+${avatarRule ? `${avatarRule}\n` : ""}
+${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
+${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
+
+::: CHARACTER VOICES :::
+${characterProfiles.join("\n")}
+${childVoiceContract ? `\n${childVoiceContract}` : ""}
+${memorySection}
+${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misuse -> Mastery (child-led resolution).\n` : ""}
+
+::: CHAPTER CHECKLIST (MUST PASS) :::
+${chapterChecklist}
+
+::: STORY BEATS (reference, do not copy) :::
+${beatLines}
+
+::: OUTPUT FORMAT :::
+Return JSON only:
+{
+  "_planning": {
+    "voice_signatures": { "[character]": "short distinct speech fingerprint" },
+    "chapter_gate_checks": {
+      "ch1_stakes_sentence": "exact sentence containing if/wenn + consequence",
+      "ch3_or_ch4_lowpoint": "what breaks/fails and body reaction",
+      "ch5_payoff": "what is concretely won",
+      "ch5_price": "small concrete cost paid"
+    },
+    "humor_beats": ["2 concrete situational humor beats"],
+    "anti_meta_check": "confirm no scene labels, no report sentences, no moral lecture"
+  },
+  "title": "${titleHint}",
+  "description": "One teaser sentence with a question hook",
+  "chapters": [
+    { "chapter": 1, "text": "full prose text..." }
+  ]
+}`;
+  }
 
   // V6: Gemini 3 Flash "Maximum Quality" – Example-driven, not rule-driven.
   // The key insight: Gemini Flash writes EXACTLY like the examples. So we give it

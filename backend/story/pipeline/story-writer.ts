@@ -20,22 +20,22 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Quality-first: two rewrite passes allow meaningful recovery from weak first drafts.
-const MAX_REWRITE_PASSES = 2;
+// Cost-first default: one rewrite pass keeps quality recovery while cutting token spend.
+const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
 // (Niedrigerer Wert = weniger Expand-Calls)
 const HARD_MIN_CHAPTER_WORDS = 230;
 
-// Nur Rewrites bei ERRORs durchführen, WARNINGs ignorieren für Rewrites
-const REWRITE_ONLY_ON_ERRORS = false;
+// Nur Rewrites bei ERRORs durchführen, WARNINGs standardmäßig nicht full-rewrite treiben.
+const REWRITE_ONLY_ON_ERRORS = true;
 
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
 const MAX_EXPAND_CALLS = 2;
 
-// Allow one warning-polish pass for voice/rhythm cleanup after rewrites.
-const MAX_WARNING_POLISH_CALLS = 1;
-const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = true;
+// Warning polish is opt-in via config to avoid hidden extra full-story costs.
+const MAX_WARNING_POLISH_CALLS = 0;
+const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 9.0;
 const QUALITY_RECOVERY_WARNING_COUNT = 2;
 const WARNING_POLISH_CODES = new Set([
@@ -136,6 +136,7 @@ export class LlmStoryWriter implements StoryWriter {
     const model = rawConfig?.aiModel ?? "gpt-5-mini";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
+    const isGeminiFlashModel = model.startsWith("gemini-3-flash");
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
@@ -146,9 +147,12 @@ export class LlmStoryWriter implements StoryWriter {
           : (isReasoningModel ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
-    const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? MAX_REWRITE_PASSES);
-    const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? MAX_EXPAND_CALLS);
-    const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? MAX_WARNING_POLISH_CALLS);
+    const defaultRewritePasses = MAX_REWRITE_PASSES;
+    const defaultExpandCalls = isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS;
+    const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
+    const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
+    const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
+    const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
     const enableWarningDrivenRewrite =
       typeof rawConfig?.enableWarningDrivenRewrite === "boolean"
         ? rawConfig.enableWarningDrivenRewrite
@@ -276,6 +280,7 @@ ${storyLanguageRule}`.trim();
       directives,
       cast,
       dna,
+      model,
       language: normalizedRequest.language,
       ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       tone: normalizedRequest.requestedTone,
@@ -323,7 +328,9 @@ ${storyLanguageRule}`.trim();
 
     // V6: Higher temperature (0.85) for Gemini to unlock creative prose.
     // Higher reasoning effort ("high") for initial call — this is the most important generation.
-    const storyTemperature = strict ? 0.4 : (isGeminiModel ? 0.85 : 0.7);
+    const storyTemperature = strict
+      ? 0.4
+      : (isGeminiFlashModel ? 0.72 : (isGeminiModel ? 0.8 : 0.7));
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
@@ -670,10 +677,11 @@ ${storyLanguageRule}`.trim();
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
     const emergencyRewriteNeeded = hardErrorIssuesInitial.length > 0 || warningRecoveryNeededInitial;
     const effectiveRewritePasses = canRunPostEdits
-      ? (emergencyRewriteNeeded
-        ? (isReasoningModel ? Math.max(1, maxRewritePasses) : Math.max(2, maxRewritePasses))
-        : maxRewritePasses)
+      ? maxRewritePasses
       : 0;
+    if (emergencyRewriteNeeded && effectiveRewritePasses === 0) {
+      console.log("[story-writer] Rewrite needed but disabled by config (maxRewritePasses=0).");
+    }
 
     let rewriteAttempt = 0;
     while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
@@ -715,9 +723,12 @@ ${storyLanguageRule}`.trim();
       });
 
       let rewriteResult;
+      const rewriteRequestedTokens = isReasoningModel
+        ? Math.min(9000, Math.max(2600, Math.round(maxOutputTokens * 0.55)))
+        : Math.min(4800, Math.max(1600, Math.round(maxOutputTokens * 0.8)));
       const rewriteMaxTokens = fitTokensToBudget(
-        maxOutputTokens,
-        isReasoningModel ? 1800 : 1200,
+        rewriteRequestedTokens,
+        isReasoningModel ? 1500 : 1000,
         isReasoningModel ? 900 : 550,
       );
       if (rewriteMaxTokens < 700) {
@@ -837,10 +848,7 @@ ${storyLanguageRule}`.trim();
       }
     }
 
-    const emergencyWarningPolishCalls =
-      maxWarningPolishCalls > 0
-        ? maxWarningPolishCalls
-        : (shouldForceQualityRecovery(qualityReport, getWarningPolishIssues(qualityReport)) ? 1 : 0);
+    const emergencyWarningPolishCalls = maxWarningPolishCalls;
 
     if (canRunPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
       const warningPolish = await applyWarningPolish(draft, qualityReport, emergencyWarningPolishCalls);
@@ -1270,8 +1278,8 @@ function sanitizeMetaStructureFromText(text: string): string {
   // "plötzlich" is the worst offender — appears in every story despite explicit bans.
   // We remove it mid-sentence (", und plötzlich" → ", und") and sentence-initial ("Plötzlich" → next word capitalized).
   result = result
-    .replace(/[,;]\s*(?:und\s+)?pl(?:oe|o)tzlich\b/gi, ",")
-    .replace(/\bpl(?:oe|o)tzlich\s+/gi, "")
+    .replace(/[,;]\s*(?:und\s+)?pl(?:oe|o|ö)tzlich\b/gi, ",")
+    .replace(/\bpl(?:oe|o|ö)tzlich\s+/gi, "")
     .replace(/\s{2,}/g, " ");
 
   // Reduce repetitive onomatopoeia bursts ("Quak, quak, quak") to a readable amount.

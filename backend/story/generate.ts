@@ -159,7 +159,7 @@ export interface StoryConfig {
   maxSelectiveSurgeryEdits?: number;
 
   // Cost controls for story writer post-processing.
-  // Defaults favor quality while still keeping retries bounded.
+  // Defaults favor lower token usage; increase explicitly for quality experiments.
   maxRewritePasses?: 0 | 1 | 2;
   maxExpandCalls?: number;
   maxWarningPolishCalls?: number;
