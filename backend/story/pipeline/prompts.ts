@@ -580,6 +580,31 @@ export function buildFullStoryPrompt(input: {
 
     return `CHAPTER ${idx + 1}:\n   Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}\n   Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}\n   Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}\n   Characters: ${uniqueCast.join(", ") || "none"}\n   End Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? `\n   Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 60)}` : ""}`;
   }).join("\n\n");
+  const geminiBeatCards = directives.map((directive, idx) => {
+    const castNames = directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterBySlot(cast, slot)?.displayName)
+      .filter((name): name is string => Boolean(name));
+    const uniqueCast = Array.from(new Set(castNames));
+    const fusionHint = fusionSections?.get(directive.chapter)?.split("\n").slice(0, 1).join(" ").trim();
+    const artifactTag = artifactName && directive.artifactUsage && !directive.artifactUsage.toLowerCase().includes("nicht")
+      ? ` [${artifactName}]`
+      : "";
+    const settingCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), 64);
+    const actionCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), 120);
+    const pressureCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), 120);
+    const turnCue = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), 92);
+    const artifactCue = directive.artifactUsage
+      ? trimDirectiveText(sanitizeDirectiveNarrativeText(directive.artifactUsage), 92)
+      : "";
+
+    return `CH ${idx + 1}
+- Scene anchor: ${settingCue}${artifactTag}
+- Must happen: ${actionCue}
+- Pressure now: ${pressureCue}
+- End shift: ${turnCue}
+- On stage: ${uniqueCast.join(", ") || "none"}${artifactCue ? `\n- Artifact move: ${artifactCue}` : ""}${fusionHint ? `\n- Extra cue: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 70)}` : ""}`;
+  }).join("\n\n");
 
   const safetyRule = "No explicit violence, no weapons, no blood, no horror, no bullying, no politics/religion, no drugs/alcohol/gambling.";
 
@@ -648,6 +673,8 @@ ${geminiMicroExamples}
 5. Safety: ${safetyRule}
 6. ${humorRule}
 7. Never copy Goal/Conflict/Setting wording verbatim. Dramatize into scene action.
+8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Paraphrase every beat cue.
+9. Keep optional metadata ultra-short; spend tokens on chapter prose.
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -663,28 +690,24 @@ ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactR
 ${chapterChecklist}
 
 ::: STORY BEATS (reference, do not copy) :::
-${beatLines}
+${geminiBeatCards}
 
 ::: OUTPUT FORMAT :::
 Return JSON only:
 {
-  "_planning": {
-    "voice_signatures": { "[character]": "short distinct speech fingerprint" },
-    "chapter_gate_checks": {
-      "ch1_stakes_sentence": "exact sentence containing if/wenn + consequence",
-      "ch3_or_ch4_lowpoint": "what breaks/fails and body reaction",
-      "ch5_payoff": "what is concretely won",
-      "ch5_price": "small concrete cost paid"
-    },
-    "humor_beats": ["2 concrete situational humor beats"],
-    "anti_meta_check": "confirm no scene labels, no report sentences, no moral lecture"
-  },
   "title": "${titleHint}",
   "description": "One teaser sentence with a question hook",
+  "_checks": {
+    "ch1_stakes_sentence": "very short",
+    "ch3_or_ch4_lowpoint": "very short",
+    "ch5_payoff_price": "very short",
+    "anti_meta": "ok"
+  },
   "chapters": [
     { "chapter": 1, "text": "full prose text..." }
   ]
-}`;
+}
+The "_checks" object is optional. If included, keep it under 40 words total.`;
   }
 
   // V6: Gemini 3 Flash "Maximum Quality" – Example-driven, not rule-driven.
@@ -738,6 +761,7 @@ gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glu
 5. SAFETY: ${safetyRule}
 6. ${humorRule}
 7. NEVER copy Goal/Conflict/Setting text into the story. Dramatize the instructions into natural prose.
+8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Always paraphrase.
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}

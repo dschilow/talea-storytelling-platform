@@ -335,11 +335,12 @@ export class StoryPipelineOrchestrator {
       const isGeminiFlashModel = selectedStoryModel.startsWith("gemini-3-flash");
       const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 2);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      // Quality-first default: use configured candidate count (usually 2).
-      // Gemini Flash is high-variance in narrative quality, so force at least 3 candidates by default.
+      // Cost/latency guard: Gemini Flash defaults to max 2 candidates unless explicitly overridden.
+      // 3 candidates + rewrites caused significant latency spikes and token blowups in production logs.
+      const baseDefaultCandidateCount = Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 2;
       const defaultCandidateCount = isGeminiFlashModel
-        ? Math.max(3, Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 3)
-        : (Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 2);
+        ? Math.max(1, Math.min(2, baseDefaultCandidateCount))
+        : baseDefaultCandidateCount;
       const releaseCandidateCount = releaseEnabled
         ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
         : 1;

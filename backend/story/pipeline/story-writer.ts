@@ -23,9 +23,9 @@ import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 // Cost-first default: one rewrite pass keeps quality recovery while cutting token spend.
 const MAX_REWRITE_PASSES = 1;
 
-// Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded
+// Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded.
 // (Niedrigerer Wert = weniger Expand-Calls)
-const HARD_MIN_CHAPTER_WORDS = 230;
+const HARD_MIN_CHAPTER_WORDS = 210;
 
 // Nur Rewrites bei ERRORs durchführen, WARNINGs standardmäßig nicht full-rewrite treiben.
 const REWRITE_ONLY_ON_ERRORS = true;
@@ -147,8 +147,9 @@ export class LlmStoryWriter implements StoryWriter {
           : (isReasoningModel ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
-    const defaultRewritePasses = MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS;
+    // Gemini Flash rewrites were frequently high-cost and low-yield; keep opt-in via config.
+    const defaultRewritePasses = isGeminiFlashModel ? 0 : MAX_REWRITE_PASSES;
+    const defaultExpandCalls = isGeminiFlashModel ? Math.min(MAX_EXPAND_CALLS, 1) : (isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS);
     const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
@@ -166,9 +167,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isReasoningModel ? 22000 : 10000;
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 14000 : (isReasoningModel ? 22000 : 10000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isReasoningModel ? 10000 : 4500;
+    const minStoryTokenBudget = isGeminiFlashModel ? 8000 : (isReasoningModel ? 10000 : 4500);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -302,24 +303,26 @@ ${storyLanguageRule}`.trim();
     let activePromptMode: "full" | "compact" = storyPromptMode;
     let prompt = buildStoryPrompt(activePromptMode);
 
-    // Keep headroom for reasoning models so they can finish JSON output instead of truncating.
-    // gpt-5-mini uses ~3000-5000 internal reasoning tokens before producing visible output,
-    // so we need a much higher floor and multiplier to avoid empty responses.
-    // GEMINI 3 FLASH NEEDS MASSIVE OUTPUT BUDGET FOR "_planning" + STORY (Often > 8k tokens)
-    const baseOutputTokens = isReasoningModel
-      ? Math.max(8000, Math.round(totalWordMax * 3.0)) // Gemini 3 needs ~8k minimum for plan+story
-      : Math.max(2200, Math.round(totalWordMax * 1.5));
+    // Cost/latency tuned per model family.
+    // Gemini Flash was over-provisioned before (16k per initial call) and showed token/runtime spikes.
+    const baseOutputTokens = isGeminiFlashModel
+      ? Math.max(5000, Math.round(totalWordMax * 2.2))
+      : isReasoningModel
+        ? Math.max(8000, Math.round(totalWordMax * 3.0))
+        : Math.max(2200, Math.round(totalWordMax * 1.5));
 
-    const reasoningMultiplier = isReasoningModel ? 2.0 : 1; // More headroom
+    const reasoningMultiplier = isGeminiFlashModel ? 1.15 : (isReasoningModel ? 2.0 : 1);
 
-    const maxOutputTokens = isReasoningModel
-      ? Math.min(Math.max(12000, Math.round(baseOutputTokens * reasoningMultiplier)), 24000) // Cap at 24k for Gemini 3
-      : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
+    const maxOutputTokens = isGeminiFlashModel
+      ? Math.min(Math.max(5200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
+      : isReasoningModel
+        ? Math.min(Math.max(12000, Math.round(baseOutputTokens * reasoningMultiplier)), 24000)
+        : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
 
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
-      isReasoningModel ? 6000 : 1500, // Reserve 6k for Gemini 3 initial call
-      isReasoningModel ? 2000 : 550,
+      isGeminiFlashModel ? 2600 : (isReasoningModel ? 6000 : 1500),
+      isGeminiFlashModel ? 1200 : (isReasoningModel ? 2000 : 550),
     );
     console.log(
       `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
@@ -351,9 +354,11 @@ ${storyLanguageRule}`.trim();
       const recoveryPromptMode: "compact" = "compact";
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
-      const recoveryMaxTokens = isReasoningModel
-        ? Math.min(Math.max(maxOutputTokens + 2000, 9000), 14000)
-        : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
+      const recoveryMaxTokens = isGeminiFlashModel
+        ? Math.min(Math.max(maxOutputTokens + 900, 3000), 9000)
+        : isReasoningModel
+          ? Math.min(Math.max(maxOutputTokens + 2000, 9000), 14000)
+          : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
       const recoveryBudgetedMaxTokens = fitTokensToBudget(
         recoveryMaxTokens,
         isReasoningModel ? 2000 : 1300,
