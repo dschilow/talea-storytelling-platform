@@ -29,6 +29,7 @@ import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
 import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
 import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
 import Step6Summary from './wizard-steps/Step6Summary';
+import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 
 interface WizardState {
   selectedAvatars: string[];
@@ -379,7 +380,10 @@ export default function TaleaStoryWizard() {
       setGenerationStep('text');
 
       const storyConfig = mapWizardStateToAPI(state, userLanguage, isAdmin);
-      const story = await backend.story.generate({ userId, config: storyConfig });
+      const story = await generateStoryWithModelFallback(backend.story.generate, {
+        userId,
+        config: storyConfig,
+      });
 
       setStoryCredits((prev) =>
         prev
@@ -635,4 +639,3 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin: 
     },
   } as any;
 }
-

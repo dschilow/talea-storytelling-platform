@@ -12,6 +12,7 @@ const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1500;
 const MAX_RETRY_DELAY_MS = 15000;
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
+const GEMINI_FETCH_TIMEOUT_MS = 120000;
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -49,16 +50,41 @@ function resolveGeminiModelCandidates(requestedModel?: string): string[] {
   return [primaryModel, DEFAULT_GEMINI_MODEL];
 }
 
-function shouldFallbackToDefaultModel(status: number, errorText: string): boolean {
+function shouldFallbackToDefaultModel(input: {
+  status: number;
+  errorText: string;
+  modelName: string;
+}): boolean {
+  const { status, errorText, modelName } = input;
+  if (modelName === DEFAULT_GEMINI_MODEL) return false;
   if (status === 404) return true;
-  if (status !== 400) return false;
 
   const lowered = errorText.toLowerCase();
+  if (status === 503 && (lowered.includes("high demand") || lowered.includes("unavailable"))) {
+    return true;
+  }
+
+  if (status !== 400) return false;
+
   return (
     lowered.includes("not found") ||
     lowered.includes("unknown model") ||
     lowered.includes("unsupported model") ||
     lowered.includes("is not supported")
+  );
+}
+
+function isTimeoutLikeFetchError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : String(error ?? "");
+  const lowered = message.toLowerCase();
+  return (
+    lowered.includes("timeout") ||
+    lowered.includes("headers timeout") ||
+    lowered.includes("und_err_headers_timeout") ||
+    lowered.includes("aborted")
   );
 }
 
@@ -177,13 +203,50 @@ export async function generateWithGemini(
       );
       const startTime = Date.now();
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const abortController = new AbortController();
+      const timeoutHandle = setTimeout(() => abortController.abort(), GEMINI_FETCH_TIMEOUT_MS);
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: abortController.signal,
+        });
+      } catch (fetchError) {
+        responseTime = Date.now() - startTime;
+        clearTimeout(timeoutHandle);
+        console.error("[gemini-generation] Gemini fetch failed:", {
+          model: modelName,
+          attempt,
+          responseTimeMs: responseTime,
+          error: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        });
+
+        if (hasFallback && isTimeoutLikeFetchError(fetchError)) {
+          console.warn(
+            `[gemini-generation] Model ${modelName} timed out. Falling back to ${DEFAULT_GEMINI_MODEL}.`
+          );
+          fallbackTriggered = true;
+          break;
+        }
+
+        if (attempt < MAX_RETRIES) {
+          const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MS);
+          console.warn(`[gemini-generation] Network/fetch error; waiting ${delay}ms before retry`);
+          await sleep(delay);
+          continue;
+        }
+
+        lastError = new Error(
+          `Gemini API fetch failed (${modelName}): ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`
+        );
+        break;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
 
       responseTime = Date.now() - startTime;
       console.log(`[gemini-generation] Response received in ${responseTime}ms`);
@@ -201,6 +264,21 @@ export async function generateWithGemini(
         body: errorText,
       });
 
+      if (
+        hasFallback &&
+        shouldFallbackToDefaultModel({
+          status: response.status,
+          errorText,
+          modelName,
+        })
+      ) {
+        console.warn(
+          `[gemini-generation] Model ${modelName} unavailable. Falling back to ${DEFAULT_GEMINI_MODEL}.`
+        );
+        fallbackTriggered = true;
+        break;
+      }
+
       const retryable = response.status === 429 || response.status === 503 || response.status === 500;
       if (retryable && attempt < MAX_RETRIES) {
         const delay = Math.min(
@@ -210,14 +288,6 @@ export async function generateWithGemini(
         console.warn(`[gemini-generation] Retryable error (${response.status}); waiting ${delay}ms before retry`);
         await sleep(delay);
         continue;
-      }
-
-      if (hasFallback && shouldFallbackToDefaultModel(response.status, errorText)) {
-        console.warn(
-          `[gemini-generation] Model ${modelName} unavailable. Falling back to ${DEFAULT_GEMINI_MODEL}.`
-        );
-        fallbackTriggered = true;
-        break;
       }
 
       lastError = new Error(`Gemini API error (${modelName}): ${response.status} - ${errorText}`);

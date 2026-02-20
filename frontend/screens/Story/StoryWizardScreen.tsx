@@ -20,6 +20,7 @@ import StoryFlavorStep, {
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 
 type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
 
@@ -231,7 +232,7 @@ const StoryWizardScreen: React.FC = () => {
       setGenerationStep('text');
 
       // Story-Experience-Einstellungen werden ueber storyConfig uebergeben.
-      const story = await backend.story.generate({
+      const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId: user.id,
         config: effectiveStoryConfig,
       });

@@ -19,6 +19,7 @@ import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
 import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
 import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
 import Step6Summary from './wizard-steps/Step6Summary';
+import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 
 interface WizardState {
   // Step 1: Avatar Selection
@@ -173,7 +174,7 @@ export default function ModernStoryWizard() {
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       console.log('[ModernWizard] Generating story with config:', storyConfig);
 
-      const story = await backend.story.generate({
+      const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId,
         config: storyConfig,
       });
