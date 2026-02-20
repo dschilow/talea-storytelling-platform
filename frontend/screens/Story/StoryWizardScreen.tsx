@@ -43,6 +43,7 @@ interface StoryConfig {
     | 'gpt-5-mini'
     | 'gpt-5.2'
     | 'gemini-3-flash-preview'
+    | 'gemini-3.0-pro-preview'
     | 'gemini-3.1-pro-preview';
 
   length: 'short' | 'medium' | 'long';
@@ -106,7 +107,7 @@ const StoryWizardScreen: React.FC = () => {
     specialIngredients: [],
     customPrompt: '',
     language: i18n.language as 'de' | 'en',
-    aiModel: 'gpt-5-mini',
+    aiModel: 'gemini-3-flash-preview',
     length: 'medium',
     complexity: 'medium',
     ageGroup: '6-8',
@@ -222,7 +223,7 @@ const StoryWizardScreen: React.FC = () => {
         ? storyConfig
         : {
             ...storyConfig,
-            aiModel: 'gpt-5-mini' as const,
+            aiModel: 'gemini-3-flash-preview' as const,
           };
 
       setGenerationStep('profiles');

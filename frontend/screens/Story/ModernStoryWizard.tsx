@@ -51,6 +51,7 @@ interface WizardState {
     | 'gpt-5-mini'
     | 'gpt-5.2'
     | 'gemini-3-flash-preview'
+    | 'gemini-3.0-pro-preview'
     | 'gemini-3.1-pro-preview';
 }
 
@@ -133,7 +134,7 @@ export default function ModernStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: '',
-    aiModel: 'gpt-5-mini'
+    aiModel: 'gemini-3-flash-preview'
   });
 
   const updateState = (updates: Partial<WizardState>) => {
@@ -448,7 +449,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',  // All supported languages
-    aiModel: state.aiModel || 'gpt-5-mini',
+    aiModel: state.aiModel || 'gemini-3-flash-preview',
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic'
     }

@@ -303,6 +303,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 65536,
     supportsReasoningEffort: false,
   },
+  "gemini-3.0-pro-preview": {
+    name: "gemini-3.0-pro-preview",
+    inputCostPer1M: 0.00,       // Preview pricing (configure when finalized)
+    outputCostPer1M: 0.00,      // Preview pricing (configure when finalized)
+    maxCompletionTokens: 65536,
+    supportsReasoningEffort: false,
+  },
   "gemini-3.1-pro-preview": {
     name: "gemini-3.1-pro-preview",
     inputCostPer1M: 0.00,       // Preview pricing (configure when finalized)

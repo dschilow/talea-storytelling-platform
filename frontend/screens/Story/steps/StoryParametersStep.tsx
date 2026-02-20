@@ -9,6 +9,7 @@ type AIModel =
   | 'gpt-5-mini'
   | 'gpt-5.2'
   | 'gemini-3-flash-preview'
+  | 'gemini-3.0-pro-preview'
   | 'gemini-3.1-pro-preview';
 
 interface StoryParametersStepProps {
@@ -113,6 +114,12 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   ];
 
   const aiModelOptions = [
+    {
+      key: 'gemini-3.0-pro-preview',
+      label: 'Gemini 3.0 Pro Preview',
+      icon: 'G3',
+      description: 'Google AI (Preview, Pro)',
+    },
     {
       key: 'gemini-3.1-pro-preview',
       label: 'Gemini 3.1 Pro Preview',

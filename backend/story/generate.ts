@@ -95,6 +95,7 @@ export type AIModel =
   | "gpt-4.1"
   | "o4-mini"
   | "gemini-3-flash-preview"
+  | "gemini-3.0-pro-preview"
   | "gemini-3.1-pro-preview";
 
 export interface StoryConfig {

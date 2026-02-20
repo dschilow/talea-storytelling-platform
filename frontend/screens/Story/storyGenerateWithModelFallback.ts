@@ -1,4 +1,7 @@
-const GEMINI_PRO_PREVIEW_MODEL = "gemini-3.1-pro-preview";
+const GEMINI_PRO_PREVIEW_MODELS = new Set([
+  "gemini-3.0-pro-preview",
+  "gemini-3.1-pro-preview",
+]);
 const GEMINI_FLASH_PREVIEW_MODEL = "gemini-3-flash-preview";
 
 function isGemini31SchemaRejection(error: unknown): boolean {
@@ -8,7 +11,7 @@ function isGemini31SchemaRejection(error: unknown): boolean {
 
   return (
     lowered.includes("config.aimodel") &&
-    lowered.includes("gemini-3.1-pro-preview") &&
+    (lowered.includes("gemini-3.1-pro-preview") || lowered.includes("gemini-3.0-pro-preview")) &&
     (lowered.includes("invalid type") || lowered.includes("expected"))
   );
 }
@@ -21,7 +24,7 @@ export async function generateStoryWithModelFallback<TResponse, TRequest extends
     return await callGenerate(request);
   } catch (error) {
     const requestedModel = request.config?.aiModel;
-    if (requestedModel !== GEMINI_PRO_PREVIEW_MODEL || !isGemini31SchemaRejection(error)) {
+    if (!GEMINI_PRO_PREVIEW_MODELS.has(String(requestedModel)) || !isGemini31SchemaRejection(error)) {
       throw error;
     }
 
@@ -34,7 +37,7 @@ export async function generateStoryWithModelFallback<TResponse, TRequest extends
     } as TRequest;
 
     console.warn(
-      `[StoryWizard] Backend rejects ${GEMINI_PRO_PREVIEW_MODEL}; retrying with ${GEMINI_FLASH_PREVIEW_MODEL}`
+      `[StoryWizard] Backend rejects ${requestedModel}; retrying with ${GEMINI_FLASH_PREVIEW_MODEL}`
     );
 
     return callGenerate(fallbackRequest);

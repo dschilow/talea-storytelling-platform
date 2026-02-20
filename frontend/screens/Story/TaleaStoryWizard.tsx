@@ -50,6 +50,7 @@ interface WizardState {
     | 'gpt-5-mini'
     | 'gpt-5.2'
     | 'gemini-3-flash-preview'
+    | 'gemini-3.0-pro-preview'
     | 'gemini-3.1-pro-preview';
 }
 
@@ -290,7 +291,7 @@ export default function TaleaStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: '',
-    aiModel: 'gpt-5-mini',
+    aiModel: 'gemini-3-flash-preview',
   });
 
   useEffect(() => {
@@ -298,8 +299,8 @@ export default function TaleaStoryWizard() {
   }, [i18n.language]);
 
   useEffect(() => {
-    if (!isAdmin && state.aiModel !== 'gpt-5-mini') {
-      setState((prev) => ({ ...prev, aiModel: 'gpt-5-mini' }));
+    if (!isAdmin && state.aiModel !== 'gemini-3-flash-preview') {
+      setState((prev) => ({ ...prev, aiModel: 'gemini-3-flash-preview' }));
     }
   }, [isAdmin, state.aiModel]);
 
@@ -633,7 +634,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin: 
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
-    aiModel: isAdmin ? state.aiModel : 'gpt-5-mini',
+    aiModel: isAdmin ? state.aiModel : 'gemini-3-flash-preview',
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
