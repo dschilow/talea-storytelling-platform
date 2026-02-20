@@ -2712,6 +2712,8 @@ function hasAttributedDialogueForCharacter(text: string, name: string, language:
     new RegExp(`[${q}][^${q}]{3,160}[${q}][^.!?\\n]{0,40}${escapedName}`, "i"),
     // Name opens quote: Name: „..." or Name „..."
     new RegExp(`${escapedName}[^.!?\\n]{0,40}[${q}]`, "i"),
+    // Name does action then speaks: Name tat etwas. „..."
+    new RegExp(`${escapedName}[^\\n]{0,80}[.!?]\\s*[${q}]`, "i"),
     // Name thinks/feels (inner monologue counts as voice)
     new RegExp(`${escapedName}[^.!?\\n]{0,40}(?:dachte|[üu]berlegte|gr[üu]belte|fragte\\s+sich)`, "i"),
     new RegExp(`(?:dachte|[üu]berlegte|gr[üu]belte)\\s[^.!?\\n]{0,30}${escapedName}`, "i"),

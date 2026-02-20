@@ -1,6 +1,6 @@
-﻿import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed } from "./types";
+import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed } from "./types";
 
-// â”€â”€â”€ Character Profile Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
 
 interface CharacterSheet {
@@ -26,8 +26,8 @@ interface CharacterSheet {
 
 /**
  * Baut eine einzigartige Charakter-Beschreibung mit:
- * - Beruf/Spezies-spezifischen FÃ¤higkeiten
- * - PersÃ¶nlichkeit und Quirks
+ * - Beruf/Spezies-spezifischen Fähigkeiten
+ * - Persönlichkeit und Quirks
  * - Sprechstil mit Beispiel
  * - Catchphrase mit Kontext
  */
@@ -35,12 +35,12 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   const ep = sheet.enhancedPersonality;
   const name = sheet.displayName;
 
-  // PersÃ¶nlichkeit aus DB oder Fallback
+  // Persönlichkeit aus DB oder Fallback
   const personality = sheet.personalityTags?.slice(0, 3).join(", ")
     || ep?.dominant
     || "neugierig";
 
-  // SekundÃ¤re Traits
+  // Sekundäre Traits
   const secondaryTraits = ep?.secondaryTraits?.slice(0, 3).join(", ")
     || sheet.personalityTags?.slice(3, 6).join(", ")
     || "";
@@ -55,19 +55,19 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   const catchphrase = ep?.catchphrase || "";
   const catchphraseContext = sheet.catchphraseContext || ep?.emotionalTriggers?.[0] || "";
 
-  // Archetype -> FÃ¤higkeiten/Beruf
+  // Archetype -> Fähigkeiten/Beruf
   const archetype = sheet.archetype || "";
   const species = sheet.species || "";
 
   // Baue kompakte Zeilen
   let lines: string[] = [];
 
-  // Zeile 1: Name + KernpersÃ¶nlichkeit
+  // Zeile 1: Name + Kernpersönlichkeit
   let line1 = `**${name}**`;
   if (sheet.roleType === "AVATAR") {
     line1 += ` (Kind)`;
   } else if (species && !species.includes("human_child")) {
-    // Spezies/Beruf fÃ¼r Nicht-Kinder
+    // Spezies/Beruf für Nicht-Kinder
     const speciesLabel = getSpeciesLabel(species, isGerman);
     if (speciesLabel) line1 += ` (${speciesLabel})`;
   }
@@ -84,14 +84,14 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
     let line3 = "  -";
     if (quirk) line3 += ` Marotte: ${quirk}.`;
     if (catchphrase && catchphraseContext) {
-      line3 += ` Spruch (${catchphraseContext}): â€ž${catchphrase}"`;
+      line3 += ` Spruch (${catchphraseContext}): „${catchphrase}"`;
     } else if (catchphrase) {
-      line3 += ` Spruch: â€ž${catchphrase}"`;
+      line3 += ` Spruch: „${catchphrase}"`;
     }
     lines.push(line3);
   }
 
-  // Zeile 4: Berufsspezifische FÃ¤higkeit (basierend auf Archetype)
+  // Zeile 4: Berufsspezifische Fähigkeit (basierend auf Archetype)
   const ability = getArchetypeAbility(archetype, species, isGerman);
   if (ability) {
     lines.push(`  - Kann: ${ability}`);
@@ -114,31 +114,31 @@ function buildCompactCharacterProfile(sheet: CharacterSheet, isGerman: boolean):
 }
 
 /**
- * Gibt eine lesbare Spezies-Bezeichnung zurÃ¼ck
+ * Gibt eine lesbare Spezies-Bezeichnung zurück
  */
 function getSpeciesLabel(species: string, isGerman: boolean): string {
   const labels: Record<string, string> = {
-    "human_baker": isGerman ? "BÃ¤cker" : "Baker",
+    "human_baker": isGerman ? "Bäcker" : "Baker",
     "human_postman": isGerman ? "Postbote" : "Postman",
     "human_firefighter": isGerman ? "Feuerwehrfrau" : "Firefighter",
     "human_police": isGerman ? "Polizist" : "Police Officer",
     "human_witch": isGerman ? "Hexe" : "Witch",
     "human_wizard": isGerman ? "Zauberer" : "Wizard",
     "human_knight": isGerman ? "Ritter" : "Knight",
-    "human_sailor": isGerman ? "KapitÃ¤n" : "Captain",
-    "human_gardener": isGerman ? "GÃ¤rtnerin" : "Gardener",
+    "human_sailor": isGerman ? "Kapitän" : "Captain",
+    "human_gardener": isGerman ? "Gärtnerin" : "Gardener",
     "human_teacher": isGerman ? "Lehrerin" : "Teacher",
-    "human_queen": isGerman ? "KÃ¶nigin" : "Queen",
-    "human_king": isGerman ? "KÃ¶nig" : "King",
+    "human_queen": isGerman ? "Königin" : "Queen",
+    "human_king": isGerman ? "König" : "King",
     "human_princess": isGerman ? "Prinzessin" : "Princess",
     "human_astronaut": isGerman ? "Astronautin" : "Astronaut",
     "human_elder": isGerman ? "Oma" : "Grandma",
-    "human_bandit": isGerman ? "RÃ¤uber" : "Robber",
-    "human_bandit_leader": isGerman ? "RÃ¤uberhauptmann" : "Robber Captain",
+    "human_bandit": isGerman ? "Räuber" : "Robber",
+    "human_bandit_leader": isGerman ? "Räuberhauptmann" : "Robber Captain",
     "human_dark_wizard": isGerman ? "Schwarzmagier" : "Dark Mage",
     "dog": isGerman ? "Hund" : "Dog",
     "cat": isGerman ? "Katze" : "Cat",
-    "squirrel": isGerman ? "EichhÃ¶rnchen" : "Squirrel",
+    "squirrel": isGerman ? "Eichhörnchen" : "Squirrel",
     "unicorn": isGerman ? "Einhorn" : "Unicorn",
     "fairy": isGerman ? "Fee" : "Fairy",
     "dragon_small": isGerman ? "kleiner Drache" : "Small Dragon",
@@ -159,37 +159,37 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
   // Species-based abilities take precedence
   const speciesAbilities: Record<string, string> = {
     "human_baker": isGerman
-      ? "backen, Teig kneten, mit Essen trÃ¶sten"
+      ? "backen, Teig kneten, mit Essen trösten"
       : "bake, knead dough, comfort with food",
     "human_firefighter": isGerman
-      ? "lÃ¶schen, retten, Leitern erklimmen"
+      ? "löschen, retten, Leitern erklimmen"
       : "extinguish fires, rescue, climb ladders",
     "human_police": isGerman
       ? "Ordnung halten, Regeln durchsetzen, Hinweise finden"
       : "keep order, enforce rules, find clues",
     "human_witch": isGerman
-      ? "ZaubertrÃ¤nke brauen, ZaubersprÃ¼che wirken, mit dem Besen fliegen"
+      ? "Zaubertränke brauen, Zaubersprüche wirken, mit dem Besen fliegen"
       : "brew potions, cast spells, fly on broom",
     "human_wizard": isGerman
-      ? "mÃ¤chtige Magie wirken, die Zukunft sehen, weise RatschlÃ¤ge geben"
+      ? "mächtige Magie wirken, die Zukunft sehen, weise Ratschläge geben"
       : "cast powerful magic, see the future, give wise advice",
     "human_gardener": isGerman
-      ? "Pflanzen zum Wachsen bringen, KrÃ¤uter kennen, die Natur verstehen"
+      ? "Pflanzen zum Wachsen bringen, Kräuter kennen, die Natur verstehen"
       : "make plants grow, know herbs, understand nature",
     "human_knight": isGerman
-      ? "kÃ¤mpfen (theoretisch), beschÃ¼tzen, stolpern aber aufstehen"
+      ? "kämpfen (theoretisch), beschützen, stolpern aber aufstehen"
       : "fight (theoretically), protect, trip but get up",
     "human_sailor": isGerman
-      ? "navigieren, Seile knoten, Seegeschichten erzÃ¤hlen"
+      ? "navigieren, Seile knoten, Seegeschichten erzählen"
       : "navigate, tie knots, tell sea stories",
     "human_teacher": isGerman
-      ? "erklÃ¤ren, korrigieren, Wissen teilen"
+      ? "erklären, korrigieren, Wissen teilen"
       : "explain, correct, share knowledge",
     "human_doctor": isGerman
       ? "heilen, Wunden versorgen, beruhigen"
       : "heal, treat wounds, calm down",
     "dog": isGerman
-      ? "Spuren erschnÃ¼ffeln, treu folgen, bellen bei Gefahr"
+      ? "Spuren erschnüffeln, treu folgen, bellen bei Gefahr"
       : "sniff out trails, follow loyally, bark at danger",
     "cat": isGerman
       ? "leise schleichen, hoch springen, elegant ignorieren"
@@ -201,13 +201,13 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
       ? "Glitzerstaub verteilen, fliegen, kleine Zauber wirken"
       : "spread glitter dust, fly, cast small spells",
     "dragon_small": isGerman
-      ? "Feuer spucken (ein bisschen), fliegen (wackelig), sÃ¼ÃŸ aussehen"
+      ? "Feuer spucken (ein bisschen), fliegen (wackelig), süß aussehen"
       : "breathe fire (a little), fly (wobbly), look cute",
     "goblin": isGerman
       ? "stehlen, tricksen, kichern, schnell verschwinden"
       : "steal, trick, giggle, disappear quickly",
     "troll": isGerman
-      ? "BrÃ¼cken blockieren, stark sein, mit Essen bestochen werden"
+      ? "Brücken blockieren, stark sein, mit Essen bestochen werden"
       : "block bridges, be strong, be bribed with food",
     "dwarf": isGerman
       ? "graben, Gold erkennen, handwerken"
@@ -216,7 +216,7 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
       ? "berechnen, analysieren, logisch denken, piepen"
       : "calculate, analyze, think logically, beep",
     "squirrel": isGerman
-      ? "klettern, NÃ¼sse sammeln, nervÃ¶s herumspringen"
+      ? "klettern, Nüsse sammeln, nervös herumspringen"
       : "climb, collect nuts, jump around nervously",
   };
 
@@ -224,25 +224,25 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
     return speciesAbilities[species];
   }
 
-  // Archetype-basierte FÃ¤higkeiten als Fallback
+  // Archetype-basierte Fähigkeiten als Fallback
   const archetypeAbilities: Record<string, string> = {
-    "merchant": isGerman ? "handeln, Waren anbieten, Ã¼berzeugen" : "trade, offer goods, persuade",
+    "merchant": isGerman ? "handeln, Waren anbieten, überzeugen" : "trade, offer goods, persuade",
     "investigator": isGerman ? "Hinweise finden, kombinieren, beobachten" : "find clues, combine, observe",
-    "caregiver": isGerman ? "trÃ¶sten, fÃ¼ttern, umsorgen" : "comfort, feed, care for",
-    "guardian": isGerman ? "beschÃ¼tzen, warnen, Regeln durchsetzen" : "protect, warn, enforce rules",
+    "caregiver": isGerman ? "trösten, füttern, umsorgen" : "comfort, feed, care for",
+    "guardian": isGerman ? "beschützen, warnen, Regeln durchsetzen" : "protect, warn, enforce rules",
     "mentor": isGerman ? "lehren, beraten, Weisheit teilen" : "teach, advise, share wisdom",
     "hero_helper": isGerman ? "retten, helfen, mutig eingreifen" : "rescue, help, bravely intervene",
     "magical_helper": isGerman ? "mit Magie helfen, verzaubern" : "help with magic, enchant",
     "magical_trickster": isGerman ? "tricksen mit Magie, verwirren" : "trick with magic, confuse",
-    "magical_creature": isGerman ? "magische KrÃ¤fte nutzen, heilen" : "use magical powers, heal",
+    "magical_creature": isGerman ? "magische Kräfte nutzen, heilen" : "use magical powers, heal",
     "animal_companion": isGerman ? "treu begleiten, Gefahren wittern" : "accompany loyally, sense danger",
     "animal_trickster": isGerman ? "tricksen, schnell sein, ablenken" : "trick, be fast, distract",
-    "creature": isGerman ? "besondere Kreatur-FÃ¤higkeiten" : "special creature abilities",
+    "creature": isGerman ? "besondere Kreatur-Fähigkeiten" : "special creature abilities",
     "trickster": isGerman ? "stehlen, tricksen, entkommen" : "steal, trick, escape",
-    "villain": isGerman ? "PlÃ¤ne schmieden, drohen, scheitern" : "make plans, threaten, fail",
+    "villain": isGerman ? "Pläne schmieden, drohen, scheitern" : "make plans, threaten, fail",
     "explorer": isGerman ? "entdecken, erforschen, mutig vorangehen" : "discover, explore, lead bravely",
-    "adventurer": isGerman ? "Abenteuer erleben, Geschichten erzÃ¤hlen" : "have adventures, tell stories",
-    "royal": isGerman ? "befehlen, reprÃ¤sentieren, WÃ¼rde zeigen" : "command, represent, show dignity",
+    "adventurer": isGerman ? "Abenteuer erleben, Geschichten erzählen" : "have adventures, tell stories",
+    "royal": isGerman ? "befehlen, repräsentieren, Würde zeigen" : "command, represent, show dignity",
   };
 
   return archetypeAbilities[archetype] || "";
@@ -254,25 +254,25 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
 function generateSpeechExample(name: string, speechStyle: string, catchphrase: string, isGerman: boolean): string {
   // Wenn Catchphrase vorhanden, als Beispiel nutzen
   if (catchphrase && catchphrase.length < 50) {
-    return `Beispiel: â€ž${catchphrase}"`;
+    return `Beispiel: „${catchphrase}"`;
   }
 
   // Generiere Beispiel basierend auf Sprechstil
   const styleExamples: Record<string, string> = {
-    "fast": isGerman ? `Beispiel: â€žSchnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
-    "breathless": isGerman ? `Beispiel: â€žSchnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
-    "woof": isGerman ? `Beispiel: â€žWuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
-    "barking": isGerman ? `Beispiel: â€žWuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
-    "giggling": isGerman ? `Beispiel: â€žHihihi! Erwischt! Kicher-kicher!"` : `Example: "Hehehe! Caught you! Giggle-giggle!"`,
-    "rhyming": isGerman ? `Beispiel: â€žEins-zwei-drei, Zauber frei!"` : `Example: "One-two-three, magic free!"`,
-    "telepathic": isGerman ? `Beispiel: â€ž*Habt keine Furcht. Euer Mut leuchtet.*"` : `Example: "*Fear not. Your courage shines.*"`,
-    "gentle": isGerman ? `Beispiel: â€ž*Folgt eurem Herzen...*"` : `Example: "*Follow your heart...*"`,
-    "mechanical": isGerman ? `Beispiel: â€žPiep-Piep. Analyse komplett."` : `Example: "Beep-Boop. Analysis complete."`,
-    "croaking": isGerman ? `Beispiel: â€žQuaaak! Ich bin ein Prinz! Wirklich!"` : `Example: "Croak! I'm a prince! Really!"`,
-    "grumbling": isGerman ? `Beispiel: â€žGrmpf. Was willst du?"` : `Example: "Grmpf. What do you want?"`,
-    "whispering": isGerman ? `Beispiel: â€žPsst... kommt nÃ¤her..."` : `Example: "Psst... come closer..."`,
-    "regal": isGerman ? `Beispiel: â€žWir befehlen, dass..."` : `Example: "We command that..."`,
-    "squeaky": isGerman ? `Beispiel: â€žPieps! Eine Nuss! Da! Da!"` : `Example: "Squeak! A nut! There! There!"`,
+    "fast": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "breathless": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "woof": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "barking": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "giggling": isGerman ? `Beispiel: „Hihihi! Erwischt! Kicher-kicher!"` : `Example: "Hehehe! Caught you! Giggle-giggle!"`,
+    "rhyming": isGerman ? `Beispiel: „Eins-zwei-drei, Zauber frei!"` : `Example: "One-two-three, magic free!"`,
+    "telepathic": isGerman ? `Beispiel: „*Habt keine Furcht. Euer Mut leuchtet.*"` : `Example: "*Fear not. Your courage shines.*"`,
+    "gentle": isGerman ? `Beispiel: „*Folgt eurem Herzen...*"` : `Example: "*Follow your heart...*"`,
+    "mechanical": isGerman ? `Beispiel: „Piep-Piep. Analyse komplett."` : `Example: "Beep-Boop. Analysis complete."`,
+    "croaking": isGerman ? `Beispiel: „Quaaak! Ich bin ein Prinz! Wirklich!"` : `Example: "Croak! I'm a prince! Really!"`,
+    "grumbling": isGerman ? `Beispiel: „Grmpf. Was willst du?"` : `Example: "Grmpf. What do you want?"`,
+    "whispering": isGerman ? `Beispiel: „Psst... kommt näher..."` : `Example: "Psst... come closer..."`,
+    "regal": isGerman ? `Beispiel: „Wir befehlen, dass..."` : `Example: "We command that..."`,
+    "squeaky": isGerman ? `Beispiel: „Pieps! Eine Nuss! Da! Da!"` : `Example: "Squeak! A nut! There! There!"`,
   };
 
   // Suche nach passendem Beispiel
@@ -304,7 +304,7 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
     .slice(0, 3)
     .map((name, idx) => {
       const t = templates[idx] || templates[templates.length - 1];
-      return `  - ${name}: ${t.label} – ${t.desc}. Beispiel: ${t.example}`;
+      return `  - ${name}: ${t.label} � ${t.desc}. Beispiel: ${t.example}`;
     })
     .join("\n");
 
@@ -315,7 +315,7 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
   return `${lines}\n${globalRule}`;
 }
 
-// â”€â”€â”€ Golden Example & Anti-Patterns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Golden Example & Anti-Patterns ──────────────────────────────────────────
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
@@ -323,7 +323,7 @@ SZENE A (Unterbrechung + Rhythmus):
 Mama knallte den Korb auf den Tisch. Plopp.
 "Darf ich--?" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
 Alexander beugte sich vor. "Ich riech Apfelkuchen." "Und Tee", sagte Adrian.
-Er schnupperte extra laut. "Und… Oma."
+Er schnupperte extra laut. "Und� Oma."
 
 SZENE B (Humor durch Situation):
 "Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
@@ -386,7 +386,7 @@ LEHRSAETZE IM DIALOG (VERBOTEN):
 REPORT-STIL (VERBOTEN):
 - "Sie gingen. Sie machten. Sie legten. Sie nickten." (= Roboter-Prosa)
 WORT-WIEDERHOLUNGEN & FUELLWOERTER (STRENG VERBOTEN):
-- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" – komplett vermeiden!
+- "ploetzlich", "auf einmal", "dann", "nun", "jetzt", "schliesslich" � komplett vermeiden!
 VERGLEICHS-OVERLOAD & METAPHERN (VERBOTEN):
 - Max 1 winziger, konkreter Vergleich pro Kapitel. Keine Metaphern-Ketten oder abstrakten Bilder.`
     : `PERSONIFICATION (FORBIDDEN):
@@ -401,7 +401,7 @@ TEACHING SENTENCES IN DIALOGUE (FORBIDDEN):
 REPORT STYLE (FORBIDDEN):
 - "They went. They did. They placed. They nodded." (= robot prose)
 FILLER WORDS & REPETITION (STRICTLY FORBIDDEN):
-- "suddenly", "all at once", "then", "now", "finally" – avoid completely!
+- "suddenly", "all at once", "then", "now", "finally" � avoid completely!
 METAPHOR OVERLOAD (FORBIDDEN):
 - Max 1 short comparison per chapter. No chains of metaphors or abstract imagery.`;
 
@@ -527,7 +527,7 @@ export function buildFullStoryPrompt(input: {
         : "Humor: Optional.";
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
+  const umlautRule = isGerman ? " Use proper German umlauts (�, �, �, �), never ASCII substitutes. No English words." : "";
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
@@ -691,7 +691,7 @@ export function buildFullStoryRewritePrompt(input: {
     .join("\n\n");
 
   const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII. No English words." : "";
+  const umlautRule = isGerman ? " Use proper German umlauts (�, �, �, �), never ASCII. No English words." : "";
 
   return `TASK: Rewrite this story to "10.0/10.0" quality standards. The previous draft was rejected for being too flat/generic.
 
@@ -728,11 +728,7 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 1) Language: ONLY ${outputLang}.${umlautRule}
 2) Length: ${totalWordMin}-${totalWordMax} words total. Chapter target ${wordsPerChapter.min}-${wordsPerChapter.max}.
    -> IF TOO SHORT: You MUST add new interactions, dialogue lines, and sensory details. Do NOT just fluff the text. Dramatize!
-3) Cast Lock: ${allowedNames || "(none)"}. No new names.
-4) Tone: ${targetTone}.
-5) Structure: Exactly ${directives.length} chapters.
-6) No BANNED words (plötzlich, auf einmal, dann, nun, jetzt, schließlich).
-
+  3) Cast Lock: ${allowedNames || "(none)"}. No new names. NEVER invent new characters, names, or entities.
 ${humorRewriteLine}
 
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -822,7 +818,7 @@ ${missingLine}
 **${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences**
 
 # RULES
-1. ONLY these names: ${allowedNames}
+1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
 2. No new characters.
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
 4. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
@@ -834,7 +830,7 @@ ${missingLine}
 10. No explanatory sentences about object rules.
 11. Dialogues must sound distinguishable; no speaker-tag formula loops.
 12. Running gag sparsely: same sound-word/catchphrase max 2x.
-13. If output is German: use true umlauts (ä, ö, ü, ß), no ae/oe/ue. NO English words in output.
+13. If output is German: use true umlauts (�, �, �, �), no ae/oe/ue. NO English words in output.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -851,7 +847,7 @@ JSON:
 }`;
 }
 
-// â”€â”€â”€ Legacy functions (fÃ¼r KompatibilitÃ¤t) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Legacy functions (für Kompatibilität) ────────────────────────────────────
 
 export function buildStoryChapterPrompt(input: {
   chapter: SceneDirective;
@@ -1047,7 +1043,7 @@ ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
-1) Use only these names: ${allowedNames || "none"}.
+1) Use only these names: ${allowedNames || "none"}. NEVER invent new characters, names, or entities.
 2) No new proper names.
 2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
 3) No meta instructions, labels, previews, or summary lines in prose. NEVER copy the Goal, Conflict, or Setting text directly into the story.
@@ -1125,7 +1121,7 @@ SCENE DIRECTIVE:
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
-1) Use only these names: ${allowedNames || "none"}.
+1) Use only these names: ${allowedNames || "none"}. NEVER invent new characters, names, or entities.
 2) No new proper names or new characters.
 2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
 3) Replace template phrases with concrete action + short dialogue lines.
@@ -1154,28 +1150,28 @@ Return JSON:
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {
   const isGerman = input.language === "de";
-  return `${isGerman ? "Du bist ein preisgekrÃ¶nter Kinderbuch-Verleger" : "You are an award-winning children's book publisher"}.
+  return `${isGerman ? "Du bist ein preisgekrönter Kinderbuch-Verleger" : "You are an award-winning children's book publisher"}.
 
 ${isGerman
       ? `# Aufgabe
-Erfinde einen MAGISCHEN Buchtitel (max 6 WÃ¶rter) und einen packenden Teaser-Satz fÃ¼r diese Kindergeschichte.
+Erfinde einen MAGISCHEN Buchtitel (max 6 Wörter) und einen packenden Teaser-Satz für diese Kindergeschichte.
 
-# Regeln fÃ¼r gute Kinderbuch-Titel
+# Regeln für gute Kinderbuch-Titel
 - NIEMALS das Schema "[Gegenstand] und [Person]" oder "[Person] und das [Artefakt]" verwenden!
-- Gute Titel wecken NEUGIER und GEFÃœHLE, nicht nur Fakten.
-- Vorbilder: "Der GrÃ¼ffelo", "Wo die wilden Kerle wohnen", "Jim Knopf und Lukas der LokomotivfÃ¼hrer", "Die unendliche Geschichte", "Pippi Langstrumpf"
-- Nutze: Wortspiele, Ã¼berraschende Kombinationen, Geheimnisvolles, Klangmalerei, Alliterationen
+- Gute Titel wecken NEUGIER und GEFÜHLE, nicht nur Fakten.
+- Vorbilder: "Der Grüffelo", "Wo die wilden Kerle wohnen", "Jim Knopf und Lukas der Lokomotivführer", "Die unendliche Geschichte", "Pippi Langstrumpf"
+- Nutze: Wortspiele, überraschende Kombinationen, Geheimnisvolles, Klangmalerei, Alliterationen
 - Der Titel muss ein Kind zum Lachen oder Staunen bringen
 - KEIN langweiliges "[Objekt]+[Eigenschaft]"-Schema
 
-# Beispiele fÃ¼r GUTE vs SCHLECHTE Titel
-âŒ SCHLECHT: "Das Windeamulett", "Der magische Kompass", "Das Zauberbuch"
-âœ… GUT: "SturmflÃ¼sterer", "Drei WÃ¼nsche und ein halber", "Der Tag, an dem der Wind sang", "Nachts, wenn die Glocken flÃ¼stern"
+# Beispiele für GUTE vs SCHLECHTE Titel
+❌ SCHLECHT: "Das Windeamulett", "Der magische Kompass", "Das Zauberbuch"
+✅ GUT: "Sturmflüsterer", "Drei Wünsche und ein halber", "Der Tag, an dem der Wind sang", "Nachts, wenn die Glocken flüstern"
 
 # Teaser
 Der Teaser-Satz soll eine FRAGE im Kopf des Kindes wecken.
-âŒ SCHLECHT: "Drei Kinder finden ein Amulett und retten die Stadt."
-âœ… GUT: "Wer flÃ¼stert nachts hinter den MarktstÃ¤nden â€“ und warum hat der Wind aufgehÃ¶rt zu singen?"`
+❌ SCHLECHT: "Drei Kinder finden ein Amulett und retten die Stadt."
+✅ GUT: "Wer flüstert nachts hinter den Marktständen – und warum hat der Wind aufgehört zu singen?"`
 
       : `# Task
 Create a MAGICAL book title (max 6 words) and a gripping teaser sentence for this children's story.
@@ -1290,7 +1286,7 @@ function sanitizeDirectiveNarrativeText(value: string | undefined): string {
     /\b(?:wir|we)\s+(?:ersetzen|replace)\s+(?:es|it)\b/gi,
     /\b(?:nichts|kein(?:e|en)?)\s+mit\s+konflikt\b/gi,
     /\b(?:die\s+szene\s+endete|the\s+scene\s+ended)\b/gi,
-    /\b(?:die\s+handlung\s+r(?:ue|ü)ckte\s+vor|the\s+action\s+moved\s+forward)\b/gi,
+    /\b(?:die\s+handlung\s+r(?:ue|�)ckte\s+vor|the\s+action\s+moved\s+forward)\b/gi,
     /\b(?:strict\s+rules\??|output\s+format|return\s+json)\b/gi,
     /\b(?:der\s+ausblick|the\s+outlook)\b/gi,
   ];
