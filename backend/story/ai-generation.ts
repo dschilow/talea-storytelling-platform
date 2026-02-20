@@ -303,6 +303,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 65536,
     supportsReasoningEffort: false,
   },
+  "gemini-3.1-pro-preview": {
+    name: "gemini-3.1-pro-preview",
+    inputCostPer1M: 0.00,       // Preview pricing (configure when finalized)
+    outputCostPer1M: 0.00,      // Preview pricing (configure when finalized)
+    maxCompletionTokens: 65536,
+    supportsReasoningEffort: false,
+  },
 };
 
 // Default model
@@ -2109,7 +2116,7 @@ You MUST implement this style consistently in ALL chapters!`
   let content: string;
 
   // Check if using Gemini model
-  const isGeminiModel = modelKey === "gemini-3-flash-preview";
+  const isGeminiModel = modelConfig.name.startsWith("gemini-");
 
   if (isGeminiModel) {
     // Use Gemini API
@@ -2117,12 +2124,13 @@ You MUST implement this style consistently in ALL chapters!`
       throw new Error("Gemini API is not configured. Please set GeminiAPIKey secret.");
     }
 
-    console.log(`[ai-generation] 🤖 Using Google Gemini 2.0 Flash`);
+    console.log(`[ai-generation] 🤖 Using Google Gemini model: ${modelConfig.name}`);
 
     try {
       const geminiResponse = await generateWithGemini({
         systemPrompt,
         userPrompt,
+        model: modelConfig.name,
         maxTokens: modelConfig.maxCompletionTokens,
         temperature: 0.9,
       });
@@ -2132,8 +2140,13 @@ You MUST implement this style consistently in ALL chapters!`
       usageTotals.completion = geminiResponse.usage.completionTokens;
       usageTotals.total = geminiResponse.usage.totalTokens;
 
-      finalRequest = { model: modelConfig.name, systemPrompt, userPrompt };
-      finalResponse = { content, usage: geminiResponse.usage, finishReason: geminiResponse.finishReason };
+      finalRequest = { model: geminiResponse.model, systemPrompt, userPrompt };
+      finalResponse = {
+        model: geminiResponse.model,
+        content,
+        usage: geminiResponse.usage,
+        finishReason: geminiResponse.finishReason,
+      };
 
       console.log(`[ai-generation] ✅ Gemini generation successful`);
     } catch (error) {

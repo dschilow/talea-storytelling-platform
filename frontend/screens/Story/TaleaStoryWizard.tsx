@@ -44,7 +44,12 @@ interface WizardState {
   happyEnd: boolean;
   surpriseEnd: boolean;
   customWish: string;
-  aiModel: 'gpt-5-nano' | 'gpt-5-mini' | 'gpt-5.2' | 'gemini-3-flash-preview';
+  aiModel:
+    | 'gpt-5-nano'
+    | 'gpt-5-mini'
+    | 'gpt-5.2'
+    | 'gemini-3-flash-preview'
+    | 'gemini-3.1-pro-preview';
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
@@ -630,5 +635,4 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin: 
     },
   } as any;
 }
-
 

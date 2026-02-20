@@ -11,6 +11,7 @@ const geminiApiKey = secret("GeminiAPIKey");
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1500;
 const MAX_RETRY_DELAY_MS = 15000;
+const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -32,6 +33,33 @@ function parseRetryDelayMs(errorText: string, response: Response): number | null
   }
 
   return null;
+}
+
+function resolveGeminiModelCandidates(requestedModel?: string): string[] {
+  const normalized = (requestedModel || "").trim();
+  const primaryModel =
+    normalized.length > 0 && normalized.startsWith("gemini-")
+      ? normalized
+      : DEFAULT_GEMINI_MODEL;
+
+  if (primaryModel === DEFAULT_GEMINI_MODEL) {
+    return [DEFAULT_GEMINI_MODEL];
+  }
+
+  return [primaryModel, DEFAULT_GEMINI_MODEL];
+}
+
+function shouldFallbackToDefaultModel(status: number, errorText: string): boolean {
+  if (status === 404) return true;
+  if (status !== 400) return false;
+
+  const lowered = errorText.toLowerCase();
+  return (
+    lowered.includes("not found") ||
+    lowered.includes("unknown model") ||
+    lowered.includes("unsupported model") ||
+    lowered.includes("is not supported")
+  );
 }
 
 function resolveGeminiApiKey(): string | null {
@@ -58,6 +86,7 @@ function resolveGeminiApiKey(): string | null {
 interface GeminiGenerationRequest {
   systemPrompt: string;
   userPrompt: string;
+  model?: string;
   maxTokens: number;
   temperature?: number;
   thinkingBudget?: number; // Thinking tokens for internal reasoning (default: 4096)
@@ -70,6 +99,7 @@ interface GeminiUsage {
 }
 
 interface GeminiGenerationResponse {
+  model: string;
   content: string;
   usage: GeminiUsage;
   finishReason: string;
@@ -88,8 +118,7 @@ export async function generateWithGemini(
       "Gemini API key not configured. Set ENCORE_SECRET_GEMINIAPIKEY or GEMINI_API_KEY."
     );
   }
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+  const modelCandidates = resolveGeminiModelCandidates(request.model);
 
   const payload = {
     systemInstruction: {
@@ -132,90 +161,125 @@ export async function generateWithGemini(
     ]
   };
 
-  let response: Response | null = null;
-  let data: any = null;
-  let responseTime = 0;
+  let lastError: Error | null = null;
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
-    console.log(`[gemini-generation] Calling Gemini API (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${request.maxTokens}...`);
-    const startTime = Date.now();
+  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
+    const modelName = modelCandidates[modelIndex];
+    const hasFallback = modelIndex < modelCandidates.length - 1;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${apiKey}`;
+    let data: any = null;
+    let responseTime = 0;
+    let fallbackTriggered = false;
 
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+      console.log(
+        `[gemini-generation] Calling Gemini API model=${modelName} (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${request.maxTokens}...`
+      );
+      const startTime = Date.now();
 
-    responseTime = Date.now() - startTime;
-    console.log(`[gemini-generation] Response received in ${responseTime}ms`);
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
 
-    if (response.ok) {
-      data = await response.json();
+      responseTime = Date.now() - startTime;
+      console.log(`[gemini-generation] Response received in ${responseTime}ms`);
+
+      if (response.ok) {
+        data = await response.json();
+        break;
+      }
+
+      const errorText = await response.text();
+      console.error("[gemini-generation] Gemini API error:", {
+        model: modelName,
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+      });
+
+      const retryable = response.status === 429 || response.status === 503 || response.status === 500;
+      if (retryable && attempt < MAX_RETRIES) {
+        const delay = Math.min(
+          parseRetryDelayMs(errorText, response) ?? INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1),
+          MAX_RETRY_DELAY_MS
+        );
+        console.warn(`[gemini-generation] Retryable error (${response.status}); waiting ${delay}ms before retry`);
+        await sleep(delay);
+        continue;
+      }
+
+      if (hasFallback && shouldFallbackToDefaultModel(response.status, errorText)) {
+        console.warn(
+          `[gemini-generation] Model ${modelName} unavailable. Falling back to ${DEFAULT_GEMINI_MODEL}.`
+        );
+        fallbackTriggered = true;
+        break;
+      }
+
+      lastError = new Error(`Gemini API error (${modelName}): ${response.status} - ${errorText}`);
       break;
     }
 
-    const errorText = await response.text();
-    console.error("[gemini-generation] Gemini API error:", {
-      status: response.status,
-      statusText: response.statusText,
-      body: errorText
-    });
-
-    const retryable = response.status === 429 || response.status === 503 || response.status === 500;
-    if (retryable && attempt < MAX_RETRIES) {
-      const delay = Math.min(
-        parseRetryDelayMs(errorText, response) ?? INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1),
-        MAX_RETRY_DELAY_MS
-      );
-      console.warn(`[gemini-generation] Retryable error (${response.status}); waiting ${delay}ms before retry`);
-      await sleep(delay);
+    if (fallbackTriggered) {
       continue;
     }
 
-    throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    if (!data) {
+      if (lastError) {
+        break;
+      }
+      lastError = new Error(`Gemini API error (${modelName}): failed to receive response after retries`);
+      break;
+    }
+
+    // Extract content from Gemini response
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) {
+      console.error("[gemini-generation] Invalid Gemini response structure:", data);
+      throw new Error("Invalid response from Gemini API - no content found");
+    }
+
+    // Extract usage metadata
+    const usageMetadata = data.usageMetadata || {};
+    const usage: GeminiUsage = {
+      promptTokens: usageMetadata.promptTokenCount || 0,
+      completionTokens: usageMetadata.candidatesTokenCount || 0,
+      totalTokens: usageMetadata.totalTokenCount || 0,
+    };
+    const thoughtsTokenCount = usageMetadata.thoughtsTokenCount || 0;
+
+    const finishReason = data.candidates?.[0]?.finishReason || "STOP";
+
+    console.log("[gemini-generation] Generation successful:", {
+      model: modelName,
+      contentLength: content.length,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      thoughtsTokens: thoughtsTokenCount,
+      totalTokens: usage.totalTokens,
+      finishReason,
+      maxOutputTokensRequested: request.maxTokens,
+      responseTimeMs: responseTime,
+    });
+
+    return {
+      model: modelName,
+      content,
+      usage,
+      finishReason,
+    };
   }
 
-  if (!data) {
-    throw new Error("Gemini API error: failed to receive response after retries");
+  if (lastError) {
+    throw lastError;
   }
 
-  // Extract content from Gemini response
-  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!content) {
-    console.error("[gemini-generation] Invalid Gemini response structure:", data);
-    throw new Error("Invalid response from Gemini API - no content found");
-  }
-
-  // Extract usage metadata
-  const usageMetadata = data.usageMetadata || {};
-  const usage: GeminiUsage = {
-    promptTokens: usageMetadata.promptTokenCount || 0,
-    completionTokens: usageMetadata.candidatesTokenCount || 0,
-    totalTokens: usageMetadata.totalTokenCount || 0,
-  };
-  const thoughtsTokenCount = usageMetadata.thoughtsTokenCount || 0;
-
-  const finishReason = data.candidates?.[0]?.finishReason || "STOP";
-
-  console.log("[gemini-generation] Generation successful:", {
-    contentLength: content.length,
-    promptTokens: usage.promptTokens,
-    completionTokens: usage.completionTokens,
-    thoughtsTokens: thoughtsTokenCount,
-    totalTokens: usage.totalTokens,
-    finishReason,
-    maxOutputTokensRequested: request.maxTokens,
-    responseTimeMs: responseTime
-  });
-
-  return {
-    content,
-    usage,
-    finishReason
-  };
+  throw new Error("Gemini API error: failed to receive response after retries");
 }
 
 /**

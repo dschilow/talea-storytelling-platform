@@ -215,6 +215,7 @@ ${storyLanguageRule}`.trim();
         const geminiResponse = await generateWithGemini({
           systemPrompt: input.systemPrompt,
           userPrompt: input.userPrompt,
+          model,
           maxTokens: clampMaxTokens(input.maxTokens),
           temperature: input.temperature,
         });
@@ -224,7 +225,7 @@ ${storyLanguageRule}`.trim();
             promptTokens: geminiResponse.usage.promptTokens,
             completionTokens: geminiResponse.usage.completionTokens,
             totalTokens: geminiResponse.usage.totalTokens,
-            model,
+            model: geminiResponse.model,
           },
           finishReason: geminiResponse.finishReason,
         };
