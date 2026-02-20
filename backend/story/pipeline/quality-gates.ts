@@ -3318,11 +3318,11 @@ function shouldFlagUnlockedName(text: string, token: string, matchIndex: number,
 
   if (/\s+/.test(normalized)) return true;
 
-  const occurrences = countWordOccurrences(text, normalized);
-  if (occurrences >= 2) return true;
-  if (hasGermanNameHonorificPrefix(text, matchIndex)) return true;
+    if (hasGermanNameHonorificPrefix(text, matchIndex)) return true;
+    
+    if (isLikelyCharacterAction(text, token, matchIndex)) return true;
 
-  return false;
+    return false;
 }
 
 function hasGermanNameHonorificPrefix(text: string, matchIndex: number): boolean {

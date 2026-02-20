@@ -548,11 +548,13 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
 
 1.  **THE "SHOW-DON'T-TELL" LAW (CRITICAL)**
     *   **FORBIDDEN:** Abstract emotion labels ("Tom was sad", "Lisa felt brave", "He was nervous").
-    *   **REQUIRED:** Somatic Markers (body sensations) and visible actions.
+    *   **REQUIRED:** Somatic Markers (body sensations) and visible actions. Show emotions ONLY through body language or objects.
     *   *Bad:* "The forest was scary."
     *   *Good:* "The trees intertwined like knobby fingers. The silence pressed against Tom's ears until they popped."
     *   *Bad:* "Lisa was happy."
     *   *Good:* "Lisa's toes wiggled in her boots. A bubble of giggles rose in her throat."
+    *   *Bad:* "Mia was angry."
+    *   *Good:* "Mia's knee trembled. She bit her lip. The band-aid stuck crookedly."
 
 2.  **THE RHYTHM & PACING RULE (THE "EAR TEST")**
     *   You write PROSE, not a script. The text must sing.
@@ -560,9 +562,12 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
     *   **Sentence Variance:** NEVER allow three sentences of the same length in a row.
     *   **Short Beats:** Use 2-5 word sentences to spike tension. (e.g., "Then it stopped.", "Silence fell.")
     *   **No "And then" Chains:** Avoid starting sentences with "And" or "Then". Use strong verbs.
+    *   **Max 1 "Plan" Sentence:** Per scene, allow ONLY ONE sentence like "We must..." or "The plan is...". The rest MUST be action, sensory details, and dialogue.
 
-3.  **DIALOGUE ANCHORING (NO "PING-PONG")**
+3.  **DIALOGUE ANCHORING & DISTINCT VOICES (NO "PING-PONG")**
     *   **Rule:** Every dialogue block MUST include a "Stage Business" action.
+    *   **Distinct Voices (Audio-Test):** Characters MUST sound different. Give each character 2 typical words they use exclusively.
+        *   *Example:* Adrian: short, brave ("Ich mach das!", "zack", "easy"). Alexander: short, smart but childish ("Warte—erst gucken!", "Moment", "logisch"). Mia: emotional, direct ("Aua! Hör auf!", "echt jetzt", "mega").
     *   *Bad:*
         "Do you see it?" ask Tom.
         "Yes," said Lisa.
@@ -577,12 +582,16 @@ YOUR SOLE OBJECTIVE IS TO WRITE AT A 10.0 LEVEL.
     *   Chapter Start: The character wants something *specific* (not just "to explore").
     *   Chapter Middle: Something gets in the way.
     *   Chapter End: The situation has changed. It's not just a pause; it's a cliffhanger or a realization.
+    *   **Setpiece-Upgrade:** Include 1 mini-puzzle (max 3 sentences) that kids can guess. End the story with a callback (e.g., a recurring sound or object) as a final laugh.
+    *   **Magic Mechanics:** Explain how magic or artifacts work simply and clearly (e.g., "The eye glowed blue, cooling the overheated hive").
+    *   **Active NPCs:** Companions (like a goblin or fairy) MUST actively help solve problems, not just stand around.
 
 5.  **CHILD-CENTRIC WORLDVIEW (DEEP POV)**
     *   The narrator camera is INSIDE the child's eyes.
     *   Adults are giants. Tables are roofs.
     *   Small problems (a lost toy) feel like world-ending disasters. large problems are confusing.
-    *   Magic is treated as matter-of-fact science. 
+    *   Magic is treated as matter-of-fact science.
+    *   **Vocabulary Filter (Ages 6-8):** AVOID office/tech words ("Konditionen", "präzise", "justieren", "schriftlich", "Ordnungs...", "thermisch", "Protokoll"). REPLACE with child-friendly words ("Abmachung", "genau", "zurechtrücken", "aufgeschrieben", "Regel", "warm/kalt", "Notiz").
 
 6.  **FAILURE MODES (AVOID AT ALL COSTS)**
     *   **The "Summary Trap":** Do not summarize events ("They had a great adventure"). PLAY THE ADVENTURE OUT.
@@ -1371,5 +1380,6 @@ function buildControlLinePattern(isGerman: boolean): RegExp {
   const parts = isGerman ? [...common, ...german] : [...common, ...english];
   return new RegExp(`(?:${parts.join("|")})`, "i");
 }
+
 
 
