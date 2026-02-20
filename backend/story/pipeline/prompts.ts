@@ -35,10 +35,10 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   const ep = sheet.enhancedPersonality;
   const name = sheet.displayName;
 
-  // Persönlichkeit aus DB oder Fallback
+  // Personality from DB or fallback
   const personality = sheet.personalityTags?.slice(0, 3).join(", ")
     || ep?.dominant
-    || "neugierig";
+    || "curious";
 
   // Sekundäre Traits
   const secondaryTraits = ep?.secondaryTraits?.slice(0, 3).join(", ")
@@ -59,15 +59,15 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   const archetype = sheet.archetype || "";
   const species = sheet.species || "";
 
-  // Baue kompakte Zeilen
+  // Build compact lines
   let lines: string[] = [];
 
-  // Zeile 1: Name + Kernpersönlichkeit
+  // Line 1: Name + core personality
   let line1 = `**${name}**`;
   if (sheet.roleType === "AVATAR") {
-    line1 += ` (Kind)`;
+    line1 += ` (Child)`;
   } else if (species && !species.includes("human_child")) {
-    // Spezies/Beruf für Nicht-Kinder
+    // Species/profession for non-children
     const speciesLabel = getSpeciesLabel(species, isGerman);
     if (speciesLabel) line1 += ` (${speciesLabel})`;
   }
@@ -75,26 +75,26 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
   if (secondaryTraits) line1 += `; ${secondaryTraits}`;
   lines.push(line1);
 
-  // Zeile 2: Sprechstil mit Beispiel
+  // Line 2: Speech style with example
   const speechExample = generateSpeechExample(name, speechStyle, catchphrase, isGerman);
-  lines.push(`  - Spricht: ${speechStyle}. ${speechExample}`);
+  lines.push(`  - Speech: ${speechStyle}. ${speechExample}`);
 
-  // Zeile 3: Quirk + Catchphrase (wenn vorhanden)
+  // Line 3: Quirk + Catchphrase (if available)
   if (quirk || catchphrase) {
     let line3 = "  -";
-    if (quirk) line3 += ` Marotte: ${quirk}.`;
+    if (quirk) line3 += ` Quirk: ${quirk}.`;
     if (catchphrase && catchphraseContext) {
-      line3 += ` Spruch (${catchphraseContext}): „${catchphrase}"`;
+      line3 += ` Catchphrase (${catchphraseContext}): "${catchphrase}"`;
     } else if (catchphrase) {
-      line3 += ` Spruch: „${catchphrase}"`;
+      line3 += ` Catchphrase: "${catchphrase}"`;
     }
     lines.push(line3);
   }
 
-  // Zeile 4: Berufsspezifische Fähigkeit (basierend auf Archetype)
+  // Line 4: Profession-specific ability (based on archetype)
   const ability = getArchetypeAbility(archetype, species, isGerman);
   if (ability) {
-    lines.push(`  - Kann: ${ability}`);
+    lines.push(`  - Ability: ${ability}`);
   }
 
   return lines.join("\n");
@@ -102,15 +102,15 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
 
 function buildCompactCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string {
   const role = sheet.roleType === "AVATAR"
-    ? (isGerman ? "Kind" : "Child")
+    ? "Child"
     : getSpeciesLabel(sheet.species || "", isGerman) || sheet.roleType || "";
   const dominant = sheet.enhancedPersonality?.dominant
     || sheet.personalityTags?.[0]
-    || (isGerman ? "neugierig" : "curious");
+    || "curious";
   const speech = sheet.speechStyleHints?.[0]
-    || (isGerman ? "klar und direkt" : "clear and direct");
+    || "clear and direct";
   const rolePart = role ? ` (${role})` : "";
-  return `- ${sheet.displayName}${rolePart}: ${dominant}; Stimme: ${speech}.`;
+  return `- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}.`;
 }
 
 /**
@@ -252,30 +252,30 @@ function getArchetypeAbility(archetype: string, species: string, isGerman: boole
  * Generiert ein kurzes Sprechbeispiel basierend auf dem Stil
  */
 function generateSpeechExample(name: string, speechStyle: string, catchphrase: string, isGerman: boolean): string {
-  // Wenn Catchphrase vorhanden, als Beispiel nutzen
+  // Use catchphrase as example if available
   if (catchphrase && catchphrase.length < 50) {
-    return `Beispiel: „${catchphrase}"`;
+    return `Example: "${catchphrase}"`;
   }
 
-  // Generiere Beispiel basierend auf Sprechstil
+  // Generate example based on speech style — dialogue samples stay in target language
   const styleExamples: Record<string, string> = {
-    "fast": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
-    "breathless": isGerman ? `Beispiel: „Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
-    "woof": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
-    "barking": isGerman ? `Beispiel: „Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
-    "giggling": isGerman ? `Beispiel: „Hihihi! Erwischt! Kicher-kicher!"` : `Example: "Hehehe! Caught you! Giggle-giggle!"`,
-    "rhyming": isGerman ? `Beispiel: „Eins-zwei-drei, Zauber frei!"` : `Example: "One-two-three, magic free!"`,
-    "telepathic": isGerman ? `Beispiel: „*Habt keine Furcht. Euer Mut leuchtet.*"` : `Example: "*Fear not. Your courage shines.*"`,
-    "gentle": isGerman ? `Beispiel: „*Folgt eurem Herzen...*"` : `Example: "*Follow your heart...*"`,
-    "mechanical": isGerman ? `Beispiel: „Piep-Piep. Analyse komplett."` : `Example: "Beep-Boop. Analysis complete."`,
-    "croaking": isGerman ? `Beispiel: „Quaaak! Ich bin ein Prinz! Wirklich!"` : `Example: "Croak! I'm a prince! Really!"`,
-    "grumbling": isGerman ? `Beispiel: „Grmpf. Was willst du?"` : `Example: "Grmpf. What do you want?"`,
-    "whispering": isGerman ? `Beispiel: „Psst... kommt näher..."` : `Example: "Psst... come closer..."`,
-    "regal": isGerman ? `Beispiel: „Wir befehlen, dass..."` : `Example: "We command that..."`,
-    "squeaky": isGerman ? `Beispiel: „Pieps! Eine Nuss! Da! Da!"` : `Example: "Squeak! A nut! There! There!"`,
+    "fast": isGerman ? `Example: "Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "breathless": isGerman ? `Example: "Schnell-schnell! Keine Zeit!"` : `Example: "Quick-quick! No time!"`,
+    "woof": isGerman ? `Example: "Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "barking": isGerman ? `Example: "Wuff! Ich riech was! Wuff-wuff!"` : `Example: "Woof! I smell something! Woof-woof!"`,
+    "giggling": isGerman ? `Example: "Hihihi! Erwischt! Kicher-kicher!"` : `Example: "Hehehe! Caught you! Giggle-giggle!"`,
+    "rhyming": isGerman ? `Example: "Eins-zwei-drei, Zauber frei!"` : `Example: "One-two-three, magic free!"`,
+    "telepathic": isGerman ? `Example: "*Habt keine Furcht. Euer Mut leuchtet.*"` : `Example: "*Fear not. Your courage shines.*"`,
+    "gentle": isGerman ? `Example: "*Folgt eurem Herzen...*"` : `Example: "*Follow your heart...*"`,
+    "mechanical": isGerman ? `Example: "Piep-Piep. Analyse komplett."` : `Example: "Beep-Boop. Analysis complete."`,
+    "croaking": isGerman ? `Example: "Quaaak! Ich bin ein Prinz! Wirklich!"` : `Example: "Croak! I'm a prince! Really!"`,
+    "grumbling": isGerman ? `Example: "Grmpf. Was willst du?"` : `Example: "Grmpf. What do you want?"`,
+    "whispering": isGerman ? `Example: "Psst... kommt näher..."` : `Example: "Psst... come closer..."`,
+    "regal": isGerman ? `Example: "Wir befehlen, dass..."` : `Example: "We command that..."`,
+    "squeaky": isGerman ? `Example: "Pieps! Eine Nuss! Da! Da!"` : `Example: "Squeak! A nut! There! There!"`,
   };
 
-  // Suche nach passendem Beispiel
+  // Find matching example
   for (const [style, example] of Object.entries(styleExamples)) {
     if (speechStyle.toLowerCase().includes(style)) {
       return example;
@@ -288,29 +288,28 @@ function generateSpeechExample(name: string, speechStyle: string, catchphrase: s
 function buildChildVoiceContract(childNames: string[], isGerman: boolean): string {
   if (childNames.length === 0) return "";
 
-  const templatesDE = [
-    { label: "Frech und schnell", desc: "3-8 Woerter, unterbricht andere, stellt freche Fragen", example: '"Kann sie piepen?" / "Das ist streng-magisch."' },
-    { label: "Ruhig und schlau", desc: "konkrete Details, klare Saetze, handelt statt zu reden", example: '"Wir muessen weiter." (packt den Arm, geht schnell)' },
-    { label: "Neugierig und witzig", desc: "erfindet Woerter, stellt unerwartete Verbindungen her", example: '"Das riecht nach Abenteuer. Und nach Kaese."' },
-  ];
-  const templatesEN = [
-    { label: "Cheeky and fast", desc: "3-8 words, interrupts others, asks bold questions", example: '"Can it beep?" / "That is strict-magic."' },
-    { label: "Calm and clever", desc: "concrete details, clear sentences, acts instead of talking", example: '"We need to go." (grabs arm, walks fast)' },
-    { label: "Curious and witty", desc: "invents words, makes unexpected connections", example: '"Smells like adventure. And cheese."' },
-  ];
+  // Voice contract templates — English instructions, dialogue samples in target language
+  const templates = isGerman
+    ? [
+      { label: "Cheeky and fast", desc: "3-8 words, interrupts others, asks bold questions", example: '"Kann sie piepen?" / "Das ist streng-magisch."' },
+      { label: "Calm and clever", desc: "concrete details, clear sentences, acts instead of talking", example: '"Wir muessen weiter." (grabs arm, walks fast)' },
+      { label: "Curious and witty", desc: "invents words, makes unexpected connections", example: '"Das riecht nach Abenteuer. Und nach Kaese."' },
+    ]
+    : [
+      { label: "Cheeky and fast", desc: "3-8 words, interrupts others, asks bold questions", example: '"Can it beep?" / "That is strict-magic."' },
+      { label: "Calm and clever", desc: "concrete details, clear sentences, acts instead of talking", example: '"We need to go." (grabs arm, walks fast)' },
+      { label: "Curious and witty", desc: "invents words, makes unexpected connections", example: '"Smells like adventure. And cheese."' },
+    ];
 
-  const templates = isGerman ? templatesDE : templatesEN;
   const lines = childNames
     .slice(0, 3)
     .map((name, idx) => {
       const t = templates[idx] || templates[templates.length - 1];
-      return `  - ${name}: ${t.label} � ${t.desc}. Beispiel: ${t.example}`;
+      return `  - ${name}: ${t.label} — ${t.desc}. Example: ${t.example}`;
     })
     .join("\n");
 
-  const globalRule = isGerman
-    ? "  - WICHTIG: Kinder muessen KOMPLETT unterschiedlich klingen. Ein Kind erkennt am Satz WER spricht."
-    : "  - IMPORTANT: Children must sound COMPLETELY different. A child recognizes WHO speaks by the sentence alone.";
+  const globalRule = "  - IMPORTANT: Children must sound COMPLETELY different. A child recognizes WHO speaks by the sentence alone.";
 
   return `${lines}\n${globalRule}`;
 }
