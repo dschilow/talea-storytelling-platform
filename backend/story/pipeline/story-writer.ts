@@ -106,6 +106,7 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "MISSING_LOWPOINT",
   "LOWPOINT_EMOTION_THIN",
   "LOWPOINT_TOO_SOFT",
+  "COMPARISON_CLUSTER",
   "MISSING_INNER_CHILD_MOMENT",
   "NO_CHILD_ERROR_CORRECTION_ARC",
   "ENDING_PAYOFF_ABSTRACT",
@@ -126,6 +127,7 @@ const FLASH_EMERGENCY_POLISH_CODES = new Set([
   "MISSING_LOWPOINT",
   "LOWPOINT_EMOTION_THIN",
   "LOWPOINT_TOO_SOFT",
+  "COMPARISON_CLUSTER",
   "MISSING_INNER_CHILD_MOMENT",
   "NO_CHILD_ERROR_CORRECTION_ARC",
   "ENDING_PAYOFF_ABSTRACT",
@@ -626,12 +628,16 @@ ${storyLanguageRule}`.trim();
 
       const chapterCount = draftInput.chapters.length;
       const chapterIssues = new Map<number, string[]>();
+      const chapterIssueCodes = new Map<number, Set<string>>();
       for (const issue of polishIssues) {
         const targetChapter = resolveIssueTargetChapter(issue, chapterCount);
         if (targetChapter <= 0) continue;
         const list = chapterIssues.get(targetChapter) ?? [];
         list.push(`[${issue.code}] ${issue.message}`);
         chapterIssues.set(targetChapter, list);
+        const codeSet = chapterIssueCodes.get(targetChapter) ?? new Set<string>();
+        codeSet.add(issue.code);
+        chapterIssueCodes.set(targetChapter, codeSet);
       }
       if (chapterIssues.size === 0) {
         return { draft: draftInput, changed: false };
@@ -656,6 +662,9 @@ ${storyLanguageRule}`.trim();
         const chapter = updatedChapters.find(ch => ch.chapter === chapterNo);
         const directive = directives.find(d => d.chapter === chapterNo);
         if (!chapter || !directive) continue;
+        const chapterCodes = chapterIssueCodes.get(chapterNo) ?? new Set<string>();
+        const hardFixHints = buildChapterPolishHardFixHints(chapterCodes, chapterNo, chapterCount);
+        const promptIssues = [...issues.slice(0, 4), ...hardFixHints].slice(0, 7);
         const chapterIndex = updatedChapters.findIndex(ch => ch.chapter === chapterNo);
         const previousContext = chapterIndex > 0 ? getEdgeContext(updatedChapters[chapterIndex - 1]?.text || "", "end") : "";
         const nextContext = chapterIndex >= 0 && chapterIndex < updatedChapters.length - 1
@@ -671,7 +680,7 @@ ${storyLanguageRule}`.trim();
           tone: normalizedRequest.requestedTone,
           lengthTargets,
           stylePackText,
-          issues: issues.slice(0, 4),
+          issues: promptIssues,
           originalText: chapter.text,
           previousContext,
           nextContext,
@@ -961,7 +970,10 @@ ${storyLanguageRule}`.trim();
       : (
         isGeminiFlashModel
         && maxRewritePasses === 0
-        ? Math.min(2, resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length))
+        ? Math.min(
+          getActionableErrorIssues(qualityReport).length >= 4 ? 3 : 2,
+          resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length),
+        )
         : 0
       );
 
@@ -1677,11 +1689,16 @@ function resolveIssueTargetChapter(
   }
 
   if (
+    issue.code === "MISSING_INNER_CHILD_MOMENT"
+    || issue.code === "NO_CHILD_ERROR_CORRECTION_ARC"
+  ) {
+    return 1;
+  }
+
+  if (
     issue.code === "MISSING_LOWPOINT"
     || issue.code === "LOWPOINT_EMOTION_THIN"
     || issue.code === "LOWPOINT_TOO_SOFT"
-    || issue.code === "MISSING_INNER_CHILD_MOMENT"
-    || issue.code === "NO_CHILD_ERROR_CORRECTION_ARC"
   ) {
     if (chapterCount >= 4) return 3;
     return Math.max(1, Math.min(chapterCount, 2));
@@ -1718,6 +1735,47 @@ function resolveEmergencyPolishCalls(
 
   if (targetChapters.size === 0) return 0;
   return Math.min(FLASH_EMERGENCY_POLISH_MAX_CALLS, targetChapters.size);
+}
+
+function buildChapterPolishHardFixHints(
+  issueCodes: Set<string>,
+  chapterNo: number,
+  chapterCount: number,
+): string[] {
+  const hints: string[] = [];
+
+  const hasLowpoint = issueCodes.has("MISSING_LOWPOINT")
+    || issueCodes.has("LOWPOINT_EMOTION_THIN")
+    || issueCodes.has("LOWPOINT_TOO_SOFT");
+  if (hasLowpoint) {
+    hints.push(
+      "HARD FIX: This chapter must contain a concrete setback (broke/lost/blocked/too late) plus a clear body reaction and 2-3 sentences of real defeat before recovery.",
+    );
+  }
+
+  if (issueCodes.has("MISSING_INNER_CHILD_MOMENT") || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")) {
+    hints.push(
+      "HARD FIX: Add one inner child moment with body signal + short thought line for a child in this chapter (show, do not label).",
+    );
+  }
+
+  if (issueCodes.has("COMPARISON_CLUSTER")) {
+    hints.push(
+      "HARD FIX: Use max one comparison per paragraph. Replace extra comparisons with concrete action and sensory detail.",
+    );
+  }
+
+  const hasEndingPayoff = issueCodes.has("GOAL_THREAD_WEAK_ENDING")
+    || issueCodes.has("ENDING_PAYOFF_ABSTRACT")
+    || issueCodes.has("ENDING_PRICE_MISSING")
+    || issueCodes.has("ENDING_WARMTH_MISSING");
+  if (hasEndingPayoff || chapterNo === chapterCount) {
+    hints.push(
+      "HARD FIX: End this chapter with a concrete win object + a small tangible price sentence using 'aber' or 'kostete/musste', and call back to chapter-1 goal.",
+    );
+  }
+
+  return hints;
 }
 
 function prioritizeIssuesForRewrite(issues: QualityIssue[]): QualityIssue[] {
