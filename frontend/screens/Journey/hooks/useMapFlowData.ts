@@ -102,7 +102,7 @@ export interface FlatEdge {
   fromY: number;
   toX: number;
   toY: number;
-  edgeState: 'done' | 'available' | 'locked';
+  edgeState: 'done' | 'available' | 'locked' | 'echo';
 }
 
 export interface SegmentLabel {
@@ -201,8 +201,17 @@ export function useMapFlowData(
 
         const fromDone = doneSet.has(edge.fromNodeId);
         const toDone = doneSet.has(edge.toNodeId);
-        const edgeState: 'done' | 'available' | 'locked' =
+
+        let edgeState: 'done' | 'available' | 'locked' | 'echo' =
           fromDone && toDone ? 'done' : fromDone ? 'available' : 'locked';
+
+        // Override visual style if it's explicitly marked as an echo link
+        if (edge.style === 'echo' && edgeState !== 'locked') {
+          // If the destination is already done, keep it green 'done', else show the flashy echo style
+          if (edgeState !== 'done') {
+            edgeState = 'echo';
+          }
+        }
 
         flatEdges.push({
           fromNodeId: edge.fromNodeId,

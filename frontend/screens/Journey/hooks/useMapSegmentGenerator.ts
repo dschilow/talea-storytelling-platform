@@ -138,9 +138,20 @@ function buildDynamicSegments(
   // Build lookup sets from memories
   const doneDokuIds = new Set<string>();
   const doneStoryIds = new Set<string>();
+
+  // Track tags of stories we have done to generate matching Echo Dokus
+  const echoTagsNeeded = new Set<string>();
+
   for (const mem of memories) {
     if (mem.contentType === 'doku' && mem.storyId) doneDokuIds.add(mem.storyId);
-    if (mem.contentType === 'story' && mem.storyId) doneStoryIds.add(mem.storyId);
+    if (mem.contentType === 'story' && mem.storyId) {
+      doneStoryIds.add(mem.storyId);
+      // Derive topic tags from story changes if possible, or fallback to general topics
+      const tags = mem.personalityChanges
+        ?.filter(c => c.trait.startsWith('knowledge.'))
+        .map(c => c.trait.split('.')[1]) || [];
+      tags.forEach(t => echoTagsNeeded.add(t));
+    }
   }
 
   // Group dokus by normalized topic
@@ -261,6 +272,30 @@ function buildDynamicSegments(
     if (prevNodeId) edges.push({ fromNodeId: prevNodeId, toNodeId: storyNodeId });
     prevNodeId = storyNodeId;
 
+    // --- TALEA ECHO LOOP ---
+    // Wenn die Story gemacht wurde, erzeugen wir sofort einen passenden "Echo" Doku Stop
+    if (doneStoryIds.has(matchedStory?.id || '')) {
+      const echoNodeId = `dyn-${group.slug}-echo`;
+      nodes.push({
+        nodeId: echoNodeId,
+        type: 'DokuStop',
+        route: 'mind',
+        title: `Mehr zu: ${group.topic}`,
+        subtitle: 'Wissen aus dem Abenteuer',
+        x: 75,
+        y: yPos + 18,
+        unlockRule: { kind: 'prevDone', nodeId: storyNodeId },
+        action: { type: 'navigate', to: '/doku/create', params: { topicTags: group.slug } },
+        rewardPreview: { stamps: 1 },
+        isEcho: true,
+      });
+      edges.push({ fromNodeId: storyNodeId, toNodeId: echoNodeId, style: 'echo' });
+      // We route back to the main path (next node will simply connect to it as usual)
+      // or we just keep prevNodeId to the story or echo node based on preference.
+      // Let's connect the rest to the Story Gate to make Echo a branch, or make it inline. Inline is easier for now:
+      prevNodeId = echoNodeId;
+    }
+
     // MemoryFire — always
     const memNodeId = `dyn-${group.slug}-mem`;
     nodes.push({
@@ -310,9 +345,17 @@ function buildDynamicSegments(
   }
 
   // "Neue Entdeckungen" segment — always at the end with suggested topics
-  const suggestedTopics = ['Dinosaurier', 'Ozean & Meer', 'Roboter & KI'];
+  // We mix static suggestions with echo tags discovered from stories
+  const suggestedTopics = ['Dinosaurier', 'Ozean & Meer', 'Roboter & KI', 'Weltraum', 'Magie', 'Ritter', 'Tiere'];
   const existingSlugs = new Set(sortedGroups.map(g => g.slug));
-  const newTopics = suggestedTopics.filter(t => !existingSlugs.has(topicSlug(t)));
+
+  const additionalEchoTopics = Array.from(echoTagsNeeded)
+    .filter(t => !existingSlugs.has(topicSlug(t)))
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1)); // Capitalize
+
+  // Combine and deduplicate
+  const allSuggests = Array.from(new Set([...additionalEchoTopics, ...suggestedTopics]));
+  const newTopics = allSuggests.filter(t => !existingSlugs.has(topicSlug(t)));
 
   if (newTopics.length > 0) {
     const suggestNodes: MapNode[] = [];
@@ -323,19 +366,29 @@ function buildDynamicSegments(
       const topic = newTopics[i];
       const slug = topicSlug(topic);
       const nodeId = `dyn-suggest-${slug}`;
+      const isEchoTopic = additionalEchoTopics.includes(topic);
+
       suggestNodes.push({
         nodeId,
         type: 'DokuStop',
         route: inferRouteTag(topic),
         title: topic,
-        subtitle: 'Neues Thema entdecken!',
+        subtitle: isEchoTopic ? 'Gefunden in deiner Story!' : 'Neues Thema entdecken!',
         x: i % 2 === 0 ? 45 : 55,
         y: 8 + i * 18,
         unlockRule: { kind: 'always' },
         action: { type: 'navigate', to: '/doku/create', params: { topicTags: slug } },
         rewardPreview: { stamps: 1 },
+        isEcho: isEchoTopic,
       });
-      if (prevId) suggestEdges.push({ fromNodeId: prevId, toNodeId: nodeId });
+
+      if (prevId) {
+        suggestEdges.push({
+          fromNodeId: prevId,
+          toNodeId: nodeId,
+          style: isEchoTopic ? 'echo' : 'default'
+        });
+      }
       prevId = nodeId;
     }
 

@@ -140,6 +140,26 @@ const TaleaMapNodeSheet: React.FC<Props> = ({
           {node.subtitle}
         </p>
 
+        {node.isEcho && (
+          <div
+            className="mt-3 flex items-start gap-2.5 rounded-xl border px-3 py-2.5 shadow-sm"
+            style={{
+              borderColor: isDark ? '#4a3810' : '#f0d8a0',
+              background: isDark ? 'linear-gradient(145deg, rgba(40,30,15,0.8), rgba(20,15,5,0.9))' : 'linear-gradient(145deg, rgba(255,245,220,0.9), rgba(255,250,240,1))',
+            }}
+          >
+            <span className="mt-0.5 text-[16px] filter drop-shadow-sm">✨</span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: isDark ? '#e0b860' : '#cc9020' }}>
+                Talea Echo: Aus deiner Story!
+              </p>
+              <p className="mt-0.5 text-[12px] leading-snug" style={{ color: isDark ? '#d0c8b0' : '#705830' }}>
+                Du hast in deinem letzten Abenteuer viel darüber gelernt. Entdecke jetzt hier die passenden unglaublichen Fakten dazu!
+              </p>
+            </div>
+          </div>
+        )}
+
         {node.rewardPreview && (
           <div
             className="mt-3 flex items-center gap-2 rounded-xl border px-3 py-2"

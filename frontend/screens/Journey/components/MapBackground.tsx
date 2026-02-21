@@ -113,29 +113,42 @@ const MapBackground: React.FC<MapBackgroundProps> = ({ mapHeight, isDark, segmen
         viewBox={`0 0 100 ${mapHeight}`}
         preserveAspectRatio="none"
       >
+        {/* Glow Layer */}
         <path
           d={roadPath}
-          stroke={isDark ? 'rgba(80,150,255,0.10)' : 'rgba(70,130,220,0.09)'}
-          strokeWidth={8}
+          stroke={isDark ? 'rgba(80,150,255,0.15)' : 'rgba(70,130,220,0.12)'}
+          strokeWidth={18}
+          fill="none"
+          strokeLinecap="round"
+          style={{ filter: 'blur(8px)' }}
+        />
+        {/* Base Thick Path */}
+        <path
+          d={roadPath}
+          stroke={isDark ? 'rgba(40,80,140,0.4)' : 'rgba(160,190,230,0.3)'}
+          strokeWidth={12}
           fill="none"
           strokeLinecap="round"
         />
+        {/* Inner core road */}
         <path
           d={roadPath}
-          stroke={isDark ? 'rgba(120,185,255,0.22)' : 'rgba(100,160,230,0.20)'}
-          strokeWidth={3.5}
+          stroke={isDark ? 'rgba(100,160,240,0.4)' : 'rgba(120,170,240,0.35)'}
+          strokeWidth={6}
           fill="none"
           strokeLinecap="round"
         />
+        {/* Animated Dashes for a stream/flow effect */}
         <motion.path
           d={roadPath}
-          stroke={isDark ? 'rgba(170,215,255,0.72)' : 'rgba(100,165,235,0.68)'}
-          strokeWidth={1.5}
+          stroke={isDark ? 'rgba(180,225,255,0.8)' : 'rgba(140,190,255,0.7)'}
+          strokeWidth={2.5}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray="5 17"
-          animate={reduceMotion ? undefined : { strokeDashoffset: [0, -88] }}
-          transition={reduceMotion ? undefined : { duration: 4.0, repeat: Infinity, ease: 'linear' }}
+          strokeDasharray="8 24"
+          animate={reduceMotion ? undefined : { strokeDashoffset: [0, -128] }}
+          transition={reduceMotion ? undefined : { duration: 6.0, repeat: Infinity, ease: 'linear' }}
+          style={{ filter: 'drop-shadow(0 0 4px rgba(200,230,255,0.5))' }}
         />
       </svg>
     </>

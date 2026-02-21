@@ -260,16 +260,23 @@ const GameMapNode = forwardRef<HTMLDivElement, GameMapNodeProps>(({
         )}
 
         {/* Pulse rings for available */}
-        {!reduceMotion && isAvailable && <PulseRings color={color} />}
+        {!reduceMotion && (isAvailable || state === 'echo') && <PulseRings color={color} />}
 
-        {/* Heute-Highlight */}
-        {isHeuteHighlighted && !isLocked && (
+        {/* Heute-Highlight OR Echo-Highlight */}
+        {(isHeuteHighlighted || state === 'echo') && !isLocked && (
           <motion.span
             className="pointer-events-none absolute inset-[-7px] rounded-full"
-            style={{ border: '2.5px solid #f5a623', boxShadow: '0 0 14px rgba(245,166,35,0.35)' }}
+            style={{
+              border: `2.5px solid ${state === 'echo' ? '#ffb432' : '#f5a623'}`,
+              boxShadow: `0 0 14px rgba(${state === 'echo' ? '255,180,50' : '245,166,35'},0.35)`
+            }}
             animate={!reduceMotion ? {
               scale: [1, 1.06, 1], opacity: [0.65, 1, 0.65],
-              boxShadow: ['0 0 6px rgba(245,166,35,0.25)', '0 0 20px rgba(245,166,35,0.5)', '0 0 6px rgba(245,166,35,0.25)'],
+              boxShadow: [
+                `0 0 6px rgba(${state === 'echo' ? '255,180,50' : '245,166,35'},0.25)`,
+                `0 0 20px rgba(${state === 'echo' ? '255,180,50' : '245,166,35'},0.5)`,
+                `0 0 6px rgba(${state === 'echo' ? '255,180,50' : '245,166,35'},0.25)`
+              ],
             } : {}}
             transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
           />

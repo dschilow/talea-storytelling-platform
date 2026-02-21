@@ -11,20 +11,23 @@ export type NodeType =
   | 'Fork';
 
 export type RouteTag = 'heart' | 'mind' | 'courage' | 'creative';
-export type NodeState = 'locked' | 'available' | 'done';
+
+// ─── Progress & State Types ─────────────────────────────────────────────────
+
+export type NodeState = 'locked' | 'available' | 'done' | 'echo';
 
 export type UnlockRule =
   | { kind: 'always' }
-  | { kind: 'prevDone';   nodeId: string }
-  | { kind: 'quizScore';  quizId: string; minCorrect: number }
+  | { kind: 'prevDone'; nodeId: string }
+  | { kind: 'quizScore'; quizId: string; minCorrect: number }
   | { kind: 'hasArtifact'; artifactId: string }
-  | { kind: 'doneCount';  segment: string; min: number }
+  | { kind: 'doneCount'; segment: string; min: number }
   | { kind: 'traitMinimum'; traitId: string; minValue: number };
 
 export type NodeAction =
   | { type: 'navigate'; to: string; params?: Record<string, string> }
-  | { type: 'sheet';    content: string }
-  | { type: 'fork';     options: ForkOption[] };
+  | { type: 'sheet'; content: string }
+  | { type: 'fork'; options: ForkOption[] };
 
 export interface ForkOption {
   id: string;
@@ -46,19 +49,18 @@ export interface MapNode {
   route: RouteTag;
   title: string;
   subtitle: string;
-  /** x 0–100 relativ zur Segment-Breite */
-  x: number;
-  /** y 0–100 relativ zur Segment-Höhe */
-  y: number;
+  x: number;             // X percentage (0-100)
+  y: number;             // local Y inside the segment (px)
   unlockRule: UnlockRule;
   action: NodeAction;
   rewardPreview?: RewardPreview;
+  isEcho?: boolean;      // NEW: Flag for dynamically generated follow-up nodes (Echo-Loop)
 }
 
 export interface MapEdge {
   fromNodeId: string;
   toNodeId: string;
-  style?: 'default' | 'branch' | 'highlight';
+  style?: 'default' | 'branch' | 'highlight' | 'echo';
 }
 
 export interface MapSegment {
