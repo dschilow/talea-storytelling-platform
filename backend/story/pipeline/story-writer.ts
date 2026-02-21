@@ -362,7 +362,7 @@ ${storyLanguageRule}`.trim();
     });
     const resolveSystemPrompt = (mode: "full" | "compact") => mode === "compact" ? compactSystemPrompt : systemPrompt;
     const isEmptyTruncatedResponse = (response: { finishReason?: string; content?: string }) =>
-      response.finishReason === "length" && !String(response.content || "").trim();
+      isTruncatedFinishReason(response.finishReason) && !String(response.content || "").trim();
     let activePromptMode: "full" | "compact" = storyPromptMode;
     let prompt = buildStoryPrompt(activePromptMode);
 
@@ -476,7 +476,7 @@ ${storyLanguageRule}`.trim();
       directives,
       language: normalizedRequest.language,
       wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-    }));
+    }), normalizedRequest.language);
 
     // ─── Phase B: Quality Gates + Rewrite Passes ─────────────────────────────
     let qualityReport = runQualityGates({
@@ -546,11 +546,14 @@ ${storyLanguageRule}`.trim();
           previousContext: prevContext,
           nextContext,
           requiredCharacters: missingCharacters,
+          includePlanning: false,
         });
 
         const baseMaxTokens = Math.round(Math.max(420, lengthTargets.wordMax * 1.4));
-        const expandReasoningMultiplier = isReasoningModel ? 1.2 : 1;
-        const maxTokens = Math.min(1800, Math.max(550, Math.round(baseMaxTokens * expandReasoningMultiplier)));
+        const expandReasoningMultiplier = isGeminiFlashModel ? 1.05 : (isReasoningModel ? 1.2 : 1);
+        const expandMinTokens = isGeminiFlashModel ? 680 : 550;
+        const expandMaxTokensCap = isGeminiFlashModel ? 2100 : 1800;
+        const maxTokens = Math.min(expandMaxTokensCap, Math.max(expandMinTokens, Math.round(baseMaxTokens * expandReasoningMultiplier)));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
 
@@ -575,15 +578,23 @@ ${storyLanguageRule}`.trim();
           }
 
           const parsed = safeJson(result.content);
-          if (result.finishReason === "length" && !String(result.content || "").trim()) {
+          const revisedText = extractChapterTextFromParsed(parsed);
+          if (isTruncatedFinishReason(result.finishReason) && !String(result.content || "").trim()) {
             console.warn(
               `[story-writer] Empty truncated expand response in chapter ${chapter.chapter}; stopping further expand attempts for this pass.`,
             );
             break;
           }
-          if (parsed?.text) {
-            chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
+          if (revisedText) {
+            chapter.text = normalizeDialogueQuotesByLanguage(
+              sanitizeMetaStructureFromText(revisedText),
+              normalizedRequest.language,
+            );
             changed = true;
+          } else if (isTruncatedFinishReason(result.finishReason)) {
+            console.warn(
+              `[story-writer] Expand response for chapter ${chapter.chapter} truncated before valid JSON text extraction (finishReason=${result.finishReason}).`,
+            );
           }
         } catch (error) {
           console.warn(`[story-writer] Targeted edit failed for chapter ${chapter.chapter}`, error);
@@ -633,6 +644,7 @@ ${storyLanguageRule}`.trim();
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
       let usage: TokenUsage | undefined;
+      let truncatedNoTextCount = 0;
       const isPolishBudgetExceeded = () =>
         ((totalUsage?.totalTokens || 0) + (usage?.totalTokens || 0)) >= maxStoryTokens;
 
@@ -663,12 +675,13 @@ ${storyLanguageRule}`.trim();
           originalText: chapter.text,
           previousContext,
           nextContext,
+          includePlanning: false,
         });
 
         const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
-        const polishReasoningMultiplier = isGeminiFlashModel ? 1.05 : (isReasoningModel ? 1.2 : 1);
-        const polishMinTokens = isGeminiFlashModel ? 380 : (isReasoningModel ? 850 : 450);
-        const polishMaxTokensCap = isGeminiFlashModel ? 1200 : (isReasoningModel ? 1900 : 1500);
+        const polishReasoningMultiplier = isGeminiFlashModel ? 1.1 : (isReasoningModel ? 1.2 : 1);
+        const polishMinTokens = isGeminiFlashModel ? 720 : (isReasoningModel ? 850 : 450);
+        const polishMaxTokensCap = isGeminiFlashModel ? 1800 : (isReasoningModel ? 1900 : 1500);
         const maxTokens = Math.min(polishMaxTokensCap, Math.max(polishMinTokens, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
@@ -690,9 +703,23 @@ ${storyLanguageRule}`.trim();
           }
 
           const parsed = safeJson(result.content);
-          if (parsed?.text) {
-            chapter.text = sanitizeMetaStructureFromText(String(parsed.text));
+          const revisedText = extractChapterTextFromParsed(parsed);
+          if (revisedText) {
+            chapter.text = normalizeDialogueQuotesByLanguage(
+              sanitizeMetaStructureFromText(revisedText),
+              normalizedRequest.language,
+            );
             changed = true;
+            truncatedNoTextCount = 0;
+          } else if (isTruncatedFinishReason(result.finishReason)) {
+            truncatedNoTextCount += 1;
+            console.warn(
+              `[story-writer] Warning polish chapter ${chapterNo} truncated before valid JSON text extraction (finishReason=${result.finishReason}, maxTokens=${maxTokens}).`,
+            );
+            if (isGeminiFlashModel && truncatedNoTextCount >= 1) {
+              console.warn("[story-writer] Stopping further warning polish calls for Gemini Flash after truncated+unusable response.");
+              break;
+            }
           }
         } catch (error) {
           console.warn(`[story-writer] Warning polish failed for chapter ${chapterNo}`, error);
@@ -846,7 +873,7 @@ ${storyLanguageRule}`.trim();
           break;
         }
       }
-      if (rewriteResult?.finishReason === "length" && !String(rewriteResult.content || "").trim()) {
+      if (isTruncatedFinishReason(rewriteResult?.finishReason) && !String(rewriteResult.content || "").trim()) {
         console.warn(
           `[story-writer] Rewrite pass ${rewriteAttempt} returned empty+truncated output; skipping further full rewrites and using chapter-local rescue edits.`,
         );
@@ -859,7 +886,7 @@ ${storyLanguageRule}`.trim();
         directives,
         language: normalizedRequest.language,
         wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-      }));
+      }), normalizedRequest.language);
 
       const revisedReport = runQualityGates({
         draft: revisedDraft,
@@ -934,7 +961,7 @@ ${storyLanguageRule}`.trim();
       : (
         isGeminiFlashModel
         && maxRewritePasses === 0
-        ? resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length)
+        ? Math.min(2, resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length))
         : 0
       );
 
@@ -1184,11 +1211,20 @@ function extractDraftFromChapterArray(
   return { title, description, chapters };
 }
 
-function sanitizeDraft(draft: StoryDraft): StoryDraft {
+function normalizeDialogueQuotesByLanguage(text: string, language?: string): string {
+  if (!text) return text;
+
+  // Normalize apostrophe dialogue markers to standard double quotes for stable dialogue detection.
+  const quotePattern = /(^|[\s([{>])['\u2018\u2019]([^'\u2018\u2019\n]{2,220})['\u2018\u2019](?=[$\s)\]}<.,!?;:])/gm;
+  const normalized = text.replace(quotePattern, (_, prefix: string, inner: string) => `${prefix}"${inner.trim()}"`);
+  return language ? normalized : normalized;
+}
+
+function sanitizeDraft(draft: StoryDraft, language?: string): StoryDraft {
   const chapters = draft.chapters.map(ch => ({
     ...ch,
     title: "",
-    text: sanitizeMetaStructureFromText(ch.text),
+    text: normalizeDialogueQuotesByLanguage(sanitizeMetaStructureFromText(ch.text), language),
   }));
   return {
     ...draft,
@@ -1554,6 +1590,41 @@ function safeJson(text: string) {
     }
     return null;
   }
+}
+
+function extractChapterTextFromParsed(parsed: any): string | null {
+  if (!parsed) return null;
+  if (typeof parsed.text === "string" && parsed.text.trim()) {
+    return parsed.text.trim();
+  }
+  if (Array.isArray(parsed)) {
+    for (const entry of parsed) {
+      if (typeof entry?.text === "string" && entry.text.trim()) {
+        return entry.text.trim();
+      }
+    }
+  }
+  if (Array.isArray(parsed?.chapters)) {
+    const merged = parsed.chapters
+      .map((chapter: any) => (typeof chapter?.text === "string" ? chapter.text.trim() : ""))
+      .filter(Boolean)
+      .join("\n\n");
+    if (merged) return merged;
+  }
+  if (typeof parsed?.data?.text === "string" && parsed.data.text.trim()) {
+    return parsed.data.text.trim();
+  }
+  return null;
+}
+
+function isTruncatedFinishReason(reason?: string): boolean {
+  if (!reason) return false;
+  const normalized = reason.toLowerCase();
+  return normalized === "length"
+    || normalized === "max_tokens"
+    || normalized === "max-tokens"
+    || normalized.includes("max_tokens")
+    || normalized.includes("length");
 }
 
 function findMissingCharacters(text: string, directive: SceneDirective, cast: CastSet): string[] {

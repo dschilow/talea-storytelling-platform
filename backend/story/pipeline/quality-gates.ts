@@ -385,7 +385,7 @@ function gateCastLock(
     // Quantifier + Noun: "Zehn Grad", "Drei Kinder", "Minuten Zeitverschwendung"
     /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz|minuten?|stunden?|tage?)\s+/i,
     // Genitive possessive: "Omas Küche", "Vaters Stuhl", "Brunos Laden"
-    /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto)$/i,
+    /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto|magen|schal|lieblingsschal|bilder?|jacke|ärmel|aermel)$/i,
   ] : [];
 
   for (const ch of draft.chapters) {

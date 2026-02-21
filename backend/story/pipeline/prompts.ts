@@ -679,6 +679,8 @@ ${geminiMicroExamples}
    - Ch1 includes one "Wenn ... sonst ..." sentence with concrete loss.
    - Ch3 or Ch4 contains setback + body reaction.
    - Final chapter includes concrete win + small cost line using "aber" or "kostete/musste".
+11. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+12. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -766,6 +768,8 @@ gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glu
 6. ${humorRule}
 7. NEVER copy Goal/Conflict/Setting text into the story. Dramatize the instructions into natural prose.
 8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Always paraphrase.
+9. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+10. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -952,8 +956,22 @@ export function buildChapterExpansionPrompt(input: {
   previousContext?: string;
   nextContext?: string;
   requiredCharacters?: string[];
+  includePlanning?: boolean;
 }): string {
-  const { chapter, cast, dna, language, ageRange, tone, lengthTargets, originalText, previousContext, nextContext, requiredCharacters } = input;
+  const {
+    chapter,
+    cast,
+    dna,
+    language,
+    ageRange,
+    tone,
+    lengthTargets,
+    originalText,
+    previousContext,
+    nextContext,
+    requiredCharacters,
+    includePlanning = false,
+  } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
 
@@ -1007,7 +1025,9 @@ ${missingLine}
 10. No explanatory sentences about object rules.
 11. Dialogues must sound distinguishable; no speaker - tag formula loops.
 12. Running gag sparsely: same sound - word / catchphrase max 2x.
-13. If output is German: use true umlauts(�, �, �, �), no ae/oe/ue. NO English words in output.
+13. If output is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue. NO English words in output.
+14. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+15. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -1015,13 +1035,15 @@ ${originalText}
 
 # OUTPUT
 JSON: 
-{
+${includePlanning ? `{
   "_planning": {
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
     "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
   "text": "Chapter text" 
-}`;
+}` : `{
+  "text": "Chapter text" 
+}`}`;
 }
 
 // ─── Legacy functions (für Kompatibilität) ────────────────────────────────────
@@ -1166,6 +1188,7 @@ export function buildStoryChapterRevisionPrompt(input: {
   originalText: string;
   previousContext?: string;
   nextContext?: string;
+  includePlanning?: boolean;
 }): string {
   const {
     chapter,
@@ -1182,6 +1205,7 @@ export function buildStoryChapterRevisionPrompt(input: {
     originalText,
     previousContext,
     nextContext,
+    includePlanning = false,
   } = input;
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
@@ -1229,6 +1253,8 @@ RULES:
 10) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
 11) Use normal prose paragraphs (mostly 2-4 sentences); no one-sentence report chains.
 12) No meta/report lines like "Die Szene endete" / "The scene ended".
+13) Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+14) Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 
 PROMPT LEAK PREVENTION:
 You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.
@@ -1238,13 +1264,15 @@ ORIGINAL TEXT:
 ${originalText}
 
 Return JSON:
-{
+${includePlanning ? `{
   "_planning": {
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
     "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
   "text": "Chapter text"
-}`;
+}` : `{
+  "text": "Chapter text"
+}`}`;
 }
 
 export function buildTemplatePhraseRewritePrompt(input: {
