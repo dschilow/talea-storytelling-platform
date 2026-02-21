@@ -46,12 +46,12 @@ interface WizardState {
   surpriseEnd: boolean;
   customWish: string;
   aiModel:
-    | 'gpt-5-nano'
-    | 'gpt-5-mini'
-    | 'gpt-5.2'
-    | 'gemini-3-flash-preview'
-    | 'gemini-3-pro-preview'
-    | 'gemini-3.1-pro-preview';
+  | 'gpt-5-nano'
+  | 'gpt-5-mini'
+  | 'gpt-5.2'
+  | 'gemini-3-flash-preview'
+  | 'gemini-3-pro-preview'
+  | 'gemini-3.1-pro-preview';
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
@@ -132,33 +132,33 @@ const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: P
 }) => (
   <div className="mb-6 px-1">
     <div className="flex items-center justify-between gap-1 sm:gap-2">
-    {labels.map((label, i) => (
-      <React.Fragment key={label}>
-        <div className="flex shrink-0 flex-col items-center gap-1.5">
-          <div
-            className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-xs"
-            style={
-              i < activeStep
-                ? { background: '#34D399', color: '#0f1828' }
-                : i === activeStep
-                ? { background: '#d5bdaf2b', border: '2px solid #a88f80', color: '#a88f80' }
-                : { background: palette.soft, border: `1px solid ${palette.panelBorder}`, color: palette.muted }
-            }
-          >
-            {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
+      {labels.map((label, i) => (
+        <React.Fragment key={label}>
+          <div className="flex shrink-0 flex-col items-center gap-1.5">
+            <div
+              className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-xs"
+              style={
+                i < activeStep
+                  ? { background: '#34D399', color: '#0f1828' }
+                  : i === activeStep
+                    ? { background: '#d5bdaf2b', border: '2px solid #a88f80', color: '#a88f80' }
+                    : { background: palette.soft, border: `1px solid ${palette.panelBorder}`, color: palette.muted }
+              }
+            >
+              {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
+            </div>
+            <span
+              className="hidden whitespace-nowrap text-[10px] font-medium sm:block"
+              style={{ color: i <= activeStep ? palette.text : palette.muted }}
+            >
+              {label}
+            </span>
           </div>
-          <span
-            className="hidden whitespace-nowrap text-[10px] font-medium sm:block"
-            style={{ color: i <= activeStep ? palette.text : palette.muted }}
-          >
-            {label}
-          </span>
-        </div>
-        {i < labels.length - 1 && (
-          <div className="h-px min-w-[8px] flex-1 rounded-full" style={{ background: i < activeStep ? '#34D399' : palette.panelBorder }} />
-        )}
-      </React.Fragment>
-    ))}
+          {i < labels.length - 1 && (
+            <div className="h-px min-w-[8px] flex-1 rounded-full" style={{ background: i < activeStep ? '#34D399' : palette.panelBorder }} />
+          )}
+        </React.Fragment>
+      ))}
     </div>
   </div>
 );
@@ -259,11 +259,14 @@ export default function TaleaStoryWizard() {
 
   const VALID_CATEGORIES = ['fairy-tales', 'adventure', 'magic', 'animals', 'scifi', 'modern'] as const;
   const tagParam = searchParams.get('tags');
-  const initialCategory = VALID_CATEGORIES.includes(tagParam as any)
-    ? (tagParam as WizardState['mainCategory'])
-    : null;
+  const mapAvatarId = searchParams.get('mapAvatarId');
 
-  const [activeStep, setActiveStep] = useState(0);
+  const tagList = tagParam ? tagParam.split(',').map(s => s.trim()) : [];
+  const initialCategory = VALID_CATEGORIES.find(c => tagList.includes(c as any)) as WizardState['mainCategory'] || null;
+  const isMapAutoFill = Boolean(mapAvatarId && tagParam);
+  const customTags = tagList.filter(t => !VALID_CATEGORIES.includes(t as any)).join(', ');
+
+  const [activeStep, setActiveStep] = useState(isMapAutoFill ? 5 : 0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
   const [userLanguage, setUserLanguage] = useState<string>('de');
@@ -278,19 +281,19 @@ export default function TaleaStoryWizard() {
   );
 
   const [state, setState] = useState<WizardState>({
-    selectedAvatars: [],
-    mainCategory: initialCategory,
+    selectedAvatars: mapAvatarId ? [mapAvatarId] : [],
+    mainCategory: initialCategory || (isMapAutoFill ? 'adventure' : null),
     subCategory: null,
-    ageGroup: null,
-    length: null,
-    feelings: [],
+    ageGroup: isMapAutoFill ? '6-8' : null,
+    length: isMapAutoFill ? 'medium' : null,
+    feelings: isMapAutoFill ? ['exciting'] : [],
     rhymes: false,
     moral: false,
     avatarIsHero: true,
     famousCharacters: false,
     happyEnd: true,
     surpriseEnd: false,
-    customWish: '',
+    customWish: customTags ? `Thema: ${customTags}` : '',
     aiModel: 'gemini-3-flash-preview',
   });
 
@@ -389,10 +392,10 @@ export default function TaleaStoryWizard() {
       setStoryCredits((prev) =>
         prev
           ? {
-              ...prev,
-              used: prev.used + 1,
-              remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
-            }
+            ...prev,
+            used: prev.used + 1,
+            remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
+          }
           : prev
       );
 

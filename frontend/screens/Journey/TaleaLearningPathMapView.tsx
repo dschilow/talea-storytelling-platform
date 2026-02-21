@@ -192,10 +192,17 @@ const TaleaLearningPathMapView: React.FC = () => {
     }
   }, [flatNodes]);
 
+  const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
+
   useEffect(() => {
-    const t = setTimeout(scrollToActive, 600);
-    return () => clearTimeout(t);
-  }, [scrollToActive]);
+    if (!hasInitialScrolled && flatNodes.length > 0) {
+      const t = setTimeout(() => {
+        scrollToActive();
+        setHasInitialScrolled(true);
+      }, 600);
+      return () => clearTimeout(t);
+    }
+  }, [hasInitialScrolled, flatNodes.length, scrollToActive]);
 
   const hasActive = !!mergedProgress.lastActiveNodeId;
 
@@ -217,7 +224,7 @@ const TaleaLearningPathMapView: React.FC = () => {
     if (scrollContainerRef.current) {
       const containerH = scrollContainerRef.current.clientHeight;
       scrollContainerRef.current.scrollTo({
-        top: Math.max(0, flat.mapY * 1.35 - containerH / 2),
+        top: Math.max(0, flat.mapY - containerH / 2),
         behavior: 'smooth',
       });
     }

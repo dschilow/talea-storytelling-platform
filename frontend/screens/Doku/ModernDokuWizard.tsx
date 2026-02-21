@@ -115,9 +115,8 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
-      className={`relative rounded-2xl border p-3 text-left transition-colors ${
-        selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
-      }`}
+      className={`relative rounded-2xl border p-3 text-left transition-colors ${selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+        }`}
       style={{ borderColor: selected ? '#d5bdaf66' : 'var(--color-border)' }}
     >
       <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -140,7 +139,8 @@ export default function ModernDokuWizard() {
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
-  const [activeStep, setActiveStep] = useState(0);
+  const topicParam = searchParams.get('topicTags');
+  const [activeStep, setActiveStep] = useState(topicParam ? 4 : 0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
   const [language, setLanguage] = useState<DokuApiLanguage>('de');
@@ -235,10 +235,10 @@ export default function ModernDokuWizard() {
       setCredits((prev) =>
         prev
           ? {
-              ...prev,
-              used: prev.used + 1,
-              remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
-            }
+            ...prev,
+            used: prev.used + 1,
+            remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
+          }
           : prev
       );
 
