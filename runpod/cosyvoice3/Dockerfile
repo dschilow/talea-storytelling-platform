@@ -24,7 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt/cosyvoice
 RUN git clone --recursive --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/cosyvoice
 
-RUN pip install --upgrade pip "setuptools<82" wheel cython && \
+# Install openai-whisper first with --no-build-isolation so it uses
+# the base image's setuptools (which still has pkg_resources).
+# Then upgrade setuptools for the remaining packages.
+RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && \
+    pip install --upgrade pip "setuptools<71" wheel cython && \
     awk ' \
       BEGIN{IGNORECASE=1} \
       /^--extra-index-url .*onnxruntime-cuda-12/ {next} \
@@ -35,6 +39,7 @@ RUN pip install --upgrade pip "setuptools<82" wheel cython && \
       /^grpcio-tools==/ {next} \
       /^lightning==/ {next} \
       /^matplotlib==/ {next} \
+      /^openai-whisper==/ {next} \
       /^pyarrow==/ {next} \
       /^pyworld==/ {next} \
       /^tensorboard==/ {next} \
