@@ -14,7 +14,7 @@ interface DebugResponse {
 
 // Debug endpoint to check database state
 export const debug = api<void, DebugResponse>(
-  { expose: true, method: "GET", path: "/log/debug", auth: false },
+  { expose: true, method: "GET", path: "/log/debug", auth: true },
   async () => {
     try {
       const dbNameRow = await logDB.rawQueryRow<{ current_database: string }>(

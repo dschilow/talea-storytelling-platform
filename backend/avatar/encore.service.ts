@@ -15,7 +15,7 @@ import "./debugPersonality";
 import "./deleteMemory";
 import "./reducePersonalityTrait";
 import "./resetDokuHistory";
-import "./migration-api";
+// REMOVED for security: migration-api (raw SQL execution)
 import "./share";
 
 export default new Service("avatar");

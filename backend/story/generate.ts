@@ -271,18 +271,14 @@ export const generate = api<GenerateStoryRequest, Story>(
     const id = crypto.randomUUID();
     const now = new Date();
     const auth = getAuthData();
-    const currentUserId = auth?.userID ?? req.userId;
+    const currentUserId = auth?.userID;
 
     if (!currentUserId) {
       throw APIError.unauthenticated("Missing authenticated user for story generation");
     }
 
-    if (auth?.userID && req.userId && auth.userID !== req.userId) {
-      console.warn("[story.generate] Auth user mismatch detected", {
-        authUserId: auth.userID,
-        requestUserId: req.userId,
-        storyId: id,
-      });
+    if (req.userId && auth?.userID && req.userId !== auth.userID) {
+      throw APIError.permissionDenied("userId mismatch: request userId does not match authenticated user");
     }
 
     const clerkToken = auth?.clerkToken;

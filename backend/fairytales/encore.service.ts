@@ -9,5 +9,4 @@ export default new Service("fairytales");
 import "./catalog";      // List/get fairy tales catalog
 import "./generator";    // Generate personalized stories
 import "./management";   // Admin management (export/import/update/delete)
-import "./trigger-migrations";  // Trigger database migrations
-import "./run-migration-sql";   // Execute raw SQL migrations
+// REMOVED for security: trigger-migrations, run-migration-sql

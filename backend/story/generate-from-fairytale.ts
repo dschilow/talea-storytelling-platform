@@ -28,10 +28,14 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
   { expose: true, method: "POST", path: "/story/generate-from-fairytale", auth: true },
   async (req) => {
     const auth = getAuthData();
-    const currentUserId = auth?.userID ?? req.userId;
+    const currentUserId = auth?.userID;
 
     if (!currentUserId) {
       throw APIError.unauthenticated("Missing authenticated user");
+    }
+
+    if (req.userId && req.userId !== currentUserId) {
+      throw APIError.permissionDenied("userId mismatch: request userId does not match authenticated user");
     }
 
     await claimGenerationUsage({

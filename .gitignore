@@ -9,6 +9,12 @@ Logs
 
 # Prevent local npm registry configs from leaking into CI/CD
 package-lock.json
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.production
+frontend/.env
 design
 
 # Local agent/skill installs (do not track)

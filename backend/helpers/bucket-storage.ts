@@ -313,7 +313,12 @@ const ensureBucketCorsOnce = async (config: BucketConfig): Promise<void> => {
           {
             AllowedHeaders: ["*"],
             AllowedMethods: ["GET", "PUT", "POST", "HEAD"],
-            AllowedOrigins: ["*"],
+            AllowedOrigins: [
+              "https://www.talea.website",
+              "https://talea.website",
+              "https://talea-frontend-production.up.railway.app",
+              "http://localhost:5173",
+            ],
             ExposeHeaders: ["ETag"],
             MaxAgeSeconds: 3600,
           },

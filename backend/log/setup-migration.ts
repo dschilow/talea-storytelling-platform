@@ -13,7 +13,7 @@ const PUBLIC_LOG_TABLE = `"public"."logs"`;
 
 // Endpoint to manually run the logs table migration
 export const runMigration = api<void, MigrationResponse>(
-  { expose: true, method: "POST", path: "/log/run-migration", auth: false },
+  { expose: true, method: "POST", path: "/log/run-migration", auth: true },
   async () => {
     console.log("[log/run-migration] Running logs table migration...");
     const steps: string[] = [];

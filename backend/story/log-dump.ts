@@ -3,7 +3,7 @@ import { api } from "encore.dev/api";
 import { logDB } from "../log/db";
 
 export const dumpStoryLogs = api(
-    { expose: true, method: "GET", path: "/story/debug-logs/:storyId", auth: false },
+    { expose: true, method: "GET", path: "/story/debug-logs/:storyId", auth: true },
     async (req: { storyId: string }) => {
         const logs = await logDB.queryAll<{
             source: string;

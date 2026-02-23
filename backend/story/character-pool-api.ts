@@ -642,7 +642,7 @@ export const resetRecentUsage = api(
 // ===== SEED CHARACTER POOL =====
 // Seeds the character pool with 18 pre-built characters
 export const seedPool = api(
-  { expose: true, method: "POST", path: "/story/character-pool/seed", auth: false },
+  { expose: true, method: "POST", path: "/story/character-pool/seed", auth: true },
   async (): Promise<{ success: boolean; count: number }> => {
     console.log("[CharacterPool] Seeding character pool...");
 

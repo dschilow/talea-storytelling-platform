@@ -10,11 +10,7 @@ import "./character-pool-api";
 import "./artifact-pool-api";
 import "./test-story-generation";
 import "./analyze-phase-logs";
-import "./analyze-recent-stories";
-import "./auto-test-endpoint";
-import "./run-migration-sql";
-import "./test-artifacts";
-import "./show-artifacts";
+// REMOVED for security: analyze-recent-stories, auto-test-endpoint, run-migration-sql, test-artifacts, show-artifacts
 import "./debug-last-error";
 import "./debug-recent-stories";
 import "./proxy-image";

@@ -6,7 +6,7 @@ import "./get";
 import "./list";
 import "./list-public";
 import "./audio-doku";
-import "./run-migration-sql";
+// REMOVED for security: run-migration-sql
 import "./markRead";
 import "./delete";
 import "./update";

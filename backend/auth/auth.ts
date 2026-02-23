@@ -211,13 +211,8 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
       });
     }
 
-    console.log("Token erfolgreich verifiziert", {
-        sub: verifiedToken.sub,
-        azp: verifiedToken.azp,
-        aud: verifiedToken.aud,
-        iss: verifiedToken.iss,
-        exp: new Date(verifiedToken.exp * 1000).toISOString(),
-    });
+    // Minimal log - avoid leaking token details in production
+    console.log(`Auth OK: sub=${verifiedToken.sub}`);
 
     const tokenRecord = verifiedToken as unknown as Record<string, unknown>;
     let email =

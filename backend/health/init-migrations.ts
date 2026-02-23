@@ -371,7 +371,7 @@ const MIGRATION_STATEMENTS = [
  * This is automatically triggered by Railway's health check
  */
 export const initializeDatabaseMigrations = api(
-  { expose: true, method: "GET", path: "/init", auth: false },
+  { expose: false, method: "GET", path: "/init", auth: false },
   async (): Promise<{ success: boolean; message: string; tablesCreated?: number; fairyTalesCount?: number }> => {
     // Don't check migrationsRun flag - always check fairy tales migrations
 

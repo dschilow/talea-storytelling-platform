@@ -4,11 +4,5 @@ export default new Service("health");
 
 // Import endpoints
 import "./health";
-import "./db-status";
-import "./run-migrations";
-import "./create-fairy-tales-table";
-import "./complete-fairy-tales-setup";
-import "./import-150-fairy-tales";
-import "./check-fairy-tale-stats";
-import "./fix-usage-count-column";
-import "./test-clerk";
+// REMOVED for security: db-status, run-migrations, test-clerk (unauthenticated debug/admin endpoints)
+// REMOVED for security: create-fairy-tales-table, complete-fairy-tales-setup, import-150-fairy-tales, check-fairy-tale-stats, fix-usage-count-column

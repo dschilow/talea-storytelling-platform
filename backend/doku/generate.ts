@@ -118,18 +118,14 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
     const id = crypto.randomUUID();
     const now = new Date();
     const auth = getAuthData();
-    const currentUserId = auth?.userID ?? req.userId;
+    const currentUserId = auth?.userID;
 
     if (!currentUserId) {
       throw APIError.unauthenticated("Missing authenticated user for doku generation");
     }
 
-    if (auth?.userID && req.userId && auth.userID !== req.userId) {
-      console.warn("[doku.generate] Auth user mismatch detected", {
-        authUserId: auth.userID,
-        requestUserId: req.userId,
-        dokuId: id,
-      });
+    if (req.userId && req.userId !== currentUserId) {
+      throw APIError.permissionDenied("userId mismatch: request userId does not match authenticated user");
     }
 
     const clerkToken = auth?.clerkToken;

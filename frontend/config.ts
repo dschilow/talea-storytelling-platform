@@ -17,8 +17,14 @@ export function getClerkPublishableKey(): string {
     return (window as any).ENV.CLERK_PUBLISHABLE_KEY;
   }
 
-  // 2. Fallback to hardcoded key for development
-  return "pk_test_c2luY2VyZS1qYXktNC5jbGVyay5hY2NvdW50cy5kZXYk";
+  // 2. Check build-time env var
+  if (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) {
+    return import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+  }
+
+  // 3. Fallback for development - set VITE_CLERK_PUBLISHABLE_KEY in .env
+  console.warn("Clerk publishable key not configured. Set VITE_CLERK_PUBLISHABLE_KEY in .env");
+  return "";
 }
 
 // Export as constant for backward compatibility
