@@ -3,6 +3,7 @@ import log from "encore.dev/log";
 
 const COSYVOICE_RUNPOD_API_URL = (process.env.COSYVOICE_RUNPOD_API_URL || "").trim();
 const COSYVOICE_RUNPOD_API_KEY = (process.env.COSYVOICE_RUNPOD_API_KEY || "").trim();
+const COSYVOICE_RUNPOD_WORKER_API_KEY = (process.env.COSYVOICE_RUNPOD_WORKER_API_KEY || "").trim();
 const COSYVOICE_RUNPOD_TTS_PATH = (process.env.COSYVOICE_RUNPOD_TTS_PATH || "/v1/tts").trim();
 const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 1_200_000); // 20min
 const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 3);
@@ -317,7 +318,9 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const headers: Record<string, string> = {};
   if (COSYVOICE_RUNPOD_API_KEY) {
     headers.Authorization = `Bearer ${COSYVOICE_RUNPOD_API_KEY}`;
-    headers["X-API-Key"] = COSYVOICE_RUNPOD_API_KEY;
+  }
+  if (COSYVOICE_RUNPOD_WORKER_API_KEY) {
+    headers["X-API-Key"] = COSYVOICE_RUNPOD_WORKER_API_KEY;
   }
 
   const url = buildRunpodTtsUrl();
@@ -336,7 +339,12 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
       );
 
       if (!response.ok) {
-        const errText = await response.text();
+        const errTextRaw = await response.text();
+        const errText = errTextRaw.trim() || "<empty>";
+        const wwwAuth = response.headers.get("www-authenticate");
+        const requestId =
+          response.headers.get("x-request-id") || response.headers.get("x-runpod-request-id");
+
         if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && isRetryableStatus(response.status)) {
           const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
           log.warn(
@@ -345,7 +353,13 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           await delay(backoffMs);
           continue;
         }
-        throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}`);
+
+        const details: string[] = [];
+        if (wwwAuth) details.push(`www-authenticate=${wwwAuth}`);
+        if (requestId) details.push(`request-id=${requestId}`);
+        const detailSuffix = details.length > 0 ? ` [${details.join(", ")}]` : "";
+
+        throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}${detailSuffix}`);
       }
 
       const contentType = response.headers.get("content-type");

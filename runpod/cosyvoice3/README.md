@@ -55,7 +55,11 @@ In backend `.env` (or production env):
 
 ```env
 COSYVOICE_RUNPOD_API_URL=https://<your-endpoint-id>.api.runpod.ai
-COSYVOICE_RUNPOD_API_KEY=<same-secret-as-COSYVOICE_API_KEY>
+# RunPod gateway key (Bearer auth at RunPod edge)
+COSYVOICE_RUNPOD_API_KEY=<your-runpod-api-key>
+
+# Optional: only if your worker enforces COSYVOICE_API_KEY internally
+COSYVOICE_RUNPOD_WORKER_API_KEY=<same-secret-as-COSYVOICE_API_KEY>
 COSYVOICE_RUNPOD_TTS_PATH=/v1/tts
 COSYVOICE_RUNPOD_TIMEOUT_MS=1200000
 COSYVOICE_RUNPOD_MAX_RETRIES=3
