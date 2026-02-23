@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_PREFER_BINARY=1 \
     HF_HOME=/opt/hf-cache \
-    PYTHONPATH=/opt/cosyvoice \
+    PYTHONPATH=/opt/cosyvoice:/opt/cosyvoice/third_party/Matcha-TTS \
     COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
     COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 
