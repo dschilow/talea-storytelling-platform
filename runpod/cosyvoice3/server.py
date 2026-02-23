@@ -65,6 +65,8 @@ resolved_model_dir = MODEL_DIR
 default_reference_path = ""
 cosyvoice_model: Optional[Any] = None
 runtime_lock = threading.Lock()
+runtime_init_started = False
+runtime_init_error = ""
 
 
 def ensure_model_dir() -> str:
@@ -108,7 +110,7 @@ def ensure_default_reference() -> str:
 
 
 def init_runtime_sync() -> None:
-    global resolved_model_dir, default_reference_path, cosyvoice_model
+    global resolved_model_dir, default_reference_path, cosyvoice_model, runtime_init_error
     if cosyvoice_model is not None:
         return
 
@@ -123,10 +125,30 @@ def init_runtime_sync() -> None:
         print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
         cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
         print("[startup] CosyVoice model loaded.")
+        runtime_init_error = ""
 
 
 async def ensure_runtime_initialized() -> None:
     await asyncio.to_thread(init_runtime_sync)
+
+
+def _runtime_init_worker() -> None:
+    global runtime_init_error
+    try:
+        init_runtime_sync()
+    except Exception as exc:
+        runtime_init_error = str(exc)
+        print(f"[startup] Runtime init failed: {exc}")
+
+
+def kickoff_runtime_init_background() -> None:
+    global runtime_init_started
+    with runtime_lock:
+        if runtime_init_started:
+            return
+        runtime_init_started = True
+    thread = threading.Thread(target=_runtime_init_worker, daemon=True, name="cosyvoice-init")
+    thread.start()
 
 
 def validate_api_key(authorization: Optional[str], x_api_key: Optional[str]) -> None:
@@ -296,9 +318,21 @@ app = FastAPI(title="CosyVoice 3 RunPod API", version="1.0.0")
 semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
 
+@app.on_event("startup")
+async def on_startup() -> None:
+    # Start loading in background so LB can probe health while model warms up.
+    kickoff_runtime_init_background()
+
+
 @app.get("/ping")
 def ping() -> JSONResponse:
     # Required health endpoint for RunPod Load Balancer workers.
+    # 204 means "initializing", 200 means "ready".
+    if runtime_init_error:
+        return JSONResponse({"status": "error", "detail": runtime_init_error}, status_code=500)
+    if cosyvoice_model is None:
+        kickoff_runtime_init_background()
+        return JSONResponse({"status": "initializing"}, status_code=204)
     return JSONResponse({"status": "healthy"})
 
 
@@ -313,6 +347,8 @@ def health() -> JSONResponse:
     return JSONResponse(
         {
             "ok": True,
+            "init_started": runtime_init_started,
+            "init_error": runtime_init_error,
             "model_id": MODEL_ID,
             "model_dir": resolved_model_dir,
             "model_loaded": bool(cosyvoice_model is not None),
@@ -350,6 +386,8 @@ async def tts(
         raise HTTPException(status_code=400, detail="speed must be in range (0, 3].")
 
     await ensure_runtime_initialized()
+    if runtime_init_error:
+        raise HTTPException(status_code=500, detail=f"CosyVoice runtime init failed: {runtime_init_error}")
     model = cosyvoice_model
     if model is None:
         raise HTTPException(status_code=503, detail="CosyVoice model is not initialized.")

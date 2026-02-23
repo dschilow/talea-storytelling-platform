@@ -96,3 +96,9 @@ curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
 - When idle, workers go to 0 (no GPU billing).
 - First request after idle must start worker + load model (can take a few minutes).
 - While warm, generation starts much faster.
+
+## F) RunPod LB timeout note
+
+- RunPod Load Balancer endpoints are not ideal for very long single HTTP requests.
+- If one `/v1/tts` call runs too long, the connection can drop even if the worker is healthy.
+- Keep each TTS request short (chunk long story text) or move to a Queue endpoint for long jobs.
