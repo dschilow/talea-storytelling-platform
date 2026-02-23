@@ -9,8 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/opt/hf-cache \
     PYTHONPATH=/opt/cosyvoice \
     COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_PORT=80
+    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \

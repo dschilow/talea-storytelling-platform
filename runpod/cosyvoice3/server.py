@@ -327,12 +327,12 @@ async def on_startup() -> None:
 @app.get("/ping")
 def ping() -> JSONResponse:
     # Required health endpoint for RunPod Load Balancer workers.
-    # 204 means "initializing", 200 means "ready".
+    # Keep this endpoint always 200 to avoid aggressive LB restart loops.
     if runtime_init_error:
-        return JSONResponse({"status": "error", "detail": runtime_init_error}, status_code=500)
+        return JSONResponse({"status": "error", "detail": runtime_init_error}, status_code=200)
     if cosyvoice_model is None:
         kickoff_runtime_init_background()
-        return JSONResponse({"status": "initializing"}, status_code=204)
+        return JSONResponse({"status": "initializing"}, status_code=200)
     return JSONResponse({"status": "healthy"})
 
 
@@ -447,13 +447,13 @@ def parse_port(value: str, fallback: int) -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CosyVoice 3 FastAPI server")
     parser.add_argument("--host", type=str, default=os.getenv("COSYVOICE_HOST", "0.0.0.0"))
-    parser.add_argument("--port", type=str, default=os.getenv("COSYVOICE_PORT", os.getenv("PORT", "80")))
+    parser.add_argument("--port", type=str, default=os.getenv("PORT", os.getenv("COSYVOICE_PORT", "80")))
 
     args, unknown = parser.parse_known_args()
     if unknown:
         print(f"[start] Ignoring unknown args: {unknown}")
 
-    fallback_port = env_int("COSYVOICE_PORT", env_int("PORT", 80))
+    fallback_port = env_int("PORT", env_int("COSYVOICE_PORT", 80))
     args.port = parse_port(args.port, fallback_port)
     return args
 
