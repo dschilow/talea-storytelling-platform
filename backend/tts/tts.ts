@@ -359,6 +359,18 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         if (requestId) details.push(`request-id=${requestId}`);
         const detailSuffix = details.length > 0 ? ` [${details.join(", ")}]` : "";
 
+        if (response.status === 401) {
+          const authHint =
+            "Check COSYVOICE_RUNPOD_API_KEY (must be a RunPod account API key with endpoint access). " +
+            "If your worker enforces COSYVOICE_API_KEY, set COSYVOICE_RUNPOD_WORKER_API_KEY to the same worker secret.";
+          const keyState = ` bearer_set=${Boolean(COSYVOICE_RUNPOD_API_KEY)} worker_key_set=${Boolean(
+            COSYVOICE_RUNPOD_WORKER_API_KEY
+          )}`;
+          throw new Error(
+            `RunPod CosyVoice API failed (401): ${errText}${detailSuffix}. ${authHint}.${keyState}`
+          );
+        }
+
         throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}${detailSuffix}`);
       }
 
