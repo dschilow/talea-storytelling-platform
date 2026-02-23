@@ -1,9 +1,12 @@
 ﻿FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
+ARG PREFETCH_MODEL=0
+
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/opt/hf-cache \
+    PYTHONPATH=/opt/cosyvoice \
     COSYVOICE_MODEL_ID=FunAudioLLM/CosyVoice-300M-25Hz \
     COSYVOICE_MODEL_DIR=/opt/models/CosyVoice-300M-25Hz \
     COSYVOICE_PORT=80
@@ -28,11 +31,13 @@ RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/cosyvo
 RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124 && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir . && \
     pip install --no-cache-dir fastapi uvicorn[standard] python-multipart huggingface_hub pydub requests
 
-# Prefetch model into image to reduce cold-start latency.
-RUN python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/CosyVoice-300M-25Hz', local_dir='/opt/models/CosyVoice-300M-25Hz', local_dir_use_symlinks=False, resume_download=True)"
+RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
+      python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/CosyVoice-300M-25Hz', local_dir='/opt/models/CosyVoice-300M-25Hz', local_dir_use_symlinks=False, resume_download=True)"; \
+    else \
+      echo "Skipping model prefetch during build (PREFETCH_MODEL=$PREFETCH_MODEL)"; \
+    fi
 
 COPY runpod/cosyvoice3/server.py /app/server.py
 COPY runpod/cosyvoice3/entrypoint.sh /app/entrypoint.sh
@@ -44,4 +49,3 @@ WORKDIR /app
 EXPOSE 80
 
 CMD ["/app/entrypoint.sh"]
-
