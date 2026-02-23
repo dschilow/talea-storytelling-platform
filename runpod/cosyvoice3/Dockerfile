@@ -1,40 +1,55 @@
-﻿FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
 
 ARG PREFETCH_MODEL=0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PIP_PREFER_BINARY=1 \
     HF_HOME=/opt/hf-cache \
     PYTHONPATH=/opt/cosyvoice \
-    COSYVOICE_MODEL_ID=FunAudioLLM/CosyVoice-300M-25Hz \
-    COSYVOICE_MODEL_DIR=/opt/models/CosyVoice-300M-25Hz \
+    COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
+    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
     COSYVOICE_PORT=80
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    python3-dev \
     git \
+    git-lfs \
     ffmpeg \
     sox \
     libsndfile1 \
     ca-certificates \
     build-essential \
-    && ln -sf /usr/bin/python3 /usr/bin/python \
-    && ln -sf /usr/bin/pip3 /usr/bin/pip \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/cosyvoice
-RUN git clone --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/cosyvoice
+RUN git clone --recursive --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/cosyvoice
 
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124 && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir fastapi uvicorn[standard] python-multipart huggingface_hub pydub requests
+RUN pip install --upgrade pip setuptools wheel cython && \
+    awk ' \
+      BEGIN{IGNORECASE=1} \
+      /^--extra-index-url .*onnxruntime-cuda-12/ {next} \
+      /^deepspeed==/ {next} \
+      /^fastapi-cli==/ {next} \
+      /^gradio==/ {next} \
+      /^grpcio==/ {next} \
+      /^grpcio-tools==/ {next} \
+      /^lightning==/ {next} \
+      /^matplotlib==/ {next} \
+      /^openai-whisper==/ {next} \
+      /^pyarrow==/ {next} \
+      /^pyworld==/ {next} \
+      /^tensorboard==/ {next} \
+      /^tensorrt-cu12==/ {next} \
+      /^tensorrt-cu12-bindings==/ {next} \
+      /^tensorrt-cu12-libs==/ {next} \
+      {print} \
+    ' requirements.txt > requirements.serverless.txt && \
+    pip install --no-cache-dir -r requirements.serverless.txt && \
+    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub pydub requests
 
 RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
-      python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/CosyVoice-300M-25Hz', local_dir='/opt/models/CosyVoice-300M-25Hz', local_dir_use_symlinks=False, resume_download=True)"; \
+      python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/Fun-CosyVoice3-0.5B-2512', local_dir='/opt/models/Fun-CosyVoice3-0.5B-2512', local_dir_use_symlinks=False, resume_download=True)"; \
     else \
       echo "Skipping model prefetch during build (PREFETCH_MODEL=$PREFETCH_MODEL)"; \
     fi

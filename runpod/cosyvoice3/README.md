@@ -1,48 +1,53 @@
-﻿# RunPod Serverless Setup (CosyVoice 3 + Emotion)
+# RunPod Serverless Setup (CosyVoice 3 + Emotion)
 
 This setup is prepared for **RunPod Serverless Load Balancer** (scale-to-zero, starts only on demand).
 
 Backend in this repo already calls:
 - `POST <COSYVOICE_RUNPOD_API_URL>/v1/tts`
 
-So your only job is to deploy this worker and copy endpoint URL + API key into backend env.
+## A) Commit these files first
 
-## A) One-time in your repo
-
-1. Commit and push these files:
+1. Commit and push:
    - `runpod/cosyvoice3/Dockerfile`
    - `runpod/cosyvoice3/server.py`
    - `runpod/cosyvoice3/entrypoint.sh`
    - backend env updates (`.env.example`)
-2. Wait until GitHub has latest commit.
+2. Wait until GitHub shows the new commit.
 
-## B) Create RunPod Serverless endpoint (UI)
+Important: if RunPod build logs still show `torch==2.5.1`, you are building an old commit or wrong Dockerfile path.
+
+## B) Create RunPod Serverless endpoint
 
 1. Open RunPod -> `Serverless` -> `Create Endpoint`.
-2. Choose **Load Balancer endpoint** (HTTP workers).
-3. For source choose **GitHub repo**.
-4. Select your repository + branch.
+2. Choose **Load Balancer** endpoint type.
+3. Source: your GitHub repo.
+4. Select repo + branch.
 5. Dockerfile path: `runpod/cosyvoice3/Dockerfile`.
-6. Set exposed HTTP port to `80`.
-7. GPU: choose your target (e.g. RTX 4000 Ada class if available in your plan/region).
-8. Worker autoscaling:
-   - `Min workers = 0` (important for scale-to-zero)
-   - `Max workers = 1` (start simple, increase later)
-9. Add env vars in RunPod endpoint:
+6. In `Container configuration`:
+   - `Expose HTTP ports`: `80`
+   - `Container disk`: `20 GB` (good start for this model)
+7. Worker settings:
+   - `Active workers`: `0` (this is scale-to-zero)
+   - `Max workers`: `1` (start small)
+8. GPU config:
+   - choose at least 24 GB VRAM class for CosyVoice3 (`24 GB` option in UI is OK)
+   - "Low/Medium/High supply" only means availability chance, not quality
+9. Add environment variables:
 
 ```env
 COSYVOICE_API_KEY=<strong-random-secret>
-COSYVOICE_MODEL_ID=FunAudioLLM/CosyVoice-300M-25Hz
-COSYVOICE_MODEL_DIR=/opt/models/CosyVoice-300M-25Hz
+COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512
+COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_INFERENCE_TIMEOUT_SEC=1200
 COSYVOICE_MAX_CONCURRENT=1
+COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
 
-# Optional default narrator fallback (if client sends no reference file)
-COSYVOICE_DEFAULT_PROMPT_TEXT=Hallo, ich bin dein Erzahler und lese dir jetzt eine Geschichte vor.
+# Optional default narrator fallback if request has no reference_audio:
+COSYVOICE_DEFAULT_PROMPT_TEXT=Das ist meine Referenzstimme fuer Talea.
 COSYVOICE_DEFAULT_REF_WAV_URL=https://<public-url>/narrator_sample.wav
 ```
 
-10. Deploy endpoint.
+10. Click `Deploy Endpoint`.
 
 ## C) Connect backend to RunPod
 
@@ -59,9 +64,9 @@ COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS=30000
 COSYVOICE_DEFAULT_OUTPUT_FORMAT=wav
 ```
 
-Restart backend after setting env vars.
+Restart backend after env changes.
 
-## D) Verify endpoint
+## D) Quick test
 
 Health:
 
@@ -69,30 +74,21 @@ Health:
 curl -s "https://<your-endpoint-id>.api.runpod.ai/ping"
 ```
 
-TTS test:
+TTS:
 
 ```bash
 curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
   -H "Authorization: Bearer <COSYVOICE_API_KEY>" \
   -F "text=Es war einmal ein kleiner Stern, der leuchten wollte." \
-  -F "prompt_text=Hallo, ich bin dein Erzahler." \
+  -F "prompt_text=Das ist meine Referenzstimme fuer Talea." \
   -F "reference_audio=@narrator_sample.wav" \
   -F "emotion=happy" \
   -F "output_format=wav" \
   --output out.wav
 ```
 
-## E) What to expect in production
+## E) Cold start behavior
 
-- If no traffic: workers go to zero.
-- First request after idle triggers cold start (can take minutes).
-- After warm-up, next requests are much faster.
-
-## F) Notes
-
-- This worker supports:
-  - `prompt_text` + `reference_audio` (zero-shot clone)
-  - `emotion` (mapped to instruct style)
-  - `instruct_text` (explicit style override)
-  - `output_format` wav/mp3
-- Backend already sends auth header and handles retries/timeouts.
+- When idle, workers go to 0 (no GPU billing).
+- First request after idle must start worker + load model (can take a few minutes).
+- While warm, generation starts much faster.

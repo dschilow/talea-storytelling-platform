@@ -1,10 +1,10 @@
-﻿import argparse
+import argparse
 import asyncio
 import io
 import os
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import requests
 import torch
@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from huggingface_hub import snapshot_download
 from pydub import AudioSegment
 
-from cosyvoice.cli.cosyvoice import CosyVoice2
+from cosyvoice.cli.cosyvoice import AutoModel
 from cosyvoice.utils.file_utils import load_wav
 
 
@@ -41,12 +41,13 @@ def env_float(name: str, default: float) -> float:
         return default
 
 
-MODEL_ID = os.getenv("COSYVOICE_MODEL_ID", "FunAudioLLM/CosyVoice-300M-25Hz").strip()
-MODEL_DIR = os.getenv("COSYVOICE_MODEL_DIR", "/opt/models/CosyVoice-300M-25Hz").strip()
+MODEL_ID = os.getenv("COSYVOICE_MODEL_ID", "FunAudioLLM/Fun-CosyVoice3-0.5B-2512").strip()
+MODEL_DIR = os.getenv("COSYVOICE_MODEL_DIR", "/opt/models/Fun-CosyVoice3-0.5B-2512").strip()
 API_KEY = os.getenv("COSYVOICE_API_KEY", "").strip()
 DEFAULT_PROMPT_TEXT = os.getenv("COSYVOICE_DEFAULT_PROMPT_TEXT", "").strip()
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
 DEFAULT_REF_WAV_URL = os.getenv("COSYVOICE_DEFAULT_REF_WAV_URL", "").strip()
+DEFAULT_SYSTEM_PROMPT = os.getenv("COSYVOICE_SYSTEM_PROMPT", "You are a helpful assistant.").strip()
 INFERENCE_TIMEOUT_SEC = env_int("COSYVOICE_INFERENCE_TIMEOUT_SEC", 1200)
 MAX_CONCURRENT = env_int("COSYVOICE_MAX_CONCURRENT", 1)
 DEFAULT_SPEED = env_float("COSYVOICE_DEFAULT_SPEED", 1.0)
@@ -118,16 +119,37 @@ def validate_api_key(authorization: Optional[str], x_api_key: Optional[str]) -> 
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
+def normalize_cv3_prompt_text(prompt_text: str) -> str:
+    cleaned_prompt = (prompt_text or "").strip()
+    if not cleaned_prompt:
+        return ""
+    if "<|endofprompt|>" in cleaned_prompt:
+        return cleaned_prompt
+
+    system_prompt = (DEFAULT_SYSTEM_PROMPT or "You are a helpful assistant.").strip()
+    return f"{system_prompt}<|endofprompt|>{cleaned_prompt}"
+
+
+def normalize_cv3_instruction(instruct_text: str) -> str:
+    cleaned = (instruct_text or "").strip()
+    if not cleaned:
+        return ""
+    if "<|endofprompt|>" in cleaned:
+        return cleaned
+    return f"{cleaned}<|endofprompt|>"
+
+
 def resolve_instruct_text(instruct_text: str, emotion: str) -> str:
     direct = (instruct_text or "").strip()
     if direct:
-        return direct
+        return normalize_cv3_instruction(direct)
 
     normalized = (emotion or "").strip().lower()
     if not normalized:
         return ""
 
-    return EMOTION_TO_INSTRUCT.get(normalized, normalized)
+    selected = EMOTION_TO_INSTRUCT.get(normalized, normalized)
+    return normalize_cv3_instruction(selected)
 
 
 async def load_reference_audio(reference_audio: Optional[UploadFile], default_ref_path: str) -> Optional[torch.Tensor]:
@@ -184,7 +206,7 @@ def wav_to_mp3_bytes(wav_bytes: bytes) -> bytes:
 
 
 def generate_audio(
-    cosyvoice: CosyVoice2,
+    cosyvoice: Any,
     text: str,
     prompt_text: str,
     instruct_text: str,
@@ -193,7 +215,7 @@ def generate_audio(
     reference_wav: Optional[torch.Tensor],
     speed: float,
 ) -> Tuple[bytes, str, str]:
-    final_prompt_text = (prompt_text or DEFAULT_PROMPT_TEXT or "").strip()
+    final_prompt_text = normalize_cv3_prompt_text(prompt_text or DEFAULT_PROMPT_TEXT or "")
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
 
     if reference_wav is None:
@@ -207,9 +229,9 @@ def generate_audio(
 
     if final_instruct_text:
         generator = cosyvoice.inference_instruct2(
-            text=text,
-            instruct_text=final_instruct_text,
-            prompt_wav=reference_wav,
+            text,
+            final_instruct_text,
+            reference_wav,
             stream=False,
             speed=speed,
         )
@@ -224,9 +246,9 @@ def generate_audio(
             )
 
         generator = cosyvoice.inference_zero_shot(
-            text=text,
-            prompt_text=final_prompt_text,
-            prompt_wav=reference_wav,
+            text,
+            final_prompt_text,
+            reference_wav,
             stream=False,
             speed=speed,
         )
@@ -244,8 +266,8 @@ def generate_audio(
 # Startup
 resolved_model_dir = ensure_model_dir()
 default_reference_path = ensure_default_reference()
-print(f"[startup] Loading CosyVoice2 runtime from model dir: {resolved_model_dir}")
-cosyvoice_model = CosyVoice2(resolved_model_dir)
+print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
+cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
 print("[startup] CosyVoice model loaded.")
 
 app = FastAPI(title="CosyVoice 3 RunPod API", version="1.0.0")
