@@ -137,7 +137,8 @@ function isTransientFetchError(error: unknown): boolean {
 }
 
 function isRetryableStatus(status: number): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500;
+  // 430 = RunPod "no workers available" (cold-start / scaling up)
+  return status === 408 || status === 425 || status === 429 || status === 430 || status >= 500;
 }
 
 function isLikelyInfraBusyStatus(status: number, body: string): boolean {
