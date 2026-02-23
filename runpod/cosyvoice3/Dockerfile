@@ -35,7 +35,6 @@ RUN pip install --upgrade pip setuptools wheel cython && \
       /^grpcio-tools==/ {next} \
       /^lightning==/ {next} \
       /^matplotlib==/ {next} \
-      /^openai-whisper==/ {next} \
       /^pyarrow==/ {next} \
       /^pyworld==/ {next} \
       /^tensorboard==/ {next} \

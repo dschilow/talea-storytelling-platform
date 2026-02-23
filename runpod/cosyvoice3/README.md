@@ -35,12 +35,16 @@ Important: if RunPod build logs still show `torch==2.5.1`, you are building an o
 9. Add environment variables:
 
 ```env
-COSYVOICE_API_KEY=<strong-random-secret>
 COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_INFERENCE_TIMEOUT_SEC=1200
 COSYVOICE_MAX_CONCURRENT=1
 COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
+
+# Optional worker-internal auth layer:
+# If set, backend must send COSYVOICE_RUNPOD_WORKER_API_KEY (X-API-Key header).
+# If not set, worker accepts requests without extra worker key.
+# COSYVOICE_API_KEY=<strong-random-secret>
 
 # Optional built-in speaker fallback (no reference_audio needed):
 COSYVOICE_DEFAULT_SPK_ID=
@@ -61,7 +65,7 @@ COSYVOICE_RUNPOD_API_URL=https://<your-endpoint-id>.api.runpod.ai
 # RunPod gateway key (Bearer auth at RunPod edge)
 COSYVOICE_RUNPOD_API_KEY=<your-runpod-api-key>
 
-# Optional: only if your worker enforces COSYVOICE_API_KEY internally
+# Required if your worker sets COSYVOICE_API_KEY internally
 COSYVOICE_RUNPOD_WORKER_API_KEY=<same-secret-as-COSYVOICE_API_KEY>
 COSYVOICE_RUNPOD_TTS_PATH=/v1/tts
 COSYVOICE_RUNPOD_TIMEOUT_MS=1200000
@@ -85,7 +89,8 @@ TTS:
 
 ```bash
 curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
-  -H "Authorization: Bearer <COSYVOICE_API_KEY>" \
+  -H "Authorization: Bearer <RUNPOD_API_KEY>" \
+  -H "X-API-Key: <COSYVOICE_API_KEY>" \
   -F "text=Es war einmal ein kleiner Stern, der leuchten wollte." \
   -F "prompt_text=Das ist meine Referenzstimme fuer Talea." \
   -F "reference_audio=@narrator_sample.wav" \
@@ -99,11 +104,14 @@ Without reference audio (use built-in speaker):
 ```bash
 curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
   -H "Authorization: Bearer <RUNPOD_API_KEY>" \
+  -H "X-API-Key: <COSYVOICE_API_KEY>" \
   -F "text=Es war einmal ein kleiner Stern, der leuchten wollte." \
   -F "speaker=<built-in-speaker-id-optional>" \
   -F "output_format=wav" \
   --output out.wav
 ```
+
+If your worker does not set `COSYVOICE_API_KEY`, omit `X-API-Key`.
 
 ## E) Cold start behavior
 

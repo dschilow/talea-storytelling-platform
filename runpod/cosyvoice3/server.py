@@ -166,6 +166,10 @@ def validate_api_key(authorization: Optional[str], x_api_key: Optional[str]) -> 
         token = x_api_key.strip()
 
     if token != API_KEY:
+        print(
+            "[auth] Unauthorized request "
+            f"(api_key_configured={bool(API_KEY)} bearer_present={bool(authorization)} x_api_key_present={bool(x_api_key)})"
+        )
         raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
