@@ -17,9 +17,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from huggingface_hub import snapshot_download
 from pydub import AudioSegment
 
-from cosyvoice.cli.cosyvoice import AutoModel
-from cosyvoice.utils.file_utils import load_wav
-
 
 def env_int(name: str, default: int) -> int:
     raw = os.getenv(name, "").strip()
@@ -121,6 +118,8 @@ def init_runtime_sync() -> None:
 
         resolved_model_dir = ensure_model_dir()
         default_reference_path = ensure_default_reference()
+        from cosyvoice.cli.cosyvoice import AutoModel
+
         print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
         cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
         print("[startup] CosyVoice model loaded.")
@@ -181,6 +180,8 @@ def resolve_instruct_text(instruct_text: str, emotion: str) -> str:
 
 
 async def load_reference_audio(reference_audio: Optional[UploadFile], default_ref_path: str) -> Optional[torch.Tensor]:
+    from cosyvoice.utils.file_utils import load_wav
+
     if reference_audio is not None:
         payload = await reference_audio.read()
         if not payload:
@@ -301,6 +302,12 @@ def ping() -> JSONResponse:
     return JSONResponse({"status": "healthy"})
 
 
+@app.get("/")
+def root() -> JSONResponse:
+    # Some load balancer probes use "/" by default.
+    return JSONResponse({"status": "ok"})
+
+
 @app.get("/health")
 def health() -> JSONResponse:
     return JSONResponse(
@@ -402,17 +409,18 @@ def parse_port(value: str, fallback: int) -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CosyVoice 3 FastAPI server")
     parser.add_argument("--host", type=str, default=os.getenv("COSYVOICE_HOST", "0.0.0.0"))
-    parser.add_argument("--port", type=str, default=os.getenv("PORT", os.getenv("COSYVOICE_PORT", "80")))
+    parser.add_argument("--port", type=str, default=os.getenv("COSYVOICE_PORT", os.getenv("PORT", "80")))
 
     args, unknown = parser.parse_known_args()
     if unknown:
         print(f"[start] Ignoring unknown args: {unknown}")
 
-    fallback_port = env_int("PORT", env_int("COSYVOICE_PORT", 80))
+    fallback_port = env_int("COSYVOICE_PORT", env_int("PORT", 80))
     args.port = parse_port(args.port, fallback_port)
     return args
 
 
 if __name__ == "__main__":
     args = parse_args()
+    print(f"[start] FastAPI bootstrap on {args.host}:{args.port} (model lazy-load enabled)")
     uvicorn.run(app, host=args.host, port=args.port, workers=1)

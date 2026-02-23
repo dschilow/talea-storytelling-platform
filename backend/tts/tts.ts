@@ -418,6 +418,19 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           );
         }
 
+        if (response.status === 400) {
+          throw APIError.invalidArgument(`CosyVoice request rejected: ${errText}${detailSuffix}`);
+        }
+        if (response.status === 401) {
+          throw APIError.unauthenticated(`CosyVoice auth failed: ${errText}${detailSuffix}`);
+        }
+        if (response.status === 403) {
+          throw APIError.permissionDenied(`CosyVoice access denied: ${errText}${detailSuffix}`);
+        }
+        if (response.status === 404) {
+          throw APIError.notFound(`CosyVoice endpoint not found: ${errText}${detailSuffix}`);
+        }
+
         throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}${detailSuffix}`);
       }
 

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 HOST="${COSYVOICE_HOST:-0.0.0.0}"
-PORT_RAW="${PORT:-${COSYVOICE_PORT:-80}}"
+PORT_RAW="${COSYVOICE_PORT:-${PORT:-80}}"
 
 if [[ "${PORT_RAW}" =~ ^[0-9]+$ ]]; then
   PORT="${PORT_RAW}"
