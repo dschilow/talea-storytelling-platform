@@ -46,6 +46,7 @@ API_KEY = os.getenv("COSYVOICE_API_KEY", "").strip()
 DEFAULT_PROMPT_TEXT = os.getenv("COSYVOICE_DEFAULT_PROMPT_TEXT", "").strip()
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
 DEFAULT_REF_WAV_URL = os.getenv("COSYVOICE_DEFAULT_REF_WAV_URL", "").strip()
+DEFAULT_SPK_ID = os.getenv("COSYVOICE_DEFAULT_SPK_ID", "").strip()
 DEFAULT_SYSTEM_PROMPT = os.getenv("COSYVOICE_SYSTEM_PROMPT", "You are a helpful assistant.").strip()
 INFERENCE_TIMEOUT_SEC = env_int("COSYVOICE_INFERENCE_TIMEOUT_SEC", 1200)
 MAX_CONCURRENT = env_int("COSYVOICE_MAX_CONCURRENT", 1)
@@ -201,6 +202,50 @@ def resolve_instruct_text(instruct_text: str, emotion: str) -> str:
     return normalize_cv3_instruction(selected)
 
 
+def list_available_speakers(cosyvoice: Any) -> list[str]:
+    try:
+        speakers = cosyvoice.list_available_spks()
+    except Exception as exc:
+        print(f"[runtime] list_available_spks failed: {exc}")
+        return []
+
+    if not isinstance(speakers, list):
+        return []
+
+    normalized: list[str] = []
+    for speaker in speakers:
+        value = str(speaker).strip()
+        if value:
+            normalized.append(value)
+    return normalized
+
+
+def resolve_sft_speaker_id(cosyvoice: Any, requested_speaker: str) -> str:
+    available = list_available_speakers(cosyvoice)
+    requested = (requested_speaker or DEFAULT_SPK_ID).strip()
+
+    if requested:
+        if available and requested not in available:
+            preview = ", ".join(available[:20])
+            raise HTTPException(
+                status_code=400,
+                detail=f"speaker '{requested}' not available. Available: {preview}",
+            )
+        return requested
+
+    if available:
+        # Stable fallback to first built-in speaker when no reference audio is provided.
+        return available[0]
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "No reference audio available and no built-in speaker resolved. "
+            "Set COSYVOICE_DEFAULT_SPK_ID or provide reference_audio."
+        ),
+    )
+
+
 async def load_reference_audio(reference_audio: Optional[UploadFile], default_ref_path: str) -> Optional[torch.Tensor]:
     from cosyvoice.utils.file_utils import load_wav
 
@@ -265,53 +310,55 @@ def generate_audio(
     output_format: str,
     reference_wav: Optional[torch.Tensor],
     speed: float,
-) -> Tuple[bytes, str, str]:
+    speaker: str,
+) -> Tuple[bytes, str, str, Optional[str]]:
     final_prompt_text = normalize_cv3_prompt_text(prompt_text or DEFAULT_PROMPT_TEXT or "")
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
+    used_speaker: Optional[str] = None
 
     if reference_wav is None:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "No reference audio available. Provide reference_audio or configure "
-                "COSYVOICE_DEFAULT_REF_WAV / COSYVOICE_DEFAULT_REF_WAV_URL."
-            ),
-        )
-
-    if final_instruct_text:
-        generator = cosyvoice.inference_instruct2(
+        used_speaker = resolve_sft_speaker_id(cosyvoice, speaker)
+        generator = cosyvoice.inference_sft(
             text,
-            final_instruct_text,
-            reference_wav,
+            used_speaker,
             stream=False,
             speed=speed,
         )
     else:
-        if not final_prompt_text:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "prompt_text is required for zero-shot cloning. "
-                    "Provide prompt_text or configure COSYVOICE_DEFAULT_PROMPT_TEXT."
-                ),
+        if final_instruct_text:
+            generator = cosyvoice.inference_instruct2(
+                text,
+                final_instruct_text,
+                reference_wav,
+                stream=False,
+                speed=speed,
             )
+        else:
+            if not final_prompt_text:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "prompt_text is required for zero-shot cloning. "
+                        "Provide prompt_text or configure COSYVOICE_DEFAULT_PROMPT_TEXT."
+                    ),
+                )
 
-        generator = cosyvoice.inference_zero_shot(
-            text,
-            final_prompt_text,
-            reference_wav,
-            stream=False,
-            speed=speed,
-        )
+            generator = cosyvoice.inference_zero_shot(
+                text,
+                final_prompt_text,
+                reference_wav,
+                stream=False,
+                speed=speed,
+            )
 
     waveform = collect_waveform(generator)
     wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
 
     normalized_format = output_format.strip().lower()
     if normalized_format == "mp3":
-        return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3"
+        return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3", used_speaker
 
-    return wav_bytes, "audio/wav", "wav"
+    return wav_bytes, "audio/wav", "wav", used_speaker
 
 
 app = FastAPI(title="CosyVoice 3 RunPod API", version="1.0.0")
@@ -344,6 +391,10 @@ def root() -> JSONResponse:
 
 @app.get("/health")
 def health() -> JSONResponse:
+    available_speakers: list[str] = []
+    if cosyvoice_model is not None:
+        available_speakers = list_available_speakers(cosyvoice_model)[:20]
+
     return JSONResponse(
         {
             "ok": True,
@@ -355,6 +406,8 @@ def health() -> JSONResponse:
             "gpu_available": bool(torch.cuda.is_available()),
             "default_prompt_text_set": bool(DEFAULT_PROMPT_TEXT),
             "default_reference_available": bool(default_reference_path and Path(default_reference_path).exists()),
+            "default_speaker": DEFAULT_SPK_ID,
+            "available_speakers": available_speakers,
             "max_concurrent": MAX_CONCURRENT,
         }
     )
@@ -368,6 +421,7 @@ async def tts(
     emotion: str = Form(""),
     output_format: str = Form("wav"),
     speed: float = Form(DEFAULT_SPEED),
+    speaker: str = Form(""),
     reference_audio: Optional[UploadFile] = File(default=None),
     authorization: Optional[str] = Header(default=None),
     x_api_key: Optional[str] = Header(default=None),
@@ -396,7 +450,7 @@ async def tts(
 
     async with semaphore:
         try:
-            audio_bytes, mime_type, used_format = await asyncio.wait_for(
+            audio_bytes, mime_type, used_format, used_speaker = await asyncio.wait_for(
                 asyncio.to_thread(
                     generate_audio,
                     model,
@@ -407,6 +461,7 @@ async def tts(
                     normalized_format,
                     reference_wav,
                     speed,
+                    speaker,
                 ),
                 timeout=INFERENCE_TIMEOUT_SEC,
             )
@@ -424,6 +479,8 @@ async def tts(
         "X-Audio-Format": used_format,
         "X-CosyVoice-Model": MODEL_ID,
     }
+    if used_speaker:
+        headers["X-CosyVoice-Speaker"] = used_speaker
     return StreamingResponse(io.BytesIO(audio_bytes), media_type=mime_type, headers=headers)
 
 

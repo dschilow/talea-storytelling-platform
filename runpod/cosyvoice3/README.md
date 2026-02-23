@@ -42,6 +42,9 @@ COSYVOICE_INFERENCE_TIMEOUT_SEC=1200
 COSYVOICE_MAX_CONCURRENT=1
 COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
 
+# Optional built-in speaker fallback (no reference_audio needed):
+COSYVOICE_DEFAULT_SPK_ID=
+
 # Optional default narrator fallback if request has no reference_audio:
 COSYVOICE_DEFAULT_PROMPT_TEXT=Das ist meine Referenzstimme fuer Talea.
 COSYVOICE_DEFAULT_REF_WAV_URL=https://<public-url>/narrator_sample.wav
@@ -87,6 +90,17 @@ curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
   -F "prompt_text=Das ist meine Referenzstimme fuer Talea." \
   -F "reference_audio=@narrator_sample.wav" \
   -F "emotion=happy" \
+  -F "output_format=wav" \
+  --output out.wav
+```
+
+Without reference audio (use built-in speaker):
+
+```bash
+curl -X POST "https://<your-endpoint-id>.api.runpod.ai/v1/tts" \
+  -H "Authorization: Bearer <RUNPOD_API_KEY>" \
+  -F "text=Es war einmal ein kleiner Stern, der leuchten wollte." \
+  -F "speaker=<built-in-speaker-id-optional>" \
   -F "output_format=wav" \
   --output out.wav
 ```
