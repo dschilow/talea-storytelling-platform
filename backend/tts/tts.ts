@@ -11,6 +11,10 @@ const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = parsePositiveInt(
   process.env.COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS,
   1500
 );
+const COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS,
+  1
+);
 const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = parsePositiveInt(
   process.env.COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS,
   30_000
@@ -136,6 +140,11 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 425 || status === 429 || status >= 500;
 }
 
+function isLikelyInfraBusyStatus(status: number, body: string): boolean {
+  // RunPod LB can return empty 400 responses when workers are cold/busy/unavailable.
+  return status === 400 && !body.trim();
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -255,6 +264,34 @@ async function resolveReferenceAudio(req: GenerateSpeechRequest): Promise<Resolv
   return null;
 }
 
+let runpodInFlight = 0;
+const runpodWaitQueue: Array<() => void> = [];
+
+async function acquireRunpodSlot(): Promise<void> {
+  if (runpodInFlight < COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS) {
+    runpodInFlight += 1;
+    return;
+  }
+
+  await new Promise<void>((resolve) => runpodWaitQueue.push(resolve));
+  runpodInFlight += 1;
+}
+
+function releaseRunpodSlot(): void {
+  runpodInFlight = Math.max(0, runpodInFlight - 1);
+  const next = runpodWaitQueue.shift();
+  if (next) next();
+}
+
+async function withRunpodSlot<T>(fn: () => Promise<T>): Promise<T> {
+  await acquireRunpodSlot();
+  try {
+    return await fn();
+  } finally {
+    releaseRunpodSlot();
+  }
+}
+
 function resolveMimeType(contentTypeHeader: string | null, outputFormat: AudioFormat): string {
   const normalized = (contentTypeHeader || "").split(";")[0].trim().toLowerCase();
   if (normalized.startsWith("audio/")) {
@@ -345,7 +382,10 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         const requestId =
           response.headers.get("x-request-id") || response.headers.get("x-runpod-request-id");
 
-        if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && isRetryableStatus(response.status)) {
+        const retryable =
+          isRetryableStatus(response.status) || isLikelyInfraBusyStatus(response.status, errTextRaw);
+
+        if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && retryable) {
           const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
           log.warn(
             `CosyVoice RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
@@ -368,6 +408,13 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           )}`;
           throw new Error(
             `RunPod CosyVoice API failed (401): ${errText}${detailSuffix}. ${authHint}.${keyState}`
+          );
+        }
+
+        if (isLikelyInfraBusyStatus(response.status, errTextRaw)) {
+          throw new Error(
+            "RunPod CosyVoice API failed (400 <empty>). This often means worker cold-start/busy on Load Balancer endpoints. " +
+              "Reduce parallel calls (COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS=1), keep Max workers >= 1, or use Queue endpoint."
           );
         }
 
@@ -456,7 +503,7 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
   { expose: true, method: "POST", path: "/tts/generate" },
   async (req) => {
     try {
-      return await runpodTtsRequest(req);
+      return await withRunpodSlot(() => runpodTtsRequest(req));
     } catch (error) {
       if (isApiError(error)) {
         throw error;
@@ -489,18 +536,20 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
       }
 
       try {
-        const response = await runpodTtsRequest({
-          text,
-          provider: req.provider,
-          promptText: req.promptText,
-          referenceAudioDataUrl: req.referenceAudioDataUrl,
-          referenceAudioUrl: req.referenceAudioUrl,
-          emotion: req.emotion,
-          instructText: req.instructText,
-          outputFormat: req.outputFormat,
-          languageId: req.languageId,
-          model: req.model,
-        });
+        const response = await withRunpodSlot(() =>
+          runpodTtsRequest({
+            text,
+            provider: req.provider,
+            promptText: req.promptText,
+            referenceAudioDataUrl: req.referenceAudioDataUrl,
+            referenceAudioUrl: req.referenceAudioUrl,
+            emotion: req.emotion,
+            instructText: req.instructText,
+            outputFormat: req.outputFormat,
+            languageId: req.languageId,
+            model: req.model,
+          })
+        );
 
         results.push({
           id: item.id,

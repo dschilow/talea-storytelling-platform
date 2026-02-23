@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import io
 import os
+import re
+import threading
 import tempfile
 from pathlib import Path
 from typing import Any, Optional, Tuple
@@ -61,6 +63,12 @@ EMOTION_TO_INSTRUCT = {
     "serious": "Please speak in a focused, informative, serious educational tone.",
 }
 
+# Lazy runtime state to keep /ping fast and avoid worker startup crashes.
+resolved_model_dir = MODEL_DIR
+default_reference_path = ""
+cosyvoice_model: Optional[Any] = None
+runtime_lock = threading.Lock()
+
 
 def ensure_model_dir() -> str:
     path = Path(MODEL_DIR)
@@ -100,6 +108,26 @@ def ensure_default_reference() -> str:
     target_path.write_bytes(response.content)
     print(f"[startup] Default reference audio saved to {target_path}")
     return str(target_path)
+
+
+def init_runtime_sync() -> None:
+    global resolved_model_dir, default_reference_path, cosyvoice_model
+    if cosyvoice_model is not None:
+        return
+
+    with runtime_lock:
+        if cosyvoice_model is not None:
+            return
+
+        resolved_model_dir = ensure_model_dir()
+        default_reference_path = ensure_default_reference()
+        print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
+        cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
+        print("[startup] CosyVoice model loaded.")
+
+
+async def ensure_runtime_initialized() -> None:
+    await asyncio.to_thread(init_runtime_sync)
 
 
 def validate_api_key(authorization: Optional[str], x_api_key: Optional[str]) -> None:
@@ -263,13 +291,6 @@ def generate_audio(
     return wav_bytes, "audio/wav", "wav"
 
 
-# Startup
-resolved_model_dir = ensure_model_dir()
-default_reference_path = ensure_default_reference()
-print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
-cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
-print("[startup] CosyVoice model loaded.")
-
 app = FastAPI(title="CosyVoice 3 RunPod API", version="1.0.0")
 semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
@@ -287,6 +308,7 @@ def health() -> JSONResponse:
             "ok": True,
             "model_id": MODEL_ID,
             "model_dir": resolved_model_dir,
+            "model_loaded": bool(cosyvoice_model is not None),
             "gpu_available": bool(torch.cuda.is_available()),
             "default_prompt_text_set": bool(DEFAULT_PROMPT_TEXT),
             "default_reference_available": bool(default_reference_path and Path(default_reference_path).exists()),
@@ -320,6 +342,11 @@ async def tts(
     if speed <= 0 or speed > 3.0:
         raise HTTPException(status_code=400, detail="speed must be in range (0, 3].")
 
+    await ensure_runtime_initialized()
+    model = cosyvoice_model
+    if model is None:
+        raise HTTPException(status_code=503, detail="CosyVoice model is not initialized.")
+
     reference_wav = await load_reference_audio(reference_audio, default_reference_path)
 
     async with semaphore:
@@ -327,7 +354,7 @@ async def tts(
             audio_bytes, mime_type, used_format = await asyncio.wait_for(
                 asyncio.to_thread(
                     generate_audio,
-                    cosyvoice_model,
+                    model,
                     cleaned_text,
                     prompt_text,
                     instruct_text,
@@ -355,11 +382,35 @@ async def tts(
     return StreamingResponse(io.BytesIO(audio_bytes), media_type=mime_type, headers=headers)
 
 
+def parse_port(value: str, fallback: int) -> int:
+    raw = (value or "").strip()
+    if not raw:
+        return fallback
+    if raw.isdigit():
+        parsed = int(raw)
+        return parsed if parsed > 0 else fallback
+
+    # Keep first integer sequence only (e.g. "80/tcp" -> 80).
+    match = re.search(r"\d+", raw)
+    if not match:
+        return fallback
+
+    parsed = int(match.group(0))
+    return parsed if parsed > 0 else fallback
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CosyVoice 3 FastAPI server")
     parser.add_argument("--host", type=str, default=os.getenv("COSYVOICE_HOST", "0.0.0.0"))
-    parser.add_argument("--port", type=int, default=env_int("PORT", env_int("COSYVOICE_PORT", 80)))
-    return parser.parse_args()
+    parser.add_argument("--port", type=str, default=os.getenv("PORT", os.getenv("COSYVOICE_PORT", "80")))
+
+    args, unknown = parser.parse_known_args()
+    if unknown:
+        print(f"[start] Ignoring unknown args: {unknown}")
+
+    fallback_port = env_int("PORT", env_int("COSYVOICE_PORT", 80))
+    args.port = parse_port(args.port, fallback_port)
+    return args
 
 
 if __name__ == "__main__":
