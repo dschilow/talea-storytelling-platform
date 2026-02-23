@@ -1,597 +1,497 @@
-import { api } from "encore.dev/api";
+﻿import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 
-// TTS_SERVICE_URL should use Railway private networking to avoid the public LB timeout:
-// Set TTS_SERVICE_URL=http://tts-service.railway.internal:8080 in Railway env vars.
-// If your Railway setup expects port-less private URLs, use http://tts-service.railway.internal.
-// If you use Railway public URLs (*.up.railway.app), prefer HTTPS (not HTTP).
-// Railway private networking has no 30/60s proxy timeout; only the AbortController limit applies.
-const PIPER_TTS_SERVICE_URL = process.env.TTS_SERVICE_URL || "http://localhost:5000";
+const COSYVOICE_RUNPOD_API_URL = (process.env.COSYVOICE_RUNPOD_API_URL || "").trim();
+const COSYVOICE_RUNPOD_API_KEY = (process.env.COSYVOICE_RUNPOD_API_KEY || "").trim();
+const COSYVOICE_RUNPOD_TTS_PATH = (process.env.COSYVOICE_RUNPOD_TTS_PATH || "/v1/tts").trim();
+const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 1_200_000); // 20min
+const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 3);
+const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS,
+  1500
+);
+const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = parsePositiveInt(
+  process.env.COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS,
+  30_000
+);
+const COSYVOICE_DEFAULT_PROMPT_TEXT = (process.env.COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = (
+  process.env.COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL || ""
+).trim();
+const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
+const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
+  process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "wav"
+);
 
-// Optional second service for A/B tests (e.g. Chatterbox):
-// CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal:8080
-// or CHATTERBOX_TTS_SERVICE_URL=http://tts-chatterbox-service.railway.internal
-// Public fallback (if needed): https://<service>.up.railway.app
-const CHATTERBOX_TTS_SERVICE_URL = process.env.CHATTERBOX_TTS_SERVICE_URL || "";
-
-export type TTSProvider = "piper" | "chatterbox";
-
-// Optional global default for requests that do not send `provider`:
-// TTS_DEFAULT_PROVIDER=chatterbox
-const TTS_DEFAULT_PROVIDER = (process.env.TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
-const TTS_FALLBACK_TO_PIPER = (process.env.TTS_FALLBACK_TO_PIPER || "true").toLowerCase() !== "false";
-// TTS_STRICT_PROVIDER=true => no automatic fallback when provider is explicitly requested (e.g. provider="chatterbox")
-const TTS_STRICT_PROVIDER = (process.env.TTS_STRICT_PROVIDER || "false").toLowerCase() === "true";
-const CHATTERBOX_FAILURE_COOLDOWN_MS = Number(process.env.CHATTERBOX_FAILURE_COOLDOWN_MS || "60000"); // 60s default
-const TTS_POLL_TIMEOUT_MS = Number(process.env.TTS_POLL_TIMEOUT_MS || "420000"); // 7 min default
-// CHATTERBOX_POLL_TIMEOUT_MS can be raised for slow CPU inference (e.g. 1800000 = 30min).
-const CHATTERBOX_POLL_TIMEOUT_MS = Number(
-    process.env.CHATTERBOX_POLL_TIMEOUT_MS || process.env.TTS_POLL_TIMEOUT_MS || "1800000"
-); // 30 min default for slower CPU chatterbox inference
-const PIPER_LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE || "1.36");
-const PIPER_NOISE_SCALE = Number(process.env.PIPER_NOISE_SCALE || "0.44");
-const PIPER_NOISE_W = Number(process.env.PIPER_NOISE_W || "0.54");
-const CHATTERBOX_LENGTH_SCALE = Number(process.env.CHATTERBOX_LENGTH_SCALE || "1.35");
-const CHATTERBOX_NOISE_SCALE = Number(process.env.CHATTERBOX_NOISE_SCALE || "0.55");
-const CHATTERBOX_NOISE_W = Number(process.env.CHATTERBOX_NOISE_W || "0.65");
-
-let chatterboxUnavailableUntil = 0;
-
-function errorDetails(err: any): string {
-    const msg = err?.message || "unknown error";
-    const cause = err?.cause;
-    if (!cause) return msg;
-
-    const parts: string[] = [];
-    if (cause?.code) parts.push(`code=${String(cause.code)}`);
-    if (cause?.errno) parts.push(`errno=${String(cause.errno)}`);
-    if (cause?.syscall) parts.push(`syscall=${String(cause.syscall)}`);
-    if (cause?.address) parts.push(`address=${String(cause.address)}`);
-    if (cause?.port) parts.push(`port=${String(cause.port)}`);
-
-    return parts.length > 0 ? `${msg} (${parts.join(", ")})` : msg;
-}
-
-function isTransientFetchError(err: any): boolean {
-    const message = String(err?.message || "").toLowerCase();
-    const code = String(err?.cause?.code || "").toUpperCase();
-
-    if (message.includes("fetch failed") || message.includes("network")) {
-        return true;
-    }
-
-    return [
-        "ECONNREFUSED",
-        "ECONNRESET",
-        "ENOTFOUND",
-        "EAI_AGAIN",
-        "ETIMEDOUT",
-        "UND_ERR_CONNECT_TIMEOUT",
-        "UND_ERR_SOCKET",
-    ].includes(code);
-}
-
-function isChatterboxTemporarilyUnavailable(): boolean {
-    return Date.now() < chatterboxUnavailableUntil;
-}
-
-function markChatterboxUnavailable(reason: string): void {
-    chatterboxUnavailableUntil = Date.now() + CHATTERBOX_FAILURE_COOLDOWN_MS;
-    const seconds = Math.max(1, Math.round(CHATTERBOX_FAILURE_COOLDOWN_MS / 1000));
-    log.warn(`Marking chatterbox unavailable for ${seconds}s: ${reason}`);
-}
-
-function resolveProvider(provider?: string): TTSProvider {
-    const requested = (provider || TTS_DEFAULT_PROVIDER || "piper").toLowerCase();
-    if (requested === "chatterbox") return "chatterbox";
-    return "piper";
-}
-
-function resolveServiceUrl(provider: TTSProvider): string {
-    if (provider === "chatterbox") {
-        const url = CHATTERBOX_TTS_SERVICE_URL.trim();
-        if (!url) {
-            throw new Error("CHATTERBOX_TTS_SERVICE_URL is not configured");
-        }
-        return url.replace(/\/+$/, "");
-    }
-    return PIPER_TTS_SERVICE_URL.trim().replace(/\/+$/, "");
-}
-
-interface TTSSynthesisSettings {
-    lengthScale: number;
-    noiseScale: number;
-    noiseW: number;
-}
-
-function getSynthesisSettings(provider: TTSProvider): TTSSynthesisSettings {
-    if (provider === "chatterbox") {
-        return {
-            lengthScale: CHATTERBOX_LENGTH_SCALE,
-            noiseScale: CHATTERBOX_NOISE_SCALE,
-            noiseW: CHATTERBOX_NOISE_W,
-        };
-    }
-
-    return {
-        lengthScale: PIPER_LENGTH_SCALE,
-        noiseScale: PIPER_NOISE_SCALE,
-        noiseW: PIPER_NOISE_W,
-    };
-}
-
-function getServiceUrlCandidates(baseUrl: string): string[] {
-    const candidates: string[] = [];
-    const pushUnique = (value: string) => {
-        if (!value) return;
-        if (!candidates.includes(value)) {
-            candidates.push(value);
-        }
-    };
-
-    const normalizedBase = baseUrl.trim().replace(/\/+$/, "");
-
-    try {
-        const parsed = new URL(normalizedBase);
-        const isRailwayInternal = parsed.hostname.endsWith(".railway.internal");
-        const isRailwayPublic = parsed.hostname.endsWith(".up.railway.app");
-
-        // Prefer HTTPS for Railway public domains to avoid redirect-induced
-        // POST->GET downgrades (which break /generate/async and JSON bodies).
-        const preferred = new URL(parsed.toString());
-        if (isRailwayPublic && preferred.protocol === "http:") {
-            preferred.protocol = "https:";
-        }
-        pushUnique(preferred.toString().replace(/\/+$/, ""));
-        pushUnique(normalizedBase);
-
-        // Railway private networking can differ by environment setup.
-        // Try both variants when the service is internal.
-        if (isRailwayInternal) {
-            if (parsed.port) {
-                const noPort = new URL(parsed.toString());
-                noPort.port = "";
-                pushUnique(noPort.toString().replace(/\/+$/, ""));
-            } else {
-                const with8080 = new URL(parsed.toString());
-                with8080.port = "8080";
-                pushUnique(with8080.toString().replace(/\/+$/, ""));
-            }
-        }
-    } catch {
-        // If parsing fails, fall back to using only the raw URL.
-        pushUnique(normalizedBase);
-    }
-
-    return candidates;
-}
+export type TTSProvider = "cosyvoice3" | "piper" | "chatterbox";
+export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
-    audioData: string; // Base64 encoded WAV data URI
-    providerUsed?: TTSProvider;
+  audioData: string;
+  providerUsed: "cosyvoice3";
+  mimeType: string;
+  outputFormat: AudioFormat;
 }
 
 export interface TTSBatchItem {
-    id: string;
-    text: string;
+  id: string;
+  text: string;
 }
 
 export interface TTSBatchResultItem {
-    id: string;
-    audio: string | null;
-    error: string | null;
+  id: string;
+  audio: string | null;
+  error: string | null;
 }
 
 export interface TTSBatchResponse {
-    results: TTSBatchResultItem[];
+  results: TTSBatchResultItem[];
 }
 
-interface TTSGenerationOptions {
-    languageId?: string;
-    model?: string;
-    lengthScale?: number;
-    noiseScale?: number;
-    noiseW?: number;
+interface GenerateSpeechRequest {
+  text: string;
+  provider?: TTSProvider;
+  promptText?: string;
+  referenceAudioDataUrl?: string;
+  referenceAudioUrl?: string;
+  emotion?: string;
+  instructText?: string;
+  outputFormat?: AudioFormat;
+  languageId?: string;
+  model?: string;
 }
 
-// Async polling helpers (used when TTS_SERVICE_URL points to async-capable server)
+interface GenerateSpeechBatchRequest {
+  items: TTSBatchItem[];
+  provider?: TTSProvider;
+  promptText?: string;
+  referenceAudioDataUrl?: string;
+  referenceAudioUrl?: string;
+  emotion?: string;
+  instructText?: string;
+  outputFormat?: AudioFormat;
+  languageId?: string;
+  model?: string;
+}
 
-async function submitAsyncJob(serviceUrl: string, text: string, options?: TTSGenerationOptions): Promise<string> {
-    const url = `${serviceUrl}/generate/async`;
-    const body = JSON.stringify({
-        text,
-        length_scale: options?.lengthScale ?? CHATTERBOX_LENGTH_SCALE,
-        noise_scale: options?.noiseScale ?? CHATTERBOX_NOISE_SCALE,
-        noise_w: options?.noiseW ?? CHATTERBOX_NOISE_W,
-        language_id: options?.languageId,
-        model: options?.model,
+type ResolvedReferenceAudio = {
+  buffer: Buffer;
+  contentType: string;
+  filename: string;
+};
+
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt((value || "").trim(), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+function normalizeOutputFormat(value: string | undefined): AudioFormat {
+  const normalized = (value || "").trim().toLowerCase();
+  return normalized === "mp3" ? "mp3" : "wav";
+}
+
+function buildRunpodTtsUrl(): string {
+  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
+  const path = `/${COSYVOICE_RUNPOD_TTS_PATH.replace(/^\/+/, "")}`;
+  return `${base}${path}`;
+}
+
+function dataUriFromBuffer(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType};base64,${buffer.toString("base64")}`;
+}
+
+function isAbortError(error: unknown): boolean {
+  const maybeError = error as { name?: string; message?: string };
+  const name = String(maybeError?.name || "");
+  const message = String(maybeError?.message || "").toLowerCase();
+  return name === "AbortError" || message.includes("aborted");
+}
+
+function isTransientFetchError(error: unknown): boolean {
+  if (isAbortError(error)) return true;
+  const maybeError = error as { message?: string; cause?: { code?: string } };
+  const message = String(maybeError?.message || "").toLowerCase();
+  const code = String(maybeError?.cause?.code || "").toUpperCase();
+
+  if (message.includes("fetch failed") || message.includes("network")) {
+    return true;
+  }
+
+  return [
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "ENOTFOUND",
+    "EAI_AGAIN",
+    "ETIMEDOUT",
+    "UND_ERR_CONNECT_TIMEOUT",
+    "UND_ERR_SOCKET",
+  ].includes(code);
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseDataUrl(dataUrl: string): { contentType: string; buffer: Buffer } | null {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  const contentType = (match[1] || "").trim();
+  const base64 = match[2] || "";
+  if (!contentType || !base64) return null;
+  return { contentType, buffer: Buffer.from(base64, "base64") };
+}
+
+function detectContentTypeFromFilename(urlOrName: string): string {
+  const lower = urlOrName.toLowerCase();
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".webm")) return "audio/webm";
+  if (lower.endsWith(".flac")) return "audio/flac";
+  return "audio/wav";
+}
+
+function safeFileName(input: string, fallback: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return fallback;
+  return trimmed.replace(/[^a-z0-9_.-]/gi, "_");
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
+function isApiError(error: unknown): boolean {
+  const maybeError = error as { code?: unknown; message?: unknown };
+  return (
+    !!maybeError &&
+    typeof maybeError === "object" &&
+    typeof maybeError.code === "string" &&
+    typeof maybeError.message === "string"
+  );
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchAudioUrl(url: string): Promise<ResolvedReferenceAudio> {
+  const response = await fetchWithTimeout(url, { method: "GET" }, COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Reference audio download failed (${response.status}): ${body}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  if (buffer.length === 0) {
+    throw new Error("Reference audio download returned empty content.");
+  }
+
+  const contentType =
+    (response.headers.get("content-type") || "").split(";")[0].trim() ||
+    detectContentTypeFromFilename(url);
+
+  let filename = "reference.wav";
+  try {
+    const parsedUrl = new URL(url);
+    const parts = parsedUrl.pathname.split("/").filter(Boolean);
+    const lastSegment = parts.length ? parts[parts.length - 1] : undefined;
+    if (lastSegment) {
+      filename = safeFileName(lastSegment, filename);
+    }
+  } catch {
+    filename = safeFileName(url, filename);
+  }
+
+  return { buffer, contentType, filename };
+}
+
+async function resolveReferenceAudio(req: GenerateSpeechRequest): Promise<ResolvedReferenceAudio | null> {
+  if (req.referenceAudioDataUrl?.trim()) {
+    const parsed = parseDataUrl(req.referenceAudioDataUrl.trim());
+    if (!parsed) {
+      throw APIError.invalidArgument("Invalid referenceAudioDataUrl format.");
+    }
+    if (!parsed.contentType.startsWith("audio/")) {
+      throw APIError.invalidArgument("referenceAudioDataUrl must contain an audio mime type.");
+    }
+    return {
+      buffer: parsed.buffer,
+      contentType: parsed.contentType,
+      filename: "reference-from-data-url.wav",
+    };
+  }
+
+  const providedUrl = req.referenceAudioUrl?.trim();
+  if (providedUrl) {
+    return await fetchAudioUrl(providedUrl);
+  }
+
+  if (COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL) {
+    return await fetchAudioUrl(COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL);
+  }
+
+  return null;
+}
+
+function resolveMimeType(contentTypeHeader: string | null, outputFormat: AudioFormat): string {
+  const normalized = (contentTypeHeader || "").split(";")[0].trim().toLowerCase();
+  if (normalized.startsWith("audio/")) {
+    return normalized;
+  }
+  return outputFormat === "mp3" ? "audio/mpeg" : "audio/wav";
+}
+
+async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse> {
+  if (!COSYVOICE_RUNPOD_API_URL) {
+    throw APIError.failedPrecondition(
+      "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
+    );
+  }
+
+  const text = (req.text || "").trim();
+  if (!text) {
+    throw APIError.invalidArgument("Text is required.");
+  }
+
+  if (req.provider && req.provider !== "cosyvoice3") {
+    log.warn(
+      `Legacy provider "${req.provider}" requested. Using CosyVoice3 RunPod endpoint instead.`
+    );
+  }
+
+  const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
+  const promptText = (req.promptText || COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+  const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
+  const instructText = (req.instructText || "").trim();
+
+  const referenceAudio = await resolveReferenceAudio(req);
+
+  const formData = new FormData();
+  formData.set("text", text);
+  formData.set("output_format", outputFormat);
+
+  if (promptText) {
+    formData.set("prompt_text", promptText);
+  }
+  if (emotion) {
+    formData.set("emotion", emotion);
+  }
+  if (instructText) {
+    formData.set("instruct_text", instructText);
+  }
+  if (req.languageId?.trim()) {
+    formData.set("language_id", req.languageId.trim());
+  }
+  if (req.model?.trim()) {
+    formData.set("model", req.model.trim());
+  }
+
+  if (referenceAudio) {
+    const blob = new Blob([new Uint8Array(referenceAudio.buffer)], {
+      type: referenceAudio.contentType || "audio/wav",
     });
+    formData.set("reference_audio", blob, referenceAudio.filename);
+  }
 
-    // Retry up to 4 times to handle cold-start and transient network failures on Railway
-    const MAX_RETRIES = 4;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15_000); // 15s per attempt
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body,
-                signal: controller.signal,
-            });
-            clearTimeout(timeout);
+  const headers: Record<string, string> = {};
+  if (COSYVOICE_RUNPOD_API_KEY) {
+    headers.Authorization = `Bearer ${COSYVOICE_RUNPOD_API_KEY}`;
+    headers["X-API-Key"] = COSYVOICE_RUNPOD_API_KEY;
+  }
 
-            if (response.ok) {
-                const data = await response.json() as { job_id: string };
-                return data.job_id;
-            }
+  const url = buildRunpodTtsUrl();
+  let lastError: Error | null = null;
 
-            const errText = await response.text();
-            // 404/405 = server without compatible async endpoint, fall through to sync
-            if (response.status === 404 || response.status === 405) {
-                throw new Error("ASYNC_NOT_SUPPORTED");
-            }
-            // 502/503 = service starting up, retry
-            if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
-                log.warn(`TTS service returned ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 3s...`);
-                await new Promise((r) => setTimeout(r, 3_000));
-                continue;
-            }
-            throw new Error(`TTS async submit failed: ${response.status} - ${errText}`);
-        } catch (err: any) {
-            if (err.message === "ASYNC_NOT_SUPPORTED") throw err;
-            if (err.name === "AbortError" && attempt < MAX_RETRIES) {
-                log.warn(`TTS submit timed out (attempt ${attempt}/${MAX_RETRIES}), retrying...`);
-                await new Promise((r) => setTimeout(r, 2_000));
-                continue;
-            }
-
-            if (isTransientFetchError(err) && attempt < MAX_RETRIES) {
-                log.warn(`TTS submit transient network error (attempt ${attempt}/${MAX_RETRIES}): ${errorDetails(err)}. Retrying in 2s...`);
-                await new Promise((r) => setTimeout(r, 2_000));
-                continue;
-            }
-
-            throw err;
-        }
-    }
-    throw new Error("TTS async submit failed after all retries");
-}
-
-async function pollJobUntilReady(serviceUrl: string, jobId: string, timeoutMs = TTS_POLL_TIMEOUT_MS): Promise<string> {
-    const statusUrl = `${serviceUrl}/generate/status/${jobId}`;
-    const resultUrl = `${serviceUrl}/generate/result/${jobId}`;
-    const deadline = Date.now() + timeoutMs;
-
-    // Start with fast polling, then back off
-    let intervalMs = 1200;
-
-    while (Date.now() < deadline) {
-        await new Promise((res) => setTimeout(res, intervalMs));
-
-        const statusRes = await fetch(statusUrl);
-        if (!statusRes.ok) {
-            throw new Error(`Status poll failed: ${statusRes.status}`);
-        }
-        const status = await statusRes.json() as { status: string; error?: string };
-
-        if (status.status === "error") {
-            throw new Error(`TTS job failed: ${status.error || "unknown error"}`);
-        }
-        if (status.status === "not_found") {
-            throw new Error("TTS job not found (expired or never created)");
-        }
-        if (status.status === "ready") {
-            const resultRes = await fetch(resultUrl);
-            if (!resultRes.ok) {
-                throw new Error(`Result fetch failed: ${resultRes.status}`);
-            }
-            const arrayBuffer = await resultRes.arrayBuffer();
-            const buffer = Buffer.from(arrayBuffer);
-            const base64 = buffer.toString("base64");
-            return `data:audio/wav;base64,${base64}`;
-        }
-
-        // Still processing - back off gradually (max 3s)
-        intervalMs = Math.min(intervalMs * 1.3, 3000);
-    }
-
-    // Final grace check right at timeout boundary to avoid false negatives when
-    // the job flips to ready milliseconds after the last poll.
+  for (let attempt = 1; attempt <= COSYVOICE_RUNPOD_MAX_RETRIES; attempt++) {
     try {
-        const finalStatusRes = await fetch(statusUrl);
-        if (finalStatusRes.ok) {
-            const finalStatus = await finalStatusRes.json() as { status: string; error?: string };
-            if (finalStatus.status === "ready") {
-                const resultRes = await fetch(resultUrl);
-                if (resultRes.ok) {
-                    const arrayBuffer = await resultRes.arrayBuffer();
-                    const buffer = Buffer.from(arrayBuffer);
-                    const base64 = buffer.toString("base64");
-                    return `data:audio/wav;base64,${base64}`;
-                }
-            }
-            if (finalStatus.status === "error") {
-                throw new Error(`TTS job failed: ${finalStatus.error || "unknown error"}`);
-            }
+      const response = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers,
+          body: formData,
+        },
+        COSYVOICE_RUNPOD_TIMEOUT_MS
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && isRetryableStatus(response.status)) {
+          const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
+          log.warn(
+            `CosyVoice RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
+          );
+          await delay(backoffMs);
+          continue;
         }
-    } catch {
-        // Preserve timeout error below.
+        throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if ((contentType || "").toLowerCase().includes("application/json")) {
+        const payload = (await response.json()) as
+          | { audioData?: string; audioBase64?: string; mimeType?: string }
+          | null;
+
+        const audioData = payload?.audioData?.trim();
+        if (audioData) {
+          const mimeType = payload?.mimeType?.trim() || resolveMimeType(null, outputFormat);
+          return {
+            audioData,
+            providerUsed: "cosyvoice3",
+            mimeType,
+            outputFormat,
+          };
+        }
+
+        const base64 = payload?.audioBase64?.trim();
+        if (!base64) {
+          throw new Error("RunPod CosyVoice API returned JSON without audio data.");
+        }
+
+        const mimeType = payload?.mimeType?.trim() || resolveMimeType(null, outputFormat);
+        return {
+          audioData: dataUriFromBuffer(Buffer.from(base64, "base64"), mimeType),
+          providerUsed: "cosyvoice3",
+          mimeType,
+          outputFormat,
+        };
+      }
+
+      const audioBuffer = Buffer.from(await response.arrayBuffer());
+      if (!audioBuffer.length) {
+        throw new Error("RunPod CosyVoice API returned an empty audio stream.");
+      }
+
+      const mimeType = resolveMimeType(contentType, outputFormat);
+      return {
+        audioData: dataUriFromBuffer(audioBuffer, mimeType),
+        providerUsed: "cosyvoice3",
+        mimeType,
+        outputFormat,
+      };
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+
+      const message = getErrorMessage(error);
+      lastError = new Error(message);
+
+      const canRetry = attempt < COSYVOICE_RUNPOD_MAX_RETRIES && isTransientFetchError(error);
+      if (canRetry) {
+        const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
+        log.warn(
+          `CosyVoice RunPod network error (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`
+        );
+        await delay(backoffMs);
+        continue;
+      }
+
+      if (isAbortError(error)) {
+        throw APIError.unavailable(
+          `CosyVoice RunPod request timed out after ${Math.round(
+            COSYVOICE_RUNPOD_TIMEOUT_MS / 1000
+          )}s. Increase COSYVOICE_RUNPOD_TIMEOUT_MS if needed.`
+        );
+      }
+
+      throw error;
     }
+  }
 
-    throw new Error(`TTS polling timed out after ${timeoutMs / 1000}s for job ${jobId}`);
-}
-
-async function generateSyncFallback(serviceUrl: string, text: string, options?: TTSGenerationOptions): Promise<string> {
-    // Synchronous fallback for old TTS server or when private networking is used.
-    // With Railway private networking (tts-service.railway.internal) there is no LB timeout,
-    // so long-running requests succeed even if they take 5+ minutes.
-    const url = `${serviceUrl}/`;
-    log.info(`TTS sync fallback for text length ${text.length}`);
-
-    const parseAudioResponse = async (response: Response): Promise<string> => {
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const base64 = buffer.toString("base64");
-        return `data:audio/wav;base64,${base64}`;
-    };
-
-    const isNoTextProvided = (status: number, body: string): boolean =>
-        status === 400 && /no text provided/i.test(body);
-
-    const tryFormPost = async (): Promise<string> => {
-        const formBody = new URLSearchParams();
-        formBody.set("text", text);
-        if (options?.model) formBody.set("model", options.model);
-        if (options?.languageId) formBody.set("language_id", options.languageId);
-        formBody.set("length_scale", String(options?.lengthScale ?? PIPER_LENGTH_SCALE));
-        formBody.set("noise_scale", String(options?.noiseScale ?? PIPER_NOISE_SCALE));
-        formBody.set("noise_w", String(options?.noiseW ?? PIPER_NOISE_W));
-
-        const formRes = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: formBody.toString(),
-        });
-
-        if (formRes.ok) {
-            return parseAudioResponse(formRes);
-        }
-
-        const formErr = await formRes.text();
-        if (!isNoTextProvided(formRes.status, formErr)) {
-            throw new Error(`TTS sync(form) failed: ${formRes.status} - ${formErr}`);
-        }
-
-        // Last resort for environments rewriting POST bodies: GET with query params.
-        // We keep this only as fallback because URLs can get long.
-        const query = new URL(url);
-        query.searchParams.set("text", text);
-        if (options?.model) query.searchParams.set("model", options.model);
-        if (options?.languageId) query.searchParams.set("language_id", options.languageId);
-        query.searchParams.set("length_scale", String(options?.lengthScale ?? PIPER_LENGTH_SCALE));
-        query.searchParams.set("noise_scale", String(options?.noiseScale ?? PIPER_NOISE_SCALE));
-        query.searchParams.set("noise_w", String(options?.noiseW ?? PIPER_NOISE_W));
-
-        const getRes = await fetch(query.toString(), { method: "GET" });
-        if (getRes.ok) {
-            return parseAudioResponse(getRes);
-        }
-
-        const getErr = await getRes.text();
-        throw new Error(`TTS sync(get) failed: ${getRes.status} - ${getErr}`);
-    };
-
-    const MAX_RETRIES = 3;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 300_000); // 5min
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text,
-                    length_scale: options?.lengthScale ?? PIPER_LENGTH_SCALE,
-                    noise_scale: options?.noiseScale ?? PIPER_NOISE_SCALE,
-                    noise_w: options?.noiseW ?? PIPER_NOISE_W,
-                    language_id: options?.languageId,
-                    model: options?.model,
-                }),
-                signal: controller.signal,
-            });
-            clearTimeout(timeout);
-
-            if (response.ok) {
-                return parseAudioResponse(response);
-            }
-
-            const errText = await response.text();
-            if (isNoTextProvided(response.status, errText)) {
-                log.warn("TTS sync JSON body not accepted, retrying with form/query fallback");
-                return await tryFormPost();
-            }
-            if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
-                log.warn(`TTS sync got ${response.status} (attempt ${attempt}/${MAX_RETRIES}), retrying in 5s...`);
-                await new Promise((r) => setTimeout(r, 5_000));
-                continue;
-            }
-            throw new Error(`TTS sync failed: ${response.status} - ${errText}`);
-        } catch (err: any) {
-            if (err.name === "AbortError") {
-                if (attempt < MAX_RETRIES) {
-                    log.warn(`TTS sync timed out (attempt ${attempt}/${MAX_RETRIES}), retrying...`);
-                    await new Promise((r) => setTimeout(r, 3_000));
-                    continue;
-                }
-                throw new Error("TTS sync timed out after 5min");
-            }
-            throw err;
-        }
-    }
-    throw new Error("TTS sync failed after all retries");
+  throw new Error(lastError?.message || "RunPod CosyVoice request failed after all retries.");
 }
 
 // API Endpoints
 
-export const generateSpeech = api(
-    { expose: true, method: "POST", path: "/tts/generate" },
-    async ({ text, provider, languageId, model }: { text: string; provider?: TTSProvider; languageId?: string; model?: string }): Promise<TTSResponse> => {
-        if (!text) {
-            throw new Error("Text is required");
-        }
-
-        try {
-            const runProvider = async (targetProvider: TTSProvider): Promise<TTSResponse> => {
-                const serviceUrls = getServiceUrlCandidates(resolveServiceUrl(targetProvider));
-                let lastError: any = null;
-
-                for (let i = 0; i < serviceUrls.length; i++) {
-                    const serviceUrl = serviceUrls[i];
-                    const isLastCandidate = i === serviceUrls.length - 1;
-                    const synthesis = getSynthesisSettings(targetProvider);
-
-                    // Try async polling first (new server). Falls back to sync if 404/405.
-                    log.info(`TTS request for text length ${text.length} via ${targetProvider} (${serviceUrl})`);
-
-                    try {
-                        let audioData: string;
-                        try {
-                            const jobId = await submitAsyncJob(serviceUrl, text, {
-                                languageId,
-                                model,
-                                lengthScale: synthesis.lengthScale,
-                                noiseScale: synthesis.noiseScale,
-                                noiseW: synthesis.noiseW,
-                            });
-                            log.info(`TTS async job submitted: ${jobId}`);
-                            const pollTimeoutMs = targetProvider === "chatterbox"
-                                ? CHATTERBOX_POLL_TIMEOUT_MS
-                                : TTS_POLL_TIMEOUT_MS;
-                            audioData = await pollJobUntilReady(serviceUrl, jobId, pollTimeoutMs);
-                            log.info(`TTS async job complete: ${jobId}`);
-                        } catch (err: any) {
-                            if (err.message === "ASYNC_NOT_SUPPORTED") {
-                                // Old TTS server: use synchronous endpoint.
-                                log.warn("TTS async not supported, falling back to sync endpoint");
-                                audioData = await generateSyncFallback(serviceUrl, text, {
-                                    languageId,
-                                    model,
-                                    lengthScale: synthesis.lengthScale,
-                                    noiseScale: synthesis.noiseScale,
-                                    noiseW: synthesis.noiseW,
-                                });
-                            } else {
-                                throw err;
-                            }
-                        }
-
-                        return { audioData, providerUsed: targetProvider };
-                    } catch (err: any) {
-                        lastError = err;
-                        if (!isLastCandidate && isTransientFetchError(err)) {
-                            log.warn(
-                                `TTS endpoint failed for ${targetProvider} (${serviceUrl}): ${errorDetails(err)}. Trying next candidate...`
-                            );
-                            continue;
-                        }
-                        throw err;
-                    }
-                }
-
-                if (lastError) {
-                    throw lastError;
-                }
-
-                throw new Error(`No TTS endpoint candidates available for provider ${targetProvider}`);
-            };
-
-            const resolvedProvider = resolveProvider(provider);
-            const isExplicitChatterboxRequest = typeof provider === "string" && provider.toLowerCase() === "chatterbox";
-            const allowAutomaticPiperFallback = TTS_FALLBACK_TO_PIPER && !(TTS_STRICT_PROVIDER && isExplicitChatterboxRequest);
-            const startProvider: TTSProvider = (
-                resolvedProvider === "chatterbox" &&
-                allowAutomaticPiperFallback &&
-                isChatterboxTemporarilyUnavailable()
-            ) ? "piper" : resolvedProvider;
-
-            if (startProvider !== resolvedProvider) {
-                const remainingMs = Math.max(0, chatterboxUnavailableUntil - Date.now());
-                log.warn(`Skipping chatterbox during cooldown (${Math.ceil(remainingMs / 1000)}s remaining), using piper`);
-            }
-
-            try {
-                const result = await runProvider(startProvider);
-                if (startProvider === "chatterbox") {
-                    chatterboxUnavailableUntil = 0;
-                }
-                return result;
-            } catch (primaryError: any) {
-                if (
-                    startProvider === "chatterbox" &&
-                    allowAutomaticPiperFallback &&
-                    !!PIPER_TTS_SERVICE_URL
-                ) {
-                    const details = errorDetails(primaryError);
-                    markChatterboxUnavailable(details);
-                    log.warn(`Chatterbox failed, retrying with piper fallback: ${details}`);
-                    return await runProvider("piper");
-                }
-                throw primaryError;
-            }
-        } catch (error: any) {
-            const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
-            log.error(`TTS failed: ${error.message} | cause: ${causeMsg}`);
-            throw error;
-        }
+export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
+  { expose: true, method: "POST", path: "/tts/generate" },
+  async (req) => {
+    try {
+      return await runpodTtsRequest(req);
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      const message = getErrorMessage(error);
+      log.error(`TTS generate failed: ${message}`);
+      throw APIError.unavailable(`CosyVoice generation failed: ${message}`);
     }
+  }
 );
 
-export const generateSpeechBatch = api(
-    { expose: true, method: "POST", path: "/tts/batch" },
-    async ({ items, provider }: { items: TTSBatchItem[]; provider?: TTSProvider }): Promise<TTSBatchResponse> => {
-        if (!items || items.length === 0) {
-            return { results: [] };
-        }
-
-        try {
-            const resolvedProvider = resolveProvider(provider);
-            const synthesis = getSynthesisSettings(resolvedProvider);
-            const serviceUrl = resolveServiceUrl(resolvedProvider);
-            const url = `${serviceUrl}/batch`;
-            log.info(`Requesting TTS batch from ${url} for ${items.length} items`);
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 600_000); // 10min for batch
-
-            const response = await fetch(url, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    items,
-                    length_scale: synthesis.lengthScale,
-                    noise_scale: synthesis.noiseScale,
-                    noise_w: synthesis.noiseW,
-                }),
-                signal: controller.signal,
-            });
-
-            clearTimeout(timeout);
-
-            if (!response.ok) {
-                const errText = await response.text();
-                log.error(`TTS Batch error: ${response.status} - ${errText}`);
-                throw new Error(`TTS batch failed: ${errText}`);
-            }
-
-            const data = await response.json() as { results: TTSBatchResultItem[] };
-            log.info(`TTS batch completed: ${data.results.filter((r: TTSBatchResultItem) => r.audio).length}/${items.length} ok`);
-            return { results: data.results };
-        } catch (error: any) {
-            const causeMsg = error.cause ? (error.cause.message || JSON.stringify(error.cause)) : "none";
-            log.error(`TTS batch fetch failed: ${error.message} | cause: ${causeMsg}`);
-            throw error;
-        }
+export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchResponse>(
+  { expose: true, method: "POST", path: "/tts/batch" },
+  async (req) => {
+    if (!req.items || req.items.length === 0) {
+      return { results: [] };
     }
-);
 
+    const results: TTSBatchResultItem[] = [];
+
+    for (const item of req.items) {
+      const text = (item.text || "").trim();
+      if (!text) {
+        results.push({
+          id: item.id,
+          audio: null,
+          error: "Text is required.",
+        });
+        continue;
+      }
+
+      try {
+        const response = await runpodTtsRequest({
+          text,
+          provider: req.provider,
+          promptText: req.promptText,
+          referenceAudioDataUrl: req.referenceAudioDataUrl,
+          referenceAudioUrl: req.referenceAudioUrl,
+          emotion: req.emotion,
+          instructText: req.instructText,
+          outputFormat: req.outputFormat,
+          languageId: req.languageId,
+          model: req.model,
+        });
+
+        results.push({
+          id: item.id,
+          audio: response.audioData,
+          error: null,
+        });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        log.error(`TTS batch item failed (${item.id}): ${message}`);
+        results.push({
+          id: item.id,
+          audio: null,
+          error: message,
+        });
+      }
+    }
+
+    return { results };
+  }
+);
