@@ -24,7 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt/cosyvoice
 RUN git clone --recursive --depth 1 https://github.com/FunAudioLLM/CosyVoice.git /opt/cosyvoice
 
-RUN pip install --upgrade pip setuptools wheel cython && \
+RUN pip install --upgrade pip "setuptools<82" wheel cython && \
     awk ' \
       BEGIN{IGNORECASE=1} \
       /^--extra-index-url .*onnxruntime-cuda-12/ {next} \
@@ -35,6 +35,7 @@ RUN pip install --upgrade pip setuptools wheel cython && \
       /^grpcio-tools==/ {next} \
       /^lightning==/ {next} \
       /^matplotlib==/ {next} \
+      /^openai-whisper==/ {next} \
       /^pyarrow==/ {next} \
       /^pyworld==/ {next} \
       /^tensorboard==/ {next} \
