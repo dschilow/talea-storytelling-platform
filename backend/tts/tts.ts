@@ -15,6 +15,26 @@ const COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS = parsePositiveInt(
   process.env.COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS,
   1
 );
+const COSYVOICE_RUNPOD_WARMUP_ENABLED = parseBoolean(
+  process.env.COSYVOICE_RUNPOD_WARMUP_ENABLED,
+  true
+);
+const COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS,
+  240_000
+);
+const COSYVOICE_RUNPOD_WARMUP_POLL_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_WARMUP_POLL_MS,
+  2_500
+);
+const COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS,
+  15_000
+);
+const COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS,
+  5_000
+);
 const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = parsePositiveInt(
   process.env.COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS,
   30_000
@@ -102,6 +122,20 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return parsed;
 }
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  const normalized = (value || "").trim().toLowerCase();
+  if (!normalized) {
+    return fallback;
+  }
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
 function normalizeOutputFormat(value: string | undefined): AudioFormat {
   const normalized = (value || "").trim().toLowerCase();
   return normalized === "mp3" ? "mp3" : "wav";
@@ -116,6 +150,11 @@ function buildRunpodTtsUrl(): string {
 function buildRunpodHealthUrl(): string {
   const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
   return `${base}/health`;
+}
+
+function buildRunpodPingUrl(): string {
+  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
+  return `${base}/ping`;
 }
 
 function buildRunpodAuthHeaders(): Record<string, string> {
@@ -169,6 +208,12 @@ function isRetryableStatus(status: number): boolean {
 function isLikelyInfraBusyStatus(status: number, body: string): boolean {
   // RunPod LB can return empty 400 responses when workers are cold/busy/unavailable.
   return status === 400 && !body.trim();
+}
+
+function isLikelyRunpodNoWorker(status: number, body: string): boolean {
+  if (status === 430) return true;
+  const lowered = (body || "").toLowerCase();
+  return lowered.includes("no workers available");
 }
 
 function delay(ms: number): Promise<void> {
@@ -292,6 +337,8 @@ async function resolveReferenceAudio(req: GenerateSpeechRequest): Promise<Resolv
 
 let runpodInFlight = 0;
 const runpodWaitQueue: Array<() => void> = [];
+let runpodWarmupInFlight: Promise<void> | null = null;
+let runpodLastHealthyAtMs = 0;
 
 async function acquireRunpodSlot(): Promise<void> {
   if (runpodInFlight < COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS) {
@@ -324,6 +371,144 @@ function resolveMimeType(contentTypeHeader: string | null, outputFormat: AudioFo
     return normalized;
   }
   return outputFormat === "mp3" ? "audio/mpeg" : "audio/wav";
+}
+
+function parsePingState(bodyText: string): string {
+  const trimmed = (bodyText || "").trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = JSON.parse(trimmed) as { status?: unknown } | null;
+    return String(parsed?.status || "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function parsePingDetail(bodyText: string): string {
+  const trimmed = (bodyText || "").trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = JSON.parse(trimmed) as { detail?: unknown; message?: unknown } | null;
+    return String(parsed?.detail || parsed?.message || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function markRunpodHealthyNow(): void {
+  runpodLastHealthyAtMs = Date.now();
+}
+
+function needsRunpodPrewarm(): boolean {
+  if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return false;
+  if (runpodLastHealthyAtMs <= 0) return true;
+  return Date.now() - runpodLastHealthyAtMs > COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS;
+}
+
+async function waitForRunpodWorkerReady(reason: string): Promise<void> {
+  if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return;
+
+  if (runpodWarmupInFlight) {
+    await runpodWarmupInFlight;
+    return;
+  }
+
+  runpodWarmupInFlight = (async () => {
+    const startedAt = Date.now();
+    let lastSignal = "none";
+    let pingAttempts = 0;
+    const headers = buildRunpodAuthHeaders();
+    const pingUrl = buildRunpodPingUrl();
+
+    while (Date.now() - startedAt < COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS) {
+      pingAttempts += 1;
+      try {
+        const response = await fetchWithTimeout(
+          pingUrl,
+          {
+            method: "GET",
+            headers,
+          },
+          COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS
+        );
+
+        const bodyText = await response.text();
+        const pingState = parsePingState(bodyText);
+
+        if (response.ok) {
+          if (pingState === "healthy" || pingState === "ok" || pingState === "") {
+            markRunpodHealthyNow();
+            log.info(
+              `CosyVoice RunPod worker ready after ${Date.now() - startedAt}ms (reason=${reason}, ping_attempts=${pingAttempts})`
+            );
+            return;
+          }
+
+          if (pingState === "initializing") {
+            lastSignal = "200:initializing";
+          } else if (pingState === "error") {
+            const detail = parsePingDetail(bodyText);
+            throw new Error(
+              `RunPod ping reports worker error: ${detail || bodyText.trim() || "<empty>"}`
+            );
+          } else {
+            lastSignal = `200:${pingState}`;
+          }
+        } else {
+          const compactBody = (bodyText || "").trim().toLowerCase();
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(
+              `RunPod warmup ping auth failed (${response.status}): ${bodyText.trim() || "<empty>"}`
+            );
+          }
+          if (response.status === 404) {
+            throw new Error(
+              "RunPod warmup ping route not found (404). Check COSYVOICE_RUNPOD_API_URL and worker routes."
+            );
+          }
+          if (
+            isRetryableStatus(response.status) ||
+            isLikelyInfraBusyStatus(response.status, bodyText) ||
+            isLikelyRunpodNoWorker(response.status, compactBody)
+          ) {
+            lastSignal = `${response.status}:${compactBody || "<empty>"}`;
+          } else {
+            throw new Error(`RunPod warmup ping failed (${response.status}): ${bodyText.trim() || "<empty>"}`);
+          }
+        }
+      } catch (error) {
+        const message = getErrorMessage(error);
+        lastSignal = `error:${message}`;
+        if (!isTransientFetchError(error) && !isAbortError(error)) {
+          throw error;
+        }
+      }
+
+      await delay(COSYVOICE_RUNPOD_WARMUP_POLL_MS);
+    }
+
+    throw new Error(
+      `RunPod worker warmup timed out after ${COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS}ms (reason=${reason}, last_signal=${lastSignal})`
+    );
+  })();
+
+  try {
+    await runpodWarmupInFlight;
+  } finally {
+    runpodWarmupInFlight = null;
+  }
+}
+
+async function maybeWarmupRunpodWorker(reason: string): Promise<boolean> {
+  if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return false;
+  try {
+    await waitForRunpodWorkerReady(reason);
+    return true;
+  } catch (error) {
+    const message = getErrorMessage(error);
+    log.warn(`RunPod warmup failed (${reason}): ${message}`);
+    return false;
+  }
 }
 
 async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse> {
@@ -387,6 +572,10 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const url = buildRunpodTtsUrl();
   let lastError: Error | null = null;
 
+  if (needsRunpodPrewarm()) {
+    await maybeWarmupRunpodWorker("preflight");
+  }
+
   for (let attempt = 1; attempt <= COSYVOICE_RUNPOD_MAX_RETRIES; attempt++) {
     try {
       const response = await fetchWithTimeout(
@@ -410,11 +599,26 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           isRetryableStatus(response.status) || isLikelyInfraBusyStatus(response.status, errTextRaw);
 
         if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && retryable) {
-          const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
-          log.warn(
-            `CosyVoice RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
-          );
-          await delay(backoffMs);
+          const shouldWarmup =
+            isLikelyRunpodNoWorker(response.status, errTextRaw) ||
+            isLikelyInfraBusyStatus(response.status, errTextRaw);
+
+          let warmed = false;
+          if (shouldWarmup) {
+            warmed = await maybeWarmupRunpodWorker(`status-${response.status}`);
+          }
+
+          if (!warmed) {
+            const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
+            log.warn(
+              `CosyVoice RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
+            );
+            await delay(backoffMs);
+          } else {
+            log.info(
+              `CosyVoice RunPod warmup complete after ${response.status}; retrying request immediately (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}).`
+            );
+          }
           continue;
         }
 
@@ -467,6 +671,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         const audioData = payload?.audioData?.trim();
         if (audioData) {
           const mimeType = payload?.mimeType?.trim() || resolveMimeType(null, outputFormat);
+          markRunpodHealthyNow();
           return {
             audioData,
             providerUsed: "cosyvoice3",
@@ -481,6 +686,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         }
 
         const mimeType = payload?.mimeType?.trim() || resolveMimeType(null, outputFormat);
+        markRunpodHealthyNow();
         return {
           audioData: dataUriFromBuffer(Buffer.from(base64, "base64"), mimeType),
           providerUsed: "cosyvoice3",
@@ -494,6 +700,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         throw new Error("RunPod CosyVoice API returned an empty audio stream.");
       }
 
+      markRunpodHealthyNow();
       const mimeType = resolveMimeType(contentType, outputFormat);
       return {
         audioData: dataUriFromBuffer(audioBuffer, mimeType),
@@ -511,6 +718,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
       const canRetry = attempt < COSYVOICE_RUNPOD_MAX_RETRIES && isTransientFetchError(error);
       if (canRetry) {
+        await maybeWarmupRunpodWorker(`network-attempt-${attempt}`);
         const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
         log.warn(
           `CosyVoice RunPod network error (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`
@@ -541,41 +749,59 @@ async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
     );
   }
 
-  const response = await fetchWithTimeout(
-    buildRunpodHealthUrl(),
-    {
-      method: "GET",
-      headers: buildRunpodAuthHeaders(),
-    },
-    COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
-  );
-
-  if (!response.ok) {
-    const errText = (await response.text()).trim() || "<empty>";
-    throw new Error(`RunPod CosyVoice health request failed (${response.status}): ${errText}`);
+  if (needsRunpodPrewarm()) {
+    await maybeWarmupRunpodWorker("voice-list-preflight");
   }
 
-  const payload = (await response.json()) as
-    | {
-        available_speakers?: unknown;
-        default_speaker?: unknown;
-        default_reference_available?: unknown;
-        model_loaded?: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const response = await fetchWithTimeout(
+      buildRunpodHealthUrl(),
+      {
+        method: "GET",
+        headers: buildRunpodAuthHeaders(),
+      },
+      COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+      const errTextRaw = await response.text();
+      const errText = errTextRaw.trim() || "<empty>";
+      const shouldWarmup =
+        attempt < 2 &&
+        (isLikelyRunpodNoWorker(response.status, errTextRaw) ||
+          isLikelyInfraBusyStatus(response.status, errTextRaw));
+      if (shouldWarmup) {
+        await maybeWarmupRunpodWorker(`voice-list-status-${response.status}`);
+        continue;
       }
-    | null;
+      throw new Error(`RunPod CosyVoice health request failed (${response.status}): ${errText}`);
+    }
 
-  const availableSpeakers = Array.isArray(payload?.available_speakers)
-    ? payload!.available_speakers
-        .map((value) => String(value || "").trim())
-        .filter(Boolean)
-    : [];
+    const payload = (await response.json()) as
+      | {
+          available_speakers?: unknown;
+          default_speaker?: unknown;
+          default_reference_available?: unknown;
+          model_loaded?: unknown;
+        }
+      | null;
 
-  return {
-    availableSpeakers,
-    defaultSpeaker: String(payload?.default_speaker || "").trim(),
-    defaultReferenceAvailable: Boolean(payload?.default_reference_available),
-    modelLoaded: Boolean(payload?.model_loaded),
-  };
+    const availableSpeakers = Array.isArray(payload?.available_speakers)
+      ? payload!.available_speakers
+          .map((value) => String(value || "").trim())
+          .filter(Boolean)
+      : [];
+
+    markRunpodHealthyNow();
+    return {
+      availableSpeakers,
+      defaultSpeaker: String(payload?.default_speaker || "").trim(),
+      defaultReferenceAvailable: Boolean(payload?.default_reference_available),
+      modelLoaded: Boolean(payload?.model_loaded),
+    };
+  }
+
+  throw new Error("RunPod CosyVoice health request failed after warmup attempts.");
 }
 
 // API Endpoints
