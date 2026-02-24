@@ -399,7 +399,18 @@ def generate_audio(
     """Generate audio. reference_wav_path and ref_default_path are file path STRINGS.
     CosyVoice handles loading internally via torchaudio.load().
     """
-    final_prompt_text = normalize_cv3_prompt_text(prompt_text or DEFAULT_PROMPT_TEXT or "")
+    # Important:
+    # - For uploaded/custom reference audio we should NOT force DEFAULT_PROMPT_TEXT,
+    #   because zero-shot requires the exact transcript of that specific reference clip.
+    #   A mismatched transcript often produces garbled output.
+    # - For built-in default reference we can safely use DEFAULT_PROMPT_TEXT fallback.
+    requested_prompt_text = (prompt_text or "").strip()
+    had_custom_reference = reference_wav_path is not None
+    final_prompt_text = ""
+    if requested_prompt_text:
+        final_prompt_text = normalize_cv3_prompt_text(requested_prompt_text)
+    elif not had_custom_reference:
+        final_prompt_text = normalize_cv3_prompt_text(DEFAULT_PROMPT_TEXT or "")
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
     used_speaker: Optional[str] = None
 
