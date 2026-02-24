@@ -37,11 +37,9 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
       /^gradio==/ {next} \
       /^grpcio==/ {next} \
       /^grpcio-tools==/ {next} \
-      /^lightning==/ {next} \
       /^matplotlib==/ {next} \
       /^openai-whisper==/ {next} \
       /^pyarrow==/ {next} \
-      /^pyworld==/ {next} \
       /^tensorboard==/ {next} \
       /^tensorrt-cu12==/ {next} \
       /^tensorrt-cu12-bindings==/ {next} \
@@ -50,6 +48,14 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
     ' requirements.txt > requirements.serverless.txt && \
     pip install --no-cache-dir -r requirements.serverless.txt && \
     pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub pydub requests
+
+# Verify all critical imports work at build time so we catch errors early
+RUN python -c "\
+import whisper; print('[check] whisper OK'); \
+from matcha.models.components.flow_matching import BASECFM; print('[check] matcha OK'); \
+from cosyvoice.cli.cosyvoice import AutoModel; print('[check] cosyvoice OK'); \
+import torchaudio; print('[check] torchaudio OK'); \
+print('[check] All imports verified successfully')"
 
 RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
       python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/Fun-CosyVoice3-0.5B-2512', local_dir='/opt/models/Fun-CosyVoice3-0.5B-2512', local_dir_use_symlinks=False, resume_download=True)"; \
