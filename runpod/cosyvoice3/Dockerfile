@@ -39,7 +39,6 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
       /^grpcio-tools==/ {next} \
       # matplotlib needed by matcha-tts utils
       /^openai-whisper==/ {next} \
-      /^pyarrow==/ {next} \
       /^tensorboard==/ {next} \
       /^tensorrt-cu12==/ {next} \
       /^tensorrt-cu12-bindings==/ {next} \
@@ -53,6 +52,7 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
 RUN python -c "\
 import whisper; print('[check] whisper OK'); \
 from matcha.models.components.flow_matching import BASECFM; print('[check] matcha OK'); \
+import pyarrow; print('[check] pyarrow OK'); \
 from cosyvoice.cli.cosyvoice import AutoModel; print('[check] cosyvoice OK'); \
 import torchaudio; print('[check] torchaudio OK'); \
 print('[check] All imports verified successfully')"
