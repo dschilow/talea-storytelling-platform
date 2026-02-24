@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
       /^gradio==/ {next} \
       /^grpcio==/ {next} \
       /^grpcio-tools==/ {next} \
-      /^matplotlib==/ {next} \
+      # matplotlib needed by matcha-tts utils
       /^openai-whisper==/ {next} \
       /^pyarrow==/ {next} \
       /^tensorboard==/ {next} \
