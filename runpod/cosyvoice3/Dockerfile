@@ -1,6 +1,6 @@
 FROM pytorch/pytorch:2.3.1-cuda12.1-cudnn8-runtime
 
-ARG PREFETCH_MODEL=0
+ARG PREFETCH_MODEL=1
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
