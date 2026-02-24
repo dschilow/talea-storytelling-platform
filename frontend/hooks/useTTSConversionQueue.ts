@@ -2,10 +2,13 @@ import { useCallback, useRef, useState } from 'react';
 import type { ConversionStatus } from '../types/playlist';
 import type { Client as BackendClient } from '../client';
 import { getCachedAudio, cacheAudio } from '../utils/audioCache';
+import type { TTSRequestOptions } from '../types/ttsVoice';
 
 interface QueueItem {
   id: string;
   text: string;
+  request?: TTSRequestOptions;
+  cacheKey?: string;
 }
 
 interface UseTTSConversionQueueOptions {
@@ -50,7 +53,8 @@ export function useTTSConversionQueue({
 
     try {
       // Check IndexedDB cache first
-      const cached = await getCachedAudio(item.id);
+      const cacheId = item.cacheKey || item.id;
+      const cached = await getCachedAudio(cacheId);
       if (cached && !cancelledRef.current) {
         setStatus(item.id, 'ready');
         onChunkReady(item.id, cached);
@@ -64,8 +68,15 @@ export function useTTSConversionQueue({
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          // @ts-ignore - legacy backend typing for tts endpoint
-          response = await backend.tts.generateSpeech({ text: item.text });
+          // @ts-ignore - generated client can lag behind backend request shape.
+          response = await backend.tts.generateSpeech({
+            text: item.text,
+            ...(item.request?.promptText ? { promptText: item.request.promptText } : {}),
+            ...(item.request?.referenceAudioDataUrl
+              ? { referenceAudioDataUrl: item.request.referenceAudioDataUrl }
+              : {}),
+            ...(item.request?.speaker ? { speaker: item.request.speaker } : {}),
+          });
           break;
         } catch (err) {
           lastError = err;
@@ -87,7 +98,7 @@ export function useTTSConversionQueue({
       if (cancelledRef.current) return;
 
       // Cache in IndexedDB for future use
-      cacheAudio(item.id, response.audioData).catch(() => {});
+      cacheAudio(cacheId, response.audioData).catch(() => {});
 
       const fetchRes = await fetch(response.audioData);
       const blob = await fetchRes.blob();

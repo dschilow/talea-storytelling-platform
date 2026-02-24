@@ -5,6 +5,8 @@ import { splitTextIntoChunks } from '../utils/ttsChunking';
 import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import type { Chapter } from '../types/story';
+import type { TTSRequestOptions, TTSVoiceSettings } from '../types/ttsVoice';
+import { buildTTSRequestCacheSuffix, buildTTSRequestOptions } from '../types/ttsVoice';
 
 const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
 
@@ -58,6 +60,7 @@ interface AudioPlayerContextValue {
     chapters: Chapter[],
     coverImageUrl?: string,
     autoplay?: boolean,
+    voiceSettings?: TTSVoiceSettings,
   ) => void;
   startDokuConversion: (
     dokuId: string,
@@ -65,6 +68,7 @@ interface AudioPlayerContextValue {
     dokuText: string,
     coverImageUrl?: string,
     autoplay?: boolean,
+    voiceSettings?: TTSVoiceSettings,
   ) => void;
   conversionStatusMap: Map<string, ConversionStatus>;
   waitingForConversion: boolean;
@@ -91,6 +95,23 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isPlaylistDrawerOpen, setIsPlaylistDrawerOpen] = useState(false);
   const [waitingForConversion, setWaitingForConversion] = useState(false);
   const [hasRestoredState, setHasRestoredState] = useState(false);
+
+  const buildQueueVoicePayload = useCallback(
+    (voiceSettings?: TTSVoiceSettings): { request?: TTSRequestOptions; cacheSuffix: string } => {
+      const request = buildTTSRequestOptions(voiceSettings);
+      const hasRequestFields =
+        Boolean(request.promptText?.trim()) ||
+        Boolean(request.referenceAudioDataUrl?.trim()) ||
+        Boolean(request.speaker?.trim());
+
+      const normalizedRequest = hasRequestFields ? request : undefined;
+      return {
+        request: normalizedRequest,
+        cacheSuffix: buildTTSRequestCacheSuffix(normalizedRequest),
+      };
+    },
+    [],
+  );
 
   // Stable refs for callbacks that need current state
   const playlistRef = useRef(playlist);
@@ -713,6 +734,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       chapters: Chapter[],
       coverImageUrl?: string,
       autoplay = true,
+      voiceSettings?: TTSVoiceSettings,
     ) => {
       // Check if already in playlist
       const alreadyExists = playlistRef.current.some((item) => item.parentStoryId === storyId);
@@ -720,7 +742,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const sorted = [...chapters].sort((a, b) => a.order - b.order);
       const newItems: PlaylistItem[] = [];
-      const queueItems: Array<{ id: string; text: string }> = [];
+      const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
+      const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string }> = [];
 
       for (const chapter of sorted) {
         const chunks = splitTextIntoChunks(chapter.content);
@@ -744,7 +767,12 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             chapterTitle: chapter.title,
           });
 
-          queueItems.push({ id: chunkId, text: chunks[ci] });
+          queueItems.push({
+            id: chunkId,
+            text: chunks[ci],
+            request,
+            cacheKey: `${chunkId}::${cacheSuffix}`,
+          });
         }
       }
 
@@ -757,7 +785,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       enqueue(queueItems);
     },
-    [addToPlaylist, addAndPlay, enqueue],
+    [addToPlaylist, addAndPlay, enqueue, buildQueueVoicePayload],
   );
 
   // ── Start doku conversion ───────────────────────────────────────
@@ -768,6 +796,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       dokuText: string,
       coverImageUrl?: string,
       autoplay = true,
+      voiceSettings?: TTSVoiceSettings,
     ) => {
       const normalizedText = dokuText.trim();
       if (!normalizedText) return;
@@ -777,6 +806,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const chunks = splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;
+      const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
 
       const newItems: PlaylistItem[] = chunks.map((chunk, ci) => ({
         id: `doku-${dokuId}-chunk${ci}`,
@@ -795,6 +825,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const queueItems = chunks.map((chunk, ci) => ({
         id: `doku-${dokuId}-chunk${ci}`,
         text: chunk,
+        request,
+        cacheKey: `doku-${dokuId}-chunk${ci}::${cacheSuffix}`,
       }));
 
       if (autoplay) {
@@ -804,7 +836,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }
       enqueue(queueItems);
     },
-    [addToPlaylist, addAndPlay, enqueue],
+    [addToPlaylist, addAndPlay, enqueue, buildQueueVoicePayload],
   );
 
   return (

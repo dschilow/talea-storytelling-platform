@@ -53,12 +53,20 @@ export interface TTSBatchResponse {
   results: TTSBatchResultItem[];
 }
 
+export interface CosyVoiceVoicesResponse {
+  availableSpeakers: string[];
+  defaultSpeaker: string;
+  defaultReferenceAvailable: boolean;
+  modelLoaded: boolean;
+}
+
 interface GenerateSpeechRequest {
   text: string;
   provider?: TTSProvider;
   promptText?: string;
   referenceAudioDataUrl?: string;
   referenceAudioUrl?: string;
+  speaker?: string;
   emotion?: string;
   instructText?: string;
   outputFormat?: AudioFormat;
@@ -72,6 +80,7 @@ interface GenerateSpeechBatchRequest {
   promptText?: string;
   referenceAudioDataUrl?: string;
   referenceAudioUrl?: string;
+  speaker?: string;
   emotion?: string;
   instructText?: string;
   outputFormat?: AudioFormat;
@@ -102,6 +111,22 @@ function buildRunpodTtsUrl(): string {
   const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
   const path = `/${COSYVOICE_RUNPOD_TTS_PATH.replace(/^\/+/, "")}`;
   return `${base}${path}`;
+}
+
+function buildRunpodHealthUrl(): string {
+  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
+  return `${base}/health`;
+}
+
+function buildRunpodAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (COSYVOICE_RUNPOD_API_KEY) {
+    headers.Authorization = `Bearer ${COSYVOICE_RUNPOD_API_KEY}`;
+  }
+  if (COSYVOICE_RUNPOD_WORKER_API_KEY) {
+    headers["X-API-Key"] = COSYVOICE_RUNPOD_WORKER_API_KEY;
+  }
+  return headers;
 }
 
 function dataUriFromBuffer(buffer: Buffer, mimeType: string): string {
@@ -323,6 +348,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const promptText = (req.promptText || COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
+  const speaker = (req.speaker || "").trim();
 
   const referenceAudio = await resolveReferenceAudio(req);
 
@@ -345,6 +371,9 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   if (req.model?.trim()) {
     formData.set("model", req.model.trim());
   }
+  if (speaker) {
+    formData.set("speaker", speaker);
+  }
 
   if (referenceAudio) {
     const blob = new Blob([new Uint8Array(referenceAudio.buffer)], {
@@ -353,13 +382,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
     formData.set("reference_audio", blob, referenceAudio.filename);
   }
 
-  const headers: Record<string, string> = {};
-  if (COSYVOICE_RUNPOD_API_KEY) {
-    headers.Authorization = `Bearer ${COSYVOICE_RUNPOD_API_KEY}`;
-  }
-  if (COSYVOICE_RUNPOD_WORKER_API_KEY) {
-    headers["X-API-Key"] = COSYVOICE_RUNPOD_WORKER_API_KEY;
-  }
+  const headers = buildRunpodAuthHeaders();
 
   const url = buildRunpodTtsUrl();
   let lastError: Error | null = null;
@@ -511,6 +534,50 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   throw new Error(lastError?.message || "RunPod CosyVoice request failed after all retries.");
 }
 
+async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
+  if (!COSYVOICE_RUNPOD_API_URL) {
+    throw APIError.failedPrecondition(
+      "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
+    );
+  }
+
+  const response = await fetchWithTimeout(
+    buildRunpodHealthUrl(),
+    {
+      method: "GET",
+      headers: buildRunpodAuthHeaders(),
+    },
+    COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
+  );
+
+  if (!response.ok) {
+    const errText = (await response.text()).trim() || "<empty>";
+    throw new Error(`RunPod CosyVoice health request failed (${response.status}): ${errText}`);
+  }
+
+  const payload = (await response.json()) as
+    | {
+        available_speakers?: unknown;
+        default_speaker?: unknown;
+        default_reference_available?: unknown;
+        model_loaded?: unknown;
+      }
+    | null;
+
+  const availableSpeakers = Array.isArray(payload?.available_speakers)
+    ? payload!.available_speakers
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
+    : [];
+
+  return {
+    availableSpeakers,
+    defaultSpeaker: String(payload?.default_speaker || "").trim(),
+    defaultReferenceAvailable: Boolean(payload?.default_reference_available),
+    modelLoaded: Boolean(payload?.model_loaded),
+  };
+}
+
 // API Endpoints
 
 export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
@@ -557,6 +624,7 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
             promptText: req.promptText,
             referenceAudioDataUrl: req.referenceAudioDataUrl,
             referenceAudioUrl: req.referenceAudioUrl,
+            speaker: req.speaker,
             emotion: req.emotion,
             instructText: req.instructText,
             outputFormat: req.outputFormat,
@@ -582,5 +650,21 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
     }
 
     return { results };
+  }
+);
+
+export const listCosyVoiceVoices = api<void, CosyVoiceVoicesResponse>(
+  { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
+  async () => {
+    try {
+      return await runpodListVoicesRequest();
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      const message = getErrorMessage(error);
+      log.error(`TTS voice list failed: ${message}`);
+      throw APIError.unavailable(`CosyVoice voice list failed: ${message}`);
+    }
   }
 );
