@@ -56,6 +56,11 @@ COSYVOICE_DEFAULT_REF_WAV_URL=https://<public-url>/narrator_sample.wav
 
 10. Click `Deploy Endpoint`.
 
+Note on image size / build quota:
+- Dockerfile now defaults to `PREFETCH_MODEL=0` to avoid embedding the full model in the image layer.
+- The model is downloaded on worker startup into `/opt/models` if missing.
+- If you explicitly want prefetch in image build (larger image), set build arg `PREFETCH_MODEL=1`.
+
 ## C) Connect backend to RunPod
 
 In backend `.env` (or production env):
