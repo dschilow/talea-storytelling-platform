@@ -377,13 +377,15 @@ async def on_startup() -> None:
 
 @app.get("/ping")
 def ping() -> JSONResponse:
-    # Required health endpoint for RunPod Load Balancer workers.
-    # Keep this endpoint always 200 to avoid aggressive LB restart loops.
+    # RunPod Load Balancer health endpoint.
+    # 200 = worker is ready to accept requests
+    # 204 = worker is still initializing (cold start)
+    # Any other code = unhealthy, worker removed from pool
     if runtime_init_error:
         return JSONResponse({"status": "error", "detail": runtime_init_error}, status_code=200)
     if cosyvoice_model is None:
         kickoff_runtime_init_background()
-        return JSONResponse({"status": "initializing"}, status_code=200)
+        return JSONResponse({"status": "initializing"}, status_code=204)
     return JSONResponse({"status": "healthy"})
 
 
