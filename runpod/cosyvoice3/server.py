@@ -6,7 +6,7 @@ import re
 import threading
 import tempfile
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import requests
 import torch
@@ -338,6 +338,52 @@ def wav_to_mp3_bytes(wav_bytes: bytes) -> bytes:
     return mp3_buffer.getvalue()
 
 
+def trim_error_message(message: str, max_len: int = 220) -> str:
+    cleaned = (message or "").replace("\n", " ").replace("\r", " ").strip()
+    if len(cleaned) <= max_len:
+        return cleaned
+    return f"{cleaned[:max_len]}..."
+
+
+def load_reference_audio_tensor(reference_wav_path: str, target_sr: int = 16000) -> torch.Tensor:
+    waveform, source_sr = torchaudio.load(reference_wav_path)
+    if waveform.dim() == 1:
+        waveform = waveform.unsqueeze(0)
+    if waveform.size(0) > 1:
+        waveform = waveform.mean(dim=0, keepdim=True)
+    if source_sr != target_sr:
+        waveform = torchaudio.functional.resample(waveform, source_sr, target_sr)
+    return waveform
+
+
+def infer_waveform_with_reference_variants(
+    mode_label: str,
+    build_generator: Callable[[Any], Any],
+    reference_wav_path: str,
+) -> torch.Tensor:
+    """Run inference with reference as path first, then tensor fallback."""
+    path_error: Optional[str] = None
+
+    try:
+        generator = build_generator(reference_wav_path)
+        return collect_waveform(generator)
+    except Exception as exc:
+        path_error = trim_error_message(str(exc))
+        print(f"[tts] {mode_label} path-ref failed: {path_error}")
+
+    try:
+        reference_tensor = load_reference_audio_tensor(reference_wav_path, target_sr=16000)
+        generator = build_generator(reference_tensor)
+        return collect_waveform(generator)
+    except Exception as exc:
+        tensor_error = trim_error_message(str(exc))
+        print(f"[tts] {mode_label} tensor-ref failed: {tensor_error}")
+        raise RuntimeError(
+            f"{mode_label} failed for both reference variants "
+            f"(path='{reference_wav_path}', path_err='{path_error}', tensor_err='{tensor_error}')"
+        ) from exc
+
+
 def generate_audio(
     cosyvoice: Any,
     text: str,
@@ -388,22 +434,45 @@ def generate_audio(
     # Choose inference mode based on available parameters.
     if final_instruct_text:
         print(f"[tts] Mode: instruct2, instruct={final_instruct_text[:60]}")
-        generator = cosyvoice.inference_instruct2(
-            text, final_instruct_text, reference_wav_path, stream=False, speed=speed,
+        waveform = infer_waveform_with_reference_variants(
+            "instruct2",
+            lambda ref: cosyvoice.inference_instruct2(
+                text, final_instruct_text, ref, stream=False, speed=speed,
+            ),
+            reference_wav_path,
         )
     elif final_prompt_text:
         print(f"[tts] Mode: zero_shot, prompt_text_len={len(final_prompt_text)}")
-        generator = cosyvoice.inference_zero_shot(
-            text, final_prompt_text, reference_wav_path, stream=False, speed=speed,
-        )
+        try:
+            waveform = infer_waveform_with_reference_variants(
+                "zero_shot",
+                lambda ref: cosyvoice.inference_zero_shot(
+                    text, final_prompt_text, ref, stream=False, speed=speed,
+                ),
+                reference_wav_path,
+            )
+        except Exception as exc:
+            # Defensive fallback: if zero-shot is incompatible in a specific CosyVoice build,
+            # fall back to cross-lingual so requests still return playable audio.
+            fallback_reason = trim_error_message(str(exc))
+            print(f"[tts] zero_shot fallback -> cross_lingual. reason={fallback_reason}")
+            waveform = infer_waveform_with_reference_variants(
+                "cross_lingual_fallback",
+                lambda ref: cosyvoice.inference_cross_lingual(
+                    text, ref, stream=False, speed=speed,
+                ),
+                reference_wav_path,
+            )
     else:
         # cross_lingual: clones voice without needing a transcript of the reference
         print(f"[tts] Mode: cross_lingual")
-        generator = cosyvoice.inference_cross_lingual(
-            text, reference_wav_path, stream=False, speed=speed,
+        waveform = infer_waveform_with_reference_variants(
+            "cross_lingual",
+            lambda ref: cosyvoice.inference_cross_lingual(
+                text, ref, stream=False, speed=speed,
+            ),
+            reference_wav_path,
         )
-
-    waveform = collect_waveform(generator)
     wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
 
     normalized_format = output_format.strip().lower()
