@@ -61,13 +61,17 @@ EMOTION_TO_INSTRUCT = {
     "serious": "Please speak in a focused, informative, serious educational tone.",
 }
 
-# Lazy runtime state to keep /ping fast and avoid worker startup crashes.
+# Lazy runtime state
 resolved_model_dir = MODEL_DIR
 default_reference_path = ""
 cosyvoice_model: Optional[Any] = None
 runtime_lock = threading.Lock()
 runtime_init_started = False
 runtime_init_error = ""
+
+# Cached default reference WAV path (as .wav file, converted from mp3 if needed)
+_default_ref_wav_path: Optional[str] = None
+_default_ref_wav_lock = threading.Lock()
 
 
 def ensure_model_dir() -> str:
@@ -89,25 +93,52 @@ def ensure_model_dir() -> str:
 
 
 def ensure_default_reference() -> str:
-    if DEFAULT_REF_WAV and Path(DEFAULT_REF_WAV).exists():
-        return DEFAULT_REF_WAV
+    """Return a local WAV file path for the default reference audio.
+    Converts mp3 to wav if needed. CosyVoice needs a file path, not a tensor.
+    """
+    global _default_ref_wav_path
 
-    if not DEFAULT_REF_WAV_URL:
-        return ""
+    with _default_ref_wav_lock:
+        if _default_ref_wav_path and Path(_default_ref_wav_path).exists():
+            return _default_ref_wav_path
 
-    target_dir = Path("/opt/default-voices")
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / "narrator_sample.wav"
+        ref_src = DEFAULT_REF_WAV
 
-    if target_path.exists():
-        return str(target_path)
+        # Download from URL if configured and file not present
+        if not ref_src or not Path(ref_src).exists():
+            if DEFAULT_REF_WAV_URL:
+                target_dir = Path("/opt/default-voices")
+                target_dir.mkdir(parents=True, exist_ok=True)
+                downloaded = target_dir / "narrator_sample_dl"
+                ext = Path(DEFAULT_REF_WAV_URL).suffix.lower() or ".bin"
+                downloaded = downloaded.with_suffix(ext)
+                if not downloaded.exists():
+                    print(f"[startup] Downloading default reference audio from {DEFAULT_REF_WAV_URL} ...")
+                    response = requests.get(DEFAULT_REF_WAV_URL, timeout=30)
+                    response.raise_for_status()
+                    downloaded.write_bytes(response.content)
+                    print(f"[startup] Downloaded reference audio saved to {downloaded}")
+                ref_src = str(downloaded)
+            else:
+                print("[startup] No default reference audio configured.")
+                return ""
 
-    print(f"[startup] Downloading default reference audio from {DEFAULT_REF_WAV_URL} ...")
-    response = requests.get(DEFAULT_REF_WAV_URL, timeout=30)
-    response.raise_for_status()
-    target_path.write_bytes(response.content)
-    print(f"[startup] Default reference audio saved to {target_path}")
-    return str(target_path)
+        if not Path(ref_src).exists():
+            print(f"[startup] Default reference audio not found: {ref_src}")
+            return ""
+
+        # Always normalize to a real mono 16k WAV to avoid format edge cases.
+        wav_path = str(Path("/opt/default-voices/narrator_sample_norm.wav"))
+        if not Path(wav_path).exists():
+            print(f"[startup] Normalizing default reference to WAV: {ref_src} -> {wav_path}")
+            audio = AudioSegment.from_file(ref_src)
+            audio = audio.set_frame_rate(16000).set_channels(1)
+            audio.export(wav_path, format="wav")
+            print(f"[startup] Default reference normalization done: {wav_path}")
+        _default_ref_wav_path = wav_path
+
+        print(f"[startup] Default reference audio ready: {_default_ref_wav_path}")
+        return _default_ref_wav_path
 
 
 def init_runtime_sync() -> None:
@@ -127,6 +158,8 @@ def init_runtime_sync() -> None:
         cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
         available = list_available_speakers(cosyvoice_model)
         print(f"[startup] CosyVoice model loaded. Available speakers ({len(available)}): {available[:20]}")
+        if default_reference_path:
+            print(f"[startup] Default reference audio: {default_reference_path}")
         runtime_init_error = ""
 
 
@@ -241,59 +274,39 @@ def resolve_sft_speaker_id(cosyvoice: Any, requested_speaker: str) -> str:
     if available:
         return available[0]
 
+    # CosyVoice3 0.5B has no built-in SFT speakers - this is expected.
     return ""
 
 
-def load_default_reference_wav() -> Optional[torch.Tensor]:
-    """Load the baked-in default reference audio (mp3/wav) for zero-shot cloning."""
-    from cosyvoice.utils.file_utils import load_wav
+async def save_upload_to_temp_wav(reference_audio: UploadFile) -> str:
+    """Save an uploaded audio file to a temp WAV file and return the path.
+    CosyVoice needs a file path string, not a tensor.
+    """
+    payload = await reference_audio.read()
+    if not payload:
+        raise HTTPException(status_code=400, detail="reference_audio is empty.")
 
-    ref_path = DEFAULT_REF_WAV
-    if not ref_path or not Path(ref_path).exists():
-        return None
+    suffix = Path(reference_audio.filename or "reference.wav").suffix.lower() or ".bin"
 
-    suffix = Path(ref_path).suffix.lower()
-    if suffix == ".mp3":
-        # Convert mp3 to wav in memory, then load
-        audio = AudioSegment.from_file(ref_path, format="mp3")
-        wav_buffer = io.BytesIO()
-        audio.export(wav_buffer, format="wav")
-        wav_buffer.seek(0)
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        try:
-            tmp.write(wav_buffer.read())
-            tmp.close()
-            return load_wav(tmp.name, 16000)
-        finally:
-            os.unlink(tmp.name)
-    else:
-        return load_wav(ref_path, 16000)
+    # Write original file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(payload)
+        tmp_path = tmp.name
 
-
-async def load_reference_audio(reference_audio: Optional[UploadFile], default_ref_path: str) -> Optional[torch.Tensor]:
-    from cosyvoice.utils.file_utils import load_wav
-
-    if reference_audio is not None:
-        payload = await reference_audio.read()
-        if not payload:
-            raise HTTPException(status_code=400, detail="reference_audio is empty.")
-
-        suffix = Path(reference_audio.filename or "reference.wav").suffix or ".wav"
-        temp_path = ""
-
-        try:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-                temp_file.write(payload)
-                temp_path = temp_file.name
-            return load_wav(temp_path, 16000)
-        finally:
-            if temp_path and os.path.exists(temp_path):
-                os.unlink(temp_path)
-
-    if default_ref_path and Path(default_ref_path).exists():
-        return load_wav(default_ref_path, 16000)
-
-    return None
+    # Always normalize upload to WAV (mono 16k) and return that path.
+    wav_path = f"{tmp_path}.wav"
+    try:
+        audio = AudioSegment.from_file(tmp_path)
+        audio = audio.set_frame_rate(16000).set_channels(1)
+        audio.export(wav_path, format="wav")
+        os.unlink(tmp_path)
+        return wav_path
+    except Exception as exc:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        if os.path.exists(wav_path):
+            os.unlink(wav_path)
+        raise HTTPException(status_code=400, detail=f"Failed to normalize reference audio: {exc}")
 
 
 def collect_waveform(generator) -> torch.Tensor:
@@ -332,23 +345,25 @@ def generate_audio(
     instruct_text: str,
     emotion: str,
     output_format: str,
-    reference_wav: Optional[torch.Tensor],
+    reference_wav_path: Optional[str],  # FILE PATH, not tensor!
     speed: float,
     speaker: str,
+    ref_default_path: str,
 ) -> Tuple[bytes, str, str, Optional[str]]:
+    """Generate audio. reference_wav_path and ref_default_path are file path STRINGS.
+    CosyVoice handles loading internally via torchaudio.load().
+    """
     final_prompt_text = normalize_cv3_prompt_text(prompt_text or DEFAULT_PROMPT_TEXT or "")
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
     used_speaker: Optional[str] = None
 
     # CosyVoice3 0.5B has NO built-in SFT speakers - all modes need reference audio.
-    # If no reference was uploaded, load the baked-in default voice.
-    effective_ref = reference_wav
-    if effective_ref is None:
-        # Check if model has SFT speakers (unlikely for CosyVoice3 0.5B)
+    if reference_wav_path is None:
+        # Check if model has SFT speakers (not the case for CosyVoice3 0.5B)
         sft_id = resolve_sft_speaker_id(cosyvoice, speaker)
         if sft_id:
             used_speaker = sft_id
-            print(f"[tts] Using SFT speaker: {sft_id}")
+            print(f"[tts] Mode: sft, speaker={sft_id}")
             generator = cosyvoice.inference_sft(text, sft_id, stream=False, speed=speed)
             waveform = collect_waveform(generator)
             wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
@@ -357,9 +372,8 @@ def generate_audio(
                 return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3", used_speaker
             return wav_bytes, "audio/wav", "wav", used_speaker
 
-        # No SFT speakers → load default reference audio
-        effective_ref = load_default_reference_wav()
-        if effective_ref is None:
+        # Fall back to default reference audio
+        if not ref_default_path or not Path(ref_default_path).exists():
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -367,24 +381,26 @@ def generate_audio(
                     "Set COSYVOICE_DEFAULT_REF_WAV or upload reference_audio."
                 ),
             )
-        print(f"[tts] Using default reference audio: {DEFAULT_REF_WAV}")
+        reference_wav_path = ref_default_path
+        print(f"[tts] Using default reference audio: {reference_wav_path}")
 
-    # Reference-audio-based inference (zero_shot, instruct2, or cross_lingual)
+    # CosyVoice expects a file path string, it loads the audio internally.
+    # Choose inference mode based on available parameters.
     if final_instruct_text:
         print(f"[tts] Mode: instruct2, instruct={final_instruct_text[:60]}")
         generator = cosyvoice.inference_instruct2(
-            text, final_instruct_text, effective_ref, stream=False, speed=speed,
+            text, final_instruct_text, reference_wav_path, stream=False, speed=speed,
         )
     elif final_prompt_text:
-        print(f"[tts] Mode: zero_shot")
+        print(f"[tts] Mode: zero_shot, prompt_text_len={len(final_prompt_text)}")
         generator = cosyvoice.inference_zero_shot(
-            text, final_prompt_text, effective_ref, stream=False, speed=speed,
+            text, final_prompt_text, reference_wav_path, stream=False, speed=speed,
         )
     else:
-        # cross_lingual: simplest mode, just clones the voice without needing a transcript
-        print(f"[tts] Mode: cross_lingual (no prompt_text)")
+        # cross_lingual: clones voice without needing a transcript of the reference
+        print(f"[tts] Mode: cross_lingual")
         generator = cosyvoice.inference_cross_lingual(
-            text, effective_ref, stream=False, speed=speed,
+            text, reference_wav_path, stream=False, speed=speed,
         )
 
     waveform = collect_waveform(generator)
@@ -403,27 +419,23 @@ semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
 @app.on_event("startup")
 async def on_startup() -> None:
-    # Start loading in background so LB can probe health while model warms up.
     kickoff_runtime_init_background()
 
 
 @app.get("/ping")
 def ping() -> JSONResponse:
     # RunPod Load Balancer health endpoint.
-    # 200 = worker is ready to accept requests
-    # 204 = worker is still initializing (cold start)
-    # Any other code = unhealthy, worker removed from pool
+    # Keep this always 200 to avoid aggressive worker restart loops during warmup.
     if runtime_init_error:
         return JSONResponse({"status": "error", "detail": runtime_init_error}, status_code=200)
     if cosyvoice_model is None:
         kickoff_runtime_init_background()
-        return JSONResponse({"status": "initializing"}, status_code=204)
+        return JSONResponse({"status": "initializing"}, status_code=200)
     return JSONResponse({"status": "healthy"})
 
 
 @app.get("/")
 def root() -> JSONResponse:
-    # Some load balancer probes use "/" by default.
     return JSONResponse({"status": "ok"})
 
 
@@ -444,6 +456,7 @@ def health() -> JSONResponse:
             "gpu_available": bool(torch.cuda.is_available()),
             "default_prompt_text_set": bool(DEFAULT_PROMPT_TEXT),
             "default_reference_available": bool(default_reference_path and Path(default_reference_path).exists()),
+            "default_reference_path": default_reference_path,
             "default_speaker": DEFAULT_SPK_ID,
             "available_speakers": available_speakers,
             "max_concurrent": MAX_CONCURRENT,
@@ -484,34 +497,48 @@ async def tts(
     if model is None:
         raise HTTPException(status_code=503, detail="CosyVoice model is not initialized.")
 
-    reference_wav = await load_reference_audio(reference_audio, default_reference_path)
+    # Save uploaded reference audio to a temp WAV file path (CosyVoice needs file paths)
+    ref_wav_path: Optional[str] = None
+    temp_file_to_cleanup: Optional[str] = None
 
-    async with semaphore:
-        try:
-            audio_bytes, mime_type, used_format, used_speaker = await asyncio.wait_for(
-                asyncio.to_thread(
-                    generate_audio,
-                    model,
-                    cleaned_text,
-                    prompt_text,
-                    instruct_text,
-                    emotion,
-                    normalized_format,
-                    reference_wav,
-                    speed,
-                    speaker,
-                ),
-                timeout=INFERENCE_TIMEOUT_SEC,
-            )
-        except asyncio.TimeoutError as exc:
-            raise HTTPException(
-                status_code=504,
-                detail=f"Generation timed out after {INFERENCE_TIMEOUT_SEC}s.",
-            ) from exc
-        except HTTPException:
-            raise
-        except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"CosyVoice generation failed: {exc}") from exc
+    if reference_audio is not None:
+        ref_wav_path = await save_upload_to_temp_wav(reference_audio)
+        temp_file_to_cleanup = ref_wav_path
+
+    try:
+        async with semaphore:
+            try:
+                audio_bytes, mime_type, used_format, used_speaker = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        generate_audio,
+                        model,
+                        cleaned_text,
+                        prompt_text,
+                        instruct_text,
+                        emotion,
+                        normalized_format,
+                        ref_wav_path,       # file path or None
+                        speed,
+                        speaker,
+                        default_reference_path,  # fallback file path
+                    ),
+                    timeout=INFERENCE_TIMEOUT_SEC,
+                )
+            except asyncio.TimeoutError as exc:
+                raise HTTPException(
+                    status_code=504,
+                    detail=f"Generation timed out after {INFERENCE_TIMEOUT_SEC}s.",
+                ) from exc
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail=f"CosyVoice generation failed: {exc}") from exc
+    finally:
+        if temp_file_to_cleanup and os.path.exists(temp_file_to_cleanup):
+            try:
+                os.unlink(temp_file_to_cleanup)
+            except OSError:
+                pass
 
     headers = {
         "X-Audio-Format": used_format,
@@ -530,7 +557,6 @@ def parse_port(value: str, fallback: int) -> int:
         parsed = int(raw)
         return parsed if parsed > 0 else fallback
 
-    # Keep first integer sequence only (e.g. "80/tcp" -> 80).
     match = re.search(r"\d+", raw)
     if not match:
         return fallback
