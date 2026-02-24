@@ -125,7 +125,8 @@ def init_runtime_sync() -> None:
 
         print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
         cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
-        print("[startup] CosyVoice model loaded.")
+        available = list_available_speakers(cosyvoice_model)
+        print(f"[startup] CosyVoice model loaded. Available speakers ({len(available)}): {available[:20]}")
         runtime_init_error = ""
 
 
@@ -238,16 +239,35 @@ def resolve_sft_speaker_id(cosyvoice: Any, requested_speaker: str) -> str:
         return requested
 
     if available:
-        # Stable fallback to first built-in speaker when no reference audio is provided.
         return available[0]
 
-    raise HTTPException(
-        status_code=400,
-        detail=(
-            "No reference audio available and no built-in speaker resolved. "
-            "Set COSYVOICE_DEFAULT_SPK_ID or provide reference_audio."
-        ),
-    )
+    return ""
+
+
+def load_default_reference_wav() -> Optional[torch.Tensor]:
+    """Load the baked-in default reference audio (mp3/wav) for zero-shot cloning."""
+    from cosyvoice.utils.file_utils import load_wav
+
+    ref_path = DEFAULT_REF_WAV
+    if not ref_path or not Path(ref_path).exists():
+        return None
+
+    suffix = Path(ref_path).suffix.lower()
+    if suffix == ".mp3":
+        # Convert mp3 to wav in memory, then load
+        audio = AudioSegment.from_file(ref_path, format="mp3")
+        wav_buffer = io.BytesIO()
+        audio.export(wav_buffer, format="wav")
+        wav_buffer.seek(0)
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        try:
+            tmp.write(wav_buffer.read())
+            tmp.close()
+            return load_wav(tmp.name, 16000)
+        finally:
+            os.unlink(tmp.name)
+    else:
+        return load_wav(ref_path, 16000)
 
 
 async def load_reference_audio(reference_audio: Optional[UploadFile], default_ref_path: str) -> Optional[torch.Tensor]:
@@ -320,40 +340,52 @@ def generate_audio(
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
     used_speaker: Optional[str] = None
 
-    if reference_wav is None:
-        used_speaker = resolve_sft_speaker_id(cosyvoice, speaker)
-        generator = cosyvoice.inference_sft(
-            text,
-            used_speaker,
-            stream=False,
-            speed=speed,
+    # CosyVoice3 0.5B has NO built-in SFT speakers - all modes need reference audio.
+    # If no reference was uploaded, load the baked-in default voice.
+    effective_ref = reference_wav
+    if effective_ref is None:
+        # Check if model has SFT speakers (unlikely for CosyVoice3 0.5B)
+        sft_id = resolve_sft_speaker_id(cosyvoice, speaker)
+        if sft_id:
+            used_speaker = sft_id
+            print(f"[tts] Using SFT speaker: {sft_id}")
+            generator = cosyvoice.inference_sft(text, sft_id, stream=False, speed=speed)
+            waveform = collect_waveform(generator)
+            wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
+            normalized_format = output_format.strip().lower()
+            if normalized_format == "mp3":
+                return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3", used_speaker
+            return wav_bytes, "audio/wav", "wav", used_speaker
+
+        # No SFT speakers → load default reference audio
+        effective_ref = load_default_reference_wav()
+        if effective_ref is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "No reference audio provided and no default voice configured. "
+                    "Set COSYVOICE_DEFAULT_REF_WAV or upload reference_audio."
+                ),
+            )
+        print(f"[tts] Using default reference audio: {DEFAULT_REF_WAV}")
+
+    # Reference-audio-based inference (zero_shot, instruct2, or cross_lingual)
+    if final_instruct_text:
+        print(f"[tts] Mode: instruct2, instruct={final_instruct_text[:60]}")
+        generator = cosyvoice.inference_instruct2(
+            text, final_instruct_text, effective_ref, stream=False, speed=speed,
+        )
+    elif final_prompt_text:
+        print(f"[tts] Mode: zero_shot")
+        generator = cosyvoice.inference_zero_shot(
+            text, final_prompt_text, effective_ref, stream=False, speed=speed,
         )
     else:
-        if final_instruct_text:
-            generator = cosyvoice.inference_instruct2(
-                text,
-                final_instruct_text,
-                reference_wav,
-                stream=False,
-                speed=speed,
-            )
-        else:
-            if not final_prompt_text:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "prompt_text is required for zero-shot cloning. "
-                        "Provide prompt_text or configure COSYVOICE_DEFAULT_PROMPT_TEXT."
-                    ),
-                )
-
-            generator = cosyvoice.inference_zero_shot(
-                text,
-                final_prompt_text,
-                reference_wav,
-                stream=False,
-                speed=speed,
-            )
+        # cross_lingual: simplest mode, just clones the voice without needing a transcript
+        print(f"[tts] Mode: cross_lingual (no prompt_text)")
+        generator = cosyvoice.inference_cross_lingual(
+            text, effective_ref, stream=False, speed=speed,
+        )
 
     waveform = collect_waveform(generator)
     wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)

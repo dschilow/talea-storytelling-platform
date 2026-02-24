@@ -9,7 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/opt/hf-cache \
     PYTHONPATH=/opt/cosyvoice:/opt/cosyvoice/third_party/Matcha-TTS \
     COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
+    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
+    COSYVOICE_DEFAULT_REF_WAV=/opt/default-voices/narrator_sample.mp3
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -83,6 +84,7 @@ RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
 
 COPY runpod/cosyvoice3/server.py /app/server.py
 COPY runpod/cosyvoice3/entrypoint.sh /app/entrypoint.sh
+COPY runpod/cosyvoice3/narrator_sample.mp3 /opt/default-voices/narrator_sample.mp3
 
 RUN chmod +x /app/entrypoint.sh && \
     mkdir -p /opt/models /opt/default-voices /opt/hf-cache
