@@ -50,26 +50,25 @@ jobs:
       - name: Verify Bun
         run: bun --version
 
-      - name: Build frontend assets
-        run: |
-          cd frontend
-          npm install
-          npm run build -- --outDir=../backend/frontend/dist
       - name: Cache Bun dependencies
         uses: actions/cache@v4
         with:
           path: |
             ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
             backend/node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('backend/bun.lock') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - name: Install backend dependencies
-        working-directory: backend
+      - name: Install workspace dependencies
         env:
           BUN_INSTALL_REGISTRY: https://registry.npmjs.org
         run: bun install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: bun run --cwd frontend build -- --outDir=../backend/frontend/dist
 
       - name: Install Encore CLI
         run: |
