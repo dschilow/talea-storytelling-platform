@@ -863,14 +863,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             if (queueItems.length > 0) {
               enqueue(queueItems);
             }
-
-            // If not all chapters are cached, trigger background pre-generation
-            if (!data.complete) {
-              baseClient.callTypedAPI('/story/pre-generate-audio', {
-                method: 'POST',
-                body: JSON.stringify({ storyId }),
-              }).catch(() => { /* silent background task */ });
-            }
           })
           .catch(() => {
             // Server audio not available — fall back to full TTS queue
