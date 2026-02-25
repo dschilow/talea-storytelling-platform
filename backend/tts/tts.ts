@@ -57,6 +57,14 @@ const COSYVOICE_USE_DEFAULT_PROMPT_TEXT = parseBoolean(
 const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = (
   process.env.COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL || ""
 ).trim();
+const COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE = parseBoolean(
+  process.env.COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE,
+  true
+);
+const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = parsePositiveInt(
+  process.env.COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS,
+  3_600_000
+);
 const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
   process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "wav"
@@ -126,6 +134,13 @@ type ResolvedReferenceAudio = {
   buffer: Buffer;
   contentType: string;
   filename: string;
+};
+
+type ReferenceAudioCacheEntry = {
+  buffer: Buffer;
+  contentType: string;
+  filename: string;
+  expiresAtMs: number;
 };
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -345,7 +360,42 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   }
 }
 
+const referenceAudioCache = new Map<string, ReferenceAudioCacheEntry>();
+
+function getCachedReferenceAudio(url: string): ResolvedReferenceAudio | null {
+  if (COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS <= 0) return null;
+
+  const cached = referenceAudioCache.get(url);
+  if (!cached) return null;
+  if (Date.now() >= cached.expiresAtMs) {
+    referenceAudioCache.delete(url);
+    return null;
+  }
+
+  return {
+    buffer: Buffer.from(cached.buffer),
+    contentType: cached.contentType,
+    filename: cached.filename,
+  };
+}
+
+function setCachedReferenceAudio(url: string, audio: ResolvedReferenceAudio): void {
+  if (COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS <= 0) return;
+
+  referenceAudioCache.set(url, {
+    buffer: Buffer.from(audio.buffer),
+    contentType: audio.contentType,
+    filename: audio.filename,
+    expiresAtMs: Date.now() + COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS,
+  });
+}
+
 async function fetchAudioUrl(url: string): Promise<ResolvedReferenceAudio> {
+  const cached = getCachedReferenceAudio(url);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetchWithTimeout(url, { method: "GET" }, COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS);
   if (!response.ok) {
     const body = await response.text();
@@ -374,10 +424,19 @@ async function fetchAudioUrl(url: string): Promise<ResolvedReferenceAudio> {
     filename = safeFileName(url, filename);
   }
 
-  return { buffer, contentType, filename };
+  const resolved = { buffer, contentType, filename };
+  setCachedReferenceAudio(url, resolved);
+  return resolved;
 }
 
-async function resolveReferenceAudio(req: GenerateSpeechRequest): Promise<ResolvedReferenceAudio | null> {
+function hasExplicitReference(req: GenerateSpeechRequest): boolean {
+  return Boolean(req.referenceAudioDataUrl?.trim() || req.referenceAudioUrl?.trim());
+}
+
+async function resolveReferenceAudio(
+  req: GenerateSpeechRequest,
+  includeBackendDefaultReference: boolean
+): Promise<ResolvedReferenceAudio | null> {
   if (req.referenceAudioDataUrl?.trim()) {
     const parsed = parseDataUrl(req.referenceAudioDataUrl.trim());
     if (!parsed) {
@@ -398,7 +457,7 @@ async function resolveReferenceAudio(req: GenerateSpeechRequest): Promise<Resolv
     return await fetchAudioUrl(providedUrl);
   }
 
-  if (COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL) {
+  if (includeBackendDefaultReference && COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL) {
     return await fetchAudioUrl(COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL);
   }
 
@@ -782,7 +841,9 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
-  const referenceAudio = await resolveReferenceAudio(req);
+  const includeBackendDefaultReference =
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
+  const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
 
   const input: Record<string, unknown> = {
     action: "tts",
@@ -889,7 +950,9 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
 
-  const referenceAudio = await resolveReferenceAudio(req);
+  const includeBackendDefaultReference =
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
+  const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
 
   const formData = new FormData();
   formData.set("text", text);

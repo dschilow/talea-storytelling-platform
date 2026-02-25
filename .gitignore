@@ -28,3 +28,7 @@ design
 .claude/skills/
 .cursor/
 AudioDoku/
+
+# Python bytecode/cache
+__pycache__/
+*.py[cod]

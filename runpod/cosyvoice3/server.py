@@ -259,6 +259,21 @@ def normalize_cv3_prompt_text(prompt_text: str) -> str:
     return f"{system_prompt}<|endofprompt|>{cleaned_prompt}"
 
 
+def normalize_cv3_text_for_cross_lingual(text: str) -> str:
+    """CosyVoice3 cross-lingual path expects <|endofprompt|> in text or prompt.
+    cross_lingual internally calls zero_shot frontend with empty prompt, so we
+    inject the marker into text when missing.
+    """
+    cleaned_text = (text or "").strip()
+    if not cleaned_text:
+        return ""
+    if "<|endofprompt|>" in cleaned_text:
+        return cleaned_text
+
+    system_prompt = (DEFAULT_SYSTEM_PROMPT or "You are a helpful assistant.").strip()
+    return f"{system_prompt}<|endofprompt|>{cleaned_text}"
+
+
 def normalize_cv3_instruction(instruct_text: str) -> str:
     cleaned = (instruct_text or "").strip()
     if not cleaned:
@@ -386,42 +401,21 @@ def trim_error_message(message: str, max_len: int = 220) -> str:
     return f"{cleaned[:max_len]}..."
 
 
-def load_reference_audio_tensor(reference_wav_path: str, target_sr: int = 16000) -> torch.Tensor:
-    waveform, source_sr = torchaudio.load(reference_wav_path)
-    if waveform.dim() == 1:
-        waveform = waveform.unsqueeze(0)
-    if waveform.size(0) > 1:
-        waveform = waveform.mean(dim=0, keepdim=True)
-    if source_sr != target_sr:
-        waveform = torchaudio.functional.resample(waveform, source_sr, target_sr)
-    return waveform
-
-
-def infer_waveform_with_reference_variants(
+def infer_waveform_with_reference_path(
     mode_label: str,
-    build_generator: Callable[[Any], Any],
+    build_generator: Callable[[str], Any],
     reference_wav_path: str,
 ) -> torch.Tensor:
-    """Run inference with reference as path first, then tensor fallback."""
-    path_error: Optional[str] = None
-
+    """Run inference using reference audio path (CosyVoice expects a file path)."""
     try:
         generator = build_generator(reference_wav_path)
         return collect_waveform(generator)
     except Exception as exc:
         path_error = trim_error_message(str(exc))
         print(f"[tts] {mode_label} path-ref failed: {path_error}")
-
-    try:
-        reference_tensor = load_reference_audio_tensor(reference_wav_path, target_sr=16000)
-        generator = build_generator(reference_tensor)
-        return collect_waveform(generator)
-    except Exception as exc:
-        tensor_error = trim_error_message(str(exc))
-        print(f"[tts] {mode_label} tensor-ref failed: {tensor_error}")
         raise RuntimeError(
-            f"{mode_label} failed for both reference variants "
-            f"(path='{reference_wav_path}', path_err='{path_error}', tensor_err='{tensor_error}')"
+            f"{mode_label} failed with reference path "
+            f"(path='{reference_wav_path}', path_err='{path_error}')"
         ) from exc
 
 
@@ -447,6 +441,7 @@ def generate_audio(
     # - For built-in default reference we can safely use DEFAULT_PROMPT_TEXT fallback.
     requested_prompt_text = (prompt_text or "").strip()
     normalized_text_len = len(re.sub(r"\s+", "", text or ""))
+    cross_lingual_text = normalize_cv3_text_for_cross_lingual(text)
     had_custom_reference = reference_wav_path is not None
     final_prompt_text = ""
     if requested_prompt_text:
@@ -496,7 +491,7 @@ def generate_audio(
     # Choose inference mode based on available parameters.
     if final_instruct_text:
         print(f"[tts] Mode: instruct2, instruct={final_instruct_text[:60]}")
-        waveform = infer_waveform_with_reference_variants(
+        waveform = infer_waveform_with_reference_path(
             "instruct2",
             lambda ref: cosyvoice.inference_instruct2(
                 text, final_instruct_text, ref, stream=False, speed=speed,
@@ -506,7 +501,7 @@ def generate_audio(
     elif final_prompt_text:
         print(f"[tts] Mode: zero_shot, prompt_text_len={len(final_prompt_text)}")
         try:
-            waveform = infer_waveform_with_reference_variants(
+            waveform = infer_waveform_with_reference_path(
                 "zero_shot",
                 lambda ref: cosyvoice.inference_zero_shot(
                     text, final_prompt_text, ref, stream=False, speed=speed,
@@ -518,20 +513,20 @@ def generate_audio(
             # fall back to cross-lingual so requests still return playable audio.
             fallback_reason = trim_error_message(str(exc))
             print(f"[tts] zero_shot fallback -> cross_lingual. reason={fallback_reason}")
-            waveform = infer_waveform_with_reference_variants(
+            waveform = infer_waveform_with_reference_path(
                 "cross_lingual_fallback",
                 lambda ref: cosyvoice.inference_cross_lingual(
-                    text, ref, stream=False, speed=speed,
+                    cross_lingual_text, ref, stream=False, speed=speed,
                 ),
                 reference_wav_path,
             )
     else:
         # cross_lingual: clones voice without needing a transcript of the reference
         print(f"[tts] Mode: cross_lingual")
-        waveform = infer_waveform_with_reference_variants(
+        waveform = infer_waveform_with_reference_path(
             "cross_lingual",
             lambda ref: cosyvoice.inference_cross_lingual(
-                text, ref, stream=False, speed=speed,
+                cross_lingual_text, ref, stream=False, speed=speed,
             ),
             reference_wav_path,
         )
