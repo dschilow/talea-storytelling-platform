@@ -6,8 +6,8 @@
  *
  * Flow:
  * 1. Frontend calls preGenerateStoryAudio after story generation
- * 2. Backend loads all chapters, sends them as one TTS batch job
- * 3. Audio data URIs are stored in chapters.audio_data
+ * 2. Backend chunks each chapter (~55 words) and sends as TTS batch
+ * 3. Chunk audio is concatenated per chapter, stored in chapters.audio_data
  * 4. Frontend calls getStoryAudio to fetch cached audio (skipping TTS queue)
  */
 import { api, APIError } from "encore.dev/api";
@@ -15,6 +15,7 @@ import log from "encore.dev/log";
 import { tts } from "~encore/clients";
 import { storyDB } from "./db";
 import { getAuthData } from "~encore/auth";
+import { splitTextIntoChunks } from "../helpers/ttsChunking";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -126,22 +127,46 @@ export const preGenerateStoryAudio = api<PreGenerateRequest, PreGenerateResponse
       };
     }
 
-    log.info(
-      `[audio-cache] Pre-generating audio for ${needsGeneration.length}/${chapters.length} chapters of story ${storyId}`
-    );
+    // Chunk each chapter into ~55-word pieces for efficient GPU inference.
+    // Sending whole chapters (1000+ chars) causes 30s+ per item;
+    // chunked items (~380 chars) take ~8-10s each and parallelize on workers.
+    interface ChunkMapping {
+      chapterId: string;
+      chunkId: string;
+      chunkIndex: number;
+      totalChunks: number;
+    }
 
-    // Build batch items – one item per chapter (the content IS the chunk)
-    const batchItems = needsGeneration.map((ch) => ({
-      id: ch.id,
-      text: ch.content.trim(),
-    }));
+    const allBatchItems: { id: string; text: string }[] = [];
+    const chunkMap: ChunkMapping[] = [];
+
+    for (const ch of needsGeneration) {
+      const chunks = splitTextIntoChunks(ch.content);
+      if (chunks.length === 0) continue;
+
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkId = `${ch.id}__chunk${i}`;
+        allBatchItems.push({ id: chunkId, text: chunks[i] });
+        chunkMap.push({
+          chapterId: ch.id,
+          chunkId,
+          chunkIndex: i,
+          totalChunks: chunks.length,
+        });
+      }
+    }
+
+    log.info(
+      `[audio-cache] Pre-generating audio for ${needsGeneration.length} chapters ` +
+      `(${allBatchItems.length} chunks) of story ${storyId}`
+    );
 
     let succeeded = 0;
     let failed = 0;
 
     try {
       const batchResult = await tts.generateSpeechBatch({
-        items: batchItems,
+        items: allBatchItems,
         outputFormat: "mp3",
         promptText: promptText || undefined,
         speaker: speaker || undefined,
@@ -152,35 +177,67 @@ export const preGenerateStoryAudio = api<PreGenerateRequest, PreGenerateResponse
         (batchResult.results || []).map((r) => [r.id, r])
       );
 
-      // Store results in DB
+      // Reassemble chunks per chapter and concatenate audio buffers
       for (const ch of needsGeneration) {
-        const result = resultMap.get(ch.id);
-        if (result?.audio && !result.error) {
-          try {
-            await storyDB.exec`
-              UPDATE chapters
-              SET audio_data = ${result.audio},
-                  audio_mime_type = 'audio/mpeg',
-                  audio_generated_at = CURRENT_TIMESTAMP,
-                  audio_voice_hash = ${effectiveVoiceHash}
-              WHERE id = ${ch.id}
-            `;
-            succeeded++;
-          } catch (dbErr) {
-            log.error(`[audio-cache] DB write failed for chapter ${ch.id}: ${dbErr}`);
-            failed++;
+        const chapterChunks = chunkMap
+          .filter((m) => m.chapterId === ch.id)
+          .sort((a, b) => a.chunkIndex - b.chunkIndex);
+
+        if (chapterChunks.length === 0) {
+          failed++;
+          continue;
+        }
+
+        const audioBuffers: Buffer[] = [];
+        let chapterOk = true;
+
+        for (const mapping of chapterChunks) {
+          const result = resultMap.get(mapping.chunkId);
+          if (result?.audio && !result.error) {
+            // Extract raw base64 from data URI (e.g. "data:audio/mpeg;base64,XXXX")
+            const base64Match = result.audio.match(/^data:[^;]+;base64,(.+)$/);
+            if (base64Match) {
+              audioBuffers.push(Buffer.from(base64Match[1], "base64"));
+            } else {
+              // Fallback: treat as raw base64
+              audioBuffers.push(Buffer.from(result.audio, "base64"));
+            }
+          } else {
+            log.warn(
+              `[audio-cache] TTS failed for chunk ${mapping.chunkId}: ${result?.error || "no audio"}`
+            );
+            chapterOk = false;
+            break;
           }
-        } else {
-          log.warn(
-            `[audio-cache] TTS failed for chapter ${ch.id}: ${result?.error || "no audio"}`
-          );
+        }
+
+        if (!chapterOk || audioBuffers.length === 0) {
+          failed++;
+          continue;
+        }
+
+        // Concatenate MP3 buffers (MP3 frames are independently decodable)
+        const combinedBuffer = Buffer.concat(audioBuffers);
+        const combinedDataUri = `data:audio/mpeg;base64,${combinedBuffer.toString("base64")}`;
+
+        try {
+          await storyDB.exec`
+            UPDATE chapters
+            SET audio_data = ${combinedDataUri},
+                audio_mime_type = 'audio/mpeg',
+                audio_generated_at = CURRENT_TIMESTAMP,
+                audio_voice_hash = ${effectiveVoiceHash}
+            WHERE id = ${ch.id}
+          `;
+          succeeded++;
+        } catch (dbErr) {
+          log.error(`[audio-cache] DB write failed for chapter ${ch.id}: ${dbErr}`);
           failed++;
         }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error(`[audio-cache] Batch TTS failed for story ${storyId}: ${msg}`);
-      // Return partial results
       failed = needsGeneration.length;
     }
 

@@ -1,5 +1,6 @@
 ﻿import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
+import { splitTextIntoChunks } from "../helpers/ttsChunking";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 
@@ -11,11 +12,11 @@ const COSYVOICE_RUNPOD_ENDPOINT_MODE = resolveRunpodEndpointMode(
   process.env.COSYVOICE_RUNPOD_ENDPOINT_MODE,
   COSYVOICE_RUNPOD_API_URL
 );
-const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 1_200_000); // 20min
-const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 5);
+const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 300_000); // 5min per single item
+const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 3);
 const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = parsePositiveInt(
   process.env.COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS,
-  3000
+  1500
 );
 const COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS = parsePositiveInt(
   process.env.COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS,
@@ -1395,11 +1396,46 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
       return { results: [] };
     }
 
+    // Safety-net: auto-chunk any oversized items (>380 chars) so the GPU
+    // gets small, efficient pieces (~55 words each, ~8-10s per chunk).
+    const MAX_ITEM_CHARS = 380;
+    const expandedItems: { id: string; text: string }[] = [];
+    // Track which original items were split so we can reassemble later
+    const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
+
+    for (const item of req.items) {
+      const text = (item.text || "").trim();
+      if (!text) {
+        expandedItems.push({ id: item.id, text: "" });
+        continue;
+      }
+      if (text.length <= MAX_ITEM_CHARS) {
+        expandedItems.push({ id: item.id, text });
+        continue;
+      }
+      // Item is oversized — split it
+      const chunks = splitTextIntoChunks(text);
+      if (chunks.length <= 1) {
+        expandedItems.push({ id: item.id, text });
+        continue;
+      }
+      const chunkIds: string[] = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const chunkId = `${item.id}__autochunk${i}`;
+        chunkIds.push(chunkId);
+        expandedItems.push({ id: chunkId, text: chunks[i] });
+      }
+      splitTracker.set(item.id, { chunkIds, originalId: item.id });
+      log.info(`[tts/batch] Auto-chunked item ${item.id}: ${text.length} chars → ${chunks.length} chunks`);
+    }
+
+    const expandedReq: GenerateSpeechBatchRequest = { ...req, items: expandedItems };
+
     // Queue mode: send all items as a single RunPod job (real batch)
     if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
       try {
-        const results = await withRunpodSlot(() => runpodQueueTtsBatchRequest(req));
-        return { results };
+        const rawResults = await withRunpodSlot(() => runpodQueueTtsBatchRequest(expandedReq));
+        return { results: reassembleSplitResults(rawResults, splitTracker) };
       } catch (error) {
         if (isApiError(error)) throw error;
         const message = getErrorMessage(error);
@@ -1409,16 +1445,12 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
     }
 
     // Load balancer mode: sequential per-item requests (fallback)
-    const results: TTSBatchResultItem[] = [];
+    const rawResults: TTSBatchResultItem[] = [];
 
-    for (const item of req.items) {
+    for (const item of expandedItems) {
       const text = (item.text || "").trim();
       if (!text) {
-        results.push({
-          id: item.id,
-          audio: null,
-          error: "Text is required.",
-        });
+        rawResults.push({ id: item.id, audio: null, error: "Text is required." });
         continue;
       }
 
@@ -1438,26 +1470,72 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
             model: req.model,
           })
         );
-
-        results.push({
-          id: item.id,
-          audio: response.audioData,
-          error: null,
-        });
+        rawResults.push({ id: item.id, audio: response.audioData, error: null });
       } catch (error) {
         const message = getErrorMessage(error);
         log.error(`TTS batch item failed (${item.id}): ${message}`);
-        results.push({
-          id: item.id,
-          audio: null,
-          error: message,
-        });
+        rawResults.push({ id: item.id, audio: null, error: message });
       }
     }
 
-    return { results };
+    return { results: reassembleSplitResults(rawResults, splitTracker) };
   }
 );
+
+/** Reassemble auto-chunked results back into single items by concatenating MP3 buffers. */
+function reassembleSplitResults(
+  rawResults: TTSBatchResultItem[],
+  splitTracker: Map<string, { chunkIds: string[]; originalId: string }>
+): TTSBatchResultItem[] {
+  if (splitTracker.size === 0) return rawResults;
+
+  const resultMap = new Map(rawResults.map((r) => [r.id, r]));
+  const consumed = new Set<string>();
+  const finalResults: TTSBatchResultItem[] = [];
+
+  // First, reassemble split items
+  for (const [originalId, { chunkIds }] of splitTracker) {
+    const buffers: Buffer[] = [];
+    let hasError = false;
+    let errorMsg = "";
+
+    for (const chunkId of chunkIds) {
+      consumed.add(chunkId);
+      const r = resultMap.get(chunkId);
+      if (!r?.audio || r.error) {
+        hasError = true;
+        errorMsg = r?.error || "Missing chunk audio";
+        break;
+      }
+      const base64Match = r.audio.match(/^data:[^;]+;base64,(.+)$/);
+      if (base64Match) {
+        buffers.push(Buffer.from(base64Match[1], "base64"));
+      } else {
+        buffers.push(Buffer.from(r.audio, "base64"));
+      }
+    }
+
+    if (hasError || buffers.length === 0) {
+      finalResults.push({ id: originalId, audio: null, error: errorMsg || "Chunk reassembly failed" });
+    } else {
+      const combined = Buffer.concat(buffers);
+      finalResults.push({
+        id: originalId,
+        audio: `data:audio/mpeg;base64,${combined.toString("base64")}`,
+        error: null,
+      });
+    }
+  }
+
+  // Then, pass through non-split items
+  for (const r of rawResults) {
+    if (!consumed.has(r.id)) {
+      finalResults.push(r);
+    }
+  }
+
+  return finalResults;
+}
 
 export const listCosyVoiceVoices = api<void, CosyVoiceVoicesResponse>(
   { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
