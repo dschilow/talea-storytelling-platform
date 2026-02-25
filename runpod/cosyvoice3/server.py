@@ -6,6 +6,7 @@ import re
 import shutil
 import threading
 import tempfile
+import unicodedata
 from pathlib import Path
 from typing import Any, Callable, Optional, Tuple
 
@@ -58,11 +59,11 @@ USE_DEFAULT_PROMPT_FALLBACK = os.getenv("COSYVOICE_USE_DEFAULT_PROMPT_TEXT", "0"
     "yes",
     "on",
 }
-ZERO_SHOT_MIN_TEXT_CHARS = env_int("COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS", 80)
+ZERO_SHOT_MIN_TEXT_CHARS = env_int("COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS", 0)
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
 DEFAULT_REF_WAV_URL = os.getenv("COSYVOICE_DEFAULT_REF_WAV_URL", "").strip()
 DEFAULT_SPK_ID = os.getenv("COSYVOICE_DEFAULT_SPK_ID", "").strip()
-DEFAULT_SYSTEM_PROMPT = os.getenv("COSYVOICE_SYSTEM_PROMPT", "You are a helpful assistant.").strip()
+DEFAULT_REFERENCE_TRANSCRIPT = os.getenv("COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT", "").strip()
 INFERENCE_TIMEOUT_SEC = env_int("COSYVOICE_INFERENCE_TIMEOUT_SEC", 1200)
 MAX_CONCURRENT = env_int("COSYVOICE_MAX_CONCURRENT", 1)
 DEFAULT_SPEED = env_float("COSYVOICE_DEFAULT_SPEED", 1.0)
@@ -249,14 +250,34 @@ def validate_api_key(authorization: Optional[str], x_api_key: Optional[str]) -> 
 
 
 def normalize_cv3_prompt_text(prompt_text: str) -> str:
-    cleaned_prompt = (prompt_text or "").strip()
+    cleaned_prompt = re.sub(r"\s+", " ", (prompt_text or "")).strip()
     if not cleaned_prompt:
         return ""
-    if "<|endofprompt|>" in cleaned_prompt:
-        return cleaned_prompt
+    # zero-shot expects transcript-like text; injecting system prompts here can
+    # degrade pronunciation and language stability.
+    return cleaned_prompt
 
-    system_prompt = (DEFAULT_SYSTEM_PROMPT or "You are a helpful assistant.").strip()
-    return f"{system_prompt}<|endofprompt|>{cleaned_prompt}"
+
+def normalize_tts_input_text(text: str) -> str:
+    normalized = unicodedata.normalize("NFC", text or "")
+    normalized = re.sub(r"[\u0000-\u0008\u000B\u000C\u000E-\u001F]", " ", normalized)
+    normalized = (
+        normalized.replace("…", ". ")
+        .replace("–", " - ")
+        .replace("—", " - ")
+        .replace("„", "\"")
+        .replace("“", "\"")
+        .replace("”", "\"")
+        .replace("’", "'")
+    )
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
+
+
+def resolve_default_reference_prompt_text() -> str:
+    # Prefer explicit transcript var; fallback to legacy prompt var.
+    raw = DEFAULT_REFERENCE_TRANSCRIPT or DEFAULT_PROMPT_TEXT or ""
+    return normalize_cv3_prompt_text(raw)
 
 
 def normalize_cv3_text_for_cross_lingual(text: str) -> str:
@@ -437,19 +458,25 @@ def generate_audio(
     #   because zero-shot requires the exact transcript of that specific reference clip.
     #   A mismatched transcript often produces garbled output.
     # - For built-in default reference we can safely use DEFAULT_PROMPT_TEXT fallback.
+    safe_text = normalize_tts_input_text(text)
     requested_prompt_text = (prompt_text or "").strip()
-    normalized_text_len = len(re.sub(r"\s+", "", text or ""))
-    cross_lingual_text = normalize_cv3_text_for_cross_lingual(text)
+    normalized_text_len = len(re.sub(r"\s+", "", safe_text))
+    cross_lingual_text = normalize_cv3_text_for_cross_lingual(safe_text)
     had_custom_reference = reference_wav_path is not None
     final_prompt_text = ""
-    if requested_prompt_text:
+    if not had_custom_reference and DEFAULT_REFERENCE_TRANSCRIPT:
+        final_prompt_text = normalize_cv3_prompt_text(DEFAULT_REFERENCE_TRANSCRIPT)
+    elif requested_prompt_text:
         final_prompt_text = normalize_cv3_prompt_text(requested_prompt_text)
-    elif not had_custom_reference and USE_DEFAULT_PROMPT_FALLBACK:
-        final_prompt_text = normalize_cv3_prompt_text(DEFAULT_PROMPT_TEXT or "")
+    elif not had_custom_reference and (USE_DEFAULT_PROMPT_FALLBACK or bool(DEFAULT_REFERENCE_TRANSCRIPT)):
+        final_prompt_text = resolve_default_reference_prompt_text()
 
-    # Zero-shot is sensitive for short chunks and can become garbled.
-    # Prefer cross-lingual for short segments to keep narration intelligible.
-    if final_prompt_text and normalized_text_len < ZERO_SHOT_MIN_TEXT_CHARS:
+    # Optional short-text guard (disabled when threshold <= 0).
+    if (
+        final_prompt_text
+        and ZERO_SHOT_MIN_TEXT_CHARS > 0
+        and normalized_text_len < ZERO_SHOT_MIN_TEXT_CHARS
+    ):
         print(
             f"[tts] short segment ({normalized_text_len} chars) -> "
             "skip zero_shot prompt and use cross_lingual for stability"
@@ -465,7 +492,7 @@ def generate_audio(
         if sft_id:
             used_speaker = sft_id
             print(f"[tts] Mode: sft, speaker={sft_id}")
-            generator = cosyvoice.inference_sft(text, sft_id, stream=False, speed=speed)
+            generator = cosyvoice.inference_sft(safe_text, sft_id, stream=False, speed=speed)
             waveform = collect_waveform(generator)
             wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
             normalized_format = output_format.strip().lower()
@@ -492,7 +519,7 @@ def generate_audio(
         waveform = infer_waveform_with_reference_path(
             "instruct2",
             lambda ref: cosyvoice.inference_instruct2(
-                text, final_instruct_text, ref, stream=False, speed=speed,
+                safe_text, final_instruct_text, ref, stream=False, speed=speed,
             ),
             reference_wav_path,
         )
@@ -502,7 +529,7 @@ def generate_audio(
             waveform = infer_waveform_with_reference_path(
                 "zero_shot",
                 lambda ref: cosyvoice.inference_zero_shot(
-                    text, final_prompt_text, ref, stream=False, speed=speed,
+                    safe_text, final_prompt_text, ref, stream=False, speed=speed,
                 ),
                 reference_wav_path,
             )
@@ -579,6 +606,8 @@ def health() -> JSONResponse:
             "model_loaded": bool(cosyvoice_model is not None),
             "gpu_available": bool(torch.cuda.is_available()),
             "default_prompt_text_set": bool(DEFAULT_PROMPT_TEXT),
+            "default_reference_transcript_set": bool(DEFAULT_REFERENCE_TRANSCRIPT),
+            "use_default_prompt_fallback": USE_DEFAULT_PROMPT_FALLBACK,
             "default_reference_available": bool(default_reference_path and Path(default_reference_path).exists()),
             "default_reference_path": default_reference_path,
             "default_speaker": DEFAULT_SPK_ID,

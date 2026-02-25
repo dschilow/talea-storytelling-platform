@@ -40,12 +40,11 @@ COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_INFERENCE_TIMEOUT_SEC=1200
 COSYVOICE_MAX_CONCURRENT=1
-COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
 COSYVOICE_HF_CACHE_DIR=/opt/hf-cache
 COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLOAD=1
 COSYVOICE_WORKER_MODE=http
-COSYVOICE_USE_DEFAULT_PROMPT_TEXT=0
-COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS=80
+COSYVOICE_USE_DEFAULT_PROMPT_TEXT=1
+COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS=0
 
 # Optional worker-internal auth layer:
 # If set, backend must send COSYVOICE_RUNPOD_WORKER_API_KEY (X-API-Key header).
@@ -56,14 +55,19 @@ COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS=80
 COSYVOICE_DEFAULT_SPK_ID=
 
 # Optional default narrator fallback if request has no reference_audio:
-COSYVOICE_DEFAULT_PROMPT_TEXT=Das ist meine Referenzstimme fuer Talea.
+# IMPORTANT: exact transcript of your default reference clip (verbatim)
+COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT=Duenn, ja... aber unterschaetz sie nicht. [short pause] Spinnenseide ist wie... ein ultraleichtes Seil, das trotzdem MEGA stark ist.
+# Legacy alias (kept for compatibility):
+COSYVOICE_DEFAULT_PROMPT_TEXT=
 COSYVOICE_DEFAULT_REF_WAV_URL=https://<public-url>/narrator_sample.wav
 ```
 
 Quality note:
-- Set `COSYVOICE_USE_DEFAULT_PROMPT_TEXT=0` for more robust German narration in chunked generation.
-- This uses cross-lingual reference mode by default (usually more stable across many short segments).
-- Enable `COSYVOICE_USE_DEFAULT_PROMPT_TEXT=1` only if your prompt text exactly matches the reference audio transcript.
+- For best German pronunciation, prefer zero-shot with exact reference transcript:
+  - set `COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT` to the exact spoken text in your reference clip.
+  - keep `COSYVOICE_USE_DEFAULT_PROMPT_TEXT=1`.
+- Keep `COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS=0` to avoid switching short chunks to cross-lingual.
+- If `COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT` is set, worker-side default transcript is preferred for default voice requests.
 
 10. Click `Deploy Endpoint`.
 
