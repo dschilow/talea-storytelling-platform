@@ -60,7 +60,7 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
     ' requirements.txt > requirements.serverless.txt && \
     cat requirements.serverless.txt && \
     pip install --no-cache-dir -r requirements.serverless.txt && \
-    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub pydub requests
+    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub pydub requests runpod
 
 # Verify ALL critical imports work at build time so we catch errors early.
 # This replicates the actual import chain that happens at runtime.
@@ -83,6 +83,7 @@ RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
     fi
 
 COPY runpod/cosyvoice3/server.py /app/server.py
+COPY runpod/cosyvoice3/queue_worker.py /app/queue_worker.py
 COPY runpod/cosyvoice3/entrypoint.sh /app/entrypoint.sh
 COPY runpod/cosyvoice3/narrator_sample.mp3 /opt/default-voices/narrator_sample.mp3
 

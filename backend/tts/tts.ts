@@ -1,10 +1,16 @@
 ﻿import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 
+type RunpodEndpointMode = "load_balancer" | "queue";
+
 const COSYVOICE_RUNPOD_API_URL = (process.env.COSYVOICE_RUNPOD_API_URL || "").trim();
 const COSYVOICE_RUNPOD_API_KEY = (process.env.COSYVOICE_RUNPOD_API_KEY || "").trim();
 const COSYVOICE_RUNPOD_WORKER_API_KEY = (process.env.COSYVOICE_RUNPOD_WORKER_API_KEY || "").trim();
 const COSYVOICE_RUNPOD_TTS_PATH = (process.env.COSYVOICE_RUNPOD_TTS_PATH || "/v1/tts").trim();
+const COSYVOICE_RUNPOD_ENDPOINT_MODE = resolveRunpodEndpointMode(
+  process.env.COSYVOICE_RUNPOD_ENDPOINT_MODE,
+  COSYVOICE_RUNPOD_API_URL
+);
 const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 1_200_000); // 20min
 const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 5);
 const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = parsePositiveInt(
@@ -38,6 +44,10 @@ const COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS = parsePositiveInt(
 const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = parsePositiveInt(
   process.env.COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS,
   30_000
+);
+const COSYVOICE_RUNPOD_QUEUE_POLL_MS = parsePositiveInt(
+  process.env.COSYVOICE_RUNPOD_QUEUE_POLL_MS,
+  2_000
 );
 const COSYVOICE_DEFAULT_PROMPT_TEXT = (process.env.COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
 const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = (
@@ -136,25 +146,67 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   return fallback;
 }
 
+function resolveRunpodEndpointMode(
+  value: string | undefined,
+  apiUrl: string
+): RunpodEndpointMode {
+  const normalized = (value || "").trim().toLowerCase();
+  if (normalized === "queue") return "queue";
+  if (normalized === "load_balancer" || normalized === "loadbalancer" || normalized === "lb") {
+    return "load_balancer";
+  }
+
+  // Auto-detect: Queue endpoints use api.runpod.ai/v2/<endpoint-id>/...
+  if (/api\.runpod\.ai\/v2\/[^/]+/i.test(apiUrl)) {
+    return "queue";
+  }
+  return "load_balancer";
+}
+
 function normalizeOutputFormat(value: string | undefined): AudioFormat {
   const normalized = (value || "").trim().toLowerCase();
   return normalized === "mp3" ? "mp3" : "wav";
 }
 
+function buildRunpodBaseUrl(): string {
+  return COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
+}
+
+function buildRunpodLoadBalancerBaseUrl(): string {
+  let base = buildRunpodBaseUrl();
+  base = base.replace(/\/(v1\/tts|ping|health)$/i, "");
+  return base;
+}
+
+function buildRunpodQueueBaseUrl(): string {
+  let base = buildRunpodBaseUrl();
+  base = base.replace(/\/(run|runsync|health|purge-queue)$/i, "");
+  base = base.replace(/\/(status|stream|cancel|retry)\/[^/]+$/i, "");
+  return base;
+}
+
 function buildRunpodTtsUrl(): string {
-  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
   const path = `/${COSYVOICE_RUNPOD_TTS_PATH.replace(/^\/+/, "")}`;
-  return `${base}${path}`;
+  return `${buildRunpodLoadBalancerBaseUrl()}${path}`;
 }
 
 function buildRunpodHealthUrl(): string {
-  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
-  return `${base}/health`;
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
+    return `${buildRunpodQueueBaseUrl()}/health`;
+  }
+  return `${buildRunpodLoadBalancerBaseUrl()}/health`;
 }
 
 function buildRunpodPingUrl(): string {
-  const base = COSYVOICE_RUNPOD_API_URL.replace(/\/+$/, "");
-  return `${base}/ping`;
+  return `${buildRunpodLoadBalancerBaseUrl()}/ping`;
+}
+
+function buildRunpodQueueRunUrl(): string {
+  return `${buildRunpodQueueBaseUrl()}/run`;
+}
+
+function buildRunpodQueueStatusUrl(jobId: string): string {
+  return `${buildRunpodQueueBaseUrl()}/status/${encodeURIComponent(jobId)}`;
 }
 
 function buildRunpodAuthHeaders(): Record<string, string> {
@@ -208,6 +260,20 @@ function isRetryableStatus(status: number): boolean {
 function isLikelyInfraBusyStatus(status: number, body: string): boolean {
   // RunPod LB can return empty 400 responses when workers are cold/busy/unavailable.
   return status === 400 && !body.trim();
+}
+
+function isLikelyGatewayHostError(status: number, body: string): boolean {
+  if (![502, 503, 504].includes(status)) {
+    return false;
+  }
+  const lowered = (body || "").toLowerCase();
+  return (
+    lowered.includes("bad gateway") ||
+    lowered.includes("host error") ||
+    lowered.includes("cloudflare") ||
+    lowered.includes("no healthy upstream") ||
+    lowered.includes("upstream connect error")
+  );
 }
 
 function isLikelyRunpodNoWorker(status: number, body: string): boolean {
@@ -408,12 +474,14 @@ function markRunpodHealthyNow(): void {
 }
 
 function needsRunpodPrewarm(): boolean {
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") return false;
   if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return false;
   if (runpodLastHealthyAtMs <= 0) return true;
   return Date.now() - runpodLastHealthyAtMs > COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS;
 }
 
 async function waitForRunpodWorkerReady(reason: string): Promise<void> {
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") return;
   if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return;
 
   if (runpodWarmupInFlight) {
@@ -508,6 +576,7 @@ async function waitForRunpodWorkerReady(reason: string): Promise<void> {
 }
 
 async function maybeWarmupRunpodWorker(reason: string): Promise<boolean> {
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") return false;
   if (!COSYVOICE_RUNPOD_WARMUP_ENABLED) return false;
   try {
     await waitForRunpodWorkerReady(reason);
@@ -525,7 +594,266 @@ async function maybeWarmupRunpodWorker(reason: string): Promise<boolean> {
   }
 }
 
+type RunpodQueueJobResponse = {
+  id?: string;
+  status?: string;
+  output?: unknown;
+  error?: unknown;
+};
+
+function parseRunpodQueueStatus(status: unknown): string {
+  return String(status || "").trim().toUpperCase();
+}
+
+function isRetryableQueueError(message: string): boolean {
+  const normalized = (message || "").toLowerCase();
+  return (
+    normalized.includes(" 429") ||
+    normalized.includes("(429)") ||
+    normalized.includes(" 500") ||
+    normalized.includes(" 502") ||
+    normalized.includes(" 503") ||
+    normalized.includes(" 504") ||
+    normalized.includes("bad gateway") ||
+    normalized.includes("gateway") ||
+    normalized.includes("timed out") ||
+    normalized.includes("rate limit")
+  );
+}
+
+function parseRunpodQueueFailure(payload: RunpodQueueJobResponse): string {
+  const error = payload.error;
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (error && typeof error === "object") {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return String(error);
+    }
+  }
+  const output = payload.output as { error?: unknown; detail?: unknown } | undefined;
+  const outputError = String(output?.error || output?.detail || "").trim();
+  if (outputError) return outputError;
+  return "unknown queue failure";
+}
+
+function parseQueueTtsOutput(payload: unknown, outputFormat: AudioFormat): TTSResponse {
+  const data = (payload || {}) as {
+    audioData?: unknown;
+    audioBase64?: unknown;
+    mimeType?: unknown;
+    outputFormat?: unknown;
+    error?: unknown;
+    detail?: unknown;
+  };
+
+  const outputError = String(data.error || data.detail || "").trim();
+  if (outputError) {
+    throw new Error(`Queue worker error: ${outputError}`);
+  }
+
+  const declaredFormat = normalizeOutputFormat(String(data.outputFormat || outputFormat));
+  const mimeType = String(data.mimeType || "").trim() || resolveMimeType(null, declaredFormat);
+
+  const audioData = String(data.audioData || "").trim();
+  if (audioData) {
+    const asDataUri = audioData.startsWith("data:") ? audioData : dataUriFromBuffer(Buffer.from(audioData, "base64"), mimeType);
+    return {
+      audioData: asDataUri,
+      providerUsed: "cosyvoice3",
+      mimeType,
+      outputFormat: declaredFormat,
+    };
+  }
+
+  const audioBase64 = String(data.audioBase64 || "").trim();
+  if (!audioBase64) {
+    throw new Error("Queue response has no audio payload.");
+  }
+
+  return {
+    audioData: dataUriFromBuffer(Buffer.from(audioBase64, "base64"), mimeType),
+    providerUsed: "cosyvoice3",
+    mimeType,
+    outputFormat: declaredFormat,
+  };
+}
+
+async function submitRunpodQueueJob(input: Record<string, unknown>): Promise<string> {
+  const response = await fetchWithTimeout(
+    buildRunpodQueueRunUrl(),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildRunpodAuthHeaders(),
+      },
+      body: JSON.stringify({ input }),
+    },
+    COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
+  );
+
+  const rawBody = await response.text();
+  const requestId = response.headers.get("x-request-id") || response.headers.get("x-runpod-request-id");
+  const detailSuffix = requestId ? ` [request-id=${requestId}]` : "";
+
+  if (!response.ok) {
+    const body = rawBody.trim() || "<empty>";
+    if (response.status === 401) {
+      const authHint =
+        "Check COSYVOICE_RUNPOD_API_KEY (RunPod account API key with endpoint access). " +
+        "Queue endpoint auth is validated at RunPod edge.";
+      throw new Error(`RunPod queue submit failed (401): ${body}${detailSuffix}. ${authHint}`);
+    }
+    throw new Error(`RunPod queue submit failed (${response.status}): ${body}${detailSuffix}`);
+  }
+
+  let payload: RunpodQueueJobResponse;
+  try {
+    payload = JSON.parse(rawBody) as RunpodQueueJobResponse;
+  } catch {
+    throw new Error(`RunPod queue submit returned invalid JSON: ${rawBody.slice(0, 500)}`);
+  }
+
+  const jobId = String(payload.id || "").trim();
+  if (!jobId) {
+    throw new Error("RunPod queue submit returned no job id.");
+  }
+  return jobId;
+}
+
+async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < COSYVOICE_RUNPOD_TIMEOUT_MS) {
+    const response = await fetchWithTimeout(
+      buildRunpodQueueStatusUrl(jobId),
+      {
+        method: "GET",
+        headers: buildRunpodAuthHeaders(),
+      },
+      COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
+    );
+
+    const rawBody = await response.text();
+    if (!response.ok) {
+      throw new Error(`RunPod queue status failed (${response.status}): ${(rawBody || "").trim() || "<empty>"}`);
+    }
+
+    let payload: RunpodQueueJobResponse;
+    try {
+      payload = JSON.parse(rawBody) as RunpodQueueJobResponse;
+    } catch {
+      throw new Error(`RunPod queue status returned invalid JSON: ${rawBody.slice(0, 500)}`);
+    }
+
+    const status = parseRunpodQueueStatus(payload.status);
+    if (status === "COMPLETED") {
+      return payload.output;
+    }
+    if (["FAILED", "CANCELLED", "TIMED_OUT", "ERROR"].includes(status)) {
+      throw new Error(`RunPod queue job ${status}: ${parseRunpodQueueFailure(payload)}`);
+    }
+
+    await delay(COSYVOICE_RUNPOD_QUEUE_POLL_MS);
+  }
+
+  throw new Error(
+    `RunPod queue job timed out after ${Math.round(COSYVOICE_RUNPOD_TIMEOUT_MS / 1000)}s (job_id=${jobId})`
+  );
+}
+
+async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse> {
+  const text = (req.text || "").trim();
+  if (!text) {
+    throw APIError.invalidArgument("Text is required.");
+  }
+
+  const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
+  const promptText = (req.promptText || COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+  const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
+  const instructText = (req.instructText || "").trim();
+  const speaker = (req.speaker || "").trim();
+  const referenceAudio = await resolveReferenceAudio(req);
+
+  const input: Record<string, unknown> = {
+    action: "tts",
+    text,
+    output_format: outputFormat,
+  };
+  if (promptText) input.prompt_text = promptText;
+  if (emotion) input.emotion = emotion;
+  if (instructText) input.instruct_text = instructText;
+  if (speaker) input.speaker = speaker;
+  if (req.languageId?.trim()) input.language_id = req.languageId.trim();
+  if (req.model?.trim()) input.model = req.model.trim();
+
+  if (referenceAudio) {
+    input.reference_audio_base64 = referenceAudio.buffer.toString("base64");
+    input.reference_audio_content_type = referenceAudio.contentType;
+    input.reference_audio_filename = referenceAudio.filename;
+  }
+
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= COSYVOICE_RUNPOD_MAX_RETRIES; attempt++) {
+    try {
+      const jobId = await submitRunpodQueueJob(input);
+      const output = await waitForRunpodQueueJob(jobId);
+      markRunpodHealthyNow();
+      return parseQueueTtsOutput(output, outputFormat);
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+
+      const message = getErrorMessage(error);
+      lastError = new Error(message);
+      const retryable =
+        attempt < COSYVOICE_RUNPOD_MAX_RETRIES &&
+        (isTransientFetchError(error) || isRetryableQueueError(message));
+
+      if (!retryable) {
+        throw error;
+      }
+
+      const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
+      log.warn(
+        `RunPod queue request failed (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`
+      );
+      await delay(backoffMs);
+    }
+  }
+
+  throw new Error(lastError?.message || "RunPod queue request failed after all retries.");
+}
+
+async function runpodQueueVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
+  const jobId = await submitRunpodQueueJob({ action: "voices" });
+  const output = (await waitForRunpodQueueJob(jobId)) as {
+    availableSpeakers?: unknown;
+    defaultReferenceAvailable?: unknown;
+    modelLoaded?: unknown;
+  } | null;
+
+  const available = Array.isArray(output?.availableSpeakers)
+    ? output!.availableSpeakers
+        .map((value) => String(value || "").trim())
+        .filter((value) => value.length > 0)
+    : [];
+
+  return {
+    availableSpeakers: available,
+    defaultSpeaker: "",
+    defaultReferenceAvailable: Boolean(output?.defaultReferenceAvailable),
+    modelLoaded: Boolean(output?.modelLoaded),
+  };
+}
+
 async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse> {
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
+    return await runpodQueueTtsRequest(req);
+  }
+
   if (!COSYVOICE_RUNPOD_API_URL) {
     throw APIError.failedPrecondition(
       "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
@@ -615,7 +943,8 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         if (attempt < COSYVOICE_RUNPOD_MAX_RETRIES && retryable) {
           const shouldWarmup =
             isLikelyRunpodNoWorker(response.status, errTextRaw) ||
-            isLikelyInfraBusyStatus(response.status, errTextRaw);
+            isLikelyInfraBusyStatus(response.status, errTextRaw) ||
+            isLikelyGatewayHostError(response.status, errTextRaw);
 
           let warmed = false;
           if (shouldWarmup) {
@@ -657,6 +986,14 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           throw new Error(
             "RunPod CosyVoice API failed (400 <empty>). This often means worker cold-start/busy on Load Balancer endpoints. " +
               "Reduce parallel calls (COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS=1), keep Max workers >= 1, or use Queue endpoint."
+          );
+        }
+        if (isLikelyGatewayHostError(response.status, errTextRaw)) {
+          throw new Error(
+            `RunPod CosyVoice API failed (${response.status} gateway). ` +
+              "Upstream worker was unavailable/crashed during request. " +
+              "On slower GPUs this happens more often with LB endpoints. " +
+              "Use Queue endpoint, or keep at least one active worker while generating, or increase Max workers."
           );
         }
 
@@ -761,6 +1098,10 @@ async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
     throw APIError.failedPrecondition(
       "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
     );
+  }
+
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
+    return await runpodQueueVoicesRequest();
   }
 
   if (needsRunpodPrewarm()) {

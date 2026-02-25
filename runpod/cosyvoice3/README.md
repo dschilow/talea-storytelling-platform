@@ -1,9 +1,8 @@
 # RunPod Serverless Setup (CosyVoice 3 + Emotion)
 
-This setup is prepared for **RunPod Serverless Load Balancer** (scale-to-zero, starts only on demand).
-
-Backend in this repo already calls:
-- `POST <COSYVOICE_RUNPOD_API_URL>/v1/tts`
+This setup supports both:
+- **RunPod Serverless Load Balancer** (HTTP `/v1/tts`)
+- **RunPod Serverless Queue** (`/run` + `/status/{id}`)
 
 ## A) Commit these files first
 
@@ -19,7 +18,9 @@ Important: if RunPod build logs still show `torch==2.5.1`, you are building an o
 ## B) Create RunPod Serverless endpoint
 
 1. Open RunPod -> `Serverless` -> `Create Endpoint`.
-2. Choose **Load Balancer** endpoint type.
+2. Choose endpoint type:
+   - **Load Balancer** -> set `COSYVOICE_WORKER_MODE=http`
+   - **Queue based** -> set `COSYVOICE_WORKER_MODE=queue`
 3. Source: your GitHub repo.
 4. Select repo + branch.
 5. Dockerfile path: `runpod/cosyvoice3/Dockerfile`.
@@ -42,6 +43,7 @@ COSYVOICE_MAX_CONCURRENT=1
 COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
 COSYVOICE_HF_CACHE_DIR=/opt/hf-cache
 COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLOAD=1
+COSYVOICE_WORKER_MODE=http
 
 # Optional worker-internal auth layer:
 # If set, backend must send COSYVOICE_RUNPOD_WORKER_API_KEY (X-API-Key header).
@@ -82,6 +84,25 @@ COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS=1500
 COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS=30000
 COSYVOICE_DEFAULT_OUTPUT_FORMAT=wav
 ```
+
+Queue endpoint backend example:
+
+```env
+COSYVOICE_RUNPOD_ENDPOINT_MODE=queue
+COSYVOICE_RUNPOD_API_URL=https://api.runpod.ai/v2/<your-endpoint-id>
+COSYVOICE_RUNPOD_API_KEY=<your-runpod-api-key>
+COSYVOICE_RUNPOD_TIMEOUT_MS=1200000
+COSYVOICE_RUNPOD_MAX_RETRIES=3
+COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS=1500
+COSYVOICE_RUNPOD_QUEUE_POLL_MS=2000
+COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS=30000
+COSYVOICE_DEFAULT_OUTPUT_FORMAT=wav
+```
+
+Important:
+- For Queue mode, do **not** append `/run` in `COSYVOICE_RUNPOD_API_URL`.
+- Use only the base: `https://api.runpod.ai/v2/<endpoint-id>`.
+- `COSYVOICE_RUNPOD_TTS_PATH` is only relevant for Load Balancer mode.
 
 Restart backend after env changes.
 

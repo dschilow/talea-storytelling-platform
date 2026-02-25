@@ -313,21 +313,21 @@ def resolve_sft_speaker_id(cosyvoice: Any, requested_speaker: str) -> str:
 
 
 async def save_upload_to_temp_wav(reference_audio: UploadFile) -> str:
-    """Save an uploaded audio file to a temp WAV file and return the path.
-    CosyVoice needs a file path string, not a tensor.
-    """
+    """Save an uploaded audio file to a temp WAV file and return the path."""
     payload = await reference_audio.read()
     if not payload:
         raise HTTPException(status_code=400, detail="reference_audio is empty.")
+    return save_audio_bytes_to_temp_wav(payload, reference_audio.filename or "reference.wav")
 
-    suffix = Path(reference_audio.filename or "reference.wav").suffix.lower() or ".bin"
 
-    # Write original file
+def save_audio_bytes_to_temp_wav(payload: bytes, filename: str) -> str:
+    """Normalize raw audio bytes into a temp mono 16k WAV file path."""
+    suffix = Path(filename or "reference.wav").suffix.lower() or ".bin"
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(payload)
         tmp_path = tmp.name
 
-    # Always normalize upload to WAV (mono 16k) and return that path.
     wav_path = f"{tmp_path}.wav"
     try:
         audio = AudioSegment.from_file(tmp_path)
