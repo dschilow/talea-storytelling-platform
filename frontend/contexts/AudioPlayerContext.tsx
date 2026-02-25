@@ -6,7 +6,11 @@ import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import type { Chapter } from '../types/story';
 import type { TTSRequestOptions, TTSVoiceSettings } from '../types/ttsVoice';
-import { buildTTSRequestCacheSuffix, buildTTSRequestOptions } from '../types/ttsVoice';
+import {
+  buildTTSChunkCacheKey,
+  buildTTSRequestCacheSuffix,
+  buildTTSRequestOptions,
+} from '../types/ttsVoice';
 
 const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
 
@@ -233,9 +237,14 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setIsPlaylistActive(hydratedPlaylist.length > 0 && Boolean(parsed.isPlaylistActive));
 
       // Re-enqueue story chunks so cache/tts can restore playable URLs.
+      const restoreCacheSuffix = buildTTSRequestCacheSuffix();
       const toQueue = hydratedPlaylist
         .filter((item) => (item.type === 'story-chapter' || item.type === 'doku') && !item.audioUrl && item.sourceText)
-        .map((item) => ({ id: item.id, text: item.sourceText as string }));
+        .map((item) => ({
+          id: item.id,
+          text: item.sourceText as string,
+          cacheKey: buildTTSChunkCacheKey(item.id, item.sourceText as string, restoreCacheSuffix),
+        }));
 
       if (toQueue.length > 0) {
         enqueueRef.current(toQueue);
@@ -772,7 +781,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             id: chunkId,
             text: chunks[ci],
             request,
-            cacheKey: `${chunkId}::${cacheSuffix}`,
+            cacheKey: buildTTSChunkCacheKey(chunkId, chunks[ci], cacheSuffix),
             chapterId: chapterGroupId,
           });
         }
@@ -827,7 +836,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         id: `doku-${dokuId}-chunk${ci}`,
         text: chunk,
         request,
-        cacheKey: `doku-${dokuId}-chunk${ci}::${cacheSuffix}`,
+        cacheKey: buildTTSChunkCacheKey(`doku-${dokuId}-chunk${ci}`, chunk, cacheSuffix),
         chapterId: dokuGroupId,
       }));
 

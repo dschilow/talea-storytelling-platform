@@ -58,3 +58,17 @@ export function buildTTSRequestCacheSuffix(request?: TTSRequestOptions): string 
 
   return `voice-${speakerPart}-${promptPart}-${refPart}`;
 }
+
+function normalizeChunkTextForCache(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+export function buildTTSChunkCacheKey(
+  itemId: string,
+  chunkText: string,
+  cacheSuffix: string,
+): string {
+  const normalizedSuffix = cacheSuffix?.trim() || 'voice-default';
+  const textHash = hashString(normalizeChunkTextForCache(chunkText));
+  return `${itemId}:${normalizedSuffix}:text-${textHash}`;
+}

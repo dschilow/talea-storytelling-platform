@@ -822,7 +822,10 @@ async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
       throw new Error(`RunPod queue job ${status}: ${parseRunpodQueueFailure(payload)}`);
     }
 
-    await delay(COSYVOICE_RUNPOD_QUEUE_POLL_MS);
+    // Adaptive polling: poll fast (1s) during first 10s, then slow down
+    const elapsed = Date.now() - startedAt;
+    const pollMs = elapsed < 10_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
+    await delay(pollMs);
   }
 
   throw new Error(
@@ -988,7 +991,10 @@ async function runpodQueueTtsBatchRequest(
         if (["FAILED", "CANCELLED", "TIMED_OUT", "ERROR"].includes(status)) {
           throw new Error(`RunPod queue batch job ${status}: ${parseRunpodQueueFailure(payload)}`);
         }
-        await delay(COSYVOICE_RUNPOD_QUEUE_POLL_MS);
+        // Adaptive polling: poll fast (1s) during first 10s, then slow down
+        const elapsed = Date.now() - startedAt;
+        const pollMs = elapsed < 10_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
+        await delay(pollMs);
       }
       if (output === undefined) {
         throw new Error(`RunPod batch job timed out after ${Math.round(batchTimeoutMs / 1000)}s`);
@@ -1396,9 +1402,9 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
       return { results: [] };
     }
 
-    // Safety-net: auto-chunk any oversized items (>380 chars) so the GPU
-    // gets small, efficient pieces (~55 words each, ~8-10s per chunk).
-    const MAX_ITEM_CHARS = 380;
+    // Safety-net: auto-chunk any oversized items (>280 chars) so the GPU
+    // gets small, efficient pieces (~40 words each, ~8-15s per chunk).
+    const MAX_ITEM_CHARS = 280;
     const expandedItems: { id: string; text: string }[] = [];
     // Track which original items were split so we can reassemble later
     const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
