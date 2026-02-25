@@ -69,12 +69,12 @@ MAX_CONCURRENT = env_int("COSYVOICE_MAX_CONCURRENT", 1)
 DEFAULT_SPEED = env_float("COSYVOICE_DEFAULT_SPEED", 1.0)
 
 EMOTION_TO_INSTRUCT = {
-    "neutral": "Please speak in a calm, clear, child-friendly neutral tone.",
-    "happy": "Please speak in a warm, joyful, playful tone suitable for children.",
-    "sad": "Please speak in a soft, gentle, slightly sad but safe tone.",
-    "excited": "Please speak with energetic excitement while staying clear and pleasant.",
-    "calm": "Please speak in a very calm, slow, reassuring tone.",
-    "serious": "Please speak in a focused, informative, serious educational tone.",
+    "neutral": "Sprich in einem ruhigen, klaren, kinderfreundlichen Ton.",
+    "happy": "Sprich in einem warmen, fröhlichen, spielerischen Ton für Kinder.",
+    "sad": "Sprich in einem sanften, leisen, leicht traurigen aber sicheren Ton.",
+    "excited": "Sprich mit energischer Begeisterung, aber bleib klar und angenehm.",
+    "calm": "Sprich in einem sehr ruhigen, langsamen, beruhigenden Ton.",
+    "serious": "Sprich in einem konzentrierten, informativen, ernsthaften Ton.",
 }
 
 # Lazy runtime state
@@ -253,8 +253,10 @@ def normalize_cv3_prompt_text(prompt_text: str) -> str:
     cleaned_prompt = re.sub(r"\s+", " ", (prompt_text or "")).strip()
     if not cleaned_prompt:
         return ""
-    # zero-shot expects transcript-like text; injecting system prompts here can
-    # degrade pronunciation and language stability.
+    # CosyVoice3 requires <|endofprompt|> token in prompt_text for zero_shot mode.
+    # Without it the LLM asserts and the request silently falls back to cross_lingual.
+    if "<|endofprompt|>" not in cleaned_prompt:
+        cleaned_prompt = f"<|endofprompt|>{cleaned_prompt}"
     return cleaned_prompt
 
 
@@ -485,6 +487,15 @@ def generate_audio(
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
     used_speaker: Optional[str] = None
 
+    # Diagnostic logging for mode selection debugging
+    print(
+        f"[tts] mode_decision: had_custom_ref={had_custom_reference}, "
+        f"DEFAULT_REF_TRANSCRIPT={bool(DEFAULT_REFERENCE_TRANSCRIPT)}, "
+        f"requested_prompt={bool(requested_prompt_text)}, "
+        f"final_prompt_len={len(final_prompt_text)}, "
+        f"final_instruct_len={len(final_instruct_text)}"
+    )
+
     # CosyVoice3 0.5B has NO built-in SFT speakers - all modes need reference audio.
     if reference_wav_path is None:
         # Check if model has SFT speakers (not the case for CosyVoice3 0.5B)
@@ -512,14 +523,15 @@ def generate_audio(
         reference_wav_path = ref_default_path
         print(f"[tts] Using default reference audio: {reference_wav_path}")
 
-    # CosyVoice expects a file path string, it loads the audio internally.
+    # CosyVoice3 requires <|endofprompt|> token in ALL text inputs.
+    # cross_lingual_text already has it; use it for all modes.
     # Choose inference mode based on available parameters.
     if final_instruct_text:
         print(f"[tts] Mode: instruct2, instruct={final_instruct_text[:60]}")
         waveform = infer_waveform_with_reference_path(
             "instruct2",
             lambda ref: cosyvoice.inference_instruct2(
-                safe_text, final_instruct_text, ref, stream=False, speed=speed,
+                cross_lingual_text, final_instruct_text, ref, stream=False, speed=speed,
             ),
             reference_wav_path,
         )
@@ -529,22 +541,35 @@ def generate_audio(
             waveform = infer_waveform_with_reference_path(
                 "zero_shot",
                 lambda ref: cosyvoice.inference_zero_shot(
-                    safe_text, final_prompt_text, ref, stream=False, speed=speed,
+                    cross_lingual_text, final_prompt_text, ref, stream=False, speed=speed,
                 ),
                 reference_wav_path,
             )
         except Exception as exc:
-            # Defensive fallback: if zero-shot is incompatible in a specific CosyVoice build,
-            # fall back to cross-lingual so requests still return playable audio.
             fallback_reason = trim_error_message(str(exc))
-            print(f"[tts] zero_shot fallback -> cross_lingual. reason={fallback_reason}")
-            waveform = infer_waveform_with_reference_path(
-                "cross_lingual_fallback",
-                lambda ref: cosyvoice.inference_cross_lingual(
-                    cross_lingual_text, ref, stream=False, speed=speed,
-                ),
-                reference_wav_path,
-            )
+            print(f"[tts] zero_shot failed: {fallback_reason}, trying instruct2 fallback")
+            # Fallback: instruct2 with German instruction (much better than cross_lingual)
+            try:
+                german_instruct = normalize_cv3_instruction(
+                    "Sprich in einem ruhigen, klaren, kinderfreundlichen Ton."
+                )
+                waveform = infer_waveform_with_reference_path(
+                    "instruct2_fallback",
+                    lambda ref: cosyvoice.inference_instruct2(
+                        cross_lingual_text, german_instruct, ref, stream=False, speed=speed,
+                    ),
+                    reference_wav_path,
+                )
+            except Exception as exc2:
+                instruct_reason = trim_error_message(str(exc2))
+                print(f"[tts] instruct2 fallback failed: {instruct_reason}, last resort: cross_lingual")
+                waveform = infer_waveform_with_reference_path(
+                    "cross_lingual_last_resort",
+                    lambda ref: cosyvoice.inference_cross_lingual(
+                        cross_lingual_text, ref, stream=False, speed=speed,
+                    ),
+                    reference_wav_path,
+                )
     else:
         # cross_lingual: clones voice without needing a transcript of the reference
         print(f"[tts] Mode: cross_lingual")

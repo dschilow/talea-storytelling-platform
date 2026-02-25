@@ -743,10 +743,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const sorted = [...chapters].sort((a, b) => a.order - b.order);
       const newItems: PlaylistItem[] = [];
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
-      const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string }> = [];
+      const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string; chapterId?: string }> = [];
 
       for (const chapter of sorted) {
         const chunks = splitTextIntoChunks(chapter.content);
+        const chapterGroupId = `story-${storyId}-ch${chapter.order}`;
         for (let ci = 0; ci < chunks.length; ci++) {
           const chunkId = `story-${storyId}-ch${chapter.order}-chunk${ci}`;
           // Always use chapter title — chunk numbering is internal only
@@ -772,6 +773,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             text: chunks[ci],
             request,
             cacheKey: `${chunkId}::${cacheSuffix}`,
+            chapterId: chapterGroupId,
           });
         }
       }
@@ -822,11 +824,13 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         dokuChunkOrder: ci,
         dokuTotalChunks: chunks.length,
       }));
+      const dokuGroupId = `doku-${dokuId}`;
       const queueItems = chunks.map((chunk, ci) => ({
         id: `doku-${dokuId}-chunk${ci}`,
         text: chunk,
         request,
         cacheKey: `doku-${dokuId}-chunk${ci}::${cacheSuffix}`,
+        chapterId: dokuGroupId,
       }));
 
       if (autoplay) {

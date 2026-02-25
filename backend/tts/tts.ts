@@ -66,6 +66,9 @@ const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = parsePositiveInt(
   3_600_000
 );
 const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
+const COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT = (
+  process.env.COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT || ""
+).trim();
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
   process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "wav"
 );
@@ -836,6 +839,7 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   const promptText = (
     req.promptText ||
     (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
     ""
   ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
@@ -896,6 +900,137 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   throw new Error(lastError?.message || "RunPod queue request failed after all retries.");
 }
 
+async function runpodQueueTtsBatchRequest(
+  req: GenerateSpeechBatchRequest
+): Promise<TTSBatchResultItem[]> {
+  const items = req.items || [];
+  if (items.length === 0) return [];
+
+  const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
+  const promptText = (
+    req.promptText ||
+    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
+    ""
+  ).trim();
+  const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
+  const instructText = (req.instructText || "").trim();
+  const speaker = (req.speaker || "").trim();
+
+  // Extract reference fields compatible with GenerateSpeechRequest
+  const refReq: GenerateSpeechRequest = {
+    text: "_batch_",
+    referenceAudioDataUrl: req.referenceAudioDataUrl,
+    referenceAudioUrl: req.referenceAudioUrl,
+  };
+  const includeBackendDefaultReference =
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(refReq);
+  const referenceAudio = await resolveReferenceAudio(refReq, includeBackendDefaultReference);
+
+  const texts = items
+    .filter((item) => (item.text || "").trim())
+    .map((item) => ({ id: item.id, text: (item.text || "").trim() }));
+
+  const emptyItems: TTSBatchResultItem[] = items
+    .filter((item) => !(item.text || "").trim())
+    .map((item) => ({ id: item.id, audio: null, error: "Text is required." }));
+
+  if (texts.length === 0) return emptyItems;
+
+  const input: Record<string, unknown> = {
+    action: "tts_batch",
+    texts,
+    output_format: outputFormat,
+  };
+  if (promptText) input.prompt_text = promptText;
+  if (emotion) input.emotion = emotion;
+  if (instructText) input.instruct_text = instructText;
+  if (speaker) input.speaker = speaker;
+  if (req.languageId?.trim()) input.language_id = req.languageId.trim();
+  if (req.model?.trim()) input.model = req.model.trim();
+
+  if (referenceAudio) {
+    input.reference_audio_base64 = referenceAudio.buffer.toString("base64");
+    input.reference_audio_content_type = referenceAudio.contentType;
+    input.reference_audio_filename = referenceAudio.filename;
+  }
+
+  // Longer timeout: ~30s per item + base overhead
+  const batchTimeoutMs = Math.max(
+    COSYVOICE_RUNPOD_TIMEOUT_MS,
+    texts.length * 30_000 + 60_000
+  );
+
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= COSYVOICE_RUNPOD_MAX_RETRIES; attempt++) {
+    try {
+      const jobId = await submitRunpodQueueJob(input);
+      // Use extended polling for batch jobs
+      const startedAt = Date.now();
+      let output: unknown = undefined;
+      while (Date.now() - startedAt < batchTimeoutMs) {
+        const response = await fetchWithTimeout(
+          buildRunpodQueueStatusUrl(jobId),
+          { method: "GET", headers: buildRunpodAuthHeaders() },
+          COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS
+        );
+        const rawBody = await response.text();
+        if (!response.ok) {
+          throw new Error(`RunPod queue status failed (${response.status}): ${(rawBody || "").trim()}`);
+        }
+        const payload = JSON.parse(rawBody) as RunpodQueueJobResponse;
+        const status = parseRunpodQueueStatus(payload.status);
+        if (status === "COMPLETED") {
+          output = payload.output;
+          break;
+        }
+        if (["FAILED", "CANCELLED", "TIMED_OUT", "ERROR"].includes(status)) {
+          throw new Error(`RunPod queue batch job ${status}: ${parseRunpodQueueFailure(payload)}`);
+        }
+        await delay(COSYVOICE_RUNPOD_QUEUE_POLL_MS);
+      }
+      if (output === undefined) {
+        throw new Error(`RunPod batch job timed out after ${Math.round(batchTimeoutMs / 1000)}s`);
+      }
+
+      markRunpodHealthyNow();
+
+      // Parse batch results
+      const batchOutput = output as { results?: unknown[] } | null;
+      const rawResults = Array.isArray(batchOutput?.results) ? batchOutput!.results : [];
+      const results: TTSBatchResultItem[] = rawResults.map((item: any) => {
+        const id = String(item?.id || "");
+        const error = item?.error ? String(item.error) : null;
+        if (error || !item?.audioBase64) {
+          return { id, audio: null, error: error || "No audio returned." };
+        }
+        const mimeType = String(item.mimeType || "").trim() || resolveMimeType(null, outputFormat);
+        const audioBase64 = String(item.audioBase64);
+        return {
+          id,
+          audio: dataUriFromBuffer(Buffer.from(audioBase64, "base64"), mimeType),
+          error: null,
+        };
+      });
+
+      return [...emptyItems, ...results];
+    } catch (error) {
+      if (isApiError(error)) throw error;
+      const message = getErrorMessage(error);
+      lastError = new Error(message);
+      const retryable =
+        attempt < COSYVOICE_RUNPOD_MAX_RETRIES &&
+        (isTransientFetchError(error) || isRetryableQueueError(message));
+      if (!retryable) throw error;
+      const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
+      log.warn(`RunPod batch request failed (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`);
+      await delay(backoffMs);
+    }
+  }
+
+  throw new Error(lastError?.message || "RunPod batch request failed after all retries.");
+}
+
 async function runpodQueueVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
   const jobId = await submitRunpodQueueJob({ action: "voices" });
   const output = (await waitForRunpodQueueJob(jobId)) as {
@@ -944,6 +1079,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const promptText = (
     req.promptText ||
     (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
     ""
   ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
@@ -1259,6 +1395,20 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
       return { results: [] };
     }
 
+    // Queue mode: send all items as a single RunPod job (real batch)
+    if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
+      try {
+        const results = await withRunpodSlot(() => runpodQueueTtsBatchRequest(req));
+        return { results };
+      } catch (error) {
+        if (isApiError(error)) throw error;
+        const message = getErrorMessage(error);
+        log.error(`TTS batch failed: ${message}`);
+        throw APIError.unavailable(`CosyVoice batch generation failed: ${message}`);
+      }
+    }
+
+    // Load balancer mode: sequential per-item requests (fallback)
     const results: TTSBatchResultItem[] = [];
 
     for (const item of req.items) {
