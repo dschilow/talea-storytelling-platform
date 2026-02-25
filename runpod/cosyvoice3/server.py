@@ -3,6 +3,7 @@ import asyncio
 import io
 import os
 import re
+import shutil
 import threading
 import tempfile
 from pathlib import Path
@@ -42,6 +43,13 @@ def env_float(name: str, default: float) -> float:
 
 MODEL_ID = os.getenv("COSYVOICE_MODEL_ID", "FunAudioLLM/Fun-CosyVoice3-0.5B-2512").strip()
 MODEL_DIR = os.getenv("COSYVOICE_MODEL_DIR", "/opt/models/Fun-CosyVoice3-0.5B-2512").strip()
+HF_CACHE_DIR = os.getenv("COSYVOICE_HF_CACHE_DIR", os.getenv("HF_HOME", "/opt/hf-cache")).strip()
+CLEAR_HF_CACHE_AFTER_DOWNLOAD = os.getenv("COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLOAD", "1").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 API_KEY = os.getenv("COSYVOICE_API_KEY", "").strip()
 DEFAULT_PROMPT_TEXT = os.getenv("COSYVOICE_DEFAULT_PROMPT_TEXT", "").strip()
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
@@ -74,10 +82,34 @@ _default_ref_wav_path: Optional[str] = None
 _default_ref_wav_lock = threading.Lock()
 
 
+def maybe_clear_hf_cache() -> None:
+    if not CLEAR_HF_CACHE_AFTER_DOWNLOAD:
+        return
+    if not HF_CACHE_DIR:
+        return
+
+    cache_path = Path(HF_CACHE_DIR)
+    model_path = Path(MODEL_DIR)
+    if not cache_path.exists():
+        return
+
+    # Never remove model directory by mistake if env values are misconfigured.
+    if cache_path.resolve() == model_path.resolve():
+        print(f"[startup] Skip HF cache cleanup because cache==model_dir: {cache_path}")
+        return
+
+    try:
+        shutil.rmtree(cache_path, ignore_errors=True)
+        print(f"[startup] Cleared HF cache dir: {cache_path}")
+    except Exception as exc:
+        print(f"[startup] Failed to clear HF cache dir {cache_path}: {exc}")
+
+
 def ensure_model_dir() -> str:
     path = Path(MODEL_DIR)
     if path.exists() and any(path.iterdir()):
         print(f"[startup] Using existing model dir: {path}")
+        maybe_clear_hf_cache()
         return str(path)
 
     print(f"[startup] Downloading model {MODEL_ID} into {path} ...")
@@ -85,10 +117,12 @@ def ensure_model_dir() -> str:
     snapshot_download(
         repo_id=MODEL_ID,
         local_dir=str(path),
+        cache_dir=HF_CACHE_DIR if HF_CACHE_DIR else None,
         local_dir_use_symlinks=False,
         resume_download=True,
     )
     print("[startup] Model download finished.")
+    maybe_clear_hf_cache()
     return str(path)
 
 

@@ -395,6 +395,14 @@ function parsePingDetail(bodyText: string): string {
   }
 }
 
+function isFatalRunpodStorageIssue(message: string): boolean {
+  const normalized = (message || "").toLowerCase();
+  return (
+    normalized.includes("no space left on device") ||
+    normalized.includes("file reconstruction error")
+  );
+}
+
 function markRunpodHealthyNow(): void {
   runpodLastHealthyAtMs = Date.now();
 }
@@ -506,6 +514,12 @@ async function maybeWarmupRunpodWorker(reason: string): Promise<boolean> {
     return true;
   } catch (error) {
     const message = getErrorMessage(error);
+    if (isFatalRunpodStorageIssue(message)) {
+      throw APIError.failedPrecondition(
+        "RunPod worker storage is full (`No space left on device`). " +
+          "Increase endpoint container disk (recommended 40-50GB), redeploy workers, and retry."
+      );
+    }
     log.warn(`RunPod warmup failed (${reason}): ${message}`);
     return false;
   }

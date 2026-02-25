@@ -25,7 +25,7 @@ Important: if RunPod build logs still show `torch==2.5.1`, you are building an o
 5. Dockerfile path: `runpod/cosyvoice3/Dockerfile`.
 6. In `Container configuration`:
    - `Expose HTTP ports`: `80`
-   - `Container disk`: `20 GB` (good start for this model)
+   - `Container disk`: `40-50 GB` (recommended for stable cold starts)
 7. Worker settings:
    - `Active workers`: `0` (this is scale-to-zero)
    - `Max workers`: `1` (start small)
@@ -40,6 +40,8 @@ COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512
 COSYVOICE_INFERENCE_TIMEOUT_SEC=1200
 COSYVOICE_MAX_CONCURRENT=1
 COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
+COSYVOICE_HF_CACHE_DIR=/opt/hf-cache
+COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLOAD=1
 
 # Optional worker-internal auth layer:
 # If set, backend must send COSYVOICE_RUNPOD_WORKER_API_KEY (X-API-Key header).
@@ -60,6 +62,7 @@ Note on image size / build quota:
 - Dockerfile now defaults to `PREFETCH_MODEL=0` to avoid embedding the full model in the image layer.
 - The model is downloaded on worker startup into `/opt/models` if missing.
 - If you explicitly want prefetch in image build (larger image), set build arg `PREFETCH_MODEL=1`.
+- If logs show `No space left on device`, increase container disk first, then redeploy workers.
 
 ## C) Connect backend to RunPod
 
