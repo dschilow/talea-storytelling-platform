@@ -742,150 +742,50 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const sorted = [...chapters].sort((a, b) => a.order - b.order);
 
-      // Helper to build playlist items from chapters with optional pre-cached audio
-      const buildPlaylistItems = (
-        cachedAudioMap?: Map<number, string>,
-      ): { newItems: PlaylistItem[]; queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string; chapterId?: string }> } => {
-        const newItems: PlaylistItem[] = [];
-        const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
-        const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string; chapterId?: string }> = [];
+      const newItems: PlaylistItem[] = [];
+      const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
+      const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string; chapterId?: string }> = [];
 
-        for (const chapter of sorted) {
-          const cachedAudio = cachedAudioMap?.get(chapter.order);
-          const chunks = splitTextIntoChunks(chapter.content);
-          const chapterGroupId = `story-${storyId}-ch${chapter.order}`;
+      for (const chapter of sorted) {
+        const chunks = splitTextIntoChunks(chapter.content);
+        const chapterGroupId = `story-${storyId}-ch${chapter.order}`;
 
-          // If we have pre-cached audio for this chapter, use a single item
-          if (cachedAudio && chunks.length > 0) {
-            const chunkId = `story-${storyId}-ch${chapter.order}-chunk0`;
-            const blob = fetch(cachedAudio).then((r) => r.blob()).then((b) => URL.createObjectURL(b));
-            newItems.push({
-              id: chunkId,
-              trackId: storyId,
-              title: chapter.title,
-              description: storyTitle,
-              coverImageUrl,
-              type: 'story-chapter',
-              sourceText: chapter.content,
-              conversionStatus: 'ready',
-              parentStoryId: storyId,
-              parentStoryTitle: storyTitle,
-              chapterOrder: chapter.order,
-              chapterTitle: chapter.title,
-            });
-            // Resolve the blob URL and deliver it
-            blob.then((blobUrl) => {
-              trackBlobUrl(blobUrl);
-              playlistRef.current = playlistRef.current.map((item) =>
-                item.id === chunkId ? { ...item, audioUrl: blobUrl, conversionStatus: 'ready' as const } : item,
-              );
-              setPlaylist(playlistRef.current);
-              // If waiting for this chunk, play it
-              const waitingItem = playlistRef.current[currentIndexRef.current];
-              if (waitingItem?.id === chunkId && waitingForConversionRef.current) {
-                setWaitingForConversion(false);
-                playItemAsTrack({ ...waitingItem, audioUrl: blobUrl });
-              }
-            }).catch(() => {
-              // Fallback: enqueue for TTS generation
-              enqueue([{
-                id: chunkId,
-                text: chapter.content,
-                request: buildQueueVoicePayload(voiceSettings).request,
-                cacheKey: `${chunkId}::${cacheSuffix}`,
-                chapterId: chapterGroupId,
-              }]);
-            });
-            continue;
-          }
+        for (let ci = 0; ci < chunks.length; ci++) {
+          const chunkId = `story-${storyId}-ch${chapter.order}-chunk${ci}`;
 
-          // No cached audio — split into chunks and enqueue for TTS
-          for (let ci = 0; ci < chunks.length; ci++) {
-            const chunkId = `story-${storyId}-ch${chapter.order}-chunk${ci}`;
-            const chunkTitle = chapter.title;
-
-            newItems.push({
-              id: chunkId,
-              trackId: storyId,
-              title: chunkTitle,
-              description: storyTitle,
-              coverImageUrl,
-              type: 'story-chapter',
-              sourceText: chunks[ci],
-              conversionStatus: 'pending',
-              parentStoryId: storyId,
-              parentStoryTitle: storyTitle,
-              chapterOrder: chapter.order,
-              chapterTitle: chapter.title,
-            });
-
-            queueItems.push({
-              id: chunkId,
-              text: chunks[ci],
-              request: buildQueueVoicePayload(voiceSettings).request,
-              cacheKey: `${chunkId}::${cacheSuffix}`,
-              chapterId: chapterGroupId,
-            });
-          }
-        }
-
-        return { newItems, queueItems };
-      };
-
-      // Try to fetch pre-cached audio from server first
-      const baseClient = (backend as any).story?.baseClient || (backend as any).baseClient;
-      if (baseClient) {
-        baseClient
-          .callTypedAPI(`/story/audio/${storyId}`, { method: 'GET' })
-          .then(async (resp: Response) => {
-            const data = JSON.parse(await resp.text()) as {
-              chapters?: Array<{ chapterOrder: number; audioData: string | null }>;
-              complete?: boolean;
-            };
-            const cachedMap = new Map<number, string>();
-            if (data.chapters) {
-              for (const ch of data.chapters) {
-                if (ch.audioData) {
-                  cachedMap.set(ch.chapterOrder, ch.audioData);
-                }
-              }
-            }
-
-            const { newItems, queueItems } = buildPlaylistItems(
-              cachedMap.size > 0 ? cachedMap : undefined,
-            );
-
-            if (autoplay) {
-              addAndPlay(newItems);
-            } else {
-              addToPlaylist(newItems);
-            }
-            if (queueItems.length > 0) {
-              enqueue(queueItems);
-            }
-          })
-          .catch(() => {
-            // Server audio not available — fall back to full TTS queue
-            const { newItems, queueItems } = buildPlaylistItems();
-            if (autoplay) {
-              addAndPlay(newItems);
-            } else {
-              addToPlaylist(newItems);
-            }
-            enqueue(queueItems);
+          newItems.push({
+            id: chunkId,
+            trackId: storyId,
+            title: chapter.title,
+            description: storyTitle,
+            coverImageUrl,
+            type: 'story-chapter',
+            sourceText: chunks[ci],
+            conversionStatus: 'pending',
+            parentStoryId: storyId,
+            parentStoryTitle: storyTitle,
+            chapterOrder: chapter.order,
+            chapterTitle: chapter.title,
           });
-      } else {
-        // No base client available — standard flow
-        const { newItems, queueItems } = buildPlaylistItems();
-        if (autoplay) {
-          addAndPlay(newItems);
-        } else {
-          addToPlaylist(newItems);
+
+          queueItems.push({
+            id: chunkId,
+            text: chunks[ci],
+            request,
+            cacheKey: `${chunkId}::${cacheSuffix}`,
+            chapterId: chapterGroupId,
+          });
         }
-        enqueue(queueItems);
       }
+
+      if (autoplay) {
+        addAndPlay(newItems);
+      } else {
+        addToPlaylist(newItems);
+      }
+      enqueue(queueItems);
     },
-    [addToPlaylist, addAndPlay, enqueue, buildQueueVoicePayload, backend, trackBlobUrl, playItemAsTrack],
+    [addToPlaylist, addAndPlay, enqueue, buildQueueVoicePayload],
   );
 
   // ── Start doku conversion ───────────────────────────────────────

@@ -1,12 +1,11 @@
 /**
- * Chunk sizing: balanced for CosyVoice3 0.5B quality vs. overhead.
- * ~100 words per chunk → ~15-25 sec audio → reliable single-shot inference.
- * This keeps audio quality high (no garbling/word-skipping) while reducing
- * overhead compared to very small chunks (55 words).
- * Typical children-story chapters (200-500 words) split into 2-5 chunks.
+ * Chunk sizing tuned for CosyVoice3 0.5B quality.
+ * ~55 words per chunk → ~10-20 sec audio → reliable single-shot inference.
+ * Keeps audio high quality (no garbling/word-skipping).
+ * Typical children-story chapters (200-500 words) split into 4-9 chunks.
  */
-const TARGET_WORDS = 100;
-const MAX_CHARS = 700;
+const TARGET_WORDS = 55;
+const MAX_CHARS = 380;
 
 /**
  * Split text into chunks at natural boundaries.
