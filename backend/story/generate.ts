@@ -955,6 +955,13 @@ export const generate = api<GenerateStoryRequest, Story>(
         chapters: story.chapters?.length,
         status: story.status,
       });
+
+      // Fire-and-forget: pre-generate TTS audio for all chapters
+      // This runs in the background so the user gets the story response immediately
+      triggerAudioPreGeneration(id, auth?.userID || "").catch((err) => {
+        console.warn("[story.generate] Background audio pre-generation failed:", err);
+      });
+
       return story;
 
     } catch (error) {
@@ -1092,6 +1099,80 @@ function parseJsonObject(value: string | null): any {
     return JSON.parse(value);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Fire-and-forget background TTS pre-generation for all story chapters.
+ * This is called after story generation completes so that when the user
+ * hits "play", cached audio is already available — no RunPod GPU time needed.
+ */
+async function triggerAudioPreGeneration(storyId: string, userId: string): Promise<void> {
+  try {
+    const { preGenerateStoryAudio } = await import("./audio-cache");
+    // We cannot easily impersonate the user in a service-to-service call,
+    // so we call the internal function directly instead of going through the API.
+    const chapters = await storyDB.queryAll<{
+      id: string;
+      content: string;
+      chapter_order: number;
+      audio_data: string | null;
+    }>`
+      SELECT id, content, chapter_order, audio_data
+      FROM chapters
+      WHERE story_id = ${storyId}
+      ORDER BY chapter_order
+    `;
+
+    const needsGeneration = chapters.filter((ch) => !ch.audio_data);
+    if (needsGeneration.length === 0) {
+      console.log(`[story.generate] Audio already cached for all ${chapters.length} chapters`);
+      return;
+    }
+
+    console.log(
+      `[story.generate] Pre-generating audio for ${needsGeneration.length} chapters (background)...`
+    );
+
+    // Import tts service and call batch generation directly
+    const { tts } = await import("~encore/clients");
+    const batchResult = await tts.generateSpeechBatch({
+      items: needsGeneration.map((ch) => ({
+        id: ch.id,
+        text: ch.content.trim(),
+      })),
+      outputFormat: "mp3",
+    });
+
+    let succeeded = 0;
+    const resultMap = new Map(
+      (batchResult.results || []).map((r) => [r.id, r])
+    );
+
+    for (const ch of needsGeneration) {
+      const result = resultMap.get(ch.id);
+      if (result?.audio && !result.error) {
+        try {
+          await storyDB.exec`
+            UPDATE chapters
+            SET audio_data = ${result.audio},
+                audio_mime_type = 'audio/mpeg',
+                audio_generated_at = CURRENT_TIMESTAMP,
+                audio_voice_hash = 'default'
+            WHERE id = ${ch.id}
+          `;
+          succeeded++;
+        } catch (dbErr) {
+          console.warn(`[story.generate] Audio cache DB write failed for chapter ${ch.id}:`, dbErr);
+        }
+      }
+    }
+
+    console.log(
+      `[story.generate] Background audio pre-generation: ${succeeded}/${needsGeneration.length} chapters cached`
+    );
+  } catch (err) {
+    console.warn("[story.generate] Background audio pre-generation error:", err);
   }
 }
 

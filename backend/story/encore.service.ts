@@ -14,3 +14,4 @@ import "./analyze-phase-logs";
 import "./debug-last-error";
 import "./debug-recent-stories";
 import "./proxy-image";
+import "./audio-cache";

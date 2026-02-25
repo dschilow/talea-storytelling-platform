@@ -1,11 +1,16 @@
-const TARGET_WORDS = 55;
-const MAX_CHARS = 380;
+/**
+ * Chunk sizing: set very high to keep entire chapters as single chunks.
+ * CosyVoice3 0.5B handles 500+ word texts fine.
+ * Typical children-story chapters are 200-500 words.
+ * This eliminates per-chunk inference overhead and reduces total GPU time.
+ */
+const TARGET_WORDS = 1200;
+const MAX_CHARS = 8000;
 
 /**
- * Split text into smaller chunks at natural boundaries.
- * Chunks are constrained by BOTH words and characters to keep
- * per-request TTS latency low and start playback earlier,
- * while the rest converts in the background.
+ * Split text into chunks at natural boundaries.
+ * With TARGET_WORDS=1200 / MAX_CHARS=8000, most story chapters
+ * stay as a single chunk — only extremely long chapters get split.
  *
  * Rules:
  * - Never split in the middle of dialogue (between opening/closing quotes)

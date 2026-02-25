@@ -70,7 +70,7 @@ const COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT = (
   process.env.COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT || ""
 ).trim();
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
-  process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "wav"
+  process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "mp3"
 );
 
 export type TTSProvider = "cosyvoice3" | "piper" | "chatterbox";
