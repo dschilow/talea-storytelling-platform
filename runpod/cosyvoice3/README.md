@@ -44,6 +44,8 @@ COSYVOICE_SYSTEM_PROMPT=You are a helpful assistant.
 COSYVOICE_HF_CACHE_DIR=/opt/hf-cache
 COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLOAD=1
 COSYVOICE_WORKER_MODE=http
+COSYVOICE_USE_DEFAULT_PROMPT_TEXT=0
+COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS=80
 
 # Optional worker-internal auth layer:
 # If set, backend must send COSYVOICE_RUNPOD_WORKER_API_KEY (X-API-Key header).
@@ -57,6 +59,11 @@ COSYVOICE_DEFAULT_SPK_ID=
 COSYVOICE_DEFAULT_PROMPT_TEXT=Das ist meine Referenzstimme fuer Talea.
 COSYVOICE_DEFAULT_REF_WAV_URL=https://<public-url>/narrator_sample.wav
 ```
+
+Quality note:
+- Set `COSYVOICE_USE_DEFAULT_PROMPT_TEXT=0` for more robust German narration in chunked generation.
+- This uses cross-lingual reference mode by default (usually more stable across many short segments).
+- Enable `COSYVOICE_USE_DEFAULT_PROMPT_TEXT=1` only if your prompt text exactly matches the reference audio transcript.
 
 10. Click `Deploy Endpoint`.
 
@@ -97,6 +104,7 @@ COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS=1500
 COSYVOICE_RUNPOD_QUEUE_POLL_MS=2000
 COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS=30000
 COSYVOICE_DEFAULT_OUTPUT_FORMAT=wav
+COSYVOICE_USE_DEFAULT_PROMPT_TEXT=0
 ```
 
 Important:

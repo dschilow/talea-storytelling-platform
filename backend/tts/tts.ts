@@ -50,6 +50,10 @@ const COSYVOICE_RUNPOD_QUEUE_POLL_MS = parsePositiveInt(
   2_000
 );
 const COSYVOICE_DEFAULT_PROMPT_TEXT = (process.env.COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+const COSYVOICE_USE_DEFAULT_PROMPT_TEXT = parseBoolean(
+  process.env.COSYVOICE_USE_DEFAULT_PROMPT_TEXT,
+  false
+);
 const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = (
   process.env.COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL || ""
 ).trim();
@@ -770,7 +774,11 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   }
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
-  const promptText = (req.promptText || COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+  const promptText = (
+    req.promptText ||
+    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    ""
+  ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
@@ -872,7 +880,11 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   }
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
-  const promptText = (req.promptText || COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
+  const promptText = (
+    req.promptText ||
+    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    ""
+  ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();

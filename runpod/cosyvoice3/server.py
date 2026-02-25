@@ -52,6 +52,13 @@ CLEAR_HF_CACHE_AFTER_DOWNLOAD = os.getenv("COSYVOICE_CLEAR_HF_CACHE_AFTER_DOWNLO
 }
 API_KEY = os.getenv("COSYVOICE_API_KEY", "").strip()
 DEFAULT_PROMPT_TEXT = os.getenv("COSYVOICE_DEFAULT_PROMPT_TEXT", "").strip()
+USE_DEFAULT_PROMPT_FALLBACK = os.getenv("COSYVOICE_USE_DEFAULT_PROMPT_TEXT", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+ZERO_SHOT_MIN_TEXT_CHARS = env_int("COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS", 80)
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
 DEFAULT_REF_WAV_URL = os.getenv("COSYVOICE_DEFAULT_REF_WAV_URL", "").strip()
 DEFAULT_SPK_ID = os.getenv("COSYVOICE_DEFAULT_SPK_ID", "").strip()
@@ -439,12 +446,22 @@ def generate_audio(
     #   A mismatched transcript often produces garbled output.
     # - For built-in default reference we can safely use DEFAULT_PROMPT_TEXT fallback.
     requested_prompt_text = (prompt_text or "").strip()
+    normalized_text_len = len(re.sub(r"\s+", "", text or ""))
     had_custom_reference = reference_wav_path is not None
     final_prompt_text = ""
     if requested_prompt_text:
         final_prompt_text = normalize_cv3_prompt_text(requested_prompt_text)
-    elif not had_custom_reference:
+    elif not had_custom_reference and USE_DEFAULT_PROMPT_FALLBACK:
         final_prompt_text = normalize_cv3_prompt_text(DEFAULT_PROMPT_TEXT or "")
+
+    # Zero-shot is sensitive for short chunks and can become garbled.
+    # Prefer cross-lingual for short segments to keep narration intelligible.
+    if final_prompt_text and normalized_text_len < ZERO_SHOT_MIN_TEXT_CHARS:
+        print(
+            f"[tts] short segment ({normalized_text_len} chars) -> "
+            "skip zero_shot prompt and use cross_lingual for stability"
+        )
+        final_prompt_text = ""
     final_instruct_text = resolve_instruct_text(instruct_text, emotion)
     used_speaker: Optional[str] = None
 
