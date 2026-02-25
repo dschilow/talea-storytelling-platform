@@ -38,13 +38,13 @@ jobs:
         continue-on-error: true
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.0.29"
+          bun-version: "1.2.21"
 
       - name: Setup Bun (fallback installer)
         if: steps.setup-bun.outcome == 'failure'
         run: |
           echo "⚠️ setup-bun failed, using fallback installer"
-          curl -fsSL https://bun.sh/install | bash -s -- bun-v1.0.29
+          curl -fsSL https://bun.sh/install | bash -s -- bun-v1.2.21
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
 
       - name: Verify Bun
