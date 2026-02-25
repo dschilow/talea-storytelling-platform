@@ -261,17 +261,15 @@ def normalize_cv3_prompt_text(prompt_text: str) -> str:
 
 def normalize_cv3_text_for_cross_lingual(text: str) -> str:
     """CosyVoice3 cross-lingual path expects <|endofprompt|> in text or prompt.
-    cross_lingual internally calls zero_shot frontend with empty prompt, so we
-    inject the marker into text when missing.
+    Keep this minimal to avoid polluting spoken content with extra prompt text.
     """
-    cleaned_text = (text or "").strip()
+    cleaned_text = re.sub(r"\s+", " ", (text or "")).strip()
     if not cleaned_text:
         return ""
     if "<|endofprompt|>" in cleaned_text:
         return cleaned_text
 
-    system_prompt = (DEFAULT_SYSTEM_PROMPT or "You are a helpful assistant.").strip()
-    return f"{system_prompt}<|endofprompt|>{cleaned_text}"
+    return f"<|endofprompt|>{cleaned_text}"
 
 
 def normalize_cv3_instruction(instruct_text: str) -> str:
