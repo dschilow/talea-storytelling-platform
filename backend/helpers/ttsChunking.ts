@@ -1,10 +1,14 @@
 /**
  * Server-side text chunking for TTS.
  * Mirrors frontend/utils/ttsChunking.ts.
+ *
+ * IMPORTANT: Never split in the middle of a sentence. CosyVoice will not speak
+ * incomplete sentences properly, causing "missing sentences" in playback.
+ * Prefer slightly oversized chunks over mid-sentence splits.
  */
 
 const TARGET_WORDS = 40;
-const MAX_CHARS = 280;
+const MAX_CHARS = 350;
 
 export function splitTextIntoChunks(text: string): string[] {
   const trimmed = text.trim();
@@ -78,13 +82,13 @@ export function splitTextIntoChunks(text: string): string[] {
   const rebuilt = normalizedChunks.join(" ");
 
   if (rebuilt !== normalized) {
-    return fallbackSplitByWords(normalized);
+    return fallbackSplitBySentences(normalized);
   }
 
   const boundedChunks = enforceChunkLimits(normalizedChunks);
   const boundedRebuilt = boundedChunks.join(" ");
   if (boundedRebuilt !== normalized) {
-    return fallbackSplitByWords(normalized);
+    return fallbackSplitBySentences(normalized);
   }
 
   return boundedChunks;
@@ -144,8 +148,53 @@ function splitBySentences(text: string): string[] {
   return parts;
 }
 
-function fallbackSplitByWords(normalizedText: string): string[] {
-  const words = normalizedText.split(/\s+/).filter(Boolean);
+/**
+ * Sentence-aware fallback splitter. Splits at sentence boundaries first,
+ * only falling back to word-level splitting for individual sentences that
+ * exceed limits. This prevents CosyVoice from receiving incomplete sentences.
+ */
+function fallbackSplitBySentences(normalizedText: string): string[] {
+  const sentences = splitBySentences(normalizedText);
+  if (sentences.length === 0) return [];
+
+  const chunks: string[] = [];
+  let buffer = "";
+
+  for (const sentence of sentences) {
+    const sen = sentence.trim();
+    if (!sen) continue;
+
+    const bufWords = buffer ? buffer.split(/\s+/).length : 0;
+    const senWords = sen.split(/\s+/).length;
+    const nextLength = buffer ? buffer.length + 1 + sen.length : sen.length;
+
+    if (buffer && (bufWords + senWords > TARGET_WORDS || nextLength > MAX_CHARS)) {
+      chunks.push(buffer);
+      buffer = "";
+    }
+
+    // If a single sentence exceeds limits, split it by words as last resort
+    if (!buffer && (senWords > TARGET_WORDS || sen.length > MAX_CHARS)) {
+      chunks.push(...splitLongSentenceByWords(sen));
+      continue;
+    }
+
+    buffer = buffer ? `${buffer} ${sen}` : sen;
+  }
+
+  if (buffer) {
+    chunks.push(buffer);
+  }
+
+  return chunks;
+}
+
+/**
+ * Split a single oversized sentence by words. Only used as last resort
+ * when a single sentence exceeds chunk limits.
+ */
+function splitLongSentenceByWords(sentence: string): string[] {
+  const words = sentence.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
 
   const chunks: string[] = [];
@@ -183,7 +232,8 @@ function enforceChunkLimits(chunks: string[]): string[] {
       continue;
     }
 
-    bounded.push(...fallbackSplitByWords(normalized));
+    // Use sentence-aware splitting instead of raw word splitting
+    bounded.push(...fallbackSplitBySentences(normalized));
   }
 
   return bounded;
