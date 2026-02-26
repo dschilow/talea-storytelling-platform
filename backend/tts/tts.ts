@@ -437,6 +437,28 @@ function hasExplicitReference(req: GenerateSpeechRequest): boolean {
   return Boolean(req.referenceAudioDataUrl?.trim() || req.referenceAudioUrl?.trim());
 }
 
+function resolvePromptText(
+  requestPromptText: string | undefined,
+  explicitReference: boolean
+): string {
+  const provided = (requestPromptText || "").trim();
+  if (provided) {
+    return provided;
+  }
+
+  // Critical: for custom/preset reference audio, do not inject the global default transcript.
+  // A mismatched transcript can force zero_shot with wrong conditioning and degrade quality.
+  if (explicitReference) {
+    return "";
+  }
+
+  return (
+    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
+    ""
+  ).trim();
+}
+
 async function resolveReferenceAudio(
   req: GenerateSpeechRequest,
   includeBackendDefaultReference: boolean
@@ -840,17 +862,13 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   }
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
-  const promptText = (
-    req.promptText ||
-    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
-    ""
-  ).trim();
+  const explicitReference = hasExplicitReference(req);
+  const promptText = resolvePromptText(req.promptText, explicitReference);
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
   const includeBackendDefaultReference =
-    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || explicitReference;
   const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
 
   const input: Record<string, unknown> = {
@@ -911,12 +929,8 @@ async function runpodQueueTtsBatchRequest(
   if (items.length === 0) return [];
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
-  const promptText = (
-    req.promptText ||
-    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
-    ""
-  ).trim();
+  const explicitReference = Boolean(req.referenceAudioDataUrl?.trim() || req.referenceAudioUrl?.trim());
+  const promptText = resolvePromptText(req.promptText, explicitReference);
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
@@ -928,7 +942,7 @@ async function runpodQueueTtsBatchRequest(
     referenceAudioUrl: req.referenceAudioUrl,
   };
   const includeBackendDefaultReference =
-    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(refReq);
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || explicitReference;
   const referenceAudio = await resolveReferenceAudio(refReq, includeBackendDefaultReference);
 
   const texts = items
@@ -1083,18 +1097,14 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   }
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
-  const promptText = (
-    req.promptText ||
-    (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
-    ""
-  ).trim();
+  const explicitReference = hasExplicitReference(req);
+  const promptText = resolvePromptText(req.promptText, explicitReference);
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
   const instructText = (req.instructText || "").trim();
   const speaker = (req.speaker || "").trim();
 
   const includeBackendDefaultReference =
-    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
+    !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || explicitReference;
   const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
 
   const formData = new FormData();

@@ -1,24 +1,30 @@
 export type TTSVoiceMode = 'default' | 'preset' | 'speaker' | 'upload';
 
 export interface PresetVoice {
-  id: string;       // e.g. 'tavi', 'jorin', 'lucy'
-  label: string;    // Display name
-  audioPath: string; // Path under /voices/  e.g. '/voices/Tavi.mp3'
+  id: string; // e.g. 'jorin', 'lucy'
+  label: string;
+  audioPath: string; // Path under /voices/
+  promptText?: string; // Exact transcript of the reference clip
   description: string;
 }
+
+const PRESET_REFERENCE_TRANSCRIPT =
+  "Guten Abend. Mach's dir gemuetlich. Draussen ist es still, drinnen ist es warm. Auf dem Teppich liegt ein kleiner Schluessel. Ist der von dir?, fluestert Mila. Ben sagt leise: Nein... aber er wartet auf uns. Klik. Hast du das gehoert? Ja. Eins, zwei, drei... los.";
 
 export const PRESET_VOICES: PresetVoice[] = [
   {
     id: 'jorin',
     label: 'Jorin',
     audioPath: '/voices/Jorin.mp3',
-    description: 'Erzählerstimme',
+    promptText: PRESET_REFERENCE_TRANSCRIPT,
+    description: 'Erzaehlerstimme',
   },
   {
     id: 'lucy',
     label: 'Lucy',
     audioPath: '/voices/Lucy.mp3',
-    description: 'Erzählerstimme',
+    promptText: PRESET_REFERENCE_TRANSCRIPT,
+    description: 'Erzaehlerstimme',
   },
 ];
 
@@ -46,9 +52,12 @@ export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestO
   }
 
   if (settings.mode === 'preset') {
-    // referenceAudioDataUrl gets set lazily when the preset is loaded
     const referenceAudioDataUrl = settings.referenceAudioDataUrl?.trim();
-    return referenceAudioDataUrl ? { referenceAudioDataUrl } : {};
+    const promptText = settings.promptText?.trim();
+    return {
+      ...(referenceAudioDataUrl ? { referenceAudioDataUrl } : {}),
+      ...(promptText ? { promptText } : {}),
+    };
   }
 
   if (settings.mode === 'speaker') {

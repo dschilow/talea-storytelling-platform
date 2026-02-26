@@ -35,7 +35,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { resolvedTheme } = useTheme();
   const [isAdding, setIsAdding] = useState(false);
   const [voiceMode, setVoiceMode] = useState<TTSVoiceMode>('preset');
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('tavi');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(PRESET_VOICES[0]?.id || 'jorin');
   const [presetDataUrl, setPresetDataUrl] = useState<string>('');
   const [presetLoading, setPresetLoading] = useState(false);
   const [availableSpeakers, setAvailableSpeakers] = useState<string[]>([]);
@@ -88,10 +88,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
     if (voiceMode === 'preset') {
+      const selectedPreset = PRESET_VOICES.find((voice) => voice.id === selectedPresetId);
       return {
         mode: 'preset',
         presetVoiceId: selectedPresetId,
         referenceAudioDataUrl: presetDataUrl,
+        promptText: selectedPreset?.promptText || '',
       };
     }
 
@@ -208,7 +210,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
   const resetToDefaultVoice = useCallback(() => {
     setVoiceMode('preset');
-    setSelectedPresetId('tavi');
+    setSelectedPresetId(PRESET_VOICES[0]?.id || 'jorin');
     setSelectedSpeaker('');
     setVoicePromptText('');
     setReferenceAudioDataUrl('');
