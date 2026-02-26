@@ -1403,9 +1403,10 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
     }
 
     // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
-    // Set higher than frontend chunking (280 chars) because German compound words
-    // make 40-word chunks often exceed 280 chars. 400 avoids double-chunking.
-    const MAX_ITEM_CHARS = 400;
+    // Set well above frontend chunking (280 chars) to avoid double-chunking.
+    // Auto-chunking causes silent sentence drops when sub-chunks fail, so we
+    // want it to trigger only as a last resort for truly oversized items.
+    const MAX_ITEM_CHARS = 600;
     const expandedItems: { id: string; text: string }[] = [];
     // Track which original items were split so we can reassemble later
     const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
@@ -1528,10 +1529,16 @@ function reassembleSplitResults(
 
     if (buffers.length === 0) {
       finalResults.push({ id: originalId, audio: null, error: "All chunks failed" });
+    } else if (failedChunks > 0) {
+      // Treat partial failure as full failure so the frontend can retry via fallbackToSingle.
+      // Returning partial audio here silently drops sentences from the missing chunks.
+      log.warn(`[tts/batch] Item ${originalId}: ${failedChunks}/${chunkIds.length} chunks failed — reporting error so frontend retries`);
+      finalResults.push({
+        id: originalId,
+        audio: null,
+        error: `${failedChunks}/${chunkIds.length} auto-chunks failed`,
+      });
     } else {
-      if (failedChunks > 0) {
-        log.warn(`[tts/batch] Item ${originalId}: ${failedChunks}/${chunkIds.length} chunks failed, using ${buffers.length} available`);
-      }
       const combined = concatenateAudioBuffers(buffers, detectedMimeType);
       finalResults.push({
         id: originalId,

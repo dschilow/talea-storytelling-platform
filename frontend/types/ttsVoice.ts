@@ -1,8 +1,21 @@
-export type TTSVoiceMode = 'default' | 'speaker' | 'upload';
+export type TTSVoiceMode = 'default' | 'preset' | 'speaker' | 'upload';
+
+export interface PresetVoice {
+  id: string;
+  label: string;
+  audioPath: string;
+  description: string;
+}
+
+export const PRESET_VOICES: PresetVoice[] = [
+  { id: 'jorin', label: 'Jorin', audioPath: '/voices/Jorin.mp3', description: 'Erzählerstimme' },
+  { id: 'lucy', label: 'Lucy', audioPath: '/voices/Lucy.mp3', description: 'Erzählerstimme' },
+];
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;
   speakerId?: string;
+  presetVoiceId?: string;
   promptText?: string;
   referenceAudioDataUrl?: string;
 }
@@ -27,6 +40,14 @@ export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestO
     return speaker ? { speaker } : {};
   }
 
+  if (settings.mode === 'preset') {
+    // Preset mode: referenceAudioDataUrl is loaded from the static file.
+    // promptText is NOT sent — backend uses COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT env var.
+    const referenceAudioDataUrl = settings.referenceAudioDataUrl?.trim();
+    return referenceAudioDataUrl ? { referenceAudioDataUrl } : {};
+  }
+
+  // Upload mode
   const referenceAudioDataUrl = settings.referenceAudioDataUrl?.trim();
   const promptText = settings.promptText?.trim();
 
