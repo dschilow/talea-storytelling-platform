@@ -1402,9 +1402,10 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
       return { results: [] };
     }
 
-    // Safety-net: auto-chunk any oversized items (>280 chars) so the GPU
-    // gets small, efficient pieces (~40 words each, ~8-15s per chunk).
-    const MAX_ITEM_CHARS = 280;
+    // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
+    // Set higher than frontend chunking (280 chars) because German compound words
+    // make 40-word chunks often exceed 280 chars. 400 avoids double-chunking.
+    const MAX_ITEM_CHARS = 400;
     const expandedItems: { id: string; text: string }[] = [];
     // Track which original items were split so we can reassemble later
     const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
@@ -1502,16 +1503,17 @@ function reassembleSplitResults(
   // First, reassemble split items
   for (const [originalId, { chunkIds }] of splitTracker) {
     const buffers: Buffer[] = [];
-    let hasError = false;
-    let errorMsg = "";
+    let failedChunks = 0;
 
     for (const chunkId of chunkIds) {
       consumed.add(chunkId);
       const r = resultMap.get(chunkId);
       if (!r?.audio || r.error) {
-        hasError = true;
-        errorMsg = r?.error || "Missing chunk audio";
-        break;
+        // Skip failed chunks but continue with the rest — partial audio is
+        // better than losing the entire item.
+        failedChunks++;
+        log.warn(`[tts/batch] Chunk ${chunkId} missing audio, skipping (${r?.error || "no result"})`);
+        continue;
       }
       const base64Match = r.audio.match(/^data:[^;]+;base64,(.+)$/);
       if (base64Match) {
@@ -1521,9 +1523,12 @@ function reassembleSplitResults(
       }
     }
 
-    if (hasError || buffers.length === 0) {
-      finalResults.push({ id: originalId, audio: null, error: errorMsg || "Chunk reassembly failed" });
+    if (buffers.length === 0) {
+      finalResults.push({ id: originalId, audio: null, error: "All chunks failed" });
     } else {
+      if (failedChunks > 0) {
+        log.warn(`[tts/batch] Item ${originalId}: ${failedChunks}/${chunkIds.length} chunks failed, using ${buffers.length} available`);
+      }
       const combined = Buffer.concat(buffers);
       finalResults.push({
         id: originalId,

@@ -20,10 +20,12 @@ interface UseTTSConversionQueueOptions {
 }
 
 // How many batch/single requests run concurrently.
-// With batch mode, each "slot" handles an entire chapter (~6 chunks).
-// 5 concurrent = 5 chapters in parallel across RunPod workers.
+// With batch mode, each "slot" handles an entire chapter (~8 chunks).
+// 2 concurrent = 2 chapters in parallel across RunPod workers.
 const MAX_CONCURRENT = 2;
-const MAX_ITEMS_PER_BATCH_REQUEST = 2;
+// Send all chapter chunks in one batch request so they go as a single RunPod job.
+// Keeping this high avoids splitting a chapter into multiple sequential jobs.
+const MAX_ITEMS_PER_BATCH_REQUEST = 12;
 const BATCH_RETRY_ATTEMPTS = 3;
 const BATCH_RETRY_BASE_DELAY_MS = 1200;
 
@@ -145,7 +147,12 @@ export function useTTSConversionQueue({
           if (cancelledRef.current) return;
           const result = resultMap.get(item.id);
           if (result?.audio) {
-            await deliverAudio(item.id, item.cacheKey || item.id, result.audio);
+            try {
+              await deliverAudio(item.id, item.cacheKey || item.id, result.audio);
+            } catch (deliverErr) {
+              console.warn(`TTS batch item deliver failed (${item.id}), fallback to single:`, deliverErr);
+              fallbackToSingle.push(item);
+            }
           } else {
             const reason = result?.error || 'No audio in batch response';
             console.warn(`TTS batch item fallback to single (${item.id}): ${reason}`);
