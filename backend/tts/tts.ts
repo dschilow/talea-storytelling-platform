@@ -325,7 +325,7 @@ function detectContentTypeFromFilename(urlOrName: string): string {
   if (lower.endsWith(".ogg")) return "audio/ogg";
   if (lower.endsWith(".webm")) return "audio/webm";
   if (lower.endsWith(".flac")) return "audio/flac";
-  return "audio/wav";
+  return "audio/mpeg";
 }
 
 function safeFileName(input: string, fallback: string): string {
@@ -416,7 +416,7 @@ async function fetchAudioUrl(url: string): Promise<ResolvedReferenceAudio> {
     (response.headers.get("content-type") || "").split(";")[0].trim() ||
     detectContentTypeFromFilename(url);
 
-  let filename = "reference.wav";
+  let filename = "reference.mp3";
   try {
     const parsedUrl = new URL(url);
     const parts = parsedUrl.pathname.split("/").filter(Boolean);
@@ -452,7 +452,7 @@ async function resolveReferenceAudio(
     return {
       buffer: parsed.buffer,
       contentType: parsed.contentType,
-      filename: "reference-from-data-url.wav",
+      filename: "reference-from-data-url.mp3",
     };
   }
 
@@ -1122,7 +1122,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
   if (referenceAudio) {
     const blob = new Blob([new Uint8Array(referenceAudio.buffer)], {
-      type: referenceAudio.contentType || "audio/wav",
+      type: referenceAudio.contentType || "audio/mpeg",
     });
     formData.set("reference_audio", blob, referenceAudio.filename);
   }
@@ -1489,7 +1489,10 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
   }
 );
 
-/** Reassemble auto-chunked results back into single items by concatenating MP3 buffers. */
+/** Reassemble auto-chunked results back into single items by concatenating audio buffers.
+ *  For WAV: strips the 44-byte header from all but the first chunk, then rebuilds a valid WAV.
+ *  For MP3: simple concatenation (MP3 frames are self-describing).
+ */
 function reassembleSplitResults(
   rawResults: TTSBatchResultItem[],
   splitTracker: Map<string, { chunkIds: string[]; originalId: string }>
@@ -1504,20 +1507,20 @@ function reassembleSplitResults(
   for (const [originalId, { chunkIds }] of splitTracker) {
     const buffers: Buffer[] = [];
     let failedChunks = 0;
+    let detectedMimeType = "audio/mpeg";
 
     for (const chunkId of chunkIds) {
       consumed.add(chunkId);
       const r = resultMap.get(chunkId);
       if (!r?.audio || r.error) {
-        // Skip failed chunks but continue with the rest — partial audio is
-        // better than losing the entire item.
         failedChunks++;
         log.warn(`[tts/batch] Chunk ${chunkId} missing audio, skipping (${r?.error || "no result"})`);
         continue;
       }
-      const base64Match = r.audio.match(/^data:[^;]+;base64,(.+)$/);
+      const base64Match = r.audio.match(/^data:([^;]+);base64,(.+)$/);
       if (base64Match) {
-        buffers.push(Buffer.from(base64Match[1], "base64"));
+        if (base64Match[1]) detectedMimeType = base64Match[1];
+        buffers.push(Buffer.from(base64Match[2], "base64"));
       } else {
         buffers.push(Buffer.from(r.audio, "base64"));
       }
@@ -1529,10 +1532,10 @@ function reassembleSplitResults(
       if (failedChunks > 0) {
         log.warn(`[tts/batch] Item ${originalId}: ${failedChunks}/${chunkIds.length} chunks failed, using ${buffers.length} available`);
       }
-      const combined = Buffer.concat(buffers);
+      const combined = concatenateAudioBuffers(buffers, detectedMimeType);
       finalResults.push({
         id: originalId,
-        audio: `data:audio/mpeg;base64,${combined.toString("base64")}`,
+        audio: `data:${detectedMimeType};base64,${combined.toString("base64")}`,
         error: null,
       });
     }
@@ -1546,6 +1549,58 @@ function reassembleSplitResults(
   }
 
   return finalResults;
+}
+
+/** Concatenate audio buffers, handling WAV header stripping when needed. */
+function concatenateAudioBuffers(buffers: Buffer[], mimeType: string): Buffer {
+  if (buffers.length <= 1) return buffers[0] || Buffer.alloc(0);
+
+  const isWav = mimeType.includes("wav") || mimeType.includes("wave");
+  if (!isWav) {
+    // MP3/OGG: simple concat works
+    return Buffer.concat(buffers);
+  }
+
+  // WAV: each buffer has its own 44-byte RIFF header. We need to strip
+  // headers from chunks 2..N and rebuild a single valid WAV header.
+  const WAV_HEADER_SIZE = 44;
+  const pcmChunks: Buffer[] = [];
+
+  for (let i = 0; i < buffers.length; i++) {
+    const buf = buffers[i];
+    if (i === 0) {
+      // Keep the first buffer entirely (header + PCM data)
+      pcmChunks.push(buf);
+    } else if (buf.length > WAV_HEADER_SIZE && isWavHeader(buf)) {
+      // Strip the WAV header, keep only PCM data
+      pcmChunks.push(buf.subarray(WAV_HEADER_SIZE));
+    } else {
+      // Not a WAV or too short — include as-is (fallback)
+      pcmChunks.push(buf);
+    }
+  }
+
+  const combined = Buffer.concat(pcmChunks);
+
+  // Update the RIFF header with correct total size
+  if (combined.length >= WAV_HEADER_SIZE && isWavHeader(combined)) {
+    // RIFF chunk size = total file size - 8
+    combined.writeUInt32LE(combined.length - 8, 4);
+    // data sub-chunk size = total file size - 44
+    combined.writeUInt32LE(combined.length - WAV_HEADER_SIZE, 40);
+  }
+
+  return combined;
+}
+
+/** Check if a buffer starts with a WAV RIFF header. */
+function isWavHeader(buf: Buffer): boolean {
+  if (buf.length < 12) return false;
+  // "RIFF" at offset 0, "WAVE" at offset 8
+  return (
+    buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+    buf[8] === 0x57 && buf[9] === 0x41 && buf[10] === 0x56 && buf[11] === 0x45
+  );
 }
 
 export const listCosyVoiceVoices = api<void, CosyVoiceVoicesResponse>(

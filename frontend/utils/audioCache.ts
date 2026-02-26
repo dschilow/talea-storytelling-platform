@@ -73,7 +73,7 @@ export async function cacheAudio(id: string, base64DataUrl: string): Promise<voi
       store.put({
         id,
         data: arrayBuffer,
-        mimeType: blob.type || 'audio/wav',
+        mimeType: blob.type || 'audio/mpeg',
         createdAt: Date.now(),
       } satisfies CachedAudio);
       tx.oncomplete = () => resolve();
