@@ -14,6 +14,12 @@ export const PRESET_VOICES: PresetVoice[] = [
     audioPath: '/voices/Jorin.mp3',
     description: 'Erzählerstimme',
   },
+  {
+    id: 'lucy',
+    label: 'Lucy',
+    audioPath: '/voices/Lucy.mp3',
+    description: 'Erzählerstimme',
+  },
 ];
 
 export interface TTSVoiceSettings {
