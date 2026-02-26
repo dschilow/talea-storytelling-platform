@@ -10,6 +10,7 @@ export interface PresetVoice {
 export const PRESET_VOICES: PresetVoice[] = [
   { id: 'jorin', label: 'Jorin', audioPath: '/voices/Jorin.mp3', description: 'Erzählerstimme' },
   { id: 'lucy', label: 'Lucy', audioPath: '/voices/Lucy.mp3', description: 'Erzählerstimme' },
+  { id: 'tavi', label: 'Tavi', audioPath: '/voices/Tavi.mp3', description: 'Erzählerstimme' },
 ];
 
 export interface TTSVoiceSettings {
