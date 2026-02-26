@@ -9,22 +9,10 @@ export interface PresetVoice {
 
 export const PRESET_VOICES: PresetVoice[] = [
   {
-    id: 'tavi',
-    label: 'Tavi',
-    audioPath: '/voices/Tavi.mp3',
-    description: 'Warme Erzählerstimme',
-  },
-  {
     id: 'jorin',
     label: 'Jorin',
     audioPath: '/voices/Jorin.mp3',
-    description: 'Kräftige Männerstimme',
-  },
-  {
-    id: 'lucy',
-    label: 'Lucy',
-    audioPath: '/voices/Lucy.mp3',
-    description: 'Lebhafte Frauenstimme',
+    description: 'Erzählerstimme',
   },
 ];
 
