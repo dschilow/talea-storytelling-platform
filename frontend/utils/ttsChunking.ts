@@ -6,8 +6,8 @@
  * incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
-const TARGET_WORDS = 40;
-const MAX_CHARS = 350;
+const TARGET_WORDS = 80;
+const MAX_CHARS = 650;
 
 /**
  * Split text into chunks at natural boundaries.

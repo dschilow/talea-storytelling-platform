@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import runpod
 
+import concurrent.futures
 import server as cosy_server
 
 
@@ -161,10 +162,38 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
                 results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
                 continue
 
-            try:
-                result = _generate_single(text, params, ref_wav_path)
-                result["id"] = item_id
-                result["error"] = None
+                # Process the audio conversion/encoding asynchronously
+                # to avoid blocking the GPU for the next chunk
+                def process_result(audio_bytes, mime_type, out_fmt, spk):
+                    b64 = base64.b64encode(audio_bytes).decode("ascii")
+                    return {
+                        "id": item_id,
+                        "audioBase64": b64,
+                        "mimeType": mime_type,
+                        "outputFormat": out_fmt,
+                        "speaker": spk or "",
+                        "error": None
+                    }
+
+                # Get raw bytes from generator
+                audio_bytes, mime_type, used_format, used_speaker = cosy_server.generate_audio(
+                    cosy_server.cosyvoice_model,
+                    text,
+                    params["prompt_text"],
+                    params["instruct_text"],
+                    params["emotion"],
+                    params["output_format"],
+                    ref_wav_path,
+                    params["speed"],
+                    params["speaker"],
+                    cosy_server.default_reference_path,
+                )
+
+                # Send the heavy base64 (and MP3 encoding if applicable) to a thread
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(process_result, audio_bytes, mime_type, used_format, used_speaker)
+                    result = future.result()
+
                 results.append(result)
                 print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) done")
             except Exception as exc:

@@ -197,6 +197,9 @@ def init_runtime_sync() -> None:
         from cosyvoice.cli.cosyvoice import AutoModel
 
         print(f"[startup] Loading CosyVoice runtime from model dir: {resolved_model_dir}")
+        if torch.cuda.is_available():
+            torch.backends.cudnn.benchmark = True
+            print("[startup] Enabled cuDNN benchmark")
         cosyvoice_model = AutoModel(model_dir=resolved_model_dir)
         available = list_available_speakers(cosyvoice_model)
         print(f"[startup] CosyVoice model loaded. Available speakers ({len(available)}): {available[:20]}")
@@ -429,8 +432,13 @@ def infer_waveform_with_reference_path(
 ) -> torch.Tensor:
     """Run inference using reference audio path (CosyVoice expects a file path)."""
     try:
-        generator = build_generator(reference_wav_path)
-        return collect_waveform(generator)
+        device_type = "cuda" if torch.cuda.is_available() else "cpu"
+        cuda_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
+        autocast_ctx = torch.autocast(device_type=device_type, dtype=cuda_dtype) if device_type == "cuda" else torch.autocast(device_type="cpu", enabled=False)
+
+        with autocast_ctx:
+            generator = build_generator(reference_wav_path)
+            return collect_waveform(generator)
     except Exception as exc:
         path_error = trim_error_message(str(exc))
         print(f"[tts] {mode_label} path-ref failed: {path_error}")
@@ -440,6 +448,7 @@ def infer_waveform_with_reference_path(
         ) from exc
 
 
+@torch.inference_mode()
 def generate_audio(
     cosyvoice: Any,
     text: str,
@@ -503,8 +512,13 @@ def generate_audio(
         if sft_id:
             used_speaker = sft_id
             print(f"[tts] Mode: sft, speaker={sft_id}")
-            generator = cosyvoice.inference_sft(safe_text, sft_id, stream=False, speed=speed)
-            waveform = collect_waveform(generator)
+            device_type = "cuda" if torch.cuda.is_available() else "cpu"
+            cuda_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
+            autocast_ctx = torch.autocast(device_type=device_type, dtype=cuda_dtype) if device_type == "cuda" else torch.autocast(device_type="cpu", enabled=False)
+
+            with autocast_ctx:
+                generator = cosyvoice.inference_sft(safe_text, sft_id, stream=False, speed=speed)
+                waveform = collect_waveform(generator)
             wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
             normalized_format = output_format.strip().lower()
             if normalized_format == "mp3":

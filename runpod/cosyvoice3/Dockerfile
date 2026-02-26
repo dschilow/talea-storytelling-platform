@@ -60,7 +60,7 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
     ' requirements.txt > requirements.serverless.txt && \
     cat requirements.serverless.txt && \
     pip install --no-cache-dir -r requirements.serverless.txt && \
-    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub pydub requests runpod
+    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub modelscope pydub requests runpod flash-attn==2.6.3 --no-build-isolation
 
 # Verify ALL critical imports work at build time so we catch errors early.
 # This replicates the actual import chain that happens at runtime.
@@ -78,6 +78,7 @@ print('[check] All imports verified successfully')"
 
 RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
       python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='FunAudioLLM/Fun-CosyVoice3-0.5B-2512', local_dir='/opt/models/Fun-CosyVoice3-0.5B-2512', local_dir_use_symlinks=False, resume_download=True)"; \
+      python -c "from modelscope import snapshot_download; snapshot_download('pengzhendong/wetext', cache_dir='/root/.cache/modelscope/hub')"; \
     else \
       echo "Skipping model prefetch during build (PREFETCH_MODEL=$PREFETCH_MODEL)"; \
     fi

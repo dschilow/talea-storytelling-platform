@@ -7,8 +7,8 @@
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
 
-const TARGET_WORDS = 40;
-const MAX_CHARS = 350;
+const TARGET_WORDS = 80;
+const MAX_CHARS = 650;
 
 export function splitTextIntoChunks(text: string): string[] {
   const trimmed = text.trim();
