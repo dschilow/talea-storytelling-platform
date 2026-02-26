@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ListPlus, Loader2, Play, RotateCcw, Upload } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
@@ -9,6 +9,8 @@ import type { Chapter } from '../../types/story';
 import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
+  PRESET_VOICES,
+  type PresetVoice,
   type TTSVoiceMode,
   type TTSVoiceSettings,
 } from '../../types/ttsVoice';
@@ -32,7 +34,10 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { startStoryConversion, removeStoryFromPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
   const [isAdding, setIsAdding] = useState(false);
-  const [voiceMode, setVoiceMode] = useState<TTSVoiceMode>('default');
+  const [voiceMode, setVoiceMode] = useState<TTSVoiceMode>('preset');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('tavi');
+  const [presetDataUrl, setPresetDataUrl] = useState<string>('');
+  const [presetLoading, setPresetLoading] = useState(false);
   const [availableSpeakers, setAvailableSpeakers] = useState<string[]>([]);
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
   const [voicePromptText, setVoicePromptText] = useState('');
@@ -41,11 +46,55 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const [loadingSpeakers, setLoadingSpeakers] = useState(false);
   const [speakerLoadError, setSpeakerLoadError] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const presetCacheRef = useRef<Record<string, string>>({});
 
   const isDark = resolvedTheme === 'dark';
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
 
+  // Load preset voice as data URL (cached in ref so we don't re-fetch)
+  const loadPreset = useCallback(async (voice: PresetVoice) => {
+    if (presetCacheRef.current[voice.id]) {
+      setPresetDataUrl(presetCacheRef.current[voice.id]);
+      return;
+    }
+    setPresetLoading(true);
+    try {
+      const resp = await fetch(voice.audioPath);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const blob = await resp.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      presetCacheRef.current[voice.id] = dataUrl;
+      setPresetDataUrl(dataUrl);
+    } catch (e) {
+      console.error('Failed to load preset voice:', e);
+      setPresetDataUrl('');
+    } finally {
+      setPresetLoading(false);
+    }
+  }, []);
+
+  // Load preset on mount and when selection changes
+  useEffect(() => {
+    if (voiceMode === 'preset') {
+      const voice = PRESET_VOICES.find((v) => v.id === selectedPresetId);
+      if (voice) void loadPreset(voice);
+    }
+  }, [voiceMode, selectedPresetId, loadPreset]);
+
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
+    if (voiceMode === 'preset') {
+      return {
+        mode: 'preset',
+        presetVoiceId: selectedPresetId,
+        referenceAudioDataUrl: presetDataUrl,
+      };
+    }
+
     if (voiceMode === 'speaker') {
       return {
         mode: 'speaker',
@@ -62,14 +111,15 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     }
 
     return DEFAULT_TTS_VOICE_SETTINGS;
-  }, [voiceMode, selectedSpeaker, voicePromptText, referenceAudioDataUrl]);
+  }, [voiceMode, selectedPresetId, presetDataUrl, selectedSpeaker, voicePromptText, referenceAudioDataUrl]);
 
   const canStartConversion = useMemo(() => {
     if (!chapters.length || isAdding) return false;
+    if (voiceMode === 'preset' && (presetLoading || !presetDataUrl)) return false;
     if (voiceMode === 'speaker' && availableSpeakers.length > 0 && !selectedSpeaker.trim()) return false;
     if (voiceMode === 'upload' && !referenceAudioDataUrl.trim()) return false;
     return true;
-  }, [chapters.length, isAdding, voiceMode, availableSpeakers.length, selectedSpeaker, referenceAudioDataUrl]);
+  }, [chapters.length, isAdding, voiceMode, presetLoading, presetDataUrl, availableSpeakers.length, selectedSpeaker, referenceAudioDataUrl]);
 
   const loadAvailableSpeakers = useCallback(async () => {
     setLoadingSpeakers(true);
@@ -157,7 +207,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   );
 
   const resetToDefaultVoice = useCallback(() => {
-    setVoiceMode('default');
+    setVoiceMode('preset');
+    setSelectedPresetId('tavi');
     setSelectedSpeaker('');
     setVoicePromptText('');
     setReferenceAudioDataUrl('');
@@ -179,7 +230,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       chapters,
       coverImageUrl,
       autoplay,
-      voiceSettings.mode === 'default' ? DEFAULT_TTS_VOICE_SETTINGS : voiceSettings,
+      voiceSettings,
     );
     setTimeout(() => setIsAdding(false), 500);
   }, [
@@ -210,6 +261,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     color: isDark ? '#d9e5f8' : '#2a3b52',
   };
 
+  const modeTabs = [
+    { mode: 'preset' as const, label: 'Stimme wählen' },
+    { mode: 'speaker' as const, label: 'Fertige Stimme' },
+    { mode: 'upload' as const, label: 'Eigene Stimme' },
+  ];
+
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <div
@@ -219,12 +276,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           background: isDark ? 'rgba(16,24,35,0.6)' : 'rgba(255,250,244,0.85)',
         }}
       >
-        <div className="mb-2 flex flex-wrap gap-2">
-          {[
-            { mode: 'default' as const, label: 'Default-Stimme' },
-            { mode: 'speaker' as const, label: 'Fertige Stimme' },
-            { mode: 'upload' as const, label: 'Eigene Stimme' },
-          ].map((option) => (
+        {/* Mode tabs */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          {modeTabs.map((option) => (
             <button
               key={option.mode}
               type="button"
@@ -251,10 +305,62 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             style={selectStyle}
           >
             <RotateCcw size={12} />
-            Zurueck zu Default
+            Zurücksetzen
           </button>
         </div>
 
+        {/* Preset voice selection — Tavi / Jorin / Lucy */}
+        {voiceMode === 'preset' && (
+          <div className="flex flex-wrap gap-2">
+            {PRESET_VOICES.map((voice) => {
+              const isSelected = selectedPresetId === voice.id;
+              const isLoadingThis = presetLoading && isSelected;
+              return (
+                <button
+                  key={voice.id}
+                  type="button"
+                  onClick={() => setSelectedPresetId(voice.id)}
+                  className="flex flex-col items-center gap-1 rounded-2xl border px-4 py-3 text-center transition-all"
+                  style={{
+                    minWidth: 80,
+                    borderColor: isSelected
+                      ? isDark ? '#86a7db' : '#b183c4'
+                      : isDark ? '#34455d' : '#decfbf',
+                    background: isSelected
+                      ? isDark
+                        ? 'rgba(134,167,219,0.18)'
+                        : 'rgba(177,131,196,0.15)'
+                      : isDark
+                        ? 'rgba(20,29,40,0.5)'
+                        : 'rgba(255,255,255,0.5)',
+                    color: isDark ? '#d9e5f8' : '#2a3b52',
+                    boxShadow: isSelected
+                      ? isDark
+                        ? '0 0 0 2px rgba(134,167,219,0.35)'
+                        : '0 0 0 2px rgba(177,131,196,0.35)'
+                      : 'none',
+                  }}
+                >
+                  <span className="text-lg">
+                    {voice.id === 'tavi' ? '🧚' : voice.id === 'jorin' ? '🧙' : '🌸'}
+                  </span>
+                  <span className="text-xs font-bold">{voice.label}</span>
+                  <span
+                    className="text-[10px] opacity-70"
+                    style={{ maxWidth: 80, lineHeight: 1.2 }}
+                  >
+                    {voice.description}
+                  </span>
+                  {isLoadingThis && (
+                    <Loader2 size={12} className="animate-spin mt-1 opacity-60" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Speaker mode */}
         {voiceMode === 'speaker' && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -294,6 +400,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           </div>
         )}
 
+        {/* Upload mode */}
         {voiceMode === 'upload' && (
           <div className="flex flex-col gap-2">
             <label
@@ -337,7 +444,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           }}
         >
           {isAdding ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-          {alreadyInPlaylist ? 'Neu generieren & abspielen' : 'Geschichte anhoeren'}
+          {alreadyInPlaylist ? 'Neu generieren & abspielen' : 'Geschichte anhören'}
         </motion.button>
 
         <motion.button

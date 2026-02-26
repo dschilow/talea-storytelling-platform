@@ -1,7 +1,36 @@
-export type TTSVoiceMode = 'default' | 'speaker' | 'upload';
+export type TTSVoiceMode = 'default' | 'preset' | 'speaker' | 'upload';
+
+export interface PresetVoice {
+  id: string;       // e.g. 'tavi', 'jorin', 'lucy'
+  label: string;    // Display name
+  audioPath: string; // Path under /voices/  e.g. '/voices/Tavi.mp3'
+  description: string;
+}
+
+export const PRESET_VOICES: PresetVoice[] = [
+  {
+    id: 'tavi',
+    label: 'Tavi',
+    audioPath: '/voices/Tavi.mp3',
+    description: 'Warme Erzählerstimme',
+  },
+  {
+    id: 'jorin',
+    label: 'Jorin',
+    audioPath: '/voices/Jorin.mp3',
+    description: 'Kräftige Männerstimme',
+  },
+  {
+    id: 'lucy',
+    label: 'Lucy',
+    audioPath: '/voices/Lucy.mp3',
+    description: 'Lebhafte Frauenstimme',
+  },
+];
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;
+  presetVoiceId?: string;
   speakerId?: string;
   promptText?: string;
   referenceAudioDataUrl?: string;
@@ -20,6 +49,12 @@ export const DEFAULT_TTS_VOICE_SETTINGS: TTSVoiceSettings = {
 export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestOptions {
   if (!settings || settings.mode === 'default') {
     return {};
+  }
+
+  if (settings.mode === 'preset') {
+    // referenceAudioDataUrl gets set lazily when the preset is loaded
+    const referenceAudioDataUrl = settings.referenceAudioDataUrl?.trim();
+    return referenceAudioDataUrl ? { referenceAudioDataUrl } : {};
   }
 
   if (settings.mode === 'speaker') {
