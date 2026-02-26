@@ -10,7 +10,6 @@ import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
   PRESET_VOICES,
-  PRESET_VOICES_REFERENCE_TEXT,
   type PresetVoice,
   type TTSVoiceMode,
   type TTSVoiceSettings,
@@ -93,7 +92,6 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         mode: 'preset',
         presetVoiceId: selectedPresetId,
         referenceAudioDataUrl: presetDataUrl,
-        promptText: PRESET_VOICES_REFERENCE_TEXT,
       };
     }
 
