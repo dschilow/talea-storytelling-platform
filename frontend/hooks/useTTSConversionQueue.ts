@@ -22,7 +22,14 @@ interface UseTTSConversionQueueOptions {
 // How many batch/single requests run concurrently.
 // With batch mode, each "slot" handles an entire chapter (~6 chunks).
 // 5 concurrent = 5 chapters in parallel across RunPod workers.
-const MAX_CONCURRENT = 5;
+const MAX_CONCURRENT = 2;
+const MAX_ITEMS_PER_BATCH_REQUEST = 2;
+const BATCH_RETRY_ATTEMPTS = 3;
+const BATCH_RETRY_BASE_DELAY_MS = 1200;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function useTTSConversionQueue({
   backend,
@@ -33,6 +40,7 @@ export function useTTSConversionQueue({
   const queueRef = useRef<QueueItem[]>([]);
   const activeCountRef = useRef(0);
   const cancelledRef = useRef(false);
+  const processSingleRef = useRef<(item: QueueItem) => Promise<void>>(async () => {});
 
   const setStatus = useCallback((id: string, status: ConversionStatus) => {
     setStatusMap((prev) => {
@@ -90,28 +98,48 @@ export function useTTSConversionQueue({
 
       const firstReq = uncached[0].request;
       try {
-        // Call batch endpoint directly (client may not have the generated method yet)
+        let data: { results?: Array<{ id: string; audio: string | null; error: string | null }> } | null =
+          null;
+        let lastBatchError: unknown = null;
         const baseClient = (backend.tts as any).baseClient || (backend as any).baseClient;
-        const resp = await baseClient.callTypedAPI('/tts/batch', {
-          method: 'POST',
-          body: JSON.stringify({
-            items: uncached.map((item) => ({ id: item.id, text: item.text })),
-            ...(firstReq?.promptText ? { promptText: firstReq.promptText } : {}),
-            ...(firstReq?.referenceAudioDataUrl
-              ? { referenceAudioDataUrl: firstReq.referenceAudioDataUrl }
-              : {}),
-            ...(firstReq?.speaker ? { speaker: firstReq.speaker } : {}),
-          }),
-        });
 
-        const data = JSON.parse(await resp.text()) as {
-          results?: Array<{ id: string; audio: string | null; error: string | null }>;
-        };
+        for (let attempt = 1; attempt <= BATCH_RETRY_ATTEMPTS; attempt++) {
+          try {
+            const resp = await baseClient.callTypedAPI('/tts/batch', {
+              method: 'POST',
+              body: JSON.stringify({
+                items: uncached.map((item) => ({ id: item.id, text: item.text })),
+                ...(firstReq?.promptText ? { promptText: firstReq.promptText } : {}),
+                ...(firstReq?.referenceAudioDataUrl
+                  ? { referenceAudioDataUrl: firstReq.referenceAudioDataUrl }
+                  : {}),
+                ...(firstReq?.speaker ? { speaker: firstReq.speaker } : {}),
+              }),
+            });
+
+            data = JSON.parse(await resp.text()) as {
+              results?: Array<{ id: string; audio: string | null; error: string | null }>;
+            };
+            break;
+          } catch (err) {
+            lastBatchError = err;
+            if (attempt < BATCH_RETRY_ATTEMPTS) {
+              await delay(BATCH_RETRY_BASE_DELAY_MS * attempt);
+            }
+          }
+        }
+
+        if (!data) {
+          throw lastBatchError instanceof Error
+            ? lastBatchError
+            : new Error('Batch request failed after retries');
+        }
 
         if (cancelledRef.current) return;
 
         const results = data.results || [];
         const resultMap = new Map(results.map((r) => [r.id, r]));
+        const fallbackToSingle: QueueItem[] = [];
 
         for (const item of uncached) {
           if (cancelledRef.current) return;
@@ -119,18 +147,22 @@ export function useTTSConversionQueue({
           if (result?.audio) {
             await deliverAudio(item.id, item.cacheKey || item.id, result.audio);
           } else {
-            const errorMsg = result?.error || 'Keine Audiodaten in Batch-Antwort';
-            console.error(`TTS batch item failed (${item.id}):`, errorMsg);
-            setStatus(item.id, 'error');
-            onChunkError(item.id, errorMsg);
+            const reason = result?.error || 'No audio in batch response';
+            console.warn(`TTS batch item fallback to single (${item.id}): ${reason}`);
+            fallbackToSingle.push(item);
           }
+        }
+
+        for (const item of fallbackToSingle) {
+          if (cancelledRef.current) return;
+          await processSingleRef.current(item);
         }
       } catch (err: any) {
         if (cancelledRef.current) return;
-        console.error(`TTS batch conversion failed:`, err);
+        console.error(`TTS batch conversion failed, fallback to single mode:`, err);
         for (const item of uncached) {
-          setStatus(item.id, 'error');
-          onChunkError(item.id, err?.message || 'Batch-Konvertierung fehlgeschlagen');
+          if (cancelledRef.current) return;
+          await processSingleRef.current(item);
         }
       }
     },
@@ -199,6 +231,7 @@ export function useTTSConversionQueue({
     },
     [backend, onChunkReady, onChunkError, setStatus, deliverAudio],
   );
+  processSingleRef.current = processSingle;
 
   /** Take the next batch or single item from the queue and process it. */
   const processNext = useCallback(async () => {
@@ -208,15 +241,18 @@ export function useTTSConversionQueue({
 
     const first = queueRef.current[0];
 
-    // If the first item has a chapterId, pull all items with the same chapterId
+    // If the first item has a chapterId, pull at most N items from that chapter.
+    // Keeping batches small avoids long-running HTTP requests that can be reset by proxies.
     if (first.chapterId) {
       const chapterId = first.chapterId;
       const batch: QueueItem[] = [];
       const remaining: QueueItem[] = [];
+      let picked = 0;
 
       for (const item of queueRef.current) {
-        if (item.chapterId === chapterId) {
+        if (item.chapterId === chapterId && picked < MAX_ITEMS_PER_BATCH_REQUEST) {
           batch.push(item);
+          picked += 1;
         } else {
           remaining.push(item);
         }
