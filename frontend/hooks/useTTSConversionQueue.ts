@@ -1,8 +1,10 @@
 import { useCallback, useRef, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import type { ConversionStatus } from '../types/playlist';
 import type { Client as BackendClient } from '../client';
 import { getCachedAudio, cacheAudio } from '../utils/audioCache';
 import type { TTSRequestOptions } from '../types/ttsVoice';
+import { getBackendUrl } from '../config';
 
 export interface QueueItem {
   id: string;
@@ -46,12 +48,51 @@ export function useTTSConversionQueue({
   onChunkReady,
   onChunkError,
 }: UseTTSConversionQueueOptions) {
+  const { getToken } = useAuth();
+  const backendUrl = getBackendUrl();
   const [statusMap, setStatusMap] = useState<Map<string, ConversionStatus>>(new Map());
   const queueRef = useRef<QueueItem[]>([]);
   const activeCountRef = useRef(0);
   const cancelledRef = useRef(false);
   const remoteSavedRef = useRef<Set<string>>(new Set());
   const processSingleRef = useRef<(item: QueueItem) => Promise<void>>(async () => {});
+
+  const callBackendJson = useCallback(
+    async <T,>(path: string, init?: RequestInit): Promise<T> => {
+      const token = await getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(init?.headers as Record<string, string> | undefined),
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${backendUrl}${path}`, {
+        ...init,
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Request failed with status ${response.status}`);
+      }
+
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      const text = await response.text();
+      if (!text) {
+        return {} as T;
+      }
+
+      return JSON.parse(text) as T;
+    },
+    [backendUrl, getToken],
+  );
 
   const setStatus = useCallback((id: string, status: ConversionStatus) => {
     setStatusMap((prev) => {
@@ -77,8 +118,7 @@ export function useTTSConversionQueue({
       if (remoteSavedRef.current.has(cacheId)) return;
 
       try {
-        const baseClient = (backend as any).baseClient;
-        await baseClient.callTypedAPI('/story/audio-library/save', {
+        await callBackendJson('/story/audio-library/save', {
           method: 'POST',
           body: JSON.stringify({
             sourceType: item.libraryMeta.sourceType,
@@ -98,7 +138,7 @@ export function useTTSConversionQueue({
         console.warn(`[TTS] Failed to persist generated audio (${item.id}):`, error);
       }
     },
-    [backend],
+    [callBackendJson],
   );
 
   const resolveRemoteCachedAudio = useCallback(
@@ -116,14 +156,12 @@ export function useTTSConversionQueue({
       }
 
       try {
-        const baseClient = (backend as any).baseClient;
-        const response = await baseClient.callTypedAPI('/story/audio-library/resolve', {
+        const payload = await callBackendJson<{
+          items?: Array<{ cacheKey: string; audioUrl: string }>;
+        }>('/story/audio-library/resolve', {
           method: 'POST',
           body: JSON.stringify({ cacheKeys }),
         });
-        const payload = JSON.parse(await response.text()) as {
-          items?: Array<{ cacheKey: string; audioUrl: string }>;
-        };
         const resolved = new Map<string, string>();
         for (const entry of payload.items || []) {
           if (!entry?.cacheKey || !entry?.audioUrl) continue;
@@ -135,7 +173,7 @@ export function useTTSConversionQueue({
         return new Map();
       }
     },
-    [backend],
+    [callBackendJson],
   );
 
   /** Deliver a single audio data URI to the UI - handles caching + blob creation. */
@@ -199,11 +237,12 @@ export function useTTSConversionQueue({
         let data: { results?: Array<{ id: string; audio: string | null; error: string | null }> } | null =
           null;
         let lastBatchError: unknown = null;
-        const baseClient = (backend.tts as any).baseClient || (backend as any).baseClient;
 
         for (let attempt = 1; attempt <= BATCH_RETRY_ATTEMPTS; attempt++) {
           try {
-            const resp = await baseClient.callTypedAPI('/tts/batch', {
+            data = await callBackendJson<{
+              results?: Array<{ id: string; audio: string | null; error: string | null }>;
+            }>('/tts/batch', {
               method: 'POST',
               body: JSON.stringify({
                 items: uncached.map((item) => ({ id: item.id, text: item.text })),
@@ -214,10 +253,6 @@ export function useTTSConversionQueue({
                 ...(firstReq?.speaker ? { speaker: firstReq.speaker } : {}),
               }),
             });
-
-            data = JSON.parse(await resp.text()) as {
-              results?: Array<{ id: string; audio: string | null; error: string | null }>;
-            };
             break;
           } catch (err) {
             lastBatchError = err;
@@ -269,7 +304,7 @@ export function useTTSConversionQueue({
         }
       }
     },
-    [backend, onChunkReady, onChunkError, setStatus, setStatusBulk, deliverAudio, resolveRemoteCachedAudio],
+    [callBackendJson, onChunkReady, onChunkError, setStatus, setStatusBulk, deliverAudio, resolveRemoteCachedAudio],
   );
 
   /** Process a single item via /tts/generate endpoint (legacy path). */

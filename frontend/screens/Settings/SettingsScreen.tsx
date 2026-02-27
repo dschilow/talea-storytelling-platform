@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PricingTable, UserProfile, useClerk, useUser } from '@clerk/clerk-react';
+import { PricingTable, UserProfile, useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { useBackend } from '../../hooks/useBackend';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
+import { getBackendUrl } from '../../config';
 import {
   Ban,
   BookOpen,
@@ -974,6 +975,8 @@ function UsageCard(props: {
 
 function AudioLibraryPanel() {
   const backend = useBackend();
+  const { getToken } = useAuth();
+  const backendUrl = getBackendUrl();
   const [items, setItems] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -983,7 +986,41 @@ function AudioLibraryPanel() {
   const [offlineBusyId, setOfflineBusyId] = useState<string | null>(null);
   const [offlineSavedIds, setOfflineSavedIds] = useState<Set<string>>(new Set());
 
-  const baseClient = (backend as any).baseClient;
+  const callAudioLibraryApi = useCallback(
+    async <T,>(path: string, init?: RequestInit): Promise<T> => {
+      const token = await getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(init?.headers as Record<string, string> | undefined),
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${backendUrl}${path}`, {
+        ...init,
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Request failed with status ${response.status}`);
+      }
+
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      const text = await response.text();
+      if (!text) {
+        return {} as T;
+      }
+      return JSON.parse(text) as T;
+    },
+    [backendUrl, getToken],
+  );
 
   const loadItems = useCallback(async () => {
     try {
@@ -994,10 +1031,10 @@ function AudioLibraryPanel() {
         limit: '300',
         offset: '0',
       });
-      const response = await baseClient.callTypedAPI(`/story/audio-library?${params.toString()}`, {
-        method: 'GET',
-      });
-      const payload = JSON.parse(await response.text()) as GeneratedAudioListResponse;
+      const payload = await callAudioLibraryApi<GeneratedAudioListResponse>(
+        `/story/audio-library?${params.toString()}`,
+        { method: 'GET' },
+      );
       setItems(Array.isArray(payload.items) ? payload.items : []);
     } catch (error) {
       console.error('Failed to load generated audio library:', error);
@@ -1005,7 +1042,7 @@ function AudioLibraryPanel() {
     } finally {
       setLoading(false);
     }
-  }, [baseClient, sourceFilter, sort]);
+  }, [callAudioLibraryApi, sourceFilter, sort]);
 
   const loadOfflineSaved = useCallback(async () => {
     try {
@@ -1051,7 +1088,7 @@ function AudioLibraryPanel() {
 
       try {
         setDeletingId(entry.id);
-        await baseClient.callTypedAPI(`/story/audio-library/${encodeURIComponent(entry.id)}`, {
+        await callAudioLibraryApi(`/story/audio-library/${encodeURIComponent(entry.id)}`, {
           method: 'DELETE',
         });
         setItems((prev) => prev.filter((item) => item.id !== entry.id));
@@ -1071,7 +1108,7 @@ function AudioLibraryPanel() {
         setDeletingId(null);
       }
     },
-    [baseClient, offlineSavedIds],
+    [callAudioLibraryApi, offlineSavedIds],
   );
 
   const handleDownload = useCallback((entry: GeneratedAudioLibraryEntry) => {
