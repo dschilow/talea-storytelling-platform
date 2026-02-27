@@ -150,62 +150,78 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
         ref_wav_path = _decode_reference_to_temp_wav(job_input)
 
         results: List[Dict[str, Any]] = []
-        for idx, item in enumerate(texts):
-            item_id = str(idx)
-            try:
-                if not isinstance(item, dict):
-                    results.append({"id": item_id, "audioBase64": None, "error": "Invalid item format."})
-                    continue
+        futures = []
 
-                item_id = str(item.get("id") or item_id)
-                text = str(item.get("text") or "").strip()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            for idx, item in enumerate(texts):
+                item_id = str(idx)
+                try:
+                    if not isinstance(item, dict):
+                        results.append({"id": item_id, "audioBase64": None, "error": "Invalid item format."})
+                        continue
 
-                if not text:
-                    results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
-                    continue
+                    item_id = str(item.get("id") or item_id)
+                    text = str(item.get("text") or "").strip()
 
-                # Get raw bytes from generator
-                audio_bytes, mime_type, used_format, used_speaker = cosy_server.generate_audio(
-                    cosy_server.cosyvoice_model,
-                    text,
-                    params["prompt_text"],
-                    params["instruct_text"],
-                    params["emotion"],
-                    params["output_format"],
-                    ref_wav_path,
-                    params["speed"],
-                    params["speaker"],
-                    cosy_server.default_reference_path,
-                )
+                    if not text:
+                        results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
+                        continue
 
-                # Process the heavy base64 (and MP3 encoding if applicable) asynchronously
-                # to avoid blocking the GPU for the next chunk
-                def _do_encoding(ab, mt, of, sp, iid):
-                    b64 = base64.b64encode(ab).decode("ascii")
-                    return {
-                        "id": iid,
-                        "audioBase64": b64,
-                        "mimeType": mt,
-                        "outputFormat": of,
-                        "speaker": sp or "",
-                        "error": None
-                    }
+                    # Get raw bytes from generator (GPU BLOCKING)
+                    audio_bytes, mime_type, used_format, used_speaker = cosy_server.generate_audio(
+                        cosy_server.cosyvoice_model,
+                        text,
+                        params["prompt_text"],
+                        params["instruct_text"],
+                        params["emotion"],
+                        params["output_format"],
+                        ref_wav_path,
+                        params["speed"],
+                        params["speaker"],
+                        cosy_server.default_reference_path,
+                    )
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    # Process the heavy base64 (and MP3 encoding if applicable) asynchronously
+                    # to avoid blocking the GPU for the next chunk
+                    def _do_encoding(ab, mt, of, sp, iid):
+                        b64 = base64.b64encode(ab).decode("ascii")
+                        return {
+                            "id": iid,
+                            "audioBase64": b64,
+                            "mimeType": mt,
+                            "outputFormat": of,
+                            "speaker": sp or "",
+                            "error": None
+                        }
+
+                    # Submit to shared executor, does not block loop
                     future = executor.submit(_do_encoding, audio_bytes, mime_type, used_format, used_speaker, item_id)
-                    result = future.result()
+                    futures.append((idx, item_id, future))
 
-                results.append(result)
-                print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) done")
-            except Exception as exc:
-                error_msg = cosy_server.trim_error_message(str(exc))
-                print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) failed: {error_msg}")
-                results.append({"id": item_id, "audioBase64": None, "error": error_msg})
+                except Exception as exc:
+                    error_msg = cosy_server.trim_error_message(str(exc))
+                    print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) failed: {error_msg}")
+                    # Fast dummy future for error
+                    def _err(iid, e): return {"id": iid, "audioBase64": None, "error": e}
+                    futures.append((idx, item_id, executor.submit(_err, item_id, error_msg)))
+
+            # Wait for all encoding tasks to complete
+            for idx, item_id, future in futures:
+                try:
+                    result = future.result()
+                    results.append(result)
+                    print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) done")
+                except Exception as e:
+                    error_msg = cosy_server.trim_error_message(str(e))
+                    print(f"[tts_batch] item {idx + 1}/{len(texts)} ({item_id}) encoding failed: {error_msg}")
+                    results.append({"id": item_id, "audioBase64": None, "error": error_msg})
 
         print(f"[tts_batch] completed {len(results)}/{len(texts)} items")
         return {"results": results}
     finally:
         _cleanup_temp_file(ref_wav_path)
+
+
 
 
 def handler(job: Dict[str, Any]) -> Dict[str, Any]:

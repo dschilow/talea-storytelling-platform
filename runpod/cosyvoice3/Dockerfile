@@ -40,12 +40,10 @@ RUN git clone --recursive --depth 1 https://github.com/FunAudioLLM/CosyVoice.git
 #   - grpcio/grpcio-tools: not needed for HTTP API
 #   - tensorboard: training-only
 #   - openai-whisper: already installed above
-#   - onnxruntime extra index: use default PyPI version instead
 RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && \
     pip install --upgrade pip "setuptools<71" wheel cython && \
     awk ' \
       BEGIN{IGNORECASE=1} \
-      /^--extra-index-url .*onnxruntime-cuda-12/ {next} \
       /^deepspeed==/ {next} \
       /^fastapi-cli==/ {next} \
       /^gradio==/ {next} \
