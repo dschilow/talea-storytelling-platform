@@ -13,8 +13,42 @@
 const TARGET_WORDS = 50;
 const MAX_CHARS = 400;
 
+/**
+ * Normalize text into a TTS-friendly, language-agnostic format.
+ * Runs BEFORE chunking so the splitter only needs to handle ASCII quotes.
+ *
+ * Mirrors the Python `normalize_tts_input_text()` on the CosyVoice worker,
+ * but applied earlier so chunking decisions match what the model actually sees.
+ *
+ * Covers: German „..." French «...» English \u201C...\u201D Polish \u201E...\u201D
+ *         single quotes, dashes, ellipsis, control chars.
+ */
+export function normalizeTTSText(text: string): string {
+  let t = text.normalize("NFC");
+
+  // Strip control characters (keep \t, \n, \r for paragraph detection)
+  t = t.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, " ");
+
+  // --- Quotation marks → ASCII " and ' ---
+  // Double quotes (covers German „...", English \u201C...\u201D, Polish, etc.)
+  t = t.replace(/[\u201C\u201D\u201E\u201F\u00AB\u00BB\u2018\u201B\u301D\u301E\u301F\uFF02]/g, '"');
+  // Single quotes (covers curly \u2018...\u2019, ‚, ‹›)
+  t = t.replace(/[\u2018\u2019\u201A\u2039\u203A\uFF07]/g, "'");
+
+  // --- Dashes → simple hyphen-minus surrounded by spaces ---
+  t = t.replace(/[\u2013\u2014\u2015]/g, " - ");
+
+  // --- Ellipsis → period + space (CosyVoice handles "." better than "\u2026") ---
+  t = t.replace(/\u2026/g, ". ");
+
+  // Collapse multiple spaces (but preserve newlines for paragraph splitting)
+  t = t.replace(/[^\S\n]+/g, " ");
+
+  return t.trim();
+}
+
 export function splitTextIntoChunks(text: string): string[] {
-  const trimmed = text.trim();
+  const trimmed = normalizeTTSText(text);
   if (!trimmed) return [];
 
   const paragraphs = toParagraphs(trimmed);
@@ -51,8 +85,8 @@ export function splitTextIntoChunks(text: string): string[] {
         const bufWords = sentenceBuffer ? sentenceBuffer.split(/\s+/).length : 0;
         const senWords = sen.split(/\s+/).length;
         const bufferLength = sentenceBuffer ? sentenceBuffer.length + 1 + sen.length : sen.length;
-        const openQuotes = countChar(sentenceBuffer, "\"") + countChar(sentenceBuffer, "\u201e");
-        const isDialogueOpen = openQuotes % 2 !== 0;
+        // After normalizeTTSText(), only ASCII " remains — simple parity check.
+        const isDialogueOpen = countChar(sentenceBuffer, "\"") % 2 !== 0;
 
         if (
           sentenceBuffer &&
@@ -116,7 +150,8 @@ function splitBySentences(text: string): string[] {
 
   while (i < text.length) {
     const ch = text[i];
-    const isSentenceEnd = ch === "." || ch === "!" || ch === "?" || ch === "\u2026";
+    // After normalizeTTSText(), \u2026 is already converted to ". "
+    const isSentenceEnd = ch === "." || ch === "!" || ch === "?";
     if (!isSentenceEnd) {
       i += 1;
       continue;
@@ -251,12 +286,14 @@ function countChar(str: string, char: string): number {
 }
 
 function isClosingPunctuation(char: string): boolean {
-  return /["')\]\u00BB\u201D\u2019]/.test(char);
+  // After normalizeTTSText(), only ASCII " and ' remain — no Unicode variants.
+  return /["')\]]/.test(char);
 }
 
 function skipOpeningPunctuation(text: string, startIndex: number): number {
   let pos = startIndex;
-  while (pos < text.length && /["'(\[\u00AB\u201E\u201C\u2018]/.test(text[pos])) {
+  // After normalizeTTSText(), only ASCII " and ' remain — no Unicode variants.
+  while (pos < text.length && /["'(\[]/.test(text[pos])) {
     pos += 1;
   }
   return pos;
