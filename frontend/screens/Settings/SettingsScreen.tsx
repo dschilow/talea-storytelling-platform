@@ -4,6 +4,7 @@ import { PricingTable, UserProfile, useAuth, useClerk, useUser } from '@clerk/cl
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { useBackend } from '../../hooks/useBackend';
+import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../src/i18n';
 import { useTheme } from '../../contexts/ThemeContext';
 import { toast } from 'sonner';
@@ -91,6 +92,32 @@ type GroupedGeneratedAudio = {
   createdAt: string | Date;
   items: GeneratedAudioLibraryEntry[];
 };
+
+type DokuNarrationInput = {
+  title?: string;
+  summary?: string;
+  topic?: string;
+  content?: {
+    sections?: Array<{
+      title?: string;
+      content?: string;
+    }>;
+  };
+};
+
+function buildDokuNarrationText(doku: DokuNarrationInput): string {
+  const blocks: string[] = [];
+  if (doku.title) blocks.push(doku.title);
+  if (doku.summary) blocks.push(doku.summary);
+  if (doku.topic) blocks.push(`Thema: ${doku.topic}.`);
+  if (doku.content?.sections?.length) {
+    for (const section of doku.content.sections) {
+      if (section.title) blocks.push(section.title);
+      if (section.content) blocks.push(section.content);
+    }
+  }
+  return blocks.join('\n\n').trim();
+}
 
 type KeywordPreset = {
   id: string;
@@ -984,6 +1011,7 @@ function UsageCard(props: {
 
 function AudioLibraryPanel() {
   const backend = useBackend();
+  const audioPlayer = useAudioPlayer();
   const { getToken } = useAuth();
   const backendUrl = getBackendUrl();
   const [items, setItems] = useState<GeneratedAudioLibraryEntry[]>([]);
@@ -991,7 +1019,8 @@ function AudioLibraryPanel() {
   const [query, setQuery] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'all' | 'story' | 'doku'>('all');
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [playBusyKey, setPlayBusyKey] = useState<string | null>(null);
   const [offlineBusyId, setOfflineBusyId] = useState<string | null>(null);
   const [offlineSavedIds, setOfflineSavedIds] = useState<Set<string>>(new Set());
 
@@ -1133,34 +1162,102 @@ function AudioLibraryPanel() {
     }
   };
 
-  const handleDelete = useCallback(
-    async (entry: GeneratedAudioLibraryEntry) => {
-      const confirmDelete = window.confirm(`"${entry.itemTitle}" wirklich loeschen?`);
+  const handleDeleteGroup = useCallback(
+    async (group: GroupedGeneratedAudio) => {
+      const confirmDelete = window.confirm(
+        `"${group.sourceTitle}" wirklich loeschen? (${group.items.length} Audio-Teil(e))`,
+      );
       if (!confirmDelete) return;
 
       try {
-        setDeletingId(entry.id);
-        await callAudioLibraryApi(`/story/audio-library/${encodeURIComponent(entry.id)}`, {
-          method: 'DELETE',
-        });
-        setItems((prev) => prev.filter((item) => item.id !== entry.id));
-        if (offlineSavedIds.has(entry.id)) {
-          await removeGeneratedAudioOffline(entry.id);
-          setOfflineSavedIds((prev) => {
-            const next = new Set(prev);
+        setDeletingKey(group.key);
+        await Promise.all(
+          group.items.map((entry) =>
+            callAudioLibraryApi(`/story/audio-library/${encodeURIComponent(entry.id)}`, {
+              method: 'DELETE',
+            }),
+          ),
+        );
+
+        await Promise.all(group.items.map((entry) => removeGeneratedAudioOffline(entry.id).catch(() => undefined)));
+
+        setItems((prev) =>
+          prev.filter(
+            (item) => !(item.sourceType === group.sourceType && item.sourceId === group.sourceId),
+          ),
+        );
+        setOfflineSavedIds((prev) => {
+          const next = new Set(prev);
+          for (const entry of group.items) {
             next.delete(entry.id);
-            return next;
-          });
-        }
-        toast.success('Audio entfernt.');
+          }
+          return next;
+        });
+        toast.success('Titel entfernt.');
       } catch (error) {
         console.error('Failed to delete generated audio:', error);
-        toast.error('Audio konnte nicht geloescht werden.');
+        toast.error('Titel konnte nicht geloescht werden.');
       } finally {
-        setDeletingId(null);
+        setDeletingKey(null);
       }
     },
-    [callAudioLibraryApi, offlineSavedIds],
+    [callAudioLibraryApi],
+  );
+
+  const handlePlayGroup = useCallback(
+    async (group: GroupedGeneratedAudio) => {
+      try {
+        setPlayBusyKey(group.key);
+
+        if (group.sourceType === 'story') {
+          const existingIndex = audioPlayer.playlist.findIndex((item) => item.parentStoryId === group.sourceId);
+          if (existingIndex >= 0) {
+            audioPlayer.playFromPlaylist(existingIndex);
+            return;
+          }
+
+          const story = await backend.story.get({ id: group.sourceId });
+          const chapters = Array.isArray((story as any)?.chapters) ? ((story as any).chapters as any[]) : [];
+          if (chapters.length === 0) {
+            throw new Error('Story hat keine Kapitel.');
+          }
+          audioPlayer.startStoryConversion(
+            group.sourceId,
+            (story as any).title || group.sourceTitle,
+            chapters as any,
+            group.coverImageUrl,
+            true,
+          );
+          return;
+        }
+
+        const existingIndex = audioPlayer.playlist.findIndex((item) => item.parentDokuId === group.sourceId);
+        if (existingIndex >= 0) {
+          audioPlayer.playFromPlaylist(existingIndex);
+          return;
+        }
+
+        const doku = (await backend.doku.getDoku({ id: group.sourceId })) as DokuNarrationInput & { title?: string };
+        const narration = buildDokuNarrationText(doku);
+        if (!narration) {
+          throw new Error('Doku hat keinen vorlesbaren Inhalt.');
+        }
+
+        audioPlayer.startDokuConversion(
+          group.sourceId,
+          doku.title || group.sourceTitle,
+          narration,
+          group.coverImageUrl,
+          true,
+        );
+      } catch (error) {
+        console.error('[AudioLibrary] Failed to play grouped audio item:', error);
+        toast.error('Titel konnte nicht im Player gestartet werden.');
+      } finally {
+        setPlayBusyKey(null);
+      }
+    },
+    [audioPlayer, backend],
   );
 
   const handleToggleOffline = useCallback(
@@ -1279,6 +1376,11 @@ function AudioLibraryPanel() {
             const savedCount = group.items.filter((item) => offlineSavedIds.has(item.id)).length;
             const isOfflineSaved = savedCount > 0 && savedCount === group.items.length;
             const isBusyOffline = offlineBusyId === group.key;
+            const isDeleting = deletingKey === group.key;
+            const isPlayBusy = playBusyKey === group.key;
+            const chapterCount = new Set(
+              group.items.map((item) => `${item.itemOrder ?? ''}:${(item.itemTitle || '').trim()}`),
+            ).size;
             return (
               <div key={group.key} className="rounded-2xl border border-border bg-card/70 p-4">
                 <div className="flex items-start gap-3">
@@ -1293,13 +1395,20 @@ function AudioLibraryPanel() {
                         {isStory ? 'Story' : 'Doku'}
                       </span>
                       <span className="text-[11px] text-muted-foreground">{formatDate(group.createdAt)}</span>
-                      <span className="text-[11px] text-muted-foreground">{group.items.length} Kapitel/Teile</span>
+                      <span className="text-[11px] text-muted-foreground">{chapterCount} Kapitel/Teile</span>
                     </div>
                     <p className="mt-1 text-sm font-semibold text-foreground truncate">{group.sourceTitle}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Wird im Player kapitelweise abgespielt.
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => void handlePlayGroup(group)} disabled={isPlayBusy}>
+                    <Headphones className="mr-2 h-4 w-4" />
+                    {isPlayBusy ? 'Bereite vor...' : 'Im Player abspielen'}
+                  </Button>
                   <Button
                     type="button"
                     variant={isOfflineSaved ? 'default' : 'outline'}
@@ -1314,37 +1423,10 @@ function AudioLibraryPanel() {
                       ? 'Offline entfernen'
                       : 'Offline speichern'}
                   </Button>
-                </div>
-
-                <div className="mt-3 space-y-3">
-                  {group.items.map((entry, idx) => {
-                    const isDeleting = deletingId === entry.id;
-                    return (
-                      <div key={entry.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">
-                              {entry.itemTitle || `Kapitel ${idx + 1}`}
-                            </p>
-                            {entry.itemSubtitle ? (
-                              <p className="text-[11px] text-muted-foreground truncate">{entry.itemSubtitle}</p>
-                            ) : null}
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void handleDelete(entry)}
-                            disabled={isDeleting}
-                          >
-                            <Trash2 className="mr-2 h-3.5 w-3.5" />
-                            {isDeleting ? 'Loesche...' : 'Loeschen'}
-                          </Button>
-                        </div>
-                        <audio controls preload="none" src={entry.audioUrl} className="mt-2 w-full" />
-                      </div>
-                    );
-                  })}
+                  <Button type="button" variant="outline" onClick={() => void handleDeleteGroup(group)} disabled={isDeleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeleting ? 'Loesche...' : 'Loeschen'}
+                  </Button>
                 </div>
               </div>
             );

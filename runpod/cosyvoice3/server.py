@@ -1,3 +1,5 @@
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
+# This module runs inside the RunPod container, where runtime deps are installed.
 import argparse
 import asyncio
 import io
