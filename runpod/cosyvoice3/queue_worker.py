@@ -151,29 +151,18 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
 
         results: List[Dict[str, Any]] = []
         for idx, item in enumerate(texts):
-            if not isinstance(item, dict):
-                results.append({"id": str(idx), "audioBase64": None, "error": "Invalid item format."})
-                continue
+            item_id = str(idx)
+            try:
+                if not isinstance(item, dict):
+                    results.append({"id": item_id, "audioBase64": None, "error": "Invalid item format."})
+                    continue
 
-            item_id = str(item.get("id") or str(idx))
-            text = str(item.get("text") or "").strip()
+                item_id = str(item.get("id") or item_id)
+                text = str(item.get("text") or "").strip()
 
-            if not text:
-                results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
-                continue
-
-                # Process the audio conversion/encoding asynchronously
-                # to avoid blocking the GPU for the next chunk
-                def process_result(audio_bytes, mime_type, out_fmt, spk):
-                    b64 = base64.b64encode(audio_bytes).decode("ascii")
-                    return {
-                        "id": item_id,
-                        "audioBase64": b64,
-                        "mimeType": mime_type,
-                        "outputFormat": out_fmt,
-                        "speaker": spk or "",
-                        "error": None
-                    }
+                if not text:
+                    results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
+                    continue
 
                 # Get raw bytes from generator
                 audio_bytes, mime_type, used_format, used_speaker = cosy_server.generate_audio(
@@ -189,9 +178,21 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
                     cosy_server.default_reference_path,
                 )
 
-                # Send the heavy base64 (and MP3 encoding if applicable) to a thread
+                # Process the heavy base64 (and MP3 encoding if applicable) asynchronously
+                # to avoid blocking the GPU for the next chunk
+                def _do_encoding(ab, mt, of, sp, iid):
+                    b64 = base64.b64encode(ab).decode("ascii")
+                    return {
+                        "id": iid,
+                        "audioBase64": b64,
+                        "mimeType": mt,
+                        "outputFormat": of,
+                        "speaker": sp or "",
+                        "error": None
+                    }
+
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(process_result, audio_bytes, mime_type, used_format, used_speaker)
+                    future = executor.submit(_do_encoding, audio_bytes, mime_type, used_format, used_speaker, item_id)
                     result = future.result()
 
                 results.append(result)

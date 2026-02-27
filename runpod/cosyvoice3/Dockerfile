@@ -60,7 +60,7 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
     ' requirements.txt > requirements.serverless.txt && \
     cat requirements.serverless.txt && \
     pip install --no-cache-dir -r requirements.serverless.txt && \
-    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub modelscope pydub requests runpod flash-attn==2.6.3 --no-build-isolation
+    pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub modelscope pydub requests runpod --no-build-isolation
 
 # Verify ALL critical imports work at build time so we catch errors early.
 # This replicates the actual import chain that happens at runtime.
