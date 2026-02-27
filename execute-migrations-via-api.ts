@@ -7,13 +7,17 @@
  *   bun run execute-migrations-via-api.ts pipeline
  *   bun run execute-migrations-via-api.ts personality
  *   bun run execute-migrations-via-api.ts audio
+ *   bun run execute-migrations-via-api.ts audio-library
  *   bun run execute-migrations-via-api.ts user
  *   bun run execute-migrations-via-api.ts all
  */
 
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
 
 const BACKEND_URL = "https://backend-2-production-3de1.up.railway.app";
 
@@ -29,7 +33,7 @@ const SERVICE_CONFIG = {
 } as const;
 
 type MigrationService = keyof typeof SERVICE_CONFIG;
-type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "user";
+type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "audio-library" | "user";
 
 const migrations: Array<{
   file: string;
@@ -53,6 +57,12 @@ const migrations: Array<{
   { file: "19_add_character_personality_v2.up.sql", name: "19_add_character_personality_v2", group: "personality", service: "story" },
   { file: "20_seed_character_personality_v2.up.sql", name: "20_seed_character_personality_v2", group: "personality", service: "story" },
   { file: "3_create_audio_dokus.up.sql", name: "3_create_audio_dokus", group: "audio", dir: "backend/doku/migrations", service: "story" },
+  {
+    file: "23_create_generated_audio_library.up.sql",
+    name: "23_create_generated_audio_library",
+    group: "audio-library",
+    service: "story",
+  },
   {
     file: "6_add_generation_usage.up.sql",
     name: "6_add_generation_usage",
@@ -258,11 +268,36 @@ async function verifyAudioDokus(): Promise<void> {
   }
 }
 
+async function verifyGeneratedAudioLibrary(): Promise<void> {
+  console.log("\nVerifying generated audio library table...");
+  try {
+    const verifySQL = "SELECT COUNT(*)::int as count FROM generated_audio_library;";
+    const verifyResponse = await fetch(SERVICE_CONFIG.story.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: verifySQL,
+        migrationName: "verify_generated_audio_library",
+      }),
+    });
+
+    if (verifyResponse.ok) {
+      console.log("  OK: Generated audio library verification query sent.");
+      console.log("  Run this SQL to inspect:");
+      console.log("     SELECT COUNT(*) as count FROM generated_audio_library;");
+    }
+  } catch (error: any) {
+    console.log(`  WARN: Verification query failed: ${error.message}`);
+  }
+}
+
 async function main() {
   const modeArg = (process.argv[2] || "artifact").toLowerCase();
-  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "user", "all"]);
+  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "audio-library", "user", "all"]);
   if (!allowed.has(modeArg)) {
-    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | user | all`);
+    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | audio-library | user | all`);
     process.exit(1);
   }
 
@@ -270,7 +305,7 @@ async function main() {
   console.log(`Mode: ${modeArg}\n`);
 
   const selected = migrations.filter(m => modeArg === "all" || m.group === modeArg);
-  const defaultMigrationsDir = join(import.meta.dir, "backend", "story", "migrations");
+  const defaultMigrationsDir = join(scriptDir, "backend", "story", "migrations");
 
   const servicesToTest = Array.from(new Set(selected.map((migration) => migration.service)));
   for (const service of servicesToTest) {
@@ -280,7 +315,7 @@ async function main() {
   let successCount = 0;
   for (const migration of selected) {
     const migrationsDir = migration.dir
-      ? join(import.meta.dir, migration.dir)
+      ? join(scriptDir, migration.dir)
       : defaultMigrationsDir;
     const migrationPath = join(migrationsDir, migration.file);
     if (!existsSync(migrationPath)) {
@@ -312,6 +347,9 @@ async function main() {
     if (modeArg === "audio" || modeArg === "all") {
       console.log("\nAudio doku table is now available.");
     }
+    if (modeArg === "audio-library" || modeArg === "all") {
+      console.log("\nGenerated audio library table is now available.");
+    }
   } else {
     console.log(`\nWarning: Only ${successCount}/${selected.length} migrations completed.`);
   }
@@ -327,6 +365,9 @@ async function main() {
   }
   if (modeArg === "audio" || modeArg === "all") {
     await verifyAudioDokus();
+  }
+  if (modeArg === "audio-library" || modeArg === "all") {
+    await verifyGeneratedAudioLibrary();
   }
 }
 
