@@ -35,7 +35,6 @@ import {
   Trash2,
   Users,
   X,
-  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
@@ -81,6 +80,16 @@ type GeneratedAudioListResponse = {
   items: GeneratedAudioLibraryEntry[];
   total: number;
   hasMore: boolean;
+};
+
+type GroupedGeneratedAudio = {
+  key: string;
+  sourceType: 'story' | 'doku';
+  sourceId: string;
+  sourceTitle: string;
+  coverImageUrl?: string;
+  createdAt: string | Date;
+  items: GeneratedAudioLibraryEntry[];
 };
 
 type KeywordPreset = {
@@ -1061,14 +1070,57 @@ function AudioLibraryPanel() {
     void loadOfflineSaved();
   }, [loadOfflineSaved]);
 
-  const visibleItems = useMemo(() => {
+  const groupedItems = useMemo<GroupedGeneratedAudio[]>(() => {
+    const grouped = new Map<string, GroupedGeneratedAudio>();
+    for (const entry of items) {
+      const key = `${entry.sourceType}:${entry.sourceId}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.items.push(entry);
+        if (new Date(entry.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
+          existing.createdAt = entry.createdAt;
+        }
+        continue;
+      }
+
+      grouped.set(key, {
+        key,
+        sourceType: entry.sourceType,
+        sourceId: entry.sourceId,
+        sourceTitle: entry.sourceTitle,
+        coverImageUrl: entry.coverImageUrl,
+        createdAt: entry.createdAt,
+        items: [entry],
+      });
+    }
+
+    const groups = Array.from(grouped.values()).map((group) => ({
+      ...group,
+      items: [...group.items].sort((a, b) => {
+        const orderA = Number.isFinite(a.itemOrder as number) ? (a.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+        const orderB = Number.isFinite(b.itemOrder as number) ? (b.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }),
+    }));
+
+    return groups.sort((a, b) => {
+      const diff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return sort === 'newest' ? diff : -diff;
+    });
+  }, [items, sort]);
+
+  const visibleGroups = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return items;
-    return items.filter((item) => {
-      const haystack = `${item.sourceTitle} ${item.itemTitle} ${item.itemSubtitle || ''}`.toLowerCase();
+    if (!needle) return groupedItems;
+    return groupedItems.filter((group) => {
+      const chapterTitles = group.items
+        .map((item) => `${item.itemTitle} ${item.itemSubtitle || ''}`)
+        .join(' ');
+      const haystack = `${group.sourceTitle} ${chapterTitles}`.toLowerCase();
       return haystack.includes(needle);
     });
-  }, [items, query]);
+  }, [groupedItems, query]);
 
   const formatDate = (value: string | Date) => {
     try {
@@ -1111,55 +1163,50 @@ function AudioLibraryPanel() {
     [callAudioLibraryApi, offlineSavedIds],
   );
 
-  const handleDownload = useCallback((entry: GeneratedAudioLibraryEntry) => {
-    const safeName = (entry.itemTitle || 'audio')
-      .replace(/[^\w\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .toLowerCase();
-    const element = document.createElement('a');
-    element.href = entry.audioUrl;
-    element.download = `${safeName || 'audio'}.mp3`;
-    element.rel = 'noopener';
-    element.target = '_blank';
-    document.body.appendChild(element);
-    element.click();
-    element.remove();
-  }, []);
-
   const handleToggleOffline = useCallback(
-    async (entry: GeneratedAudioLibraryEntry) => {
+    async (group: GroupedGeneratedAudio) => {
       try {
-        setOfflineBusyId(entry.id);
-        if (offlineSavedIds.has(entry.id)) {
-          await removeGeneratedAudioOffline(entry.id);
+        setOfflineBusyId(group.key);
+        const allSaved = group.items.length > 0 && group.items.every((item) => offlineSavedIds.has(item.id));
+
+        if (allSaved) {
+          await Promise.all(group.items.map((item) => removeGeneratedAudioOffline(item.id)));
           setOfflineSavedIds((prev) => {
             const next = new Set(prev);
-            next.delete(entry.id);
+            for (const item of group.items) {
+              next.delete(item.id);
+            }
             return next;
           });
           toast.success('Offline-Audio entfernt.');
           return;
         }
 
-        await saveGeneratedAudioOffline(entry);
+        await Promise.all(group.items.map((item) => saveGeneratedAudioOffline(item)));
 
-        if (entry.sourceType === 'story') {
+        if (group.sourceType === 'story') {
           try {
-            const story = await backend.story.get({ id: entry.sourceId });
+            const story = await backend.story.get({ id: group.sourceId });
             await saveStoryOffline(story as any);
           } catch (error) {
             console.warn('[AudioLibrary] Story offline save failed:', error);
           }
         } else {
           try {
-            const doku = await backend.doku.getDoku({ id: entry.sourceId });
+            const doku = await backend.doku.getDoku({ id: group.sourceId });
             await saveDokuOffline(doku as any);
           } catch (error) {
             console.warn('[AudioLibrary] Doku offline save failed:', error);
           }
         }
 
-        setOfflineSavedIds((prev) => new Set(prev).add(entry.id));
+        setOfflineSavedIds((prev) => {
+          const next = new Set(prev);
+          for (const item of group.items) {
+            next.add(item.id);
+          }
+          return next;
+        });
         toast.success('Audio + zugehoeriger Inhalt offline gespeichert.');
       } catch (error) {
         console.error('Failed to toggle offline generated audio:', error);
@@ -1213,7 +1260,7 @@ function AudioLibraryPanel() {
           <option value="oldest">Aelteste zuerst</option>
         </select>
         <div className="h-9 inline-flex items-center justify-end text-xs text-muted-foreground">
-          {visibleItems.length} Eintraege
+          {visibleGroups.length} Titel
         </div>
       </div>
 
@@ -1221,23 +1268,23 @@ function AudioLibraryPanel() {
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
           Lade Audio-Bibliothek...
         </div>
-      ) : visibleItems.length === 0 ? (
+      ) : visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
           Keine gespeicherten Audios gefunden.
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleItems.map((entry) => {
-            const isStory = entry.sourceType === 'story';
-            const isOfflineSaved = offlineSavedIds.has(entry.id);
-            const isBusyOffline = offlineBusyId === entry.id;
-            const isDeleting = deletingId === entry.id;
+          {visibleGroups.map((group) => {
+            const isStory = group.sourceType === 'story';
+            const savedCount = group.items.filter((item) => offlineSavedIds.has(item.id)).length;
+            const isOfflineSaved = savedCount > 0 && savedCount === group.items.length;
+            const isBusyOffline = offlineBusyId === group.key;
             return (
-              <div key={entry.id} className="rounded-2xl border border-border bg-card/70 p-4">
+              <div key={group.key} className="rounded-2xl border border-border bg-card/70 p-4">
                 <div className="flex items-start gap-3">
                   <div className="h-14 w-14 rounded-xl overflow-hidden bg-muted shrink-0">
-                    {entry.coverImageUrl ? (
-                      <img src={entry.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                    {group.coverImageUrl ? (
+                      <img src={group.coverImageUrl} alt="" className="h-full w-full object-cover" />
                     ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -1245,44 +1292,59 @@ function AudioLibraryPanel() {
                       <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isStory ? 'bg-[#A989F2]/15 text-[#7C6BE3]' : 'bg-[#2DD4BF]/15 text-[#0EA5E9]'}`}>
                         {isStory ? 'Story' : 'Doku'}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">{formatDate(entry.createdAt)}</span>
+                      <span className="text-[11px] text-muted-foreground">{formatDate(group.createdAt)}</span>
+                      <span className="text-[11px] text-muted-foreground">{group.items.length} Kapitel/Teile</span>
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-foreground truncate">{entry.itemTitle}</p>
-                    <p className="text-xs text-muted-foreground truncate">{entry.sourceTitle}</p>
-                    {entry.itemSubtitle ? (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{entry.itemSubtitle}</p>
-                    ) : null}
+                    <p className="mt-1 text-sm font-semibold text-foreground truncate">{group.sourceTitle}</p>
                   </div>
                 </div>
 
-                <audio controls preload="none" src={entry.audioUrl} className="mt-3 w-full" />
-
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => handleDownload(entry)}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() => void handleToggleOffline(entry)}
+                    variant={isOfflineSaved ? 'default' : 'outline'}
+                    className={isOfflineSaved ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : undefined}
+                    onClick={() => void handleToggleOffline(group)}
                     disabled={isBusyOffline}
                   >
+                    {isOfflineSaved ? <Check className="mr-2 h-4 w-4" /> : null}
                     {isBusyOffline
                       ? 'Speichere...'
                       : isOfflineSaved
                       ? 'Offline entfernen'
                       : 'Offline speichern'}
                   </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => void handleDelete(entry)}
-                    disabled={isDeleting}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {isDeleting ? 'Loesche...' : 'Loeschen'}
-                  </Button>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {group.items.map((entry, idx) => {
+                    const isDeleting = deletingId === entry.id;
+                    return (
+                      <div key={entry.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">
+                              {entry.itemTitle || `Kapitel ${idx + 1}`}
+                            </p>
+                            {entry.itemSubtitle ? (
+                              <p className="text-[11px] text-muted-foreground truncate">{entry.itemSubtitle}</p>
+                            ) : null}
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleDelete(entry)}
+                            disabled={isDeleting}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
+                            {isDeleting ? 'Loesche...' : 'Loeschen'}
+                          </Button>
+                        </div>
+                        <audio controls preload="none" src={entry.audioUrl} className="mt-2 w-full" />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
