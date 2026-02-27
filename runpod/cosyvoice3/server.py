@@ -122,12 +122,63 @@ def maybe_clear_hf_cache() -> None:
         print(f"[startup] Failed to clear HF cache dir {cache_path}: {exc}")
 
 
+def _has_cosyvoice_blank_en_weights(model_root: Path) -> bool:
+    blank_en_dir = model_root / "CosyVoice-BlankEN"
+    if not blank_en_dir.is_dir():
+        return False
+
+    direct_weight_files = (
+        "pytorch_model.bin",
+        "model.safetensors",
+        "tf_model.h5",
+        "model.ckpt.index",
+        "flax_model.msgpack",
+        "model.safetensors.index.json",
+        "pytorch_model.bin.index.json",
+    )
+    if any((blank_en_dir / filename).exists() for filename in direct_weight_files):
+        return True
+
+    # Sharded checkpoints (e.g. model-00001-of-00002.safetensors)
+    if list(blank_en_dir.glob("model-*-of-*.safetensors")):
+        return True
+    if list(blank_en_dir.glob("pytorch_model-*-of-*.bin")):
+        return True
+
+    return False
+
+
+def resolve_existing_model_root(path: Path) -> Optional[Path]:
+    """Resolve a usable CosyVoice model root.
+
+    Supports both:
+    - direct model root in COSYVOICE_MODEL_DIR
+    - one nested subdirectory containing the model (common with volume mounts)
+    """
+    if not path.exists():
+        return None
+
+    if _has_cosyvoice_blank_en_weights(path):
+        return path
+
+    # Allow one-level nesting, e.g. /runpod-volume/models/<repo-name>
+    for child in path.iterdir():
+        if child.is_dir() and _has_cosyvoice_blank_en_weights(child):
+            return child
+
+    return None
+
+
 def ensure_model_dir() -> str:
     path = Path(MODEL_DIR)
-    if path.exists() and any(path.iterdir()):
-        print(f"[startup] Using existing model dir: {path}")
+    existing_root = resolve_existing_model_root(path)
+    if existing_root is not None:
+        if existing_root != path:
+            print(f"[startup] Using nested model dir: {existing_root} (from base {path})")
+        else:
+            print(f"[startup] Using existing model dir: {existing_root}")
         maybe_clear_hf_cache()
-        return str(path)
+        return str(existing_root)
 
     print(f"[startup] Downloading model {MODEL_ID} into {path} ...")
     path.mkdir(parents=True, exist_ok=True)
@@ -138,9 +189,15 @@ def ensure_model_dir() -> str:
         local_dir_use_symlinks=False,
         resume_download=True,
     )
-    print("[startup] Model download finished.")
+    downloaded_root = resolve_existing_model_root(path)
+    if downloaded_root is None:
+        raise RuntimeError(
+            f"Model download finished but required files are missing in {path}. "
+            "Expected CosyVoice-BlankEN weights (e.g. model.safetensors/pytorch_model.bin)."
+        )
+    print(f"[startup] Model download finished. Using model dir: {downloaded_root}")
     maybe_clear_hf_cache()
-    return str(path)
+    return str(downloaded_root)
 
 
 def ensure_default_reference() -> str:
@@ -447,6 +504,7 @@ def collect_waveform(generator) -> torch.Tensor:
 
     if not chunks:
         raise RuntimeError("CosyVoice returned no audio chunks.")
+    return torch.cat(chunks, dim=1)
 
 
 def check_audio_duration_reasonable(waveform: torch.Tensor, sample_rate: int, text: str) -> bool:
@@ -467,10 +525,17 @@ def check_audio_duration_reasonable(waveform: torch.Tensor, sample_rate: int, te
         return False
     return True
 
-    return torch.cat(chunks, dim=1)
-
 
 def waveform_to_wav_bytes(waveform: torch.Tensor, sample_rate: int) -> bytes:
+    if waveform is None:
+        raise RuntimeError("Generated waveform is None.")
+    if not torch.is_tensor(waveform):
+        raise RuntimeError(f"Generated waveform has invalid type: {type(waveform)}")
+    if waveform.numel() == 0:
+        raise RuntimeError("Generated waveform is empty.")
+    if waveform.dim() == 1:
+        waveform = waveform.unsqueeze(0)
+
     wav_buffer = io.BytesIO()
     torchaudio.save(wav_buffer, waveform, sample_rate, format="wav")
     return wav_buffer.getvalue()
