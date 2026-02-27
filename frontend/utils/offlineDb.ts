@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import type { AudioDoku } from '../types/audio-doku';
+import type { GeneratedAudioLibraryEntry } from '../types/generated-audio';
 
 interface OfflineBlobEntry {
   url: string;
@@ -28,6 +29,12 @@ interface OfflineAudioDokuEntry {
   savedAt: number;
 }
 
+interface OfflineGeneratedAudioEntry {
+  id: string;
+  generatedAudio: GeneratedAudioLibraryEntry;
+  savedAt: number;
+}
+
 interface TaleaOfflineDB extends DBSchema {
   'offline-stories': {
     key: string;
@@ -41,6 +48,10 @@ interface TaleaOfflineDB extends DBSchema {
     key: string;
     value: OfflineAudioDokuEntry;
   };
+  'offline-generated-audios': {
+    key: string;
+    value: OfflineGeneratedAudioEntry;
+  };
   'offline-blobs': {
     key: string;
     value: OfflineBlobEntry;
@@ -48,7 +59,7 @@ interface TaleaOfflineDB extends DBSchema {
 }
 
 const DB_NAME = 'talea-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbInstance: IDBPDatabase<TaleaOfflineDB> | null = null;
 
@@ -65,6 +76,9 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
       }
       if (!db.objectStoreNames.contains('offline-audio-dokus')) {
         db.createObjectStore('offline-audio-dokus', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('offline-generated-audios')) {
+        db.createObjectStore('offline-generated-audios', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('offline-blobs')) {
         db.createObjectStore('offline-blobs', { keyPath: 'url' });
@@ -126,6 +140,13 @@ function collectAudioDokuUrls(audioDoku: AudioDoku): string[] {
   return urls;
 }
 
+function collectGeneratedAudioUrls(entry: GeneratedAudioLibraryEntry): string[] {
+  const urls: string[] = [];
+  if (entry.coverImageUrl) urls.push(entry.coverImageUrl);
+  if (entry.audioUrl) urls.push(entry.audioUrl);
+  return urls;
+}
+
 export async function saveStoryOffline(story: Story): Promise<void> {
   const db = await getDb();
   await db.put('offline-stories', {
@@ -162,6 +183,18 @@ export async function saveAudioDokuOffline(audioDoku: AudioDoku): Promise<void> 
   await Promise.allSettled(urls.map(fetchAndStoreBlob));
 }
 
+export async function saveGeneratedAudioOffline(entry: GeneratedAudioLibraryEntry): Promise<void> {
+  const db = await getDb();
+  await db.put('offline-generated-audios', {
+    id: entry.id,
+    generatedAudio: entry,
+    savedAt: Date.now(),
+  });
+
+  const urls = collectGeneratedAudioUrls(entry);
+  await Promise.allSettled(urls.map(fetchAndStoreBlob));
+}
+
 export async function removeStoryOffline(storyId: string): Promise<void> {
   const db = await getDb();
   const entry = await db.get('offline-stories', storyId);
@@ -192,6 +225,16 @@ export async function removeAudioDokuOffline(audioDokuId: string): Promise<void>
   await cleanupOrphanedBlobs(urls);
 }
 
+export async function removeGeneratedAudioOffline(entryId: string): Promise<void> {
+  const db = await getDb();
+  const entry = await db.get('offline-generated-audios', entryId);
+  if (!entry) return;
+
+  const urls = collectGeneratedAudioUrls(entry.generatedAudio);
+  await db.delete('offline-generated-audios', entryId);
+  await cleanupOrphanedBlobs(urls);
+}
+
 async function cleanupOrphanedBlobs(urls: string[]): Promise<void> {
   if (urls.length === 0) return;
   const db = await getDb();
@@ -211,6 +254,11 @@ async function cleanupOrphanedBlobs(urls: string[]): Promise<void> {
   const audioDokus = await db.getAll('offline-audio-dokus');
   for (const a of audioDokus) {
     for (const u of collectAudioDokuUrls(a.audioDoku)) allUsedUrls.add(u);
+  }
+
+  const generatedAudios = await db.getAll('offline-generated-audios');
+  for (const g of generatedAudios) {
+    for (const u of collectGeneratedAudioUrls(g.generatedAudio)) allUsedUrls.add(u);
   }
 
   for (const url of urls) {
@@ -235,6 +283,12 @@ export async function isDokuSaved(dokuId: string): Promise<boolean> {
 export async function isAudioDokuSaved(audioDokuId: string): Promise<boolean> {
   const db = await getDb();
   const entry = await db.get('offline-audio-dokus', audioDokuId);
+  return !!entry;
+}
+
+export async function isGeneratedAudioSaved(entryId: string): Promise<boolean> {
+  const db = await getDb();
+  const entry = await db.get('offline-generated-audios', entryId);
   return !!entry;
 }
 
@@ -272,6 +326,14 @@ export async function getAllOfflineAudioDokus(): Promise<AudioDoku[]> {
   const db = await getDb();
   const entries = await db.getAll('offline-audio-dokus');
   return entries.map(e => e.audioDoku);
+}
+
+export async function getAllOfflineGeneratedAudios(): Promise<GeneratedAudioLibraryEntry[]> {
+  const db = await getDb();
+  const entries = await db.getAll('offline-generated-audios');
+  return entries
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .map((entry) => entry.generatedAudio);
 }
 
 export async function getBlobUrl(originalUrl: string): Promise<string | null> {
@@ -363,4 +425,22 @@ export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDok
   }
 
   return audioDoku;
+}
+
+export async function getOfflineGeneratedAudio(entryId: string): Promise<GeneratedAudioLibraryEntry | null> {
+  const db = await getDb();
+  const entry = await db.get('offline-generated-audios', entryId);
+  if (!entry) return null;
+
+  const generatedAudio = { ...entry.generatedAudio };
+  if (generatedAudio.coverImageUrl) {
+    const coverBlob = await getBlobUrl(generatedAudio.coverImageUrl);
+    if (coverBlob) generatedAudio.coverImageUrl = coverBlob;
+  }
+  if (generatedAudio.audioUrl) {
+    const audioBlob = await getBlobUrl(generatedAudio.audioUrl);
+    if (audioBlob) generatedAudio.audioUrl = audioBlob;
+  }
+
+  return generatedAudio;
 }

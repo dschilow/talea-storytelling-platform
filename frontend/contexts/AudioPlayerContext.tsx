@@ -279,17 +279,28 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => {
     if (!hasRestoredState) return;
     try {
-      const serializablePlaylist = playlist.map((item) => ({
-        ...item,
-        // Blob URLs are session-local and invalid after refresh.
-        audioUrl: item.audioUrl?.startsWith('blob:') ? undefined : item.audioUrl,
-        conversionStatus:
-          item.type === 'story-chapter' || item.type === 'doku'
-            ? item.audioUrl && !item.audioUrl.startsWith('blob:')
-              ? 'ready'
-              : 'pending'
-            : item.conversionStatus,
-      }));
+      const serializablePlaylist = playlist.map((item) => {
+        const hasExpiringSignedUrl = Boolean(
+          item.audioUrl &&
+          (item.audioUrl.includes('X-Amz-Signature') || item.audioUrl.includes('X-Amz-Algorithm'))
+        );
+        // Blob URLs are session-local and signed URLs expire quickly.
+        const persistedAudioUrl =
+          hasExpiringSignedUrl || item.audioUrl?.startsWith('blob:')
+            ? undefined
+            : item.audioUrl;
+
+        return {
+          ...item,
+          audioUrl: persistedAudioUrl,
+          conversionStatus:
+            item.type === 'story-chapter' || item.type === 'doku'
+              ? persistedAudioUrl
+                ? 'ready'
+                : 'pending'
+              : item.conversionStatus,
+        };
+      });
 
       const payload: StoredPlaylistState = {
         playlist: serializablePlaylist,
@@ -753,7 +764,22 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const newItems: PlaylistItem[] = [];
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
-      const queueItems: Array<{ id: string; text: string; request?: TTSRequestOptions; cacheKey: string; chapterId?: string }> = [];
+      const queueItems: Array<{
+        id: string;
+        text: string;
+        request?: TTSRequestOptions;
+        cacheKey: string;
+        chapterId?: string;
+        libraryMeta?: {
+          sourceType: 'story' | 'doku';
+          sourceId: string;
+          sourceTitle: string;
+          itemTitle: string;
+          itemSubtitle?: string;
+          itemOrder?: number;
+          coverImageUrl?: string;
+        };
+      }> = [];
 
       for (const chapter of sorted) {
         const chunks = splitTextIntoChunks(chapter.content);
@@ -783,6 +809,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             request,
             cacheKey: buildTTSChunkCacheKey(chunkId, chunks[ci], cacheSuffix),
             chapterId: chapterGroupId,
+            libraryMeta: {
+              sourceType: 'story',
+              sourceId: storyId,
+              sourceTitle: storyTitle,
+              itemTitle: chapter.title || `Kapitel ${chapter.order}`,
+              itemSubtitle: storyTitle,
+              itemOrder: chapter.order,
+              coverImageUrl,
+            },
           });
         }
       }
@@ -838,6 +873,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         request,
         cacheKey: buildTTSChunkCacheKey(`doku-${dokuId}-chunk${ci}`, chunk, cacheSuffix),
         chapterId: dokuGroupId,
+        libraryMeta: {
+          sourceType: 'doku' as const,
+          sourceId: dokuId,
+          sourceTitle: dokuTitle,
+          itemTitle: dokuTitle,
+          itemSubtitle: chunks.length > 1 ? `Teil ${ci + 1} von ${chunks.length}` : 'Doku',
+          itemOrder: ci + 1,
+          coverImageUrl,
+        },
       }));
 
       if (autoplay) {

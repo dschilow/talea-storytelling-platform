@@ -9,8 +9,16 @@ export interface QueueItem {
   text: string;
   request?: TTSRequestOptions;
   cacheKey?: string;
-  /** Group key for batching — items with the same chapterId are sent as one batch job. */
   chapterId?: string;
+  libraryMeta?: {
+    sourceType: 'story' | 'doku';
+    sourceId: string;
+    sourceTitle: string;
+    itemTitle: string;
+    itemSubtitle?: string;
+    itemOrder?: number;
+    coverImageUrl?: string;
+  };
 }
 
 interface UseTTSConversionQueueOptions {
@@ -42,6 +50,7 @@ export function useTTSConversionQueue({
   const queueRef = useRef<QueueItem[]>([]);
   const activeCountRef = useRef(0);
   const cancelledRef = useRef(false);
+  const remoteSavedRef = useRef<Set<string>>(new Set());
   const processSingleRef = useRef<(item: QueueItem) => Promise<void>>(async () => {});
 
   const setStatus = useCallback((id: string, status: ConversionStatus) => {
@@ -62,17 +71,85 @@ export function useTTSConversionQueue({
     });
   }, []);
 
-  /** Deliver a single audio data URI to the UI — handles caching + blob creation. */
+  const persistGeneratedAudio = useCallback(
+    async (item: QueueItem, cacheId: string, audioData: string) => {
+      if (!item.libraryMeta) return;
+      if (remoteSavedRef.current.has(cacheId)) return;
+
+      try {
+        const baseClient = (backend as any).baseClient;
+        await baseClient.callTypedAPI('/story/audio-library/save', {
+          method: 'POST',
+          body: JSON.stringify({
+            sourceType: item.libraryMeta.sourceType,
+            sourceId: item.libraryMeta.sourceId,
+            sourceTitle: item.libraryMeta.sourceTitle,
+            itemId: item.id,
+            itemTitle: item.libraryMeta.itemTitle,
+            itemSubtitle: item.libraryMeta.itemSubtitle,
+            itemOrder: item.libraryMeta.itemOrder,
+            cacheKey: cacheId,
+            audioDataUrl: audioData,
+            coverImageUrl: item.libraryMeta.coverImageUrl,
+          }),
+        });
+        remoteSavedRef.current.add(cacheId);
+      } catch (error) {
+        console.warn(`[TTS] Failed to persist generated audio (${item.id}):`, error);
+      }
+    },
+    [backend],
+  );
+
+  const resolveRemoteCachedAudio = useCallback(
+    async (items: QueueItem[]): Promise<Map<string, string>> => {
+      const cacheKeys = Array.from(
+        new Set(
+          items
+            .map((item) => item.cacheKey || item.id)
+            .map((key) => String(key || '').trim())
+            .filter(Boolean),
+        ),
+      );
+      if (cacheKeys.length === 0) {
+        return new Map();
+      }
+
+      try {
+        const baseClient = (backend as any).baseClient;
+        const response = await baseClient.callTypedAPI('/story/audio-library/resolve', {
+          method: 'POST',
+          body: JSON.stringify({ cacheKeys }),
+        });
+        const payload = JSON.parse(await response.text()) as {
+          items?: Array<{ cacheKey: string; audioUrl: string }>;
+        };
+        const resolved = new Map<string, string>();
+        for (const entry of payload.items || []) {
+          if (!entry?.cacheKey || !entry?.audioUrl) continue;
+          resolved.set(entry.cacheKey, entry.audioUrl);
+        }
+        return resolved;
+      } catch (error) {
+        console.warn('[TTS] Remote cache resolve failed:', error);
+        return new Map();
+      }
+    },
+    [backend],
+  );
+
+  /** Deliver a single audio data URI to the UI - handles caching + blob creation. */
   const deliverAudio = useCallback(
-    async (itemId: string, cacheId: string, audioData: string) => {
+    async (item: QueueItem, cacheId: string, audioData: string) => {
       cacheAudio(cacheId, audioData).catch(() => {});
       const fetchRes = await fetch(audioData);
       const blob = await fetchRes.blob();
       const blobUrl = URL.createObjectURL(blob);
-      setStatus(itemId, 'ready');
-      onChunkReady(itemId, blobUrl);
+      setStatus(item.id, 'ready');
+      onChunkReady(item.id, blobUrl);
+      void persistGeneratedAudio(item, cacheId, audioData);
     },
-    [setStatus, onChunkReady],
+    [setStatus, onChunkReady, persistGeneratedAudio],
   );
 
   /** Process a batch of items sharing the same chapterId via /tts/batch endpoint. */
@@ -81,7 +158,7 @@ export function useTTSConversionQueue({
       if (cancelledRef.current) return;
 
       // Check cache for each item first
-      const uncached: QueueItem[] = [];
+      let uncached: QueueItem[] = [];
       for (const item of items) {
         const cacheId = item.cacheKey || item.id;
         const cached = await getCachedAudio(cacheId);
@@ -91,6 +168,25 @@ export function useTTSConversionQueue({
         } else {
           uncached.push(item);
         }
+      }
+
+      if (uncached.length === 0 || cancelledRef.current) return;
+
+      const remoteCachedMap = await resolveRemoteCachedAudio(uncached);
+      if (remoteCachedMap.size > 0 && !cancelledRef.current) {
+        const stillMissing: QueueItem[] = [];
+        for (const item of uncached) {
+          const cacheId = item.cacheKey || item.id;
+          const remoteUrl = remoteCachedMap.get(cacheId);
+          if (remoteUrl) {
+            remoteSavedRef.current.add(cacheId);
+            setStatus(item.id, 'ready');
+            onChunkReady(item.id, remoteUrl);
+          } else {
+            stillMissing.push(item);
+          }
+        }
+        uncached = stillMissing;
       }
 
       if (uncached.length === 0 || cancelledRef.current) return;
@@ -148,7 +244,7 @@ export function useTTSConversionQueue({
           const result = resultMap.get(item.id);
           if (result?.audio) {
             try {
-              await deliverAudio(item.id, item.cacheKey || item.id, result.audio);
+              await deliverAudio(item, item.cacheKey || item.id, result.audio);
             } catch (deliverErr) {
               console.warn(`TTS batch item deliver failed (${item.id}), fallback to single:`, deliverErr);
               fallbackToSingle.push(item);
@@ -173,7 +269,7 @@ export function useTTSConversionQueue({
         }
       }
     },
-    [backend, onChunkReady, onChunkError, setStatus, setStatusBulk, deliverAudio],
+    [backend, onChunkReady, onChunkError, setStatus, setStatusBulk, deliverAudio, resolveRemoteCachedAudio],
   );
 
   /** Process a single item via /tts/generate endpoint (legacy path). */
@@ -189,6 +285,15 @@ export function useTTSConversionQueue({
         if (cached && !cancelledRef.current) {
           setStatus(item.id, 'ready');
           onChunkReady(item.id, cached);
+          return;
+        }
+
+        const remoteCached = await resolveRemoteCachedAudio([item]);
+        const remoteUrl = remoteCached.get(cacheId);
+        if (remoteUrl && !cancelledRef.current) {
+          remoteSavedRef.current.add(cacheId);
+          setStatus(item.id, 'ready');
+          onChunkReady(item.id, remoteUrl);
           return;
         }
 
@@ -228,7 +333,7 @@ export function useTTSConversionQueue({
 
         if (cancelledRef.current) return;
 
-        await deliverAudio(item.id, cacheId, response.audioData);
+        await deliverAudio(item, cacheId, response.audioData);
       } catch (err: any) {
         if (cancelledRef.current) return;
         console.error(`TTS conversion failed for ${item.id}:`, err);
@@ -236,7 +341,7 @@ export function useTTSConversionQueue({
         onChunkError(item.id, err?.message || 'Konvertierung fehlgeschlagen');
       }
     },
-    [backend, onChunkReady, onChunkError, setStatus, deliverAudio],
+    [backend, onChunkReady, onChunkError, setStatus, deliverAudio, resolveRemoteCachedAudio],
   );
   processSingleRef.current = processSingle;
 

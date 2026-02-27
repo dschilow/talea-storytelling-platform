@@ -5,10 +5,12 @@ import { motion } from 'framer-motion';
 import type { Story } from '../../types/story';
 import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
+import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import {
   getAllOfflineStories,
   getAllOfflineDokus,
   getAllOfflineAudioDokus,
+  getAllOfflineGeneratedAudios,
   getBlobUrl,
 } from '../../utils/offlineDb';
 
@@ -17,6 +19,7 @@ const OfflineContentScreen: React.FC = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [audioDokus, setAudioDokus] = useState<AudioDoku[]>([]);
+  const [generatedAudios, setGeneratedAudios] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -26,14 +29,26 @@ const OfflineContentScreen: React.FC = () => {
 
   const loadContent = async () => {
     try {
-      const [s, d, a] = await Promise.all([
+      const [s, d, a, g] = await Promise.all([
         getAllOfflineStories(),
         getAllOfflineDokus(),
         getAllOfflineAudioDokus(),
+        getAllOfflineGeneratedAudios(),
       ]);
       setStories(s);
       setDokus(d);
       setAudioDokus(a);
+
+      const resolvedGenerated: GeneratedAudioLibraryEntry[] = [];
+      for (const entry of g) {
+        const next: GeneratedAudioLibraryEntry = { ...entry };
+        if (next.audioUrl) {
+          const offlineAudioBlob = await getBlobUrl(next.audioUrl);
+          if (offlineAudioBlob) next.audioUrl = offlineAudioBlob;
+        }
+        resolvedGenerated.push(next);
+      }
+      setGeneratedAudios(resolvedGenerated);
 
       // Load cover images from blobs
       const urls: Record<string, string> = {};
@@ -55,6 +70,12 @@ const OfflineContentScreen: React.FC = () => {
           if (blobUrl) urls[ad.id] = blobUrl;
         }
       }
+      for (const ga of g) {
+        if (ga.coverImageUrl) {
+          const blobUrl = await getBlobUrl(ga.coverImageUrl);
+          if (blobUrl) urls[ga.id] = blobUrl;
+        }
+      }
       setCoverUrls(urls);
     } catch (err) {
       console.error('[OfflineContentScreen] Error loading content:', err);
@@ -63,7 +84,7 @@ const OfflineContentScreen: React.FC = () => {
     }
   };
 
-  const totalItems = stories.length + dokus.length + audioDokus.length;
+  const totalItems = stories.length + dokus.length + audioDokus.length + generatedAudios.length;
 
   if (loading) {
     return (
@@ -182,9 +203,35 @@ const OfflineContentScreen: React.FC = () => {
                   <ContentCard
                     key={ad.id}
                     title={ad.title}
-                    subtitle={ad.topic || 'Audio-Doku'}
+                    subtitle={ad.category || 'Audio-Doku'}
                     coverUrl={coverUrls[ad.id]}
                     onClick={() => navigate(`/doku-reader/${ad.id}`)}
+                  />
+                ))}
+              </Section>
+            )}
+
+            {/* Generated Story/Doku Audios */}
+            {generatedAudios.length > 0 && (
+              <Section
+                title="Story-/Doku-Audios"
+                icon={<Headphones size={18} />}
+                count={generatedAudios.length}
+              >
+                {generatedAudios.map((entry) => (
+                  <GeneratedAudioCard
+                    key={entry.id}
+                    title={entry.itemTitle}
+                    subtitle={`${entry.sourceType === 'story' ? 'Story' : 'Doku'} • ${entry.sourceTitle}`}
+                    coverUrl={coverUrls[entry.id]}
+                    audioUrl={entry.audioUrl}
+                    onOpenRelated={() =>
+                      navigate(
+                        entry.sourceType === 'story'
+                          ? `/story-reader/${entry.sourceId}`
+                          : `/doku-reader/${entry.sourceId}`
+                      )
+                    }
                   />
                 ))}
               </Section>
@@ -275,6 +322,84 @@ const ContentCard: React.FC<{
     </div>
     <ArrowRight size={18} style={{ color: '#9a8bbf', flexShrink: 0 }} />
   </motion.button>
+);
+
+const GeneratedAudioCard: React.FC<{
+  title: string;
+  subtitle: string;
+  coverUrl?: string;
+  audioUrl: string;
+  onOpenRelated: () => void;
+}> = ({ title, subtitle, coverUrl, audioUrl, onOpenRelated }) => (
+  <div
+    style={{
+      padding: 12,
+      borderRadius: 16,
+      background: 'rgba(169,137,242,0.08)',
+      border: '1px solid rgba(169,137,242,0.15)',
+    }}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+      {coverUrl ? (
+        <img
+          src={coverUrl}
+          alt=""
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            objectFit: 'cover',
+            flexShrink: 0,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            background: 'rgba(169,137,242,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Headphones size={20} color="#9a8bbf" />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            marginBottom: 2,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {title}
+        </div>
+        <div style={{ fontSize: 12, color: '#9a8bbf' }}>{subtitle}</div>
+      </div>
+      <button
+        onClick={onOpenRelated}
+        style={{
+          border: '1px solid rgba(169,137,242,0.2)',
+          background: 'rgba(169,137,242,0.12)',
+          color: '#d9cbf8',
+          borderRadius: 10,
+          padding: '6px 10px',
+          fontSize: 12,
+          cursor: 'pointer',
+        }}
+      >
+        Lesen
+      </button>
+    </div>
+    <audio controls src={audioUrl} style={{ width: '100%' }} preload="none" />
+  </div>
 );
 
 export default OfflineContentScreen;

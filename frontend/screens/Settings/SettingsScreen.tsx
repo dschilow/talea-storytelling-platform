@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { PricingTable, UserProfile, useClerk, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -31,10 +31,20 @@ import {
   Sparkles,
   Sun,
   Target,
+  Trash2,
   Users,
   X,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
+import {
+  getAllOfflineGeneratedAudios,
+  removeGeneratedAudioOffline,
+  saveDokuOffline,
+  saveGeneratedAudioOffline,
+  saveStoryOffline,
+} from '../../utils/offlineDb';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
@@ -64,6 +74,12 @@ type BillingSnapshot = {
 type ProfileSnapshot = {
   subscription: SubscriptionPlan;
   billing: BillingSnapshot;
+};
+
+type GeneratedAudioListResponse = {
+  items: GeneratedAudioLibraryEntry[];
+  total: number;
+  hasMore: boolean;
 };
 
 type KeywordPreset = {
@@ -956,6 +972,290 @@ function UsageCard(props: {
   );
 }
 
+function AudioLibraryPanel() {
+  const backend = useBackend();
+  const [items, setItems] = useState<GeneratedAudioLibraryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'story' | 'doku'>('all');
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [offlineBusyId, setOfflineBusyId] = useState<string | null>(null);
+  const [offlineSavedIds, setOfflineSavedIds] = useState<Set<string>>(new Set());
+
+  const baseClient = (backend as any).baseClient;
+
+  const loadItems = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        sourceType: sourceFilter,
+        sort,
+        limit: '300',
+        offset: '0',
+      });
+      const response = await baseClient.callTypedAPI(`/story/audio-library?${params.toString()}`, {
+        method: 'GET',
+      });
+      const payload = JSON.parse(await response.text()) as GeneratedAudioListResponse;
+      setItems(Array.isArray(payload.items) ? payload.items : []);
+    } catch (error) {
+      console.error('Failed to load generated audio library:', error);
+      toast.error('Audio-Bibliothek konnte nicht geladen werden.');
+    } finally {
+      setLoading(false);
+    }
+  }, [baseClient, sourceFilter, sort]);
+
+  const loadOfflineSaved = useCallback(async () => {
+    try {
+      const offlineItems = await getAllOfflineGeneratedAudios();
+      setOfflineSavedIds(new Set(offlineItems.map((entry) => entry.id)));
+    } catch (error) {
+      console.error('Failed to load offline audio library state:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadItems();
+  }, [loadItems]);
+
+  useEffect(() => {
+    void loadOfflineSaved();
+  }, [loadOfflineSaved]);
+
+  const visibleItems = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return items;
+    return items.filter((item) => {
+      const haystack = `${item.sourceTitle} ${item.itemTitle} ${item.itemSubtitle || ''}`.toLowerCase();
+      return haystack.includes(needle);
+    });
+  }, [items, query]);
+
+  const formatDate = (value: string | Date) => {
+    try {
+      return new Intl.DateTimeFormat('de-DE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(new Date(value));
+    } catch {
+      return '-';
+    }
+  };
+
+  const handleDelete = useCallback(
+    async (entry: GeneratedAudioLibraryEntry) => {
+      const confirmDelete = window.confirm(`"${entry.itemTitle}" wirklich loeschen?`);
+      if (!confirmDelete) return;
+
+      try {
+        setDeletingId(entry.id);
+        await baseClient.callTypedAPI(`/story/audio-library/${encodeURIComponent(entry.id)}`, {
+          method: 'DELETE',
+        });
+        setItems((prev) => prev.filter((item) => item.id !== entry.id));
+        if (offlineSavedIds.has(entry.id)) {
+          await removeGeneratedAudioOffline(entry.id);
+          setOfflineSavedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(entry.id);
+            return next;
+          });
+        }
+        toast.success('Audio entfernt.');
+      } catch (error) {
+        console.error('Failed to delete generated audio:', error);
+        toast.error('Audio konnte nicht geloescht werden.');
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [baseClient, offlineSavedIds],
+  );
+
+  const handleDownload = useCallback((entry: GeneratedAudioLibraryEntry) => {
+    const safeName = (entry.itemTitle || 'audio')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .toLowerCase();
+    const element = document.createElement('a');
+    element.href = entry.audioUrl;
+    element.download = `${safeName || 'audio'}.mp3`;
+    element.rel = 'noopener';
+    element.target = '_blank';
+    document.body.appendChild(element);
+    element.click();
+    element.remove();
+  }, []);
+
+  const handleToggleOffline = useCallback(
+    async (entry: GeneratedAudioLibraryEntry) => {
+      try {
+        setOfflineBusyId(entry.id);
+        if (offlineSavedIds.has(entry.id)) {
+          await removeGeneratedAudioOffline(entry.id);
+          setOfflineSavedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(entry.id);
+            return next;
+          });
+          toast.success('Offline-Audio entfernt.');
+          return;
+        }
+
+        await saveGeneratedAudioOffline(entry);
+
+        if (entry.sourceType === 'story') {
+          try {
+            const story = await backend.story.get({ id: entry.sourceId });
+            await saveStoryOffline(story as any);
+          } catch (error) {
+            console.warn('[AudioLibrary] Story offline save failed:', error);
+          }
+        } else {
+          try {
+            const doku = await backend.doku.getDoku({ id: entry.sourceId });
+            await saveDokuOffline(doku as any);
+          } catch (error) {
+            console.warn('[AudioLibrary] Doku offline save failed:', error);
+          }
+        }
+
+        setOfflineSavedIds((prev) => new Set(prev).add(entry.id));
+        toast.success('Audio + zugehoeriger Inhalt offline gespeichert.');
+      } catch (error) {
+        console.error('Failed to toggle offline generated audio:', error);
+        toast.error('Offline-Speicherung fehlgeschlagen.');
+      } finally {
+        setOfflineBusyId(null);
+      }
+    },
+    [backend, offlineSavedIds],
+  );
+
+  return (
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+            Audio-Bibliothek
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Persistente Story- und Doku-Audios aus dem Player (geraeteuebergreifend).
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={loadItems} disabled={loading}>
+          <RefreshCcw className="mr-2 h-4 w-4" />
+          Aktualisieren
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Titel suchen..."
+          className="h-9 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm text-[#2a3a4d] outline-none placeholder:text-[#93a3b8] focus:border-[#b79f8e] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd] dark:placeholder:text-[#8ea3bf]"
+        />
+        <select
+          value={sourceFilter}
+          onChange={(event) => setSourceFilter(event.target.value as 'all' | 'story' | 'doku')}
+          className="h-9 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[#b79f8e] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
+        >
+          <option value="all">Alle Typen</option>
+          <option value="story">Story</option>
+          <option value="doku">Doku</option>
+        </select>
+        <select
+          value={sort}
+          onChange={(event) => setSort(event.target.value as 'newest' | 'oldest')}
+          className="h-9 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[#b79f8e] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
+        >
+          <option value="newest">Neueste zuerst</option>
+          <option value="oldest">Aelteste zuerst</option>
+        </select>
+        <div className="h-9 inline-flex items-center justify-end text-xs text-muted-foreground">
+          {visibleItems.length} Eintraege
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
+          Lade Audio-Bibliothek...
+        </div>
+      ) : visibleItems.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
+          Keine gespeicherten Audios gefunden.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visibleItems.map((entry) => {
+            const isStory = entry.sourceType === 'story';
+            const isOfflineSaved = offlineSavedIds.has(entry.id);
+            const isBusyOffline = offlineBusyId === entry.id;
+            const isDeleting = deletingId === entry.id;
+            return (
+              <div key={entry.id} className="rounded-2xl border border-border bg-card/70 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-14 w-14 rounded-xl overflow-hidden bg-muted shrink-0">
+                    {entry.coverImageUrl ? (
+                      <img src={entry.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${isStory ? 'bg-[#A989F2]/15 text-[#7C6BE3]' : 'bg-[#2DD4BF]/15 text-[#0EA5E9]'}`}>
+                        {isStory ? 'Story' : 'Doku'}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">{formatDate(entry.createdAt)}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold text-foreground truncate">{entry.itemTitle}</p>
+                    <p className="text-xs text-muted-foreground truncate">{entry.sourceTitle}</p>
+                    {entry.itemSubtitle ? (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{entry.itemSubtitle}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <audio controls preload="none" src={entry.audioUrl} className="mt-3 w-full" />
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => handleDownload(entry)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleToggleOffline(entry)}
+                    disabled={isBusyOffline}
+                  >
+                    {isBusyOffline
+                      ? 'Speichere...'
+                      : isOfflineSaved
+                      ? 'Offline entfernen'
+                      : 'Offline speichern'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void handleDelete(entry)}
+                    disabled={isDeleting}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {isDeleting ? 'Loesche...' : 'Loeschen'}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SignOutPanel() {
   const { signOut } = useClerk();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -1299,6 +1599,14 @@ export default function SettingsScreen() {
               url="parental"
             >
               <ParentalDashboardPanel />
+            </UserProfile.Page>
+
+            <UserProfile.Page
+              label="Audio-Bibliothek"
+              labelIcon={<Headphones className="w-4 h-4" />}
+              url="audio-library"
+            >
+              <AudioLibraryPanel />
             </UserProfile.Page>
 
             <UserProfile.Page label={t('navigation.logout')} labelIcon={<LogOut className="w-4 h-4" />} url="logout">
