@@ -59,7 +59,10 @@ USE_DEFAULT_PROMPT_FALLBACK = os.getenv("COSYVOICE_USE_DEFAULT_PROMPT_TEXT", "0"
     "yes",
     "on",
 }
-ZERO_SHOT_MIN_TEXT_CHARS = env_int("COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS", 0)
+ZERO_SHOT_MIN_TEXT_CHARS = env_int("COSYVOICE_ZERO_SHOT_MIN_TEXT_CHARS", 60)
+# Minimum audio duration in seconds per word. If zero_shot produces less, retry with cross_lingual.
+# CosyVoice typically produces ~0.3-0.5s per word; 0.08s/word is extremely conservative.
+MIN_SECS_PER_WORD = env_float("COSYVOICE_MIN_SECS_PER_WORD", 0.08)
 DEFAULT_REF_WAV = os.getenv("COSYVOICE_DEFAULT_REF_WAV", "").strip()
 DEFAULT_REF_WAV_URL = os.getenv("COSYVOICE_DEFAULT_REF_WAV_URL", "").strip()
 DEFAULT_SPK_ID = os.getenv("COSYVOICE_DEFAULT_SPK_ID", "").strip()
@@ -88,6 +91,12 @@ runtime_init_error = ""
 # Cached default reference WAV path (as .wav file, converted from mp3 if needed)
 _default_ref_wav_path: Optional[str] = None
 _default_ref_wav_lock = threading.Lock()
+
+# Pre-computed speaker embedding for the default reference voice.
+# When set, zero_shot calls reuse this cached embedding via add_zero_shot_spk()
+# instead of re-computing the 183-char prompt + 29s audio on EVERY chunk.
+_DEFAULT_SPK_CACHE_ID = "__talea_default_voice__"
+_default_spk_cached = False
 
 
 def maybe_clear_hf_cache() -> None:
@@ -183,6 +192,41 @@ def ensure_default_reference() -> str:
         return _default_ref_wav_path
 
 
+def _cache_default_speaker_embedding(cosyvoice) -> None:
+    """Pre-compute and cache the speaker embedding from the default reference audio.
+
+    CosyVoice's add_zero_shot_spk() runs the prompt_text + reference_audio through
+    the frontend once, storing the computed embedding in cosyvoice.frontend.spk2info.
+    Subsequent inference_zero_shot calls with the same spk_id reuse the cached embedding
+    instead of re-computing it for every chunk.
+
+    This is a HUGE performance win: the 29s reference audio + 183-char prompt analysis
+    is done once at startup instead of once per chunk (~8-12 times per chapter).
+    """
+    global _default_spk_cached
+    ref_path = default_reference_path
+    if not ref_path or not Path(ref_path).exists():
+        print("[startup] No default reference audio — skipping speaker embedding cache")
+        return
+
+    prompt_text = (DEFAULT_REFERENCE_TRANSCRIPT or DEFAULT_PROMPT_TEXT or "").strip()
+    if not prompt_text:
+        print("[startup] No reference transcript — skipping speaker embedding cache")
+        return
+
+    try:
+        normalized_prompt = normalize_cv3_prompt_text(prompt_text)
+        cosyvoice.add_zero_shot_spk(normalized_prompt, ref_path, _DEFAULT_SPK_CACHE_ID)
+        _default_spk_cached = True
+        print(
+            f"[startup] Speaker embedding cached as '{_DEFAULT_SPK_CACHE_ID}' "
+            f"(prompt={len(normalized_prompt)} chars, ref={ref_path})"
+        )
+    except Exception as exc:
+        print(f"[startup] Failed to cache speaker embedding: {exc}")
+        _default_spk_cached = False
+
+
 def init_runtime_sync() -> None:
     global resolved_model_dir, default_reference_path, cosyvoice_model, runtime_init_error
     if cosyvoice_model is not None:
@@ -205,6 +249,8 @@ def init_runtime_sync() -> None:
         print(f"[startup] CosyVoice model loaded. Available speakers ({len(available)}): {available[:20]}")
         if default_reference_path:
             print(f"[startup] Default reference audio: {default_reference_path}")
+        # Pre-cache speaker embedding for default reference voice
+        _cache_default_speaker_embedding(cosyvoice_model)
         runtime_init_error = ""
 
 
@@ -402,6 +448,25 @@ def collect_waveform(generator) -> torch.Tensor:
     if not chunks:
         raise RuntimeError("CosyVoice returned no audio chunks.")
 
+
+def check_audio_duration_reasonable(waveform: torch.Tensor, sample_rate: int, text: str) -> bool:
+    """Check if generated audio duration is reasonable for the given text.
+    Returns True if the audio seems OK, False if it's suspiciously short.
+    """
+    if MIN_SECS_PER_WORD <= 0:
+        return True
+    num_samples = waveform.shape[1] if waveform.dim() >= 2 else waveform.shape[0]
+    duration_secs = num_samples / sample_rate
+    word_count = max(1, len(text.split()))
+    secs_per_word = duration_secs / word_count
+    if secs_per_word < MIN_SECS_PER_WORD:
+        print(
+            f"[tts] AUDIO TOO SHORT: {duration_secs:.2f}s for {word_count} words "
+            f"({secs_per_word:.3f}s/word, min={MIN_SECS_PER_WORD}s/word) -> will retry with cross_lingual"
+        )
+        return False
+    return True
+
     return torch.cat(chunks, dim=1)
 
 
@@ -550,37 +615,50 @@ def generate_audio(
             reference_wav_path,
         )
     elif final_prompt_text:
-        print(f"[tts] Mode: zero_shot, prompt_text_len={len(final_prompt_text)}")
+        # Use cached speaker embedding when available (avoids re-analyzing 29s reference audio per chunk)
+        use_cached_spk = _default_spk_cached and not had_custom_reference
+        cached_spk_id = _DEFAULT_SPK_CACHE_ID if use_cached_spk else ""
+        print(
+            f"[tts] Mode: zero_shot, prompt_text_len={len(final_prompt_text)}, "
+            f"cached_spk={'YES' if use_cached_spk else 'no'}"
+        )
+        zero_shot_ok = False
         try:
             waveform = infer_waveform_with_reference_path(
                 "zero_shot",
                 lambda ref: cosyvoice.inference_zero_shot(
-                    cross_lingual_text, final_prompt_text, ref, stream=False, speed=speed,
+                    cross_lingual_text, final_prompt_text, ref,
+                    zero_shot_spk_id=cached_spk_id, stream=False, speed=speed,
                 ),
                 reference_wav_path,
             )
+            # Validate that zero_shot produced reasonable audio length
+            zero_shot_ok = check_audio_duration_reasonable(waveform, cosyvoice.sample_rate, safe_text)
         except Exception as exc:
             fallback_reason = trim_error_message(str(exc))
-            print(f"[tts] zero_shot failed: {fallback_reason}, trying instruct2 fallback")
-            # Fallback: instruct2 with German instruction (much better than cross_lingual)
+            print(f"[tts] zero_shot failed: {fallback_reason}, trying fallback")
+
+        if not zero_shot_ok:
+            # zero_shot produced too-short audio or failed entirely — retry with cross_lingual
+            print(f"[tts] Falling back to cross_lingual after zero_shot issue")
             try:
-                german_instruct = normalize_cv3_instruction(
-                    "Sprich in einem ruhigen, klaren, kinderfreundlichen Ton."
-                )
                 waveform = infer_waveform_with_reference_path(
-                    "instruct2_fallback",
-                    lambda ref: cosyvoice.inference_instruct2(
-                        cross_lingual_text, german_instruct, ref, stream=False, speed=speed,
+                    "cross_lingual_fallback",
+                    lambda ref: cosyvoice.inference_cross_lingual(
+                        cross_lingual_text, ref, stream=False, speed=speed,
                     ),
                     reference_wav_path,
                 )
             except Exception as exc2:
                 instruct_reason = trim_error_message(str(exc2))
-                print(f"[tts] instruct2 fallback failed: {instruct_reason}, last resort: cross_lingual")
+                print(f"[tts] cross_lingual fallback failed: {instruct_reason}, last resort: instruct2")
+                german_instruct = normalize_cv3_instruction(
+                    "Sprich in einem ruhigen, klaren, kinderfreundlichen Ton."
+                )
                 waveform = infer_waveform_with_reference_path(
-                    "cross_lingual_last_resort",
-                    lambda ref: cosyvoice.inference_cross_lingual(
-                        cross_lingual_text, ref, stream=False, speed=speed,
+                    "instruct2_last_resort",
+                    lambda ref: cosyvoice.inference_instruct2(
+                        cross_lingual_text, german_instruct, ref, stream=False, speed=speed,
                     ),
                     reference_wav_path,
                 )
