@@ -2,13 +2,16 @@
  * Server-side text chunking for TTS.
  * Mirrors frontend/utils/ttsChunking.ts.
  *
+ * 50 words / 400 chars = reliable CosyVoice3 attention span.
+ * 80 words caused attention drift (repeated/skipped sentences).
+ *
  * IMPORTANT: Never split in the middle of a sentence. CosyVoice will not speak
  * incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
 
-const TARGET_WORDS = 80;
-const MAX_CHARS = 650;
+const TARGET_WORDS = 50;
+const MAX_CHARS = 400;
 
 export function splitTextIntoChunks(text: string): string[] {
   const trimmed = text.trim();

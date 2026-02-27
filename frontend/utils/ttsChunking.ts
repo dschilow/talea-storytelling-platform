@@ -1,13 +1,17 @@
 /**
  * Chunk sizing tuned for CosyVoice3 0.5B quality.
- * ~40 words per chunk -> ~8-15 sec audio -> prevents voice drift on longer segments.
+ * ~50 words per chunk -> ~10-18 sec audio -> reliable attention span.
+ *
+ * 80 words caused attention drift (repeated/skipped sentences).
+ * 40 words was too small (excessive prompt overhead per chunk).
+ * 50 words is the sweet spot: 2-3 sentences, good prosody, no drift.
  *
  * IMPORTANT: Never split in the middle of a sentence. CosyVoice will not speak
  * incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
-const TARGET_WORDS = 80;
-const MAX_CHARS = 650;
+const TARGET_WORDS = 50;
+const MAX_CHARS = 400;
 
 /**
  * Split text into chunks at natural boundaries.
