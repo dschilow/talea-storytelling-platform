@@ -10,7 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONPATH=/opt/cosyvoice:/opt/cosyvoice/third_party/Matcha-TTS \
     COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
     COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_DEFAULT_REF_WAV=/opt/default-voices/narrator_sample.mp3
+    COSYVOICE_DEFAULT_REF_WAV=/opt/default-voices/narrator_sample.mp3 \
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT="D\u00FCnn, ja\u2026 aber untersch\u00E4tz sie nicht. Spinnenseide ist wie\u2026 ein ultraleichtes Seil, das trotzdem MEGA stark ist."
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
