@@ -56,7 +56,6 @@ RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 && 
       /^tensorrt-cu12-libs==/ {next} \
       {print} \
     ' requirements.txt > requirements.serverless.txt && \
-    cat requirements.serverless.txt && \
     pip install --no-cache-dir -r requirements.serverless.txt && \
     pip install --no-cache-dir fastapi==0.115.6 uvicorn[standard]==0.30.0 python-multipart huggingface_hub modelscope pydub requests runpod --no-build-isolation
 

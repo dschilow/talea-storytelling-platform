@@ -1,5 +1,6 @@
 param(
-    [string]$DockerHubUsername = ""
+    [string]$DockerHubUsername = "",
+    [switch]$Prefetch = $false
 )
 
 if ($DockerHubUsername -eq "") {
@@ -10,16 +11,23 @@ if ($DockerHubUsername -eq "") {
     $DockerHubUsername = "talea"
 }
 
-$ImageName = "$DockerHubUsername/cosyvoice3-runpod:latest"
+# Erzeuge einen Zeitstempel-Tag (z.B. 20240227-1335)
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
+$BaseName = "$DockerHubUsername/cosyvoice3-runpod"
+$VersionTag = "$BaseName:$Timestamp"
+$LatestTag = "$BaseName:latest"
+
+$PrefetchVal = if ($Prefetch) { 1 } else { 0 }
+$ModeText = if ($Prefetch) { "PROD (mit Modellen)" } else { "FAST-DEV (ohne Modelle)" }
 
 Write-Host "==========================================================================" -ForegroundColor Cyan
-Write-Host " Baue und pushe Docker Image: $ImageName" -ForegroundColor Cyan
-Write-Host " Dies wird die Modelle mit in das Image einbauen (PREFETCH_MODEL=1)" -ForegroundColor Cyan
+Write-Host " Baue und pushe Docker Image ($ModeText)" -ForegroundColor Cyan
+Write-Host " Tag: $VersionTag" -ForegroundColor Cyan
 Write-Host "==========================================================================" -ForegroundColor Cyan
 
 # Schritt 1: Docker Image bauen
-Write-Host "`n[Schritt 1/2] Baue Docker Image (das kann ein paar Minuten dauern)..." -ForegroundColor Yellow
-docker build --build-arg PREFETCH_MODEL=1 -t $ImageName -f runpod/cosyvoice3/Dockerfile .
+Write-Host "`n[Schritt 1/2] Baue Docker Image..." -ForegroundColor Yellow
+docker build --build-arg PREFETCH_MODEL=$PrefetchVal -t $VersionTag -t $LatestTag -f runpod/cosyvoice3/Dockerfile .
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Fehler beim Bauen des Docker Images!" -ForegroundColor Red
@@ -28,14 +36,19 @@ if ($LASTEXITCODE -ne 0) {
 
 # Schritt 2: Docker Image pushen
 Write-Host "`n[Schritt 2/2] Pushe Docker Image zu DockerHub..." -ForegroundColor Yellow
-docker push $ImageName
+Write-Host "Pushe $VersionTag..." -ForegroundColor Gray
+docker push $VersionTag
+Write-Host "Pushe $LatestTag..." -ForegroundColor Gray
+docker push $LatestTag
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Fehler beim Pushen des Docker Images! Bist du auf DockerHub eingeloggt? (Führe 'docker login' aus)" -ForegroundColor Red
+    Write-Host "Fehler beim Pushen des Docker Images! Bist du auf DockerHub eingeloggt?" -ForegroundColor Red
     exit $LASTEXITCODE
 }
 
 Write-Host "`n==========================================================================" -ForegroundColor Green
-Write-Host " ERFOLG! Das optimierte Image wurde gebaut und auf DockerHub geladen." -ForegroundColor Green
-Write-Host " Du kannst jetzt in deinem RunPod Template das Image auf '$ImageName' ändern." -ForegroundColor Green
+Write-Host " ERFOLG! Das Image wurde hochgeladen." -ForegroundColor Green
+Write-Host " KOPIERE DIESEN TAG FÜR RUNPOD:" -ForegroundColor White
+Write-Host " $VersionTag" -ForegroundColor Cyan -NoNewline
+Write-Host " (Button wird nun aktiv!)" -ForegroundColor Green
 Write-Host "==========================================================================" -ForegroundColor Green
