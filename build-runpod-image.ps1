@@ -14,8 +14,8 @@ if ($DockerHubUsername -eq "") {
 # Erzeuge einen Zeitstempel-Tag (z.B. 20240227-1335)
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
 $BaseName = "$DockerHubUsername/cosyvoice3-runpod"
-$VersionTag = "$BaseName:$Timestamp"
-$LatestTag = "$BaseName:latest"
+$VersionTag = "${BaseName}:${Timestamp}"
+$LatestTag = "${BaseName}:latest"
 
 $PrefetchVal = if ($Prefetch) { 1 } else { 0 }
 $ModeText = if ($Prefetch) { "PROD (mit Modellen)" } else { "FAST-DEV (ohne Modelle)" }
