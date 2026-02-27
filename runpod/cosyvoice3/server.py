@@ -276,11 +276,18 @@ def _cache_default_speaker_embedding(cosyvoice) -> None:
     try:
         normalized_prompt = normalize_cv3_prompt_text(prompt_text)
         cosyvoice.add_zero_shot_spk(normalized_prompt, ref_path, _DEFAULT_SPK_CACHE_ID)
-        _default_spk_cached = True
-        print(
-            f"[startup] Speaker embedding cached as '{_DEFAULT_SPK_CACHE_ID}' "
-            f"(prompt={len(normalized_prompt)} chars, ref={ref_path})"
-        )
+        if _speaker_has_embedding(cosyvoice, _DEFAULT_SPK_CACHE_ID):
+            _default_spk_cached = True
+            print(
+                f"[startup] Speaker embedding cached as '{_DEFAULT_SPK_CACHE_ID}' "
+                f"(prompt={len(normalized_prompt)} chars, ref={ref_path})"
+            )
+        else:
+            _default_spk_cached = False
+            print(
+                f"[startup] add_zero_shot_spk created '{_DEFAULT_SPK_CACHE_ID}' "
+                "without embedding; cache disabled"
+            )
     except Exception as exc:
         print(f"[startup] Failed to cache speaker embedding: {exc}")
         _default_spk_cached = False
@@ -443,23 +450,59 @@ def list_available_speakers(cosyvoice: Any) -> list[str]:
     return normalized
 
 
+def _speaker_has_embedding(cosyvoice: Any, speaker_id: str) -> bool:
+    speaker = (speaker_id or "").strip()
+    if not speaker:
+        return False
+
+    frontend = getattr(cosyvoice, "frontend", None)
+    spk2info = getattr(frontend, "spk2info", None)
+    if not isinstance(spk2info, dict):
+        return False
+
+    info = spk2info.get(speaker)
+    if not isinstance(info, dict):
+        return False
+
+    return info.get("embedding") is not None
+
+
 def resolve_sft_speaker_id(cosyvoice: Any, requested_speaker: str) -> str:
     available = list_available_speakers(cosyvoice)
     requested = (requested_speaker or DEFAULT_SPK_ID).strip()
 
+    if not available:
+        if requested:
+            print(
+                f"[tts] SFT speaker '{requested}' requested but model reports no available "
+                "SFT speakers; fallback to reference modes"
+            )
+        # CosyVoice3 0.5B commonly has no built-in SFT speakers.
+        return ""
+
     if requested:
-        if available and requested not in available:
+        if requested not in available:
             preview = ", ".join(available[:20])
             raise HTTPException(
                 status_code=400,
                 detail=f"speaker '{requested}' not available. Available: {preview}",
             )
+        if not _speaker_has_embedding(cosyvoice, requested):
+            print(
+                f"[tts] SFT speaker '{requested}' has no embedding in frontend.spk2info; "
+                "fallback to reference modes"
+            )
+            return ""
         return requested
 
-    if available:
-        return available[0]
+    for speaker in available:
+        if _speaker_has_embedding(cosyvoice, speaker):
+            return speaker
 
-    # CosyVoice3 0.5B has no built-in SFT speakers - this is expected.
+    print(
+        "[tts] Model reported SFT speakers, but none expose embeddings in "
+        "frontend.spk2info; fallback to reference modes"
+    )
     return ""
 
 
@@ -644,18 +687,25 @@ def generate_audio(
         if sft_id:
             used_speaker = sft_id
             print(f"[tts] Mode: sft, speaker={sft_id}")
-            device_type = "cuda" if torch.cuda.is_available() else "cpu"
-            cuda_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
-            autocast_ctx = torch.autocast(device_type=device_type, dtype=cuda_dtype) if device_type == "cuda" else torch.autocast(device_type="cpu", enabled=False)
+            try:
+                device_type = "cuda" if torch.cuda.is_available() else "cpu"
+                cuda_dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
+                autocast_ctx = torch.autocast(device_type=device_type, dtype=cuda_dtype) if device_type == "cuda" else torch.autocast(device_type="cpu", enabled=False)
 
-            with autocast_ctx:
-                generator = cosyvoice.inference_sft(safe_text, sft_id, stream=False, speed=speed)
-                waveform = collect_waveform(generator)
-            wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
-            normalized_format = output_format.strip().lower()
-            if normalized_format == "mp3":
-                return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3", used_speaker
-            return wav_bytes, "audio/wav", "wav", used_speaker
+                with autocast_ctx:
+                    generator = cosyvoice.inference_sft(safe_text, sft_id, stream=False, speed=speed)
+                    waveform = collect_waveform(generator)
+                wav_bytes = waveform_to_wav_bytes(waveform, cosyvoice.sample_rate)
+                normalized_format = output_format.strip().lower()
+                if normalized_format == "mp3":
+                    return wav_to_mp3_bytes(wav_bytes), "audio/mpeg", "mp3", used_speaker
+                return wav_bytes, "audio/wav", "wav", used_speaker
+            except Exception as exc:
+                used_speaker = None
+                print(
+                    f"[tts] sft failed for speaker '{sft_id}': "
+                    f"{trim_error_message(str(exc))}. Fallback to reference modes"
+                )
 
         # Fall back to default reference audio
         if not ref_default_path or not Path(ref_default_path).exists():
