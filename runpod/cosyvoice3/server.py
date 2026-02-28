@@ -44,6 +44,17 @@ def env_float(name: str, default: float) -> float:
         return default
 
 
+def env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 MODEL_ID = os.getenv("COSYVOICE_MODEL_ID", "FunAudioLLM/Fun-CosyVoice3-0.5B-2512").strip()
 MODEL_DIR = os.getenv("COSYVOICE_MODEL_DIR", "/opt/models/Fun-CosyVoice3-0.5B-2512").strip()
 HF_CACHE_DIR = os.getenv("COSYVOICE_HF_CACHE_DIR", os.getenv("HF_HOME", "/opt/hf-cache")).strip()
@@ -75,6 +86,12 @@ DEFAULT_REFERENCE_TRANSCRIPT = os.getenv(
 INFERENCE_TIMEOUT_SEC = env_int("COSYVOICE_INFERENCE_TIMEOUT_SEC", 1200)
 MAX_CONCURRENT = env_int("COSYVOICE_MAX_CONCURRENT", 1)
 DEFAULT_SPEED = env_float("COSYVOICE_DEFAULT_SPEED", 0.95)
+# Stability-first default: do not run zero-shot prompt mode for the shared default narrator.
+# This avoids prompt leakage ("prompt text spoken aloud") and garbled audio when transcript/reference diverge.
+ALLOW_PROMPT_WITH_DEFAULT_REFERENCE = env_bool(
+    "COSYVOICE_ALLOW_PROMPT_WITH_DEFAULT_REFERENCE",
+    False,
+)
 
 EMOTION_TO_INSTRUCT = {
     "neutral": "Sprich in einem ruhigen, klaren, kinderfreundlichen Ton.",
@@ -266,6 +283,11 @@ def _cache_default_speaker_embedding(cosyvoice) -> None:
     is done once at startup instead of once per chunk (~8-12 times per chapter).
     """
     global _default_spk_cached
+    if not ALLOW_PROMPT_WITH_DEFAULT_REFERENCE:
+        print("[startup] Default-reference prompt mode disabled; skipping speaker embedding cache")
+        _default_spk_cached = False
+        return
+
     ref_path = default_reference_path
     if not ref_path or not Path(ref_path).exists():
         print("[startup] No default reference audio — skipping speaker embedding cache")
@@ -653,12 +675,23 @@ def generate_audio(
     cross_lingual_text = normalize_cv3_text_for_cross_lingual(safe_text)
     had_custom_reference = reference_wav_path is not None
     final_prompt_text = ""
-    if not had_custom_reference and DEFAULT_REFERENCE_TRANSCRIPT:
-        final_prompt_text = normalize_cv3_prompt_text(DEFAULT_REFERENCE_TRANSCRIPT)
-    elif requested_prompt_text:
+
+    if had_custom_reference and requested_prompt_text:
         final_prompt_text = normalize_cv3_prompt_text(requested_prompt_text)
-    elif not had_custom_reference and (USE_DEFAULT_PROMPT_FALLBACK or bool(DEFAULT_REFERENCE_TRANSCRIPT)):
+    elif had_custom_reference and USE_DEFAULT_PROMPT_FALLBACK:
         final_prompt_text = resolve_default_reference_prompt_text()
+    elif not had_custom_reference and ALLOW_PROMPT_WITH_DEFAULT_REFERENCE:
+        if requested_prompt_text:
+            final_prompt_text = normalize_cv3_prompt_text(requested_prompt_text)
+        elif DEFAULT_REFERENCE_TRANSCRIPT:
+            final_prompt_text = normalize_cv3_prompt_text(DEFAULT_REFERENCE_TRANSCRIPT)
+        elif USE_DEFAULT_PROMPT_FALLBACK:
+            final_prompt_text = resolve_default_reference_prompt_text()
+    elif not had_custom_reference and requested_prompt_text:
+        print(
+            "[tts] Ignoring prompt_text for default reference voice "
+            "(COSYVOICE_ALLOW_PROMPT_WITH_DEFAULT_REFERENCE=false)"
+        )
 
     # Optional short-text guard (disabled when threshold <= 0).
     if (
@@ -677,6 +710,7 @@ def generate_audio(
     # Diagnostic logging for mode selection debugging
     print(
         f"[tts] mode_decision: had_custom_ref={had_custom_reference}, "
+        f"allow_prompt_with_default_ref={ALLOW_PROMPT_WITH_DEFAULT_REFERENCE}, "
         f"DEFAULT_REF_TRANSCRIPT={bool(DEFAULT_REFERENCE_TRANSCRIPT)}, "
         f"requested_prompt={bool(requested_prompt_text)}, "
         f"final_prompt_len={len(final_prompt_text)}, "
@@ -845,6 +879,7 @@ def health() -> JSONResponse:
             "default_prompt_text_set": bool(DEFAULT_PROMPT_TEXT),
             "default_reference_transcript_set": bool(DEFAULT_REFERENCE_TRANSCRIPT),
             "use_default_prompt_fallback": USE_DEFAULT_PROMPT_FALLBACK,
+            "allow_prompt_with_default_reference": ALLOW_PROMPT_WITH_DEFAULT_REFERENCE,
             "default_reference_available": bool(default_reference_path and Path(default_reference_path).exists()),
             "default_reference_path": default_reference_path,
             "default_speaker": DEFAULT_SPK_ID,

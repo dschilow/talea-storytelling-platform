@@ -67,12 +67,6 @@ const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = parsePositiveInt(
   3_600_000
 );
 const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
-const COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT_FALLBACK =
-  "D\\u00FCnn, ja\\u2026 aber untersch\\u00E4tz sie nicht. Spinnenseide ist wie\\u2026 ein ultraleichtes Seil, das trotzdem MEGA stark ist.";
-const COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT = (
-  process.env.COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
-  COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT_FALLBACK
-).trim();
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
   process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "mp3"
 );
@@ -846,7 +840,6 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   const promptText = (
     req.promptText ||
     (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
     ""
   ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
@@ -917,7 +910,6 @@ async function runpodQueueTtsBatchRequest(
   const promptText = (
     req.promptText ||
     (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
     ""
   ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
@@ -1089,7 +1081,6 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
   const promptText = (
     req.promptText ||
     (COSYVOICE_USE_DEFAULT_PROMPT_TEXT ? COSYVOICE_DEFAULT_PROMPT_TEXT : "") ||
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT ||
     ""
   ).trim();
   const emotion = (req.emotion || COSYVOICE_DEFAULT_EMOTION || "").trim();
