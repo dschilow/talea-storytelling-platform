@@ -47,8 +47,8 @@ interface Doku {
   createdAt: string;
 }
 
-const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
-const bodyFont = '"Sora", "Manrope", "Segoe UI", sans-serif';
+const headingFont = '"Nunito", "Quicksand", "Fredoka", sans-serif';
+const bodyFont = '"Nunito", "Quicksand", "Fredoka", sans-serif';
 
 const storyStatusLabel: Record<Story["status"], string> = {
   complete: "Fertig",
@@ -77,38 +77,96 @@ function normalizeDate(value: string | Date): string {
   return value;
 }
 
-const StudioBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
-  <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
-    <div
-      className="absolute inset-0"
-      style={{
-        background: isDark
-          ? `radial-gradient(980px 520px at 100% 0%, rgba(95,81,135,0.28) 0%, transparent 58%),
-             radial-gradient(980px 560px at 0% 18%, rgba(56,94,96,0.24) 0%, transparent 63%),
-             radial-gradient(760px 420px at 45% 100%, rgba(81,104,145,0.2) 0%, transparent 60%),
-             #141d2b`
-          : `radial-gradient(980px 520px at 100% 0%, #f0ddd9 0%, transparent 58%),
-             radial-gradient(980px 560px at 0% 18%, #d8e5dc 0%, transparent 63%),
-             radial-gradient(760px 420px at 45% 100%, #e2deef 0%, transparent 60%),
-             #f8f1e8`,
-      }}
-    />
-    <div
-      className="absolute inset-x-0 top-0 h-[360px]"
-      style={{
-        background: isDark
-          ? "linear-gradient(180deg, rgba(18,28,40,0.82) 0%, rgba(18,28,40,0) 90%)"
-          : "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0) 90%)",
-      }}
-    />
+const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
+  <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+    {isDark ? (
+      <div className="absolute inset-0 bg-[#0f172a]">
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-[20%] -right-[10%] h-[60%] w-[60%] rounded-full bg-indigo-900/30 blur-[120px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            x: [0, -40, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute top-[20%] -left-[10%] h-[50%] w-[50%] rounded-full bg-teal-900/20 blur-[100px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            x: [0, -30, 0],
+            y: [0, -40, 0],
+          }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          className="absolute -bottom-[10%] left-[20%] h-[70%] w-[70%] rounded-full bg-purple-900/30 blur-[130px]"
+        />
+      </div>
+    ) : (
+      <div className="absolute inset-0 bg-gradient-to-br from-[#fdfbfb] to-[#f4f7fb]">
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            x: [0, 50, 0],
+            y: [0, 30, 0],
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute -top-[20%] -right-[10%] h-[60%] w-[60%] rounded-full bg-pink-200/50 blur-[100px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            x: [0, -40, 0],
+            y: [0, 50, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute top-[20%] -left-[10%] h-[50%] w-[50%] rounded-full bg-yellow-100/60 blur-[100px]"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.1, 1],
+            x: [0, -30, 0],
+            y: [0, -40, 0],
+          }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+          className="absolute -bottom-[10%] left-[20%] h-[70%] w-[70%] rounded-full bg-cyan-100/50 blur-[120px]"
+        />
+      </div>
+    )}
   </div>
 );
 
 const LoadingState: React.FC = () => (
   <div className="flex min-h-[62vh] items-center justify-center">
-    <div className="inline-flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-      <RefreshCw className="h-4 w-4 animate-spin text-[#4f7f78]" />
-      <span className="text-sm font-semibold text-muted-foreground">Daten werden geladen...</span>
+    <div className="relative">
+      <motion.div 
+        animate={{ y: [0, -15, 0], scale: [1, 1.05, 1] }}
+        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+        className="inline-flex flex-col items-center gap-4 rounded-[2rem] border-4 border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-800/40 p-10 shadow-2xl shadow-pink-200/40 dark:shadow-indigo-900/40 backdrop-blur-md"
+      >
+        <div className="relative">
+          <motion.div
+            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            className="absolute inset-0 rounded-full bg-pink-300 blur-xl"
+          />
+          <motion.div
+            animate={{ rotate: [0, 15, -15, 0] }}
+            transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+            className="relative z-10 rounded-full bg-gradient-to-br from-pink-100 to-cyan-100 p-4 shadow-inner dark:from-indigo-400 dark:to-purple-500"
+          >
+            <WandSparkles className="h-10 w-10 text-pink-500 dark:text-white" />
+          </motion.div>
+        </div>
+        <span className="text-xl font-bold text-pink-500 dark:text-indigo-300" style={{ fontFamily: headingFont }}>Magie wird geladen...</span>
+      </motion.div>
     </div>
   </div>
 );
@@ -119,45 +177,56 @@ const SignedOutStart: React.FC = () => {
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-5">
-      <Card className="w-full max-w-3xl border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_22px_44px_rgba(47,58,77,0.14)]">
-        <CardContent className="grid gap-7 p-7 md:grid-cols-[1.25fr_1fr] md:p-9">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#e3d7c8] dark:border-[#3a4d66] bg-white/70 px-2.5 py-1.5">
-              <img src={taleaLogo} alt="Talea Logo" className="h-6 w-6 rounded-md object-cover" />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637286]">Talea Story Studio</p>
+      <Card className="w-full max-w-3xl rounded-[2.5rem] border-4 border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-900/60 p-2 shadow-2xl shadow-pink-200/30 dark:shadow-indigo-900/30 backdrop-blur-xl">
+        <CardContent className="grid gap-8 rounded-[2rem] bg-white/60 dark:bg-slate-800/60 p-8 md:grid-cols-[1.25fr_1fr] md:p-10">
+          <div className="flex flex-col justify-center">
+            <div className="inline-flex w-fit items-center gap-3 rounded-full border-2 border-white/80 dark:border-white/10 bg-white/80 dark:bg-slate-700/80 px-4 py-2 shadow-sm">
+              <img src={taleaLogo} alt="Talea Logo" className="h-7 w-7 rounded-xl object-cover shadow-sm" />
+              <p className="text-sm font-bold tracking-widest text-indigo-400 dark:text-indigo-300">TALEA STUDIO</p>
             </div>
             <h1
-              className="mt-4 text-4xl leading-tight text-[#243247] md:text-5xl"
+              className="mt-6 text-4xl font-extrabold leading-tight text-slate-800 dark:text-slate-100 md:text-5xl"
               style={{ fontFamily: headingFont }}
             >
               Geschichten gestalten,
               <br />
-              nicht nur generieren
+              <span className="text-pink-400 dark:text-purple-400">mit Magie erleben ✨</span>
             </h1>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7] md:text-base">
+            <p className="mt-5 max-w-xl text-base font-medium leading-relaxed text-slate-600 dark:text-slate-300">
               {t(
                 "home.subtitle",
-                "Organisiere Avatare, Geschichten und Dokus in einer klaren Arbeitsoberflaeche mit professionellem Look."
+                "Organisiere Avatare, Geschichten und Dokus in einer wunderbaren Umgebung für die besten Leseabenteuer."
               )}
             </p>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
               type="button"
               onClick={() => navigate("/auth")}
-              className="mt-7 inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-5 py-3 text-sm font-semibold text-[#2f3c4f] dark:text-[#dce7f8] shadow-[0_10px_22px_rgba(52,61,80,0.16)] transition-transform hover:-translate-y-0.5"
+              className="mt-8 inline-flex w-fit items-center gap-3 rounded-2xl bg-gradient-to-r from-pink-400 to-purple-400 px-8 py-4 text-base font-bold text-white shadow-lg shadow-pink-300/50 dark:shadow-purple-900/50"
             >
-              <LogIn className="h-4 w-4" />
-              Anmelden
-            </button>
+              <LogIn className="h-5 w-5" />
+              Jetzt anmelden
+            </motion.button>
           </div>
 
-          <div className="rounded-2xl border border-[#e6d9c9] bg-[#f8f0e4] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#617387] dark:text-[#9fb0c7]">
-              Workspace Fokus
+          <div className="flex flex-col justify-center rounded-[2rem] border-2 border-white/60 dark:border-white/10 bg-gradient-to-br from-pink-50 to-cyan-50 dark:from-slate-800 dark:to-indigo-950 p-6 shadow-inner">
+            <p className="text-center text-sm font-bold tracking-widest text-pink-400 dark:text-indigo-300">
+              ENTDECKE
             </p>
-            <ul className="mt-4 space-y-3 text-sm text-[#425165]">
-              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Story-Streams mit Teilnehmern</li>
-              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Schneller Zugriff auf Avatare</li>
-              <li className="rounded-xl border border-[#eadfce] bg-white/70 px-3 py-2">Dokus im gleichen Stil</li>
+            <ul className="mt-6 flex flex-col gap-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <motion.li whileHover={{ x: 5 }} className="flex items-center gap-3 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-700/50 px-4 py-3 shadow-sm backdrop-blur-sm">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-100 text-cyan-500 dark:bg-cyan-900 dark:text-cyan-300">📚</span>
+                Story-Streams mit Teilnehmern
+              </motion.li>
+              <motion.li whileHover={{ x: 5 }} className="flex items-center gap-3 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-700/50 px-4 py-3 shadow-sm backdrop-blur-sm">
+                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-pink-500 dark:bg-pink-900 dark:text-pink-300">🦸‍♀️</span>
+                Schneller Zugriff auf Avatare
+              </motion.li>
+              <motion.li whileHover={{ x: 5 }} className="flex items-center gap-3 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-700/50 px-4 py-3 shadow-sm backdrop-blur-sm">
+                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 text-yellow-500 dark:bg-yellow-900 dark:text-yellow-300">💡</span>
+                Dokus im gleichen Stil
+              </motion.li>
             </ul>
           </div>
         </CardContent>
@@ -172,25 +241,27 @@ const SectionHeading: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, subtitle, actionLabel, onAction }) => (
-  <div className="mb-4 flex items-end justify-between gap-4">
+  <div className="mb-6 flex flex-wrap items-end justify-between gap-4 pl-2">
     <div>
       <h2
-        className="text-2xl text-[#16212c] dark:text-[#e6edf8] md:text-[2rem]"
+        className="text-3xl font-extrabold text-slate-800 dark:text-slate-100 md:text-4xl"
         style={{ fontFamily: headingFont }}
       >
         {title}
       </h2>
-      <p className="text-sm text-[#617387] dark:text-[#9fb0c7]">{subtitle}</p>
+      <p className="mt-1 text-base font-semibold text-slate-500 dark:text-slate-400">{subtitle}</p>
     </div>
     {actionLabel && onAction && (
-      <button
+      <motion.button
+        whileHover={{ scale: 1.05, y: -2 }}
+        whileTap={{ scale: 0.95 }}
         type="button"
         onClick={onAction}
-        className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] px-3 py-2 text-sm font-semibold text-[#17212d] dark:text-[#e6edf8] transition-colors hover:bg-[#f3eee4] dark:bg-[#2a3a50]"
+        className="inline-flex items-center gap-2 rounded-2xl border-2 border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 px-5 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-sm transition-colors"
       >
         {actionLabel}
-        <ArrowRight className="h-4 w-4" />
-      </button>
+        <ArrowRight className="h-4 w-4 text-cyan-400 dark:text-cyan-300" />
+      </motion.button>
     )}
   </div>
 );
@@ -198,10 +269,10 @@ const SectionHeading: React.FC<{
 const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => (
   <span
     className={cn(
-      "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide",
-      status === "complete" && "border-[#bfdcd5] bg-[#ece3d9] text-[#4f7f78]",
-      status === "generating" && "border-[#e5d2b9] bg-[#f6ead8] text-[#8f6036]",
-      status === "error" && "border-[#e6c4c4] bg-[#f6e2e2] text-[#9d4545]"
+      "rounded-full border-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider backdrop-blur-md shadow-sm",
+      status === "complete" && "border-white/50 bg-emerald-100/90 text-emerald-600 dark:bg-emerald-900/80 dark:text-emerald-300 dark:border-emerald-700/50",
+      status === "generating" && "border-white/50 bg-amber-100/90 text-amber-600 dark:bg-amber-900/80 dark:text-amber-300 dark:border-amber-700/50",
+      status === "error" && "border-white/50 bg-rose-100/90 text-rose-600 dark:bg-rose-900/80 dark:text-rose-300 dark:border-rose-700/50"
     )}
   >
     {storyStatusLabel[status]}
@@ -221,81 +292,88 @@ const StoryCard: React.FC<{
 
   return (
     <motion.article
-      whileHover={reduceMotion ? undefined : { y: -5 }}
-      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+      whileHover={reduceMotion ? undefined : { y: -8, scale: 1.01 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      transition={{ type: "spring", bounce: 0.5 }}
       className="group cursor-pointer"
       onClick={onRead}
     >
-      <Card className="overflow-hidden border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] shadow-[0_14px_32px_rgba(21,32,44,0.08)] transition-shadow group-hover:shadow-[0_18px_42px_rgba(21,32,44,0.12)]">
-        <div className="relative h-52 overflow-hidden">
-          {story.coverImageUrl ? (
-            <img
-              src={story.coverImageUrl}
-              alt={story.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#e8e2d6] text-[#7b7468]">
-              <BookOpen className="h-10 w-10" />
-            </div>
-          )}
+      <Card className="overflow-hidden rounded-[2rem] border-4 border-white/60 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 shadow-xl shadow-pink-100/40 dark:shadow-indigo-900/20 backdrop-blur-xl transition-all group-hover:shadow-2xl group-hover:shadow-pink-200/50 dark:group-hover:shadow-indigo-900/50">
+        <div className="relative h-56 overflow-hidden rounded-t-[1.5rem] p-2">
+          <div className="h-full w-full overflow-hidden rounded-3xl">
+            {story.coverImageUrl ? (
+              <img
+                src={story.coverImageUrl}
+                alt={story.title}
+                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-pink-100 to-cyan-100 dark:from-slate-700 dark:to-indigo-900 text-pink-300 dark:text-indigo-400">
+                <BookOpen className="h-14 w-14" />
+              </div>
+            )}
+            
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-slate-900/10 to-transparent" />
+          </div>
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/8 to-transparent" />
-
-          <div className="absolute left-3 top-3">
+          <div className="absolute left-5 top-5">
             <StoryStatusTag status={story.status} />
           </div>
 
-          <div className="absolute right-3 top-3 flex items-center gap-2">
+          <div className="absolute right-5 top-5 flex items-center gap-2">
             {canSaveOffline && story.status === "complete" && onToggleOffline && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 type="button"
                 onClick={onToggleOffline}
                 disabled={isSavingOffline}
-                className="rounded-lg border border-white/35 bg-black/45 p-1.5 text-white transition-colors hover:bg-black/70"
+                className="rounded-2xl border-2 border-white/30 bg-black/30 p-2.5 text-white backdrop-blur-md transition-colors hover:bg-cyan-500/80"
                 aria-label={isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern"}
               >
                 {isSavingOffline ? (
                   <Clock3 className="h-4 w-4 animate-spin" />
                 ) : isSavedOffline ? (
-                  <BookmarkCheck className="h-4 w-4" />
+                  <BookmarkCheck className="h-4 w-4 text-cyan-300" />
                 ) : (
                   <Bookmark className="h-4 w-4" />
                 )}
-              </button>
+              </motion.button>
             )}
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               type="button"
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete();
               }}
-              className="rounded-lg border border-white/35 bg-black/45 p-1.5 text-white transition-colors hover:bg-[#7f2d2d]"
+              className="rounded-2xl border-2 border-white/30 bg-black/30 p-2.5 text-white backdrop-blur-md transition-colors hover:bg-rose-500/80"
               aria-label="Story loeschen"
             >
               <Trash2 className="h-4 w-4" />
-            </button>
+            </motion.button>
           </div>
         </div>
 
-        <CardContent className="space-y-3 p-5">
-          <div className="space-y-1.5">
+        <CardContent className="space-y-4 p-6">
+          <div className="space-y-2">
             <h3
-              className="line-clamp-2 text-xl leading-tight text-[#16212c] dark:text-[#e6edf8]"
+              className="line-clamp-2 text-2xl font-bold leading-tight text-slate-800 dark:text-slate-100"
               style={{ fontFamily: headingFont }}
             >
               {story.title}
             </h3>
-            <p className="line-clamp-2 text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
+            <p className="line-clamp-2 text-sm font-semibold text-slate-500 dark:text-slate-400">
               {story.summary || story.description || "Noch keine Zusammenfassung verfuegbar."}
             </p>
           </div>
 
           <StoryParticipantsDialog story={story} maxVisible={4} />
 
-          <div className="flex items-center justify-between pt-1 text-xs text-[#617387] dark:text-[#9fb0c7]">
-            <span>{formatDate(story.createdAt)}</span>
-            <span className="font-semibold text-[#4f7f78]">Lesen</span>
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">{formatDate(story.createdAt)}</span>
+            <span className="rounded-xl bg-pink-100 px-3 py-1.5 text-xs font-bold text-pink-500 dark:bg-pink-900/50 dark:text-pink-300">Loslesen ✨</span>
           </div>
         </CardContent>
       </Card>
@@ -308,7 +386,10 @@ const AvatarTile: React.FC<{
   onOpen: () => void;
   onDelete: () => void;
 }> = ({ avatar, onOpen, onDelete }) => (
-  <article
+  <motion.article
+    whileHover={{ y: -6, scale: 1.02 }}
+    whileTap={{ scale: 0.96 }}
+    transition={{ type: "spring", bounce: 0.5 }}
     role="button"
     tabIndex={0}
     onClick={onOpen}
@@ -318,39 +399,44 @@ const AvatarTile: React.FC<{
         onOpen();
       }
     }}
-    className="group rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-4 text-left shadow-[0_10px_24px_rgba(21,32,44,0.06)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(21,32,44,0.1)]"
+    className="group relative overflow-hidden rounded-[2rem] border-4 border-white/60 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 p-5 text-center shadow-xl shadow-cyan-100/40 dark:shadow-indigo-900/20 backdrop-blur-md"
   >
-    <div className="relative inline-flex">
-      <img
-        src={
-          avatar.imageUrl ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(avatar.name)}`
-        }
-        alt={avatar.name}
-        className="h-16 w-16 rounded-2xl object-cover"
-      />
-      <span className="absolute -bottom-1 -right-1 rounded-full border border-[#ece3d9] bg-[#4f7f78] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-        {avatar.creationType === "ai-generated" ? "AI" : "Foto"}
+    <div className="relative mx-auto inline-block">
+      <div className="h-20 w-20 overflow-hidden rounded-[1.5rem] border-4 border-white dark:border-slate-700 shadow-md">
+        <img
+          src={
+            avatar.imageUrl ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(avatar.name)}`
+          }
+          alt={avatar.name}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+        />
+      </div>
+      <span className="absolute -bottom-2 -right-2 rounded-xl border-2 border-white bg-gradient-to-r from-pink-400 to-purple-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm dark:border-slate-800">
+        {avatar.creationType === "ai-generated" ? "AI ✨" : "Foto"}
       </span>
       <span className="sr-only">{avatar.name}</span>
     </div>
 
-    <p className="mt-3 truncate text-sm font-semibold text-[#17212d] dark:text-[#e6edf8]">{avatar.name}</p>
-    <p className="text-xs text-[#617387] dark:text-[#9fb0c7]">Zum Bearbeiten oeffnen</p>
+    <p className="mt-5 truncate text-base font-bold text-slate-800 dark:text-slate-100">{avatar.name}</p>
+    <p className="mt-1 text-xs font-semibold text-slate-400 dark:text-slate-500">Zum Bearbeiten</p>
 
-    <button
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onDelete();
-      }}
-      className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[#ebcdcd] bg-[#fff5f5] px-2 py-1 text-[11px] font-semibold text-[#9d4545] transition-colors hover:bg-[#fde9e9]"
-      aria-label={`${avatar.name} loeschen`}
-    >
-      <Trash2 className="h-3 w-3" />
-      Loeschen
-    </button>
-  </article>
+    <div className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100">
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+        className="rounded-xl bg-white/80 p-2 text-rose-500 shadow-sm backdrop-blur-sm dark:bg-slate-700/80 dark:text-rose-400"
+        aria-label={`${avatar.name} loeschen`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </motion.button>
+    </div>
+  </motion.article>
 );
 
 const DokuRow: React.FC<{
@@ -358,8 +444,10 @@ const DokuRow: React.FC<{
   onRead: () => void;
   onDelete: () => void;
 }> = ({ doku, onRead, onDelete }) => (
-  <article
-    className="group rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-3 shadow-[0_10px_24px_rgba(21,32,44,0.06)]"
+  <motion.article
+    whileHover={{ x: 6 }}
+    whileTap={{ scale: 0.98 }}
+    className="group cursor-pointer rounded-[2rem] border-4 border-white/60 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 p-4 shadow-xl shadow-yellow-100/30 dark:shadow-indigo-900/20 backdrop-blur-md"
     role="button"
     tabIndex={0}
     onClick={onRead}
@@ -370,45 +458,47 @@ const DokuRow: React.FC<{
       }
     }}
   >
-    <div className="flex gap-3">
-      <div className="h-16 w-16 overflow-hidden rounded-xl border border-[#e2d9cc] dark:border-[#3a4d66] bg-[#efe8dc]">
+    <div className="flex items-center gap-4">
+      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-gradient-to-br from-yellow-100 to-orange-100 dark:from-slate-700 dark:to-indigo-900 shadow-sm">
         {doku.coverImageUrl ? (
-          <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full object-cover" />
+          <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-[#7b7468]">
-            <Library className="h-6 w-6" />
+          <div className="flex h-full w-full items-center justify-center text-orange-300 dark:text-indigo-400">
+            <Library className="h-8 w-8" />
           </div>
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="line-clamp-1 text-sm font-semibold text-[#17212d] dark:text-[#e6edf8]">{doku.title}</p>
-            <p className="line-clamp-1 text-xs text-[#617387] dark:text-[#9fb0c7]">{doku.topic}</p>
+          <div className="min-w-0 pt-1">
+            <p className="line-clamp-1 text-lg font-bold text-slate-800 dark:text-slate-100">{doku.title}</p>
+            <p className="mt-1 line-clamp-1 text-sm font-semibold text-slate-500 dark:text-slate-400">{doku.topic}</p>
           </div>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onDelete();
             }}
-            className="rounded-lg border border-[#ebcdcd] bg-[#fff5f5] p-1.5 text-[#9d4545] transition-colors hover:bg-[#fde9e9]"
+            className="rounded-xl border-2 border-rose-100 bg-rose-50 p-2 text-rose-500 opacity-0 transition-opacity group-hover:opacity-100 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-400"
             aria-label="Doku loeschen"
           >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+            <Trash2 className="h-4 w-4" />
+          </motion.button>
         </div>
 
-        <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="rounded-full border border-[#e2d9cc] dark:border-[#3a4d66] bg-[#f7f2e8] px-2 py-0.5 font-semibold uppercase tracking-wide text-[#617387] dark:text-[#9fb0c7]">
+        <div className="mt-3 flex items-center justify-between text-xs font-bold">
+          <span className="rounded-xl bg-white/80 px-3 py-1 uppercase tracking-wider text-slate-500 shadow-sm dark:bg-slate-700/80 dark:text-slate-300">
             {dokuStatusLabel[doku.status]}
           </span>
-          <span className="text-[#617387] dark:text-[#9fb0c7]">{formatDate(doku.createdAt)}</span>
+          <span className="text-slate-400 dark:text-slate-500">{formatDate(doku.createdAt)}</span>
         </div>
       </div>
     </div>
-  </article>
+  </motion.article>
 );
 
 const EmptyBlock: React.FC<{
@@ -417,20 +507,25 @@ const EmptyBlock: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ title, description, actionLabel, onAction }) => (
-  <Card className="border-dashed border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636]">
-    <CardContent className="p-8 text-center">
-      <h3 className="text-xl text-[#17212d] dark:text-[#e6edf8]" style={{ fontFamily: headingFont }}>
+  <Card className="rounded-[2rem] border-4 border-dashed border-white/80 dark:border-white/10 bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm">
+    <CardContent className="flex flex-col items-center p-10 text-center">
+      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-pink-100 text-pink-400 dark:bg-slate-700 dark:text-indigo-400">
+        <WandSparkles className="h-10 w-10" />
+      </div>
+      <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100" style={{ fontFamily: headingFont }}>
         {title}
       </h3>
-      <p className="mx-auto mt-2 max-w-xl text-sm text-[#617387] dark:text-[#9fb0c7]">{description}</p>
+      <p className="mx-auto mt-3 max-w-md text-base font-medium text-slate-500 dark:text-slate-400">{description}</p>
       {actionLabel && onAction && (
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="button"
           onClick={onAction}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#4f7f78] px-4 py-2 text-sm font-semibold text-white"
+          className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-pink-400 to-purple-400 px-6 py-3 text-base font-bold text-white shadow-lg shadow-pink-200/50"
         >
           {actionLabel}
-        </button>
+        </motion.button>
       )}
     </CardContent>
   </Card>
@@ -583,136 +678,163 @@ const TaleaHomeScreen: React.FC = () => {
     }
   };
 
-  if (loading || !isLoaded) {
-    return <LoadingState />;
+  if (!isLoaded) {
+    return (
+      <div className="relative min-h-screen">
+        <KidsAppBackground isDark={isDark} />
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="relative min-h-screen">
+        <KidsAppBackground isDark={isDark} />
+        <LoadingState />
+      </div>
+    );
   }
 
   return (
-    <div className="relative min-h-screen pb-24" style={{ fontFamily: bodyFont }}>
-      <StudioBackground isDark={isDark} />
+    <div className="relative min-h-screen pb-32" style={{ fontFamily: bodyFont }}>
+      <KidsAppBackground isDark={isDark} />
 
       <SignedOut>
         <SignedOutStart />
       </SignedOut>
 
       <SignedIn>
-        <div className="space-y-7 pt-4">
+        <div className="mx-auto max-w-7xl space-y-12 px-4 pt-8 md:px-8">
           <motion.section
-            initial={reduceMotion ? false : { opacity: 0, y: -14 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
             animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <Card className="border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636]/95 dark:bg-[#1d2636]/95 shadow-[0_20px_42px_rgba(39,49,66,0.13)] backdrop-blur">
-              <CardContent className="grid gap-6 p-5 md:p-6 lg:grid-cols-[1.35fr_1fr]">
+            <Card className="overflow-hidden rounded-[2.5rem] border-4 border-white/60 dark:border-white/10 bg-white/60 dark:bg-slate-800/80 shadow-2xl shadow-cyan-100/40 dark:shadow-indigo-900/30 backdrop-blur-xl">
+              <CardContent className="grid gap-8 p-8 md:p-10 lg:grid-cols-[1.35fr_1fr]">
                 <div>
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#e2d5c5] bg-white/75 px-2.5 py-1.5">
-                    <img src={taleaLogo} alt="Talea Logo" className="h-5 w-5 rounded-md object-cover" />
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b7888] dark:text-[#9fb0c7]">
-                      Talea Atelier
+                  <div className="mb-6 inline-flex w-fit items-center gap-3 rounded-full border-2 border-white/80 dark:border-white/10 bg-white/70 dark:bg-slate-700/80 px-4 py-2 shadow-sm">
+                    <img src={taleaLogo} alt="Talea Logo" className="h-6 w-6 rounded-lg object-cover" />
+                    <span className="text-xs font-bold tracking-widest text-indigo-400 dark:text-indigo-300">
+                      TALEA ZAUBERWELT
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-2xl border border-[#e1d3c1] dark:border-[#33465e] bg-white/75 p-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-white shadow-sm p-1">
                         <UserButton
                           afterSignOutUrl="/"
                           userProfileMode="navigation"
                           userProfileUrl="/settings"
-                          appearance={{ elements: { avatarBox: "h-10 w-10" } }}
+                          appearance={{ elements: { avatarBox: "h-14 w-14" } }}
                         />
                       </div>
                       <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-[#6b7888] dark:text-[#9fb0c7]">{greeting}</p>
+                        <p className="text-sm font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">{greeting},</p>
                         <h1
-                          className="text-3xl leading-tight text-[#253246] dark:text-[#e6edf8] md:text-4xl"
+                          className="mt-1 text-4xl font-extrabold text-slate-800 dark:text-slate-100 md:text-5xl"
                           style={{ fontFamily: headingFont }}
                         >
-                          {user?.firstName || "Talea Nutzer"}
+                          {user?.firstName || "Talea Entdecker"}! ✨
                         </h1>
                       </div>
                     </div>
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={handleRefresh}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-[#f7efe2] dark:bg-[#243245] px-3 py-2 text-sm font-semibold text-[#2e3c4f] dark:text-[#dce7f8] transition-colors hover:bg-[#efe5d7] dark:bg-[#2a3a50]"
+                      className="inline-flex items-center gap-2 rounded-2xl border-2 border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-700/80 px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-200 shadow-sm backdrop-blur-sm transition-colors"
                     >
                       <RefreshCw
-                        className={cn("h-4 w-4 text-[#4f7f78]", refreshing && "animate-spin")}
+                        className={cn("h-4 w-4 text-cyan-500", refreshing && "animate-spin")}
                       />
                       Aktualisieren
-                    </button>
+                    </motion.button>
                   </div>
 
-                  <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#617387] dark:text-[#9fb0c7]">
-                    Dein Story-Workspace fuer Avatare, Geschichten und Wissensformate. Editoriale
-                    Typografie, pastellige Oberflaechen und direkte Kernaktionen ohne visuelle Unruhe.
+                  <p className="mt-8 max-w-2xl text-base font-semibold leading-relaxed text-slate-500 dark:text-slate-300">
+                    Willkommen im Atelier! Hier kannst du zauberhafte Geschichten erschaffen, 
+                    neue Begleiter erwecken und spannendes Wissen sammeln. Alles in einer wunderschönen Welt.
                   </p>
 
-                  <div className="mt-5 flex flex-wrap gap-2.5">
-                    <button
+                  <div className="mt-8 flex flex-wrap gap-4">
+                    <motion.button
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => navigate("/story")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f1d7d5_0%,#e8d8e8_42%,#d6e2d0_100%)] px-4 py-2.5 text-sm font-semibold text-[#2e3b4d] dark:text-[#dce7f8] shadow-[0_8px_20px_rgba(54,63,82,0.15)] transition-transform hover:-translate-y-0.5"
+                      className="inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-cyan-300/50"
                     >
-                      <WandSparkles className="h-4 w-4 text-[#4f6786]" />
-                      Neue Story
-                    </button>
-                    <button
+                      <WandSparkles className="h-5 w-5" />
+                      Neue Story zaubern
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => navigate("/avatar/create")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#2f3d52] dark:text-[#dce7f8] transition-colors hover:bg-[#f5ebde] dark:bg-[#2a3a50]"
+                      className="inline-flex items-center gap-3 rounded-2xl border-2 border-white/80 dark:border-white/10 bg-white/70 dark:bg-slate-700/80 px-6 py-3.5 text-base font-bold text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-sm"
                     >
-                      <UserPlus className="h-4 w-4 text-[#6a809f]" />
+                      <UserPlus className="h-5 w-5 text-pink-400" />
                       Avatar erstellen
-                    </button>
-                    <button
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
                       type="button"
                       onClick={() => navigate("/doku/create")}
-                      className="inline-flex items-center gap-2 rounded-xl border border-[#e1d3c1] dark:border-[#33465e] bg-white/70 px-4 py-2.5 text-sm font-semibold text-[#2f3d52] dark:text-[#dce7f8] transition-colors hover:bg-[#f5ebde] dark:bg-[#2a3a50]"
+                      className="inline-flex items-center gap-3 rounded-2xl border-2 border-white/80 dark:border-white/10 bg-white/70 dark:bg-slate-700/80 px-6 py-3.5 text-base font-bold text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur-sm"
                     >
-                      <Library className="h-4 w-4 text-[#5f9388]" />
+                      <Library className="h-5 w-5 text-yellow-500" />
                       Doku schreiben
-                    </button>
+                    </motion.button>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <TaleaJourneyCard isDark={resolvedTheme === 'dark'} avatarId={avatars[0]?.id} />
-                </div>
+                <div className="flex flex-col gap-6">
+                  <div className="rounded-[2rem] overflow-hidden shadow-lg shadow-pink-100/50 dark:shadow-indigo-900/30">
+                    <TaleaJourneyCard isDark={resolvedTheme === 'dark'} avatarId={avatars[0]?.id} />
+                  </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
-                      Geschichten
-                    </p>
-                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{storiesTotal}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col rounded-[1.5rem] border-2 border-white/60 dark:border-white/10 bg-gradient-to-br from-pink-50 to-pink-100/50 dark:from-slate-700 dark:to-slate-800 p-5 shadow-sm">
+                      <p className="text-xs font-bold uppercase tracking-widest text-pink-400 dark:text-pink-300">
+                        Geschichten
+                      </p>
+                      <p className="mt-2 text-4xl font-extrabold text-slate-800 dark:text-white">{storiesTotal}</p>
+                    </div>
+                    <div className="flex flex-col rounded-[1.5rem] border-2 border-white/60 dark:border-white/10 bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-slate-700 dark:to-slate-800 p-5 shadow-sm">
+                      <p className="text-xs font-bold uppercase tracking-widest text-cyan-400 dark:text-cyan-300">
+                        Avatare
+                      </p>
+                      <p className="mt-2 text-4xl font-extrabold text-slate-800 dark:text-white">{avatars.length}</p>
+                    </div>
+                    <div className="flex flex-col rounded-[1.5rem] border-2 border-white/60 dark:border-white/10 bg-gradient-to-br from-yellow-50 to-yellow-100/50 dark:from-slate-700 dark:to-slate-800 p-5 shadow-sm">
+                      <p className="text-xs font-bold uppercase tracking-widest text-yellow-500 dark:text-yellow-400">
+                        Dokus
+                      </p>
+                      <p className="mt-2 text-4xl font-extrabold text-slate-800 dark:text-white">{dokusTotal}</p>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button"
+                      onClick={() => navigate("/stories")}
+                      className="flex flex-col justify-between rounded-[1.5rem] border-2 border-white/60 dark:border-white/10 bg-gradient-to-br from-purple-100 to-pink-100 p-5 text-left shadow-sm dark:from-indigo-900/50 dark:to-purple-900/50"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-widest text-purple-500 dark:text-purple-300">
+                        Bibliothek
+                      </p>
+                      <p className="mt-2 inline-flex items-center gap-2 text-base font-bold text-slate-800 dark:text-white">
+                        Alle zeigen
+                        <ArrowRight className="h-5 w-5" />
+                      </p>
+                    </motion.button>
                   </div>
-                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
-                      Avatare
-                    </p>
-                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{avatars.length}</p>
-                  </div>
-                  <div className="rounded-xl border border-[#e3d7c8] dark:border-[#3a4d66] bg-[#f8efe2] dark:bg-[#243245] p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#617387] dark:text-[#9fb0c7]">
-                      Dokus
-                    </p>
-                    <p className="mt-1 text-3xl font-semibold text-[#17212d] dark:text-[#e6edf8]">{dokusTotal}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/stories")}
-                    className="rounded-xl border border-[#cad9cc] bg-[#e6eee4] dark:bg-[#28413e] p-3 text-left transition-colors hover:bg-[#dce8dd] dark:bg-[#31504c]"
-                  >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#356f69]">
-                      Bibliothek
-                    </p>
-                    <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-[#4d7f78]">
-                      Alle Stories
-                      <ArrowRight className="h-4 w-4" />
-                    </p>
-                  </button>
                 </div>
               </CardContent>
             </Card>
@@ -720,21 +842,21 @@ const TaleaHomeScreen: React.FC = () => {
 
           <section>
             <SectionHeading
-              title="Aktuelle Geschichten"
-              subtitle={`${storiesTotal} Eintraege in deiner Story-Bibliothek`}
-              actionLabel="Alle Geschichten"
+              title="Aktuelle Abenteuer ✨"
+              subtitle={`${storiesTotal} wundervolle Geschichten warten auf dich`}
+              actionLabel="Alle ansehen"
               onAction={() => navigate("/stories")}
             />
 
             {stories.length === 0 ? (
               <EmptyBlock
-                title="Noch keine Geschichten"
-                description="Erstelle deine erste Story. Teilnehmer bleiben in jeder Karte anklickbar und vergroesserbar."
-                actionLabel="Story erstellen"
+                title="Die Seiten sind noch leer..."
+                description="Erschaffe dein allererstes Abenteuer! Mit einem Klick auf 'Neue Story' kann die Magie beginnen."
+                actionLabel="Zur Geschichten-Magie!"
                 onAction={() => navigate("/story")}
               />
             ) : (
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
                 {stories.slice(0, 6).map((story) => (
                   <StoryCard
                     key={story.id}
@@ -751,25 +873,25 @@ const TaleaHomeScreen: React.FC = () => {
             )}
           </section>
 
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="grid grid-cols-1 gap-12 lg:grid-cols-[1.2fr_0.8fr]">
             <div>
               <SectionHeading
-                title="Avatare"
-                subtitle={`${avatars.length} aktive Teilnehmer`}
-                actionLabel="Avatar-Ansicht"
+                title="Deine Helden 🦸‍♀️"
+                subtitle={`${avatars.length} bunte Charaktere in deiner Welt`}
+                actionLabel="Alle Helden"
                 onAction={() => navigate("/avatar")}
               />
 
               {avatars.length === 0 ? (
                 <EmptyBlock
-                  title="Noch keine Avatare"
-                  description="Lege den ersten Avatar an, um ihn direkt in Stories zu verwenden."
-                  actionLabel="Avatar erstellen"
+                  title="Noch keine Helden hier"
+                  description="Erwecke deinen ersten Avatar zum Leben, damit er spannende Abenteuer erleben kann!"
+                  actionLabel="Helden erschaffen"
                   onAction={() => navigate("/avatar/create")}
                 />
               ) : (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                  {avatars.slice(0, 6).map((avatar) => (
+                <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
+                  {avatars.slice(0, 5).map((avatar) => (
                     <AvatarTile
                       key={avatar.id}
                       avatar={avatar}
@@ -778,39 +900,42 @@ const TaleaHomeScreen: React.FC = () => {
                     />
                   ))}
 
-                  <button
+                  <motion.button
+                    whileHover={{ y: -6, scale: 1.02 }}
+                    whileTap={{ scale: 0.96 }}
+                    transition={{ type: "spring", bounce: 0.5 }}
                     type="button"
                     onClick={() => navigate("/avatar/create")}
-                    className="rounded-2xl border border-dashed border-[#e1d3c1] dark:border-[#33465e] bg-[#fff9f0] dark:bg-[#1d2636] p-4 text-left transition-colors hover:bg-[#f4efe5] dark:bg-[#2a3a50]"
+                    className="flex flex-col items-center justify-center rounded-[2rem] border-4 border-dashed border-white/80 dark:border-white/10 bg-white/40 dark:bg-slate-800/40 p-6 text-center shadow-sm backdrop-blur-sm"
                   >
-                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#ece3d9] text-[#4f7f78]">
-                      <Plus className="h-6 w-6" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-pink-100 text-pink-500 shadow-inner dark:bg-slate-700 dark:text-pink-400">
+                      <Plus className="h-8 w-8" />
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-[#17212d] dark:text-[#e6edf8]">Neuer Avatar</p>
-                    <p className="text-xs text-[#617387] dark:text-[#9fb0c7]">Direkt im Wizard anlegen</p>
-                  </button>
+                    <p className="mt-4 text-base font-bold text-slate-800 dark:text-slate-100">Neuer Held</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-slate-400">Jetzt erschaffen</p>
+                  </motion.button>
                 </div>
               )}
             </div>
 
             <div>
-            <SectionHeading
-              title="Dokus"
-              subtitle={`${dokusTotal} Dokumente und Entwuerfe`}
-              actionLabel="Doku-Ansicht"
-              onAction={() => navigate("/doku")}
-            />
+              <SectionHeading
+                title="Wissenswelt 💡"
+                subtitle={`${dokusTotal} faszinierende Dinge gelernt`}
+                actionLabel="Alles Wissen"
+                onAction={() => navigate("/doku")}
+              />
 
               {dokus.length === 0 ? (
                 <EmptyBlock
-                  title="Noch keine Dokus"
-                  description="Erstelle strukturierte Dokus, die mit deinen Stories zusammenpassen."
-                  actionLabel="Doku erstellen"
+                  title="Noch kein Wissen gesammelt"
+                  description="Starte deine erste Entdeckungsreise und sammle tolles Wissen!"
+                  actionLabel="Wissen sammeln"
                   onAction={() => navigate("/doku/create")}
                 />
               ) : (
-                <div className="space-y-3">
-                  {dokus.slice(0, 6).map((doku) => (
+                <div className="space-y-4">
+                  {dokus.slice(0, 4).map((doku) => (
                     <DokuRow
                       key={doku.id}
                       doku={doku}
@@ -829,3 +954,4 @@ const TaleaHomeScreen: React.FC = () => {
 };
 
 export default TaleaHomeScreen;
+
