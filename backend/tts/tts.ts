@@ -1752,16 +1752,15 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
 
     const turns = parseDialogueScript(req.script);
     const missingSpeakers = new Set<string>();
-
-    const items: TTSBatchItem[] = turns.map((turn, index) => {
+    const resolvedTurns = turns.map((turn, index) => {
       const mappedSpeaker = resolveMappedSpeaker(turn.speaker, req.speakerVoiceMap);
       if (!mappedSpeaker) {
         missingSpeakers.add(turn.speaker);
       }
       return {
+        turn,
         id: `turn-${index + 1}`,
-        text: turn.text,
-        ...(mappedSpeaker ? { speaker: mappedSpeaker } : {}),
+        mappedSpeaker: mappedSpeaker || "",
       };
     });
 
@@ -1770,28 +1769,30 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
       throw APIError.invalidArgument(`Missing Qwen voice mapping for speaker(s): ${speakers}`);
     }
 
-    // Force WAV for deterministic stitching. Concatenating provider MP3 chunks can
-    // yield files that only play the first segment in some players.
-    const batch = await generateSpeechBatchInternal({
-      items,
-      instructText: (req.instructText || "").trim() || undefined,
-      outputFormat: "wav",
-      languageId: (req.languageId || "").trim() || undefined,
-    });
-
-    const resultMap = new Map(batch.results.map((result) => [result.id, result]));
+    // Use per-turn synthesis for dialogue to guarantee correct per-speaker voice
+    // mapping even on older worker images that may collapse batch speaker routing.
+    const instructText = (req.instructText || "").trim() || undefined;
+    const languageId = (req.languageId || "").trim() || undefined;
     const fallbackMimeType = "audio/wav";
     const buffers: Buffer[] = [];
     let detectedMimeType = fallbackMimeType;
 
-    for (const item of items) {
-      const result = resultMap.get(item.id);
-      if (!result?.audio || result.error) {
-        throw APIError.unavailable(
-          `Qwen dialogue item failed (${item.id}): ${result?.error || "missing audio"}`
-        );
+    for (const item of resolvedTurns) {
+      const response = await withRunpodSlot(() =>
+        runpodTtsRequest({
+          text: item.turn.text,
+          speaker: item.mappedSpeaker,
+          instructText,
+          outputFormat: "wav",
+          languageId,
+        })
+      );
+
+      if (!response.audioData) {
+        throw APIError.unavailable(`Qwen dialogue item failed (${item.id}): missing audio`);
       }
-      const decoded = decodeAudioResult(result.audio, fallbackMimeType);
+
+      const decoded = decodeAudioResult(response.audioData, response.mimeType || fallbackMimeType);
       buffers.push(decoded.buffer);
       detectedMimeType = decoded.mimeType || detectedMimeType;
     }

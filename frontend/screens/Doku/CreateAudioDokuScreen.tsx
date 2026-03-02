@@ -404,7 +404,7 @@ const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
     for (let offset = 0; offset < left.length; offset += blockSize) {
       const leftChunk = left.subarray(offset, Math.min(offset + blockSize, left.length));
       let encoded: Int8Array | Uint8Array | number[] | null = null;
-      if (channelCount > 1 && right) {
+      if (targetChannels > 1 && right) {
         const rightChunk = right.subarray(offset, Math.min(offset + blockSize, right.length));
         encoded = encoder.encodeBuffer(leftChunk, rightChunk);
       } else {
@@ -445,45 +445,42 @@ const generateQwenDialogueViaBatchFallback = async (
     throw new Error(`Missing Qwen mapping for speaker(s): ${unique.join(', ')}`);
   }
 
-  const response = await fetch(`${getBackendUrl()}/tts/batch`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: 'include',
-    body: JSON.stringify({
-      items: turns.map((turn) => ({
-        id: turn.id,
-        text: turn.text,
-        speaker: resolveMappedSpeaker(turn.speaker, speakerVoiceMap),
-      })),
-      outputFormat: 'wav',
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
-  }
-
-  const payload = (await response.json()) as {
-    results?: Array<{ id: string; audio: string | null; error: string | null }>;
-  };
-  const resultMap = new Map((payload.results || []).map((item) => [item.id, item]));
-
   const segmentBlobs: Blob[] = [];
-
   for (const turn of turns) {
-    const result = resultMap.get(turn.id);
-    if (!result?.audio || result.error) {
-      throw new Error(`Qwen Batch fehlgeschlagen (${turn.speaker}): ${result?.error || 'kein Audio'}`);
+    const speaker = resolveMappedSpeaker(turn.speaker, speakerVoiceMap);
+    if (!speaker) {
+      throw new Error(`Missing Qwen mapping for speaker: ${turn.speaker}`);
     }
-    const blob = await (await fetch(result.audio)).blob();
+
+    const response = await fetch(`${getBackendUrl()}/tts/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        text: turn.text,
+        speaker,
+        outputFormat: 'wav',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Qwen Segment fehlgeschlagen (${turn.speaker}): ${await readErrorMessage(response)}`);
+    }
+
+    const payload = (await response.json()) as { audioData?: string; message?: string };
+    if (!payload.audioData) {
+      throw new Error(`Qwen Segment ohne Audio (${turn.speaker}).`);
+    }
+
+    const blob = await (await fetch(payload.audioData)).blob();
     segmentBlobs.push(blob);
   }
 
   if (segmentBlobs.length === 0) {
-    throw new Error('Qwen Batch hat keine Audiodaten geliefert.');
+    throw new Error('Qwen hat keine Audiodaten geliefert.');
   }
 
   const finalBlob = await transcodeAudioSegmentsToMp3(segmentBlobs);
