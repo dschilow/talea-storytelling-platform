@@ -9,6 +9,7 @@ import { jsPDF } from 'jspdf';
 import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
+import { stripTtsEmotionMarkersForDisplay } from './chapterImagePlacement';
 
 // Type definitions for image loading
 interface ImageLoadResult {
@@ -414,10 +415,11 @@ export async function exportStoryAsPDF(
 
     // Add description/summary
     if (story.description) {
+      const cleanDescription = stripTtsEmotionMarkersForDisplay(story.description);
       yPos += 10;
       doc.setFontSize(12);
       doc.setFont('helvetica', 'normal');
-      yPos = addWrappedText(doc, story.description, margin, yPos, contentWidth, 7);
+      yPos = addWrappedText(doc, cleanDescription, margin, yPos, contentWidth, 7);
     }
 
     // Add metadata
@@ -497,8 +499,9 @@ export async function exportStoryAsPDF(
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
 
-        // Split content by paragraphs
-        const paragraphs = chapter.content.split('\n').filter(p => p.trim().length > 0);
+        // Split content by paragraphs (hide TTS emotion markers in PDF output)
+        const displayChapterContent = stripTtsEmotionMarkersForDisplay(chapter.content || '');
+        const paragraphs = displayChapterContent.split('\n').filter(p => p.trim().length > 0);
 
         for (const paragraph of paragraphs) {
           // Check if we need a new page

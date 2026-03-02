@@ -119,6 +119,60 @@ function clampRunwarePrompt(prompt: string, maxLength = 2800): string {
   return `${cleanSlice.trimEnd()}...`;
 }
 
+const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
+const KNOWN_TTS_TAGS = new Set<string>([
+  "excited",
+  "dramatic",
+  "thoughtful",
+  "curious",
+  "whisper",
+  "whispers",
+  "whispering",
+  "gulps",
+  "gulp",
+  "nervous",
+  "laughs",
+  "laugh",
+  "sad",
+  "happy",
+  "angry",
+  "calm",
+  "serious",
+  "short pause",
+]);
+
+function normalizeTag(tag: string): string {
+  return String(tag || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyTtsEmotionTag(tag: string): boolean {
+  const normalized = normalizeTag(tag);
+  if (!normalized) return false;
+  if (KNOWN_TTS_TAGS.has(normalized)) return true;
+  if (normalized.includes("pause") || normalized.includes("beat")) return true;
+  if (normalized.includes("whisper")) return true;
+  if (normalized.includes("laugh")) return true;
+  if (normalized.includes("excit")) return true;
+  if (normalized.includes("dramatic")) return true;
+  return false;
+}
+
+function stripTtsEmotionTagsForImagePrompt(text: string): string {
+  const raw = String(text || "");
+  if (!raw) return "";
+
+  return raw
+    .replace(INLINE_TTS_TAG_PATTERN, (fullTag, innerTag) => (
+      isLikelyTtsEmotionTag(String(innerTag || "")) ? " " : fullTag
+    ))
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .trim();
+}
+
 interface StylePresetMeta {
   inspiration: string;
   description: string;
@@ -523,13 +577,13 @@ function describeCharacter(group: ImageCharacterBeat[], label: string): string[]
   }
 
   return group.map((entry) => {
-    const parts: string[] = [label + ": " + entry.name];
-    if (entry.action) parts.push(entry.action);
-    if (entry.position) parts.push("position " + entry.position);
-    if (entry.expression) parts.push("expression " + entry.expression);
-    if (entry.pose) parts.push("pose " + entry.pose);
-    if (entry.clothingHint) parts.push("clothing " + entry.clothingHint);
-    if (entry.ageGuard) parts.push(entry.ageGuard);
+    const parts: string[] = [label + ": " + stripTtsEmotionTagsForImagePrompt(entry.name)];
+    if (entry.action) parts.push(stripTtsEmotionTagsForImagePrompt(entry.action));
+    if (entry.position) parts.push("position " + stripTtsEmotionTagsForImagePrompt(entry.position));
+    if (entry.expression) parts.push("expression " + stripTtsEmotionTagsForImagePrompt(entry.expression));
+    if (entry.pose) parts.push("pose " + stripTtsEmotionTagsForImagePrompt(entry.pose));
+    if (entry.clothingHint) parts.push("clothing " + stripTtsEmotionTagsForImagePrompt(entry.clothingHint));
+    if (entry.ageGuard) parts.push(stripTtsEmotionTagsForImagePrompt(entry.ageGuard));
     return parts.join(", ");
   });
 }
@@ -537,12 +591,18 @@ function describeCharacter(group: ImageCharacterBeat[], label: string): string[]
 function summarizeAtmosphere(atmosphere?: ImageAtmosphere): string[] {
   if (!atmosphere) return [];
   const lines: string[] = [];
-  if (atmosphere.weather) lines.push("Weather: " + atmosphere.weather);
-  if (atmosphere.lighting) lines.push("Lighting: " + atmosphere.lighting);
-  if (atmosphere.season) lines.push("Season: " + atmosphere.season);
-  if (atmosphere.mood) lines.push("Mood: " + atmosphere.mood);
+  if (atmosphere.weather) lines.push("Weather: " + stripTtsEmotionTagsForImagePrompt(atmosphere.weather));
+  if (atmosphere.lighting) lines.push("Lighting: " + stripTtsEmotionTagsForImagePrompt(atmosphere.lighting));
+  if (atmosphere.season) lines.push("Season: " + stripTtsEmotionTagsForImagePrompt(atmosphere.season));
+  if (atmosphere.mood) lines.push("Mood: " + stripTtsEmotionTagsForImagePrompt(atmosphere.mood));
   if (Array.isArray(atmosphere.sensoryDetails) && atmosphere.sensoryDetails.length > 0) {
-    lines.push("Sensory: " + atmosphere.sensoryDetails.join(", "));
+    lines.push(
+      "Sensory: " +
+        atmosphere.sensoryDetails
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
   return lines;
 }
@@ -551,13 +611,31 @@ function summarizeEnvironment(layers?: ImageEnvironmentLayers): string[] {
   if (!layers) return [];
   const lines: string[] = [];
   if (Array.isArray(layers.foreground) && layers.foreground.length > 0) {
-    lines.push("Foreground: " + layers.foreground.join(", "));
+    lines.push(
+      "Foreground: " +
+        layers.foreground
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
   if (Array.isArray(layers.midground) && layers.midground.length > 0) {
-    lines.push("Midground: " + layers.midground.join(", "));
+    lines.push(
+      "Midground: " +
+        layers.midground
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
   if (Array.isArray(layers.background) && layers.background.length > 0) {
-    lines.push("Background: " + layers.background.join(", "));
+    lines.push(
+      "Background: " +
+        layers.background
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
   return lines;
 }
@@ -581,7 +659,7 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
 
   const narrativePieces: string[] = [];
   if (description.scene) {
-    narrativePieces.push(description.scene);
+    narrativePieces.push(stripTtsEmotionTagsForImagePrompt(description.scene));
   }
 
   const actionHighlights = [
@@ -598,7 +676,13 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
   }
 
   if (Array.isArray(description.props) && description.props.length > 0) {
-    narrativePieces.push("Props: " + description.props.join(", "));
+    narrativePieces.push(
+      "Props: " +
+        description.props
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
 
   const atmosphereLines = summarizeAtmosphere(description.atmosphere).slice(0, 4);
@@ -607,28 +691,51 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
   }
 
   if (description.recurringElement) {
-    narrativePieces.push("Recurring element: " + description.recurringElement);
+    narrativePieces.push("Recurring element: " + stripTtsEmotionTagsForImagePrompt(description.recurringElement));
   }
 
   if (Array.isArray(description.storytellingDetails) && description.storytellingDetails.length > 0) {
-    narrativePieces.push("Story notes: " + description.storytellingDetails.join(", "));
+    narrativePieces.push(
+      "Story notes: " +
+        description.storytellingDetails
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .join(", ")
+    );
   }
 
   const summary = narrativePieces.join(" ");
   const limitedEnvironment: ImageEnvironmentLayers = {
     foreground: Array.isArray(description.environment?.foreground)
-      ? description.environment!.foreground.filter(Boolean).slice(0, 4)
+      ? description.environment!.foreground
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .slice(0, 4)
       : [],
     midground: Array.isArray(description.environment?.midground)
-      ? description.environment!.midground.filter(Boolean).slice(0, 6)
+      ? description.environment!.midground
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .slice(0, 6)
       : [],
     background: Array.isArray(description.environment?.background)
-      ? description.environment!.background.filter(Boolean).slice(0, 4)
+      ? description.environment!.background
+          .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+          .filter(Boolean)
+          .slice(0, 4)
       : [],
   };
-  const limitedProps = Array.isArray(description.props) ? description.props.filter(Boolean).slice(0, 6) : [];
+  const limitedProps = Array.isArray(description.props)
+    ? description.props
+        .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+        .filter(Boolean)
+        .slice(0, 6)
+    : [];
   const limitedStoryDetails = Array.isArray(description.storytellingDetails)
-    ? description.storytellingDetails.filter(Boolean).slice(0, 5)
+    ? description.storytellingDetails
+        .map((item) => stripTtsEmotionTagsForImagePrompt(item))
+        .filter(Boolean)
+        .slice(0, 5)
     : [];
 
   return {
@@ -643,7 +750,9 @@ function extractImagePromptContext(description?: ChapterImageDescription): Image
         : undefined,
     props: limitedProps,
     atmosphereLines,
-    recurringElementNote: description.recurringElement,
+    recurringElementNote: description.recurringElement
+      ? stripTtsEmotionTagsForImagePrompt(description.recurringElement)
+      : undefined,
     storytellingDetails: limitedStoryDetails,
   };
 }
@@ -1048,7 +1157,7 @@ export const generateStoryContent = api<
 
         let chapterSceneText =
           typeof chapter.imageDescription === "string"
-            ? chapter.imageDescription
+            ? stripTtsEmotionTagsForImagePrompt(chapter.imageDescription)
             : chapterContext.summary;
 
         if (chapterContext.protagonistLines.length > 0) {
@@ -1592,6 +1701,14 @@ function buildEnhancedUserPrompt(
   chapterCount: number,
   qualityFeedback?: string
 ): string {
+  const ttsEmotionMarkerSpec = `
+### TTS-EMOTIONSMARKER (PFLICHT IN chapter.content)
+- Fuege in jedem Kapitel dezente Inline-Marker fuer Vorlese-Emotion ein.
+- Erlaubte Marker: [excited], [dramatic], [thoughtful], [curious], [whispers], [gulps], [laughs], [sad], [happy], [angry], [calm], [serious], [short pause].
+- Marker nur in "chapters[].content" einsetzen, NIEMALS in title/description/plotBeats/imageDescription.
+- Marker direkt vor die passende Aussage setzen.
+- Dichte: ca. 1-3 Marker pro 120 Woerter (nicht uebertreiben).`.trim();
+
   const characterProfiles = avatars.map((avatar, index) => {
     const role = index === 0 ? "HAUPTCHARAKTER" : index === 1 ? "WICHTIGER NEBENCHARAKTER" : "UNTERSTUETZENDER CHARAKTER";
     const personalityTraits = (avatar.personalityTraits || {}) as Record<string, any>;
@@ -1626,7 +1743,7 @@ function buildEnhancedUserPrompt(
   "chapters": [
     {
       "title": "Kapiteltitel",
-      "content": "Kapiteltext (mind. ${QUALITY_CONFIG.MIN_CHAPTER_WORDS} Woerter)",
+      "content": "Kapiteltext (mind. ${QUALITY_CONFIG.MIN_CHAPTER_WORDS} Woerter, mit optionalen TTS-Markern wie [excited] oder [short pause])",
       "order": 1,
       "charactersPresent": ["Name1", "Name2"],
       "plotPoints": ["Was passiert", "Was wird geloest"],
@@ -1691,9 +1808,12 @@ ${outputSchema}
 
 ### WICHTIG
 - imageDescription Felder muessen auf ENGLISCH sein (alle anderen Felder auf Deutsch).
+- Emotionsmarker in [] sind NUR in chapters[].content erlaubt.
 
 ### PERSOENLICHKEITS-UPDATE-SYSTEM
 ${getPersonalityUpdateInstructions()}
+
+${ttsEmotionMarkerSpec}
 `;
 }
 
@@ -1899,6 +2019,12 @@ You MUST implement this style consistently in ALL chapters!`
     "- Dialogreiche, handlungsgetriebene Szenen mit Humor und Spannung.",
     "- Show through ACTION and DIALOGUE: reveal feelings through what characters DO and SAY, never through atmosphere or poetic description.",
     "- FORBIDDEN: personifying nature, mixing senses, poetic metaphors, paragraphs without action or dialogue.",
+    "",
+    "TTS PERFORMANCE MARKERS:",
+    "- Insert subtle inline markers ONLY in chapters[].content: [excited], [dramatic], [thoughtful], [curious], [whispers], [gulps], [laughs], [sad], [happy], [angry], [calm], [serious], [short pause].",
+    "- Place each marker directly before the line it affects.",
+    "- Use around 1-3 markers per 120 words; avoid over-tagging.",
+    "- NEVER place markers in title, description, plotBeats, imageDescription, or JSON keys.",
     systemStyleAddendum,
     "",
     "QUALITY CHECK:",
@@ -1936,7 +2062,7 @@ You MUST implement this style consistently in ALL chapters!`
     '      "surprise": string,',
     '      "supportingCast": string[],',
     '      "environmentHighlights": string[],',
-    '      "content": string,',
+    '      "content": string (may include inline TTS markers like [excited], [short pause]),',
     '      "imageDescription": {',
     '        "scene": string,',
     '        "characters": {',

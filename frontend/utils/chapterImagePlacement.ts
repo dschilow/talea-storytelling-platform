@@ -3,6 +3,38 @@ export interface ChapterImageInsertPoints {
   scenicAfterSegment: number | null;
 }
 
+const INLINE_TTS_MARKER_PATTERN = /\[([^\]\n]{1,40})\]/g;
+
+function normalizeMarkerTag(rawTag: string): string {
+  return String(rawTag || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function stripTtsEmotionMarkersForDisplay(content: string): string {
+  const raw = String(content || "");
+  if (!raw) return "";
+
+  const withoutMarkers = raw.replace(INLINE_TTS_MARKER_PATTERN, (_fullTag, innerTag: string) => {
+    const marker = normalizeMarkerTag(innerTag);
+    if (!marker) return " ";
+    if (marker.includes("pause") || marker.includes("beat")) {
+      return " ... ";
+    }
+    return " ";
+  });
+
+  return withoutMarkers
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .replace(/\(\s+/g, "(")
+    .replace(/\s+\)/g, ")")
+    .trim();
+}
+
 function countWords(text: string): number {
   return text
     .split(/\s+/)
@@ -25,7 +57,7 @@ function estimateReadableSegmentCount(text: string): number {
 }
 
 function splitParagraphs(content: string): string[] {
-  const normalized = String(content || "")
+  const normalized = stripTtsEmotionMarkersForDisplay(content)
     .replace(/\r\n?/g, "\n")
     .trim();
 

@@ -3,6 +3,7 @@ import { AlertCircle, Loader2, Volume2 } from 'lucide-react';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { stripTtsEmotionMarkersForDisplay } from '../../utils/chapterImagePlacement';
 
 interface AudioPlayerProps {
   text: string;
@@ -12,7 +13,7 @@ interface AudioPlayerProps {
 const MAX_SNIPPET = 72;
 
 function buildSnippet(text: string) {
-  const cleaned = text.replace(/\s+/g, ' ').trim();
+  const cleaned = stripTtsEmotionMarkersForDisplay(text).replace(/\s+/g, ' ').trim();
   if (cleaned.length <= MAX_SNIPPET) return cleaned;
   return `${cleaned.slice(0, MAX_SNIPPET)}...`;
 }

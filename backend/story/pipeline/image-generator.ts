@@ -5,6 +5,57 @@ import type { CastSet, ImageGenerator, ImageSpec, NormalizedRequest, SceneDirect
 import { buildReferenceImages, selectReferenceSlots } from "./reference-images";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 
+const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
+const KNOWN_TTS_TAGS = new Set<string>([
+  "excited",
+  "dramatic",
+  "thoughtful",
+  "curious",
+  "whisper",
+  "whispers",
+  "whispering",
+  "gulps",
+  "gulp",
+  "nervous",
+  "laughs",
+  "laugh",
+  "sad",
+  "happy",
+  "angry",
+  "calm",
+  "serious",
+  "short pause",
+]);
+
+function normalizeTag(tag: string): string {
+  return String(tag || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyTtsEmotionTag(tag: string): boolean {
+  const normalized = normalizeTag(tag);
+  if (!normalized) return false;
+  if (KNOWN_TTS_TAGS.has(normalized)) return true;
+  if (normalized.includes("pause") || normalized.includes("beat")) return true;
+  if (normalized.includes("whisper")) return true;
+  if (normalized.includes("laugh")) return true;
+  if (normalized.includes("excit")) return true;
+  if (normalized.includes("dramatic")) return true;
+  return false;
+}
+
+function stripTtsEmotionTags(text: string): string {
+  return String(text || "")
+    .replace(INLINE_TTS_TAG_PATTERN, (fullTag, innerTag) => (
+      isLikelyTtsEmotionTag(String(innerTag || "")) ? " " : fullTag
+    ))
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .trim();
+}
+
 export class RunwareImageGenerator implements ImageGenerator {
   async generateImages(input: {
     normalizedRequest: NormalizedRequest;
@@ -35,7 +86,7 @@ export class RunwareImageGenerator implements ImageGenerator {
         referenceImages = buildReferenceImages(refSlots, input.cast);
       }
 
-      const prompt = spec.finalPromptText || "";
+      const prompt = stripTtsEmotionTags(spec.finalPromptText || "");
       const negativePrompt = (spec.negatives || []).join(", ");
 
       const imageUrl = await generateWithRetry({

@@ -1,4 +1,54 @@
 ﻿import type { CastSet, ImageSpec } from "./types";
+const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
+const KNOWN_TTS_TAGS = new Set<string>([
+  "excited",
+  "dramatic",
+  "thoughtful",
+  "curious",
+  "whisper",
+  "whispers",
+  "whispering",
+  "gulps",
+  "gulp",
+  "nervous",
+  "laughs",
+  "laugh",
+  "sad",
+  "happy",
+  "angry",
+  "calm",
+  "serious",
+  "short pause",
+]);
+
+function normalizeTag(tag: string): string {
+  return String(tag || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyTtsEmotionTag(tag: string): boolean {
+  const normalized = normalizeTag(tag);
+  if (!normalized) return false;
+  if (KNOWN_TTS_TAGS.has(normalized)) return true;
+  if (normalized.includes("pause") || normalized.includes("beat")) return true;
+  if (normalized.includes("whisper")) return true;
+  if (normalized.includes("laugh")) return true;
+  if (normalized.includes("excit")) return true;
+  if (normalized.includes("dramatic")) return true;
+  return false;
+}
+
+function stripTtsEmotionTags(text: string): string {
+  return String(text || "")
+    .replace(INLINE_TTS_TAG_PATTERN, (fullTag, innerTag) => (
+      isLikelyTtsEmotionTag(String(innerTag || "")) ? " " : fullTag
+    ))
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .trim();
+}
 
 export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: { forceEnglish?: boolean }): string {
   const forceEnglish = options?.forceEnglish ?? false;
@@ -14,9 +64,10 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const refEntries = Object.entries(spec.refs || {});
   const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("slot_"));
 
+  const styleValue = stripTtsEmotionTags(spec.style || "");
   const styleBlock = isCollageMode
-    ? `STYLE: ${spec.style}, no text, no words, no watermark, no frames, no borders`
-    : `STYLE: ${spec.style}, no text, no words, no watermark`;
+    ? `STYLE: ${styleValue}, no text, no words, no watermark, no frames, no borders`
+    : `STYLE: ${styleValue}, no text, no words, no watermark`;
   let refBlock = "";
   if (isCollageMode) {
     const slotLines = refEntries
@@ -37,11 +88,15 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     refBlock = `REFERENCE IMAGES (IDENTITY ONLY):\n${refLines}\nUse each reference image ONLY for face identity. Ignore backgrounds.`;
   }
 
-  const hasBird = containsBirdToken([spec.actions, spec.blocking, ...(spec.propsVisible || [])].join(" "));
+  const hasBird = containsBirdToken([
+    stripTtsEmotionTags(spec.actions || ""),
+    stripTtsEmotionTags(spec.blocking || ""),
+    ...(spec.propsVisible || []).map((item) => stripTtsEmotionTags(item || "")),
+  ].join(" "));
   const shotLabel = count >= 3 ? "wide shot" : "medium-wide shot";
   const normalizedComposition = normalizeComposition(spec.composition, count);
-  const blockingText = isCollageMode ? "" : (spec.blocking || "").trim();
-  const lightingText = (spec.lighting || "").trim();
+  const blockingText = isCollageMode ? "" : stripTtsEmotionTags(spec.blocking || "");
+  const lightingText = stripTtsEmotionTags(spec.lighting || "");
 
   const nonHumanInfo = classifyNonHumans(cast, spec.onStageExact);
   const humanCount = Math.max(0, count - nonHumanInfo.nonHumanNames.length);
@@ -89,15 +144,21 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     .filter(Boolean)
     .join("\n");
 
-  const settingValue = (spec.setting || "").trim();
+  const settingValue = stripTtsEmotionTags(spec.setting || "");
   const settingBlock = `SETTING (ONE): ${settingValue || "story setting"}. Use only this location.`;
 
   const sceneBlock = `SHOT / COMPOSITION: ${normalizedComposition}${blockingText ? `. ${blockingText}` : ""}${lightingText ? `. Lighting: ${lightingText}` : ""}`;
 
   const stagingLine = count > 1 ? buildStagingLine(namesLine, refEntries, isCollageMode) : "";
-  const characterActionLockBlock = buildCharacterActionLockBlock(spec.actions, characterNames);
-  const actionText = mergeActionText(spec.sceneDescription, spec.actions) || "Characters actively interact with each other and their surroundings in a dynamic moment — each with a different pose and action.";
-  const propsText = (spec.propsVisible || []).filter(Boolean).join(", ");
+  const characterActionLockBlock = buildCharacterActionLockBlock(stripTtsEmotionTags(spec.actions || ""), characterNames);
+  const actionText = mergeActionText(
+    stripTtsEmotionTags(spec.sceneDescription || ""),
+    stripTtsEmotionTags(spec.actions || "")
+  ) || "Characters actively interact with each other and their surroundings in a dynamic moment — each with a different pose and action.";
+  const propsText = (spec.propsVisible || [])
+    .map((item) => stripTtsEmotionTags(item || ""))
+    .filter(Boolean)
+    .join(", ");
   const actionBlock = `ACTION (DO NOT SWAP): ${stagingLine ? `${stagingLine}. ` : ""}${actionText}${propsText ? ` Key props: ${propsText}.` : ""}`;
 
   const characterIdentityBlock = characterDetails.length > 0
