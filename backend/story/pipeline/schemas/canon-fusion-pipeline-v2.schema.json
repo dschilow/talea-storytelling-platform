@@ -258,7 +258,8 @@
         "category": { "type": "string", "maxLength": 80 },
         "storyUseRule": { "type": "string", "minLength": 5, "maxLength": 400 },
         "visualRule": { "type": "string", "minLength": 5, "maxLength": 200 },
-        "rarity": { "type": "string", "enum": ["COMMON", "RARE", "EPIC", "LEGENDARY"], "default": "COMMON" }
+        "rarity": { "type": "string", "enum": ["COMMON", "RARE", "EPIC", "LEGENDARY"], "default": "COMMON" },
+        "imageUrl": { "type": "string", "maxLength": 500 }
       }
     },
 
