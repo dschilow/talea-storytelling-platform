@@ -610,6 +610,35 @@ export function buildFullStoryPrompt(input: {
 
   const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern (e.g. avoid 'Tom and the Stone').";
 
+  // Age-appropriate reading level rules
+  const ageMin = ageRange.min;
+  const ageMax = ageRange.max;
+  const ageGroupRule = isGerman
+    ? ageMax <= 6
+      ? `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Sehr kurze Sätze (max. 8 Wörter). Einfache Wörter. Viel Wiederholung. Klare Handlung. Kein Fremdwissen nötig.`
+      : ageMax <= 8
+        ? `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Kurze bis mittellange Sätze (max. 12 Wörter). Alltagssprache. Keine komplizierten Fachbegriffe. Kinder folgen der Handlung ohne Vorwissen.`
+        : `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Mittellange Sätze erlaubt. Reichere Sprache möglich. Etwas komplexere Satzstrukturen.`
+    : ageMax <= 6
+      ? `AGE GROUP ${ageMin}-${ageMax}: Very short sentences (max 8 words). Simple vocabulary. Lots of repetition. Clear action. No background knowledge required.`
+      : ageMax <= 8
+        ? `AGE GROUP ${ageMin}-${ageMax}: Short to medium sentences (max 12 words). Everyday language. No complex jargon. Children can follow without prior knowledge.`
+        : `AGE GROUP ${ageMin}-${ageMax}: Medium sentences allowed. Richer vocabulary possible. Slightly more complex sentence structures.`;
+
+  // Chapter 1 character introduction requirement
+  const ch1CharIntroNames = characterProfiles
+    .slice(0, 4)
+    .map(p => {
+      const match = p.match(/\*\*(.+?)\*\*/);
+      return match ? match[1] : null;
+    })
+    .filter(Boolean)
+    .join(", ");
+
+  const ch1IntroRule = isGerman
+    ? `KAPITEL 1 PFLICHT – CHARAKTERVORSTELLUNG: Die Leser kennen NIEMANDEN. Stelle JEDEN Charakter in Kapitel 1 mit einem kurzen, einprägsamen Detail vor (Aussehen, Eigenart oder Eigenschaft) BEVOR die Handlung startet. Beispiel: "Mia, die immer ihren roten Rucksack dabei hatte, stand ..." – NICHT einfach den Namen einwerfen und weitermachen. Charaktere in Kapitel 1: ${ch1CharIntroNames}.`
+    : `CHAPTER 1 REQUIREMENT – CHARACTER INTRODUCTION: Readers know NOBODY. Introduce EVERY character in Chapter 1 with one memorable detail (look, quirk, or trait) BEFORE the action starts. Example: "Mia, who always carried her red backpack, stood ..." – do NOT just drop a name and continue. Characters in Chapter 1: ${ch1CharIntroNames}.`;
+
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRule = humorTarget >= 3
     ? "Humor: HIGH. Needs 3+ laugh moments (slapstick, misunderstanding, witty comeback)."
@@ -635,8 +664,8 @@ export function buildFullStoryPrompt(input: {
     let specialRule = "Every listed character gets at least one physical action and one spoken line.";
     if (idx === 0) {
       specialRule += isGerman
-        ? " Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
-        : " Include one explicit stakes sentence with \"if ... otherwise ...\" and one concrete thing at risk (key, path, map).";
+        ? " KAPITEL 1: Stelle jeden Charakter zuerst mit einem einprägsamen Detail vor (Aussehen/Eigenart), bevor die Handlung beginnt. Dann: Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
+        : " CHAPTER 1: Introduce each character first with one memorable detail (look/quirk) before the action starts. Then: Include one explicit stakes sentence with \"if ... otherwise ...\" and one concrete thing at risk (key, path, map).";
     }
     if (idx === 2 || idx === 3) {
       specialRule += isGerman
@@ -676,11 +705,16 @@ ${geminiMicroExamples}
 8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Paraphrase every beat cue.
 9. Keep optional metadata ultra-short; spend tokens on chapter prose.
 10. Validator anchors (must be natural prose, not checklist text):
+   - Ch1: Introduce EVERY character with one vivid detail before action starts (no cold name-drops).
    - Ch1 includes one "Wenn ... sonst ..." sentence with concrete loss.
    - Ch3 or Ch4 contains setback + body reaction.
    - Final chapter includes concrete win + small cost line using "aber" or "kostete/musste".
 11. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
 12. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+13. ${ageGroupRule}
+
+::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
+${ch1IntroRule}
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -770,6 +804,10 @@ gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glu
 8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Always paraphrase.
 9. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
 10. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+11. ${ageGroupRule}
+
+::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
+${ch1IntroRule}
 
 ${avatarRule ? `${avatarRule}\n` : ""}
 ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
@@ -785,7 +823,10 @@ ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactR
 ${beatLines}
 
 ::: STORY STRUCTURE REQUIREMENTS :::
-- Chapter 1: HOOK + STAKES. Within the first 3 sentences, something must GO WRONG. By end of Ch 1, show CONCRETELY what is lost if they fail (e.g. "If they don't find the path, they sleep in the forest tonight").
+- Chapter 1: INTRODUCE + HOOK + STAKES.
+  STEP 1 – INTRODUCTION (first paragraph): The reader knows NOBODY. Introduce EACH character with one vivid, specific detail (their look, habit, or quirk) as they naturally appear. Example: "Mia, die immer ihren roten Rucksack trug als wäre er Teil von ihr, stand am Waldrand..." NOT just dropping names cold.
+  STEP 2 – HOOK: Within the first 3 sentences after introductions, something must GO WRONG or a MYSTERY must appear.
+  STEP 3 – STAKES: By end of Ch 1, show CONCRETELY what is lost if they fail (e.g. "If they don't find the path, they sleep in the forest tonight").
 - Chapter 2: DISCOVERY + TEMPTATION. Introduce something exciting but dangerous. End with a decision point.
 - Chapter 3: COMPLICATION. Things get worse. A plan fails. Someone makes a mistake.
 - Chapter 3-4: LOWPOINT – a REAL setback: something breaks, someone gets hurt (scraped knee, torn jacket), a tool fails. Show the PHYSICAL emotional reaction (somatic marker!). The characters must feel DEFEATED for at least 2-3 sentences before recovering.
@@ -805,6 +846,11 @@ Write a JSON object. Start with "_planning" to think before writing.
       "ch1": ["list every character who MUST speak and act in this chapter"],
       "ch2": ["list every character who MUST speak and act"],
       "ch3": ["..."], "ch4": ["..."], "ch5": ["..."]
+    },
+    "character_introductions": {
+      "[character1]": "One vivid intro detail for Ch1 (e.g. 'always wears a red hat, speaks in rhymes')",
+      "[character2]": "One vivid intro detail for Ch1",
+      "[character3+]": "..."
     },
     "somatic_markers": ["5 physical sensations I will use instead of emotion words"],
     "humor_beats": ["2 concrete funny moments I will include (situation, not wordplay)"],
