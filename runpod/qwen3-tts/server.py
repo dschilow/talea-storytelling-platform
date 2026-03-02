@@ -142,7 +142,7 @@ def _resolve_attn_implementation() -> Optional[str]:
 
 
 def _try_torch_compile(model: Any) -> Any:
-    """Apply torch.compile() for faster inference on PyTorch 2.x+."""
+    """Apply torch.compile() to inner sub-modules for faster inference on PyTorch 2.x+."""
     if not ENABLE_TORCH_COMPILE:
         print("torch.compile() disabled via ENABLE_TORCH_COMPILE=0.")
         return model
@@ -150,20 +150,36 @@ def _try_torch_compile(model: Any) -> Any:
         print("torch.compile() skipped (no CUDA).")
         return model
     try:
-        major, minor = (int(x) for x in torch.__version__.split(".")[:2])
+        major = int(torch.__version__.split(".")[0])
         if major < 2:
             print(f"torch.compile() requires PyTorch 2.x+ (found {torch.__version__}).")
             return model
     except Exception:
         return model
 
-    try:
-        compiled = torch.compile(model, mode="reduce-overhead")
-        print("torch.compile() applied successfully (mode=reduce-overhead).")
-        return compiled
-    except Exception as exc:
-        print(f"torch.compile() failed ({exc}), continuing without it.")
-        return model
+    # Qwen3TTSModel is a wrapper — torch.compile on the outer object fails silently.
+    # Instead, compile individual nn.Module sub-modules that are safe to compile.
+    compiled_count = 0
+    compile_targets = ["talker", "vocoder", "speaker_encoder", "code_predictor"]
+    for attr_name in compile_targets:
+        submodule = getattr(model, attr_name, None)
+        if submodule is None:
+            continue
+        if not isinstance(submodule, torch.nn.Module):
+            continue
+        try:
+            compiled = torch.compile(submodule, mode="reduce-overhead", fullgraph=False)
+            setattr(model, attr_name, compiled)
+            compiled_count += 1
+            print(f"torch.compile() applied to model.{attr_name} (mode=reduce-overhead).")
+        except Exception as exc:
+            print(f"torch.compile() skipped for model.{attr_name}: {exc}")
+
+    if compiled_count > 0:
+        print(f"torch.compile() done: {compiled_count} sub-module(s) compiled.")
+    else:
+        print("torch.compile() skipped: no compatible sub-modules found (non-fatal).")
+    return model
 
 
 def _warmup_model() -> None:
@@ -194,11 +210,12 @@ def load_qwen_model() -> None:
 
     load_kwargs: dict[str, Any] = {
         "device_map": "cuda:0" if torch.cuda.is_available() else "cpu",
-        "dtype": torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        "torch_dtype": torch.bfloat16 if torch.cuda.is_available() else torch.float32,
     }
     attn_implementation = _resolve_attn_implementation()
     if torch.cuda.is_available() and attn_implementation:
-        # Prefer FlashAttention-2 if available in the container.
+        # Prefer FlashAttention-2 — explicitly pass torch_dtype to silence the warning
+        # "You are attempting to use Flash Attention 2 without specifying a torch dtype"
         load_kwargs["attn_implementation"] = attn_implementation
 
     try:
