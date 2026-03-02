@@ -1250,19 +1250,22 @@ function sanitizeDraft(draft: StoryDraft, language?: string): StoryDraft {
  * Removes sentences that appear VERBATIM in 2+ chapters.
  * Catches "Adrian spürte ein flaues Gefühl im Magen." repeated 4 times.
  * Only removes sentences that are longer than 20 chars (avoid removing short connectors).
+ * IMPORTANT: Preserves paragraph breaks (\n\n) — splits by paragraph first, then by sentence.
  */
 function removeCrossChapterDuplicateSentences(chapters: StoryDraft["chapters"]): StoryDraft["chapters"] {
   // Count how often each long sentence appears across all chapters
   const sentenceCounts = new Map<string, number>();
   for (const ch of chapters) {
-    const sentences = splitSentences(ch.text);
+    const paragraphs = ch.text.split(/\n\n+/);
     const seen = new Set<string>();
-    for (const s of sentences) {
-      const norm = s.trim().toLowerCase();
-      if (norm.length < 20) continue;
-      if (seen.has(norm)) continue;
-      seen.add(norm);
-      sentenceCounts.set(norm, (sentenceCounts.get(norm) ?? 0) + 1);
+    for (const para of paragraphs) {
+      for (const s of splitSentences(para)) {
+        const norm = s.trim().toLowerCase();
+        if (norm.length < 20) continue;
+        if (seen.has(norm)) continue;
+        seen.add(norm);
+        sentenceCounts.set(norm, (sentenceCounts.get(norm) ?? 0) + 1);
+      }
     }
   }
 
@@ -1275,20 +1278,27 @@ function removeCrossChapterDuplicateSentences(chapters: StoryDraft["chapters"]):
 
   const seenGlobally = new Set<string>();
   return chapters.map(ch => {
-    const sentences = splitSentences(ch.text);
-    const kept: string[] = [];
-    for (const s of sentences) {
-      const norm = s.trim().toLowerCase();
-      if (duplicates.has(norm)) {
-        if (seenGlobally.has(norm)) {
-          // Skip - already appeared in an earlier chapter
-          continue;
+    // Split into paragraphs first to preserve \n\n structure
+    const paragraphs = ch.text.split(/\n\n+/);
+    const keptParagraphs: string[] = [];
+    for (const para of paragraphs) {
+      const sentences = splitSentences(para);
+      const kept: string[] = [];
+      for (const s of sentences) {
+        const norm = s.trim().toLowerCase();
+        if (duplicates.has(norm)) {
+          if (seenGlobally.has(norm)) {
+            // Skip - already appeared in an earlier chapter
+            continue;
+          }
+          seenGlobally.add(norm);
         }
-        seenGlobally.add(norm);
+        kept.push(s.trim());
       }
-      kept.push(s.trim());
+      const paraText = kept.join(" ").trim();
+      if (paraText) keptParagraphs.push(paraText);
     }
-    return { ...ch, text: kept.join(" ").trim() };
+    return { ...ch, text: keptParagraphs.join("\n\n").trim() };
   });
 }
 

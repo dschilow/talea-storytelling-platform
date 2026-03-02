@@ -451,7 +451,13 @@ Same trick used twice (e.g. "false trail" appears 3 times). → Fix: Different o
 "They learned that teamwork is important." → Fix: The lesson must be invisible — shown, not stated.
 
 🚫 PROMPT COPYING:
-Pasting the Goal/Conflict/Setting wording verbatim into the story. → Fix: Dramatize everything.`;
+Pasting the Goal/Conflict/Setting wording verbatim into the story. → Fix: Dramatize everything.
+
+🚫 META-CHAPTER REFERENCES IN PROSE:
+"das Ziel aus Kapitel eins" / "their Chapter 1 goal" / "what they set out to do in the beginning" → NEVER reference chapter numbers inside the prose. Characters live in a world without chapters. Fix: Name the actual thing: "the altar", "the lost key", "the dying garden".
+
+🚫 PLANNING LANGUAGE LEAKING INTO CHAPTERS:
+Writing "_planning" terms into story text (e.g. "obstacle", "callback", "stake", "payoff"). These belong ONLY in the _planning block. Never in chapter prose.`;
 }
 
 function buildGeminiFlashMicroExamplesBlock(isGerman: boolean): string {
@@ -759,7 +765,7 @@ Return JSON only:
     "anti_meta": "ok"
   },
   "chapters": [
-    { "chapter": 1, "text": "full prose text..." }
+    { "chapter": 1, "text": "Paragraph one with 2-4 sentences.\n\nParagraph two with 2-4 sentences.\n\nParagraph three — and so on. ALWAYS use \\n\\n between paragraphs. NEVER one block." }
   ]
 }
 The "_checks" object is optional. If included, keep it under 40 words total.`;
@@ -910,7 +916,7 @@ Write a JSON object. Start with "_planning" to think before writing.
   "title": "${titleHint}",
   "description": "Teaser sentence that plants a QUESTION in the reader's mind",
   "chapters": [
-    { "chapter": 1, "text": "Full prose text in flowing paragraphs..." }
+    { "chapter": 1, "text": "Paragraph one (2-4 sentences).\n\nParagraph two (2-4 sentences).\n\nParagraph three — continue. ALWAYS separate paragraphs with \\n\\n. 4-6 paragraphs per chapter." }
   ]
 }`;
 }
