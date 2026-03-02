@@ -171,6 +171,12 @@ type GeneratedDialogueVariant = {
   file: File;
 };
 
+type ParsedDialogueTurn = {
+  id: string;
+  speaker: string;
+  text: string;
+};
+
 const extractSpeakersFromScript = (script: string): string[] => {
   const speakers: string[] = [];
   const seen = new Set<string>();
@@ -214,6 +220,284 @@ const readErrorMessage = async (response: Response): Promise<string> => {
   }
 
   return `HTTP ${response.status}`;
+};
+
+const normalizeSpeakerLabel = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+const parseDialogueTurns = (script: string): ParsedDialogueTurn[] => {
+  const normalizedScript = script.replace(/\r\n/g, '\n').trim();
+  if (!normalizedScript) {
+    throw new Error('Script ist leer.');
+  }
+
+  const lines = normalizedScript.split('\n');
+  const turns: ParsedDialogueTurn[] = [];
+  let currentSpeaker = '';
+  let currentLines: string[] = [];
+
+  const pushTurn = () => {
+    if (!currentSpeaker) return;
+    const text = currentLines.join('\n').trim();
+    if (!text) return;
+    turns.push({
+      id: `turn-${turns.length + 1}`,
+      speaker: currentSpeaker,
+      text,
+    });
+    currentSpeaker = '';
+    currentLines = [];
+  };
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trimEnd();
+    const match = line.match(/^\s*([^:\n]{1,80}):\s*(.*)$/);
+    if (match) {
+      pushTurn();
+      currentSpeaker = normalizeSpeakerLabel(match[1]);
+      currentLines = [match[2].trim()];
+      return;
+    }
+
+    if (!line.trim()) {
+      if (currentLines.length > 0) currentLines.push('');
+      return;
+    }
+
+    if (!currentSpeaker) {
+      throw new Error(`Ungueltiges Script in Zeile ${index + 1}: erwartet "SPRECHER: Text".`);
+    }
+    currentLines.push(line.trim());
+  });
+
+  pushTurn();
+  if (turns.length === 0) {
+    throw new Error('Keine Dialogbloecke gefunden. Nutze "SPRECHER: Text".');
+  }
+  return turns;
+};
+
+const resolveMappedSpeaker = (speaker: string, speakerVoiceMap: Record<string, string>): string | undefined => {
+  const direct = speakerVoiceMap[speaker]?.trim();
+  if (direct) return direct;
+  const normalized = speaker.toLowerCase();
+  for (const [candidate, mapped] of Object.entries(speakerVoiceMap)) {
+    if (candidate.trim().toLowerCase() !== normalized) continue;
+    const value = mapped?.trim();
+    if (value) return value;
+  }
+  return undefined;
+};
+
+const hasWavHeader = (bytes: Uint8Array): boolean => {
+  if (bytes.length < 12) return false;
+  return (
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x41 &&
+    bytes[10] === 0x56 &&
+    bytes[11] === 0x45
+  );
+};
+
+const concatBytes = (chunks: Uint8Array[]): Uint8Array => {
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return merged;
+};
+
+const concatAudioChunks = (chunks: Uint8Array[], mimeType: string): Uint8Array => {
+  const isWav = mimeType.includes('wav') || mimeType.includes('wave');
+  if (!isWav || chunks.length <= 1) {
+    return concatBytes(chunks);
+  }
+
+  const WAV_HEADER_SIZE = 44;
+  const adjusted: Uint8Array[] = chunks.map((chunk, index) => {
+    if (index === 0) return chunk;
+    if (chunk.length > WAV_HEADER_SIZE && hasWavHeader(chunk)) {
+      return chunk.subarray(WAV_HEADER_SIZE);
+    }
+    return chunk;
+  });
+
+  const merged = concatBytes(adjusted);
+  if (merged.length >= WAV_HEADER_SIZE && hasWavHeader(merged)) {
+    const view = new DataView(merged.buffer, merged.byteOffset, merged.byteLength);
+    view.setUint32(4, Math.max(0, merged.length - 8), true);
+    view.setUint32(40, Math.max(0, merged.length - WAV_HEADER_SIZE), true);
+  }
+  return merged;
+};
+
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+
+const float32ToInt16 = (samples: Float32Array): Int16Array => {
+  const output = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, samples[i]));
+    output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+  }
+  return output;
+};
+
+const transcodeWavBlobToMp3 = async (wavBlob: Blob): Promise<Blob> => {
+  const lameModule = (await import('lamejs')) as any;
+  const lame = lameModule?.default ?? lameModule;
+  const Mp3Encoder = lame?.Mp3Encoder;
+  if (!Mp3Encoder) {
+    throw new Error('MP3 encoder is not available.');
+  }
+
+  const audioArrayBuffer = await wavBlob.arrayBuffer();
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) {
+    throw new Error('AudioContext is not supported in this browser.');
+  }
+
+  const context = new AudioCtx();
+  try {
+    const decoded = await context.decodeAudioData(audioArrayBuffer.slice(0));
+    const channelCount = Math.min(2, Math.max(1, decoded.numberOfChannels));
+    const left = float32ToInt16(decoded.getChannelData(0));
+    const right = channelCount > 1 ? float32ToInt16(decoded.getChannelData(1)) : null;
+
+    const encoder = new Mp3Encoder(channelCount, decoded.sampleRate, 160);
+    const blockSize = 1152;
+    const chunks: Uint8Array[] = [];
+
+    for (let offset = 0; offset < left.length; offset += blockSize) {
+      const leftChunk = left.subarray(offset, Math.min(offset + blockSize, left.length));
+      let encoded: Int8Array | Uint8Array | number[] | null = null;
+      if (channelCount > 1 && right) {
+        const rightChunk = right.subarray(offset, Math.min(offset + blockSize, right.length));
+        encoded = encoder.encodeBuffer(leftChunk, rightChunk);
+      } else {
+        encoded = encoder.encodeBuffer(leftChunk);
+      }
+      if (encoded && encoded.length > 0) {
+        chunks.push(Uint8Array.from(encoded as ArrayLike<number>));
+      }
+    }
+
+    const flushed = encoder.flush();
+    if (flushed && flushed.length > 0) {
+      chunks.push(Uint8Array.from(flushed as ArrayLike<number>));
+    }
+
+    if (chunks.length === 0) {
+      throw new Error('MP3 transcoding produced no data.');
+    }
+
+    return new Blob(chunks, { type: 'audio/mpeg' });
+  } finally {
+    await context.close();
+  }
+};
+
+const generateQwenDialogueViaBatchFallback = async (
+  script: string,
+  speakerVoiceMap: Record<string, string>,
+  token: string | null,
+): Promise<QwenDialogueResponse> => {
+  const turns = parseDialogueTurns(script);
+  const missingSpeakers = turns
+    .filter((turn) => !resolveMappedSpeaker(turn.speaker, speakerVoiceMap))
+    .map((turn) => turn.speaker);
+
+  if (missingSpeakers.length > 0) {
+    const unique = Array.from(new Set(missingSpeakers));
+    throw new Error(`Missing Qwen mapping for speaker(s): ${unique.join(', ')}`);
+  }
+
+  const response = await fetch(`${getBackendUrl()}/tts/batch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      items: turns.map((turn) => ({
+        id: turn.id,
+        text: turn.text,
+        speaker: resolveMappedSpeaker(turn.speaker, speakerVoiceMap),
+      })),
+      outputFormat: 'wav',
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  const payload = (await response.json()) as {
+    results?: Array<{ id: string; audio: string | null; error: string | null }>;
+  };
+  const resultMap = new Map((payload.results || []).map((item) => [item.id, item]));
+
+  const audioChunks: Uint8Array[] = [];
+  let mimeType = 'audio/wav';
+
+  for (const turn of turns) {
+    const result = resultMap.get(turn.id);
+    if (!result?.audio || result.error) {
+      throw new Error(`Qwen Batch fehlgeschlagen (${turn.speaker}): ${result?.error || 'kein Audio'}`);
+    }
+    const blob = await (await fetch(result.audio)).blob();
+    if (blob.type) {
+      mimeType = blob.type;
+    }
+    const buffer = await blob.arrayBuffer();
+    audioChunks.push(new Uint8Array(buffer));
+  }
+
+  if (audioChunks.length === 0) {
+    throw new Error('Qwen Batch hat keine Audiodaten geliefert.');
+  }
+
+  const combinedBytes = concatAudioChunks(audioChunks, mimeType);
+  const combinedBlob = new Blob([combinedBytes], { type: mimeType });
+
+  let finalBlob = combinedBlob;
+  let finalMimeType = mimeType;
+  if (mimeType.includes('wav') || mimeType.includes('wave')) {
+    try {
+      finalBlob = await transcodeWavBlobToMp3(combinedBlob);
+      finalMimeType = 'audio/mpeg';
+    } catch (transcodeError) {
+      console.warn('[AudioDoku] WAV->MP3 transcode failed, keeping WAV fallback:', transcodeError);
+    }
+  }
+
+  const combinedAudioData = await blobToDataUrl(finalBlob);
+
+  return {
+    variants: [
+      {
+        id: 'variant-1',
+        audioData: combinedAudioData,
+        mimeType: finalMimeType,
+      },
+    ],
+    turns: turns.length,
+    speakers: Array.from(new Set(turns.map((turn) => turn.speaker))),
+  };
 };
 
 const createSpeakerDraft = (): DialogueSpeaker => ({
@@ -614,26 +898,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     try {
       setDialogueLoading(true);
       const token = await getToken();
-      const endpoint =
-        ttsProvider === 'qwen' ? '/tts/qwen/dialogue' : '/tts/elevenlabs/dialogue';
-      const response = await fetch(`${getBackendUrl()}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          script: dialogueScript,
-          speakerVoiceMap,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(await readErrorMessage(response));
-      }
-
-      const payload = (await response.json()) as
+      let payload:
         | ElevenLabsDialogueResponse
         | QwenDialogueResponse
         | {
@@ -642,9 +907,52 @@ const CreateAudioDokuScreen: React.FC = () => {
             speakers?: string[];
           }
         | {
-        audioData?: string;
-        mimeType?: string;
-      };
+            audioData?: string;
+            mimeType?: string;
+          };
+
+      if (ttsProvider === 'qwen') {
+        const response = await fetch(`${getBackendUrl()}/tts/qwen/dialogue`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            script: dialogueScript,
+            speakerVoiceMap,
+          }),
+        });
+
+        if (response.status === 404) {
+          payload = await generateQwenDialogueViaBatchFallback(dialogueScript, speakerVoiceMap, token);
+        } else {
+          if (!response.ok) {
+            throw new Error(await readErrorMessage(response));
+          }
+          payload = (await response.json()) as QwenDialogueResponse;
+        }
+      } else {
+        const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            script: dialogueScript,
+            speakerVoiceMap,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(await readErrorMessage(response));
+        }
+        payload = (await response.json()) as ElevenLabsDialogueResponse;
+      }
+
       const rawVariants =
         'variants' in payload && payload.variants && payload.variants.length > 0
           ? payload.variants
