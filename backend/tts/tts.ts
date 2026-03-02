@@ -1770,15 +1770,17 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
       throw APIError.invalidArgument(`Missing Qwen voice mapping for speaker(s): ${speakers}`);
     }
 
+    // Force WAV for deterministic stitching. Concatenating provider MP3 chunks can
+    // yield files that only play the first segment in some players.
     const batch = await generateSpeechBatchInternal({
       items,
       instructText: (req.instructText || "").trim() || undefined,
-      outputFormat: req.outputFormat,
+      outputFormat: "wav",
       languageId: (req.languageId || "").trim() || undefined,
     });
 
     const resultMap = new Map(batch.results.map((result) => [result.id, result]));
-    const fallbackMimeType = req.outputFormat === "wav" ? "audio/wav" : "audio/mpeg";
+    const fallbackMimeType = "audio/wav";
     const buffers: Buffer[] = [];
     let detectedMimeType = fallbackMimeType;
 

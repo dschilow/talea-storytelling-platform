@@ -458,7 +458,7 @@ const generateQwenDialogueViaBatchFallback = async (
         text: turn.text,
         speaker: resolveMappedSpeaker(turn.speaker, speakerVoiceMap),
       })),
-      outputFormat: 'mp3',
+      outputFormat: 'wav',
     }),
   });
 
@@ -898,6 +898,13 @@ const CreateAudioDokuScreen: React.FC = () => {
       return;
     }
 
+    const resolvedSpeakerVoiceMap =
+      ttsProvider === 'qwen'
+        ? Object.fromEntries(
+            Object.entries(speakerVoiceMap).map(([speaker, voice]) => [speaker, voice.trim().toLowerCase()])
+          )
+        : speakerVoiceMap;
+
     try {
       setDialogueLoading(true);
       const token = await getToken();
@@ -915,27 +922,9 @@ const CreateAudioDokuScreen: React.FC = () => {
           };
 
       if (ttsProvider === 'qwen') {
-        const response = await fetch(`${getBackendUrl()}/tts/qwen/dialogue`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            script: dialogueScript,
-            speakerVoiceMap,
-          }),
-        });
-
-        if (response.status === 404) {
-          payload = await generateQwenDialogueViaBatchFallback(dialogueScript, speakerVoiceMap, token);
-        } else {
-          if (!response.ok) {
-            throw new Error(await readErrorMessage(response));
-          }
-          payload = (await response.json()) as QwenDialogueResponse;
-        }
+        // Keep Qwen path backend-compatible and stable across deployments by using
+        // /tts/batch as the primary dialogue generator.
+        payload = await generateQwenDialogueViaBatchFallback(dialogueScript, resolvedSpeakerVoiceMap, token);
       } else {
         const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
           method: 'POST',
@@ -946,7 +935,7 @@ const CreateAudioDokuScreen: React.FC = () => {
           credentials: 'include',
           body: JSON.stringify({
             script: dialogueScript,
-            speakerVoiceMap,
+            speakerVoiceMap: resolvedSpeakerVoiceMap,
           }),
         });
 
@@ -969,15 +958,30 @@ const CreateAudioDokuScreen: React.FC = () => {
 
       const preparedVariants: GeneratedDialogueVariant[] = await Promise.all(
         rawVariants.map(async (variant, index) => {
-          const audioBlob = await (await fetch(variant.audioData)).blob();
-          const mimeType = variant.mimeType || audioBlob.type || 'audio/mpeg';
+          const sourceBlob = await (await fetch(variant.audioData)).blob();
+          let finalBlob = sourceBlob;
+          let mimeType = variant.mimeType || sourceBlob.type || 'audio/mpeg';
+
+          if (ttsProvider === 'qwen') {
+            try {
+              finalBlob = await transcodeAudioSegmentsToMp3([sourceBlob]);
+              mimeType = 'audio/mpeg';
+            } catch (transcodeError) {
+              console.warn('[AudioDoku] Qwen variant MP3 transcode failed, using source blob:', transcodeError);
+            }
+          }
+
           const extension = mimeType.includes('wav') ? 'wav' : 'mp3';
-          const file = new File([audioBlob], `dialogue-variant-${index + 1}-${Date.now()}.${extension}`, {
+          const audioData =
+            finalBlob === sourceBlob && mimeType === (variant.mimeType || sourceBlob.type || 'audio/mpeg')
+              ? variant.audioData
+              : await blobToDataUrl(finalBlob);
+          const file = new File([finalBlob], `dialogue-variant-${index + 1}-${Date.now()}.${extension}`, {
             type: mimeType,
           });
           return {
             id: variant.id || `variant-${index + 1}`,
-            audioData: variant.audioData,
+            audioData,
             mimeType,
             file,
           };
