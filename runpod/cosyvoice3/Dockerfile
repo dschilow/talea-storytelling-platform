@@ -7,12 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_PREFER_BINARY=1 \
     HF_HOME=/opt/hf-cache \
-    PYTHONPATH=/opt/cosyvoice:/opt/cosyvoice/third_party/Matcha-TTS \
-    COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
-    COSYVOICE_DEFAULT_REF_WAV=/opt/default-voices/narrator_sample.mp3 \
-    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT="D\u00FCnn, ja\u2026 aber untersch\u00E4tz sie nicht. Spinnenseide ist wie\u2026 ein ultraleichtes Seil, das trotzdem MEGA stark ist." \
-    COSYVOICE_ALLOW_PROMPT_WITH_DEFAULT_REFERENCE=0
+    PYTHONPATH=/opt/cosyvoice:/opt/cosyvoice/third_party/Matcha-TTS
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -81,6 +76,14 @@ RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
     else \
       echo "Skipping model prefetch during build (PREFETCH_MODEL=$PREFETCH_MODEL)"; \
     fi
+
+# Move frequently-changing config variables here to avoid invalidating the 
+# heavy dependency layers above (torch, whisper, pynini).
+ENV COSYVOICE_MODEL_ID=FunAudioLLM/Fun-CosyVoice3-0.5B-2512 \
+    COSYVOICE_MODEL_DIR=/opt/models/Fun-CosyVoice3-0.5B-2512 \
+    COSYVOICE_DEFAULT_REF_WAV=/opt/default-voices/narrator_sample.mp3 \
+    COSYVOICE_DEFAULT_REFERENCE_TRANSCRIPT="D\u00FCnn, ja\u2026 aber untersch\u00E4tz sie nicht. Spinnenseide ist wie\u2026 ein ultraleichtes Seil, das trotzdem MEGA stark ist." \
+    COSYVOICE_ALLOW_PROMPT_WITH_DEFAULT_REFERENCE=0
 
 COPY runpod/cosyvoice3/server.py /app/server.py
 COPY runpod/cosyvoice3/queue_worker.py /app/queue_worker.py

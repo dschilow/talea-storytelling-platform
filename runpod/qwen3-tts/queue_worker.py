@@ -40,6 +40,9 @@ def _extract_shared_params(job_input: Dict[str, Any]) -> Dict[str, Any]:
         "prompt_text": str(job_input.get("prompt_text") or "").strip(),
         "output_format": _normalize_output_format(str(job_input.get("output_format") or "wav")),
         "speed": float(job_input.get("speed", 1.0)),
+        "speaker": str(job_input.get("speaker") or "").strip(),
+        "instruct_text": str(job_input.get("instruct_text") or "").strip(),
+        "language_id": str(job_input.get("language_id") or "").strip(),
     }
 
 def _generate_single(
@@ -56,6 +59,9 @@ def _generate_single(
             output_format=params["output_format"],
             reference_audio_path=ref_wav_path,
             speed=params["speed"],
+            speaker=params.get("speaker", ""),
+            instruct_text=params.get("instruct_text", ""),
+            language_id=params.get("language_id", ""),
         )
         return {
             "audioBase64": base64.b64encode(audio_bytes).decode("ascii"),
