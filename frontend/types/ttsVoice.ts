@@ -1,8 +1,9 @@
-export type TTSVoiceMode = 'default' | 'speaker';
+export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;
   speakerId?: string;
+  dialogueSpeakerIds?: string[];
 }
 
 export interface TTSRequestOptions {
@@ -21,7 +22,18 @@ export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestO
   }
 
   const speaker = settings.speakerId?.trim();
-  return speaker ? { speaker } : {};
+  if (speaker) {
+    return { speaker };
+  }
+
+  if (settings.mode === 'dialogue') {
+    const fallbackDialogueSpeaker = (settings.dialogueSpeakerIds || [])
+      .map((entry) => entry.trim())
+      .find(Boolean);
+    return fallbackDialogueSpeaker ? { speaker: fallbackDialogueSpeaker } : {};
+  }
+
+  return {};
 }
 
 function hashString(input: string): string {

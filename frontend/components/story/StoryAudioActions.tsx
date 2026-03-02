@@ -34,6 +34,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const [isAdding, setIsAdding] = useState(false);
   const [availableSpeakers, setAvailableSpeakers] = useState<string[]>([]);
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
+  const [multiVoiceEnabled, setMultiVoiceEnabled] = useState(false);
+  const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>([]);
   const [loadingSpeakers, setLoadingSpeakers] = useState(false);
   const [speakerLoadError, setSpeakerLoadError] = useState('');
 
@@ -42,16 +44,37 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
     const normalizedSpeaker = selectedSpeaker.trim();
+    const normalizedDialogueSpeakers = Array.from(
+      new Set(
+        dialogueSpeakers
+          .map((speaker) => speaker.trim())
+          .filter(Boolean),
+      ),
+    );
+
+    if (normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
+      return {
+        mode: 'dialogue',
+        speakerId: normalizedSpeaker,
+        dialogueSpeakerIds: normalizedDialogueSpeakers,
+      };
+    }
+
     if (normalizedSpeaker) {
-      return { mode: 'speaker', speakerId: normalizedSpeaker };
+      return {
+        mode: 'speaker',
+        speakerId: normalizedSpeaker,
+      };
     }
     return DEFAULT_TTS_VOICE_SETTINGS;
-  }, [selectedSpeaker]);
+  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers]);
 
   const canStartConversion = useMemo(() => {
     if (!chapters.length || isAdding) return false;
-    return Boolean(selectedSpeaker.trim());
-  }, [chapters.length, isAdding, selectedSpeaker]);
+    if (!selectedSpeaker.trim()) return false;
+    if (!multiVoiceEnabled) return true;
+    return dialogueSpeakers.map((speaker) => speaker.trim()).filter(Boolean).length >= 2;
+  }, [chapters.length, isAdding, selectedSpeaker, multiVoiceEnabled, dialogueSpeakers]);
 
   const loadAvailableSpeakers = useCallback(async () => {
     setLoadingSpeakers(true);
@@ -95,6 +118,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         : [];
 
       setAvailableSpeakers(speakers);
+      setDialogueSpeakers((current) => {
+        const filtered = current.filter((speaker) => speakers.includes(speaker));
+        if (filtered.length > 0) return filtered;
+        return speakers.slice(0, 2);
+      });
       setSelectedSpeaker((current) => {
         if (current && speakers.includes(current)) return current;
         const defaultSpeaker = (payload.defaultSpeaker || '').trim();
@@ -121,10 +149,30 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     }
   }, [availableSpeakers.length, loadingSpeakers, speakerLoadError, loadAvailableSpeakers]);
 
+  useEffect(() => {
+    if (!multiVoiceEnabled) return;
+    setDialogueSpeakers((current) => {
+      const filtered = current.filter((speaker) => availableSpeakers.includes(speaker));
+      if (filtered.length >= 2) return filtered;
+      return availableSpeakers.slice(0, 2);
+    });
+  }, [multiVoiceEnabled, availableSpeakers]);
+
   const resetToDefaultVoice = useCallback(() => {
     setSelectedSpeaker((availableSpeakers[0] || '').trim());
+    setMultiVoiceEnabled(false);
+    setDialogueSpeakers(availableSpeakers.slice(0, 2));
     setSpeakerLoadError('');
   }, [availableSpeakers]);
+
+  const toggleDialogueSpeaker = useCallback((speaker: string) => {
+    setDialogueSpeakers((current) => {
+      if (current.includes(speaker)) {
+        return current.filter((entry) => entry !== speaker);
+      }
+      return [...current, speaker];
+    });
+  }, []);
 
   const startConversion = useCallback((autoplay: boolean) => {
     if (!canStartConversion) return;
@@ -227,9 +275,58 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         {selectedSpeaker && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
-            Aktive Stimme: <span className="font-semibold">{selectedSpeaker}</span>
+            Narrator-Stimme: <span className="font-semibold">{selectedSpeaker}</span>
           </p>
         )}
+
+        <div
+          className="mt-3 rounded-xl border p-2"
+          style={{
+            borderColor: isDark ? '#34455d' : '#decfbf',
+            background: isDark ? 'rgba(15,23,34,0.45)' : 'rgba(255,255,255,0.62)',
+          }}
+        >
+          <label className="flex items-center gap-2 text-[11px]" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
+            <input
+              type="checkbox"
+              checked={multiVoiceEnabled}
+              onChange={(event) => setMultiVoiceEnabled(event.target.checked)}
+              disabled={availableSpeakers.length < 2}
+            />
+            Mehrere Dialogstimmen aktivieren (`NAME: Text` im Kapitel)
+          </label>
+
+          {multiVoiceEnabled && (
+            <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {availableSpeakers.map((speaker) => {
+                const active = dialogueSpeakers.includes(speaker);
+                return (
+                  <button
+                    key={speaker}
+                    type="button"
+                    onClick={() => toggleDialogueSpeaker(speaker)}
+                    className="rounded-lg border px-2 py-1 text-left text-[11px]"
+                    style={{
+                      borderColor: active ? (isDark ? '#9eb3d4' : '#7c5b3d') : (isDark ? '#34455d' : '#decfbf'),
+                      background: active
+                        ? (isDark ? 'rgba(158,179,212,0.18)' : 'rgba(124,91,61,0.14)')
+                        : (isDark ? 'rgba(20,29,40,0.75)' : 'rgba(255,255,255,0.7)'),
+                      color: isDark ? '#d9e5f8' : '#2a3b52',
+                    }}
+                  >
+                    {speaker}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {multiVoiceEnabled && dialogueSpeakers.length < 2 && (
+            <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
+              Waehle mindestens 2 Stimmen fuer Dialogmodus.
+            </p>
+          )}
+        </div>
 
         {speakerLoadError && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>

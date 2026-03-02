@@ -138,7 +138,7 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
 
     params = _extract_shared_params(job_input)
     results: List[Dict[str, Any]] = []
-    valid_items: List[tuple[str, str]] = []
+    valid_items: List[tuple[str, str, str]] = []
 
     for idx, item in enumerate(texts):
         item_id = str(idx)
@@ -148,11 +148,12 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
 
         item_id = str(item.get("id") or item_id)
         text = str(item.get("text") or item.get("tts_text") or "").strip()
+        item_speaker = str(item.get("speaker") or "").strip()
         if not text:
             results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
             continue
 
-        valid_items.append((item_id, text))
+        valid_items.append((item_id, text, item_speaker))
 
     if not valid_items:
         return {"results": results}
@@ -161,12 +162,13 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
     try:
         batch_audio = qwen_server.generate_audio_batch(
             model=qwen_server.qwen_model,
-            texts=[text for _, text in valid_items],
+            texts=[text for _, text, _ in valid_items],
             prompt_text=params["prompt_text"],
             output_format=params["output_format"],
             reference_audio_path=None,
             speed=params["speed"],
             speaker=params.get("speaker", ""),
+            speakers=[speaker for _, _, speaker in valid_items],
             instruct_text=params.get("instruct_text", ""),
             language_id=params.get("language_id", ""),
         )
@@ -176,7 +178,7 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
                 f"Batch output length mismatch: expected {len(valid_items)}, got {len(batch_audio)}"
             )
 
-        for (item_id, _), (audio_bytes, mime_type, used_format) in zip(valid_items, batch_audio):
+        for (item_id, _, _), (audio_bytes, mime_type, used_format) in zip(valid_items, batch_audio):
             results.append(
                 {
                     "id": item_id,
@@ -192,8 +194,11 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[tts_batch] batch inference failed, fallback to per-item mode: {batch_exc}")
 
     # Fallback path: isolate failures per item.
-    for item_id, text in valid_items:
-        generated = _generate_single(text, params)
+    for item_id, text, item_speaker in valid_items:
+        item_params = dict(params)
+        if item_speaker:
+            item_params["speaker"] = item_speaker
+        generated = _generate_single(text, item_params)
         if generated.get("error"):
             results.append(
                 {

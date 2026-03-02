@@ -13,6 +13,69 @@ import {
 } from '../types/ttsVoice';
 
 const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
+const DIALOGUE_LINE_PATTERN = /^\s*([^:\n]{1,40})\s*:\s*(.+)$/;
+
+type DialogueAwareSegment = {
+  text: string;
+  speakerLabel?: string;
+};
+
+function normalizeSpeakerLabel(rawValue: string): string {
+  return String(rawValue || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function uniqueNonEmpty(values: string[]): string[] {
+  const unique = new Set<string>();
+  const output: string[] = [];
+  for (const value of values) {
+    const normalized = String(value || '').trim();
+    if (!normalized) continue;
+    if (unique.has(normalized)) continue;
+    unique.add(normalized);
+    output.push(normalized);
+  }
+  return output;
+}
+
+function splitChapterIntoDialogueAwareSegments(content: string): DialogueAwareSegment[] {
+  const lines = String(content || '').replace(/\r\n?/g, '\n').split('\n');
+  const segments: DialogueAwareSegment[] = [];
+  const narratorBuffer: string[] = [];
+
+  const flushNarrator = () => {
+    if (narratorBuffer.length === 0) return;
+    const narratorText = narratorBuffer.join(' ').replace(/\s+/g, ' ').trim();
+    narratorBuffer.length = 0;
+    if (!narratorText) return;
+    segments.push({ text: narratorText });
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      narratorBuffer.push('');
+      continue;
+    }
+
+    const match = line.match(DIALOGUE_LINE_PATTERN);
+    if (match) {
+      const speakerLabel = normalizeSpeakerLabel(match[1]);
+      const spokenText = String(match[2] || '').replace(/\s+/g, ' ').trim();
+      if (speakerLabel && spokenText) {
+        flushNarrator();
+        segments.push({ text: spokenText, speakerLabel });
+        continue;
+      }
+    }
+
+    narratorBuffer.push(line);
+  }
+
+  flushNarrator();
+  return segments;
+}
 
 type StoredPlaylistState = {
   playlist: PlaylistItem[];
@@ -764,6 +827,32 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const newItems: PlaylistItem[] = [];
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
+      const baseNarratorSpeaker = request?.speaker?.trim() || '';
+      const dialogueVoicePool =
+        voiceSettings?.mode === 'dialogue'
+          ? uniqueNonEmpty(voiceSettings.dialogueSpeakerIds || [])
+          : [];
+      const dialogueSpeakerMap = new Map<string, string>();
+      let nextDialogueVoiceIndex = 0;
+
+      const resolveDialogueVoice = (speakerLabel: string): string => {
+        const normalizedLabel = normalizeSpeakerLabel(speakerLabel).toLowerCase();
+        if (!normalizedLabel) {
+          return baseNarratorSpeaker;
+        }
+        const existing = dialogueSpeakerMap.get(normalizedLabel);
+        if (existing) {
+          return existing;
+        }
+        if (dialogueVoicePool.length === 0) {
+          return baseNarratorSpeaker;
+        }
+        const assigned = dialogueVoicePool[nextDialogueVoiceIndex % dialogueVoicePool.length];
+        nextDialogueVoiceIndex += 1;
+        dialogueSpeakerMap.set(normalizedLabel, assigned);
+        return assigned;
+      };
+
       const queueItems: Array<{
         id: string;
         text: string;
@@ -782,11 +871,48 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       }> = [];
 
       for (const chapter of sorted) {
-        const chunks = splitTextIntoChunks(chapter.content);
         const chapterGroupId = `story-${storyId}-ch${chapter.order}`;
+        const chapterChunks: Array<{ text: string; speaker?: string }> = [];
 
-        for (let ci = 0; ci < chunks.length; ci++) {
+        if (voiceSettings?.mode === 'dialogue' && dialogueVoicePool.length > 0) {
+          const dialogueSegments = splitChapterIntoDialogueAwareSegments(chapter.content);
+          for (const segment of dialogueSegments) {
+            const normalizedText = String(segment.text || '').trim();
+            if (!normalizedText) continue;
+
+            const segmentSpeaker = segment.speakerLabel
+              ? resolveDialogueVoice(segment.speakerLabel)
+              : baseNarratorSpeaker;
+            const segmentedChunks = splitTextIntoChunks(normalizedText);
+            for (const chunk of segmentedChunks) {
+              chapterChunks.push({
+                text: chunk,
+                ...(segmentSpeaker ? { speaker: segmentSpeaker } : {}),
+              });
+            }
+          }
+        } else {
+          const chunks = splitTextIntoChunks(chapter.content);
+          for (const chunk of chunks) {
+            chapterChunks.push({
+              text: chunk,
+              ...(baseNarratorSpeaker ? { speaker: baseNarratorSpeaker } : {}),
+            });
+          }
+        }
+
+        for (let ci = 0; ci < chapterChunks.length; ci++) {
+          const chunk = chapterChunks[ci];
           const chunkId = `story-${storyId}-ch${chapter.order}-chunk${ci}`;
+          const chunkRequest: TTSRequestOptions | undefined = (() => {
+            if (!request && !chunk.speaker) return undefined;
+            const merged: TTSRequestOptions = { ...(request || {}) };
+            if (chunk.speaker) {
+              merged.speaker = chunk.speaker;
+            }
+            return merged;
+          })();
+          const chunkCacheSuffix = buildTTSRequestCacheSuffix(chunkRequest);
 
           newItems.push({
             id: chunkId,
@@ -795,7 +921,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             description: storyTitle,
             coverImageUrl,
             type: 'story-chapter',
-            sourceText: chunks[ci],
+            sourceText: chunk.text,
             conversionStatus: 'pending',
             parentStoryId: storyId,
             parentStoryTitle: storyTitle,
@@ -805,9 +931,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
           queueItems.push({
             id: chunkId,
-            text: chunks[ci],
-            request,
-            cacheKey: buildTTSChunkCacheKey(chunkId, chunks[ci], cacheSuffix),
+            text: chunk.text,
+            request: chunkRequest,
+            cacheKey: buildTTSChunkCacheKey(chunkId, chunk.text, chunkCacheSuffix || cacheSuffix),
             chapterId: chapterGroupId,
             libraryMeta: {
               sourceType: 'story',

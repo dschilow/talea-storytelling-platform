@@ -88,6 +88,7 @@ export interface TTSResponse {
 export interface TTSBatchItem {
   id: string;
   text: string;
+  speaker?: string;
 }
 
 export interface TTSBatchResultItem {
@@ -936,7 +937,12 @@ async function runpodQueueTtsBatchRequest(
 
   const texts = items
     .filter((item) => (item.text || "").trim())
-    .map((item) => ({ id: item.id, text: (item.text || "").trim() }));
+    .map((item) => {
+      const normalizedSpeaker = String(item.speaker || "").trim();
+      return normalizedSpeaker
+        ? { id: item.id, text: (item.text || "").trim(), speaker: normalizedSpeaker }
+        : { id: item.id, text: (item.text || "").trim() };
+    });
 
   const emptyItems: TTSBatchResultItem[] = items
     .filter((item) => !(item.text || "").trim())
@@ -1411,31 +1417,36 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
     // Auto-chunking causes silent sentence drops when sub-chunks fail, so we
     // want it to trigger only as a last resort for truly oversized items.
     const MAX_ITEM_CHARS = 600;
-    const expandedItems: { id: string; text: string }[] = [];
+    const expandedItems: TTSBatchItem[] = [];
     // Track which original items were split so we can reassemble later
     const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
 
     for (const item of req.items) {
       const text = (item.text || "").trim();
+      const itemSpeaker = String(item.speaker || "").trim();
       if (!text) {
-        expandedItems.push({ id: item.id, text: "" });
+        expandedItems.push({ id: item.id, text: "", ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
         continue;
       }
       if (text.length <= MAX_ITEM_CHARS) {
-        expandedItems.push({ id: item.id, text });
+        expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
         continue;
       }
       // Item is oversized — split it
       const chunks = splitTextIntoChunks(text);
       if (chunks.length <= 1) {
-        expandedItems.push({ id: item.id, text });
+        expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
         continue;
       }
       const chunkIds: string[] = [];
       for (let i = 0; i < chunks.length; i++) {
         const chunkId = `${item.id}__autochunk${i}`;
         chunkIds.push(chunkId);
-        expandedItems.push({ id: chunkId, text: chunks[i] });
+        expandedItems.push({
+          id: chunkId,
+          text: chunks[i],
+          ...(itemSpeaker ? { speaker: itemSpeaker } : {}),
+        });
       }
       splitTracker.set(item.id, { chunkIds, originalId: item.id });
       log.info(`[tts/batch] Auto-chunked item ${item.id}: ${text.length} chars → ${chunks.length} chunks`);
@@ -1474,7 +1485,7 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
             promptText: req.promptText,
             referenceAudioDataUrl: req.referenceAudioDataUrl,
             referenceAudioUrl: req.referenceAudioUrl,
-            speaker: req.speaker,
+            speaker: String(item.speaker || req.speaker || "").trim(),
             emotion: req.emotion,
             instructText: req.instructText,
             outputFormat: req.outputFormat,

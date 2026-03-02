@@ -245,7 +245,11 @@ export function useTTSConversionQueue({
             }>('/tts/batch', {
               method: 'POST',
               body: JSON.stringify({
-                items: uncached.map((item) => ({ id: item.id, text: item.text })),
+                items: uncached.map((item) => ({
+                  id: item.id,
+                  text: item.text,
+                  ...(item.request?.speaker ? { speaker: item.request.speaker } : {}),
+                })),
                 ...(firstReq?.promptText ? { promptText: firstReq.promptText } : {}),
                 ...(firstReq?.referenceAudioDataUrl
                   ? { referenceAudioDataUrl: firstReq.referenceAudioDataUrl }

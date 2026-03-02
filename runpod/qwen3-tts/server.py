@@ -230,13 +230,23 @@ def _run_custom_voice_generation(
     language: str,
     speaker_name: str,
     instructs: List[str],
+    speaker_names: Optional[List[str]] = None,
 ) -> Tuple[List[Any], int]:
+    resolved_default_speaker = (speaker_name or DEFAULT_SPEAKER).strip() or DEFAULT_SPEAKER
+    resolved_speakers: List[str] = []
+    if speaker_names and len(speaker_names) == len(texts):
+        for speaker in speaker_names:
+            normalized = str(speaker or "").strip() or resolved_default_speaker
+            resolved_speakers.append(normalized)
+    else:
+        resolved_speakers = [resolved_default_speaker] * len(texts)
+
     with torch.inference_mode():
         if len(texts) == 1:
             kwargs: dict[str, Any] = {
                 "text": texts[0],
                 "language": language,
-                "speaker": speaker_name,
+                "speaker": resolved_speakers[0] if resolved_speakers else resolved_default_speaker,
             }
             single_instruct = instructs[0].strip() if instructs else ""
             if single_instruct:
@@ -247,7 +257,7 @@ def _run_custom_voice_generation(
         kwargs = {
             "text": texts,
             "language": [language] * len(texts),
-            "speaker": [speaker_name] * len(texts),
+            "speaker": resolved_speakers,
         }
         if any((item or "").strip() for item in instructs):
             kwargs["instruct"] = [str(item or "").strip() for item in instructs]
@@ -310,6 +320,7 @@ def generate_audio_batch(
     reference_audio_path: str = None,
     speed: float = 1.0,
     speaker: str = "",
+    speakers: List[str] | None = None,
     instruct_text: str = "",
     language_id: str = "",
 ) -> List[Tuple[bytes, str, str]]:
@@ -323,7 +334,7 @@ def generate_audio_batch(
         return []
 
     language = _resolve_language(language_id)
-    speaker_name = (speaker or DEFAULT_SPEAKER).strip()
+    speaker_name = (speaker or DEFAULT_SPEAKER).strip() or DEFAULT_SPEAKER
     base_instruct = (instruct_text or "").strip()
     mime_type = f"audio/{output_format}"
     used_format = output_format
@@ -332,13 +343,20 @@ def generate_audio_batch(
         started_at = time.perf_counter()
         prepared_texts: List[str] = []
         prepared_instructs: List[str] = []
-        for raw_text in safe_texts:
+        prepared_speakers: List[str] = []
+        for idx, raw_text in enumerate(safe_texts):
             prepared_text, prepared_instruct = _prepare_text_and_instruct(raw_text, base_instruct)
             prepared_texts.append(prepared_text)
             prepared_instructs.append(prepared_instruct)
+            speaker_override = ""
+            if speakers and idx < len(speakers):
+                speaker_override = str(speakers[idx] or "").strip()
+            prepared_speakers.append(speaker_override or speaker_name)
+
+        unique_speakers = sorted({speaker for speaker in prepared_speakers if speaker})
 
         print(
-            f"Using CustomVoice Batch Mode (items={len(safe_texts)}, speaker={speaker_name}, "
+            f"Using CustomVoice Batch Mode (items={len(safe_texts)}, speakers={unique_speakers[:6]}, "
             f"lang={language}, instruct={any(bool(i) for i in prepared_instructs)})"
         )
         wavs, sr = _run_custom_voice_generation(
@@ -346,6 +364,7 @@ def generate_audio_batch(
             language,
             speaker_name,
             prepared_instructs,
+            prepared_speakers,
         )
         outputs: List[Tuple[bytes, str, str]] = []
         for wav in wavs:
