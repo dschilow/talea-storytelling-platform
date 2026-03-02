@@ -66,6 +66,10 @@ const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = parsePositiveInt(
   process.env.COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS,
   3_600_000
 );
+const COSYVOICE_SEND_REFERENCE_AUDIO = parseBoolean(
+  process.env.COSYVOICE_SEND_REFERENCE_AUDIO,
+  true
+);
 const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
   process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "mp3"
@@ -847,7 +851,9 @@ async function runpodQueueTtsRequest(req: GenerateSpeechRequest): Promise<TTSRes
   const speaker = (req.speaker || "").trim();
   const includeBackendDefaultReference =
     !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
-  const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
+  const referenceAudio = COSYVOICE_SEND_REFERENCE_AUDIO
+    ? await resolveReferenceAudio(req, includeBackendDefaultReference)
+    : null;
 
   const input: Record<string, unknown> = {
     action: "tts",
@@ -924,7 +930,9 @@ async function runpodQueueTtsBatchRequest(
   };
   const includeBackendDefaultReference =
     !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(refReq);
-  const referenceAudio = await resolveReferenceAudio(refReq, includeBackendDefaultReference);
+  const referenceAudio = COSYVOICE_SEND_REFERENCE_AUDIO
+    ? await resolveReferenceAudio(refReq, includeBackendDefaultReference)
+    : null;
 
   const texts = items
     .filter((item) => (item.text || "").trim())
@@ -1089,7 +1097,9 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
   const includeBackendDefaultReference =
     !COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE || hasExplicitReference(req);
-  const referenceAudio = await resolveReferenceAudio(req, includeBackendDefaultReference);
+  const referenceAudio = COSYVOICE_SEND_REFERENCE_AUDIO
+    ? await resolveReferenceAudio(req, includeBackendDefaultReference)
+    : null;
 
   const formData = new FormData();
   formData.set("text", text);

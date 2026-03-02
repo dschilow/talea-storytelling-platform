@@ -1,6 +1,7 @@
 FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
 
 ARG PREFETCH_MODEL=0
+ARG INSTALL_FLASH_ATTN=0
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -36,8 +37,12 @@ RUN pip install --upgrade pip "setuptools<71" wheel && \
     sentencepiece \
     qwen-tts
 
-# Optional: Install flash-attn if supported by the model
-# RUN pip install flash-attn --no-build-isolation
+# Optional: Install flash-attn (can fail on unsupported CUDA/PyTorch combos).
+RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
+      pip install --no-cache-dir flash-attn --no-build-isolation; \
+    else \
+      echo "Skipping flash-attn install (INSTALL_FLASH_ATTN=$INSTALL_FLASH_ATTN)"; \
+    fi
 
 RUN python -c "\
 import sys; print(f'Python {sys.version}'); \

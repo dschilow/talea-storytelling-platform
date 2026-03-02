@@ -1,7 +1,6 @@
 import base64
-import os
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import runpod
 import server as qwen_server
@@ -22,30 +21,6 @@ def _parse_speed(raw: Any) -> float:
     if speed <= 0 or speed > 3.0:
         return 1.0
     return speed
-
-
-def _decode_reference_to_temp_wav(job_input: Dict[str, Any]) -> Optional[str]:
-    ref_b64 = str(job_input.get("reference_audio_base64") or "").strip()
-    if not ref_b64:
-        return None
-
-    filename = str(job_input.get("reference_audio_filename") or "reference.wav").strip() or "reference.wav"
-    try:
-        payload = base64.b64decode(ref_b64, validate=True)
-    except Exception as exc:
-        raise ValueError(f"Invalid reference_audio_base64: {exc}") from exc
-
-    if not payload:
-        raise ValueError("reference_audio_base64 is empty.")
-
-    return qwen_server.save_audio_bytes_to_temp_wav(payload, filename)
-
-def _cleanup_temp_file(path: Optional[str]) -> None:
-    if path and os.path.exists(path):
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
 
 
 def _safe_supported_speakers() -> List[str]:
@@ -101,7 +76,6 @@ def _extract_shared_params(job_input: Dict[str, Any]) -> Dict[str, Any]:
 def _generate_single(
     text: str,
     params: Dict[str, Any],
-    ref_wav_path: Optional[str],
 ) -> Dict[str, Any]:
     """Generate audio for a single text. Returns dict with audioBase64 or error."""
     try:
@@ -110,7 +84,8 @@ def _generate_single(
             text=text,
             prompt_text=params["prompt_text"],
             output_format=params["output_format"],
-            reference_audio_path=ref_wav_path,
+            # CustomVoice mode does not use reference audio.
+            reference_audio_path=None,
             speed=params["speed"],
             speaker=params.get("speaker", ""),
             instruct_text=params.get("instruct_text", ""),
@@ -139,13 +114,7 @@ def _handle_tts(job_input: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": "Missing 'tts_text' or 'text' in input"}
 
     params = _extract_shared_params(job_input)
-    ref_wav_path = None
-
-    try:
-        ref_wav_path = _decode_reference_to_temp_wav(job_input)
-        return _generate_single(text, params, ref_wav_path)
-    finally:
-        _cleanup_temp_file(ref_wav_path)
+    return _generate_single(text, params)
 
 
 def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
@@ -156,38 +125,75 @@ def _handle_tts_batch(job_input: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError(f"tts_batch supports at most {MAX_BATCH_ITEMS} texts per job.")
 
     params = _extract_shared_params(job_input)
-    ref_wav_path = None
-    try:
-        ref_wav_path = _decode_reference_to_temp_wav(job_input)
-        results: List[Dict[str, Any]] = []
+    results: List[Dict[str, Any]] = []
+    valid_items: List[tuple[str, str]] = []
 
-        for idx, item in enumerate(texts):
-            item_id = str(idx)
-            if not isinstance(item, dict):
-                results.append({"id": item_id, "audioBase64": None, "error": "Invalid item format."})
-                continue
+    for idx, item in enumerate(texts):
+        item_id = str(idx)
+        if not isinstance(item, dict):
+            results.append({"id": item_id, "audioBase64": None, "error": "Invalid item format."})
+            continue
 
-            item_id = str(item.get("id") or item_id)
-            text = str(item.get("text") or item.get("tts_text") or "").strip()
-            if not text:
-                results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
-                continue
+        item_id = str(item.get("id") or item_id)
+        text = str(item.get("text") or item.get("tts_text") or "").strip()
+        if not text:
+            results.append({"id": item_id, "audioBase64": None, "error": "text is required."})
+            continue
 
-            generated = _generate_single(text, params, ref_wav_path)
-            if generated.get("error"):
-                results.append(
-                    {
-                        "id": item_id,
-                        "audioBase64": None,
-                        "error": str(generated.get("error")),
-                    }
-                )
-            else:
-                results.append({"id": item_id, **generated, "error": None})
+        valid_items.append((item_id, text))
 
+    if not valid_items:
         return {"results": results}
-    finally:
-        _cleanup_temp_file(ref_wav_path)
+
+    # Fast path: one model call for the entire batch.
+    try:
+        batch_audio = qwen_server.generate_audio_batch(
+            model=qwen_server.qwen_model,
+            texts=[text for _, text in valid_items],
+            prompt_text=params["prompt_text"],
+            output_format=params["output_format"],
+            reference_audio_path=None,
+            speed=params["speed"],
+            speaker=params.get("speaker", ""),
+            instruct_text=params.get("instruct_text", ""),
+            language_id=params.get("language_id", ""),
+        )
+
+        if len(batch_audio) != len(valid_items):
+            raise RuntimeError(
+                f"Batch output length mismatch: expected {len(valid_items)}, got {len(batch_audio)}"
+            )
+
+        for (item_id, _), (audio_bytes, mime_type, used_format) in zip(valid_items, batch_audio):
+            results.append(
+                {
+                    "id": item_id,
+                    "audioBase64": base64.b64encode(audio_bytes).decode("ascii"),
+                    "mimeType": mime_type,
+                    "outputFormat": used_format,
+                    "format": used_format,
+                    "error": None,
+                }
+            )
+        return {"results": results}
+    except Exception as batch_exc:
+        print(f"[tts_batch] batch inference failed, fallback to per-item mode: {batch_exc}")
+
+    # Fallback path: isolate failures per item.
+    for item_id, text in valid_items:
+        generated = _generate_single(text, params)
+        if generated.get("error"):
+            results.append(
+                {
+                    "id": item_id,
+                    "audioBase64": None,
+                    "error": str(generated.get("error")),
+                }
+            )
+        else:
+            results.append({"id": item_id, **generated, "error": None})
+
+    return {"results": results}
 
 
 def handler(job: Dict[str, Any]) -> Dict[str, Any]:
