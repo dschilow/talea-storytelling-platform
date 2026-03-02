@@ -170,13 +170,21 @@ async function extractBatchSceneDescriptions(
   storyId?: string,
   language?: string
 ): Promise<Array<any>> {
-  const systemPrompt = `Extract one dynamic visual moment per chapter and return English JSON only.
-Rules:
-- every listed character appears exactly once, with a unique physical action
-- no static actions ("stand/look/watch"), no camera-facing poses
-- use only details from chapter text + metadata
-- no extra people or new characters
-- concise outputs (short phrases, no long prose).`;
+  const systemPrompt = `You are an art director for a premium children's picture book (ages 4-10). Extract one vivid NARRATIVE MOMENT per chapter — the kind of scene a master illustrator like Quentin Blake, Shaun Tan or Beatrix Potter would paint.
+
+CRITICAL RULES:
+- Pick the most EMOTIONALLY CHARGED or VISUALLY DRAMATIC moment from the chapter text
+- Every listed character appears exactly once, each doing something PHYSICALLY DIFFERENT
+- Characters must INTERACT with each other, with props, or with the environment — NOT pose side by side
+- Describe SPECIFIC body positions: "kneeling on one knee reaching into a hollow tree trunk" NOT "reaches for something"
+- Include ENVIRONMENTAL INTERACTION: characters touching, climbing, hiding behind, peeking around, sitting on, leaning against scene elements
+- Describe the environment as a LIVED-IN SPACE with texture: scattered leaves, flickering candles, muddy footprints, dangling vines — NOT clean/empty backgrounds
+- Camera angle should TELL THE STORY: bird's-eye for chase scenes, worm's-eye for towering moments, over-shoulder for discoveries
+- NO static poses (standing/looking/watching), NO camera-facing, NO group portraits, NO symmetrical lineups
+- Actions must show CAUSE AND EFFECT: wind blowing hair back, water splashing from a jump, dust rising from running feet
+- Think in PANELS of a graphic novel — capture mid-action, not before or after
+- Concise outputs (vivid phrases, not long prose)
+- English only, use details from chapter text + metadata.`;
 
   const chapterBlocks = chapterInputs.map((input) => {
     const { chapter, directive, onStageSlots, onStageNames } = input;
@@ -198,26 +206,34 @@ Slots: ${slotList}`;
   const userPrompt = `Story language: ${language || "de"}.
 ${chapterBlocks}
 
-Return JSON with this structure:
+For each chapter, find the single most VISUALLY EXCITING moment — where something is actively HAPPENING.
+NOT a moment where characters are "arriving" or "discovering" — pick the moment of ACTION itself.
+
+Return JSON:
 {
   "chapters": [
     {
       "chapter": number,
-      "keyMoment": "max 20 words",
+      "keyMoment": "max 25 words — describe the frozen instant of peak action like a movie still",
       "characterActions": [
-        { "slotKey": "EXACT_SLOT", "action": "verb phrase", "expression": "short emotion", "bodyLanguage": "short pose" }
+        {
+          "slotKey": "EXACT_SLOT",
+          "action": "specific physical verb + object + direction, e.g. 'lunges across the fallen log to grab the glowing feather mid-air'",
+          "expression": "face muscles + emotion, e.g. 'eyes squeezed shut, teeth gritted, cheeks flushed with effort'",
+          "bodyLanguage": "exact body geometry, e.g. 'one knee on the ground, torso twisted left, right arm stretched overhead'"
+        }
       ],
-      "environment": "short setting phrase",
-      "cameraAngle": "wide or medium shot",
-      "keyProps": ["max 4 concise props"],
-      "lighting": "short lighting phrase",
-      "emotionalTone": "single mood word"
+      "environment": "setting with TEXTURE and MESS — scattered objects, weather effects, light beams, footprints, broken things, growing things",
+      "cameraAngle": "cinematic angle that serves the story: bird's-eye / worm's-eye / dutch tilt / over-shoulder / through-gap — NOT just 'wide shot'",
+      "keyProps": ["max 5 props that are DOING something: 'glowing feather tumbling through the air', 'cracked lantern leaking golden light'"],
+      "lighting": "dramatic and specific: 'single shaft of amber sunset light cutting through dust motes' NOT just 'warm light'",
+      "emotionalTone": "single vivid mood word"
     }
   ]
 }`;
 
   // gpt-5-nano is also a reasoning model — needs headroom for thinking tokens
-  const baseTokens = Math.max(1000, chapterInputs.length * 420);
+  const baseTokens = Math.max(1500, chapterInputs.length * 600);
   const isReasoningModel = MODEL.includes("gpt-5") || MODEL.includes("o4");
   const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
 
@@ -229,8 +245,8 @@ Return JSON with this structure:
     model: MODEL,
     responseFormat: "json_object",
     maxTokens: maxCompletionTokens,
-    temperature: 0.4,
-    reasoningEffort: "low",
+    temperature: 0.6,
+    reasoningEffort: "medium",
     context: "scene-prompt-generator-batch",
     logSource: "phase6.5-scene-prompts-llm",
     logMetadata: { storyId, chapters: chapterInputs.length },

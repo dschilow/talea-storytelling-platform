@@ -1,4 +1,4 @@
-import type { CastSet } from "./types";
+import type { CastSet, SceneDirective } from "./types";
 import { MAX_REFERENCE_IMAGES } from "./constants";
 import { buildSpriteCollage, type CollageResult } from "./sprite-collage";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
@@ -43,11 +43,13 @@ export function buildReferenceImages(refSlots: string[], cast: CastSet): string[
 
 /**
  * Build a single collage reference image from the selected reference slots.
- * Returns null if 0-1 characters have images (no collage needed).
+ * Optionally includes the artifact reference image when the artifact is on stage.
+ * Returns null if 0-1 images total (no collage needed).
  */
 export async function buildCollageReference(
   refSlots: string[],
-  cast: CastSet
+  cast: CastSet,
+  directive?: SceneDirective
 ): Promise<CollageResult | null> {
   const slots: Array<{ imageUrl: string; displayName: string }> = [];
 
@@ -59,6 +61,17 @@ export async function buildCollageReference(
     slots.push({ imageUrl: resolvedUrl, displayName: sheet.displayName });
   }
 
+  // Include artifact reference image when the artifact is on stage in this scene
+  const artifactOnStage = directive
+    ? directive.charactersOnStage.includes("SLOT_ARTIFACT_1")
+    : false;
+  if (artifactOnStage && cast.artifact?.imageUrl) {
+    const artifactUrl = await resolveImageUrlForClient(cast.artifact.imageUrl);
+    if (artifactUrl) {
+      slots.push({ imageUrl: artifactUrl, displayName: `[ARTIFACT] ${cast.artifact.name}` });
+    }
+  }
+
   if (slots.length < 2) return null;
   return buildSpriteCollage(slots);
 }
@@ -66,6 +79,7 @@ export async function buildCollageReference(
 /**
  * Build the refs map for collage mode.
  * Uses slot_N keys with character descriptions for identity matching.
+ * Artifact slots get a different description (match appearance, not identity).
  */
 export function buildCollageRefsForSlots(
   collageResult: CollageResult,
@@ -75,6 +89,17 @@ export function buildCollageRefsForSlots(
   for (const pos of collageResult.positions) {
     const slotNum = pos.index + 1;
     const key = `slot_${slotNum}`;
+
+    // Artifact slots get a special description
+    if (pos.displayName.startsWith("[ARTIFACT]")) {
+      const artifactName = pos.displayName.replace("[ARTIFACT] ", "");
+      const visualRule = cast.artifact?.visualRule || "";
+      const briefTag = visualRule ? ` (${visualRule})` : "";
+      const raw = `${artifactName.toUpperCase()}${briefTag} - this is a PROP/ARTIFACT, match its visual appearance from slot-${slotNum}`;
+      refs[key] = truncateRefValue(raw, 200);
+      continue;
+    }
+
     const brief = getCharacterBrief(cast, pos.displayName);
     const briefTag = brief ? ` (${brief})` : "";
     const raw = `${pos.displayName.toUpperCase()}${briefTag} - match ONLY the identity from slot-${slotNum}`;

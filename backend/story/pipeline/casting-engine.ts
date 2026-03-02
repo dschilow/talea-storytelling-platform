@@ -161,6 +161,7 @@ export async function buildCastSet(input: {
       storyUseRule: artifact.storyRole,
       visualRule: artifact.visualKeywords.join(", ") || "artifact must be visible",
       rarity: artifact.rarity?.toUpperCase() as any,
+      imageUrl: artifact.imageUrl,
     },
     slotAssignments,
     matchScores: trimmedScores,

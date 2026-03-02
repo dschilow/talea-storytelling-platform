@@ -66,20 +66,24 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
 
   const styleValue = stripTtsEmotionTags(spec.style || "");
   const styleBlock = isCollageMode
-    ? `STYLE: ${styleValue}, no text, no words, no watermark, no frames, no borders`
-    : `STYLE: ${styleValue}, no text, no words, no watermark`;
+    ? `STYLE: ${styleValue}, rendered like a hand-painted page from a premium children's picture book, rich environmental detail with foreground-midground-background depth, characters DOING things inside a lived-in world, no text, no words, no watermark, no frames, no borders`
+    : `STYLE: ${styleValue}, rendered like a hand-painted page from a premium children's picture book, rich environmental detail with foreground-midground-background depth, characters DOING things inside a lived-in world, no text, no words, no watermark`;
   let refBlock = "";
   if (isCollageMode) {
+    const hasArtifactRef = refEntries.some(([, value]) => value.includes("PROP/ARTIFACT"));
     const slotLines = refEntries
       .map(([key, value]) => {
         const slotNum = key.replace("slot_", "");
         return `Slot-${slotNum} = ${value}.`;
       })
       .join("\n");
+    const refIntro = hasArtifactRef
+      ? `REFERENCE IMAGE (IDENTITY + ARTIFACT): one combined reference image with ${refEntries.length} entries, ordered LEFT to RIGHT. Character slots are for identity matching. Artifact slot shows the key prop that must appear in the scene with matching visual appearance.`
+      : `REFERENCE IMAGE (IDENTITY ONLY): one combined reference image with ${refEntries.length} faces, ordered LEFT to RIGHT for identity matching only.`;
     refBlock = [
-      `REFERENCE IMAGE (IDENTITY ONLY): one combined reference image with ${refEntries.length} faces, ordered LEFT to RIGHT for identity matching only.`,
+      refIntro,
       slotLines,
-      `Use the reference ONLY for identity. Ignore the strip layout entirely.`,
+      `Use character references ONLY for identity. Use artifact reference for prop appearance. Ignore the strip layout entirely.`,
       `Do NOT copy the strip composition. Do NOT make a collage, panels, split-screen, or multi-image layout.`,
       `Any colored guides in the reference are identification markers only — do NOT reproduce guides, shapes, halos, badges, boxes, outlines, or overlays.`,
     ].join("\n");
@@ -175,7 +179,17 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     nonHumanKinds: nonHumanInfo.nonHumanKinds,
   }).join(", ")}`;
 
-  const combined = [styleBlock, refBlock, constraints, settingBlock, sceneBlock, characterIdentityBlock, characterForbiddenBlock, characterActionLockBlock, actionBlock, languageGuard, negativeBlock]
+  const illustrationDirection = `ILLUSTRATION DIRECTION (CRITICAL):
+- This is an INTERIOR PAGE of a children's picture book, NOT a cover or title page
+- Characters must be EMBEDDED in their environment, interacting with objects and surroundings — NOT floating in empty space
+- Show a NARRATIVE MOMENT frozen in time: mid-action, mid-conversation, mid-discovery — something is HAPPENING
+- Environment should feel LIVED-IN: scattered props, weather effects, textures on surfaces, ambient details (insects, dust motes, ripples, falling leaves)
+- Each character occupies a DIFFERENT spatial plane (foreground/midground/background) — NOT lined up side by side
+- Bodies show WEIGHT and PHYSICS: gravity pulls clothes down, wind pushes hair sideways, running kicks up dirt, water splashes
+- Characters' EYES look at what they're doing or at each other — NEVER at the viewer
+- Composition should guide the eye through the scene like reading a story — use leading lines, light direction, and character gazes`;
+
+  const combined = [styleBlock, refBlock, constraints, illustrationDirection, settingBlock, sceneBlock, characterIdentityBlock, characterForbiddenBlock, characterActionLockBlock, actionBlock, languageGuard, negativeBlock]
     .filter(Boolean)
     .join("\n\n");
 
@@ -352,10 +366,10 @@ function normalizeActionClause(action: string): string {
 
 function defaultActionLock(index: number): string {
   const defaults = [
-    "sprinting toward the key clue.",
-    "crouching and pulling someone clear.",
-    "reaching out to stabilize a moving object.",
-    "jumping across an obstacle to open the path.",
+    "scrambling over rocks toward a glowing object, hands and knees muddy, face intense with focus.",
+    "crouching low to pull a companion up by both hands, feet braced wide on uneven ground.",
+    "stretching on tiptoes to grab something from a high shelf, other hand gripping the shelf edge for balance.",
+    "mid-leap across a puddle with knees tucked, arms swinging for momentum, coat flying behind.",
   ];
   return defaults[index % defaults.length];
 }
@@ -533,7 +547,16 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     "staring at viewer",
     "static pose",
     "standing idle",
+    "standing symmetrically",
+    "characters lined up in a row",
     "group photo",
+    "group portrait",
+    "book cover composition",
+    "title page layout",
+    "centered symmetrical arrangement",
+    "characters floating in empty space",
+    "clean empty background",
+    "plain gradient background",
     "sticker cutout character",
     "pasted avatar",
     "paper doll look",
@@ -548,6 +571,10 @@ function buildNegativeList(input: { hasBird: boolean; nonHumanKinds: string[] })
     "typography",
     "watermark",
     "cropped body",
+    "T-pose",
+    "A-pose",
+    "mannequin pose",
+    "stock photo pose",
   ];
 
   if (input.hasBird) {

@@ -153,6 +153,20 @@ type QwenDialogueResponse = {
   speakers: string[];
 };
 
+type DialogueVariantPayload = {
+  id?: string;
+  audioData: string;
+  mimeType?: string;
+};
+
+type DialogueGenerationPayload = {
+  variants?: DialogueVariantPayload[];
+  audioData?: string;
+  mimeType?: string;
+  turns?: number;
+  speakers?: string[];
+};
+
 type ProviderVoiceOption = {
   id: string;
   name: string;
@@ -424,7 +438,10 @@ const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
       throw new Error('MP3 transcoding produced no data.');
     }
 
-    return new Blob(chunks, { type: 'audio/mpeg' });
+    const blobParts: BlobPart[] = chunks.map(
+      (chunk) => chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer,
+    );
+    return new Blob(blobParts, { type: 'audio/mpeg' });
   } finally {
     await context.close();
   }
@@ -908,15 +925,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       let payload:
         | ElevenLabsDialogueResponse
         | QwenDialogueResponse
-        | {
-            variants?: Array<{ id: string; audioData: string; mimeType?: string }>;
-            turns?: number;
-            speakers?: string[];
-          }
-        | {
-            audioData?: string;
-            mimeType?: string;
-          };
+        | DialogueGenerationPayload;
 
       if (ttsProvider === 'qwen') {
         // Keep Qwen path backend-compatible and stable across deployments by using
@@ -942,11 +951,15 @@ const CreateAudioDokuScreen: React.FC = () => {
         payload = (await response.json()) as ElevenLabsDialogueResponse;
       }
 
-      const rawVariants =
-        'variants' in payload && payload.variants && payload.variants.length > 0
-          ? payload.variants
-          : 'audioData' in payload && payload.audioData
-            ? [{ id: 'variant-1', audioData: payload.audioData, mimeType: payload.mimeType || 'audio/mpeg' }]
+      const payloadData = payload as DialogueGenerationPayload;
+      const rawVariants: DialogueVariantPayload[] =
+        Array.isArray(payloadData.variants) && payloadData.variants.length > 0
+          ? payloadData.variants.filter(
+              (variant): variant is DialogueVariantPayload =>
+                Boolean(variant && typeof variant.audioData === 'string' && variant.audioData.trim()),
+            )
+          : typeof payloadData.audioData === 'string' && payloadData.audioData.trim()
+            ? [{ id: 'variant-1', audioData: payloadData.audioData, mimeType: payloadData.mimeType || 'audio/mpeg' }]
             : [];
 
       if (rawVariants.length === 0) {
@@ -988,9 +1001,9 @@ const CreateAudioDokuScreen: React.FC = () => {
       setGeneratedVariants(preparedVariants);
       applyGeneratedVariant(preparedVariants[0]);
       const turns =
-        'turns' in payload && typeof payload.turns === 'number' ? payload.turns : detectedSpeakers.length;
+        typeof payloadData.turns === 'number' ? payloadData.turns : detectedSpeakers.length;
       const speakers =
-        'speakers' in payload && Array.isArray(payload.speakers) ? payload.speakers.length : detectedSpeakers.length;
+        Array.isArray(payloadData.speakers) ? payloadData.speakers.length : detectedSpeakers.length;
       setDialogueStatus(
         `${preparedVariants.length} ${providerLabel}-Audio-Variante(n) erzeugt: ${turns} Sprecherbloecke, ${speakers} Stimme(n).`
       );

@@ -232,6 +232,8 @@ export interface ArtifactCard {
   storyUseRule: string;
   visualRule: string;
   rarity?: "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+  /** URL of the artifact's reference image (for inclusion in sprite collage) */
+  imageUrl?: string;
 }
 
 export interface MatchScore {

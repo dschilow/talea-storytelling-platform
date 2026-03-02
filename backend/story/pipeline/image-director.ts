@@ -30,9 +30,12 @@ export class TemplateImageDirector implements ImageDirector {
       const refSlots = selectReferenceSlots(onStageExact, cast);
 
       // Attempt collage with cache (uses Promise dedup to avoid parallel rebuilds)
-      const cacheKey = [...refSlots].sort().join("|");
+      // Include artifact in cache key when it's on stage for this scene
+      const hasArtifactOnStage = directive.charactersOnStage.includes("SLOT_ARTIFACT_1");
+      const artifactSuffix = hasArtifactOnStage && cast.artifact?.imageUrl ? "|ARTIFACT" : "";
+      const cacheKey = [...refSlots].sort().join("|") + artifactSuffix;
       if (!collageCache.has(cacheKey)) {
-        collageCache.set(cacheKey, buildCollageReference(refSlots, cast));
+        collageCache.set(cacheKey, buildCollageReference(refSlots, cast, directive));
       }
       const collageResult = await collageCache.get(cacheKey)!;
 
@@ -319,34 +322,34 @@ function buildStyle(directive: SceneDirective, beatType: string): string {
 
 function getMoodTexture(mood: string, beatType: string): string {
   if (mood === "TENSE" || mood === "SCARY_LIGHT") {
-    return "dramatic ink wash style, moody shadows";
+    return "dramatic ink wash style with visible brushstrokes, deep moody shadows cast across the scene, splattered ink edges suggesting danger";
   } else if (mood === "MYSTERIOUS") {
-    return "ethereal watercolor with glowing highlights, misty edges";
+    return "ethereal watercolor with luminous fog layers, paint bleeding at edges, mysterious glowing highlights peeking through mist, visible paper grain";
   } else if (mood === "MAGICAL") {
-    return "luminous watercolor with soft glow, sparkling details";
+    return "luminous watercolor with paint pooling into sparkling light effects, golden and violet washes blending wet-on-wet, tiny hand-painted sparkle details";
   } else if (mood === "TRIUMPH") {
-    return "vibrant watercolor with golden highlights, celebratory tones";
+    return "bold expressive watercolor with splashes of gold and warm orange, energetic visible brushwork, paint dripping with joyful abandon, celebratory light burst";
   } else if (mood === "FUNNY") {
-    return "bright cheerful watercolor, playful cartoon-like details";
+    return "bright loose watercolor with exaggerated playful proportions, wobbly hand-drawn linework, cheerful splashy color pops, visible pencil underdrawing";
   } else if (mood === "SAD") {
-    return "muted watercolor palette, gentle blue-grey tones";
+    return "muted watercolor in rain-washed blue-grey tones, paint diluted and running downward, soft wet-on-wet bleeds suggesting tears, gentle paper texture";
   } else if (mood === "BITTERSWEET") {
-    return "soft watercolor with warm light and gentle melancholy";
+    return "warm amber watercolor with soft edges fading to cool blue, gentle light-and-shadow interplay, nostalgic golden-hour palette";
   } else if (beatType === "CLIMAX") {
-    return "dynamic watercolor with bold contrast and vivid colors";
+    return "dynamic watercolor with bold confident strokes, high-contrast color collision, paint splatters suggesting explosive energy, vivid saturated pigments";
   }
-  return "watercolor texture, soft lighting";
+  return "hand-painted watercolor texture with visible brushstrokes, warm palette, soft directional lighting, cozy picture-book atmosphere";
 }
 
 function buildComposition(directive: SceneDirective, beatType: string): string {
   const mood = directive.mood || "COZY";
 
   const compositions: Record<string, string> = {
-    SETUP: "wide establishing shot, eye-level, full-body characters visible, environment prominently shown",
-    INCITING: "medium-wide shot, slight low angle, characters discovering something, environment partly visible",
-    CONFLICT: "wide dynamic shot, tilted angle, full body visible head-to-toe, characters in motion",
-    CLIMAX: "wide dramatic shot, low angle, full body visible head-to-toe, intense action moment",
-    RESOLUTION: "wide shot pulling back, warm and open framing, characters together peacefully",
+    SETUP: "wide establishing shot, slightly elevated camera looking down into the scene, characters small within a rich detailed environment, depth layers with foreground objects framing the view",
+    INCITING: "medium-wide shot from low angle, camera behind one character looking over their shoulder at the discovery, environmental depth with leading lines drawing eye to the action",
+    CONFLICT: "dynamic wide shot with slight dutch tilt, characters scattered across the frame at different heights and distances, diagonal composition suggesting movement and tension",
+    CLIMAX: "dramatic wide shot from ground-level looking up, characters mid-action filling the frame with energy, environment reacting to the action (dust/sparks/wind/water)",
+    RESOLUTION: "warm wide pullback shot, gentle bird's-eye angle, characters gathered close in the lower third with expansive sky or scenery above, peaceful asymmetric composition",
   };
 
   let comp = compositions[beatType] || "wide shot, eye-level, full-body characters visible head-to-toe";
@@ -414,11 +417,36 @@ function inferBeatType(directive: SceneDirective): string {
 
 function getDynamicPose(index: number, _total: number, _mood: string, beatType: string): string {
   const poses: Record<string, string[]> = {
-    SETUP: ["walks in with open posture", "kneels to inspect the scene", "steps sideways to make space", "reaches out in greeting"],
-    INCITING: ["leans forward and points to a clue", "takes a quick step toward the discovery", "extends an arm to stop the others", "bends low to inspect details"],
-    CONFLICT: ["steps forward determinedly", "crouches in a ready stance", "swings around to shield a teammate", "moves quickly around an obstacle"],
-    CLIMAX: ["rushes forward", "reaches dramatically", "jumps into action", "lunges around the obstacle"],
-    RESOLUTION: ["embraces joyfully", "raises both arms in relief", "spins toward the group in celebration", "leans in for a shared victory moment"],
+    SETUP: [
+      "climbs onto a mossy rock to get a better view, one hand shielding eyes from the sun",
+      "kneels in the tall grass examining something on the ground, backpack sliding off one shoulder",
+      "balances on a fallen log with arms outstretched, hair blowing in the breeze",
+      "leans against a tree trunk peeking around it cautiously, fingers gripping the bark",
+    ],
+    INCITING: [
+      "stumbles backward in surprise with arms windmilling, knocking into a bush",
+      "drops to all fours crawling toward a glowing object half-buried in leaves",
+      "throws both hands up to catch something falling from above, rising on tiptoes",
+      "grabs a companion's sleeve and pulls them behind a rock, pointing urgently",
+    ],
+    CONFLICT: [
+      "braces against a heavy wooden door pushing with all body weight, feet sliding on stone floor",
+      "ducks under a low-hanging branch mid-sprint, cloak tangled in thorns",
+      "stands on a wobbly chair reaching for something on a high shelf, wobbling precariously",
+      "hauls a heavy rope hand-over-hand, leaning back with feet planted wide apart",
+    ],
+    CLIMAX: [
+      "leaps across a gap mid-air with legs tucked, reaching for the far edge",
+      "slides on knees across wet ground to catch a falling object at the last second",
+      "swings from a vine or rope one-handed, stretching the other hand toward a friend",
+      "throws a glowing object upward with both hands, face lit from below by its light",
+    ],
+    RESOLUTION: [
+      "collapses onto a grassy bank laughing, legs dangling over the edge",
+      "carries a tired companion piggyback-style, both grinning ear to ear",
+      "sits cross-legged on the ground examining a treasure together, heads touching",
+      "dances in a circle holding hands, feet kicking up autumn leaves",
+    ],
   };
 
   const poseSet = poses[beatType] || poses.CONFLICT;
@@ -428,39 +456,39 @@ function getDynamicPose(index: number, _total: number, _mood: string, beatType: 
 function getPrimaryAction(name: string, mood: string, beatType: string): string {
   const actions: Record<string, Record<string, string>> = {
     SETUP: {
-      COZY: `${name} steps into the scene and guides the group forward`,
-      TENSE: `${name} moves along the edge and signals caution`,
-      MYSTERIOUS: `${name} kneels to inspect an unusual clue`,
-      TRIUMPH: `${name} raises a hand and leads the advance`,
-      FUNNY: `${name} darts ahead and reacts playfully`,
+      COZY: `${name} hops off a stone wall into the meadow, landing with bent knees and arms out for balance, scattering butterflies`,
+      TENSE: `${name} presses flat against a rough stone wall and peeks around the corner, one eye visible, fingers white-knuckled on the edge`,
+      MYSTERIOUS: `${name} crouches low in the undergrowth, brushing aside ferns to reveal a strange marking on the ground, nose almost touching the earth`,
+      TRIUMPH: `${name} stands on a hilltop with arms thrown wide, wind whipping hair and clothes sideways, a trail of footprints behind`,
+      FUNNY: `${name} trips over a root and tumbles forward, catching a low branch with one hand while the other clutches a slipping hat`,
     },
     INCITING: {
-      COZY: `${name} reaches toward a surprising object`,
-      TENSE: `${name} rushes to block a sudden problem`,
-      MYSTERIOUS: `${name} follows a faint trail through the scene`,
-      TRIUMPH: `${name} takes a bold step and calls the others in`,
-      FUNNY: `${name} slips, recovers, and keeps moving`,
+      COZY: `${name} stretches on tiptoes to pluck a glowing fruit from a high branch, tongue poking out in concentration`,
+      TENSE: `${name} grabs a companion and drags them behind a barrel as something crashes nearby, dust and splinters flying`,
+      MYSTERIOUS: `${name} traces a finger along a glowing trail on the ground, following it on hands and knees through a crack in a wall`,
+      TRIUMPH: `${name} snatches a spinning key out of mid-air with a one-handed grab, skidding to a stop on gravel`,
+      FUNNY: `${name} yanks open a creaky door only to be buried under an avalanche of junk tumbling out, legs sticking out comically`,
     },
     CONFLICT: {
-      COZY: `${name} pulls a teammate through the obstacle`,
-      TENSE: `${name} confronts the challenge and pushes through`,
-      MYSTERIOUS: `${name} opens a hidden mechanism under pressure`,
-      TRIUMPH: `${name} clears the obstacle with decisive movement`,
-      FUNNY: `${name} improvises an unexpected move to solve the mess`,
+      COZY: `${name} pulls a friend up a steep bank with both hands, boots digging into the mud, rain dripping off both of them`,
+      TENSE: `${name} shoves a heavy table against a rattling door, sweat on forehead, one foot braced against the floor`,
+      MYSTERIOUS: `${name} turns a series of stone wheels on an ancient mechanism, squinting at fading symbols, gears clicking into place`,
+      TRIUMPH: `${name} hurls a rope across a ravine and cinches it tight, testing the tension with a sharp tug before waving the others across`,
+      FUNNY: `${name} juggles three objects while running, dropping one, kicking it up with a foot, and catching it behind the back`,
     },
     CLIMAX: {
-      COZY: `${name} lunges forward to execute the plan`,
-      TENSE: `${name} braces and counters the biggest threat`,
-      MYSTERIOUS: `${name} snaps the final clue into place`,
-      TRIUMPH: `${name} drives the breakthrough moment`,
-      FUNNY: `${name} flips the situation with a chaotic but clever move`,
+      COZY: `${name} dives forward to catch a falling companion's hand at the edge, flat on stomach with arm extended over the void`,
+      TENSE: `${name} spins to face the threat with feet wide apart, holding up the key artifact like a shield, light blazing from it`,
+      MYSTERIOUS: `${name} slams the final puzzle piece into the mosaic, cracks of golden light spreading outward from the impact`,
+      TRIUMPH: `${name} leaps from a crumbling ledge and grabs a swinging chain, momentum carrying them in a wide arc across the chamber`,
+      FUNNY: `${name} accidentally triggers the solution by sitting on the wrong lever, catapulting into a pile of cushions while everything clicks into place`,
     },
     RESOLUTION: {
-      COZY: `${name} gathers everyone into a relieved group moment`,
-      TENSE: `${name} exhales, lowers their shoulders, and helps reset the scene`,
-      MYSTERIOUS: `${name} carefully secures the discovered item`,
-      TRIUMPH: `${name} lifts the key object in victory`,
-      FUNNY: `${name} celebrates with a playful jump and grin`,
+      COZY: `${name} flops onto soft grass beside the others, all lying in a star pattern gazing up at the sky, laughing breathlessly`,
+      TENSE: `${name} sits on a doorstep wrapping a bandage around a scraped knee, smiling wearily at a companion handing over a water bottle`,
+      MYSTERIOUS: `${name} carefully places the found treasure in a lined box, closing the lid with both hands and blowing out a long relieved breath`,
+      TRIUMPH: `${name} hoists the prize overhead standing on a boulder, the others cheering below with arms raised, confetti of flower petals in the air`,
+      FUNNY: `${name} does a silly victory dance on a table, mimicking the defeated villain while the others double over laughing`,
     },
   };
 
@@ -471,29 +499,29 @@ function getPrimaryAction(name: string, mood: string, beatType: string): string 
 function getSecondaryAction(name: string, index: number, _mood: string, beatType: string): string {
   const reactions: Record<string, string[]> = {
     SETUP: [
-      `${name} circles in and points out a detail`,
-      `${name} steps in to hand over a useful prop`,
-      `${name} shifts position to support the lead move`,
+      `${name} squats beside a stream splashing water on a dusty face, sleeves rolled up, ripples spreading outward`,
+      `${name} rummages through a satchel pulling out a crumpled map, holding it sideways and squinting at it upside-down`,
+      `${name} perches on a tree stump sketching the landscape in a little notebook, pencil tucked behind one ear`,
     ],
     INCITING: [
-      `${name} darts to the side and marks the path`,
-      `${name} reaches out and signals a warning`,
-      `${name} crouches and braces for the next move`,
+      `${name} presses an ear flat against a wooden door listening intently, one finger raised to shush the others`,
+      `${name} scrambles up a pile of crates to peek through a high window, feet dangling and arms straining`,
+      `${name} scoops up a startled small creature and tucks it safely inside a coat pocket, whispering reassurances`,
     ],
     CONFLICT: [
-      `${name} pulls against the obstacle`,
-      `${name} anchors the group and clears space`,
-      `${name} rushes in with direct assistance`,
+      `${name} holds a flickering lantern high to illuminate the path while rain streams down an outstretched arm`,
+      `${name} wedges a thick stick under a boulder and leans on it with full body weight, feet skidding`,
+      `${name} shields a smaller companion with outstretched arms, back turned to the danger, cloak billowing`,
     ],
     CLIMAX: [
-      `${name} commits to the final coordinated move`,
-      `${name} redirects the momentum toward the solution`,
-      `${name} secures the exit route while moving`,
+      `${name} throws a heavy cloak over a flame to smother it, diving sideways to avoid the smoke`,
+      `${name} catches a sliding companion by the ankle just before they go over the edge, bracing against a post`,
+      `${name} heaves a stone slab aside revealing a hidden passage, veins standing out on straining arms`,
     ],
     RESOLUTION: [
-      `${name} moves in for a celebratory group gesture`,
-      `${name} helps place the key prop safely`,
-      `${name} turns back and waves everyone forward`,
+      `${name} hangs upside-down from a low branch offering an apple to the others below, grinning`,
+      `${name} carefully bandages a friend's scraped hand, tongue poking out in concentration`,
+      `${name} stack-carries wobbling celebration treats on both arms, chin holding the top one steady`,
     ],
   };
 
@@ -534,19 +562,23 @@ function positionLabel(index: number, total: number): string {
 function mapLighting(mood?: SceneDirective["mood"]): string {
   switch (mood) {
     case "TENSE":
-      return "dramatic lighting with soft shadows";
+      return "harsh sidelight casting long angular shadows, single light source from a torch or crack in the wall, deep contrast between lit and unlit areas";
     case "MYSTERIOUS":
-      return "misty, glowing light";
+      return "soft bioluminescent glow from below mixed with pale moonlight filtering through canopy, volumetric mist catching scattered light beams";
     case "MAGICAL":
-      return "glowing, enchanted light with gentle sparkles";
+      return "warm golden light radiating from a magical source, casting prismatic rainbow refractions on nearby surfaces, gentle sparkle particles floating in the air";
     case "TRIUMPH":
-      return "bright, celebratory light";
+      return "bright warm sunlight breaking through clouds in dramatic god-rays, rim light on characters creating a heroic silhouette edge, lens-flare warmth";
     case "FUNNY":
-      return "cheerful, sunny light";
+      return "bright even daylight with playful dappled tree shadows, cheerful sun high in a blue sky, everything well-lit and colorful";
     case "BITTERSWEET":
-      return "soft warm light with a hint of dusk";
+      return "golden-hour sunset light casting everything in warm amber, long gentle shadows stretching across the ground, sky transitioning from warm to cool";
+    case "SAD":
+      return "overcast diffused light with no harsh shadows, cool blue-grey tones, occasional break in clouds letting a single warm ray through";
+    case "SCARY_LIGHT":
+      return "flickering unstable light from a candle or fireplace, shadows jumping and shifting on walls, warm core with cold dark edges";
     default:
-      return "warm, gentle light";
+      return "warm afternoon light filtering through leaves creating dappled patterns on the ground, cozy and inviting with gentle shadows";
   }
 }
 
@@ -854,20 +886,20 @@ function normalizeMovementClause(value: string): string {
 
 function fallbackDynamicAction(index: number): string {
   const fallbacks = [
-    "sprints toward the key clue",
-    "crouches low and pulls a teammate clear",
-    "reaches out and steadies a moving object",
-    "jumps across the obstacle to open a path",
+    "scrambles over a moss-covered boulder, fingers digging into cracks, pebbles rolling underfoot",
+    "slides on knees across wet ground to grab a rolling object, one hand slamming down for balance",
+    "climbs a rickety ladder one rung at a time, free hand clutching a flickering torch overhead",
+    "vaults over a low wall using one hand, landing in a crouch on the other side with momentum",
   ];
   return fallbacks[index % fallbacks.length];
 }
 
 function fallbackDynamicPose(index: number): string {
   const fallbacks = [
-    "leaning forward mid-step with one arm extended",
-    "crouched low with weight shifted to one leg",
-    "turned sideways while bracing against movement",
-    "mid-stride with torso angled into the action",
+    "mid-leap with knees tucked and arms reaching forward, hair streaming behind",
+    "crouched on one knee with torso twisted, both hands grasping a heavy object close to the ground",
+    "balanced on a narrow beam with arms outstretched like a tightrope walker, looking down nervously",
+    "running full tilt with body leaned forward at 45 degrees, cloak flying, one arm pumping",
   ];
   return fallbacks[index % fallbacks.length];
 }
