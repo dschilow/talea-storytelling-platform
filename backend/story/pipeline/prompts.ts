@@ -623,6 +623,9 @@ export function buildFullStoryPrompt(input: {
 
   const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern (e.g. avoid 'Tom and the Stone').";
 
+  const outputLang = isGerman ? "German" : targetLanguage;
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
+
   // Age-appropriate reading level rules — always in English for model quality
   const ageMin = ageRange.min;
   const ageMax = ageRange.max;
@@ -657,9 +660,6 @@ RULE: If a character appears on stage in a chapter, they MUST have at least one 
       : humorTarget >= 1
         ? "Humor: LIGHT. One smile moment."
         : "Humor: Optional.";
-
-  const outputLang = isGerman ? "German" : targetLanguage;
-  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß), never ASCII substitutes. No English words." : "";
 
   const goldenExample = buildGoldenExampleBlock(isGerman);
   const antiPatterns = buildAntiPatternBlock(isGerman);
