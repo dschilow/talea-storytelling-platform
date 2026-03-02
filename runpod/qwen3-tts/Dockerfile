@@ -1,9 +1,9 @@
-ARG PYTORCH_BASE_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+ARG PYTORCH_BASE_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
 FROM ${PYTORCH_BASE_IMAGE}
 
 ARG PREFETCH_MODEL=0
-ARG INSTALL_FLASH_ATTN=0
-ARG ENFORCE_FLASH_ATTN=0
+ARG INSTALL_FLASH_ATTN=1
+ARG ENFORCE_FLASH_ATTN=1
 ARG FLASH_ATTN_VERSION=2.8.3
 ARG MAX_JOBS=8
 
@@ -12,7 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PIP_PREFER_BINARY=1 \
     HF_HOME=/opt/hf-cache \
-    MAX_JOBS=${MAX_JOBS}
+    MAX_JOBS=${MAX_JOBS} \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \

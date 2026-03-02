@@ -2,16 +2,16 @@
  * Server-side text chunking for TTS.
  * Mirrors frontend/utils/ttsChunking.ts.
  *
- * 50 words / 400 chars = reliable CosyVoice3 attention span.
- * 80 words caused attention drift (repeated/skipped sentences).
+ * 80 words / 600 chars = reliable Qwen3-TTS (12Hz, 0.6B) attention span.
+ * Qwen3-TTS handles larger chunks than CosyVoice3 without drift.
  *
- * IMPORTANT: Never split in the middle of a sentence. CosyVoice will not speak
- * incomplete sentences properly, causing "missing sentences" in playback.
+ * IMPORTANT: Never split in the middle of a sentence. The TTS model will not
+ * speak incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
 
-const TARGET_WORDS = 50;
-const MAX_CHARS = 400;
+const TARGET_WORDS = 80;
+const MAX_CHARS = 600;
 
 /**
  * Normalize text into a TTS-friendly, language-agnostic format.

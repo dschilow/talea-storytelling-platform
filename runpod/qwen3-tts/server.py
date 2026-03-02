@@ -23,6 +23,7 @@ MODEL_DIR = os.environ.get("MODEL_DIR", "/opt/models/Qwen3-TTS-CustomVoice")
 DEFAULT_SPEAKER = os.environ.get("DEFAULT_SPEAKER", "Vivian")
 DEFAULT_LANGUAGE = os.environ.get("DEFAULT_LANGUAGE", "German")
 ATTN_IMPLEMENTATION = os.environ.get("QWEN_ATTN_IMPLEMENTATION", "auto").strip()
+ENABLE_TORCH_COMPILE = os.environ.get("ENABLE_TORCH_COMPILE", "1").strip() == "1"
 HAS_FLASH_ATTN = importlib.util.find_spec("flash_attn") is not None
 
 load_path = MODEL_DIR if (os.path.exists(MODEL_DIR) and len(os.listdir(MODEL_DIR)) > 0) else MODEL_ID
@@ -140,6 +141,53 @@ def _resolve_attn_implementation() -> Optional[str]:
     return ATTN_IMPLEMENTATION
 
 
+def _try_torch_compile(model: Any) -> Any:
+    """Apply torch.compile() for faster inference on PyTorch 2.x+."""
+    if not ENABLE_TORCH_COMPILE:
+        print("torch.compile() disabled via ENABLE_TORCH_COMPILE=0.")
+        return model
+    if not torch.cuda.is_available():
+        print("torch.compile() skipped (no CUDA).")
+        return model
+    try:
+        major, minor = (int(x) for x in torch.__version__.split(".")[:2])
+        if major < 2:
+            print(f"torch.compile() requires PyTorch 2.x+ (found {torch.__version__}).")
+            return model
+    except Exception:
+        return model
+
+    try:
+        compiled = torch.compile(model, mode="reduce-overhead")
+        print("torch.compile() applied successfully (mode=reduce-overhead).")
+        return compiled
+    except Exception as exc:
+        print(f"torch.compile() failed ({exc}), continuing without it.")
+        return model
+
+
+def _warmup_model() -> None:
+    """Run a short warmup generation to pre-compile CUDA kernels and torch.compile graphs."""
+    if qwen_model is None:
+        return
+    if not torch.cuda.is_available():
+        return
+    try:
+        warmup_start = time.perf_counter()
+        with torch.inference_mode():
+            qwen_model.generate_custom_voice(
+                text="Warmup.",
+                language="German",
+                speaker=DEFAULT_SPEAKER,
+            )
+        # Discard warmup output, free VRAM
+        torch.cuda.empty_cache()
+        elapsed = time.perf_counter() - warmup_start
+        print(f"Model warmup completed in {elapsed:.2f}s (CUDA kernels + compile graphs ready).")
+    except Exception as exc:
+        print(f"Model warmup failed (non-fatal): {exc}")
+
+
 def load_qwen_model() -> None:
     global qwen_model, SUPPORTED_SPEAKERS, SUPPORTED_LANGUAGES
     print(f"Loading Qwen3-TTS from {load_path}...")
@@ -175,6 +223,9 @@ def load_qwen_model() -> None:
             traceback.print_exc()
             return
 
+    # Apply torch.compile for faster inference
+    qwen_model = _try_torch_compile(qwen_model)
+
     # Log available speakers and languages
     try:
         speakers = qwen_model.get_supported_speakers()
@@ -187,6 +238,9 @@ def load_qwen_model() -> None:
         SUPPORTED_SPEAKERS = []
         SUPPORTED_LANGUAGES = []
         print("Could not query supported speakers/languages (non-fatal).")
+
+    # Warmup: pre-compile CUDA kernels and torch.compile graphs
+    _warmup_model()
 
 
 def save_audio_bytes_to_temp_wav(audio_data: bytes, filename: str) -> str:
@@ -354,10 +408,11 @@ def generate_audio_batch(
             prepared_speakers.append(speaker_override or speaker_name)
 
         unique_speakers = sorted({speaker for speaker in prepared_speakers if speaker})
+        total_chars = sum(len(t) for t in prepared_texts)
 
         print(
             f"Using CustomVoice Batch Mode (items={len(safe_texts)}, speakers={unique_speakers[:6]}, "
-            f"lang={language}, instruct={any(bool(i) for i in prepared_instructs)})"
+            f"lang={language}, instruct={any(bool(i) for i in prepared_instructs)}, chars={total_chars})"
         )
         wavs, sr = _run_custom_voice_generation(
             prepared_texts,
@@ -370,10 +425,15 @@ def generate_audio_batch(
         for wav in wavs:
             outputs.append((_wav_to_bytes(wav, sr), mime_type, used_format))
         elapsed = time.perf_counter() - started_at
+        chars_per_sec = total_chars / elapsed if elapsed > 0 else 0
         print(
             f"CustomVoice batch generation completed in {elapsed:.3f}s "
-            f"(items={len(prepared_texts)}, total_chars={sum(len(t) for t in prepared_texts)})"
+            f"(items={len(prepared_texts)}, total_chars={total_chars}, "
+            f"chars/s={chars_per_sec:.1f})"
         )
+        # Free unused VRAM after batch to keep memory lean for next job
+        if torch.cuda.is_available() and total_chars > 2000:
+            torch.cuda.empty_cache()
         return outputs
     except Exception as exc:
         import traceback

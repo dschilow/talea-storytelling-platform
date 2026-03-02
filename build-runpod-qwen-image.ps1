@@ -1,9 +1,9 @@
 param(
     [string]$DockerHubUsername = "",
     [switch]$Prefetch = $false,
-    [switch]$InstallFlashAttn = $false,
-    [switch]$EnforceFlashAttn = $false,
-    [switch]$UseDevelBase = $false,
+    [switch]$InstallFlashAttn = $true,
+    [switch]$EnforceFlashAttn = $true,
+    [switch]$UseDevelBase = $true,
     [switch]$MaxPerf = $false
 )
 

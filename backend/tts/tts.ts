@@ -754,7 +754,7 @@ async function maybeWarmupRunpodWorker(reason: string): Promise<boolean> {
     if (isFatalRunpodStorageIssue(message)) {
       throw APIError.failedPrecondition(
         "RunPod worker storage is full (`No space left on device`). " +
-          "Increase endpoint container disk (recommended 40-50GB), redeploy workers, and retry."
+        "Increase endpoint container disk (recommended 40-50GB), redeploy workers, and retry."
       );
     }
     log.warn(`RunPod warmup failed (${reason}): ${message}`);
@@ -1156,8 +1156,8 @@ async function runpodQueueVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
 
   const available = Array.isArray(output?.availableSpeakers)
     ? output!.availableSpeakers
-        .map((value) => String(value || "").trim())
-        .filter((value) => value.length > 0)
+      .map((value) => String(value || "").trim())
+      .filter((value) => value.length > 0)
     : [];
 
   return {
@@ -1312,15 +1312,15 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         if (isLikelyInfraBusyStatus(response.status, errTextRaw)) {
           throw new Error(
             "RunPod CosyVoice API failed (400 <empty>). This often means worker cold-start/busy on Load Balancer endpoints. " +
-              "Reduce parallel calls (COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS=1), keep Max workers >= 1, or use Queue endpoint."
+            "Reduce parallel calls (COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS=1), keep Max workers >= 1, or use Queue endpoint."
           );
         }
         if (isLikelyGatewayHostError(response.status, errTextRaw)) {
           throw new Error(
             `RunPod CosyVoice API failed (${response.status} gateway). ` +
-              "Upstream worker was unavailable/crashed during request. " +
-              "On slower GPUs this happens more often with LB endpoints. " +
-              "Use Queue endpoint, or keep at least one active worker while generating, or increase Max workers."
+            "Upstream worker was unavailable/crashed during request. " +
+            "On slower GPUs this happens more often with LB endpoints. " +
+            "Use Queue endpoint, or keep at least one active worker while generating, or increase Max workers."
           );
         }
 
@@ -1461,17 +1461,17 @@ async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
 
     const payload = (await response.json()) as
       | {
-          available_speakers?: unknown;
-          default_speaker?: unknown;
-          default_reference_available?: unknown;
-          model_loaded?: unknown;
-        }
+        available_speakers?: unknown;
+        default_speaker?: unknown;
+        default_reference_available?: unknown;
+        model_loaded?: unknown;
+      }
       | null;
 
     const availableSpeakers = Array.isArray(payload?.available_speakers)
       ? payload!.available_speakers
-          .map((value) => String(value || "").trim())
-          .filter(Boolean)
+        .map((value) => String(value || "").trim())
+        .filter(Boolean)
       : [];
 
     markRunpodHealthyNow();
@@ -1510,10 +1510,10 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
   }
 
   // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
-  // Set well above frontend chunking (280 chars) to avoid double-chunking.
+  // Set well above frontend chunking (600 chars) to avoid double-chunking.
   // Auto-chunking causes silent sentence drops when sub-chunks fail, so we
   // want it to trigger only as a last resort for truly oversized items.
-  const MAX_ITEM_CHARS = 600;
+  const MAX_ITEM_CHARS = 900;
   const expandedItems: TTSBatchItem[] = [];
   // Track which original items were split so we can reassemble later
   const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();

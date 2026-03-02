@@ -1,17 +1,16 @@
 /**
- * Chunk sizing tuned for CosyVoice3 0.5B quality.
- * ~50 words per chunk -> ~10-18 sec audio -> reliable attention span.
+ * Chunk sizing tuned for Qwen3-TTS (12Hz, 0.6B CustomVoice).
+ * ~80 words per chunk -> reliable attention span with 12Hz tokenization.
  *
- * 80 words caused attention drift (repeated/skipped sentences).
- * 40 words was too small (excessive prompt overhead per chunk).
- * 50 words is the sweet spot: 2-3 sentences, good prosody, no drift.
+ * Qwen3-TTS handles larger chunks than CosyVoice3 without attention drift.
+ * 80 words = 4-5 sentences, good prosody, efficient GPU utilization.
  *
- * IMPORTANT: Never split in the middle of a sentence. CosyVoice will not speak
- * incomplete sentences properly, causing "missing sentences" in playback.
+ * IMPORTANT: Never split in the middle of a sentence. The TTS model will not
+ * speak incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
-const TARGET_WORDS = 50;
-const MAX_CHARS = 400;
+const TARGET_WORDS = 80;
+const MAX_CHARS = 600;
 
 /**
  * Normalize text into a TTS-friendly, language-agnostic format.
