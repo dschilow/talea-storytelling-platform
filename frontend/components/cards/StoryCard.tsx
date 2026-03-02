@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Bookmark, BookmarkCheck, BookOpen, Headphones, Loader2 as HeadphonesLoader, Trash2, Clock, Download } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import type { Story } from '../../types/story';
+import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
@@ -9,6 +11,7 @@ import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { useBackend } from '../../hooks/useBackend';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
+import { getBackendUrl } from '../../config';
 
 interface StoryCardProps {
   story: Story;
@@ -21,8 +24,9 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
   const [isAddingToPlaylist, setIsAddingToPlaylist] = useState(false);
   const [selectedParticipant, setSelectedParticipant] = useState<{ src: string; label?: string } | null>(null);
   const backend = useBackend();
+  const { getToken } = useAuth();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
-  const { startStoryConversion, playlist } = useAudioPlayer();
+  const { startStoryConversion, removeStoryFromPlaylist, addAndPlay, playlist } = useAudioPlayer();
 
   const isInPlaylist = playlist.some((item) => item.parentStoryId === story.id);
 
@@ -32,6 +36,61 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
 
     try {
       setIsAddingToPlaylist(true);
+
+      const token = await getToken();
+      const libraryResponse = await fetch(`${getBackendUrl()}/story/audio-library/by-source`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          sourceType: 'story',
+          sourceId: story.id,
+        }),
+      });
+
+      if (libraryResponse.ok) {
+        const payload = (await libraryResponse.json()) as { items?: GeneratedAudioLibraryEntry[] };
+        const libraryItems = Array.isArray(payload.items) ? payload.items : [];
+        if (libraryItems.length > 0) {
+          const sorted = [...libraryItems].sort((a, b) => {
+            const orderA = Number.isFinite(a.itemOrder as number) ? (a.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+            const orderB = Number.isFinite(b.itemOrder as number) ? (b.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+            if (orderA !== orderB) return orderA - orderB;
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          });
+          const readyItems = sorted
+            .filter((item) => Boolean(item.audioUrl))
+            .map((item, index) => {
+              const chapterOrder = Number.isFinite(item.itemOrder as number) ? (item.itemOrder as number) : index + 1;
+              return {
+                id: item.itemId || `story-${story.id}-audio-${item.id}`,
+                trackId: story.id,
+                title: item.itemTitle || `Kapitel ${chapterOrder}`,
+                description: story.title,
+                coverImageUrl: item.coverImageUrl || story.coverImageUrl,
+                type: 'story-chapter' as const,
+                audioUrl: item.audioUrl,
+                conversionStatus: 'ready' as const,
+                parentStoryId: story.id,
+                parentStoryTitle: story.title,
+                chapterOrder,
+                chapterTitle: item.itemTitle || `Kapitel ${chapterOrder}`,
+              };
+            });
+
+          if (readyItems.length > 0) {
+            if (isInPlaylist) {
+              removeStoryFromPlaylist(story.id);
+            }
+            addAndPlay(readyItems);
+            return;
+          }
+        }
+      }
+
       const fullStory = await backend.story.get({ id: story.id });
       if (!fullStory.chapters || fullStory.chapters.length === 0) return;
       startStoryConversion(story.id, story.title, fullStory.chapters as any, story.coverImageUrl);

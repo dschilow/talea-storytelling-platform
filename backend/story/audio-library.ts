@@ -67,6 +67,15 @@ interface ResolveGeneratedAudioResponse {
   }>;
 }
 
+interface ListGeneratedAudioBySourceRequest {
+  sourceType: AudioSourceType;
+  sourceId: string;
+}
+
+interface ListGeneratedAudioBySourceResponse {
+  items: GeneratedAudioLibraryEntry[];
+}
+
 type LibraryRow = {
   id: string;
   user_id: string;
@@ -370,6 +379,39 @@ export const resolveGeneratedAudioByCacheKeys = api<
     }
 
     return { items: resolvedItems };
+  }
+);
+
+export const listGeneratedAudioBySource = api<
+  ListGeneratedAudioBySourceRequest,
+  ListGeneratedAudioBySourceResponse
+>(
+  {
+    expose: true,
+    method: "POST",
+    path: "/story/audio-library/by-source",
+    auth: true,
+  },
+  async (req) => {
+    const auth = getAuthData();
+    if (!auth?.userID) {
+      throw APIError.unauthenticated("Authentication required.");
+    }
+
+    const sourceType = req.sourceType === "doku" ? "doku" : "story";
+    const sourceId = cleanText(req.sourceId, "sourceId");
+
+    const rows = await storyDB.queryAll<LibraryRow>`
+      SELECT *
+      FROM generated_audio_library
+      WHERE user_id = ${auth.userID}
+        AND source_type = ${sourceType}
+        AND source_id = ${sourceId}
+      ORDER BY COALESCE(item_order, 2147483647) ASC, created_at ASC
+    `;
+
+    const items = await Promise.all(rows.map((row) => mapRowToEntry(row)));
+    return { items };
   }
 );
 

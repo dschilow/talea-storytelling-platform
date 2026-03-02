@@ -6,6 +6,8 @@ import { useAuth } from '@clerk/clerk-react';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Chapter } from '../../types/story';
+import type { PlaylistItem } from '../../types/playlist';
+import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
@@ -20,6 +22,41 @@ interface StoryAudioActionsProps {
   className?: string;
 }
 
+function sortGeneratedAudioItems(items: GeneratedAudioLibraryEntry[]): GeneratedAudioLibraryEntry[] {
+  return [...items].sort((a, b) => {
+    const orderA = Number.isFinite(a.itemOrder as number) ? (a.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+    const orderB = Number.isFinite(b.itemOrder as number) ? (b.itemOrder as number) : Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
+
+function buildStoryPlaylistFromGeneratedAudio(
+  storyId: string,
+  storyTitle: string,
+  coverImageUrl: string | undefined,
+  items: GeneratedAudioLibraryEntry[],
+): PlaylistItem[] {
+  const sorted = sortGeneratedAudioItems(items);
+  return sorted.map((entry, index) => {
+    const chapterOrder = Number.isFinite(entry.itemOrder as number) ? (entry.itemOrder as number) : index + 1;
+    return {
+      id: entry.itemId || `story-${storyId}-audio-${entry.id}`,
+      trackId: storyId,
+      title: entry.itemTitle || `Kapitel ${chapterOrder}`,
+      description: storyTitle,
+      coverImageUrl: entry.coverImageUrl || coverImageUrl,
+      type: 'story-chapter',
+      audioUrl: entry.audioUrl,
+      conversionStatus: 'ready',
+      parentStoryId: storyId,
+      parentStoryTitle: storyTitle,
+      chapterOrder,
+      chapterTitle: entry.itemTitle || `Kapitel ${chapterOrder}`,
+    };
+  });
+}
+
 export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   storyId,
   storyTitle,
@@ -28,7 +65,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   className = '',
 }) => {
   const { getToken } = useAuth();
-  const { startStoryConversion, removeStoryFromPlaylist, playlist } = useAudioPlayer();
+  const { startStoryConversion, removeStoryFromPlaylist, addAndPlay, addToPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
 
   const [isAdding, setIsAdding] = useState(false);
@@ -38,9 +75,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>([]);
   const [loadingSpeakers, setLoadingSpeakers] = useState(false);
   const [speakerLoadError, setSpeakerLoadError] = useState('');
+  const [generatedAudioItems, setGeneratedAudioItems] = useState<GeneratedAudioLibraryEntry[]>([]);
+  const [checkingGeneratedAudio, setCheckingGeneratedAudio] = useState(false);
 
   const isDark = resolvedTheme === 'dark';
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
+  const hasLibraryAudio = generatedAudioItems.length > 0;
 
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
     const normalizedSpeaker = selectedSpeaker.trim();
@@ -70,11 +110,45 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers]);
 
   const canStartConversion = useMemo(() => {
-    if (!chapters.length || isAdding) return false;
+    if (isAdding) return false;
+    if (generatedAudioItems.length > 0) return true;
+    if (!chapters.length) return false;
     if (!selectedSpeaker.trim()) return false;
     if (!multiVoiceEnabled) return true;
     return dialogueSpeakers.map((speaker) => speaker.trim()).filter(Boolean).length >= 2;
-  }, [chapters.length, isAdding, selectedSpeaker, multiVoiceEnabled, dialogueSpeakers]);
+  }, [chapters.length, isAdding, selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, generatedAudioItems.length]);
+
+  const loadGeneratedAudioForStory = useCallback(async (): Promise<GeneratedAudioLibraryEntry[]> => {
+    const token = await getToken();
+    const response = await fetch(`${getBackendUrl()}/story/audio-library/by-source`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        sourceType: 'story',
+        sourceId: storyId,
+      }),
+    });
+
+    if (response.status === 404) {
+      // Older backend deployment without by-source endpoint.
+      setGeneratedAudioItems([]);
+      return [];
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || `HTTP ${response.status}`);
+    }
+
+    const payload = (await response.json()) as { items?: GeneratedAudioLibraryEntry[] };
+    const items = Array.isArray(payload.items) ? sortGeneratedAudioItems(payload.items) : [];
+    setGeneratedAudioItems(items);
+    return items;
+  }, [getToken, storyId]);
 
   const loadAvailableSpeakers = useCallback(async () => {
     setLoadingSpeakers(true);
@@ -150,6 +224,24 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   }, [availableSpeakers.length, loadingSpeakers, speakerLoadError, loadAvailableSpeakers]);
 
   useEffect(() => {
+    let cancelled = false;
+    setCheckingGeneratedAudio(true);
+    void loadGeneratedAudioForStory()
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('[StoryAudioActions] Generated-audio precheck failed:', error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingGeneratedAudio(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadGeneratedAudioForStory]);
+
+  useEffect(() => {
     if (!multiVoiceEnabled) return;
     setDialogueSpeakers((current) => {
       const filtered = current.filter((speaker) => availableSpeakers.includes(speaker));
@@ -174,37 +266,69 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     });
   }, []);
 
-  const startConversion = useCallback((autoplay: boolean) => {
+  const startConversion = useCallback(async (autoplay: boolean) => {
     if (!canStartConversion) return;
 
     setIsAdding(true);
-    if (alreadyInPlaylist) {
-      removeStoryFromPlaylist(storyId);
-    }
+    try {
+      const remoteLibraryItems =
+        generatedAudioItems.length > 0
+          ? generatedAudioItems
+          : await loadGeneratedAudioForStory().catch(() => []);
 
-    startStoryConversion(
-      storyId,
-      storyTitle,
-      chapters,
-      coverImageUrl,
-      autoplay,
-      voiceSettings.mode === 'default' ? DEFAULT_TTS_VOICE_SETTINGS : voiceSettings,
-    );
-    setTimeout(() => setIsAdding(false), 500);
+      if (remoteLibraryItems.length > 0) {
+        const playlistItems = buildStoryPlaylistFromGeneratedAudio(
+          storyId,
+          storyTitle,
+          coverImageUrl,
+          remoteLibraryItems,
+        );
+        if (playlistItems.length > 0) {
+          if (alreadyInPlaylist) {
+            removeStoryFromPlaylist(storyId);
+          }
+          if (autoplay) {
+            addAndPlay(playlistItems);
+          } else {
+            addToPlaylist(playlistItems);
+          }
+          return;
+        }
+      }
+
+      if (alreadyInPlaylist) {
+        removeStoryFromPlaylist(storyId);
+      }
+
+      startStoryConversion(
+        storyId,
+        storyTitle,
+        chapters,
+        coverImageUrl,
+        autoplay,
+        voiceSettings.mode === 'default' ? DEFAULT_TTS_VOICE_SETTINGS : voiceSettings,
+      );
+    } finally {
+      setIsAdding(false);
+    }
   }, [
-    alreadyInPlaylist,
     canStartConversion,
-    chapters,
-    coverImageUrl,
-    removeStoryFromPlaylist,
-    startStoryConversion,
+    generatedAudioItems,
+    loadGeneratedAudioForStory,
     storyId,
     storyTitle,
+    coverImageUrl,
+    alreadyInPlaylist,
+    removeStoryFromPlaylist,
+    addAndPlay,
+    addToPlaylist,
+    startStoryConversion,
+    chapters,
     voiceSettings,
   ]);
 
-  const handlePlay = () => startConversion(true);
-  const handleAddToQueue = () => startConversion(false);
+  const handlePlay = () => void startConversion(true);
+  const handleAddToQueue = () => void startConversion(false);
 
   const btnBase = `inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-sm transition-all`;
   const btnStyle: React.CSSProperties = {
@@ -333,6 +457,18 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             {speakerLoadError}
           </p>
         )}
+
+        {checkingGeneratedAudio && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+            Pruefe bereits generierte Audios...
+          </p>
+        )}
+
+        {!checkingGeneratedAudio && generatedAudioItems.length > 0 && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#86efac' : '#1f7a41' }}>
+            Bereits generiert: {generatedAudioItems.length} Audio-Teil(e). Wird direkt aus der Bibliothek abgespielt.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -351,7 +487,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           }}
         >
           {isAdding ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-          {alreadyInPlaylist ? 'Neu generieren & abspielen' : 'Geschichte anhoeren'}
+          {hasLibraryAudio
+            ? (alreadyInPlaylist ? 'Gespeicherte Audios neu laden' : 'Gespeicherte Audios abspielen')
+            : (alreadyInPlaylist ? 'Neu generieren & abspielen' : 'Geschichte anhoeren')}
         </motion.button>
 
         <motion.button
@@ -363,7 +501,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           style={{ ...btnStyle, opacity: canStartConversion ? 1 : 0.6 }}
         >
           <ListPlus size={14} />
-          {alreadyInPlaylist ? 'Neu in Warteschlange' : 'Zur Warteschlange'}
+          {hasLibraryAudio
+            ? (alreadyInPlaylist ? 'Gespeichert neu in Queue' : 'Gespeichert zur Queue')
+            : (alreadyInPlaylist ? 'Neu in Warteschlange' : 'Zur Warteschlange')}
         </motion.button>
 
         {alreadyInPlaylist && (

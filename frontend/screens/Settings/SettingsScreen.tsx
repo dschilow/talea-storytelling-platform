@@ -93,30 +93,47 @@ type GroupedGeneratedAudio = {
   items: GeneratedAudioLibraryEntry[];
 };
 
-type DokuNarrationInput = {
-  title?: string;
-  summary?: string;
-  topic?: string;
-  content?: {
-    sections?: Array<{
-      title?: string;
-      content?: string;
-    }>;
-  };
-};
+function buildReadyPlaylistItemsFromLibraryGroup(group: GroupedGeneratedAudio) {
+  const total = group.items.length;
 
-function buildDokuNarrationText(doku: DokuNarrationInput): string {
-  const blocks: string[] = [];
-  if (doku.title) blocks.push(doku.title);
-  if (doku.summary) blocks.push(doku.summary);
-  if (doku.topic) blocks.push(`Thema: ${doku.topic}.`);
-  if (doku.content?.sections?.length) {
-    for (const section of doku.content.sections) {
-      if (section.title) blocks.push(section.title);
-      if (section.content) blocks.push(section.content);
-    }
+  if (group.sourceType === 'story') {
+    return group.items.map((item, index) => {
+      const chapterOrder = Number.isFinite(item.itemOrder as number) ? (item.itemOrder as number) : index + 1;
+      return {
+        id: item.itemId || `story-${group.sourceId}-audio-${item.id}`,
+        trackId: group.sourceId,
+        title: item.itemTitle || `Kapitel ${chapterOrder}`,
+        description: group.sourceTitle,
+        coverImageUrl: item.coverImageUrl || group.coverImageUrl,
+        type: 'story-chapter' as const,
+        audioUrl: item.audioUrl,
+        conversionStatus: 'ready' as const,
+        parentStoryId: group.sourceId,
+        parentStoryTitle: group.sourceTitle,
+        chapterOrder,
+        chapterTitle: item.itemTitle || `Kapitel ${chapterOrder}`,
+      };
+    });
   }
-  return blocks.join('\n\n').trim();
+
+  return group.items.map((item, index) => {
+    const chunkOrder = Number.isFinite(item.itemOrder as number) ? (item.itemOrder as number) - 1 : index;
+    const humanOrder = chunkOrder + 1;
+    return {
+      id: item.itemId || `doku-${group.sourceId}-audio-${item.id}`,
+      trackId: group.sourceId,
+      title: item.itemTitle || group.sourceTitle,
+      description: item.itemSubtitle || (total > 1 ? `Teil ${humanOrder} von ${total}` : 'Doku'),
+      coverImageUrl: item.coverImageUrl || group.coverImageUrl,
+      type: 'doku' as const,
+      audioUrl: item.audioUrl,
+      conversionStatus: 'ready' as const,
+      parentDokuId: group.sourceId,
+      parentDokuTitle: group.sourceTitle,
+      dokuChunkOrder: chunkOrder,
+      dokuTotalChunks: total,
+    };
+  });
 }
 
 type KeywordPreset = {
@@ -1208,48 +1225,19 @@ function AudioLibraryPanel() {
     async (group: GroupedGeneratedAudio) => {
       try {
         setPlayBusyKey(group.key);
+        const readyItems = buildReadyPlaylistItemsFromLibraryGroup(group).filter((item) => Boolean(item.audioUrl));
+        if (readyItems.length === 0) {
+          throw new Error('Keine gespeicherten Audiodateien vorhanden.');
+        }
 
         if (group.sourceType === 'story') {
-          const existingIndex = audioPlayer.playlist.findIndex((item) => item.parentStoryId === group.sourceId);
-          if (existingIndex >= 0) {
-            audioPlayer.playFromPlaylist(existingIndex);
-            return;
-          }
-
-          const story = await backend.story.get({ id: group.sourceId });
-          const chapters = Array.isArray((story as any)?.chapters) ? ((story as any).chapters as any[]) : [];
-          if (chapters.length === 0) {
-            throw new Error('Story hat keine Kapitel.');
-          }
-          audioPlayer.startStoryConversion(
-            group.sourceId,
-            (story as any).title || group.sourceTitle,
-            chapters as any,
-            group.coverImageUrl,
-            true,
-          );
+          audioPlayer.removeStoryFromPlaylist(group.sourceId);
+          audioPlayer.addAndPlay(readyItems);
           return;
         }
 
-        const existingIndex = audioPlayer.playlist.findIndex((item) => item.parentDokuId === group.sourceId);
-        if (existingIndex >= 0) {
-          audioPlayer.playFromPlaylist(existingIndex);
-          return;
-        }
-
-        const doku = (await backend.doku.getDoku({ id: group.sourceId })) as DokuNarrationInput & { title?: string };
-        const narration = buildDokuNarrationText(doku);
-        if (!narration) {
-          throw new Error('Doku hat keinen vorlesbaren Inhalt.');
-        }
-
-        audioPlayer.startDokuConversion(
-          group.sourceId,
-          doku.title || group.sourceTitle,
-          narration,
-          group.coverImageUrl,
-          true,
-        );
+        audioPlayer.removeDokuFromPlaylist(group.sourceId);
+        audioPlayer.addAndPlay(readyItems);
       } catch (error) {
         console.error('[AudioLibrary] Failed to play grouped audio item:', error);
         toast.error('Titel konnte nicht im Player gestartet werden.');
@@ -1257,7 +1245,7 @@ function AudioLibraryPanel() {
         setPlayBusyKey(null);
       }
     },
-    [audioPlayer, backend],
+    [audioPlayer],
   );
 
   const handleToggleOffline = useCallback(
