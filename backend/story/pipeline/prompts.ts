@@ -405,68 +405,81 @@ Adrian tilted his head. "You can't buy luck."
 "You can," said Bruno. "It just costs more than flour."
 """`;
 
-  return `# PROSE QUALITY REFERENCE – THIS IS THE TARGET LEVEL
-(Study these examples. Your prose must match this quality. Not the rules – THE EXAMPLES.)
-${isGerman ? germanExamples : englishExamples}
+  // Always include both examples — English for structural learning, target-language for voice
+  const targetExamples = isGerman ? germanExamples : englishExamples;
 
-WHAT MAKES THESE EXAMPLES GREAT:
-1. PARAGRAPHS that breathe: 2-4 sentences grouped, not single-line machine-gun
-2. DIALOGUE anchored to physical action EVERY TIME (no talking heads)
-3. HUMOR through surprise and character, never explained
-4. RHYTHM: short-short-LONG pattern, fragments mixed with flowing sentences
-5. CONCRETE sensory details (sticky cloth, warm pockets, cinnamon smell)
-6. EACH character recognizable by their sentence structure alone
-7. INNER MOMENTS shown through body sensations, never emotion labels`;
+  return `# PROSE QUALITY REFERENCE – STUDY THESE EXAMPLES (this is the target level)
+(The output language is ${isGerman ? "German" : "English"}, but these English structural examples show EXACTLY the rhythm, paragraph breathing, and dialogue anchoring you must achieve.)
+
+${englishExamples}
+
+${isGerman ? `SAME QUALITY — IN GERMAN (your output must sound like this):\n${germanExamples}` : ""}
+
+WHAT MAKES THESE EXAMPLES GREAT — APPLY ALL 7 TO EVERY CHAPTER:
+1. PARAGRAPH BREATHING: 2-4 sentences per paragraph, separated by blank lines — never a wall of text
+2. DIALOGUE ANCHORED to physical action every single time — no floating quotes
+3. HUMOR through situation and surprise — never through explanation
+4. RHYTHM: Short. Short. One long sentence with a surprising detail at the end.
+5. CONCRETE sensory detail in every paragraph (smell, texture, temperature, sound)
+6. EACH character recognizable by sentence length and word choice alone — no name tag needed
+7. INNER MOMENTS shown through body sensations only — never emotion labels like "she felt scared"`;
 }
 
-function buildAntiPatternBlock(isGerman: boolean): string {
-  // Shortened to the 4 most critical anti-patterns. Long lists cause Gemini to write "avoidance prose".
-  const badExamples = isGerman
-    ? `🚫 REPORT-STIL (SCHLIMMSTER FEHLER):
-"Er ging. Sie sagte. Er nickte. Sie lief." → Niemals Einzelsatz-Ketten! Gruppiere 2-4 Saetze in Absaetze.
-🚫 EMOTION-LABELS:
-"Er war nervoes" / "Sie fuehlte sich mutig" → Zeige es: "Seine Finger krallten sich in den Stoff."
-🚫 PROMPT-KOPIE:
-Niemals den Goal/Conflict/Setting-Text woertlich in die Story uebernehmen. Dramatisiere!
-🚫 MORAL-HAMMER:
-"Wir haben gelernt, zusammen zu handeln" → Die Moral muss UNSICHTBAR sein.`
-    : `🚫 REPORT STYLE (WORST FAILURE MODE):
-"He went. She said. He nodded. She ran." → Never single-sentence chains! Group 2-4 sentences into paragraphs.
-🚫 EMOTION LABELS:
-"He was nervous" / "She felt brave" → Show it: "His fingers dug into the fabric."
-🚫 PROMPT COPYING:
-Never copy the Goal/Conflict/Setting text verbatim into the story. Dramatize!
-🚫 MORAL HAMMER:
-"We learned to work together" → The moral must be INVISIBLE.`;
+function buildAntiPatternBlock(_isGerman: boolean): string {
+  // Always English — models trained on English respond better to English instructions
+  return `# CRITICAL FAILURES TO AVOID (these will get the story rejected)
 
-  return `# CRITICAL FAILURES TO AVOID
-${badExamples}`;
+🚫 TEXT WALL (WORST FAILURE):
+One giant paragraph per chapter. → Fix: 4-6 paragraphs per chapter, blank line between each.
+
+🚫 REPORT STYLE:
+"He went. She said. He nodded. She ran." → Fix: Group 2-4 sentences into flowing paragraphs.
+
+🚫 EMOTION LABELS:
+"He was nervous" / "She felt brave" → Fix: "His fingers dug into his jacket." / "Her chin went up."
+
+🚫 SOFT CHAPTER ENDINGS (Chapters 1-4):
+"...and so they continued on." / "...they were relieved." → Fix: End every chapter on unresolved tension.
+
+🚫 GHOST CHARACTERS:
+A character is listed but never speaks or moves. → Fix: Every listed character speaks + acts.
+
+🚫 PLOT DEVICE REPEAT:
+Same trick used twice (e.g. "false trail" appears 3 times). → Fix: Different obstacle type per chapter.
+
+🚫 MORAL HAMMER:
+"They learned that teamwork is important." → Fix: The lesson must be invisible — shown, not stated.
+
+🚫 PROMPT COPYING:
+Pasting the Goal/Conflict/Setting wording verbatim into the story. → Fix: Dramatize everything.`;
 }
 
 function buildGeminiFlashMicroExamplesBlock(isGerman: boolean): string {
-  if (isGerman) {
-    return `# MICRO-EXAMPLES (target rhythm + subtext)
-Beispiel Stakes:
-"Wenn wir den Schlüssel jetzt verlieren, schlafen wir im Regen", sagte Leni und zog Ben am Ärmel.
-Ben schluckte. "Dann laufen wir. Jetzt."
+  const targetLang = isGerman ? "German" : "English";
+  return `# MICRO-EXAMPLES — STUDY THE STRUCTURE (your output language: ${targetLang})
 
-Beispiel Lowpoint + Preis:
-Die Brücke knackte. Ein Brett brach weg.
-Tom rutschte auf die Knie, presste die Lippen zusammen und hielt den Rucksack hoch.
-"Nicht hinsehen. Zieh."
-Später war der Weg frei, aber sein Schuh blieb im Schlamm zurück.`;
-  }
+EXAMPLE: Paragraph breathing + chapter cliffhanger ending:
+The corridor was cold and smelled of old stone. Leni ran her fingers along the wall, counting the bricks.
+"There." She stopped at a gap. "Someone pulled this one out."
+Ben leaned in. The gap was small — too small for him. He looked at Leni.
+She was already crawling through.
+The stone slid back into place behind her with a soft, final click.
 
-  return `# MICRO-EXAMPLES (target rhythm + subtext)
-Stakes example:
-"If we lose the key now, we sleep outside in the rain," Leni said, tugging Ben's sleeve.
-Ben swallowed. "Then we run. Now."
+EXAMPLE: Stakes sentence (must appear end of Chapter 1):
+"If we lose the feather before midnight," Nova said without looking up, "the garden never wakes again."
+Ben's stomach did that tight pulling thing. He pressed his hands into his pockets and said nothing.
 
-Lowpoint + price example:
-The bridge cracked. A plank snapped.
-Tom dropped to his knees, jaw tight, and held the bag up.
-"Don't look down. Pull."
-Later they made it through, but his shoe stayed in the mud.`;
+EXAMPLE: Lowpoint + physical body reaction (Chapter 3 or 4):
+The map was ruined. Just brown pulp in Adrian's fist.
+He stared at it. His throat went dry. His legs felt suddenly too heavy to lift.
+"It's okay," said Nova. But her voice came out wrong — too quiet, too careful.
+It wasn't okay. They both knew it.
+Then Flitz squeaked something. Adrian looked up.
+
+EXAMPLE: Small tangible price (Chapter 5 ending):
+The garden bloomed again, all at once, like someone had turned a switch.
+Nova exhaled. She looked at her hands — the left glove was torn open at the thumb, the fabric black with soot.
+She folded it over and didn't say anything about it. Some things cost what they cost.`;
 }
 
 // --- Optimized Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
@@ -610,20 +623,14 @@ export function buildFullStoryPrompt(input: {
 
   const titleHint = "Max 6 words, curiosity-driven, avoid 'object and person' pattern (e.g. avoid 'Tom and the Stone').";
 
-  // Age-appropriate reading level rules
+  // Age-appropriate reading level rules — always in English for model quality
   const ageMin = ageRange.min;
   const ageMax = ageRange.max;
-  const ageGroupRule = isGerman
-    ? ageMax <= 6
-      ? `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Sehr kurze Sätze (max. 8 Wörter). Einfache Wörter. Viel Wiederholung. Klare Handlung. Kein Fremdwissen nötig.`
-      : ageMax <= 8
-        ? `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Kurze bis mittellange Sätze (max. 12 Wörter). Alltagssprache. Keine komplizierten Fachbegriffe. Kinder folgen der Handlung ohne Vorwissen.`
-        : `ALTERSGRUPPE ${ageMin}-${ageMax} Jahre: Mittellange Sätze erlaubt. Reichere Sprache möglich. Etwas komplexere Satzstrukturen.`
-    : ageMax <= 6
-      ? `AGE GROUP ${ageMin}-${ageMax}: Very short sentences (max 8 words). Simple vocabulary. Lots of repetition. Clear action. No background knowledge required.`
-      : ageMax <= 8
-        ? `AGE GROUP ${ageMin}-${ageMax}: Short to medium sentences (max 12 words). Everyday language. No complex jargon. Children can follow without prior knowledge.`
-        : `AGE GROUP ${ageMin}-${ageMax}: Medium sentences allowed. Richer vocabulary possible. Slightly more complex sentence structures.`;
+  const ageGroupRule = ageMax <= 6
+    ? `AGE GROUP ${ageMin}-${ageMax}: VERY short sentences (max 8 words each). Only simple everyday vocabulary. Lots of repetition for rhythm. One action per sentence. No background knowledge required. The output language is ${outputLang} but these structural rules always apply.`
+    : ageMax <= 8
+      ? `AGE GROUP ${ageMin}-${ageMax}: Short to medium sentences (max 12 words). Everyday conversational language. No jargon, no complex metaphors. Every paragraph must be immediately understandable to a child reading aloud. The output language is ${outputLang} but these structural rules always apply.`
+      : `AGE GROUP ${ageMin}-${ageMax}: Medium sentences allowed. Richer vocabulary and imagery possible. Some complex sentences okay if balanced with short punchy ones.`;
 
   // Chapter 1 character introduction requirement
   const ch1CharIntroNames = characterProfiles
@@ -635,9 +642,12 @@ export function buildFullStoryPrompt(input: {
     .filter(Boolean)
     .join(", ");
 
-  const ch1IntroRule = isGerman
-    ? `KAPITEL 1 PFLICHT – CHARAKTERVORSTELLUNG: Die Leser kennen NIEMANDEN. Stelle JEDEN Charakter in Kapitel 1 mit einem kurzen, einprägsamen Detail vor (Aussehen, Eigenart oder Eigenschaft) BEVOR die Handlung startet. Beispiel: "Mia, die immer ihren roten Rucksack dabei hatte, stand ..." – NICHT einfach den Namen einwerfen und weitermachen. Charaktere in Kapitel 1: ${ch1CharIntroNames}.`
-    : `CHAPTER 1 REQUIREMENT – CHARACTER INTRODUCTION: Readers know NOBODY. Introduce EVERY character in Chapter 1 with one memorable detail (look, quirk, or trait) BEFORE the action starts. Example: "Mia, who always carried her red backpack, stood ..." – do NOT just drop a name and continue. Characters in Chapter 1: ${ch1CharIntroNames}.`;
+  const ch1IntroRule = `CHAPTER 1 MANDATORY – CHARACTER INTRODUCTION:
+Readers know NOBODY when the story starts. You MUST introduce EVERY character in Chapter 1 with one vivid, specific, physical detail (appearance, habit, or quirk) woven naturally into the first paragraph — BEFORE the plot problem begins.
+CORRECT: "Nova wore a silver helmet that caught the sun like a mirror. She moved with the calm certainty of someone who had mapped craters before."
+WRONG: Just writing the name and moving on. No cold name-drops. No "this is [name]" introductions.
+Characters who appear in Chapter 1: ${ch1CharIntroNames}.
+RULE: If a character appears on stage in a chapter, they MUST have at least one spoken line AND one physical action in that chapter. A character who is present but silent and motionless does not exist for the reader.`;
 
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRule = humorTarget >= 3
@@ -701,17 +711,22 @@ ${geminiMicroExamples}
 4. Cast lock: only ${allowedNames.join(", ")}. No new names.
 5. Safety: ${safetyRule}
 6. ${humorRule}
-7. Never copy Goal/Conflict/Setting wording verbatim. Dramatize into scene action.
-8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Paraphrase every beat cue.
+7. NEVER copy Goal/Conflict/Setting wording verbatim. Dramatize into scene action.
+8. STRICT ANTI-ECHO: Do not reuse ANY 4+ word phrase from STORY BEATS as dialogue or narration. Beat text = instructions, not prose. If a beat says "if they lose the trail, the garden stays dark" → no character may speak those words. Instead: show a dying flower, a cracked clock face, a character's jaw going tight. Translate instructions into ACTIONS and IMAGES.
+8b. Before finalizing each chapter: check your first 3 dialogue lines — do they echo the Goal/Conflict wording? If yes → rewrite as physical action.
 9. Keep optional metadata ultra-short; spend tokens on chapter prose.
 10. Validator anchors (must be natural prose, not checklist text):
-   - Ch1: Introduce EVERY character with one vivid detail before action starts (no cold name-drops).
-   - Ch1 includes one "Wenn ... sonst ..." sentence with concrete loss.
-   - Ch3 or Ch4 contains setback + body reaction.
-   - Final chapter includes concrete win + small cost line using "aber" or "kostete/musste".
+   - Ch1: Introduce EVERY character with one vivid physical detail before action starts (no cold name-drops).
+   - Ch1 includes a concrete stakes sentence: what is lost if they fail.
+   - Ch1-4 each end on UNRESOLVED TENSION (never "...and they were relieved" or "...they continued").
+   - Each chapter uses a DIFFERENT obstacle type — no plot device repeats within the story.
+   - EVERY character listed in a chapter speaks at least one line AND does one physical action.
+   - Ch3 or Ch4 contains setback + physical body reaction (2-3 sentences of feeling stuck).
+   - Final chapter includes concrete win + small tangible price + callback to Ch1's opening.
 11. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
 12. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 13. ${ageGroupRule}
+14. PARAGRAPH STRUCTURE: Use blank lines between paragraphs. Each chapter needs 4-6 paragraphs of 2-4 sentences each. NEVER one block of text.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -760,51 +775,64 @@ ${goldenExample}
 
 ${antiPatterns}
 
-::: PROSE DNA – HOW TO WRITE LIKE A REAL AUTHOR :::
+::: PROSE DNA – HOW TO WRITE LIKE A REAL PUBLISHED AUTHOR :::
 
-**PARAGRAPH STRUCTURE (CRITICAL – this is what separates real books from AI text):**
-NEVER write single-sentence-per-line chains like: "He ran. She jumped. He looked. She nodded."
-INSTEAD, write flowing paragraphs of 2-5 sentences where action, dialogue, and detail BLEND:
+**PARAGRAPH BREATHING (THE #1 QUALITY MARKER):**
+Every chapter MUST have 4-7 clearly separated paragraphs with a blank line between them.
+NEVER write one wall of text. Each paragraph = one beat: arrival, discovery, conflict, reaction, or decision.
+Paragraph length: 2-4 sentences. Never 1. Never 8+.
+After every 3-4 sentences of action → one short dialogue exchange. After dialogue → return to action/environment.
+This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories feel ALIVE.
 
-"Der Laden roch nach altem Holz. Bruno wischte die Theke mit einem Lappen, der frueher mal weiss
-gewesen war. 'Ich brauch Mehl', sagte er, ohne aufzusehen. 'Drei Saecke. Und Glueck.'"
-
-**SENTENCE RHYTHM PATTERNS:**
-- Short. Short. Looooong flowing sentence with a surprise at the end.
-- Dialogue interrupted by action: "Ich kann–" Er stolperte. "–das schaffen!"
-- Trio-rhythm for descriptions: Glatt. Kalt. Und viel zu schwer.
-- BANNED: "ploetzlich", "auf einmal", "dann" as sentence starters
+**SENTENCE RHYTHM:**
+- Short. Short. One longer flowing sentence with a surprise or image at the end.
+- Interrupt dialogue with action: "I can–" She tripped. "–do this."
+- Trio-rhythm for descriptions: Smooth. Cold. And far too heavy for one person alone.
+- BANNED sentence starters: "suddenly", "all at once", "then" (as a chain connector), "finally"
 
 **EMOTION = BODY, NEVER LABELS:**
-- NEVER: "Er war nervoes" → INSTEAD: "Seine Finger krallten sich in den Stoff."
-- NEVER: "Sie war gluecklich" → INSTEAD: "Ihre Zehen wackelten in den Stiefeln."
-- Each chapter gets ONE somatic-marker moment (belly tightening, hands sweating, etc.)
+- NEVER: "He was nervous" → INSTEAD: "His fingers dug into the fabric of his jacket."
+- NEVER: "She felt happy" → INSTEAD: "Her toes curled inside her boots."
+- Each chapter gets EXACTLY ONE somatic-marker moment (stomach tightening, throat dry, hands shaking, etc.)
 
 **DIALOGUE = CHARACTER IDENTITY:**
-- Each character must have a UNIQUE speech pattern (sentence length, vocabulary, attitude)
-- EVERY dialogue line must be anchored to a physical action (no talking heads)
-- Quick exchanges (3+ back-and-forth) create energy and humor
-- At least 25% of total text must be dialogue
+- Each character must be recognizable by their sentence length and vocabulary ALONE — no name tag needed
+- EVERY dialogue line must be physically anchored (no floating quotes, no talking heads)
+- Quick 3+ line exchanges create energy and humor — use them at least once per chapter
+- At least 25% of each chapter must be dialogue
 
-**ACTIVE PRESENCE (CRITICAL – #1 source of quality failures):**
-- EVERY character listed in a chapter MUST have at least ONE spoken line AND ONE physical action.
-- If a character is listed but you cannot give them meaningful action → INVENT a reason for them to act.
-- NO character may be merely "mentioned" or "present" without doing something visible.
-- Check: After writing each chapter, verify EVERY listed character has dialogue + action.
+**ACTIVE PRESENCE — ZERO GHOST CHARACTERS:**
+- EVERY character listed for a chapter MUST speak at least ONE line AND perform at least ONE physical action
+- If you struggle to give a character something to do → use them for comic relief, observation, or contradiction
+- A character who only exists as "he was also there" does NOT count as present
+- After writing each chapter: mentally check every listed name — did they speak? did they move?
+
+**CHAPTER ENDINGS — NO SOFT LANDINGS:**
+- Chapters 1-4 must end with UNRESOLVED TENSION: a door slamming shut, a sudden noise, a choice not yet made
+- The reader must feel a physical urge to turn the page
+- FORBIDDEN endings for Chapters 1-4: "...and so they continued." / "...and things were okay." / "...they were relieved."
+- Chapter 5 ends with resolution + ONE warm, specific image (not a moral statement)
+
+**PLOT DEVICE VARIETY — NO REPEATS:**
+- Each chapter must use a DIFFERENT type of obstacle: false clue / trap / physical barrier / broken tool / betrayal / time pressure
+- NEVER use the same trick twice in one story (e.g., "false trail" can appear ONCE maximum)
+- The artifact may help, but the CHILD must be the one who decides how — the artifact never acts alone
 
 ::: HARD CONSTRAINTS :::
 1. LANGUAGE: ${outputLang} ONLY.${umlautRule}
 2. FORMAT: Single valid JSON object.
 3. LENGTH: Total ${totalWordMin}-${totalWordMax} words. Each chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
-   → Stories under ${totalWordMin} words = REJECTED. Expand dialogue and interactions!
+   → Stories under ${totalWordMin} words = REJECTED. Expand dialogue and scene texture!
 4. CAST LOCK: Only ${allowedNames.join(", ")}. No new character names. Ever.
 5. SAFETY: ${safetyRule}
 6. ${humorRule}
-7. NEVER copy Goal/Conflict/Setting text into the story. Dramatize the instructions into natural prose.
-8. Anti-echo rule: do not reuse any 6+ word sequence from STORY BEATS. Always paraphrase.
+7. NEVER copy Goal/Conflict/Setting text into the story. Dramatize into natural prose.
+8. STRICT ANTI-ECHO: Do not reuse ANY 4+ word phrase from STORY BEATS as dialogue or narration. Beat text = instructions, not prose. If a beat says "if they lose the trail, the garden stays dark" → no character may speak those words. Instead: show a dying flower, a cracked clock face, a character's jaw going tight. Translate instructions into ACTIONS and IMAGES.
+8b. Before finalizing each chapter: check your first 3 dialogue lines — do they echo the Goal/Conflict wording? If yes → rewrite as physical action.
 9. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-10. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+10. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns instead.
 11. ${ageGroupRule}
+12. PARAGRAPH BREAKS: Use blank lines between paragraphs. 4-7 paragraphs per chapter minimum. Never one text wall.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -817,20 +845,20 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 ${characterProfiles.join("\n")}
 ${childVoiceContract ? `\n${childVoiceContract}` : ""}
 ${memorySection}
-${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery → Misuse → Mastery (the CHILD solves the problem, not the artifact).\n` : ""}
+${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery → Temptation → Child-led Mastery (the CHILD decides how the artifact is used, it never acts alone).\n` : ""}
 
 ::: STORY BEATS (DRAMATIZE – DO NOT COPY) :::
 ${beatLines}
 
 ::: STORY STRUCTURE REQUIREMENTS :::
-- Chapter 1: INTRODUCE + HOOK + STAKES.
-  STEP 1 – INTRODUCTION (first paragraph): The reader knows NOBODY. Introduce EACH character with one vivid, specific detail (their look, habit, or quirk) as they naturally appear. Example: "Mia, die immer ihren roten Rucksack trug als wäre er Teil von ihr, stand am Waldrand..." NOT just dropping names cold.
-  STEP 2 – HOOK: Within the first 3 sentences after introductions, something must GO WRONG or a MYSTERY must appear.
-  STEP 3 – STAKES: By end of Ch 1, show CONCRETELY what is lost if they fail (e.g. "If they don't find the path, they sleep in the forest tonight").
-- Chapter 2: DISCOVERY + TEMPTATION. Introduce something exciting but dangerous. End with a decision point.
-- Chapter 3: COMPLICATION. Things get worse. A plan fails. Someone makes a mistake.
-- Chapter 3-4: LOWPOINT – a REAL setback: something breaks, someone gets hurt (scraped knee, torn jacket), a tool fails. Show the PHYSICAL emotional reaction (somatic marker!). The characters must feel DEFEATED for at least 2-3 sentences before recovering.
-- Chapter 5: RESOLUTION – show EXACTLY what was won + a SMALL TANGIBLE PRICE paid (lost hat, ruined shoes, late for dinner). The ENDING must CALLBACK to the BEGINNING (e.g. if Ch 1 started with being lost → Ch 5 must show them finding their way home).
+- Chapter 1: INTRODUCE → HOOK → STAKES
+  PARAGRAPH 1: Introduce EACH character with one vivid physical detail woven naturally into action. No cold name-drops.
+  PARAGRAPH 2+: Within 3 sentences of introduction, something goes wrong or a mystery appears.
+  FINAL PARAGRAPH: State CONCRETELY what is lost if they fail (e.g. "If they don't reach the altar by midnight, the garden dies forever"). End on unresolved tension — a question, a sound, a shadow.
+- Chapter 2: DISCOVERY + TEMPTATION. One exciting thing appears. One character wants to take a shortcut. Chapter ends with a door slamming, a trap springing, a wrong choice — unresolved.
+- Chapter 3: COMPLICATION + SETBACK. A plan fails. Something breaks or is lost. Show the physical/emotional reaction for 2-3 sentences. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
+- Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. A character almost gives up. ONE moment of courage or insight changes everything. Chapter ends with forward momentum but danger still present.
+- Chapter 5: RESOLUTION + CALLBACK + SMALL PRICE. Show EXACTLY what was won. Connect back to Chapter 1's opening image or problem. Include ONE small tangible loss (torn glove, lost hat, missed dinner). Final image: specific and warm, not a moral statement.
 
 ::: OUTPUT FORMAT :::
 Write a JSON object. Start with "_planning" to think before writing.
@@ -848,18 +876,36 @@ Write a JSON object. Start with "_planning" to think before writing.
       "ch3": ["..."], "ch4": ["..."], "ch5": ["..."]
     },
     "character_introductions": {
-      "[character1]": "One vivid intro detail for Ch1 (e.g. 'always wears a red hat, speaks in rhymes')",
-      "[character2]": "One vivid intro detail for Ch1",
+      "[character1]": "One vivid physical intro detail for Ch1 (e.g. 'silver helmet, moves with quiet certainty')",
+      "[character2]": "One vivid physical intro detail for Ch1",
       "[character3+]": "..."
     },
+    "chapter_obstacles": {
+      "ch1": "obstacle type (e.g. false clue / hidden trap / time pressure)",
+      "ch2": "DIFFERENT obstacle type — must not repeat ch1",
+      "ch3": "DIFFERENT obstacle type",
+      "ch4": "DIFFERENT obstacle type",
+      "ch5": "final challenge type"
+    },
+    "chapter_endings": {
+      "ch1": "What unresolved tension ends Ch1? (must be a question or danger, not a relief)",
+      "ch2": "What cliffhanger ends Ch2?",
+      "ch3": "What danger or setback ends Ch3?",
+      "ch4": "What forward momentum ends Ch4?",
+      "ch5": "What warm specific image closes the story?"
+    },
+    "paragraph_plan": {
+      "ch1": "List 4-6 paragraph beats: e.g. 'arrival + intro | mystery discovered | false path | trap triggered | stakes stated'",
+      "ch2_to_ch5": "Each chapter: 4-6 paragraph beats separated by blank lines"
+    },
+    "ghost_character_check": "List every character per chapter — confirm each has dialogue + physical action",
     "somatic_markers": ["5 physical sensations I will use instead of emotion words"],
-    "humor_beats": ["2 concrete funny moments I will include (situation, not wordplay)"],
-    "paragraph_commitment": "I will write flowing paragraphs of 2-5 sentences, NEVER single-sentence chains.",
-    "stakes": "What CONCRETELY is lost if they fail? (must appear in Ch 1)",
-    "lowpoint": "What SPECIFICALLY goes wrong in Ch 3-4? What breaks/fails? How do characters physically react?",
-    "payoff": "What is WON in Ch 5?",
-    "price": "What small tangible thing is LOST/sacrificed?",
-    "callback": "How does Ch 5 connect back to Ch 1?"
+    "humor_beats": ["2 concrete situational funny moments (NOT wordplay)"],
+    "stakes": "What CONCRETELY is lost if they fail? (must appear in Ch 1, last sentence)",
+    "lowpoint": "What SPECIFICALLY breaks/fails in Ch 3-4? How does the character physically react for 2-3 sentences?",
+    "payoff": "What is WON in Ch 5? (concrete object or outcome)",
+    "price": "What small tangible thing is lost or damaged?",
+    "callback": "Which image or problem from Ch 1 reappears in Ch 5?"
   },
   "title": "${titleHint}",
   "description": "Teaser sentence that plants a QUESTION in the reader's mind",
