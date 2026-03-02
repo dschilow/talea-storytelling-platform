@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import os
+import re
 import tempfile
 import time
 from typing import Any, List, Optional, Tuple
@@ -29,6 +30,93 @@ load_path = MODEL_DIR if (os.path.exists(MODEL_DIR) and len(os.listdir(MODEL_DIR
 qwen_model = None
 SUPPORTED_SPEAKERS: List[str] = []
 SUPPORTED_LANGUAGES: List[str] = []
+EMOTION_TAG_PATTERN = re.compile(r"\[(.*?)\]")
+EMOTION_STYLE_MAP = {
+    "excited": "speak with energetic excitement",
+    "dramatic": "speak with dramatic tension",
+    "thoughtful": "speak in a thoughtful and reflective tone",
+    "curious": "speak with curiosity",
+    "whisper": "speak in a soft whispering voice",
+    "whispers": "speak in a soft whispering voice",
+    "whispering": "speak in a soft whispering voice",
+    "gulps": "sound slightly nervous with a subtle gulp",
+    "nervous": "speak with slight nervousness",
+    "laughs": "add a gentle laugh in the delivery",
+    "laugh": "add a gentle laugh in the delivery",
+    "sad": "speak with a soft sad tone",
+    "happy": "speak with a warm happy tone",
+    "angry": "speak with controlled anger",
+    "calm": "speak calmly and steadily",
+    "serious": "speak in a serious tone",
+}
+
+
+def _style_from_tag(tag: str) -> str:
+    normalized = re.sub(r"\s+", " ", tag.strip().lower())
+    if not normalized:
+        return ""
+    mapped = EMOTION_STYLE_MAP.get(normalized)
+    if mapped:
+        return mapped
+    if "pause" in normalized or "beat" in normalized:
+        return "use short dramatic pauses where appropriate"
+    if "whisper" in normalized:
+        return "speak in a soft whispering voice"
+    if "excit" in normalized:
+        return "speak with energetic excitement"
+    if "dramatic" in normalized:
+        return "speak with dramatic tension"
+    if "laugh" in normalized:
+        return "add a gentle laugh in the delivery"
+    return ""
+
+
+def _prepare_text_and_instruct(text: str, base_instruct: str) -> Tuple[str, str]:
+    tags: List[str] = []
+
+    def _replace_tag(match: re.Match[str]) -> str:
+        raw_tag = (match.group(1) or "").strip()
+        normalized = re.sub(r"\s+", " ", raw_tag.lower())
+        if normalized:
+            tags.append(normalized)
+        if "pause" in normalized or "beat" in normalized:
+            return " ... "
+        return " "
+
+    cleaned = EMOTION_TAG_PATTERN.sub(_replace_tag, text or "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if not cleaned:
+        cleaned = str(text or "").strip()
+
+    style_parts: List[str] = []
+    seen_styles: set[str] = set()
+    for tag in tags:
+        style = _style_from_tag(tag)
+        if style and style not in seen_styles:
+            style_parts.append(style)
+            seen_styles.add(style)
+
+    instruct_parts: List[str] = []
+    if base_instruct.strip():
+        instruct_parts.append(base_instruct.strip())
+    if style_parts:
+        instruct_parts.append(", ".join(style_parts))
+
+    return cleaned, "; ".join(instruct_parts).strip()
+
+
+def _configure_torch_runtime() -> None:
+    if not torch.cuda.is_available():
+        return
+    try:
+        # Favor throughput on modern NVIDIA GPUs.
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision("high")
+        print("Torch CUDA runtime tuned for throughput (TF32 + cudnn benchmark).")
+    except Exception as exc:
+        print(f"Torch runtime tuning skipped: {exc}")
 
 
 def _resolve_attn_implementation() -> Optional[str]:
@@ -141,7 +229,7 @@ def _run_custom_voice_generation(
     texts: List[str],
     language: str,
     speaker_name: str,
-    instruct: str,
+    instructs: List[str],
 ) -> Tuple[List[Any], int]:
     with torch.inference_mode():
         if len(texts) == 1:
@@ -150,8 +238,9 @@ def _run_custom_voice_generation(
                 "language": language,
                 "speaker": speaker_name,
             }
-            if instruct:
-                kwargs["instruct"] = instruct
+            single_instruct = instructs[0].strip() if instructs else ""
+            if single_instruct:
+                kwargs["instruct"] = single_instruct
             wavs, sr = qwen_model.generate_custom_voice(**kwargs)
             return list(wavs), sr
 
@@ -160,8 +249,8 @@ def _run_custom_voice_generation(
             "language": [language] * len(texts),
             "speaker": [speaker_name] * len(texts),
         }
-        if instruct:
-            kwargs["instruct"] = [instruct] * len(texts)
+        if any((item or "").strip() for item in instructs):
+            kwargs["instruct"] = [str(item or "").strip() for item in instructs]
         wavs, sr = qwen_model.generate_custom_voice(**kwargs)
         return list(wavs), sr
 
@@ -184,18 +273,27 @@ def generate_audio(
 
     language = _resolve_language(language_id)
     speaker_name = (speaker or DEFAULT_SPEAKER).strip()
-    instruct = (instruct_text or "").strip()
+    base_instruct = (instruct_text or "").strip()
+    prepared_text, prepared_instruct = _prepare_text_and_instruct(text, base_instruct)
 
     mime_type = f"audio/{output_format}"
     used_format = output_format
 
     try:
         started_at = time.perf_counter()
-        print(f"Using CustomVoice Mode (speaker={speaker_name}, lang={language}, instruct={bool(instruct)})")
-        wavs, sr = _run_custom_voice_generation([text], language, speaker_name, instruct)
+        print(
+            f"Using CustomVoice Mode (speaker={speaker_name}, lang={language}, "
+            f"instruct={bool(prepared_instruct)})"
+        )
+        wavs, sr = _run_custom_voice_generation(
+            [prepared_text],
+            language,
+            speaker_name,
+            [prepared_instruct],
+        )
         audio_bytes = _wav_to_bytes(wavs[0], sr)
         elapsed = time.perf_counter() - started_at
-        print(f"CustomVoice generation completed in {elapsed:.3f}s (chars={len(text)})")
+        print(f"CustomVoice generation completed in {elapsed:.3f}s (chars={len(prepared_text)})")
     except Exception as exc:
         import traceback
         traceback.print_exc()
@@ -226,24 +324,36 @@ def generate_audio_batch(
 
     language = _resolve_language(language_id)
     speaker_name = (speaker or DEFAULT_SPEAKER).strip()
-    instruct = (instruct_text or "").strip()
+    base_instruct = (instruct_text or "").strip()
     mime_type = f"audio/{output_format}"
     used_format = output_format
 
     try:
         started_at = time.perf_counter()
+        prepared_texts: List[str] = []
+        prepared_instructs: List[str] = []
+        for raw_text in safe_texts:
+            prepared_text, prepared_instruct = _prepare_text_and_instruct(raw_text, base_instruct)
+            prepared_texts.append(prepared_text)
+            prepared_instructs.append(prepared_instruct)
+
         print(
             f"Using CustomVoice Batch Mode (items={len(safe_texts)}, speaker={speaker_name}, "
-            f"lang={language}, instruct={bool(instruct)})"
+            f"lang={language}, instruct={any(bool(i) for i in prepared_instructs)})"
         )
-        wavs, sr = _run_custom_voice_generation(safe_texts, language, speaker_name, instruct)
+        wavs, sr = _run_custom_voice_generation(
+            prepared_texts,
+            language,
+            speaker_name,
+            prepared_instructs,
+        )
         outputs: List[Tuple[bytes, str, str]] = []
         for wav in wavs:
             outputs.append((_wav_to_bytes(wav, sr), mime_type, used_format))
         elapsed = time.perf_counter() - started_at
         print(
             f"CustomVoice batch generation completed in {elapsed:.3f}s "
-            f"(items={len(safe_texts)}, total_chars={sum(len(t) for t in safe_texts)})"
+            f"(items={len(prepared_texts)}, total_chars={sum(len(t) for t in prepared_texts)})"
         )
         return outputs
     except Exception as exc:
@@ -252,4 +362,5 @@ def generate_audio_batch(
         raise RuntimeError(f"Error during Qwen3-TTS batch generation: {exc}")
 
 
+_configure_torch_runtime()
 load_qwen_model()

@@ -1,13 +1,18 @@
-FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+ARG PYTORCH_BASE_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
+FROM ${PYTORCH_BASE_IMAGE}
 
 ARG PREFETCH_MODEL=0
 ARG INSTALL_FLASH_ATTN=0
+ARG ENFORCE_FLASH_ATTN=0
+ARG FLASH_ATTN_VERSION=2.8.3
+ARG MAX_JOBS=8
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_PREFER_BINARY=1 \
-    HF_HOME=/opt/hf-cache
+    HF_HOME=/opt/hf-cache \
+    MAX_JOBS=${MAX_JOBS}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -18,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     ca-certificates \
     build-essential \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -38,13 +44,19 @@ RUN pip install --upgrade pip "setuptools<71" wheel && \
     qwen-tts
 
 # Optional: Try to install flash-attn. On runtime images (no nvcc), this may fail.
-# We keep the build successful and let the worker fall back to default attention.
+# Set ENFORCE_FLASH_ATTN=1 to fail the build when flash-attn is unavailable.
 RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
-      echo "Attempting flash-attn install..."; \
-      if pip install --no-cache-dir flash-attn --no-build-isolation; then \
+      echo "Attempting flash-attn install (version=${FLASH_ATTN_VERSION})..."; \
+      pip install --no-cache-dir ninja packaging; \
+      if pip install --no-cache-dir "flash-attn==${FLASH_ATTN_VERSION}" --no-build-isolation; then \
         echo "flash-attn installed successfully."; \
       else \
-        echo "flash-attn install failed; continuing without it."; \
+        echo "flash-attn install failed."; \
+        if [ "$ENFORCE_FLASH_ATTN" = "1" ]; then \
+          echo "ENFORCE_FLASH_ATTN=1, failing build."; \
+          exit 1; \
+        fi; \
+        echo "Continuing without flash-attn."; \
       fi; \
     else \
       echo "Skipping flash-attn install (INSTALL_FLASH_ATTN=$INSTALL_FLASH_ATTN)"; \
@@ -55,7 +67,12 @@ import sys; print(f'Python {sys.version}'); \
 import torch; print(f'[check] torch {torch.__version__} cuda={torch.cuda.is_available()}'); \
 import torchaudio; print('[check] torchaudio OK'); \
 import transformers; print(f'[check] transformers {transformers.__version__}'); \
+import importlib.util; print(f'[check] flash_attn_installed={importlib.util.find_spec(\"flash_attn\") is not None}'); \
 print('[check] All basics verified successfully')"
+
+RUN if [ "$ENFORCE_FLASH_ATTN" = "1" ]; then \
+      python -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('flash_attn') else 1)"; \
+    fi
 
 # This will pre-download the model at image build time if PREFETCH_MODEL=1
 RUN if [ "$PREFETCH_MODEL" = "1" ]; then \

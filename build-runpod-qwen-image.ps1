@@ -1,8 +1,18 @@
 param(
     [string]$DockerHubUsername = "",
     [switch]$Prefetch = $false,
-    [switch]$InstallFlashAttn = $false
+    [switch]$InstallFlashAttn = $false,
+    [switch]$EnforceFlashAttn = $false,
+    [switch]$UseDevelBase = $false,
+    [switch]$MaxPerf = $false
 )
+
+if ($MaxPerf) {
+    $Prefetch = $true
+    $InstallFlashAttn = $true
+    $EnforceFlashAttn = $true
+    $UseDevelBase = $true
+}
 
 if ($DockerHubUsername -eq "") {
     $DockerHubUsername = Read-Host "Bitte gib deinen DockerHub Benutzernamen ein (oder drücke Enter für 'talea')"
@@ -20,9 +30,20 @@ $LatestTag = "${BaseName}:latest"
 
 $PrefetchVal = if ($Prefetch) { 1 } else { 0 }
 $InstallFlashAttnVal = if ($InstallFlashAttn) { 1 } else { 0 }
+$EnforceFlashAttnVal = if ($EnforceFlashAttn) { 1 } else { 0 }
+$BaseImage = if ($UseDevelBase) { "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel" } else { "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime" }
 $ModeText = if ($Prefetch) { "PROD (mit Modellen)" } else { "FAST-DEV (ohne Modelle)" }
 if ($InstallFlashAttn) {
     $ModeText = "$ModeText + flash-attn"
+}
+if ($EnforceFlashAttn) {
+    $ModeText = "$ModeText + enforce-flash"
+}
+if ($UseDevelBase) {
+    $ModeText = "$ModeText + devel-base"
+}
+if ($MaxPerf) {
+    $ModeText = "MAX-PERF (prefetch + flash + enforce + devel)"
 }
 
 Write-Host "==========================================================================" -ForegroundColor Cyan
@@ -32,7 +53,7 @@ Write-Host "====================================================================
 
 # Schritt 1: Docker Image bauen
 Write-Host "`n[Schritt 1/2] Baue Docker Image..." -ForegroundColor Yellow
-docker build --build-arg PREFETCH_MODEL=$PrefetchVal --build-arg INSTALL_FLASH_ATTN=$InstallFlashAttnVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
+docker build --build-arg PYTORCH_BASE_IMAGE=$BaseImage --build-arg PREFETCH_MODEL=$PrefetchVal --build-arg INSTALL_FLASH_ATTN=$InstallFlashAttnVal --build-arg ENFORCE_FLASH_ATTN=$EnforceFlashAttnVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Fehler beim Bauen des Docker Images!" -ForegroundColor Red

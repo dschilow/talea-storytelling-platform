@@ -58,17 +58,33 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     setSpeakerLoadError('');
     try {
       const token = await getToken();
-      const response = await fetch(`${getBackendUrl()}/tts/qwen/voices`, {
-        method: 'GET',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include',
-      });
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
 
-      if (!response.ok) {
-        const payload = await response.text();
-        throw new Error(payload || `HTTP ${response.status}`);
+      // Prefer the new Qwen route, but stay compatible with older backend deploys.
+      const routes = ['/tts/qwen/voices', '/tts/cosyvoice/voices'];
+      let response: Response | null = null;
+      let lastErrorText = '';
+      for (const route of routes) {
+        const candidate = await fetch(`${getBackendUrl()}${route}`, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+        });
+        if (candidate.ok) {
+          response = candidate;
+          break;
+        }
+        const payload = await candidate.text();
+        lastErrorText = payload || `HTTP ${candidate.status}`;
+        if (candidate.status !== 404) {
+          throw new Error(lastErrorText);
+        }
+      }
+
+      if (!response) {
+        throw new Error(lastErrorText || 'No compatible voices endpoint found.');
       }
 
       const payload = (await response.json()) as { availableSpeakers?: string[]; defaultSpeaker?: string };
