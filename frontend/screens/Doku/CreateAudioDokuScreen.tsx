@@ -288,55 +288,6 @@ const resolveMappedSpeaker = (speaker: string, speakerVoiceMap: Record<string, s
   return undefined;
 };
 
-const hasWavHeader = (bytes: Uint8Array): boolean => {
-  if (bytes.length < 12) return false;
-  return (
-    bytes[0] === 0x52 &&
-    bytes[1] === 0x49 &&
-    bytes[2] === 0x46 &&
-    bytes[3] === 0x46 &&
-    bytes[8] === 0x57 &&
-    bytes[9] === 0x41 &&
-    bytes[10] === 0x56 &&
-    bytes[11] === 0x45
-  );
-};
-
-const concatBytes = (chunks: Uint8Array[]): Uint8Array => {
-  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return merged;
-};
-
-const concatAudioChunks = (chunks: Uint8Array[], mimeType: string): Uint8Array => {
-  const isWav = mimeType.includes('wav') || mimeType.includes('wave');
-  if (!isWav || chunks.length <= 1) {
-    return concatBytes(chunks);
-  }
-
-  const WAV_HEADER_SIZE = 44;
-  const adjusted: Uint8Array[] = chunks.map((chunk, index) => {
-    if (index === 0) return chunk;
-    if (chunk.length > WAV_HEADER_SIZE && hasWavHeader(chunk)) {
-      return chunk.subarray(WAV_HEADER_SIZE);
-    }
-    return chunk;
-  });
-
-  const merged = concatBytes(adjusted);
-  if (merged.length >= WAV_HEADER_SIZE && hasWavHeader(merged)) {
-    const view = new DataView(merged.buffer, merged.byteOffset, merged.byteLength);
-    view.setUint32(4, Math.max(0, merged.length - 8), true);
-    view.setUint32(40, Math.max(0, merged.length - WAV_HEADER_SIZE), true);
-  }
-  return merged;
-};
-
 const blobToDataUrl = (blob: Blob): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -354,7 +305,53 @@ const float32ToInt16 = (samples: Float32Array): Int16Array => {
   return output;
 };
 
-const transcodeWavBlobToMp3 = async (wavBlob: Blob): Promise<Blob> => {
+const createAudioContext = (): AudioContext => {
+  const AudioCtxCtor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtxCtor) {
+    throw new Error('AudioContext is not supported in this browser.');
+  }
+  return new AudioCtxCtor();
+};
+
+const createOfflineAudioContext = (
+  channels: number,
+  length: number,
+  sampleRate: number,
+): OfflineAudioContext => {
+  const OfflineCtor =
+    window.OfflineAudioContext ||
+    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+  if (!OfflineCtor) {
+    throw new Error('OfflineAudioContext is not supported in this browser.');
+  }
+  return new OfflineCtor(channels, length, sampleRate);
+};
+
+const resampleAudioBuffer = async (
+  source: AudioBuffer,
+  targetSampleRate: number,
+  targetChannels: number,
+): Promise<AudioBuffer> => {
+  if (source.sampleRate === targetSampleRate && source.numberOfChannels === targetChannels) {
+    return source;
+  }
+
+  const length = Math.max(1, Math.ceil(source.duration * targetSampleRate));
+  const offline = createOfflineAudioContext(targetChannels, length, targetSampleRate);
+  const src = offline.createBufferSource();
+  src.buffer = source;
+  src.connect(offline.destination);
+  src.start(0);
+  return await offline.startRendering();
+};
+
+const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
+  if (segments.length === 0) {
+    throw new Error('No audio segments to encode.');
+  }
+
   const lameModule = (await import('lamejs')) as any;
   const lame = lameModule?.default ?? lameModule;
   const Mp3Encoder = lame?.Mp3Encoder;
@@ -362,22 +359,45 @@ const transcodeWavBlobToMp3 = async (wavBlob: Blob): Promise<Blob> => {
     throw new Error('MP3 encoder is not available.');
   }
 
-  const audioArrayBuffer = await wavBlob.arrayBuffer();
-  const AudioCtx =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtx) {
-    throw new Error('AudioContext is not supported in this browser.');
-  }
-
-  const context = new AudioCtx();
+  const context = createAudioContext();
   try {
-    const decoded = await context.decodeAudioData(audioArrayBuffer.slice(0));
-    const channelCount = Math.min(2, Math.max(1, decoded.numberOfChannels));
-    const left = float32ToInt16(decoded.getChannelData(0));
-    const right = channelCount > 1 ? float32ToInt16(decoded.getChannelData(1)) : null;
+    const decodedSegments: AudioBuffer[] = [];
+    for (const segment of segments) {
+      const arr = await segment.arrayBuffer();
+      const decoded = await context.decodeAudioData(arr.slice(0));
+      decodedSegments.push(decoded);
+    }
 
-    const encoder = new Mp3Encoder(channelCount, decoded.sampleRate, 160);
+    const targetSampleRate = decodedSegments[0].sampleRate;
+    const targetChannels = decodedSegments.some((buffer) => buffer.numberOfChannels > 1) ? 2 : 1;
+
+    const normalizedSegments: AudioBuffer[] = [];
+    for (const segment of decodedSegments) {
+      normalizedSegments.push(await resampleAudioBuffer(segment, targetSampleRate, targetChannels));
+    }
+
+    const totalSamples = normalizedSegments.reduce((sum, segment) => sum + segment.length, 0);
+    const mergedLeft = new Float32Array(totalSamples);
+    const mergedRight = targetChannels > 1 ? new Float32Array(totalSamples) : null;
+
+    let writeOffset = 0;
+    for (const segment of normalizedSegments) {
+      const leftChunk = segment.getChannelData(0);
+      mergedLeft.set(leftChunk, writeOffset);
+
+      if (mergedRight) {
+        const rightChunk =
+          segment.numberOfChannels > 1 ? segment.getChannelData(1) : segment.getChannelData(0);
+        mergedRight.set(rightChunk, writeOffset);
+      }
+
+      writeOffset += leftChunk.length;
+    }
+
+    const left = float32ToInt16(mergedLeft);
+    const right = mergedRight ? float32ToInt16(mergedRight) : null;
+
+    const encoder = new Mp3Encoder(targetChannels, targetSampleRate, 160);
     const blockSize = 1152;
     const chunks: Uint8Array[] = [];
 
@@ -438,7 +458,7 @@ const generateQwenDialogueViaBatchFallback = async (
         text: turn.text,
         speaker: resolveMappedSpeaker(turn.speaker, speakerVoiceMap),
       })),
-      outputFormat: 'wav',
+      outputFormat: 'mp3',
     }),
   });
 
@@ -451,8 +471,7 @@ const generateQwenDialogueViaBatchFallback = async (
   };
   const resultMap = new Map((payload.results || []).map((item) => [item.id, item]));
 
-  const audioChunks: Uint8Array[] = [];
-  let mimeType = 'audio/wav';
+  const segmentBlobs: Blob[] = [];
 
   for (const turn of turns) {
     const result = resultMap.get(turn.id);
@@ -460,31 +479,15 @@ const generateQwenDialogueViaBatchFallback = async (
       throw new Error(`Qwen Batch fehlgeschlagen (${turn.speaker}): ${result?.error || 'kein Audio'}`);
     }
     const blob = await (await fetch(result.audio)).blob();
-    if (blob.type) {
-      mimeType = blob.type;
-    }
-    const buffer = await blob.arrayBuffer();
-    audioChunks.push(new Uint8Array(buffer));
+    segmentBlobs.push(blob);
   }
 
-  if (audioChunks.length === 0) {
+  if (segmentBlobs.length === 0) {
     throw new Error('Qwen Batch hat keine Audiodaten geliefert.');
   }
 
-  const combinedBytes = concatAudioChunks(audioChunks, mimeType);
-  const combinedBlob = new Blob([combinedBytes], { type: mimeType });
-
-  let finalBlob = combinedBlob;
-  let finalMimeType = mimeType;
-  if (mimeType.includes('wav') || mimeType.includes('wave')) {
-    try {
-      finalBlob = await transcodeWavBlobToMp3(combinedBlob);
-      finalMimeType = 'audio/mpeg';
-    } catch (transcodeError) {
-      console.warn('[AudioDoku] WAV->MP3 transcode failed, keeping WAV fallback:', transcodeError);
-    }
-  }
-
+  const finalBlob = await transcodeAudioSegmentsToMp3(segmentBlobs);
+  const finalMimeType = 'audio/mpeg';
   const combinedAudioData = await blobToDataUrl(finalBlob);
 
   return {
