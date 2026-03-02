@@ -23,7 +23,7 @@ MODEL_DIR = os.environ.get("MODEL_DIR", "/opt/models/Qwen3-TTS-CustomVoice")
 DEFAULT_SPEAKER = os.environ.get("DEFAULT_SPEAKER", "Vivian")
 DEFAULT_LANGUAGE = os.environ.get("DEFAULT_LANGUAGE", "German")
 ATTN_IMPLEMENTATION = os.environ.get("QWEN_ATTN_IMPLEMENTATION", "auto").strip()
-ENABLE_TORCH_COMPILE = os.environ.get("ENABLE_TORCH_COMPILE", "1").strip() == "1"
+ENABLE_TORCH_COMPILE = os.environ.get("ENABLE_TORCH_COMPILE", "0").strip() == "1"
 HAS_FLASH_ATTN = importlib.util.find_spec("flash_attn") is not None
 
 load_path = MODEL_DIR if (os.path.exists(MODEL_DIR) and len(os.listdir(MODEL_DIR)) > 0) else MODEL_ID
@@ -210,12 +210,14 @@ def load_qwen_model() -> None:
 
     load_kwargs: dict[str, Any] = {
         "device_map": "cuda:0" if torch.cuda.is_available() else "cpu",
-        "torch_dtype": torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        # NOTE: Qwen3TTSModel uses 'dtype=' (NOT 'torch_dtype=').
+        # Using torch_dtype= triggers a deprecation warning and does NOT apply
+        # bfloat16 correctly, causing flash-attn to run in float32 (2x slower).
+        "dtype": torch.bfloat16 if torch.cuda.is_available() else torch.float32,
     }
     attn_implementation = _resolve_attn_implementation()
     if torch.cuda.is_available() and attn_implementation:
-        # Prefer FlashAttention-2 — explicitly pass torch_dtype to silence the warning
-        # "You are attempting to use Flash Attention 2 without specifying a torch dtype"
+        # Prefer FlashAttention-2 if available in the container.
         load_kwargs["attn_implementation"] = attn_implementation
 
     try:
