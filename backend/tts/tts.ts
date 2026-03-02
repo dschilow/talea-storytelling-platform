@@ -136,6 +136,29 @@ interface GenerateSpeechBatchRequest {
   model?: string;
 }
 
+interface GenerateQwenDialogueRequest {
+  script: string;
+  speakerVoiceMap: Record<string, string>;
+  instructText?: string;
+  outputFormat?: AudioFormat;
+  languageId?: string;
+}
+
+interface GenerateQwenDialogueResponse {
+  variants: Array<{
+    id: string;
+    audioData: string;
+    mimeType: string;
+  }>;
+  turns: number;
+  speakers: string[];
+}
+
+type DialogueTurn = {
+  speaker: string;
+  text: string;
+};
+
 type ResolvedReferenceAudio = {
   buffer: Buffer;
   contentType: string;
@@ -191,6 +214,82 @@ function resolveRunpodEndpointMode(
 function normalizeOutputFormat(value: string | undefined): AudioFormat {
   const normalized = (value || "").trim().toLowerCase();
   return normalized === "mp3" ? "mp3" : "wav";
+}
+
+function normalizeDialogueSpeaker(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function parseDialogueScript(script: string): DialogueTurn[] {
+  const normalizedScript = script.replace(/\r\n/g, "\n").trim();
+  if (!normalizedScript) {
+    throw APIError.invalidArgument("Script is required.");
+  }
+
+  const lines = normalizedScript.split("\n");
+  const turns: DialogueTurn[] = [];
+
+  let currentSpeaker = "";
+  let currentLines: string[] = [];
+
+  const pushCurrentTurn = () => {
+    if (!currentSpeaker) return;
+    const text = currentLines.join("\n").trim();
+    if (text) {
+      turns.push({ speaker: currentSpeaker, text });
+    }
+    currentSpeaker = "";
+    currentLines = [];
+  };
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trimEnd();
+    const speakerMatch = line.match(/^\s*([^:\n]{1,80}):\s*(.*)$/);
+
+    if (speakerMatch) {
+      pushCurrentTurn();
+      currentSpeaker = normalizeDialogueSpeaker(speakerMatch[1]);
+      currentLines = [speakerMatch[2].trim()];
+      return;
+    }
+
+    if (!line.trim()) {
+      if (currentLines.length > 0) currentLines.push("");
+      return;
+    }
+
+    if (!currentSpeaker) {
+      throw APIError.invalidArgument(
+        `Invalid script format on line ${index + 1}. Each dialogue block must start with "SPEAKER: text".`
+      );
+    }
+
+    currentLines.push(line.trim());
+  });
+
+  pushCurrentTurn();
+
+  if (turns.length === 0) {
+    throw APIError.invalidArgument(
+      "No dialogue turns found. Use the format \"SPEAKER: text\" for each block."
+    );
+  }
+
+  return turns;
+}
+
+function resolveMappedSpeaker(speaker: string, speakerVoiceMap: Record<string, string>): string | undefined {
+  const direct = speakerVoiceMap[speaker]?.trim();
+  if (direct) return direct;
+
+  const normalized = speaker.toLowerCase();
+  for (const [candidateSpeaker, candidateVoiceId] of Object.entries(speakerVoiceMap)) {
+    if (candidateSpeaker.trim().toLowerCase() !== normalized) continue;
+    const mapped = candidateVoiceId?.trim();
+    if (mapped) return mapped;
+  }
+
+  return undefined;
 }
 
 function buildRunpodBaseUrl(): string {
@@ -1405,103 +1504,107 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
   }
 );
 
+async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Promise<TTSBatchResponse> {
+  if (!req.items || req.items.length === 0) {
+    return { results: [] };
+  }
+
+  // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
+  // Set well above frontend chunking (280 chars) to avoid double-chunking.
+  // Auto-chunking causes silent sentence drops when sub-chunks fail, so we
+  // want it to trigger only as a last resort for truly oversized items.
+  const MAX_ITEM_CHARS = 600;
+  const expandedItems: TTSBatchItem[] = [];
+  // Track which original items were split so we can reassemble later
+  const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
+
+  for (const item of req.items) {
+    const text = (item.text || "").trim();
+    const itemSpeaker = String(item.speaker || "").trim();
+    if (!text) {
+      expandedItems.push({ id: item.id, text: "", ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
+      continue;
+    }
+    if (text.length <= MAX_ITEM_CHARS) {
+      expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
+      continue;
+    }
+    // Item is oversized — split it
+    const chunks = splitTextIntoChunks(text);
+    if (chunks.length <= 1) {
+      expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
+      continue;
+    }
+    const chunkIds: string[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkId = `${item.id}__autochunk${i}`;
+      chunkIds.push(chunkId);
+      expandedItems.push({
+        id: chunkId,
+        text: chunks[i],
+        ...(itemSpeaker ? { speaker: itemSpeaker } : {}),
+      });
+    }
+    splitTracker.set(item.id, { chunkIds, originalId: item.id });
+    log.info(`[tts/batch] Auto-chunked item ${item.id}: ${text.length} chars → ${chunks.length} chunks`);
+  }
+
+  const expandedReq: GenerateSpeechBatchRequest = { ...req, items: expandedItems };
+
+  // Queue mode: send all items as a single RunPod job (real batch)
+  if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
+    try {
+      const rawResults = await withRunpodSlot(() => runpodQueueTtsBatchRequest(expandedReq));
+      return { results: reassembleSplitResults(rawResults, splitTracker) };
+    } catch (error) {
+      if (isApiError(error)) throw error;
+      const message = getErrorMessage(error);
+      log.error(`TTS batch failed: ${message}`);
+      throw APIError.unavailable(`CosyVoice batch generation failed: ${message}`);
+    }
+  }
+
+  // Load balancer mode: sequential per-item requests (fallback)
+  const rawResults: TTSBatchResultItem[] = [];
+
+  for (const item of expandedItems) {
+    const text = (item.text || "").trim();
+    if (!text) {
+      rawResults.push({ id: item.id, audio: null, error: "Text is required." });
+      continue;
+    }
+
+    try {
+      const response = await withRunpodSlot(() =>
+        runpodTtsRequest({
+          text,
+          provider: req.provider,
+          promptText: req.promptText,
+          referenceAudioDataUrl: req.referenceAudioDataUrl,
+          referenceAudioUrl: req.referenceAudioUrl,
+          speaker: String(item.speaker || req.speaker || "").trim(),
+          emotion: req.emotion,
+          instructText: req.instructText,
+          outputFormat: req.outputFormat,
+          languageId: req.languageId,
+          model: req.model,
+        })
+      );
+      rawResults.push({ id: item.id, audio: response.audioData, error: null });
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`TTS batch item failed (${item.id}): ${message}`);
+      rawResults.push({ id: item.id, audio: null, error: message });
+    }
+  }
+
+  return { results: reassembleSplitResults(rawResults, splitTracker) };
+}
+
 export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchResponse>(
   { expose: true, method: "POST", path: "/tts/batch" },
   async (req) => {
-    if (!req.items || req.items.length === 0) {
-      return { results: [] };
-    }
-
-    // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
-    // Set well above frontend chunking (280 chars) to avoid double-chunking.
-    // Auto-chunking causes silent sentence drops when sub-chunks fail, so we
-    // want it to trigger only as a last resort for truly oversized items.
-    const MAX_ITEM_CHARS = 600;
-    const expandedItems: TTSBatchItem[] = [];
-    // Track which original items were split so we can reassemble later
-    const splitTracker = new Map<string, { chunkIds: string[]; originalId: string }>();
-
-    for (const item of req.items) {
-      const text = (item.text || "").trim();
-      const itemSpeaker = String(item.speaker || "").trim();
-      if (!text) {
-        expandedItems.push({ id: item.id, text: "", ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
-        continue;
-      }
-      if (text.length <= MAX_ITEM_CHARS) {
-        expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
-        continue;
-      }
-      // Item is oversized — split it
-      const chunks = splitTextIntoChunks(text);
-      if (chunks.length <= 1) {
-        expandedItems.push({ id: item.id, text, ...(itemSpeaker ? { speaker: itemSpeaker } : {}) });
-        continue;
-      }
-      const chunkIds: string[] = [];
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkId = `${item.id}__autochunk${i}`;
-        chunkIds.push(chunkId);
-        expandedItems.push({
-          id: chunkId,
-          text: chunks[i],
-          ...(itemSpeaker ? { speaker: itemSpeaker } : {}),
-        });
-      }
-      splitTracker.set(item.id, { chunkIds, originalId: item.id });
-      log.info(`[tts/batch] Auto-chunked item ${item.id}: ${text.length} chars → ${chunks.length} chunks`);
-    }
-
-    const expandedReq: GenerateSpeechBatchRequest = { ...req, items: expandedItems };
-
-    // Queue mode: send all items as a single RunPod job (real batch)
-    if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
-      try {
-        const rawResults = await withRunpodSlot(() => runpodQueueTtsBatchRequest(expandedReq));
-        return { results: reassembleSplitResults(rawResults, splitTracker) };
-      } catch (error) {
-        if (isApiError(error)) throw error;
-        const message = getErrorMessage(error);
-        log.error(`TTS batch failed: ${message}`);
-        throw APIError.unavailable(`CosyVoice batch generation failed: ${message}`);
-      }
-    }
-
-    // Load balancer mode: sequential per-item requests (fallback)
-    const rawResults: TTSBatchResultItem[] = [];
-
-    for (const item of expandedItems) {
-      const text = (item.text || "").trim();
-      if (!text) {
-        rawResults.push({ id: item.id, audio: null, error: "Text is required." });
-        continue;
-      }
-
-      try {
-        const response = await withRunpodSlot(() =>
-          runpodTtsRequest({
-            text,
-            provider: req.provider,
-            promptText: req.promptText,
-            referenceAudioDataUrl: req.referenceAudioDataUrl,
-            referenceAudioUrl: req.referenceAudioUrl,
-            speaker: String(item.speaker || req.speaker || "").trim(),
-            emotion: req.emotion,
-            instructText: req.instructText,
-            outputFormat: req.outputFormat,
-            languageId: req.languageId,
-            model: req.model,
-          })
-        );
-        rawResults.push({ id: item.id, audio: response.audioData, error: null });
-      } catch (error) {
-        const message = getErrorMessage(error);
-        log.error(`TTS batch item failed (${item.id}): ${message}`);
-        rawResults.push({ id: item.id, audio: null, error: message });
-      }
-    }
-
-    return { results: reassembleSplitResults(rawResults, splitTracker) };
+    return await generateSpeechBatchInternal(req);
   }
 );
 
@@ -1624,6 +1727,91 @@ function isWavHeader(buf: Buffer): boolean {
     buf[8] === 0x57 && buf[9] === 0x41 && buf[10] === 0x56 && buf[11] === 0x45
   );
 }
+
+function decodeAudioResult(audio: string, fallbackMimeType: string): { buffer: Buffer; mimeType: string } {
+  const base64Match = audio.match(/^data:([^;]+);base64,(.+)$/);
+  if (base64Match) {
+    const mimeType = String(base64Match[1] || "").trim() || fallbackMimeType;
+    return {
+      buffer: Buffer.from(base64Match[2], "base64"),
+      mimeType,
+    };
+  }
+  return {
+    buffer: Buffer.from(audio, "base64"),
+    mimeType: fallbackMimeType,
+  };
+}
+
+export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwenDialogueResponse>(
+  { expose: true, method: "POST", path: "/tts/qwen/dialogue" },
+  async (req) => {
+    if (!req.speakerVoiceMap || Object.keys(req.speakerVoiceMap).length === 0) {
+      throw APIError.invalidArgument("speakerVoiceMap is required.");
+    }
+
+    const turns = parseDialogueScript(req.script);
+    const missingSpeakers = new Set<string>();
+
+    const items: TTSBatchItem[] = turns.map((turn, index) => {
+      const mappedSpeaker = resolveMappedSpeaker(turn.speaker, req.speakerVoiceMap);
+      if (!mappedSpeaker) {
+        missingSpeakers.add(turn.speaker);
+      }
+      return {
+        id: `turn-${index + 1}`,
+        text: turn.text,
+        ...(mappedSpeaker ? { speaker: mappedSpeaker } : {}),
+      };
+    });
+
+    if (missingSpeakers.size > 0) {
+      const speakers = [...missingSpeakers].join(", ");
+      throw APIError.invalidArgument(`Missing Qwen voice mapping for speaker(s): ${speakers}`);
+    }
+
+    const batch = await generateSpeechBatchInternal({
+      items,
+      instructText: (req.instructText || "").trim() || undefined,
+      outputFormat: req.outputFormat,
+      languageId: (req.languageId || "").trim() || undefined,
+    });
+
+    const resultMap = new Map(batch.results.map((result) => [result.id, result]));
+    const fallbackMimeType = req.outputFormat === "wav" ? "audio/wav" : "audio/mpeg";
+    const buffers: Buffer[] = [];
+    let detectedMimeType = fallbackMimeType;
+
+    for (const item of items) {
+      const result = resultMap.get(item.id);
+      if (!result?.audio || result.error) {
+        throw APIError.unavailable(
+          `Qwen dialogue item failed (${item.id}): ${result?.error || "missing audio"}`
+        );
+      }
+      const decoded = decodeAudioResult(result.audio, fallbackMimeType);
+      buffers.push(decoded.buffer);
+      detectedMimeType = decoded.mimeType || detectedMimeType;
+    }
+
+    if (buffers.length === 0) {
+      throw APIError.unavailable("Qwen dialogue generation returned no audio.");
+    }
+
+    const combined = concatenateAudioBuffers(buffers, detectedMimeType);
+    return {
+      variants: [
+        {
+          id: "variant-1",
+          audioData: `data:${detectedMimeType};base64,${combined.toString("base64")}`,
+          mimeType: detectedMimeType,
+        },
+      ],
+      turns: turns.length,
+      speakers: [...new Set(turns.map((turn) => turn.speaker))],
+    };
+  }
+);
 
 async function listRunpodVoicesOrThrow(providerLabel: string): Promise<CosyVoiceVoicesResponse> {
   try {
