@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ListPlus, Loader2, Mic, Play, RotateCcw, Upload } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ListPlus, Loader2, Play, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -9,8 +9,6 @@ import type { Chapter } from '../../types/story';
 import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
-  PRESET_VOICES,
-  type TTSVoiceMode,
   type TTSVoiceSettings,
 } from '../../types/ttsVoice';
 
@@ -32,95 +30,35 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { getToken } = useAuth();
   const { startStoryConversion, removeStoryFromPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
+
   const [isAdding, setIsAdding] = useState(false);
-  const [voiceMode, setVoiceMode] = useState<TTSVoiceMode>('preset');
-  const [selectedPresetId, setSelectedPresetId] = useState(PRESET_VOICES[0]?.id || '');
-  const [presetDataUrls, setPresetDataUrls] = useState<Record<string, string>>({});
-  const [presetLoading, setPresetLoading] = useState<Record<string, boolean>>({});
   const [availableSpeakers, setAvailableSpeakers] = useState<string[]>([]);
   const [selectedSpeaker, setSelectedSpeaker] = useState('');
-  const [voicePromptText, setVoicePromptText] = useState('');
-  const [referenceAudioDataUrl, setReferenceAudioDataUrl] = useState('');
-  const [referenceFileName, setReferenceFileName] = useState('');
   const [loadingSpeakers, setLoadingSpeakers] = useState(false);
   const [speakerLoadError, setSpeakerLoadError] = useState('');
-  const [uploadError, setUploadError] = useState('');
-  const loadedPresetsRef = useRef(new Set<string>());
 
   const isDark = resolvedTheme === 'dark';
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
 
-  // Lazy-load preset voice MP3 as data URL
-  const loadPresetDataUrl = useCallback(async (voiceId: string) => {
-    if (loadedPresetsRef.current.has(voiceId)) return;
-    const preset = PRESET_VOICES.find((v) => v.id === voiceId);
-    if (!preset) return;
-
-    loadedPresetsRef.current.add(voiceId);
-    setPresetLoading((prev) => ({ ...prev, [voiceId]: true }));
-
-    try {
-      const response = await fetch(preset.audioPath);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('read failed')));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-      setPresetDataUrls((prev) => ({ ...prev, [voiceId]: dataUrl }));
-    } catch (error) {
-      console.error(`Failed to load preset voice ${voiceId}:`, error);
-      loadedPresetsRef.current.delete(voiceId);
-    } finally {
-      setPresetLoading((prev) => ({ ...prev, [voiceId]: false }));
-    }
-  }, []);
-
-  // Load selected preset voice on mount and when selection changes
-  useEffect(() => {
-    if (voiceMode === 'preset' && selectedPresetId && !presetDataUrls[selectedPresetId]) {
-      void loadPresetDataUrl(selectedPresetId);
-    }
-  }, [voiceMode, selectedPresetId, presetDataUrls, loadPresetDataUrl]);
-
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
-    if (voiceMode === 'preset') {
-      return {
-        mode: 'preset',
-        presetVoiceId: selectedPresetId,
-        referenceAudioDataUrl: presetDataUrls[selectedPresetId] || '',
-      };
+    const normalizedSpeaker = selectedSpeaker.trim();
+    if (normalizedSpeaker) {
+      return { mode: 'speaker', speakerId: normalizedSpeaker };
     }
-
-    if (voiceMode === 'speaker') {
-      return { mode: 'speaker', speakerId: selectedSpeaker };
-    }
-
-    if (voiceMode === 'upload') {
-      return { mode: 'upload', promptText: voicePromptText, referenceAudioDataUrl };
-    }
-
     return DEFAULT_TTS_VOICE_SETTINGS;
-  }, [voiceMode, selectedPresetId, presetDataUrls, selectedSpeaker, voicePromptText, referenceAudioDataUrl]);
+  }, [selectedSpeaker]);
 
   const canStartConversion = useMemo(() => {
     if (!chapters.length || isAdding) return false;
-    if (voiceMode === 'preset') {
-      return !!(presetDataUrls[selectedPresetId]?.trim());
-    }
-    if (voiceMode === 'speaker' && availableSpeakers.length > 0 && !selectedSpeaker.trim()) return false;
-    if (voiceMode === 'upload' && !referenceAudioDataUrl.trim()) return false;
-    return true;
-  }, [chapters.length, isAdding, voiceMode, selectedPresetId, presetDataUrls, availableSpeakers.length, selectedSpeaker, referenceAudioDataUrl]);
+    return Boolean(selectedSpeaker.trim());
+  }, [chapters.length, isAdding, selectedSpeaker]);
 
   const loadAvailableSpeakers = useCallback(async () => {
     setLoadingSpeakers(true);
     setSpeakerLoadError('');
     try {
       const token = await getToken();
-      const response = await fetch(`${getBackendUrl()}/tts/cosyvoice/voices`, {
+      const response = await fetch(`${getBackendUrl()}/tts/qwen/voices`, {
         method: 'GET',
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -135,7 +73,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
       const payload = (await response.json()) as { availableSpeakers?: string[]; defaultSpeaker?: string };
       const speakers = Array.isArray(payload.availableSpeakers)
-        ? payload.availableSpeakers.filter((speaker) => typeof speaker === 'string' && speaker.trim().length > 0)
+        ? payload.availableSpeakers
+            .map((speaker) => (typeof speaker === 'string' ? speaker.trim() : ''))
+            .filter(Boolean)
         : [];
 
       setAvailableSpeakers(speakers);
@@ -145,9 +85,13 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         if (defaultSpeaker && speakers.includes(defaultSpeaker)) return defaultSpeaker;
         return speakers[0] || '';
       });
+
+      if (speakers.length === 0) {
+        setSpeakerLoadError('Keine Qwen-Stimmen verfuegbar.');
+      }
     } catch (error) {
-      console.error('Failed to load CosyVoice speakers:', error);
-      setSpeakerLoadError('Fertige Stimmen konnten nicht geladen werden.');
+      console.error('Failed to load Qwen speakers:', error);
+      setSpeakerLoadError('Qwen-Stimmen konnten nicht geladen werden.');
       setAvailableSpeakers([]);
       setSelectedSpeaker('');
     } finally {
@@ -156,59 +100,15 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   }, [getToken]);
 
   useEffect(() => {
-    if (voiceMode === 'speaker' && availableSpeakers.length === 0 && !loadingSpeakers && !speakerLoadError) {
+    if (availableSpeakers.length === 0 && !loadingSpeakers && !speakerLoadError) {
       void loadAvailableSpeakers();
     }
-  }, [voiceMode, availableSpeakers.length, loadingSpeakers, speakerLoadError, loadAvailableSpeakers]);
-
-  const toDataUrl = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') {
-          resolve(reader.result);
-          return;
-        }
-        reject(new Error('Datei konnte nicht gelesen werden.'));
-      };
-      reader.onerror = () => reject(reader.error || new Error('Datei konnte nicht gelesen werden.'));
-      reader.readAsDataURL(file);
-    });
-  }, []);
-
-  const handleReferenceFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      if (!file.type.startsWith('audio/')) {
-        setUploadError('Bitte eine Audiodatei auswaehlen.');
-        return;
-      }
-
-      setUploadError('');
-      try {
-        const dataUrl = await toDataUrl(file);
-        setReferenceAudioDataUrl(dataUrl);
-        setReferenceFileName(file.name);
-      } catch (error) {
-        console.error('Failed to read uploaded voice file:', error);
-        setUploadError('Upload konnte nicht verarbeitet werden.');
-        setReferenceAudioDataUrl('');
-        setReferenceFileName('');
-      }
-    },
-    [toDataUrl],
-  );
+  }, [availableSpeakers.length, loadingSpeakers, speakerLoadError, loadAvailableSpeakers]);
 
   const resetToDefaultVoice = useCallback(() => {
-    setVoiceMode('preset');
-    setSelectedPresetId(PRESET_VOICES[0]?.id || '');
-    setSelectedSpeaker('');
-    setVoicePromptText('');
-    setReferenceAudioDataUrl('');
-    setReferenceFileName('');
-    setUploadError('');
-  }, []);
+    setSelectedSpeaker((availableSpeakers[0] || '').trim());
+    setSpeakerLoadError('');
+  }, [availableSpeakers]);
 
   const startConversion = useCallback((autoplay: boolean) => {
     if (!canStartConversion) return;
@@ -255,14 +155,6 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     color: isDark ? '#d9e5f8' : '#2a3b52',
   };
 
-  const modeTabStyle = (active: boolean): React.CSSProperties => ({
-    borderColor: active ? (isDark ? '#86a7db' : '#b183c4') : (isDark ? '#34455d' : '#decfbf'),
-    background: active
-      ? isDark ? 'rgba(134,167,219,0.2)' : 'rgba(177,131,196,0.2)'
-      : 'transparent',
-    color: isDark ? '#d9e5f8' : '#2a3b52',
-  });
-
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       <div
@@ -272,23 +164,10 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           background: isDark ? 'rgba(16,24,35,0.6)' : 'rgba(255,250,244,0.85)',
         }}
       >
-        {/* Voice mode tabs */}
-        <div className="mb-2 flex flex-wrap gap-2">
-          {[
-            { mode: 'preset' as const, label: 'Stimmen' },
-            { mode: 'speaker' as const, label: 'Fertige Stimme' },
-            { mode: 'upload' as const, label: 'Eigene Stimme' },
-          ].map((option) => (
-            <button
-              key={option.mode}
-              type="button"
-              onClick={() => setVoiceMode(option.mode)}
-              className="rounded-full border px-3 py-1 text-[11px] font-semibold transition-all"
-              style={modeTabStyle(voiceMode === option.mode)}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
+            Qwen Stimme waehlen
+          </p>
           <button
             type="button"
             onClick={resetToDefaultVoice}
@@ -300,104 +179,49 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           </button>
         </div>
 
-        {/* Preset voice cards */}
-        {voiceMode === 'preset' && (
-          <div className="flex flex-wrap gap-2">
-            {PRESET_VOICES.map((voice) => {
-              const isSelected = selectedPresetId === voice.id;
-              const isLoading = presetLoading[voice.id];
-              return (
-                <button
-                  key={voice.id}
-                  type="button"
-                  onClick={() => setSelectedPresetId(voice.id)}
-                  className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all"
-                  style={{
-                    borderColor: isSelected ? (isDark ? '#86a7db' : '#b183c4') : (isDark ? '#34455d' : '#decfbf'),
-                    background: isSelected
-                      ? isDark ? 'rgba(134,167,219,0.15)' : 'rgba(177,131,196,0.15)'
-                      : isDark ? 'rgba(20,29,40,0.5)' : 'rgba(255,255,255,0.5)',
-                    color: isDark ? '#d9e5f8' : '#2a3b52',
-                  }}
-                >
-                  {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} />}
-                  <span>{voice.label}</span>
-                  <span className="opacity-50">{voice.description}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedSpeaker}
+            onChange={(event) => setSelectedSpeaker(event.target.value)}
+            className="w-full rounded-xl border px-3 py-2 text-xs"
+            style={selectStyle}
+            disabled={loadingSpeakers || availableSpeakers.length === 0}
+          >
+            {availableSpeakers.length === 0 ? (
+              <option value="">Keine Qwen-Stimmen gefunden</option>
+            ) : (
+              availableSpeakers.map((speaker) => (
+                <option key={speaker} value={speaker}>
+                  {speaker}
+                </option>
+              ))
+            )}
+          </select>
+          <button
+            type="button"
+            onClick={() => void loadAvailableSpeakers()}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border"
+            style={selectStyle}
+            disabled={loadingSpeakers}
+            title="Qwen-Stimmen neu laden"
+          >
+            {loadingSpeakers ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+          </button>
+        </div>
+
+        {selectedSpeaker && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+            Aktive Stimme: <span className="font-semibold">{selectedSpeaker}</span>
+          </p>
         )}
 
-        {/* Speaker select */}
-        {voiceMode === 'speaker' && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedSpeaker}
-                onChange={(event) => setSelectedSpeaker(event.target.value)}
-                className="w-full rounded-xl border px-3 py-2 text-xs"
-                style={selectStyle}
-                disabled={loadingSpeakers || availableSpeakers.length === 0}
-              >
-                {availableSpeakers.length === 0 ? (
-                  <option value="">Keine fertigen Stimmen gefunden</option>
-                ) : (
-                  availableSpeakers.map((speaker) => (
-                    <option key={speaker} value={speaker}>
-                      {speaker}
-                    </option>
-                  ))
-                )}
-              </select>
-              <button
-                type="button"
-                onClick={() => void loadAvailableSpeakers()}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border"
-                style={selectStyle}
-                disabled={loadingSpeakers}
-                title="Stimmen neu laden"
-              >
-                {loadingSpeakers ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-              </button>
-            </div>
-            {speakerLoadError && (
-              <p className="text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
-                {speakerLoadError}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Upload */}
-        {voiceMode === 'upload' && (
-          <div className="flex flex-col gap-2">
-            <label
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold"
-              style={selectStyle}
-            >
-              <Upload size={14} />
-              {referenceFileName || 'Referenzstimme hochladen'}
-              <input type="file" accept="audio/*" className="hidden" onChange={(event) => void handleReferenceFileChange(event)} />
-            </label>
-            <input
-              type="text"
-              value={voicePromptText}
-              onChange={(event) => setVoicePromptText(event.target.value)}
-              placeholder="Optional: Referenztext zur Stimme"
-              className="w-full rounded-xl border px-3 py-2 text-xs"
-              style={selectStyle}
-            />
-            {uploadError && (
-              <p className="text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
-                {uploadError}
-              </p>
-            )}
-          </div>
+        {speakerLoadError && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
+            {speakerLoadError}
+          </p>
         )}
       </div>
 
-      {/* Action buttons */}
       <div className="flex flex-wrap items-center gap-2">
         <motion.button
           whileHover={{ scale: canStartConversion ? 1.04 : 1 }}

@@ -1614,18 +1614,30 @@ function isWavHeader(buf: Buffer): boolean {
   );
 }
 
+async function listRunpodVoicesOrThrow(providerLabel: string): Promise<CosyVoiceVoicesResponse> {
+  try {
+    return await runpodListVoicesRequest();
+  } catch (error) {
+    if (isApiError(error)) {
+      throw error;
+    }
+    const message = getErrorMessage(error);
+    log.error(`TTS voice list failed (${providerLabel}): ${message}`);
+    throw APIError.unavailable(`${providerLabel} voice list failed: ${message}`);
+  }
+}
+
+export const listQwenVoices = api<void, CosyVoiceVoicesResponse>(
+  { expose: true, method: "GET", path: "/tts/qwen/voices" },
+  async () => {
+    return await listRunpodVoicesOrThrow("Qwen");
+  }
+);
+
+// Backward-compatible alias for older frontend paths.
 export const listCosyVoiceVoices = api<void, CosyVoiceVoicesResponse>(
   { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
   async () => {
-    try {
-      return await runpodListVoicesRequest();
-    } catch (error) {
-      if (isApiError(error)) {
-        throw error;
-      }
-      const message = getErrorMessage(error);
-      log.error(`TTS voice list failed: ${message}`);
-      throw APIError.unavailable(`CosyVoice voice list failed: ${message}`);
-    }
+    return await listRunpodVoicesOrThrow("Qwen");
   }
 );

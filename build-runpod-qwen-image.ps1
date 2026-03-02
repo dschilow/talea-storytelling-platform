@@ -1,6 +1,7 @@
 param(
     [string]$DockerHubUsername = "",
-    [switch]$Prefetch = $false
+    [switch]$Prefetch = $false,
+    [switch]$InstallFlashAttn = $false
 )
 
 if ($DockerHubUsername -eq "") {
@@ -18,7 +19,11 @@ $VersionTag = "${BaseName}:${Timestamp}"
 $LatestTag = "${BaseName}:latest"
 
 $PrefetchVal = if ($Prefetch) { 1 } else { 0 }
+$InstallFlashAttnVal = if ($InstallFlashAttn) { 1 } else { 0 }
 $ModeText = if ($Prefetch) { "PROD (mit Modellen)" } else { "FAST-DEV (ohne Modelle)" }
+if ($InstallFlashAttn) {
+    $ModeText = "$ModeText + flash-attn"
+}
 
 Write-Host "==========================================================================" -ForegroundColor Cyan
 Write-Host " Baue und pushe Docker Image ($ModeText)" -ForegroundColor Cyan
@@ -27,7 +32,7 @@ Write-Host "====================================================================
 
 # Schritt 1: Docker Image bauen
 Write-Host "`n[Schritt 1/2] Baue Docker Image..." -ForegroundColor Yellow
-docker build --build-arg PREFETCH_MODEL=$PrefetchVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
+docker build --build-arg PREFETCH_MODEL=$PrefetchVal --build-arg INSTALL_FLASH_ATTN=$InstallFlashAttnVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Fehler beim Bauen des Docker Images!" -ForegroundColor Red

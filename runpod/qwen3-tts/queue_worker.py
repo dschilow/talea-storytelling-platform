@@ -24,6 +24,10 @@ def _parse_speed(raw: Any) -> float:
 
 
 def _safe_supported_speakers() -> List[str]:
+    cached = getattr(qwen_server, "SUPPORTED_SPEAKERS", None)
+    if isinstance(cached, list) and cached:
+        return [str(s).strip() for s in cached if str(s).strip()]
+
     model = qwen_server.qwen_model
     if model is None:
         return []
@@ -33,10 +37,16 @@ def _safe_supported_speakers() -> List[str]:
         return []
     if not isinstance(speakers, (list, tuple)):
         return []
-    return [str(s).strip() for s in speakers if str(s).strip()]
+    normalized = [str(s).strip() for s in speakers if str(s).strip()]
+    qwen_server.SUPPORTED_SPEAKERS = normalized
+    return normalized
 
 
 def _safe_supported_languages() -> List[str]:
+    cached = getattr(qwen_server, "SUPPORTED_LANGUAGES", None)
+    if isinstance(cached, list) and cached:
+        return [str(l).strip() for l in cached if str(l).strip()]
+
     model = qwen_server.qwen_model
     if model is None:
         return []
@@ -46,7 +56,9 @@ def _safe_supported_languages() -> List[str]:
         return []
     if not isinstance(languages, (list, tuple)):
         return []
-    return [str(l).strip() for l in languages if str(l).strip()]
+    normalized = [str(l).strip() for l in languages if str(l).strip()]
+    qwen_server.SUPPORTED_LANGUAGES = normalized
+    return normalized
 
 
 def _health_payload() -> Dict[str, Any]:

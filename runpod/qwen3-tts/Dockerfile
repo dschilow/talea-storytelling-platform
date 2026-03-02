@@ -37,9 +37,15 @@ RUN pip install --upgrade pip "setuptools<71" wheel && \
     sentencepiece \
     qwen-tts
 
-# Optional: Install flash-attn (can fail on unsupported CUDA/PyTorch combos).
+# Optional: Try to install flash-attn. On runtime images (no nvcc), this may fail.
+# We keep the build successful and let the worker fall back to default attention.
 RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
-      pip install --no-cache-dir flash-attn --no-build-isolation; \
+      echo "Attempting flash-attn install..."; \
+      if pip install --no-cache-dir flash-attn --no-build-isolation; then \
+        echo "flash-attn installed successfully."; \
+      else \
+        echo "flash-attn install failed; continuing without it."; \
+      fi; \
     else \
       echo "Skipping flash-attn install (INSTALL_FLASH_ATTN=$INSTALL_FLASH_ATTN)"; \
     fi
