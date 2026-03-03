@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS recall_tasks CASCADE;
+DROP TABLE IF EXISTS evidence_events CASCADE;
+DROP TABLE IF EXISTS competency_state CASCADE;

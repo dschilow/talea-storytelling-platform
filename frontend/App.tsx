@@ -39,6 +39,8 @@ import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
 import TaleaLearningPathMapView from './screens/Journey/TaleaLearningPathMapView';
+import CosmosScreen from './screens/Cosmos/CosmosScreen';
+import ParentDashboardRoot from './screens/Cosmos/ParentDashboardRoot';
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
@@ -190,6 +192,8 @@ const RouterContent = () => {
               <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
               <Route path="/auth" element={<Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsScreen />} />
+              <Route path="/cosmos" element={<CosmosScreen />} />
+              <Route path="/cosmos/parent" element={<ParentDashboardRoot />} />
               <Route path="/map" element={<TaleaLearningPathMapView />} />
               <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
             </Route>

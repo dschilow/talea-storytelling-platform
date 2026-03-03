@@ -30,7 +30,8 @@ import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDia
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
-import TaleaJourneyCard from '../Journey/TaleaJourneyCard';
+import CosmosHomeCard from '../Cosmos/CosmosHomeCard';
+import { useCosmosState } from '../Cosmos/useCosmosState';
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
   Card,
@@ -589,6 +590,7 @@ const TaleaHomeScreen: React.FC = () => {
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
+  const { cosmosState } = useCosmosState();
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
@@ -831,11 +833,9 @@ const TaleaHomeScreen: React.FC = () => {
               </Card>
             </motion.div>
 
-            {/* Journey Card Block */}
-            <motion.div variants={itemVariants} className="lg:col-span-1 border-[6px] border-white/80 dark:border-slate-700 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_-12px_rgba(236,72,153,0.2)] dark:shadow-indigo-900/40 bg-white/50 dark:bg-slate-800/50 backdrop-blur-xl h-full flex flex-col">
-               <div className="p-6 pb-0 flex-grow h-full">
-                 <TaleaJourneyCard isDark={resolvedTheme === 'dark'} avatarId={avatars[0]?.id} />
-               </div>
+            {/* Cosmos Card Block */}
+            <motion.div variants={itemVariants} className="lg:col-span-1 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_-12px_rgba(100,60,200,0.25)] dark:shadow-indigo-900/40 h-full flex flex-col">
+               <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
             </motion.div>
           </section>
 

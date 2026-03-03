@@ -15,8 +15,12 @@ import "./debugPersonality";
 import "./deleteMemory";
 import "./reducePersonalityTrait";
 import "./resetDokuHistory";
-// REMOVED for security: migration-api (raw SQL execution)
+import "./run-migration-sql"; // Temporary: re-enable for cosmos tracking migration
 import "./share";
 import "./clone";
+import "./cosmos-state";
+import "./cosmos-quiz-submit";
+import "./cosmos-recall-submit";
+import "./cosmos-parent-summary";
 
 export default new Service("avatar");
