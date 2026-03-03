@@ -10,5 +10,6 @@ import "./audio-doku";
 import "./markRead";
 import "./delete";
 import "./update";
+import "./profile-state";
 
 export default new Service("doku");

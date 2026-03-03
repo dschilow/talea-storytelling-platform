@@ -13,6 +13,7 @@ import {
   normalizeImageUrlForStorage,
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 export const create = api(
   {
@@ -27,6 +28,10 @@ export const create = api(
     const auth = getAuthData()!;
     const userId = auth.userID;
     const avatarId = crypto.randomUUID();
+    const profileId = await resolveRequestedProfileId({
+      userId,
+      requestedProfileId: req.profileId,
+    });
 
     console.log(`Generated avatarId: ${avatarId} for userId: ${userId}`);
 
@@ -71,6 +76,7 @@ export const create = api(
     const avatar: Avatar = {
       id: avatarId,
       userId: userId,
+      profileId,
       name: req.name,
       description: req.description,
       physicalTraits: normalizedPhysicalTraits || req.physicalTraits, // Use normalized (English) traits
@@ -79,6 +85,8 @@ export const create = api(
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
       creationType: req.creationType,
       isPublic: false,
+      sourceType: req.sourceType || "profile",
+      sourceAvatarId: req.sourceAvatarId,
       originalAvatarId: undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -94,6 +102,7 @@ export const create = api(
     console.log(`- id: ${avatarId}`);
     console.log(`- user_id: ${userId}`);
     console.log(`- name: ${req.name}`);
+    console.log(`- profile_id: ${profileId}`);
     console.log(`- description: ${req.description || null}`);
     console.log(`- physical_traits: ${physicalTraitsJson}`);
     console.log(`- personality_traits: ${personalityTraitsJson}`);
@@ -106,6 +115,7 @@ export const create = api(
       await avatarDB.exec`
         INSERT INTO avatars (
           id, user_id, name, description,
+          profile_id, source_type, source_avatar_id,
           physical_traits, personality_traits, image_url,
           visual_profile,
           creation_type, is_public, original_avatar_id,
@@ -116,6 +126,9 @@ export const create = api(
           ${userId},
           ${req.name},
           ${req.description || null},
+          ${profileId},
+          ${req.sourceType || "profile"},
+          ${req.sourceAvatarId || null},
           ${physicalTraitsJson},
           ${personalityTraitsJson},
           ${finalImageUrl || null},

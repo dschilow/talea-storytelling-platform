@@ -3,6 +3,13 @@ import { getAuthData } from "~encore/auth";
 import { userDB } from "./db";
 import { getBillingOverview, type BillingOverview } from "../helpers/billing";
 import {
+  ensureDefaultProfileForUser,
+  getProfileLimitForPlan,
+  getUserAddonProfileCount,
+  listProfilesForUser,
+  type ChildProfile,
+} from "../helpers/profiles";
+import {
   PARENTAL_BLOCKED_THEME_PRESETS,
   PARENTAL_BLOCKED_WORD_PRESETS,
   PARENTAL_GOAL_PRESETS,
@@ -66,6 +73,8 @@ export interface UserProfile {
   preferredLanguage: SupportedLanguage;
   theme: Theme;
   billing: BillingOverview;
+  profiles: ChildProfile[];
+  profileLimit: number;
   parentalControls: ParentalControls;
   createdAt: Date;
   updatedAt: Date;
@@ -100,7 +109,9 @@ type AuthContext = NonNullable<ReturnType<typeof getAuthData>>;
 
 async function ensureUserRowForAuth(auth: AuthContext): Promise<UserRow> {
   try {
-    return await getUserRowById(auth.userID);
+    const existing = await getUserRowById(auth.userID);
+    await ensureDefaultProfileForUser(auth.userID, existing.name);
+    return existing;
   } catch (error) {
     if (!(error instanceof APIError) || error.code !== "not_found") {
       throw error;
@@ -119,13 +130,17 @@ async function ensureUserRowForAuth(auth: AuthContext): Promise<UserRow> {
           updated_at = ${now}
     `;
 
-    return getUserRowById(auth.userID);
+    const created = await getUserRowById(auth.userID);
+    await ensureDefaultProfileForUser(auth.userID, created.name);
+    return created;
   }
 }
 
 function mapUserProfile(
   row: UserRow,
   billing: BillingOverview,
+  profiles: ChildProfile[],
+  profileLimit: number,
   parentalControls: ParentalControls
 ): UserProfile {
   return {
@@ -137,6 +152,8 @@ function mapUserProfile(
     preferredLanguage: row.preferred_language,
     theme: row.theme,
     billing,
+    profiles,
+    profileLimit,
     parentalControls,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -144,12 +161,17 @@ function mapUserProfile(
 }
 
 async function buildUserProfile(userId: string, clerkToken?: string | null): Promise<UserProfile> {
-  const [billing, row, parentalControls] = await Promise.all([
+  await ensureDefaultProfileForUser(userId);
+
+  const [billing, row, parentalControls, profiles, extraAddons] = await Promise.all([
     getBillingOverview({ userId, clerkToken }),
     getUserRowById(userId),
     getParentalControlsForUser(userId),
+    listProfilesForUser(userId),
+    getUserAddonProfileCount(userId),
   ]);
-  return mapUserProfile(row, billing, parentalControls);
+  const profileLimit = getProfileLimitForPlan(billing.plan, extraAddons);
+  return mapUserProfile(row, billing, profiles, profileLimit, parentalControls);
 }
 
 interface CreateUserRequest {

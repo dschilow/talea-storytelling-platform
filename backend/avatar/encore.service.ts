@@ -17,5 +17,6 @@ import "./reducePersonalityTrait";
 import "./resetDokuHistory";
 // REMOVED for security: migration-api (raw SQL execution)
 import "./share";
+import "./clone";
 
 export default new Service("avatar");

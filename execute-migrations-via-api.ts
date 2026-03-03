@@ -9,6 +9,7 @@
  *   bun run execute-migrations-via-api.ts audio
  *   bun run execute-migrations-via-api.ts audio-library
  *   bun run execute-migrations-via-api.ts user
+ *   bun run execute-migrations-via-api.ts profiles
  *   bun run execute-migrations-via-api.ts all
  */
 
@@ -33,7 +34,7 @@ const SERVICE_CONFIG = {
 } as const;
 
 type MigrationService = keyof typeof SERVICE_CONFIG;
-type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "audio-library" | "user";
+type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "audio-library" | "user" | "profiles";
 
 const migrations: Array<{
   file: string;
@@ -83,6 +84,33 @@ const migrations: Array<{
     group: "user",
     dir: "backend/user/migrations",
     service: "user",
+  },
+  {
+    file: "9_create_multi_profiles.up.sql",
+    name: "9_create_multi_profiles",
+    group: "profiles",
+    dir: "backend/user/migrations",
+    service: "story",
+  },
+  {
+    file: "11_add_profile_support.up.sql",
+    name: "11_add_profile_support",
+    group: "profiles",
+    dir: "backend/avatar/migrations",
+    service: "story",
+  },
+  {
+    file: "24_add_profile_support.up.sql",
+    name: "24_add_profile_support",
+    group: "profiles",
+    service: "story",
+  },
+  {
+    file: "5_add_profile_support.up.sql",
+    name: "5_add_profile_support",
+    group: "profiles",
+    dir: "backend/doku/migrations",
+    service: "story",
   },
 ];
 
@@ -293,11 +321,54 @@ async function verifyGeneratedAudioLibrary(): Promise<void> {
   }
 }
 
+async function verifyProfiles(): Promise<void> {
+  console.log("\nVerifying profile schema...");
+  try {
+    const verifySQL = `
+      SELECT 1 FROM child_profiles LIMIT 1;
+      SELECT 1 FROM profile_quota_policies LIMIT 1;
+      SELECT 1 FROM quota_ledger LIMIT 1;
+      SELECT 1 FROM story_participants LIMIT 1;
+      SELECT 1 FROM story_profile_state LIMIT 1;
+      SELECT 1 FROM story_quiz_results LIMIT 1;
+      SELECT 1 FROM doku_participants LIMIT 1;
+      SELECT 1 FROM doku_profile_state LIMIT 1;
+      SELECT 1 FROM doku_quiz_results LIMIT 1;
+      SELECT 1 FROM audio_doku_profile_state LIMIT 1;
+      SELECT 1 FROM avatar_family_blueprints LIMIT 1;
+      SELECT 1 FROM avatar_pool_templates LIMIT 1;
+    `;
+    const verifyResponse = await fetch(SERVICE_CONFIG.story.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: verifySQL,
+        migrationName: "verify_profiles_schema",
+      }),
+    });
+
+    if (verifyResponse.ok) {
+      const result = await verifyResponse.json();
+      if (result.success) {
+        console.log("  OK: Profile schema verification completed.");
+      } else {
+        console.log(`  WARN: Verification reported errors: ${result.message || ""}`);
+      }
+    } else {
+      console.log(`  WARN: Verification HTTP status ${verifyResponse.status}`);
+    }
+  } catch (error: any) {
+    console.log(`  WARN: Verification query failed: ${error.message}`);
+  }
+}
+
 async function main() {
   const modeArg = (process.argv[2] || "artifact").toLowerCase();
-  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "audio-library", "user", "all"]);
+  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "audio-library", "user", "profiles", "all"]);
   if (!allowed.has(modeArg)) {
-    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | audio-library | user | all`);
+    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | audio-library | user | profiles | all`);
     process.exit(1);
   }
 
@@ -350,6 +421,9 @@ async function main() {
     if (modeArg === "audio-library" || modeArg === "all") {
       console.log("\nGenerated audio library table is now available.");
     }
+    if (modeArg === "profiles" || modeArg === "all") {
+      console.log("\nMulti-profile schema is now available.");
+    }
   } else {
     console.log(`\nWarning: Only ${successCount}/${selected.length} migrations completed.`);
   }
@@ -368,6 +442,9 @@ async function main() {
   }
   if (modeArg === "audio-library" || modeArg === "all") {
     await verifyGeneratedAudioLibrary();
+  }
+  if (modeArg === "profiles" || modeArg === "all") {
+    await verifyProfiles();
   }
 }
 

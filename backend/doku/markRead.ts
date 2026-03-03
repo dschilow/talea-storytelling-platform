@@ -1,15 +1,19 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
+import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 const avatarDB = SQLDatabase.named("avatar");
+const dokuDB = SQLDatabase.named("doku");
 
 interface MarkDokuReadRequest {
   dokuId: string;
   dokuTitle: string;
   topic: string;
   perspective?: string;
+  profileId?: string;
+  participantProfileIds?: string[];
   avatarId?: string;
   avatarIds?: string[];
 }
@@ -60,6 +64,54 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId,
+      requestedProfileId: req.profileId,
+      fallbackName: auth.email ?? undefined,
+    });
+    const extraProfiles = Array.from(
+      new Set(
+        (req.participantProfileIds || [])
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0)
+      )
+    );
+    const validatedProfiles = extraProfiles.length > 0
+      ? await assertProfilesBelongToUser(userId, extraProfiles)
+      : [];
+    const targetProfileIds = Array.from(new Set([activeProfileId, ...validatedProfiles]));
+    const profileIdsForAvatarSelection = targetProfileIds;
+
+    const dokuOwner = await dokuDB.queryRow<{
+      user_id: string;
+      is_public: boolean;
+    }>`
+      SELECT user_id, is_public
+      FROM dokus
+      WHERE id = ${req.dokuId}
+      LIMIT 1
+    `;
+    if (dokuOwner && dokuOwner.user_id !== userId && auth.role !== "admin" && !dokuOwner.is_public) {
+      throw APIError.permissionDenied("You do not have permission to update this doku.");
+    }
+    if (dokuOwner && dokuOwner.user_id === userId && auth.role !== "admin" && !dokuOwner.is_public) {
+      const participant = await dokuDB.queryRow<{ profile_id: string }>`
+        SELECT profile_id
+        FROM doku_participants
+        WHERE doku_id = ${req.dokuId}
+          AND profile_id = ${activeProfileId}
+        LIMIT 1
+      `;
+      const hasParticipants = await dokuDB.queryRow<{ has_any: boolean }>`
+        SELECT EXISTS (
+          SELECT 1 FROM doku_participants WHERE doku_id = ${req.dokuId}
+        ) AS has_any
+      `;
+      if (hasParticipants?.has_any && !participant) {
+        throw APIError.permissionDenied("Doku belongs to another child profile.");
+      }
+    }
 
     let userAvatars: { id: string; name: string }[] = [];
     const requestedAvatarIds = Array.from(
@@ -70,13 +122,17 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
         SELECT id, name
         FROM avatars
-        WHERE user_id = ${userId} AND id = ANY(${requestedAvatarIds})
+        WHERE user_id = ${userId}
+          AND id = ANY(${requestedAvatarIds})
+          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
       `;
     } else if (req.avatarId) {
       const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
         SELECT id, name, user_id
         FROM avatars
-        WHERE id = ${req.avatarId} AND user_id = ${userId}
+        WHERE id = ${req.avatarId}
+          AND user_id = ${userId}
+          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
       `;
 
       if (!specificAvatar) {
@@ -93,6 +149,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         SELECT id, name
         FROM avatars
         WHERE user_id = ${userId}
+          AND (profile_id IS NULL OR profile_id = ${activeProfileId})
       `;
     }
 
@@ -193,6 +250,32 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       } catch (error) {
         console.error(`Failed to update doku progression for ${userAvatar.name}`, error);
       }
+    }
+
+    for (const profileId of targetProfileIds) {
+      await dokuDB.exec`
+        INSERT INTO doku_profile_state (
+          profile_id,
+          doku_id,
+          progress_pct,
+          completion_state,
+          last_played_at,
+          updated_at
+        )
+        VALUES (
+          ${profileId},
+          ${req.dokuId},
+          100,
+          'completed',
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (profile_id, doku_id) DO UPDATE
+        SET progress_pct = GREATEST(doku_profile_state.progress_pct, 100),
+            completion_state = 'completed',
+            last_played_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+      `;
     }
 
     return {

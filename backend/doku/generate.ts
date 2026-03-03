@@ -8,6 +8,8 @@ import { normalizeLanguage } from "../story/avatar-image-optimization";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { getAuthData } from "~encore/auth";
 import { claimGenerationUsage } from "../helpers/billing";
+import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
+import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 import {
   assertParentalDailyLimit,
   buildGenerationGuidanceFromControls,
@@ -79,6 +81,8 @@ export interface DokuConfig {
 export interface Doku {
   id: string;
   userId: string;
+  primaryProfileId?: string;
+  participantProfileIds?: string[];
   title: string;
   topic: string;
   summary: string;
@@ -109,7 +113,19 @@ export interface Doku {
 
 export interface GenerateDokuRequest {
   userId: string;
+  profileId?: string;
+  participantProfileIds?: string[];
   config: DokuConfig;
+}
+
+function uniqueTrimmed(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
 }
 
 export const generateDoku = api<GenerateDokuRequest, Doku>(
@@ -155,17 +171,75 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       parentalGuidance: parentalGuidance || undefined,
     };
     const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
+    const requestedPrimaryProfileId = req.profileId ?? extractRequestedProfileId(req);
+    const primaryProfileId = await resolveRequestedProfileId({
+      userId: currentUserId,
+      requestedProfileId: requestedPrimaryProfileId,
+      fallbackName: auth?.email ?? undefined,
+    });
+    const requestedParticipants = extractParticipantProfileIds(req);
+    const participantProfileIds = uniqueTrimmed([
+      primaryProfileId,
+      ...(
+        requestedParticipants.length > 0
+          ? await assertProfilesBelongToUser(currentUserId, requestedParticipants)
+          : []
+      ),
+    ]);
 
     await claimGenerationUsage({
       userId: currentUserId,
       kind: "doku",
+      profileId: primaryProfileId,
+      contentRef: id,
       clerkToken,
     });
 
     await dokuDB.exec`
-      INSERT INTO dokus (id, user_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
-      VALUES (${id}, ${currentUserId}, 'Wird generiert...', ${config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
+      INSERT INTO dokus (id, user_id, primary_profile_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
+      VALUES (${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', ${config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
     `;
+    for (const participantProfileId of participantProfileIds) {
+      await dokuDB.exec`
+        INSERT INTO doku_participants (
+          id,
+          doku_id,
+          profile_id,
+          avatar_ids,
+          created_at
+        )
+        VALUES (
+          ${crypto.randomUUID()},
+          ${id},
+          ${participantProfileId},
+          '[]'::jsonb,
+          ${now}
+        )
+        ON CONFLICT (doku_id, profile_id) DO NOTHING
+      `;
+
+      await dokuDB.exec`
+        INSERT INTO doku_profile_state (
+          profile_id,
+          doku_id,
+          is_favorite,
+          progress_pct,
+          completion_state,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          ${participantProfileId},
+          ${id},
+          FALSE,
+          0,
+          'not_started',
+          ${now},
+          ${now}
+        )
+        ON CONFLICT (profile_id, doku_id) DO NOTHING
+      `;
+    }
 
     const startTime = Date.now();
     let imagesGenerated = 0;
@@ -352,9 +426,12 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           },
         ];
 
-        // Load all avatars for this user
+        // Load avatars scoped to participant profiles
         const userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-          SELECT id, name FROM avatars WHERE user_id = ${currentUserId}
+          SELECT id, name
+          FROM avatars
+          WHERE user_id = ${currentUserId}
+            AND (profile_id IS NULL OR profile_id = ANY(${participantProfileIds}))
         `;
 
         for (const a of userAvatars) {
@@ -406,6 +483,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       return {
         id,
         userId: currentUserId,
+        primaryProfileId,
+        participantProfileIds,
         title: parsed.title,
         topic: config.topic,
         summary: parsed.summary,

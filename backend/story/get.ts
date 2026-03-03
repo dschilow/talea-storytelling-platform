@@ -4,16 +4,23 @@ import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient } from "../helpers/image-proxy";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 interface GetStoryParams {
   id: string;
+  profileId?: string;
 }
 
 // Retrieves a specific story by ID with all chapters.
 export const get = api<GetStoryParams, Story>(
   { expose: true, method: "GET", path: "/story/:id", auth: true },
-  async ({ id }) => {
+  async ({ id, profileId }) => {
     const auth = getAuthData()!;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: profileId,
+      fallbackName: auth.email ?? undefined,
+    });
     const requestedId = String(id || "").trim();
     const studioPrefixedEpisodeId = requestedId.startsWith("studio-")
       ? requestedId.slice("studio-".length)
@@ -22,6 +29,7 @@ export const get = api<GetStoryParams, Story>(
     const storyRow = await storyDB.queryRow<{
       id: string;
       user_id: string;
+      primary_profile_id: string | null;
       title: string;
       description: string;
       cover_image_url: string | null;
@@ -148,8 +156,26 @@ export const get = api<GetStoryParams, Story>(
       };
     }
 
+    const participantRows = await storyDB.queryAll<{ profile_id: string }>`
+      SELECT profile_id
+      FROM story_participants
+      WHERE story_id = ${id}
+      ORDER BY created_at ASC
+    `;
+    const participantProfileIds = participantRows.map((row) => row.profile_id);
+    const isParticipant = participantProfileIds.includes(activeProfileId);
+
     if (storyRow.user_id !== auth.userID && auth.role !== 'admin' && !storyRow.is_public) {
       throw APIError.permissionDenied("You do not have permission to view this story.");
+    }
+    if (
+      storyRow.user_id === auth.userID &&
+      auth.role !== "admin" &&
+      !storyRow.is_public &&
+      participantProfileIds.length > 0 &&
+      !isParticipant
+    ) {
+      throw APIError.permissionDenied("Story belongs to another child profile.");
     }
 
     const chapterRows = await storyDB.queryAll<{
@@ -163,6 +189,24 @@ export const get = api<GetStoryParams, Story>(
       FROM chapters 
       WHERE story_id = ${id} 
       ORDER BY chapter_order
+    `;
+    const profileState = await storyDB.queryRow<{
+      is_favorite: boolean;
+      progress_pct: number;
+      completion_state: "not_started" | "in_progress" | "completed";
+      last_position_sec: number | null;
+      last_played_at: Date | null;
+    }>`
+      SELECT
+        is_favorite,
+        progress_pct,
+        completion_state,
+        last_position_sec,
+        last_played_at
+      FROM story_profile_state
+      WHERE profile_id = ${activeProfileId}
+        AND story_id = ${id}
+      LIMIT 1
     `;
 
     const parsedMetadata = parseJsonObject(storyRow.metadata);
@@ -187,6 +231,8 @@ export const get = api<GetStoryParams, Story>(
     return {
       id: storyRow.id,
       userId: storyRow.user_id,
+      primaryProfileId: storyRow.primary_profile_id || undefined,
+      participantProfileIds,
       title: storyRow.title,
       summary: storyRow.description, // Frontend expects 'summary'
       description: storyRow.description,
@@ -194,6 +240,16 @@ export const get = api<GetStoryParams, Story>(
       config: JSON.parse(storyRow.config),
       avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
       metadata: parsedMetadata || undefined,
+      profileState: profileState
+        ? {
+            profileId: activeProfileId,
+            isFavorite: profileState.is_favorite,
+            progressPct: Number(profileState.progress_pct || 0),
+            completionState: profileState.completion_state,
+            lastPositionSec: profileState.last_position_sec ?? undefined,
+            lastPlayedAt: profileState.last_played_at ?? undefined,
+          }
+        : undefined,
       chapters,
       status: storyRow.status,
       isPublic: storyRow.is_public,

@@ -12,6 +12,7 @@ import {
   uploadBufferToBucket,
 } from "../helpers/bucket-storage";
 import { assertAudioDokuAccess, claimGenerationUsage } from "../helpers/billing";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -31,6 +32,7 @@ export interface AudioDoku {
 }
 
 interface CreateAudioDokuRequest {
+  profileId?: string;
   title?: string;
   description: string;
   ageGroup?: string;
@@ -214,6 +216,11 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
   },
   async (req) => {
     const auth = getAuthData()!;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: req.profileId,
+      fallbackName: auth.email ?? undefined,
+    });
     await assertAudioDokuAccess({
       userId: auth.userID,
       clerkToken: auth.clerkToken,
@@ -253,10 +260,14 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     if (!audioUrl) {
       throw APIError.invalidArgument("Audio file is required.");
     }
+    const now = new Date();
+    const id = crypto.randomUUID();
 
     await claimGenerationUsage({
       userId: auth.userID,
       kind: "audio",
+      profileId: activeProfileId,
+      contentRef: id,
       clerkToken: auth.clerkToken,
     });
 
@@ -300,8 +311,6 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
       }
     }
 
-    const now = new Date();
-    const id = crypto.randomUUID();
     const isPublic = req.isPublic ?? true;
 
     await dokuDB.exec`
@@ -333,6 +342,27 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
         ${now},
         ${now}
       )
+    `;
+    await dokuDB.exec`
+      INSERT INTO audio_doku_profile_state (
+        profile_id,
+        doku_id,
+        is_favorite,
+        progress_pct,
+        completion_state,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${activeProfileId},
+        ${id},
+        FALSE,
+        0,
+        'not_started',
+        ${now},
+        ${now}
+      )
+      ON CONFLICT (profile_id, doku_id) DO NOTHING
     `;
 
     const resolvedCoverImageUrl = await resolveImageUrlForClient(coverImageUrl);

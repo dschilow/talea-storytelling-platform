@@ -5,10 +5,13 @@ import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 interface ListStoriesRequest {
   limit?: number;
   offset?: number;
+  profileId?: string;
+  includeFamily?: boolean;
 }
 
 interface ListStoriesResponse {
@@ -24,10 +27,28 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const auth = getAuthData()!;
     const limit = req.limit || 10;
     const offset = req.offset || 0;
+    const includeFamily = req.includeFamily === true;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: req.profileId,
+      fallbackName: auth.email ?? undefined,
+    });
 
     // Get total count
     const countResult = await storyDB.queryRow<{ count: number }>`
-      SELECT COUNT(*) as count FROM stories WHERE user_id = ${auth.userID}
+      SELECT COUNT(*) as count
+      FROM stories s
+      WHERE s.user_id = ${auth.userID}
+        AND (
+          ${includeFamily}
+          OR s.primary_profile_id IS NULL
+          OR EXISTS (
+            SELECT 1
+            FROM story_participants sp
+            WHERE sp.story_id = s.id
+              AND sp.profile_id = ${activeProfileId}
+          )
+        )
     `;
     const total = countResult?.count || 0;
 
@@ -35,6 +56,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const storyRows = await storyDB.queryAll<{
       id: string;
       user_id: string;
+      primary_profile_id: string | null;
       title: string;
       description: string;
       cover_image_url: string | null;
@@ -45,12 +67,76 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT id, user_id, title, description, cover_image_url, config, metadata, status, is_public, created_at, updated_at
-      FROM stories
-      WHERE user_id = ${auth.userID}
-      ORDER BY created_at DESC
+      SELECT
+        s.id,
+        s.user_id,
+        s.primary_profile_id,
+        s.title,
+        s.description,
+        s.cover_image_url,
+        s.config,
+        s.metadata,
+        s.status,
+        s.is_public,
+        s.created_at,
+        s.updated_at
+      FROM stories s
+      WHERE s.user_id = ${auth.userID}
+        AND (
+          ${includeFamily}
+          OR s.primary_profile_id IS NULL
+          OR EXISTS (
+            SELECT 1
+            FROM story_participants sp
+            WHERE sp.story_id = s.id
+              AND sp.profile_id = ${activeProfileId}
+          )
+        )
+      ORDER BY s.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
+    const storyIds = storyRows.map((row) => row.id);
+    const participantRows = storyIds.length > 0
+      ? await storyDB.queryAll<{
+          story_id: string;
+          profile_id: string;
+        }>`
+          SELECT story_id, profile_id
+          FROM story_participants
+          WHERE story_id = ANY(${storyIds})
+        `
+      : [];
+    const participantsByStoryId = new Map<string, string[]>();
+    for (const row of participantRows) {
+      const entries = participantsByStoryId.get(row.story_id) || [];
+      entries.push(row.profile_id);
+      participantsByStoryId.set(row.story_id, entries);
+    }
+
+    const profileStateRows = storyIds.length > 0
+      ? await storyDB.queryAll<{
+          story_id: string;
+          is_favorite: boolean;
+          progress_pct: number;
+          completion_state: "not_started" | "in_progress" | "completed";
+          last_position_sec: number | null;
+          last_played_at: Date | null;
+        }>`
+          SELECT
+            story_id,
+            is_favorite,
+            progress_pct,
+            completion_state,
+            last_position_sec,
+            last_played_at
+          FROM story_profile_state
+          WHERE profile_id = ${activeProfileId}
+            AND story_id = ANY(${storyIds})
+        `
+      : [];
+    const profileStateByStoryId = new Map<string, (typeof profileStateRows)[number]>(
+      profileStateRows.map((row) => [row.story_id, row])
+    );
 
     // Get all unique avatar IDs from stories
     const allAvatarIds = new Set<string>();
@@ -172,11 +258,23 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       return {
         id: storyRow.id,
         userId: storyRow.user_id,
+        primaryProfileId: storyRow.primary_profile_id || undefined,
+        participantProfileIds: participantsByStoryId.get(storyRow.id) || [],
         title: storyRow.title,
         summary: storyRow.description, // Frontend expects 'summary'
         description: storyRow.description,
         coverImageUrl: await resolveImageUrlForClient(storyRow.cover_image_url || undefined),
         config: { ...config, avatars, characters },
+        profileState: profileStateByStoryId.get(storyRow.id)
+          ? {
+              profileId: activeProfileId,
+              isFavorite: profileStateByStoryId.get(storyRow.id)!.is_favorite,
+              progressPct: Number(profileStateByStoryId.get(storyRow.id)!.progress_pct || 0),
+              completionState: profileStateByStoryId.get(storyRow.id)!.completion_state,
+              lastPositionSec: profileStateByStoryId.get(storyRow.id)!.last_position_sec ?? undefined,
+              lastPlayedAt: profileStateByStoryId.get(storyRow.id)!.last_played_at ?? undefined,
+            }
+          : undefined,
         metadata,
         status: storyRow.status,
         isPublic: storyRow.is_public,

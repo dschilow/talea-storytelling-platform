@@ -1,17 +1,21 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { unlockStoryArtifact } from "./artifact-matcher";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
+import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 const avatarDB = SQLDatabase.named("avatar");
+const storyDB = SQLDatabase.named("story");
 
 interface MarkStoryReadRequest {
   storyId: string;
   storyTitle: string;
   genre?: string;
+  profileId?: string;
+  participantProfileIds?: string[];
   avatarId?: string;
   avatarIds?: string[];
 }
@@ -77,6 +81,54 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId,
+      requestedProfileId: req.profileId,
+      fallbackName: auth.email ?? undefined,
+    });
+    const extraProfiles = Array.from(
+      new Set(
+        (req.participantProfileIds || [])
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0)
+      )
+    );
+    const validatedProfiles = extraProfiles.length > 0
+      ? await assertProfilesBelongToUser(userId, extraProfiles)
+      : [];
+    const targetProfileIds = Array.from(new Set([activeProfileId, ...validatedProfiles]));
+    const profileIdsForAvatarSelection = targetProfileIds;
+
+    const storyOwner = await storyDB.queryRow<{
+      user_id: string;
+      is_public: boolean;
+    }>`
+      SELECT user_id, is_public
+      FROM stories
+      WHERE id = ${req.storyId}
+      LIMIT 1
+    `;
+    if (storyOwner && storyOwner.user_id !== userId && auth.role !== "admin" && !storyOwner.is_public) {
+      throw APIError.permissionDenied("You do not have permission to update this story.");
+    }
+    if (storyOwner && storyOwner.user_id === userId && auth.role !== "admin" && !storyOwner.is_public) {
+      const participant = await storyDB.queryRow<{ profile_id: string }>`
+        SELECT profile_id
+        FROM story_participants
+        WHERE story_id = ${req.storyId}
+          AND profile_id = ${activeProfileId}
+        LIMIT 1
+      `;
+      const hasParticipants = await storyDB.queryRow<{ has_any: boolean }>`
+        SELECT EXISTS (
+          SELECT 1 FROM story_participants WHERE story_id = ${req.storyId}
+        ) AS has_any
+      `;
+      if (hasParticipants?.has_any && !participant) {
+        throw APIError.permissionDenied("Story belongs to another child profile.");
+      }
+    }
 
     console.log(`Story finished by user ${userId}: "${req.storyTitle}"`);
 
@@ -89,13 +141,17 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
         SELECT id, name
         FROM avatars
-        WHERE user_id = ${userId} AND id = ANY(${requestedAvatarIds})
+        WHERE user_id = ${userId}
+          AND id = ANY(${requestedAvatarIds})
+          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
       `;
     } else if (req.avatarId) {
       const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
         SELECT id, name, user_id
         FROM avatars
-        WHERE id = ${req.avatarId} AND user_id = ${userId}
+        WHERE id = ${req.avatarId}
+          AND user_id = ${userId}
+          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
       `;
 
       if (!specificAvatar) {
@@ -111,6 +167,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         SELECT id, name
         FROM avatars
         WHERE user_id = ${userId}
+          AND (profile_id IS NULL OR profile_id = ${activeProfileId})
       `;
     }
 
@@ -313,6 +370,32 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       }
     } catch (artifactError) {
       console.error("Failed to unlock artifact", artifactError);
+    }
+
+    for (const profileId of targetProfileIds) {
+      await storyDB.exec`
+        INSERT INTO story_profile_state (
+          profile_id,
+          story_id,
+          progress_pct,
+          completion_state,
+          last_played_at,
+          updated_at
+        )
+        VALUES (
+          ${profileId},
+          ${req.storyId},
+          100,
+          'completed',
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (profile_id, story_id) DO UPDATE
+        SET progress_pct = GREATEST(story_profile_state.progress_pct, 100),
+            completion_state = 'completed',
+            last_played_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+      `;
     }
 
     return {

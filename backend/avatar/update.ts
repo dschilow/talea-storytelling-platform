@@ -12,9 +12,11 @@ import {
   normalizeImageUrlForStorage,
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 interface UpdateAvatarRequest {
   id: string;
+  profileId?: string;
   name?: string;
   description?: string;
   physicalTraits?: PhysicalTraits;
@@ -30,10 +32,15 @@ export const update = api<UpdateAvatarRequest, Avatar>(
   async (req) => {
     const auth = getAuthData()!;
     const { id, ...updates } = req;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: req.profileId,
+    });
     
     const existingAvatar = await avatarDB.queryRow<{
       id: string;
       user_id: string;
+      profile_id: string | null;
       name: string;
       description: string | null;
       physical_traits: string;
@@ -42,6 +49,8 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       visual_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
+      source_type: string | null;
+      source_avatar_id: string | null;
       original_avatar_id: string | null;
       created_at: Date;
       updated_at: Date;
@@ -55,6 +64,15 @@ export const update = api<UpdateAvatarRequest, Avatar>(
 
     if (existingAvatar.user_id !== auth.userID && auth.role !== 'admin') {
       throw APIError.permissionDenied("You do not have permission to update this avatar.");
+    }
+
+    if (
+      existingAvatar.user_id === auth.userID &&
+      existingAvatar.profile_id &&
+      existingAvatar.profile_id !== activeProfileId &&
+      auth.role !== "admin"
+    ) {
+      throw APIError.permissionDenied("Avatar belongs to another child profile.");
     }
 
     const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
@@ -132,6 +150,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     return {
       id: updated.id,
       userId: updated.user_id,
+      profileId: updated.profile_id || activeProfileId,
       name: updated.name,
       description: updated.description || undefined,
       physicalTraits: JSON.parse(updated.physical_traits),
@@ -140,9 +159,13 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
       creationType: updated.creation_type,
       isPublic: updated.is_public,
+      sourceType: (updated.source_type as Avatar["sourceType"]) || "profile",
+      sourceAvatarId: updated.source_avatar_id || undefined,
       originalAvatarId: updated.original_avatar_id || undefined,
       createdAt: updated.created_at,
       updatedAt: updated.updated_at,
+      inventory: updated.inventory ? JSON.parse(updated.inventory) : [],
+      skills: updated.skills ? JSON.parse(updated.skills) : [],
     };
   }
 );

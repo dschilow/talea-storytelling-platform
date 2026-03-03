@@ -1,6 +1,12 @@
 import { APIError } from "encore.dev/api";
 import { createClerkClient } from "@clerk/backend";
 import { userDB } from "../user/db";
+import {
+  getProfileBudgetPolicy,
+  releaseFamilyReserveUnit,
+  resolveRequestedProfileId,
+  tryConsumeFamilyReserve,
+} from "./profiles";
 
 export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
 export type UsageKind = "story" | "doku" | "audio";
@@ -787,18 +793,113 @@ function getLimitLabel(kind: UsageKind) {
   return "Audio-Dokus";
 }
 
+type ProfileBudgetSnapshot = {
+  softCap: number | null;
+  hardCap: number | null;
+  allowFamilyReserve: boolean;
+};
+
+async function readProfileUsageForKind(params: {
+  userId: string;
+  profileId: string;
+  periodStart: Date;
+  kind: UsageKind;
+}): Promise<number> {
+  const row = await userDB.queryRow<{ used: number }>`
+    SELECT COALESCE(SUM(units), 0)::int as used
+    FROM quota_ledger
+    WHERE user_id = ${params.userId}
+      AND profile_id = ${params.profileId}
+      AND period_start = ${params.periodStart}
+      AND kind = ${params.kind}
+  `;
+  return row?.used ?? 0;
+}
+
+function budgetForKind(
+  kind: UsageKind,
+  budget: Awaited<ReturnType<typeof getProfileBudgetPolicy>> | null
+): ProfileBudgetSnapshot {
+  if (!budget) {
+    return {
+      softCap: null,
+      hardCap: null,
+      allowFamilyReserve: false,
+    };
+  }
+
+  if (kind === "story") {
+    return {
+      softCap: budget.storySoftCap,
+      hardCap: budget.storyHardCap,
+      allowFamilyReserve: budget.allowFamilyReserve,
+    };
+  }
+
+  if (kind === "doku") {
+    return {
+      softCap: budget.dokuSoftCap,
+      hardCap: budget.dokuHardCap,
+      allowFamilyReserve: budget.allowFamilyReserve,
+    };
+  }
+
+  return {
+    softCap: null,
+    hardCap: null,
+    allowFamilyReserve: false,
+  };
+}
+
+async function insertQuotaLedger(params: {
+  userId: string;
+  profileId: string;
+  periodStart: Date;
+  kind: UsageKind;
+  contentRef?: string | null;
+}): Promise<void> {
+  await userDB.exec`
+    INSERT INTO quota_ledger (
+      id,
+      user_id,
+      profile_id,
+      period_start,
+      kind,
+      units,
+      content_ref,
+      created_at
+    )
+    VALUES (
+      ${crypto.randomUUID()},
+      ${params.userId},
+      ${params.profileId},
+      ${params.periodStart},
+      ${params.kind},
+      1,
+      ${params.contentRef ?? null},
+      CURRENT_TIMESTAMP
+    )
+  `;
+}
+
 export type UsageClaim = {
   plan: SubscriptionPlan;
   kind: UsageKind;
   limit: number | null;
   used: number;
   remaining: number | null;
+  profileId: string;
+  usedByProfile: number;
+  softCapReached: boolean;
+  usedFamilyReserve: boolean;
   periodStart: Date;
 };
 
 export async function claimGenerationUsage(params: {
   userId: string;
   kind: UsageKind;
+  profileId?: string | null;
+  contentRef?: string | null;
   clerkToken?: string | null;
 }): Promise<UsageClaim> {
   const now = new Date();
@@ -806,6 +907,30 @@ export async function claimGenerationUsage(params: {
   const context = await resolveUserPlanContext(params.userId, params.clerkToken);
   const policy = computePlanPolicy(context.plan, context.createdAt, now, context.isAdmin);
   const limit = getLimitFromPolicy(policy, params.kind);
+  const profileId = await resolveRequestedProfileId({
+    userId: params.userId,
+    requestedProfileId: params.profileId,
+  });
+  const profileBudget = await getProfileBudgetPolicy({
+    userId: params.userId,
+    profileId,
+  });
+  const budgetSnapshot = budgetForKind(params.kind, profileBudget);
+  const usedByProfileBefore = await readProfileUsageForKind({
+    userId: params.userId,
+    profileId,
+    periodStart,
+    kind: params.kind,
+  });
+  const softCapReached =
+    budgetSnapshot.softCap !== null && usedByProfileBefore >= budgetSnapshot.softCap;
+  const hardCapReached =
+    budgetSnapshot.hardCap !== null && usedByProfileBefore >= budgetSnapshot.hardCap;
+  const canUseReserve =
+    hardCapReached &&
+    budgetSnapshot.allowFamilyReserve &&
+    (params.kind === "story" || params.kind === "doku");
+  let usedFamilyReserve = false;
 
   if (params.kind === "audio" && !policy.canUseAudioDokus) {
     throw APIError.permissionDenied(
@@ -822,6 +947,25 @@ export async function claimGenerationUsage(params: {
     throw APIError.permissionDenied(`Abo-Limit erreicht: 0 ${getLimitLabel(params.kind)} pro Monat.`);
   }
 
+  if (hardCapReached && !canUseReserve) {
+    throw APIError.permissionDenied(
+      `Profil-Hard-Cap erreicht: ${budgetSnapshot.hardCap} ${getLimitLabel(params.kind)} fuer dieses Profil.`
+    );
+  }
+
+  if (canUseReserve) {
+    usedFamilyReserve = await tryConsumeFamilyReserve({
+      userId: params.userId,
+      kind: params.kind as "story" | "doku",
+    });
+
+    if (!usedFamilyReserve) {
+      throw APIError.permissionDenied(
+        `Profil-Hard-Cap erreicht und Family Reserve fuer ${getLimitLabel(params.kind)} ist aufgebraucht.`
+      );
+    }
+  }
+
   try {
     await userDB.exec`
       INSERT INTO generation_usage (user_id, period_start, story_count, doku_count, audio_count, updated_at)
@@ -829,6 +973,12 @@ export async function claimGenerationUsage(params: {
       ON CONFLICT (user_id, period_start) DO NOTHING
     `;
   } catch (error) {
+    if (usedFamilyReserve && (params.kind === "story" || params.kind === "doku")) {
+      await releaseFamilyReserveUnit({
+        userId: params.userId,
+        kind: params.kind as "story" | "doku",
+      });
+    }
     throw APIError.failedPrecondition(
       "Billing-Datenbank nicht bereit. Bitte User-Migrationen ueber Script ausfuehren (6_add_generation_usage und 7_add_audio_usage)."
     );
@@ -865,8 +1015,22 @@ export async function claimGenerationUsage(params: {
     }
 
     if (!row) {
+      if (usedFamilyReserve) {
+        await releaseFamilyReserveUnit({
+          userId: params.userId,
+          kind: params.kind as "story" | "doku",
+        });
+      }
       throw APIError.internal("Konnte Verbrauch nicht aktualisieren.");
     }
+
+    await insertQuotaLedger({
+      userId: params.userId,
+      profileId,
+      periodStart,
+      kind: params.kind,
+      contentRef: params.contentRef,
+    });
 
     return {
       plan: context.plan,
@@ -874,6 +1038,10 @@ export async function claimGenerationUsage(params: {
       limit,
       used: usedFromRowByKind(row, params.kind),
       remaining: null,
+      profileId,
+      usedByProfile: usedByProfileBefore + 1,
+      softCapReached,
+      usedFamilyReserve,
       periodStart,
     };
   }
@@ -889,10 +1057,24 @@ export async function claimGenerationUsage(params: {
     `;
 
     if (!row) {
+      if (usedFamilyReserve) {
+        await releaseFamilyReserveUnit({
+          userId: params.userId,
+          kind: params.kind as "story" | "doku",
+        });
+      }
       throw APIError.permissionDenied(
         `Abo-Limit erreicht: ${limit} Story-Generierungen pro Monat. Bitte Abo upgraden.`
       );
     }
+
+    await insertQuotaLedger({
+      userId: params.userId,
+      profileId,
+      periodStart,
+      kind: params.kind,
+      contentRef: params.contentRef,
+    });
 
     return {
       plan: context.plan,
@@ -900,6 +1082,10 @@ export async function claimGenerationUsage(params: {
       limit,
       used: row.story_count,
       remaining: Math.max(0, limit - row.story_count),
+      profileId,
+      usedByProfile: usedByProfileBefore + 1,
+      softCapReached,
+      usedFamilyReserve,
       periodStart,
     };
   }
@@ -915,10 +1101,24 @@ export async function claimGenerationUsage(params: {
     `;
 
     if (!row) {
+      if (usedFamilyReserve) {
+        await releaseFamilyReserveUnit({
+          userId: params.userId,
+          kind: params.kind as "story" | "doku",
+        });
+      }
       throw APIError.permissionDenied(
         `Abo-Limit erreicht: ${limit} Doku-Generierungen pro Monat. Bitte Abo upgraden.`
       );
     }
+
+    await insertQuotaLedger({
+      userId: params.userId,
+      profileId,
+      periodStart,
+      kind: params.kind,
+      contentRef: params.contentRef,
+    });
 
     return {
       plan: context.plan,
@@ -926,6 +1126,10 @@ export async function claimGenerationUsage(params: {
       limit,
       used: row.doku_count,
       remaining: Math.max(0, limit - row.doku_count),
+      profileId,
+      usedByProfile: usedByProfileBefore + 1,
+      softCapReached,
+      usedFamilyReserve,
       periodStart,
     };
   }
@@ -940,10 +1144,24 @@ export async function claimGenerationUsage(params: {
   `;
 
   if (!row) {
+    if (usedFamilyReserve) {
+      await releaseFamilyReserveUnit({
+        userId: params.userId,
+        kind: params.kind as "story" | "doku",
+      });
+    }
     throw APIError.permissionDenied(
       `Abo-Limit erreicht: ${limit} Audio-Dokus pro Monat. Bitte Abo upgraden.`
     );
   }
+
+  await insertQuotaLedger({
+    userId: params.userId,
+    profileId,
+    periodStart,
+    kind: params.kind,
+    contentRef: params.contentRef,
+  });
 
   return {
     plan: context.plan,
@@ -951,6 +1169,10 @@ export async function claimGenerationUsage(params: {
     limit,
     used: row.audio_count,
     remaining: Math.max(0, limit - row.audio_count),
+    profileId,
+    usedByProfile: usedByProfileBefore + 1,
+    softCapReached,
+    usedFamilyReserve,
     periodStart,
   };
 }

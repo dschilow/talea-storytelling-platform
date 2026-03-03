@@ -6,21 +6,28 @@ import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { buildAvatarProgressionSummary } from "./progression";
 import { ensureAvatarSharingTables, findAvatarShareForIdentity, getUserProfileById } from "./sharing";
+import { resolveRequestedProfileId } from "../helpers/profiles";
 
 interface GetAvatarParams {
   id: string;
+  profileId?: string;
 }
 
 // Retrieves a specific avatar by ID.
 export const get = api<GetAvatarParams, Avatar>(
   { expose: true, method: "GET", path: "/avatar/:id", auth: true },
-  async ({ id }) => {
+  async ({ id, profileId }) => {
     try {
       const auth = getAuthData()!;
       await ensureAvatarSharingTables();
+      const activeProfileId = await resolveRequestedProfileId({
+        userId: auth.userID,
+        requestedProfileId: profileId,
+      });
       const row = await avatarDB.queryRow<{
         id: string;
         user_id: string;
+        profile_id: string | null;
         name: string;
         description: string | null;
         physical_traits: string;
@@ -29,6 +36,8 @@ export const get = api<GetAvatarParams, Avatar>(
         visual_profile: string | null;
         creation_type: "ai-generated" | "photo-upload";
         is_public: boolean;
+        source_type: string | null;
+        source_avatar_id: string | null;
         original_avatar_id: string | null;
         created_at: Date;
         updated_at: Date;
@@ -44,6 +53,10 @@ export const get = api<GetAvatarParams, Avatar>(
 
       const isOwner = row.user_id === auth.userID;
       let shareMatch = null;
+
+      if (isOwner && row.profile_id && row.profile_id !== activeProfileId && auth.role !== "admin") {
+        throw APIError.permissionDenied("Avatar belongs to another child profile.");
+      }
 
       if (!isOwner && auth.role !== "admin" && !row.is_public) {
         shareMatch = await findAvatarShareForIdentity({
@@ -162,6 +175,7 @@ export const get = api<GetAvatarParams, Avatar>(
       return {
         id: row.id,
         userId: row.user_id,
+        profileId: row.profile_id || activeProfileId,
         name: row.name,
         description: row.description || undefined,
         physicalTraits: parsedPhysicalTraits,
@@ -192,6 +206,8 @@ export const get = api<GetAvatarParams, Avatar>(
             }))
           : undefined,
         originalAvatarId: row.original_avatar_id || undefined,
+        sourceType: (row.source_type as Avatar["sourceType"]) || "profile",
+        sourceAvatarId: row.source_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
         inventory: row.inventory ? JSON.parse(row.inventory) : [],

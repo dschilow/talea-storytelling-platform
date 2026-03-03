@@ -1,4 +1,4 @@
-﻿import { api, APIError } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
@@ -16,6 +16,7 @@ import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { updateStoryInstanceStatus } from "./pipeline/repository";
 import { claimGenerationUsage } from "../helpers/billing";
+import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import {
   assertParentalDailyLimit,
   buildGenerationGuidanceFromControls,
@@ -29,6 +30,7 @@ import {
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
+import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 import type {
   StorySoulKey,
   EmotionalFlavorKey,
@@ -190,6 +192,8 @@ export interface Chapter {
 export interface Story {
   id: string;
   userId: string;
+  primaryProfileId?: string;
+  participantProfileIds?: string[];
   title: string;
   description: string;
   coverImageUrl?: string;
@@ -211,7 +215,7 @@ export interface Story {
       images: number;
       total: number;
     };
-    // ðŸŽ Artifact earned from this story
+    // 🎁 Artifact earned from this story
     newArtifact?: {
       name: string;
       description: string;
@@ -261,7 +265,19 @@ type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "cr
 
 interface GenerateStoryRequest {
   userId: string;
+  profileId?: string;
+  participantProfileIds?: string[];
   config: StoryConfig;
+}
+
+function uniqueTrimmed(values: string[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
 }
 
 // Generates a new story based on the provided configuration.
@@ -323,10 +339,27 @@ export const generate = api<GenerateStoryRequest, Story>(
       customPrompt: req.config.customPrompt,
     };
     const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
+    const requestedPrimaryProfileId = req.profileId ?? extractRequestedProfileId(req);
+    const primaryProfileId = await resolveRequestedProfileId({
+      userId: currentUserId,
+      requestedProfileId: requestedPrimaryProfileId,
+      fallbackName: auth?.email ?? undefined,
+    });
+    const requestedParticipants = extractParticipantProfileIds(req);
+    const participantProfileIds = uniqueTrimmed([
+      primaryProfileId,
+      ...(
+        requestedParticipants.length > 0
+          ? await assertProfilesBelongToUser(currentUserId, requestedParticipants)
+          : []
+      ),
+    ]);
 
     await claimGenerationUsage({
       userId: currentUserId,
       kind: "story",
+      profileId: primaryProfileId,
+      contentRef: id,
       clerkToken,
     });
     const mcpApiKey = mcpServerApiKey();
@@ -374,12 +407,55 @@ export const generate = api<GenerateStoryRequest, Story>(
     // Create initial story record
     await storyDB.exec`
       INSERT INTO stories (
-        id, user_id, title, description, config, status, created_at, updated_at
+        id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
       ) VALUES (
-        ${id}, ${currentUserId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
+        ${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
         ${JSON.stringify(config)}, 'generating', ${now}, ${now}
       )
     `;
+
+    for (const participantProfileId of participantProfileIds) {
+      await storyDB.exec`
+        INSERT INTO story_participants (
+          id,
+          story_id,
+          profile_id,
+          avatar_ids,
+          created_at
+        )
+        VALUES (
+          ${crypto.randomUUID()},
+          ${id},
+          ${participantProfileId},
+          ${JSON.stringify(config.avatarIds || [])}::jsonb,
+          ${now}
+        )
+        ON CONFLICT (story_id, profile_id) DO UPDATE
+        SET avatar_ids = EXCLUDED.avatar_ids
+      `;
+
+      await storyDB.exec`
+        INSERT INTO story_profile_state (
+          profile_id,
+          story_id,
+          is_favorite,
+          progress_pct,
+          completion_state,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          ${participantProfileId},
+          ${id},
+          FALSE,
+          0,
+          'not_started',
+          ${now},
+          ${now}
+        )
+        ON CONFLICT (profile_id, story_id) DO NOTHING
+      `;
+    }
 
     try {
       console.log("[story.generate] Loading avatar details...", { count: config.avatarIds.length });
@@ -390,6 +466,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         const row = await avatarDB.queryRow<{
           id: string;
           user_id: string;
+          profile_id: string | null;
           name: string;
           description: string | null;
           physical_traits: string;
@@ -401,7 +478,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           inventory: string | null;
           skills: string | null;
         }>`
-          SELECT id, user_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
+          SELECT id, user_id, profile_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
           FROM avatars
           WHERE id = ${avatarId}
         `;
@@ -420,6 +497,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           if (!shareMatch) {
             throw APIError.permissionDenied("Avatar is not shared with current user");
           }
+        } else if (row.profile_id && !participantProfileIds.includes(row.profile_id)) {
+          throw APIError.permissionDenied("Avatar belongs to another child profile.");
         }
 
         const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};
@@ -694,7 +773,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         },
       });
 
-      // ðŸŽ Add artifact metadata so it's persisted and returned to frontend
+      // 🎁 Add artifact metadata so it's persisted and returned to frontend
       const enrichedMetadata = {
         ...generatedStory.metadata,
         newArtifact: generatedStory.newArtifact || undefined,
@@ -708,7 +787,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             : undefined,
       };
       
-      console.log("[story.generate] ðŸŽ artifact in response:", {
+      console.log("[story.generate] 🎁 artifact in response:", {
         hasNewArtifact: !!generatedStory.newArtifact,
         newArtifactName: generatedStory.newArtifact?.name || 'none',
         hasPendingArtifact: !!generatedStory.pendingArtifact,
@@ -751,27 +830,30 @@ export const generate = api<GenerateStoryRequest, Story>(
         `;
       }
 
-      // NEW AI-DRIVEN SYSTEM: Apply personality updates based on story analysis
-      console.log("[AI-DRIVEN SYSTEM] Applying trait updates to ALL user avatars...");
+      // NEW AI-DRIVEN SYSTEM: Apply personality updates only to participating avatars.
+      console.log("[AI-DRIVEN SYSTEM] Applying trait updates to selected avatars...");
+      const selectedAvatarIds = uniqueTrimmed(config.avatarIds || []);
+      const selectedAvatarRows = selectedAvatarIds.length > 0
+        ? await avatarDB.queryAll<{ id: string; name: string }>`
+            SELECT id, name
+            FROM avatars
+            WHERE id = ANY(${selectedAvatarIds})
+          `
+        : [];
+      const selectedAvatarMap = new Map(selectedAvatarRows.map((row) => [row.id, row]));
+      const selectedAvatars = selectedAvatarIds
+        .map((avatarId) => selectedAvatarMap.get(avatarId))
+        .filter((row): row is { id: string; name: string } => Boolean(row));
 
-      // Load ALL avatars for this user directly from the database
-      const allUserAvatarRows = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT id, name FROM avatars WHERE user_id = ${currentUserId}
-      `;
-      const allUserAvatars = allUserAvatarRows.map(row => ({ id: row.id, name: row.name }));
+      console.log(`[story.generate] Found ${selectedAvatars.length} participating avatars for story ${id}`);
 
-      console.log(`[story.generate] Found ${allUserAvatars.length} total avatars for user ${currentUserId}`);
-
-      if (validatedDevelopments.length > 0 && allUserAvatars.length > 0) {
+      if (validatedDevelopments.length > 0 && selectedAvatars.length > 0) {
         // Convert AI-generated avatar developments to personality changes
         const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(validatedDevelopments);
 
-        // Determine which avatars actively participated
-        const participatingAvatarIds = new Set(config.avatarIds);
-
         // Apply updates to ALL avatars
-        for (const userAvatar of allUserAvatars) {
-          const isParticipating = participatingAvatarIds.has(userAvatar.id);
+        for (const userAvatar of selectedAvatars) {
+          const isParticipating = true;
 
           // Find AI-generated development for this avatar
           const aiDevelopment = convertedDevelopments.find(dev => dev.name === userAvatar.name);
@@ -857,7 +939,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                 'positive'
               );
 
-              console.log(`[story.generate] ðŸ“ Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
+              console.log(`[story.generate] 📝 Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
 
               // TODO: Fetch last personality shifts from database for cooldown check
               // For now, we skip cooldown (all changes allowed) - implement in future iteration
@@ -870,7 +952,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               );
 
               if (blockedChanges.length > 0) {
-                console.warn(`[story.generate] â³ ${blockedChanges.length} personality shifts blocked by cooldown:`,
+                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`,
                   blockedChanges.map(b => `${b.trait} (${b.remainingHours}h remaining)`)
                 );
               }
@@ -885,7 +967,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                   contentType: 'story'
                 });
 
-                console.log(`[story.generate] âœ… Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
+                console.log(`[story.generate] ✅ Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
               }
 
               // Add memory with categorization info
@@ -927,23 +1009,23 @@ export const generate = api<GenerateStoryRequest, Story>(
                   VALUES (${userAvatar.id}, ${id}, ${generatedStory.title})
                   ON CONFLICT (avatar_id, story_id) DO NOTHING
                 `;
-                console.log(`[story.generate] âœ… Marked story as read for ${userAvatar.name}`);
+                console.log(`[story.generate] ✅ Marked story as read for ${userAvatar.name}`);
               } catch (markReadError) {
                 console.warn(`[story.generate] Failed to mark story as read:`, markReadError);
               }
               
               // Note: Artifacts are created during Phase 4.5/4.6 with thematic AI-generated content
               // The old evaluateStoryRewards system (generic artifacts) is disabled
-              console.log(`[story.generate] ðŸ“¦ Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
+              console.log(`[story.generate] 📦 Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
             } catch (updateError) {
               console.error(`[story.generate] Failed to update ${userAvatar.name}:`, updateError);
             }
           }
         }
 
-        console.log(`[story.generate] Applied AI-driven trait updates to all ${allUserAvatars.length} user avatars`);
+        console.log(`[story.generate] Applied AI-driven trait updates to ${selectedAvatars.length} participating avatars`);
       } else {
-        console.log("[story.generate] No AI-generated avatar developments to apply or no avatars found");
+        console.log("[story.generate] No AI-generated avatar developments to apply or no participating avatars found");
       }
 
       // Return the complete story
@@ -1006,6 +1088,7 @@ async function getCompleteStory(storyId: string): Promise<Story> {
   const storyRow = await storyDB.queryRow<{
     id: string;
     user_id: string;
+    primary_profile_id: string | null;
     title: string;
     description: string;
     cover_image_url: string | null;
@@ -1044,6 +1127,13 @@ async function getCompleteStory(storyId: string): Promise<Story> {
     ORDER BY chapter_order
   `;
 
+  const participantRows = await storyDB.queryAll<{ profile_id: string }>`
+    SELECT profile_id
+    FROM story_participants
+    WHERE story_id = ${storyId}
+    ORDER BY created_at ASC
+  `;
+
   const parsedMetadata = parseJsonObject(storyRow.metadata);
   const chapterVisuals = (parsedMetadata?.chapterVisuals && typeof parsedMetadata.chapterVisuals === "object")
     ? parsedMetadata.chapterVisuals as Record<string, { scenicImageUrl?: string; scenicImagePrompt?: string }>
@@ -1066,6 +1156,8 @@ async function getCompleteStory(storyId: string): Promise<Story> {
   return {
     id: storyRow.id,
     userId: storyRow.user_id,
+    primaryProfileId: storyRow.primary_profile_id || undefined,
+    participantProfileIds: participantRows.map((row) => row.profile_id),
     title: storyRow.title,
     description: storyRow.description,
     coverImageUrl,

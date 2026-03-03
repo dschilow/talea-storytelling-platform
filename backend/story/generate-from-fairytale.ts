@@ -6,6 +6,8 @@ import { findAvatarShareForIdentity } from "../avatar/sharing";
 import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
 import { claimGenerationUsage } from "../helpers/billing";
+import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
+import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 import crypto from "crypto";
 
 // =====================================================
@@ -14,6 +16,8 @@ import crypto from "crypto";
 
 interface GenerateFromFairyTaleRequest {
   userId: string;
+  profileId?: string;
+  participantProfileIds?: string[];
   taleId: string;
   characterMappings: Record<string, string>; // roleType -> avatarId
   length?: 'short' | 'medium' | 'long';
@@ -37,10 +41,30 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     if (req.userId && req.userId !== currentUserId) {
       throw APIError.permissionDenied("userId mismatch: request userId does not match authenticated user");
     }
+    const requestedPrimaryProfileId = req.profileId ?? extractRequestedProfileId(req);
+    const primaryProfileId = await resolveRequestedProfileId({
+      userId: currentUserId,
+      requestedProfileId: requestedPrimaryProfileId,
+      fallbackName: auth?.email ?? undefined,
+    });
+    const requestedParticipants = extractParticipantProfileIds(req);
+    const participantProfileIds = Array.from(
+      new Set([
+        primaryProfileId,
+        ...(
+          requestedParticipants.length > 0
+            ? await assertProfilesBelongToUser(currentUserId, requestedParticipants)
+            : []
+        ),
+      ])
+    );
+    const storyId = crypto.randomUUID();
 
     await claimGenerationUsage({
       userId: currentUserId,
       kind: "story",
+      profileId: primaryProfileId,
+      contentRef: storyId,
       clerkToken: auth?.clerkToken,
     });
 
@@ -91,7 +115,7 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     // Check all mapped avatars exist
     if (avatarIds.length > 0) {
       const avatars = await avatarDB.queryAll<any>`
-        SELECT id, name, user_id FROM avatars WHERE id = ANY(${avatarIds})
+        SELECT id, name, user_id, profile_id FROM avatars WHERE id = ANY(${avatarIds})
       `;
 
       if (avatars.length !== avatarIds.length) {
@@ -111,6 +135,8 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
           if (!shareMatch) {
             errors.push(`Avatar ${avatar.id} is not shared with current user`);
           }
+        } else if (avatar.profile_id && !participantProfileIds.includes(String(avatar.profile_id))) {
+          errors.push(`Avatar ${avatar.id} belongs to another child profile`);
         }
       }
     }
@@ -133,15 +159,15 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     console.log("[FairyTaleStory] Processing scenes:", { count: scenes.length });
 
     // 5. Create story record
-    const storyId = crypto.randomUUID();
     const now = new Date();
 
     await storyDB.exec`
       INSERT INTO stories (
-        id, user_id, title, description, config, status, created_at, updated_at
+        id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
       ) VALUES (
         ${storyId}, 
         ${currentUserId}, 
+        ${primaryProfileId},
         ${tale.title}, 
         ${tale.summary || 'Eine personalisierte Geschichte basierend auf einem klassischen Märchen'},
         ${JSON.stringify({ taleId: req.taleId, characterMappings: req.characterMappings, length: req.length, style: req.style })},
@@ -150,6 +176,46 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
         ${now}
       )
     `;
+    for (const participantProfileId of participantProfileIds) {
+      await storyDB.exec`
+        INSERT INTO story_participants (
+          id,
+          story_id,
+          profile_id,
+          avatar_ids,
+          created_at
+        )
+        VALUES (
+          ${crypto.randomUUID()},
+          ${storyId},
+          ${participantProfileId},
+          ${JSON.stringify(avatarIds)}::jsonb,
+          ${now}
+        )
+        ON CONFLICT (story_id, profile_id) DO UPDATE
+        SET avatar_ids = EXCLUDED.avatar_ids
+      `;
+
+      await storyDB.exec`
+        INSERT INTO story_profile_state (
+          profile_id,
+          story_id,
+          progress_pct,
+          completion_state,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          ${participantProfileId},
+          ${storyId},
+          0,
+          'not_started',
+          ${now},
+          ${now}
+        )
+        ON CONFLICT (profile_id, story_id) DO NOTHING
+      `;
+    }
 
     // 6. Load avatar details for personalization
     const avatarDetailsMap = new Map<string, any>();
@@ -215,10 +281,10 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
       // Insert chapter into DB
       await storyDB.exec`
         INSERT INTO chapters (
-          id, story_id, "order", title, content, image_url, created_at, updated_at
+          id, story_id, chapter_order, title, content, image_url, created_at
         ) VALUES (
           ${chapterId}, ${storyId}, ${chapter.order}, ${chapter.title}, 
-          ${chapter.content}, ${chapter.imageUrl}, ${now}, ${now}
+          ${chapter.content}, ${chapter.imageUrl}, ${now}
         )
       `;
     }
@@ -232,6 +298,8 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     const story: Story = {
       id: storyId,
       userId: currentUserId,
+      primaryProfileId,
+      participantProfileIds,
       title: tale.title,
       description: tale.summary || '',
       coverImageUrl: undefined,

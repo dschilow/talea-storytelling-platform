@@ -4,6 +4,12 @@ import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureAvatarSharingTables, getUserProfilesByIds, normalizeEmail } from "./sharing";
+import { resolveRequestedProfileId } from "../helpers/profiles";
+
+interface ListAvatarsRequest {
+  profileId?: string;
+  includeShared?: boolean;
+}
 
 interface ListAvatarsResponse {
   avatars: Avatar[];
@@ -12,6 +18,7 @@ interface ListAvatarsResponse {
 type AvatarListRow = {
   id: string;
   user_id: string;
+  profile_id: string | null;
   name: string;
   description: string | null;
   physical_traits: string;
@@ -20,6 +27,8 @@ type AvatarListRow = {
   visual_profile: string | null;
   creation_type: "ai-generated" | "photo-upload";
   is_public: boolean;
+  source_type: string | null;
+  source_avatar_id: string | null;
   original_avatar_id: string | null;
   created_at: Date;
   updated_at: Date;
@@ -29,17 +38,23 @@ type AvatarListRow = {
 };
 
 // Retrieves avatars owned by the user and avatars shared with the user.
-export const list = api<void, ListAvatarsResponse>(
+export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
   { expose: true, method: "GET", path: "/avatars", auth: true },
-  async () => {
+  async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarSharingTables();
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: req.profileId,
+    });
     const normalizedEmail = normalizeEmail(auth.email);
+    const includeShared = req.includeShared === true;
 
     const ownRows = await avatarDB.queryAll<AvatarListRow>`
       SELECT
         a.id,
         a.user_id,
+        a.profile_id,
         a.name,
         a.description,
         a.physical_traits,
@@ -48,6 +63,8 @@ export const list = api<void, ListAvatarsResponse>(
         a.visual_profile,
         a.creation_type,
         a.is_public,
+        a.source_type,
+        a.source_avatar_id,
         a.original_avatar_id,
         a.created_at,
         a.updated_at,
@@ -55,9 +72,11 @@ export const list = api<void, ListAvatarsResponse>(
       FROM avatars a
       LEFT JOIN avatar_shares s ON s.avatar_id = a.id AND s.owner_user_id = a.user_id
       WHERE a.user_id = ${auth.userID}
+        AND (a.profile_id = ${activeProfileId} OR a.profile_id IS NULL)
       GROUP BY
         a.id,
         a.user_id,
+        a.profile_id,
         a.name,
         a.description,
         a.physical_traits,
@@ -66,17 +85,21 @@ export const list = api<void, ListAvatarsResponse>(
         a.visual_profile,
         a.creation_type,
         a.is_public,
+        a.source_type,
+        a.source_avatar_id,
         a.original_avatar_id,
         a.created_at,
         a.updated_at
       ORDER BY a.created_at DESC
     `;
 
-    const sharedRows = normalizedEmail
+    const sharedRows = includeShared
+      ? (normalizedEmail
       ? await avatarDB.queryAll<AvatarListRow>`
           SELECT
             a.id,
             a.user_id,
+            a.profile_id,
             a.name,
             a.description,
             a.physical_traits,
@@ -85,6 +108,8 @@ export const list = api<void, ListAvatarsResponse>(
             a.visual_profile,
             a.creation_type,
             a.is_public,
+            a.source_type,
+            a.source_avatar_id,
             a.original_avatar_id,
             a.created_at,
             a.updated_at,
@@ -97,6 +122,7 @@ export const list = api<void, ListAvatarsResponse>(
           GROUP BY
             a.id,
             a.user_id,
+            a.profile_id,
             a.name,
             a.description,
             a.physical_traits,
@@ -105,6 +131,8 @@ export const list = api<void, ListAvatarsResponse>(
             a.visual_profile,
             a.creation_type,
             a.is_public,
+            a.source_type,
+            a.source_avatar_id,
             a.original_avatar_id,
             a.created_at,
             a.updated_at,
@@ -115,6 +143,7 @@ export const list = api<void, ListAvatarsResponse>(
           SELECT
             a.id,
             a.user_id,
+            a.profile_id,
             a.name,
             a.description,
             a.physical_traits,
@@ -123,6 +152,8 @@ export const list = api<void, ListAvatarsResponse>(
             a.visual_profile,
             a.creation_type,
             a.is_public,
+            a.source_type,
+            a.source_avatar_id,
             a.original_avatar_id,
             a.created_at,
             a.updated_at,
@@ -135,6 +166,7 @@ export const list = api<void, ListAvatarsResponse>(
           GROUP BY
             a.id,
             a.user_id,
+            a.profile_id,
             a.name,
             a.description,
             a.physical_traits,
@@ -143,12 +175,15 @@ export const list = api<void, ListAvatarsResponse>(
             a.visual_profile,
             a.creation_type,
             a.is_public,
+            a.source_type,
+            a.source_avatar_id,
             a.original_avatar_id,
             a.created_at,
             a.updated_at,
             s.owner_user_id
           ORDER BY MAX(s.updated_at) DESC
-        `;
+        `)
+      : [];
 
     const ownerProfiles = await getUserProfilesByIds(
       sharedRows
@@ -160,6 +195,7 @@ export const list = api<void, ListAvatarsResponse>(
       ownRows.map(async (row) => ({
         id: row.id,
         userId: row.user_id,
+        profileId: row.profile_id || activeProfileId,
         name: row.name,
         description: row.description || undefined,
         physicalTraits: JSON.parse(row.physical_traits),
@@ -171,6 +207,8 @@ export const list = api<void, ListAvatarsResponse>(
         isShared: (row.share_count ?? 0) > 0,
         isOwnedByCurrentUser: true,
         sharedWithCount: row.share_count ?? 0,
+        sourceType: (row.source_type as Avatar["sourceType"]) || "profile",
+        sourceAvatarId: row.source_avatar_id || undefined,
         originalAvatarId: row.original_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
@@ -187,6 +225,7 @@ export const list = api<void, ListAvatarsResponse>(
         return {
           id: row.id,
           userId: row.user_id,
+          profileId: row.profile_id || undefined,
           name: row.name,
           description: row.description || undefined,
           physicalTraits: JSON.parse(row.physical_traits),
@@ -204,6 +243,8 @@ export const list = api<void, ListAvatarsResponse>(
             sharedAt: row.shared_at ? row.shared_at.toISOString() : undefined,
           },
           originalAvatarId: row.original_avatar_id || undefined,
+          sourceType: (row.source_type as Avatar["sourceType"]) || "clone",
+          sourceAvatarId: row.source_avatar_id || undefined,
           createdAt: row.created_at.toISOString(),
           updatedAt: row.updated_at.toISOString(),
           inventory: [],

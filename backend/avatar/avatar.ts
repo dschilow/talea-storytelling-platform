@@ -122,6 +122,7 @@ export interface AvatarShareRecipient {
 export interface Avatar {
   id: string;
   userId: string;
+  profileId?: string;
   name: string;
   description?: string;
   physicalTraits: PhysicalTraits;
@@ -135,6 +136,8 @@ export interface Avatar {
   sharedBy?: AvatarSharedBy;
   sharedWithCount?: number;
   activeShareRecipients?: AvatarShareRecipient[];
+  sourceType?: "profile" | "pool" | "family" | "clone";
+  sourceAvatarId?: string;
   originalAvatarId?: string;
   createdAt: string;
   updatedAt: string;
@@ -166,6 +169,7 @@ export interface Skill {
 }
 
 export interface CreateAvatarRequest {
+  profileId?: string;
   name: string;
   description?: string;
   physicalTraits: PhysicalTraits;
@@ -173,4 +177,6 @@ export interface CreateAvatarRequest {
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
+  sourceType?: "profile" | "pool" | "family" | "clone";
+  sourceAvatarId?: string;
 }
