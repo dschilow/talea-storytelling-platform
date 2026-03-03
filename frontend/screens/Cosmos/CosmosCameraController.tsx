@@ -21,7 +21,7 @@ interface Props {
   focusedPosition?: [number, number, number] | null;
 }
 
-const OVERVIEW_POS = new THREE.Vector3(8, 14, 24);
+const OVERVIEW_POS = new THREE.Vector3(12, 10, 24);
 const OVERVIEW_TARGET = new THREE.Vector3(0, 0, 0);
 
 export const CosmosCameraController: React.FC<Props> = ({

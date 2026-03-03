@@ -24,6 +24,32 @@ interface Props {
 
 const MAX_LIFE_PARTICLES = 10;
 const MAX_TOPIC_MOONS = 8;
+const ATMOSPHERE_VERTEX = `
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorldPos = world.xyz;
+    vNormalW = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const ATMOSPHERE_FRAGMENT = `
+  varying vec3 vNormalW;
+  varying vec3 vWorldPos;
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform float uPower;
+  uniform float uIntensity;
+  void main() {
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    float fresnel = pow(1.0 - max(dot(normalize(vNormalW), viewDir), 0.0), uPower);
+    float alpha = fresnel * uOpacity;
+    vec3 color = uColor * (0.45 + fresnel * uIntensity);
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
 
 export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
@@ -93,46 +119,35 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         clearcoat: 0.18 + visuals.developmentLevel * 0.4,
         clearcoatRoughness: 0.45 - visuals.developmentLevel * 0.15,
         emissive: new THREE.Color(domain.emissiveColor),
-        emissiveIntensity: visuals.emissiveIntensity,
+        emissiveIntensity: 0.04 + visuals.emissiveIntensity * 0.42,
+        envMapIntensity: 0.35 + visuals.developmentLevel * 0.42,
       }),
     [domain.emissiveColor, maps.bumpMap, maps.roughnessMap, maps.surfaceMap, visuals.developmentLevel, visuals.emissiveIntensity, visuals.surfaceDetail]
   );
 
   const cloudMaterial = useMemo(
     () =>
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshPhysicalMaterial({
         map: maps.cloudMap,
+        alphaMap: maps.cloudMap,
         color: getCloudTint(domain.planetType),
         transparent: true,
         opacity: visuals.cloudOpacity,
         depthWrite: false,
+        roughness: 0.68,
+        metalness: 0.02,
+        clearcoat: 0.12,
       }),
     [domain.planetType, maps.cloudMap, visuals.cloudOpacity]
   );
 
   const atmosphereMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(domain.color),
-        transparent: true,
-        opacity: visuals.atmosphereOpacity,
-        side: THREE.BackSide,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
+    () => createAtmosphereShellMaterial(domain.color, visuals.atmosphereOpacity, 2.25, 1.05),
     [domain.color, visuals.atmosphereOpacity]
   );
 
   const auraMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: new THREE.Color(domain.emissiveColor),
-        transparent: true,
-        opacity: visuals.auraOpacity,
-        side: THREE.BackSide,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-      }),
+    () => createAtmosphereShellMaterial(domain.emissiveColor, visuals.auraOpacity, 1.55, 1.2),
     [domain.emissiveColor, visuals.auraOpacity]
   );
 
@@ -221,6 +236,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
     if (auraRef.current) {
       auraRef.current.scale.setScalar(1 + Math.sin(t * 0.8 + orbitConfig.phase) * 0.02);
+      const auraShader = auraRef.current.material as THREE.ShaderMaterial;
+      auraShader.uniforms.uOpacity.value = visuals.auraOpacity * (0.9 + Math.sin(t * 1.2 + orbitConfig.phase) * 0.08);
+    }
+
+    if (atmosphereRef.current) {
+      const atmosphereShader = atmosphereRef.current.material as THREE.ShaderMaterial;
+      atmosphereShader.uniforms.uOpacity.value = visuals.atmosphereOpacity;
     }
 
     topicMoonRefs.current.forEach((moon, index) => {
@@ -262,7 +284,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     <group ref={groupRef} position={initialPosition}>
       <Sphere
         ref={planetRef}
-        args={[baseRadius * visuals.scale, 42, 42]}
+        args={[baseRadius * visuals.scale, 64, 64]}
         material={planetMaterial}
         onClick={handleClick}
         onPointerOver={(e) => {
@@ -276,19 +298,19 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
       <Sphere
         ref={cloudRef}
-        args={[baseRadius * visuals.scale * 1.03, 32, 32]}
+        args={[baseRadius * visuals.scale * 1.03, 40, 40]}
         material={cloudMaterial}
       />
 
       <Sphere
         ref={atmosphereRef}
-        args={[baseRadius * visuals.scale * 1.17, 28, 28]}
+        args={[baseRadius * visuals.scale * 1.14, 36, 36]}
         material={atmosphereMaterial}
       />
 
       <Sphere
         ref={auraRef}
-        args={[baseRadius * visuals.scale * 1.34, 22, 22]}
+        args={[baseRadius * visuals.scale * 1.28, 32, 32]}
         material={auraMaterial}
       />
 
@@ -693,6 +715,28 @@ function getCloudTint(type: CosmosDomain['planetType']): string {
     default:
       return '#eaf2ff';
   }
+}
+
+function createAtmosphereShellMaterial(
+  color: THREE.ColorRepresentation,
+  opacity: number,
+  power: number,
+  intensity: number
+): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(color) },
+      uOpacity: { value: opacity },
+      uPower: { value: power },
+      uIntensity: { value: intensity },
+    },
+    vertexShader: ATMOSPHERE_VERTEX,
+    fragmentShader: ATMOSPHERE_FRAGMENT,
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
 }
 
 function fbm2D(x: number, y: number, seed: number, octaves: number): number {

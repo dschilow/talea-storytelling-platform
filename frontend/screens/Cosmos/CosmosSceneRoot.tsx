@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import { CosmosStarCenter } from './CosmosStarCenter';
 import { CosmosPlanetDomain } from './CosmosPlanetDomain';
 import { CosmosOrbitRig } from './CosmosOrbitRig';
@@ -15,7 +16,7 @@ import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
 import { CosmosDeepSpaceBackdrop } from './CosmosDeepSpaceBackdrop';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
-import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
+import { getDomainById, getDomainLearningPreset, resolveCosmosDomains } from './CosmosAssetsRegistry';
 import type { CameraMode, CosmosState, DomainProgress } from './CosmosTypes';
 import { useNavigate } from 'react-router-dom';
 
@@ -97,8 +98,13 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
   const handleStartLearning = useCallback(
     (domainId: string) => {
-      // Navigate to doku creation with domain context
-      navigate(`/doku/create?domain=${domainId}`);
+      const preset = getDomainLearningPreset(domainId);
+      const params = new URLSearchParams({
+        domain: domainId,
+        topic: preset.topic,
+        perspective: preset.perspective,
+      });
+      navigate(`/doku/create?${params.toString()}`);
     },
     [navigate]
   );
@@ -133,7 +139,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     <div className="relative w-full" style={{ height }}>
       <Canvas
         camera={{
-          position: compact ? [6, 11, 17] : [8, 14, 24],
+          position: compact ? [7, 8, 16] : [12, 10, 24],
           fov: 50,
           near: 0.1,
           far: 200,
@@ -143,6 +149,11 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
+        }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.03;
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {
@@ -291,7 +302,15 @@ const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
         return (
           <button
             key={domain.id}
-            onClick={() => navigate(`/doku/create?domain=${domain.id}`)}
+            onClick={() => {
+              const preset = getDomainLearningPreset(domain.id);
+              const params = new URLSearchParams({
+                domain: domain.id,
+                topic: preset.topic,
+                perspective: preset.perspective,
+              });
+              navigate(`/doku/create?${params.toString()}`);
+            }}
             className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm transition-all hover:bg-white/10 hover:scale-[1.02]"
           >
             <span className="text-3xl">{domain.icon}</span>

@@ -11,6 +11,7 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
+type DokuPerspective = 'science' | 'history' | 'technology' | 'nature' | 'culture';
 
 const DOKU_API_LANGUAGES: DokuApiLanguage[] = ['de', 'en', 'fr', 'es', 'it', 'nl'];
 
@@ -25,7 +26,7 @@ type DokuWizardState = {
   topic: string;
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
   depth: 'basic' | 'standard' | 'deep';
-  perspective: 'science' | 'history' | 'technology' | 'nature' | 'culture';
+  perspective: DokuPerspective;
   tone: 'fun' | 'neutral' | 'curious';
   length: 'short' | 'medium' | 'long';
   includeInteractive: boolean;
@@ -59,6 +60,55 @@ const topics = [
   'Klimawandel',
   'Chemie im Alltag',
 ];
+
+interface DomainDokuPreset {
+  label: string;
+  perspective: DokuPerspective;
+  topics: string[];
+}
+
+const DOMAIN_DOKU_PRESETS: Record<string, DomainDokuPreset> = {
+  nature: {
+    label: 'Natur & Tiere',
+    perspective: 'nature',
+    topics: ['Tierische Superkraefte', 'Regenwald-Oekosysteme', 'Wie Bienen Pflanzen retten'],
+  },
+  space: {
+    label: 'Weltraum',
+    perspective: 'science',
+    topics: ['Unser Sonnensystem', 'Schwarze Loecher einfach erklaert', 'Wie Sterne entstehen'],
+  },
+  history: {
+    label: 'Geschichte & Kulturen',
+    perspective: 'history',
+    topics: ['Das alte Aegypten', 'Ritterburgen im Mittelalter', 'Wie Menschen frueher lebten'],
+  },
+  tech: {
+    label: 'Technik & Erfindungen',
+    perspective: 'technology',
+    topics: ['Wie Roboter lernen', 'Die Geschichte der Erfindungen', 'Wie Computer denken'],
+  },
+  body: {
+    label: 'Mensch & Koerper',
+    perspective: 'science',
+    topics: ['So funktioniert dein Koerper', 'Das Geheimnis des Gehirns', 'Warum wir schlafen'],
+  },
+  earth: {
+    label: 'Erde & Klima',
+    perspective: 'science',
+    topics: ['Warum sich das Klima veraendert', 'Wetter und Wolken', 'Leben in den Ozeanen'],
+  },
+  art: {
+    label: 'Kunst & Musik',
+    perspective: 'culture',
+    topics: ['Wie Musik Gefuehle ausloest', 'Farben in der Kunst', 'Klangwelten entdecken'],
+  },
+  logic: {
+    label: 'Logik & Raetsel',
+    perspective: 'science',
+    topics: ['Logikraetsel fuer Detektive', 'Muster erkennen', 'Knifflige Denkaufgaben'],
+  },
+};
 
 const ageOptions = [
   { value: '3-5', label: '3-5 Jahre', desc: 'Sehr einfach' },
@@ -101,6 +151,14 @@ const phaseLabels: Record<GenerationPhase, string> = {
   complete: 'Fertig',
 };
 
+const toPerspective = (candidate?: string | null): DokuPerspective | null => {
+  const value = String(candidate || '').trim().toLowerCase();
+  if (value === 'science' || value === 'history' || value === 'technology' || value === 'nature' || value === 'culture') {
+    return value;
+  }
+  return null;
+};
+
 function Choice({
   selected,
   onClick,
@@ -141,8 +199,15 @@ export default function ModernDokuWizard() {
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
-  const topicParam = searchParams.get('topicTags');
-  const [activeStep, setActiveStep] = useState(topicParam ? 4 : 0);
+  const domainParam = (searchParams.get('domain') || '').trim().toLowerCase();
+  const legacyTopicParam = searchParams.get('topicTags');
+  const topicParam = searchParams.get('topic') || legacyTopicParam;
+  const selectedDomainPreset = DOMAIN_DOKU_PRESETS[domainParam];
+  const initialTopic = topicParam ?? selectedDomainPreset?.topics[0] ?? '';
+  const initialPerspective = toPerspective(searchParams.get('perspective')) ?? selectedDomainPreset?.perspective ?? 'science';
+  const shouldJumpToSummary = Boolean(legacyTopicParam && !searchParams.get('domain') && !searchParams.get('topic'));
+
+  const [activeStep, setActiveStep] = useState(shouldJumpToSummary ? 4 : 0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
   const [language, setLanguage] = useState<DokuApiLanguage>('de');
@@ -153,10 +218,10 @@ export default function ModernDokuWizard() {
     'Keine DokuCredits verfuegbar. Bitte den Plan in den Einstellungen wechseln.'
   );
   const [state, setState] = useState<DokuWizardState>({
-    topic: searchParams.get('topicTags') ?? '',
+    topic: initialTopic,
     ageGroup: '6-8',
     depth: 'standard',
-    perspective: 'science',
+    perspective: initialPerspective,
     tone: 'curious',
     length: 'medium',
     includeInteractive: true,
@@ -166,6 +231,10 @@ export default function ModernDokuWizard() {
 
   const headingColor = useMemo(() => (resolvedTheme === 'dark' ? '#e7eef9' : '#1b2838'), [resolvedTheme]);
   const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
+  const topicChoices = useMemo(() => {
+    const merged = [...(selectedDomainPreset?.topics ?? []), ...topics];
+    return Array.from(new Set(merged));
+  }, [selectedDomainPreset]);
 
   useEffect(() => {
     setLanguage(toDokuLanguage(i18n.language));
@@ -341,9 +410,14 @@ export default function ModernDokuWizard() {
                   {activeStep === 0 && (
                     <div className="space-y-5">
                       <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Thema waehlen</h2>
+                      {selectedDomainPreset && (
+                        <div className="rounded-xl border border-[#d5bdaf66] bg-[#d5bdaf14] px-3 py-2 text-xs font-semibold text-foreground">
+                          Vorauswahl aus Lernkosmos: {selectedDomainPreset.label}
+                        </div>
+                      )}
                       <input type="text" value={state.topic} onChange={(e) => updateState({ topic: e.target.value })} placeholder="z.B. Vulkane oder Sonnensystem" className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[#a88f80]" />
                       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                        {topics.map((topic) => (
+                        {topicChoices.map((topic) => (
                           <button key={topic} type="button" onClick={() => updateState({ topic })} className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`} style={{ borderColor: state.topic === topic ? '#d5bdaf66' : 'var(--color-border)' }}>
                             {topic}
                           </button>

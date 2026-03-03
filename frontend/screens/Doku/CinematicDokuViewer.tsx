@@ -141,7 +141,12 @@ const CinematicDokuViewer: React.FC = () => {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ dokuId, dokuTitle: doku.title, topic: doku.topic }),
+        body: JSON.stringify({
+          dokuId,
+          dokuTitle: doku.title,
+          topic: doku.topic,
+          perspective: doku.metadata?.configSnapshot?.perspective,
+        }),
       });
       if (response.ok) {
         const { showSuccessToast } = await import('../../utils/toastUtils');

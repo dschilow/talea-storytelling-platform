@@ -90,6 +90,7 @@ const DokuScrollReaderScreen: React.FC = () => {
           dokuId: dokuId,
           dokuTitle: doku.title,
           topic: doku.topic,
+          perspective: doku.metadata?.configSnapshot?.perspective,
         })
       });
 

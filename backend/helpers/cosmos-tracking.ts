@@ -74,50 +74,62 @@ export function buildTopicId(params: {
 export async function trackCosmosReadEvent(params: TrackCosmosReadParams): Promise<void> {
   const sourceEventType = params.sourceContentType === "doku" ? "doku_read" : "story_read";
   const topicId = params.topicId || null;
-  const id = `cs_${params.avatarId}_${params.domainId}_${topicId || "general"}_REMEMBER`;
-  const masteryDelta = 2.0;
-  const confidenceDelta = 1.0;
+  const primaryMasteryDelta = params.sourceContentType === "story" ? 2.4 : 2.0;
+  const primaryConfidenceDelta = params.sourceContentType === "story" ? 1.3 : 1.0;
+  const secondarySkillType = params.sourceContentType === "story" ? "EXPLAIN" : "UNDERSTAND";
+  const secondaryMasteryDelta = params.sourceContentType === "story" ? 1.1 : 0.9;
+  const secondaryConfidenceDelta = params.sourceContentType === "story" ? 0.8 : 0.5;
 
-  const existing = await avatarDB.queryRow`
-    SELECT mastery, confidence
-    FROM competency_state
-    WHERE avatar_id = ${params.avatarId}
-      AND domain_id = ${params.domainId}
-      AND COALESCE(topic_id, '') = ${topicId || ""}
-      AND skill_type = 'REMEMBER'
-  `;
+  async function upsertSkillState(
+    skillType: "REMEMBER" | "UNDERSTAND" | "EXPLAIN",
+    masteryDelta: number,
+    confidenceDelta: number
+  ) {
+    const id = `cs_${params.avatarId}_${params.domainId}_${topicId || "general"}_${skillType}`;
+    const existing = await avatarDB.queryRow`
+      SELECT mastery, confidence
+      FROM competency_state
+      WHERE avatar_id = ${params.avatarId}
+        AND domain_id = ${params.domainId}
+        AND COALESCE(topic_id, '') = ${topicId || ""}
+        AND skill_type = ${skillType}
+    `;
 
-  const currentMastery = existing ? Number(existing.mastery) || 0 : 0;
-  const currentConfidence = existing ? Number(existing.confidence) || 0 : 0;
-  const newMastery = Math.min(100, currentMastery + masteryDelta);
-  const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
-  const newStage = computeStage(newMastery, newConfidence);
+    const currentMastery = existing ? Number(existing.mastery) || 0 : 0;
+    const currentConfidence = existing ? Number(existing.confidence) || 0 : 0;
+    const newMastery = Math.min(100, currentMastery + masteryDelta);
+    const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
+    const newStage = computeStage(newMastery, newConfidence);
 
-  await avatarDB.exec`
-    INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at)
-    VALUES (
-      ${id},
-      ${params.avatarId},
-      ${params.profileId ?? null},
-      ${params.domainId},
-      ${topicId},
-      'REMEMBER',
-      ${newMastery},
-      ${newConfidence},
-      ${newStage},
-      1,
-      CURRENT_TIMESTAMP,
-      CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
-    DO UPDATE SET
-      mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
-      confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
-      stage = ${newStage},
-      topics_explored = competency_state.topics_explored + 1,
-      last_activity_at = CURRENT_TIMESTAMP,
-      updated_at = CURRENT_TIMESTAMP
-  `;
+    await avatarDB.exec`
+      INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at)
+      VALUES (
+        ${id},
+        ${params.avatarId},
+        ${params.profileId ?? null},
+        ${params.domainId},
+        ${topicId},
+        ${skillType},
+        ${newMastery},
+        ${newConfidence},
+        ${newStage},
+        1,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
+      DO UPDATE SET
+        mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
+        confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
+        stage = ${newStage},
+        topics_explored = GREATEST(competency_state.topics_explored, 1),
+        last_activity_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    `;
+  }
+
+  await upsertSkillState("REMEMBER", primaryMasteryDelta, primaryConfidenceDelta);
+  await upsertSkillState(secondarySkillType, secondaryMasteryDelta, secondaryConfidenceDelta);
 
   const eventId = `ev_read_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const summary = params.summary || `${sourceEventType}: abgeschlossen`;

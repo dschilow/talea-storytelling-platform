@@ -230,6 +230,7 @@ const DokuReaderScreen: React.FC = () => {
           dokuId: dokuId,
           dokuTitle: doku.title,
           topic: doku.topic,
+          perspective: doku.metadata?.configSnapshot?.perspective,
           // No avatarId = update all eligible avatars
         })
       });

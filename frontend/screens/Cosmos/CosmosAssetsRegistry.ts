@@ -6,6 +6,11 @@
 
 import type { CosmosDomain } from "./CosmosTypes";
 
+export interface DomainLearningPreset {
+  topic: string;
+  perspective: "science" | "history" | "technology" | "nature" | "culture";
+}
+
 export const COSMOS_DOMAINS: CosmosDomain[] = [
   {
     id: "nature",
@@ -97,6 +102,17 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
   },
 ];
 
+const DOMAIN_LEARNING_PRESETS: Record<string, DomainLearningPreset> = {
+  nature: { topic: "Tierische Superkraefte", perspective: "nature" },
+  space: { topic: "Unser Sonnensystem", perspective: "science" },
+  history: { topic: "Das alte Aegypten", perspective: "history" },
+  tech: { topic: "Wie Roboter lernen", perspective: "technology" },
+  body: { topic: "So funktioniert dein Koerper", perspective: "science" },
+  earth: { topic: "Warum sich das Klima veraendert", perspective: "science" },
+  art: { topic: "Wie Musik Gefuehle ausloest", perspective: "culture" },
+  logic: { topic: "Logikraetsel fuer Detektive", perspective: "science" },
+};
+
 const EXTRA_ICONS = ["🪐", "🛰️", "🌌", "✨", "🧠", "🔬", "📡", "🌠"];
 const EXTRA_TYPES: CosmosDomain["planetType"][] = [
   "terrestrial",
@@ -178,4 +194,8 @@ export function getDomainById(id: string, domains: CosmosDomain[] = COSMOS_DOMAI
 
 export function getDomainColor(id: string, domains: CosmosDomain[] = COSMOS_DOMAINS): string {
   return getDomainById(id, domains)?.color ?? "#888888";
+}
+
+export function getDomainLearningPreset(domainId: string): DomainLearningPreset {
+  return DOMAIN_LEARNING_PRESETS[domainId] ?? { topic: "Spannendes neues Thema", perspective: "science" };
 }
