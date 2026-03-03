@@ -1,10 +1,10 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { ensureAdmin } from "./authz";
+import { cancelUserBillingAtPeriodEnd } from "../helpers/billing";
+import { cleanupUserContent } from "../helpers/content-cleanup";
 
 const userDB = SQLDatabase.named("user");
-const storyDB = SQLDatabase.named("story");
-const avatarDB = SQLDatabase.named("avatar");
 
 interface DeleteUserParams {
   id: string;
@@ -12,41 +12,72 @@ interface DeleteUserParams {
 
 interface DeleteUserResponse {
   success: boolean;
+  subscriptionCancellation: {
+    attempted: boolean;
+    scheduled: boolean;
+    source: "sdk" | "rest" | "none";
+    note?: string;
+  };
   removed: {
     avatars: number;
     stories: number;
+    dokus: number;
+    audioDokus: number;
+    generatedAudioLibrary: number;
+    profiles: number;
     user: boolean;
   };
 }
 
-// Deletes a user and their related content (avatars and stories).
+// Deletes a user, removes all created content, and cancels paid subscriptions at period end.
 export const deleteUser = api<DeleteUserParams, DeleteUserResponse>(
   { expose: true, method: "DELETE", path: "/admin/users/:id", auth: true },
   async ({ id }) => {
     ensureAdmin();
 
-    const existing = await userDB.queryRow`SELECT id FROM users WHERE id = ${id}`;
+    const existing = await userDB.queryRow<{ id: string; subscription: "free" | "starter" | "familie" | "premium" }>`
+      SELECT id, subscription FROM users WHERE id = ${id}
+    `;
     if (!existing) {
       throw APIError.notFound("user not found");
     }
 
-    // Count items to return.
-    const avatarCountRow = await avatarDB.rawQueryRow<{ count: string }>("SELECT COUNT(*)::text as count FROM avatars WHERE user_id = $1", id);
-    const storyCountRow = await storyDB.rawQueryRow<{ count: string }>("SELECT COUNT(*)::text as count FROM stories WHERE user_id = $1", id);
+    const cancellation =
+      existing.subscription !== "free"
+        ? await cancelUserBillingAtPeriodEnd(id)
+        : {
+            attempted: false,
+            scheduled: true,
+            activeItems: 0,
+            canceledItems: 0,
+            source: "none" as const,
+            note: "free_plan_no_cancellation_needed",
+          };
 
-    // Delete related entities.
-    await avatarDB.exec`DELETE FROM avatars WHERE user_id = ${id}`;
-    // First delete chapters via cascade (chapters references stories with ON DELETE CASCADE),
-    // but we still delete stories explicitly.
-    await storyDB.exec`DELETE FROM stories WHERE user_id = ${id}`;
-    await userDB.exec`DELETE FROM users WHERE id = ${id}`;
+    if (!cancellation.scheduled) {
+      throw APIError.failedPrecondition(
+        `Subscription cancellation could not be scheduled (source=${cancellation.source}, note=${cancellation.note ?? "n/a"}).`
+      );
+    }
+
+    const removed = await cleanupUserContent(id);
 
     return {
       success: true,
+      subscriptionCancellation: {
+        attempted: cancellation.attempted,
+        scheduled: cancellation.scheduled,
+        source: cancellation.source,
+        note: cancellation.note,
+      },
       removed: {
-        avatars: parseInt(avatarCountRow?.count ?? "0", 10),
-        stories: parseInt(storyCountRow?.count ?? "0", 10),
-        user: true,
+        avatars: removed.avatarsDeleted,
+        stories: removed.storiesDeleted,
+        dokus: removed.dokusDeleted,
+        audioDokus: removed.audioDokusDeleted,
+        generatedAudioLibrary: removed.generatedAudioLibraryDeleted,
+        profiles: removed.profilesDeleted,
+        user: removed.userDeleted,
       },
     };
   }

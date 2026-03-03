@@ -141,13 +141,31 @@ const AdminDashboard: React.FC = () => {
   };
 
   const deleteUser = async (u: UserProfile) => {
-    if (!window.confirm(`Benutzer "${u.name}" wirklich lÃ¶schen? Alle Avatare und Stories werden entfernt.`)) return;
+    const confirmName = (u.name || u.email || u.id).trim();
+    const typedName = window.prompt(
+      [
+        `Benutzer "${u.name}" wird endgültig gelöscht.`,
+        "Es werden alle Inhalte des Accounts gelöscht (Profile, Avatare, Stories, Dokus, Audio).",
+        "Falls ein Paid-Abo aktiv ist, wird es zum nächsten Abrechnungszeitpunkt gekündigt.",
+        "Dieser Vorgang kann nicht rückgängig gemacht werden.",
+        "",
+        `Bitte zur Bestätigung den Namen exakt eingeben: ${confirmName}`,
+      ].join("\n"),
+      ""
+    );
+
+    if (typedName === null) return;
+    if (typedName.trim() !== confirmName) {
+      alert("Name stimmt nicht exakt überein. Löschung abgebrochen.");
+      return;
+    }
+
     try {
       await backend.admin.deleteUser({ id: u.id });
       setUsers(users.filter(x => x.id !== u.id));
     } catch (e) {
       console.error("Failed to delete user", e);
-      alert("Fehler beim LÃ¶schen.");
+      alert("Fehler beim Löschen.");
     }
   };
 
@@ -531,3 +549,4 @@ const StatTile: React.FC<{ label: string; value: number }> = ({ label, value }) 
 };
 
 export default AdminDashboard;
+

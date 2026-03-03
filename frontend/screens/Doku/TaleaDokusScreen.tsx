@@ -33,6 +33,7 @@ import type { AudioDoku } from '../../types/audio-doku';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
+import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 import taleaLogo from '@/img/talea_logo.png';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
 
@@ -452,6 +453,7 @@ const TaleaDokusScreen: React.FC = () => {
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded, user } = useUser();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { isAdmin } = useOptionalUserAccess();
   const { canUseOffline, isAudioDokuSaved, isSaving, toggleAudioDoku } = useOffline();
   const { resolvedTheme } = useTheme();
@@ -570,11 +572,27 @@ const TaleaDokusScreen: React.FC = () => {
   }, [backend, hasMorePublic, loadingMorePublic, publicAccessMessage, publicDokus.length]);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setMyDokus([]);
+      setPublicDokus([]);
+      setAudioDokus([]);
+      setTotalMy(0);
+      setTotalPublic(0);
+      setTotalAudio(0);
+      setHasMoreMy(false);
+      setHasMorePublic(false);
+      setLoadingMy(false);
+      setLoadingPublic(false);
+      setLoadingAudio(false);
+      return;
+    }
+
     void loadMyDokus();
     void loadPublicDokus();
     void loadAudioDokus();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, backend, activeProfileId, user?.id]);
 
   useEffect(() => {
     if (!isSignedIn || activeTab !== 'mine') return;

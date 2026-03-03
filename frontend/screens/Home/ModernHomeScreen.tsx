@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
@@ -22,6 +22,7 @@ import { ModernBadge } from '../../components/ui/modern-badge';
 import { colors } from '../../utils/constants/colors';
 import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
+import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 
 interface Avatar {
   id: string;
@@ -237,21 +238,14 @@ const ModernHomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isSignedIn, isLoaded } = useUser();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
-      loadData();
-    } else if (isLoaded && !isSignedIn) {
-      setLoading(false);
-    }
-  }, [isLoaded, isSignedIn, user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
@@ -268,7 +262,21 @@ const ModernHomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [backend]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn || !user) {
+      setAvatars([]);
+      setStories([]);
+      setDokus([]);
+      setLoading(false);
+      return;
+    }
+
+    void loadData();
+  }, [isLoaded, isSignedIn, user?.id, loadData, activeProfileId]);
 
   if (loading || !isLoaded) {
     return (

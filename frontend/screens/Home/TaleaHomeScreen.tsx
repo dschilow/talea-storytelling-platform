@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaJourneyCard from '../Journey/TaleaJourneyCard';
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
@@ -582,6 +583,7 @@ const TaleaHomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isLoaded, isSignedIn } = useUser();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
@@ -603,7 +605,7 @@ const TaleaHomeScreen: React.FC = () => {
     return "Guten Abend";
   }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
@@ -676,15 +678,25 @@ const TaleaHomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [backend]);
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user) {
-      loadData();
-    } else if (isLoaded && !isSignedIn) {
-      setLoading(false);
+    if (!isLoaded) {
+      return;
     }
-  }, [isLoaded, isSignedIn, user]);
+
+    if (!isSignedIn || !user) {
+      setAvatars([]);
+      setStories([]);
+      setDokus([]);
+      setStoriesTotal(0);
+      setDokusTotal(0);
+      setLoading(false);
+      return;
+    }
+
+    void loadData();
+  }, [isLoaded, isSignedIn, user?.id, loadData, activeProfileId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

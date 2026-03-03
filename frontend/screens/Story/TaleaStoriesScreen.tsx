@@ -30,6 +30,7 @@ import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
+import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
 
 const headingFont = '"Nunito", "Quicksand", "Fredoka", sans-serif';
@@ -414,6 +415,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const { isAdmin } = useOptionalUserAccess();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
 
@@ -436,7 +438,7 @@ const TaleaStoriesScreen: React.FC = () => {
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const loadStories = async () => {
+  const loadStories = useCallback(async () => {
     try {
       setLoading(true);
       const response = await backend.story.list({ limit: 12, offset: 0 });
@@ -448,7 +450,7 @@ const TaleaStoriesScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [backend]);
 
   const loadMoreStories = useCallback(async () => {
     if (!hasMore || loadingMore) return;
@@ -465,14 +467,24 @@ const TaleaStoriesScreen: React.FC = () => {
   }, [backend, hasMore, loadingMore, stories.length]);
 
   useEffect(() => {
-    if (authLoaded && isSignedIn && contentTab === "stories") {
-      loadStories();
-    } else if (authLoaded && !isSignedIn) {
+    if (!authLoaded) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      setStories([]);
+      setTotal(0);
+      setHasMore(false);
       setLoading(false);
-    } else if (authLoaded && isSignedIn && contentTab === "studio") {
+      return;
+    }
+
+    if (contentTab === "stories") {
+      void loadStories();
+    } else {
       setLoading(false);
     }
-  }, [authLoaded, isSignedIn, contentTab]);
+  }, [authLoaded, isSignedIn, contentTab, loadStories, activeProfileId]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(

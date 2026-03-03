@@ -188,7 +188,27 @@ const ProfilesSettingsPanel: React.FC = () => {
   };
 
   const onDeleteProfile = async (profileId: string, profileName: string) => {
-    if (!window.confirm(`Profil "${profileName}" wirklich archivieren?`)) return;
+    const expectedName = profileName.trim();
+    const typedName = window.prompt(
+      [
+        `Profil "${profileName}" wird jetzt endgültig gelöscht.`,
+        "Es werden alle Inhalte dieses Profils gelöscht (Avatare, Stories, Dokus, Quiz/Progress).",
+        "Dieser Vorgang kann nicht rückgängig gemacht werden.",
+        "",
+        `Bitte zur Bestätigung den Profilnamen exakt eingeben: ${profileName}`,
+      ].join("\n"),
+      ""
+    );
+
+    if (typedName === null) {
+      return;
+    }
+
+    if (typedName.trim() !== expectedName) {
+      toast.error("Der eingegebene Profilname stimmt nicht exakt überein.");
+      return;
+    }
+
     try {
       await deleteProfile(profileId);
       toast.success(`Profil "${profileName}" wurde entfernt.`);

@@ -11,6 +11,7 @@ import type { Avatar } from "../../types/avatar";
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 
 type Palette = {
   pageGradient: string;
@@ -222,8 +223,9 @@ const TaleaAvatarsScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const backend = useBackend();
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const { resolvedTheme } = useTheme();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   const isDark = resolvedTheme === "dark";
   const palette = useMemo(() => getPalette(isDark), [isDark]);
@@ -233,8 +235,14 @@ const TaleaAvatarsScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      setAvatars([]);
+      setIsLoading(false);
+      return;
+    }
     void loadAvatars();
-  }, [user]);
+  }, [isLoaded, isSignedIn, user?.id, backend, activeProfileId]);
 
   useEffect(() => {
     if (location.state?.refresh) {

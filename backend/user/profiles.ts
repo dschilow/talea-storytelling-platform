@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { resolvePlanForUser } from "../helpers/billing";
+import { cleanupProfileContent } from "../helpers/content-cleanup";
 import {
   assertProfilesBelongToUser,
   countProfilesForUser,
@@ -338,14 +339,10 @@ export const deleteProfile = api<DeleteProfileParams, DeleteProfileResponse>(
       throw APIError.failedPrecondition("At least one profile must remain.");
     }
 
-    await userDB.exec`
-      UPDATE child_profiles
-      SET is_archived = TRUE,
-          is_default = FALSE,
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${profileId}
-        AND user_id = ${auth.userID}
-    `;
+    await cleanupProfileContent({
+      userId: auth.userID,
+      profileId,
+    });
 
     const remaining = await listProfilesForUser(auth.userID);
     const hasDefault = remaining.some((entry) => entry.isDefault);
@@ -452,4 +449,3 @@ export const saveFamilyReserve = api<SaveReserveRequest, SaveReserveResponse>(
     return { reserve };
   }
 );
-

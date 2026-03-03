@@ -54,6 +54,15 @@ type CachedRoleResolution = {
 const clerkPlanCache = new Map<string, CachedPlanResolution>();
 const clerkRoleCache = new Map<string, CachedRoleResolution>();
 
+export type BillingCancellationResult = {
+  attempted: boolean;
+  scheduled: boolean;
+  activeItems: number;
+  canceledItems: number;
+  source: "sdk" | "rest" | "none";
+  note?: string;
+};
+
 function startOfMonthUTC(now: Date) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
@@ -113,6 +122,188 @@ async function getClerkClient(): Promise<ReturnType<typeof createClerkClient> | 
   const client = await cachedClerkClientPromise;
   cachedClerkClientPromise = null;
   return client;
+}
+
+function extractSubscriptionItems(raw: unknown): Array<{ id: string; status: string | null }> {
+  if (!raw || typeof raw !== "object") {
+    return [];
+  }
+
+  const payload = raw as Record<string, unknown>;
+  const candidates: unknown[] = [
+    payload.subscriptionItems,
+    payload.subscription_items,
+    payload.items,
+    payload.data,
+    (payload.data as Record<string, unknown> | undefined)?.subscriptionItems,
+    (payload.data as Record<string, unknown> | undefined)?.subscription_items,
+    (payload.data as Record<string, unknown> | undefined)?.items,
+  ];
+
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const items = candidate
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return null;
+        const row = entry as Record<string, unknown>;
+        const id = typeof row.id === "string" ? row.id : "";
+        if (!id) return null;
+        const status = typeof row.status === "string" ? row.status : null;
+        return { id, status };
+      })
+      .filter((entry): entry is { id: string; status: string | null } => entry !== null);
+
+    if (items.length > 0) {
+      return items;
+    }
+  }
+
+  return [];
+}
+
+function isFinalSubscriptionStatus(status: string | null | undefined): boolean {
+  if (!status) return false;
+  const normalized = status.trim().toLowerCase();
+  return normalized === "canceled" ||
+    normalized === "cancelled" ||
+    normalized === "expired" ||
+    normalized === "terminated";
+}
+
+async function fetchBillingSubscriptionViaRest(userId: string, secretKey: string): Promise<unknown | null> {
+  const endpoints = [
+    `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}/billing/subscription`,
+    `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}/commerce/subscription`,
+  ];
+
+  let lastError: string | null = null;
+
+  for (const endpoint of endpoints) {
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      lastError = `${response.status} ${response.statusText}`;
+      continue;
+    }
+
+    return response.json();
+  }
+
+  throw new Error(`Could not fetch Clerk subscription (${lastError ?? "unknown error"})`);
+}
+
+async function cancelSubscriptionItemViaRest(itemId: string, secretKey: string): Promise<boolean> {
+  const endpoints = [
+    `https://api.clerk.com/v1/billing/subscription_items/${encodeURIComponent(itemId)}`,
+    `https://api.clerk.com/v1/commerce/subscription_items/${encodeURIComponent(itemId)}`,
+  ];
+
+  let lastError: string | null = null;
+
+  for (const endpoint of endpoints) {
+    const response = await fetch(endpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok || response.status === 404 || response.status === 409) {
+      return true;
+    }
+
+    lastError = `${response.status} ${response.statusText}`;
+  }
+
+  throw new Error(`Could not cancel subscription item ${itemId} (${lastError ?? "unknown error"})`);
+}
+
+export async function cancelUserBillingAtPeriodEnd(userId: string): Promise<BillingCancellationResult> {
+  const client = await getClerkClient();
+  const sdkBilling = (client as any)?.billing;
+
+  if (sdkBilling?.getUserBillingSubscription && sdkBilling?.cancelSubscriptionItem) {
+    const subscription = await sdkBilling.getUserBillingSubscription(userId);
+    const items = extractSubscriptionItems(subscription);
+    const activeItems = items.filter((item) => !isFinalSubscriptionStatus(item.status));
+
+    let canceledItems = 0;
+    for (const item of activeItems) {
+      await sdkBilling.cancelSubscriptionItem(item.id, { endNow: false });
+      canceledItems += 1;
+    }
+
+    return {
+      attempted: activeItems.length > 0,
+      scheduled: canceledItems === activeItems.length,
+      activeItems: activeItems.length,
+      canceledItems,
+      source: "sdk",
+      note: activeItems.length === 0 ? "no_active_subscription_items" : undefined,
+    };
+  }
+
+  const secretKey = await loadClerkSecretKey();
+  if (!secretKey) {
+    return {
+      attempted: false,
+      scheduled: false,
+      activeItems: 0,
+      canceledItems: 0,
+      source: "none",
+      note: "missing_clerk_secret",
+    };
+  }
+
+  const subscription = await fetchBillingSubscriptionViaRest(userId, secretKey);
+  if (!subscription) {
+    return {
+      attempted: false,
+      scheduled: true,
+      activeItems: 0,
+      canceledItems: 0,
+      source: "rest",
+      note: "no_billing_subscription",
+    };
+  }
+
+  const items = extractSubscriptionItems(subscription);
+  const activeItems = items.filter((item) => !isFinalSubscriptionStatus(item.status));
+  if (activeItems.length === 0) {
+    return {
+      attempted: false,
+      scheduled: true,
+      activeItems: 0,
+      canceledItems: 0,
+      source: "rest",
+      note: "no_active_subscription_items",
+    };
+  }
+
+  let canceledItems = 0;
+  for (const item of activeItems) {
+    await cancelSubscriptionItemViaRest(item.id, secretKey);
+    canceledItems += 1;
+  }
+
+  return {
+    attempted: true,
+    scheduled: canceledItems === activeItems.length,
+    activeItems: activeItems.length,
+    canceledItems,
+    source: "rest",
+  };
 }
 
 function parsePlanClaim(raw: unknown): string[] {
