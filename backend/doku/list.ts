@@ -3,7 +3,7 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { DokuSection, Doku } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
-import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 const dokuDB = SQLDatabase.named("doku");
 
@@ -49,6 +49,8 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
       requestedProfileId: req.profileId,
       fallbackName: auth.email ?? undefined,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
+    const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
 
     // Get total count
     const countResult = await dokuDB.queryRow<{ count: number }>`
@@ -57,12 +59,21 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
       WHERE d.user_id = ${auth.userID}
         AND (
           ${includeFamily}
-          OR d.primary_profile_id IS NULL
+          OR d.primary_profile_id = ${activeProfileId}
           OR EXISTS (
             SELECT 1
             FROM doku_participants dp
             WHERE dp.doku_id = d.id
               AND dp.profile_id = ${activeProfileId}
+          )
+          OR (
+            ${includeLegacyUnscoped}
+            AND d.primary_profile_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM doku_participants dp_legacy
+              WHERE dp_legacy.doku_id = d.id
+            )
           )
         )
     `;
@@ -88,12 +99,21 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
       WHERE d.user_id = ${auth.userID}
         AND (
           ${includeFamily}
-          OR d.primary_profile_id IS NULL
+          OR d.primary_profile_id = ${activeProfileId}
           OR EXISTS (
             SELECT 1
             FROM doku_participants dp
             WHERE dp.doku_id = d.id
               AND dp.profile_id = ${activeProfileId}
+          )
+          OR (
+            ${includeLegacyUnscoped}
+            AND d.primary_profile_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM doku_participants dp_legacy
+              WHERE dp_legacy.doku_id = d.id
+            )
           )
         )
       ORDER BY d.created_at DESC

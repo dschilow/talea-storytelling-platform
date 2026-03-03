@@ -5,7 +5,7 @@ import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
-import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 interface ListStoriesRequest {
   limit?: number;
@@ -33,6 +33,8 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       requestedProfileId: req.profileId,
       fallbackName: auth.email ?? undefined,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
+    const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
 
     // Get total count
     const countResult = await storyDB.queryRow<{ count: number }>`
@@ -41,12 +43,21 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       WHERE s.user_id = ${auth.userID}
         AND (
           ${includeFamily}
-          OR s.primary_profile_id IS NULL
+          OR s.primary_profile_id = ${activeProfileId}
           OR EXISTS (
             SELECT 1
             FROM story_participants sp
             WHERE sp.story_id = s.id
               AND sp.profile_id = ${activeProfileId}
+          )
+          OR (
+            ${includeLegacyUnscoped}
+            AND s.primary_profile_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM story_participants sp_legacy
+              WHERE sp_legacy.story_id = s.id
+            )
           )
         )
     `;
@@ -84,12 +95,21 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       WHERE s.user_id = ${auth.userID}
         AND (
           ${includeFamily}
-          OR s.primary_profile_id IS NULL
+          OR s.primary_profile_id = ${activeProfileId}
           OR EXISTS (
             SELECT 1
             FROM story_participants sp
             WHERE sp.story_id = s.id
               AND sp.profile_id = ${activeProfileId}
+          )
+          OR (
+            ${includeLegacyUnscoped}
+            AND s.primary_profile_id IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM story_participants sp_legacy
+              WHERE sp_legacy.story_id = s.id
+            )
           )
         )
       ORDER BY s.created_at DESC

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
@@ -135,6 +136,7 @@ export default function ModernDokuWizard() {
   const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { user } = useUser();
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
@@ -218,6 +220,7 @@ export default function ModernDokuWizard() {
 
       const created = await backend.doku.generateDoku({
         userId,
+        profileId: activeProfileId || undefined,
         config: {
           topic: state.topic.trim(),
           ageGroup: state.ageGroup,
@@ -434,4 +437,3 @@ export default function ModernDokuWizard() {
     </div>
   );
 }
-

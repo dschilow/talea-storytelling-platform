@@ -9,6 +9,7 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useBackend } from '../../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import type { MapSegment, MapNode, MapEdge, RouteTag } from '../TaleaLearningPathTypes';
 import { SEED_SEGMENTS } from '../TaleaLearningPathSeedData';
 
@@ -414,6 +415,7 @@ export function useMapSegmentGenerator(
   visibleSegmentCount: number = 6,
 ): MapSegmentGeneratorResult {
   const backend = useBackend();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const [dokus, setDokus] = useState<DokuItem[]>([]);
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [memories, setMemories] = useState<MemoryItem[]>([]);
@@ -426,12 +428,24 @@ export function useMapSegmentGenerator(
     async function fetchAll() {
       try {
         const [dokuRes, storyRes, memRes, audioRes] = await Promise.all([
-          backend.doku.listDokus({ limit: 100, offset: 0 }).catch(() => ({ dokus: [] })),
-          backend.story.list({ limit: 100, offset: 0 }).catch(() => ({ stories: [] })),
+          backend.doku.listDokus({
+            limit: 100,
+            offset: 0,
+            profileId: activeProfileId || undefined,
+          }).catch(() => ({ dokus: [] })),
+          backend.story.list({
+            limit: 100,
+            offset: 0,
+            profileId: activeProfileId || undefined,
+          }).catch(() => ({ stories: [] })),
           avatarId
             ? backend.avatar.getMemories({ id: avatarId }).catch(() => ({ memories: [] }))
             : Promise.resolve({ memories: [] }),
-          backend.doku.listAudioDokus({ limit: 50, offset: 0 }).catch(() => ({ audioDokus: [] })),
+          backend.doku.listAudioDokus({
+            limit: 50,
+            offset: 0,
+            profileId: activeProfileId || undefined,
+          }).catch(() => ({ audioDokus: [] })),
         ]);
 
         if (cancelled) return;
@@ -449,7 +463,7 @@ export function useMapSegmentGenerator(
 
     fetchAll();
     return () => { cancelled = true; };
-  }, [backend, avatarId]);
+  }, [backend, avatarId, activeProfileId]);
 
   return useMemo(() => {
     // If still loading, return seed segments as skeleton

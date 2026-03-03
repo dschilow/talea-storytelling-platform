@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { StoryGenerationProgress, StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
@@ -91,6 +92,7 @@ export default function ModernStoryWizard() {
   const navigate = useNavigate();
   const backend = useBackend();
   const { userId } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { t, i18n } = useTranslation();
 
   // Dynamic step labels based on current language
@@ -178,6 +180,7 @@ export default function ModernStoryWizard() {
       const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId,
         config: storyConfig,
+        profileId: activeProfileId || undefined,
       });
 
       console.log('[ModernWizard] Story generated:', story);

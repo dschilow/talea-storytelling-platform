@@ -496,7 +496,11 @@ const TaleaDokusScreen: React.FC = () => {
   const loadMyDokus = async () => {
     try {
       setLoadingMy(true);
-      const res = await backend.doku.listDokus({ limit: 10, offset: 0 });
+      const res = await backend.doku.listDokus({
+        limit: 10,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setMyDokus(res.dokus as any[]);
       setTotalMy(res.total);
       setHasMoreMy(res.hasMore);
@@ -530,7 +534,11 @@ const TaleaDokusScreen: React.FC = () => {
     try {
       setLoadingAudio(true);
       setAudioAccessMessage(null);
-      const res = await backend.doku.listAudioDokus({ limit: 12, offset: 0 });
+      const res = await backend.doku.listAudioDokus({
+        limit: 12,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setAudioDokus(res.audioDokus as any[]);
       setTotalAudio(res.total);
     } catch (error) {
@@ -547,7 +555,11 @@ const TaleaDokusScreen: React.FC = () => {
     if (loadingMoreMy || !hasMoreMy) return;
     try {
       setLoadingMoreMy(true);
-      const res = await backend.doku.listDokus({ limit: 10, offset: myDokus.length });
+      const res = await backend.doku.listDokus({
+        limit: 10,
+        offset: myDokus.length,
+        profileId: activeProfileId || undefined,
+      });
       setMyDokus((prev) => [...prev, ...(res.dokus as any[])]);
       setHasMoreMy(res.hasMore);
     } catch (error) {
@@ -555,7 +567,7 @@ const TaleaDokusScreen: React.FC = () => {
     } finally {
       setLoadingMoreMy(false);
     }
-  }, [backend, hasMoreMy, loadingMoreMy, myDokus.length]);
+  }, [backend, hasMoreMy, loadingMoreMy, myDokus.length, activeProfileId]);
 
   const loadMorePublic = useCallback(async () => {
     if (loadingMorePublic || !hasMorePublic || publicAccessMessage) return;
@@ -634,7 +646,7 @@ const TaleaDokusScreen: React.FC = () => {
     if (!window.confirm(`${t('common.delete', 'Loeschen')} "${dokuTitle}"?`)) return;
 
     try {
-      await backend.doku.deleteDoku({ id: dokuId });
+      await backend.doku.deleteDoku({ id: dokuId, profileId: activeProfileId || undefined });
       setMyDokus((prev) => prev.filter((d) => d.id !== dokuId));
     } catch (error) {
       console.error(error);
@@ -643,7 +655,11 @@ const TaleaDokusScreen: React.FC = () => {
 
   const handleTogglePublic = async (dokuId: string, currentIsPublic: boolean) => {
     try {
-      await backend.doku.updateDoku({ id: dokuId, isPublic: !currentIsPublic });
+      await backend.doku.updateDoku({
+        id: dokuId,
+        isPublic: !currentIsPublic,
+        profileId: activeProfileId || undefined,
+      });
       setMyDokus((prev) => prev.map((d) => (d.id === dokuId ? { ...d, isPublic: !currentIsPublic } : d)));
       if (currentIsPublic) {
         setPublicDokus((prev) => prev.filter((d) => d.id !== dokuId));

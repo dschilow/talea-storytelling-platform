@@ -20,6 +20,7 @@ import StoryFlavorStep, {
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 
 type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
@@ -119,6 +120,7 @@ const StoryWizardScreen: React.FC = () => {
   const backend = useBackend();
   const { user } = useUser();
   const { isAdmin } = useOptionalUserAccess();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   // UPDATED: Neue Steps eingefügt
   const steps = [
@@ -236,6 +238,7 @@ const StoryWizardScreen: React.FC = () => {
       const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId: user.id,
         config: effectiveStoryConfig,
+        profileId: activeProfileId || undefined,
       });
 
       setGenerationStep('validation');

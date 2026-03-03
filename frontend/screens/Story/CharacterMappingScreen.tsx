@@ -9,6 +9,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import type { Avatar } from '../../../backend/avatar/avatar';
 
 // Helper interface for role matching
@@ -52,6 +53,7 @@ const CharacterMappingScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const backend = useBackend();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   const [tale, setTale] = useState<FairyTaleDetail | null>(null);
   const [avatars, setAvatars] = useState<Avatar[]>([]);
@@ -62,7 +64,7 @@ const CharacterMappingScreen: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [taleId]);
+  }, [taleId, activeProfileId]);
 
   const loadData = async () => {
     try {
@@ -85,7 +87,7 @@ const CharacterMappingScreen: React.FC = () => {
       setTale(taleData);
 
       // Load user's avatars
-      const avatarListResponse = await backend.avatar.list({});
+      const avatarListResponse = await backend.avatar.list({ profileId: activeProfileId || undefined });
       setAvatars(avatarListResponse.avatars || []);
     } catch (err: any) {
       console.error('Error loading data:', err);
@@ -134,6 +136,7 @@ const CharacterMappingScreen: React.FC = () => {
         },
         body: JSON.stringify({
           userId: '', // Will be filled by auth middleware
+          profileId: activeProfileId || undefined,
           taleId,
           characterMappings: mappings,
           length: 'medium',

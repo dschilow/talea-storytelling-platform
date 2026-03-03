@@ -15,6 +15,7 @@ import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
 import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
@@ -26,6 +27,7 @@ const DokusScreen: React.FC = () => {
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded } = useUser();
   const { isAdmin } = useOptionalUserAccess();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   const [myDokus, setMyDokus] = useState<Doku[]>([]);
   const [publicDokus, setPublicDokus] = useState<Doku[]>([]);
@@ -52,7 +54,11 @@ const DokusScreen: React.FC = () => {
   const loadMyDokus = async () => {
     try {
       setLoadingMy(true);
-      const response = await backend.doku.listDokus({ limit: 10, offset: 0 });
+      const response = await backend.doku.listDokus({
+        limit: 10,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setMyDokus(response.dokus as any[]);
       setTotalMy(response.total);
       setHasMoreMy(response.hasMore);
@@ -80,7 +86,11 @@ const DokusScreen: React.FC = () => {
   const loadAudioDokus = async () => {
     try {
       setLoadingAudioDokus(true);
-      const response = await backend.doku.listAudioDokus({ limit: 12, offset: 0 });
+      const response = await backend.doku.listAudioDokus({
+        limit: 12,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setAudioDokus(response.audioDokus as any[]);
       setTotalAudio(response.total);
     } catch (error) {
@@ -97,7 +107,8 @@ const DokusScreen: React.FC = () => {
       setLoadingMoreMy(true);
       const response = await backend.doku.listDokus({
         limit: 10,
-        offset: myDokus.length
+        offset: myDokus.length,
+        profileId: activeProfileId || undefined,
       });
       setMyDokus(prev => [...prev, ...response.dokus as any[]]);
       setHasMoreMy(response.hasMore);
@@ -106,7 +117,7 @@ const DokusScreen: React.FC = () => {
     } finally {
       setLoadingMoreMy(false);
     }
-  }, [backend, myDokus.length, hasMoreMy, loadingMoreMy]);
+  }, [backend, myDokus.length, hasMoreMy, loadingMoreMy, activeProfileId]);
 
   const loadMorePublicDokus = useCallback(async () => {
     if (loadingMorePublic || !hasMorePublic) return;
@@ -131,7 +142,7 @@ const DokusScreen: React.FC = () => {
     void loadMyDokus();
     void loadPublicDokus();
     void loadAudioDokus();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, activeProfileId]);
 
   useEffect(() => {
     if (!isSignedIn) return;
@@ -186,7 +197,7 @@ const DokusScreen: React.FC = () => {
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (window.confirm(t('common.confirm') + ` "${dokuTitle}"?`)) {
       try {
-        await backend.doku.deleteDoku({ id: dokuId });
+        await backend.doku.deleteDoku({ id: dokuId, profileId: activeProfileId || undefined });
         setMyDokus(myDokus.filter(d => d.id !== dokuId));
       } catch (error) {
         console.error('Error deleting doku:', error);
@@ -197,7 +208,11 @@ const DokusScreen: React.FC = () => {
 
   const handleTogglePublic = async (dokuId: string, currentIsPublic: boolean) => {
     try {
-      await backend.doku.updateDoku({ id: dokuId, isPublic: !currentIsPublic });
+      await backend.doku.updateDoku({
+        id: dokuId,
+        isPublic: !currentIsPublic,
+        profileId: activeProfileId || undefined,
+      });
       // Update in local state
       setMyDokus(myDokus.map(d => 
         d.id === dokuId ? { ...d, isPublic: !currentIsPublic } : d

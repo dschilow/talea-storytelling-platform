@@ -441,7 +441,11 @@ const TaleaStoriesScreen: React.FC = () => {
   const loadStories = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await backend.story.list({ limit: 12, offset: 0 });
+      const response = await backend.story.list({
+        limit: 12,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setStories((response.stories as unknown as Story[]) || []);
       setTotal(response.total || 0);
       setHasMore(response.hasMore || false);
@@ -450,13 +454,17 @@ const TaleaStoriesScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [backend]);
+  }, [backend, activeProfileId]);
 
   const loadMoreStories = useCallback(async () => {
     if (!hasMore || loadingMore) return;
     try {
       setLoadingMore(true);
-      const response = await backend.story.list({ limit: 12, offset: stories.length });
+      const response = await backend.story.list({
+        limit: 12,
+        offset: stories.length,
+        profileId: activeProfileId || undefined,
+      });
       setStories((prev) => [...prev, ...((response.stories as unknown as Story[]) || [])]);
       setHasMore(response.hasMore || false);
     } catch (error) {
@@ -464,7 +472,7 @@ const TaleaStoriesScreen: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [backend, hasMore, loadingMore, stories.length]);
+  }, [backend, hasMore, loadingMore, stories.length, activeProfileId]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -504,7 +512,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Löschen")} "${storyTitle}"?`)) return;
     try {
-      await backend.story.deleteStory({ id: storyId });
+      await backend.story.deleteStory({ id: storyId, profileId: activeProfileId || undefined });
       setStories((prev) => prev.filter((story) => story.id !== storyId));
       setTotal((prev) => Math.max(0, prev - 1));
     } catch (error) {
@@ -517,7 +525,7 @@ const TaleaStoriesScreen: React.FC = () => {
     if (!isAdmin || !isPDFExportSupported() || storyStatus !== "complete") return;
     try {
       setDownloadingStoryId(storyId);
-      const fullStory = await backend.story.get({ id: storyId });
+      const fullStory = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
       if (!fullStory.chapters || fullStory.chapters.length === 0) return;
       await exportStoryAsPDF(fullStory as any);
     } catch (error) {

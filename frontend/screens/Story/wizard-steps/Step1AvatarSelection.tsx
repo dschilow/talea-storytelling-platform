@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import { useBackend } from '../../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 
 interface Avatar {
   id: string;
@@ -29,16 +30,17 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void loadAvatars();
-  }, []);
+  }, [activeProfileId]);
 
   const loadAvatars = async () => {
     try {
-      const response = await backend.avatar.list({});
+      const response = await backend.avatar.list({ profileId: activeProfileId || undefined });
       setAvatars(
         (response.avatars || []).map((avatar: any) => ({
           id: avatar.id,

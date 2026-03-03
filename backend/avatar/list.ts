@@ -4,7 +4,7 @@ import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureAvatarSharingTables, getUserProfilesByIds, normalizeEmail } from "./sharing";
-import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 interface ListAvatarsRequest {
   profileId?: string;
@@ -47,6 +47,8 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
       userId: auth.userID,
       requestedProfileId: req.profileId,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
+    const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
     const normalizedEmail = normalizeEmail(auth.email);
     const includeShared = req.includeShared === true;
 
@@ -72,7 +74,10 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
       FROM avatars a
       LEFT JOIN avatar_shares s ON s.avatar_id = a.id AND s.owner_user_id = a.user_id
       WHERE a.user_id = ${auth.userID}
-        AND (a.profile_id = ${activeProfileId} OR a.profile_id IS NULL)
+        AND (
+          a.profile_id = ${activeProfileId}
+          OR (${includeLegacyUnscoped} AND a.profile_id IS NULL)
+        )
       GROUP BY
         a.id,
         a.user_id,

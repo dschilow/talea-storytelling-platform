@@ -21,6 +21,7 @@ import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -242,6 +243,7 @@ export default function TaleaStoryWizard() {
   const backend = useBackend();
   const { userId } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
@@ -387,6 +389,7 @@ export default function TaleaStoryWizard() {
       const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId,
         config: storyConfig,
+        profileId: activeProfileId || undefined,
       });
 
       setStoryCredits((prev) =>

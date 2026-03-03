@@ -8,6 +8,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { useTranslation } from 'react-i18next';
 interface DokuConfig {
   topic: string;
@@ -38,6 +39,7 @@ interface DokuListItem {
 const DokuWizardScreen: React.FC = () => {
   const { user, isSignedIn } = useUser();
   const backend = useBackend();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { t, i18n } = useTranslation();
 
   const [topic, setTopic] = useState('');
@@ -79,12 +81,16 @@ const DokuWizardScreen: React.FC = () => {
     if (isSignedIn) {
       void loadDokus();
     }
-  }, [isSignedIn]);
+  }, [isSignedIn, activeProfileId]);
 
   const loadDokus = async () => {
     try {
       setLoadingList(true);
-      const resp = await backend.doku.listDokus({ limit: 20, offset: 0 });
+      const resp = await backend.doku.listDokus({
+        limit: 20,
+        offset: 0,
+        profileId: activeProfileId || undefined,
+      });
       setDokus(resp.dokus as any);
     } catch (e) {
       console.error('Failed to load dokus', e);
@@ -116,6 +122,7 @@ const DokuWizardScreen: React.FC = () => {
       const created = await backend.doku.generateDoku({
         userId: user.id,
         config,
+        profileId: activeProfileId || undefined,
       });
       setTopic('');
       await loadDokus();
@@ -135,7 +142,7 @@ const DokuWizardScreen: React.FC = () => {
   const onDelete = async (id: string) => {
     if (!window.confirm(t('common.confirm'))) return;
     try {
-      await backend.doku.deleteDoku({ id });
+      await backend.doku.deleteDoku({ id, profileId: activeProfileId || undefined });
       setDokus(dokus.filter(d => d.id !== id));
     } catch (e) {
       console.error('Failed to delete doku', e);

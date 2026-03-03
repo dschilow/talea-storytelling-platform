@@ -272,7 +272,7 @@ const TaleaAvatarsScreen: React.FC = () => {
     if (!window.confirm(t("common.confirm", "Wirklich loeschen?"))) return;
 
     try {
-      await backend.avatar.deleteAvatar({ id: avatar.id });
+      await backend.avatar.deleteAvatar({ id: avatar.id, profileId: activeProfileId || undefined });
       setAvatars((prev) => prev.filter((item) => item.id !== avatar.id));
     } catch (error) {
       console.error("Failed to delete avatar:", error);

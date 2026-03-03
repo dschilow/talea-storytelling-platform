@@ -708,7 +708,7 @@ const TaleaHomeScreen: React.FC = () => {
     if (!window.confirm(`"${avatarName}" wirklich loeschen?`)) return;
 
     try {
-      await backend.avatar.deleteAvatar({ id: avatarId });
+      await backend.avatar.deleteAvatar({ id: avatarId, profileId: activeProfileId || undefined });
       setAvatars((prev) => prev.filter((avatar) => avatar.id !== avatarId));
     } catch (error) {
       console.error("Error deleting avatar:", error);
@@ -719,7 +719,7 @@ const TaleaHomeScreen: React.FC = () => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} "${storyTitle}"?`)) return;
 
     try {
-      await backend.story.deleteStory({ id: storyId });
+      await backend.story.deleteStory({ id: storyId, profileId: activeProfileId || undefined });
       setStories((prev) => prev.filter((story) => story.id !== storyId));
     } catch (error) {
       console.error("Error deleting story:", error);
@@ -730,7 +730,7 @@ const TaleaHomeScreen: React.FC = () => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} "${dokuTitle}"?`)) return;
 
     try {
-      await backend.doku.deleteDoku({ id: dokuId });
+      await backend.doku.deleteDoku({ id: dokuId, profileId: activeProfileId || undefined });
       setDokus((prev) => prev.filter((doku) => doku.id !== dokuId));
     } catch (error) {
       console.error("Error deleting doku:", error);

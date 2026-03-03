@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBackend } from '../../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import { convertBackendTraitsToFrontend, type TraitValue } from '../../../constants/traits';
 import type { AvatarProgression } from '../../../types/avatar';
 
@@ -34,6 +35,7 @@ type BackendAvatar = {
 
 export function useAvatarTraitsForMap(preferredAvatarId?: string | null): AvatarTraitMap {
   const backend = useBackend();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const [traits, setTraits] = useState<TraitValue[]>([]);
   const [loading, setLoading] = useState(true);
   const [avatarName, setAvatarName] = useState<string | null>(null);
@@ -57,12 +59,15 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
     setLoading(true);
     try {
       if (preferredAvatarId) {
-        const avatar = await backend.avatar.get({ id: preferredAvatarId });
+        const avatar = await backend.avatar.get({
+          id: preferredAvatarId,
+          profileId: activeProfileId || undefined,
+        });
         hydrateFromAvatar(avatar as BackendAvatar);
         return;
       }
 
-      const res = await backend.avatar.list({});
+      const res = await backend.avatar.list({ profileId: activeProfileId || undefined });
       const avatars = ((res as any)?.avatars ?? []) as BackendAvatar[];
       if (avatars.length === 0) {
         hydrateFromAvatar(null);
@@ -72,7 +77,10 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
       const first = avatars[0];
       // Ensure we load full details including progression payload.
       if (first?.id) {
-        const fullAvatar = await backend.avatar.get({ id: first.id });
+        const fullAvatar = await backend.avatar.get({
+          id: first.id,
+          profileId: activeProfileId || undefined,
+        });
         hydrateFromAvatar(fullAvatar as BackendAvatar);
       } else {
         hydrateFromAvatar(first);
@@ -83,7 +91,7 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
     } finally {
       setLoading(false);
     }
-  }, [backend, hydrateFromAvatar, preferredAvatarId]);
+  }, [backend, hydrateFromAvatar, preferredAvatarId, activeProfileId]);
 
   useEffect(() => {
     void fetchAvatar();
@@ -111,7 +119,7 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
       }
 
       if (customEvent.detail?.refreshProgression && avatarId) {
-        backend.avatar.get({ id: avatarId })
+        backend.avatar.get({ id: avatarId, profileId: activeProfileId || undefined })
           .then((avatar) => hydrateFromAvatar(avatar as BackendAvatar))
           .catch((err) => console.warn('[useAvatarTraitsForMap] refreshProgression failed:', err));
       }
@@ -119,7 +127,7 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
 
     window.addEventListener('personalityUpdated', handler as EventListener);
     return () => window.removeEventListener('personalityUpdated', handler as EventListener);
-  }, [avatarId, backend.avatar, hydrateFromAvatar]);
+  }, [avatarId, backend.avatar, hydrateFromAvatar, activeProfileId]);
 
   const byId = useMemo(() => {
     const map: Record<string, number> = {};

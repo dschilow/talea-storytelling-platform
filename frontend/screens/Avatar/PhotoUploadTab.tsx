@@ -5,6 +5,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 
 interface PersonalityTraits {
   courage: number;
@@ -26,6 +27,7 @@ const PhotoUploadTab: React.FC = () => {
   const [artStyle, setArtStyle] = useState<'disney' | 'anime' | 'realistic'>('disney');
   const [loading, setLoading] = useState(false);
   const backend = useBackend();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   
   const [personalityTraits, setPersonalityTraits] = useState<PersonalityTraits>({
     courage: 7,
@@ -99,6 +101,7 @@ const PhotoUploadTab: React.FC = () => {
       // and get back a URL to store with the avatar
       const avatar = await backend.avatar.create({
         name: name.trim(),
+        profileId: activeProfileId || undefined,
         description: description.trim() || undefined,
         physicalTraits: {
           characterType: "Foto-basierter Avatar",

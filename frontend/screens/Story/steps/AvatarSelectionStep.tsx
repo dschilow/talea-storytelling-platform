@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
 import { useBackend } from '../../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import { getTraitsForStory, getTraitLabel, getTraitIcon } from '../../../constants/traits';
 
 interface Avatar {
@@ -36,16 +37,17 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
   const [loading, setLoading] = useState(true);
   const backend = useBackend();
   const { user } = useUser();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
   useEffect(() => {
     if (user) {
       loadAvatars();
     }
-  }, [user]);
+  }, [user, activeProfileId]);
 
   const loadAvatars = async () => {
     try {
-      const response = await backend.avatar.list({});
+      const response = await backend.avatar.list({ profileId: activeProfileId || undefined });
       setAvatars(response.avatars as any[]);
     } catch (error) {
       console.error('Error loading avatars:', error);
