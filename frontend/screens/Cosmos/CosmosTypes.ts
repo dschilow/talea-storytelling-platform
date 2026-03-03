@@ -64,6 +64,13 @@ export interface PlanetVisuals {
   hasSatellites: boolean;
   atmosphereOpacity: number;
   orbitStability: number; // 0–1, higher = smoother orbit (less wobble)
+  developmentLevel: number; // 0–1 blended progression across mastery/confidence
+  ringOpacity: number; // continuous ring visibility
+  satelliteCount: number; // 0–5
+  cloudOpacity: number; // dynamic cloud layer
+  surfaceDetail: number; // roughness / bump influence
+  auraOpacity: number; // outer glow around the planet
+  lifeSignalStrength: number; // particles/satellites intensity
 }
 
 // ─── Evidence Highlight (for parent dashboard) ───────────────────

@@ -33,6 +33,10 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const stageColor = getStageColor(progress.stage);
   const masteryDescriptor = getMasteryDescriptor(progress.mastery);
   const confidenceDescriptor = getConfidenceDescriptor(progress.confidence);
+  const evolutionPips = Math.max(
+    1,
+    Math.min(10, Math.round((progress.mastery * 0.65 + progress.confidence * 0.35) / 10))
+  );
 
   // Stage progress bar segments
   const stages = Object.entries(LEARNING_STAGES) as [string, { label: string }][];
@@ -120,6 +124,35 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               <div className="flex justify-between text-[9px] text-white/30 font-semibold">
                 {stages.map(([key, { label }]) => (
                   <span key={key}>{label}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wide">
+                  Evolutionspfad
+                </span>
+                <span className="text-[10px] text-white/35">
+                  Wächst mit jedem Lernschritt
+                </span>
+              </div>
+              <div className="grid grid-cols-10 gap-1">
+                {Array.from({ length: 10 }).map((_, idx) => (
+                  <div
+                    key={`evo_${idx}`}
+                    className="h-1.5 rounded-full"
+                    style={{
+                      background:
+                        idx < evolutionPips
+                          ? stageColor
+                          : 'rgba(255,255,255,0.08)',
+                      boxShadow:
+                        idx < evolutionPips
+                          ? `0 0 8px ${stageColor}55`
+                          : 'none',
+                    }}
+                  />
                 ))}
               </div>
             </div>

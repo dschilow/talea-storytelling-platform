@@ -13,6 +13,7 @@ import { CosmosPlanetDomain } from './CosmosPlanetDomain';
 import { CosmosOrbitRig } from './CosmosOrbitRig';
 import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
+import { CosmosDeepSpaceBackdrop } from './CosmosDeepSpaceBackdrop';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
 import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
 import type { CameraMode, CosmosState, DomainProgress } from './CosmosTypes';
@@ -151,6 +152,9 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
       >
         <Suspense fallback={null}>
+          {/* Cinematic deep-space back layer */}
+          <CosmosDeepSpaceBackdrop />
+
           {/* Background stars */}
           <CosmosStarfield count={compact ? 2000 : 4000} />
 
