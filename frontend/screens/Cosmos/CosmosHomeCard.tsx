@@ -2,20 +2,52 @@
  * CosmosHomeCard.tsx - Compact cosmos tile for the Home Screen
  * Replaces the old TaleaJourneyCard.
  *
- * Shows a mini 3D cosmos scene that's clickable to navigate to /cosmos.
+ * Uses a CSS-only starfield preview (no Three.js!) to keep bundle small.
+ * Three.js is only loaded when navigating to /cosmos.
  */
 
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight } from 'lucide-react';
-import { CosmosSceneRoot } from './CosmosSceneRoot';
+import { Sparkles, ArrowRight, Telescope } from 'lucide-react';
 import type { CosmosState } from './CosmosTypes';
+import { COSMOS_DOMAINS } from './CosmosAssetsRegistry';
 
 interface Props {
   isDark: boolean;
   cosmosState: CosmosState;
 }
+
+/** Tiny CSS planet dots for the preview */
+const PlanetDot: React.FC<{
+  color: string;
+  size: number;
+  x: number;
+  y: number;
+  delay: number;
+}> = ({ color, size, x, y, delay }) => (
+  <motion.div
+    className="absolute rounded-full"
+    style={{
+      width: size,
+      height: size,
+      left: `${x}%`,
+      top: `${y}%`,
+      background: `radial-gradient(circle at 35% 35%, ${color}, ${color}88)`,
+      boxShadow: `0 0 ${size}px ${color}44`,
+    }}
+    animate={{
+      y: [0, -3, 0, 3, 0],
+      opacity: [0.7, 1, 0.7],
+    }}
+    transition={{
+      duration: 4 + delay,
+      repeat: Infinity,
+      ease: 'easeInOut',
+      delay,
+    }}
+  />
+);
 
 const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
   const navigate = useNavigate();
@@ -24,6 +56,24 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
     () => cosmosState.domains.filter((d) => d.mastery > 0).length,
     [cosmosState.domains]
   );
+
+  // Pre-compute planet positions for preview
+  const planetDots = useMemo(() => {
+    return COSMOS_DOMAINS.map((domain, idx) => {
+      const progress = cosmosState.domains.find(d => d.domainId === domain.id);
+      const mastery = progress?.mastery ?? 0;
+      const angle = (idx / COSMOS_DOMAINS.length) * Math.PI * 2;
+      const radius = 25 + idx * 3;
+      return {
+        id: domain.id,
+        color: domain.color,
+        size: 6 + (mastery / 100) * 10, // 6–16px
+        x: 50 + Math.cos(angle) * radius,
+        y: 50 + Math.sin(angle) * radius,
+        delay: idx * 0.4,
+      };
+    });
+  }, [cosmosState.domains]);
 
   return (
     <motion.button
@@ -43,13 +93,46 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
         minHeight: '200px',
       }}
     >
-      {/* 3D Scene background */}
-      <div className="absolute inset-0 opacity-80">
-        <CosmosSceneRoot
-          cosmosState={cosmosState}
-          height="100%"
-          compact
+      {/* CSS Starfield background */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Static stars via radial gradients */}
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage: `
+              radial-gradient(1px 1px at 20% 30%, white, transparent),
+              radial-gradient(1px 1px at 40% 70%, white, transparent),
+              radial-gradient(1px 1px at 60% 20%, white, transparent),
+              radial-gradient(1px 1px at 80% 60%, white, transparent),
+              radial-gradient(1px 1px at 10% 80%, white, transparent),
+              radial-gradient(1px 1px at 70% 40%, white, transparent),
+              radial-gradient(1.5px 1.5px at 30% 50%, white, transparent),
+              radial-gradient(1.5px 1.5px at 90% 10%, white, transparent),
+              radial-gradient(1px 1px at 50% 90%, white, transparent),
+              radial-gradient(1px 1px at 15% 15%, white, transparent),
+              radial-gradient(1px 1px at 85% 85%, white, transparent),
+              radial-gradient(1px 1px at 55% 45%, white, transparent)
+            `,
+          }}
         />
+
+        {/* Central star glow */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 24,
+            height: 24,
+            left: 'calc(50% - 12px)',
+            top: 'calc(50% - 12px)',
+            background: 'radial-gradient(circle, #fff4d6 0%, #ffb347 40%, transparent 70%)',
+            boxShadow: '0 0 30px #ffcc6644, 0 0 60px #ffb34722',
+          }}
+        />
+
+        {/* Planet dots */}
+        {planetDots.map((dot) => (
+          <PlanetDot key={dot.id} {...dot} />
+        ))}
       </div>
 
       {/* Bottom gradient overlay */}
@@ -73,7 +156,8 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
             >
               Lernkosmos
             </h2>
-            <p className="mt-1 text-[12px] font-semibold text-white/50">
+            <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-white/50">
+              <Telescope className="h-3 w-3" />
               {activeDomains > 0
                 ? `${activeDomains} Welten aktiv`
                 : '8 Welten warten'}

@@ -39,8 +39,9 @@ import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
 import SettingsScreen from './screens/Settings/SettingsScreen';
 import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
 import TaleaLearningPathMapView from './screens/Journey/TaleaLearningPathMapView';
-import CosmosScreen from './screens/Cosmos/CosmosScreen';
-import ParentDashboardRoot from './screens/Cosmos/ParentDashboardRoot';
+// Lazy-load Cosmos screens (Three.js is ~1.5 MB, keep it out of main bundle)
+const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
+const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
@@ -192,8 +193,8 @@ const RouterContent = () => {
               <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
               <Route path="/auth" element={<Navigate to="/" replace />} />
               <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/cosmos" element={<CosmosScreen />} />
-              <Route path="/cosmos/parent" element={<ParentDashboardRoot />} />
+              <Route path="/cosmos" element={<React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" /></div>}><CosmosScreen /></React.Suspense>} />
+              <Route path="/cosmos/parent" element={<React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" /></div>}><ParentDashboardRoot /></React.Suspense>} />
               <Route path="/map" element={<TaleaLearningPathMapView />} />
               <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
             </Route>

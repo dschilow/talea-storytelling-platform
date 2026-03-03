@@ -77,7 +77,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,lottie}'],
         // CRITICAL: config.js is generated dynamically at container startup
         globIgnores: ['config.js'],
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MB - main bundle is ~2.5 MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB - three.js adds ~1.5 MB
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [
           /^\/api/,
@@ -140,5 +140,14 @@ export default defineConfig({
   build: {
     minify: 'esbuild',
     sourcemap: false,
+    chunkSizeWarningLimit: 4000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Three.js ecosystem → separate chunk (lazy-loaded via React.lazy Cosmos routes)
+          'three-vendor': ['three'],
+        },
+      },
+    },
   }
 })
