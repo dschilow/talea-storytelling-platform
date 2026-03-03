@@ -154,7 +154,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           (gl as any).useLegacyLights = false;
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 0.96;
+          gl.toneMappingExposure = 1.1;
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {
@@ -202,9 +202,9 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           {!compact && effectsEnabled && (
             <EffectComposer multisampling={0}>
               <Bloom
-                luminanceThreshold={0.55}
-                luminanceSmoothing={0.86}
-                intensity={0.26}
+                luminanceThreshold={0.38}
+                luminanceSmoothing={0.92}
+                intensity={0.55}
                 mipmapBlur
               />
             </EffectComposer>

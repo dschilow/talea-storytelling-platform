@@ -42,9 +42,9 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains }) => {
           <Line
             points={points}
             color={color}
-            lineWidth={0.8}
+            lineWidth={1.0}
             transparent
-            opacity={0.06}
+            opacity={0.08}
           />
         </group>
       ))}

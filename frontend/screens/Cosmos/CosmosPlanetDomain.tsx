@@ -10,7 +10,7 @@
 
 import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { Sphere, Ring, Html } from '@react-three/drei';
+import { Sphere, Ring, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CosmosDomain, DomainProgress } from './CosmosTypes';
 import { mapProgressToVisuals } from './CosmosProgressMapper';
@@ -27,10 +27,12 @@ const MAX_TOPIC_MOONS = 8;
 const ATMOSPHERE_VERTEX = `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
+  varying vec3 vViewDir;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
     vWorldPos = world.xyz;
     vNormalW = normalize(mat3(modelMatrix) * normal);
+    vViewDir = normalize(cameraPosition - world.xyz);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -38,15 +40,34 @@ const ATMOSPHERE_VERTEX = `
 const ATMOSPHERE_FRAGMENT = `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
+  varying vec3 vViewDir;
   uniform vec3 uColor;
   uniform float uOpacity;
   uniform float uPower;
   uniform float uIntensity;
+  uniform vec3 uSunPos;
   void main() {
-    vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float fresnel = pow(1.0 - abs(dot(normalize(vNormalW), viewDir)), uPower);
-    float alpha = smoothstep(0.02, 1.0, fresnel) * uOpacity;
-    vec3 color = uColor * (0.45 + fresnel * uIntensity);
+    vec3 n = normalize(vNormalW);
+    vec3 viewDir = normalize(vViewDir);
+
+    // Fresnel rim
+    float NdotV = dot(n, viewDir);
+    float fresnel = pow(1.0 - abs(NdotV), uPower);
+
+    // Sun-side backlight (rim glow stronger on sun side)
+    vec3 sunDir = normalize(uSunPos - vWorldPos);
+    float sunAlignment = max(0.0, dot(n, sunDir));
+    float backlight = pow(1.0 - abs(NdotV), 3.0) * sunAlignment * 0.6;
+
+    // Smooth alpha with no hard edge
+    float rim = smoothstep(0.0, 0.85, fresnel);
+    float alpha = (rim + backlight) * uOpacity;
+    alpha = smoothstep(0.0, 1.0, alpha);
+
+    // Color with warm sun-side tint
+    vec3 warmTint = mix(uColor, vec3(1.0, 0.85, 0.65), backlight * 0.4);
+    vec3 color = warmTint * (0.5 + fresnel * uIntensity + backlight * 0.8);
+
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -116,17 +137,22 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         color: new THREE.Color('#ffffff'),
         map: maps.surfaceMap,
         bumpMap: maps.bumpMap,
-        bumpScale: 0.07 + visuals.surfaceDetail * 0.18,
+        bumpScale: 0.12 + visuals.surfaceDetail * 0.25,
         roughnessMap: maps.roughnessMap,
-        roughness: Math.max(0.22, 0.64 - visuals.surfaceDetail * 0.24),
-        metalness: 0.04 + visuals.developmentLevel * 0.05,
-        clearcoat: 0.18 + visuals.developmentLevel * 0.4,
-        clearcoatRoughness: 0.45 - visuals.developmentLevel * 0.15,
+        roughness: Math.max(0.18, 0.58 - visuals.surfaceDetail * 0.28),
+        metalness: 0.02 + visuals.developmentLevel * 0.04,
+        clearcoat: 0.3 + visuals.developmentLevel * 0.5,
+        clearcoatRoughness: 0.35 - visuals.developmentLevel * 0.18,
         emissive: new THREE.Color(domain.emissiveColor),
-        emissiveIntensity: 0.04 + visuals.emissiveIntensity * 0.42,
-        envMapIntensity: 0.35 + visuals.developmentLevel * 0.42,
+        emissiveIntensity: 0.06 + visuals.emissiveIntensity * 0.5,
+        envMapIntensity: 0.4 + visuals.developmentLevel * 0.5,
+        sheen: 0.3 + visuals.developmentLevel * 0.4,
+        sheenRoughness: 0.6,
+        sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
+        iridescence: visuals.developmentLevel * 0.15,
+        iridescenceIOR: 1.3,
       }),
-    [domain.emissiveColor, maps.bumpMap, maps.roughnessMap, maps.surfaceMap, visuals.developmentLevel, visuals.emissiveIntensity, visuals.surfaceDetail]
+    [domain.color, domain.emissiveColor, maps.bumpMap, maps.roughnessMap, maps.surfaceMap, visuals.developmentLevel, visuals.emissiveIntensity, visuals.surfaceDetail]
   );
 
   const cloudMaterial = useMemo(
@@ -150,9 +176,19 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.color, visuals.atmosphereOpacity]
   );
 
-  const auraMaterial = useMemo(
-    () => createAtmosphereShellMaterial(domain.emissiveColor, visuals.auraOpacity, 1.55, 1.2),
-    [domain.emissiveColor, visuals.auraOpacity]
+  const planetGlowTexture = useMemo(() => createPlanetGlowTexture(domain.color), [domain.color]);
+
+  const planetGlowMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: planetGlowTexture,
+        transparent: true,
+        opacity: visuals.auraOpacity * 1.5,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
+    [planetGlowTexture, visuals.auraOpacity]
   );
 
   const lifeParticleSeeds = useMemo(
@@ -198,14 +234,15 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       planetMaterial.dispose();
       cloudMaterial.dispose();
       atmosphereMaterial.dispose();
-      auraMaterial.dispose();
+      planetGlowMaterial.dispose();
+      planetGlowTexture.dispose();
       ringMap.dispose();
       maps.surfaceMap.dispose();
       maps.bumpMap.dispose();
       maps.roughnessMap.dispose();
       maps.cloudMap.dispose();
     };
-  }, [atmosphereMaterial, auraMaterial, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial, ringMap]);
+  }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial, ringMap]);
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
@@ -240,9 +277,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
 
     if (auraRef.current) {
-      auraRef.current.scale.setScalar(1 + Math.sin(t * 0.8 + orbitConfig.phase) * 0.02);
-      const auraShader = auraRef.current.material as THREE.ShaderMaterial;
-      auraShader.uniforms.uOpacity.value = visuals.auraOpacity * (0.9 + Math.sin(t * 1.2 + orbitConfig.phase) * 0.08);
+      const glowPulse = 1 + Math.sin(t * 0.8 + orbitConfig.phase) * 0.06;
+      auraRef.current.scale.setScalar(glowPulse);
+      const mat = auraRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = visuals.auraOpacity * 1.5 * (0.85 + Math.sin(t * 1.2 + orbitConfig.phase) * 0.12);
     }
 
     if (atmosphereRef.current) {
@@ -309,15 +347,16 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
       <Sphere
         ref={atmosphereRef}
-        args={[baseRadius * visuals.scale * 1.14, 36, 36]}
+        args={[baseRadius * visuals.scale * 1.12, 48, 48]}
         material={atmosphereMaterial}
       />
 
-      <Sphere
-        ref={auraRef}
-        args={[baseRadius * visuals.scale * 1.28, 32, 32]}
-        material={auraMaterial}
-      />
+      {/* Soft billboard glow behind planet */}
+      <Billboard follow lockX={false} lockY={false} lockZ={false}>
+        <mesh ref={auraRef} material={planetGlowMaterial}>
+          <planeGeometry args={[baseRadius * visuals.scale * 4.5, baseRadius * visuals.scale * 4.5]} />
+        </mesh>
+      </Billboard>
 
       {ringLayers > 0 &&
         Array.from({ length: ringLayers }).map((_, index) => {
@@ -745,14 +784,42 @@ function createAtmosphereShellMaterial(
       uOpacity: { value: opacity },
       uPower: { value: power },
       uIntensity: { value: intensity },
+      uSunPos: { value: new THREE.Vector3(0, 0, 0) },
     },
     vertexShader: ATMOSPHERE_VERTEX,
     fragmentShader: ATMOSPHERE_FRAGMENT,
     transparent: true,
-    side: THREE.DoubleSide,
+    side: THREE.BackSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
+}
+
+function createPlanetGlowTexture(color: string, size = 256): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const center = size / 2;
+
+  const baseColor = new THREE.Color(color);
+  const r = Math.round(baseColor.r * 255);
+  const g = Math.round(baseColor.g * 255);
+  const b = Math.round(baseColor.b * 255);
+
+  const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
+  grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
+  grad.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.35)`);
+  grad.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, 0.12)`);
+  grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.03)`);
+  grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.0)`);
+
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
 }
 
 function createRingTexture(color: string, seed: number): THREE.CanvasTexture {
@@ -845,7 +912,7 @@ function resolvePlanetTextureSize(): number {
   if (typeof window === 'undefined') return 512;
   const memory = (navigator as any).deviceMemory ?? 4;
   const smallScreen = window.matchMedia('(max-width: 900px)').matches;
-  return memory <= 4 || smallScreen ? 256 : 512;
+  return memory <= 4 || smallScreen ? 512 : 1024;
 }
 
 function hashString(value: string): number {
