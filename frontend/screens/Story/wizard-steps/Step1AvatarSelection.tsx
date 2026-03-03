@@ -38,7 +38,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
   const loadAvatars = async () => {
     try {
-      const response = await backend.avatar.list();
+      const response = await backend.avatar.list({});
       setAvatars(
         (response.avatars || []).map((avatar: any) => ({
           id: avatar.id,

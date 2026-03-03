@@ -85,7 +85,7 @@ const CharacterMappingScreen: React.FC = () => {
       setTale(taleData);
 
       // Load user's avatars
-      const avatarListResponse = await backend.avatar.list();
+      const avatarListResponse = await backend.avatar.list({});
       setAvatars(avatarListResponse.avatars || []);
     } catch (err: any) {
       console.error('Error loading data:', err);

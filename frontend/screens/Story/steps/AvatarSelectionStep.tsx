@@ -45,7 +45,7 @@ const AvatarSelectionStep: React.FC<AvatarSelectionStepProps> = ({
 
   const loadAvatars = async () => {
     try {
-      const response = await backend.avatar.list();
+      const response = await backend.avatar.list({});
       setAvatars(response.avatars as any[]);
     } catch (error) {
       console.error('Error loading avatars:', error);

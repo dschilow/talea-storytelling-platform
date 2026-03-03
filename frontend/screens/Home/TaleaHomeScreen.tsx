@@ -609,9 +609,9 @@ const TaleaHomeScreen: React.FC = () => {
     try {
       setLoading(true);
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
-        backend.avatar.list(),
-        backend.story.list({ limit: 12, offset: 0 }),
-        backend.doku.listDokus({ limit: 8, offset: 0 }),
+        backend.avatar.list({ profileId: activeProfileId || undefined }),
+        backend.story.list({ limit: 12, offset: 0, profileId: activeProfileId || undefined }),
+        backend.doku.listDokus({ limit: 8, offset: 0, profileId: activeProfileId || undefined }),
       ]);
 
       const normalizedAvatars: Avatar[] = (avatarsResponse.avatars || []).map((avatar) => ({
@@ -678,7 +678,7 @@ const TaleaHomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [backend]);
+  }, [backend, activeProfileId]);
 
   useEffect(() => {
     if (!isLoaded) {

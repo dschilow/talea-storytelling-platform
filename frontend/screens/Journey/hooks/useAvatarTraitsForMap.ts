@@ -62,7 +62,7 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
         return;
       }
 
-      const res = await backend.avatar.list();
+      const res = await backend.avatar.list({});
       const avatars = ((res as any)?.avatars ?? []) as BackendAvatar[];
       if (avatars.length === 0) {
         hydrateFromAvatar(null);
@@ -133,4 +133,3 @@ export function useAvatarTraitsForMap(preferredAvatarId?: string | null): Avatar
 
   return { byId, all: traits, loading, avatarName, avatarId, progression };
 }
-

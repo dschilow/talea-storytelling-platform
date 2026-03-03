@@ -254,7 +254,7 @@ const TaleaAvatarsScreen: React.FC = () => {
   const loadAvatars = async () => {
     try {
       setIsLoading(true);
-      const response = await backend.avatar.list();
+      const response = await backend.avatar.list({ profileId: activeProfileId || undefined });
       setAvatars((response as any)?.avatars || []);
     } catch (error) {
       console.error("Failed to load avatars:", error);

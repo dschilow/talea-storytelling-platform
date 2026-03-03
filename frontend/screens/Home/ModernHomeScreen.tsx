@@ -249,9 +249,9 @@ const ModernHomeScreen: React.FC = () => {
     try {
       setLoading(true);
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
-        backend.avatar.list(),
-        backend.story.list({ limit: 10, offset: 0 }),
-        backend.doku.listDokus({ limit: 10, offset: 0 }),
+        backend.avatar.list({ profileId: activeProfileId || undefined }),
+        backend.story.list({ limit: 10, offset: 0, profileId: activeProfileId || undefined }),
+        backend.doku.listDokus({ limit: 10, offset: 0, profileId: activeProfileId || undefined }),
       ]);
 
       setAvatars(avatarsResponse.avatars as any[]);
@@ -262,7 +262,7 @@ const ModernHomeScreen: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [backend]);
+  }, [backend, activeProfileId]);
 
   useEffect(() => {
     if (!isLoaded) return;
