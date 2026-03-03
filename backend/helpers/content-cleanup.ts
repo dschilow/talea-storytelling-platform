@@ -1,4 +1,5 @@
 import { avatarDB } from "../avatar/db";
+import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import { dokuDB } from "../doku/db";
 import { storyDB } from "../story/db";
 import { userDB } from "../user/db";
@@ -81,6 +82,7 @@ export async function cleanupProfileContent(params: {
   profileId: string;
 }): Promise<ProfileContentCleanupSummary> {
   const { userId, profileId } = params;
+  await ensureAvatarProfileLinksTable();
 
   const [
     avatarsDeleted,
@@ -146,6 +148,12 @@ export async function cleanupProfileContent(params: {
   `;
 
   await avatarDB.exec`
+    DELETE FROM avatar_profile_links
+    WHERE user_id = ${userId}
+      AND profile_id = ${profileId}
+  `;
+
+  await avatarDB.exec`
     DELETE FROM avatars
     WHERE user_id = ${userId}
       AND profile_id = ${profileId}
@@ -185,6 +193,7 @@ export async function cleanupProfileContent(params: {
 }
 
 export async function cleanupUserContent(userId: string): Promise<UserContentCleanupSummary> {
+  await ensureAvatarProfileLinksTable();
   const [
     avatarsDeleted,
     storiesDeleted,
@@ -206,6 +215,10 @@ export async function cleanupUserContent(userId: string): Promise<UserContentCle
     DELETE FROM avatar_shares
     WHERE owner_user_id = ${userId}
        OR target_user_id = ${userId}
+  `;
+  await avatarDB.exec`
+    DELETE FROM avatar_profile_links
+    WHERE user_id = ${userId}
   `;
   await avatarDB.exec`
     DELETE FROM avatar_share_contacts

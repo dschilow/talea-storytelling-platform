@@ -13,6 +13,7 @@ import {
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -31,6 +32,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
   { expose: true, method: "PUT", path: "/avatar/:id", auth: true },
   async (req) => {
     const auth = getAuthData()!;
+    await ensureAvatarProfileLinksTable();
     const { id, ...updates } = req;
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
@@ -72,7 +74,14 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       existingAvatar.profile_id !== activeProfileId &&
       auth.role !== "admin"
     ) {
-      throw APIError.permissionDenied("Avatar belongs to another child profile.");
+      const linkedToActive = await hasAvatarProfileLink({
+        avatarId: id,
+        userId: auth.userID,
+        profileId: activeProfileId,
+      });
+      if (!linkedToActive) {
+        throw APIError.permissionDenied("Avatar belongs to another child profile.");
+      }
     }
 
     const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);

@@ -2,12 +2,12 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
-import { findAvatarShareForIdentity } from "../avatar/sharing";
 import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
 import { claimGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable, hasAvatarProfileLinkForAny } from "../avatar/profile-links";
 import crypto from "crypto";
 
 // =====================================================
@@ -58,6 +58,7 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
         ),
       ])
     );
+    await ensureAvatarProfileLinksTable();
     const storyId = crypto.randomUUID();
 
     await claimGenerationUsage({
@@ -115,7 +116,7 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
     // Check all mapped avatars exist
     if (avatarIds.length > 0) {
       const avatars = await avatarDB.queryAll<any>`
-        SELECT id, name, user_id, profile_id FROM avatars WHERE id = ANY(${avatarIds})
+        SELECT id, name, user_id, profile_id, is_public FROM avatars WHERE id = ANY(${avatarIds})
       `;
 
       if (avatars.length !== avatarIds.length) {
@@ -126,17 +127,18 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
 
       for (const avatar of avatars) {
         if (avatar.user_id !== currentUserId) {
-          const shareMatch = await findAvatarShareForIdentity({
-            avatarId: avatar.id,
-            userId: currentUserId,
-            email: auth?.email,
-          });
-
-          if (!shareMatch) {
-            errors.push(`Avatar ${avatar.id} is not shared with current user`);
+          if (!avatar.is_public) {
+            errors.push(`Avatar ${avatar.id} is not available. Copy it into your profile first.`);
           }
         } else if (avatar.profile_id && !participantProfileIds.includes(String(avatar.profile_id))) {
-          errors.push(`Avatar ${avatar.id} belongs to another child profile`);
+          const linkedToAnyParticipant = await hasAvatarProfileLinkForAny({
+            avatarId: avatar.id,
+            userId: currentUserId,
+            profileIds: participantProfileIds,
+          });
+          if (!linkedToAnyParticipant) {
+            errors.push(`Avatar ${avatar.id} belongs to another child profile`);
+          }
         }
       }
     }

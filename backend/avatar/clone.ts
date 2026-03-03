@@ -4,8 +4,8 @@ import type { Avatar } from "./avatar";
 import { avatarDB } from "./db";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
-import { findAvatarShareForIdentity } from "./sharing";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable, linkAvatarToProfile } from "./profile-links";
 
 type CloneAvatarParams = {
   id: string;
@@ -101,6 +101,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
   async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarColumns();
+    await ensureAvatarProfileLinksTable();
     const targetProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.targetProfileId,
@@ -148,14 +149,49 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
 
     const ownAvatar = source.user_id === auth.userID;
     if (!ownAvatar && !source.is_public) {
-      const shared = await findAvatarShareForIdentity({
-        avatarId: source.id,
-        userId: auth.userID,
-        email: auth.email,
-      });
-      if (!shared) {
-        throw APIError.permissionDenied("Avatar is not available for cloning");
+      throw APIError.permissionDenied("Avatar is not available for cloning");
+    }
+
+    if (ownAvatar) {
+      if (source.profile_id !== targetProfileId) {
+        await linkAvatarToProfile({
+          avatarId: source.id,
+          userId: auth.userID,
+          profileId: targetProfileId,
+        });
       }
+
+      const existing = await avatarDB.queryRow<{
+        id: string;
+        user_id: string;
+        profile_id: string | null;
+        name: string;
+        description: string | null;
+        physical_traits: string;
+        personality_traits: string;
+        image_url: string | null;
+        visual_profile: string | null;
+        creation_type: "ai-generated" | "photo-upload";
+        is_public: boolean;
+        source_type: string | null;
+        source_avatar_id: string | null;
+        original_avatar_id: string | null;
+        created_at: Date;
+        updated_at: Date;
+        inventory: string | null;
+        skills: string | null;
+      }>`
+        SELECT *
+        FROM avatars
+        WHERE id = ${source.id}
+        LIMIT 1
+      `;
+
+      if (!existing) {
+        throw APIError.internal("Failed to load shared avatar");
+      }
+
+      return mapAvatarRow(existing);
     }
 
     const cloneId = crypto.randomUUID();

@@ -10,6 +10,7 @@ import { getAuthData } from "~encore/auth";
 import { claimGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import {
   assertParentalDailyLimit,
   buildGenerationGuidanceFromControls,
@@ -186,6 +187,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           : []
       ),
     ]);
+    await ensureAvatarProfileLinksTable();
 
     await claimGenerationUsage({
       userId: currentUserId,
@@ -428,10 +430,20 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
         // Load avatars scoped to participant profiles
         const userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-          SELECT id, name
-          FROM avatars
-          WHERE user_id = ${currentUserId}
-            AND (profile_id IS NULL OR profile_id = ANY(${participantProfileIds}))
+          SELECT a.id, a.name
+          FROM avatars a
+          WHERE a.user_id = ${currentUserId}
+            AND (
+              a.profile_id IS NULL
+              OR a.profile_id = ANY(${participantProfileIds})
+              OR EXISTS (
+                SELECT 1
+                FROM avatar_profile_links apl
+                WHERE apl.avatar_id = a.id
+                  AND apl.user_id = ${currentUserId}
+                  AND apl.profile_id = ANY(${participantProfileIds})
+              )
+            )
         `;
 
         for (const a of userAvatars) {

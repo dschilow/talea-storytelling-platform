@@ -5,8 +5,9 @@ import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { buildAvatarProgressionSummary } from "./progression";
-import { ensureAvatarSharingTables, findAvatarShareForIdentity, getUserProfileById } from "./sharing";
+import { ensureAvatarSharingTables } from "./sharing";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
 
 interface GetAvatarParams {
   id: string;
@@ -20,6 +21,7 @@ export const get = api<GetAvatarParams, Avatar>(
     try {
       const auth = getAuthData()!;
       await ensureAvatarSharingTables();
+      await ensureAvatarProfileLinksTable();
       const activeProfileId = await resolveRequestedProfileId({
         userId: auth.userID,
         requestedProfileId: profileId,
@@ -52,28 +54,20 @@ export const get = api<GetAvatarParams, Avatar>(
       }
 
       const isOwner = row.user_id === auth.userID;
-      let shareMatch = null;
 
       if (isOwner && row.profile_id && row.profile_id !== activeProfileId && auth.role !== "admin") {
-        throw APIError.permissionDenied("Avatar belongs to another child profile.");
+        const linkedToActive = await hasAvatarProfileLink({
+          avatarId: id,
+          userId: auth.userID,
+          profileId: activeProfileId,
+        });
+        if (!linkedToActive) {
+          throw APIError.permissionDenied("Avatar belongs to another child profile.");
+        }
       }
 
       if (!isOwner && auth.role !== "admin" && !row.is_public) {
-        shareMatch = await findAvatarShareForIdentity({
-          avatarId: id,
-          userId: auth.userID,
-          email: auth.email,
-        });
-
-        if (!shareMatch) {
-          throw APIError.permissionDenied("You do not have permission to view this avatar.");
-        }
-      } else if (!isOwner) {
-        shareMatch = await findAvatarShareForIdentity({
-          avatarId: id,
-          userId: auth.userID,
-          email: auth.email,
-        });
+        throw APIError.permissionDenied("You do not have permission to view this avatar.");
       }
 
       let rawPersonalityTraits;
@@ -170,12 +164,10 @@ export const get = api<GetAvatarParams, Avatar>(
           `
         : [];
 
-      const sharedByProfile = !isOwner && shareMatch ? await getUserProfileById(row.user_id) : null;
-
       return {
         id: row.id,
         userId: row.user_id,
-        profileId: row.profile_id || activeProfileId,
+        profileId: isOwner ? activeProfileId : row.profile_id || undefined,
         name: row.name,
         description: row.description || undefined,
         physicalTraits: parsedPhysicalTraits,
@@ -184,17 +176,8 @@ export const get = api<GetAvatarParams, Avatar>(
         visualProfile: parsedVisualProfile,
         creationType: row.creation_type,
         isPublic: row.is_public,
-        isShared: isOwner ? activeShareRows.length > 0 : Boolean(shareMatch),
+        isShared: isOwner ? activeShareRows.length > 0 : false,
         isOwnedByCurrentUser: isOwner,
-        sharedBy:
-          !isOwner && shareMatch
-            ? {
-                userId: row.user_id,
-                name: sharedByProfile?.name ?? undefined,
-                email: sharedByProfile?.email ?? undefined,
-                sharedAt: shareMatch.sharedAt.toISOString(),
-              }
-            : undefined,
         sharedWithCount: isOwner ? activeShareRows.length : undefined,
         activeShareRecipients: isOwner
           ? activeShareRows.map((entry) => ({

@@ -1,6 +1,8 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
+import { ensureDefaultProfileForUser } from "../helpers/profiles";
 import {
   ensureAvatarSharingTables,
   defaultLabelForEmail,
@@ -41,6 +43,9 @@ interface AvatarShareEntry {
   trusted: boolean;
   targetUserId?: string;
   targetUserName?: string;
+  copiedAvatarId?: string;
+  copiedToProfileId?: string;
+  copiedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +99,10 @@ interface ShareAvatarRequest {
 
 interface ShareAvatarResponse {
   share: AvatarShareEntry;
+  copiedAvatarId: string;
+  copiedToProfileId: string;
+  copiedAvatarName: string;
+  alreadyCopied: boolean;
 }
 
 interface UnshareAvatarParams {
@@ -104,6 +113,21 @@ interface UnshareAvatarParams {
 interface UnshareAvatarResponse {
   success: boolean;
 }
+
+type AvatarOwnerRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  physical_traits: string;
+  personality_traits: string;
+  image_url: string | null;
+  visual_profile: string | null;
+  creation_type: "ai-generated" | "photo-upload";
+  source_type: string | null;
+  source_avatar_id: string | null;
+  original_avatar_id: string | null;
+};
 
 async function ensureAvatarOwnership(avatarId: string, ownerUserId: string): Promise<{ id: string; user_id: string }> {
   await ensureAvatarSharingTables();
@@ -123,6 +147,37 @@ async function ensureAvatarOwnership(avatarId: string, ownerUserId: string): Pro
   }
 
   return avatar;
+}
+
+async function loadOwnedAvatarForCopy(avatarId: string, ownerUserId: string): Promise<AvatarOwnerRow> {
+  const row = await avatarDB.queryRow<AvatarOwnerRow>`
+    SELECT
+      id,
+      user_id,
+      name,
+      description,
+      physical_traits,
+      personality_traits,
+      image_url,
+      visual_profile,
+      creation_type,
+      source_type,
+      source_avatar_id,
+      original_avatar_id
+    FROM avatars
+    WHERE id = ${avatarId}
+    LIMIT 1
+  `;
+
+  if (!row) {
+    throw APIError.notFound("Avatar not found");
+  }
+
+  if (row.user_id !== ownerUserId) {
+    throw APIError.permissionDenied("You do not have permission to share this avatar");
+  }
+
+  return row;
 }
 
 async function authWithSharingSchema() {
@@ -187,6 +242,9 @@ async function loadAvatarShares(avatarId: string, ownerUserId: string): Promise<
     display_name: string;
     is_trusted: boolean;
     target_user_id: string | null;
+    copied_avatar_id: string | null;
+    copied_profile_id: string | null;
+    last_copied_at: Date | null;
     created_at: Date;
     updated_at: Date;
   }>`
@@ -197,6 +255,9 @@ async function loadAvatarShares(avatarId: string, ownerUserId: string): Promise<
       c.display_name,
       c.is_trusted,
       s.target_user_id,
+      s.copied_avatar_id,
+      s.copied_profile_id,
+      s.last_copied_at,
       s.created_at,
       s.updated_at
     FROM avatar_shares s
@@ -218,6 +279,9 @@ async function loadAvatarShares(avatarId: string, ownerUserId: string): Promise<
     trusted: row.is_trusted,
     targetUserId: row.target_user_id ?? undefined,
     targetUserName: row.target_user_id ? targetProfiles.get(row.target_user_id)?.name ?? undefined : undefined,
+    copiedAvatarId: row.copied_avatar_id ?? undefined,
+    copiedToProfileId: row.copied_profile_id ?? undefined,
+    copiedAt: row.last_copied_at?.toISOString(),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }));
@@ -399,7 +463,7 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
   { expose: true, method: "POST", path: "/avatar/:id/share", auth: true },
   async (req) => {
     const auth = await authWithSharingSchema();
-    await ensureAvatarOwnership(req.id, auth.userID);
+    const sourceAvatar = await loadOwnedAvatarForCopy(req.id, auth.userID);
 
     const contact = await avatarDB.queryRow<{
       id: string;
@@ -419,7 +483,125 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
       throw APIError.notFound("Share contact not found");
     }
 
+    const resolvedTargetUser =
+      contact.target_user_id
+        ? {
+            id: contact.target_user_id,
+            email: normalizeEmail(contact.contact_email) ?? contact.contact_email,
+            name: null,
+          }
+        : await resolveUserByEmail(contact.contact_email);
+
+    if (!resolvedTargetUser?.id) {
+      throw APIError.failedPrecondition("The contact must have a registered Talea account before receiving a copy.");
+    }
+
+    if (resolvedTargetUser.id === auth.userID) {
+      throw APIError.invalidArgument("You cannot copy an avatar to your own account via contact sharing.");
+    }
+
+    const targetProfile = await ensureDefaultProfileForUser(
+      resolvedTargetUser.id,
+      resolvedTargetUser.name ?? contact.display_name ?? contact.contact_email
+    );
+
+    if (contact.target_user_id !== resolvedTargetUser.id) {
+      await avatarDB.exec`
+        UPDATE avatar_share_contacts
+        SET target_user_id = ${resolvedTargetUser.id},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${contact.id}
+      `;
+    }
+
     const now = new Date();
+    let copiedAvatarId: string | null = null;
+    let copiedAvatarName: string | null = null;
+    let copiedToProfileId: string | null = null;
+    let alreadyCopied = false;
+
+    const existingCopy = await avatarDB.queryRow<{
+      copied_avatar_id: string | null;
+      copied_profile_id: string | null;
+    }>`
+      SELECT copied_avatar_id, copied_profile_id
+      FROM avatar_shares
+      WHERE avatar_id = ${req.id}
+        AND owner_user_id = ${auth.userID}
+        AND contact_id = ${contact.id}
+      LIMIT 1
+    `;
+
+    if (existingCopy?.copied_avatar_id) {
+      const existingAvatar = await avatarDB.queryRow<{
+        id: string;
+        user_id: string;
+        profile_id: string | null;
+        name: string;
+      }>`
+        SELECT id, user_id, profile_id, name
+        FROM avatars
+        WHERE id = ${existingCopy.copied_avatar_id}
+        LIMIT 1
+      `;
+
+      if (existingAvatar && existingAvatar.user_id === resolvedTargetUser.id) {
+        copiedAvatarId = existingAvatar.id;
+        copiedAvatarName = existingAvatar.name;
+        copiedToProfileId = existingAvatar.profile_id || targetProfile.id;
+        alreadyCopied = true;
+      }
+    }
+
+    if (!copiedAvatarId) {
+      copiedAvatarId = crypto.randomUUID();
+      copiedToProfileId = targetProfile.id;
+      copiedAvatarName = sourceAvatar.name;
+      const defaultTraits = getDefaultPersonalityTraits();
+
+      await avatarDB.exec`
+        INSERT INTO avatars (
+          id,
+          user_id,
+          profile_id,
+          name,
+          description,
+          physical_traits,
+          personality_traits,
+          image_url,
+          visual_profile,
+          creation_type,
+          is_public,
+          source_type,
+          source_avatar_id,
+          original_avatar_id,
+          created_at,
+          updated_at,
+          inventory,
+          skills
+        )
+        VALUES (
+          ${copiedAvatarId},
+          ${resolvedTargetUser.id},
+          ${targetProfile.id},
+          ${sourceAvatar.name},
+          ${sourceAvatar.description},
+          ${sourceAvatar.physical_traits},
+          ${JSON.stringify(defaultTraits)},
+          ${sourceAvatar.image_url},
+          ${sourceAvatar.visual_profile},
+          ${sourceAvatar.creation_type},
+          FALSE,
+          'clone',
+          ${sourceAvatar.id},
+          ${sourceAvatar.original_avatar_id || sourceAvatar.id},
+          ${now},
+          ${now},
+          '[]',
+          '[]'
+        )
+      `;
+    }
 
     await avatarDB.exec`
       INSERT INTO avatar_shares (
@@ -429,6 +611,9 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
         contact_id,
         target_email,
         target_user_id,
+        copied_avatar_id,
+        copied_profile_id,
+        last_copied_at,
         created_at,
         updated_at
       ) VALUES (
@@ -437,7 +622,10 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
         ${auth.userID},
         ${contact.id},
         ${contact.contact_email},
-        ${contact.target_user_id},
+        ${resolvedTargetUser.id},
+        ${copiedAvatarId},
+        ${copiedToProfileId},
+        ${now},
         ${now},
         ${now}
       )
@@ -445,6 +633,9 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
       DO UPDATE SET
         target_email = EXCLUDED.target_email,
         target_user_id = EXCLUDED.target_user_id,
+        copied_avatar_id = EXCLUDED.copied_avatar_id,
+        copied_profile_id = EXCLUDED.copied_profile_id,
+        last_copied_at = EXCLUDED.last_copied_at,
         updated_at = EXCLUDED.updated_at
     `;
 
@@ -455,7 +646,17 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
       throw APIError.internal("Share could not be loaded");
     }
 
-    return { share };
+    if (!copiedAvatarId || !copiedToProfileId || !copiedAvatarName) {
+      throw APIError.internal("Avatar copy metadata could not be determined");
+    }
+
+    return {
+      share,
+      copiedAvatarId,
+      copiedToProfileId,
+      copiedAvatarName,
+      alreadyCopied,
+    };
   }
 );
 

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, Loader2, MailPlus, Search, ShieldCheck, UserPlus2, UsersRound } from "lucide-react";
+import { Check, CopyPlus, Loader2, MailPlus, Search, ShieldCheck, UserPlus2, UsersRound } from "lucide-react";
 import { useAuth } from "@clerk/clerk-react";
 import { toast } from "sonner";
 
 import { getBackendUrl } from "../../config";
+import { useOptionalChildProfiles } from "../../contexts/ChildProfilesContext";
 
 type ShareContact = {
   id: string;
@@ -36,23 +37,55 @@ type AvatarShareEntry = {
   trusted: boolean;
   targetUserId?: string;
   targetUserName?: string;
+  copiedAvatarId?: string;
+  copiedToProfileId?: string;
+  copiedAt?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type ShareAvatarResponse = {
+  share: AvatarShareEntry;
+  copiedAvatarId: string;
+  copiedToProfileId: string;
+  copiedAvatarName: string;
+  alreadyCopied: boolean;
 };
 
 type AvatarSharePanelProps = {
   avatarId: string;
   avatarName: string;
+  avatarProfileId?: string;
   isDark: boolean;
   canManage: boolean;
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarName, isDark, canManage }) => {
+const formatCopyDate = (value?: string): string => {
+  if (!value) return "Noch keine Kopie";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Noch keine Kopie";
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
+  avatarId,
+  avatarName,
+  avatarProfileId,
+  isDark,
+  canManage,
+}) => {
   const backendUrl = getBackendUrl();
   const { getToken } = useAuth();
   const reduceMotion = useReducedMotion();
+  const childProfiles = useOptionalChildProfiles();
 
   const [contacts, setContacts] = useState<ShareContact[]>([]);
   const [shares, setShares] = useState<AvatarShareEntry[]>([]);
@@ -62,9 +95,32 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
   const [trusted, setTrusted] = useState(true);
   const [loading, setLoading] = useState(true);
   const [savingContact, setSavingContact] = useState(false);
-  const [sharingContactId, setSharingContactId] = useState<string | null>(null);
+  const [copyingContactId, setCopyingContactId] = useState<string | null>(null);
+  const [copyingProfile, setCopyingProfile] = useState(false);
   const [removingContactId, setRemovingContactId] = useState<string | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [targetProfileId, setTargetProfileId] = useState<string>("");
+
+  const profiles = childProfiles?.profiles || [];
+  const sourceProfileId = avatarProfileId || childProfiles?.activeProfileId || null;
+
+  const targetProfiles = useMemo(
+    () => profiles.filter((profile) => profile.id !== sourceProfileId),
+    [profiles, sourceProfileId]
+  );
+
+  useEffect(() => {
+    if (targetProfiles.length === 0) {
+      setTargetProfileId("");
+      return;
+    }
+
+    if (targetProfiles.some((profile) => profile.id === targetProfileId)) {
+      return;
+    }
+
+    setTargetProfileId(targetProfiles[0].id);
+  }, [targetProfiles, targetProfileId]);
 
   const authedFetch = useCallback(
     async <T,>(path: string, init?: RequestInit): Promise<T> => {
@@ -114,7 +170,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
       setContacts(contactResponse.contacts || []);
       setShares(shareResponse.shares || []);
     } catch (error) {
-      console.error("Failed to load share data:", error);
+      console.error("Failed to load copy data:", error);
       toast.error("Freigaben konnten nicht geladen werden.");
     } finally {
       setLoading(false);
@@ -153,7 +209,12 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
     return () => window.clearTimeout(handle);
   }, [authedFetch, canManage, email]);
 
-  const sharedContactIds = useMemo(() => new Set(shares.map((entry) => entry.contactId)), [shares]);
+  const shareByContactId = useMemo(() => new Map(shares.map((entry) => [entry.contactId, entry])), [shares]);
+
+  const selectedTargetProfile = useMemo(
+    () => targetProfiles.find((profile) => profile.id === targetProfileId) || null,
+    [targetProfiles, targetProfileId]
+  );
 
   const saveContact = async () => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -182,7 +243,9 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
 
       setContacts((current) => {
         const next = [...current];
-        const existingIndex = next.findIndex((entry) => entry.id === response.contact.id || entry.email === response.contact.email);
+        const existingIndex = next.findIndex(
+          (entry) => entry.id === response.contact.id || entry.email === response.contact.email
+        );
         if (existingIndex >= 0) {
           next[existingIndex] = response.contact;
         } else {
@@ -203,42 +266,61 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
     }
   };
 
-  const toggleShare = async (contact: ShareContact) => {
-    const isShared = sharedContactIds.has(contact.id);
-
+  const copyToContact = async (contact: ShareContact) => {
     try {
-      setSharingContactId(contact.id);
+      setCopyingContactId(contact.id);
+      const response = await authedFetch<ShareAvatarResponse>(`/avatar/${encodeURIComponent(avatarId)}/share`, {
+        method: "POST",
+        body: JSON.stringify({ contactId: contact.id }),
+      });
 
-      if (isShared) {
-        await authedFetch<{ success: boolean }>(`/avatar/${encodeURIComponent(avatarId)}/share/${encodeURIComponent(contact.id)}`, {
-          method: "DELETE",
-        });
-        setShares((current) => current.filter((entry) => entry.contactId !== contact.id));
-        toast.success(`Freigabe an ${contact.label} entfernt.`);
+      setShares((current) => {
+        const next = current.filter((entry) => entry.contactId !== response.share.contactId);
+        next.push(response.share);
+        return next;
+      });
+
+      if (response.alreadyCopied) {
+        toast.success(`Kopie fuer ${contact.label} existiert bereits.`);
       } else {
-        const response = await authedFetch<{ share: AvatarShareEntry }>(`/avatar/${encodeURIComponent(avatarId)}/share`, {
-          method: "POST",
-          body: JSON.stringify({ contactId: contact.id }),
-        });
-
-        setShares((current) => {
-          const next = current.filter((entry) => entry.contactId !== response.share.contactId);
-          next.push(response.share);
-          return next;
-        });
-        toast.success(`Avatar fuer ${contact.label} freigegeben.`);
+        toast.success(`"${response.copiedAvatarName}" wurde als eigene Kopie an ${contact.label} gesendet.`);
       }
     } catch (error) {
-      console.error("Failed to toggle share:", error);
-      toast.error("Freigabe konnte nicht aktualisiert werden.");
+      console.error("Failed to copy avatar to contact:", error);
+      toast.error("Kopie konnte nicht gesendet werden.");
     } finally {
-      setSharingContactId(null);
+      setCopyingContactId(null);
+    }
+  };
+
+  const copyToAnotherProfile = async () => {
+    if (!targetProfileId || !selectedTargetProfile) {
+      toast.error("Bitte waehle ein Zielprofil aus.");
+      return;
+    }
+
+    try {
+      setCopyingProfile(true);
+      const response = await authedFetch<{ id: string; name: string }>(
+        `/avatar/${encodeURIComponent(avatarId)}/clone-to-profile`,
+        {
+          method: "POST",
+          body: JSON.stringify({ targetProfileId }),
+        }
+      );
+
+      toast.success(`"${response.name || avatarName}" wurde fuer "${selectedTargetProfile.name}" freigegeben.`);
+    } catch (error) {
+      console.error("Failed to copy avatar to profile:", error);
+      toast.error("Profil-Freigabe konnte nicht erstellt werden.");
+    } finally {
+      setCopyingProfile(false);
     }
   };
 
   const removeContact = async (contact: ShareContact) => {
     const confirmed = window.confirm(
-      `Kontakt "${contact.label}" wirklich entfernen? Alle Freigaben fuer ${contact.email} werden ebenfalls entfernt.`
+      `Kontakt "${contact.label}" wirklich entfernen? Der Kopierverlauf fuer ${contact.email} wird aus dieser Liste entfernt.`
     );
 
     if (!confirmed) {
@@ -287,7 +369,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
             Avatar teilen
           </h2>
           <p className="mt-1 text-sm" style={{ color: isDark ? "#9eb1ca" : "#697d95" }}>
-            Teile "{avatarName}" mit vertrauten Kontakten, damit sie den Avatar in eigenen Geschichten nutzen koennen.
+            Innerhalb deines Accounts wird "{avatarName}" profiluebergreifend geteilt (gleiche Instanz).
           </p>
         </div>
         <button
@@ -301,9 +383,61 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
       </div>
 
       <div
-        className="relative rounded-2xl border p-3"
+        className="rounded-2xl border px-3 py-3"
         style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
       >
+        <h3 className="text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>
+          Zwischen Kinderprofilen teilen
+        </h3>
+        <p className="mt-1 text-xs" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
+          Dieser Avatar wird im Zielprofil direkt freigegeben. Aenderungen wirken in allen freigegebenen Profilen.
+        </p>
+
+        {targetProfiles.length === 0 ? (
+          <p className="mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: isDark ? "#40566f" : "#d8cbbb", color: isDark ? "#a9bdd6" : "#6e839d" }}>
+            Du brauchst mindestens zwei Kinderprofile, um zwischen Profilen zu teilen.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+            <select
+              value={targetProfileId}
+              onChange={(event) => setTargetProfileId(event.target.value)}
+              className="h-11 rounded-xl border px-3 text-sm outline-none"
+              style={{ borderColor: isDark ? "#445c76" : "#d6cab9", background: isDark ? "rgba(19,28,41,0.9)" : "rgba(255,255,255,0.92)", color: isDark ? "#dbe7f6" : "#314760" }}
+            >
+              {targetProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => void copyToAnotherProfile()}
+              disabled={copyingProfile}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold"
+              style={{
+                borderColor: isDark ? "#445c76" : "#d6cab9",
+                background: isDark ? "linear-gradient(135deg,#89a5ce 0%,#8aa786 100%)" : "linear-gradient(135deg,#d7c2b5 0%,#d2deb9 100%)",
+                color: isDark ? "#0f1a29" : "#2d3f53",
+                opacity: copyingProfile ? 0.75 : 1,
+              }}
+            >
+              {copyingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />}
+              In Profil freigeben
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div
+        className="relative mt-4 rounded-2xl border p-3"
+        style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
+      >
+        <h3 className="mb-2 text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>
+          Zu anderem Account kopieren
+        </h3>
         <div className="grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: isDark ? "#8da3bf" : "#7d90a8" }} />
@@ -426,8 +560,8 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <AnimatePresence>
             {contacts.map((contact, index) => {
-              const isShared = sharedContactIds.has(contact.id);
-              const isBusy = sharingContactId === contact.id || removingContactId === contact.id;
+              const copyEntry = shareByContactId.get(contact.id);
+              const isBusy = copyingContactId === contact.id || removingContactId === contact.id;
 
               return (
                 <motion.article
@@ -448,8 +582,10 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
                         {contact.email}
                       </p>
                       {contact.trusted ? (
-                        <span className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
-                          style={{ borderColor: isDark ? "#4d6f62" : "#b6d0bc", color: isDark ? "#a9d4bf" : "#4f8a62" }}>
+                        <span
+                          className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
+                          style={{ borderColor: isDark ? "#4d6f62" : "#b6d0bc", color: isDark ? "#a9d4bf" : "#4f8a62" }}
+                        >
                           <ShieldCheck className="h-3 w-3" />
                           vertraut
                         </span>
@@ -469,21 +605,23 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({ avatarId, avatarNam
 
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <p className="text-[11px]" style={{ color: isDark ? "#8fa5bf" : "#7188a3" }}>
-                      {isShared ? "Bereits freigegeben" : "Noch nicht freigegeben"}
+                      {copyEntry
+                        ? `Zuletzt kopiert: ${formatCopyDate(copyEntry.copiedAt || copyEntry.updatedAt)}`
+                        : "Noch keine Kopie gesendet"}
                     </p>
                     <button
                       type="button"
-                      onClick={() => void toggleShare(contact)}
+                      onClick={() => void copyToContact(contact)}
                       disabled={isBusy}
                       className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold"
                       style={{
-                        borderColor: isShared ? (isDark ? "#4e7565" : "#b8d3bd") : isDark ? "#415870" : "#d7c9b7",
-                        background: isShared ? (isDark ? "rgba(95,145,125,0.18)" : "rgba(163,207,170,0.2)") : "transparent",
-                        color: isShared ? (isDark ? "#afd7c5" : "#4e8f63") : isDark ? "#c9d8ea" : "#60758f",
+                        borderColor: copyEntry ? (isDark ? "#4e7565" : "#b8d3bd") : isDark ? "#415870" : "#d7c9b7",
+                        background: copyEntry ? (isDark ? "rgba(95,145,125,0.18)" : "rgba(163,207,170,0.2)") : "transparent",
+                        color: copyEntry ? (isDark ? "#afd7c5" : "#4e8f63") : isDark ? "#c9d8ea" : "#60758f",
                       }}
                     >
-                      {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : isShared ? <Check className="h-3.5 w-3.5" /> : null}
-                      {isShared ? "Freigegeben" : "Freigeben"}
+                      {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : copyEntry ? <Check className="h-3.5 w-3.5" /> : <CopyPlus className="h-3.5 w-3.5" />}
+                      {copyEntry ? "Erneut kopieren" : "Kopie senden"}
                     </button>
                   </div>
                 </motion.article>

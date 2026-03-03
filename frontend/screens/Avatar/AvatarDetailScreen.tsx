@@ -413,6 +413,7 @@ const AvatarDetailScreen: React.FC = () => {
         <AvatarSharePanel
           avatarId={avatar.id}
           avatarName={avatar.name}
+          avatarProfileId={avatar.profileId}
           isDark={isDark}
           canManage={canManageAvatar}
         />

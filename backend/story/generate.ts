@@ -9,7 +9,6 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
-import { findAvatarShareForIdentity } from "../avatar/sharing";
 import { getAuthData } from "~encore/auth";
 import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
@@ -31,6 +30,7 @@ import {
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable, hasAvatarProfileLinkForAny } from "../avatar/profile-links";
 import type {
   StorySoulKey,
   EmotionalFlavorKey,
@@ -354,6 +354,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           : []
       ),
     ]);
+    await ensureAvatarProfileLinksTable();
 
     await claimGenerationUsage({
       userId: currentUserId,
@@ -488,17 +489,18 @@ export const generate = api<GenerateStoryRequest, Story>(
         }
 
         if (row.user_id !== currentUserId) {
-          const shareMatch = await findAvatarShareForIdentity({
-            avatarId,
-            userId: currentUserId,
-            email: auth?.email,
-          });
-
-          if (!shareMatch) {
-            throw APIError.permissionDenied("Avatar is not shared with current user");
+          if (!row.is_public) {
+            throw APIError.permissionDenied("Avatar is not available. Copy it into your profile first.");
           }
         } else if (row.profile_id && !participantProfileIds.includes(row.profile_id)) {
-          throw APIError.permissionDenied("Avatar belongs to another child profile.");
+          const linkedToAnyParticipant = await hasAvatarProfileLinkForAny({
+            avatarId,
+            userId: currentUserId,
+            profileIds: participantProfileIds,
+          });
+          if (!linkedToAnyParticipant) {
+            throw APIError.permissionDenied("Avatar belongs to another child profile.");
+          }
         }
 
         const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};

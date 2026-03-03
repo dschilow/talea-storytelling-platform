@@ -3,6 +3,7 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 
 const avatarDB = SQLDatabase.named("avatar");
 const dokuDB = SQLDatabase.named("doku");
@@ -64,6 +65,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
+    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId,
       requestedProfileId: req.profileId,
@@ -120,19 +122,39 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
     if (requestedAvatarIds.length > 0) {
       userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT id, name
-        FROM avatars
-        WHERE user_id = ${userId}
-          AND id = ANY(${requestedAvatarIds})
-          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
+        SELECT a.id, a.name
+        FROM avatars a
+        WHERE a.user_id = ${userId}
+          AND a.id = ANY(${requestedAvatarIds})
+          AND (
+            a.profile_id IS NULL
+            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
+            OR EXISTS (
+              SELECT 1
+              FROM avatar_profile_links apl
+              WHERE apl.avatar_id = a.id
+                AND apl.user_id = ${userId}
+                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
+            )
+          )
       `;
     } else if (req.avatarId) {
       const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
-        SELECT id, name, user_id
-        FROM avatars
-        WHERE id = ${req.avatarId}
-          AND user_id = ${userId}
-          AND (profile_id IS NULL OR profile_id = ANY(${profileIdsForAvatarSelection}))
+        SELECT a.id, a.name, a.user_id
+        FROM avatars a
+        WHERE a.id = ${req.avatarId}
+          AND a.user_id = ${userId}
+          AND (
+            a.profile_id IS NULL
+            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
+            OR EXISTS (
+              SELECT 1
+              FROM avatar_profile_links apl
+              WHERE apl.avatar_id = a.id
+                AND apl.user_id = ${userId}
+                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
+            )
+          )
       `;
 
       if (!specificAvatar) {
@@ -146,10 +168,20 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       userAvatars = [{ id: specificAvatar.id, name: specificAvatar.name }];
     } else {
       userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT id, name
-        FROM avatars
-        WHERE user_id = ${userId}
-          AND (profile_id IS NULL OR profile_id = ${activeProfileId})
+        SELECT a.id, a.name
+        FROM avatars a
+        WHERE a.user_id = ${userId}
+          AND (
+            a.profile_id IS NULL
+            OR a.profile_id = ${activeProfileId}
+            OR EXISTS (
+              SELECT 1
+              FROM avatar_profile_links apl
+              WHERE apl.avatar_id = a.id
+                AND apl.user_id = ${userId}
+                AND apl.profile_id = ${activeProfileId}
+            )
+          )
       `;
     }
 

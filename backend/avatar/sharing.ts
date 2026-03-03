@@ -83,12 +83,30 @@ export async function ensureAvatarSharingTables(): Promise<void> {
       contact_id TEXT NOT NULL,
       target_email TEXT NOT NULL,
       target_user_id TEXT,
+      copied_avatar_id TEXT,
+      copied_profile_id TEXT,
+      last_copied_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_avatar_shares_avatar FOREIGN KEY (avatar_id) REFERENCES avatars(id) ON DELETE CASCADE,
       CONSTRAINT fk_avatar_shares_contact FOREIGN KEY (contact_id) REFERENCES avatar_share_contacts(id) ON DELETE CASCADE,
       UNIQUE (avatar_id, contact_id)
     )
+  `;
+
+  await avatarDB.exec`
+    ALTER TABLE avatar_shares
+    ADD COLUMN IF NOT EXISTS copied_avatar_id TEXT
+  `;
+
+  await avatarDB.exec`
+    ALTER TABLE avatar_shares
+    ADD COLUMN IF NOT EXISTS copied_profile_id TEXT
+  `;
+
+  await avatarDB.exec`
+    ALTER TABLE avatar_shares
+    ADD COLUMN IF NOT EXISTS last_copied_at TIMESTAMP
   `;
 
   await avatarDB.exec`

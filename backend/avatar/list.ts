@@ -3,8 +3,9 @@ import type { Avatar, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
-import { ensureAvatarSharingTables, getUserProfilesByIds, normalizeEmail } from "./sharing";
+import { ensureAvatarSharingTables } from "./sharing";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { ensureAvatarProfileLinksTable } from "./profile-links";
 
 interface ListAvatarsRequest {
   profileId?: string;
@@ -37,20 +38,20 @@ type AvatarListRow = {
   shared_at?: Date | null;
 };
 
-// Retrieves avatars owned by the user and avatars shared with the user.
+// Retrieves avatars owned by the authenticated user for the active profile
+// (directly assigned or shared into the profile via avatar_profile_links).
 export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
   { expose: true, method: "GET", path: "/avatars", auth: true },
   async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarSharingTables();
+    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.profileId,
     });
     const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
-    const normalizedEmail = normalizeEmail(auth.email);
-    const includeShared = req.includeShared === true;
 
     const ownRows = await avatarDB.queryAll<AvatarListRow>`
       SELECT
@@ -76,6 +77,13 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
       WHERE a.user_id = ${auth.userID}
         AND (
           a.profile_id = ${activeProfileId}
+          OR EXISTS (
+            SELECT 1
+            FROM avatar_profile_links apl
+            WHERE apl.avatar_id = a.id
+              AND apl.user_id = ${auth.userID}
+              AND apl.profile_id = ${activeProfileId}
+          )
           OR (${includeLegacyUnscoped} AND a.profile_id IS NULL)
         )
       GROUP BY
@@ -97,104 +105,6 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.updated_at
       ORDER BY a.created_at DESC
     `;
-
-    const sharedRows = includeShared
-      ? (normalizedEmail
-      ? await avatarDB.queryAll<AvatarListRow>`
-          SELECT
-            a.id,
-            a.user_id,
-            a.profile_id,
-            a.name,
-            a.description,
-            a.physical_traits,
-            a.personality_traits,
-            a.image_url,
-            a.visual_profile,
-            a.creation_type,
-            a.is_public,
-            a.source_type,
-            a.source_avatar_id,
-            a.original_avatar_id,
-            a.created_at,
-            a.updated_at,
-            s.owner_user_id AS shared_by_user_id,
-            MAX(s.created_at) AS shared_at
-          FROM avatars a
-          INNER JOIN avatar_shares s ON s.avatar_id = a.id
-          WHERE a.user_id <> ${auth.userID}
-            AND (s.target_user_id = ${auth.userID} OR s.target_email = ${normalizedEmail})
-          GROUP BY
-            a.id,
-            a.user_id,
-            a.profile_id,
-            a.name,
-            a.description,
-            a.physical_traits,
-            a.personality_traits,
-            a.image_url,
-            a.visual_profile,
-            a.creation_type,
-            a.is_public,
-            a.source_type,
-            a.source_avatar_id,
-            a.original_avatar_id,
-            a.created_at,
-            a.updated_at,
-            s.owner_user_id
-          ORDER BY MAX(s.updated_at) DESC
-        `
-      : await avatarDB.queryAll<AvatarListRow>`
-          SELECT
-            a.id,
-            a.user_id,
-            a.profile_id,
-            a.name,
-            a.description,
-            a.physical_traits,
-            a.personality_traits,
-            a.image_url,
-            a.visual_profile,
-            a.creation_type,
-            a.is_public,
-            a.source_type,
-            a.source_avatar_id,
-            a.original_avatar_id,
-            a.created_at,
-            a.updated_at,
-            s.owner_user_id AS shared_by_user_id,
-            MAX(s.created_at) AS shared_at
-          FROM avatars a
-          INNER JOIN avatar_shares s ON s.avatar_id = a.id
-          WHERE a.user_id <> ${auth.userID}
-            AND s.target_user_id = ${auth.userID}
-          GROUP BY
-            a.id,
-            a.user_id,
-            a.profile_id,
-            a.name,
-            a.description,
-            a.physical_traits,
-            a.personality_traits,
-            a.image_url,
-            a.visual_profile,
-            a.creation_type,
-            a.is_public,
-            a.source_type,
-            a.source_avatar_id,
-            a.original_avatar_id,
-            a.created_at,
-            a.updated_at,
-            s.owner_user_id
-          ORDER BY MAX(s.updated_at) DESC
-        `)
-      : [];
-
-    const ownerProfiles = await getUserProfilesByIds(
-      sharedRows
-        .map((row) => row.shared_by_user_id)
-        .filter((value): value is string => Boolean(value))
-    );
 
     const ownAvatars: Avatar[] = await Promise.all(
       ownRows.map(async (row) => ({
@@ -221,43 +131,6 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         skills: [],
       }))
     );
-
-    const sharedAvatars: Avatar[] = await Promise.all(
-      sharedRows.map(async (row) => {
-        const ownerUserId = row.shared_by_user_id ?? row.user_id;
-        const ownerProfile = ownerProfiles.get(ownerUserId);
-
-        return {
-          id: row.id,
-          userId: row.user_id,
-          profileId: row.profile_id || undefined,
-          name: row.name,
-          description: row.description || undefined,
-          physicalTraits: JSON.parse(row.physical_traits),
-          personalityTraits: JSON.parse(row.personality_traits),
-          imageUrl: await buildAvatarImageUrlForClient(row.id, row.image_url || undefined),
-          visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
-          creationType: row.creation_type,
-          isPublic: row.is_public,
-          isShared: true,
-          isOwnedByCurrentUser: false,
-          sharedBy: {
-            userId: ownerUserId,
-            name: ownerProfile?.name ?? undefined,
-            email: ownerProfile?.email ?? undefined,
-            sharedAt: row.shared_at ? row.shared_at.toISOString() : undefined,
-          },
-          originalAvatarId: row.original_avatar_id || undefined,
-          sourceType: (row.source_type as Avatar["sourceType"]) || "clone",
-          sourceAvatarId: row.source_avatar_id || undefined,
-          createdAt: row.created_at.toISOString(),
-          updatedAt: row.updated_at.toISOString(),
-          inventory: [],
-          skills: [],
-        };
-      })
-    );
-
-    return { avatars: [...ownAvatars, ...sharedAvatars] };
+    return { avatars: ownAvatars };
   }
 );
