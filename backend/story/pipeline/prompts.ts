@@ -318,6 +318,24 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
+SZENE 0 – SO BEGINNT KAPITEL 1 (Pflicht-Vorlage: Welt + Figuren + Auftrag):
+Es war einmal, in einem kleinen Dorf am Rande eines großen, dunklen Waldes, da lebten zwei Brüder.
+Der ältere hieß Alexander und war acht Jahre alt. Er war mutig, klug und immer bereit, ein Abenteuer zu erleben.
+Sein kleiner Bruder Adrian war erst fünf und hatte die größten braunen Augen der Welt, mit denen er jeden um den Finger wickeln konnte.
+
+Eines Morgens rief ihre Mutter die beiden in die Küche. Auf dem Tisch stand ein großer Korb, gefüllt mit frisch gebackenem Kuchen.
+"Eure Großmutter ist krank", sagte die Mutter mit besorgtem Blick. "Sie wohnt drüben auf der anderen Seite des Waldes. Bringt ihr bitte diesen Korb, damit sie schnell wieder gesund wird."
+
+Alexander nickte ernst. "Keine Sorge, Mama. Ich passe auf Adrian auf."
+Adrian zog sich seine rote Kappe über den Kopf — seine Lieblingsmütze, die er niemals ablegte.
+Die Mutter lächelte. "Denkt daran: Bleibt auf dem Weg und sprecht nicht mit Fremden!"
+
+WHY THIS OPENING WORKS:
+- Paragraph 1: WHO + WHERE (2 characters, vivid traits, world established)
+- Paragraph 2: MISSION (what + why — crystal clear, any 6-year-old understands)
+- Paragraph 3: CHARACTER VOICES + RULE (dialogue anchors personality, sets up later danger)
+- The reader knows everything before the adventure starts.
+
 SZENE A – Rhythmus + Unterbrechung:
 Mama knallte den Korb auf den Tisch. Plopp.
 "Darf ich–" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
@@ -362,6 +380,24 @@ Adrian legte den Kopf schief. "Glueck kann man nicht kaufen."
 """` ;
 
   const englishExamples = `"""
+SCENE 0 – HOW CHAPTER 1 MUST OPEN (mandatory template: World + Characters + Mission):
+Once upon a time, in a small village at the edge of a great dark forest, there lived two brothers.
+The older one was called Alexander and was eight years old. He was brave, clever, and always ready for adventure.
+His little brother Adrian was only five and had the biggest brown eyes in the world — eyes that could wrap anyone around his finger.
+
+One morning their mother called them into the kitchen. On the table stood a large basket, filled with freshly baked cake.
+"Your grandmother is sick," said their mother with a worried look. "She lives on the other side of the forest. Please bring her this basket so she gets better soon."
+
+Alexander nodded seriously. "Don't worry, Mama. I'll look after Adrian."
+Adrian pulled his red cap over his head — his favorite hat that he never took off.
+Their mother smiled. "Remember: stay on the path and don't talk to strangers!"
+
+WHY THIS OPENING WORKS:
+- Paragraph 1: WHO + WHERE (2 characters, vivid traits, world established)
+- Paragraph 2: MISSION (what + why — crystal clear, any 6-year-old understands)
+- Paragraph 3: CHARACTER VOICES + RULE (dialogue anchors personality, sets up later danger)
+- The reader knows everything before the adventure starts.
+
 SCENE A – Rhythm + interruption:
 Mom slammed the basket on the table. Pop.
 "Can I–" "No," said Mom. Quick as a crocodile jaw.
@@ -388,32 +424,15 @@ Adrian pressed his hands into his pockets. The fabric was warm from running.
 His belly did that weird pull-thing when something big is about to happen.
 He swallowed. "Okay," he said. Very quietly. Just for himself.
 
-SCENE F – Scene with trio-rhythm:
-The stone was smooth. Cold. And far too heavy for one person alone.
-"I'll lift," said Adrian. "I'll hold," said Alexander.
-They pulled at the same time. The stone moved an inch. Then another.
-Captain Blubbert crossed his arms. "You forgot to ask me."
-He grabbed the stone with one hand. Lifted it.
-Adrian stared. Alexander too.
-"You can clap now," said Captain Blubbert.
-
-SCENE G – Paragraphs that breathe (prose rhythm):
-The shop smelled of old wood and cinnamon rolls. Bruno wiped the counter with a cloth
-that used to be white. Now it was brown. And a little sticky.
-"I need flour," he said, without looking up. "Three sacks. And luck."
-Adrian tilted his head. "You can't buy luck."
-"You can," said Bruno. "It just costs more than flour."
 """`;
 
-  // Always include both examples — English for structural learning, target-language for voice
-  const targetExamples = isGerman ? germanExamples : englishExamples;
+  // Only English examples — models respond better to English structural instructions
+  void germanExamples; // kept for reference but not included in prompt
 
   return `# PROSE QUALITY REFERENCE – STUDY THESE EXAMPLES (this is the target level)
-(The output language is ${isGerman ? "German" : "English"}, but these English structural examples show EXACTLY the rhythm, paragraph breathing, and dialogue anchoring you must achieve.)
+(The output language is ${isGerman ? "German" : "English"}, but these English structural examples show EXACTLY the rhythm, paragraph breathing, and dialogue anchoring you must achieve. Apply the same structure in the output language.)
 
 ${englishExamples}
-
-${isGerman ? `SAME QUALITY — IN GERMAN (your output must sound like this):\n${germanExamples}` : ""}
 
 WHAT MAKES THESE EXAMPLES GREAT — APPLY ALL 7 TO EVERY CHAPTER:
 1. PARAGRAPH BREATHING: 2-4 sentences per paragraph, separated by blank lines — never a wall of text
@@ -429,7 +448,12 @@ function buildAntiPatternBlock(_isGerman: boolean): string {
   // Always English — models trained on English respond better to English instructions
   return `# CRITICAL FAILURES TO AVOID (these will get the story rejected)
 
-🚫 TEXT WALL (WORST FAILURE):
+🚫 IN-MEDIAS-RES OPENING (WORST FAILURE FOR CHILDREN):
+Starting Chapter 1 mid-action without introducing anyone or explaining the mission.
+"Der königliche Garten lag still im Mondlicht, als Ritter Rostfrei über den Kiesweg stapfte." → A child has NO IDEA who this is, where we are, or what's happening.
+Fix: Start Ch1 with WHO + WHERE + MISSION. Then begin the action in Ch2.
+
+🚫 TEXT WALL:
 One giant paragraph per chapter. → Fix: 4-6 paragraphs per chapter, blank line between each.
 
 🚫 REPORT STYLE:
@@ -438,26 +462,11 @@ One giant paragraph per chapter. → Fix: 4-6 paragraphs per chapter, blank line
 🚫 EMOTION LABELS:
 "He was nervous" / "She felt brave" → Fix: "His fingers dug into his jacket." / "Her chin went up."
 
-🚫 SOFT CHAPTER ENDINGS (Chapters 1-4):
-"...and so they continued on." / "...they were relieved." → Fix: End every chapter on unresolved tension.
-
-🚫 GHOST CHARACTERS:
-A character is listed but never speaks or moves. → Fix: Every listed character speaks + acts.
-
-🚫 PLOT DEVICE REPEAT:
-Same trick used twice (e.g. "false trail" appears 3 times). → Fix: Different obstacle type per chapter.
-
-🚫 MORAL HAMMER:
-"They learned that teamwork is important." → Fix: The lesson must be invisible — shown, not stated.
-
 🚫 PROMPT COPYING:
 Pasting the Goal/Conflict/Setting wording verbatim into the story. → Fix: Dramatize everything.
 
 🚫 META-CHAPTER REFERENCES IN PROSE:
-"das Ziel aus Kapitel eins" / "their Chapter 1 goal" / "what they set out to do in the beginning" → NEVER reference chapter numbers inside the prose. Characters live in a world without chapters. Fix: Name the actual thing: "the altar", "the lost key", "the dying garden".
-
-🚫 PLANNING LANGUAGE LEAKING INTO CHAPTERS:
-Writing "_planning" terms into story text (e.g. "obstacle", "callback", "stake", "payoff"). These belong ONLY in the _planning block. Never in chapter prose.`;
+"their Chapter 1 goal" / "das Ziel aus Kapitel eins" → NEVER reference chapter numbers in prose. Fix: Name the actual thing: "the lost key", "the dying garden".`;
 }
 
 function buildGeminiFlashMicroExamplesBlock(isGerman: boolean): string {
@@ -597,7 +606,11 @@ export function buildFullStoryPrompt(input: {
     const conflictMax = 120;
     const outcomeMax = 80;
 
-    return `CHAPTER ${idx + 1}:\n   Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}\n   Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}\n   Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}\n   Characters: ${uniqueCast.join(", ") || "none"}\n   End Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? `\n   Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 60)}` : ""}`;
+    const isFirstChapter = idx === 0;
+    const conflictLine = isFirstChapter
+      ? `   Conflict: [NONE — Ch1 is ORIENTATION ONLY: introduce world + characters + mission. No action conflict yet.]`
+      : `   Conflict: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), conflictMax)}`;
+    return `CHAPTER ${idx + 1}:\n   Setting: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), settingMax)}${artifactTag}\n   Goal: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), goalMax)}\n${conflictLine}\n   Characters: ${uniqueCast.join(", ") || "none"}\n   End Trigger: ${trimDirectiveText(sanitizeDirectiveNarrativeText(directive.outcome), outcomeMax)}${fusionHint ? `\n   Hint: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 60)}` : ""}`;
   }).join("\n\n");
   const geminiBeatCards = directives.map((directive, idx) => {
     const castNames = directive.charactersOnStage
@@ -617,10 +630,14 @@ export function buildFullStoryPrompt(input: {
       ? trimDirectiveText(sanitizeDirectiveNarrativeText(directive.artifactUsage), 74)
       : "";
 
+    const isFirstChapter = idx === 0;
+    const pressureLine = isFirstChapter
+      ? "- Pressure now: [NONE — Ch1 is ORIENTATION ONLY. Introduce world + characters + mission. Conflict starts in Ch2.]"
+      : `- Pressure now: ${pressureCue}`;
     return `CH ${idx + 1}
 - Scene anchor: ${settingCue}${artifactTag}
 - Must happen: ${actionCue}
-- Pressure now: ${pressureCue}
+${pressureLine}
 - End shift: ${turnCue}
 - On stage: ${uniqueCast.join(", ") || "none"}${artifactCue ? `\n- Artifact move: ${artifactCue}` : ""}${fusionHint ? `\n- Extra cue: ${trimDirectiveText(sanitizeDirectiveNarrativeText(fusionHint), 58)}` : ""}`;
   }).join("\n\n");
@@ -651,12 +668,30 @@ export function buildFullStoryPrompt(input: {
     .filter(Boolean)
     .join(", ");
 
-  const ch1IntroRule = `CHAPTER 1 MANDATORY – CHARACTER INTRODUCTION:
-Readers know NOBODY when the story starts. You MUST introduce EVERY character in Chapter 1 with one vivid, specific, physical detail (appearance, habit, or quirk) woven naturally into the first paragraph — BEFORE the plot problem begins.
-CORRECT: "Nova wore a silver helmet that caught the sun like a mirror. She moved with the calm certainty of someone who had mapped craters before."
-WRONG: Just writing the name and moving on. No cold name-drops. No "this is [name]" introductions.
+  const ch1IntroRule = `CHAPTER 1 MANDATORY – WORLD SETUP + CHARACTER INTRODUCTION:
+
+A child picks up this book knowing NOTHING. Chapter 1 is not action — it is ORIENTATION.
+Before any danger, quest, or problem begins, the reader needs to know:
+  1. WHO are the characters? (name + one vivid physical detail + one personality trait)
+  2. WHERE are they? (the world in 1-2 sensory sentences)
+  3. WHAT is the mission/goal? (stated clearly and simply, like a parent explaining it)
+  4. WHY does it matter? (what bad thing happens if they fail — concrete, not vague)
+
+CHAPTER 1 STRUCTURE (mandatory order):
+  PARAGRAPH 1 – WORLD + CHARACTERS: Introduce the setting and EACH character with one vivid physical detail and one personality trait. No name-drops — weave details into action.
+    EXAMPLE: "Alexander war acht und hatte immer einen Plan. Sein kleiner Bruder Adrian war fünf und hatte die größten braunen Augen der Welt, mit denen er jeden um den Finger wickeln konnte."
+  PARAGRAPH 2 – THE MISSION: Explain clearly and simply WHAT the characters must do and WHY. A child must understand in one reading.
+    EXAMPLE: "Eure Großmutter ist krank", sagte die Mutter. "Bringt ihr diesen Korb — sie wohnt drüben auf der anderen Seite des Waldes."
+  PARAGRAPH 3+ – THE HOOK: Something goes slightly wrong or mysterious appears. A question forms. The adventure begins.
+  FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — not relief.
+
 Characters who appear in Chapter 1: ${ch1CharIntroNames}.
-RULE: If a character appears on stage in a chapter, they MUST have at least one spoken line AND one physical action in that chapter. A character who is present but silent and motionless does not exist for the reader.`;
+
+ABSOLUTE RULES:
+- NEVER start Chapter 1 mid-action or mid-quest. The reader must first understand the world.
+- NEVER assume the reader knows who the characters are. Introduce everyone.
+- The mission/goal must be so clear that a 6-year-old can repeat it back.
+- Every character present MUST speak at least one line AND perform at least one physical action.`;
 
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRule = humorTarget >= 3
@@ -722,7 +757,8 @@ ${geminiMicroExamples}
 8b. Before finalizing each chapter: check your first 3 dialogue lines — do they echo the Goal/Conflict wording? If yes → rewrite as physical action.
 9. Keep optional metadata ultra-short; spend tokens on chapter prose.
 10. Validator anchors (must be natural prose, not checklist text):
-   - Ch1: Introduce EVERY character with one vivid physical detail before action starts (no cold name-drops).
+   - Ch1 PARAGRAPH 1: Establish WHO + WHERE — every character gets a vivid physical detail + personality trait. Never start mid-action.
+   - Ch1 PARAGRAPH 2: State the MISSION clearly (what + why). Must be so simple a 6-year-old can repeat it.
    - Ch1 includes a concrete stakes sentence: what is lost if they fail.
    - Ch1-4 each end on UNRESOLVED TENSION (never "...and they were relieved" or "...they continued").
    - Each chapter uses a DIFFERENT obstacle type — no plot device repeats within the story.
@@ -765,9 +801,10 @@ Return JSON only:
     "anti_meta": "ok"
   },
   "chapters": [
-    { "chapter": 1, "text": "Paragraph one with 2-4 sentences.\n\nParagraph two with 2-4 sentences.\n\nParagraph three — and so on. ALWAYS use \\n\\n between paragraphs. NEVER one block." }
+    { "chapter": 1, "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four.", "Paragraph five (optional)."] }
   ]
 }
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph (2-4 sentences). NEVER put the whole chapter in one string.
 The "_checks" object is optional. If included, keep it under 40 words total.`;
   }
 
@@ -857,68 +894,37 @@ ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactR
 ${beatLines}
 
 ::: STORY STRUCTURE REQUIREMENTS :::
-- Chapter 1: INTRODUCE → HOOK → STAKES
-  PARAGRAPH 1: Introduce EACH character with one vivid physical detail woven naturally into action. No cold name-drops.
-  PARAGRAPH 2+: Within 3 sentences of introduction, something goes wrong or a mystery appears.
-  FINAL PARAGRAPH: State CONCRETELY what is lost if they fail (e.g. "If they don't reach the altar by midnight, the garden dies forever"). End on unresolved tension — a question, a sound, a shadow.
+- Chapter 1: WORLD SETUP → MISSION → HOOK → STAKES (NO ACTION CONFLICT)
+  ⚠️ CHAPTER 1 HAS NO CONFLICT. The Beat Card conflict field for Ch1 is IGNORED. Ch1 is PURE ORIENTATION.
+  Chapter 1 is ORIENTATION first, action second. The reader knows nothing.
+  PARAGRAPH 1 – WORLD + CHARACTERS: State WHO and WHERE. Each character gets one vivid physical detail and one personality trait. Write as if explaining to a 6-year-old who has never heard of these characters.
+    FORBIDDEN: Starting in the middle of action ("Adrian rannte durch den Wald..."). REQUIRED: Start with the world and the people in it.
+  PARAGRAPH 2 – THE MISSION (mandatory): An adult/authority figure gives the characters a clear task. State WHAT they must do and WHY in simple language. Any child must be able to repeat the mission after reading this paragraph.
+  PARAGRAPH 3 – FIRST STEP / HOOK: The characters set out. Something small goes slightly wrong or mysterious. The question forms.
+  FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — a sound, a shadow, a question unanswered.
+  Conflict starts in Chapter 2. Not before.
 - Chapter 2: DISCOVERY + TEMPTATION. One exciting thing appears. One character wants to take a shortcut. Chapter ends with a door slamming, a trap springing, a wrong choice — unresolved.
 - Chapter 3: COMPLICATION + SETBACK. A plan fails. Something breaks or is lost. Show the physical/emotional reaction for 2-3 sentences. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
 - Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. A character almost gives up. ONE moment of courage or insight changes everything. Chapter ends with forward momentum but danger still present.
 - Chapter 5: RESOLUTION + CALLBACK + SMALL PRICE. Show EXACTLY what was won. Connect back to Chapter 1's opening image or problem. Include ONE small tangible loss (torn glove, lost hat, missed dinner). Final image: specific and warm, not a moral statement.
 
 ::: OUTPUT FORMAT :::
-Write a JSON object. Start with "_planning" to think before writing.
+Write a JSON object:
 
 {
   "_planning": {
-    "theme": "One word (e.g. 'Mut')",
-    "voice_signatures": {
-      "[child1]": "2 typical words + sentence style (e.g. 'short, impulsive, uses zack/los!')",
-      "[child2]": "2 typical words + sentence style (e.g. 'measured, uses Moment/logisch')"
-    },
-    "character_activity_check": {
-      "ch1": ["list every character who MUST speak and act in this chapter"],
-      "ch2": ["list every character who MUST speak and act"],
-      "ch3": ["..."], "ch4": ["..."], "ch5": ["..."]
-    },
-    "character_introductions": {
-      "[character1]": "One vivid physical intro detail for Ch1 (e.g. 'silver helmet, moves with quiet certainty')",
-      "[character2]": "One vivid physical intro detail for Ch1",
-      "[character3+]": "..."
-    },
-    "chapter_obstacles": {
-      "ch1": "obstacle type (e.g. false clue / hidden trap / time pressure)",
-      "ch2": "DIFFERENT obstacle type — must not repeat ch1",
-      "ch3": "DIFFERENT obstacle type",
-      "ch4": "DIFFERENT obstacle type",
-      "ch5": "final challenge type"
-    },
-    "chapter_endings": {
-      "ch1": "What unresolved tension ends Ch1? (must be a question or danger, not a relief)",
-      "ch2": "What cliffhanger ends Ch2?",
-      "ch3": "What danger or setback ends Ch3?",
-      "ch4": "What forward momentum ends Ch4?",
-      "ch5": "What warm specific image closes the story?"
-    },
-    "paragraph_plan": {
-      "ch1": "List 4-6 paragraph beats: e.g. 'arrival + intro | mystery discovered | false path | trap triggered | stakes stated'",
-      "ch2_to_ch5": "Each chapter: 4-6 paragraph beats separated by blank lines"
-    },
-    "ghost_character_check": "List every character per chapter — confirm each has dialogue + physical action",
-    "somatic_markers": ["5 physical sensations I will use instead of emotion words"],
-    "humor_beats": ["2 concrete situational funny moments (NOT wordplay)"],
-    "stakes": "What CONCRETELY is lost if they fail? (must appear in Ch 1, last sentence)",
-    "lowpoint": "What SPECIFICALLY breaks/fails in Ch 3-4? How does the character physically react for 2-3 sentences?",
-    "payoff": "What is WON in Ch 5? (concrete object or outcome)",
-    "price": "What small tangible thing is lost or damaged?",
-    "callback": "Which image or problem from Ch 1 reappears in Ch 5?"
+    "voice_signatures": { "[char1]": "style + 2 words", "[char2]": "style + 2 words" },
+    "ch1_intro_check": "List each character in Ch1 + one vivid physical detail + their spoken line",
+    "obstacles": { "ch1": "none (orientation)", "ch2": "type", "ch3": "type", "ch4": "type", "ch5": "type" },
+    "payoff_and_price": "Ch5: what is won (concrete) + what small thing is lost"
   },
   "title": "${titleHint}",
   "description": "Teaser sentence that plants a QUESTION in the reader's mind",
   "chapters": [
-    { "chapter": 1, "text": "Paragraph one (2-4 sentences).\n\nParagraph two (2-4 sentences).\n\nParagraph three — continue. ALWAYS separate paragraphs with \\n\\n. 4-6 paragraphs per chapter." }
+    { "chapter": 1, "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four.", "Paragraph five (optional)."] }
   ]
-}`;
+}
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph (2-4 sentences). NEVER put the whole chapter in one string.`;
 }
 
 export function buildFullStoryRewritePrompt(input: {
@@ -1033,9 +1039,10 @@ ${originalText}
     "title": "Story title",
       "description": "Teaser sentence",
         "chapters": [
-          { "chapter": 1, "text": "Full prose in flowing paragraphs..." }
+          { "chapter": 1, "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."] }
         ]
-  } `;
+  }
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph (2-4 sentences). NEVER put the whole chapter in one string.`;
 }
 
 
@@ -1132,16 +1139,17 @@ ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 ${originalText}
 
 # OUTPUT
-JSON: 
+JSON:
 ${includePlanning ? `{
   "_planning": {
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
     "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
-  "text": "Chapter text" 
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
 }` : `{
-  "text": "Chapter text" 
-}`}`;
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
+}`}
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER use a "text" field.`;
 }
 
 // ─── Legacy functions (für Kompatibilität) ────────────────────────────────────
@@ -1238,8 +1246,9 @@ Return JSON:
   "_planning": {
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead."
   },
-  "text": "Chapter text"
-}`;
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
+}
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER use a "text" field.`;
 }
 
 export function resolveLengthTargets(input: {
@@ -1367,10 +1376,11 @@ ${includePlanning ? `{
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
     "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
-  "text": "Chapter text"
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
 }` : `{
-  "text": "Chapter text"
-}`}`;
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
+}`}
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER use a "text" field.`;
 }
 
 export function buildTemplatePhraseRewritePrompt(input: {
@@ -1443,8 +1453,9 @@ Return JSON:
     "anti_leak_check": "List any words from the Goal/Conflict that you are tempted to use, and write your concrete alternative here instead.",
     "voice_separation_check": "How will you ensure each character sounds distinct? (e.g. short sentences vs formal words)"
   },
-  "text": "Chapter text"
-}`;
+  "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
+}
+IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER use a "text" field.`;
 }
 
 export function buildStoryTitlePrompt(input: { storyText: string; language: string }): string {

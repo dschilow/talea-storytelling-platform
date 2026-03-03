@@ -967,13 +967,16 @@ ${storyLanguageRule}`.trim();
       }
     }
 
+    // Cap warning-polish at 1 pass for Gemini Flash to prevent continuity destruction.
+    // Multiple polish passes rewrite chapters with different contexts each time,
+    // causing characters to appear/disappear and tone to shift mid-story.
     const emergencyWarningPolishCalls = maxWarningPolishCalls > 0
-      ? maxWarningPolishCalls
+      ? (isGeminiFlashModel ? Math.min(maxWarningPolishCalls, 1) : maxWarningPolishCalls)
       : (
         isGeminiFlashModel
         && maxRewritePasses === 0
         ? Math.min(
-          getActionableErrorIssues(qualityReport).length >= 4 ? 3 : 2,
+          1, // hard cap at 1 for Gemini Flash emergency polish
           resolveEmergencyPolishCalls(qualityReport.issues, draft.chapters.length),
         )
         : 0
@@ -1091,7 +1094,10 @@ function extractDraftFromAnyFormat(input: {
 }): StoryDraft {
   const { parsed, directives, language, wordsPerChapter } = input;
   const hasStructuredChapters = Array.isArray(parsed?.chapters)
-    && parsed.chapters.some((ch: any) => typeof ch?.text === "string" && ch.text.trim().length > 0);
+    && parsed.chapters.some((ch: any) =>
+      (Array.isArray(ch?.paragraphs) && ch.paragraphs.some((p: any) => typeof p === "string" && p.trim().length > 0))
+      || (typeof ch?.text === "string" && ch.text.trim().length > 0)
+    );
   if (hasStructuredChapters) {
     return extractDraftFromChapterArray(parsed, directives, language);
   }
@@ -1134,7 +1140,10 @@ function extractContinuousStoryPayload(parsed: any, language: string): {
 
   if (!storyText && Array.isArray(parsed.chapters)) {
     const joined = parsed.chapters
-      .map((chapter: any) => (typeof chapter?.text === "string" ? chapter.text.trim() : ""))
+      .map((chapter: any) => {
+        if (Array.isArray(chapter?.paragraphs)) return chapter.paragraphs.filter(Boolean).join("\n\n");
+        return typeof chapter?.text === "string" ? chapter.text.trim() : "";
+      })
       .filter(Boolean)
       .join("\n\n");
     if (joined) storyText = joined;
@@ -1205,7 +1214,9 @@ function extractDraftFromChapterArray(
     chapters = parsed.chapters.map((ch: any, idx: number) => ({
       chapter: ch.chapter ?? idx + 1,
       title: "",
-      text: ch.text || "",
+      text: Array.isArray(ch.paragraphs)
+        ? ch.paragraphs.filter(Boolean).join("\n\n")  // new format
+        : (ch.text || ""),                             // legacy fallback
     }));
   }
 
@@ -1618,26 +1629,48 @@ function safeJson(text: string) {
 
 function extractChapterTextFromParsed(parsed: any): string | null {
   if (!parsed) return null;
+
+  // New format: top-level paragraphs array
+  if (Array.isArray(parsed.paragraphs)) {
+    const joined = parsed.paragraphs.filter(Boolean).join("\n\n");
+    if (joined.trim()) return joined.trim();
+  }
+
+  // Legacy: top-level text string
   if (typeof parsed.text === "string" && parsed.text.trim()) {
     return parsed.text.trim();
   }
+
+  // Array response: try each entry for paragraphs or text
   if (Array.isArray(parsed)) {
     for (const entry of parsed) {
+      if (Array.isArray(entry?.paragraphs)) {
+        const joined = entry.paragraphs.filter(Boolean).join("\n\n");
+        if (joined.trim()) return joined.trim();
+      }
       if (typeof entry?.text === "string" && entry.text.trim()) {
         return entry.text.trim();
       }
     }
   }
+
+  // Nested chapters array
   if (Array.isArray(parsed?.chapters)) {
     const merged = parsed.chapters
-      .map((chapter: any) => (typeof chapter?.text === "string" ? chapter.text.trim() : ""))
+      .map((chapter: any) => {
+        if (Array.isArray(chapter?.paragraphs)) return chapter.paragraphs.filter(Boolean).join("\n\n");
+        return typeof chapter?.text === "string" ? chapter.text.trim() : "";
+      })
       .filter(Boolean)
       .join("\n\n");
     if (merged) return merged;
   }
+
+  // Legacy nested data.text
   if (typeof parsed?.data?.text === "string" && parsed.data.text.trim()) {
     return parsed.data.text.trim();
   }
+
   return null;
 }
 

@@ -7,8 +7,11 @@ export function buildIntegrationPlan(input: {
   cast: CastSet;
 }): IntegrationPlan {
   const { normalized, blueprint, cast } = input;
+  // Budget must be at least avatarCount+1 so avatars always fit alongside at least one supporting character.
+  // For young children (≤8): max 3 but never less than avatars + 1.
+  const avatarCount = cast.avatars.length;
   const onStageCharacterBudget = normalized.ageMax <= 8
-    ? Math.min(MAX_ON_STAGE_CHARACTERS, 3)
+    ? Math.max(avatarCount + 1, Math.min(MAX_ON_STAGE_CHARACTERS, 3))
     : MAX_ON_STAGE_CHARACTERS;
   const avatarSlots = cast.avatars.map(a => a.slotKey);
   const artifactSlot = "SLOT_ARTIFACT_1";
@@ -28,8 +31,9 @@ export function buildIntegrationPlan(input: {
     }
 
     const hasAvatarAlready = avatarSlots.some(slot => onStage.has(slot));
-    const presenceRatio = avatarsPresent / Math.max(1, totalChapters);
-    const ensureAvatar = !hasAvatarAlready && presenceRatio < targetPresence;
+    // Avatars are the protagonists — they MUST appear in every chapter.
+    // Children can't follow a story where their avatar disappears for chapters at a time.
+    const ensureAvatar = !hasAvatarAlready;
 
     if (ensureAvatar) {
       avatarSlots.forEach(slot => onStage.add(slot));
@@ -197,14 +201,9 @@ function trimOnStage(input: {
   if (nonArtifact.length > maxCharacters) {
     const optional = nonArtifact.filter(slot => !required.has(slot));
     const optionalNonAvatar = optional.filter(slot => !isAvatar(slot));
-    const optionalAvatars = optional.filter(isAvatar);
-    const avatarRemovalOrder = optionalAvatars.sort((a, b) => {
-      if (a === "SLOT_AVATAR_2" && b !== "SLOT_AVATAR_2") return -1;
-      if (b === "SLOT_AVATAR_2" && a !== "SLOT_AVATAR_2") return 1;
-      return 0;
-    });
-
-    const removalOrder = [...optionalNonAvatar, ...avatarRemovalOrder];
+    // Avatars are protagonists — NEVER remove them to make room for supporting characters.
+    // Only non-avatar slots are removable when over budget.
+    const removalOrder = [...optionalNonAvatar];
 
     for (const slot of removalOrder) {
       if (countNonArtifact(finalSlots) <= maxCharacters) break;
