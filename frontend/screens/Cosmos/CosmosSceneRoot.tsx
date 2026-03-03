@@ -139,21 +139,22 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     <div className="relative w-full" style={{ height }}>
       <Canvas
         camera={{
-          position: compact ? [7, 8, 16] : [12, 10, 24],
+          position: compact ? [7, 8, 16] : [13, 9, 25],
           fov: 50,
           near: 0.1,
           far: 200,
         }}
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         gl={{
           antialias: true,
           alpha: true,
           powerPreference: 'high-performance',
         }}
         onCreated={({ gl }) => {
+          (gl as any).useLegacyLights = false;
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.03;
+          gl.toneMappingExposure = 0.96;
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {
@@ -164,6 +165,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
       >
         <Suspense fallback={null}>
+          <fog attach="fog" args={['#060715', 38, 120]} />
+
           {/* Cinematic deep-space back layer */}
           <CosmosDeepSpaceBackdrop />
 
@@ -199,9 +202,9 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           {!compact && effectsEnabled && (
             <EffectComposer multisampling={0}>
               <Bloom
-                luminanceThreshold={0.35}
-                luminanceSmoothing={0.55}
-                intensity={0.45}
+                luminanceThreshold={0.55}
+                luminanceSmoothing={0.86}
+                intensity={0.26}
                 mipmapBlur
               />
             </EffectComposer>

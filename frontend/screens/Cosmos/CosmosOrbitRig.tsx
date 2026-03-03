@@ -28,7 +28,10 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains }) => {
           Math.sin(angle) * domain.orbitRadius,
         ]);
       }
-      return { id: domain.id, points, color: domain.color, tiltX, tiltZ };
+      const orbitColor = new THREE.Color(domain.color)
+        .lerp(new THREE.Color('#9fb2d6'), 0.72)
+        .getStyle();
+      return { id: domain.id, points, color: orbitColor, tiltX, tiltZ };
     });
   }, [domains]);
 
@@ -39,9 +42,9 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains }) => {
           <Line
             points={points}
             color={color}
-            lineWidth={0.5}
+            lineWidth={0.8}
             transparent
-            opacity={0.11}
+            opacity={0.06}
           />
         </group>
       ))}

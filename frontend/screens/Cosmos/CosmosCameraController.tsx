@@ -21,7 +21,7 @@ interface Props {
   focusedPosition?: [number, number, number] | null;
 }
 
-const OVERVIEW_POS = new THREE.Vector3(12, 10, 24);
+const OVERVIEW_POS = new THREE.Vector3(13, 9, 25);
 const OVERVIEW_TARGET = new THREE.Vector3(0, 0, 0);
 
 export const CosmosCameraController: React.FC<Props> = ({
@@ -148,10 +148,10 @@ export const CosmosCameraController: React.FC<Props> = ({
       minPolarAngle={Math.PI * 0.1}
       maxPolarAngle={Math.PI * 0.6}
       autoRotate={mode === 'overview'}
-      autoRotateSpeed={0.22}
+      autoRotateSpeed={0.14}
       enableDamping
-      dampingFactor={0.06}
-      rotateSpeed={0.45}
+      dampingFactor={0.08}
+      rotateSpeed={0.38}
     />
   );
 };

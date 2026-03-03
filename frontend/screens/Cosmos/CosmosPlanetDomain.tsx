@@ -44,8 +44,8 @@ const ATMOSPHERE_FRAGMENT = `
   uniform float uIntensity;
   void main() {
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
-    float fresnel = pow(1.0 - max(dot(normalize(vNormalW), viewDir), 0.0), uPower);
-    float alpha = fresnel * uOpacity;
+    float fresnel = pow(1.0 - abs(dot(normalize(vNormalW), viewDir)), uPower);
+    float alpha = smoothstep(0.02, 1.0, fresnel) * uOpacity;
     vec3 color = uColor * (0.45 + fresnel * uIntensity);
     gl_FragColor = vec4(color, alpha);
   }
@@ -104,6 +104,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const maps = useMemo(
     () => createPlanetMaps(domain.color, orbitConfig.seed, domain.planetType),
     [domain.color, domain.planetType, orbitConfig.seed]
+  );
+  const ringMap = useMemo(
+    () => createRingTexture(domain.color, orbitConfig.seed),
+    [domain.color, orbitConfig.seed]
   );
 
   const planetMaterial = useMemo(
@@ -195,12 +199,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       cloudMaterial.dispose();
       atmosphereMaterial.dispose();
       auraMaterial.dispose();
+      ringMap.dispose();
       maps.surfaceMap.dispose();
       maps.bumpMap.dispose();
       maps.roughnessMap.dispose();
       maps.cloudMap.dispose();
     };
-  }, [atmosphereMaterial, auraMaterial, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial]);
+  }, [atmosphereMaterial, auraMaterial, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial, ringMap]);
 
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
@@ -322,15 +327,23 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           return (
             <Ring
               key={`ring_${index}`}
-              args={[inner, outer, 60]}
+              args={[inner, outer, 96]}
               rotation={[Math.PI / (2.45 + index * 0.04), 0, index * 0.05]}
             >
-              <meshBasicMaterial
-                color={domain.color}
+              <meshPhysicalMaterial
+                map={ringMap}
+                alphaMap={ringMap}
+                color={new THREE.Color(domain.color).multiplyScalar(1.06)}
                 transparent
                 opacity={opacity}
+                emissive={domain.emissiveColor}
+                emissiveIntensity={0.08 + visuals.developmentLevel * 0.14}
+                roughness={0.72}
+                metalness={0.03}
+                clearcoat={0.12}
                 side={THREE.DoubleSide}
                 depthWrite={false}
+                alphaTest={0.02}
               />
             </Ring>
           );
@@ -430,7 +443,7 @@ function createPlanetMaps(
   cloudMap: THREE.CanvasTexture;
 } {
   const profile = getPlanetTypeProfile(planetType);
-  const size = 256;
+  const size = resolvePlanetTextureSize();
   const surfaceCanvas = document.createElement('canvas');
   const bumpCanvas = document.createElement('canvas');
   const roughCanvas = document.createElement('canvas');
@@ -511,6 +524,9 @@ function createPlanetMaps(
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1.25, 1.25);
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
     texture.needsUpdate = true;
   });
   surfaceMap.colorSpace = THREE.SRGBColorSpace;
@@ -733,10 +749,60 @@ function createAtmosphereShellMaterial(
     vertexShader: ATMOSPHERE_VERTEX,
     fragmentShader: ATMOSPHERE_FRAGMENT,
     transparent: true,
-    side: THREE.BackSide,
+    side: THREE.DoubleSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
+}
+
+function createRingTexture(color: string, seed: number): THREE.CanvasTexture {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('Could not create 2D context for ring texture');
+  }
+
+  const base = new THREE.Color(color);
+  const center = size * 0.5;
+  const maxR = size * 0.5;
+  const image = ctx.createImageData(size, size);
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = x - center;
+      const dy = y - center;
+      const radius = Math.sqrt(dx * dx + dy * dy) / maxR;
+      const i = (y * size + x) * 4;
+
+      if (radius < 0.36 || radius > 0.98) {
+        image.data[i + 3] = 0;
+        continue;
+      }
+
+      const stripeNoise = fbm2D(radius * 14 + 0.5, (Math.atan2(dy, dx) + Math.PI) * 0.8, seed + 211, 3);
+      const bandNoise = fbm2D(radius * 25, radius * 3 + 1.2, seed + 377, 2);
+      const edgeFade = smoothstep(0.36, 0.45, radius) * (1 - smoothstep(0.9, 0.98, radius));
+      const alpha = clamp01(edgeFade * (0.34 + stripeNoise * 0.52 + bandNoise * 0.2));
+      const brightness = 0.78 + stripeNoise * 0.38;
+
+      image.data[i] = clamp255(base.r * 255 * brightness);
+      image.data[i + 1] = clamp255(base.g * 255 * brightness);
+      image.data[i + 2] = clamp255(base.b * 255 * (0.94 + bandNoise * 0.18));
+      image.data[i + 3] = clamp255(alpha * 255);
+    }
+  }
+
+  ctx.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function fbm2D(x: number, y: number, seed: number, octaves: number): number {
@@ -766,6 +832,20 @@ function clamp255(value: number): number {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function smoothstep(min: number, max: number, value: number): number {
+  if (value <= min) return 0;
+  if (value >= max) return 1;
+  const t = (value - min) / (max - min);
+  return t * t * (3 - 2 * t);
+}
+
+function resolvePlanetTextureSize(): number {
+  if (typeof window === 'undefined') return 512;
+  const memory = (navigator as any).deviceMemory ?? 4;
+  const smallScreen = window.matchMedia('(max-width: 900px)').matches;
+  return memory <= 4 || smallScreen ? 256 : 512;
 }
 
 function hashString(value: string): number {

@@ -139,7 +139,7 @@ export const CosmosDeepSpaceBackdrop: React.FC = () => {
 
 function createNebulaTexture(colors: [string, string, string] | string[]): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  const size = 512;
+  const size = 1024;
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
@@ -172,8 +172,10 @@ function createNebulaTexture(colors: [string, string, string] | string[]): THREE
       const i = (y * size + x) * 4;
       const nx = x / size;
       const ny = y / size;
-      const noise = fbm2D(nx * 4.8, ny * 4.8, 5);
-      const alpha = data.data[i + 3] * (0.62 + noise * 0.58);
+      const largeNoise = fbm2D(nx * 2.1, ny * 2.1, 4);
+      const detailNoise = fbm2D(nx * 6.4, ny * 6.4, 3);
+      const noiseMix = largeNoise * 0.72 + detailNoise * 0.28;
+      const alpha = data.data[i + 3] * (0.72 + noiseMix * 0.24);
       data.data[i + 3] = Math.max(0, Math.min(255, Math.round(alpha)));
     }
   }
@@ -181,6 +183,9 @@ function createNebulaTexture(colors: [string, string, string] | string[]): THREE
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
   texture.needsUpdate = true;
   return texture;
 }

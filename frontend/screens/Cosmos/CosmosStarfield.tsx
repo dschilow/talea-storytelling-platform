@@ -25,10 +25,10 @@ const STARFIELD_VERTEX = `
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
     float twinkle = 0.72 + 0.28 * sin(uTime * (0.45 + aTwinkle * 1.8) + aTwinkle * 6.28318530718);
-    float perspective = 120.0 / max(18.0, -mvPosition.z);
+    float perspective = 112.0 / max(18.0, -mvPosition.z);
     float pointSize = aSize * twinkle * uPixelRatio * perspective;
 
-    gl_PointSize = clamp(pointSize, 0.6, 4.2);
+    gl_PointSize = clamp(pointSize, 0.55, 2.8);
     gl_Position = projectionMatrix * mvPosition;
 
     vColor = aColor;
@@ -43,8 +43,9 @@ const STARFIELD_FRAGMENT = `
   void main() {
     vec2 uv = gl_PointCoord - vec2(0.5);
     float dist = length(uv);
-    float core = smoothstep(0.34, 0.0, dist);
-    float halo = smoothstep(0.55, 0.0, dist) * 0.55;
+    if (dist > 0.5) discard;
+    float core = smoothstep(0.22, 0.0, dist);
+    float halo = smoothstep(0.5, 0.12, dist) * 0.38;
     float alpha = (core + halo) * vAlpha;
 
     if (alpha < 0.01) discard;
