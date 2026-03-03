@@ -4,7 +4,7 @@
  * Should be re-removed after successful deployment.
  */
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { avatarDB } from "./db";
 
 interface RunMigrationSQLRequest {
@@ -15,54 +15,56 @@ interface RunMigrationSQLRequest {
 interface RunMigrationSQLResponse {
   success: boolean;
   message: string;
-  statementsExecuted?: number;
+  statementsExecuted: number;
+  errors: string[];
 }
 
-export const runMigrationSQL = api<RunMigrationSQLRequest, RunMigrationSQLResponse>(
+export const runMigrationSQL = api(
   { expose: true, method: "POST", path: "/avatar/run-migration-sql", auth: false },
-  async (req) => {
-    console.log(`[Avatar Migration API] Running: ${req.migrationName}`);
-    console.log(`[Avatar Migration API] SQL length: ${req.migrationSql.length} characters`);
+  async (req: RunMigrationSQLRequest): Promise<RunMigrationSQLResponse> => {
+    const { migrationSql, migrationName } = req;
 
-    try {
-      const statements = req.migrationSql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
-
-      console.log(`[Avatar Migration API] Executing ${statements.length} statements...`);
-
-      let executedCount = 0;
-      for (const [index, statement] of statements.entries()) {
-        try {
-          await avatarDB.exec`${statement}`;
-          executedCount++;
-          if ((index + 1) % 5 === 0) {
-            console.log(`[Avatar Migration API] Progress: ${index + 1}/${statements.length}`);
-          }
-        } catch (error: any) {
-          if (
-            error.message?.includes('duplicate key') ||
-            error.message?.includes('already exists')
-          ) {
-            console.log(`[Avatar Migration API] Statement ${index + 1} skipped (already exists)`);
-            executedCount++;
-            continue;
-          }
-          throw error;
-        }
-      }
-
-      return {
-        success: true,
-        message: `Migration ${req.migrationName} completed. Executed ${executedCount}/${statements.length} statements.`,
-        statementsExecuted: executedCount,
-      };
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Migration ${req.migrationName} failed: ${error.message || String(error)}`,
-      };
+    if (!migrationSql || !migrationSql.trim()) {
+      throw APIError.invalidArgument("migrationSql is required");
     }
+
+    console.log(`🔄 [avatar] Running migration: ${migrationName}`);
+
+    const statements = migrationSql
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !s.startsWith("--"));
+
+    let executed = 0;
+    const errors: string[] = [];
+
+    for (const statement of statements) {
+      try {
+        // Use function call syntax (not template literal) for raw dynamic SQL
+        await avatarDB.exec(statement + ";");
+        executed++;
+        if (executed % 5 === 0) {
+          console.log(`  📊 Progress: ${executed}/${statements.length} statements`);
+        }
+      } catch (err: any) {
+        const msg = err.message || String(err);
+        if (msg.includes("already exists") || msg.includes("duplicate key")) {
+          console.log(`  ⚠️ Skipped (already exists): ${msg.substring(0, 100)}`);
+        } else {
+          errors.push(`Statement ${executed + 1}: ${msg.substring(0, 200)}`);
+          console.error(`  ❌ Error: ${msg.substring(0, 200)}`);
+        }
+        executed++;
+      }
+    }
+
+    const success = errors.length === 0;
+    const message = success
+      ? `✅ Migration "${migrationName}" completed: ${executed} statements executed`
+      : `⚠️ Migration "${migrationName}" completed with ${errors.length} errors`;
+
+    console.log(message);
+
+    return { success, message, statementsExecuted: executed, errors };
   }
 );
