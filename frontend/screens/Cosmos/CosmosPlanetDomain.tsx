@@ -23,6 +23,7 @@ interface Props {
 }
 
 const MAX_LIFE_PARTICLES = 10;
+const MAX_TOPIC_MOONS = 8;
 
 export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
@@ -36,6 +37,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const atmosphereRef = useRef<THREE.Mesh>(null!);
   const auraRef = useRef<THREE.Mesh>(null!);
   const satelliteRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const topicMoonRefs = useRef<Array<THREE.Mesh | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
 
   const visuals = useMemo(() => mapProgressToVisuals(progress), [progress]);
@@ -74,8 +76,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   ]);
 
   const maps = useMemo(
-    () => createPlanetMaps(domain.color, orbitConfig.seed),
-    [domain.color, orbitConfig.seed]
+    () => createPlanetMaps(domain.color, orbitConfig.seed, domain.planetType),
+    [domain.color, domain.planetType, orbitConfig.seed]
   );
 
   const planetMaterial = useMemo(
@@ -100,12 +102,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     () =>
       new THREE.MeshStandardMaterial({
         map: maps.cloudMap,
-        color: '#eaf2ff',
+        color: getCloudTint(domain.planetType),
         transparent: true,
         opacity: visuals.cloudOpacity,
         depthWrite: false,
       }),
-    [maps.cloudMap, visuals.cloudOpacity]
+    [domain.planetType, maps.cloudMap, visuals.cloudOpacity]
   );
 
   const atmosphereMaterial = useMemo(
@@ -147,6 +149,16 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const activeLifeParticles = Math.min(
     MAX_LIFE_PARTICLES,
     Math.floor(visuals.lifeSignalStrength * MAX_LIFE_PARTICLES)
+  );
+  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, Math.max(0, progress.topicsExplored || 0));
+  const topicMoonSeeds = useMemo(
+    () =>
+      Array.from({ length: topicMoonCount }, (_, index) => {
+        const phase = ((orbitConfig.seed + index * 53) % 628) / 100;
+        const offset = ((orbitConfig.seed + index * 73) % 100) / 100;
+        return { phase, offset };
+      }),
+    [orbitConfig.seed, topicMoonCount]
   );
 
   const handleClick = useCallback(
@@ -210,6 +222,17 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     if (auraRef.current) {
       auraRef.current.scale.setScalar(1 + Math.sin(t * 0.8 + orbitConfig.phase) * 0.02);
     }
+
+    topicMoonRefs.current.forEach((moon, index) => {
+      if (!moon || index >= topicMoonCount) return;
+      const seed = topicMoonSeeds[index];
+      const angle = t * (0.8 + seed.offset * 0.8) + seed.phase;
+      const radius = 1.25 + visuals.scale * 0.28 + index * 0.17;
+      moon.position.x = Math.cos(angle) * radius;
+      moon.position.z = Math.sin(angle) * radius;
+      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * 0.18;
+      moon.rotation.y += 0.01;
+    });
 
     satelliteRefs.current.forEach((satellite, index) => {
       if (!satellite) return;
@@ -291,6 +314,27 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           );
         })}
 
+      {Array.from({ length: topicMoonCount }).map((_, index) => {
+        const size = 0.055 + Math.min(0.06, visuals.developmentLevel * 0.045 + index * 0.004);
+        return (
+          <Sphere
+            key={`topic_moon_${index}`}
+            ref={(node) => {
+              topicMoonRefs.current[index] = node;
+            }}
+            args={[size, 12, 12]}
+          >
+            <meshStandardMaterial
+              color="#d6e7ff"
+              emissive={domain.emissiveColor}
+              emissiveIntensity={0.12 + visuals.developmentLevel * 0.18}
+              roughness={0.52}
+              metalness={0.08}
+            />
+          </Sphere>
+        );
+      })}
+
       {Array.from({ length: visuals.satelliteCount }).map((_, index) => (
         <Sphere
           key={`sat_${index}`}
@@ -353,12 +397,17 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   );
 };
 
-function createPlanetMaps(baseHex: string, seed: number): {
+function createPlanetMaps(
+  baseHex: string,
+  seed: number,
+  planetType: CosmosDomain['planetType']
+): {
   surfaceMap: THREE.CanvasTexture;
   bumpMap: THREE.CanvasTexture;
   roughnessMap: THREE.CanvasTexture;
   cloudMap: THREE.CanvasTexture;
 } {
+  const profile = getPlanetTypeProfile(planetType);
   const size = 256;
   const surfaceCanvas = document.createElement('canvas');
   const bumpCanvas = document.createElement('canvas');
@@ -393,16 +442,16 @@ function createPlanetMaps(baseHex: string, seed: number): {
       const nx = x / size;
       const ny = y / size;
 
-      const n1 = fbm2D(nx * 4.5, ny * 4.5, seed, 4);
-      const n2 = fbm2D(nx * 11.0, ny * 11.0, seed + 71, 3);
-      const ridge = Math.abs(0.5 - n2) * 2;
-      const altitude = clamp01(n1 * 0.8 + ridge * 0.2);
+      const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 4);
+      const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 3);
+      const ridge = Math.pow(Math.abs(0.5 - n2) * 2, profile.ridgePower);
+      const altitude = clamp01(n1 * profile.heightWeight + ridge * profile.ridgeWeight);
 
-      const shade = 0.62 + altitude * 0.55;
-      const tint = 0.88 + n2 * 0.24;
-      surfaceData.data[i] = clamp255(baseR * shade * tint);
-      surfaceData.data[i + 1] = clamp255(baseG * shade * (0.9 + n1 * 0.2));
-      surfaceData.data[i + 2] = clamp255(baseB * shade * (0.88 + ridge * 0.2));
+      const shade = profile.shadeMin + altitude * profile.shadeRange;
+      const tint = profile.tintBase + n2 * profile.tintRange;
+      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift);
+      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22));
+      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2));
       surfaceData.data[i + 3] = 255;
 
       const bump = clamp255(altitude * 255);
@@ -411,14 +460,14 @@ function createPlanetMaps(baseHex: string, seed: number): {
       bumpData.data[i + 2] = bump;
       bumpData.data[i + 3] = 255;
 
-      const rough = clamp255((0.3 + ridge * 0.55 + n1 * 0.15) * 255);
+      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16) * 255);
       roughData.data[i] = rough;
       roughData.data[i + 1] = rough;
       roughData.data[i + 2] = rough;
       roughData.data[i + 3] = 255;
 
-      const cloudNoise = fbm2D(nx * 6.2, ny * 6.2, seed + 133, 5);
-      const cloudAlpha = clamp255(Math.max(0, cloudNoise - 0.56) * 640);
+      const cloudNoise = fbm2D(nx * profile.cloudScale, ny * profile.cloudScale, seed + 133, 5);
+      const cloudAlpha = clamp255(Math.max(0, cloudNoise - profile.cloudThreshold) * profile.cloudGain);
       cloudData.data[i] = 255;
       cloudData.data[i + 1] = 255;
       cloudData.data[i + 2] = 255;
@@ -445,6 +494,205 @@ function createPlanetMaps(baseHex: string, seed: number): {
   surfaceMap.colorSpace = THREE.SRGBColorSpace;
 
   return { surfaceMap, bumpMap, roughnessMap, cloudMap };
+}
+
+interface PlanetTypeProfile {
+  baseScale: number;
+  ridgeScale: number;
+  ridgePower: number;
+  heightWeight: number;
+  ridgeWeight: number;
+  shadeMin: number;
+  shadeRange: number;
+  tintBase: number;
+  tintRange: number;
+  redShift: number;
+  greenShift: number;
+  blueShift: number;
+  roughnessBase: number;
+  cloudScale: number;
+  cloudThreshold: number;
+  cloudGain: number;
+}
+
+function getPlanetTypeProfile(type: CosmosDomain['planetType']): PlanetTypeProfile {
+  switch (type) {
+    case 'oceanic':
+      return {
+        baseScale: 3.8,
+        ridgeScale: 9.5,
+        ridgePower: 1.2,
+        heightWeight: 0.74,
+        ridgeWeight: 0.26,
+        shadeMin: 0.58,
+        shadeRange: 0.56,
+        tintBase: 0.9,
+        tintRange: 0.2,
+        redShift: 0.9,
+        greenShift: 0.9,
+        blueShift: 1.12,
+        roughnessBase: 0.22,
+        cloudScale: 5.4,
+        cloudThreshold: 0.5,
+        cloudGain: 680,
+      };
+    case 'icy':
+      return {
+        baseScale: 5.0,
+        ridgeScale: 13.5,
+        ridgePower: 1.34,
+        heightWeight: 0.66,
+        ridgeWeight: 0.34,
+        shadeMin: 0.68,
+        shadeRange: 0.5,
+        tintBase: 0.98,
+        tintRange: 0.13,
+        redShift: 0.92,
+        greenShift: 1.04,
+        blueShift: 1.12,
+        roughnessBase: 0.4,
+        cloudScale: 7.0,
+        cloudThreshold: 0.6,
+        cloudGain: 460,
+      };
+    case 'lush':
+      return {
+        baseScale: 4.2,
+        ridgeScale: 10.0,
+        ridgePower: 1.0,
+        heightWeight: 0.8,
+        ridgeWeight: 0.2,
+        shadeMin: 0.6,
+        shadeRange: 0.56,
+        tintBase: 0.84,
+        tintRange: 0.24,
+        redShift: 0.9,
+        greenShift: 1.08,
+        blueShift: 0.9,
+        roughnessBase: 0.3,
+        cloudScale: 6.0,
+        cloudThreshold: 0.52,
+        cloudGain: 640,
+      };
+    case 'desert':
+      return {
+        baseScale: 5.3,
+        ridgeScale: 15.0,
+        ridgePower: 1.4,
+        heightWeight: 0.62,
+        ridgeWeight: 0.38,
+        shadeMin: 0.62,
+        shadeRange: 0.48,
+        tintBase: 0.93,
+        tintRange: 0.16,
+        redShift: 1.08,
+        greenShift: 0.95,
+        blueShift: 0.84,
+        roughnessBase: 0.52,
+        cloudScale: 5.0,
+        cloudThreshold: 0.66,
+        cloudGain: 380,
+      };
+    case 'volcanic':
+      return {
+        baseScale: 6.2,
+        ridgeScale: 17.0,
+        ridgePower: 1.56,
+        heightWeight: 0.58,
+        ridgeWeight: 0.42,
+        shadeMin: 0.46,
+        shadeRange: 0.64,
+        tintBase: 0.86,
+        tintRange: 0.23,
+        redShift: 1.16,
+        greenShift: 0.78,
+        blueShift: 0.72,
+        roughnessBase: 0.62,
+        cloudScale: 4.2,
+        cloudThreshold: 0.72,
+        cloudGain: 320,
+      };
+    case 'gaseous':
+      return {
+        baseScale: 2.8,
+        ridgeScale: 7.0,
+        ridgePower: 0.9,
+        heightWeight: 0.86,
+        ridgeWeight: 0.14,
+        shadeMin: 0.66,
+        shadeRange: 0.42,
+        tintBase: 0.95,
+        tintRange: 0.18,
+        redShift: 0.96,
+        greenShift: 0.98,
+        blueShift: 1.02,
+        roughnessBase: 0.15,
+        cloudScale: 3.8,
+        cloudThreshold: 0.45,
+        cloudGain: 720,
+      };
+    case 'crystalline':
+      return {
+        baseScale: 6.8,
+        ridgeScale: 19.0,
+        ridgePower: 1.7,
+        heightWeight: 0.55,
+        ridgeWeight: 0.45,
+        shadeMin: 0.63,
+        shadeRange: 0.52,
+        tintBase: 0.98,
+        tintRange: 0.2,
+        redShift: 1.02,
+        greenShift: 0.95,
+        blueShift: 1.08,
+        roughnessBase: 0.35,
+        cloudScale: 7.5,
+        cloudThreshold: 0.63,
+        cloudGain: 460,
+      };
+    case 'terrestrial':
+    default:
+      return {
+        baseScale: 4.5,
+        ridgeScale: 11.0,
+        ridgePower: 1.2,
+        heightWeight: 0.76,
+        ridgeWeight: 0.24,
+        shadeMin: 0.62,
+        shadeRange: 0.55,
+        tintBase: 0.88,
+        tintRange: 0.22,
+        redShift: 1,
+        greenShift: 0.92,
+        blueShift: 0.9,
+        roughnessBase: 0.32,
+        cloudScale: 6.2,
+        cloudThreshold: 0.55,
+        cloudGain: 620,
+      };
+  }
+}
+
+function getCloudTint(type: CosmosDomain['planetType']): string {
+  switch (type) {
+    case 'volcanic':
+      return '#f6d8c3';
+    case 'desert':
+      return '#f4e4d3';
+    case 'icy':
+      return '#eef6ff';
+    case 'oceanic':
+      return '#e4f2ff';
+    case 'gaseous':
+      return '#f7ecff';
+    case 'crystalline':
+      return '#efe8ff';
+    case 'lush':
+      return '#eaf7ef';
+    case 'terrestrial':
+    default:
+      return '#eaf2ff';
+  }
 }
 
 function fbm2D(x: number, y: number, seed: number, octaves: number): number {

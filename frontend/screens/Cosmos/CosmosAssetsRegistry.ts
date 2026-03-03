@@ -11,6 +11,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "nature",
     label: "Natur & Tiere",
     icon: "🌿",
+    planetType: "lush",
     color: "#4ade80",
     emissiveColor: "#22c55e",
     orbitRadius: 5,
@@ -21,6 +22,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "space",
     label: "Weltraum",
     icon: "🚀",
+    planetType: "icy",
     color: "#818cf8",
     emissiveColor: "#6366f1",
     orbitRadius: 7,
@@ -31,6 +33,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "history",
     label: "Geschichte & Kulturen",
     icon: "🏛️",
+    planetType: "desert",
     color: "#f59e0b",
     emissiveColor: "#d97706",
     orbitRadius: 9,
@@ -41,6 +44,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "tech",
     label: "Technik & Erfindungen",
     icon: "⚙️",
+    planetType: "gaseous",
     color: "#06b6d4",
     emissiveColor: "#0891b2",
     orbitRadius: 11,
@@ -51,6 +55,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "body",
     label: "Mensch & Körper",
     icon: "🫀",
+    planetType: "terrestrial",
     color: "#f472b6",
     emissiveColor: "#ec4899",
     orbitRadius: 13,
@@ -61,6 +66,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "earth",
     label: "Erde & Klima",
     icon: "🌍",
+    planetType: "oceanic",
     color: "#34d399",
     emissiveColor: "#10b981",
     orbitRadius: 15,
@@ -71,6 +77,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "art",
     label: "Kunst & Musik",
     icon: "🎨",
+    planetType: "crystalline",
     color: "#c084fc",
     emissiveColor: "#a855f7",
     orbitRadius: 17,
@@ -81,6 +88,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     id: "logic",
     label: "Logik & Rätsel",
     icon: "🧩",
+    planetType: "volcanic",
     color: "#fb923c",
     emissiveColor: "#f97316",
     orbitRadius: 19,
@@ -90,6 +98,16 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
 ];
 
 const EXTRA_ICONS = ["🪐", "🛰️", "🌌", "✨", "🧠", "🔬", "📡", "🌠"];
+const EXTRA_TYPES: CosmosDomain["planetType"][] = [
+  "terrestrial",
+  "oceanic",
+  "icy",
+  "lush",
+  "desert",
+  "volcanic",
+  "gaseous",
+  "crystalline",
+];
 
 function hashString(value: string): number {
   let hash = 0;
@@ -125,6 +143,7 @@ function buildDynamicDomain(id: string, index: number): CosmosDomain {
   const color = hslToHex(hue, 68, 0.58);
   const emissiveColor = hslToHex((hue + 18) % 360, 72, 0.5);
   const icon = EXTRA_ICONS[seed % EXTRA_ICONS.length];
+  const planetType = EXTRA_TYPES[(seed >> 5) % EXTRA_TYPES.length];
   const orbitRadius = 21 + index * 2.2;
   const orbitSpeed = Math.max(0.02, 0.035 - index * 0.002);
   const startAngle = ((seed % 628) / 100) % (Math.PI * 2);
@@ -133,6 +152,7 @@ function buildDynamicDomain(id: string, index: number): CosmosDomain {
     id,
     label: toTitleCase(id),
     icon,
+    planetType,
     color,
     emissiveColor,
     orbitRadius,

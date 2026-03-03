@@ -81,6 +81,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         navigate('/cosmos');
         return;
       }
+      playFocusSound();
       setFocusedDomainId(domainId);
       setFocusedPosition(position);
       setCameraMode('focused');
@@ -233,6 +234,45 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     </div>
   );
 };
+
+function playFocusSound() {
+  if (typeof window === 'undefined') return;
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const now = audioContext.currentTime;
+
+    const oscillatorA = audioContext.createOscillator();
+    const oscillatorB = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillatorA.type = 'sine';
+    oscillatorB.type = 'triangle';
+
+    oscillatorA.frequency.setValueAtTime(280, now);
+    oscillatorA.frequency.exponentialRampToValueAtTime(520, now + 0.16);
+    oscillatorB.frequency.setValueAtTime(140, now);
+    oscillatorB.frequency.exponentialRampToValueAtTime(260, now + 0.16);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.035, now + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.19);
+
+    oscillatorA.connect(gain);
+    oscillatorB.connect(gain);
+    gain.connect(audioContext.destination);
+
+    oscillatorA.start(now);
+    oscillatorB.start(now);
+    oscillatorA.stop(now + 0.2);
+    oscillatorB.stop(now + 0.2);
+
+    window.setTimeout(() => {
+      audioContext.close().catch(() => {});
+    }, 300);
+  } catch {
+    // Audio cue is optional.
+  }
+}
 
 // ─── 2D Fallback for non-WebGL devices ────────────────────────────
 const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({

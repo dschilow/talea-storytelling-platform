@@ -28,6 +28,15 @@ export interface CosmosDomain {
   id: string;
   label: string;
   icon: string;
+  planetType:
+    | 'terrestrial'
+    | 'oceanic'
+    | 'icy'
+    | 'lush'
+    | 'desert'
+    | 'volcanic'
+    | 'gaseous'
+    | 'crystalline';
   color: string;        // hex primary color
   emissiveColor: string; // hex emissive for glow
   orbitRadius: number;   // distance from center star

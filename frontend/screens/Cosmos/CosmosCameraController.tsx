@@ -32,11 +32,16 @@ export const CosmosCameraController: React.FC<Props> = ({
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
 
-  // Smooth camera transition targets
   const targetPos = useRef(OVERVIEW_POS.clone());
   const targetLookAt = useRef(OVERVIEW_TARGET.clone());
   const currentLookAt = useRef(OVERVIEW_TARGET.clone());
   const isAnimating = useRef(false);
+  const isCinematic = useRef(false);
+  const cinematicStart = useRef<number | null>(null);
+  const shotFrom = useRef(new THREE.Vector3());
+  const shotMid = useRef(new THREE.Vector3());
+  const shotTo = useRef(new THREE.Vector3());
+  const cinematicDuration = 1.45;
 
   useEffect(() => {
     if (mode === 'focused' && focusedDomain) {
@@ -45,32 +50,86 @@ export const CosmosCameraController: React.FC<Props> = ({
         0,
         Math.sin(focusedDomain.startAngle) * focusedDomain.orbitRadius,
       ];
+      const focus = new THREE.Vector3(px, py, pz);
+      const toCamera = camera.position.clone().sub(focus).normalize();
+      const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), toCamera);
+      if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
+      side.normalize();
 
-      targetPos.current.set(px + 3.2, py + 2.2, pz + 4.8);
+      shotFrom.current.copy(camera.position);
+      shotMid.current
+        .copy(focus)
+        .add(toCamera.clone().multiplyScalar(7.2))
+        .add(side.clone().multiplyScalar(2.4))
+        .add(new THREE.Vector3(0, 2.8, 0));
+      shotTo.current
+        .copy(focus)
+        .add(toCamera.clone().multiplyScalar(4.6))
+        .add(side.clone().multiplyScalar(1.7))
+        .add(new THREE.Vector3(0, 2.1, 0));
+
+      targetPos.current.copy(shotTo.current);
       targetLookAt.current.set(px, py, pz);
+      cinematicStart.current = null;
+      isCinematic.current = true;
       isAnimating.current = true;
     } else {
       targetPos.current.copy(OVERVIEW_POS);
       targetLookAt.current.copy(OVERVIEW_TARGET);
+      isCinematic.current = false;
+      cinematicStart.current = null;
       isAnimating.current = true;
     }
-  }, [focusedDomain, focusedPosition, mode]);
+  }, [camera, focusedDomain, focusedPosition, mode]);
 
-  // Smooth lerp each frame
-  useFrame(() => {
-    if (!isAnimating.current) return;
+  useFrame(({ clock }) => {
+    if (mode === 'focused' && isCinematic.current) {
+      if (cinematicStart.current == null) {
+        cinematicStart.current = clock.elapsedTime;
+      }
+      const elapsed = clock.elapsedTime - cinematicStart.current;
+      const t = Math.min(1, elapsed / cinematicDuration);
+
+      if (t < 0.52) {
+        const p = smoothstep(0, 0.52, t);
+        camera.position.lerpVectors(shotFrom.current, shotMid.current, p);
+      } else {
+        const p = smoothstep(0.52, 1, t);
+        camera.position.lerpVectors(shotMid.current, shotTo.current, p);
+      }
+      currentLookAt.current.lerp(targetLookAt.current, 0.11);
+      camera.lookAt(currentLookAt.current);
+
+      if (controlsRef.current) {
+        controlsRef.current.enabled = false;
+        controlsRef.current.target.copy(currentLookAt.current);
+        controlsRef.current.update();
+      }
+
+      if (t >= 1) {
+        isCinematic.current = false;
+      }
+      return;
+    }
+
+    if (!isAnimating.current) {
+      if (controlsRef.current) {
+        controlsRef.current.enabled = true;
+        controlsRef.current.update();
+      }
+      return;
+    }
 
     camera.position.lerp(targetPos.current, 0.055);
     currentLookAt.current.lerp(targetLookAt.current, 0.055);
     camera.lookAt(currentLookAt.current);
 
-    // Update orbit controls target
     if (controlsRef.current) {
+      controlsRef.current.enabled = true;
       controlsRef.current.target.copy(currentLookAt.current);
       controlsRef.current.update();
     }
 
-    // Stop animating when close enough
     if (
       camera.position.distanceTo(targetPos.current) < 0.04 &&
       currentLookAt.current.distanceTo(targetLookAt.current) < 0.04
@@ -96,3 +155,10 @@ export const CosmosCameraController: React.FC<Props> = ({
     />
   );
 };
+
+function smoothstep(min: number, max: number, value: number): number {
+  if (value <= min) return 0;
+  if (value >= max) return 1;
+  const t = (value - min) / (max - min);
+  return t * t * (3 - 2 * t);
+}
