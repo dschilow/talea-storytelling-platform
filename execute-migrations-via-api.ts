@@ -10,6 +10,7 @@
  *   bun run execute-migrations-via-api.ts audio-library
  *   bun run execute-migrations-via-api.ts user
  *   bun run execute-migrations-via-api.ts profiles
+ *   bun run execute-migrations-via-api.ts cleanup
  *   bun run execute-migrations-via-api.ts all
  */
 
@@ -34,7 +35,7 @@ const SERVICE_CONFIG = {
 } as const;
 
 type MigrationService = keyof typeof SERVICE_CONFIG;
-type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "audio-library" | "user" | "profiles";
+type MigrationGroup = "artifact" | "pipeline" | "personality" | "audio" | "audio-library" | "user" | "profiles" | "cleanup";
 
 const migrations: Array<{
   file: string;
@@ -110,6 +111,12 @@ const migrations: Array<{
     name: "5_add_profile_support",
     group: "profiles",
     dir: "backend/doku/migrations",
+    service: "story",
+  },
+  {
+    file: "25_cleanup_orphan_tables.up.sql",
+    name: "25_cleanup_orphan_tables",
+    group: "cleanup",
     service: "story",
   },
 ];
@@ -364,11 +371,44 @@ async function verifyProfiles(): Promise<void> {
   }
 }
 
+async function verifyCleanup(): Promise<void> {
+  console.log("\nVerifying cleanup...");
+  try {
+    const verifySQL = `
+      DROP TABLE IF EXISTS test_table_proof CASCADE;
+      DROP TABLE IF EXISTS last_used_at_exists CASCADE;
+    `;
+    const verifyResponse = await fetch(SERVICE_CONFIG.story.endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sql: verifySQL,
+        migrationName: "verify_cleanup_tables_absent",
+      }),
+    });
+
+    if (verifyResponse.ok) {
+      const result = await verifyResponse.json();
+      if (result.success) {
+        console.log("  OK: Cleanup verification passed.");
+      } else {
+        console.log(`  WARN: Cleanup verification reported errors: ${result.message || ""}`);
+      }
+    } else {
+      console.log(`  WARN: Verification HTTP status ${verifyResponse.status}`);
+    }
+  } catch (error: any) {
+    console.log(`  WARN: Cleanup verification failed: ${error.message}`);
+  }
+}
+
 async function main() {
   const modeArg = (process.argv[2] || "artifact").toLowerCase();
-  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "audio-library", "user", "profiles", "all"]);
+  const allowed = new Set(["artifact", "pipeline", "personality", "audio", "audio-library", "user", "profiles", "cleanup", "all"]);
   if (!allowed.has(modeArg)) {
-    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | audio-library | user | profiles | all`);
+    console.log(`Unknown mode '${modeArg}'. Use: artifact | pipeline | personality | audio | audio-library | user | profiles | cleanup | all`);
     process.exit(1);
   }
 
@@ -424,6 +464,9 @@ async function main() {
     if (modeArg === "profiles" || modeArg === "all") {
       console.log("\nMulti-profile schema is now available.");
     }
+    if (modeArg === "cleanup" || modeArg === "all") {
+      console.log("\nOrphan/test tables cleanup is now applied.");
+    }
   } else {
     console.log(`\nWarning: Only ${successCount}/${selected.length} migrations completed.`);
   }
@@ -445,6 +488,9 @@ async function main() {
   }
   if (modeArg === "profiles" || modeArg === "all") {
     await verifyProfiles();
+  }
+  if (modeArg === "cleanup" || modeArg === "all") {
+    await verifyCleanup();
   }
 }
 

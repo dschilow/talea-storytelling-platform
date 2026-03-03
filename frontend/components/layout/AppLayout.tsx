@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
+import ProfileSwitcher from "./ProfileSwitcher";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 
@@ -38,6 +39,7 @@ const AppLayout: React.FC = () => {
       </main>
 
       <SignedIn>
+        <ProfileSwitcher />
         {showSettingsButton && (
           <button
             type="button"

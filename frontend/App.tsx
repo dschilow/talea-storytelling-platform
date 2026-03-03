@@ -42,6 +42,7 @@ import TaleaLearningPathMapView from './screens/Journey/TaleaLearningPathMapView
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
+import { ChildProfilesProvider } from './contexts/ChildProfilesContext';
 import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
 import ModernHomeScreen from './screens/Home/ModernHomeScreen';
 import LandingPage from './screens/Landing/LandingPage';
@@ -406,9 +407,11 @@ export default function App() {
           <ThemeProvider>
             <AudioPlayerProvider>
               <UserAccessProvider>
-                <OfflineStorageProvider>
-                  <AppContent />
-                </OfflineStorageProvider>
+                <ChildProfilesProvider>
+                  <OfflineStorageProvider>
+                    <AppContent />
+                  </OfflineStorageProvider>
+                </ChildProfilesProvider>
               </UserAccessProvider>
             </AudioPlayerProvider>
           </ThemeProvider>

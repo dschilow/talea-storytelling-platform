@@ -38,6 +38,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ProfilesSettingsPanel from './ProfilesSettingsPanel';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import {
   getAllOfflineGeneratedAudios,
@@ -1768,6 +1769,14 @@ export default function SettingsScreen() {
               url="parental"
             >
               <ParentalDashboardPanel />
+            </UserProfile.Page>
+
+            <UserProfile.Page
+              label="Kinderprofile"
+              labelIcon={<Users className="w-4 h-4" />}
+              url="profiles"
+            >
+              <ProfilesSettingsPanel />
             </UserProfile.Page>
 
             <UserProfile.Page

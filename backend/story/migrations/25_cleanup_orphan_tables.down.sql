@@ -1,0 +1,2 @@
+-- No-op rollback:
+-- Cleanup migration removed orphan/test tables that should not be restored.

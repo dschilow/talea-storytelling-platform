@@ -385,6 +385,11 @@ export namespace auth {
  * Import the endpoint handlers to derive the types for the client.
  */
 import { addMemory as api_avatar_addMemory_addMemory } from "~backend/avatar/addMemory";
+import {
+    adoptPoolTemplate as api_avatar_clone_adoptPoolTemplate,
+    cloneToProfile as api_avatar_clone_cloneToProfile,
+    listPoolTemplates as api_avatar_clone_listPoolTemplates
+} from "~backend/avatar/clone";
 import { create as api_avatar_create_create } from "~backend/avatar/create";
 import { debugPersonality as api_avatar_debugPersonality_debugPersonality } from "~backend/avatar/debugPersonality";
 import { deleteAvatar as api_avatar_delete_deleteAvatar } from "~backend/avatar/delete";
@@ -393,7 +398,6 @@ import { get as api_avatar_get_get } from "~backend/avatar/get";
 import { getMemories as api_avatar_getMemories_getMemories } from "~backend/avatar/getMemories";
 import { list as api_avatar_list_list } from "~backend/avatar/list";
 import { migrateToEnglish as api_avatar_migrateToEnglish_migrateToEnglish } from "~backend/avatar/migrateToEnglish";
-import { runMigrationSql as api_avatar_migration_api_runMigrationSql } from "~backend/avatar/migration-api";
 import { generatePortrait as api_avatar_portrait_api_generatePortrait } from "~backend/avatar/portrait-api";
 import { reducePersonalityTrait as api_avatar_reducePersonalityTrait_reducePersonalityTrait } from "~backend/avatar/reducePersonalityTrait";
 import { resetDokuHistory as api_avatar_resetDokuHistory_resetDokuHistory } from "~backend/avatar/resetDokuHistory";
@@ -419,7 +423,8 @@ export namespace avatar {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.addMemory = this.addMemory.bind(this)
-            this.checkAvatarSchema = this.checkAvatarSchema.bind(this)
+            this.adoptPoolTemplate = this.adoptPoolTemplate.bind(this)
+            this.cloneToProfile = this.cloneToProfile.bind(this)
             this.create = this.create.bind(this)
             this.debugPersonality = this.debugPersonality.bind(this)
             this.deleteAvatar = this.deleteAvatar.bind(this)
@@ -430,12 +435,12 @@ export namespace avatar {
             this.getMemories = this.getMemories.bind(this)
             this.list = this.list.bind(this)
             this.listAvatarShares = this.listAvatarShares.bind(this)
+            this.listPoolTemplates = this.listPoolTemplates.bind(this)
             this.listShareContacts = this.listShareContacts.bind(this)
             this.migrateToEnglish = this.migrateToEnglish.bind(this)
             this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this)
             this.resetDokuHistory = this.resetDokuHistory.bind(this)
             this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this)
-            this.runMigrationSql = this.runMigrationSql.bind(this)
             this.shareAvatarWithContact = this.shareAvatarWithContact.bind(this)
             this.suggestShareContacts = this.suggestShareContacts.bind(this)
             this.unshareAvatarFromContact = this.unshareAvatarFromContact.bind(this)
@@ -451,11 +456,28 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_addMemory_addMemory>
         }
 
-        /**
-         * Checks the current state of the avatars table
-         */
-        public async checkAvatarSchema(): Promise<void> {
-            await this.baseClient.callTypedAPI(`/avatar/check-schema`, {method: "GET", body: undefined})
+        public async adoptPoolTemplate(params: RequestType<typeof api_avatar_clone_adoptPoolTemplate>): Promise<ResponseType<typeof api_avatar_clone_adoptPoolTemplate>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                name:            params.name,
+                targetProfileId: params.targetProfileId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/pool/${encodeURIComponent(params.templateId)}/adopt`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_clone_adoptPoolTemplate>
+        }
+
+        public async cloneToProfile(params: RequestType<typeof api_avatar_clone_cloneToProfile>): Promise<ResponseType<typeof api_avatar_clone_cloneToProfile>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                name:            params.name,
+                targetProfileId: params.targetProfileId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/clone-to-profile`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_clone_cloneToProfile>
         }
 
         public async create(params: RequestType<typeof api_avatar_create_create>): Promise<ResponseType<typeof api_avatar_create_create>> {
@@ -476,8 +498,13 @@ export namespace avatar {
         /**
          * Deletes an avatar.
          */
-        public async deleteAvatar(params: { id: string }): Promise<void> {
-            await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        public async deleteAvatar(params: RequestType<typeof api_avatar_delete_deleteAvatar>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {query, method: "DELETE", body: undefined})
         }
 
         public async deleteMemory(params: { avatarId: string, memoryId: string }): Promise<ResponseType<typeof api_avatar_deleteMemory_deleteMemory>> {
@@ -504,9 +531,14 @@ export namespace avatar {
         /**
          * Retrieves a specific avatar by ID.
          */
-        public async get(params: { id: string }): Promise<ResponseType<typeof api_avatar_get_get>> {
+        public async get(params: RequestType<typeof api_avatar_get_get>): Promise<ResponseType<typeof api_avatar_get_get>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_get_get>
         }
 
@@ -519,9 +551,15 @@ export namespace avatar {
         /**
          * Retrieves avatars owned by the user and avatars shared with the user.
          */
-        public async list(): Promise<ResponseType<typeof api_avatar_list_list>> {
+        public async list(params: RequestType<typeof api_avatar_list_list>): Promise<ResponseType<typeof api_avatar_list_list>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                includeShared: params.includeShared === undefined ? undefined : String(params.includeShared),
+                profileId:     params.profileId,
+            })
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/avatars`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/avatars`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_list_list>
         }
 
@@ -529,6 +567,12 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/shares`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_listAvatarShares>
+        }
+
+        public async listPoolTemplates(): Promise<ResponseType<typeof api_avatar_clone_listPoolTemplates>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/pool`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_clone_listPoolTemplates>
         }
 
         public async listShareContacts(): Promise<ResponseType<typeof api_avatar_share_listShareContacts>> {
@@ -582,18 +626,6 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>
         }
 
-        /**
-         * Runs a raw SQL migration on the avatar database.
-         * This is a utility endpoint for manual migrations on Railway.
-         * 
-         * SECURITY NOTE: This should be protected in production!
-         */
-        public async runMigrationSql(params: RequestType<typeof api_avatar_migration_api_runMigrationSql>): Promise<ResponseType<typeof api_avatar_migration_api_runMigrationSql>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/avatar/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_migration_api_runMigrationSql>
-        }
-
         public async shareAvatarWithContact(params: RequestType<typeof api_avatar_share_shareAvatarWithContact>): Promise<ResponseType<typeof api_avatar_share_shareAvatarWithContact>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -635,6 +667,7 @@ export namespace avatar {
                 name:              params.name,
                 personalityTraits: params.personalityTraits,
                 physicalTraits:    params.physicalTraits,
+                profileId:         params.profileId,
                 visualProfile:     params.visualProfile,
             }
 
@@ -684,6 +717,11 @@ import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
 import { listDokus as api_doku_list_listDokus } from "~backend/doku/list";
 import { listPublicDokus as api_doku_list_public_listPublicDokus } from "~backend/doku/list-public";
 import { markRead as api_doku_markRead_markRead } from "~backend/doku/markRead";
+import {
+    addDokuToProfile as api_doku_profile_state_addDokuToProfile,
+    submitDokuQuizResult as api_doku_profile_state_submitDokuQuizResult,
+    updateDokuProfileState as api_doku_profile_state_updateDokuProfileState
+} from "~backend/doku/profile-state";
 import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
 export namespace doku {
@@ -693,6 +731,7 @@ export namespace doku {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.addDokuToProfile = this.addDokuToProfile.bind(this)
             this.createAudioDoku = this.createAudioDoku.bind(this)
             this.createAudioUploadUrl = this.createAudioUploadUrl.bind(this)
             this.deleteAudioDoku = this.deleteAudioDoku.bind(this)
@@ -705,8 +744,23 @@ export namespace doku {
             this.listDokus = this.listDokus.bind(this)
             this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.submitDokuQuizResult = this.submitDokuQuizResult.bind(this)
             this.updateAudioDoku = this.updateAudioDoku.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
+            this.updateDokuProfileState = this.updateDokuProfileState.bind(this)
+        }
+
+        public async addDokuToProfile(params: RequestType<typeof api_doku_profile_state_addDokuToProfile>): Promise<ResponseType<typeof api_doku_profile_state_addDokuToProfile>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                avatarIds:       params.avatarIds,
+                profileId:       params.profileId,
+                targetProfileId: params.targetProfileId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}/add-to-profile`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_profile_state_addDokuToProfile>
         }
 
         public async createAudioDoku(params: RequestType<typeof api_doku_audio_doku_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_createAudioDoku>> {
@@ -725,8 +779,13 @@ export namespace doku {
             await this.baseClient.callTypedAPI(`/audio-dokus/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
         }
 
-        public async deleteDoku(params: { id: string }): Promise<void> {
-            await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        public async deleteDoku(params: RequestType<typeof api_doku_delete_deleteDoku>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {query, method: "DELETE", body: undefined})
         }
 
         public async generateAudioCover(params: RequestType<typeof api_doku_audio_doku_generateAudioCover>): Promise<ResponseType<typeof api_doku_audio_doku_generateAudioCover>> {
@@ -750,9 +809,14 @@ export namespace doku {
         /**
          * Retrieves a specific doku (only owner or admin or if public).
          */
-        public async getDoku(params: { id: string }): Promise<ResponseType<typeof api_doku_get_getDoku>> {
+        public async getDoku(params: RequestType<typeof api_doku_get_getDoku>): Promise<ResponseType<typeof api_doku_get_getDoku>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_get_getDoku>
         }
 
@@ -774,8 +838,10 @@ export namespace doku {
         public async listDokus(params: RequestType<typeof api_doku_list_listDokus>): Promise<ResponseType<typeof api_doku_list_listDokus>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
-                limit:  params.limit === undefined ? undefined : String(params.limit),
-                offset: params.offset === undefined ? undefined : String(params.offset),
+                includeFamily: params.includeFamily === undefined ? undefined : String(params.includeFamily),
+                limit:         params.limit === undefined ? undefined : String(params.limit),
+                offset:        params.offset === undefined ? undefined : String(params.offset),
+                profileId:     params.profileId,
             })
 
             // Now make the actual call to the API
@@ -804,6 +870,22 @@ export namespace doku {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
         }
 
+        public async submitDokuQuizResult(params: RequestType<typeof api_doku_profile_state_submitDokuQuizResult>): Promise<ResponseType<typeof api_doku_profile_state_submitDokuQuizResult>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                answers:         params.answers,
+                masteryDelta:    params.masteryDelta,
+                nextRepeatHours: params.nextRepeatHours,
+                profileId:       params.profileId,
+                score:           params.score,
+                totalQuestions:  params.totalQuestions,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}/quiz`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_profile_state_submitDokuQuizResult>
+        }
+
         public async updateAudioDoku(params: RequestType<typeof api_doku_audio_doku_updateAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_updateAudioDoku>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -827,13 +909,31 @@ export namespace doku {
         public async updateDoku(params: RequestType<typeof api_doku_update_updateDoku>): Promise<ResponseType<typeof api_doku_update_updateDoku>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
-                isPublic: params.isPublic,
-                title:    params.title,
+                isPublic:  params.isPublic,
+                profileId: params.profileId,
+                title:     params.title,
             }
 
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_update_updateDoku>
+        }
+
+        public async updateDokuProfileState(params: RequestType<typeof api_doku_profile_state_updateDokuProfileState>): Promise<ResponseType<typeof api_doku_profile_state_updateDokuProfileState>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                completionState: params.completionState,
+                isFavorite:      params.isFavorite,
+                lastPlayedAt:    params.lastPlayedAt,
+                lastPositionSec: params.lastPositionSec,
+                profileId:       params.profileId,
+                progressPct:     params.progressPct,
+                quizRepeatDueAt: params.quizRepeatDueAt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}/state`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_profile_state_updateDokuProfileState>
         }
     }
 }
@@ -864,7 +964,6 @@ import {
     updateRole as api_fairytales_management_updateRole,
     updateScene as api_fairytales_management_updateScene
 } from "~backend/fairytales/management";
-import { runMigrationSQL as api_fairytales_run_migration_sql_runMigrationSQL } from "~backend/fairytales/run-migration-sql";
 import { triggerMigrations as api_fairytales_trigger_migrations_triggerMigrations } from "~backend/fairytales/trigger-migrations";
 
 export namespace fairytales {
@@ -887,7 +986,6 @@ export namespace fairytales {
             this.importFairyTales = this.importFairyTales.bind(this)
             this.listFairyTales = this.listFairyTales.bind(this)
             this.reorderScenes = this.reorderScenes.bind(this)
-            this.runMigrationSQL = this.runMigrationSQL.bind(this)
             this.triggerMigrations = this.triggerMigrations.bind(this)
             this.updateFairyTale = this.updateFairyTale.bind(this)
             this.updateRole = this.updateRole.bind(this)
@@ -1052,16 +1150,6 @@ export namespace fairytales {
         }
 
         /**
-         * Execute raw SQL migration - ADMIN ONLY, for emergency migrations
-         * Used when file-based migrations can't be deployed
-         */
-        public async runMigrationSQL(params: RequestType<typeof api_fairytales_run_migration_sql_runMigrationSQL>): Promise<ResponseType<typeof api_fairytales_run_migration_sql_runMigrationSQL>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/fairytales/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_fairytales_run_migration_sql_runMigrationSQL>
-        }
-
-        /**
          * Trigger fairy tales migrations by accessing the database
          * This forces Encore to run pending migrations
          */
@@ -1173,7 +1261,6 @@ import { fixUsageCount as api_health_fix_usage_count_fixUsageCount } from "~back
 import { fixUsageCountColumn as api_health_fix_usage_count_column_fixUsageCountColumn } from "~backend/health/fix-usage-count-column";
 import { health as api_health_health_health } from "~backend/health/health";
 import { import150FairyTales as api_health_import_150_fairy_tales_import150FairyTales } from "~backend/health/import-150-fairy-tales";
-import { initializeDatabaseMigrations as api_health_init_migrations_initializeDatabaseMigrations } from "~backend/health/init-migrations";
 import { runMigrations as api_health_run_migrations_runMigrations } from "~backend/health/run-migrations";
 import { testClerk as api_health_test_clerk_testClerk } from "~backend/health/test-clerk";
 
@@ -1192,7 +1279,6 @@ export namespace health {
             this.fixUsageCountColumn = this.fixUsageCountColumn.bind(this)
             this.health = this.health.bind(this)
             this.import150FairyTales = this.import150FairyTales.bind(this)
-            this.initializeDatabaseMigrations = this.initializeDatabaseMigrations.bind(this)
             this.runMigrations = this.runMigrations.bind(this)
             this.testClerk = this.testClerk.bind(this)
         }
@@ -1261,16 +1347,6 @@ export namespace health {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/health/import-150-fairy-tales`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_import_150_fairy_tales_import150FairyTales>
-        }
-
-        /**
-         * Initialize database - runs migrations on first call
-         * This is automatically triggered by Railway's health check
-         */
-        public async initializeDatabaseMigrations(): Promise<ResponseType<typeof api_health_init_migrations_initializeDatabaseMigrations>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/init`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_init_migrations_initializeDatabaseMigrations>
         }
 
         /**
@@ -1390,6 +1466,17 @@ import {
     listArtifacts as api_story_artifact_pool_api_listArtifacts,
     updateArtifact as api_story_artifact_pool_api_updateArtifact
 } from "~backend/story/artifact-pool-api";
+import {
+    getStoryAudio as api_story_audio_cache_getStoryAudio,
+    preGenerateStoryAudio as api_story_audio_cache_preGenerateStoryAudio
+} from "~backend/story/audio-cache";
+import {
+    deleteGeneratedAudio as api_story_audio_library_deleteGeneratedAudio,
+    listGeneratedAudio as api_story_audio_library_listGeneratedAudio,
+    listGeneratedAudioBySource as api_story_audio_library_listGeneratedAudioBySource,
+    resolveGeneratedAudioByCacheKeys as api_story_audio_library_resolveGeneratedAudioByCacheKeys,
+    saveGeneratedAudio as api_story_audio_library_saveGeneratedAudio
+} from "~backend/story/audio-library";
 import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
     addCharacter as api_story_character_pool_api_addCharacter,
@@ -1417,9 +1504,36 @@ import { get as api_story_get_get } from "~backend/story/get";
 import { list as api_story_list_list } from "~backend/story/list";
 import { dumpStoryLogs as api_story_log_dump_dumpStoryLogs } from "~backend/story/log-dump";
 import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
+import {
+    addStoryToProfile as api_story_profile_state_addStoryToProfile,
+    submitStoryQuizResult as api_story_profile_state_submitStoryQuizResult,
+    updateStoryProfileState as api_story_profile_state_updateStoryProfileState
+} from "~backend/story/profile-state";
 import { proxyImage as api_story_proxy_image_proxyImage } from "~backend/story/proxy-image";
-import { runMigrationSQL as api_story_run_migration_sql_runMigrationSQL } from "~backend/story/run-migration-sql";
+import { runMigrationSql as api_story_run_migration_sql_runMigrationSql } from "~backend/story/run-migration-sql";
 import { showArtifacts as api_story_show_artifacts_showArtifacts } from "~backend/story/show-artifacts";
+import {
+    composeStudioEpisode as api_story_studio_api_composeStudioEpisode,
+    createStudioCharacter as api_story_studio_api_createStudioCharacter,
+    createStudioEpisode as api_story_studio_api_createStudioEpisode,
+    createStudioEpisodeScene as api_story_studio_api_createStudioEpisodeScene,
+    createStudioSeries as api_story_studio_api_createStudioSeries,
+    generateStudioEpisodeImages as api_story_studio_api_generateStudioEpisodeImages,
+    generateStudioEpisodeSceneImage as api_story_studio_api_generateStudioEpisodeSceneImage,
+    generateStudioEpisodeText as api_story_studio_api_generateStudioEpisodeText,
+    getStudioEpisode as api_story_studio_api_getStudioEpisode,
+    getStudioSeries as api_story_studio_api_getStudioSeries,
+    listStudioCharacters as api_story_studio_api_listStudioCharacters,
+    listStudioEpisodeScenes as api_story_studio_api_listStudioEpisodeScenes,
+    listStudioEpisodes as api_story_studio_api_listStudioEpisodes,
+    listStudioSeries as api_story_studio_api_listStudioSeries,
+    publishStudioEpisode as api_story_studio_api_publishStudioEpisode,
+    splitStudioEpisodeScenes as api_story_studio_api_splitStudioEpisodeScenes,
+    updateStudioCharacter as api_story_studio_api_updateStudioCharacter,
+    updateStudioEpisodeScene as api_story_studio_api_updateStudioEpisodeScene,
+    updateStudioEpisodeText as api_story_studio_api_updateStudioEpisodeText,
+    updateStudioSeries as api_story_studio_api_updateStudioSeries
+} from "~backend/story/studio-api";
 import { testArtifacts as api_story_test_artifacts_testArtifacts } from "~backend/story/test-artifacts";
 import {
     listTestConfigs as api_story_test_story_generation_listTestConfigs,
@@ -1437,15 +1551,22 @@ export namespace story {
             this.baseClient = baseClient
             this.addArtifact = this.addArtifact.bind(this)
             this.addCharacter = this.addCharacter.bind(this)
+            this.addStoryToProfile = this.addStoryToProfile.bind(this)
             this.analyzeRecentStories = this.analyzeRecentStories.bind(this)
             this.analyzeStory = this.analyzeStory.bind(this)
             this.autoTest = this.autoTest.bind(this)
             this.batchRegenerateArtifactImages = this.batchRegenerateArtifactImages.bind(this)
             this.batchRegenerateCharacterImages = this.batchRegenerateCharacterImages.bind(this)
+            this.composeStudioEpisode = this.composeStudioEpisode.bind(this)
+            this.createStudioCharacter = this.createStudioCharacter.bind(this)
+            this.createStudioEpisode = this.createStudioEpisode.bind(this)
+            this.createStudioEpisodeScene = this.createStudioEpisodeScene.bind(this)
+            this.createStudioSeries = this.createStudioSeries.bind(this)
             this.debugLastError = this.debugLastError.bind(this)
             this.debugRecentStories = this.debugRecentStories.bind(this)
             this.deleteArtifact = this.deleteArtifact.bind(this)
             this.deleteCharacter = this.deleteCharacter.bind(this)
+            this.deleteGeneratedAudio = this.deleteGeneratedAudio.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
             this.dumpStoryLogs = this.dumpStoryLogs.bind(this)
             this.exportArtifacts = this.exportArtifacts.bind(this)
@@ -1455,34 +1576,57 @@ export namespace story {
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
             this.generateFromFairyTale = this.generateFromFairyTale.bind(this)
             this.generateStoryContent = this.generateStoryContent.bind(this)
+            this.generateStudioEpisodeImages = this.generateStudioEpisodeImages.bind(this)
+            this.generateStudioEpisodeSceneImage = this.generateStudioEpisodeSceneImage.bind(this)
+            this.generateStudioEpisodeText = this.generateStudioEpisodeText.bind(this)
             this.get = this.get.bind(this)
             this.getArtifact = this.getArtifact.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
             this.getCharacterStats = this.getCharacterStats.bind(this)
             this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this)
+            this.getStoryAudio = this.getStoryAudio.bind(this)
+            this.getStudioEpisode = this.getStudioEpisode.bind(this)
+            this.getStudioSeries = this.getStudioSeries.bind(this)
             this.importArtifacts = this.importArtifacts.bind(this)
             this.importCharacters = this.importCharacters.bind(this)
             this.list = this.list.bind(this)
             this.listArtifacts = this.listArtifacts.bind(this)
             this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
             this.listCharacters = this.listCharacters.bind(this)
+            this.listGeneratedAudio = this.listGeneratedAudio.bind(this)
+            this.listGeneratedAudioBySource = this.listGeneratedAudioBySource.bind(this)
+            this.listStudioCharacters = this.listStudioCharacters.bind(this)
+            this.listStudioEpisodeScenes = this.listStudioEpisodeScenes.bind(this)
+            this.listStudioEpisodes = this.listStudioEpisodes.bind(this)
+            this.listStudioSeries = this.listStudioSeries.bind(this)
             this.listTestConfigs = this.listTestConfigs.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.preGenerateStoryAudio = this.preGenerateStoryAudio.bind(this)
             this.proxyArtifactImage = this.proxyArtifactImage.bind(this)
             this.proxyAvatarImage = this.proxyAvatarImage.bind(this)
             this.proxyImage = this.proxyImage.bind(this)
             this.proxyImageStream = this.proxyImageStream.bind(this)
             this.proxyStoryChapterImage = this.proxyStoryChapterImage.bind(this)
+            this.publishStudioEpisode = this.publishStudioEpisode.bind(this)
             this.resetRecentUsage = this.resetRecentUsage.bind(this)
+            this.resolveGeneratedAudioByCacheKeys = this.resolveGeneratedAudioByCacheKeys.bind(this)
             this.runBatchTests = this.runBatchTests.bind(this)
-            this.runMigrationSQL = this.runMigrationSQL.bind(this)
+            this.runMigrationSql = this.runMigrationSql.bind(this)
             this.runTest = this.runTest.bind(this)
+            this.saveGeneratedAudio = this.saveGeneratedAudio.bind(this)
             this.seedPool = this.seedPool.bind(this)
             this.showArtifacts = this.showArtifacts.bind(this)
+            this.splitStudioEpisodeScenes = this.splitStudioEpisodeScenes.bind(this)
+            this.submitStoryQuizResult = this.submitStoryQuizResult.bind(this)
             this.testArtifacts = this.testArtifacts.bind(this)
             this.update = this.update.bind(this)
             this.updateArtifact = this.updateArtifact.bind(this)
             this.updateCharacter = this.updateCharacter.bind(this)
+            this.updateStoryProfileState = this.updateStoryProfileState.bind(this)
+            this.updateStudioCharacter = this.updateStudioCharacter.bind(this)
+            this.updateStudioEpisodeScene = this.updateStudioEpisodeScene.bind(this)
+            this.updateStudioEpisodeText = this.updateStudioEpisodeText.bind(this)
+            this.updateStudioSeries = this.updateStudioSeries.bind(this)
         }
 
         public async addArtifact(params: RequestType<typeof api_story_artifact_pool_api_addArtifact>): Promise<ResponseType<typeof api_story_artifact_pool_api_addArtifact>> {
@@ -1495,6 +1639,19 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_addCharacter>
+        }
+
+        public async addStoryToProfile(params: RequestType<typeof api_story_profile_state_addStoryToProfile>): Promise<ResponseType<typeof api_story_profile_state_addStoryToProfile>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                avatarIds:       params.avatarIds,
+                profileId:       params.profileId,
+                targetProfileId: params.targetProfileId,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}/add-to-profile`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_profile_state_addStoryToProfile>
         }
 
         public async analyzeRecentStories(params: RequestType<typeof api_story_analyze_recent_stories_analyzeRecentStories>): Promise<ResponseType<typeof api_story_analyze_recent_stories_analyzeRecentStories>> {
@@ -1538,6 +1695,64 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>
         }
 
+        public async composeStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_composeStudioEpisode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/compose`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_composeStudioEpisode>
+        }
+
+        public async createStudioCharacter(params: RequestType<typeof api_story_studio_api_createStudioCharacter>): Promise<ResponseType<typeof api_story_studio_api_createStudioCharacter>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                autoGenerateImage: params.autoGenerateImage,
+                description:       params.description,
+                generationPrompt:  params.generationPrompt,
+                imagePrompt:       params.imagePrompt,
+                name:              params.name,
+                role:              params.role,
+                visualProfile:     params.visualProfile,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioCharacter>
+        }
+
+        public async createStudioEpisode(params: RequestType<typeof api_story_studio_api_createStudioEpisode>): Promise<ResponseType<typeof api_story_studio_api_createStudioEpisode>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                episodeNumber:        params.episodeNumber,
+                selectedCharacterIds: params.selectedCharacterIds,
+                summary:              params.summary,
+                title:                params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioEpisode>
+        }
+
+        public async createStudioEpisodeScene(params: RequestType<typeof api_story_studio_api_createStudioEpisodeScene>): Promise<ResponseType<typeof api_story_studio_api_createStudioEpisodeScene>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                imagePrompt:             params.imagePrompt,
+                participantCharacterIds: params.participantCharacterIds,
+                sceneOrder:              params.sceneOrder,
+                sceneText:               params.sceneText,
+                title:                   params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioEpisodeScene>
+        }
+
+        public async createStudioSeries(params: RequestType<typeof api_story_studio_api_createStudioSeries>): Promise<ResponseType<typeof api_story_studio_api_createStudioSeries>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioSeries>
+        }
+
         public async debugLastError(params: RequestType<typeof api_story_debug_last_error_debugLastError>): Promise<ResponseType<typeof api_story_debug_last_error_debugLastError>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/debug-last-error`, {method: "POST", body: JSON.stringify(params)})
@@ -1562,11 +1777,22 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_deleteCharacter>
         }
 
+        public async deleteGeneratedAudio(params: { entryId: string }): Promise<ResponseType<typeof api_story_audio_library_deleteGeneratedAudio>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio-library/${encodeURIComponent(params.entryId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_deleteGeneratedAudio>
+        }
+
         /**
          * Deletes a story and all its chapters.
          */
-        public async deleteStory(params: { id: string }): Promise<void> {
-            await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+        public async deleteStory(params: RequestType<typeof api_story_delete_deleteStory>): Promise<void> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {query, method: "DELETE", body: undefined})
         }
 
         public async dumpStoryLogs(params: { storyId: string }): Promise<void> {
@@ -1638,12 +1864,52 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_ai_generation_generateStoryContent>
         }
 
+        public async generateStudioEpisodeImages(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeImages>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeImages>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                forceRegenerate: params.forceRegenerate,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/generate-images`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeImages>
+        }
+
+        public async generateStudioEpisodeSceneImage(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                imagePrompt: params.imagePrompt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes/${encodeURIComponent(params.sceneId)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>
+        }
+
+        public async generateStudioEpisodeText(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeText>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeText>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                maxWords:   params.maxWords,
+                minWords:   params.minWords,
+                userPrompt: params.userPrompt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/generate-text`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeText>
+        }
+
         /**
          * Retrieves a specific story by ID with all chapters.
          */
-        public async get(params: { id: string }): Promise<ResponseType<typeof api_story_get_get>> {
+        public async get(params: RequestType<typeof api_story_get_get>): Promise<ResponseType<typeof api_story_get_get>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_get_get>
         }
 
@@ -1672,6 +1938,24 @@ export namespace story {
             await this.baseClient.callTypedAPI(`/story/fairytale/${encodeURIComponent(params.taleId)}`, {method: "GET", body: undefined})
         }
 
+        public async getStoryAudio(params: { storyId: string }): Promise<ResponseType<typeof api_story_audio_cache_getStoryAudio>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_cache_getStoryAudio>
+        }
+
+        public async getStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_getStudioEpisode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_getStudioEpisode>
+        }
+
+        public async getStudioSeries(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_getStudioSeries>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_getStudioSeries>
+        }
+
         public async importArtifacts(params: RequestType<typeof api_story_artifact_pool_api_importArtifacts>): Promise<ResponseType<typeof api_story_artifact_pool_api_importArtifacts>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/import`, {method: "POST", body: JSON.stringify(params)})
@@ -1690,8 +1974,10 @@ export namespace story {
         public async list(params: RequestType<typeof api_story_list_list>): Promise<ResponseType<typeof api_story_list_list>> {
             // Convert our params into the objects we need for the request
             const query = makeRecord<string, string | string[]>({
-                limit:  params.limit === undefined ? undefined : String(params.limit),
-                offset: params.offset === undefined ? undefined : String(params.offset),
+                includeFamily: params.includeFamily === undefined ? undefined : String(params.includeFamily),
+                limit:         params.limit === undefined ? undefined : String(params.limit),
+                offset:        params.offset === undefined ? undefined : String(params.offset),
+                profileId:     params.profileId,
             })
 
             // Now make the actual call to the API
@@ -1724,6 +2010,51 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_listCharacters>
         }
 
+        public async listGeneratedAudio(params: RequestType<typeof api_story_audio_library_listGeneratedAudio>): Promise<ResponseType<typeof api_story_audio_library_listGeneratedAudio>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                limit:      params.limit === undefined ? undefined : String(params.limit),
+                offset:     params.offset === undefined ? undefined : String(params.offset),
+                query:      params.query,
+                sort:       params.sort === undefined ? undefined : String(params.sort),
+                sourceType: params.sourceType === undefined ? undefined : String(params.sourceType),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio-library`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_listGeneratedAudio>
+        }
+
+        public async listGeneratedAudioBySource(params: RequestType<typeof api_story_audio_library_listGeneratedAudioBySource>): Promise<ResponseType<typeof api_story_audio_library_listGeneratedAudioBySource>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio-library/by-source`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_listGeneratedAudioBySource>
+        }
+
+        public async listStudioCharacters(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioCharacters>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioCharacters>
+        }
+
+        public async listStudioEpisodeScenes(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioEpisodeScenes>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioEpisodeScenes>
+        }
+
+        public async listStudioEpisodes(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioEpisodes>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioEpisodes>
+        }
+
+        public async listStudioSeries(): Promise<ResponseType<typeof api_story_studio_api_listStudioSeries>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioSeries>
+        }
+
         /**
          * API Endpoint: Listet alle verfügbaren Test-Konfigurationen
          */
@@ -1737,6 +2068,12 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/mark-read`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_markRead_markRead>
+        }
+
+        public async preGenerateStoryAudio(params: RequestType<typeof api_story_audio_cache_preGenerateStoryAudio>): Promise<ResponseType<typeof api_story_audio_cache_preGenerateStoryAudio>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/pre-generate-audio`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_cache_preGenerateStoryAudio>
         }
 
         public async proxyArtifactImage(params: { id: string }, options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
@@ -1773,6 +2110,12 @@ export namespace story {
             return this.baseClient.callAPI(`/story/image/story/${params.path.map(encodeURIComponent).join("/")}`, options)
         }
 
+        public async publishStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_publishStudioEpisode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/publish`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_publishStudioEpisode>
+        }
+
         /**
          * ===== RESET RECENT USAGE COUNTS =====
          * This should be run periodically (e.g., monthly) to give all characters fresh chances
@@ -1783,6 +2126,12 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_resetRecentUsage>
         }
 
+        public async resolveGeneratedAudioByCacheKeys(params: RequestType<typeof api_story_audio_library_resolveGeneratedAudioByCacheKeys>): Promise<ResponseType<typeof api_story_audio_library_resolveGeneratedAudioByCacheKeys>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio-library/resolve`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_resolveGeneratedAudioByCacheKeys>
+        }
+
         public async runBatchTests(params: RequestType<typeof api_story_test_story_generation_runBatchTests>): Promise<ResponseType<typeof api_story_test_story_generation_runBatchTests>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/test/batch`, {method: "POST", body: JSON.stringify(params)})
@@ -1790,13 +2139,15 @@ export namespace story {
         }
 
         /**
-         * Emergency endpoint to run raw SQL migrations when Docker container doesn't have migration files.
-         * IMPORTANT: This endpoint has no authentication for emergency access.
+         * Execute raw SQL against the story database.
+         * Used for manual migrations when Encore auto-migrations don't work in Railway Docker.
+         * 
+         * POST /story/run-migration-sql
          */
-        public async runMigrationSQL(params: RequestType<typeof api_story_run_migration_sql_runMigrationSQL>): Promise<ResponseType<typeof api_story_run_migration_sql_runMigrationSQL>> {
+        public async runMigrationSql(params: RequestType<typeof api_story_run_migration_sql_runMigrationSql>): Promise<ResponseType<typeof api_story_run_migration_sql_runMigrationSql>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_run_migration_sql_runMigrationSQL>
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_run_migration_sql_runMigrationSql>
         }
 
         /**
@@ -1806,6 +2157,12 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/test/run`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_test_story_generation_runTest>
+        }
+
+        public async saveGeneratedAudio(params: RequestType<typeof api_story_audio_library_saveGeneratedAudio>): Promise<ResponseType<typeof api_story_audio_library_saveGeneratedAudio>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/audio-library/save`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_saveGeneratedAudio>
         }
 
         /**
@@ -1828,6 +2185,36 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_show_artifacts_showArtifacts>
         }
 
+        public async splitStudioEpisodeScenes(params: RequestType<typeof api_story_studio_api_splitStudioEpisodeScenes>): Promise<ResponseType<typeof api_story_studio_api_splitStudioEpisodeScenes>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                maxSceneCount:    params.maxSceneCount,
+                minSceneCount:    params.minSceneCount,
+                targetSceneCount: params.targetSceneCount,
+                userPrompt:       params.userPrompt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/split-scenes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_splitStudioEpisodeScenes>
+        }
+
+        public async submitStoryQuizResult(params: RequestType<typeof api_story_profile_state_submitStoryQuizResult>): Promise<ResponseType<typeof api_story_profile_state_submitStoryQuizResult>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                answers:         params.answers,
+                masteryDelta:    params.masteryDelta,
+                nextRepeatHours: params.nextRepeatHours,
+                profileId:       params.profileId,
+                score:           params.score,
+                totalQuestions:  params.totalQuestions,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}/quiz`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_profile_state_submitStoryQuizResult>
+        }
+
         /**
          * Test endpoint to verify artifact_pool table exists and has data
          */
@@ -1845,6 +2232,7 @@ export namespace story {
             const body: Record<string, any> = {
                 description: params.description,
                 isPublic:    params.isPublic,
+                profileId:   params.profileId,
                 title:       params.title,
             }
 
@@ -1873,6 +2261,82 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_updateCharacter>
+        }
+
+        public async updateStoryProfileState(params: RequestType<typeof api_story_profile_state_updateStoryProfileState>): Promise<ResponseType<typeof api_story_profile_state_updateStoryProfileState>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                completionState: params.completionState,
+                isFavorite:      params.isFavorite,
+                lastPlayedAt:    params.lastPlayedAt,
+                lastPositionSec: params.lastPositionSec,
+                profileId:       params.profileId,
+                progressPct:     params.progressPct,
+                quizRepeatDueAt: params.quizRepeatDueAt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}/state`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_profile_state_updateStoryProfileState>
+        }
+
+        public async updateStudioCharacter(params: RequestType<typeof api_story_studio_api_updateStudioCharacter>): Promise<ResponseType<typeof api_story_studio_api_updateStudioCharacter>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                description:      params.description,
+                generationPrompt: params.generationPrompt,
+                imagePrompt:      params.imagePrompt,
+                name:             params.name,
+                regenerateImage:  params.regenerateImage,
+                role:             params.role,
+                visualProfile:    params.visualProfile,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters/${encodeURIComponent(params.characterId)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioCharacter>
+        }
+
+        public async updateStudioEpisodeScene(params: RequestType<typeof api_story_studio_api_updateStudioEpisodeScene>): Promise<ResponseType<typeof api_story_studio_api_updateStudioEpisodeScene>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                imagePrompt:             params.imagePrompt,
+                participantCharacterIds: params.participantCharacterIds,
+                sceneText:               params.sceneText,
+                title:                   params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes/${encodeURIComponent(params.sceneId)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioEpisodeScene>
+        }
+
+        public async updateStudioEpisodeText(params: RequestType<typeof api_story_studio_api_updateStudioEpisodeText>): Promise<ResponseType<typeof api_story_studio_api_updateStudioEpisodeText>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                approve:   params.approve,
+                storyText: params.storyText,
+                summary:   params.summary,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/text`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioEpisodeText>
+        }
+
+        public async updateStudioSeries(params: RequestType<typeof api_story_studio_api_updateStudioSeries>): Promise<ResponseType<typeof api_story_studio_api_updateStudioSeries>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                canonicalPrompt: params.canonicalPrompt,
+                description:     params.description,
+                logline:         params.logline,
+                status:          params.status,
+                title:           params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioSeries>
         }
     }
 }
@@ -1907,7 +2371,13 @@ import {
     generateElevenLabsDialogue as api_tts_elevenlabs_dialogue_generateElevenLabsDialogue,
     listElevenLabsVoices as api_tts_elevenlabs_dialogue_listElevenLabsVoices
 } from "~backend/tts/elevenlabs-dialogue";
-import { generateSpeech as api_tts_tts_generateSpeech } from "~backend/tts/tts";
+import {
+    generateQwenDialogue as api_tts_tts_generateQwenDialogue,
+    generateSpeech as api_tts_tts_generateSpeech,
+    generateSpeechBatch as api_tts_tts_generateSpeechBatch,
+    listCosyVoiceVoices as api_tts_tts_listCosyVoiceVoices,
+    listQwenVoices as api_tts_tts_listQwenVoices
+} from "~backend/tts/tts";
 
 export namespace tts {
 
@@ -1917,8 +2387,12 @@ export namespace tts {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.generateElevenLabsDialogue = this.generateElevenLabsDialogue.bind(this)
+            this.generateQwenDialogue = this.generateQwenDialogue.bind(this)
             this.generateSpeech = this.generateSpeech.bind(this)
+            this.generateSpeechBatch = this.generateSpeechBatch.bind(this)
+            this.listCosyVoiceVoices = this.listCosyVoiceVoices.bind(this)
             this.listElevenLabsVoices = this.listElevenLabsVoices.bind(this)
+            this.listQwenVoices = this.listQwenVoices.bind(this)
         }
 
         public async generateElevenLabsDialogue(params: RequestType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>> {
@@ -1927,16 +2401,43 @@ export namespace tts {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>
         }
 
+        public async generateQwenDialogue(params: RequestType<typeof api_tts_tts_generateQwenDialogue>): Promise<ResponseType<typeof api_tts_tts_generateQwenDialogue>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/qwen/dialogue`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateQwenDialogue>
+        }
+
         public async generateSpeech(params: RequestType<typeof api_tts_tts_generateSpeech>): Promise<ResponseType<typeof api_tts_tts_generateSpeech>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/generate`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeech>
         }
 
+        public async generateSpeechBatch(params: RequestType<typeof api_tts_tts_generateSpeechBatch>): Promise<ResponseType<typeof api_tts_tts_generateSpeechBatch>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/batch`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeechBatch>
+        }
+
+        /**
+         * Backward-compatible alias for older frontend paths.
+         */
+        public async listCosyVoiceVoices(): Promise<ResponseType<typeof api_tts_tts_listCosyVoiceVoices>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/cosyvoice/voices`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listCosyVoiceVoices>
+        }
+
         public async listElevenLabsVoices(): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_listElevenLabsVoices>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/elevenlabs/voices`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_listElevenLabsVoices>
+        }
+
+        public async listQwenVoices(): Promise<ResponseType<typeof api_tts_tts_listQwenVoices>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/qwen/voices`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listQwenVoices>
         }
     }
 }
@@ -1954,7 +2455,15 @@ import {
     updateTheme as api_user_profile_updateTheme,
     verifyParentalPin as api_user_profile_verifyParentalPin
 } from "~backend/user/profile";
-import { runMigrationSql as api_user_run_migration_sql_runMigrationSql } from "~backend/user/run-migration-sql";
+import {
+    createProfile as api_user_profiles_createProfile,
+    deleteProfile as api_user_profiles_deleteProfile,
+    getProfilesOverview as api_user_profiles_getProfilesOverview,
+    listProfiles as api_user_profiles_listProfiles,
+    saveFamilyReserve as api_user_profiles_saveFamilyReserve,
+    saveProfileBudget as api_user_profiles_saveProfileBudget,
+    updateProfile as api_user_profiles_updateProfile
+} from "~backend/user/profiles";
 
 export namespace user {
 
@@ -1964,12 +2473,18 @@ export namespace user {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.create = this.create.bind(this)
+            this.createProfile = this.createProfile.bind(this)
+            this.deleteProfile = this.deleteProfile.bind(this)
             this.get = this.get.bind(this)
             this.getParentalControls = this.getParentalControls.bind(this)
+            this.getProfilesOverview = this.getProfilesOverview.bind(this)
+            this.listProfiles = this.listProfiles.bind(this)
             this.me = this.me.bind(this)
-            this.runMigrationSql = this.runMigrationSql.bind(this)
+            this.saveFamilyReserve = this.saveFamilyReserve.bind(this)
             this.saveParentalControls = this.saveParentalControls.bind(this)
+            this.saveProfileBudget = this.saveProfileBudget.bind(this)
             this.updateLanguage = this.updateLanguage.bind(this)
+            this.updateProfile = this.updateProfile.bind(this)
             this.updateTheme = this.updateTheme.bind(this)
             this.verifyParentalPin = this.verifyParentalPin.bind(this)
         }
@@ -1981,6 +2496,18 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_create>
+        }
+
+        public async createProfile(params: RequestType<typeof api_user_profiles_createProfile>): Promise<ResponseType<typeof api_user_profiles_createProfile>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_createProfile>
+        }
+
+        public async deleteProfile(params: { profileId: string }): Promise<ResponseType<typeof api_user_profiles_deleteProfile>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles/${encodeURIComponent(params.profileId)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_deleteProfile>
         }
 
         /**
@@ -1998,6 +2525,18 @@ export namespace user {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_getParentalControls>
         }
 
+        public async getProfilesOverview(): Promise<ResponseType<typeof api_user_profiles_getProfilesOverview>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles/overview`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_getProfilesOverview>
+        }
+
+        public async listProfiles(): Promise<ResponseType<typeof api_user_profiles_listProfiles>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_listProfiles>
+        }
+
         /**
          * Returns the authenticated user's profile.
          * The auth handler ensures the user exists in the database.
@@ -2008,20 +2547,31 @@ export namespace user {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_me>
         }
 
-        /**
-         * Emergency endpoint to run raw SQL migrations
-         * Used when migration files aren't copied to Railway container
-         */
-        public async runMigrationSql(params: RequestType<typeof api_user_run_migration_sql_runMigrationSql>): Promise<ResponseType<typeof api_user_run_migration_sql_runMigrationSql>> {
+        public async saveFamilyReserve(params: RequestType<typeof api_user_profiles_saveFamilyReserve>): Promise<ResponseType<typeof api_user_profiles_saveFamilyReserve>> {
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/user/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_run_migration_sql_runMigrationSql>
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles/family-reserve`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_saveFamilyReserve>
         }
 
         public async saveParentalControls(params: RequestType<typeof api_user_profile_saveParentalControls>): Promise<ResponseType<typeof api_user_profile_saveParentalControls>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/parental-controls`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_saveParentalControls>
+        }
+
+        public async saveProfileBudget(params: RequestType<typeof api_user_profiles_saveProfileBudget>): Promise<ResponseType<typeof api_user_profiles_saveProfileBudget>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                allowFamilyReserve: params.allowFamilyReserve,
+                dokuHardCap:        params.dokuHardCap,
+                dokuSoftCap:        params.dokuSoftCap,
+                storyHardCap:       params.storyHardCap,
+                storySoftCap:       params.storySoftCap,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles/${encodeURIComponent(params.profileId)}/budget`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_saveProfileBudget>
         }
 
         /**
@@ -2031,6 +2581,27 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/language`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_updateLanguage>
+        }
+
+        public async updateProfile(params: RequestType<typeof api_user_profiles_updateProfile>): Promise<ResponseType<typeof api_user_profiles_updateProfile>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                age:                params.age,
+                avatarColor:        params.avatarColor,
+                competencyState:    params.competencyState,
+                interests:          params.interests,
+                isDefault:          params.isDefault,
+                learningGoals:      params.learningGoals,
+                name:               params.name,
+                noGoTopics:         params.noGoTopics,
+                preferredAvatarIds: params.preferredAvatarIds,
+                quizSettings:       params.quizSettings,
+                readingLevel:       params.readingLevel,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/profiles/${encodeURIComponent(params.profileId)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_updateProfile>
         }
 
         /**
