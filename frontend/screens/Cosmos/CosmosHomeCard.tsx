@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Telescope } from 'lucide-react';
 import type { CosmosState } from './CosmosTypes';
-import { COSMOS_DOMAINS } from './CosmosAssetsRegistry';
+import { resolveCosmosDomains } from './CosmosAssetsRegistry';
 
 interface Props {
   isDark: boolean;
@@ -56,13 +56,17 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
     () => cosmosState.domains.filter((d) => d.mastery > 0).length,
     [cosmosState.domains]
   );
+  const resolvedDomains = useMemo(
+    () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
+    [cosmosState.domains]
+  );
 
   // Pre-compute planet positions for preview
   const planetDots = useMemo(() => {
-    return COSMOS_DOMAINS.map((domain, idx) => {
+    return resolvedDomains.slice(0, 10).map((domain, idx) => {
       const progress = cosmosState.domains.find(d => d.domainId === domain.id);
       const mastery = progress?.mastery ?? 0;
-      const angle = (idx / COSMOS_DOMAINS.length) * Math.PI * 2;
+      const angle = (idx / Math.max(1, Math.min(10, resolvedDomains.length))) * Math.PI * 2;
       const radius = 25 + idx * 3;
       return {
         id: domain.id,
@@ -73,7 +77,7 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
         delay: idx * 0.4,
       };
     });
-  }, [cosmosState.domains]);
+  }, [cosmosState.domains, resolvedDomains]);
 
   return (
     <motion.button

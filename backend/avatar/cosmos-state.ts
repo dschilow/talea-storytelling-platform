@@ -28,10 +28,8 @@ interface CosmosStateResponse {
   domains: DomainProgress[];
 }
 
-// All available domains
-const ALL_DOMAINS = [
-  'nature', 'space', 'history', 'tech', 'body', 'earth', 'art', 'logic'
-];
+// Base domains (MVP). Additional domains discovered in DB are appended dynamically.
+const BASE_DOMAINS = ['nature', 'space', 'history', 'tech', 'body', 'earth', 'art', 'logic'];
 
 export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
   { expose: true, method: "GET", path: "/avatar/cosmos-state" },
@@ -92,8 +90,12 @@ export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
       }
     }
 
-    // Fill missing domains with empty progress
-    const domains = ALL_DOMAINS.map(
+    // Fill missing base domains with empty progress and append additional discovered domains.
+    const discoveredDomainIds = Array.from(domainMap.keys()).filter(
+      (id) => !BASE_DOMAINS.includes(id)
+    );
+    const orderedDomainIds = [...BASE_DOMAINS, ...discoveredDomainIds.sort()];
+    const domains = orderedDomainIds.map(
       (id) =>
         domainMap.get(id) ?? {
           domainId: id,

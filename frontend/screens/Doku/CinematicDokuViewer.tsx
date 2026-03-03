@@ -339,6 +339,8 @@ const CinematicDokuViewer: React.FC = () => {
               total={sections.length}
               dokuTitle={doku.title}
               dokuId={dokuId || ''}
+              dokuTopic={doku.topic}
+              dokuMetadata={doku.metadata}
               coverImageUrl={doku.coverImageUrl}
               palette={palette}
               isDark={isDark}
@@ -393,13 +395,19 @@ const SectionView: React.FC<{
   total: number;
   dokuTitle: string;
   dokuId: string;
+  dokuTopic?: string;
+  dokuMetadata?: {
+    configSnapshot?: {
+      perspective?: string;
+    };
+  };
   coverImageUrl?: string;
   palette: DokuPalette;
   isDark: boolean;
   onComplete?: () => void;
   isCompleted?: boolean;
   onBecomeActive: () => void;
-}> = ({ section, index, total, dokuTitle, dokuId, coverImageUrl, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
+}> = ({ section, index, total, dokuTitle, dokuId, dokuTopic, dokuMetadata, coverImageUrl, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
 
@@ -455,6 +463,8 @@ const SectionView: React.FC<{
             section={section}
             dokuTitle={dokuTitle}
             dokuId={dokuId}
+            dokuTopic={dokuTopic}
+            dokuMetadata={dokuMetadata}
             variant="inline"
             onPersonalityChange={(changes) => {
               import('../../utils/toastUtils').then(({ showPersonalityUpdateToast }) => {

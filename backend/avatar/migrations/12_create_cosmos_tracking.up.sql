@@ -1,4 +1,3 @@
--- Cosmos Tracking: competency_state per child/domain/skill
 CREATE TABLE IF NOT EXISTS competency_state (
     id TEXT PRIMARY KEY,
     avatar_id TEXT NOT NULL,
@@ -25,7 +24,6 @@ CREATE INDEX IF NOT EXISTS idx_competency_state_domain ON competency_state(domai
 CREATE UNIQUE INDEX IF NOT EXISTS idx_competency_state_unique
     ON competency_state(avatar_id, domain_id, COALESCE(topic_id, ''), skill_type);
 
--- Evidence events: every quiz, recall, transfer, explain event
 CREATE TABLE IF NOT EXISTS evidence_events (
     id TEXT PRIMARY KEY,
     avatar_id TEXT NOT NULL,
@@ -48,7 +46,6 @@ CREATE INDEX IF NOT EXISTS idx_evidence_events_domain ON evidence_events(domain_
 CREATE INDEX IF NOT EXISTS idx_evidence_events_created ON evidence_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_evidence_events_type ON evidence_events(event_type);
 
--- Recall tasks: scheduled review prompts
 CREATE TABLE IF NOT EXISTS recall_tasks (
     id TEXT PRIMARY KEY,
     avatar_id TEXT NOT NULL,

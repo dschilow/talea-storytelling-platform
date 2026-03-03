@@ -334,6 +334,8 @@ const DokuScrollReaderScreen: React.FC = () => {
                             section={section}
                             dokuTitle={doku.title}
                             dokuId={dokuId}
+                            dokuTopic={doku.topic}
+                            dokuMetadata={doku.metadata}
                             onPersonalityChange={(changes) => {
                               import('../../utils/toastUtils').then(({ showPersonalityUpdateToast }) => {
                                 showPersonalityUpdateToast(changes);

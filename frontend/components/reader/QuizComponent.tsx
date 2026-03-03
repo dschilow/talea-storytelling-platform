@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, CheckCircle2, HelpCircle, RotateCcw, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 
 import type { DokuSection } from '../../types/doku';
 import { useAvatarMemory } from '../../hooks/useAvatarMemory';
@@ -9,20 +10,37 @@ import { usePersonalityAI } from '../../hooks/usePersonalityAI';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { emitMapProgress } from '../../screens/Journey/TaleaLearningPathProgressStore';
+import {
+  buildTopicId,
+  inferDifficultyFromQuestion,
+  inferDomainFromDokuTopic,
+  inferSkillTypeFromQuestion,
+  submitCosmosQuiz,
+  type CosmosSkillType,
+} from '../../screens/Cosmos/apiTrackingClient';
 
 interface QuizComponentProps {
   section: DokuSection;
   avatarId?: string;
   dokuTitle?: string;
   dokuId?: string;
+  dokuTopic?: string;
+  dokuMetadata?: {
+    configSnapshot?: {
+      perspective?: string;
+    };
+  };
   onPersonalityChange?: (changes: Array<{ trait: string; change: number }>) => void;
   variant?: 'page' | 'inline';
 }
 
 type NormalizedQuestion = {
+  id: string;
   question: string;
   options: string[];
   answerIndex: number;
+  skillType: CosmosSkillType;
+  difficulty: number;
   explanation?: string;
 };
 
@@ -61,7 +79,7 @@ const normalizeText = (value: unknown): string => {
 const normalizeQuestions = (rawQuestions: unknown[]): NormalizedQuestion[] => {
   const normalized: NormalizedQuestion[] = [];
 
-  rawQuestions.forEach((entry) => {
+  rawQuestions.forEach((entry, entryIndex) => {
     if (!entry || typeof entry !== 'object') {
       return;
     }
@@ -98,10 +116,27 @@ const normalizeQuestions = (rawQuestions: unknown[]): NormalizedQuestion[] => {
     }
 
     const explanation = normalizeText(source.explanation ?? source.reason ?? source.hint);
+    const skillTypeRaw = normalizeText(source.skillType ?? source.skill_type).toUpperCase();
+    const skillType: CosmosSkillType =
+      skillTypeRaw === 'REMEMBER' ||
+      skillTypeRaw === 'UNDERSTAND' ||
+      skillTypeRaw === 'COMPARE' ||
+      skillTypeRaw === 'TRANSFER' ||
+      skillTypeRaw === 'EXPLAIN'
+        ? (skillTypeRaw as CosmosSkillType)
+        : inferSkillTypeFromQuestion(question);
+    const parsedDifficulty = Number(source.difficulty);
+    const difficulty = Number.isFinite(parsedDifficulty)
+      ? Math.max(1, Math.min(5, parsedDifficulty))
+      : inferDifficultyFromQuestion(question, options.length);
+
     normalized.push({
+      id: normalizeText(source.id) || `q_${entryIndex}`,
       question,
       options,
       answerIndex,
+      skillType,
+      difficulty,
       explanation: explanation || undefined,
     });
   });
@@ -124,12 +159,15 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   avatarId,
   dokuTitle,
   dokuId,
+  dokuTopic,
+  dokuMetadata,
   onPersonalityChange,
   variant = 'page',
 }) => {
   const location = useLocation();
   const quiz = section.interactive?.quiz;
   const backend = useBackend();
+  const { getToken } = useAuth();
   const { addMemory, updatePersonality } = useAvatarMemory();
   const { analyzeQuizCompletion } = usePersonalityAI();
   const { resolvedTheme } = useTheme();
@@ -231,6 +269,55 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       showQuizCompletionToast(percentage);
     } catch {
       // Optional UI toast only
+    }
+
+    // Cosmos competency tracking (independent from personality AI updates).
+    let trackingAvatarId = effectiveAvatarId;
+    if (!trackingAvatarId && dokuId) {
+      try {
+        const avatarResult = await backend.avatar.list({ limit: 1 });
+        trackingAvatarId = avatarResult.avatars?.[0]?.id;
+      } catch (avatarLookupError) {
+        console.warn('[QuizComponent] could not resolve avatar for cosmos quiz tracking', avatarLookupError);
+      }
+    }
+
+    if (trackingAvatarId && dokuId) {
+      try {
+        const token = await getToken();
+        const perspective = dokuMetadata?.configSnapshot?.perspective;
+        const domainId = inferDomainFromDokuTopic({
+          topic: dokuTopic,
+          perspective,
+          title: dokuTitle,
+          sectionTitle: section.title,
+        });
+        const topicId = buildTopicId({
+          sourceContentType: 'doku',
+          sourceContentId: dokuId,
+          domainId,
+          label: dokuTopic || section.title || dokuTitle,
+        });
+        const cosmosAnswers = questions.map((question, index) => ({
+          questionId: question.id || `q_${index}`,
+          skillType: question.skillType,
+          correct: selectedAnswers[index] === question.answerIndex,
+          difficulty: question.difficulty,
+        }));
+        await submitCosmosQuiz(
+          {
+            avatarId: trackingAvatarId,
+            domainId,
+            topicId,
+            sourceContentId: dokuId,
+            sourceContentType: 'doku',
+            answers: cosmosAnswers,
+          },
+          { token }
+        );
+      } catch (cosmosError) {
+        console.warn('[QuizComponent] cosmos quiz submit failed', cosmosError);
+      }
     }
 
     if (!effectiveAvatarId || !dokuTitle || !dokuId) {

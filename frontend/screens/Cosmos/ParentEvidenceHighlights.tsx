@@ -8,12 +8,14 @@
 import React, { useMemo } from 'react';
 import { CheckCircle, TrendingUp, Lightbulb } from 'lucide-react';
 import type { DomainProgress } from './CosmosTypes';
-import { getDomainById } from './CosmosAssetsRegistry';
+import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
 import { getStageLabel, getStageColor } from './CosmosProgressMapper';
+import type { ParentEvidenceHighlightDTO } from './apiCosmosClient';
 
 interface Props {
   domains: DomainProgress[];
   childName: string;
+  highlights?: ParentEvidenceHighlightDTO[];
 }
 
 interface HighlightCard {
@@ -29,10 +31,33 @@ interface HighlightCard {
 export const ParentEvidenceHighlights: React.FC<Props> = ({
   domains,
   childName,
+  highlights: evidenceHighlights = [],
 }) => {
-  const highlights = useMemo(() => {
+  const resolvedDomains = useMemo(
+    () => resolveCosmosDomains(domains.map((entry) => entry.domainId)),
+    [domains]
+  );
+
+  const cards = useMemo(() => {
     const cards: HighlightCard[] = [];
     const name = childName || 'Ihr Kind';
+
+    if (evidenceHighlights.length > 0) {
+      for (const entry of evidenceHighlights.slice(0, 6)) {
+        const domain = getDomainById(entry.domainId, resolvedDomains);
+        const stage = domains.find((domainEntry) => domainEntry.domainId === entry.domainId)?.stage ?? 'discovered';
+        cards.push({
+          id: entry.id,
+          icon: domain?.icon ?? '✨',
+          domainLabel: domain?.label ?? entry.domainId,
+          text: entry.summary,
+          evidenceBasis: `${entry.eventType.toUpperCase()} · ${Math.round(entry.score)}/${Math.round(entry.maxScore)} · ${new Date(entry.timestamp).toLocaleDateString('de-DE')}`,
+          recommendation: 'Nächster Schritt: kurze Wiederholung und Transferfrage im selben Themenfeld.',
+          stageColor: getStageColor(stage),
+        });
+      }
+      return cards;
+    }
 
     // Only generate highlights for domains with actual progress
     const activeDomains = domains
@@ -40,7 +65,7 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
       .sort((a, b) => b.mastery - a.mastery);
 
     for (const dp of activeDomains.slice(0, 4)) {
-      const domain = getDomainById(dp.domainId);
+      const domain = getDomainById(dp.domainId, resolvedDomains);
       if (!domain) continue;
 
       const stageLabel = getStageLabel(dp.stage);
@@ -97,11 +122,11 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
     }
 
     return cards;
-  }, [domains, childName]);
+  }, [domains, childName, evidenceHighlights, resolvedDomains]);
 
   return (
     <div className="space-y-4">
-      {highlights.map((card) => (
+      {cards.map((card) => (
         <div
           key={card.id}
           className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4 shadow-sm"

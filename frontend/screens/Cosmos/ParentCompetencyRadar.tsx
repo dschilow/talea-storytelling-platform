@@ -7,7 +7,7 @@
 
 import React from 'react';
 import type { DomainProgress } from './CosmosTypes';
-import { getDomainById } from './CosmosAssetsRegistry';
+import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
 import { getStageColor } from './CosmosProgressMapper';
 
 interface Props {
@@ -17,11 +17,12 @@ interface Props {
 export const ParentCompetencyRadar: React.FC<Props> = ({ domains }) => {
   // Sort by mastery descending
   const sorted = [...domains].sort((a, b) => b.mastery - a.mastery);
+  const resolvedDomains = resolveCosmosDomains(domains.map((entry) => entry.domainId));
 
   return (
     <div className="space-y-3">
       {sorted.map((dp) => {
-        const domain = getDomainById(dp.domainId);
+        const domain = getDomainById(dp.domainId, resolvedDomains);
         if (!domain) return null;
 
         const stageColor = getStageColor(dp.stage);

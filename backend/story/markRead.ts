@@ -7,6 +7,11 @@ import { unlockStoryArtifact } from "./artifact-matcher";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
+import {
+  buildTopicId,
+  inferDomainFromStoryGenre,
+  trackCosmosReadEvent,
+} from "../helpers/cosmos-tracking";
 
 const avatarDB = SQLDatabase.named("avatar");
 const storyDB = SQLDatabase.named("story");
@@ -261,6 +266,27 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           VALUES (${userAvatar.id}, ${req.storyId}, ${req.storyTitle})
           ON CONFLICT (avatar_id, story_id) DO NOTHING
         `;
+
+        try {
+          const domainId = inferDomainFromStoryGenre(req.genre);
+          const topicId = buildTopicId({
+            sourceContentType: "story",
+            sourceContentId: req.storyId,
+            domainId,
+            label: req.genre || req.storyTitle,
+          });
+          await trackCosmosReadEvent({
+            avatarId: userAvatar.id,
+            profileId: activeProfileId,
+            sourceContentId: req.storyId,
+            sourceContentType: "story",
+            domainId,
+            topicId,
+            summary: `Story gelesen: ${req.storyTitle}`,
+          });
+        } catch (trackingError) {
+          console.warn("Failed to track cosmos story-read event", trackingError);
+        }
 
         let rewards: MarkStoryReadResponse["personalityChanges"][number]["rewards"] | undefined = undefined;
         try {

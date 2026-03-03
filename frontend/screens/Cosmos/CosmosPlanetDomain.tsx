@@ -15,14 +15,14 @@ import React, { useRef, useMemo, useCallback } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Sphere, Ring, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import type { CosmosDomain, DomainProgress, PlanetVisuals } from './CosmosTypes';
+import type { CosmosDomain, DomainProgress } from './CosmosTypes';
 import { mapProgressToVisuals } from './CosmosProgressMapper';
 
 interface Props {
   domain: CosmosDomain;
   progress: DomainProgress;
   isFocused: boolean;
-  onSelect: (domainId: string) => void;
+  onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
 }
 
 export const CosmosPlanetDomain: React.FC<Props> = ({
@@ -37,6 +37,30 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const satelliteRef = useRef<THREE.Mesh>(null!);
 
   const visuals = useMemo(() => mapProgressToVisuals(progress), [progress]);
+  const orbitConfig = useMemo(() => {
+    const seed = hashString(domain.id);
+    const inclination = (((seed % 18) - 9) * Math.PI) / 180;
+    const eccentricity = 0.82 + (((seed >> 3) % 16) / 100);
+    const phase = ((seed >> 8) % 628) / 100;
+    return {
+      inclination,
+      eccentricity,
+      phase,
+    };
+  }, [domain.id]);
+  const initialPosition = useMemo<[number, number, number]>(() => {
+    const angle = domain.startAngle;
+    const y =
+      Math.sin(angle + orbitConfig.phase) *
+      domain.orbitRadius *
+      Math.sin(orbitConfig.inclination) *
+      0.22;
+    return [
+      Math.cos(angle) * domain.orbitRadius,
+      y,
+      Math.sin(angle) * domain.orbitRadius * orbitConfig.eccentricity,
+    ];
+  }, [domain.orbitRadius, domain.startAngle, orbitConfig.eccentricity, orbitConfig.inclination, orbitConfig.phase]);
 
   // Planet material — procedural, color-driven
   const planetMaterial = useMemo(
@@ -67,7 +91,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
-      onSelect(domain.id);
+      const currentPosition = groupRef.current?.position;
+      if (!currentPosition) {
+        onSelect(domain.id, [0, 0, 0]);
+        return;
+      }
+      onSelect(domain.id, [currentPosition.x, currentPosition.y, currentPosition.z]);
     },
     [domain.id, onSelect]
   );
@@ -76,18 +105,28 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   useFrame(({ clock }) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
-    const angle = domain.startAngle + t * domain.orbitSpeed;
+    if (!isFocused) {
+      const angle = domain.startAngle + t * domain.orbitSpeed;
+      const wobble =
+        (1 - visuals.orbitStability) *
+        Math.sin(t * 3 + domain.startAngle + orbitConfig.phase) *
+        0.14;
+      const orbitalY =
+        Math.sin(angle + orbitConfig.phase) *
+        domain.orbitRadius *
+        Math.sin(orbitConfig.inclination) *
+        0.22;
 
-    // Wobble inversely proportional to stability
-    const wobble = (1 - visuals.orbitStability) * Math.sin(t * 3 + domain.startAngle) * 0.15;
-
-    groupRef.current.position.x = Math.cos(angle) * domain.orbitRadius;
-    groupRef.current.position.z = Math.sin(angle) * domain.orbitRadius;
-    groupRef.current.position.y = wobble;
+      groupRef.current.position.x = Math.cos(angle) * domain.orbitRadius;
+      groupRef.current.position.z =
+        Math.sin(angle) * domain.orbitRadius * orbitConfig.eccentricity;
+      groupRef.current.position.y = orbitalY + wobble;
+    }
 
     // Gentle self-rotation
     if (planetRef.current) {
-      planetRef.current.rotation.y += 0.003;
+      planetRef.current.rotation.y += 0.0024;
+      planetRef.current.rotation.x += 0.0007;
     }
 
     // Satellite orbits around planet
@@ -102,7 +141,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const baseRadius = 0.5;
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} position={initialPosition}>
       {/* Clickable planet body */}
       <Sphere
         ref={planetRef}
@@ -191,3 +230,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     </group>
   );
 };
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}

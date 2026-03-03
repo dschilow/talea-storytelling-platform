@@ -31,6 +31,8 @@ export const CosmosHudOverlay: React.FC<Props> = ({
 
   const stageLabel = getStageLabel(progress.stage);
   const stageColor = getStageColor(progress.stage);
+  const masteryDescriptor = getMasteryDescriptor(progress.mastery);
+  const confidenceDescriptor = getConfidenceDescriptor(progress.confidence);
 
   // Stage progress bar segments
   const stages = Object.entries(LEARNING_STAGES) as [string, { label: string }][];
@@ -127,21 +129,19 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               <div className="rounded-xl bg-white/5 p-3">
                 <div className="flex items-center gap-1.5 text-[10px] text-white/50 font-bold uppercase tracking-wide mb-1">
                   <Brain className="h-3 w-3" />
-                  Wissen
+                  Wissenstiefe
                 </div>
-                <div className="text-xl font-black text-white">
-                  {Math.round(progress.mastery)}
-                  <span className="text-xs text-white/30 ml-1">/ 100</span>
+                <div className="text-sm font-extrabold text-white">
+                  {masteryDescriptor}
                 </div>
               </div>
               <div className="rounded-xl bg-white/5 p-3">
                 <div className="flex items-center gap-1.5 text-[10px] text-white/50 font-bold uppercase tracking-wide mb-1">
                   <Sparkles className="h-3 w-3" />
-                  Sicherheit
+                  Lernsicherheit
                 </div>
-                <div className="text-xl font-black text-white">
-                  {Math.round(progress.confidence)}
-                  <span className="text-xs text-white/30 ml-1">/ 100</span>
+                <div className="text-sm font-extrabold text-white">
+                  {confidenceDescriptor}
                 </div>
               </div>
             </div>
@@ -171,3 +171,17 @@ export const CosmosHudOverlay: React.FC<Props> = ({
     </AnimatePresence>
   );
 };
+
+function getMasteryDescriptor(mastery: number): string {
+  if (mastery >= 80) return 'Sehr stark';
+  if (mastery >= 55) return 'Stabil';
+  if (mastery >= 25) return 'Wächst';
+  return 'Erste Spur';
+}
+
+function getConfidenceDescriptor(confidence: number): string {
+  if (confidence >= 70) return 'Sicher';
+  if (confidence >= 45) return 'Ziemlich sicher';
+  if (confidence >= 20) return 'Noch am Festigen';
+  return 'Gerade entdeckt';
+}

@@ -47,16 +47,11 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
     if (!auth) throw new Error("Unauthorized");
 
     const range = req.range || 'month';
-    let dateFilter: string;
-    switch (range) {
-      case 'week':
-        dateFilter = "NOW() - INTERVAL '7 days'";
-        break;
-      case 'month':
-        dateFilter = "NOW() - INTERVAL '30 days'";
-        break;
-      default:
-        dateFilter = "NOW() - INTERVAL '365 days'";
+    let threshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (range === 'week') {
+      threshold = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    } else if (range === 'all') {
+      threshold = new Date(0);
     }
 
     // Get evidence highlights (recent events with summaries)
@@ -65,6 +60,7 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
       FROM evidence_events
       WHERE avatar_id = ${req.avatarId}
         AND (${req.profileId}::TEXT IS NULL OR profile_id = ${req.profileId})
+        AND created_at >= ${threshold}
       ORDER BY created_at DESC
       LIMIT 10
     `;
@@ -120,6 +116,7 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
       SELECT COUNT(*) as cnt
       FROM evidence_events
       WHERE avatar_id = ${req.avatarId}
+        AND created_at >= ${threshold}
     `;
 
     return {

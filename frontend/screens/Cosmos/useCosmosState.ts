@@ -1,130 +1,141 @@
 /**
- * useCosmosState.ts - Hook that builds CosmosState from existing avatar data
+ * useCosmosState.ts - Cosmos state with real backend data + robust fallback.
  *
- * MVP Strategy: Maps existing personality traits to cosmos domains.
- * This avoids needing a new backend service immediately.
- * When the cosmos backend is ready, swap the data source here.
- *
- * Trait-to-Domain mapping:
- *   knowledge (+ subcategories) → multiple domains
- *   creativity → art
- *   curiosity → space, nature
- *   logic → logic
- *   courage → history (exploring the unknown)
- *   empathy → body (understanding humans)
- *   teamwork → earth (global cooperation)
- *   vocabulary → art (expression)
- *   persistence → tech (building things)
+ * Primary source:
+ *   GET /avatar/cosmos-state
+ * Fallback source:
+ *   existing avatar personality traits mapping.
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { useBackend } from '../../hooks/useBackend';
-import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
-import { useSelector } from 'react-redux';
-import type { CosmosState, DomainProgress, LearningStage } from './CosmosTypes';
-import { computeStage } from './CosmosProgressMapper';
-import { COSMOS_DOMAINS } from './CosmosAssetsRegistry';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { useSelector } from "react-redux";
+import { useBackend } from "../../hooks/useBackend";
+import { useOptionalChildProfiles } from "../../contexts/ChildProfilesContext";
+import type { CosmosState, DomainProgress, LearningStage } from "./CosmosTypes";
+import { computeStage } from "./CosmosProgressMapper";
+import { COSMOS_DOMAINS } from "./CosmosAssetsRegistry";
+import { fetchCosmosState, type CosmosDomainProgressDTO } from "./apiCosmosClient";
 
-// Map knowledge subcategories to domain IDs
+const KNOWN_STAGES = new Set<LearningStage>([
+  "discovered",
+  "understood",
+  "can_explain",
+  "mastered",
+]);
+
+// Map knowledge subcategories to domain IDs.
 const KNOWLEDGE_DOMAIN_MAP: Record<string, string> = {
-  biology: 'nature',
-  astronomy: 'space',
-  history: 'history',
-  physics: 'tech',
-  geography: 'earth',
-  chemistry: 'nature',
-  mathematics: 'logic',
+  biology: "nature",
+  astronomy: "space",
+  history: "history",
+  physics: "tech",
+  geography: "earth",
+  chemistry: "nature",
+  mathematics: "logic",
 };
 
-// Map base traits to domain IDs (contribution weights)
+// Map base traits to domain IDs (contribution weights).
 const TRAIT_DOMAIN_MAP: Record<string, { domain: string; weight: number }[]> = {
   knowledge: [
-    { domain: 'nature', weight: 0.3 },
-    { domain: 'space', weight: 0.2 },
-    { domain: 'history', weight: 0.2 },
-    { domain: 'tech', weight: 0.15 },
-    { domain: 'earth', weight: 0.15 },
+    { domain: "nature", weight: 0.3 },
+    { domain: "space", weight: 0.2 },
+    { domain: "history", weight: 0.2 },
+    { domain: "tech", weight: 0.15 },
+    { domain: "earth", weight: 0.15 },
   ],
-  creativity: [{ domain: 'art', weight: 1.0 }],
+  creativity: [{ domain: "art", weight: 1.0 }],
   curiosity: [
-    { domain: 'space', weight: 0.5 },
-    { domain: 'nature', weight: 0.5 },
+    { domain: "space", weight: 0.5 },
+    { domain: "nature", weight: 0.5 },
   ],
-  logic: [{ domain: 'logic', weight: 1.0 }],
-  courage: [{ domain: 'history', weight: 1.0 }],
-  empathy: [{ domain: 'body', weight: 1.0 }],
-  teamwork: [{ domain: 'earth', weight: 1.0 }],
-  vocabulary: [{ domain: 'art', weight: 0.5 }, { domain: 'history', weight: 0.5 }],
-  persistence: [{ domain: 'tech', weight: 1.0 }],
+  logic: [{ domain: "logic", weight: 1.0 }],
+  courage: [{ domain: "history", weight: 1.0 }],
+  empathy: [{ domain: "body", weight: 1.0 }],
+  teamwork: [{ domain: "earth", weight: 1.0 }],
+  vocabulary: [{ domain: "art", weight: 0.5 }, { domain: "history", weight: 0.5 }],
+  persistence: [{ domain: "tech", weight: 1.0 }],
 };
 
-function buildDomainProgress(personalityTraits: any): DomainProgress[] {
-  if (!personalityTraits) return COSMOS_DOMAINS.map(d => ({
-    domainId: d.id,
-    mastery: 0,
-    confidence: 0,
-    stage: 'discovered' as LearningStage,
-    topicsExplored: 0,
-    lastActivityAt: null,
-  }));
+function normalizeRemoteStage(input: string, mastery: number, confidence: number): LearningStage {
+  if (KNOWN_STAGES.has(input as LearningStage)) {
+    return input as LearningStage;
+  }
+  return computeStage(mastery, confidence);
+}
 
-  // Accumulate mastery per domain
-  const domainScores: Record<string, { mastery: number; topicsExplored: number }> = {};
-  for (const d of COSMOS_DOMAINS) {
-    domainScores[d.id] = { mastery: 0, topicsExplored: 0 };
+function normalizeRemoteDomain(entry: CosmosDomainProgressDTO): DomainProgress {
+  const mastery = Number(entry.mastery) || 0;
+  const confidence = Number(entry.confidence) || 0;
+  return {
+    domainId: entry.domainId,
+    mastery: Math.max(0, Math.min(100, Math.round(mastery * 10) / 10)),
+    confidence: Math.max(0, Math.min(100, Math.round(confidence * 10) / 10)),
+    stage: normalizeRemoteStage(entry.stage, mastery, confidence),
+    topicsExplored: Number(entry.topicsExplored) || 0,
+    lastActivityAt: entry.lastActivityAt || null,
+    recentHighlight: entry.recentHighlight,
+  };
+}
+
+function buildFallbackDomainProgress(personalityTraits: unknown): DomainProgress[] {
+  if (!personalityTraits || typeof personalityTraits !== "object") {
+    return COSMOS_DOMAINS.map((domain) => ({
+      domainId: domain.id,
+      mastery: 0,
+      confidence: 0,
+      stage: "discovered",
+      topicsExplored: 0,
+      lastActivityAt: null,
+    }));
   }
 
-  // 1) Process knowledge subcategories → specific domain mapping
-  const knowledgeTrait = personalityTraits.knowledge;
-  if (knowledgeTrait && typeof knowledgeTrait === 'object') {
-    const subcats = knowledgeTrait.subcategories;
-    if (subcats) {
-      for (const [subKey, subVal] of Object.entries(subcats)) {
-        const val = Number(subVal) || 0;
+  const traits = personalityTraits as Record<string, unknown>;
+  const domainScores: Record<string, { mastery: number; topicsExplored: number }> = {};
+  for (const domain of COSMOS_DOMAINS) {
+    domainScores[domain.id] = { mastery: 0, topicsExplored: 0 };
+  }
+
+  const knowledgeTrait = traits.knowledge;
+  if (knowledgeTrait && typeof knowledgeTrait === "object") {
+    const subcategories = (knowledgeTrait as { subcategories?: Record<string, unknown> }).subcategories;
+    if (subcategories && typeof subcategories === "object") {
+      for (const [subKey, subValue] of Object.entries(subcategories)) {
+        const value = Number(subValue) || 0;
         const targetDomain = KNOWLEDGE_DOMAIN_MAP[subKey];
-        if (targetDomain && domainScores[targetDomain]) {
-          domainScores[targetDomain].mastery += val;
-          if (val > 0) domainScores[targetDomain].topicsExplored++;
-        }
+        if (!targetDomain || !domainScores[targetDomain]) continue;
+        domainScores[targetDomain].mastery += value;
+        if (value > 0) domainScores[targetDomain].topicsExplored += 1;
       }
     }
   }
 
-  // 2) Process base traits → weighted domain distribution
   for (const [traitId, mappings] of Object.entries(TRAIT_DOMAIN_MAP)) {
-    const traitData = personalityTraits[traitId];
+    const traitData = traits[traitId];
     let traitValue = 0;
-    if (traitData && typeof traitData === 'object') {
-      traitValue = Number(traitData.value) || 0;
-    } else if (typeof traitData === 'number') {
+    if (traitData && typeof traitData === "object") {
+      traitValue = Number((traitData as { value?: unknown }).value) || 0;
+    } else if (typeof traitData === "number") {
       traitValue = traitData;
     }
 
-    if (traitValue > 0) {
-      for (const { domain, weight } of mappings) {
-        if (domainScores[domain]) {
-          domainScores[domain].mastery += traitValue * weight;
-        }
-      }
+    if (traitValue <= 0) continue;
+    for (const { domain, weight } of mappings) {
+      if (!domainScores[domain]) continue;
+      domainScores[domain].mastery += traitValue * weight;
     }
   }
 
-  // 3) Normalize mastery to 0–100 scale
-  // Base traits max 100, knowledge subcats max 1000, so we cap reasonably
-  return COSMOS_DOMAINS.map((d) => {
-    const raw = domainScores[d.id];
-    // Soft cap at 200 raw points → 100 mastery
+  return COSMOS_DOMAINS.map((domain) => {
+    const raw = domainScores[domain.id] || { mastery: 0, topicsExplored: 0 };
     const mastery = Math.min(100, (raw.mastery / 200) * 100);
-    // Confidence derived from mastery with diminishing returns
-    // (in the real backend, confidence will be separately tracked)
     const confidence = Math.min(100, mastery * 0.75);
-    const stage = computeStage(mastery, confidence);
-
     return {
-      domainId: d.id,
+      domainId: domain.id,
       mastery: Math.round(mastery * 10) / 10,
       confidence: Math.round(confidence * 10) / 10,
-      stage,
+      stage: computeStage(mastery, confidence),
       topicsExplored: raw.topicsExplored,
       lastActivityAt: null,
     };
@@ -133,47 +144,127 @@ function buildDomainProgress(personalityTraits: any): DomainProgress[] {
 
 export function useCosmosState() {
   const backend = useBackend();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
+  const location = useLocation();
   const childProfiles = useOptionalChildProfiles();
   const activeProfileId = childProfiles?.activeProfileId;
   const avatars = useSelector((state: any) => state.avatar.avatars ?? []);
 
+  const mapAvatarId = useMemo(
+    () => new URLSearchParams(location.search).get("mapAvatarId"),
+    [location.search]
+  );
+
   const [isLoading, setIsLoading] = useState(true);
   const [avatarData, setAvatarData] = useState<any>(null);
+  const [remoteDomains, setRemoteDomains] = useState<DomainProgress[] | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
-  // Fetch first avatar with personality traits
+  const selectedAvatar = useMemo(() => {
+    if (!Array.isArray(avatars) || avatars.length === 0) return null;
+    if (mapAvatarId) {
+      const mapped = avatars.find((avatar: any) => avatar.id === mapAvatarId);
+      if (mapped) return mapped;
+    }
+    return avatars[0];
+  }, [avatars, mapAvatarId]);
+
+  const refresh = useCallback(() => {
+    setReloadTick((value) => value + 1);
+  }, []);
+
   useEffect(() => {
+    const handleUpdate = () => refresh();
+    window.addEventListener("personalityUpdated", handleUpdate as EventListener);
+    window.addEventListener("talea:mapProgress", handleUpdate as EventListener);
+    return () => {
+      window.removeEventListener("personalityUpdated", handleUpdate as EventListener);
+      window.removeEventListener("talea:mapProgress", handleUpdate as EventListener);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    let mounted = true;
+
     async function load() {
+      if (!mounted) return;
       setIsLoading(true);
       try {
-        if (avatars.length > 0) {
-          const first = avatars[0];
-          // If we already have personality traits from Redux, use those
-          if (first.personalityTraits) {
-            setAvatarData(first);
-            setIsLoading(false);
-            return;
-          }
+        if (!selectedAvatar) {
+          if (!mounted) return;
+          setAvatarData(null);
+          setRemoteDomains(null);
+          return;
+        }
 
-          // Otherwise fetch details
+        let detail = selectedAvatar;
+        if (!detail.personalityTraits || !detail.progression) {
           try {
-            const detail = await backend.avatar.get({ id: first.id });
-            setAvatarData(detail);
+            detail = await backend.avatar.get({ id: selectedAvatar.id });
           } catch {
-            setAvatarData(first);
+            // Keep lightweight avatar from Redux if detailed fetch fails.
           }
         }
+        if (!mounted) return;
+        setAvatarData(detail);
+
+        if (!isLoaded || !isSignedIn || !user?.id) {
+          setRemoteDomains(null);
+          return;
+        }
+
+        try {
+          const token = await getToken();
+          const remote = await fetchCosmosState(
+            {
+              avatarId: detail.id,
+              profileId: activeProfileId || undefined,
+            },
+            { token }
+          );
+          if (!mounted) return;
+          setRemoteDomains((remote.domains || []).map(normalizeRemoteDomain));
+        } catch (error) {
+          console.warn("[useCosmosState] Failed to load remote cosmos state, using fallback", error);
+          if (!mounted) return;
+          setRemoteDomains(null);
+        }
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     }
-    load();
-  }, [avatars, backend]);
+
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [
+    activeProfileId,
+    backend,
+    getToken,
+    isLoaded,
+    isSignedIn,
+    refresh,
+    reloadTick,
+    selectedAvatar,
+    user?.id,
+  ]);
+
+  const fallbackDomains = useMemo(
+    () => buildFallbackDomainProgress(avatarData?.personalityTraits),
+    [avatarData?.personalityTraits]
+  );
+
+  const domains = useMemo(() => {
+    if (remoteDomains && remoteDomains.length > 0) {
+      return remoteDomains;
+    }
+    return fallbackDomains;
+  }, [fallbackDomains, remoteDomains]);
 
   const cosmosState = useMemo<CosmosState>(() => {
-    const childName = childProfiles?.activeProfile?.name || '';
-    const personalityTraits = avatarData?.personalityTraits;
-    const domains = buildDomainProgress(personalityTraits);
-
+    const childName = childProfiles?.activeProfile?.name || "";
     return {
       childName,
       avatarImageUrl: avatarData?.imageUrl,
@@ -181,7 +272,12 @@ export function useCosmosState() {
       totalStoriesRead: avatarData?.progression?.stats?.storiesRead ?? 0,
       totalDokusRead: avatarData?.progression?.stats?.dokusRead ?? 0,
     };
-  }, [avatarData, childProfiles]);
+  }, [avatarData?.imageUrl, avatarData?.progression?.stats?.dokusRead, avatarData?.progression?.stats?.storiesRead, childProfiles?.activeProfile?.name, domains]);
 
-  return { cosmosState, isLoading };
+  return {
+    cosmosState,
+    isLoading,
+    activeAvatarId: selectedAvatar?.id ?? null,
+    refresh,
+  };
 }

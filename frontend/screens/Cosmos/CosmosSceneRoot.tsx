@@ -5,15 +5,16 @@
  * Supports WebGL fallback to 2D list view.
  */
 
-import React, { useState, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { CosmosStarCenter } from './CosmosStarCenter';
 import { CosmosPlanetDomain } from './CosmosPlanetDomain';
 import { CosmosOrbitRig } from './CosmosOrbitRig';
 import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
-import { COSMOS_DOMAINS, getDomainById } from './CosmosAssetsRegistry';
+import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
 import type { CameraMode, CosmosState, DomainProgress } from './CosmosTypes';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,6 +44,11 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const navigate = useNavigate();
   const [cameraMode, setCameraMode] = useState<CameraMode>('overview');
   const [focusedDomainId, setFocusedDomainId] = useState<string | null>(null);
+  const [focusedPosition, setFocusedPosition] = useState<[number, number, number] | null>(null);
+  const [effectsEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
 
   // Build progress map
   const progressMap = useMemo(() => {
@@ -58,21 +64,32 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     [progressMap]
   );
 
-  const focusedDomain = focusedDomainId ? getDomainById(focusedDomainId) ?? null : null;
+  const sceneDomains = useMemo(
+    () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
+    [cosmosState.domains]
+  );
+
+  const focusedDomain = focusedDomainId
+    ? getDomainById(focusedDomainId, sceneDomains) ?? null
+    : null;
   const focusedProgress = focusedDomainId ? getProgress(focusedDomainId) : null;
 
-  const handleSelectPlanet = useCallback((domainId: string) => {
-    if (compact) {
-      // In compact mode, navigate to full cosmos view
-      navigate('/cosmos');
-      return;
-    }
-    setFocusedDomainId(domainId);
-    setCameraMode('focused');
-  }, [compact, navigate]);
+  const handleSelectPlanet = useCallback(
+    (domainId: string, position: [number, number, number]) => {
+      if (compact) {
+        navigate('/cosmos');
+        return;
+      }
+      setFocusedDomainId(domainId);
+      setFocusedPosition(position);
+      setCameraMode('focused');
+    },
+    [compact, navigate]
+  );
 
   const handleResetFocus = useCallback(() => {
     setFocusedDomainId(null);
+    setFocusedPosition(null);
     setCameraMode('overview');
   }, []);
 
@@ -96,6 +113,16 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     }
   });
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && cameraMode === 'focused') {
+        handleResetFocus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [cameraMode, handleResetFocus]);
+
   if (!webglSupported) {
     return <CosmosFallbackList cosmosState={cosmosState} />;
   }
@@ -104,7 +131,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     <div className="relative w-full" style={{ height }}>
       <Canvas
         camera={{
-          position: compact ? [0, 12, 20] : [0, 18, 28],
+          position: compact ? [6, 11, 17] : [8, 14, 24],
           fov: 50,
           near: 0.1,
           far: 200,
@@ -119,6 +146,9 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         onPointerMissed={() => {
           if (cameraMode === 'focused') handleResetFocus();
         }}
+        onDoubleClick={() => {
+          if (cameraMode === 'focused') handleResetFocus();
+        }}
       >
         <Suspense fallback={null}>
           {/* Background stars */}
@@ -128,10 +158,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           <CosmosStarCenter avatarImageUrl={cosmosState.avatarImageUrl} />
 
           {/* Orbit paths */}
-          <CosmosOrbitRig domains={COSMOS_DOMAINS} />
+          <CosmosOrbitRig domains={sceneDomains} />
 
           {/* Domain planets */}
-          {COSMOS_DOMAINS.map((domain) => (
+          {sceneDomains.map((domain) => (
             <CosmosPlanetDomain
               key={domain.id}
               domain={domain}
@@ -146,8 +176,19 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             <CosmosCameraController
               mode={cameraMode}
               focusedDomain={focusedDomain}
-              onResetFocus={handleResetFocus}
+              focusedPosition={focusedPosition}
             />
+          )}
+
+          {!compact && effectsEnabled && (
+            <EffectComposer multisampling={0}>
+              <Bloom
+                luminanceThreshold={0.35}
+                luminanceSmoothing={0.55}
+                intensity={0.45}
+                mipmapBlur
+              />
+            </EffectComposer>
           )}
         </Suspense>
       </Canvas>
@@ -197,7 +238,7 @@ const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
 
   return (
     <div className="grid grid-cols-2 gap-3 p-4">
-      {COSMOS_DOMAINS.map((domain) => {
+      {resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)).map((domain) => {
         const progress = cosmosState.domains.find(
           (d) => d.domainId === domain.id
         );

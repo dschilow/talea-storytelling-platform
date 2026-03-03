@@ -367,6 +367,8 @@ const DokuReaderScreen: React.FC = () => {
             avatarId={selectedAvatar?.id}
             dokuTitle={doku?.title}
             dokuId={dokuId}
+            dokuTopic={doku?.topic}
+            dokuMetadata={doku?.metadata}
             onPersonalityChange={handlePersonalityChange}
           />
         );

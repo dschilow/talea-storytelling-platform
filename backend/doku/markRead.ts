@@ -4,6 +4,11 @@ import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
+import {
+  buildTopicId,
+  inferDomainFromDokuTopic,
+  trackCosmosReadEvent,
+} from "../helpers/cosmos-tracking";
 
 const avatarDB = SQLDatabase.named("avatar");
 const dokuDB = SQLDatabase.named("doku");
@@ -243,6 +248,27 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
           VALUES (${userAvatar.id}, ${req.dokuId}, ${req.dokuTitle})
           ON CONFLICT (avatar_id, doku_id) DO NOTHING
         `;
+
+        try {
+          const domainId = inferDomainFromDokuTopic(req.topic, req.perspective);
+          const topicId = buildTopicId({
+            sourceContentType: "doku",
+            sourceContentId: req.dokuId,
+            domainId,
+            label: req.topic || req.dokuTitle,
+          });
+          await trackCosmosReadEvent({
+            avatarId: userAvatar.id,
+            profileId: activeProfileId,
+            sourceContentId: req.dokuId,
+            sourceContentType: "doku",
+            domainId,
+            topicId,
+            summary: `Doku gelesen: ${req.dokuTitle}`,
+          });
+        } catch (trackingError) {
+          console.warn("Failed to track cosmos doku-read event", trackingError);
+        }
 
         personalityChanges.push({
           avatarName: userAvatar.name,

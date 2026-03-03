@@ -6,7 +6,7 @@
  * Serious, professional design — no gamification.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -16,14 +16,58 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import { useCosmosState } from './useCosmosState';
 import { ParentCompetencyRadar } from './ParentCompetencyRadar';
 import { ParentEvidenceHighlights } from './ParentEvidenceHighlights';
-import { COSMOS_DOMAINS, getDomainById } from './CosmosAssetsRegistry';
+import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
+import { fetchCosmosParentSummary, type CosmosParentSummaryDTO } from './apiCosmosClient';
 
 const ParentDashboardRoot: React.FC = () => {
   const navigate = useNavigate();
-  const { cosmosState, isLoading } = useCosmosState();
+  const { getToken } = useAuth();
+  const { cosmosState, isLoading, activeAvatarId } = useCosmosState();
+  const [summary, setSummary] = useState<CosmosParentSummaryDTO | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadSummary() {
+      if (!activeAvatarId) {
+        setSummary(null);
+        return;
+      }
+      setSummaryLoading(true);
+      try {
+        const token = await getToken();
+        const data = await fetchCosmosParentSummary(
+          {
+            avatarId: activeAvatarId,
+            range: 'month',
+          },
+          { token }
+        );
+        if (!mounted) return;
+        setSummary(data);
+      } catch (error) {
+        console.warn('[ParentDashboardRoot] Failed to load parent summary', error);
+        if (mounted) setSummary(null);
+      } finally {
+        if (mounted) setSummaryLoading(false);
+      }
+    }
+
+    void loadSummary();
+    return () => {
+      mounted = false;
+    };
+  }, [activeAvatarId, getToken]);
+
+  const resolvedDomains = useMemo(
+    () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
+    [cosmosState.domains]
+  );
 
   // Interest profile: top domains by mastery
   const interestProfile = useMemo(() => {
@@ -88,7 +132,7 @@ const ParentDashboardRoot: React.FC = () => {
           <StatCard
             icon={<Brain className="h-4 w-4 text-purple-500" />}
             label="Aktive Bereiche"
-            value={`${activeDomainCount} / ${COSMOS_DOMAINS.length}`}
+            value={`${activeDomainCount} / ${resolvedDomains.length}`}
           />
           <StatCard
             icon={<BookOpen className="h-4 w-4 text-blue-500" />}
@@ -97,17 +141,24 @@ const ParentDashboardRoot: React.FC = () => {
           />
           <StatCard
             icon={<TrendingUp className="h-4 w-4 text-green-500" />}
-            label="Geschichten + Dokus"
-            value={`${cosmosState.totalStoriesRead + cosmosState.totalDokusRead}`}
+            label="Evidenz-Events"
+            value={String(summary?.totalEvidenceEvents ?? 0)}
           />
         </div>
+        {(summaryLoading || summary?.pendingRecalls) && (
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            {summaryLoading
+              ? 'Evidenzdaten werden aktualisiert...'
+              : `${summary?.pendingRecalls ?? 0} Recall-Aufgabe(n) sind fällig.`}
+          </div>
+        )}
 
         {/* Interest profile */}
         <Section title="Interessenprofil" subtitle={`Womit beschäftigt sich ${childName} am meisten?`}>
           {interestProfile.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {interestProfile.map((dp, idx) => {
-                const domain = getDomainById(dp.domainId);
+                const domain = getDomainById(dp.domainId, resolvedDomains);
                 if (!domain) return null;
                 return (
                   <div
@@ -153,6 +204,7 @@ const ParentDashboardRoot: React.FC = () => {
           <ParentEvidenceHighlights
             domains={cosmosState.domains}
             childName={childName}
+            highlights={summary?.highlights ?? []}
           />
         </Section>
       </div>

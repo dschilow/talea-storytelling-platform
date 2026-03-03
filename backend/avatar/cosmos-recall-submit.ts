@@ -36,7 +36,7 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
 
     // Get the recall task
     const task = await avatarDB.queryRow`
-      SELECT id, domain_id, topic_id, source_content_id, source_content_type, status
+      SELECT id, domain_id, topic_id, source_content_id, source_content_type, status, created_at
       FROM recall_tasks
       WHERE id = ${req.recallTaskId} AND avatar_id = ${req.avatarId}
     `;
