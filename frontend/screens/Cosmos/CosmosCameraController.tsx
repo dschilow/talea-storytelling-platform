@@ -124,7 +124,7 @@ export const CosmosCameraController: React.FC<Props> = ({
     camera.lookAt(currentLookAt.current);
 
     if (controlsRef.current) {
-      controlsRef.current.enabled = false;
+      controlsRef.current.enabled = true;
       controlsRef.current.target.copy(currentLookAt.current);
       controlsRef.current.update();
     }

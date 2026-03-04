@@ -334,14 +334,14 @@ export const CosmosStarCenter: React.FC<Props> = ({
     }
     if (glowSpriteRef.current) {
       const glowPulse = 1 + Math.sin(t * 0.8) * 0.02;
-      glowSpriteRef.current.scale.setScalar(5.1 * glowPulse);
+      glowSpriteRef.current.scale.setScalar(2.8 * glowPulse);
       const mat = glowSpriteRef.current.material as THREE.MeshBasicMaterial;
       mat.opacity = 0.33 + Math.sin(t * 0.8) * 0.045;
     }
     if (coronaSpriteRef.current) {
       coronaSpriteRef.current.rotation.z += 0.0002;
       const coronaPulse = 1 + Math.sin(t * 0.5) * 0.015;
-      coronaSpriteRef.current.scale.setScalar(4.5 * coronaPulse); // Reduced from 6.7
+      coronaSpriteRef.current.scale.setScalar(2.4 * coronaPulse); // Reduced from 4.5
       const mat = coronaSpriteRef.current.material as THREE.ShaderMaterial;
       mat.uniforms.uTime.value = t;
     }
@@ -363,7 +363,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
   return (
     <group>
       {/* Main star body with animated surface shader */}
-      <Sphere ref={meshRef} args={[0.95, 72, 72]} material={starMaterial} />
+      <Sphere ref={meshRef} args={[0.55, 72, 72]} material={starMaterial} />
 
       {/* Billboard glow - no hard edges, smooth falloff */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
