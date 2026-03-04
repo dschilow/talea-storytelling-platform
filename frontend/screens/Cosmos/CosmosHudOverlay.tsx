@@ -24,7 +24,7 @@ interface Props {
   canFocusCycle?: boolean;
   onFocusPrev?: () => void;
   onFocusNext?: () => void;
-  onStartLearning: (domainId: string) => void;
+  onOpenSuggestions: (domainId: string) => void;
   onStartTopicDoku: (topic: TopicIsland) => void;
   onStartTopicQuiz: (topic: TopicIsland) => void;
   onSelectTopic: (topic: TopicIsland) => void;
@@ -47,7 +47,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   canFocusCycle = false,
   onFocusPrev,
   onFocusNext,
-  onStartLearning,
+  onOpenSuggestions,
   onStartTopicDoku,
   onStartTopicQuiz,
   onSelectTopic,
@@ -372,7 +372,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                 {isDetailMode ? "Zur Fokusansicht" : "Planet Detail"}
               </button>
               <button
-                onClick={() => onStartLearning(domain.id)}
+                onClick={() => onOpenSuggestions(domain.id)}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold text-white transition-all hover:brightness-110 active:scale-[0.98]"
                 style={{
                   background: `linear-gradient(135deg, ${domain.color}, ${domain.emissiveColor})`,

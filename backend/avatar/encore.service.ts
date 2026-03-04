@@ -23,5 +23,6 @@ import "./cosmos-quiz-submit";
 import "./cosmos-recall-submit";
 import "./cosmos-parent-summary";
 import "./cosmos-api-v2";
+import "./cosmos-suggestions-api";
 
 export default new Service("avatar");

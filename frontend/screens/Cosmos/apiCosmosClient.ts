@@ -97,6 +97,27 @@ export interface CosmosParentSummaryDTO {
   totalEvidenceEvents: number;
 }
 
+export interface TopicSuggestionItemDTO {
+  suggestionId: string;
+  topicTitle: string;
+  topicSlug: string;
+  kind: "broaden" | "deepen" | "retention";
+  difficulty: number;
+  teaserKid: string;
+  reasonParent: string;
+  skillFocus: "remember" | "understand" | "compare" | "apply" | "transfer";
+}
+
+export interface TopicSuggestionsDTO {
+  domainId: string;
+  generatedAt: string;
+  items: TopicSuggestionItemDTO[];
+}
+
+export interface RefreshTopicSuggestionDTO {
+  item: TopicSuggestionItemDTO;
+}
+
 interface AuthOptions {
   token?: string | null;
 }
@@ -208,4 +229,73 @@ export async function fetchCosmosParentSummary(
   }
 
   return (await response.json()) as CosmosParentSummaryDTO;
+}
+
+export async function fetchTopicSuggestions(
+  params: { domainId: string; childId?: string; profileId?: string; avatarId?: string },
+  auth: AuthOptions = {}
+): Promise<TopicSuggestionsDTO> {
+  const base = getBackendUrl();
+  const query = new URLSearchParams({ domainId: params.domainId });
+  appendIdentity(query, params);
+
+  const response = await fetch(`${base}/api/suggestions?${query.toString()}`, {
+    method: "GET",
+    headers: buildHeaders(auth.token),
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to fetch suggestions (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as TopicSuggestionsDTO;
+}
+
+export async function refreshTopicSuggestion(
+  params: { domainId: string; childId?: string; profileId?: string; avatarId?: string },
+  auth: AuthOptions = {}
+): Promise<RefreshTopicSuggestionDTO> {
+  const base = getBackendUrl();
+  const response = await fetch(`${base}/api/suggestions/refresh-one`, {
+    method: "POST",
+    headers: buildHeaders(auth.token),
+    credentials: "include",
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to refresh suggestion (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as RefreshTopicSuggestionDTO;
+}
+
+export async function selectTopicSuggestion(
+  params: {
+    domainId: string;
+    topicSlug: string;
+    topicTitle: string;
+    childId?: string;
+    profileId?: string;
+    avatarId?: string;
+  },
+  auth: AuthOptions = {}
+): Promise<{ ok: true }> {
+  const base = getBackendUrl();
+  const response = await fetch(`${base}/api/suggestions/select`, {
+    method: "POST",
+    headers: buildHeaders(auth.token),
+    credentials: "include",
+    body: JSON.stringify(params),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to select suggestion (${response.status}): ${text}`);
+  }
+
+  return (await response.json()) as { ok: true };
 }

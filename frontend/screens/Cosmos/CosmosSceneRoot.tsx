@@ -19,7 +19,13 @@ import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
 import { CosmosDeepSpaceBackdrop } from './CosmosDeepSpaceBackdrop';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
-import { fetchDomainTopics, fetchTopicTimeline, type TopicTimelineDTO } from './apiCosmosClient';
+import {
+  fetchDomainTopics,
+  fetchTopicTimeline,
+  type TopicTimelineDTO,
+  type TopicSuggestionItemDTO,
+} from './apiCosmosClient';
+import { SuggestionDrawer } from './SuggestionDrawer';
 import {
   getDomainById,
   getDomainLearningPreset,
@@ -30,6 +36,7 @@ import type { CosmosQualityPreference } from './CosmosQuality';
 import {
   getQualityConfig,
 } from './CosmosQuality';
+import { useTopicSuggestions } from './useTopicSuggestions';
 
 interface Props {
   cosmosState: CosmosState;
@@ -72,6 +79,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [pulseNonce, setPulseNonce] = useState(0);
   const [forceLowQuality, setForceLowQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
+  const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -112,6 +120,23 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const focusedProgress = focusedDomainId ? getProgress(focusedDomainId) : null;
   const canCycleDomains = sceneDomains.length > 1;
 
+  const {
+    suggestions,
+    isLoading: isLoadingSuggestions,
+    isRefreshing: isRefreshingSuggestions,
+    error: suggestionsError,
+    lastInsertedSuggestionId,
+    prefetch: prefetchSuggestions,
+    refreshOne: refreshOneSuggestion,
+    selectSuggestion: selectSuggestionAndLog,
+  } = useTopicSuggestions({
+    domainId: focusedDomainId,
+    childId: activeChildId || undefined,
+    profileId: activeChildId || undefined,
+    avatarId: activeAvatarId || undefined,
+    enabled: !compact && Boolean(focusedDomainId) && cameraMode !== 'system',
+  });
+
   const handleSelectPlanet = useCallback(
     (domainId: string, position: [number, number, number]) => {
       if (compact) {
@@ -120,6 +145,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       }
       playFocusSound();
       setIsChildInfoVisible(false);
+      setIsSuggestionDrawerOpen(false);
       setFocusedDomainId(domainId);
       setFocusedPosition(position);
       setCameraMode('focus');
@@ -134,6 +160,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     setOtherTopics([]);
     setSelectedTopic(null);
     setSelectedTopicTimeline(null);
+    setIsSuggestionDrawerOpen(false);
     setCameraMode('system');
   }, []);
 
@@ -142,6 +169,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       navigate('/cosmos');
       return;
     }
+    setIsSuggestionDrawerOpen(false);
     setIsChildInfoVisible(true);
   }, [compact, navigate]);
 
@@ -172,6 +200,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
       playFocusSound();
       setIsChildInfoVisible(false);
+      setIsSuggestionDrawerOpen(false);
       setFocusedDomainId(nextDomain.id);
       setFocusedPosition(null);
       setActiveIslands([]);
@@ -191,17 +220,33 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     handleCycleDomain(1);
   }, [handleCycleDomain]);
 
-  const handleStartLearning = useCallback(
+  const handleOpenSuggestions = useCallback(
     (domainId: string) => {
-      const preset = getDomainLearningPreset(domainId);
+      if (focusedDomainId !== domainId) {
+        setFocusedDomainId(domainId);
+      }
+      setIsChildInfoVisible(false);
+      setIsSuggestionDrawerOpen(true);
+      void prefetchSuggestions(false);
+    },
+    [focusedDomainId, prefetchSuggestions]
+  );
+
+  const handleSelectSuggestionItem = useCallback(
+    (item: TopicSuggestionItemDTO) => {
+      if (!focusedDomainId) return;
+      void selectSuggestionAndLog(item);
+      const preset = getDomainLearningPreset(focusedDomainId);
       const params = new URLSearchParams({
-        domain: domainId,
-        topic: preset.topic,
+        domain: focusedDomainId,
+        topic: item.topicTitle,
+        topicSlug: item.topicSlug,
         perspective: preset.perspective,
       });
+      setIsSuggestionDrawerOpen(false);
       navigate(`/doku/create?${params.toString()}`);
     },
-    [navigate]
+    [focusedDomainId, navigate, selectSuggestionAndLog]
   );
 
   const handleStartTopicDoku = useCallback(
@@ -519,10 +564,28 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           canFocusCycle={canCycleDomains}
           onFocusPrev={handleFocusPrev}
           onFocusNext={handleFocusNext}
-          onStartLearning={handleStartLearning}
+          onOpenSuggestions={handleOpenSuggestions}
           onStartTopicDoku={handleStartTopicDoku}
           onStartTopicQuiz={handleStartTopicQuiz}
           onSelectTopic={handleSelectIsland}
+        />
+      )}
+
+      {!compact && focusedDomain && (
+        <SuggestionDrawer
+          open={isSuggestionDrawerOpen}
+          title={`Weiterlernen in ${focusedDomain.label}`}
+          subtitle="Waehle ein Thema oder lass die KI ein neues finden."
+          items={suggestions?.items || []}
+          isLoading={isLoadingSuggestions}
+          isRefreshing={isRefreshingSuggestions}
+          error={suggestionsError}
+          lastInsertedSuggestionId={lastInsertedSuggestionId}
+          onClose={() => setIsSuggestionDrawerOpen(false)}
+          onRefreshOne={() => {
+            void refreshOneSuggestion();
+          }}
+          onSelect={handleSelectSuggestionItem}
         />
       )}
 

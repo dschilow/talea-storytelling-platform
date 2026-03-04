@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -9,6 +9,9 @@ import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
+import { SuggestionGrid } from '../Cosmos/SuggestionGrid';
+import { useTopicSuggestions } from '../Cosmos/useTopicSuggestions';
+import type { TopicSuggestionItemDTO } from '../Cosmos/apiCosmosClient';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
 type DokuPerspective = 'science' | 'history' | 'technology' | 'nature' | 'culture';
@@ -109,6 +112,23 @@ const DOMAIN_DOKU_PRESETS: Record<string, DomainDokuPreset> = {
     topics: ['Logikraetsel fuer Detektive', 'Muster erkennen', 'Knifflige Denkaufgaben'],
   },
 };
+
+const PERSPECTIVE_DOMAIN_MAP: Record<DokuPerspective, string> = {
+  science: 'space',
+  history: 'history',
+  technology: 'tech',
+  nature: 'nature',
+  culture: 'arts',
+};
+
+const KNOWN_DOMAIN_IDS = new Set(['nature', 'space', 'history', 'tech', 'body', 'earth', 'arts', 'logic']);
+
+function normalizeSuggestionDomain(domainId: string | null | undefined): string | null {
+  const value = String(domainId || '').trim().toLowerCase();
+  if (!value) return null;
+  if (value === 'art') return 'arts';
+  return KNOWN_DOMAIN_IDS.has(value) ? value : null;
+}
 
 const ageOptions = [
   { value: '3-5', label: '3-5 Jahre', desc: 'Sehr einfach' },
@@ -229,6 +249,26 @@ export default function ModernDokuWizard() {
     handsOnActivities: 1,
   });
 
+  const suggestionDomainId = useMemo(
+    () => normalizeSuggestionDomain(domainParam) ?? PERSPECTIVE_DOMAIN_MAP[state.perspective] ?? null,
+    [domainParam, state.perspective]
+  );
+
+  const {
+    suggestions: topicSuggestions,
+    isLoading: isSuggestionsLoading,
+    isRefreshing: isSuggestionsRefreshing,
+    error: suggestionsError,
+    lastInsertedSuggestionId,
+    refreshOne: refreshOneSuggestion,
+    selectSuggestion: selectSuggestionAndLog,
+  } = useTopicSuggestions({
+    domainId: suggestionDomainId,
+    childId: activeProfileId || undefined,
+    profileId: activeProfileId || undefined,
+    enabled: activeStep === 0 && Boolean(suggestionDomainId),
+  });
+
   const headingColor = useMemo(() => (resolvedTheme === 'dark' ? '#e7eef9' : '#1b2838'), [resolvedTheme]);
   const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
   const topicChoices = useMemo(() => {
@@ -257,7 +297,18 @@ export default function ModernDokuWizard() {
     void loadProfile();
   }, [backend, user]);
 
-  const updateState = (updates: Partial<DokuWizardState>) => setState((prev) => ({ ...prev, ...updates }));
+  const updateState = useCallback(
+    (updates: Partial<DokuWizardState>) => setState((prev) => ({ ...prev, ...updates })),
+    []
+  );
+  const handleSelectSuggestion = useCallback(
+    (item: TopicSuggestionItemDTO) => {
+      updateState({ topic: item.topicTitle });
+      void selectSuggestionAndLog(item);
+    },
+    [selectSuggestionAndLog, updateState]
+  );
+
   const canProceed = activeStep === 0 ? state.topic.trim().length >= 3 : true;
   const generationBlocked = Boolean(credits && credits.remaining !== null && credits.remaining <= 0);
 
@@ -423,6 +474,45 @@ export default function ModernDokuWizard() {
                           </button>
                         ))}
                       </div>
+
+                      {suggestionDomainId && (
+                        <div className="rounded-2xl border border-border bg-card/65 p-3 md:p-4">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                                AI Vorschlaege
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                6 Vorschlaege fuer deine Auswahl
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void refreshOneSuggestion();
+                              }}
+                              disabled={isSuggestionsRefreshing}
+                              className="rounded-lg border border-border bg-card/80 px-3 py-1.5 text-[11px] font-bold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {isSuggestionsRefreshing ? 'Erstellt...' : 'Neuen Vorschlag'}
+                            </button>
+                          </div>
+
+                          {suggestionsError && (
+                            <div className="mb-2 rounded-lg border border-red-300/35 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-200">
+                              {suggestionsError}
+                            </div>
+                          )}
+
+                          <SuggestionGrid
+                            items={topicSuggestions?.items || []}
+                            isLoading={isSuggestionsLoading}
+                            lastInsertedSuggestionId={lastInsertedSuggestionId}
+                            maxItems={6}
+                            onSelect={handleSelectSuggestion}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {activeStep === 1 && (
