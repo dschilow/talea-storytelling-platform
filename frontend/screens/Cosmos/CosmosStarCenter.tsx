@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Sphere, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode } from './CosmosTypes';
@@ -14,6 +14,7 @@ interface Props {
   avatarImageUrl?: string;
   cameraMode: CameraMode;
   godRaysDuration?: number;
+  onSelect?: () => void;
 }
 
 // Soft radial glow texture generated once
@@ -270,6 +271,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
   avatarImageUrl,
   cameraMode,
   godRaysDuration = 1.6,
+  onSelect,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   const glowSpriteRef = useRef<THREE.Mesh>(null!);
@@ -360,10 +362,27 @@ export const CosmosStarCenter: React.FC<Props> = ({
     };
   }, [coronaProceduralMaterial, coronaTexture, glowMaterial, glowTexture, starMaterial]);
 
+  const handleStarClick = (event: ThreeEvent<MouseEvent>) => {
+    event.stopPropagation();
+    onSelect?.();
+  };
+
   return (
     <group>
       {/* Main star body with animated surface shader */}
-      <Sphere ref={meshRef} args={[0.55, 72, 72]} material={starMaterial} />
+      <Sphere
+        ref={meshRef}
+        args={[0.55, 72, 72]}
+        material={starMaterial}
+        onClick={handleStarClick}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'auto';
+        }}
+      />
 
       {/* Billboard glow - no hard edges, smooth falloff */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>

@@ -12,13 +12,14 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Sphere, Ring, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
-import type { CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
+import type { CameraMode, CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
 import { mapProgressToVisuals } from './CosmosProgressMapper';
 
 interface Props {
   domain: CosmosDomain;
   progress: DomainProgress;
   isFocused: boolean;
+  cameraMode?: CameraMode;
   isDetailMode?: boolean;
   islands?: TopicIsland[];
   selectedTopicId?: string | null;
@@ -133,6 +134,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
   progress,
   isFocused,
+  cameraMode = 'system',
   isDetailMode = false,
   islands = [],
   selectedTopicId = null,
@@ -303,9 +305,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     MAX_LIFE_PARTICLES,
     Math.floor(visuals.lifeSignalStrength * MAX_LIFE_PARTICLES)
   );
+  const shouldShowIslands = isFocused && (cameraMode === 'focus' || cameraMode === 'detail');
   const visibleIslands = useMemo(
-    () => (isDetailMode ? islands.slice(0, 20) : []),
-    [isDetailMode, islands]
+    () => (shouldShowIslands ? islands.slice(0, 20) : []),
+    [islands, shouldShowIslands]
   );
   const stageMoonCount = visuals.stageMoonCount;
   const topicMoonCount = Math.min(
@@ -351,7 +354,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     };
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
-  useFrame(({ clock, camera }, delta) => {
+  useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
     feedbackPulseRef.current = Math.max(0, feedbackPulseRef.current - delta * 1.2);
@@ -451,8 +454,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       particle.scale.setScalar(0.6 + Math.sin(t * 3 + seed.phase) * 0.08);
     });
 
-    const distance = groupRef.current.position.distanceTo(camera.position);
-    const shouldExpandLabel = isFocused || distance < (labelExpanded ? 18 : 15);
+    const shouldExpandLabel = cameraMode === 'system';
     if (shouldExpandLabel !== labelExpanded) {
       setLabelExpanded(shouldExpandLabel);
     }
@@ -747,13 +749,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           pointerEvents: 'none',
           userSelect: 'none',
           zIndex: 1,
-          opacity: labelExpanded && !isFocused ? 1 : 0,
+          opacity: cameraMode === 'system' && labelExpanded ? 1 : 0,
           transition: 'opacity 0.22s ease',
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
           {/* Replaced raw emoji with elegant label box */}
-          {!isDetailMode && (
+          {cameraMode === 'system' && (
             <div className="flex flex-col items-center bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
               <span
                 style={{

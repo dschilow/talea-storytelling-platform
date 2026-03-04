@@ -71,6 +71,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
   const [pulseNonce, setPulseNonce] = useState(0);
   const [forceLowQuality, setForceLowQuality] = useState(false);
+  const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -109,6 +110,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     ? getDomainById(focusedDomainId, sceneDomains) ?? null
     : null;
   const focusedProgress = focusedDomainId ? getProgress(focusedDomainId) : null;
+  const canCycleDomains = sceneDomains.length > 1;
 
   const handleSelectPlanet = useCallback(
     (domainId: string, position: [number, number, number]) => {
@@ -117,6 +119,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         return;
       }
       playFocusSound();
+      setIsChildInfoVisible(false);
       setFocusedDomainId(domainId);
       setFocusedPosition(position);
       setCameraMode('focus');
@@ -134,6 +137,14 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     setCameraMode('system');
   }, []);
 
+  const handleSelectStar = useCallback(() => {
+    if (compact) {
+      navigate('/cosmos');
+      return;
+    }
+    setIsChildInfoVisible(true);
+  }, [compact, navigate]);
+
   const handleOpenDetail = useCallback(() => {
     if (focusedDomainId) setCameraMode('detail');
   }, [focusedDomainId]);
@@ -145,6 +156,40 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     }
     handleResetFocus();
   }, [focusedDomainId, handleResetFocus]);
+
+  const handleCycleDomain = useCallback(
+    (direction: 1 | -1) => {
+      if (sceneDomains.length < 2) return;
+
+      const currentIndex = Math.max(
+        0,
+        sceneDomains.findIndex((domain) => domain.id === focusedDomainId)
+      );
+      const nextIndex =
+        (currentIndex + direction + sceneDomains.length) % sceneDomains.length;
+      const nextDomain = sceneDomains[nextIndex];
+      if (!nextDomain) return;
+
+      playFocusSound();
+      setIsChildInfoVisible(false);
+      setFocusedDomainId(nextDomain.id);
+      setFocusedPosition(null);
+      setActiveIslands([]);
+      setOtherTopics([]);
+      setSelectedTopic(null);
+      setSelectedTopicTimeline(null);
+      setCameraMode((current) => (current === 'system' ? 'focus' : current));
+    },
+    [focusedDomainId, sceneDomains]
+  );
+
+  const handleFocusPrev = useCallback(() => {
+    handleCycleDomain(-1);
+  }, [handleCycleDomain]);
+
+  const handleFocusNext = useCallback(() => {
+    handleCycleDomain(1);
+  }, [handleCycleDomain]);
 
   const handleStartLearning = useCallback(
     (domainId: string) => {
@@ -159,6 +204,32 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     [navigate]
   );
 
+  const handleStartTopicDoku = useCallback(
+    (topic: TopicIsland) => {
+      const domainId = focusedDomainId ?? '';
+      const preset = getDomainLearningPreset(domainId);
+      const params = new URLSearchParams({
+        topic: topic.topicTitle,
+        perspective: preset.perspective,
+      });
+      if (domainId) {
+        params.set('domain', domainId);
+      }
+      navigate(`/doku/create?${params.toString()}`);
+    },
+    [focusedDomainId, navigate]
+  );
+
+  const handleStartTopicQuiz = useCallback(
+    (topic: TopicIsland) => {
+      const params = new URLSearchParams({
+        tags: topic.topicTitle,
+      });
+      navigate(`/quiz?${params.toString()}`);
+    },
+    [navigate]
+  );
+
   const handleSelectIsland = useCallback((topic: TopicIsland) => {
     setSelectedTopic(topic);
   }, []);
@@ -167,7 +238,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     let active = true;
 
     async function loadDomainTopics() {
-      if (!focusedDomainId || cameraMode !== 'detail' || compact) return;
+      if (!focusedDomainId || cameraMode === 'system' || compact) return;
       setIsLoadingTopics(true);
       try {
         const token = await getToken();
@@ -208,7 +279,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     let active = true;
 
     async function loadTopicTimeline() {
-      if (!selectedTopic || cameraMode !== 'detail' || compact) {
+      if (!selectedTopic || cameraMode === 'system' || compact) {
         if (active) setSelectedTopicTimeline(null);
         return;
       }
@@ -324,10 +395,18 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {
-          if (cameraMode !== 'system') handleResetFocus();
+          if (cameraMode !== 'system') {
+            handleResetFocus();
+            return;
+          }
+          if (isChildInfoVisible) setIsChildInfoVisible(false);
         }}
         onDoubleClick={() => {
-          if (cameraMode !== 'system') handleResetFocus();
+          if (cameraMode !== 'system') {
+            handleResetFocus();
+            return;
+          }
+          if (isChildInfoVisible) setIsChildInfoVisible(false);
         }}
       >
         <Suspense fallback={null}>
@@ -374,6 +453,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             avatarImageUrl={cosmosState.avatarImageUrl}
             cameraMode={cameraMode}
             godRaysDuration={quality.godRaysIntroDuration}
+            onSelect={handleSelectStar}
           />
 
           <CosmosOrbitRig
@@ -388,8 +468,9 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               domain={domain}
               progress={getProgress(domain.id)}
               isFocused={focusedDomainId === domain.id}
+              cameraMode={cameraMode}
               isDetailMode={cameraMode === 'detail' && focusedDomainId === domain.id}
-              islands={cameraMode === 'detail' && focusedDomainId === domain.id ? activeIslands : []}
+              islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
               textureSize={quality.planetTextureBaseSize}
               ringTextureSize={quality.ringTextureSize}
@@ -435,15 +516,67 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           onClose={handleResetFocus}
           onOpenDetail={handleOpenDetail}
           onBackFromDetail={handleBackFromDetail}
+          canFocusCycle={canCycleDomains}
+          onFocusPrev={handleFocusPrev}
+          onFocusNext={handleFocusNext}
           onStartLearning={handleStartLearning}
+          onStartTopicDoku={handleStartTopicDoku}
+          onStartTopicQuiz={handleStartTopicQuiz}
           onSelectTopic={handleSelectIsland}
         />
       )}
 
+      {!compact && isChildInfoVisible && (
+        <div
+          className="absolute left-3 right-3 top-20 z-40 md:left-6 md:right-auto md:top-20 md:w-[24rem]"
+          style={{
+            top: 'max(6.25rem, calc(env(safe-area-inset-top, 0px) + 5.4rem))',
+          }}
+        >
+          <div
+            className="rounded-3xl border border-white/15 p-4 md:p-5 backdrop-blur-xl"
+            style={{
+              background: 'linear-gradient(145deg, rgba(11,16,36,0.92) 0%, rgba(18,24,52,0.95) 100%)',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.45)',
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">
+                  Zentralstern
+                </p>
+                <h3 className="mt-0.5 text-lg font-extrabold text-white">
+                  {cosmosState.childName || 'Dein Kind'}
+                </h3>
+                <p className="mt-1 text-xs text-white/65">
+                  Dieser Stern repraesentiert den aktuellen Lernfortschritt des Kindes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChildInfoVisible(false)}
+                className="rounded-lg border border-white/20 px-2.5 py-1 text-[11px] font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                Schliessen
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <InfoPill label="Stories" value={cosmosState.totalStoriesRead} />
+              <InfoPill label="Dokus" value={cosmosState.totalDokusRead} />
+              <InfoPill
+                label="Aktive Welten"
+                value={cosmosState.domains.filter((entry) => entry.mastery > 0).length}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {!compact && (
         <div
-          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-2 py-1 backdrop-blur"
-          style={{ top: 'max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.25rem))' }}
+          className="absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-2 py-1 backdrop-blur max-w-[94vw]"
+          style={{ top: 'max(5.1rem, calc(env(safe-area-inset-top, 0px) + 4.3rem))' }}
         >
           <ZoomButton
             active={cameraMode === 'system'}
@@ -508,6 +641,15 @@ const ZoomButton: React.FC<{
   >
     {label}
   </button>
+);
+
+const InfoPill: React.FC<{ label: string; value: number | string }> = ({ label, value }) => (
+  <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+    <div className="text-[10px] font-semibold uppercase tracking-wide text-white/50">
+      {label}
+    </div>
+    <div className="mt-0.5 text-sm font-extrabold text-white">{value}</div>
+  </div>
 );
 
 function playFocusSound() {

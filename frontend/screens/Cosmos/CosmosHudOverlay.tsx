@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, BookOpen, Brain, Clock3, Sparkles, ZoomIn } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Brain, Clock3, Sparkles, ZoomIn } from "lucide-react";
 import type { CosmosDomain, DomainProgress, TopicIsland } from "./CosmosTypes";
 import type { TopicTimelineDTO } from "./apiCosmosClient";
 import { getStageLabel, getStageColor } from "./CosmosProgressMapper";
@@ -21,7 +21,12 @@ interface Props {
   onClose: () => void;
   onOpenDetail: () => void;
   onBackFromDetail: () => void;
+  canFocusCycle?: boolean;
+  onFocusPrev?: () => void;
+  onFocusNext?: () => void;
   onStartLearning: (domainId: string) => void;
+  onStartTopicDoku: (topic: TopicIsland) => void;
+  onStartTopicQuiz: (topic: TopicIsland) => void;
   onSelectTopic: (topic: TopicIsland) => void;
 }
 
@@ -39,7 +44,12 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   onClose,
   onOpenDetail,
   onBackFromDetail,
+  canFocusCycle = false,
+  onFocusPrev,
+  onFocusNext,
   onStartLearning,
+  onStartTopicDoku,
+  onStartTopicQuiz,
   onSelectTopic,
 }) => {
   if (!domain || !progress) return null;
@@ -57,6 +67,11 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const dueRecall =
     selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
     null;
+  const showTopicInsights =
+    isDetailMode ||
+    isLoadingTopics ||
+    activeIslands.length > 0 ||
+    Boolean(selectedTopic);
   const bottomInset = isDetailMode
     ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
     : "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";
@@ -131,6 +146,27 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               </div>
             </div>
 
+            {canFocusCycle && (
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onFocusPrev}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/85 hover:bg-white/14 transition-colors"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  Vorheriger
+                </button>
+                <button
+                  type="button"
+                  onClick={onFocusNext}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/85 hover:bg-white/14 transition-colors"
+                >
+                  Naechster
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             <div className="mb-4">
               <div className="flex gap-1 mb-1.5">
                 {stages.map(([key], idx) => (
@@ -194,7 +230,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               {evidenceLine}
             </div>
 
-            {isDetailMode && (
+            {showTopicInsights && (
               <div className="mb-4 space-y-3">
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center justify-between mb-2">
@@ -220,7 +256,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                       >
                         <div className="font-semibold">{topic.topicTitle}</div>
                         <div className="text-[11px] text-white/55">
-                          {getStageLabel(topic.stage)} - {topic.masteryLabel}
+                          {getStageLabel(topic.stage)} - {topic.masteryLabel} - {topic.docsCount} Inhalte
                         </div>
                       </button>
                     ))}
@@ -260,6 +296,23 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                           <div className="text-[11px] text-white/45">Timeline wird geladen...</div>
                         )}
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onStartTopicDoku(selectedTopic)}
+                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors"
+                      >
+                        Doku starten
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onStartTopicQuiz(selectedTopic)}
+                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors"
+                      >
+                        Quiz starten
+                      </button>
                     </div>
 
                     {dueRecall && (

@@ -137,6 +137,7 @@ const RouterContent = () => {
     location.pathname.startsWith('/landing') ||
     location.pathname.startsWith('/parental-onboarding') ||
     (!isSignedIn && location.pathname === '/');
+  const isCosmosFullscreenRoute = location.pathname.startsWith('/cosmos');
 
   if (!isLoaded) {
     return null;
@@ -202,7 +203,7 @@ const RouterContent = () => {
           </>
         )}
       </Routes>
-      {isSignedIn && !isLandingRoute && <TaviButton showLauncher={false} />}
+      {isSignedIn && !isLandingRoute && !isCosmosFullscreenRoute && <TaviButton showLauncher={false} />}
       <Toaster
         position="top-right"
         richColors

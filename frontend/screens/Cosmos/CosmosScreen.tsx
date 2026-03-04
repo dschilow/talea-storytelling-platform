@@ -39,50 +39,61 @@ const CosmosScreen: React.FC = () => {
     <div
       className="relative flex flex-col w-full"
       style={{
-        height: 'calc(100vh - 64px)',  // account for bottom nav
+        height: '100dvh',
+        minHeight: '100vh',
         background: 'linear-gradient(135deg, #050510 0%, #0c0820 50%, #10082a 100%)',
       }}
     >
       {/* Top bar */}
-      <div className="relative z-20 flex items-center justify-between px-5 py-3 gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Zurück
-        </button>
+      <div
+        className="relative z-30 px-3 pb-2 pt-2 md:px-5"
+        style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs md:text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Zurueck
+          </button>
 
-        <div className="flex items-center gap-2">
-          <Telescope className="h-4 w-4 text-purple-400" />
+          <button
+            type="button"
+            onClick={() => {
+              const next: CosmosQualityPreference =
+                qualityPreference === 'auto'
+                  ? 'low'
+                  : qualityPreference === 'low'
+                  ? 'standard'
+                  : qualityPreference === 'standard'
+                  ? 'aaa'
+                  : 'auto';
+              setQualityPreference(next);
+              saveQualityPreference(next);
+            }}
+            className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-2.5 py-2 text-[10px] md:text-[11px] font-bold text-white/85 hover:bg-white/10 transition-colors"
+          >
+            Quality: {activeQualityLabel}
+          </button>
+        </div>
+
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 px-2">
+          <Telescope className="h-4 w-4 text-purple-400 shrink-0" />
           <h1
-            className="text-base font-extrabold text-white"
+            className="text-sm md:text-base font-extrabold text-white truncate max-w-[85vw]"
             style={{ fontFamily: '"Nunito", sans-serif' }}
+            title={
+              cosmosState.childName
+                ? `${cosmosState.childName}s Lernkosmos`
+                : 'Mein Lernkosmos'
+            }
           >
             {cosmosState.childName
               ? `${cosmosState.childName}s Lernkosmos`
               : 'Mein Lernkosmos'}
           </h1>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            const next: CosmosQualityPreference =
-              qualityPreference === 'auto'
-                ? 'low'
-                : qualityPreference === 'low'
-                ? 'standard'
-                : qualityPreference === 'standard'
-                ? 'aaa'
-                : 'auto';
-            setQualityPreference(next);
-            saveQualityPreference(next);
-          }}
-          className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white/80 hover:bg-white/10 transition-colors"
-        >
-          Quality: {activeQualityLabel}
-        </button>
       </div>
 
       {/* 3D Scene */}
@@ -105,30 +116,8 @@ const CosmosScreen: React.FC = () => {
           />
         )}
       </div>
-
-      {/* Legend bar (bottom) */}
-      <div className="relative z-20 flex items-center justify-center gap-4 px-4 py-2 border-t border-white/5">
-        {[
-          { label: 'Entdeckt', color: '#94a3b8' },
-          { label: 'Verstanden', color: '#60a5fa' },
-          { label: 'Anwenden', color: '#22c55e' },
-          { label: 'Sitzt wirklich', color: '#f59e0b' },
-        ].map(({ label, color }) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <div
-              className="h-2 w-2 rounded-full"
-              style={{ background: color }}
-            />
-            <span className="text-[10px] font-semibold text-white/40">
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };
 
 export default CosmosScreen;
-
-
