@@ -64,6 +64,13 @@ const DB_VERSION = 2;
 let dbInstance: IDBPDatabase<TaleaOfflineDB> | null = null;
 let dbOpenPromise: Promise<IDBPDatabase<TaleaOfflineDB>> | null = null;
 let dbDisabled = false;
+let hasWarnedUnavailable = false;
+
+function warnOfflineUnavailable(error: unknown): void {
+  if (hasWarnedUnavailable) return;
+  hasWarnedUnavailable = true;
+  console.warn('[Offline] Storage unavailable, offline reads fall back to network.', error);
+}
 
 function isRecoverableDbError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -71,8 +78,34 @@ function isRecoverableDbError(error: unknown): boolean {
     message.includes('UnknownError') ||
     message.includes('Internal error') ||
     message.includes('VersionError') ||
-    message.includes('InvalidStateError')
+    message.includes('InvalidStateError') ||
+    message.includes('QuotaExceededError') ||
+    message.includes('FILE_ERROR_NO_SPACE')
   );
+}
+
+function isDbUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('Offline storage is unavailable') ||
+    isRecoverableDbError(error)
+  );
+}
+
+async function withDbReadFallback<T>(
+  fallback: T,
+  reader: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<T>
+): Promise<T> {
+  try {
+    const db = await getDb();
+    return await reader(db);
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      warnOfflineUnavailable(error);
+      return fallback;
+    }
+    throw error;
+  }
 }
 
 async function openOfflineDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
@@ -327,27 +360,31 @@ async function cleanupOrphanedBlobs(urls: string[]): Promise<void> {
 }
 
 export async function isStorySaved(storyId: string): Promise<boolean> {
-  const db = await getDb();
-  const entry = await db.get('offline-stories', storyId);
-  return !!entry;
+  return withDbReadFallback(false, async (db) => {
+    const entry = await db.get('offline-stories', storyId);
+    return !!entry;
+  });
 }
 
 export async function isDokuSaved(dokuId: string): Promise<boolean> {
-  const db = await getDb();
-  const entry = await db.get('offline-dokus', dokuId);
-  return !!entry;
+  return withDbReadFallback(false, async (db) => {
+    const entry = await db.get('offline-dokus', dokuId);
+    return !!entry;
+  });
 }
 
 export async function isAudioDokuSaved(audioDokuId: string): Promise<boolean> {
-  const db = await getDb();
-  const entry = await db.get('offline-audio-dokus', audioDokuId);
-  return !!entry;
+  return withDbReadFallback(false, async (db) => {
+    const entry = await db.get('offline-audio-dokus', audioDokuId);
+    return !!entry;
+  });
 }
 
 export async function isGeneratedAudioSaved(entryId: string): Promise<boolean> {
-  const db = await getDb();
-  const entry = await db.get('offline-generated-audios', entryId);
-  return !!entry;
+  return withDbReadFallback(false, async (db) => {
+    const entry = await db.get('offline-generated-audios', entryId);
+    return !!entry;
+  });
 }
 
 export async function getAllSavedIds(): Promise<{
@@ -355,150 +392,163 @@ export async function getAllSavedIds(): Promise<{
   dokus: string[];
   audioDokus: string[];
 }> {
-  const db = await getDb();
-  const [stories, dokus, audioDokus] = await Promise.all([
-    db.getAllKeys('offline-stories'),
-    db.getAllKeys('offline-dokus'),
-    db.getAllKeys('offline-audio-dokus'),
-  ]);
-  return {
-    stories: stories as string[],
-    dokus: dokus as string[],
-    audioDokus: audioDokus as string[],
-  };
+  return withDbReadFallback(
+    { stories: [], dokus: [], audioDokus: [] },
+    async (db) => {
+      const [stories, dokus, audioDokus] = await Promise.all([
+        db.getAllKeys('offline-stories'),
+        db.getAllKeys('offline-dokus'),
+        db.getAllKeys('offline-audio-dokus'),
+      ]);
+      return {
+        stories: stories as string[],
+        dokus: dokus as string[],
+        audioDokus: audioDokus as string[],
+      };
+    }
+  );
 }
 
 export async function getAllOfflineStories(): Promise<Story[]> {
-  const db = await getDb();
-  const entries = await db.getAll('offline-stories');
-  return entries.map(e => e.story);
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-stories');
+    return entries.map((e) => e.story);
+  });
 }
 
 export async function getAllOfflineDokus(): Promise<Doku[]> {
-  const db = await getDb();
-  const entries = await db.getAll('offline-dokus');
-  return entries.map(e => e.doku);
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-dokus');
+    return entries.map((e) => e.doku);
+  });
 }
 
 export async function getAllOfflineAudioDokus(): Promise<AudioDoku[]> {
-  const db = await getDb();
-  const entries = await db.getAll('offline-audio-dokus');
-  return entries.map(e => e.audioDoku);
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-audio-dokus');
+    return entries.map((e) => e.audioDoku);
+  });
 }
 
 export async function getAllOfflineGeneratedAudios(): Promise<GeneratedAudioLibraryEntry[]> {
-  const db = await getDb();
-  const entries = await db.getAll('offline-generated-audios');
-  return entries
-    .sort((a, b) => b.savedAt - a.savedAt)
-    .map((entry) => entry.generatedAudio);
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-generated-audios');
+    return entries
+      .sort((a, b) => b.savedAt - a.savedAt)
+      .map((entry) => entry.generatedAudio);
+  });
 }
 
 export async function getBlobUrl(originalUrl: string): Promise<string | null> {
-  const db = await getDb();
-  const entry = await db.get('offline-blobs', originalUrl);
-  if (!entry) return null;
-  return URL.createObjectURL(entry.blob);
+  return withDbReadFallback(null, async (db) => {
+    const entry = await db.get('offline-blobs', originalUrl);
+    if (!entry) return null;
+    return URL.createObjectURL(entry.blob);
+  });
 }
 
 export async function getOfflineStory(storyId: string): Promise<Story | null> {
-  const db = await getDb();
-  const entry = await db.get('offline-stories', storyId);
-  if (!entry) return null;
+  return withDbReadFallback(null, async (db) => {
+    const entry = await db.get('offline-stories', storyId);
+    if (!entry) return null;
 
-  // Replace image URLs with blob URLs
-  const story = { ...entry.story };
+    // Replace image URLs with blob URLs
+    const story = { ...entry.story };
 
-  // Replace cover image
-  if (story.coverImageUrl) {
-    const blobUrl = await getBlobUrl(story.coverImageUrl);
-    if (blobUrl) story.coverImageUrl = blobUrl;
-  }
-
-  // Replace chapter/page images
-  const items = story.chapters || story.pages || [];
-  for (let i = 0; i < items.length; i++) {
-    const imageUrl = items[i]?.imageUrl;
-    if (imageUrl) {
-      const blobUrl = await getBlobUrl(imageUrl);
-      if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
+    // Replace cover image
+    if (story.coverImageUrl) {
+      const blobUrl = await getBlobUrl(story.coverImageUrl);
+      if (blobUrl) story.coverImageUrl = blobUrl;
     }
-    const scenicImageUrl = items[i]?.scenicImageUrl;
-    if (scenicImageUrl) {
-      const scenicBlobUrl = await getBlobUrl(scenicImageUrl);
-      if (scenicBlobUrl) items[i] = { ...items[i], scenicImageUrl: scenicBlobUrl };
-    }
-  }
 
-  return story;
+    // Replace chapter/page images
+    const items = story.chapters || story.pages || [];
+    for (let i = 0; i < items.length; i++) {
+      const imageUrl = items[i]?.imageUrl;
+      if (imageUrl) {
+        const blobUrl = await getBlobUrl(imageUrl);
+        if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
+      }
+      const scenicImageUrl = items[i]?.scenicImageUrl;
+      if (scenicImageUrl) {
+        const scenicBlobUrl = await getBlobUrl(scenicImageUrl);
+        if (scenicBlobUrl) items[i] = { ...items[i], scenicImageUrl: scenicBlobUrl };
+      }
+    }
+
+    return story;
+  });
 }
 
 export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
-  const db = await getDb();
-  const entry = await db.get('offline-dokus', dokuId);
-  if (!entry) return null;
+  return withDbReadFallback(null, async (db) => {
+    const entry = await db.get('offline-dokus', dokuId);
+    if (!entry) return null;
 
-  const doku = { ...entry.doku };
+    const doku = { ...entry.doku };
 
-  // Replace cover image
-  if (doku.coverImageUrl) {
-    const blobUrl = await getBlobUrl(doku.coverImageUrl);
-    if (blobUrl) doku.coverImageUrl = blobUrl;
-  }
-
-  // Replace section images
-  if (doku.content?.sections) {
-    const sections = [];
-    for (const section of doku.content.sections) {
-      const newSection = { ...section };
-      if (newSection.imageUrl) {
-        const blobUrl = await getBlobUrl(newSection.imageUrl);
-        if (blobUrl) newSection.imageUrl = blobUrl;
-      }
-      sections.push(newSection);
+    // Replace cover image
+    if (doku.coverImageUrl) {
+      const blobUrl = await getBlobUrl(doku.coverImageUrl);
+      if (blobUrl) doku.coverImageUrl = blobUrl;
     }
-    doku.content = { ...doku.content, sections };
-  }
 
-  return doku;
+    // Replace section images
+    if (doku.content?.sections) {
+      const sections = [];
+      for (const section of doku.content.sections) {
+        const newSection = { ...section };
+        if (newSection.imageUrl) {
+          const blobUrl = await getBlobUrl(newSection.imageUrl);
+          if (blobUrl) newSection.imageUrl = blobUrl;
+        }
+        sections.push(newSection);
+      }
+      doku.content = { ...doku.content, sections };
+    }
+
+    return doku;
+  });
 }
 
 export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDoku | null> {
-  const db = await getDb();
-  const entry = await db.get('offline-audio-dokus', audioDokuId);
-  if (!entry) return null;
+  return withDbReadFallback(null, async (db) => {
+    const entry = await db.get('offline-audio-dokus', audioDokuId);
+    if (!entry) return null;
 
-  const audioDoku = { ...entry.audioDoku };
+    const audioDoku = { ...entry.audioDoku };
 
-  // Replace cover image
-  if (audioDoku.coverImageUrl) {
-    const blobUrl = await getBlobUrl(audioDoku.coverImageUrl);
-    if (blobUrl) audioDoku.coverImageUrl = blobUrl;
-  }
+    // Replace cover image
+    if (audioDoku.coverImageUrl) {
+      const blobUrl = await getBlobUrl(audioDoku.coverImageUrl);
+      if (blobUrl) audioDoku.coverImageUrl = blobUrl;
+    }
 
-  // Replace audio URL
-  if (audioDoku.audioUrl) {
-    const blobUrl = await getBlobUrl(audioDoku.audioUrl);
-    if (blobUrl) audioDoku.audioUrl = blobUrl;
-  }
+    // Replace audio URL
+    if (audioDoku.audioUrl) {
+      const blobUrl = await getBlobUrl(audioDoku.audioUrl);
+      if (blobUrl) audioDoku.audioUrl = blobUrl;
+    }
 
-  return audioDoku;
+    return audioDoku;
+  });
 }
 
 export async function getOfflineGeneratedAudio(entryId: string): Promise<GeneratedAudioLibraryEntry | null> {
-  const db = await getDb();
-  const entry = await db.get('offline-generated-audios', entryId);
-  if (!entry) return null;
+  return withDbReadFallback(null, async (db) => {
+    const entry = await db.get('offline-generated-audios', entryId);
+    if (!entry) return null;
 
-  const generatedAudio = { ...entry.generatedAudio };
-  if (generatedAudio.coverImageUrl) {
-    const coverBlob = await getBlobUrl(generatedAudio.coverImageUrl);
-    if (coverBlob) generatedAudio.coverImageUrl = coverBlob;
-  }
-  if (generatedAudio.audioUrl) {
-    const audioBlob = await getBlobUrl(generatedAudio.audioUrl);
-    if (audioBlob) generatedAudio.audioUrl = audioBlob;
-  }
+    const generatedAudio = { ...entry.generatedAudio };
+    if (generatedAudio.coverImageUrl) {
+      const coverBlob = await getBlobUrl(generatedAudio.coverImageUrl);
+      if (coverBlob) generatedAudio.coverImageUrl = coverBlob;
+    }
+    if (generatedAudio.audioUrl) {
+      const audioBlob = await getBlobUrl(generatedAudio.audioUrl);
+      if (audioBlob) generatedAudio.audioUrl = audioBlob;
+    }
 
-  return generatedAudio;
+    return generatedAudio;
+  });
 }
