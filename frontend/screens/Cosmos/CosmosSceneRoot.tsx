@@ -5,7 +5,7 @@
  * Includes quality tiers for mobile-safe rendering and AAA mode.
  */
 
-import React, { useState, useCallback, useMemo, Suspense, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { Environment } from '@react-three/drei';
@@ -80,6 +80,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [forceLowQuality, setForceLowQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
+  const domainPositionMapRef = useRef<Map<string, [number, number, number]>>(new Map());
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -202,7 +203,16 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       setIsChildInfoVisible(false);
       setIsSuggestionDrawerOpen(false);
       setFocusedDomainId(nextDomain.id);
-      setFocusedPosition(null);
+      const livePosition = domainPositionMapRef.current.get(nextDomain.id);
+      if (livePosition) {
+        setFocusedPosition(livePosition);
+      } else {
+        setFocusedPosition([
+          Math.cos(nextDomain.startAngle) * nextDomain.orbitRadius,
+          0,
+          Math.sin(nextDomain.startAngle) * nextDomain.orbitRadius,
+        ]);
+      }
       setActiveIslands([]);
       setOtherTopics([]);
       setSelectedTopic(null);
@@ -210,6 +220,13 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       setCameraMode((current) => (current === 'system' ? 'focus' : current));
     },
     [focusedDomainId, sceneDomains]
+  );
+
+  const handleDomainPositionUpdate = useCallback(
+    (domainId: string, position: [number, number, number]) => {
+      domainPositionMapRef.current.set(domainId, position);
+    },
+    []
   );
 
   const handleFocusPrev = useCallback(() => {
@@ -521,6 +538,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               ringTextureSize={quality.ringTextureSize}
               feedbackPulseNonce={pulseDomainId === domain.id ? pulseNonce : 0}
               onSelect={handleSelectPlanet}
+              onPositionUpdate={handleDomainPositionUpdate}
               onSelectIsland={handleSelectIsland}
             />
           ))}

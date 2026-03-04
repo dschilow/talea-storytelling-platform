@@ -27,6 +27,7 @@ interface Props {
   ringTextureSize?: number;
   feedbackPulseNonce?: number;
   onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
+  onPositionUpdate?: (domainId: string, position: [number, number, number]) => void;
   onSelectIsland?: (topic: TopicIsland) => void;
 }
 
@@ -142,6 +143,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   ringTextureSize = 512,
   feedbackPulseNonce = 0,
   onSelect,
+  onPositionUpdate,
   onSelectIsland,
 }) => {
   const groupRef = useRef<THREE.Group>(null!);
@@ -377,6 +379,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       groupRef.current.position.z =
         Math.sin(angle) * domain.orbitRadius * orbitConfig.eccentricity;
       groupRef.current.position.y = orbitalY + wobble;
+    }
+
+    if (onPositionUpdate) {
+      const p = groupRef.current.position;
+      onPositionUpdate(domain.id, [p.x, p.y, p.z]);
     }
 
     if (planetRef.current) {
