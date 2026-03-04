@@ -41,6 +41,7 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['talea_logo.png', 'tavi.png', 'loading-animation.lottie'],
       manifest: {
@@ -99,10 +100,6 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-stylesheets',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
               cacheableResponse: {
                 statuses: [0, 200],
               },
@@ -113,10 +110,6 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-webfonts',
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 60 * 60 * 24 * 365,
-              },
               cacheableResponse: {
                 statuses: [0, 200],
               },
@@ -127,10 +120,6 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'config-cache',
-              expiration: {
-                maxEntries: 1,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
             },
           },
         ],

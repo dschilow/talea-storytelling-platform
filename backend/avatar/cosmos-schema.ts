@@ -33,6 +33,36 @@ export async function ensureCosmosTrackingSchema(): Promise<void> {
           CONSTRAINT chk_skill_type CHECK (skill_type IN ('REMEMBER', 'UNDERSTAND', 'COMPARE', 'TRANSFER', 'EXPLAIN'))
       )
     `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS profile_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS topic_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS skill_type TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS mastery DECIMAL(5,2) NOT NULL DEFAULT 0
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS confidence DECIMAL(5,2) NOT NULL DEFAULT 0
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS stage TEXT NOT NULL DEFAULT 'discovered'
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS topics_explored INTEGER NOT NULL DEFAULT 0
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMP
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `;
+    await avatarDB.exec`
+      ALTER TABLE competency_state ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `;
 
     await avatarDB.exec`
       CREATE INDEX IF NOT EXISTS idx_competency_state_avatar ON competency_state(avatar_id)
@@ -42,6 +72,20 @@ export async function ensureCosmosTrackingSchema(): Promise<void> {
     `;
     await avatarDB.exec`
       CREATE INDEX IF NOT EXISTS idx_competency_state_domain ON competency_state(domain_id)
+    `;
+    // Remove duplicates before creating the unique index used by ON CONFLICT.
+    await avatarDB.exec`
+      WITH ranked AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            PARTITION BY avatar_id, domain_id, COALESCE(topic_id, ''), skill_type
+            ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST, id DESC
+          ) AS rn
+        FROM competency_state
+      )
+      DELETE FROM competency_state
+      WHERE id IN (SELECT id FROM ranked WHERE rn > 1)
     `;
     await avatarDB.exec`
       CREATE UNIQUE INDEX IF NOT EXISTS idx_competency_state_unique
@@ -65,6 +109,36 @@ export async function ensureCosmosTrackingSchema(): Promise<void> {
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT chk_event_type CHECK (event_type IN ('quiz', 'recall', 'transfer', 'explain', 'doku_read', 'story_read'))
       )
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS profile_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS topic_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS event_type TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS skill_type TEXT NOT NULL DEFAULT 'REMEMBER'
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS score DECIMAL(5,2)
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS max_score DECIMAL(5,2)
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS payload JSONB
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS source_content_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS source_content_type TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE evidence_events ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     `;
 
     await avatarDB.exec`
@@ -97,6 +171,36 @@ export async function ensureCosmosTrackingSchema(): Promise<void> {
           created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
           CONSTRAINT chk_recall_status CHECK (status IN ('pending', 'completed', 'skipped', 'expired'))
       )
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS profile_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS topic_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS source_content_id TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS source_content_type TEXT
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS due_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'pending'
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS questions JSONB
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS score DECIMAL(5,2)
+    `;
+    await avatarDB.exec`
+      ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     `;
 
     await avatarDB.exec`

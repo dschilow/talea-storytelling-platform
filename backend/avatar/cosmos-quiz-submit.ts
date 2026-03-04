@@ -13,9 +13,9 @@ import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 
 interface QuizAnswer {
   questionId: string;
-  skillType: 'REMEMBER' | 'UNDERSTAND' | 'COMPARE' | 'TRANSFER' | 'EXPLAIN';
+  skillType: "REMEMBER" | "UNDERSTAND" | "COMPARE" | "TRANSFER" | "EXPLAIN";
   correct: boolean;
-  difficulty: number; // 1–5
+  difficulty: number;
 }
 
 interface QuizSubmitRequest {
@@ -24,7 +24,7 @@ interface QuizSubmitRequest {
   domainId: string;
   topicId?: string;
   sourceContentId: string;
-  sourceContentType: 'doku' | 'story';
+  sourceContentType: "doku" | "story";
   answers: QuizAnswer[];
 }
 
@@ -50,172 +50,196 @@ function clampDifficulty(value: unknown): number {
   return Math.max(1, Math.min(5, Math.round(parsed)));
 }
 
+const SKILL_WEIGHTS: Record<QuizAnswer["skillType"], number> = {
+  REMEMBER: 1.0,
+  UNDERSTAND: 1.5,
+  COMPARE: 2.0,
+  TRANSFER: 2.5,
+  EXPLAIN: 3.0,
+};
+
 export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
   { expose: true, method: "POST", path: "/avatar/cosmos-quiz-submit" },
   async (req) => {
-    const auth = getAuthData();
-    if (!auth) throw APIError.unauthenticated("Unauthorized");
-    await ensureCosmosTrackingSchema();
+    try {
+      const auth = getAuthData();
+      if (!auth) throw APIError.unauthenticated("Unauthorized");
 
-    if (!req.avatarId || !req.domainId || !req.sourceContentId || !req.sourceContentType) {
-      throw APIError.invalidArgument("Missing required fields");
-    }
+      await ensureCosmosTrackingSchema();
 
-    const answers = Array.isArray(req.answers)
-      ? req.answers
-          .map((answer, index) => {
-            const skillType = ALLOWED_SKILL_TYPES.has(answer?.skillType)
-              ? answer.skillType
-              : "REMEMBER";
-            return {
-              questionId: String(answer?.questionId || `q_${index}`),
-              skillType,
-              correct: Boolean(answer?.correct),
-              difficulty: clampDifficulty(answer?.difficulty),
-            } as QuizAnswer;
-          })
-          .filter((answer) => answer.questionId.length > 0)
-      : [];
-
-    if (answers.length === 0) {
-      throw APIError.invalidArgument("No quiz answers provided");
-    }
-
-    const totalQuestions = answers.length;
-    const correctAnswers = answers.filter(a => a.correct).length;
-    const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
-
-    // Weighted score by skill type difficulty
-    const skillWeights: Record<string, number> = {
-      REMEMBER: 1.0,
-      UNDERSTAND: 1.5,
-      COMPARE: 2.0,
-      TRANSFER: 2.5,
-      EXPLAIN: 3.0,
-    };
-
-    let weightedScore = 0;
-    let maxWeightedScore = 0;
-    for (const answer of answers) {
-      const weight = skillWeights[answer.skillType] ?? 1;
-      maxWeightedScore += weight * answer.difficulty;
-      if (answer.correct) {
-        weightedScore += weight * answer.difficulty;
+      if (!req.avatarId || !req.domainId || !req.sourceContentId || !req.sourceContentType) {
+        throw APIError.invalidArgument("Missing required fields");
       }
-    }
 
-    const normalizedScore = maxWeightedScore > 0
-      ? (weightedScore / maxWeightedScore) * 100
-      : 0;
+      const answers = Array.isArray(req.answers)
+        ? req.answers
+            .map((answer, index) => {
+              const skillType = ALLOWED_SKILL_TYPES.has(answer?.skillType)
+                ? answer.skillType
+                : "REMEMBER";
+              return {
+                questionId: String(answer?.questionId || `q_${index}`),
+                skillType,
+                correct: Boolean(answer?.correct),
+                difficulty: clampDifficulty(answer?.difficulty),
+              } as QuizAnswer;
+            })
+            .filter((answer) => answer.questionId.length > 0)
+        : [];
 
-    // Calculate deltas
-    // Mastery increases more for higher skill types
-    const masteryDelta = Math.round((normalizedScore / 100) * 8 * 10) / 10; // 0–8 points
-    // Confidence increases less from a single quiz (need repeated measurements)
-    const confidenceDelta = Math.round((score / 100) * 3 * 10) / 10; // 0–3 points
+      if (answers.length === 0) {
+        throw APIError.invalidArgument("No quiz answers provided");
+      }
 
-    // Upsert competency state
-    const id = `cs_${req.avatarId}_${req.domainId}_${req.topicId || 'general'}_overall`;
+      const totalQuestions = answers.length;
+      const correctAnswers = answers.filter((a) => a.correct).length;
+      const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
-    // Get current state
-    const existing = await avatarDB.queryRow`
-      SELECT mastery, confidence FROM competency_state
-      WHERE avatar_id = ${req.avatarId}
-        AND domain_id = ${req.domainId}
-        AND COALESCE(topic_id, '') = ${req.topicId || ''}
-        AND skill_type = 'REMEMBER'
-    `;
+      let weightedScore = 0;
+      let maxWeightedScore = 0;
+      for (const answer of answers) {
+        const weight = SKILL_WEIGHTS[answer.skillType] ?? 1;
+        maxWeightedScore += weight * answer.difficulty;
+        if (answer.correct) {
+          weightedScore += weight * answer.difficulty;
+        }
+      }
 
-    let currentMastery = 0;
-    let currentConfidence = 0;
-    if (existing) {
-      currentMastery = Number(existing.mastery) || 0;
-      currentConfidence = Number(existing.confidence) || 0;
-    }
+      const normalizedScore = maxWeightedScore > 0 ? (weightedScore / maxWeightedScore) * 100 : 0;
+      const masteryDelta = Math.round((normalizedScore / 100) * 8 * 10) / 10;
+      const confidenceDelta = Math.round((score / 100) * 3 * 10) / 10;
 
-    const newMastery = Math.min(100, currentMastery + masteryDelta);
-    const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
-    const newStage = computeStage(newMastery, newConfidence);
+      const overallId = `cs_${req.avatarId}_${req.domainId}_${req.topicId || "general"}_overall`;
 
-    // Upsert into competency_state (one row per avatar+domain for overall tracking)
-    await avatarDB.exec`
-      INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at)
-      VALUES (${id}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, 'REMEMBER', ${newMastery}, ${newConfidence}, ${newStage}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
-      DO UPDATE SET
-        mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
-        confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
-        stage = ${newStage},
-        topics_explored = competency_state.topics_explored + 1,
-        last_activity_at = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP
-    `;
+      const existing = await avatarDB.queryRow`
+        SELECT mastery, confidence FROM competency_state
+        WHERE avatar_id = ${req.avatarId}
+          AND domain_id = ${req.domainId}
+          AND COALESCE(topic_id, '') = ${req.topicId || ""}
+          AND skill_type = 'REMEMBER'
+        LIMIT 1
+      `;
 
-    // Also upsert per skill_type for detailed tracking
-    for (const answer of answers) {
-      const skillId = `cs_${req.avatarId}_${req.domainId}_${req.topicId || 'general'}_${answer.skillType}`;
-      const skillDelta = answer.correct ? (skillWeights[answer.skillType] ?? 1) * 2 : 0;
+      const currentMastery = existing ? Number(existing.mastery) || 0 : 0;
+      const currentConfidence = existing ? Number(existing.confidence) || 0 : 0;
+      const newMastery = Math.min(100, currentMastery + masteryDelta);
+      const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
+      const newStage = computeStage(newMastery, newConfidence);
 
       await avatarDB.exec`
-        INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, last_activity_at, updated_at)
-        VALUES (${skillId}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, ${answer.skillType}, ${Math.min(100, skillDelta)}, ${answer.correct ? 2 : 0}, ${answer.correct ? 'understood' : 'discovered'}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO competency_state (
+          id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at
+        )
+        VALUES (
+          ${overallId}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, 'REMEMBER', ${newMastery}, ${newConfidence}, ${newStage}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
         ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
         DO UPDATE SET
-          mastery = LEAST(100, competency_state.mastery + ${skillDelta}),
-          confidence = LEAST(100, competency_state.confidence + ${answer.correct ? 2 : 0}),
+          mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
+          confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
+          stage = ${newStage},
+          topics_explored = competency_state.topics_explored + 1,
           last_activity_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       `;
+
+      for (const answer of answers) {
+        const skillId = `cs_${req.avatarId}_${req.domainId}_${req.topicId || "general"}_${answer.skillType}`;
+        const skillDelta = answer.correct ? (SKILL_WEIGHTS[answer.skillType] ?? 1) * 2 : 0;
+
+        await avatarDB.exec`
+          INSERT INTO competency_state (
+            id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, last_activity_at, updated_at
+          )
+          VALUES (
+            ${skillId}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, ${answer.skillType}, ${Math.min(100, skillDelta)}, ${answer.correct ? 2 : 0}, ${answer.correct ? "understood" : "discovered"}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          )
+          ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
+          DO UPDATE SET
+            mastery = LEAST(100, competency_state.mastery + ${skillDelta}),
+            confidence = LEAST(100, competency_state.confidence + ${answer.correct ? 2 : 0}),
+            last_activity_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        `;
+      }
+
+      const skillBreakdown = answers.reduce((acc, answer) => {
+        acc[answer.skillType] = (acc[answer.skillType] || 0) + (answer.correct ? 1 : 0);
+        return acc;
+      }, {} as Record<string, number>);
+
+      await avatarDB.exec`
+        INSERT INTO evidence_events (
+          id, avatar_id, profile_id, domain_id, topic_id, event_type, skill_type, score, max_score, payload, source_content_id, source_content_type
+        )
+        VALUES (
+          ${`ev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`},
+          ${req.avatarId},
+          ${req.profileId ?? null},
+          ${req.domainId},
+          ${req.topicId ?? null},
+          'quiz',
+          'REMEMBER',
+          ${score},
+          ${100},
+          ${JSON.stringify({
+            answers: answers.length,
+            correct: correctAnswers,
+            skillBreakdown,
+            summary: `Quiz: ${correctAnswers}/${totalQuestions} richtig`,
+          })},
+          ${req.sourceContentId},
+          ${req.sourceContentType}
+        )
+      `;
+
+      const recallDays = 3 + Math.floor(Math.random() * 5);
+      const dueAt = new Date(Date.now() + recallDays * 24 * 60 * 60 * 1000);
+
+      await avatarDB.exec`
+        INSERT INTO recall_tasks (
+          id, avatar_id, profile_id, domain_id, topic_id, source_content_id, source_content_type, due_at
+        )
+        VALUES (
+          ${`recall_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`},
+          ${req.avatarId},
+          ${req.profileId ?? null},
+          ${req.domainId},
+          ${req.topicId ?? null},
+          ${req.sourceContentId},
+          ${req.sourceContentType},
+          ${dueAt.toISOString()}
+        )
+      `;
+
+      return {
+        success: true,
+        masteryDelta,
+        confidenceDelta,
+        newStage,
+        recallScheduled: true,
+      };
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      console.error("[avatar] cosmos-quiz-submit failed", {
+        avatarId: req.avatarId,
+        domainId: req.domainId,
+        topicId: req.topicId || null,
+        answersCount: Array.isArray(req.answers) ? req.answers.length : 0,
+        message,
+      });
+
+      if (error?.code) {
+        throw error;
+      }
+      throw APIError.internal(`cosmos quiz submit failed: ${message.substring(0, 180)}`);
     }
-
-    // Create evidence event
-    const eventId = `ev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const skillBreakdown = answers.reduce((acc, a) => {
-      acc[a.skillType] = (acc[a.skillType] || 0) + (a.correct ? 1 : 0);
-      return acc;
-    }, {} as Record<string, number>);
-
-    await avatarDB.exec`
-      INSERT INTO evidence_events (id, avatar_id, profile_id, domain_id, topic_id, event_type, skill_type, score, max_score, payload, source_content_id, source_content_type)
-      VALUES (
-        ${eventId},
-        ${req.avatarId},
-        ${req.profileId ?? null},
-        ${req.domainId},
-        ${req.topicId ?? null},
-        'quiz',
-        'REMEMBER',
-        ${score},
-        ${100},
-        ${JSON.stringify({ answers: answers.length, correct: correctAnswers, skillBreakdown, summary: `Quiz: ${correctAnswers}/${totalQuestions} richtig` })},
-        ${req.sourceContentId},
-        ${req.sourceContentType}
-      )
-    `;
-
-    // Schedule recall task (3–7 days from now)
-    const recallDays = 3 + Math.floor(Math.random() * 5); // 3–7 days
-    const dueAt = new Date(Date.now() + recallDays * 24 * 60 * 60 * 1000);
-    const recallId = `recall_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-    await avatarDB.exec`
-      INSERT INTO recall_tasks (id, avatar_id, profile_id, domain_id, topic_id, source_content_id, source_content_type, due_at)
-      VALUES (${recallId}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, ${req.sourceContentId}, ${req.sourceContentType}, ${dueAt.toISOString()})
-    `;
-
-    return {
-      success: true,
-      masteryDelta,
-      confidenceDelta,
-      newStage,
-      recallScheduled: true,
-    };
   }
 );
 
 function computeStage(mastery: number, confidence: number): string {
-  if (mastery >= 80 && confidence >= 65) return 'mastered';
-  if (mastery >= 55 && confidence >= 40) return 'can_explain';
-  if (mastery >= 25 && confidence >= 15) return 'understood';
-  return 'discovered';
+  if (mastery >= 80 && confidence >= 65) return "mastered";
+  if (mastery >= 55 && confidence >= 40) return "can_explain";
+  if (mastery >= 25 && confidence >= 15) return "understood";
+  return "discovered";
 }
