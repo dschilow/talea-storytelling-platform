@@ -376,8 +376,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
 
     if (cloudRef.current) {
-      cloudRef.current.rotation.y += 0.0016;
-      cloudRef.current.rotation.z += 0.0005;
+      // Dynamic cloud drift: slightly different rotation speeds than planet
+      cloudRef.current.rotation.y += 0.0022;
+      cloudRef.current.rotation.z += 0.0007;
+      cloudRef.current.rotation.x += Math.sin(t * 0.1) * 0.0002; // Tiny wobble
     }
 
     if (auraRef.current) {
@@ -410,34 +412,47 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       }
     }
 
+    // 🌍 Physics Update: Kepler-inspired orbital speeds (1/sqrt(radius))
+    // Farther objects move slower, creating a realistic celestial rhythm
+
     topicMoonRefs.current.forEach((moon, index) => {
       if (!moon || index >= topicMoonCount) return;
       const seed = topicMoonSeeds[index];
-      const angle = t * (0.5 + seed.offset * 0.4) + seed.phase;
       const planetRadius = baseRadius * visuals.scale;
-      // Pushed out from 3.25 to 6.5+ to clear rings entirely
       const radius = planetRadius * (6.5 + index * 0.75);
-      moon.position.x = Math.cos(angle) * radius;
+
+      // Keplerian speed: slower for outer orbits
+      const keplerSpeed = 0.52 / Math.sqrt(radius);
+      const angle = t * keplerSpeed * (0.8 + seed.offset * 0.45) + seed.phase;
+
+      // Elliptical touch: slight X/Z variation
+      const ecc = 1.0 + (seed.offset - 0.5) * 0.12;
+      moon.position.x = Math.cos(angle) * radius * ecc;
       moon.position.z = Math.sin(angle) * radius;
       moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.85);
-      moon.rotation.y += 0.01;
+      moon.rotation.y += 0.008;
     });
 
     satelliteRefs.current.forEach((satellite, index) => {
       if (!satellite) return;
-      // Only show satellites if at least 1 topic is explored or stage is later
       if ((progress.topicsExplored || 0) < 1) {
         satellite.visible = false;
         return;
       }
       satellite.visible = true;
-      const angle = t * (0.8 + index * 0.15) + index * 1.37;
       const planetRadius = baseRadius * visuals.scale;
-      // Very far orbit: 14x planet radius minimum
-      const radius = planetRadius * (14.0 + index * 1.2);
-      satellite.position.x = Math.cos(angle) * radius;
+      const radius = planetRadius * (14.0 + index * 1.5);
+
+      // Far satellites move very slow (realism)
+      const keplerSpeed = 0.46 / Math.sqrt(radius);
+      const angle = t * keplerSpeed * (0.7 + index * 0.12) + index * 1.37;
+
+      const eccScale = 1.0 + (index % 3 === 0 ? 0.15 : 0.05);
+      satellite.position.x = Math.cos(angle) * radius * eccScale;
       satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.9 + index * 0.3));
+      satellite.position.y = Math.sin(angle * 0.42) * (planetRadius * (1.2 + index * 0.45));
+      // Satellites tilt towards their flight path
+      satellite.lookAt(0, 0, 0);
     });
 
     lifeParticleRefs.current.forEach((particle, index) => {
@@ -464,32 +479,34 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   return (
     <group ref={groupRef} position={initialPosition}>
-      <Sphere
-        ref={planetRef}
-        args={[baseRadius * visuals.scale, 64, 64]}
-        material={planetMaterial}
-        onClick={handleClick}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = 'pointer';
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = 'auto';
-        }}
-      />
+      {/* 🌏 Planet Group with axial tilt (Obliquity) */}
+      <group rotation={[0.41, 0, 0.25]}>
+        <Sphere
+          ref={planetRef}
+          args={[baseRadius * visuals.scale, 96, 96]}
+          material={planetMaterial}
+          onClick={handleClick}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            document.body.style.cursor = 'auto';
+          }}
+        />
 
+        <Sphere
+          ref={cloudRef}
+          args={[baseRadius * visuals.scale * 1.03, 64, 64]}
+          material={cloudMaterial}
+        />
 
-      <Sphere
-        ref={cloudRef}
-        args={[baseRadius * visuals.scale * 1.03, 40, 40]}
-        material={cloudMaterial}
-      />
-
-      <Sphere
-        ref={atmosphereRef}
-        args={[baseRadius * visuals.scale * 1.12, 48, 48]}
-        material={atmosphereMaterial}
-      />
+        <Sphere
+          ref={atmosphereRef}
+          args={[baseRadius * visuals.scale * 1.12, 128, 96]}
+          material={atmosphereMaterial}
+        />
+      </group>
 
       {/* Soft billboard glow behind planet */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
@@ -500,16 +517,18 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
       {/* Planet rings gated behind mastery level 3+ - off by default */}
 
+
+
+      {/* Topic Moons: only appear once multiple topics are explored */}
       {Array.from({ length: topicMoonCount }).map((_, index) => {
         const size = 0.035 + Math.min(0.02, visuals.developmentLevel * 0.02 + index * 0.002);
         return (
           <group
             key={`topic_moon_group_${index}`}
             ref={(node) => {
-              topicMoonRefs.current[index] = node;
+              topicMoonRefs.current[index] = node as unknown as THREE.Group;
             }}
           >
-            {/* Elegant, clean moon sphere */}
             <Sphere args={[size, 24, 24]}>
               <meshStandardMaterial
                 color="#e2e8f0"
@@ -533,38 +552,39 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         );
       })}
 
+      {/* Satellites - Realistic solar-probe style */}
       {Array.from({ length: visuals.satelliteCount }).map((_, index) => (
         <group
-          key={`sat_group_${index}`}
+          key={`satellite_group_${index}`}
           ref={(node) => {
-            satelliteRefs.current[index] = node;
+            satelliteRefs.current[index] = node as unknown as THREE.Group;
           }}
         >
-          {/* Sleek metallic orbiter */}
-          <Sphere args={[0.025, 16, 16]}>
-            <meshStandardMaterial
-              color="#e2e8f0"
-              roughness={0.1}
-              metalness={1.0}
-            />
-          </Sphere>
-          {/* Futuristic ring array instead of planes */}
-          <mesh rotation={[Math.PI / 3, Math.PI / 4, 0]}>
-            <torusGeometry args={[0.045, 0.003, 8, 32]} />
-            <meshBasicMaterial color="#60a5fa" />
-          </mesh>
-          <mesh rotation={[-Math.PI / 3, -Math.PI / 4, 0]}>
-            <torusGeometry args={[0.045, 0.003, 8, 32]} />
-            <meshBasicMaterial color="#60a5fa" />
-          </mesh>
+          {/* Main body: silver probe box */}
+          <group scale={0.012}>
+            <mesh>
+              <boxGeometry args={[1, 1, 1.6]} />
+              <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
+            </mesh>
+            {/* Solar panels extending out */}
+            <mesh position={[1.5, 0, 0]}>
+              <boxGeometry args={[2.0, 0.04, 1.1]} />
+              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.6} />
+            </mesh>
+            <mesh position={[-1.5, 0, 0]}>
+              <boxGeometry args={[2.0, 0.04, 1.1]} />
+              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.6} />
+            </mesh>
+          </group>
         </group>
       ))}
 
-      {Array.from({ length: activeLifeParticles }).map((_, index) => (
+      {/* Life particles (if enabled) */}
+      {activeLifeParticles > 0 && Array.from({ length: activeLifeParticles }).map((_, index) => (
         <Sphere
           key={`life_${index}`}
           ref={(node) => {
-            lifeParticleRefs.current[index] = node;
+            lifeParticleRefs.current[index] = node as unknown as THREE.Mesh;
           }}
           args={[0.028, 8, 8]}
         >
@@ -729,7 +749,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           )}
         </div>
       </Html>
-    </group>
+    </group >
   );
 };
 
@@ -811,14 +831,16 @@ function createPlanetMaps(
           ? smoothstep(0.62, 0.92, n2) * smoothstep(0.4, 1, detailFactor)
           : 0;
 
-      const shade = profile.shadeMin + altitude * profile.shadeRange + micro * 0.08;
+      const shade = profile.shadeMin + altitude * profile.shadeRange + micro * 0.12;
       const tint = profile.tintBase + n2 * profile.tintRange;
+      const microDetail = fbm2D(nx * 128, ny * 128, seed + 44, 1); // Micro-noise for high-res look
       const regionBoost =
         1 +
         regionMask * (0.12 + regionNoise * 0.24) +
         gasBand * 0.24 +
         iceCap * 0.36 +
-        lavaCrack * 0.42;
+        lavaCrack * 0.42 +
+        microDetail * 0.04;
       surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * regionBoost);
       surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22) * regionBoost);
       surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2) * (1 + regionMask * 0.08));
