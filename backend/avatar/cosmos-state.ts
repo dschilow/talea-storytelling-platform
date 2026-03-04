@@ -38,10 +38,13 @@ export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
     const auth = getAuthData();
     if (!auth) throw APIError.unauthenticated("Unauthorized");
     if (!req.avatarId) throw APIError.invalidArgument("avatarId is required");
-    await ensureCosmosTrackingSchema();
+    await ensureCosmosTrackingSchema().catch((schemaError) => {
+      console.warn("[avatar] cosmos schema ensure skipped in state endpoint", schemaError);
+    });
 
-    // Fetch all competency states for this avatar, aggregated by domain
-    const rows = await avatarDB.query`
+    try {
+      // Fetch all competency states for this avatar, aggregated by domain
+      const rows = await avatarDB.query`
       SELECT
         domain_id,
         COALESCE(AVG(mastery), 0) as avg_mastery,
@@ -54,28 +57,28 @@ export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
       GROUP BY domain_id
     `;
 
-    const domainMap = new Map<string, DomainProgress>();
+      const domainMap = new Map<string, DomainProgress>();
 
-    for await (const row of rows) {
-      const mastery = Number(row.avg_mastery) || 0;
-      const confidence = Number(row.avg_confidence) || 0;
+      for await (const row of rows) {
+        const mastery = Number(row.avg_mastery) || 0;
+        const confidence = Number(row.avg_confidence) || 0;
 
-      domainMap.set(row.domain_id, {
-        domainId: row.domain_id,
-        mastery: Math.round(mastery * 10) / 10,
-        confidence: Math.round(confidence * 10) / 10,
-        stage: computeStage(mastery, confidence),
-        topicsExplored: Number(row.topics_explored) || 0,
-        lastActivityAt: row.last_activity_at
-          ? new Date(row.last_activity_at).toISOString()
-          : null,
-      });
-    }
+        domainMap.set(row.domain_id, {
+          domainId: row.domain_id,
+          mastery: Math.round(mastery * 10) / 10,
+          confidence: Math.round(confidence * 10) / 10,
+          stage: computeStage(mastery, confidence),
+          topicsExplored: Number(row.topics_explored) || 0,
+          lastActivityAt: row.last_activity_at
+            ? new Date(row.last_activity_at).toISOString()
+            : null,
+        });
+      }
 
-    // Fetch recent evidence highlights for active domains
-    for (const [domainId, dp] of domainMap) {
-      if (dp.mastery > 0) {
-        const highlightRows = await avatarDB.query`
+      // Fetch recent evidence highlights for active domains
+      for (const [domainId, dp] of domainMap) {
+        if (dp.mastery > 0) {
+          const highlightRows = await avatarDB.query`
           SELECT payload->>'summary' as summary
           FROM evidence_events
           WHERE avatar_id = ${req.avatarId}
@@ -85,32 +88,45 @@ export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
           LIMIT 1
         `;
 
-        for await (const row of highlightRows) {
-          if (row.summary) {
-            dp.recentHighlight = row.summary;
+          for await (const row of highlightRows) {
+            if (row.summary) {
+              dp.recentHighlight = row.summary;
+            }
           }
         }
       }
-    }
 
-    // Fill missing base domains with empty progress and append additional discovered domains.
-    const discoveredDomainIds = Array.from(domainMap.keys()).filter(
-      (id) => !BASE_DOMAINS.includes(id)
-    );
-    const orderedDomainIds = [...BASE_DOMAINS, ...discoveredDomainIds.sort()];
-    const domains = orderedDomainIds.map(
-      (id) =>
-        domainMap.get(id) ?? {
-          domainId: id,
+      // Fill missing base domains with empty progress and append additional discovered domains.
+      const discoveredDomainIds = Array.from(domainMap.keys()).filter(
+        (id) => !BASE_DOMAINS.includes(id)
+      );
+      const orderedDomainIds = [...BASE_DOMAINS, ...discoveredDomainIds.sort()];
+      const domains = orderedDomainIds.map(
+        (id) =>
+          domainMap.get(id) ?? {
+            domainId: id,
+            mastery: 0,
+            confidence: 0,
+            stage: 'discovered',
+            topicsExplored: 0,
+            lastActivityAt: null,
+          }
+      );
+
+      return { domains };
+    } catch (error) {
+      console.error("[avatar] cosmos-state failed, returning empty base domains", error);
+      return {
+        domains: BASE_DOMAINS.map((domainId) => ({
+          domainId,
           mastery: 0,
           confidence: 0,
-          stage: 'discovered',
+          stage: "discovered",
           topicsExplored: 0,
           lastActivityAt: null,
-        }
-    );
-
-    return { domains };
+        })),
+      };
+    }
   }
 );
 

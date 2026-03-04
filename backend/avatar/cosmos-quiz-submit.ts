@@ -65,7 +65,9 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
       const auth = getAuthData();
       if (!auth) throw APIError.unauthenticated("Unauthorized");
 
-      await ensureCosmosTrackingSchema();
+      await ensureCosmosTrackingSchema().catch((schemaError) => {
+        console.warn("[avatar] cosmos schema ensure skipped in quiz submit", schemaError);
+      });
 
       if (!req.avatarId || !req.domainId || !req.sourceContentId || !req.sourceContentType) {
         throw APIError.invalidArgument("Missing required fields");
@@ -232,7 +234,13 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
       if (error?.code) {
         throw error;
       }
-      throw APIError.internal(`cosmos quiz submit failed: ${message.substring(0, 180)}`);
+      return {
+        success: false,
+        masteryDelta: 0,
+        confidenceDelta: 0,
+        newStage: "discovered",
+        recallScheduled: false,
+      };
     }
   }
 );

@@ -7,6 +7,7 @@ import "./src/i18n"; // Initialize i18n
 const DISABLE_SW_FLAG = "talea:disable-sw";
 const STORAGE_USAGE_THRESHOLD = 0.92;
 const MIN_FREE_BYTES = 64 * 1024 * 1024;
+const FORCE_DISABLE_SERVICE_WORKER = true;
 
 function isStoragePressureError(reason: unknown): boolean {
   const message = reason instanceof Error ? reason.message : String(reason || "");
@@ -50,6 +51,7 @@ async function unregisterServiceWorkersAndClearCaches(): Promise<void> {
 }
 
 async function shouldEnableServiceWorker(): Promise<boolean> {
+  if (FORCE_DISABLE_SERVICE_WORKER) return false;
   if (!("serviceWorker" in navigator)) return false;
   if (localStorage.getItem(DISABLE_SW_FLAG) === "1") return false;
 
