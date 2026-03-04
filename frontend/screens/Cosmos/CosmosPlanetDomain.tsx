@@ -421,8 +421,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       if (!moon || index >= topicMoonCount) return;
       const seed = topicMoonSeeds[index];
       const planetRadius = baseRadius * visuals.scale;
-      // MASSIVE EXPANSION: 12.0x planet radius to be clearly outside any atmosphere
-      const radius = planetRadius * (12.0 + index * 1.5);
+      // Wide orbit: clearly separated from atmosphere and ring zone
+      const radius = planetRadius * (26.0 + index * 3.5);
 
       // Keplerian speed: slower for outer orbits
       const keplerSpeed = 0.52 / Math.sqrt(radius);
@@ -444,8 +444,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       }
       satellite.visible = true;
       const planetRadius = baseRadius * visuals.scale;
-      // EXTREME DISTANCE: 22x radius for deep space probe feel
-      const radius = planetRadius * (22.0 + index * 2.5);
+      // Deep space probe distance: far beyond any moon/ring zone
+      const radius = planetRadius * (50.0 + index * 5.0);
 
       // Far satellites move very slow (realism)
       const keplerSpeed = 0.46 / Math.sqrt(radius);
@@ -498,12 +498,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             document.body.style.cursor = 'auto';
           }}
         >
-          {/* Debug marker to verify the NEW code is actually running */}
-          <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none', userSelect: 'none' }}>
-            <div style={{ color: 'white', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', whiteSpace: 'nowrap' }}>
-              Cosmos V2.1 ACTIVE
-            </div>
-          </Html>
         </Sphere>
 
         <Sphere
