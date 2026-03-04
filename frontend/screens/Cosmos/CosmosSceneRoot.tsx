@@ -70,14 +70,15 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [isLoadingTopicTimeline, setIsLoadingTopicTimeline] = useState(false);
   const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
   const [pulseNonce, setPulseNonce] = useState(0);
+  const [forceLowQuality, setForceLowQuality] = useState(false);
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   });
 
   const quality = useMemo(
-    () => getQualityConfig(compact ? 'low' : qualityPreference),
-    [compact, qualityPreference]
+    () => getQualityConfig(forceLowQuality || compact ? 'low' : qualityPreference),
+    [compact, forceLowQuality, qualityPreference]
   );
 
   const progressMap = useMemo(() => {
@@ -303,6 +304,17 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = quality.toneMappingExposure;
+
+          const canvas = gl.domElement;
+          canvas.addEventListener(
+            'webglcontextlost',
+            (event) => {
+              event.preventDefault();
+              console.warn('[CosmosSceneRoot] WebGL context lost, switching to low quality');
+              setForceLowQuality(true);
+            },
+            { once: true }
+          );
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {

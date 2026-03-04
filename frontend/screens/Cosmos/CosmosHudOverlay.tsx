@@ -66,10 +66,18 @@ export const CosmosHudOverlay: React.FC<Props> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-xl"
+          className={[
+            "absolute z-30",
+            isDetailMode
+              ? "left-4 right-4 bottom-4 md:left-auto md:right-6 md:w-[26rem] md:max-w-[26rem]"
+              : "bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-xl",
+          ].join(" ")}
         >
           <div
-            className="relative rounded-3xl border border-white/10 p-5 backdrop-blur-xl"
+            className={[
+              "relative rounded-3xl border border-white/10 p-5 backdrop-blur-xl",
+              isDetailMode ? "max-h-[72vh] overflow-y-auto" : "",
+            ].join(" ")}
             style={{
               background: "linear-gradient(135deg, rgba(15,15,35,0.92) 0%, rgba(25,20,50,0.95) 100%)",
               boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
@@ -108,7 +116,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                     {stageLabel}
                   </span>
                   <span className="text-[11px] text-white/40">
-                    Level {progress.planetLevel || 1} · {progress.topicsExplored} Themen
+                    Level {progress.planetLevel || 1} - {progress.topicsExplored} Themen
                   </span>
                 </div>
               </div>
@@ -203,7 +211,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                       >
                         <div className="font-semibold">{topic.topicTitle}</div>
                         <div className="text-[11px] text-white/55">
-                          {getStageLabel(topic.stage)} · {topic.masteryLabel}
+                          {getStageLabel(topic.stage)} - {topic.masteryLabel}
                         </div>
                       </button>
                     ))}
@@ -219,7 +227,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                       <div>
                         <h4 className="text-sm font-bold text-white">{selectedTopic.topicTitle}</h4>
                         <p className="text-[11px] text-white/55">
-                          {getStageLabel(selectedTopic.stage)} · {selectedTopic.masteryLabel} · {selectedTopic.confidenceLabel}
+                          {getStageLabel(selectedTopic.stage)} - {selectedTopic.masteryLabel} - {selectedTopic.confidenceLabel}
                         </p>
                       </div>
                       {selectedTopic.recallDueAt && (

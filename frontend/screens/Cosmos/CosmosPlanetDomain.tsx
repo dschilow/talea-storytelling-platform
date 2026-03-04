@@ -136,6 +136,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const topicMoonRefs = useRef<Array<THREE.Mesh | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
   const selectionHaloRef = useRef<THREE.Mesh>(null!);
+  const islandAnchorRef = useRef<THREE.Group>(null!);
   const feedbackPulseRef = useRef(0);
   const [labelExpanded, setLabelExpanded] = useState(false);
 
@@ -363,6 +364,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     if (planetRef.current) {
       planetRef.current.rotation.y += 0.002 + visuals.developmentLevel * 0.0014;
       planetRef.current.rotation.x += 0.00045;
+
+      if (islandAnchorRef.current) {
+        islandAnchorRef.current.rotation.copy(planetRef.current.rotation);
+      }
     }
 
     if (cloudRef.current) {
@@ -582,6 +587,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         </Sphere>
       ))}
 
+      <group ref={islandAnchorRef}>
       {visibleIslands.map((topic, index) => {
         const pos = latLonToPlanetPosition(
           topic.lat,
@@ -602,12 +608,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
         const markerSize =
           stage === 'retained'
-            ? 0.05
+            ? 0.07
             : stage === 'apply'
-            ? 0.045
+            ? 0.062
             : stage === 'understood'
-            ? 0.04
-            : 0.032;
+            ? 0.056
+            : 0.05;
 
         return (
           <group
@@ -629,7 +635,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
               <meshStandardMaterial
                 color={markerColor}
                 emissive={markerColor}
-                emissiveIntensity={stage === 'discovered' ? 0.06 : 0.22}
+                emissiveIntensity={stage === 'discovered' ? 0.2 : 0.38}
                 roughness={0.42}
                 metalness={0.08}
               />
@@ -668,6 +674,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           </group>
         );
       })}
+      </group>
 
       <Html
         position={[0, baseRadius * visuals.scale + 0.6, 0]}
@@ -677,7 +684,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
           <span style={{ fontSize: labelExpanded ? '18px' : '16px' }}>{domain.icon}</span>
-          {labelExpanded && (
+          {labelExpanded && !isDetailMode && (
             <span
               style={{
                 fontSize: '10px',
@@ -691,7 +698,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
               {domain.label}
             </span>
           )}
-          {isFocused && (
+          {isFocused && !isDetailMode && (
             <span
               style={{
                 fontSize: '9px',

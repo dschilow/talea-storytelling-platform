@@ -296,11 +296,17 @@ export async function resolveChildIdForCosmos(params: {
 }): Promise<string> {
   const direct = params.childId?.trim() || params.profileId?.trim();
   if (direct) {
-    return resolveRequestedProfileId({
-      userId: params.userId,
-      requestedProfileId: direct,
-      fallbackName: undefined,
-    });
+    try {
+      return await resolveRequestedProfileId({
+        userId: params.userId,
+        requestedProfileId: direct,
+        fallbackName: undefined,
+      });
+    } catch (error) {
+      if (!params.avatarId) throw error;
+      console.warn("[cosmos-mvp] fallback to avatarId child scope after direct profile resolve failed", error);
+      return params.avatarId;
+    }
   }
 
   if (params.avatarId) {
@@ -312,15 +318,27 @@ export async function resolveChildIdForCosmos(params: {
       LIMIT 1
     `;
     if (avatar?.profile_id) {
-      return resolveRequestedProfileId({
-        userId: params.userId,
-        requestedProfileId: avatar.profile_id,
-      });
+      try {
+        return await resolveRequestedProfileId({
+          userId: params.userId,
+          requestedProfileId: avatar.profile_id,
+        });
+      } catch (error) {
+        console.warn("[cosmos-mvp] fallback to avatarId child scope after avatar profile resolve failed", error);
+      }
     }
   }
 
-  const profile = await ensureDefaultProfileForUser(params.userId);
-  return profile.id;
+  try {
+    const profile = await ensureDefaultProfileForUser(params.userId);
+    return profile.id;
+  } catch (error) {
+    if (params.avatarId) {
+      console.warn("[cosmos-mvp] fallback to avatarId child scope after default profile ensure failed", error);
+      return params.avatarId;
+    }
+    throw APIError.internal("Unable to resolve child profile for cosmos tracking");
+  }
 }
 
 async function fetchCanonicalTopics(domainId: CosmosDomainId): Promise<CanonicalTopicCandidate[]> {

@@ -133,6 +133,57 @@ export async function ensureCosmosMvpSchema(): Promise<void> {
     `;
 
     await avatarDB.exec`
+      CREATE TABLE IF NOT EXISTS evidence_events (
+          id TEXT PRIMARY KEY,
+          avatar_id TEXT NOT NULL,
+          profile_id TEXT,
+          domain_id TEXT NOT NULL,
+          topic_id TEXT,
+          event_type TEXT NOT NULL,
+          skill_type TEXT NOT NULL DEFAULT 'REMEMBER',
+          score DECIMAL(5,2),
+          max_score DECIMAL(5,2),
+          payload JSONB,
+          source_content_id TEXT,
+          source_content_type TEXT,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    await avatarDB.exec`
+      CREATE INDEX IF NOT EXISTS idx_evidence_events_avatar ON evidence_events(avatar_id)
+    `;
+    await avatarDB.exec`
+      CREATE INDEX IF NOT EXISTS idx_evidence_events_domain ON evidence_events(domain_id)
+    `;
+    await avatarDB.exec`
+      CREATE INDEX IF NOT EXISTS idx_evidence_events_created ON evidence_events(created_at DESC)
+    `;
+    await avatarDB.exec`
+      CREATE INDEX IF NOT EXISTS idx_evidence_events_type ON evidence_events(event_type)
+    `;
+
+    await avatarDB.exec`
+      CREATE TABLE IF NOT EXISTS recall_tasks (
+          id TEXT PRIMARY KEY,
+          avatar_id TEXT NOT NULL,
+          profile_id TEXT,
+          child_id TEXT,
+          domain_id TEXT NOT NULL,
+          topic_id TEXT,
+          source_content_id TEXT,
+          source_content_type TEXT,
+          due_at TIMESTAMP NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          questions JSONB,
+          payload JSONB,
+          done_at TIMESTAMP,
+          completed_at TIMESTAMP,
+          score DECIMAL(5,2),
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await avatarDB.exec`
       ALTER TABLE recall_tasks ADD COLUMN IF NOT EXISTS child_id TEXT
     `;
     await avatarDB.exec`
@@ -164,4 +215,3 @@ export async function ensureCosmosMvpSchema(): Promise<void> {
     throw error;
   }
 }
-
