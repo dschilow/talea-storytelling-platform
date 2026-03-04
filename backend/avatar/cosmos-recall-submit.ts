@@ -5,9 +5,10 @@
  * Updates confidence more strongly than mastery (long-term evidence).
  */
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 
 interface RecallAnswer {
   questionId: string;
@@ -32,7 +33,12 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
   { expose: true, method: "POST", path: "/avatar/cosmos-recall-submit" },
   async (req) => {
     const auth = getAuthData();
-    if (!auth) throw new Error("Unauthorized");
+    if (!auth) throw APIError.unauthenticated("Unauthorized");
+    await ensureCosmosTrackingSchema();
+
+    if (!req.avatarId || !req.recallTaskId) {
+      throw APIError.invalidArgument("Missing required fields");
+    }
 
     // Get the recall task
     const task = await avatarDB.queryRow`
@@ -41,11 +47,21 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
       WHERE id = ${req.recallTaskId} AND avatar_id = ${req.avatarId}
     `;
 
-    if (!task) throw new Error("Recall task not found");
-    if (task.status !== 'pending') throw new Error("Recall task already completed");
+    if (!task) throw APIError.notFound("Recall task not found");
+    if (task.status !== 'pending') throw APIError.invalidArgument("Recall task already completed");
 
-    const totalQuestions = req.answers.length;
-    const correctAnswers = req.answers.filter(a => a.correct).length;
+    const answers = Array.isArray(req.answers)
+      ? req.answers.map((a, index) => ({
+          questionId: String(a?.questionId || `q_${index}`),
+          correct: Boolean(a?.correct),
+        }))
+      : [];
+    if (answers.length === 0) {
+      throw APIError.invalidArgument("No recall answers provided");
+    }
+
+    const totalQuestions = answers.length;
+    const correctAnswers = answers.filter(a => a.correct).length;
     const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
     // Recall boosts CONFIDENCE significantly, mastery only slightly
@@ -72,7 +88,7 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
     await avatarDB.exec`
       INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, last_activity_at, updated_at)
       VALUES (${id}, ${req.avatarId}, ${req.profileId ?? null}, ${task.domain_id}, ${task.topic_id ?? null}, 'REMEMBER', ${newMastery}, ${newConfidence}, ${newStage}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
+      ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
       DO UPDATE SET
         mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
         confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),

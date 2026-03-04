@@ -90,7 +90,11 @@ async function runMigration(fileName) {
   }
 
   if (!response.ok || !result.success) {
-    const detail = result.error || result.message || raw;
+    const detailParts = [result.error, result.message];
+    if (Array.isArray(result.errors) && result.errors.length > 0) {
+      detailParts.push(result.errors.slice(0, 5).join(" | "));
+    }
+    const detail = detailParts.filter(Boolean).join(" :: ") || raw;
     throw new Error(`Migration failed (${response.status}): ${detail}`);
   }
 

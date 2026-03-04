@@ -6,9 +6,10 @@
  * and schedules recall tasks.
  */
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 
 interface QuizAnswer {
   questionId: string;
@@ -35,14 +36,53 @@ interface QuizSubmitResponse {
   recallScheduled: boolean;
 }
 
+const ALLOWED_SKILL_TYPES = new Set<QuizAnswer["skillType"]>([
+  "REMEMBER",
+  "UNDERSTAND",
+  "COMPARE",
+  "TRANSFER",
+  "EXPLAIN",
+]);
+
+function clampDifficulty(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.max(1, Math.min(5, Math.round(parsed)));
+}
+
 export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
   { expose: true, method: "POST", path: "/avatar/cosmos-quiz-submit" },
   async (req) => {
     const auth = getAuthData();
-    if (!auth) throw new Error("Unauthorized");
+    if (!auth) throw APIError.unauthenticated("Unauthorized");
+    await ensureCosmosTrackingSchema();
 
-    const totalQuestions = req.answers.length;
-    const correctAnswers = req.answers.filter(a => a.correct).length;
+    if (!req.avatarId || !req.domainId || !req.sourceContentId || !req.sourceContentType) {
+      throw APIError.invalidArgument("Missing required fields");
+    }
+
+    const answers = Array.isArray(req.answers)
+      ? req.answers
+          .map((answer, index) => {
+            const skillType = ALLOWED_SKILL_TYPES.has(answer?.skillType)
+              ? answer.skillType
+              : "REMEMBER";
+            return {
+              questionId: String(answer?.questionId || `q_${index}`),
+              skillType,
+              correct: Boolean(answer?.correct),
+              difficulty: clampDifficulty(answer?.difficulty),
+            } as QuizAnswer;
+          })
+          .filter((answer) => answer.questionId.length > 0)
+      : [];
+
+    if (answers.length === 0) {
+      throw APIError.invalidArgument("No quiz answers provided");
+    }
+
+    const totalQuestions = answers.length;
+    const correctAnswers = answers.filter(a => a.correct).length;
     const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
     // Weighted score by skill type difficulty
@@ -56,7 +96,7 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
 
     let weightedScore = 0;
     let maxWeightedScore = 0;
-    for (const answer of req.answers) {
+    for (const answer of answers) {
       const weight = skillWeights[answer.skillType] ?? 1;
       maxWeightedScore += weight * answer.difficulty;
       if (answer.correct) {
@@ -101,7 +141,7 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
     await avatarDB.exec`
       INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at)
       VALUES (${id}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, 'REMEMBER', ${newMastery}, ${newConfidence}, ${newStage}, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
+      ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
       DO UPDATE SET
         mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
         confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
@@ -112,14 +152,14 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
     `;
 
     // Also upsert per skill_type for detailed tracking
-    for (const answer of req.answers) {
+    for (const answer of answers) {
       const skillId = `cs_${req.avatarId}_${req.domainId}_${req.topicId || 'general'}_${answer.skillType}`;
       const skillDelta = answer.correct ? (skillWeights[answer.skillType] ?? 1) * 2 : 0;
 
       await avatarDB.exec`
         INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, last_activity_at, updated_at)
         VALUES (${skillId}, ${req.avatarId}, ${req.profileId ?? null}, ${req.domainId}, ${req.topicId ?? null}, ${answer.skillType}, ${Math.min(100, skillDelta)}, ${answer.correct ? 2 : 0}, ${answer.correct ? 'understood' : 'discovered'}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
+        ON CONFLICT (avatar_id, domain_id, (COALESCE(topic_id, '')), skill_type)
         DO UPDATE SET
           mastery = LEAST(100, competency_state.mastery + ${skillDelta}),
           confidence = LEAST(100, competency_state.confidence + ${answer.correct ? 2 : 0}),
@@ -130,7 +170,7 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
 
     // Create evidence event
     const eventId = `ev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const skillBreakdown = req.answers.reduce((acc, a) => {
+    const skillBreakdown = answers.reduce((acc, a) => {
       acc[a.skillType] = (acc[a.skillType] || 0) + (a.correct ? 1 : 0);
       return acc;
     }, {} as Record<string, number>);
@@ -147,7 +187,7 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
         'REMEMBER',
         ${score},
         ${100},
-        ${JSON.stringify({ answers: req.answers.length, correct: correctAnswers, skillBreakdown, summary: `Quiz: ${correctAnswers}/${totalQuestions} richtig` })},
+        ${JSON.stringify({ answers: answers.length, correct: correctAnswers, skillBreakdown, summary: `Quiz: ${correctAnswers}/${totalQuestions} richtig` })},
         ${req.sourceContentId},
         ${req.sourceContentType}
       )

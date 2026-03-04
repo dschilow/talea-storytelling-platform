@@ -5,9 +5,10 @@
  * Returns evidence highlights, competency trends, and interest profile.
  */
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 
 interface EvidenceHighlight {
   id: string;
@@ -44,7 +45,9 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
   { expose: true, method: "GET", path: "/avatar/cosmos-parent-summary" },
   async (req) => {
     const auth = getAuthData();
-    if (!auth) throw new Error("Unauthorized");
+    if (!auth) throw APIError.unauthenticated("Unauthorized");
+    if (!req.avatarId) throw APIError.invalidArgument("avatarId is required");
+    await ensureCosmosTrackingSchema();
 
     const range = req.range || 'month';
     let threshold = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

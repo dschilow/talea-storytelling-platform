@@ -5,9 +5,10 @@
  * Returns all domain progress for rendering the 3D cosmos.
  */
 
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 
 interface CosmosStateRequest {
   avatarId: string;
@@ -35,7 +36,9 @@ export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
   { expose: true, method: "GET", path: "/avatar/cosmos-state" },
   async (req) => {
     const auth = getAuthData();
-    if (!auth) throw new Error("Unauthorized");
+    if (!auth) throw APIError.unauthenticated("Unauthorized");
+    if (!req.avatarId) throw APIError.invalidArgument("avatarId is required");
+    await ensureCosmosTrackingSchema();
 
     // Fetch all competency states for this avatar, aggregated by domain
     const rows = await avatarDB.query`

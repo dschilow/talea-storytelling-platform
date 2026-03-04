@@ -72,6 +72,17 @@ function warnOfflineUnavailable(error: unknown): void {
   console.warn('[Offline] Storage unavailable, offline reads fall back to network.', error);
 }
 
+function markDbUnavailable(error: unknown): void {
+  dbDisabled = true;
+  try {
+    dbInstance?.close();
+  } catch {
+    // no-op
+  }
+  dbInstance = null;
+  warnOfflineUnavailable(error);
+}
+
 function isRecoverableDbError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
@@ -101,8 +112,23 @@ async function withDbReadFallback<T>(
     return await reader(db);
   } catch (error) {
     if (isDbUnavailableError(error)) {
-      warnOfflineUnavailable(error);
+      markDbUnavailable(error);
       return fallback;
+    }
+    throw error;
+  }
+}
+
+async function withDbWriteFallback(
+  writer: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<void>
+): Promise<void> {
+  try {
+    const db = await getDb();
+    await writer(db);
+  } catch (error) {
+    if (isDbUnavailableError(error)) {
+      markDbUnavailable(error);
+      return;
     }
     throw error;
   }
@@ -180,26 +206,41 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
   return dbOpenPromise;
 }
 
-async function fetchAndStoreBlob(url: string): Promise<void> {
-  if (!url) return;
-  const db = await getDb();
+async function fetchAndStoreBlob(
+  url: string,
+  db?: IDBPDatabase<TaleaOfflineDB>
+): Promise<void> {
+  if (!url || dbDisabled) return;
 
-  const existing = await db.get('offline-blobs', url);
-  if (existing) return;
+  const writeBlob = async (database: IDBPDatabase<TaleaOfflineDB>) => {
+    const existing = await database.get('offline-blobs', url);
+    if (existing) return;
 
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
-    await db.put('offline-blobs', {
-      url,
-      blob,
-      mimeType: blob.type,
-      savedAt: Date.now(),
-    });
-  } catch (error) {
-    console.warn('[Offline] Failed to cache blob:', url, error);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      await database.put('offline-blobs', {
+        url,
+        blob,
+        mimeType: blob.type,
+        savedAt: Date.now(),
+      });
+    } catch (error) {
+      if (isDbUnavailableError(error)) {
+        markDbUnavailable(error);
+        return;
+      }
+      console.warn('[Offline] Failed to cache blob:', url, error);
+    }
+  };
+
+  if (db) {
+    await writeBlob(db);
+    return;
   }
+
+  await withDbWriteFallback(writeBlob);
 }
 
 function collectStoryUrls(story: Story): string[] {
@@ -239,124 +280,132 @@ function collectGeneratedAudioUrls(entry: GeneratedAudioLibraryEntry): string[] 
 }
 
 export async function saveStoryOffline(story: Story): Promise<void> {
-  const db = await getDb();
-  await db.put('offline-stories', {
-    id: story.id,
-    story,
-    savedAt: Date.now(),
-  });
+  await withDbWriteFallback(async (db) => {
+    await db.put('offline-stories', {
+      id: story.id,
+      story,
+      savedAt: Date.now(),
+    });
 
-  const urls = collectStoryUrls(story);
-  await Promise.allSettled(urls.map(fetchAndStoreBlob));
+    const urls = collectStoryUrls(story);
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+  });
 }
 
 export async function saveDokuOffline(doku: Doku): Promise<void> {
-  const db = await getDb();
-  await db.put('offline-dokus', {
-    id: doku.id,
-    doku,
-    savedAt: Date.now(),
-  });
+  await withDbWriteFallback(async (db) => {
+    await db.put('offline-dokus', {
+      id: doku.id,
+      doku,
+      savedAt: Date.now(),
+    });
 
-  const urls = collectDokuUrls(doku);
-  await Promise.allSettled(urls.map(fetchAndStoreBlob));
+    const urls = collectDokuUrls(doku);
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+  });
 }
 
 export async function saveAudioDokuOffline(audioDoku: AudioDoku): Promise<void> {
-  const db = await getDb();
-  await db.put('offline-audio-dokus', {
-    id: audioDoku.id,
-    audioDoku,
-    savedAt: Date.now(),
-  });
+  await withDbWriteFallback(async (db) => {
+    await db.put('offline-audio-dokus', {
+      id: audioDoku.id,
+      audioDoku,
+      savedAt: Date.now(),
+    });
 
-  const urls = collectAudioDokuUrls(audioDoku);
-  await Promise.allSettled(urls.map(fetchAndStoreBlob));
+    const urls = collectAudioDokuUrls(audioDoku);
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+  });
 }
 
 export async function saveGeneratedAudioOffline(entry: GeneratedAudioLibraryEntry): Promise<void> {
-  const db = await getDb();
-  await db.put('offline-generated-audios', {
-    id: entry.id,
-    generatedAudio: entry,
-    savedAt: Date.now(),
-  });
+  await withDbWriteFallback(async (db) => {
+    await db.put('offline-generated-audios', {
+      id: entry.id,
+      generatedAudio: entry,
+      savedAt: Date.now(),
+    });
 
-  const urls = collectGeneratedAudioUrls(entry);
-  await Promise.allSettled(urls.map(fetchAndStoreBlob));
+    const urls = collectGeneratedAudioUrls(entry);
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+  });
 }
 
 export async function removeStoryOffline(storyId: string): Promise<void> {
-  const db = await getDb();
-  const entry = await db.get('offline-stories', storyId);
-  if (!entry) return;
+  await withDbWriteFallback(async (db) => {
+    const entry = await db.get('offline-stories', storyId);
+    if (!entry) return;
 
-  const urls = collectStoryUrls(entry.story);
-  await db.delete('offline-stories', storyId);
-  await cleanupOrphanedBlobs(urls);
+    const urls = collectStoryUrls(entry.story);
+    await db.delete('offline-stories', storyId);
+    await cleanupOrphanedBlobs(urls);
+  });
 }
 
 export async function removeDokuOffline(dokuId: string): Promise<void> {
-  const db = await getDb();
-  const entry = await db.get('offline-dokus', dokuId);
-  if (!entry) return;
+  await withDbWriteFallback(async (db) => {
+    const entry = await db.get('offline-dokus', dokuId);
+    if (!entry) return;
 
-  const urls = collectDokuUrls(entry.doku);
-  await db.delete('offline-dokus', dokuId);
-  await cleanupOrphanedBlobs(urls);
+    const urls = collectDokuUrls(entry.doku);
+    await db.delete('offline-dokus', dokuId);
+    await cleanupOrphanedBlobs(urls);
+  });
 }
 
 export async function removeAudioDokuOffline(audioDokuId: string): Promise<void> {
-  const db = await getDb();
-  const entry = await db.get('offline-audio-dokus', audioDokuId);
-  if (!entry) return;
+  await withDbWriteFallback(async (db) => {
+    const entry = await db.get('offline-audio-dokus', audioDokuId);
+    if (!entry) return;
 
-  const urls = collectAudioDokuUrls(entry.audioDoku);
-  await db.delete('offline-audio-dokus', audioDokuId);
-  await cleanupOrphanedBlobs(urls);
+    const urls = collectAudioDokuUrls(entry.audioDoku);
+    await db.delete('offline-audio-dokus', audioDokuId);
+    await cleanupOrphanedBlobs(urls);
+  });
 }
 
 export async function removeGeneratedAudioOffline(entryId: string): Promise<void> {
-  const db = await getDb();
-  const entry = await db.get('offline-generated-audios', entryId);
-  if (!entry) return;
+  await withDbWriteFallback(async (db) => {
+    const entry = await db.get('offline-generated-audios', entryId);
+    if (!entry) return;
 
-  const urls = collectGeneratedAudioUrls(entry.generatedAudio);
-  await db.delete('offline-generated-audios', entryId);
-  await cleanupOrphanedBlobs(urls);
+    const urls = collectGeneratedAudioUrls(entry.generatedAudio);
+    await db.delete('offline-generated-audios', entryId);
+    await cleanupOrphanedBlobs(urls);
+  });
 }
 
 async function cleanupOrphanedBlobs(urls: string[]): Promise<void> {
   if (urls.length === 0) return;
-  const db = await getDb();
+  await withDbWriteFallback(async (db) => {
+    const allUsedUrls = new Set<string>();
 
-  const allUsedUrls = new Set<string>();
-
-  const stories = await db.getAll('offline-stories');
-  for (const s of stories) {
-    for (const u of collectStoryUrls(s.story)) allUsedUrls.add(u);
-  }
-
-  const dokus = await db.getAll('offline-dokus');
-  for (const d of dokus) {
-    for (const u of collectDokuUrls(d.doku)) allUsedUrls.add(u);
-  }
-
-  const audioDokus = await db.getAll('offline-audio-dokus');
-  for (const a of audioDokus) {
-    for (const u of collectAudioDokuUrls(a.audioDoku)) allUsedUrls.add(u);
-  }
-
-  const generatedAudios = await db.getAll('offline-generated-audios');
-  for (const g of generatedAudios) {
-    for (const u of collectGeneratedAudioUrls(g.generatedAudio)) allUsedUrls.add(u);
-  }
-
-  for (const url of urls) {
-    if (!allUsedUrls.has(url)) {
-      await db.delete('offline-blobs', url).catch(() => {});
+    const stories = await db.getAll('offline-stories');
+    for (const s of stories) {
+      for (const u of collectStoryUrls(s.story)) allUsedUrls.add(u);
     }
-  }
+
+    const dokus = await db.getAll('offline-dokus');
+    for (const d of dokus) {
+      for (const u of collectDokuUrls(d.doku)) allUsedUrls.add(u);
+    }
+
+    const audioDokus = await db.getAll('offline-audio-dokus');
+    for (const a of audioDokus) {
+      for (const u of collectAudioDokuUrls(a.audioDoku)) allUsedUrls.add(u);
+    }
+
+    const generatedAudios = await db.getAll('offline-generated-audios');
+    for (const g of generatedAudios) {
+      for (const u of collectGeneratedAudioUrls(g.generatedAudio)) allUsedUrls.add(u);
+    }
+
+    for (const url of urls) {
+      if (!allUsedUrls.has(url)) {
+        await db.delete('offline-blobs', url).catch(() => {});
+      }
+    }
+  });
 }
 
 export async function isStorySaved(storyId: string): Promise<boolean> {
