@@ -22,12 +22,23 @@ export function mapProgressToVisuals(progress: DomainProgress): PlanetVisuals {
   const confidence01 = clamp01(progress.confidence / 100);
   const stage = progress.stage;
 
-  const stageMoonCount = level >= 41 ? 2 : level >= 21 ? 1 : 0;
-  const hasRing = level >= 31;
-  const ringOpacity = hasRing ? smoothstep(0, 1, (level - 31) / 19) * (0.22 + confidence01 * 0.36) : 0;
+  const stageMoonCount =
+    stage === "retained"
+      ? level >= 48
+        ? 2
+        : level >= 42
+        ? 1
+        : 0
+      : stage === "apply"
+      ? level >= 40
+        ? 1
+        : 0
+      : 0;
+  const hasRing = (stage === "apply" || stage === "retained") && level >= 45;
+  const ringOpacity = hasRing ? smoothstep(0, 1, (level - 45) / 5) * (0.18 + confidence01 * 0.28) : 0;
   const hasAtmosphere = level >= 2;
-  const hasSatellites = level >= 21;
-  const satelliteCount = level >= 41 ? 2 : level >= 21 ? 1 : 0;
+  const hasSatellites = stage === "retained" && level >= 46;
+  const satelliteCount = stage === "retained" ? (level >= 49 ? 2 : level >= 46 ? 1 : 0) : 0;
 
   return {
     scale: 0.66 + smoothstep(0, 1, level01) * 0.58,
@@ -44,7 +55,7 @@ export function mapProgressToVisuals(progress: DomainProgress): PlanetVisuals {
     cloudOpacity: 0.06 + mastery01 * 0.24,
     surfaceDetail: level >= 11 ? 0.32 + mastery01 * 0.68 : 0.22 + mastery01 * 0.35,
     auraOpacity: stage === "retained" ? 0.22 + confidence01 * 0.2 : 0.08 + confidence01 * 0.12,
-    lifeSignalStrength: level >= 41 ? 1 : level >= 31 ? 0.75 : level >= 21 ? 0.52 : 0.22,
+    lifeSignalStrength: level >= 45 ? 1 : level >= 35 ? 0.75 : level >= 24 ? 0.52 : 0.2,
   };
 }
 
@@ -78,4 +89,3 @@ function smoothstep(min: number, max: number, value: number): number {
   const t = (value - min) / (max - min);
   return t * t * (3 - 2 * t);
 }
-

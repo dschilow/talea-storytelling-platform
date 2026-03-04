@@ -414,10 +414,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       const seed = topicMoonSeeds[index];
       const angle = t * (0.8 + seed.offset * 0.8) + seed.phase;
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (2.35 + index * 0.35);
+      const radius = planetRadius * (3.25 + index * 0.48);
       moon.position.x = Math.cos(angle) * radius;
       moon.position.z = Math.sin(angle) * radius;
-      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.35);
+      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.42);
       moon.rotation.y += 0.01;
     });
 
@@ -425,10 +425,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       if (!satellite) return;
       const angle = t * (1.2 + index * 0.23) + index * 1.37;
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (2.75 + index * 0.42);
+      const radius = planetRadius * (4.1 + index * 0.55);
       satellite.position.x = Math.cos(angle) * radius;
       satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.28 + index * 0.08));
+      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.34 + index * 0.1));
     });
 
     lifeParticleRefs.current.forEach((particle, index) => {
@@ -469,22 +469,20 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         }}
       />
 
-      <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <Ring
-          ref={selectionHaloRef}
-          args={[baseRadius * visuals.scale * 1.26, baseRadius * visuals.scale * 1.34, 96]}
-          visible={isFocused}
-        >
-          <meshBasicMaterial
-            color={domain.emissiveColor}
-            transparent
-            opacity={0.7}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </Ring>
-      </Billboard>
+      <Sphere
+        ref={selectionHaloRef}
+        args={[baseRadius * visuals.scale * 1.42, 48, 48]}
+        visible={isFocused}
+      >
+        <meshBasicMaterial
+          color={domain.emissiveColor}
+          transparent
+          opacity={0.16}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </Sphere>
 
       <Sphere
         ref={cloudRef}
