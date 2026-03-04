@@ -59,6 +59,114 @@ interface TopicTimelineRequest {
   topicId: string;
 }
 
+interface TopicIslandResponse {
+  topicId: string;
+  topicTitle: string;
+  topicKind: string;
+  stage: string;
+  mastery: number;
+  confidence: number;
+  masteryLabel: string;
+  confidenceLabel: string;
+  lastActivityAt: string | null;
+  recallDueAt: string | null;
+  lat: number;
+  lon: number;
+  docsCount: number;
+}
+
+interface CosmosDomainProgressResponse {
+  domainId: string;
+  evolutionIndex: number;
+  planetLevel: number;
+  stage: string;
+  masteryScore: number;
+  confidenceScore: number;
+  masteryText: string;
+  confidenceText: string;
+  evidence: string;
+  lastActivityAt: string | null;
+  activeTopicCount: number;
+}
+
+interface CosmosStateResponse {
+  childId: string;
+  domains: CosmosDomainProgressResponse[];
+  selectedDomain?: {
+    domainId: string;
+    activeIslands: TopicIslandResponse[];
+    moreTopicsCount: number;
+  };
+}
+
+interface ContentIngestResponse {
+  childId: string;
+  contentId: string;
+  domainId: string;
+  topicId: string;
+  topicKind: string;
+}
+
+interface QuizSubmitResponse {
+  childId: string;
+  topicId: string;
+  domainId: string;
+  stage: string;
+  mastery: number;
+  confidence: number;
+  masteryDelta: number;
+  confidenceDelta: number;
+  recallTaskId: string;
+  recallDueAt: string;
+  evolutionIndex: number;
+  planetLevel: number;
+}
+
+interface RecallSubmitResponse {
+  childId: string;
+  topicId: string;
+  domainId: string;
+  stage: string;
+  mastery: number;
+  confidence: number;
+  confidenceDelta: number;
+  evolutionIndex: number;
+  planetLevel: number;
+  passed: boolean;
+}
+
+interface DomainTopicsResponse {
+  childId: string;
+  domainId: string;
+  activeIslands: TopicIslandResponse[];
+  otherTopics: TopicIslandResponse[];
+}
+
+interface TopicTimelineResponse {
+  childId: string;
+  topicId: string;
+  docs: Array<{
+    contentId: string;
+    type: "doku" | "story";
+    title: string;
+    createdAt: string;
+  }>;
+  quizAttempts: Array<{
+    id: string;
+    accuracy: number;
+    correctCount: number;
+    totalCount: number;
+    createdAt: string;
+  }>;
+  recallTasks: Array<{
+    id: string;
+    dueAt: string;
+    status: string;
+    score: number | null;
+    doneAt: string | null;
+  }>;
+}
+
 function requireUserId(): string {
   const auth = getAuthData();
   if (!auth?.userID) {
@@ -67,7 +175,7 @@ function requireUserId(): string {
   return auth.userID;
 }
 
-export const getCosmosStateV2 = api<CosmosStateRequest, Awaited<ReturnType<typeof getCosmosStateForChild>>>(
+export const getCosmosStateV2 = api<CosmosStateRequest, CosmosStateResponse>(
   { expose: true, method: "GET", path: "/api/cosmos/state", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -81,7 +189,7 @@ export const getCosmosStateV2 = api<CosmosStateRequest, Awaited<ReturnType<typeo
   }
 );
 
-export const ingestContentPackageV2 = api<ContentIngestRequest, Awaited<ReturnType<typeof ingestContentPackage>>>(
+export const ingestContentPackageV2 = api<ContentIngestRequest, ContentIngestResponse>(
   { expose: true, method: "POST", path: "/api/content/ingest", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -99,7 +207,7 @@ export const ingestContentPackageV2 = api<ContentIngestRequest, Awaited<ReturnTy
   }
 );
 
-export const submitQuizV2 = api<QuizSubmitRequest, Awaited<ReturnType<typeof submitQuizForCosmos>>>(
+export const submitQuizV2 = api<QuizSubmitRequest, QuizSubmitResponse>(
   { expose: true, method: "POST", path: "/api/quiz/submit", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -124,7 +232,7 @@ export const submitQuizV2 = api<QuizSubmitRequest, Awaited<ReturnType<typeof sub
   }
 );
 
-export const submitRecallV2 = api<RecallSubmitRequest, Awaited<ReturnType<typeof submitRecallForCosmos>>>(
+export const submitRecallV2 = api<RecallSubmitRequest, RecallSubmitResponse>(
   { expose: true, method: "POST", path: "/api/recall/submit", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -145,7 +253,7 @@ export const submitRecallV2 = api<RecallSubmitRequest, Awaited<ReturnType<typeof
   }
 );
 
-export const getDomainTopicsV2 = api<DomainTopicsRequest, Awaited<ReturnType<typeof getDomainTopicsForChild>>>(
+export const getDomainTopicsV2 = api<DomainTopicsRequest, DomainTopicsResponse>(
   { expose: true, method: "GET", path: "/api/domain/:domainId/topics", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -159,7 +267,7 @@ export const getDomainTopicsV2 = api<DomainTopicsRequest, Awaited<ReturnType<typ
   }
 );
 
-export const getTopicTimelineV2 = api<TopicTimelineRequest, Awaited<ReturnType<typeof getTopicTimelineForChild>>>(
+export const getTopicTimelineV2 = api<TopicTimelineRequest, TopicTimelineResponse>(
   { expose: true, method: "GET", path: "/api/topic/:topicId/timeline", auth: true },
   async (req) => {
     const userId = requireUserId();
@@ -172,4 +280,3 @@ export const getTopicTimelineV2 = api<TopicTimelineRequest, Awaited<ReturnType<t
     });
   }
 );
-
