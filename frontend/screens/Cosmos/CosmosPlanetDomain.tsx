@@ -230,8 +230,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         // Night lights via emissive map (city lights, lava, crystals)
         emissiveMap: maps.nightMap,
         emissive: new THREE.Color('#ffffff'),
-        // Reduced from 0.6 to 0.15 to prevent washing out the surface texture
-        emissiveIntensity: 0.15 + visuals.developmentLevel * 0.25,
+        // Massive reduction to ensure the day-side stays day-side
+        emissiveIntensity: 0.04,
         envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
         sheen: 0.3 + visuals.developmentLevel * 0.4,
         sheenRoughness: 0.6,
@@ -530,61 +530,39 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
 
 
-      {/* Topic Moons: only appear once multiple topics are explored */}
+      {/* Topic Moons: Far orbits */}
       {Array.from({ length: topicMoonCount }).map((_, index) => {
-        const size = 0.035 + Math.min(0.02, visuals.developmentLevel * 0.02 + index * 0.002);
+        const moonSize = 0.038 + index * 0.005;
         return (
           <group
-            key={`topic_moon_group_${index}`}
-            ref={(node) => {
-              topicMoonRefs.current[index] = node as unknown as THREE.Group;
-            }}
+            key={`topic_moon_${index}`}
+            ref={(node) => { topicMoonRefs.current[index] = node as unknown as THREE.Group; }}
           >
-            <Sphere args={[size, 24, 24]}>
-              <meshStandardMaterial
-                color="#e2e8f0"
-                emissive={domain.emissiveColor}
-                emissiveIntensity={0.05}
-                roughness={0.9}
-                metalness={0.1}
-              />
-            </Sphere>
-            {/* Subtle atmosphere/glow instead of wireframe */}
-            <Sphere args={[size * 1.15, 16, 16]}>
-              <meshBasicMaterial
-                color={domain.emissiveColor}
-                transparent
-                opacity={0.15}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-              />
+            <Sphere args={[moonSize, 24, 24]}>
+              <meshStandardMaterial color="#e2e8f0" roughness={0.85} metalness={0.05} />
             </Sphere>
           </group>
         );
       })}
 
-      {/* Satellites - Realistic solar-probe style */}
+      {/* Satellites: Extreme orbits */}
       {Array.from({ length: visuals.satelliteCount }).map((_, index) => (
         <group
-          key={`satellite_group_${index}`}
-          ref={(node) => {
-            satelliteRefs.current[index] = node as unknown as THREE.Group;
-          }}
+          key={`sat_main_${index}`}
+          ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
         >
-          {/* Main body: silver probe box */}
-          <group scale={0.012}>
+          <group scale={0.014}>
             <mesh>
               <boxGeometry args={[1, 1, 1.6]} />
-              <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
+              <meshStandardMaterial color="#c0c0c0" metalness={0.9} />
             </mesh>
-            {/* Solar panels extending out */}
             <mesh position={[1.5, 0, 0]}>
               <boxGeometry args={[2.0, 0.04, 1.1]} />
-              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.6} />
+              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.8} />
             </mesh>
             <mesh position={[-1.5, 0, 0]}>
               <boxGeometry args={[2.0, 0.04, 1.1]} />
-              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.6} />
+              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.8} />
             </mesh>
           </group>
         </group>
@@ -816,48 +794,32 @@ function createPlanetMaps(
       const nx = x / size;
       const ny = y / size;
 
-      const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 4);
-      const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 3);
+      // 🏔️ Massive Terrain Logic
+      const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 6);
+      const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 4);
       const micro = fbm2D(nx * 32, ny * 32, seed + 911, 2);
-      const continentNoise = fbm2D(nx * 2.4, ny * 2.4, seed + 219, 4);
-      const regionNoise = fbm2D(nx * 5.4, ny * 5.4, seed + 527, 3);
-      const latitude = Math.abs(ny - 0.5) * 2;
-      const ridge = Math.pow(Math.abs(0.5 - n2) * 2, profile.ridgePower);
-      const altitude = clamp01(n1 * profile.heightWeight + ridge * profile.ridgeWeight);
-      const hasContinents =
-        planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
-      const regionMask = hasContinents
-        ? smoothstep(0.46, 0.76, continentNoise) * smoothstep(0.2, 1, detailFactor)
-        : 0;
-      const gasBand =
-        planetType === 'gaseous'
-          ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35)
-          : 0;
-      const iceCap =
-        planetType === 'icy' || planetType === 'oceanic'
-          ? smoothstep(0.58, 0.96, latitude) * (0.2 + detailFactor * 0.4)
-          : 0;
-      const lavaCrack =
-        planetType === 'volcanic'
-          ? smoothstep(0.62, 0.92, n2) * smoothstep(0.4, 1, detailFactor)
-          : 0;
+      const ridge = Math.pow(Math.abs(0.5 - n2) * 2.0, profile.ridgePower);
 
-      const shade = profile.shadeMin + altitude * profile.shadeRange + micro * 0.12;
+      // Altitude with higher contrast for visible mountains
+      const altitude = clamp01((n1 * profile.heightWeight + ridge * profile.ridgeWeight) * 1.4 - 0.2);
+
+      const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
+      const continentNoise = fbm2D(nx * 2.2, ny * 2.2, seed + 219, 4);
+      const regionMask = hasContinents ? smoothstep(0.4, 0.8, continentNoise) : 0;
+
+      const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
+      const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
+
+      const shade = profile.shadeMin + altitude * profile.shadeRange;
       const tint = profile.tintBase + n2 * profile.tintRange;
-      const microDetail = fbm2D(nx * 128, ny * 128, seed + 44, 1); // Micro-noise for high-res look
-      const regionBoost =
-        1 +
-        regionMask * (0.12 + regionNoise * 0.24) +
-        gasBand * 0.24 +
-        iceCap * 0.36 +
-        lavaCrack * 0.42 +
-        microDetail * 0.04;
-      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * regionBoost);
-      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22) * regionBoost);
-      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2) * (1 + regionMask * 0.08));
+      const structureBoost = 0.85 + altitude * 0.6;
+
+      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost);
+      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost);
+      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost);
       surfaceData.data[i + 3] = 255;
 
-      const bump = clamp255((altitude + regionMask * 0.2 + micro * 0.07 + lavaCrack * 0.15) * 255);
+      const bump = clamp255(altitude * 255);
       bumpData.data[i] = bump;
       bumpData.data[i + 1] = bump;
       bumpData.data[i + 2] = bump;
