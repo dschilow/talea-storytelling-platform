@@ -73,8 +73,8 @@ const FRAGMENT_SHADER = `
   // Realistic deep space nebula map
   vec3 skyMap(vec3 dir, float time) {
     // Galactic plane
-    float band = exp(-pow(dir.y * 1.5 + sin(dir.x * 2.0)*0.2, 2.0) / 0.1) * 0.6;
-    band += exp(-pow(dir.y * 0.8 - cos(dir.z * 1.5)*0.3, 2.0) / 0.3) * 0.2;
+    float band = exp(-pow(dir.y * 1.5 + sin(dir.x * 2.0)*0.2, 2.0) / 0.1) * 0.15;
+    band += exp(-pow(dir.y * 0.8 - cos(dir.z * 1.5)*0.3, 2.0) / 0.3) * 0.05;
 
     // Deep volumetric nebulas
     vec3 p = dir * 2.5 + vec3(time * 0.005);
@@ -100,17 +100,13 @@ const FRAGMENT_SHADER = `
     baseColor += starFlash * vec3(0.9, 0.95, 1.0) * band;
 
     // Ambient space void
-    vec3 voidColor = vec3(0.01, 0.015, 0.025);
+    vec3 voidColor = vec3(0.002, 0.004, 0.008);
     return baseColor + voidColor;
   }
 
   void main() {
     vec3 dir = normalize(vWorldPos - cameraPosition);
     vec3 color = skyMap(dir, uTime);
-
-    // Tone mapping and gamma
-    color = color / (1.0 + color);
-    color = pow(color, vec3(1.0/2.2));
 
     gl_FragColor = vec4(color, 1.0);
   }

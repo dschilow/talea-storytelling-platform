@@ -209,22 +209,24 @@ const CORONA_FRAGMENT = `
   varying vec2 vUv;
   uniform float uTime;
   
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  float hash(vec3 p) {
+    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
   }
-  
-  float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
+
+  float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    float n = mix(
+      mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+          mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+          mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z
+    );
+    return n;
   }
   
-  float fbm(vec2 p) {
+  float fbm(vec3 p) {
     float v = 0.0;
     float a = 0.5;
     for (int i=0; i<4; i++) {
@@ -240,20 +242,21 @@ const CORONA_FRAGMENT = `
     float dist = length(uv);
     if(dist > 1.0) discard;
     
-    // Convert to polar for ray-like streaks
-    float angle = atan(uv.y, uv.x);
+    // Streaks radiating outward seamlessly
+    vec2 dir = normalize(uv);
+    vec3 rayPos = vec3(dir * 5.0, uTime * 0.15);
+    vec3 rayPos2 = vec3(dir * 2.5, uTime * 0.25 + 10.0);
     
-    // Streaks radiating outward
-    float rayNoise = fbm(vec2(angle * 8.0, dist * 2.0 - uTime * 0.2));
-    float rayNoise2 = fbm(vec2(angle * 4.0 - uTime * 0.1, dist * 3.0 - uTime * 0.3));
+    float rayNoise = fbm(rayPos);
+    float rayNoise2 = fbm(rayPos2);
     
-    float rays = smoothstep(0.4, 0.8, rayNoise * 0.6 + rayNoise2 * 0.4);
+    float rays = smoothstep(0.3, 0.7, rayNoise * 0.6 + rayNoise2 * 0.4);
     
     // Fade out towards edge and inner edge (planet surface)
-    float mask = smoothstep(1.0, 0.6, dist) * smoothstep(0.15, 0.3, dist);
+    float mask = smoothstep(1.0, 0.5, dist) * smoothstep(0.1, 0.3, dist);
     
     // Corona Base Color
-    vec3 color = vec3(1.0, 0.65, 0.2) * rays * 2.5;
+    vec3 color = vec3(1.0, 0.65, 0.2) * (rays * 1.5 + 0.1);
     
     // Add central intense glow
     float coreGlow = smoothstep(0.6, 0.1, dist);
