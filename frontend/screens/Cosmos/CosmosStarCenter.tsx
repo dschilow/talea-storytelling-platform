@@ -173,9 +173,9 @@ const STAR_SURFACE_FRAGMENT = `
     float surface = fbm(noisePos);
     float detail = fbm(noisePos * 3.0 + 1.5);
 
-    // Limb darkening
+    // Keep the star fully emissive from all viewing angles.
     float NdotV = max(0.0, dot(n, viewDir));
-    float limbDarkening = pow(NdotV, 0.45);
+    float limbBoost = 0.92 + 0.18 * pow(1.0 - NdotV, 0.7);
 
     // Color variation: bright yellow center, orange-red edges
     vec3 hotColor = vec3(1.0, 0.96, 0.82);
@@ -184,7 +184,7 @@ const STAR_SURFACE_FRAGMENT = `
 
     vec3 color = mix(coolColor, warmColor, surface);
     color = mix(color, hotColor, detail * 0.6);
-    color *= limbDarkening;
+    color *= limbBoost;
 
     // Granulation pattern
     float granulation = fbm(vWorldPos * 12.0 + uTime * 0.04);

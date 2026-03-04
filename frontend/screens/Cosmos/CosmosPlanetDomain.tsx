@@ -592,7 +592,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         const pos = latLonToPlanetPosition(
           topic.lat,
           topic.lon,
-          baseRadius * visuals.scale * 1.04
+          baseRadius * visuals.scale * 1.12
         );
         const isSelected = selectedTopicId === topic.topicId;
         const stage = topic.stage;
@@ -608,12 +608,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
         const markerSize =
           stage === 'retained'
-            ? 0.07
+            ? 0.048
             : stage === 'apply'
-            ? 0.062
+            ? 0.044
             : stage === 'understood'
-            ? 0.056
-            : 0.05;
+            ? 0.04
+            : 0.036;
 
         return (
           <group
@@ -631,6 +631,14 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
               document.body.style.cursor = 'auto';
             }}
           >
+            <Sphere args={[markerSize * 2.3, 10, 10]} renderOrder={1}>
+              <meshBasicMaterial
+                transparent
+                opacity={0}
+                depthWrite={false}
+              />
+            </Sphere>
+
             <Sphere args={[markerSize, 10, 10]}>
               <meshStandardMaterial
                 color={markerColor}
@@ -649,27 +657,35 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             )}
 
             {stage === 'retained' && (
-              <Ring args={[markerSize * 1.5, markerSize * 2.0, 24]} rotation={[Math.PI / 2, 0, 0]}>
-                <meshBasicMaterial
-                  color="#fde68a"
-                  transparent
-                  opacity={0.75}
-                  blending={THREE.AdditiveBlending}
-                  depthWrite={false}
-                />
-              </Ring>
+              <Billboard follow>
+                <mesh position={[0, markerSize + 0.035, 0]}>
+                  <ringGeometry args={[markerSize * 0.7, markerSize * 1.1, 24]} />
+                  <meshBasicMaterial
+                    color="#fde68a"
+                    transparent
+                    opacity={0.8}
+                    blending={THREE.AdditiveBlending}
+                    depthWrite={false}
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+              </Billboard>
             )}
 
             {isSelected && (
-              <Ring args={[markerSize * 1.9, markerSize * 2.35, 24]} rotation={[Math.PI / 2, 0, 0]}>
-                <meshBasicMaterial
-                  color="#ffffff"
-                  transparent
-                  opacity={0.95}
-                  blending={THREE.AdditiveBlending}
-                  depthWrite={false}
-                />
-              </Ring>
+              <Billboard follow>
+                <mesh position={[0, markerSize + 0.045, 0]}>
+                  <ringGeometry args={[markerSize * 0.95, markerSize * 1.45, 24]} />
+                  <meshBasicMaterial
+                    color="#ffffff"
+                    transparent
+                    opacity={0.95}
+                    blending={THREE.AdditiveBlending}
+                    depthWrite={false}
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+              </Billboard>
             )}
           </group>
         );

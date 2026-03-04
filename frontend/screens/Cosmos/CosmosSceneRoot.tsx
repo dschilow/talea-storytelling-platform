@@ -98,6 +98,12 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
     [cosmosState.domains]
   );
+  const visibleDomains = useMemo(() => {
+    if (cameraMode === 'detail' && focusedDomainId) {
+      return sceneDomains.filter((domain) => domain.id === focusedDomainId);
+    }
+    return sceneDomains;
+  }, [cameraMode, focusedDomainId, sceneDomains]);
 
   const focusedDomain = focusedDomainId
     ? getDomainById(focusedDomainId, sceneDomains) ?? null
@@ -376,7 +382,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             focusedDomainId={focusedDomainId}
           />
 
-          {sceneDomains.map((domain) => (
+          {visibleDomains.map((domain) => (
             <CosmosPlanetDomain
               key={domain.id}
               domain={domain}
