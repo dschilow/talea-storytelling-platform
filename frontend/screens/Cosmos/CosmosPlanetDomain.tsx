@@ -433,11 +433,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       satellite.visible = true;
       const angle = t * (0.8 + index * 0.15) + index * 1.37;
       const planetRadius = baseRadius * visuals.scale;
-      // Pushed out from 4.1 to 8.0+
-      const radius = planetRadius * (8.0 + index * 0.85);
+      // Very far orbit: 14x planet radius minimum
+      const radius = planetRadius * (14.0 + index * 1.2);
       satellite.position.x = Math.cos(angle) * radius;
       satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.54 + index * 0.2));
+      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.9 + index * 0.3));
     });
 
     lifeParticleRefs.current.forEach((particle, index) => {
@@ -478,27 +478,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         }}
       />
 
-      {/* Selection ring – flat orbit ring around the equator, only visible when focused */}
-      {isFocused && (
-        <Ring
-          ref={selectionHaloRef}
-          args={[
-            baseRadius * visuals.scale * 1.28,
-            baseRadius * visuals.scale * 1.36,
-            64,
-          ]}
-          rotation={[Math.PI / 2, 0, 0]}
-        >
-          <meshBasicMaterial
-            color={domain.emissiveColor}
-            transparent
-            opacity={0.55}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-            side={THREE.DoubleSide}
-          />
-        </Ring>
-      )}
 
       <Sphere
         ref={cloudRef}
@@ -519,36 +498,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         </mesh>
       </Billboard>
 
-      {/* Only show rings if topicsExplored > 2 or stage > initial */}
-      {(progress.topicsExplored || 0) > 2 && ringLayers > 0 &&
-        Array.from({ length: ringLayers }).map((_, index) => {
-          const inner = baseRadius * visuals.scale * (1.42 + index * 0.22);
-          const outer = inner + baseRadius * visuals.scale * (0.32 + index * 0.08);
-          const opacity = Math.max(0.08, visuals.ringOpacity * (0.8 - index * 0.22));
-          return (
-            <Ring
-              key={`ring_${index}`}
-              args={[inner, outer, 96]}
-              rotation={[Math.PI / (2.45 + index * 0.04), 0, index * 0.05]}
-            >
-              <meshPhysicalMaterial
-                map={ringMap}
-                alphaMap={ringMap}
-                color={new THREE.Color(domain.color).multiplyScalar(1.06)}
-                transparent
-                opacity={opacity}
-                emissive={domain.emissiveColor}
-                emissiveIntensity={0.08 + visuals.developmentLevel * 0.14}
-                roughness={0.72}
-                metalness={0.03}
-                clearcoat={0.12}
-                side={THREE.DoubleSide}
-                depthWrite={false}
-                alphaTest={0.02}
-              />
-            </Ring>
-          );
-        })}
+      {/* Planet rings gated behind mastery level 3+ - off by default */}
 
       {Array.from({ length: topicMoonCount }).map((_, index) => {
         const size = 0.035 + Math.min(0.02, visuals.developmentLevel * 0.02 + index * 0.002);
