@@ -497,7 +497,14 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           onPointerOut={() => {
             document.body.style.cursor = 'auto';
           }}
-        />
+        >
+          {/* Debug marker to verify the NEW code is actually running */}
+          <Html position={[0, 0.8, 0]} center style={{ pointerEvents: 'none', userSelect: 'none' }}>
+            <div style={{ color: 'white', background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', whiteSpace: 'nowrap' }}>
+              Cosmos V2.1 ACTIVE
+            </div>
+          </Html>
+        </Sphere>
 
         <Sphere
           ref={cloudRef}
