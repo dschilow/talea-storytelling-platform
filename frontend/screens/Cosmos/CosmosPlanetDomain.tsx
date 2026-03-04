@@ -51,7 +51,8 @@ function getCachedPlanetMaps(
   textureSize: number
 ): PlanetMapSet {
   const quantizedDetail = Math.round(detailFactor * 4) / 4;
-  const key = `${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
+  // Version 2 cache buster to force re-render with nightMaps and new structure
+  const key = `V2|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
   const existing = PLANET_MAP_CACHE.get(key);
   if (existing) return existing;
   const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
@@ -210,8 +211,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         color: new THREE.Color('#ffffff'),
         map: maps.surfaceMap,
         bumpMap: maps.bumpMap,
-        // Increased bumpScale for dramatic terrain relief (craters, ridges, mountains)
-        bumpScale: 0.18 + visuals.surfaceDetail * 0.42,
+        // Massive bumpScale for dramatic terrain (craters, mountains, ridges)
+        bumpScale: 0.45 + visuals.surfaceDetail * 0.75,
         roughnessMap: maps.roughnessMap,
         roughness:
           progress.stage === 'discovered'
@@ -229,7 +230,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         // Night lights via emissive map (city lights, lava, crystals)
         emissiveMap: maps.nightMap,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.6 + visuals.developmentLevel * 0.4,
+        // Reduced from 0.6 to 0.15 to prevent washing out the surface texture
+        emissiveIntensity: 0.15 + visuals.developmentLevel * 0.25,
         envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
         sheen: 0.3 + visuals.developmentLevel * 0.4,
         sheenRoughness: 0.6,
@@ -419,7 +421,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       if (!moon || index >= topicMoonCount) return;
       const seed = topicMoonSeeds[index];
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (6.5 + index * 0.75);
+      // MASSIVE EXPANSION: 12.0x planet radius to be clearly outside any atmosphere
+      const radius = planetRadius * (12.0 + index * 1.5);
 
       // Keplerian speed: slower for outer orbits
       const keplerSpeed = 0.52 / Math.sqrt(radius);
@@ -441,7 +444,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       }
       satellite.visible = true;
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (14.0 + index * 1.5);
+      // EXTREME DISTANCE: 22x radius for deep space probe feel
+      const radius = planetRadius * (22.0 + index * 2.5);
 
       // Far satellites move very slow (realism)
       const keplerSpeed = 0.46 / Math.sqrt(radius);
