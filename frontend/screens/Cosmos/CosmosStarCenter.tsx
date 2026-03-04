@@ -197,6 +197,72 @@ const STAR_SURFACE_FRAGMENT = `
   }
 `;
 
+const CORONA_VERTEX = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const CORONA_FRAGMENT = `
+  varying vec2 vUv;
+  uniform float uTime;
+  
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+  }
+  
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+  }
+  
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i=0; i<4; i++) {
+        v += a * noise(p);
+        p *= 2.0;
+        a *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    vec2 uv = vUv * 2.0 - 1.0;
+    float dist = length(uv);
+    if(dist > 1.0) discard;
+    
+    // Convert to polar for ray-like streaks
+    float angle = atan(uv.y, uv.x);
+    
+    // Streaks radiating outward
+    float rayNoise = fbm(vec2(angle * 8.0, dist * 2.0 - uTime * 0.2));
+    float rayNoise2 = fbm(vec2(angle * 4.0 - uTime * 0.1, dist * 3.0 - uTime * 0.3));
+    
+    float rays = smoothstep(0.4, 0.8, rayNoise * 0.6 + rayNoise2 * 0.4);
+    
+    // Fade out towards edge and inner edge (planet surface)
+    float mask = smoothstep(1.0, 0.6, dist) * smoothstep(0.15, 0.3, dist);
+    
+    // Corona Base Color
+    vec3 color = vec3(1.0, 0.65, 0.2) * rays * 2.5;
+    
+    // Add central intense glow
+    float coreGlow = smoothstep(0.6, 0.1, dist);
+    color += vec3(1.0, 0.85, 0.5) * coreGlow * 1.5;
+    
+    gl_FragColor = vec4(color, mask * 0.95);
+  }
+`;
+
 export const CosmosStarCenter: React.FC<Props> = ({
   avatarImageUrl,
   cameraMode,
@@ -235,17 +301,20 @@ export const CosmosStarCenter: React.FC<Props> = ({
     [glowTexture]
   );
 
-  const coronaMaterial = useMemo(
+  const coronaProceduralMaterial = useMemo(
     () =>
-      new THREE.MeshBasicMaterial({
-        map: coronaTexture,
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+        },
+        vertexShader: CORONA_VERTEX,
+        fragmentShader: CORONA_FRAGMENT,
         transparent: true,
-        opacity: 0.04,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
       }),
-    [coronaTexture]
+    []
   );
 
   useFrame(({ clock }) => {
@@ -270,8 +339,8 @@ export const CosmosStarCenter: React.FC<Props> = ({
       coronaSpriteRef.current.rotation.z += 0.0004;
       const coronaPulse = 1 + Math.sin(t * 0.5) * 0.025;
       coronaSpriteRef.current.scale.setScalar(6.7 * coronaPulse);
-      const mat = coronaSpriteRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.015 + raysVisible * 0.14;
+      const mat = coronaSpriteRef.current.material as THREE.ShaderMaterial;
+      mat.uniforms.uTime.value = t;
     }
     if (lightRef.current) {
       lightRef.current.intensity = 1.75 + Math.sin(t * 1.5) * 0.14;
@@ -282,11 +351,11 @@ export const CosmosStarCenter: React.FC<Props> = ({
     return () => {
       starMaterial.dispose();
       glowMaterial.dispose();
-      coronaMaterial.dispose();
+      coronaProceduralMaterial.dispose();
       glowTexture.dispose();
       coronaTexture.dispose();
     };
-  }, [coronaMaterial, coronaTexture, glowMaterial, glowTexture, starMaterial]);
+  }, [coronaProceduralMaterial, coronaTexture, glowMaterial, glowTexture, starMaterial]);
 
   return (
     <group>
@@ -302,7 +371,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
 
       {/* Billboard corona with ray filaments */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <mesh ref={coronaSpriteRef} material={coronaMaterial}>
+        <mesh ref={coronaSpriteRef} material={coronaProceduralMaterial}>
           <planeGeometry args={[1, 1]} />
         </mesh>
       </Billboard>

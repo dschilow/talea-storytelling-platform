@@ -67,50 +67,65 @@ function getCachedRingMap(color: string, seed: number, textureSize: number): THR
 }
 
 const ATMOSPHERE_VERTEX = `
-  varying vec3 vNormalW;
-  varying vec3 vWorldPos;
+  varying vec3 vNormal;
   varying vec3 vViewDir;
+  varying vec3 vWorldPos;
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
     vWorldPos = world.xyz;
-    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vNormal = normalize(mat3(modelMatrix) * normal);
     vViewDir = normalize(cameraPosition - world.xyz);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
 const ATMOSPHERE_FRAGMENT = `
-  varying vec3 vNormalW;
-  varying vec3 vWorldPos;
+  varying vec3 vNormal;
   varying vec3 vViewDir;
+  varying vec3 vWorldPos;
   uniform vec3 uColor;
   uniform float uOpacity;
-  uniform float uPower;
-  uniform float uIntensity;
   uniform vec3 uSunPos;
+
   void main() {
-    vec3 n = normalize(vNormalW);
+    vec3 n = normalize(vNormal);
     vec3 viewDir = normalize(vViewDir);
+    vec3 sunDir = normalize(uSunPos - vWorldPos);
 
     // Fresnel rim
-    float NdotV = dot(n, viewDir);
-    float fresnel = pow(1.0 - abs(NdotV), uPower);
+    float fresnel = max(0.0, dot(n, viewDir));
+    float rim = pow(1.0 - fresnel, 3.8);
 
-    // Sun-side backlight (rim glow stronger on sun side)
-    vec3 sunDir = normalize(uSunPos - vWorldPos);
-    float sunAlignment = max(0.0, dot(n, sunDir));
-    float backlight = pow(1.0 - abs(NdotV), 3.0) * sunAlignment * 0.6;
+    // Terminator transition (Sun Illumination)
+    float sunAlignment = dot(n, sunDir);
+    float dayLight = smoothstep(-0.15, 0.35, sunAlignment);
 
-    // Smooth alpha with no hard edge
-    float rim = smoothstep(0.0, 0.85, fresnel);
-    float alpha = (rim + backlight) * uOpacity;
-    alpha = smoothstep(0.0, 1.0, alpha);
+    // Forward/Back-Scattering (Mie)
+    float sunView = max(0.0, dot(-viewDir, sunDir));
+    float mie = pow(sunView, 12.0) * 1.5;
 
-    // Color with warm sun-side tint
-    vec3 warmTint = mix(uColor, vec3(1.0, 0.85, 0.65), backlight * 0.4);
-    vec3 color = warmTint * (0.5 + fresnel * uIntensity + backlight * 0.8);
+    // Atmospheric Scattering (Rayleigh)
+    vec3 rayleighColor = uColor * vec3(1.2, 1.5, 2.0); // Shift blue
+    vec3 rayleigh = rayleighColor * rim * dayLight * 2.5;
+    
+    // Twilight color band
+    float twilightBand = smoothstep(-0.25, 0.15, sunAlignment) * (1.0 - smoothstep(0.0, 0.3, sunAlignment));
+    vec3 twilightColor = mix(uColor, vec3(1.0, 0.45, 0.15), 0.7); // Orange/red sunset
+    vec3 twilight = twilightColor * rim * twilightBand * 2.0;
 
-    gl_FragColor = vec4(color, alpha);
+    // Mie contribution (sunset / sunrise glows brilliantly when backlit)
+    vec3 mieGlow = vec3(1.0, 0.9, 0.8) * mie * rim * (dayLight + twilightBand);
+
+    vec3 finalGlow = rayleigh + twilight + mieGlow;
+    
+    // Night-side ambient glow (very faint)
+    float nightGlow = pow(1.0 - fresnel, 6.0) * 0.12 * (1.0 - dayLight);
+    vec3 nightColor = uColor * nightGlow;
+    
+    finalGlow += nightColor;
+
+    float alpha = length(finalGlow) * uOpacity;
+    gl_FragColor = vec4(finalGlow, smoothstep(0.0, 1.0, alpha));
   }
 `;
 
@@ -588,108 +603,108 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       ))}
 
       <group ref={islandAnchorRef}>
-      {visibleIslands.map((topic, index) => {
-        const pos = latLonToPlanetPosition(
-          topic.lat,
-          topic.lon,
-          baseRadius * visuals.scale * 1.12
-        );
-        const isSelected = selectedTopicId === topic.topicId;
-        const stage = topic.stage;
+        {visibleIslands.map((topic, index) => {
+          const pos = latLonToPlanetPosition(
+            topic.lat,
+            topic.lon,
+            baseRadius * visuals.scale * 1.12
+          );
+          const isSelected = selectedTopicId === topic.topicId;
+          const stage = topic.stage;
 
-        const markerColor =
-          stage === 'retained'
-            ? '#f59e0b'
-            : stage === 'apply'
-            ? '#22c55e'
-            : stage === 'understood'
-            ? '#60a5fa'
-            : '#a3a3a3';
+          const markerColor =
+            stage === 'retained'
+              ? '#f59e0b'
+              : stage === 'apply'
+                ? '#22c55e'
+                : stage === 'understood'
+                  ? '#60a5fa'
+                  : '#a3a3a3';
 
-        const markerSize =
-          stage === 'retained'
-            ? 0.048
-            : stage === 'apply'
-            ? 0.044
-            : stage === 'understood'
-            ? 0.04
-            : 0.036;
+          const markerSize =
+            stage === 'retained'
+              ? 0.048
+              : stage === 'apply'
+                ? 0.044
+                : stage === 'understood'
+                  ? 0.04
+                  : 0.036;
 
-        return (
-          <group
-            key={`island_${topic.topicId}_${index}`}
-            position={[pos.x, pos.y, pos.z]}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelectIsland?.(topic);
-            }}
-            onPointerOver={(event) => {
-              event.stopPropagation();
-              document.body.style.cursor = 'pointer';
-            }}
-            onPointerOut={() => {
-              document.body.style.cursor = 'auto';
-            }}
-          >
-            <Sphere args={[markerSize * 2.3, 10, 10]} renderOrder={1}>
-              <meshBasicMaterial
-                transparent
-                opacity={0}
-                depthWrite={false}
-              />
-            </Sphere>
+          return (
+            <group
+              key={`island_${topic.topicId}_${index}`}
+              position={[pos.x, pos.y, pos.z]}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectIsland?.(topic);
+              }}
+              onPointerOver={(event) => {
+                event.stopPropagation();
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                document.body.style.cursor = 'auto';
+              }}
+            >
+              <Sphere args={[markerSize * 2.3, 10, 10]} renderOrder={1}>
+                <meshBasicMaterial
+                  transparent
+                  opacity={0}
+                  depthWrite={false}
+                />
+              </Sphere>
 
-            <Sphere args={[markerSize, 10, 10]}>
-              <meshStandardMaterial
-                color={markerColor}
-                emissive={markerColor}
-                emissiveIntensity={stage === 'discovered' ? 0.2 : 0.38}
-                roughness={0.42}
-                metalness={0.08}
-              />
-            </Sphere>
+              <Sphere args={[markerSize, 10, 10]}>
+                <meshStandardMaterial
+                  color={markerColor}
+                  emissive={markerColor}
+                  emissiveIntensity={stage === 'discovered' ? 0.2 : 0.38}
+                  roughness={0.42}
+                  metalness={0.08}
+                />
+              </Sphere>
 
-            {(stage === 'apply' || stage === 'retained') && (
-              <mesh position={[0, markerSize + 0.03, 0]}>
-                <cylinderGeometry args={[0.006, 0.006, 0.08, 8]} />
-                <meshStandardMaterial color="#f5f5f5" roughness={0.4} metalness={0.2} />
-              </mesh>
-            )}
-
-            {stage === 'retained' && (
-              <Billboard follow>
-                <mesh position={[0, markerSize + 0.035, 0]}>
-                  <ringGeometry args={[markerSize * 0.7, markerSize * 1.1, 24]} />
-                  <meshBasicMaterial
-                    color="#fde68a"
-                    transparent
-                    opacity={0.8}
-                    blending={THREE.AdditiveBlending}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                  />
+              {(stage === 'apply' || stage === 'retained') && (
+                <mesh position={[0, markerSize + 0.03, 0]}>
+                  <cylinderGeometry args={[0.006, 0.006, 0.08, 8]} />
+                  <meshStandardMaterial color="#f5f5f5" roughness={0.4} metalness={0.2} />
                 </mesh>
-              </Billboard>
-            )}
+              )}
 
-            {isSelected && (
-              <Billboard follow>
-                <mesh position={[0, markerSize + 0.045, 0]}>
-                  <ringGeometry args={[markerSize * 0.95, markerSize * 1.45, 24]} />
-                  <meshBasicMaterial
-                    color="#ffffff"
-                    transparent
-                    opacity={0.95}
-                    blending={THREE.AdditiveBlending}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
-              </Billboard>
-            )}
-          </group>
-        );
-      })}
+              {stage === 'retained' && (
+                <Billboard follow>
+                  <mesh position={[0, markerSize + 0.035, 0]}>
+                    <ringGeometry args={[markerSize * 0.7, markerSize * 1.1, 24]} />
+                    <meshBasicMaterial
+                      color="#fde68a"
+                      transparent
+                      opacity={0.8}
+                      blending={THREE.AdditiveBlending}
+                      depthWrite={false}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                </Billboard>
+              )}
+
+              {isSelected && (
+                <Billboard follow>
+                  <mesh position={[0, markerSize + 0.045, 0]}>
+                    <ringGeometry args={[markerSize * 0.95, markerSize * 1.45, 24]} />
+                    <meshBasicMaterial
+                      color="#ffffff"
+                      transparent
+                      opacity={0.95}
+                      blending={THREE.AdditiveBlending}
+                      depthWrite={false}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                </Billboard>
+              )}
+            </group>
+          );
+        })}
       </group>
 
       <Html
@@ -728,10 +743,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
               {progress.stage === 'retained'
                 ? 'Sitzt wirklich'
                 : progress.stage === 'apply'
-                ? 'Anwenden'
-                : progress.stage === 'understood'
-                ? 'Verstanden'
-                : 'Entdeckt'}
+                  ? 'Anwenden'
+                  : progress.stage === 'understood'
+                    ? 'Verstanden'
+                    : 'Entdeckt'}
             </span>
           )}
         </div>
