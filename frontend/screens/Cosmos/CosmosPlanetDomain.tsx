@@ -204,75 +204,50 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.color, orbitConfig.seed, ringTextureSize]
   );
 
-  const planetMaterial = useMemo(() => {
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#ffffff'),
-      map: maps.surfaceMap,
-      bumpMap: maps.bumpMap,
-      bumpScale: 0.18 + visuals.surfaceDetail * 0.42,
-      roughnessMap: maps.roughnessMap,
-      roughness:
-        progress.stage === 'discovered'
-          ? 0.86
-          : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
-      metalness: 0.015 + visuals.developmentLevel * 0.03,
-      clearcoat:
-        progress.stage === 'discovered'
-          ? 0.04
-          : 0.13 + visuals.developmentLevel * 0.42,
-      clearcoatRoughness:
-        progress.stage === 'discovered'
-          ? 0.78
-          : 0.4 - visuals.developmentLevel * 0.16,
-      emissive: new THREE.Color(domain.emissiveColor),
-      emissiveIntensity: 0.02 + visuals.emissiveIntensity * 0.24,
-      envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
-      sheen: 0.3 + visuals.developmentLevel * 0.4,
-      sheenRoughness: 0.6,
-      sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
-      iridescence: visuals.developmentLevel * 0.15,
-      iridescenceIOR: 1.3,
-    });
-
-    // Inject night-lights into the dark hemisphere via shader hook
-    mat.onBeforeCompile = (shader) => {
-      shader.uniforms.tNight = { value: maps.nightMap };
-      shader.uniforms.uSunDir = { value: new THREE.Vector3(0, 0, 1) };
-
-      shader.vertexShader = `varying vec3 vNightNormal;\n` + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace(
-        `#include <worldpos_vertex>`,
-        `#include <worldpos_vertex>\n  vNightNormal = normalize(mat3(modelMatrix) * normal);`
-      );
-
-      shader.fragmentShader = `uniform sampler2D tNight;\nuniform vec3 uSunDir;\nvarying vec3 vNightNormal;\n` + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace(
-        `#include <emissivemap_fragment>`,
-        `#include <emissivemap_fragment>\n` +
-        `  float dayDot = dot(vNightNormal, normalize(uSunDir));\n` +
-        `  float nightBlend = smoothstep(0.08, -0.28, dayDot);\n` +
-        `  vec4 nightSample = texture2D(tNight, vUv);\n` +
-        `  totalEmissiveRadiance += nightSample.rgb * nightBlend * 4.0;`
-      );
-
-      // Store reference for per-frame uniform update
-      mat.userData.nightShader = shader;
-    };
-
-    return mat;
-  },
+  const planetMaterial = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#ffffff'),
+        map: maps.surfaceMap,
+        bumpMap: maps.bumpMap,
+        // Increased bumpScale for dramatic terrain relief (craters, ridges, mountains)
+        bumpScale: 0.18 + visuals.surfaceDetail * 0.42,
+        roughnessMap: maps.roughnessMap,
+        roughness:
+          progress.stage === 'discovered'
+            ? 0.86
+            : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
+        metalness: 0.015 + visuals.developmentLevel * 0.03,
+        clearcoat:
+          progress.stage === 'discovered'
+            ? 0.04
+            : 0.13 + visuals.developmentLevel * 0.42,
+        clearcoatRoughness:
+          progress.stage === 'discovered'
+            ? 0.78
+            : 0.4 - visuals.developmentLevel * 0.16,
+        // Night lights via emissive map (city lights, lava, crystals)
+        emissiveMap: maps.nightMap,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveIntensity: 0.6 + visuals.developmentLevel * 0.4,
+        envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
+        sheen: 0.3 + visuals.developmentLevel * 0.4,
+        sheenRoughness: 0.6,
+        sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
+        iridescence: visuals.developmentLevel * 0.15,
+        iridescenceIOR: 1.3,
+      }),
     [
       domain.color,
-      domain.emissiveColor,
       maps.bumpMap,
       maps.nightMap,
       maps.roughnessMap,
       maps.surfaceMap,
       progress.stage,
       visuals.developmentLevel,
-      visuals.emissiveIntensity,
       visuals.surfaceDetail,
-    ]);
+    ]
+  );
 
   const cloudMaterial = useMemo(
     () =>
@@ -320,10 +295,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [orbitConfig.seed]
   );
 
-  const activeLifeParticles = Math.min(
-    MAX_LIFE_PARTICLES,
-    Math.floor(visuals.lifeSignalStrength * MAX_LIFE_PARTICLES)
-  );
+  // Life particles disabled - too noisy for a clean space aesthetic
+  const activeLifeParticles = 0;
   const shouldShowIslands = isFocused && (cameraMode === 'focus' || cameraMode === 'detail');
   const visibleIslands = useMemo(
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
@@ -424,18 +397,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       atmosphereShader.uniforms.uSunPos.value.set(0, 0, 0);
     }
 
-    // Update night-lights sun direction so it tracks the actual light source
-    if (planetRef.current) {
-      const nightShader = planetMaterial.userData.nightShader;
-      if (nightShader?.uniforms?.uSunDir) {
-        // Sun is at world origin; direction from planet to sun in world space
-        const worldPos = new THREE.Vector3();
-        planetRef.current.getWorldPosition(worldPos);
-        const sunDir = worldPos.clone().negate().normalize();
-        nightShader.uniforms.uSunDir.value.copy(sunDir);
-      }
-    }
-
     if (selectionHaloRef.current) {
       const haloVisible = isFocused || feedbackPulse > 0.02;
       selectionHaloRef.current.visible = haloVisible;
@@ -517,20 +478,27 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         }}
       />
 
-      <Sphere
-        ref={selectionHaloRef}
-        args={[baseRadius * visuals.scale * 1.42, 48, 48]}
-        visible={isFocused}
-      >
-        <meshBasicMaterial
-          color={domain.emissiveColor}
-          transparent
-          opacity={0.16}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </Sphere>
+      {/* Selection ring – flat orbit ring around the equator, only visible when focused */}
+      {isFocused && (
+        <Ring
+          ref={selectionHaloRef}
+          args={[
+            baseRadius * visuals.scale * 1.28,
+            baseRadius * visuals.scale * 1.36,
+            64,
+          ]}
+          rotation={[Math.PI / 2, 0, 0]}
+        >
+          <meshBasicMaterial
+            color={domain.emissiveColor}
+            transparent
+            opacity={0.55}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </Ring>
+      )}
 
       <Sphere
         ref={cloudRef}
