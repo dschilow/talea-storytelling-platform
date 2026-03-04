@@ -255,14 +255,14 @@ const CORONA_FRAGMENT = `
     // Fade out towards edge and inner edge (planet surface)
     float mask = smoothstep(1.0, 0.5, dist) * smoothstep(0.1, 0.3, dist);
     
-    // Corona Base Color
-    vec3 color = vec3(1.0, 0.65, 0.2) * (rays * 1.5 + 0.1);
+    // Corona Base Color (Softer, less dominant)
+    vec3 color = vec3(1.0, 0.65, 0.2) * (rays * 0.85 + 0.05);
     
-    // Add central intense glow
-    float coreGlow = smoothstep(0.6, 0.1, dist);
-    color += vec3(1.0, 0.85, 0.5) * coreGlow * 1.5;
+    // Central intense glow (reduced)
+    float coreGlow = smoothstep(0.4, 0.0, dist);
+    color += vec3(1.0, 0.85, 0.5) * coreGlow * 0.9;
     
-    gl_FragColor = vec4(color, mask * 0.95);
+    gl_FragColor = vec4(color, mask * 0.75);
   }
 `;
 
@@ -339,14 +339,14 @@ export const CosmosStarCenter: React.FC<Props> = ({
       mat.opacity = 0.33 + Math.sin(t * 0.8) * 0.045;
     }
     if (coronaSpriteRef.current) {
-      coronaSpriteRef.current.rotation.z += 0.0004;
-      const coronaPulse = 1 + Math.sin(t * 0.5) * 0.025;
-      coronaSpriteRef.current.scale.setScalar(6.7 * coronaPulse);
+      coronaSpriteRef.current.rotation.z += 0.0002;
+      const coronaPulse = 1 + Math.sin(t * 0.5) * 0.015;
+      coronaSpriteRef.current.scale.setScalar(4.5 * coronaPulse); // Reduced from 6.7
       const mat = coronaSpriteRef.current.material as THREE.ShaderMaterial;
       mat.uniforms.uTime.value = t;
     }
     if (lightRef.current) {
-      lightRef.current.intensity = 1.75 + Math.sin(t * 1.5) * 0.14;
+      lightRef.current.intensity = 1.35 + Math.sin(t * 1.5) * 0.08;
     }
   });
 
@@ -383,9 +383,9 @@ export const CosmosStarCenter: React.FC<Props> = ({
       <pointLight
         ref={lightRef}
         color="#fff4d6"
-        intensity={1.75}
+        intensity={1.35}
         distance={56}
-        decay={1.48}
+        decay={1.2}
       />
 
       {/* Ambient fill */}

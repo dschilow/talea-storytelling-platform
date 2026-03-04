@@ -147,8 +147,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const cloudRef = useRef<THREE.Mesh>(null!);
   const atmosphereRef = useRef<THREE.Mesh>(null!);
   const auraRef = useRef<THREE.Mesh>(null!);
-  const satelliteRefs = useRef<Array<THREE.Mesh | null>>([]);
-  const topicMoonRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const satelliteRefs = useRef<Array<THREE.Group | null>>([]);
+  const topicMoonRefs = useRef<Array<THREE.Group | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
   const selectionHaloRef = useRef<THREE.Mesh>(null!);
   const islandAnchorRef = useRef<THREE.Group>(null!);
@@ -546,42 +546,67 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         })}
 
       {Array.from({ length: topicMoonCount }).map((_, index) => {
-        const size = 0.055 + Math.min(0.06, visuals.developmentLevel * 0.045 + index * 0.004);
+        const size = 0.045 + Math.min(0.04, visuals.developmentLevel * 0.03 + index * 0.003);
+        const hasCracks = index % 2 === 0;
         return (
-          <Sphere
-            key={`topic_moon_${index}`}
+          <group
+            key={`topic_moon_group_${index}`}
             ref={(node) => {
               topicMoonRefs.current[index] = node;
             }}
-            args={[size, 12, 12]}
           >
-            <meshStandardMaterial
-              color="#d6e7ff"
-              emissive={domain.emissiveColor}
-              emissiveIntensity={0.12 + visuals.developmentLevel * 0.18}
-              roughness={0.52}
-              metalness={0.08}
-            />
-          </Sphere>
+            {/* Rocky base sphere */}
+            <Sphere args={[size, 24, 24]}>
+              <meshStandardMaterial
+                color="#b0b5c0"
+                roughness={0.85}
+                metalness={0.1}
+                bumpScale={0.05}
+              />
+            </Sphere>
+            {/* Magical glowing core peeking through (if hasCracks) */}
+            {hasCracks && (
+              <Sphere args={[size * 1.05, 12, 12]}>
+                <meshStandardMaterial
+                  color="#ffffff"
+                  emissive={domain.emissiveColor}
+                  emissiveIntensity={1.5}
+                  wireframe
+                  transparent
+                  opacity={0.3}
+                />
+              </Sphere>
+            )}
+          </group>
         );
       })}
 
       {Array.from({ length: visuals.satelliteCount }).map((_, index) => (
-        <Sphere
-          key={`sat_${index}`}
+        <group
+          key={`sat_group_${index}`}
           ref={(node) => {
             satelliteRefs.current[index] = node;
           }}
-          args={[0.05 + index * 0.014, 14, 14]}
         >
-          <meshStandardMaterial
-            color="#dbe6ff"
-            emissive={domain.emissiveColor}
-            emissiveIntensity={0.24}
-            roughness={0.55}
-            metalness={0.12}
-          />
-        </Sphere>
+          {/* Metallic core */}
+          <Sphere args={[0.035, 12, 12]}>
+            <meshStandardMaterial
+              color="#ffffff"
+              roughness={0.2}
+              metalness={0.9}
+            />
+          </Sphere>
+          {/* Solar wings / Arrays framing the core */}
+          <mesh position={[0.06, 0, 0]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[0.08, 0.04]} />
+            <meshStandardMaterial color="#224488" metalness={0.8} roughness={0.3} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[-0.06, 0, 0]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[0.08, 0.04]} />
+            <meshStandardMaterial color="#224488" metalness={0.8} roughness={0.3} side={THREE.DoubleSide} />
+          </mesh>
+          <pointLight color="#88ddff" intensity={0.4} distance={0.5} />
+        </group>
       ))}
 
       {Array.from({ length: activeLifeParticles }).map((_, index) => (
@@ -646,39 +671,57 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 document.body.style.cursor = 'auto';
               }}
             >
-              <Sphere args={[markerSize * 2.3, 10, 10]} renderOrder={1}>
-                <meshBasicMaterial
-                  transparent
-                  opacity={0}
-                  depthWrite={false}
+              {/* Outer soft aura for the island marker */}
+              <Billboard follow>
+                <mesh>
+                  <planeGeometry args={[markerSize * 4.5, markerSize * 4.5]} />
+                  <meshBasicMaterial
+                    color={markerColor}
+                    transparent
+                    opacity={0.12}
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                  />
+                </mesh>
+              </Billboard>
+
+              <Sphere args={[markerSize * 0.8, 16, 16]}>
+                <meshStandardMaterial
+                  color="#ffffff"
+                  emissive={markerColor}
+                  emissiveIntensity={stage === 'discovered' ? 0.3 : 1.2}
+                  roughness={0.2}
+                  metalness={0.9}
                 />
               </Sphere>
 
-              <Sphere args={[markerSize, 10, 10]}>
-                <meshStandardMaterial
+              {/* Glowing core/crystal representation */}
+              <Sphere args={[markerSize * 1.1, 16, 16]}>
+                <meshPhysicalMaterial
                   color={markerColor}
-                  emissive={markerColor}
-                  emissiveIntensity={stage === 'discovered' ? 0.2 : 0.38}
-                  roughness={0.42}
-                  metalness={0.08}
+                  transparent
+                  opacity={0.6}
+                  roughness={0.1}
+                  transmission={0.9} // Glassy effect
+                  thickness={0.5}
                 />
               </Sphere>
 
               {(stage === 'apply' || stage === 'retained') && (
-                <mesh position={[0, markerSize + 0.03, 0]}>
-                  <cylinderGeometry args={[0.006, 0.006, 0.08, 8]} />
-                  <meshStandardMaterial color="#f5f5f5" roughness={0.4} metalness={0.2} />
+                <mesh position={[0, markerSize * 1.5, 0]}>
+                  <cylinderGeometry args={[0.003, 0.003, 0.12, 8]} />
+                  <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
                 </mesh>
               )}
 
               {stage === 'retained' && (
                 <Billboard follow>
-                  <mesh position={[0, markerSize + 0.035, 0]}>
-                    <ringGeometry args={[markerSize * 0.7, markerSize * 1.1, 24]} />
+                  <mesh position={[0, markerSize * 2.5, 0]}>
+                    <ringGeometry args={[markerSize * 0.4, markerSize * 0.6, 24]} />
                     <meshBasicMaterial
                       color="#fde68a"
                       transparent
-                      opacity={0.8}
+                      opacity={0.9}
                       blending={THREE.AdditiveBlending}
                       depthWrite={false}
                       side={THREE.DoubleSide}
@@ -689,8 +732,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
               {isSelected && (
                 <Billboard follow>
-                  <mesh position={[0, markerSize + 0.045, 0]}>
-                    <ringGeometry args={[markerSize * 0.95, markerSize * 1.45, 24]} />
+                  <mesh position={[0, markerSize * 3.0, 0]}>
+                    <ringGeometry args={[markerSize * 0.8, markerSize * 1.0, 32]} />
                     <meshBasicMaterial
                       color="#ffffff"
                       transparent
@@ -711,43 +754,48 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         position={[0, baseRadius * visuals.scale + 0.6, 0]}
         center
         distanceFactor={14}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
+        style={{ pointerEvents: 'none', userSelect: 'none', opacity: labelExpanded ? 1 : 0, transition: 'opacity 0.3s ease' }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-          <span style={{ fontSize: labelExpanded ? '18px' : '16px' }}>{domain.icon}</span>
-          {labelExpanded && !isDetailMode && (
-            <span
-              style={{
-                fontSize: '10px',
-                fontWeight: 700,
-                color: 'white',
-                textShadow: '0 1px 4px rgba(0,0,0,0.85)',
-                whiteSpace: 'nowrap',
-                fontFamily: '"Nunito", sans-serif',
-              }}
-            >
-              {domain.label}
-            </span>
-          )}
-          {isFocused && !isDetailMode && (
-            <span
-              style={{
-                fontSize: '9px',
-                fontWeight: 700,
-                color: '#d8dcff',
-                textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                whiteSpace: 'nowrap',
-                fontFamily: '"Nunito", sans-serif',
-              }}
-            >
-              {progress.stage === 'retained'
-                ? 'Sitzt wirklich'
-                : progress.stage === 'apply'
-                  ? 'Anwenden'
-                  : progress.stage === 'understood'
-                    ? 'Verstanden'
-                    : 'Entdeckt'}
-            </span>
+          {/* Replaced raw emoji with elegant label box */}
+          {!isDetailMode && (
+            <div className="flex flex-col items-center bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  color: 'white',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.85)',
+                  whiteSpace: 'nowrap',
+                  fontFamily: '"Nunito", sans-serif',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase'
+                }}
+              >
+                {domain.label}
+              </span>
+
+              {isFocused && (
+                <span
+                  style={{
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    color: '#a4b1ff',
+                    marginTop: '2px',
+                    whiteSpace: 'nowrap',
+                    fontFamily: '"Inter", sans-serif',
+                  }}
+                >
+                  {progress.stage === 'retained'
+                    ? 'Meisterstufe'
+                    : progress.stage === 'apply'
+                      ? 'Fortgeschritten'
+                      : progress.stage === 'understood'
+                        ? 'Verstanden'
+                        : 'Entdeckt'}
+                </span>
+              )}
+            </div>
           )}
         </div>
       </Html>
