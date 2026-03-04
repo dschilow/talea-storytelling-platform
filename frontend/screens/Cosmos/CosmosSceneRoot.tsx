@@ -441,7 +441,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       )}
 
       {!compact && (
-        <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-2 py-1 backdrop-blur">
+        <div
+          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-2 py-1 backdrop-blur"
+          style={{ top: 'max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.25rem))' }}
+        >
           <ZoomButton
             active={cameraMode === 'system'}
             label="System"

@@ -57,6 +57,10 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const dueRecall =
     selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
     null;
+  const bottomInset = isDetailMode
+    ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
+    : "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";
+  const sideInset = "max(0.75rem, calc(env(safe-area-inset-left, 0px) + 0.5rem))";
 
   return (
     <AnimatePresence>
@@ -72,6 +76,11 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               ? "left-4 right-4 bottom-4 md:left-auto md:right-6 md:w-[26rem] md:max-w-[26rem]"
               : "bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-xl",
           ].join(" ")}
+          style={
+            isDetailMode
+              ? { bottom: bottomInset, left: sideInset, right: sideInset }
+              : { bottom: bottomInset }
+          }
         >
           <div
             className={[
