@@ -700,17 +700,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 />
               </Sphere>
 
-              {(stage === 'apply' || stage === 'retained') && (
-                <mesh position={[0, markerSize * 1.5, 0]}>
-                  <cylinderGeometry args={[0.003, 0.003, 0.12, 8]} />
-                  <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
-                </mesh>
-              )}
-
+              {/* Mastery ring wrapping around the sphere */}
               {stage === 'retained' && (
                 <Billboard follow>
-                  <mesh position={[0, markerSize * 2.5, 0]}>
-                    <ringGeometry args={[markerSize * 0.4, markerSize * 0.6, 24]} />
+                  <mesh>
+                    <ringGeometry args={[markerSize * 1.5, markerSize * 1.7, 32]} />
                     <meshBasicMaterial
                       color="#fde68a"
                       transparent
@@ -723,10 +717,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 </Billboard>
               )}
 
+              {/* Selection ring cleanly encircling the entire marker */}
               {isSelected && (
                 <Billboard follow>
-                  <mesh position={[0, markerSize * 3.0, 0]}>
-                    <ringGeometry args={[markerSize * 0.8, markerSize * 1.0, 32]} />
+                  <mesh>
+                    <ringGeometry args={[markerSize * 1.8, markerSize * 2.1, 32]} />
                     <meshBasicMaterial
                       color="#ffffff"
                       transparent
