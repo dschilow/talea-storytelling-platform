@@ -79,7 +79,7 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
     startAngle: Math.PI * 1.25,
   },
   {
-    id: "art",
+    id: "arts",
     label: "Kunst & Musik",
     icon: "🎨",
     planetType: "crystalline",
@@ -109,7 +109,7 @@ const DOMAIN_LEARNING_PRESETS: Record<string, DomainLearningPreset> = {
   tech: { topic: "Wie Roboter lernen", perspective: "technology" },
   body: { topic: "So funktioniert dein Koerper", perspective: "science" },
   earth: { topic: "Warum sich das Klima veraendert", perspective: "science" },
-  art: { topic: "Wie Musik Gefuehle ausloest", perspective: "culture" },
+  arts: { topic: "Wie Musik Gefuehle ausloest", perspective: "culture" },
   logic: { topic: "Logikraetsel fuer Detektive", perspective: "science" },
 };
 

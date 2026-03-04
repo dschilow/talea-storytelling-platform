@@ -1,92 +1,69 @@
-/**
- * CosmosProgressMapper.ts - Maps learning progress to planet visuals.
- *
- * Deterministic mapping: every visual change reflects real learning status.
- * Uses continuous progression, not only coarse stage thresholds.
- */
+import type { DomainProgress, PlanetVisuals, LearningStage } from "./CosmosTypes";
 
-import type { DomainProgress, PlanetVisuals, LearningStage } from './CosmosTypes';
-
-/**
- * Compute stage from mastery + confidence thresholds.
- */
 export function computeStage(mastery: number, confidence: number): LearningStage {
-  if (mastery >= 80 && confidence >= 65) return 'mastered';
-  if (mastery >= 55 && confidence >= 40) return 'can_explain';
-  if (mastery >= 25 && confidence >= 15) return 'understood';
-  return 'discovered';
+  if (confidence >= 70 && mastery >= 55) return "retained";
+  if (mastery >= 55 && confidence >= 40) return "apply";
+  if (mastery >= 25 && confidence >= 15) return "understood";
+  return "discovered";
 }
 
-/**
- * Map DomainProgress -> PlanetVisuals.
- *
- * - A blended development score controls continuous visual evolution.
- * - Stage still controls semantic UI labels, but visuals evolve smoothly.
- */
-export function mapProgressToVisuals(progress: DomainProgress): PlanetVisuals {
-  const { mastery, confidence, stage } = progress;
+function derivePlanetLevel(progress: DomainProgress): number {
+  if (progress.planetLevel && Number.isFinite(progress.planetLevel)) {
+    return Math.max(1, Math.min(50, Math.floor(progress.planetLevel)));
+  }
+  const fallbackScore = progress.mastery * 0.65 + progress.confidence * 0.35;
+  return Math.max(1, Math.min(50, Math.floor(fallbackScore / 2) + 1));
+}
 
-  const m = clamp01(mastery / 100);
-  const c = clamp01(confidence / 100);
-  const development = clamp01(m * 0.68 + c * 0.32);
-  const eased = smoothstep(0, 1, development);
-  const ringProgress = smoothstep(0.72, 1.0, development);
-  const lifeSignal = smoothstep(0.5, 1.0, development);
-  const stageMoonCount = stage === 'mastered' ? 2 : stage === 'can_explain' ? 1 : 0;
-  const bonusSatellites = stage === 'mastered' ? Math.min(2, Math.floor(lifeSignal * 2.2)) : 0;
-  const satelliteCount = Math.min(3, bonusSatellites);
-  const hasAtmosphere = stage !== 'discovered';
-  const hasRing = stage === 'mastered';
+export function mapProgressToVisuals(progress: DomainProgress): PlanetVisuals {
+  const level = derivePlanetLevel(progress);
+  const level01 = (level - 1) / 49;
+  const mastery01 = clamp01(progress.mastery / 100);
+  const confidence01 = clamp01(progress.confidence / 100);
+  const stage = progress.stage;
+
+  const stageMoonCount = level >= 41 ? 2 : level >= 21 ? 1 : 0;
+  const hasRing = level >= 31;
+  const ringOpacity = hasRing ? smoothstep(0, 1, (level - 31) / 19) * (0.22 + confidence01 * 0.36) : 0;
+  const hasAtmosphere = level >= 2;
+  const hasSatellites = level >= 21;
+  const satelliteCount = level >= 41 ? 2 : level >= 21 ? 1 : 0;
 
   return {
-    scale: 0.62 + m * 0.34 + eased * 0.26,
-    emissiveIntensity: 0.06 + c * 1.35,
+    scale: 0.66 + smoothstep(0, 1, level01) * 0.58,
+    emissiveIntensity: 0.08 + confidence01 * 1.28 + smoothstep(0.2, 1, level01) * 0.18,
     hasAtmosphere,
     hasRing,
-    hasSatellites: satelliteCount > 0,
+    hasSatellites,
     stageMoonCount,
-    atmosphereOpacity:
-      stage === 'discovered'
-        ? 0.01 + eased * 0.04
-        : stage === 'understood'
-        ? 0.08 + eased * 0.12
-        : 0.16 + eased * 0.2,
-    orbitStability: 0.32 + c * 0.68,
-    developmentLevel: development,
-    ringOpacity: hasRing ? ringProgress * (0.24 + c * 0.42) : 0,
+    atmosphereOpacity: hasAtmosphere ? 0.06 + level01 * 0.22 : 0.02,
+    orbitStability: 0.4 + confidence01 * 0.6,
+    developmentLevel: level01,
+    ringOpacity,
     satelliteCount,
-    cloudOpacity: stage === 'discovered' ? 0.03 + m * 0.08 : 0.1 + smoothstep(0.15, 0.95, development) * 0.28,
-    surfaceDetail: 0.22 + m * 0.78,
-    auraOpacity:
-      stage === 'discovered'
-        ? 0.02 + c * 0.05
-        : 0.06 + smoothstep(0.2, 1, c) * 0.24,
-    lifeSignalStrength: lifeSignal,
+    cloudOpacity: 0.06 + mastery01 * 0.24,
+    surfaceDetail: level >= 11 ? 0.32 + mastery01 * 0.68 : 0.22 + mastery01 * 0.35,
+    auraOpacity: stage === "retained" ? 0.22 + confidence01 * 0.2 : 0.08 + confidence01 * 0.12,
+    lifeSignalStrength: level >= 41 ? 1 : level >= 31 ? 0.75 : level >= 21 ? 0.52 : 0.22,
   };
 }
 
-/**
- * Stage label for HUD.
- */
 export function getStageLabel(stage: LearningStage): string {
   const labels: Record<LearningStage, string> = {
-    discovered: 'Entdeckt',
-    understood: 'Verstanden',
-    can_explain: 'Kann ich erklaeren',
-    mastered: 'Sitzt wirklich',
+    discovered: "Entdeckt",
+    understood: "Verstanden",
+    apply: "Anwenden",
+    retained: "Sitzt wirklich",
   };
   return labels[stage];
 }
 
-/**
- * Stage color for UI indicators.
- */
 export function getStageColor(stage: LearningStage): string {
   const colors: Record<LearningStage, string> = {
-    discovered: '#94a3b8',
-    understood: '#60a5fa',
-    can_explain: '#a78bfa',
-    mastered: '#facc15',
+    discovered: "#94a3b8",
+    understood: "#60a5fa",
+    apply: "#22c55e",
+    retained: "#f59e0b",
   };
   return colors[stage];
 }
@@ -101,3 +78,4 @@ function smoothstep(min: number, max: number, value: number): number {
   const t = (value - min) / (max - min);
   return t * t * (3 - 2 * t);
 }
+

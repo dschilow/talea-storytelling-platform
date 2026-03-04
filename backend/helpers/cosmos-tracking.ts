@@ -1,4 +1,5 @@
 import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { recordReadActivity } from "../avatar/cosmos-mvp-service";
 
 const avatarDB = SQLDatabase.named("avatar");
 
@@ -19,10 +20,10 @@ const STORY_DOMAIN_MAP: Array<{ keywords: string[]; domainId: string }> = [
   { keywords: ["natur", "tier", "wald", "animal"], domainId: "nature" },
   { keywords: ["geschichte", "histor", "antike", "ritter"], domainId: "history" },
   { keywords: ["technik", "robot", "erfind", "maschine"], domainId: "tech" },
-  { keywords: ["mensch", "koerper", "körper", "gesund"], domainId: "body" },
+  { keywords: ["mensch", "koerper", "koerper", "gesund"], domainId: "body" },
   { keywords: ["erde", "klima", "wetter", "ozean"], domainId: "earth" },
-  { keywords: ["kunst", "musik", "malen", "theater"], domainId: "art" },
-  { keywords: ["logik", "raetsel", "rätsel", "puzzle"], domainId: "logic" },
+  { keywords: ["kunst", "musik", "malen", "theater"], domainId: "arts" },
+  { keywords: ["logik", "raetsel", "raetsel", "puzzle"], domainId: "logic" },
 ];
 
 const DOKU_DOMAIN_MAP: Array<{ keywords: string[]; domainId: string }> = [
@@ -30,10 +31,10 @@ const DOKU_DOMAIN_MAP: Array<{ keywords: string[]; domainId: string }> = [
   { keywords: ["natur", "tier", "bio", "pflanz", "zool"], domainId: "nature" },
   { keywords: ["geschichte", "kultur", "antike", "histor"], domainId: "history" },
   { keywords: ["technik", "erfind", "physik", "robot", "maschine"], domainId: "tech" },
-  { keywords: ["mensch", "koerper", "körper", "medizin", "gesund"], domainId: "body" },
+  { keywords: ["mensch", "koerper", "koerper", "medizin", "gesund"], domainId: "body" },
   { keywords: ["erde", "geografie", "geographie", "klima", "wetter", "ozean"], domainId: "earth" },
-  { keywords: ["kunst", "musik", "malerei", "kompon"], domainId: "art" },
-  { keywords: ["mathe", "logik", "raetsel", "rätsel", "algorithm"], domainId: "logic" },
+  { keywords: ["kunst", "musik", "malerei", "kompon"], domainId: "arts" },
+  { keywords: ["mathe", "logik", "raetsel", "raetsel", "algorithm"], domainId: "logic" },
 ];
 
 export function inferDomainFromStoryGenre(genre?: string): string {
@@ -62,77 +63,27 @@ export function buildTopicId(params: {
   domainId: string;
   label?: string;
 }): string {
+  const normalizedDomain = params.domainId === "art" ? "arts" : params.domainId;
   const sanitizedLabel = String(params.label || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
-    .slice(0, 40);
+    .slice(0, 72);
   const suffix = sanitizedLabel || params.sourceContentId.slice(0, 12);
-  return `${params.sourceContentType}_${params.domainId}_${suffix}`;
+  return `${normalizedDomain}_${suffix}`;
 }
 
+/**
+ * Legacy compatibility hook:
+ * - keeps old evidence_events entries for existing dashboards
+ * - mirrors read activity into new cosmos MVP tracking tables
+ */
 export async function trackCosmosReadEvent(params: TrackCosmosReadParams): Promise<void> {
+  const normalizedDomainId = params.domainId === "art" ? "arts" : params.domainId;
   const sourceEventType = params.sourceContentType === "doku" ? "doku_read" : "story_read";
   const topicId = params.topicId || null;
-  const primaryMasteryDelta = params.sourceContentType === "story" ? 2.4 : 2.0;
-  const primaryConfidenceDelta = params.sourceContentType === "story" ? 1.3 : 1.0;
-  const secondarySkillType = params.sourceContentType === "story" ? "EXPLAIN" : "UNDERSTAND";
-  const secondaryMasteryDelta = params.sourceContentType === "story" ? 1.1 : 0.9;
-  const secondaryConfidenceDelta = params.sourceContentType === "story" ? 0.8 : 0.5;
-
-  async function upsertSkillState(
-    skillType: "REMEMBER" | "UNDERSTAND" | "EXPLAIN",
-    masteryDelta: number,
-    confidenceDelta: number
-  ) {
-    const id = `cs_${params.avatarId}_${params.domainId}_${topicId || "general"}_${skillType}`;
-    const existing = await avatarDB.queryRow`
-      SELECT mastery, confidence
-      FROM competency_state
-      WHERE avatar_id = ${params.avatarId}
-        AND domain_id = ${params.domainId}
-        AND COALESCE(topic_id, '') = ${topicId || ""}
-        AND skill_type = ${skillType}
-    `;
-
-    const currentMastery = existing ? Number(existing.mastery) || 0 : 0;
-    const currentConfidence = existing ? Number(existing.confidence) || 0 : 0;
-    const newMastery = Math.min(100, currentMastery + masteryDelta);
-    const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
-    const newStage = computeStage(newMastery, newConfidence);
-
-    await avatarDB.exec`
-      INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, topics_explored, last_activity_at, updated_at)
-      VALUES (
-        ${id},
-        ${params.avatarId},
-        ${params.profileId ?? null},
-        ${params.domainId},
-        ${topicId},
-        ${skillType},
-        ${newMastery},
-        ${newConfidence},
-        ${newStage},
-        1,
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-      )
-      ON CONFLICT (avatar_id, domain_id, COALESCE(topic_id, ''), skill_type)
-      DO UPDATE SET
-        mastery = LEAST(100, competency_state.mastery + ${masteryDelta}),
-        confidence = LEAST(100, competency_state.confidence + ${confidenceDelta}),
-        stage = ${newStage},
-        topics_explored = GREATEST(competency_state.topics_explored, 1),
-        last_activity_at = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP
-    `;
-  }
-
-  await upsertSkillState("REMEMBER", primaryMasteryDelta, primaryConfidenceDelta);
-  await upsertSkillState(secondarySkillType, secondaryMasteryDelta, secondaryConfidenceDelta);
-
-  const eventId = `ev_read_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const summary = params.summary || `${sourceEventType}: abgeschlossen`;
+
   await avatarDB.exec`
     INSERT INTO evidence_events (
       id,
@@ -149,28 +100,46 @@ export async function trackCosmosReadEvent(params: TrackCosmosReadParams): Promi
       source_content_type
     )
     VALUES (
-      ${eventId},
+      ${`ev_read_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`},
       ${params.avatarId},
       ${params.profileId ?? null},
-      ${params.domainId},
+      ${normalizedDomainId},
       ${topicId},
       ${sourceEventType},
       'REMEMBER',
-      ${100},
-      ${100},
+      100,
+      100,
       ${JSON.stringify({
         summary,
         sourceType: sourceEventType,
-      })},
+      })}::jsonb,
       ${params.sourceContentId},
       ${params.sourceContentType}
     )
   `;
+
+  try {
+    const owner = await avatarDB.queryRow<{ user_id: string }>`
+      SELECT user_id
+      FROM avatars
+      WHERE id = ${params.avatarId}
+      LIMIT 1
+    `;
+
+    if (owner?.user_id) {
+      await recordReadActivity({
+        userId: owner.user_id,
+        childId: params.profileId,
+        avatarId: params.avatarId,
+        sourceContentId: params.sourceContentId,
+        sourceContentType: params.sourceContentType,
+        domainId: normalizedDomainId,
+        topicId: topicId || undefined,
+        summary,
+      });
+    }
+  } catch (error) {
+    console.warn("[cosmos-tracking] failed to mirror read event into cosmos mvp", error);
+  }
 }
 
-function computeStage(mastery: number, confidence: number): string {
-  if (mastery >= 80 && confidence >= 65) return "mastered";
-  if (mastery >= 55 && confidence >= 40) return "can_explain";
-  if (mastery >= 25 && confidence >= 15) return "understood";
-  return "discovered";
-}

@@ -10,6 +10,7 @@ import { usePersonalityAI } from '../../hooks/usePersonalityAI';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { emitMapProgress } from '../../screens/Journey/TaleaLearningPathProgressStore';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import {
   buildTopicId,
   inferDifficultyFromQuestion,
@@ -168,6 +169,8 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   const quiz = section.interactive?.quiz;
   const backend = useBackend();
   const { getToken } = useAuth();
+  const childProfiles = useOptionalChildProfiles();
+  const activeChildId = childProfiles?.activeProfileId;
   const { addMemory, updatePersonality } = useAvatarMemory();
   const { analyzeQuizCompletion } = usePersonalityAI();
   const { resolvedTheme } = useTheme();
@@ -254,10 +257,19 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       return;
     }
 
+    const perspective = dokuMetadata?.configSnapshot?.perspective;
+    const inferredDomainId = inferDomainFromDokuTopic({
+      topic: dokuTopic,
+      perspective,
+      title: dokuTitle,
+      sectionTitle: section.title,
+    });
+
     setIsSubmitting(true);
     setQuizCompleted(true);
     emitMapProgress({
       avatarId: effectiveAvatarId,
+      domainId: inferredDomainId,
       source: 'quiz',
       quizId: dokuId ? `${dokuId}-quiz-${section.title}` : undefined,
       correctCount: correctAnswers,
@@ -275,7 +287,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     let trackingAvatarId = effectiveAvatarId;
     if (!trackingAvatarId && dokuId) {
       try {
-        const avatarResult = await backend.avatar.list({ limit: 1 });
+        const avatarResult = await backend.avatar.list({ profileId: activeChildId || undefined });
         trackingAvatarId = avatarResult.avatars?.[0]?.id;
       } catch (avatarLookupError) {
         console.warn('[QuizComponent] could not resolve avatar for cosmos quiz tracking', avatarLookupError);
@@ -285,13 +297,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     if (trackingAvatarId && dokuId) {
       try {
         const token = await getToken();
-        const perspective = dokuMetadata?.configSnapshot?.perspective;
-        const domainId = inferDomainFromDokuTopic({
-          topic: dokuTopic,
-          perspective,
-          title: dokuTitle,
-          sectionTitle: section.title,
-        });
+        const domainId = inferredDomainId;
         const topicId = buildTopicId({
           sourceContentType: 'doku',
           sourceContentId: dokuId,
@@ -306,9 +312,11 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
         }));
         await submitCosmosQuiz(
           {
+            childId: activeChildId || undefined,
             avatarId: trackingAvatarId,
             domainId,
             topicId,
+            contentId: dokuId,
             sourceContentId: dokuId,
             sourceContentType: 'doku',
             answers: cosmosAnswers,

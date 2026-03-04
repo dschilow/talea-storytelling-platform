@@ -9,6 +9,7 @@ export type MapProgressSource = 'story' | 'doku' | 'quiz' | 'audio';
 
 export interface MapProgressEventDetail {
   avatarId?: string | null;
+  domainId?: string;
   nodeId?: string;
   source?: MapProgressSource;
   artifactId?: string;

@@ -20,7 +20,7 @@ import {
 
 const CosmosScreen: React.FC = () => {
   const navigate = useNavigate();
-  const { cosmosState, isLoading } = useCosmosState();
+  const { cosmosState, isLoading, activeAvatarId, activeChildId } = useCosmosState();
   const [qualityPreference, setQualityPreference] = useState<CosmosQualityPreference>('auto');
 
   useEffect(() => {
@@ -98,6 +98,8 @@ const CosmosScreen: React.FC = () => {
         ) : (
           <CosmosSceneRoot
             cosmosState={cosmosState}
+            activeAvatarId={activeAvatarId || undefined}
+            activeChildId={activeChildId || undefined}
             height="100%"
             qualityPreference={qualityPreference}
           />
@@ -109,8 +111,8 @@ const CosmosScreen: React.FC = () => {
         {[
           { label: 'Entdeckt', color: '#94a3b8' },
           { label: 'Verstanden', color: '#60a5fa' },
-          { label: 'Kann erklären', color: '#a78bfa' },
-          { label: 'Sitzt wirklich', color: '#facc15' },
+          { label: 'Anwenden', color: '#22c55e' },
+          { label: 'Sitzt wirklich', color: '#f59e0b' },
         ].map(({ label, color }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div
@@ -128,3 +130,5 @@ const CosmosScreen: React.FC = () => {
 };
 
 export default CosmosScreen;
+
+

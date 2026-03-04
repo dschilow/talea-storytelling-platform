@@ -21,8 +21,8 @@ import { fetchCosmosState, type CosmosDomainProgressDTO } from "./apiCosmosClien
 const KNOWN_STAGES = new Set<LearningStage>([
   "discovered",
   "understood",
-  "can_explain",
-  "mastered",
+  "apply",
+  "retained",
 ]);
 
 // Map knowledge subcategories to domain IDs.
@@ -45,7 +45,7 @@ const TRAIT_DOMAIN_MAP: Record<string, { domain: string; weight: number }[]> = {
     { domain: "tech", weight: 0.15 },
     { domain: "earth", weight: 0.15 },
   ],
-  creativity: [{ domain: "art", weight: 1.0 }],
+  creativity: [{ domain: "arts", weight: 1.0 }],
   curiosity: [
     { domain: "space", weight: 0.5 },
     { domain: "nature", weight: 0.5 },
@@ -54,7 +54,7 @@ const TRAIT_DOMAIN_MAP: Record<string, { domain: string; weight: number }[]> = {
   courage: [{ domain: "history", weight: 1.0 }],
   empathy: [{ domain: "body", weight: 1.0 }],
   teamwork: [{ domain: "earth", weight: 1.0 }],
-  vocabulary: [{ domain: "art", weight: 0.5 }, { domain: "history", weight: 0.5 }],
+  vocabulary: [{ domain: "arts", weight: 0.5 }, { domain: "history", weight: 0.5 }],
   persistence: [{ domain: "tech", weight: 1.0 }],
 };
 
@@ -66,16 +66,20 @@ function normalizeRemoteStage(input: string, mastery: number, confidence: number
 }
 
 function normalizeRemoteDomain(entry: CosmosDomainProgressDTO): DomainProgress {
-  const mastery = Number(entry.mastery) || 0;
-  const confidence = Number(entry.confidence) || 0;
+  const mastery = Number(entry.masteryScore) || 0;
+  const confidence = Number(entry.confidenceScore) || 0;
   return {
     domainId: entry.domainId,
     mastery: Math.max(0, Math.min(100, Math.round(mastery * 10) / 10)),
     confidence: Math.max(0, Math.min(100, Math.round(confidence * 10) / 10)),
     stage: normalizeRemoteStage(entry.stage, mastery, confidence),
-    topicsExplored: Number(entry.topicsExplored) || 0,
+    topicsExplored: Number(entry.activeTopicCount) || 0,
     lastActivityAt: entry.lastActivityAt || null,
-    recentHighlight: entry.recentHighlight,
+    recentHighlight: entry.evidence,
+    evolutionIndex: Number(entry.evolutionIndex) || 0,
+    planetLevel: Number(entry.planetLevel) || 1,
+    masteryText: entry.masteryText,
+    confidenceText: entry.confidenceText,
   };
 }
 
@@ -218,6 +222,7 @@ export function useCosmosState() {
           const token = await getToken();
           const remote = await fetchCosmosState(
             {
+              childId: activeProfileId || undefined,
               avatarId: detail.id,
               profileId: activeProfileId || undefined,
             },
@@ -278,6 +283,7 @@ export function useCosmosState() {
     cosmosState,
     isLoading,
     activeAvatarId: selectedAvatar?.id ?? null,
+    activeChildId: activeProfileId ?? null,
     refresh,
   };
 }

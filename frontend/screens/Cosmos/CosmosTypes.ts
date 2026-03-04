@@ -1,61 +1,99 @@
 /**
- * CosmosTypes.ts - All types for the Talea Lernkosmos system
+ * CosmosTypes.ts - Shared types for Talea Lernkosmos.
  */
 
-// ─── Learning Stages ─────────────────────────────────────────────
-export type LearningStage = 'discovered' | 'understood' | 'can_explain' | 'mastered';
+export type LearningStage = "discovered" | "understood" | "apply" | "retained";
 
-export const LEARNING_STAGES: Record<LearningStage, { label: string; minMastery: number; minConfidence: number }> = {
-  discovered:   { label: 'Entdeckt',           minMastery: 0,  minConfidence: 0 },
-  understood:   { label: 'Verstanden',         minMastery: 25, minConfidence: 15 },
-  can_explain:  { label: 'Kann ich erklären',  minMastery: 55, minConfidence: 40 },
-  mastered:     { label: 'Sitzt wirklich',     minMastery: 80, minConfidence: 65 },
+export const LEARNING_STAGES: Record<LearningStage, { label: string }> = {
+  discovered: { label: "Entdeckt" },
+  understood: { label: "Verstanden" },
+  apply: { label: "Anwenden" },
+  retained: { label: "Sitzt wirklich" },
 };
 
-// ─── Cognitive Competencies ──────────────────────────────────────
-export type SkillType = 'REMEMBER' | 'UNDERSTAND' | 'COMPARE' | 'TRANSFER' | 'EXPLAIN';
+export type SkillType = "REMEMBER" | "UNDERSTAND" | "COMPARE" | "APPLY" | "TRANSFER";
 
 export const SKILL_TYPES: Record<SkillType, { label: string; description: string }> = {
-  REMEMBER:   { label: 'Erinnern',    description: 'Fakten abrufen' },
-  UNDERSTAND: { label: 'Verstehen',   description: 'Ursache/Wirkung erkennen' },
-  COMPARE:    { label: 'Vergleichen', description: 'Einordnen & Unterscheiden' },
-  TRANSFER:   { label: 'Anwenden',    description: 'In neuer Situation nutzen' },
-  EXPLAIN:    { label: 'Erklären',    description: 'In eigenen Worten wiedergeben' },
+  REMEMBER: { label: "Erinnern", description: "Fakten abrufen" },
+  UNDERSTAND: { label: "Verstehen", description: "Ursache/Wirkung erkennen" },
+  COMPARE: { label: "Vergleichen", description: "Einordnen und unterscheiden" },
+  APPLY: { label: "Anwenden", description: "Wissen auf neue Situationen uebertragen" },
+  TRANSFER: { label: "Transfer", description: "Wissen flexibel einsetzen" },
 };
 
-// ─── Domain Definition ───────────────────────────────────────────
 export interface CosmosDomain {
   id: string;
   label: string;
   icon: string;
   planetType:
-    | 'terrestrial'
-    | 'oceanic'
-    | 'icy'
-    | 'lush'
-    | 'desert'
-    | 'volcanic'
-    | 'gaseous'
-    | 'crystalline';
-  color: string;        // hex primary color
-  emissiveColor: string; // hex emissive for glow
-  orbitRadius: number;   // distance from center star
-  orbitSpeed: number;    // radians per second
-  startAngle: number;    // initial orbit position
+    | "terrestrial"
+    | "oceanic"
+    | "icy"
+    | "lush"
+    | "desert"
+    | "volcanic"
+    | "gaseous"
+    | "crystalline";
+  color: string;
+  emissiveColor: string;
+  orbitRadius: number;
+  orbitSpeed: number;
+  startAngle: number;
 }
 
-// ─── Planet Progress (from backend) ──────────────────────────────
 export interface DomainProgress {
   domainId: string;
-  mastery: number;      // 0–100
-  confidence: number;   // 0–100
+  mastery: number;
+  confidence: number;
   stage: LearningStage;
   topicsExplored: number;
   lastActivityAt: string | null;
   recentHighlight?: string;
+  evolutionIndex?: number;
+  planetLevel?: number;
+  masteryText?: string;
+  confidenceText?: string;
 }
 
-// ─── Cosmos State (full scene data) ──────────────────────────────
+export interface TopicIsland {
+  topicId: string;
+  topicTitle: string;
+  topicKind: "canonical" | "longTail";
+  stage: LearningStage;
+  mastery: number;
+  confidence: number;
+  masteryLabel: string;
+  confidenceLabel: string;
+  lastActivityAt: string | null;
+  recallDueAt: string | null;
+  lat: number;
+  lon: number;
+  docsCount: number;
+}
+
+export interface TopicTimelineEntry {
+  contentId: string;
+  type: "doku" | "story";
+  title: string;
+  createdAt: string;
+}
+
+export interface TopicQuizAttempt {
+  id: string;
+  accuracy: number;
+  correctCount: number;
+  totalCount: number;
+  createdAt: string;
+}
+
+export interface TopicRecallTask {
+  id: string;
+  dueAt: string;
+  status: string;
+  score: number | null;
+  doneAt: string | null;
+}
+
 export interface CosmosState {
   childName: string;
   avatarImageUrl?: string;
@@ -64,47 +102,43 @@ export interface CosmosState {
   totalDokusRead: number;
 }
 
-// ─── Planet Visual Properties (computed from progress) ───────────
 export interface PlanetVisuals {
-  scale: number;         // 0.6–1.4 based on mastery
-  emissiveIntensity: number; // 0–1.5 based on confidence
+  scale: number;
+  emissiveIntensity: number;
   hasAtmosphere: boolean;
   hasRing: boolean;
   hasSatellites: boolean;
-  stageMoonCount: number; // deterministic moon count by stage
+  stageMoonCount: number;
   atmosphereOpacity: number;
-  orbitStability: number; // 0–1, higher = smoother orbit (less wobble)
-  developmentLevel: number; // 0–1 blended progression across mastery/confidence
-  ringOpacity: number; // continuous ring visibility
-  satelliteCount: number; // 0–5
-  cloudOpacity: number; // dynamic cloud layer
-  surfaceDetail: number; // roughness / bump influence
-  auraOpacity: number; // outer glow around the planet
-  lifeSignalStrength: number; // particles/satellites intensity
+  orbitStability: number;
+  developmentLevel: number;
+  ringOpacity: number;
+  satelliteCount: number;
+  cloudOpacity: number;
+  surfaceDetail: number;
+  auraOpacity: number;
+  lifeSignalStrength: number;
 }
 
-// ─── Evidence Highlight (for parent dashboard) ───────────────────
 export interface EvidenceHighlight {
   id: string;
   childId: string;
   domainId: string;
-  type: 'quiz' | 'recall' | 'transfer' | 'explain';
+  type: "quiz" | "recall" | "transfer" | "explain";
   text: string;
   evidenceBasis: string;
   recommendation?: string;
   timestamp: string;
 }
 
-// ─── Competency Trend ────────────────────────────────────────────
 export interface CompetencyTrend {
   skillType: SkillType;
   currentLevel: number;
-  trend: 'rising' | 'stable' | 'declining';
+  trend: "rising" | "stable" | "declining";
   dataPoints: Array<{ date: string; value: number }>;
 }
 
-// ─── Camera States ───────────────────────────────────────────────
-export type CameraMode = 'system' | 'focus' | 'detail';
+export type CameraMode = "system" | "focus" | "detail";
 
 export interface CameraTarget {
   mode: CameraMode;
@@ -112,3 +146,4 @@ export interface CameraTarget {
   position: [number, number, number];
   lookAt: [number, number, number];
 }
+

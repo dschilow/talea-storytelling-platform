@@ -11,6 +11,7 @@ import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import { CosmosStarCenter } from './CosmosStarCenter';
 import { CosmosPlanetDomain } from './CosmosPlanetDomain';
 import { CosmosOrbitRig } from './CosmosOrbitRig';
@@ -18,12 +19,13 @@ import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
 import { CosmosDeepSpaceBackdrop } from './CosmosDeepSpaceBackdrop';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
+import { fetchDomainTopics, fetchTopicTimeline, type TopicTimelineDTO } from './apiCosmosClient';
 import {
   getDomainById,
   getDomainLearningPreset,
   resolveCosmosDomains,
 } from './CosmosAssetsRegistry';
-import type { CameraMode, CosmosState, DomainProgress } from './CosmosTypes';
+import type { CameraMode, CosmosState, DomainProgress, TopicIsland } from './CosmosTypes';
 import type { CosmosQualityPreference } from './CosmosQuality';
 import {
   getQualityConfig,
@@ -31,6 +33,8 @@ import {
 
 interface Props {
   cosmosState: CosmosState;
+  activeAvatarId?: string;
+  activeChildId?: string;
   height?: string;
   compact?: boolean;
   qualityPreference?: CosmosQualityPreference;
@@ -47,14 +51,25 @@ const emptyProgress = (domainId: string): DomainProgress => ({
 
 export const CosmosSceneRoot: React.FC<Props> = ({
   cosmosState,
+  activeAvatarId,
+  activeChildId,
   height = '100%',
   compact = false,
   qualityPreference = 'auto',
 }) => {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [cameraMode, setCameraMode] = useState<CameraMode>('system');
   const [focusedDomainId, setFocusedDomainId] = useState<string | null>(null);
   const [focusedPosition, setFocusedPosition] = useState<[number, number, number] | null>(null);
+  const [activeIslands, setActiveIslands] = useState<TopicIsland[]>([]);
+  const [otherTopics, setOtherTopics] = useState<TopicIsland[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<TopicIsland | null>(null);
+  const [selectedTopicTimeline, setSelectedTopicTimeline] = useState<TopicTimelineDTO | null>(null);
+  const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [isLoadingTopicTimeline, setIsLoadingTopicTimeline] = useState(false);
+  const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
+  const [pulseNonce, setPulseNonce] = useState(0);
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -105,6 +120,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const handleResetFocus = useCallback(() => {
     setFocusedDomainId(null);
     setFocusedPosition(null);
+    setActiveIslands([]);
+    setOtherTopics([]);
+    setSelectedTopic(null);
+    setSelectedTopicTimeline(null);
     setCameraMode('system');
   }, []);
 
@@ -133,6 +152,87 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     [navigate]
   );
 
+  const handleSelectIsland = useCallback((topic: TopicIsland) => {
+    setSelectedTopic(topic);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDomainTopics() {
+      if (!focusedDomainId || cameraMode !== 'detail' || compact) return;
+      setIsLoadingTopics(true);
+      try {
+        const token = await getToken();
+        const domainTopics = await fetchDomainTopics(
+          {
+            domainId: focusedDomainId,
+            childId: activeChildId || undefined,
+            avatarId: activeAvatarId || undefined,
+          },
+          { token }
+        );
+        if (!active) return;
+        setActiveIslands(domainTopics.activeIslands || []);
+        setOtherTopics(domainTopics.otherTopics || []);
+        setSelectedTopic((current) => {
+          if (current && domainTopics.activeIslands.some((island) => island.topicId === current.topicId)) {
+            return current;
+          }
+          return domainTopics.activeIslands[0] || null;
+        });
+      } catch (error) {
+        if (!active) return;
+        console.warn('[CosmosSceneRoot] failed to load domain topics', error);
+        setActiveIslands([]);
+        setOtherTopics([]);
+      } finally {
+        if (active) setIsLoadingTopics(false);
+      }
+    }
+
+    void loadDomainTopics();
+    return () => {
+      active = false;
+    };
+  }, [activeAvatarId, activeChildId, cameraMode, compact, focusedDomainId, getToken]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadTopicTimeline() {
+      if (!selectedTopic || cameraMode !== 'detail' || compact) {
+        if (active) setSelectedTopicTimeline(null);
+        return;
+      }
+      setIsLoadingTopicTimeline(true);
+      try {
+        const token = await getToken();
+        const timeline = await fetchTopicTimeline(
+          {
+            topicId: selectedTopic.topicId,
+            childId: activeChildId || undefined,
+            avatarId: activeAvatarId || undefined,
+          },
+          { token }
+        );
+        if (!active) return;
+        setSelectedTopicTimeline(timeline);
+      } catch (error) {
+        if (!active) return;
+        console.warn('[CosmosSceneRoot] failed to load topic timeline', error);
+        setSelectedTopicTimeline(null);
+      } finally {
+        if (active) setIsLoadingTopicTimeline(false);
+      }
+    }
+
+    void loadTopicTimeline();
+    return () => {
+      active = false;
+    };
+  }, [activeAvatarId, activeChildId, cameraMode, compact, getToken, selectedTopic]);
+
   const [webglSupported] = useState(() => {
     try {
       const canvas = document.createElement('canvas');
@@ -141,6 +241,28 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       return false;
     }
   });
+
+  useEffect(() => {
+    const onMapProgress = (event: Event) => {
+      const detail = (event as CustomEvent<{ avatarId?: string | null; domainId?: string }>).detail;
+      if (!detail) return;
+
+      if (activeAvatarId && detail.avatarId && detail.avatarId !== activeAvatarId) {
+        return;
+      }
+
+      const candidateDomainId = detail.domainId || focusedDomainId || selectedTopic?.topicId?.split('_')[0];
+      if (!candidateDomainId) return;
+
+      setPulseDomainId(candidateDomainId);
+      setPulseNonce((value) => value + 1);
+    };
+
+    window.addEventListener('talea:mapProgress', onMapProgress as EventListener);
+    return () => {
+      window.removeEventListener('talea:mapProgress', onMapProgress as EventListener);
+    };
+  }, [activeAvatarId, focusedDomainId, selectedTopic?.topicId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -178,7 +300,6 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
         onCreated={({ gl }) => {
           (gl as any).useLegacyLights = false;
-          gl.physicallyCorrectLights = true;
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = quality.toneMappingExposure;
@@ -250,9 +371,13 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               progress={getProgress(domain.id)}
               isFocused={focusedDomainId === domain.id}
               isDetailMode={cameraMode === 'detail' && focusedDomainId === domain.id}
+              islands={cameraMode === 'detail' && focusedDomainId === domain.id ? activeIslands : []}
+              selectedTopicId={selectedTopic?.topicId}
               textureSize={quality.planetTextureBaseSize}
               ringTextureSize={quality.ringTextureSize}
+              feedbackPulseNonce={pulseDomainId === domain.id ? pulseNonce : 0}
               onSelect={handleSelectPlanet}
+              onSelectIsland={handleSelectIsland}
             />
           ))}
 
@@ -281,12 +406,19 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         <CosmosHudOverlay
           domain={focusedDomain}
           progress={focusedProgress}
+          activeIslands={activeIslands}
+          otherTopics={otherTopics}
+          selectedTopic={selectedTopic}
+          selectedTopicTimeline={selectedTopicTimeline}
+          isLoadingTopics={isLoadingTopics}
+          isLoadingTopicTimeline={isLoadingTopicTimeline}
           isVisible={cameraMode === 'focus' || cameraMode === 'detail'}
           isDetailMode={cameraMode === 'detail'}
           onClose={handleResetFocus}
           onOpenDetail={handleOpenDetail}
           onBackFromDetail={handleBackFromDetail}
           onStartLearning={handleStartLearning}
+          onSelectTopic={handleSelectIsland}
         />
       )}
 

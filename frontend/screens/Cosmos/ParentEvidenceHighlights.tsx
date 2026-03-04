@@ -1,16 +1,9 @@
-/**
- * ParentEvidenceHighlights.tsx - Concrete learning evidence cards
- *
- * Each card answers: What was learned? How do we know? What's next?
- * MVP: Generated from domain progress data (later from real evidence events).
- */
-
-import React, { useMemo } from 'react';
-import { CheckCircle, TrendingUp, Lightbulb } from 'lucide-react';
-import type { DomainProgress } from './CosmosTypes';
-import { getDomainById, resolveCosmosDomains } from './CosmosAssetsRegistry';
-import { getStageLabel, getStageColor } from './CosmosProgressMapper';
-import type { ParentEvidenceHighlightDTO } from './apiCosmosClient';
+import React, { useMemo } from "react";
+import { CheckCircle, Lightbulb } from "lucide-react";
+import type { DomainProgress } from "./CosmosTypes";
+import { getDomainById, resolveCosmosDomains } from "./CosmosAssetsRegistry";
+import { getStageLabel, getStageColor } from "./CosmosProgressMapper";
+import type { ParentEvidenceHighlightDTO } from "./apiCosmosClient";
 
 interface Props {
   domains: DomainProgress[];
@@ -39,30 +32,29 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
   );
 
   const cards = useMemo(() => {
-    const cards: HighlightCard[] = [];
-    const name = childName || 'Ihr Kind';
+    const result: HighlightCard[] = [];
+    const name = childName || "Ihr Kind";
 
     if (evidenceHighlights.length > 0) {
       for (const entry of evidenceHighlights.slice(0, 6)) {
         const domain = getDomainById(entry.domainId, resolvedDomains);
-        const stage = domains.find((domainEntry) => domainEntry.domainId === entry.domainId)?.stage ?? 'discovered';
-        cards.push({
+        const stage = domains.find((d) => d.domainId === entry.domainId)?.stage || "discovered";
+        result.push({
           id: entry.id,
-          icon: domain?.icon ?? '✨',
-          domainLabel: domain?.label ?? entry.domainId,
+          icon: domain?.icon || "✨",
+          domainLabel: domain?.label || entry.domainId,
           text: entry.summary,
-          evidenceBasis: `${entry.eventType.toUpperCase()} · ${Math.round(entry.score)}/${Math.round(entry.maxScore)} · ${new Date(entry.timestamp).toLocaleDateString('de-DE')}`,
-          recommendation: 'Nächster Schritt: kurze Wiederholung und Transferfrage im selben Themenfeld.',
+          evidenceBasis: `${entry.eventType.toUpperCase()} · ${new Date(entry.timestamp).toLocaleDateString("de-DE")}`,
+          recommendation: "Naechster Schritt: kurze Wiederholung und Transferfrage im selben Themenfeld.",
           stageColor: getStageColor(stage),
         });
       }
-      return cards;
+      return result;
     }
 
-    // Only generate highlights for domains with actual progress
     const activeDomains = domains
-      .filter((d) => d.mastery > 0)
-      .sort((a, b) => b.mastery - a.mastery);
+      .filter((d) => d.topicsExplored > 0 || d.mastery > 0)
+      .sort((a, b) => (b.planetLevel || 1) - (a.planetLevel || 1));
 
     for (const dp of activeDomains.slice(0, 4)) {
       const domain = getDomainById(dp.domainId, resolvedDomains);
@@ -71,33 +63,25 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
       const stageLabel = getStageLabel(dp.stage);
       const stageColor = getStageColor(dp.stage);
 
-      let text: string;
-      let evidenceBasis: string;
-      let recommendation: string;
+      let text = `${name} hat erste Lernspuren in "${domain.label}" gesammelt.`;
+      let evidenceBasis = `${dp.topicsExplored} Thema${dp.topicsExplored !== 1 ? "n" : ""} mit Aktivitaet.`;
+      let recommendation = "Breite Themenvielfalt anbieten, um Interessen zu entdecken.";
 
-      switch (dp.stage) {
-        case 'mastered':
-          text = `${name} hat tiefes Verständnis in "${domain.label}" entwickelt und kann Gelerntes in neuen Kontexten anwenden.`;
-          evidenceBasis = `Stufe "${stageLabel}" erreicht (Wissen: ${Math.round(dp.mastery)}%, Sicherheit: ${Math.round(dp.confidence)}%). ${dp.topicsExplored} Themen erkundet.`;
-          recommendation = `Vertiefte Themen anbieten oder Verbindungen zu anderen Wissensbereichen herstellen.`;
-          break;
-        case 'can_explain':
-          text = `${name} kann Zusammenhänge in "${domain.label}" erklären und zeigt wachsendes Verständnis.`;
-          evidenceBasis = `Stufe "${stageLabel}" (Wissen: ${Math.round(dp.mastery)}%). Erklärungen und Transfer-Aufgaben erfolgreich gelöst.`;
-          recommendation = `Recall-Übungen stärken die Langzeit-Verankerung des Wissens.`;
-          break;
-        case 'understood':
-          text = `${name} zeigt Interesse an "${domain.label}" und beginnt Ursache-Wirkung-Zusammenhänge zu verstehen.`;
-          evidenceBasis = `Stufe "${stageLabel}" (Wissen: ${Math.round(dp.mastery)}%). Quiz-Ergebnisse zeigen grundlegendes Verständnis.`;
-          recommendation = `Weiter erkunden lassen — die Neugier ist da. Vergleichende Fragen fördern tieferes Denken.`;
-          break;
-        default:
-          text = `${name} hat erste Schritte in "${domain.label}" gemacht.`;
-          evidenceBasis = `${dp.topicsExplored} Thema${dp.topicsExplored !== 1 ? 'n' : ''} angeschaut. Grundlagen werden aufgebaut.`;
-          recommendation = `Breite Themenvielfalt anbieten, um Interessen zu entdecken.`;
+      if (dp.stage === "retained") {
+        text = `${name} zeigt in "${domain.label}" stabile Langzeit-Sicherheit.`;
+        evidenceBasis = `Stufe "${stageLabel}" erreicht, Recall-Aufgaben wurden erfolgreich abgeschlossen.`;
+        recommendation = "Vertiefte Themen und Transferaufgaben in neue Kontexte anbieten.";
+      } else if (dp.stage === "apply") {
+        text = `${name} kann Inhalte in "${domain.label}" bereits anwenden.`;
+        evidenceBasis = `Stufe "${stageLabel}" erreicht, Quiz-Serien zeigen belastbares Verstaendnis.`;
+        recommendation = "Recall-Fenster nutzen, damit das Wissen langfristig sitzt.";
+      } else if (dp.stage === "understood") {
+        text = `${name} versteht zentrale Zusammenhaenge in "${domain.label}".`;
+        evidenceBasis = `Stufe "${stageLabel}" erreicht, mehrere Quiz-Sessions mit guter Genauigkeit.`;
+        recommendation = "Mit Vergleichs- und Anwendungsfragen weiter vertiefen.";
       }
 
-      cards.push({
+      result.push({
         id: dp.domainId,
         icon: domain.icon,
         domainLabel: domain.label,
@@ -108,20 +92,19 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
       });
     }
 
-    // If no active domains, show an encouragement card
-    if (cards.length === 0) {
-      cards.push({
-        id: 'empty',
-        icon: '🌱',
-        domainLabel: 'Startbereit',
-        text: `${name}s Lernkosmos wartet darauf, entdeckt zu werden! Jede Geschichte und jede Doku bringt neue Sterne zum Leuchten.`,
-        evidenceBasis: 'Noch keine Lernaktivitäten aufgezeichnet.',
-        recommendation: 'Eine erste Doku oder Geschichte starten — der Kosmos füllt sich von selbst.',
-        stageColor: '#94a3b8',
+    if (result.length === 0) {
+      result.push({
+        id: "empty",
+        icon: "🌱",
+        domainLabel: "Startbereit",
+        text: `${name}s Lernkosmos wartet auf die ersten Lernschritte.`,
+        evidenceBasis: "Noch keine Lernaktivitaeten aufgezeichnet.",
+        recommendation: "Eine erste Doku oder Story starten.",
+        stageColor: "#94a3b8",
       });
     }
 
-    return cards;
+    return result;
   }, [domains, childName, evidenceHighlights, resolvedDomains]);
 
   return (
@@ -131,7 +114,6 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
           key={card.id}
           className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-4 shadow-sm"
         >
-          {/* Header */}
           <div className="flex items-center gap-2 mb-3">
             <span className="text-xl">{card.icon}</span>
             <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
@@ -148,18 +130,15 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
             </span>
           </div>
 
-          {/* Main text */}
           <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 leading-relaxed">
             {card.text}
           </p>
 
-          {/* Evidence basis */}
           <div className="flex items-start gap-2 mb-2 text-xs text-slate-500 dark:text-slate-400">
             <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-green-500" />
             <span>{card.evidenceBasis}</span>
           </div>
 
-          {/* Recommendation */}
           <div className="flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
             <Lightbulb className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
             <span>{card.recommendation}</span>
@@ -169,3 +148,4 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
     </div>
   );
 };
+

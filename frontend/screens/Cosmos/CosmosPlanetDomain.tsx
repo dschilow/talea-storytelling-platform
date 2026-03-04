@@ -12,7 +12,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Sphere, Ring, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
-import type { CosmosDomain, DomainProgress } from './CosmosTypes';
+import type { CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
 import { mapProgressToVisuals } from './CosmosProgressMapper';
 
 interface Props {
@@ -20,9 +20,13 @@ interface Props {
   progress: DomainProgress;
   isFocused: boolean;
   isDetailMode?: boolean;
+  islands?: TopicIsland[];
+  selectedTopicId?: string | null;
   textureSize?: number;
   ringTextureSize?: number;
+  feedbackPulseNonce?: number;
   onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
+  onSelectIsland?: (topic: TopicIsland) => void;
 }
 
 const MAX_LIFE_PARTICLES = 10;
@@ -115,9 +119,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   progress,
   isFocused,
   isDetailMode = false,
+  islands = [],
+  selectedTopicId = null,
   textureSize = 512,
   ringTextureSize = 512,
+  feedbackPulseNonce = 0,
   onSelect,
+  onSelectIsland,
 }) => {
   const groupRef = useRef<THREE.Group>(null!);
   const planetRef = useRef<THREE.Mesh>(null!);
@@ -128,6 +136,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const topicMoonRefs = useRef<Array<THREE.Mesh | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
   const selectionHaloRef = useRef<THREE.Mesh>(null!);
+  const feedbackPulseRef = useRef(0);
   const [labelExpanded, setLabelExpanded] = useState(false);
 
   const visuals = useMemo(() => mapProgressToVisuals(progress), [progress]);
@@ -278,6 +287,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     MAX_LIFE_PARTICLES,
     Math.floor(visuals.lifeSignalStrength * MAX_LIFE_PARTICLES)
   );
+  const visibleIslands = useMemo(
+    () => (isDetailMode ? islands.slice(0, 20) : []),
+    [isDetailMode, islands]
+  );
   const stageMoonCount = visuals.stageMoonCount;
   const topicMoonCount = Math.min(
     MAX_TOPIC_MOONS,
@@ -307,6 +320,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   );
 
   useEffect(() => {
+    if (feedbackPulseNonce > 0) {
+      feedbackPulseRef.current = 1;
+    }
+  }, [feedbackPulseNonce]);
+
+  useEffect(() => {
     return () => {
       planetMaterial.dispose();
       cloudMaterial.dispose();
@@ -316,9 +335,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     };
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
-  useFrame(({ clock, camera }) => {
+  useFrame(({ clock, camera }, delta) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
+    feedbackPulseRef.current = Math.max(0, feedbackPulseRef.current - delta * 1.2);
+    const feedbackPulse = feedbackPulseRef.current;
 
     if (!isFocused) {
       const angle = domain.startAngle + t * domain.orbitSpeed;
@@ -352,9 +373,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     if (auraRef.current) {
       const stableFactor = 0.28 + visuals.orbitStability * 0.72;
       const glowPulse = 1 + Math.sin(t * (0.4 + stableFactor * 0.45) + orbitConfig.phase) * 0.035;
-      auraRef.current.scale.setScalar(glowPulse);
+      auraRef.current.scale.setScalar(glowPulse + feedbackPulse * 0.08);
       const mat = auraRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = visuals.auraOpacity * 1.42 * (0.9 + Math.sin(t * (0.7 + stableFactor)) * 0.05);
+      mat.opacity =
+        visuals.auraOpacity *
+        1.42 *
+        (0.9 + Math.sin(t * (0.7 + stableFactor)) * 0.05 + feedbackPulse * 0.22);
     }
 
     if (atmosphereRef.current) {
@@ -364,10 +388,15 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
 
     if (selectionHaloRef.current) {
-      selectionHaloRef.current.visible = isFocused;
-      if (isFocused) {
-        const pulse = 1 + Math.sin(t * 2.1) * 0.03;
+      const haloVisible = isFocused || feedbackPulse > 0.02;
+      selectionHaloRef.current.visible = haloVisible;
+      if (haloVisible) {
+        const pulse = 1 + Math.sin(t * 2.1) * 0.03 + feedbackPulse * 0.22;
         selectionHaloRef.current.scale.setScalar(pulse);
+        const haloMaterial = selectionHaloRef.current.material as THREE.MeshBasicMaterial;
+        haloMaterial.opacity = isFocused
+          ? 0.72 + feedbackPulse * 0.2
+          : 0.2 + feedbackPulse * 0.5;
       }
     }
 
@@ -553,6 +582,93 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         </Sphere>
       ))}
 
+      {visibleIslands.map((topic, index) => {
+        const pos = latLonToPlanetPosition(
+          topic.lat,
+          topic.lon,
+          baseRadius * visuals.scale * 1.04
+        );
+        const isSelected = selectedTopicId === topic.topicId;
+        const stage = topic.stage;
+
+        const markerColor =
+          stage === 'retained'
+            ? '#f59e0b'
+            : stage === 'apply'
+            ? '#22c55e'
+            : stage === 'understood'
+            ? '#60a5fa'
+            : '#a3a3a3';
+
+        const markerSize =
+          stage === 'retained'
+            ? 0.05
+            : stage === 'apply'
+            ? 0.045
+            : stage === 'understood'
+            ? 0.04
+            : 0.032;
+
+        return (
+          <group
+            key={`island_${topic.topicId}_${index}`}
+            position={[pos.x, pos.y, pos.z]}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelectIsland?.(topic);
+            }}
+            onPointerOver={(event) => {
+              event.stopPropagation();
+              document.body.style.cursor = 'pointer';
+            }}
+            onPointerOut={() => {
+              document.body.style.cursor = 'auto';
+            }}
+          >
+            <Sphere args={[markerSize, 10, 10]}>
+              <meshStandardMaterial
+                color={markerColor}
+                emissive={markerColor}
+                emissiveIntensity={stage === 'discovered' ? 0.06 : 0.22}
+                roughness={0.42}
+                metalness={0.08}
+              />
+            </Sphere>
+
+            {(stage === 'apply' || stage === 'retained') && (
+              <mesh position={[0, markerSize + 0.03, 0]}>
+                <cylinderGeometry args={[0.006, 0.006, 0.08, 8]} />
+                <meshStandardMaterial color="#f5f5f5" roughness={0.4} metalness={0.2} />
+              </mesh>
+            )}
+
+            {stage === 'retained' && (
+              <Ring args={[markerSize * 1.5, markerSize * 2.0, 24]} rotation={[Math.PI / 2, 0, 0]}>
+                <meshBasicMaterial
+                  color="#fde68a"
+                  transparent
+                  opacity={0.75}
+                  blending={THREE.AdditiveBlending}
+                  depthWrite={false}
+                />
+              </Ring>
+            )}
+
+            {isSelected && (
+              <Ring args={[markerSize * 1.9, markerSize * 2.35, 24]} rotation={[Math.PI / 2, 0, 0]}>
+                <meshBasicMaterial
+                  color="#ffffff"
+                  transparent
+                  opacity={0.95}
+                  blending={THREE.AdditiveBlending}
+                  depthWrite={false}
+                />
+              </Ring>
+            )}
+          </group>
+        );
+      })}
+
       <Html
         position={[0, baseRadius * visuals.scale + 0.6, 0]}
         center
@@ -586,10 +702,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 fontFamily: '"Nunito", sans-serif',
               }}
             >
-              {progress.stage === 'mastered'
+              {progress.stage === 'retained'
                 ? 'Sitzt wirklich'
-                : progress.stage === 'can_explain'
-                ? 'Kann erklaeren'
+                : progress.stage === 'apply'
+                ? 'Anwenden'
                 : progress.stage === 'understood'
                 ? 'Verstanden'
                 : 'Entdeckt'}
@@ -1075,4 +1191,13 @@ function hashString(value: string): number {
     hash |= 0;
   }
   return Math.abs(hash);
+}
+
+function latLonToPlanetPosition(lat: number, lon: number, radius: number): THREE.Vector3 {
+  const latRad = (lat * Math.PI) / 180;
+  const lonRad = (lon * Math.PI) / 180;
+  const x = radius * Math.cos(latRad) * Math.cos(lonRad);
+  const y = radius * Math.sin(latRad);
+  const z = radius * Math.cos(latRad) * Math.sin(lonRad);
+  return new THREE.Vector3(x, y, z);
 }
