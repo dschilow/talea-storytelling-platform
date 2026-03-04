@@ -37,6 +37,7 @@ type PlanetMapSet = {
   bumpMap: THREE.CanvasTexture;
   roughnessMap: THREE.CanvasTexture;
   cloudMap: THREE.CanvasTexture;
+  nightMap: THREE.CanvasTexture;
 };
 
 const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
@@ -203,48 +204,75 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.color, orbitConfig.seed, ringTextureSize]
   );
 
-  const planetMaterial = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#ffffff'),
-        map: maps.surfaceMap,
-        bumpMap: maps.bumpMap,
-        bumpScale: 0.09 + visuals.surfaceDetail * 0.34,
-        roughnessMap: maps.roughnessMap,
-        roughness:
-          progress.stage === 'discovered'
-            ? 0.86
-            : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
-        metalness: 0.015 + visuals.developmentLevel * 0.03,
-        clearcoat:
-          progress.stage === 'discovered'
-            ? 0.04
-            : 0.13 + visuals.developmentLevel * 0.42,
-        clearcoatRoughness:
-          progress.stage === 'discovered'
-            ? 0.78
-            : 0.4 - visuals.developmentLevel * 0.16,
-        emissive: new THREE.Color(domain.emissiveColor),
-        emissiveIntensity: 0.02 + visuals.emissiveIntensity * 0.24,
-        envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
-        sheen: 0.3 + visuals.developmentLevel * 0.4,
-        sheenRoughness: 0.6,
-        sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
-        iridescence: visuals.developmentLevel * 0.15,
-        iridescenceIOR: 1.3,
-      }),
+  const planetMaterial = useMemo(() => {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#ffffff'),
+      map: maps.surfaceMap,
+      bumpMap: maps.bumpMap,
+      bumpScale: 0.18 + visuals.surfaceDetail * 0.42,
+      roughnessMap: maps.roughnessMap,
+      roughness:
+        progress.stage === 'discovered'
+          ? 0.86
+          : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
+      metalness: 0.015 + visuals.developmentLevel * 0.03,
+      clearcoat:
+        progress.stage === 'discovered'
+          ? 0.04
+          : 0.13 + visuals.developmentLevel * 0.42,
+      clearcoatRoughness:
+        progress.stage === 'discovered'
+          ? 0.78
+          : 0.4 - visuals.developmentLevel * 0.16,
+      emissive: new THREE.Color(domain.emissiveColor),
+      emissiveIntensity: 0.02 + visuals.emissiveIntensity * 0.24,
+      envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
+      sheen: 0.3 + visuals.developmentLevel * 0.4,
+      sheenRoughness: 0.6,
+      sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
+      iridescence: visuals.developmentLevel * 0.15,
+      iridescenceIOR: 1.3,
+    });
+
+    // Inject night-lights into the dark hemisphere via shader hook
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.tNight = { value: maps.nightMap };
+      shader.uniforms.uSunDir = { value: new THREE.Vector3(0, 0, 1) };
+
+      shader.vertexShader = `varying vec3 vNightNormal;\n` + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        `#include <worldpos_vertex>`,
+        `#include <worldpos_vertex>\n  vNightNormal = normalize(mat3(modelMatrix) * normal);`
+      );
+
+      shader.fragmentShader = `uniform sampler2D tNight;\nuniform vec3 uSunDir;\nvarying vec3 vNightNormal;\n` + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <emissivemap_fragment>`,
+        `#include <emissivemap_fragment>\n` +
+        `  float dayDot = dot(vNightNormal, normalize(uSunDir));\n` +
+        `  float nightBlend = smoothstep(0.08, -0.28, dayDot);\n` +
+        `  vec4 nightSample = texture2D(tNight, vUv);\n` +
+        `  totalEmissiveRadiance += nightSample.rgb * nightBlend * 4.0;`
+      );
+
+      // Store reference for per-frame uniform update
+      mat.userData.nightShader = shader;
+    };
+
+    return mat;
+  },
     [
       domain.color,
       domain.emissiveColor,
       maps.bumpMap,
+      maps.nightMap,
       maps.roughnessMap,
       maps.surfaceMap,
       progress.stage,
       visuals.developmentLevel,
       visuals.emissiveIntensity,
       visuals.surfaceDetail,
-    ]
-  );
+    ]);
 
   const cloudMaterial = useMemo(
     () =>
@@ -394,6 +422,18 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       const atmosphereShader = atmosphereRef.current.material as THREE.ShaderMaterial;
       atmosphereShader.uniforms.uOpacity.value = visuals.atmosphereOpacity;
       atmosphereShader.uniforms.uSunPos.value.set(0, 0, 0);
+    }
+
+    // Update night-lights sun direction so it tracks the actual light source
+    if (planetRef.current) {
+      const nightShader = planetMaterial.userData.nightShader;
+      if (nightShader?.uniforms?.uSunDir) {
+        // Sun is at world origin; direction from planet to sun in world space
+        const worldPos = new THREE.Vector3();
+        planetRef.current.getWorldPosition(worldPos);
+        const sunDir = worldPos.clone().negate().normalize();
+        nightShader.uniforms.uSunDir.value.copy(sunDir);
+      }
     }
 
     if (selectionHaloRef.current) {
@@ -786,6 +826,7 @@ function createPlanetMaps(
   bumpMap: THREE.CanvasTexture;
   roughnessMap: THREE.CanvasTexture;
   cloudMap: THREE.CanvasTexture;
+  nightMap: THREE.CanvasTexture;
 } {
   const profile = getPlanetTypeProfile(planetType);
   const size = textureSize;
@@ -797,12 +838,15 @@ function createPlanetMaps(
   bumpCanvas.width = bumpCanvas.height = size;
   roughCanvas.width = roughCanvas.height = size;
   cloudCanvas.width = cloudCanvas.height = size;
+  const nightCanvas = document.createElement('canvas');
+  nightCanvas.width = nightCanvas.height = size;
 
   const surfaceCtx = surfaceCanvas.getContext('2d');
   const bumpCtx = bumpCanvas.getContext('2d');
   const roughCtx = roughCanvas.getContext('2d');
   const cloudCtx = cloudCanvas.getContext('2d');
-  if (!surfaceCtx || !bumpCtx || !roughCtx || !cloudCtx) {
+  const nightCtx = nightCanvas.getContext('2d');
+  if (!surfaceCtx || !bumpCtx || !roughCtx || !cloudCtx || !nightCtx) {
     throw new Error('Could not create 2D canvas context for planet maps');
   }
 
@@ -810,6 +854,7 @@ function createPlanetMaps(
   const bumpData = bumpCtx.createImageData(size, size);
   const roughData = roughCtx.createImageData(size, size);
   const cloudData = cloudCtx.createImageData(size, size);
+  const nightData = nightCtx.createImageData(size, size);
 
   const baseColor = new THREE.Color(baseHex);
   const baseR = Math.floor(baseColor.r * 255);
@@ -880,6 +925,27 @@ function createPlanetMaps(
       cloudData.data[i + 1] = 255;
       cloudData.data[i + 2] = 255;
       cloudData.data[i + 3] = cloudAlpha;
+
+      // Night-side lights: cities on habitable worlds, lava on volcanic, crystals on crystalline
+      const hasContinentsNight = hasContinents;
+      let rN = 0, gN = 0, bN = 0;
+      if (hasContinentsNight) {
+        const cityNoise = fbm2D(nx * 18.2, ny * 18.2, seed + 888, 3);
+        if (regionMask > 0.4 && cityNoise > 0.65 && altitude < 0.65 && detailFactor > 0.05) {
+          const glow = Math.pow((cityNoise - 0.65) * 2.8, 2.0) * 255 * Math.min(1.0, detailFactor * 2.2);
+          rN = glow * 0.98; gN = glow * 0.94; bN = glow * 1.0;
+        }
+      } else if (planetType === 'volcanic' && lavaCrack > 0) {
+        const lava = lavaCrack * 220;
+        rN = lava; gN = lava * 0.28; bN = lava * 0.04;
+      } else if (planetType === 'crystalline' && ridge > 0.6) {
+        const crystal = ridge * 100 * detailFactor;
+        rN = crystal * 0.4; gN = crystal * 0.8; bN = crystal;
+      }
+      nightData.data[i] = clamp255(rN);
+      nightData.data[i + 1] = clamp255(gN);
+      nightData.data[i + 2] = clamp255(bN);
+      nightData.data[i + 3] = 255;
     }
   }
 
@@ -887,13 +953,15 @@ function createPlanetMaps(
   bumpCtx.putImageData(bumpData, 0, 0);
   roughCtx.putImageData(roughData, 0, 0);
   cloudCtx.putImageData(cloudData, 0, 0);
+  nightCtx.putImageData(nightData, 0, 0);
 
   const surfaceMap = new THREE.CanvasTexture(surfaceCanvas);
   const bumpMap = new THREE.CanvasTexture(bumpCanvas);
   const roughnessMap = new THREE.CanvasTexture(roughCanvas);
   const cloudMap = new THREE.CanvasTexture(cloudCanvas);
+  const nightMap = new THREE.CanvasTexture(nightCanvas);
 
-  [surfaceMap, bumpMap, roughnessMap, cloudMap].forEach((texture) => {
+  [surfaceMap, bumpMap, roughnessMap, cloudMap, nightMap].forEach((texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(1.25, 1.25);
@@ -903,8 +971,9 @@ function createPlanetMaps(
     texture.needsUpdate = true;
   });
   surfaceMap.colorSpace = THREE.SRGBColorSpace;
+  nightMap.colorSpace = THREE.SRGBColorSpace;
 
-  return { surfaceMap, bumpMap, roughnessMap, cloudMap };
+  return { surfaceMap, bumpMap, roughnessMap, cloudMap, nightMap };
 }
 
 interface PlanetTypeProfile {
