@@ -7,7 +7,7 @@
  * - detail: close inspection of selected planet
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -29,6 +29,7 @@ export const CosmosCameraController: React.FC<Props> = ({
 }) => {
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
+  const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
 
   const targetPos = useRef(SYSTEM_POS.clone());
   const targetLookAt = useRef(SYSTEM_TARGET.clone());
@@ -73,6 +74,7 @@ export const CosmosCameraController: React.FC<Props> = ({
       cinematicStart.current = null;
       isCinematic.current = true;
       isAnimating.current = true;
+      setAutoRotateEnabled(false);
       return;
     }
 
@@ -81,6 +83,7 @@ export const CosmosCameraController: React.FC<Props> = ({
     isCinematic.current = false;
     cinematicStart.current = null;
     isAnimating.current = true;
+    setAutoRotateEnabled(true);
   }, [camera, focusedDomain, focusedPosition, mode]);
 
   useFrame(({ clock }) => {
@@ -121,7 +124,7 @@ export const CosmosCameraController: React.FC<Props> = ({
     camera.lookAt(currentLookAt.current);
 
     if (controlsRef.current) {
-      controlsRef.current.enabled = true;
+      controlsRef.current.enabled = false;
       controlsRef.current.target.copy(currentLookAt.current);
       controlsRef.current.update();
     }
@@ -155,7 +158,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   return (
     <OrbitControls
       ref={controlsRef}
-      enablePan={false}
+      enablePan={mode === 'system'}
       enableZoom
       minDistance={minDistance}
       maxDistance={maxDistance}
@@ -163,11 +166,24 @@ export const CosmosCameraController: React.FC<Props> = ({
       maxPolarAngle={maxPolarAngle}
       minAzimuthAngle={minAzimuthAngle}
       maxAzimuthAngle={maxAzimuthAngle}
-      autoRotate={mode === 'system'}
+      autoRotate={mode === 'system' && autoRotateEnabled}
       autoRotateSpeed={0.08}
       enableDamping
       dampingFactor={0.1}
       rotateSpeed={rotateSpeed}
+      onStart={() => {
+        isAnimating.current = false;
+        isCinematic.current = false;
+        if (controlsRef.current) {
+          const activeTarget = controlsRef.current.target as THREE.Vector3;
+          currentLookAt.current.copy(activeTarget);
+          targetLookAt.current.copy(activeTarget);
+          targetPos.current.copy(camera.position);
+        }
+        if (mode === 'system') {
+          setAutoRotateEnabled(false);
+        }
+      }}
     />
   );
 };
