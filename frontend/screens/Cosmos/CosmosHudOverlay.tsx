@@ -67,11 +67,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const dueRecall =
     selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
     null;
-  const showTopicInsights =
-    isDetailMode ||
-    isLoadingTopics ||
-    activeIslands.length > 0 ||
-    Boolean(selectedTopic);
+  const showTopicInsights = isDetailMode;
   const bottomInset = isDetailMode
     ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
     : "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";
@@ -254,7 +250,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                           color: "rgba(255,255,255,0.9)",
                         }}
                       >
-                        <div className="font-semibold">{topic.topicTitle}</div>
+                        <div className="font-semibold">{formatTopicLabel(topic.topicTitle)}</div>
                         <div className="text-[11px] text-white/55">
                           {getStageLabel(topic.stage)} - {topic.masteryLabel} - {topic.docsCount} Inhalte
                         </div>
@@ -270,7 +266,9 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                   <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-sm font-bold text-white">{selectedTopic.topicTitle}</h4>
+                        <h4 className="text-sm font-bold text-white">
+                          {formatTopicLabel(selectedTopic.topicTitle)}
+                        </h4>
                         <p className="text-[11px] text-white/55">
                           {getStageLabel(selectedTopic.stage)} - {selectedTopic.masteryLabel} - {selectedTopic.confidenceLabel}
                         </p>
@@ -339,7 +337,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                           onClick={() => onSelectTopic(topic)}
                           className="w-full text-left rounded-md px-2 py-1.5 text-xs text-white/75 hover:bg-white/8 transition-colors"
                         >
-                          {topic.topicTitle}
+                          {formatTopicLabel(topic.topicTitle)}
                         </button>
                       ))}
                     </div>
@@ -415,5 +413,16 @@ function getDetailCards(domainId: string, progress: DomainProgress): string[] {
       ? "Pro Tipp: Transferfragen fuer neue Situationen"
       : "Empfehlung: Kurzer Recall in 3-7 Tagen",
   ];
+}
+
+function formatTopicLabel(value: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "Unbenanntes Thema";
+  const looksSlugLike = raw.includes("_") || raw.includes("-");
+  if (!looksSlugLike) return raw;
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 

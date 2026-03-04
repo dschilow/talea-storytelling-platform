@@ -163,6 +163,7 @@ export function useCosmosState() {
   const [isLoading, setIsLoading] = useState(true);
   const [avatarData, setAvatarData] = useState<any>(null);
   const [remoteDomains, setRemoteDomains] = useState<DomainProgress[] | null>(null);
+  const [remoteTotals, setRemoteTotals] = useState<{ storiesRead: number; dokusRead: number } | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
 
   const selectedAvatar = useMemo(() => {
@@ -199,6 +200,7 @@ export function useCosmosState() {
           if (!mounted) return;
           setAvatarData(null);
           setRemoteDomains(null);
+          setRemoteTotals(null);
           return;
         }
 
@@ -215,6 +217,7 @@ export function useCosmosState() {
 
         if (!isLoaded || !isSignedIn || !user?.id) {
           setRemoteDomains(null);
+          setRemoteTotals(null);
           return;
         }
 
@@ -230,10 +233,15 @@ export function useCosmosState() {
           );
           if (!mounted) return;
           setRemoteDomains((remote.domains || []).map(normalizeRemoteDomain));
+          setRemoteTotals({
+            storiesRead: Math.max(0, Number(remote.totalStoriesRead) || 0),
+            dokusRead: Math.max(0, Number(remote.totalDokusRead) || 0),
+          });
         } catch (error) {
           console.warn("[useCosmosState] Failed to load remote cosmos state, using fallback", error);
           if (!mounted) return;
           setRemoteDomains(null);
+          setRemoteTotals(null);
         }
       } finally {
         if (mounted) setIsLoading(false);
@@ -270,14 +278,24 @@ export function useCosmosState() {
 
   const cosmosState = useMemo<CosmosState>(() => {
     const childName = childProfiles?.activeProfile?.name || "";
+    const fallbackStories = avatarData?.progression?.stats?.storiesRead ?? 0;
+    const fallbackDokus = avatarData?.progression?.stats?.dokusRead ?? 0;
     return {
       childName,
       avatarImageUrl: avatarData?.imageUrl,
       domains,
-      totalStoriesRead: avatarData?.progression?.stats?.storiesRead ?? 0,
-      totalDokusRead: avatarData?.progression?.stats?.dokusRead ?? 0,
+      totalStoriesRead: remoteTotals?.storiesRead ?? fallbackStories,
+      totalDokusRead: remoteTotals?.dokusRead ?? fallbackDokus,
     };
-  }, [avatarData?.imageUrl, avatarData?.progression?.stats?.dokusRead, avatarData?.progression?.stats?.storiesRead, childProfiles?.activeProfile?.name, domains]);
+  }, [
+    avatarData?.imageUrl,
+    avatarData?.progression?.stats?.dokusRead,
+    avatarData?.progression?.stats?.storiesRead,
+    childProfiles?.activeProfile?.name,
+    domains,
+    remoteTotals?.dokusRead,
+    remoteTotals?.storiesRead,
+  ]);
 
   return {
     cosmosState,

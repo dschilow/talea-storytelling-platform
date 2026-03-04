@@ -92,6 +92,8 @@ interface CosmosDomainProgressResponse {
 interface CosmosStateResponse {
   childId: string;
   domains: CosmosDomainProgressResponse[];
+  totalStoriesRead: number;
+  totalDokusRead: number;
   selectedDomain?: {
     domainId: string;
     activeIslands: TopicIslandResponse[];

@@ -154,6 +154,8 @@ export interface CosmosStateDomainDTO {
 export interface CosmosStateResponseDTO {
   childId: string;
   domains: CosmosStateDomainDTO[];
+  totalStoriesRead: number;
+  totalDokusRead: number;
   selectedDomain?: {
     domainId: CosmosDomainId;
     activeIslands: TopicIslandDTO[];
@@ -1469,6 +1471,17 @@ export async function getCosmosStateForChild(params: {
     ORDER BY array_position(${FIXED_DOMAINS}::text[], d.domain_id)
   `;
 
+  const contentTotals = await avatarDB.queryRow<{
+    total_stories_read: number;
+    total_dokus_read: number;
+  }>`
+    SELECT
+      COALESCE(COUNT(*) FILTER (WHERE type = 'story'), 0)::int AS total_stories_read,
+      COALESCE(COUNT(*) FILTER (WHERE type = 'doku'), 0)::int AS total_dokus_read
+    FROM content_items
+    WHERE child_id = ${childId}
+  `;
+
   const domains: CosmosStateDomainDTO[] = [];
   for (const row of domainRows) {
     const domainId = normalizeDomainId(row.domain_id);
@@ -1527,6 +1540,8 @@ export async function getCosmosStateForChild(params: {
   return {
     childId,
     domains,
+    totalStoriesRead: Math.max(0, toNumber(contentTotals?.total_stories_read, 0)),
+    totalDokusRead: Math.max(0, toNumber(contentTotals?.total_dokus_read, 0)),
     selectedDomain,
   };
 }

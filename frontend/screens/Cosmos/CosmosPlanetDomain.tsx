@@ -20,7 +20,6 @@ interface Props {
   progress: DomainProgress;
   isFocused: boolean;
   cameraMode?: CameraMode;
-  isDetailMode?: boolean;
   islands?: TopicIsland[];
   selectedTopicId?: string | null;
   textureSize?: number;
@@ -136,7 +135,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   progress,
   isFocused,
   cameraMode = 'system',
-  isDetailMode = false,
   islands = [],
   selectedTopicId = null,
   textureSize = 512,
@@ -180,16 +178,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   const initialPosition = useMemo<[number, number, number]>(() => {
     const angle = domain.startAngle;
-    const y =
-      Math.sin(angle + orbitConfig.phase) *
-      domain.orbitRadius *
-      Math.sin(orbitConfig.inclination) *
-      0.22;
-    return [
-      Math.cos(angle) * domain.orbitRadius,
-      y,
-      Math.sin(angle) * domain.orbitRadius * orbitConfig.eccentricity,
-    ];
+    return getOrbitPosition(angle, domain.orbitRadius, orbitConfig);
   }, [
     domain.orbitRadius,
     domain.startAngle,
@@ -313,10 +302,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [islands, shouldShowIslands]
   );
   const stageMoonCount = visuals.stageMoonCount;
-  const topicMoonCount = Math.min(
-    MAX_TOPIC_MOONS,
-    Math.max(stageMoonCount, Math.min(4, progress.topicsExplored || 0))
-  );
+  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, stageMoonCount);
   const topicMoonSeeds = useMemo(
     () =>
       Array.from({ length: topicMoonCount }, (_, index) => {
@@ -356,6 +342,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     };
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
+  const baseRadius = 0.52;
+
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
@@ -364,21 +352,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
     if (!isFocused) {
       const angle = domain.startAngle + t * domain.orbitSpeed;
-      const jitterAmount = (1 - visuals.orbitStability) * (isDetailMode ? 0.03 : 0.1);
-      const wobble =
-        jitterAmount *
-        Math.sin(t * 3 + domain.startAngle + orbitConfig.phase) *
-        0.12;
-      const orbitalY =
-        Math.sin(angle + orbitConfig.phase) *
-        domain.orbitRadius *
-        Math.sin(orbitConfig.inclination) *
-        0.22;
-
-      groupRef.current.position.x = Math.cos(angle) * domain.orbitRadius;
-      groupRef.current.position.z =
-        Math.sin(angle) * domain.orbitRadius * orbitConfig.eccentricity;
-      groupRef.current.position.y = orbitalY + wobble;
+      const orbitPosition = getOrbitPosition(angle, domain.orbitRadius, orbitConfig);
+      groupRef.current.position.set(
+        orbitPosition[0],
+        orbitPosition[1],
+        orbitPosition[2]
+      );
     }
 
     if (onPositionUpdate) {
@@ -434,20 +413,22 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       if (!moon || index >= topicMoonCount) return;
       const seed = topicMoonSeeds[index];
       const angle = t * (0.8 + seed.offset * 0.8) + seed.phase;
-      const radius = 1.25 + visuals.scale * 0.28 + index * 0.17;
+      const planetRadius = baseRadius * visuals.scale;
+      const radius = planetRadius * (2.35 + index * 0.35);
       moon.position.x = Math.cos(angle) * radius;
       moon.position.z = Math.sin(angle) * radius;
-      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * 0.18;
+      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.35);
       moon.rotation.y += 0.01;
     });
 
     satelliteRefs.current.forEach((satellite, index) => {
       if (!satellite) return;
       const angle = t * (1.2 + index * 0.23) + index * 1.37;
-      const radius = 1.1 + visuals.scale * 0.36 + index * 0.28;
+      const planetRadius = baseRadius * visuals.scale;
+      const radius = planetRadius * (2.75 + index * 0.42);
       satellite.position.x = Math.cos(angle) * radius;
       satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.6) * (0.12 + index * 0.03);
+      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.28 + index * 0.08));
     });
 
     lifeParticleRefs.current.forEach((particle, index) => {
@@ -467,7 +448,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
   });
 
-  const baseRadius = 0.52;
   const ringLayers =
     visuals.hasRing && visuals.ringOpacity > 0
       ? Math.max(1, Math.round(visuals.ringOpacity * 3))
@@ -489,21 +469,22 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         }}
       />
 
-      <Ring
-        ref={selectionHaloRef}
-        args={[baseRadius * visuals.scale * 1.26, baseRadius * visuals.scale * 1.34, 96]}
-        rotation={[Math.PI / 2, 0, 0]}
-        visible={isFocused}
-      >
-        <meshBasicMaterial
-          color={domain.emissiveColor}
-          transparent
-          opacity={0.7}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </Ring>
+      <Billboard follow lockX={false} lockY={false} lockZ={false}>
+        <Ring
+          ref={selectionHaloRef}
+          args={[baseRadius * visuals.scale * 1.26, baseRadius * visuals.scale * 1.34, 96]}
+          visible={isFocused}
+        >
+          <meshBasicMaterial
+            color={domain.emissiveColor}
+            transparent
+            opacity={0.7}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+          />
+        </Ring>
+      </Billboard>
 
       <Sphere
         ref={cloudRef}
@@ -1252,6 +1233,28 @@ function smoothstep(min: number, max: number, value: number): number {
   if (value >= max) return 1;
   const t = (value - min) / (max - min);
   return t * t * (3 - 2 * t);
+}
+
+type OrbitConfig = {
+  seed: number;
+  inclination: number;
+  eccentricity: number;
+  phase: number;
+};
+
+function getOrbitPosition(
+  angle: number,
+  orbitRadius: number,
+  orbitConfig: OrbitConfig
+): [number, number, number] {
+  const x = Math.cos(angle) * orbitRadius;
+  const z = Math.sin(angle) * orbitRadius * orbitConfig.eccentricity;
+  const y =
+    Math.sin(angle + orbitConfig.phase) *
+    orbitRadius *
+    Math.sin(orbitConfig.inclination) *
+    0.22;
+  return [x, y, z];
 }
 
 function hashString(value: string): number {

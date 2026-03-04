@@ -33,6 +33,8 @@ export interface CosmosDomainProgressDTO {
 export interface CosmosStateDTO {
   childId: string;
   domains: CosmosDomainProgressDTO[];
+  totalStoriesRead: number;
+  totalDokusRead: number;
   selectedDomain?: {
     domainId: string;
     activeIslands: TopicIslandDTO[];

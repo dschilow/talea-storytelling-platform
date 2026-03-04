@@ -18,22 +18,24 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains, cameraMode, focusedDo
   const orbits = useMemo(() => {
     return domains.map((domain) => {
       const seed = hashString(domain.id);
-      const tiltX = (((seed % 10) - 5) * Math.PI) / 180;
-      const tiltZ = ((((seed >> 3) % 10) - 5) * Math.PI) / 180;
-      const segments = 64;
+      const inclination = (((seed % 18) - 9) * Math.PI) / 180;
+      const eccentricity = 0.82 + (((seed >> 3) % 16) / 100);
+      const phase = ((seed >> 8) % 628) / 100;
+      const orbitConfig: OrbitConfig = {
+        inclination,
+        eccentricity,
+        phase,
+      };
+      const segments = 120;
       const points: [number, number, number][] = [];
       for (let i = 0; i <= segments; i++) {
         const angle = (i / segments) * Math.PI * 2;
-        points.push([
-          Math.cos(angle) * domain.orbitRadius,
-          0,
-          Math.sin(angle) * domain.orbitRadius,
-        ]);
+        points.push(getOrbitPosition(angle, domain.orbitRadius, orbitConfig));
       }
       const orbitColor = new THREE.Color(domain.color)
         .lerp(new THREE.Color('#9fb2d6'), 0.72)
         .getStyle();
-      return { id: domain.id, points, color: orbitColor, tiltX, tiltZ, radius: domain.orbitRadius };
+      return { id: domain.id, points, color: orbitColor, radius: domain.orbitRadius };
     });
   }, [domains]);
 
@@ -45,7 +47,7 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains, cameraMode, focusedDo
 
   return (
     <group>
-      {orbits.map(({ id, points, color, tiltX, tiltZ, radius }, index) => {
+      {orbits.map(({ id, points, color, radius }, index) => {
         const isFocused = focusedDomainId === id;
         const hasFocused = Boolean(focusedDomainId);
         const indexDistance = focusedIndex >= 0 ? Math.abs(index - focusedIndex) : Number.MAX_SAFE_INTEGER;
@@ -81,20 +83,40 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains, cameraMode, focusedDo
         const width = isFocused ? 1.05 : 0.55;
 
         return (
-          <group key={id} rotation={[tiltX, 0, tiltZ]}>
-            <Line
-              points={points}
-              color={color}
-              lineWidth={width}
-              transparent
-              opacity={opacity}
-            />
-          </group>
+          <Line
+            key={id}
+            points={points}
+            color={color}
+            lineWidth={width}
+            transparent
+            opacity={opacity}
+          />
         );
       })}
     </group>
   );
 };
+
+type OrbitConfig = {
+  inclination: number;
+  eccentricity: number;
+  phase: number;
+};
+
+function getOrbitPosition(
+  angle: number,
+  orbitRadius: number,
+  orbitConfig: OrbitConfig
+): [number, number, number] {
+  const x = Math.cos(angle) * orbitRadius;
+  const z = Math.sin(angle) * orbitRadius * orbitConfig.eccentricity;
+  const y =
+    Math.sin(angle + orbitConfig.phase) *
+    orbitRadius *
+    Math.sin(orbitConfig.inclination) *
+    0.22;
+  return [x, y, z];
+}
 
 function hashString(value: string): number {
   let hash = 0;

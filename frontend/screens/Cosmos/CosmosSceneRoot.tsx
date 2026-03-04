@@ -341,7 +341,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     let active = true;
 
     async function loadTopicTimeline() {
-      if (!selectedTopic || cameraMode === 'system' || compact) {
+      if (!selectedTopic || cameraMode !== 'detail' || compact) {
         if (active) setSelectedTopicTimeline(null);
         return;
       }
@@ -531,7 +531,6 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               progress={getProgress(domain.id)}
               isFocused={focusedDomainId === domain.id}
               cameraMode={cameraMode}
-              isDetailMode={cameraMode === 'detail' && focusedDomainId === domain.id}
               islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
               textureSize={quality.planetTextureBaseSize}
