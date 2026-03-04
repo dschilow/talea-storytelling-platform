@@ -1,4 +1,4 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import type { AudioDoku } from '../types/audio-doku';
@@ -62,11 +62,21 @@ const DB_NAME = 'talea-offline';
 const DB_VERSION = 2;
 
 let dbInstance: IDBPDatabase<TaleaOfflineDB> | null = null;
+let dbOpenPromise: Promise<IDBPDatabase<TaleaOfflineDB>> | null = null;
+let dbDisabled = false;
 
-async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
-  if (dbInstance) return dbInstance;
+function isRecoverableDbError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('UnknownError') ||
+    message.includes('Internal error') ||
+    message.includes('VersionError') ||
+    message.includes('InvalidStateError')
+  );
+}
 
-  dbInstance = await openDB<TaleaOfflineDB>(DB_NAME, DB_VERSION, {
+async function openOfflineDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
+  const db = await openDB<TaleaOfflineDB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       if (!db.objectStoreNames.contains('offline-stories')) {
         db.createObjectStore('offline-stories', { keyPath: 'id' });
@@ -84,9 +94,57 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
         db.createObjectStore('offline-blobs', { keyPath: 'url' });
       }
     },
+    blocked() {
+      console.warn('[Offline] IndexedDB upgrade blocked by another tab.');
+    },
   });
 
-  return dbInstance;
+  db.onversionchange = () => {
+    db.close();
+  };
+  return db;
+}
+
+async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
+  if (dbInstance) return dbInstance;
+  if (dbDisabled) {
+    throw new Error('Offline storage is unavailable in this browser context');
+  }
+  if (dbOpenPromise) return dbOpenPromise;
+
+  dbOpenPromise = (async () => {
+    try {
+      dbInstance = await openOfflineDb();
+      return dbInstance;
+    } catch (error) {
+      if (!isRecoverableDbError(error)) {
+        dbDisabled = true;
+        throw error;
+      }
+
+      console.warn('[Offline] IndexedDB corrupted, trying database reset...');
+      dbInstance?.close();
+      dbInstance = null;
+
+      try {
+        await deleteDB(DB_NAME);
+      } catch {
+        // best effort cleanup
+      }
+
+      try {
+        dbInstance = await openOfflineDb();
+        return dbInstance;
+      } catch (recoveryError) {
+        dbDisabled = true;
+        throw recoveryError;
+      }
+    } finally {
+      dbOpenPromise = null;
+    }
+  })();
+
+  return dbOpenPromise;
 }
 
 async function fetchAndStoreBlob(url: string): Promise<void> {

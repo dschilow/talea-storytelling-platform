@@ -20,20 +20,26 @@ export function useOfflineStorage() {
   const [savedDokuIds, setSavedDokuIds] = useState<Set<string>>(new Set());
   const [savedAudioDokuIds, setSavedAudioDokuIds] = useState<Set<string>>(new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [storageUnavailable, setStorageUnavailable] = useState(false);
 
   const canUseOffline = subscription === 'familie' || subscription === 'premium';
 
   const loadSavedIds = useCallback(async () => {
-    if (!canUseOffline) return;
+    if (!canUseOffline || storageUnavailable) return;
     try {
       const ids = await getAllSavedIds();
       setSavedStoryIds(new Set(ids.stories));
       setSavedDokuIds(new Set(ids.dokus));
       setSavedAudioDokuIds(new Set(ids.audioDokus));
+      setStorageUnavailable(false);
     } catch (error) {
-      console.error('[Offline] Failed to load saved IDs:', error);
+      setStorageUnavailable(true);
+      setSavedStoryIds(new Set());
+      setSavedDokuIds(new Set());
+      setSavedAudioDokuIds(new Set());
+      console.warn('[Offline] Disabled offline storage for this session:', error);
     }
-  }, [canUseOffline]);
+  }, [canUseOffline, storageUnavailable]);
 
   useEffect(() => {
     void loadSavedIds();
@@ -54,6 +60,7 @@ export function useOfflineStorage() {
 
   const toggleStory = useCallback(
     async (storyId: string) => {
+      if (storageUnavailable) return;
       if (savingIds.has(storyId)) return;
       addSavingId(storyId);
 
@@ -85,11 +92,12 @@ export function useOfflineStorage() {
         removeSavingId(storyId);
       }
     },
-    [backend, savedStoryIds, savingIds]
+    [backend, savedStoryIds, savingIds, storageUnavailable]
   );
 
   const toggleDoku = useCallback(
     async (dokuId: string) => {
+      if (storageUnavailable) return;
       if (savingIds.has(dokuId)) return;
       addSavingId(dokuId);
 
@@ -121,11 +129,12 @@ export function useOfflineStorage() {
         removeSavingId(dokuId);
       }
     },
-    [backend, savedDokuIds, savingIds]
+    [backend, savedDokuIds, savingIds, storageUnavailable]
   );
 
   const toggleAudioDoku = useCallback(
     async (audioDoku: AudioDoku) => {
+      if (storageUnavailable) return;
       if (savingIds.has(audioDoku.id)) return;
       addSavingId(audioDoku.id);
 
@@ -156,11 +165,11 @@ export function useOfflineStorage() {
         removeSavingId(audioDoku.id);
       }
     },
-    [savedAudioDokuIds, savingIds]
+    [savedAudioDokuIds, savingIds, storageUnavailable]
   );
 
   return {
-    canUseOffline,
+    canUseOffline: canUseOffline && !storageUnavailable,
     isStorySaved,
     isDokuSaved,
     isAudioDokuSaved,
