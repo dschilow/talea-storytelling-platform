@@ -9,6 +9,11 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+interface Props {
+  enabledNebulaBillboards?: boolean;
+  nebulaTextureSize?: number;
+}
+
 const VERTEX_SHADER = `
   varying vec3 vWorldPos;
   void main() {
@@ -112,8 +117,13 @@ const FRAGMENT_SHADER = `
   }
 `;
 
-export const CosmosDeepSpaceBackdrop: React.FC = () => {
+export const CosmosDeepSpaceBackdrop: React.FC<Props> = ({
+  enabledNebulaBillboards = true,
+  nebulaTextureSize = 1024,
+}) => {
   const skyRef = useRef<THREE.Mesh>(null!);
+  const backdropScale = enabledNebulaBillboards ? 200 : 188;
+  const sphereSegments = nebulaTextureSize >= 1024 ? 64 : 48;
 
   const skyMaterial = useMemo(
     () =>
@@ -145,8 +155,8 @@ export const CosmosDeepSpaceBackdrop: React.FC = () => {
   });
 
   return (
-    <mesh ref={skyRef} scale={[200, 200, 200]} material={skyMaterial}>
-      <sphereGeometry args={[1, 64, 64]} />
+    <mesh ref={skyRef} scale={[backdropScale, backdropScale, backdropScale]} material={skyMaterial}>
+      <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
     </mesh>
   );
 };
