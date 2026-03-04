@@ -301,8 +301,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
     [islands, shouldShowIslands]
   );
-  const stageMoonCount = visuals.stageMoonCount;
-  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, stageMoonCount);
+  // Moons only appear when at least 2 topics are explored, fading in as the user progresses
+  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, Math.max(0, (progress.topicsExplored || 0) - 1));
   const topicMoonSeeds = useMemo(
     () =>
       Array.from({ length: topicMoonCount }, (_, index) => {
@@ -412,23 +412,31 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     topicMoonRefs.current.forEach((moon, index) => {
       if (!moon || index >= topicMoonCount) return;
       const seed = topicMoonSeeds[index];
-      const angle = t * (0.8 + seed.offset * 0.8) + seed.phase;
+      const angle = t * (0.5 + seed.offset * 0.4) + seed.phase;
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (3.25 + index * 0.48);
+      // Pushed out from 3.25 to 6.5+ to clear rings entirely
+      const radius = planetRadius * (6.5 + index * 0.75);
       moon.position.x = Math.cos(angle) * radius;
       moon.position.z = Math.sin(angle) * radius;
-      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.42);
+      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.85);
       moon.rotation.y += 0.01;
     });
 
     satelliteRefs.current.forEach((satellite, index) => {
       if (!satellite) return;
-      const angle = t * (1.2 + index * 0.23) + index * 1.37;
+      // Only show satellites if at least 1 topic is explored or stage is later
+      if ((progress.topicsExplored || 0) < 1) {
+        satellite.visible = false;
+        return;
+      }
+      satellite.visible = true;
+      const angle = t * (0.8 + index * 0.15) + index * 1.37;
       const planetRadius = baseRadius * visuals.scale;
-      const radius = planetRadius * (4.1 + index * 0.55);
+      // Pushed out from 4.1 to 8.0+
+      const radius = planetRadius * (8.0 + index * 0.85);
       satellite.position.x = Math.cos(angle) * radius;
       satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.34 + index * 0.1));
+      satellite.position.y = Math.sin(angle * 0.6) * (planetRadius * (0.54 + index * 0.2));
     });
 
     lifeParticleRefs.current.forEach((particle, index) => {
@@ -503,7 +511,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         </mesh>
       </Billboard>
 
-      {ringLayers > 0 &&
+      {/* Only show rings if topicsExplored > 2 or stage > initial */}
+      {(progress.topicsExplored || 0) > 2 && ringLayers > 0 &&
         Array.from({ length: ringLayers }).map((_, index) => {
           const inner = baseRadius * visuals.scale * (1.42 + index * 0.22);
           const outer = inner + baseRadius * visuals.scale * (0.32 + index * 0.08);
