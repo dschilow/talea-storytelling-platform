@@ -1,19 +1,17 @@
 /**
- * CosmosCameraController.tsx - Camera animation & controls
+ * CosmosCameraController.tsx - Cinematic camera controls with zoom modes.
  *
- * Two modes:
- * - overview: orbit controls, full solar system view
- * - focused: smooth lerp to selected planet, limited controls
- *
- * Uses @react-three/drei CameraControls for smooth transitions.
+ * Modes:
+ * - system: full solar-system overview
+ * - focus: selected planet + neighboring context
+ * - detail: close inspection of selected planet
  */
 
 import React, { useRef, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import type { CameraMode } from './CosmosTypes';
-import type { CosmosDomain } from './CosmosTypes';
+import type { CameraMode, CosmosDomain } from './CosmosTypes';
 
 interface Props {
   mode: CameraMode;
@@ -21,8 +19,8 @@ interface Props {
   focusedPosition?: [number, number, number] | null;
 }
 
-const OVERVIEW_POS = new THREE.Vector3(13, 9, 25);
-const OVERVIEW_TARGET = new THREE.Vector3(0, 0, 0);
+const SYSTEM_POS = new THREE.Vector3(13, 8, 25);
+const SYSTEM_TARGET = new THREE.Vector3(0, 0, 0);
 
 export const CosmosCameraController: React.FC<Props> = ({
   mode,
@@ -32,19 +30,19 @@ export const CosmosCameraController: React.FC<Props> = ({
   const controlsRef = useRef<any>(null);
   const { camera } = useThree();
 
-  const targetPos = useRef(OVERVIEW_POS.clone());
-  const targetLookAt = useRef(OVERVIEW_TARGET.clone());
-  const currentLookAt = useRef(OVERVIEW_TARGET.clone());
+  const targetPos = useRef(SYSTEM_POS.clone());
+  const targetLookAt = useRef(SYSTEM_TARGET.clone());
+  const currentLookAt = useRef(SYSTEM_TARGET.clone());
   const isAnimating = useRef(false);
   const isCinematic = useRef(false);
   const cinematicStart = useRef<number | null>(null);
   const shotFrom = useRef(new THREE.Vector3());
   const shotMid = useRef(new THREE.Vector3());
   const shotTo = useRef(new THREE.Vector3());
-  const cinematicDuration = 1.45;
+  const cinematicDuration = 1.25;
 
   useEffect(() => {
-    if (mode === 'focused' && focusedDomain) {
+    if ((mode === 'focus' || mode === 'detail') && focusedDomain) {
       const [px, py, pz] = focusedPosition ?? [
         Math.cos(focusedDomain.startAngle) * focusedDomain.orbitRadius,
         0,
@@ -56,48 +54,54 @@ export const CosmosCameraController: React.FC<Props> = ({
       if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
       side.normalize();
 
+      const focusDistance = mode === 'detail' ? 3.3 : 6.2;
+      const midDistance = mode === 'detail' ? 5.6 : 8.1;
+      const sideOffset = mode === 'detail' ? 0.8 : 2.2;
+      const heightOffset = mode === 'detail' ? 1.3 : 2.5;
+
       shotFrom.current.copy(camera.position);
       shotMid.current
         .copy(focus)
-        .add(toCamera.clone().multiplyScalar(7.2))
-        .add(side.clone().multiplyScalar(2.4))
-        .add(new THREE.Vector3(0, 2.8, 0));
+        .add(toCamera.clone().multiplyScalar(midDistance))
+        .add(side.clone().multiplyScalar(sideOffset))
+        .add(new THREE.Vector3(0, heightOffset + 0.8, 0));
       shotTo.current
         .copy(focus)
-        .add(toCamera.clone().multiplyScalar(4.6))
-        .add(side.clone().multiplyScalar(1.7))
-        .add(new THREE.Vector3(0, 2.1, 0));
+        .add(toCamera.clone().multiplyScalar(focusDistance))
+        .add(side.clone().multiplyScalar(sideOffset * 0.68))
+        .add(new THREE.Vector3(0, heightOffset, 0));
 
       targetPos.current.copy(shotTo.current);
-      targetLookAt.current.set(px, py, pz);
+      targetLookAt.current.copy(focus);
       cinematicStart.current = null;
       isCinematic.current = true;
       isAnimating.current = true;
-    } else {
-      targetPos.current.copy(OVERVIEW_POS);
-      targetLookAt.current.copy(OVERVIEW_TARGET);
-      isCinematic.current = false;
-      cinematicStart.current = null;
-      isAnimating.current = true;
+      return;
     }
+
+    targetPos.current.copy(SYSTEM_POS);
+    targetLookAt.current.copy(SYSTEM_TARGET);
+    isCinematic.current = false;
+    cinematicStart.current = null;
+    isAnimating.current = true;
   }, [camera, focusedDomain, focusedPosition, mode]);
 
   useFrame(({ clock }) => {
-    if (mode === 'focused' && isCinematic.current) {
+    if ((mode === 'focus' || mode === 'detail') && isCinematic.current) {
       if (cinematicStart.current == null) {
         cinematicStart.current = clock.elapsedTime;
       }
       const elapsed = clock.elapsedTime - cinematicStart.current;
       const t = Math.min(1, elapsed / cinematicDuration);
 
-      if (t < 0.52) {
-        const p = smoothstep(0, 0.52, t);
+      if (t < 0.5) {
+        const p = smoothstep(0, 0.5, t);
         camera.position.lerpVectors(shotFrom.current, shotMid.current, p);
       } else {
-        const p = smoothstep(0.52, 1, t);
+        const p = smoothstep(0.5, 1, t);
         camera.position.lerpVectors(shotMid.current, shotTo.current, p);
       }
-      currentLookAt.current.lerp(targetLookAt.current, 0.11);
+      currentLookAt.current.lerp(targetLookAt.current, 0.12);
       camera.lookAt(currentLookAt.current);
 
       if (controlsRef.current) {
@@ -120,8 +124,8 @@ export const CosmosCameraController: React.FC<Props> = ({
       return;
     }
 
-    camera.position.lerp(targetPos.current, 0.055);
-    currentLookAt.current.lerp(targetLookAt.current, 0.055);
+    camera.position.lerp(targetPos.current, 0.058);
+    currentLookAt.current.lerp(targetLookAt.current, 0.058);
     camera.lookAt(currentLookAt.current);
 
     if (controlsRef.current) {
@@ -138,20 +142,23 @@ export const CosmosCameraController: React.FC<Props> = ({
     }
   });
 
+  const minDistance = mode === 'detail' ? 2.2 : mode === 'focus' ? 4 : 10;
+  const maxDistance = mode === 'detail' ? 8 : mode === 'focus' ? 14 : 50;
+
   return (
     <OrbitControls
       ref={controlsRef}
       enablePan={false}
-      enableZoom={true}
-      minDistance={mode === 'focused' ? 3 : 10}
-      maxDistance={mode === 'focused' ? 12 : 50}
+      enableZoom
+      minDistance={minDistance}
+      maxDistance={maxDistance}
       minPolarAngle={Math.PI * 0.1}
       maxPolarAngle={Math.PI * 0.6}
-      autoRotate={mode === 'overview'}
-      autoRotateSpeed={0.14}
+      autoRotate={mode === 'system'}
+      autoRotateSpeed={0.12}
       enableDamping
-      dampingFactor={0.08}
-      rotateSpeed={0.38}
+      dampingFactor={0.09}
+      rotateSpeed={0.36}
     />
   );
 };

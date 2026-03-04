@@ -28,26 +28,39 @@ export function mapProgressToVisuals(progress: DomainProgress): PlanetVisuals {
 
   const m = clamp01(mastery / 100);
   const c = clamp01(confidence / 100);
-  const development = clamp01(m * 0.64 + c * 0.36);
+  const development = clamp01(m * 0.68 + c * 0.32);
   const eased = smoothstep(0, 1, development);
-  const ringProgress = smoothstep(0.35, 0.95, development);
+  const ringProgress = smoothstep(0.72, 1.0, development);
   const lifeSignal = smoothstep(0.5, 1.0, development);
-  const satelliteCount = Math.min(5, Math.floor(lifeSignal * 5));
+  const stageMoonCount = stage === 'mastered' ? 2 : stage === 'can_explain' ? 1 : 0;
+  const bonusSatellites = stage === 'mastered' ? Math.min(2, Math.floor(lifeSignal * 2.2)) : 0;
+  const satelliteCount = Math.min(3, bonusSatellites);
+  const hasAtmosphere = stage !== 'discovered';
+  const hasRing = stage === 'mastered';
 
   return {
-    scale: 0.58 + eased * 0.92,
-    emissiveIntensity: 0.08 + c * 1.6,
-    hasAtmosphere: stage !== 'discovered',
-    hasRing: ringProgress > 0.06,
+    scale: 0.62 + m * 0.34 + eased * 0.26,
+    emissiveIntensity: 0.06 + c * 1.35,
+    hasAtmosphere,
+    hasRing,
     hasSatellites: satelliteCount > 0,
-    atmosphereOpacity: stage === 'discovered' ? 0.02 + eased * 0.08 : 0.12 + eased * 0.3,
-    orbitStability: 0.25 + c * 0.75,
+    stageMoonCount,
+    atmosphereOpacity:
+      stage === 'discovered'
+        ? 0.01 + eased * 0.04
+        : stage === 'understood'
+        ? 0.08 + eased * 0.12
+        : 0.16 + eased * 0.2,
+    orbitStability: 0.32 + c * 0.68,
     developmentLevel: development,
-    ringOpacity: ringProgress * (0.22 + c * 0.35),
+    ringOpacity: hasRing ? ringProgress * (0.24 + c * 0.42) : 0,
     satelliteCount,
-    cloudOpacity: 0.05 + smoothstep(0.15, 0.9, development) * 0.34,
-    surfaceDetail: 0.25 + m * 0.75,
-    auraOpacity: 0.04 + smoothstep(0.2, 1, development) * 0.26,
+    cloudOpacity: stage === 'discovered' ? 0.03 + m * 0.08 : 0.1 + smoothstep(0.15, 0.95, development) * 0.28,
+    surfaceDetail: 0.22 + m * 0.78,
+    auraOpacity:
+      stage === 'discovered'
+        ? 0.02 + c * 0.05
+        : 0.06 + smoothstep(0.2, 1, c) * 0.24,
     lifeSignalStrength: lifeSignal,
   };
 }

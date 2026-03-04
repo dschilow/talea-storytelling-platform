@@ -10,6 +10,11 @@ import { useFrame } from '@react-three/fiber';
 import { Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
+interface Props {
+  enabledNebulaBillboards?: boolean;
+  nebulaTextureSize?: number;
+}
+
 const VERTEX_SHADER = `
   varying vec3 vWorldDir;
   void main() {
@@ -45,7 +50,10 @@ const FRAGMENT_SHADER = `
   }
 `;
 
-export const CosmosDeepSpaceBackdrop: React.FC = () => {
+export const CosmosDeepSpaceBackdrop: React.FC<Props> = ({
+  enabledNebulaBillboards = true,
+  nebulaTextureSize = 1024,
+}) => {
   const skyRef = useRef<THREE.Mesh>(null!);
 
   const skyMaterial = useMemo(
@@ -66,11 +74,11 @@ export const CosmosDeepSpaceBackdrop: React.FC = () => {
 
   const nebulaMaps = useMemo(
     () => [
-      createNebulaTexture(['#4d7cff', '#5dd6ff', '#8f75ff']),
-      createNebulaTexture(['#ff7bbb', '#ff9a6b', '#ffe18c']),
-      createNebulaTexture(['#5ce3b7', '#49a9ff', '#a4f1ff']),
+      createNebulaTexture(['#4d7cff', '#5dd6ff', '#8f75ff'], nebulaTextureSize),
+      createNebulaTexture(['#ff7bbb', '#ff9a6b', '#ffe18c'], nebulaTextureSize),
+      createNebulaTexture(['#5ce3b7', '#49a9ff', '#a4f1ff'], nebulaTextureSize),
     ],
-    []
+    [nebulaTextureSize]
   );
 
   useEffect(() => {
@@ -95,51 +103,58 @@ export const CosmosDeepSpaceBackdrop: React.FC = () => {
         <sphereGeometry args={[1, 64, 64]} />
       </mesh>
 
-      <Billboard position={[-46, 16, -82]} follow={false} lockX={false} lockY={false} lockZ={false}>
-        <mesh>
-          <planeGeometry args={[52, 30]} />
-          <meshBasicMaterial
-            map={nebulaMaps[0]}
-            transparent
-            opacity={0.28}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      </Billboard>
+      {enabledNebulaBillboards && (
+        <>
+          <Billboard position={[-46, 16, -82]} follow={false} lockX={false} lockY={false} lockZ={false}>
+            <mesh>
+              <planeGeometry args={[52, 30]} />
+              <meshBasicMaterial
+                map={nebulaMaps[0]}
+                transparent
+                opacity={0.24}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+              />
+            </mesh>
+          </Billboard>
 
-      <Billboard position={[58, 28, -68]} follow={false} lockX={false} lockY={false} lockZ={false}>
-        <mesh rotation={[0, 0, -0.25]}>
-          <planeGeometry args={[46, 28]} />
-          <meshBasicMaterial
-            map={nebulaMaps[1]}
-            transparent
-            opacity={0.22}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      </Billboard>
+          <Billboard position={[58, 28, -68]} follow={false} lockX={false} lockY={false} lockZ={false}>
+            <mesh rotation={[0, 0, -0.25]}>
+              <planeGeometry args={[46, 28]} />
+              <meshBasicMaterial
+                map={nebulaMaps[1]}
+                transparent
+                opacity={0.18}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+              />
+            </mesh>
+          </Billboard>
 
-      <Billboard position={[14, -24, -88]} follow={false} lockX={false} lockY={false} lockZ={false}>
-        <mesh rotation={[0, 0, 0.2]}>
-          <planeGeometry args={[62, 34]} />
-          <meshBasicMaterial
-            map={nebulaMaps[2]}
-            transparent
-            opacity={0.16}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      </Billboard>
+          <Billboard position={[14, -24, -88]} follow={false} lockX={false} lockY={false} lockZ={false}>
+            <mesh rotation={[0, 0, 0.2]}>
+              <planeGeometry args={[62, 34]} />
+              <meshBasicMaterial
+                map={nebulaMaps[2]}
+                transparent
+                opacity={0.13}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+              />
+            </mesh>
+          </Billboard>
+        </>
+      )}
     </group>
   );
 };
 
-function createNebulaTexture(colors: [string, string, string] | string[]): THREE.CanvasTexture {
+function createNebulaTexture(
+  colors: [string, string, string] | string[],
+  textureSize: number
+): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
-  const size = 1024;
+  const size = textureSize;
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');

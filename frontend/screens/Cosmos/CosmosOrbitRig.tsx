@@ -10,9 +10,10 @@ import type { CosmosDomain } from './CosmosTypes';
 
 interface Props {
   domains: CosmosDomain[];
+  focusedDomainId?: string | null;
 }
 
-export const CosmosOrbitRig: React.FC<Props> = ({ domains }) => {
+export const CosmosOrbitRig: React.FC<Props> = ({ domains, focusedDomainId }) => {
   const orbits = useMemo(() => {
     return domains.map((domain) => {
       const seed = hashString(domain.id);
@@ -37,17 +38,24 @@ export const CosmosOrbitRig: React.FC<Props> = ({ domains }) => {
 
   return (
     <group>
-      {orbits.map(({ id, points, color, tiltX, tiltZ }) => (
+      {orbits.map(({ id, points, color, tiltX, tiltZ }) => {
+        const isFocused = focusedDomainId === id;
+        const hasFocused = Boolean(focusedDomainId);
+        const opacity = isFocused ? 0.16 : hasFocused ? 0.025 : 0.055;
+        const width = isFocused ? 1.4 : 0.8;
+
+        return (
         <group key={id} rotation={[tiltX, 0, tiltZ]}>
           <Line
             points={points}
             color={color}
-            lineWidth={1.0}
+            lineWidth={width}
             transparent
-            opacity={0.08}
+            opacity={opacity}
           />
         </group>
-      ))}
+      );
+      })}
     </group>
   );
 };

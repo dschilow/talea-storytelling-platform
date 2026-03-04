@@ -8,9 +8,12 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Sphere, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
+import type { CameraMode } from './CosmosTypes';
 
 interface Props {
   avatarImageUrl?: string;
+  cameraMode: CameraMode;
+  godRaysDuration?: number;
 }
 
 // Soft radial glow texture generated once
@@ -194,7 +197,11 @@ const STAR_SURFACE_FRAGMENT = `
   }
 `;
 
-export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
+export const CosmosStarCenter: React.FC<Props> = ({
+  avatarImageUrl,
+  cameraMode,
+  godRaysDuration = 1.6,
+}) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   const glowSpriteRef = useRef<THREE.Mesh>(null!);
   const coronaSpriteRef = useRef<THREE.Mesh>(null!);
@@ -220,7 +227,7 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
       new THREE.MeshBasicMaterial({
         map: glowTexture,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.5,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
@@ -233,7 +240,7 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
       new THREE.MeshBasicMaterial({
         map: coronaTexture,
         transparent: true,
-        opacity: 0.45,
+        opacity: 0.06,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
@@ -243,7 +250,9 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
-    const pulse = 1 + Math.sin(t * 1.2) * 0.015;
+    const pulse = 1 + Math.sin(t * 1.2) * 0.01;
+    const introBlend = Math.max(0, 1 - t / godRaysDuration);
+    const raysVisible = cameraMode === 'system' ? introBlend : 0;
 
     starMaterial.uniforms.uTime.value = t;
 
@@ -252,16 +261,20 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
       meshRef.current.rotation.y += 0.001;
     }
     if (glowSpriteRef.current) {
-      const glowPulse = 1 + Math.sin(t * 0.8) * 0.03;
-      glowSpriteRef.current.scale.setScalar(8.5 * glowPulse);
+      const glowPulse = 1 + Math.sin(t * 0.8) * 0.02;
+      glowSpriteRef.current.scale.setScalar(6.6 * glowPulse);
+      const mat = glowSpriteRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.5 + Math.sin(t * 0.8) * 0.06;
     }
     if (coronaSpriteRef.current) {
       coronaSpriteRef.current.rotation.z += 0.0004;
-      const coronaPulse = 1 + Math.sin(t * 0.5) * 0.04;
-      coronaSpriteRef.current.scale.setScalar(11 * coronaPulse);
+      const coronaPulse = 1 + Math.sin(t * 0.5) * 0.025;
+      coronaSpriteRef.current.scale.setScalar(8.3 * coronaPulse);
+      const mat = coronaSpriteRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.02 + raysVisible * 0.22;
     }
     if (lightRef.current) {
-      lightRef.current.intensity = 2.8 + Math.sin(t * 1.5) * 0.2;
+      lightRef.current.intensity = 2.1 + Math.sin(t * 1.5) * 0.16;
     }
   });
 
@@ -278,7 +291,7 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
   return (
     <group>
       {/* Main star body with animated surface shader */}
-      <Sphere ref={meshRef} args={[1.5, 64, 64]} material={starMaterial} />
+      <Sphere ref={meshRef} args={[1.15, 64, 64]} material={starMaterial} />
 
       {/* Billboard glow - no hard edges, smooth falloff */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
@@ -298,8 +311,8 @@ export const CosmosStarCenter: React.FC<Props> = ({ avatarImageUrl }) => {
       <pointLight
         ref={lightRef}
         color="#fff4d6"
-        intensity={2.8}
-        distance={68}
+        intensity={2.1}
+        distance={60}
         decay={1.35}
       />
 

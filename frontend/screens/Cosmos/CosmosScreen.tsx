@@ -5,16 +5,35 @@
  * Shows the full 3D solar system with HUD overlay.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Telescope } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CosmosSceneRoot } from './CosmosSceneRoot';
 import { useCosmosState } from './useCosmosState';
+import type { CosmosQualityPreference } from './CosmosQuality';
+import {
+  loadQualityPreference,
+  saveQualityPreference,
+  resolveQualityTier,
+} from './CosmosQuality';
 
 const CosmosScreen: React.FC = () => {
   const navigate = useNavigate();
   const { cosmosState, isLoading } = useCosmosState();
+  const [qualityPreference, setQualityPreference] = useState<CosmosQualityPreference>('auto');
+
+  useEffect(() => {
+    setQualityPreference(loadQualityPreference());
+  }, []);
+
+  const activeQualityLabel = useMemo(() => {
+    const effective = resolveQualityTier(qualityPreference);
+    if (qualityPreference === 'auto') {
+      return `Auto (${effective.toUpperCase()})`;
+    }
+    return qualityPreference.toUpperCase();
+  }, [qualityPreference]);
 
   return (
     <div
@@ -25,7 +44,7 @@ const CosmosScreen: React.FC = () => {
       }}
     >
       {/* Top bar */}
-      <div className="relative z-20 flex items-center justify-between px-5 py-3">
+      <div className="relative z-20 flex items-center justify-between px-5 py-3 gap-3">
         <button
           onClick={() => navigate('/')}
           className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-white/60 hover:text-white hover:bg-white/10 transition-colors"
@@ -46,8 +65,24 @@ const CosmosScreen: React.FC = () => {
           </h1>
         </div>
 
-        {/* Spacer for centering */}
-        <div className="w-20" />
+        <button
+          type="button"
+          onClick={() => {
+            const next: CosmosQualityPreference =
+              qualityPreference === 'auto'
+                ? 'low'
+                : qualityPreference === 'low'
+                ? 'standard'
+                : qualityPreference === 'standard'
+                ? 'aaa'
+                : 'auto';
+            setQualityPreference(next);
+            saveQualityPreference(next);
+          }}
+          className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-white/80 hover:bg-white/10 transition-colors"
+        >
+          Quality: {activeQualityLabel}
+        </button>
       </div>
 
       {/* 3D Scene */}
@@ -61,7 +96,11 @@ const CosmosScreen: React.FC = () => {
             />
           </div>
         ) : (
-          <CosmosSceneRoot cosmosState={cosmosState} height="100%" />
+          <CosmosSceneRoot
+            cosmosState={cosmosState}
+            height="100%"
+            qualityPreference={qualityPreference}
+          />
         )}
       </div>
 

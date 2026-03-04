@@ -8,7 +8,7 @@
  * - Life-signal particles for advanced progression
  */
 
-import React, { useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Sphere, Ring, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,6 +19,9 @@ interface Props {
   domain: CosmosDomain;
   progress: DomainProgress;
   isFocused: boolean;
+  isDetailMode?: boolean;
+  textureSize?: number;
+  ringTextureSize?: number;
   onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
 }
 
@@ -76,6 +79,9 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
   progress,
   isFocused,
+  isDetailMode = false,
+  textureSize = 512,
+  ringTextureSize = 512,
   onSelect,
 }) => {
   const groupRef = useRef<THREE.Group>(null!);
@@ -86,8 +92,14 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const satelliteRefs = useRef<Array<THREE.Mesh | null>>([]);
   const topicMoonRefs = useRef<Array<THREE.Mesh | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
+  const selectionHaloRef = useRef<THREE.Mesh>(null!);
+  const [labelExpanded, setLabelExpanded] = useState(false);
 
   const visuals = useMemo(() => mapProgressToVisuals(progress), [progress]);
+  const mapDetailLevel = useMemo(
+    () => Math.round(visuals.surfaceDetail * 6) / 6,
+    [visuals.surfaceDetail]
+  );
 
   const orbitConfig = useMemo(() => {
     const seed = hashString(domain.id);
@@ -123,12 +135,19 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   ]);
 
   const maps = useMemo(
-    () => createPlanetMaps(domain.color, orbitConfig.seed, domain.planetType),
-    [domain.color, domain.planetType, orbitConfig.seed]
+    () =>
+      createPlanetMaps(
+        domain.color,
+        orbitConfig.seed,
+        domain.planetType,
+        mapDetailLevel,
+        textureSize
+      ),
+    [domain.color, domain.planetType, mapDetailLevel, orbitConfig.seed, textureSize]
   );
   const ringMap = useMemo(
-    () => createRingTexture(domain.color, orbitConfig.seed),
-    [domain.color, orbitConfig.seed]
+    () => createRingTexture(domain.color, orbitConfig.seed, ringTextureSize),
+    [domain.color, orbitConfig.seed, ringTextureSize]
   );
 
   const planetMaterial = useMemo(
@@ -137,12 +156,21 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         color: new THREE.Color('#ffffff'),
         map: maps.surfaceMap,
         bumpMap: maps.bumpMap,
-        bumpScale: 0.12 + visuals.surfaceDetail * 0.25,
+        bumpScale: 0.05 + visuals.surfaceDetail * 0.24,
         roughnessMap: maps.roughnessMap,
-        roughness: Math.max(0.18, 0.58 - visuals.surfaceDetail * 0.28),
-        metalness: 0.02 + visuals.developmentLevel * 0.04,
-        clearcoat: 0.3 + visuals.developmentLevel * 0.5,
-        clearcoatRoughness: 0.35 - visuals.developmentLevel * 0.18,
+        roughness:
+          progress.stage === 'discovered'
+            ? 0.82
+            : Math.max(0.2, 0.64 - visuals.surfaceDetail * 0.28),
+        metalness: 0.02 + visuals.developmentLevel * 0.035,
+        clearcoat:
+          progress.stage === 'discovered'
+            ? 0.04
+            : 0.16 + visuals.developmentLevel * 0.45,
+        clearcoatRoughness:
+          progress.stage === 'discovered'
+            ? 0.78
+            : 0.4 - visuals.developmentLevel * 0.16,
         emissive: new THREE.Color(domain.emissiveColor),
         emissiveIntensity: 0.06 + visuals.emissiveIntensity * 0.5,
         envMapIntensity: 0.4 + visuals.developmentLevel * 0.5,
@@ -152,7 +180,17 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         iridescence: visuals.developmentLevel * 0.15,
         iridescenceIOR: 1.3,
       }),
-    [domain.color, domain.emissiveColor, maps.bumpMap, maps.roughnessMap, maps.surfaceMap, visuals.developmentLevel, visuals.emissiveIntensity, visuals.surfaceDetail]
+    [
+      domain.color,
+      domain.emissiveColor,
+      maps.bumpMap,
+      maps.roughnessMap,
+      maps.surfaceMap,
+      progress.stage,
+      visuals.developmentLevel,
+      visuals.emissiveIntensity,
+      visuals.surfaceDetail,
+    ]
   );
 
   const cloudMaterial = useMemo(
@@ -205,7 +243,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     MAX_LIFE_PARTICLES,
     Math.floor(visuals.lifeSignalStrength * MAX_LIFE_PARTICLES)
   );
-  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, Math.max(0, progress.topicsExplored || 0));
+  const stageMoonCount = visuals.stageMoonCount;
+  const topicMoonCount = Math.min(
+    MAX_TOPIC_MOONS,
+    Math.max(stageMoonCount, Math.min(4, progress.topicsExplored || 0))
+  );
   const topicMoonSeeds = useMemo(
     () =>
       Array.from({ length: topicMoonCount }, (_, index) => {
@@ -244,16 +286,17 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     };
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial, ringMap]);
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera }) => {
     if (!groupRef.current) return;
     const t = clock.getElapsedTime();
 
     if (!isFocused) {
       const angle = domain.startAngle + t * domain.orbitSpeed;
+      const jitterAmount = (1 - visuals.orbitStability) * (isDetailMode ? 0.03 : 0.1);
       const wobble =
-        (1 - visuals.orbitStability) *
+        jitterAmount *
         Math.sin(t * 3 + domain.startAngle + orbitConfig.phase) *
-        0.14;
+        0.12;
       const orbitalY =
         Math.sin(angle + orbitConfig.phase) *
         domain.orbitRadius *
@@ -277,15 +320,25 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
 
     if (auraRef.current) {
-      const glowPulse = 1 + Math.sin(t * 0.8 + orbitConfig.phase) * 0.06;
+      const stableFactor = 0.28 + visuals.orbitStability * 0.72;
+      const glowPulse = 1 + Math.sin(t * (0.4 + stableFactor * 0.45) + orbitConfig.phase) * 0.035;
       auraRef.current.scale.setScalar(glowPulse);
       const mat = auraRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = visuals.auraOpacity * 1.5 * (0.85 + Math.sin(t * 1.2 + orbitConfig.phase) * 0.12);
+      mat.opacity = visuals.auraOpacity * 1.42 * (0.9 + Math.sin(t * (0.7 + stableFactor)) * 0.05);
     }
 
     if (atmosphereRef.current) {
       const atmosphereShader = atmosphereRef.current.material as THREE.ShaderMaterial;
       atmosphereShader.uniforms.uOpacity.value = visuals.atmosphereOpacity;
+      atmosphereShader.uniforms.uSunPos.value.set(0, 0, 0);
+    }
+
+    if (selectionHaloRef.current) {
+      selectionHaloRef.current.visible = isFocused;
+      if (isFocused) {
+        const pulse = 1 + Math.sin(t * 2.1) * 0.03;
+        selectionHaloRef.current.scale.setScalar(pulse);
+      }
     }
 
     topicMoonRefs.current.forEach((moon, index) => {
@@ -318,10 +371,19 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       particle.position.y = Math.sin(angle * 1.7 + seed.phase) * 0.3;
       particle.scale.setScalar(0.6 + Math.sin(t * 3 + seed.phase) * 0.08);
     });
+
+    const distance = groupRef.current.position.distanceTo(camera.position);
+    const shouldExpandLabel = isFocused || distance < (labelExpanded ? 18 : 15);
+    if (shouldExpandLabel !== labelExpanded) {
+      setLabelExpanded(shouldExpandLabel);
+    }
   });
 
   const baseRadius = 0.52;
-  const ringLayers = visuals.ringOpacity > 0 ? Math.max(1, Math.round(visuals.ringOpacity * 3)) : 0;
+  const ringLayers =
+    visuals.hasRing && visuals.ringOpacity > 0
+      ? Math.max(1, Math.round(visuals.ringOpacity * 3))
+      : 0;
 
   return (
     <group ref={groupRef} position={initialPosition}>
@@ -338,6 +400,22 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           document.body.style.cursor = 'auto';
         }}
       />
+
+      <Ring
+        ref={selectionHaloRef}
+        args={[baseRadius * visuals.scale * 1.26, baseRadius * visuals.scale * 1.34, 96]}
+        rotation={[Math.PI / 2, 0, 0]}
+        visible={isFocused}
+      >
+        <meshBasicMaterial
+          color={domain.emissiveColor}
+          transparent
+          opacity={0.7}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </Ring>
 
       <Sphere
         ref={cloudRef}
@@ -452,19 +530,41 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-          <span style={{ fontSize: '18px' }}>{domain.icon}</span>
-          <span
-            style={{
-              fontSize: '10px',
-              fontWeight: 700,
-              color: 'white',
-              textShadow: '0 1px 4px rgba(0,0,0,0.85)',
-              whiteSpace: 'nowrap',
-              fontFamily: '"Nunito", sans-serif',
-            }}
-          >
-            {domain.label}
-          </span>
+          <span style={{ fontSize: labelExpanded ? '18px' : '16px' }}>{domain.icon}</span>
+          {labelExpanded && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                color: 'white',
+                textShadow: '0 1px 4px rgba(0,0,0,0.85)',
+                whiteSpace: 'nowrap',
+                fontFamily: '"Nunito", sans-serif',
+              }}
+            >
+              {domain.label}
+            </span>
+          )}
+          {isFocused && (
+            <span
+              style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                color: '#d8dcff',
+                textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                whiteSpace: 'nowrap',
+                fontFamily: '"Nunito", sans-serif',
+              }}
+            >
+              {progress.stage === 'mastered'
+                ? 'Sitzt wirklich'
+                : progress.stage === 'can_explain'
+                ? 'Kann erklaeren'
+                : progress.stage === 'understood'
+                ? 'Verstanden'
+                : 'Entdeckt'}
+            </span>
+          )}
         </div>
       </Html>
     </group>
@@ -474,7 +574,9 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 function createPlanetMaps(
   baseHex: string,
   seed: number,
-  planetType: CosmosDomain['planetType']
+  planetType: CosmosDomain['planetType'],
+  detailFactor: number,
+  textureSize: number
 ): {
   surfaceMap: THREE.CanvasTexture;
   bumpMap: THREE.CanvasTexture;
@@ -482,7 +584,7 @@ function createPlanetMaps(
   cloudMap: THREE.CanvasTexture;
 } {
   const profile = getPlanetTypeProfile(planetType);
-  const size = resolvePlanetTextureSize();
+  const size = textureSize;
   const surfaceCanvas = document.createElement('canvas');
   const bumpCanvas = document.createElement('canvas');
   const roughCanvas = document.createElement('canvas');
@@ -518,23 +620,31 @@ function createPlanetMaps(
 
       const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 4);
       const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 3);
+      const continentNoise = fbm2D(nx * 2.4, ny * 2.4, seed + 219, 4);
+      const regionNoise = fbm2D(nx * 5.4, ny * 5.4, seed + 527, 3);
       const ridge = Math.pow(Math.abs(0.5 - n2) * 2, profile.ridgePower);
       const altitude = clamp01(n1 * profile.heightWeight + ridge * profile.ridgeWeight);
+      const hasContinents =
+        planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
+      const regionMask = hasContinents
+        ? smoothstep(0.46, 0.76, continentNoise) * smoothstep(0.2, 1, detailFactor)
+        : 0;
 
       const shade = profile.shadeMin + altitude * profile.shadeRange;
       const tint = profile.tintBase + n2 * profile.tintRange;
-      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift);
-      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22));
-      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2));
+      const regionBoost = 1 + regionMask * (0.1 + regionNoise * 0.22);
+      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * regionBoost);
+      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22) * regionBoost);
+      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2) * (1 + regionMask * 0.08));
       surfaceData.data[i + 3] = 255;
 
-      const bump = clamp255(altitude * 255);
+      const bump = clamp255((altitude + regionMask * 0.18) * 255);
       bumpData.data[i] = bump;
       bumpData.data[i + 1] = bump;
       bumpData.data[i + 2] = bump;
       bumpData.data[i + 3] = 255;
 
-      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16) * 255);
+      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16 - regionMask * 0.08) * 255);
       roughData.data[i] = rough;
       roughData.data[i + 1] = rough;
       roughData.data[i + 2] = rough;
@@ -789,7 +899,7 @@ function createAtmosphereShellMaterial(
     vertexShader: ATMOSPHERE_VERTEX,
     fragmentShader: ATMOSPHERE_FRAGMENT,
     transparent: true,
-    side: THREE.BackSide,
+    side: THREE.DoubleSide,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   });
@@ -822,8 +932,8 @@ function createPlanetGlowTexture(color: string, size = 256): THREE.CanvasTexture
   return tex;
 }
 
-function createRingTexture(color: string, seed: number): THREE.CanvasTexture {
-  const size = 512;
+function createRingTexture(color: string, seed: number, textureSize: number): THREE.CanvasTexture {
+  const size = textureSize;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -906,13 +1016,6 @@ function smoothstep(min: number, max: number, value: number): number {
   if (value >= max) return 1;
   const t = (value - min) / (max - min);
   return t * t * (3 - 2 * t);
-}
-
-function resolvePlanetTextureSize(): number {
-  if (typeof window === 'undefined') return 512;
-  const memory = (navigator as any).deviceMemory ?? 4;
-  const smallScreen = window.matchMedia('(max-width: 900px)').matches;
-  return memory <= 4 || smallScreen ? 512 : 1024;
 }
 
 function hashString(value: string): number {

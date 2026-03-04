@@ -71,6 +71,7 @@ export interface PlanetVisuals {
   hasAtmosphere: boolean;
   hasRing: boolean;
   hasSatellites: boolean;
+  stageMoonCount: number; // deterministic moon count by stage
   atmosphereOpacity: number;
   orbitStability: number; // 0–1, higher = smoother orbit (less wobble)
   developmentLevel: number; // 0–1 blended progression across mastery/confidence
@@ -103,7 +104,7 @@ export interface CompetencyTrend {
 }
 
 // ─── Camera States ───────────────────────────────────────────────
-export type CameraMode = 'overview' | 'focused';
+export type CameraMode = 'system' | 'focus' | 'detail';
 
 export interface CameraTarget {
   mode: CameraMode;

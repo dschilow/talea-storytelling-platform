@@ -1,14 +1,20 @@
 /**
- * CosmosStarfield.tsx - Procedural starfield with spectral color + twinkle
+ * CosmosStarfield.tsx - Procedural star layer with soft round sprites.
+ *
+ * Uses `points` for performance (single draw-call per layer).
  */
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 interface Props {
   count?: number;
   radius?: number;
+  driftSpeed?: number;
+  twinkleStrength?: number;
+  sizeRange?: [number, number];
+  opacity?: number;
 }
 
 const STARFIELD_VERTEX = `
@@ -18,17 +24,19 @@ const STARFIELD_VERTEX = `
 
   uniform float uTime;
   uniform float uPixelRatio;
+  uniform float uTwinkleStrength;
 
   varying vec3 vColor;
   varying float vAlpha;
 
   void main() {
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    float twinkle = 0.72 + 0.28 * sin(uTime * (0.45 + aTwinkle * 1.8) + aTwinkle * 6.28318530718);
-    float perspective = 112.0 / max(18.0, -mvPosition.z);
+    float twinkleBase = sin(uTime * (0.45 + aTwinkle * 1.8) + aTwinkle * 6.28318530718);
+    float twinkle = 0.78 + 0.22 * twinkleBase * uTwinkleStrength;
+    float perspective = 108.0 / max(18.0, -mvPosition.z);
     float pointSize = aSize * twinkle * uPixelRatio * perspective;
 
-    gl_PointSize = clamp(pointSize, 0.55, 2.8);
+    gl_PointSize = clamp(pointSize, 0.4, 2.6);
     gl_Position = projectionMatrix * mvPosition;
 
     vColor = aColor;
@@ -39,21 +47,32 @@ const STARFIELD_VERTEX = `
 const STARFIELD_FRAGMENT = `
   varying vec3 vColor;
   varying float vAlpha;
+  uniform float uOpacity;
 
   void main() {
     vec2 uv = gl_PointCoord - vec2(0.5);
     float dist = length(uv);
     if (dist > 0.5) discard;
-    float core = smoothstep(0.22, 0.0, dist);
-    float halo = smoothstep(0.5, 0.12, dist) * 0.38;
-    float alpha = (core + halo) * vAlpha;
+
+    float core = smoothstep(0.2, 0.0, dist);
+    float halo = smoothstep(0.5, 0.15, dist) * 0.35;
+    float alpha = (core + halo) * vAlpha * uOpacity;
 
     if (alpha < 0.01) discard;
     gl_FragColor = vec4(vColor, alpha);
   }
 `;
 
-export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) => {
+export const CosmosStarfield: React.FC<Props> = ({
+  count = 1200,
+  radius = 80,
+  driftSpeed = 0.0002,
+  twinkleStrength = 1,
+  sizeRange = [0.55, 1.8],
+  opacity = 1,
+}) => {
+  const pointsRef = useRef<THREE.Points>(null!);
+
   const { geometry, material } = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
@@ -63,7 +82,7 @@ export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) 
     for (let i = 0; i < count; i += 1) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const r = radius + Math.random() * 35;
+      const r = radius + Math.random() * 40;
 
       positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
       positions[i * 3 + 1] = r * Math.cos(phi);
@@ -75,8 +94,9 @@ export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) 
       colors[i * 3 + 1] = color.g;
       colors[i * 3 + 2] = color.b;
 
-      const brightnessBias = Math.pow(Math.random(), 0.5);
-      sizes[i] = 0.8 + brightnessBias * 2.1;
+      // Many small stars, few larger stars.
+      const sizeBias = Math.pow(Math.random(), 1.8);
+      sizes[i] = sizeRange[0] + sizeBias * (sizeRange[1] - sizeRange[0]);
       twinkles[i] = Math.random();
     }
 
@@ -95,6 +115,8 @@ export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) 
               ? 1
               : Math.min(window.devicePixelRatio || 1, 2),
         },
+        uTwinkleStrength: { value: twinkleStrength },
+        uOpacity: { value: opacity },
       },
       vertexShader: STARFIELD_VERTEX,
       fragmentShader: STARFIELD_FRAGMENT,
@@ -107,10 +129,15 @@ export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) 
       geometry: bufferGeometry,
       material: shaderMaterial,
     };
-  }, [count, radius]);
+  }, [count, opacity, radius, sizeRange, twinkleStrength]);
 
   useFrame(({ clock }) => {
-    material.uniforms.uTime.value = clock.getElapsedTime();
+    const t = clock.getElapsedTime();
+    material.uniforms.uTime.value = t;
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y += driftSpeed;
+      pointsRef.current.rotation.x = Math.sin(t * driftSpeed * 80) * 0.012;
+    }
   });
 
   useEffect(() => {
@@ -121,7 +148,7 @@ export const CosmosStarfield: React.FC<Props> = ({ count = 4000, radius = 80 }) 
   }, [geometry, material]);
 
   return (
-    <points geometry={geometry} frustumCulled={false}>
+    <points ref={pointsRef} geometry={geometry} frustumCulled={false}>
       <primitive object={material} attach="material" />
     </points>
   );
