@@ -27,6 +27,41 @@ interface Props {
 
 const MAX_LIFE_PARTICLES = 10;
 const MAX_TOPIC_MOONS = 8;
+type PlanetMapSet = {
+  surfaceMap: THREE.CanvasTexture;
+  bumpMap: THREE.CanvasTexture;
+  roughnessMap: THREE.CanvasTexture;
+  cloudMap: THREE.CanvasTexture;
+};
+
+const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
+const RING_MAP_CACHE = new Map<string, THREE.CanvasTexture>();
+
+function getCachedPlanetMaps(
+  baseHex: string,
+  seed: number,
+  planetType: CosmosDomain['planetType'],
+  detailFactor: number,
+  textureSize: number
+): PlanetMapSet {
+  const quantizedDetail = Math.round(detailFactor * 4) / 4;
+  const key = `${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
+  const existing = PLANET_MAP_CACHE.get(key);
+  if (existing) return existing;
+  const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
+  PLANET_MAP_CACHE.set(key, created);
+  return created;
+}
+
+function getCachedRingMap(color: string, seed: number, textureSize: number): THREE.CanvasTexture {
+  const key = `${color}|${seed}|${textureSize}`;
+  const existing = RING_MAP_CACHE.get(key);
+  if (existing) return existing;
+  const created = createRingTexture(color, seed, textureSize);
+  RING_MAP_CACHE.set(key, created);
+  return created;
+}
+
 const ATMOSPHERE_VERTEX = `
   varying vec3 vNormalW;
   varying vec3 vWorldPos;
@@ -136,7 +171,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   const maps = useMemo(
     () =>
-      createPlanetMaps(
+      getCachedPlanetMaps(
         domain.color,
         orbitConfig.seed,
         domain.planetType,
@@ -146,7 +181,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.color, domain.planetType, mapDetailLevel, orbitConfig.seed, textureSize]
   );
   const ringMap = useMemo(
-    () => createRingTexture(domain.color, orbitConfig.seed, ringTextureSize),
+    () => getCachedRingMap(domain.color, orbitConfig.seed, ringTextureSize),
     [domain.color, orbitConfig.seed, ringTextureSize]
   );
 
@@ -156,24 +191,24 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         color: new THREE.Color('#ffffff'),
         map: maps.surfaceMap,
         bumpMap: maps.bumpMap,
-        bumpScale: 0.05 + visuals.surfaceDetail * 0.24,
+        bumpScale: 0.09 + visuals.surfaceDetail * 0.34,
         roughnessMap: maps.roughnessMap,
         roughness:
           progress.stage === 'discovered'
-            ? 0.82
-            : Math.max(0.2, 0.64 - visuals.surfaceDetail * 0.28),
-        metalness: 0.02 + visuals.developmentLevel * 0.035,
+            ? 0.86
+            : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
+        metalness: 0.015 + visuals.developmentLevel * 0.03,
         clearcoat:
           progress.stage === 'discovered'
             ? 0.04
-            : 0.16 + visuals.developmentLevel * 0.45,
+            : 0.13 + visuals.developmentLevel * 0.42,
         clearcoatRoughness:
           progress.stage === 'discovered'
             ? 0.78
             : 0.4 - visuals.developmentLevel * 0.16,
         emissive: new THREE.Color(domain.emissiveColor),
-        emissiveIntensity: 0.06 + visuals.emissiveIntensity * 0.5,
-        envMapIntensity: 0.4 + visuals.developmentLevel * 0.5,
+        emissiveIntensity: 0.02 + visuals.emissiveIntensity * 0.24,
+        envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
         sheen: 0.3 + visuals.developmentLevel * 0.4,
         sheenRoughness: 0.6,
         sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
@@ -278,13 +313,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       atmosphereMaterial.dispose();
       planetGlowMaterial.dispose();
       planetGlowTexture.dispose();
-      ringMap.dispose();
-      maps.surfaceMap.dispose();
-      maps.bumpMap.dispose();
-      maps.roughnessMap.dispose();
-      maps.cloudMap.dispose();
     };
-  }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, maps.bumpMap, maps.cloudMap, maps.roughnessMap, maps.surfaceMap, planetMaterial, ringMap]);
+  }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
   useFrame(({ clock, camera }) => {
     if (!groupRef.current) return;
@@ -620,8 +650,10 @@ function createPlanetMaps(
 
       const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 4);
       const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 3);
+      const micro = fbm2D(nx * 32, ny * 32, seed + 911, 2);
       const continentNoise = fbm2D(nx * 2.4, ny * 2.4, seed + 219, 4);
       const regionNoise = fbm2D(nx * 5.4, ny * 5.4, seed + 527, 3);
+      const latitude = Math.abs(ny - 0.5) * 2;
       const ridge = Math.pow(Math.abs(0.5 - n2) * 2, profile.ridgePower);
       const altitude = clamp01(n1 * profile.heightWeight + ridge * profile.ridgeWeight);
       const hasContinents =
@@ -629,29 +661,47 @@ function createPlanetMaps(
       const regionMask = hasContinents
         ? smoothstep(0.46, 0.76, continentNoise) * smoothstep(0.2, 1, detailFactor)
         : 0;
+      const gasBand =
+        planetType === 'gaseous'
+          ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35)
+          : 0;
+      const iceCap =
+        planetType === 'icy' || planetType === 'oceanic'
+          ? smoothstep(0.58, 0.96, latitude) * (0.2 + detailFactor * 0.4)
+          : 0;
+      const lavaCrack =
+        planetType === 'volcanic'
+          ? smoothstep(0.62, 0.92, n2) * smoothstep(0.4, 1, detailFactor)
+          : 0;
 
-      const shade = profile.shadeMin + altitude * profile.shadeRange;
+      const shade = profile.shadeMin + altitude * profile.shadeRange + micro * 0.08;
       const tint = profile.tintBase + n2 * profile.tintRange;
-      const regionBoost = 1 + regionMask * (0.1 + regionNoise * 0.22);
+      const regionBoost =
+        1 +
+        regionMask * (0.12 + regionNoise * 0.24) +
+        gasBand * 0.24 +
+        iceCap * 0.36 +
+        lavaCrack * 0.42;
       surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * regionBoost);
       surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.22) * regionBoost);
       surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.2) * (1 + regionMask * 0.08));
       surfaceData.data[i + 3] = 255;
 
-      const bump = clamp255((altitude + regionMask * 0.18) * 255);
+      const bump = clamp255((altitude + regionMask * 0.2 + micro * 0.07 + lavaCrack * 0.15) * 255);
       bumpData.data[i] = bump;
       bumpData.data[i + 1] = bump;
       bumpData.data[i + 2] = bump;
       bumpData.data[i + 3] = 255;
 
-      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16 - regionMask * 0.08) * 255);
+      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16 + micro * 0.1 - regionMask * 0.09 - gasBand * 0.12) * 255);
       roughData.data[i] = rough;
       roughData.data[i + 1] = rough;
       roughData.data[i + 2] = rough;
       roughData.data[i + 3] = 255;
 
       const cloudNoise = fbm2D(nx * profile.cloudScale, ny * profile.cloudScale, seed + 133, 5);
-      const cloudAlpha = clamp255(Math.max(0, cloudNoise - profile.cloudThreshold) * profile.cloudGain);
+      const cloudSwirl = fbm2D(nx * profile.cloudScale * 1.8, ny * profile.cloudScale * 1.1, seed + 337, 3);
+      const cloudAlpha = clamp255(Math.max(0, cloudNoise + cloudSwirl * 0.2 - profile.cloudThreshold) * profile.cloudGain);
       cloudData.data[i] = 255;
       cloudData.data[i + 1] = 255;
       cloudData.data[i + 2] = 255;

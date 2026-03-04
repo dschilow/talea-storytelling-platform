@@ -27,7 +27,6 @@ import type { CameraMode, CosmosState, DomainProgress } from './CosmosTypes';
 import type { CosmosQualityPreference } from './CosmosQuality';
 import {
   getQualityConfig,
-  getTextureSizeForPlanet,
 } from './CosmosQuality';
 
 interface Props {
@@ -166,10 +165,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     <div className="relative w-full" style={{ height }}>
       <Canvas
         camera={{
-          position: compact ? [7, 8, 16] : [13, 8, 25],
-          fov: 50,
+          position: compact ? [8, 8, 17] : [16, 9, 30],
+          fov: 46,
           near: 0.1,
-          far: 220,
+          far: 260,
         }}
         dpr={quality.dprRange}
         gl={{
@@ -240,6 +239,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
           <CosmosOrbitRig
             domains={sceneDomains}
+            cameraMode={cameraMode}
             focusedDomainId={focusedDomainId}
           />
 
@@ -250,11 +250,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               progress={getProgress(domain.id)}
               isFocused={focusedDomainId === domain.id}
               isDetailMode={cameraMode === 'detail' && focusedDomainId === domain.id}
-              textureSize={getTextureSizeForPlanet(
-                quality,
-                cameraMode,
-                focusedDomainId === domain.id
-              )}
+              textureSize={quality.planetTextureBaseSize}
               ringTextureSize={quality.ringTextureSize}
               onSelect={handleSelectPlanet}
             />
@@ -364,7 +360,14 @@ const ZoomButton: React.FC<{
 function playFocusSound() {
   if (typeof window === 'undefined') return;
   try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const globalWindow = window as typeof window & { __taleaFocusAudioCtx?: AudioContext };
+    const audioContext =
+      globalWindow.__taleaFocusAudioCtx ?? (globalWindow.__taleaFocusAudioCtx = new AudioContextCtor());
+    if (audioContext.state === 'suspended') {
+      void audioContext.resume().catch(() => {});
+    }
     const now = audioContext.currentTime;
 
     const oscillatorA = audioContext.createOscillator();
@@ -391,10 +394,6 @@ function playFocusSound() {
     oscillatorB.start(now);
     oscillatorA.stop(now + 0.2);
     oscillatorB.stop(now + 0.2);
-
-    window.setTimeout(() => {
-      audioContext.close().catch(() => {});
-    }, 300);
   } catch {
     // Audio cue is optional.
   }

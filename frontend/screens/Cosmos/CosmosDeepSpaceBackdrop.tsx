@@ -7,7 +7,6 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface Props {
@@ -16,36 +15,75 @@ interface Props {
 }
 
 const VERTEX_SHADER = `
-  varying vec3 vWorldDir;
+  varying vec3 vWorldPos;
   void main() {
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldDir = normalize(worldPos.xyz);
+    vWorldPos = worldPos.xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
 const FRAGMENT_SHADER = `
-  varying vec3 vWorldDir;
+  varying vec3 vWorldPos;
   uniform float uTime;
 
   float hash(vec3 p) {
     return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
   }
 
+  float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+
+    float n000 = hash(i + vec3(0.0, 0.0, 0.0));
+    float n100 = hash(i + vec3(1.0, 0.0, 0.0));
+    float n010 = hash(i + vec3(0.0, 1.0, 0.0));
+    float n110 = hash(i + vec3(1.0, 1.0, 0.0));
+    float n001 = hash(i + vec3(0.0, 0.0, 1.0));
+    float n101 = hash(i + vec3(1.0, 0.0, 1.0));
+    float n011 = hash(i + vec3(0.0, 1.0, 1.0));
+    float n111 = hash(i + vec3(1.0, 1.0, 1.0));
+
+    float nx00 = mix(n000, n100, f.x);
+    float nx10 = mix(n010, n110, f.x);
+    float nx01 = mix(n001, n101, f.x);
+    float nx11 = mix(n011, n111, f.x);
+    float nxy0 = mix(nx00, nx10, f.y);
+    float nxy1 = mix(nx01, nx11, f.y);
+    return mix(nxy0, nxy1, f.z);
+  }
+
+  float fbm(vec3 p) {
+    float value = 0.0;
+    float amp = 0.5;
+    for (int i = 0; i < 4; i++) {
+      value += noise(p) * amp;
+      p *= 2.05;
+      amp *= 0.5;
+    }
+    return value;
+  }
+
   void main() {
-    vec3 dir = normalize(vWorldDir);
-    float milkyBand = exp(-pow((dir.y * 0.55 + dir.x * 0.22), 2.0) / 0.032);
-    float dustLanes = 0.45 + 0.55 * sin(dir.x * 28.0 + dir.z * 34.0 + uTime * 0.02);
-    float starNoise = hash(floor(dir * 140.0));
-    float tinyStars = smoothstep(0.984, 1.0, starNoise) * 0.5;
+    vec3 dir = normalize(vWorldPos - cameraPosition);
+    float milkyBand = exp(-pow((dir.y * 0.58 + dir.x * 0.24), 2.0) / 0.042);
+    float nebula = fbm(dir * 6.5 + vec3(0.0, 0.0, uTime * 0.01));
+    float dust = fbm(dir * 13.0 - vec3(uTime * 0.003, 0.0, 0.0));
+    float starNoiseA = hash(dir * 1900.0 + vec3(17.0, 29.0, 41.0));
+    float starNoiseB = hash(dir * 620.0 + vec3(67.0, 11.0, 91.0));
+    float tinyStars = smoothstep(0.9974, 1.0, starNoiseA);
+    float brightStars = smoothstep(0.9992, 1.0, starNoiseB) * 0.92;
 
-    vec3 cool = vec3(0.19, 0.26, 0.44);
-    vec3 warm = vec3(0.42, 0.3, 0.18);
+    vec3 cool = vec3(0.08, 0.12, 0.25);
+    vec3 warm = vec3(0.24, 0.17, 0.31);
     vec3 bandColor = mix(cool, warm, clamp(dir.x * 0.5 + 0.5, 0.0, 1.0));
-    vec3 color = bandColor * milkyBand * dustLanes * 0.55;
-    color += vec3(tinyStars);
+    vec3 starColor = mix(vec3(0.82, 0.88, 1.0), vec3(1.0, 0.95, 0.86), hash(dir * 740.0));
 
-    float alpha = clamp(milkyBand * 0.42 + tinyStars * 0.65, 0.0, 0.55);
+    vec3 nebulaColor = bandColor * milkyBand * (0.42 + nebula * 0.48) * (0.54 + dust * 0.32);
+    vec3 color = nebulaColor + starColor * (tinyStars * 0.7 + brightStars * 1.1);
+    float alpha = clamp(milkyBand * 0.3 + tinyStars * 0.42 + brightStars * 0.7, 0.0, 0.52);
+
     gl_FragColor = vec4(color, alpha);
   }
 `;
@@ -100,49 +138,46 @@ export const CosmosDeepSpaceBackdrop: React.FC<Props> = ({
   return (
     <group>
       <mesh ref={skyRef} scale={[160, 160, 160]} material={skyMaterial}>
-        <sphereGeometry args={[1, 64, 64]} />
+        <sphereGeometry args={[1, 112, 112]} />
       </mesh>
 
       {enabledNebulaBillboards && (
         <>
-          <Billboard position={[-46, 16, -82]} follow={false} lockX={false} lockY={false} lockZ={false}>
-            <mesh>
-              <planeGeometry args={[52, 30]} />
-              <meshBasicMaterial
-                map={nebulaMaps[0]}
-                transparent
-                opacity={0.24}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-          </Billboard>
+          <mesh position={[-52, 22, -100]} rotation={[0.42, -0.52, 0.34]}>
+            <planeGeometry args={[42, 26]} />
+            <meshBasicMaterial
+              map={nebulaMaps[0]}
+              transparent
+              opacity={0.1}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
 
-          <Billboard position={[58, 28, -68]} follow={false} lockX={false} lockY={false} lockZ={false}>
-            <mesh rotation={[0, 0, -0.25]}>
-              <planeGeometry args={[46, 28]} />
-              <meshBasicMaterial
-                map={nebulaMaps[1]}
-                transparent
-                opacity={0.18}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-          </Billboard>
+          <mesh position={[66, 34, -88]} rotation={[0.18, 0.4, -0.22]}>
+            <planeGeometry args={[38, 24]} />
+            <meshBasicMaterial
+              map={nebulaMaps[1]}
+              transparent
+              opacity={0.08}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
 
-          <Billboard position={[14, -24, -88]} follow={false} lockX={false} lockY={false} lockZ={false}>
-            <mesh rotation={[0, 0, 0.2]}>
-              <planeGeometry args={[62, 34]} />
-              <meshBasicMaterial
-                map={nebulaMaps[2]}
-                transparent
-                opacity={0.13}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-              />
-            </mesh>
-          </Billboard>
+          <mesh position={[8, -20, -110]} rotation={[-0.26, 0.12, 0.48]}>
+            <planeGeometry args={[56, 28]} />
+            <meshBasicMaterial
+              map={nebulaMaps[2]}
+              transparent
+              opacity={0.06}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
         </>
       )}
     </group>

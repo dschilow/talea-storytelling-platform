@@ -8,6 +8,50 @@ const DISABLE_SW_FLAG = "talea:disable-sw";
 const STORAGE_USAGE_THRESHOLD = 0.92;
 const MIN_FREE_BYTES = 64 * 1024 * 1024;
 const FORCE_DISABLE_SERVICE_WORKER = true;
+const VERBOSE_RUNTIME_WARNINGS_FLAG = "talea:verbose-runtime-warnings";
+
+function shouldKeepVerboseRuntimeWarnings(): boolean {
+  if (import.meta.env.DEV) return true;
+  try {
+    return localStorage.getItem(VERBOSE_RUNTIME_WARNINGS_FLAG) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function shouldSuppressRuntimeWarning(args: unknown[]): boolean {
+  const text = args
+    .map((value) => (typeof value === "string" ? value : String(value)))
+    .join(" ");
+
+  if (
+    text.includes(
+      "THREE.THREE.Clock: This module has been deprecated. Please use THREE.Timer instead."
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    text.includes("THREE.WebGLProgram: Program Info Log:") &&
+    text.includes("warning X4122")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function installRuntimeWarningFilters(): void {
+  if (typeof window === "undefined") return;
+  if (shouldKeepVerboseRuntimeWarnings()) return;
+
+  const originalWarn = console.warn.bind(console);
+  console.warn = (...args: unknown[]) => {
+    if (shouldSuppressRuntimeWarning(args)) return;
+    originalWarn(...args);
+  };
+}
 
 function isStoragePressureError(reason: unknown): boolean {
   const message = reason instanceof Error ? reason.message : String(reason || "");
@@ -80,7 +124,12 @@ async function setupPwaRegistration(): Promise<void> {
   if (!enableSw) {
     localStorage.setItem(DISABLE_SW_FLAG, "1");
     await unregisterServiceWorkersAndClearCaches();
-    console.warn("[PWA] Service Worker disabled due to storage pressure.");
+    if (import.meta.env.DEV) {
+      const reason = FORCE_DISABLE_SERVICE_WORKER
+        ? "forced by config"
+        : "storage pressure";
+      console.info(`[PWA] Service Worker disabled (${reason}).`);
+    }
     return;
   }
 
@@ -99,6 +148,7 @@ window.addEventListener("unhandledrejection", (event) => {
   void unregisterServiceWorkersAndClearCaches();
 });
 
+installRuntimeWarningFilters();
 void setupPwaRegistration();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

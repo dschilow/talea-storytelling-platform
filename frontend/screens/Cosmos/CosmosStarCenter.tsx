@@ -227,7 +227,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
       new THREE.MeshBasicMaterial({
         map: glowTexture,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.34,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
@@ -240,7 +240,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
       new THREE.MeshBasicMaterial({
         map: coronaTexture,
         transparent: true,
-        opacity: 0.06,
+        opacity: 0.04,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
@@ -262,19 +262,19 @@ export const CosmosStarCenter: React.FC<Props> = ({
     }
     if (glowSpriteRef.current) {
       const glowPulse = 1 + Math.sin(t * 0.8) * 0.02;
-      glowSpriteRef.current.scale.setScalar(6.6 * glowPulse);
+      glowSpriteRef.current.scale.setScalar(5.1 * glowPulse);
       const mat = glowSpriteRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.5 + Math.sin(t * 0.8) * 0.06;
+      mat.opacity = 0.33 + Math.sin(t * 0.8) * 0.045;
     }
     if (coronaSpriteRef.current) {
       coronaSpriteRef.current.rotation.z += 0.0004;
       const coronaPulse = 1 + Math.sin(t * 0.5) * 0.025;
-      coronaSpriteRef.current.scale.setScalar(8.3 * coronaPulse);
+      coronaSpriteRef.current.scale.setScalar(6.7 * coronaPulse);
       const mat = coronaSpriteRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.02 + raysVisible * 0.22;
+      mat.opacity = 0.015 + raysVisible * 0.14;
     }
     if (lightRef.current) {
-      lightRef.current.intensity = 2.1 + Math.sin(t * 1.5) * 0.16;
+      lightRef.current.intensity = 1.75 + Math.sin(t * 1.5) * 0.14;
     }
   });
 
@@ -291,7 +291,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
   return (
     <group>
       {/* Main star body with animated surface shader */}
-      <Sphere ref={meshRef} args={[1.15, 64, 64]} material={starMaterial} />
+      <Sphere ref={meshRef} args={[0.95, 72, 72]} material={starMaterial} />
 
       {/* Billboard glow - no hard edges, smooth falloff */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
@@ -311,14 +311,14 @@ export const CosmosStarCenter: React.FC<Props> = ({
       <pointLight
         ref={lightRef}
         color="#fff4d6"
-        intensity={2.1}
-        distance={60}
-        decay={1.35}
+        intensity={1.75}
+        distance={56}
+        decay={1.48}
       />
 
       {/* Ambient fill */}
-      <ambientLight intensity={0.11} color="#b8c4ff" />
-      <hemisphereLight intensity={0.2} color="#a2c6ff" groundColor="#1b112f" />
+      <ambientLight intensity={0.09} color="#b8c4ff" />
+      <hemisphereLight intensity={0.16} color="#a2c6ff" groundColor="#1b112f" />
     </group>
   );
 };

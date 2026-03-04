@@ -19,7 +19,7 @@ interface Props {
   focusedPosition?: [number, number, number] | null;
 }
 
-const SYSTEM_POS = new THREE.Vector3(13, 8, 25);
+const SYSTEM_POS = new THREE.Vector3(16, 9, 30);
 const SYSTEM_TARGET = new THREE.Vector3(0, 0, 0);
 
 export const CosmosCameraController: React.FC<Props> = ({
@@ -36,10 +36,9 @@ export const CosmosCameraController: React.FC<Props> = ({
   const isAnimating = useRef(false);
   const isCinematic = useRef(false);
   const cinematicStart = useRef<number | null>(null);
+  const cinematicDuration = useRef(0.95);
   const shotFrom = useRef(new THREE.Vector3());
-  const shotMid = useRef(new THREE.Vector3());
   const shotTo = useRef(new THREE.Vector3());
-  const cinematicDuration = 1.25;
 
   useEffect(() => {
     if ((mode === 'focus' || mode === 'detail') && focusedDomain) {
@@ -49,30 +48,28 @@ export const CosmosCameraController: React.FC<Props> = ({
         Math.sin(focusedDomain.startAngle) * focusedDomain.orbitRadius,
       ];
       const focus = new THREE.Vector3(px, py, pz);
-      const toCamera = camera.position.clone().sub(focus).normalize();
-      const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), toCamera);
+      const fromStar = focus.clone().normalize();
+      if (fromStar.lengthSq() < 0.0001) {
+        fromStar.set(0.6, 0.2, 1).normalize();
+      }
+      const side = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), fromStar);
       if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
       side.normalize();
 
-      const focusDistance = mode === 'detail' ? 3.3 : 6.2;
-      const midDistance = mode === 'detail' ? 5.6 : 8.1;
-      const sideOffset = mode === 'detail' ? 0.8 : 2.2;
-      const heightOffset = mode === 'detail' ? 1.3 : 2.5;
+      const focusDistance = mode === 'detail' ? 3.4 : 7.4;
+      const sideOffset = mode === 'detail' ? 0.95 : 2.8;
+      const heightOffset = mode === 'detail' ? 1.25 : 2.35;
 
       shotFrom.current.copy(camera.position);
-      shotMid.current
-        .copy(focus)
-        .add(toCamera.clone().multiplyScalar(midDistance))
-        .add(side.clone().multiplyScalar(sideOffset))
-        .add(new THREE.Vector3(0, heightOffset + 0.8, 0));
       shotTo.current
         .copy(focus)
-        .add(toCamera.clone().multiplyScalar(focusDistance))
+        .add(fromStar.clone().multiplyScalar(focusDistance))
         .add(side.clone().multiplyScalar(sideOffset * 0.68))
         .add(new THREE.Vector3(0, heightOffset, 0));
 
       targetPos.current.copy(shotTo.current);
       targetLookAt.current.copy(focus);
+      cinematicDuration.current = mode === 'detail' ? 0.72 : 0.92;
       cinematicStart.current = null;
       isCinematic.current = true;
       isAnimating.current = true;
@@ -92,16 +89,11 @@ export const CosmosCameraController: React.FC<Props> = ({
         cinematicStart.current = clock.elapsedTime;
       }
       const elapsed = clock.elapsedTime - cinematicStart.current;
-      const t = Math.min(1, elapsed / cinematicDuration);
-
-      if (t < 0.5) {
-        const p = smoothstep(0, 0.5, t);
-        camera.position.lerpVectors(shotFrom.current, shotMid.current, p);
-      } else {
-        const p = smoothstep(0.5, 1, t);
-        camera.position.lerpVectors(shotMid.current, shotTo.current, p);
-      }
-      currentLookAt.current.lerp(targetLookAt.current, 0.12);
+      const t = Math.min(1, elapsed / cinematicDuration.current);
+      const eased = easeOutCubic(t);
+      camera.position.lerpVectors(shotFrom.current, shotTo.current, eased);
+      camera.position.y += Math.sin(Math.PI * eased) * (mode === 'detail' ? 0.12 : 0.24);
+      currentLookAt.current.lerp(targetLookAt.current, 0.2);
       camera.lookAt(currentLookAt.current);
 
       if (controlsRef.current) {
@@ -142,8 +134,13 @@ export const CosmosCameraController: React.FC<Props> = ({
     }
   });
 
-  const minDistance = mode === 'detail' ? 2.2 : mode === 'focus' ? 4 : 10;
-  const maxDistance = mode === 'detail' ? 8 : mode === 'focus' ? 14 : 50;
+  const minDistance = mode === 'detail' ? 2.6 : mode === 'focus' ? 5.2 : 12;
+  const maxDistance = mode === 'detail' ? 6.8 : mode === 'focus' ? 13.5 : 52;
+  const minPolarAngle = mode === 'detail' ? Math.PI * 0.26 : mode === 'focus' ? Math.PI * 0.2 : Math.PI * 0.16;
+  const maxPolarAngle = mode === 'detail' ? Math.PI * 0.44 : mode === 'focus' ? Math.PI * 0.52 : Math.PI * 0.58;
+  const rotateSpeed = mode === 'detail' ? 0.22 : mode === 'focus' ? 0.28 : 0.34;
+  const minAzimuthAngle = mode === 'system' ? -Infinity : -Math.PI * 0.56;
+  const maxAzimuthAngle = mode === 'system' ? Infinity : Math.PI * 0.56;
 
   return (
     <OrbitControls
@@ -152,20 +149,20 @@ export const CosmosCameraController: React.FC<Props> = ({
       enableZoom
       minDistance={minDistance}
       maxDistance={maxDistance}
-      minPolarAngle={Math.PI * 0.1}
-      maxPolarAngle={Math.PI * 0.6}
+      minPolarAngle={minPolarAngle}
+      maxPolarAngle={maxPolarAngle}
+      minAzimuthAngle={minAzimuthAngle}
+      maxAzimuthAngle={maxAzimuthAngle}
       autoRotate={mode === 'system'}
-      autoRotateSpeed={0.12}
+      autoRotateSpeed={0.08}
       enableDamping
-      dampingFactor={0.09}
-      rotateSpeed={0.36}
+      dampingFactor={0.1}
+      rotateSpeed={rotateSpeed}
     />
   );
 };
 
-function smoothstep(min: number, max: number, value: number): number {
-  if (value <= min) return 0;
-  if (value >= max) return 1;
-  const t = (value - min) / (max - min);
-  return t * t * (3 - 2 * t);
+function easeOutCubic(value: number): number {
+  const t = Math.max(0, Math.min(1, value));
+  return 1 - Math.pow(1 - t, 3);
 }
