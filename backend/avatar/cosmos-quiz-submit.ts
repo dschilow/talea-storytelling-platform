@@ -229,9 +229,12 @@ export const cosmosQuizSubmit = api<QuizSubmitRequest, QuizSubmitResponse>(
         topicId: req.topicId || null,
         answersCount: Array.isArray(req.answers) ? req.answers.length : 0,
         message,
+        code: error?.code,
+        stack: error?.stack?.substring(0, 500),
       });
 
-      if (error?.code) {
+      // Only re-throw APIError instances, not database errors
+      if (error instanceof APIError) {
         throw error;
       }
       return {

@@ -141,7 +141,7 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
         recallTaskId: req.recallTaskId,
         message,
       });
-      if (error?.code) {
+      if (error instanceof APIError) {
         throw error;
       }
       return {
