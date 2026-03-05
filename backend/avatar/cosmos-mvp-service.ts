@@ -1712,11 +1712,11 @@ async function loadDomainTopicRows(params: {
      AND tts.child_id = ${params.childId}
     LEFT JOIN LATERAL (
       SELECT COALESCE(
-        NULLIF(ci.package_json->'topic'->>'topicTitle', ''),
-        NULLIF(ci.package_json->>'topicTitle', ''),
-        NULLIF(ci.package_json->>'contentTitle', ''),
-        NULLIF(ci.package_json->>'title', ''),
-        NULLIF(ee.payload->>'topicTitle', '')
+        NULLIF(source_rows.package_json->'topic'->>'topicTitle', ''),
+        NULLIF(source_rows.package_json->>'topicTitle', ''),
+        NULLIF(source_rows.package_json->>'contentTitle', ''),
+        NULLIF(source_rows.package_json->>'title', ''),
+        NULLIF(source_rows.payload->>'topicTitle', '')
       ) AS title,
       src_created_at
       FROM (
