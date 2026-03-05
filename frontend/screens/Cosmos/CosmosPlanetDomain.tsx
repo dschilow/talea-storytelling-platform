@@ -816,8 +816,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         {visibleIslands.map((topic, index) => {
           const topicOrbitRadius =
             cameraMode === 'detail'
-              ? baseRadius * visuals.scale * 2.45
-              : baseRadius * visuals.scale * 3.2;
+              ? baseRadius * visuals.scale * 1.25
+              : baseRadius * visuals.scale * 1.45;
           const pos = latLonToPlanetPosition(
             topic.lat,
             topic.lon,
