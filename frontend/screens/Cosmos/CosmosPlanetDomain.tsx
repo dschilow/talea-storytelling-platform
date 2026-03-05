@@ -1,15 +1,17 @@
 /**
  * CosmosPlanetDomain.tsx - High-fidelity domain planet
  *
- * Visuals evolve continuously with mastery/confidence:
- * - Procedural surface map and bump detail
- * - Dynamic cloud layer and aura
- * - Progressive ring intensity and satellite count
- * - Life-signal particles for advanced progression
+ * Uses real NASA/Solar System Scope textures (CC BY 4.0) for photo-realistic
+ * planet surfaces, with procedural bump/roughness/cloud/night maps for depth.
+ * Each planetType maps to a different real texture; domain color tinting
+ * ensures uniqueness even for same-type planets.
+ *
+ * Texture credits: Solar System Scope (https://www.solarsystemscope.com/textures/)
+ * License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
  */
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
-import { useFrame, ThreeEvent } from '@react-three/fiber';
+import { useFrame, ThreeEvent, useLoader } from '@react-three/fiber';
 import { Sphere, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode, CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
@@ -41,6 +43,40 @@ type PlanetMapSet = {
 
 const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
 const RING_MAP_CACHE = new Map<string, THREE.CanvasTexture>();
+
+// NASA texture paths per planet type (Solar System Scope, CC BY 4.0)
+function getNasaTexturePath(planetType: CosmosDomain['planetType'], seed: number): string {
+  const base = '/textures/planets/';
+  switch (planetType) {
+    case 'terrestrial': return base + 'earth_daymap.jpg';
+    case 'oceanic': return base + 'neptune.jpg';
+    case 'lush': return base + 'earth_daymap.jpg';
+    case 'desert': return base + 'mars.jpg';
+    case 'volcanic': return base + 'venus_surface.jpg';
+    case 'icy': return base + 'uranus.jpg';
+    case 'gaseous': {
+      // Rotate between gas giants for variety
+      const gasTextures = ['jupiter.jpg', 'saturn.jpg'];
+      return base + gasTextures[seed % gasTextures.length];
+    }
+    case 'crystalline': return base + 'mercury.jpg';
+    default: return base + 'moon.jpg';
+  }
+}
+
+function getNasaNightTexturePath(planetType: CosmosDomain['planetType']): string | null {
+  if (planetType === 'terrestrial' || planetType === 'lush') {
+    return '/textures/planets/earth_nightmap.jpg';
+  }
+  return null;
+}
+
+function getNasaCloudTexturePath(planetType: CosmosDomain['planetType']): string | null {
+  if (planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic') {
+    return '/textures/planets/earth_clouds.jpg';
+  }
+  return null;
+}
 
 function getCachedPlanetMaps(
   baseHex: string,
@@ -199,13 +235,61 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.color, domain.planetType, mapDetailLevel, orbitConfig.seed, textureSize]
   );
 
+  // Load real NASA surface texture for photo-realistic appearance
+  const nasaTexturePath = useMemo(
+    () => getNasaTexturePath(domain.planetType, orbitConfig.seed),
+    [domain.planetType, orbitConfig.seed]
+  );
+  const nasaSurfaceTexture = useLoader(THREE.TextureLoader, nasaTexturePath);
+  useMemo(() => {
+    nasaSurfaceTexture.colorSpace = THREE.SRGBColorSpace;
+    nasaSurfaceTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    nasaSurfaceTexture.magFilter = THREE.LinearFilter;
+    nasaSurfaceTexture.generateMipmaps = true;
+    nasaSurfaceTexture.wrapS = THREE.RepeatWrapping;
+    nasaSurfaceTexture.wrapT = THREE.RepeatWrapping;
+  }, [nasaSurfaceTexture]);
+
+  // Load real NASA night map if available (Earth has city lights)
+  const nasaNightPath = useMemo(
+    () => getNasaNightTexturePath(domain.planetType),
+    [domain.planetType]
+  );
+  const nasaNightTexture = useLoader(
+    THREE.TextureLoader,
+    nasaNightPath || nasaTexturePath // fallback to surface (won't be used)
+  );
+  useMemo(() => {
+    if (nasaNightPath) {
+      nasaNightTexture.colorSpace = THREE.SRGBColorSpace;
+      nasaNightTexture.minFilter = THREE.LinearMipmapLinearFilter;
+      nasaNightTexture.generateMipmaps = true;
+    }
+  }, [nasaNightTexture, nasaNightPath]);
+
+  // Load real cloud texture if available
+  const nasaCloudPath = useMemo(
+    () => getNasaCloudTexturePath(domain.planetType),
+    [domain.planetType]
+  );
+  const nasaCloudTexture = useLoader(
+    THREE.TextureLoader,
+    nasaCloudPath || nasaTexturePath // fallback to surface (won't be used)
+  );
+
+  // Subtle domain-color tint so same-type planets look unique
+  const surfaceTint = useMemo(() => {
+    const base = new THREE.Color(domain.color);
+    // Lerp towards white to keep it subtle — just enough to distinguish domains
+    return base.lerp(new THREE.Color('#ffffff'), 0.65);
+  }, [domain.color]);
+
   const planetMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#ffffff'),
-        map: maps.surfaceMap,
+        color: surfaceTint,
+        map: nasaSurfaceTexture,
         bumpMap: maps.bumpMap,
-        // Strong relief so mountains/coasts are readable even on mobile screens.
         bumpScale: 0.62 + visuals.surfaceDetail * 0.95,
         roughnessMap: maps.roughnessMap,
         roughness:
@@ -221,8 +305,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           progress.stage === 'discovered'
             ? 0.85
             : 0.48 - visuals.developmentLevel * 0.14,
-        // Night lights via emissive map (city lights, lava, crystals)
-        emissiveMap: maps.nightMap,
+        emissiveMap: nasaNightPath ? nasaNightTexture : maps.nightMap,
         emissive: new THREE.Color('#ffffff'),
         emissiveIntensity: 0.018,
         envMapIntensity: 0.26 + visuals.developmentLevel * 0.34,
@@ -234,10 +317,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       }),
     [
       domain.color,
+      surfaceTint,
       maps.bumpMap,
       maps.nightMap,
       maps.roughnessMap,
-      maps.surfaceMap,
+      nasaSurfaceTexture,
+      nasaNightTexture,
+      nasaNightPath,
       progress.stage,
       visuals.developmentLevel,
       visuals.surfaceDetail,
@@ -247,8 +333,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const cloudMaterial = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        map: maps.cloudMap,
-        alphaMap: maps.cloudMap,
+        map: nasaCloudPath ? nasaCloudTexture : maps.cloudMap,
+        alphaMap: nasaCloudPath ? nasaCloudTexture : maps.cloudMap,
         color: getCloudTint(domain.planetType),
         transparent: true,
         opacity: visuals.cloudOpacity,
@@ -257,7 +343,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         metalness: 0.02,
         clearcoat: 0.12,
       }),
-    [domain.planetType, maps.cloudMap, visuals.cloudOpacity]
+    [domain.planetType, maps.cloudMap, nasaCloudTexture, nasaCloudPath, visuals.cloudOpacity]
   );
 
   const atmosphereMaterial = useMemo(
