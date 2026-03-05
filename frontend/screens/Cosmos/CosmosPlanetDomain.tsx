@@ -345,6 +345,24 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.planetType, maps.cloudMap, nasaCloudTexture, nasaCloudPath, visuals.cloudOpacity]
   );
 
+  // Real CC0 textures for satellites (Poly Haven)
+  const [satSolarTex, satMetalTex, satGoldTex] = useLoader(THREE.TextureLoader, [
+    '/textures/satellite/solar_panel.jpg',
+    '/textures/satellite/metal_body.jpg',
+    '/textures/satellite/gold_foil.jpg',
+  ]);
+  useMemo(() => {
+    for (const t of [satSolarTex, satMetalTex, satGoldTex]) {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.generateMipmaps = true;
+    }
+    satSolarTex.repeat.set(2, 1);   // 2 cols of cells across panel width
+    satMetalTex.repeat.set(1, 2);
+    satGoldTex.repeat.set(2, 2);
+  }, [satSolarTex, satMetalTex, satGoldTex]);
+
   const atmosphereMaterial = useMemo(
     () => createAtmosphereShellMaterial(domain.color, visuals.atmosphereOpacity, 2.25, 1.05),
     [domain.color, visuals.atmosphereOpacity]
@@ -665,7 +683,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         );
       })}
 
-      {/* Satellites: Detailed space probes with dish, antenna, thrusters */}
+      {/* Satellites: Realistic space probes with real CC0 textures */}
       {Array.from({ length: visuals.satelliteCount }).map((_, index) => {
         const satSeed = orbitConfig.seed + index * 211;
         const accentColor = index % 2 === 0 ? '#ff6b35' : '#00d4ff';
@@ -674,120 +692,114 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             key={`sat_main_${index}`}
             ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
           >
-            <group scale={0.014}>
-              {/* Main bus (octagonal body) */}
+            <group scale={0.016}>
+              {/* Main bus — textured metal body */}
               <mesh>
                 <cylinderGeometry args={[0.5, 0.6, 1.4, 8]} />
-                <meshPhysicalMaterial color="#b8c0cc" metalness={0.85} roughness={0.2} clearcoat={0.3} />
+                <meshPhysicalMaterial
+                  map={satMetalTex}
+                  metalness={0.82}
+                  roughness={0.22}
+                  clearcoat={0.35}
+                  clearcoatRoughness={0.1}
+                />
               </mesh>
 
-              {/* Solar panel left */}
-              <group position={[1.8, 0, 0]}>
-                <mesh>
-                  <boxGeometry args={[2.2, 0.03, 0.9]} />
-                  <meshPhysicalMaterial
-                    color="#0a1628"
-                    emissive="#1a3a6a"
-                    emissiveIntensity={0.6}
-                    metalness={0.7}
-                    roughness={0.15}
-                    clearcoat={0.8}
-                  />
-                </mesh>
-                {/* Panel grid lines */}
-                <mesh position={[0, 0.02, 0]}>
-                  <boxGeometry args={[2.2, 0.005, 0.9]} />
-                  <meshBasicMaterial color="#2a5a9a" transparent opacity={0.3} />
-                </mesh>
-              </group>
-
-              {/* Solar panel right */}
-              <group position={[-1.8, 0, 0]}>
-                <mesh>
-                  <boxGeometry args={[2.2, 0.03, 0.9]} />
-                  <meshPhysicalMaterial
-                    color="#0a1628"
-                    emissive="#1a3a6a"
-                    emissiveIntensity={0.6}
-                    metalness={0.7}
-                    roughness={0.15}
-                    clearcoat={0.8}
-                  />
-                </mesh>
-                <mesh position={[0, 0.02, 0]}>
-                  <boxGeometry args={[2.2, 0.005, 0.9]} />
-                  <meshBasicMaterial color="#2a5a9a" transparent opacity={0.3} />
-                </mesh>
-              </group>
-
-              {/* Panel arm connectors */}
-              <mesh position={[0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.04, 0.04, 0.3, 6]} />
-                <meshStandardMaterial color="#8a8a8a" metalness={0.9} roughness={0.3} />
-              </mesh>
-              <mesh position={[-0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.04, 0.04, 0.3, 6]} />
-                <meshStandardMaterial color="#8a8a8a" metalness={0.9} roughness={0.3} />
+              {/* Gold foil thermal insulation band */}
+              <mesh position={[0, -0.3, 0]}>
+                <cylinderGeometry args={[0.63, 0.63, 0.28, 8]} />
+                <meshPhysicalMaterial
+                  map={satGoldTex}
+                  metalness={0.55}
+                  roughness={0.38}
+                  clearcoat={0.3}
+                />
               </mesh>
 
-              {/* Communication dish */}
-              <group position={[0, 0.85, 0.2]} rotation={[0.4, 0, 0]}>
+              {/* Solar panel LEFT — real PV texture */}
+              <mesh position={[1.85, 0, 0]}>
+                <boxGeometry args={[2.4, 0.03, 1.0]} />
+                <meshPhysicalMaterial
+                  map={satSolarTex}
+                  emissiveMap={satSolarTex}
+                  emissive="#0a2060"
+                  emissiveIntensity={0.25}
+                  metalness={0.5}
+                  roughness={0.18}
+                  clearcoat={0.9}
+                  clearcoatRoughness={0.05}
+                />
+              </mesh>
+
+              {/* Solar panel RIGHT */}
+              <mesh position={[-1.85, 0, 0]}>
+                <boxGeometry args={[2.4, 0.03, 1.0]} />
+                <meshPhysicalMaterial
+                  map={satSolarTex}
+                  emissiveMap={satSolarTex}
+                  emissive="#0a2060"
+                  emissiveIntensity={0.25}
+                  metalness={0.5}
+                  roughness={0.18}
+                  clearcoat={0.9}
+                  clearcoatRoughness={0.05}
+                />
+              </mesh>
+
+              {/* Panel arm left */}
+              <mesh position={[0.68, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.04, 0.04, 0.34, 6]} />
+                <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.25} />
+              </mesh>
+              {/* Panel arm right */}
+              <mesh position={[-0.68, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.04, 0.04, 0.34, 6]} />
+                <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.25} />
+              </mesh>
+
+              {/* Parabolic dish — polished metal */}
+              <group position={[0, 0.9, 0.22]} rotation={[0.42, 0, 0]}>
                 <mesh>
-                  <sphereGeometry args={[0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+                  <sphereGeometry args={[0.42, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
                   <meshPhysicalMaterial
-                    color="#d4d4d4"
-                    metalness={0.9}
-                    roughness={0.1}
+                    map={satMetalTex}
+                    metalness={0.95}
+                    roughness={0.08}
                     side={THREE.DoubleSide}
-                    clearcoat={0.5}
+                    clearcoat={0.7}
+                    clearcoatRoughness={0.04}
+                    color="#e0e8f0"
                   />
                 </mesh>
-                {/* Dish feed horn */}
-                <mesh position={[0, 0.3, 0]}>
-                  <cylinderGeometry args={[0.02, 0.03, 0.35, 6]} />
-                  <meshStandardMaterial color="#888" metalness={0.9} roughness={0.2} />
+                {/* Feed horn */}
+                <mesh position={[0, 0.32, 0]}>
+                  <cylinderGeometry args={[0.022, 0.034, 0.38, 6]} />
+                  <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.2} />
                 </mesh>
               </group>
 
-              {/* Antenna mast */}
-              <mesh position={[0.3, 0.9, -0.2]}>
-                <cylinderGeometry args={[0.015, 0.015, 0.8, 4]} />
-                <meshStandardMaterial color="#aaa" metalness={0.8} roughness={0.3} />
+              {/* Antenna boom */}
+              <mesh position={[0.32, 0.92, -0.22]}>
+                <cylinderGeometry args={[0.014, 0.014, 0.88, 4]} />
+                <meshStandardMaterial color="#c8c8c8" metalness={0.85} roughness={0.25} />
               </mesh>
-              {/* Antenna tip beacon */}
-              <mesh position={[0.3, 1.3, -0.2]}>
-                <sphereGeometry args={[0.04, 8, 8]} />
+              {/* Beacon light */}
+              <mesh position={[0.32, 1.36, -0.22]}>
+                <sphereGeometry args={[0.045, 8, 8]} />
                 <meshBasicMaterial color={accentColor} />
               </mesh>
 
-              {/* Thruster nozzles */}
-              {(satSeed % 2 === 0) && (
-                <group position={[0, -0.75, 0]}>
-                  <mesh position={[0.2, 0, 0.2]}>
-                    <coneGeometry args={[0.08, 0.16, 6]} />
-                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
-                  </mesh>
-                  <mesh position={[-0.2, 0, 0.2]}>
-                    <coneGeometry args={[0.08, 0.16, 6]} />
-                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
-                  </mesh>
-                  <mesh position={[0, 0, -0.2]}>
-                    <coneGeometry args={[0.08, 0.16, 6]} />
-                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
-                  </mesh>
+              {/* Thruster cluster */}
+              {satSeed % 2 === 0 && (
+                <group position={[0, -0.78, 0]}>
+                  {([[0.22, 0.22], [-0.22, 0.22], [0, -0.22]] as [number, number][]).map(([tx, tz], ti) => (
+                    <mesh key={ti} position={[tx, 0, tz]}>
+                      <coneGeometry args={[0.09, 0.18, 6]} />
+                      <meshPhysicalMaterial map={satMetalTex} metalness={0.88} roughness={0.18} />
+                    </mesh>
+                  ))}
                 </group>
               )}
-
-              {/* Gold foil insulation band */}
-              <mesh position={[0, -0.35, 0]}>
-                <cylinderGeometry args={[0.62, 0.62, 0.2, 8]} />
-                <meshPhysicalMaterial
-                  color="#c8a832"
-                  metalness={0.6}
-                  roughness={0.35}
-                  clearcoat={0.4}
-                />
-              </mesh>
             </group>
           </group>
         );
@@ -1782,3 +1794,5 @@ function latLonToPlanetPosition(lat: number, lon: number, radius: number): THREE
   const z = radius * Math.cos(latRad) * Math.sin(lonRad);
   return new THREE.Vector3(x, y, z);
 }
+
+// ─── (Satellite textures loaded via useLoader in component) ──────────────────
