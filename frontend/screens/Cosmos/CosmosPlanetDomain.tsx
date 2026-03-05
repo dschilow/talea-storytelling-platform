@@ -834,138 +834,100 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
 
+          // Use domain color directly for discovered, saturated stage colors otherwise
           const markerColor =
-            stage === 'retained'
-              ? '#f59e0b'
-              : stage === 'apply'
-                ? '#22c55e'
-                : stage === 'understood'
-                  ? '#60a5fa'
-                  : '#a3a3a3';
+            stage === 'retained' ? '#fbbf24'
+            : stage === 'apply'  ? '#4ade80'
+            : stage === 'understood' ? '#38bdf8'
+            : domain.color;           // discovered = domain color (always vivid)
 
-          const markerSize =
-            stage === 'retained'
-              ? 0.048
-              : stage === 'apply'
-                ? 0.044
-                : stage === 'understood'
-                  ? 0.04
-                  : 0.036;
-
-          // Beacon scale grows with mastery stage
-          const beaconScale = markerSize * (stage === 'retained' ? 1.0 : stage === 'apply' ? 0.88 : stage === 'understood' ? 0.76 : 0.64);
+          const r = stage === 'retained' ? 0.052
+            : stage === 'apply'  ? 0.046
+            : stage === 'understood' ? 0.040
+            : 0.034;
 
           return (
             <group
               key={`island_${topic.topicId}_${index}`}
               position={[pos.x, pos.y, pos.z]}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectIsland?.(topic);
-              }}
-              onPointerOver={(event) => {
-                event.stopPropagation();
-                document.body.style.cursor = 'pointer';
-              }}
-              onPointerOut={() => {
-                document.body.style.cursor = 'auto';
-              }}
+              onClick={(event) => { event.stopPropagation(); onSelectIsland?.(topic); }}
+              onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
+              onPointerOut={() => { document.body.style.cursor = 'auto'; }}
             >
-              {/* === Crystal Beacon: diamond body + spike + base + glow === */}
-
-              {/* Diamond / octahedron core */}
-              <mesh scale={[beaconScale, beaconScale * 1.4, beaconScale]}>
-                <octahedronGeometry args={[1, 0]} />
-                <meshPhysicalMaterial
+              {/* Solid glowing core — always visible, strong emissive */}
+              <Sphere args={[r, 20, 20]}>
+                <meshStandardMaterial
                   color={markerColor}
                   emissive={markerColor}
-                  emissiveIntensity={stage === 'discovered' ? 0.4 : 1.8}
-                  roughness={0.05}
-                  metalness={0.1}
-                  transmission={stage === 'discovered' ? 0.0 : 0.55}
-                  thickness={0.4}
-                  clearcoat={1.0}
-                  clearcoatRoughness={0.05}
+                  emissiveIntensity={2.5}
+                  roughness={0.2}
+                  metalness={0.4}
                 />
-              </mesh>
+              </Sphere>
 
-              {/* Vertical spike / obelisk on top */}
-              <mesh position={[0, beaconScale * 1.6, 0]}>
-                <coneGeometry args={[beaconScale * 0.18, beaconScale * 1.2, 4]} />
-                <meshPhysicalMaterial
-                  color={markerColor}
-                  emissive={markerColor}
-                  emissiveIntensity={stage === 'discovered' ? 0.3 : 2.2}
-                  roughness={0.05}
-                  metalness={0.2}
-                  clearcoat={0.8}
-                />
-              </mesh>
-
-              {/* Flat base disc */}
-              <mesh position={[0, -beaconScale * 0.7, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <cylinderGeometry args={[beaconScale * 1.0, beaconScale * 1.2, beaconScale * 0.1, 8]} />
-                <meshPhysicalMaterial
-                  color={markerColor}
-                  emissive={markerColor}
-                  emissiveIntensity={0.6}
-                  metalness={0.6}
-                  roughness={0.3}
-                />
-              </mesh>
-
-              {/* Ground glow ring */}
-              <mesh position={[0, -beaconScale * 0.72, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[beaconScale * 1.1, beaconScale * 2.0, 32]} />
+              {/* Mid glow halo */}
+              <Sphere args={[r * 1.6, 12, 12]}>
                 <meshBasicMaterial
                   color={markerColor}
                   transparent
-                  opacity={0.35}
-                  depthWrite={false}
-                  blending={THREE.AdditiveBlending}
-                  side={THREE.DoubleSide}
-                />
-              </mesh>
-
-              {/* Soft halo */}
-              <Sphere args={[beaconScale * 2.2, 8, 8]}>
-                <meshBasicMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.06}
+                  opacity={0.3}
                   depthWrite={false}
                   blending={THREE.AdditiveBlending}
                 />
               </Sphere>
 
-              {/* Retained: golden crown ring */}
+              {/* Outer soft bloom */}
+              <Sphere args={[r * 2.6, 8, 8]}>
+                <meshBasicMaterial
+                  color={markerColor}
+                  transparent
+                  opacity={0.1}
+                  depthWrite={false}
+                  blending={THREE.AdditiveBlending}
+                />
+              </Sphere>
+
+              {/* Billboard ring — always faces camera */}
+              <Billboard follow>
+                <mesh>
+                  <ringGeometry args={[r * 1.7, r * 2.0, 40]} />
+                  <meshBasicMaterial
+                    color={markerColor}
+                    transparent
+                    opacity={0.85}
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+              </Billboard>
+
+              {/* Retained: extra golden outer ring */}
               {stage === 'retained' && (
                 <Billboard follow>
-                  <mesh position={[0, beaconScale * 0.6, 0]}>
-                    <ringGeometry args={[beaconScale * 1.6, beaconScale * 1.85, 32]} />
+                  <mesh>
+                    <ringGeometry args={[r * 2.2, r * 2.5, 40]} />
                     <meshBasicMaterial
                       color="#fde68a"
-                      transparent
-                      opacity={0.95}
-                      blending={THREE.AdditiveBlending}
+                      transparent opacity={0.9}
                       depthWrite={false}
+                      blending={THREE.AdditiveBlending}
                       side={THREE.DoubleSide}
                     />
                   </mesh>
                 </Billboard>
               )}
 
-              {/* Selection pulse ring */}
+              {/* Selection ring */}
               {isSelected && (
                 <Billboard follow>
                   <mesh>
-                    <ringGeometry args={[beaconScale * 2.2, beaconScale * 2.55, 40]} />
+                    <ringGeometry args={[r * 2.8, r * 3.2, 40]} />
                     <meshBasicMaterial
                       color="#ffffff"
-                      transparent
-                      opacity={0.9}
-                      blending={THREE.AdditiveBlending}
+                      transparent opacity={0.95}
                       depthWrite={false}
+                      blending={THREE.AdditiveBlending}
                       side={THREE.DoubleSide}
                     />
                   </mesh>
