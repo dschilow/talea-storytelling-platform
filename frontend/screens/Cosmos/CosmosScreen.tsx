@@ -5,35 +5,19 @@
  * Shows the full 3D solar system with HUD overlay.
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Telescope } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CosmosSceneRoot } from './CosmosSceneRoot';
 import { useCosmosState } from './useCosmosState';
-import type { CosmosQualityPreference } from './CosmosQuality';
-import {
-  loadQualityPreference,
-  saveQualityPreference,
-  resolveQualityTier,
-} from './CosmosQuality';
+import type { CameraMode } from './CosmosTypes';
 
 const CosmosScreen: React.FC = () => {
   const navigate = useNavigate();
   const { cosmosState, isLoading, activeAvatarId, activeChildId } = useCosmosState();
-  const [qualityPreference, setQualityPreference] = useState<CosmosQualityPreference>('auto');
-
-  useEffect(() => {
-    setQualityPreference(loadQualityPreference());
-  }, []);
-
-  const activeQualityLabel = useMemo(() => {
-    const effective = resolveQualityTier(qualityPreference);
-    if (qualityPreference === 'auto') {
-      return `Auto (${effective.toUpperCase()})`;
-    }
-    return qualityPreference.toUpperCase();
-  }, [qualityPreference]);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('system');
+  const [hasFocusedDomain, setHasFocusedDomain] = useState(false);
 
   return (
     <div
@@ -49,7 +33,7 @@ const CosmosScreen: React.FC = () => {
         className="relative z-30 px-3 pb-2 pt-2 md:px-5"
         style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' }}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs md:text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
@@ -58,41 +42,25 @@ const CosmosScreen: React.FC = () => {
             Zurueck
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const next: CosmosQualityPreference =
-                qualityPreference === 'auto'
-                  ? 'low'
-                  : qualityPreference === 'low'
-                  ? 'standard'
-                  : qualityPreference === 'standard'
-                  ? 'aaa'
-                  : 'auto';
-              setQualityPreference(next);
-              saveQualityPreference(next);
-            }}
-            className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-2.5 py-2 text-[10px] md:text-[11px] font-bold text-white/85 hover:bg-white/10 transition-colors"
-          >
-            Quality: {activeQualityLabel}
-          </button>
-        </div>
-
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 px-2">
-          <Telescope className="h-4 w-4 text-purple-400 shrink-0" />
-          <h1
-            className="text-sm md:text-base font-extrabold text-white truncate max-w-[85vw]"
-            style={{ fontFamily: '"Nunito", sans-serif' }}
-            title={
-              cosmosState.childName
-                ? `${cosmosState.childName}s Lernkosmos`
-                : 'Mein Lernkosmos'
-            }
-          >
-            {cosmosState.childName
-              ? `${cosmosState.childName}s Lernkosmos`
-              : 'Mein Lernkosmos'}
-          </h1>
+          <div className="ml-auto flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-1.5 py-1 backdrop-blur">
+            <HeaderModeButton
+              label="System"
+              active={cameraMode === 'system'}
+              onClick={() => setCameraMode('system')}
+            />
+            <HeaderModeButton
+              label="Fokus"
+              active={cameraMode === 'focus'}
+              disabled={!hasFocusedDomain}
+              onClick={() => setCameraMode('focus')}
+            />
+            <HeaderModeButton
+              label="Detail"
+              active={cameraMode === 'detail'}
+              disabled={!hasFocusedDomain}
+              onClick={() => setCameraMode('detail')}
+            />
+          </div>
         </div>
       </div>
 
@@ -112,12 +80,36 @@ const CosmosScreen: React.FC = () => {
             activeAvatarId={activeAvatarId || undefined}
             activeChildId={activeChildId || undefined}
             height="100%"
-            qualityPreference={qualityPreference}
+            qualityPreference="auto"
+            cameraModeOverride={cameraMode}
+            onCameraModeChange={setCameraMode}
+            onFocusAvailabilityChange={setHasFocusedDomain}
+            showInternalModeTabs={false}
           />
         )}
       </div>
     </div>
   );
 };
+
+const HeaderModeButton: React.FC<{
+  label: string;
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}> = ({ label, active, disabled = false, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className="rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors disabled:opacity-35"
+    style={{
+      background: active ? 'rgba(164, 120, 255, 0.35)' : 'transparent',
+      color: active ? '#f5eaff' : '#d6d8ec',
+    }}
+  >
+    {label}
+  </button>
+);
 
 export default CosmosScreen;

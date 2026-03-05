@@ -46,6 +46,10 @@ interface Props {
   height?: string;
   compact?: boolean;
   qualityPreference?: CosmosQualityPreference;
+  cameraModeOverride?: CameraMode;
+  onCameraModeChange?: (mode: CameraMode) => void;
+  onFocusAvailabilityChange?: (hasFocusedDomain: boolean) => void;
+  showInternalModeTabs?: boolean;
 }
 
 const emptyProgress = (domainId: string): DomainProgress => ({
@@ -64,6 +68,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   height = '100%',
   compact = false,
   qualityPreference = 'auto',
+  cameraModeOverride,
+  onCameraModeChange,
+  onFocusAvailabilityChange,
+  showInternalModeTabs = true,
 }) => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -78,7 +86,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [isLoadingTopicTimeline, setIsLoadingTopicTimeline] = useState(false);
   const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
   const [pulseNonce, setPulseNonce] = useState(0);
-  const [forceLowQuality, setForceLowQuality] = useState(false);
+  const [forceStandardQuality, setForceStandardQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
   const domainPositionMapRef = useRef<Map<string, [number, number, number]>>(new Map());
@@ -89,8 +97,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   });
 
   const quality = useMemo(
-    () => getQualityConfig(forceLowQuality || compact ? 'low' : qualityPreference),
-    [compact, forceLowQuality, qualityPreference]
+    () => getQualityConfig(forceStandardQuality || compact ? 'standard' : qualityPreference),
+    [compact, forceStandardQuality, qualityPreference]
   );
 
   const progressMap = useMemo(() => {
@@ -161,6 +169,27 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     setIsSuggestionDrawerOpen(false);
     setCameraMode('system');
   }, []);
+
+  useEffect(() => {
+    onFocusAvailabilityChange?.(Boolean(focusedDomainId));
+  }, [focusedDomainId, onFocusAvailabilityChange]);
+
+  useEffect(() => {
+    onCameraModeChange?.(cameraMode);
+  }, [cameraMode, onCameraModeChange]);
+
+  useEffect(() => {
+    if (!cameraModeOverride) return;
+    if (cameraModeOverride === cameraMode) return;
+
+    if (cameraModeOverride === 'system') {
+      handleResetFocus();
+      return;
+    }
+
+    if (!focusedDomainId) return;
+    setCameraMode(cameraModeOverride);
+  }, [cameraMode, cameraModeOverride, focusedDomainId, handleResetFocus]);
 
   const handleSelectStar = useCallback(() => {
     if (compact) {
@@ -455,8 +484,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             'webglcontextlost',
             (event) => {
               event.preventDefault();
-              console.warn('[CosmosSceneRoot] WebGL context lost, switching to low quality');
-              setForceLowQuality(true);
+              console.warn('[CosmosSceneRoot] WebGL context lost, switching to standard quality');
+              setForceStandardQuality(true);
             },
             { once: true }
           );
@@ -660,7 +689,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         </div>
       )}
 
-      {!compact && (
+      {!compact && showInternalModeTabs && (
         <div
           className="absolute left-1/2 z-20 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-2 py-1 backdrop-blur max-w-[94vw]"
           style={{ top: 'max(5.1rem, calc(env(safe-area-inset-top, 0px) + 4.3rem))' }}

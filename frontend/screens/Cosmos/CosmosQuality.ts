@@ -1,6 +1,6 @@
 import type { CameraMode } from './CosmosTypes';
 
-export type CosmosQualityTier = 'low' | 'standard' | 'aaa';
+export type CosmosQualityTier = 'standard' | 'aaa';
 export type CosmosQualityPreference = 'auto' | CosmosQualityTier;
 
 export interface CosmosQualityConfig {
@@ -30,7 +30,7 @@ const QUALITY_STORAGE_KEY = 'talea.cosmos.quality';
 export function loadQualityPreference(): CosmosQualityPreference {
   if (typeof window === 'undefined') return 'auto';
   const value = window.localStorage.getItem(QUALITY_STORAGE_KEY);
-  if (value === 'low' || value === 'standard' || value === 'aaa' || value === 'auto') {
+  if (value === 'standard' || value === 'aaa' || value === 'auto') {
     return value;
   }
   return 'auto';
@@ -50,35 +50,13 @@ export function resolveQualityTier(preference: CosmosQualityPreference): CosmosQ
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const smallScreen = window.matchMedia('(max-width: 900px)').matches;
 
-  if (reducedMotion || memory <= 3 || cores <= 4) return 'low';
+  if (reducedMotion || memory <= 3 || cores <= 4) return 'standard';
   if (smallScreen || memory <= 6 || cores <= 6) return 'standard';
   return 'aaa';
 }
 
 export function getQualityConfig(preference: CosmosQualityPreference): CosmosQualityConfig {
   const tier = resolveQualityTier(preference);
-
-  if (tier === 'low') {
-    return {
-      tier,
-      dprRange: [1, 1.2],
-      baseStarCount: 900,
-      midStarCount: 700,
-      farStarCount: 400,
-      enableNebulaBillboards: false,
-      enableBloom: false,
-      bloomIntensity: 0.12,
-      bloomThreshold: 0.85,
-      bloomSmoothing: 0.9,
-      toneMappingExposure: 0.92,
-      useHdri: false,
-      planetTextureBaseSize: 256,
-      planetTextureHeroSize: 512,
-      ringTextureSize: 256,
-      nebulaTextureSize: 512,
-      godRaysIntroDuration: 1.2,
-    };
-  }
 
   if (tier === 'aaa') {
     return {

@@ -28,7 +28,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   focusedPosition,
 }) => {
   const controlsRef = useRef<any>(null);
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const [autoRotateEnabled, setAutoRotateEnabled] = useState(true);
 
   const targetPos = useRef(SYSTEM_POS.clone());
@@ -57,9 +57,12 @@ export const CosmosCameraController: React.FC<Props> = ({
       if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
       side.normalize();
 
-      const focusDistance = mode === 'detail' ? 3.4 : 7.4;
-      const sideOffset = mode === 'detail' ? 0.95 : 2.8;
-      const heightOffset = mode === 'detail' ? 1.25 : 2.35;
+      const isPortraitPhone = size.width < 900 && size.height > size.width;
+      const focusDistance = mode === 'detail' ? (isPortraitPhone ? 3.1 : 3.4) : isPortraitPhone ? 6.5 : 7.4;
+      const sideOffset = mode === 'detail' ? (isPortraitPhone ? 0.65 : 0.95) : isPortraitPhone ? 1.85 : 2.8;
+      const heightOffset = mode === 'detail' ? (isPortraitPhone ? 2.35 : 1.25) : isPortraitPhone ? 4.35 : 2.35;
+      const lookAtDownOffset = mode === 'detail' ? (isPortraitPhone ? 1.65 : 0.7) : isPortraitPhone ? 2.15 : 0.9;
+      const lookAtTarget = focus.clone().add(new THREE.Vector3(0, -lookAtDownOffset, 0));
 
       shotFrom.current.copy(camera.position);
       shotTo.current
@@ -69,8 +72,8 @@ export const CosmosCameraController: React.FC<Props> = ({
         .add(new THREE.Vector3(0, heightOffset, 0));
 
       targetPos.current.copy(shotTo.current);
-      targetLookAt.current.copy(focus);
-      cinematicDuration.current = mode === 'detail' ? 0.72 : 0.92;
+      targetLookAt.current.copy(lookAtTarget);
+      cinematicDuration.current = mode === 'detail' ? 0.66 : 0.86;
       cinematicStart.current = null;
       isCinematic.current = true;
       isAnimating.current = true;
@@ -84,7 +87,7 @@ export const CosmosCameraController: React.FC<Props> = ({
     cinematicStart.current = null;
     isAnimating.current = true;
     setAutoRotateEnabled(true);
-  }, [camera, focusedDomain, focusedPosition, mode]);
+  }, [camera, focusedDomain, focusedPosition, mode, size.height, size.width]);
 
   useFrame(({ clock }) => {
     if ((mode === 'focus' || mode === 'detail') && isCinematic.current) {

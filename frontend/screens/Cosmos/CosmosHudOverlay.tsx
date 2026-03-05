@@ -96,7 +96,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
           <div
             className={[
               "relative rounded-3xl border border-white/10 p-5 backdrop-blur-xl",
-              isDetailMode ? "max-h-[72vh] overflow-y-auto" : "",
+              isDetailMode ? "max-h-[58vh] overflow-y-auto md:max-h-[72vh]" : "",
             ].join(" ")}
             style={{
               background: "linear-gradient(135deg, rgba(15,15,35,0.92) 0%, rgba(25,20,50,0.95) 100%)",
