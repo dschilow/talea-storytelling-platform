@@ -346,7 +346,14 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       const parsed = JSON.parse(clean) as {
         title: string;
         summary: string;
+        hook?: string;
+        mainQuestion?: string;
         sections: DokuSection[];
+        wowFacts?: string[];
+        comparisons?: string[];
+        twist?: string;
+        finale?: string;
+        activity?: string;
         coverImagePrompt: string;
       };
 
@@ -463,7 +470,18 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       await dokuDB.exec`
         UPDATE dokus
         SET title = ${parsed.title},
-            content = ${JSON.stringify({ sections: parsed.sections, summary: parsed.summary, title: parsed.title })},
+            content = ${JSON.stringify({
+              sections: parsed.sections,
+              summary: parsed.summary,
+              title: parsed.title,
+              hook: parsed.hook,
+              mainQuestion: parsed.mainQuestion,
+              wowFacts: parsed.wowFacts,
+              comparisons: parsed.comparisons,
+              twist: parsed.twist,
+              finale: parsed.finale,
+              activity: parsed.activity,
+            })},
             cover_image_url = ${coverImageUrl ?? null},
             status = 'complete',
             metadata = ${JSON.stringify(metadata)},
@@ -612,7 +630,7 @@ function buildOpenAIPayload(config: DokuConfig) {
       { role: "user", content: user },
     ],
     response_format: { type: "json_object" },
-    max_completion_tokens: 12000,
+    max_completion_tokens: 16000,
   };
 }
 
@@ -663,323 +681,558 @@ IMAGE PROMPT RULES (for "sectionImagePrompt" and "coverImagePrompt"):
     user: (config: DokuConfig, sectionsCount: number, quizCount: number, activitiesCount: number) => string;
   }> = {
     de: {
-      system: `Du bist ein erfahrener Kinderwissens-Moderator im Stil von "Checker Tobi" und "Galileo Kids".
+      system: `Du bist ein erstklassiger Autor und Dramaturg fuer hochspannende, kindgerechte Wissensdokus.
 
-QUALITÄTSREGELN:
-1) Schreibe kindgerecht, spannend, präzise und wissenschaftlich korrekt.
-2) Nutze direkte Ansprache: "Stell dir vor...", "Wusstest du...?", "Hast du schon mal...?"
-3) Jeder Abschnitt erzählt eine kleine Wissensgeschichte mit konkreten Beispielen aus dem Kinderalltag.
-4) Nutze bildhafte Vergleiche die Kinder verstehen (z.B. "So schwer wie 10 Elefanten", "So schnell wie ein Rennwagen").
-5) ANTI-WIEDERHOLUNG: Jeder Abschnitt bringt NEUE Informationen und eine NEUE Perspektive. Keine Wiederholung von Fakten.
-6) SPANNUNGSBÖGEN: Beende jeden Abschnitt (außer den letzten) mit einer neugierig machenden Frage oder einem Cliffhanger zum nächsten Thema.
-7) KEINE generischen Sätze wie "Das ist sehr interessant", "Das ist wichtig", "Es gibt viele Beispiele" - IMMER konkret und spezifisch.
-8) KEINE gefährlichen, beängstigenden oder ungeeigneten Inhalte.
-9) Variiere Satzanfänge: Nie zwei aufeinanderfolgende Sätze mit dem gleichen Wort beginnen.
-10) Maximal 1 Ausrufezeichen pro Abschnitt.
+Deine Aufgabe ist es, eine Kinder-Doku zu erzeugen, die sich wie eine starke, moderne Wissenssendung anfuehlt:
+- extrem neugierig machend
+- leicht verstaendlich
+- emotional warm
+- voller Aha-Momente
+- spannend von Anfang bis Ende
+- fachlich korrekt
+- niemals trocken, schulisch oder wie Wikipedia
+
+Die Doku soll Kinder so packen, dass sie unbedingt weiterlesen oder weiterhoeren wollen.
+Sie soll sich wie eine Expedition, ein Raetsel oder eine Entdeckung anfuehlen - nicht wie Unterricht.
+
+STILREGELN:
+- Schreibe NICHT wie ein Lexikon, Schulbuch oder trocken/abstrakt.
+- Schreibe bildhaft, neugierig, klar und lebendig.
+- Verwende kurze bis mittlere Saetze.
+- Nutze viel Staunen, aber kein nerviges Uebertreiben.
+- Sprich das Kind nicht dauernd direkt mit "du" an, aber schaffe Naehe.
+- Keine flachen Witze im Uebermass.
+- Keine komplizierten Fachwoerter ohne einfache Erklaerung.
+- Jede Erklaerung muss fuer Kinder wirklich greifbar sein.
+- Nutze starke Vergleiche aus der Alltagswelt von Kindern.
+- Erzeuge Kopfkino.
+- Variiere Satzanfaenge: Nie zwei aufeinanderfolgende Saetze mit dem gleichen Wort beginnen.
+- Maximal 1 Ausrufezeichen pro Abschnitt.
+
+SPANNUNGSREGELN:
+- Alle 20-40 Sekunden Lesefluss muss etwas passieren: neue Frage, neuer Wow-Fakt, ueberraschende Wendung, neue Vorstellung im Kopf.
+- Die Energie darf nie absinken.
+
+WAS UNBEDINGT ZU VERMEIDEN IST:
+- Langweilige Einleitungen
+- Zu viele Fakten hintereinander ohne Atempause
+- Belehrender Ton
+- Fuellsaetze und allgemeines Blabla
+- Schwache Kapitelueberschriften
+- Zu fruehe vollstaendige Aufloesung
+- Kein Spannungsbogen
+- Keine Bilder im Kopf
+- Unnoetige Wiederholungen
+- Generische Saetze wie "Das ist sehr interessant" oder "Das ist wichtig"
+
+KEINE gefaehrlichen, beaengstigenden oder ungeeigneten Inhalte.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Erzeuge ein strukturiertes Lern-Dossier (Doku-Modus) zum Thema: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => {
+        const ageRules = {
+          "3-5": `ALTERSANPASSUNG (3-5 Jahre):
+- Sehr einfache Sprache, sehr konkrete Bilder
+- Kurze Kapitel, wenig Fachbegriffe
+- Mehr Staunen als Details
+- Quiz sehr leicht und spielerisch`,
+          "6-8": `ALTERSANPASSUNG (6-8 Jahre):
+- Einfache bis mittlere Sprache, klare Erklaerungen
+- Erste Ursache-Wirkung-Erklaerungen
+- Mehr Details, aber immer greifbar
+- Quiz mit Fakten + Verstehen`,
+          "9-12": `ALTERSANPASSUNG (9-12 Jahre):
+- Etwas anspruchsvoller, mehr Tiefe
+- Staerkere Zusammenhaenge
+- Mehr "Warum" und "Was waere wenn"
+- Quiz mit Verstehen, Vergleichen, Anwenden`,
+          "13+": `ALTERSANPASSUNG (13+ Jahre):
+- Anspruchsvoll, echte Tiefe
+- Komplexe Zusammenhaenge, kritisches Denken
+- Querverbindungen zu anderen Fachgebieten
+- Quiz mit Transfer, Analyse, eigener Meinung`,
+        };
 
-Zielgruppe: ${config.ageGroup}
+        return `Erzeuge eine hochspannende Kinder-Wissensdoku zum Thema: "${config.topic}".
+
+Zielgruppe: ${config.ageGroup} Jahre
 Tiefe: ${config.depth}
-Perspektive (Schwerpunkt): ${config.perspective ?? "science"}
-Tonalität: ${config.tone ?? "curious"}
-Abschnitte: ${sectionsCount}
+Perspektive: ${config.perspective ?? "science"}
+Tonalitaet: ${config.tone ?? "curious"}
+Laenge: ${config.length ?? "medium"} (${sectionsCount} Kapitel)
 
-Interaktion:
-- Quizfragen: ${config.includeInteractive ? quizCount : 0}
-- Hands-on Aktivitäten: ${config.includeInteractive ? activitiesCount : 0}
+${ageRules[config.ageGroup] || ageRules["6-8"]}
 
-ALTERSGERECHTE ANPASSUNG:
-- 3-5: Sehr kurze Sätze, sanfte Wiederholung, einfache Wörter, 1 Hauptidee pro Abschnitt.
-- 6-8: Mehr Dialog-Elemente, kleine Rätsel, spielerische Spannung.
-- 9-12: Tiefere Zusammenhänge, überraschende Fakten, "Aha-Momente".
-- 13+: Komplexere Konzepte, kritisches Denken, Querverbindungen zu anderen Fachgebieten.
+DRAMATURGIE - Die Doku MUSS diese Struktur haben:
 
-INHALTSREGELN:
-- Begriffe kindgerecht erklären, dabei Beispiele aus der Lebenswelt der Zielgruppe nutzen.
-- Jeder Abschnitt mit 3-5 "keyFacts" als kurze, knackige Merkpunkte.
-- Jeder Abschnitt mit einem konkreten Einstieg (Szenario, Frage, oder "Stell dir vor...").
-- Der ROTE FADEN: Abschnitte bauen logisch aufeinander auf, jeder baut auf dem vorherigen auf.
-- Wenn Interaktionen aktiv sind: Quizfragen sollen zum Nachdenken anregen, nicht nur Fakten abfragen.
-- Aktivitäten sollen mit Alltagsmaterialien durchführbar sein.
+1. TITEL: Sofort neugierig machend. KEINE langweiligen Titel wie "Alles ueber..." oder "Die Geschichte von...". Stattdessen echte Neugier: "Warum...", "Was passiert wenn...", "Das geheime Leben von...", "Das verrueckte Geheimnis von..."
+
+2. HOOK: 2-5 Saetze die sofort ein Raetsel, eine verblueffende Frage oder einen Wow-Fakt eroeffnen. Der Einstieg muss so gut sein, dass ein Kind direkt wissen will, wie es weitergeht.
+
+3. HAUPTFRAGE: Die grosse Leitfrage der Doku, klar formuliert. Diese Frage zieht sich spuerbar durch die ganze Doku.
+
+4. KAPITEL: ${sectionsCount} kurze Kapitel, jedes mit:
+   - Einer Mini-Frage oder Mini-Spannung als Einstieg
+   - Einer klaren, kindgerechten Erklaerung
+   - Mindestens 1 Wow-Fakt
+   - Mindestens 1 starkem Bildvergleich aus dem Kinderalltag
+   - Einem kleinen Uebergang der neugierig auf das naechste Kapitel macht
+
+5. TWIST: In der Mitte oder im letzten Drittel ein echter Ueberraschungsmoment - etwas das Kinder nicht erwarten und das das Thema groesser oder faszinierender macht.
+
+6. FINALE: Ein starkes Schlussbild, ein letzter Wow-Gedanke oder eine grosse Staunensfrage. Das Ende darf NICHT einfach auslaufen.
+
+INHALTLICHE QUALITAET:
+- 1 starke Hauptfrage
+- 3-5 Unterfragen (verteilt auf Kapitel)
+- 5-8 wirklich wichtige Fakten
+- 2-4 Wow-Fakten (verblueffend, unerwartet)
+- 2-4 starke Vergleichsbilder (aus dem Kinderalltag)
+- 1 Ueberraschung/Twist
+- 1 emotional starkes Schlussbild
+
+WICHTIG: Lieber wenige, aber starke und merkbare Fakten als zu viele.
+
+QUIZ (${config.includeInteractive ? quizCount : 0} Fragen):
+${config.includeInteractive && quizCount > 0 ? `Mischung aus:
+- 2-3 Erinnern-Fragen (Fakten aus der Doku)
+- 2-3 Verstehen-Fragen (Zusammenhaenge erklaeren)
+- 1-2 Transfer-Fragen ("Was wuerde passieren wenn...?")
+Nutze verschiedene Typen: Multiple Choice, Richtig/Falsch, Reihenfolge ordnen, Ursache/Wirkung.
+KEINE langweiligen oder offensichtlich trivialen Fragen.` : "Keine Quizfragen."}
+
+AKTIVITAETEN: ${config.includeInteractive ? activitiesCount : 0}
+${config.includeInteractive && activitiesCount > 0 ? "Kreative Mitmach-Ideen mit Alltagsmaterialien, passend zum Thema." : ""}
 
 Antworte AUSSCHLIESSLICH als JSON-Objekt mit folgender Struktur:
 
 {
-  "title": "Kurzer, spannender Titel (max 8 Wörter, neugierig machend)",
-  "summary": "1-3 Sätze kindgerechte Zusammenfassung die Lust auf mehr macht",
+  "title": "Neugierig machender Titel (max 10 Woerter)",
+  "summary": "1-3 Saetze die Lust auf mehr machen",
+  "hook": "2-5 packende Eroeffnungssaetze mit Raetsel/Wow-Fakt",
+  "mainQuestion": "Die grosse Leitfrage der Doku",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Verblueffender Fakt 1", "Verblueffender Fakt 2", "Verblueffender Fakt 3"],
+  "comparisons": ["Starker Bildvergleich 1", "Starker Bildvergleich 2"],
+  "twist": "Der ueberraschende Wendepunkt der Doku",
+  "finale": "Das starke Schlussbild oder der letzte Wow-Gedanke",
+  "activity": "Eine kreative Mitmach-Idee oder Denkanregung passend zum Thema",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
-}`
+}
+
+SELBSTKONTROLLE VOR AUSGABE - Pruefe:
+- Ist der Titel wirklich neugierig machend (nicht generisch)?
+- Ist der Hook stark genug (wuerde ein Kind weiterlesen wollen)?
+- Ist die Doku spannend und nicht nur informativ?
+- Gibt es genug Wow-Momente und Kopfkino?
+- Sind die Erklaerungen wirklich kindgerecht und greifbar?
+- Gibt es mindestens einen echten Twist?
+- Ist das Ende stark (nicht einfach auslaufend)?
+- Ist das Quiz abwechslungsreich?
+Wenn etwas schwach ist, verbessere es vor der Ausgabe.`
+      }
     },
     en: {
-      system: `You are an experienced children's educational moderator in the style of popular science shows for kids.
+      system: `You are a world-class author and dramaturg for thrilling, child-friendly knowledge documentaries.
 
-QUALITY RULES:
-1) Write in a child-friendly, exciting, precise and scientifically correct manner.
-2) Use direct address: "Imagine...", "Did you know...?", "Have you ever...?"
-3) Each section tells a small knowledge story with concrete examples from children's everyday life.
-4) Use vivid comparisons children understand (e.g., "As heavy as 10 elephants", "As fast as a race car").
-5) ANTI-REPETITION: Each section brings NEW information and a NEW perspective. No repeating facts.
-6) TENSION ARCS: End each section (except the last) with a curiosity-sparking question or cliffhanger.
-7) NO generic sentences like "This is very interesting", "This is important" - ALWAYS be concrete and specific.
-8) NO dangerous, frightening or inappropriate content.
-9) Vary sentence starters: Never begin two consecutive sentences with the same word.
-10) Maximum 1 exclamation mark per section.
+Your job is to create a children's documentary that feels like a powerful, modern science show:
+- Extremely curiosity-sparking
+- Easy to understand
+- Emotionally warm
+- Full of aha moments
+- Exciting from start to finish
+- Factually correct
+- Never dry, academic, or Wikipedia-like
+
+The documentary should grip children so they absolutely want to keep reading or listening.
+It should feel like an expedition, a mystery, or a discovery - not like a lesson.
+
+STYLE RULES:
+- Do NOT write like an encyclopedia, textbook, or in a dry/abstract way.
+- Write vividly, curiously, clearly, and with life.
+- Use short to medium sentences.
+- Use wonder and amazement, but no annoying exaggeration.
+- Don't constantly address the child with "you", but create closeness.
+- No flat jokes in excess.
+- No complicated technical terms without simple explanation.
+- Every explanation must be truly tangible for children.
+- Use strong comparisons from children's everyday world.
+- Create mental cinema / vivid imagery.
+- Vary sentence starters: Never begin two consecutive sentences with the same word.
+- Maximum 1 exclamation mark per section.
+
+TENSION RULES:
+- Every 20-40 seconds of reading flow, something must happen: new question, new wow fact, surprising turn, new mental image.
+- The energy must never drop.
+
+MUST AVOID:
+- Boring introductions
+- Too many facts in a row without a breather
+- Lecturing tone
+- Filler sentences and generic blabla
+- Weak chapter titles
+- Premature full resolution
+- No tension arc
+- No mental imagery
+- Unnecessary repetitions
+- Generic sentences like "This is very interesting" or "This is important"
+
+NO dangerous, frightening, or inappropriate content.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Create a structured learning document (Doku mode) on the topic: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => {
+        const ageRules: Record<string, string> = {
+          "3-5": `AGE ADAPTATION (3-5 years):
+- Very simple language, very concrete images
+- Short chapters, few technical terms
+- More wonder than details
+- Quiz very easy and playful`,
+          "6-8": `AGE ADAPTATION (6-8 years):
+- Simple to medium language, clear explanations
+- First cause-and-effect explanations
+- More details, but always tangible
+- Quiz with facts + understanding`,
+          "9-12": `AGE ADAPTATION (9-12 years):
+- Somewhat more demanding, more depth
+- Stronger connections
+- More "why" and "what if"
+- Quiz with understanding, comparing, applying`,
+          "13+": `AGE ADAPTATION (13+ years):
+- Demanding, real depth
+- Complex connections, critical thinking
+- Cross-references to other fields
+- Quiz with transfer, analysis, own opinion`,
+        };
 
-Target audience: ${config.ageGroup}
+        return `Create a thrilling children's knowledge documentary on the topic: "${config.topic}".
+
+Target audience: ${config.ageGroup} years
 Depth: ${config.depth}
-Perspective (focus): ${config.perspective ?? "science"}
+Perspective: ${config.perspective ?? "science"}
 Tone: ${config.tone ?? "curious"}
-Sections: ${sectionsCount}
+Length: ${config.length ?? "medium"} (${sectionsCount} chapters)
 
-Interaction:
-- Quiz questions: ${config.includeInteractive ? quizCount : 0}
-- Hands-on activities: ${config.includeInteractive ? activitiesCount : 0}
+${ageRules[config.ageGroup] || ageRules["6-8"]}
 
-AGE ADAPTATION:
-- 3-5: Very short sentences, gentle repetition, simple words, 1 main idea per section.
-- 6-8: More dialogue elements, small riddles, playful tension.
-- 9-12: Deeper connections, surprising facts, "aha moments".
-- 13+: Complex concepts, critical thinking, cross-references to other fields.
+DRAMATURGY - The documentary MUST have this structure:
 
-CONTENT RULES:
-- Explain terms in a child-friendly way with examples from the target audience's life.
-- Each section with 3-5 "keyFacts" as short, punchy bullet points.
-- Each section starts with a concrete hook (scenario, question, or "Imagine...").
-- RED THREAD: Sections build logically on each other.
-- If interactions are active: Quiz questions should provoke thought, not just test facts.
-- Activities should use everyday materials.
+1. TITLE: Immediately curiosity-sparking. NO boring titles like "All about..." or "The story of...". Instead real curiosity: "Why...", "What happens when...", "The secret life of...", "The crazy secret of..."
+
+2. HOOK: 2-5 sentences that immediately open a mystery, a stunning question, or a wow fact. The opening must be so good that a child instantly wants to know what comes next.
+
+3. MAIN QUESTION: The big guiding question of the documentary, clearly stated. This question runs visibly through the entire documentary.
+
+4. CHAPTERS: ${sectionsCount} short chapters, each with:
+   - A mini-question or mini-tension as an opener
+   - A clear, child-friendly explanation
+   - At least 1 wow fact
+   - At least 1 strong visual comparison from children's everyday life
+   - A small transition that sparks curiosity for the next chapter
+
+5. TWIST: In the middle or last third, a real surprise moment - something children don't expect that makes the topic bigger or more fascinating.
+
+6. FINALE: A strong closing image, a final wow thought, or a big wonder question. The ending must NOT just fade out.
+
+CONTENT QUALITY:
+- 1 strong main question
+- 3-5 sub-questions (spread across chapters)
+- 5-8 truly important facts
+- 2-4 wow facts (stunning, unexpected)
+- 2-4 strong visual comparisons (from children's everyday life)
+- 1 surprise/twist
+- 1 emotionally strong closing image
+
+IMPORTANT: Fewer but strong and memorable facts are better than too many.
+
+QUIZ (${config.includeInteractive ? quizCount : 0} questions):
+${config.includeInteractive && quizCount > 0 ? `Mix of:
+- 2-3 Remember questions (facts from the documentary)
+- 2-3 Understanding questions (explain connections)
+- 1-2 Transfer questions ("What would happen if...?")
+Use different types: Multiple Choice, True/False, Order, Cause/Effect.
+NO boring or obviously trivial questions.` : "No quiz questions."}
+
+ACTIVITIES: ${config.includeInteractive ? activitiesCount : 0}
+${config.includeInteractive && activitiesCount > 0 ? "Creative hands-on ideas with everyday materials, fitting the topic." : ""}
 
 Respond EXCLUSIVELY as a JSON object with the following structure:
 
 {
-  "title": "Short, exciting title (max 8 words, curiosity-sparking)",
-  "summary": "1-3 sentences child-friendly summary that makes you want more",
+  "title": "Curiosity-sparking title (max 10 words)",
+  "summary": "1-3 sentences that make you want more",
+  "hook": "2-5 gripping opening sentences with mystery/wow fact",
+  "mainQuestion": "The big guiding question of the documentary",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Stunning fact 1", "Stunning fact 2", "Stunning fact 3"],
+  "comparisons": ["Strong visual comparison 1", "Strong visual comparison 2"],
+  "twist": "The surprising turning point of the documentary",
+  "finale": "The strong closing image or final wow thought",
+  "activity": "A creative hands-on idea or thinking prompt fitting the topic",
   "coverImagePrompt": "Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
-}`
+}
+
+SELF-CHECK BEFORE OUTPUT - Verify:
+- Is the title truly curiosity-sparking (not generic)?
+- Is the hook strong enough (would a child want to keep reading)?
+- Is the documentary exciting, not just informative?
+- Are there enough wow moments and mental imagery?
+- Are the explanations truly child-friendly and tangible?
+- Is there at least one real twist?
+- Is the ending strong (not just fading out)?
+- Is the quiz varied?
+If anything is weak, improve it before outputting.`
+      }
     },
     fr: {
-      system: `Tu es un modérateur expérimenté de connaissances pour enfants, dans le style des émissions éducatives populaires.
+      system: `Tu es un auteur et dramaturge de premier ordre pour des documentaires de connaissances captivants et adaptes aux enfants.
 
-RÈGLES DE QUALITÉ:
-1) Écris de manière adaptée aux enfants, passionnante, précise et scientifiquement correcte.
-2) Utilise l'adresse directe: "Imagine...", "Savais-tu...?", "As-tu déjà...?"
-3) Chaque section raconte une petite histoire de savoir avec des exemples concrets du quotidien des enfants.
-4) Utilise des comparaisons imagées que les enfants comprennent.
-5) ANTI-RÉPÉTITION: Chaque section apporte de NOUVELLES informations et une NOUVELLE perspective.
-6) ARCS DE TENSION: Termine chaque section (sauf la dernière) avec une question qui éveille la curiosité.
-7) PAS de phrases génériques - TOUJOURS concret et spécifique.
-8) AUCUN contenu dangereux, effrayant ou inapproprié.
+Ta mission: creer un documentaire pour enfants qui ressemble a une emission moderne et passionnante - pas a un cours.
+Il doit etre: extremement curieux, facile a comprendre, emotionnellement chaleureux, plein de moments "aha", passionnant du debut a la fin, factuellement correct, jamais sec ou scolaire.
+
+REGLES DE STYLE:
+- N'ecris PAS comme une encyclopedie ou un manuel scolaire.
+- Ecris de maniere imagee, curieuse, claire et vivante.
+- Utilise des comparaisons fortes du quotidien des enfants. Cree du cinema mental.
+- Varie les debuts de phrases. Maximum 1 point d'exclamation par section.
+- Pas de phrases generiques. Toujours concret et specifique.
+- AUCUN contenu dangereux, effrayant ou inapproprie.
+
+REGLES DE TENSION: Toutes les 20-40 secondes de lecture, quelque chose doit se passer: nouvelle question, fait wow, tournure surprenante.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Crée un dossier d'apprentissage structuré sur le sujet: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Cree un documentaire de connaissances captivant pour enfants sur: "${config.topic}".
 
-Public cible: ${config.ageGroup}
-Profondeur: ${config.depth}
-Perspective: ${config.perspective ?? "science"}
-Ton: ${config.tone ?? "curious"}
-Sections: ${sectionsCount}
+Public cible: ${config.ageGroup} ans | Profondeur: ${config.depth} | Perspective: ${config.perspective ?? "science"} | Ton: ${config.tone ?? "curious"} | Longueur: ${sectionsCount} chapitres
 
-Interaction:
-- Questions quiz: ${config.includeInteractive ? quizCount : 0}
-- Activités pratiques: ${config.includeInteractive ? activitiesCount : 0}
+DRAMATURGIE OBLIGATOIRE:
+1. TITRE: Qui eveille immediatement la curiosite (pas "Tout sur..." mais "Pourquoi...", "Le secret de...")
+2. HOOK: 2-5 phrases qui ouvrent un mystere ou un fait stupefiant
+3. QUESTION PRINCIPALE: La grande question directrice du documentaire
+4. CHAPITRES: Chacun avec mini-question, explication claire, 1 fait wow, 1 comparaison visuelle, transition vers le suivant
+5. TWIST: Un moment de surprise au milieu ou dernier tiers
+6. FINALE: Image de conclusion forte, pas de fin qui s'eteint
 
-Règles de contenu:
-- Expliquer les termes avec des exemples du monde des enfants.
-- Chaque section avec 3-5 "keyFacts" en points courts.
-- Chaque section commence avec un accroche concrète.
-- FIL ROUGE: Les sections s'enchaînent logiquement.
+Quiz: ${config.includeInteractive ? quizCount : 0} questions (melange souvenir/comprehension/transfert)
+Activites: ${config.includeInteractive ? activitiesCount : 0}
 
-Réponds EXCLUSIVEMENT avec un objet JSON de la structure suivante:
+Reponds EXCLUSIVEMENT en JSON:
 
 {
-  "title": "Titre court et passionnant (max 8 mots)",
-  "summary": "Résumé adapté aux enfants en 1-3 phrases",
+  "title": "Titre captivant (max 10 mots)",
+  "summary": "1-3 phrases qui donnent envie de lire",
+  "hook": "2-5 phrases d'ouverture captivantes",
+  "mainQuestion": "La grande question directrice",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Fait stupefiant 1", "Fait 2", "Fait 3"],
+  "comparisons": ["Comparaison visuelle 1", "Comparaison 2"],
+  "twist": "Le moment de surprise",
+  "finale": "L'image de conclusion forte",
+  "activity": "Une idee creative de participation",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     es: {
-      system: `Eres un moderador experimentado de conocimientos para niños, al estilo de programas educativos populares.
+      system: `Eres un autor y dramaturgo de primer nivel para documentales de conocimiento emocionantes y adaptados a ninos.
 
-REGLAS DE CALIDAD:
-1) Escribe de manera adecuada para niños, emocionante, precisa y científicamente correcta.
-2) Usa la dirección directa: "Imagina...", "¿Sabías que...?", "¿Alguna vez has...?"
-3) Cada sección cuenta una pequeña historia de conocimiento con ejemplos concretos del día a día de los niños.
-4) Usa comparaciones vívidas que los niños entiendan.
-5) ANTI-REPETICIÓN: Cada sección aporta información NUEVA y una perspectiva NUEVA.
-6) ARCOS DE TENSIÓN: Termina cada sección (excepto la última) con una pregunta que despierte curiosidad.
-7) SIN frases genéricas - SIEMPRE concreto y específico.
-8) SIN contenido peligroso, aterrador o inapropiado.
+Tu mision: crear un documental para ninos que se sienta como un programa moderno y apasionante - no como una leccion.
+Debe ser: extremadamente curioso, facil de entender, emocionalmente calido, lleno de momentos "aha", emocionante de principio a fin, factualmente correcto, nunca seco o academico.
+
+REGLAS DE ESTILO:
+- NO escribas como una enciclopedia o libro de texto.
+- Escribe de manera vivida, curiosa, clara y con vida.
+- Usa comparaciones fuertes del mundo cotidiano de los ninos. Crea cine mental.
+- Varia los inicios de oraciones. Maximo 1 signo de exclamacion por seccion.
+- Sin frases genericas. Siempre concreto y especifico.
+- SIN contenido peligroso, aterrador o inapropiado.
+
+REGLAS DE TENSION: Cada 20-40 segundos de lectura, algo debe pasar: nueva pregunta, hecho wow, giro sorprendente.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento de aprendizaje estructurado sobre el tema: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documental de conocimiento emocionante para ninos sobre: "${config.topic}".
 
-Público objetivo: ${config.ageGroup}
-Profundidad: ${config.depth}
-Perspectiva: ${config.perspective ?? "science"}
-Tono: ${config.tone ?? "curious"}
-Secciones: ${sectionsCount}
+Publico objetivo: ${config.ageGroup} anos | Profundidad: ${config.depth} | Perspectiva: ${config.perspective ?? "science"} | Tono: ${config.tone ?? "curious"} | Longitud: ${sectionsCount} capitulos
 
-Interacción:
-- Preguntas de quiz: ${config.includeInteractive ? quizCount : 0}
-- Actividades prácticas: ${config.includeInteractive ? activitiesCount : 0}
+DRAMATURGIA OBLIGATORIA:
+1. TITULO: Que despierte curiosidad inmediata (no "Todo sobre..." sino "Por que...", "El secreto de...")
+2. HOOK: 2-5 frases que abran un misterio o hecho asombroso
+3. PREGUNTA PRINCIPAL: La gran pregunta guia del documental
+4. CAPITULOS: Cada uno con mini-pregunta, explicacion clara, 1 hecho wow, 1 comparacion visual, transicion al siguiente
+5. TWIST: Momento de sorpresa en la mitad o ultimo tercio
+6. FINAL: Imagen de cierre fuerte, no un final que se apaga
 
-Reglas de contenido:
-- Explicar términos con ejemplos del mundo de los niños.
-- Cada sección con 3-5 "keyFacts" en puntos cortos.
-- Cada sección comienza con un gancho concreto.
-- HILO CONDUCTOR: Las secciones se construyen lógicamente unas sobre otras.
+Quiz: ${config.includeInteractive ? quizCount : 0} preguntas (mezcla recuerdo/comprension/transferencia)
+Actividades: ${config.includeInteractive ? activitiesCount : 0}
 
-Responde EXCLUSIVAMENTE como un objeto JSON con la siguiente estructura:
+Responde EXCLUSIVAMENTE en JSON:
 
 {
-  "title": "Título corto y emocionante (máx 8 palabras)",
-  "summary": "Resumen adaptado a niños en 1-3 frases",
+  "title": "Titulo emocionante (max 10 palabras)",
+  "summary": "1-3 frases que dan ganas de leer",
+  "hook": "2-5 frases de apertura cautivadoras",
+  "mainQuestion": "La gran pregunta guia",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Hecho asombroso 1", "Hecho 2", "Hecho 3"],
+  "comparisons": ["Comparacion visual 1", "Comparacion 2"],
+  "twist": "El momento de sorpresa",
+  "finale": "La imagen de cierre fuerte",
+  "activity": "Una idea creativa de participacion",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     it: {
-      system: `Sei un moderatore esperto di conoscenze per bambini, nello stile dei programmi educativi popolari.
+      system: `Sei un autore e drammaturgo di primo livello per documentari di conoscenza avvincenti e adatti ai bambini.
 
-REGOLE DI QUALITÀ:
-1) Scrivi in modo adatto ai bambini, emozionante, preciso e scientificamente corretto.
-2) Usa l'indirizzo diretto: "Immagina...", "Sapevi che...?", "Hai mai...?"
-3) Ogni sezione racconta una piccola storia di conoscenza con esempi concreti dalla vita quotidiana dei bambini.
-4) Usa paragoni vividi che i bambini capiscono.
-5) ANTI-RIPETIZIONE: Ogni sezione porta informazioni NUOVE e una prospettiva NUOVA.
-6) ARCHI DI TENSIONE: Termina ogni sezione (tranne l'ultima) con una domanda che suscita curiosità.
-7) NESSUNA frase generica - SEMPRE concreto e specifico.
-8) NESSUN contenuto pericoloso, spaventoso o inappropriato.
+La tua missione: creare un documentario per bambini che sembri un programma moderno e appassionante - non una lezione.
+Deve essere: estremamente curioso, facile da capire, emotivamente caldo, pieno di momenti "aha", avvincente dall'inizio alla fine, fattualmente corretto, mai secco o scolastico.
+
+REGOLE DI STILE:
+- NON scrivere come un'enciclopedia o un libro di testo.
+- Scrivi in modo vivido, curioso, chiaro e pieno di vita.
+- Usa confronti forti dal mondo quotidiano dei bambini. Crea cinema mentale.
+- Varia gli inizi delle frasi. Massimo 1 punto esclamativo per sezione.
+- Nessuna frase generica. Sempre concreto e specifico.
+- NESSUN contenuto pericoloso, spaventoso o inappropriato.
+
+REGOLE DI TENSIONE: Ogni 20-40 secondi di lettura, deve succedere qualcosa: nuova domanda, fatto wow, svolta sorprendente.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documento di apprendimento strutturato sul tema: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Crea un documentario di conoscenza avvincente per bambini su: "${config.topic}".
 
-Pubblico target: ${config.ageGroup}
-Profondità: ${config.depth}
-Prospettiva: ${config.perspective ?? "science"}
-Tono: ${config.tone ?? "curious"}
-Sezioni: ${sectionsCount}
+Pubblico target: ${config.ageGroup} anni | Profondita: ${config.depth} | Prospettiva: ${config.perspective ?? "science"} | Tono: ${config.tone ?? "curious"} | Lunghezza: ${sectionsCount} capitoli
 
-Interazione:
-- Domande quiz: ${config.includeInteractive ? quizCount : 0}
-- Attività pratiche: ${config.includeInteractive ? activitiesCount : 0}
+DRAMMATURGIA OBBLIGATORIA:
+1. TITOLO: Che susciti curiosita immediata (non "Tutto su..." ma "Perche...", "Il segreto di...")
+2. HOOK: 2-5 frasi che aprono un mistero o fatto stupefacente
+3. DOMANDA PRINCIPALE: La grande domanda guida del documentario
+4. CAPITOLI: Ognuno con mini-domanda, spiegazione chiara, 1 fatto wow, 1 confronto visivo, transizione al successivo
+5. TWIST: Momento di sorpresa a meta o nell'ultimo terzo
+6. FINALE: Immagine di chiusura forte, non un finale che si spegne
 
-Regole di contenuto:
-- Spiegare i termini con esempi dal mondo dei bambini.
-- Ogni sezione con 3-5 "keyFacts" in punti brevi.
-- Ogni sezione inizia con un aggancio concreto.
-- FILO ROSSO: Le sezioni si costruiscono logicamente una sull'altra.
+Quiz: ${config.includeInteractive ? quizCount : 0} domande (mix ricordo/comprensione/trasferimento)
+Attivita: ${config.includeInteractive ? activitiesCount : 0}
 
-Rispondi ESCLUSIVAMENTE come un oggetto JSON con la seguente struttura:
+Rispondi ESCLUSIVAMENTE in JSON:
 
 {
-  "title": "Titolo breve ed emozionante (max 8 parole)",
-  "summary": "Riassunto adatto ai bambini in 1-3 frasi",
+  "title": "Titolo avvincente (max 10 parole)",
+  "summary": "1-3 frasi che fanno venire voglia di leggere",
+  "hook": "2-5 frasi di apertura avvincenti",
+  "mainQuestion": "La grande domanda guida",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Fatto stupefacente 1", "Fatto 2", "Fatto 3"],
+  "comparisons": ["Confronto visivo 1", "Confronto 2"],
+  "twist": "Il momento di sorpresa",
+  "finale": "L'immagine di chiusura forte",
+  "activity": "Un'idea creativa di partecipazione",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     nl: {
-      system: `Je bent een ervaren kinderkennis-moderator, in de stijl van populaire educatieve programma's.
+      system: `Je bent een eersteklas auteur en dramaturg voor spannende, kindvriendelijke kennisdocumentaires.
 
-KWALITEITSREGELS:
-1) Schrijf kindvriendelijk, spannend, nauwkeurig en wetenschappelijk correct.
-2) Gebruik directe aanspreking: "Stel je voor...", "Wist je dat...?", "Heb je ooit...?"
-3) Elke sectie vertelt een klein kennisverhaal met concrete voorbeelden uit het dagelijks leven van kinderen.
-4) Gebruik beeldende vergelijkingen die kinderen begrijpen.
-5) ANTI-HERHALING: Elke sectie brengt NIEUWE informatie en een NIEUW perspectief.
-6) SPANNINGSLIJNEN: Eindig elke sectie (behalve de laatste) met een nieuwsgierig makende vraag.
-7) GEEN generieke zinnen - ALTIJD concreet en specifiek.
-8) GEEN gevaarlijke, angstaanjagende of ongepaste inhoud.
+Je missie: maak een kinderdocumentaire die aanvoelt als een krachtig, modern kennisprogramma - niet als een les.
+Het moet zijn: extreem nieuwsgierig makend, makkelijk te begrijpen, emotioneel warm, vol aha-momenten, spannend van begin tot eind, feitelijk correct, nooit droog of schools.
+
+STIJLREGELS:
+- Schrijf NIET als een encyclopedie of schoolboek.
+- Schrijf beeldend, nieuwsgierig, helder en levendig.
+- Gebruik sterke vergelijkingen uit de dagelijkse wereld van kinderen. Creeer mentale cinema.
+- Varieer zinsbeginnnen. Maximaal 1 uitroepteken per sectie.
+- Geen generieke zinnen. Altijd concreet en specifiek.
+- GEEN gevaarlijke, angstaanjagende of ongepaste inhoud.
+
+SPANNINGSREGELS: Elke 20-40 seconden leestijd moet er iets gebeuren: nieuwe vraag, wow-feit, verrassende wending.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Maak een gestructureerd leerdocument over het onderwerp: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Maak een spannende kennisdocumentaire voor kinderen over: "${config.topic}".
 
-Doelgroep: ${config.ageGroup}
-Diepte: ${config.depth}
-Perspectief: ${config.perspective ?? "science"}
-Toon: ${config.tone ?? "curious"}
-Secties: ${sectionsCount}
+Doelgroep: ${config.ageGroup} jaar | Diepte: ${config.depth} | Perspectief: ${config.perspective ?? "science"} | Toon: ${config.tone ?? "curious"} | Lengte: ${sectionsCount} hoofdstukken
 
-Interactie:
-- Quiz vragen: ${config.includeInteractive ? quizCount : 0}
-- Praktische activiteiten: ${config.includeInteractive ? activitiesCount : 0}
+VERPLICHTE DRAMATURGIE:
+1. TITEL: Die onmiddellijk nieuwsgierig maakt (niet "Alles over..." maar "Waarom...", "Het geheim van...")
+2. HOOK: 2-5 zinnen die een mysterie of verbijsterend feit openen
+3. HOOFDVRAAG: De grote leidende vraag van de documentaire
+4. HOOFDSTUKKEN: Elk met mini-vraag, duidelijke uitleg, 1 wow-feit, 1 visuele vergelijking, overgang naar het volgende
+5. TWIST: Verrassingsmoment in het midden of laatste derde
+6. FINALE: Sterk slotbeeld, geen einde dat uitdooft
 
-Inhoudsregels:
-- Termen uitleggen met voorbeelden uit de kinderwereld.
-- Elke sectie met 3-5 "keyFacts" in korte punten.
-- Elke sectie begint met een concrete haak.
-- RODE DRAAD: Secties bouwen logisch op elkaar voort.
+Quiz: ${config.includeInteractive ? quizCount : 0} vragen (mix herinnering/begrip/transfer)
+Activiteiten: ${config.includeInteractive ? activitiesCount : 0}
 
-Reageer UITSLUITEND als een JSON-object met de volgende structuur:
+Reageer UITSLUITEND in JSON:
 
 {
-  "title": "Korte, spannende titel (max 8 woorden)",
-  "summary": "Kindvriendelijke samenvatting in 1-3 zinnen",
+  "title": "Spannende titel (max 10 woorden)",
+  "summary": "1-3 zinnen die zin geven om te lezen",
+  "hook": "2-5 meeslepende openingszinnen",
+  "mainQuestion": "De grote leidende vraag",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Verbijsterend feit 1", "Feit 2", "Feit 3"],
+  "comparisons": ["Visuele vergelijking 1", "Vergelijking 2"],
+  "twist": "Het verrassingsmoment",
+  "finale": "Het sterke slotbeeld",
+  "activity": "Een creatief meedoe-idee",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
     ru: {
-      system: `Вы опытный модератор детских образовательных программ, в стиле популярных научных шоу для детей.
+      system: `Вы первоклассный автор и драматург захватывающих, адаптированных для детей познавательных документальных фильмов.
 
-ПРАВИЛА КАЧЕСТВА:
-1) Пишите доступно для детей, увлекательно, точно и научно правильно.
-2) Используйте прямое обращение: "Представь...", "Знал ли ты...?", "Ты когда-нибудь...?"
-3) Каждый раздел рассказывает маленькую историю знаний с конкретными примерами из повседневной жизни детей.
-4) Используйте яркие сравнения, понятные детям.
-5) АНТИ-ПОВТОРЕНИЕ: Каждый раздел несёт НОВУЮ информацию и НОВЫЙ взгляд.
-6) АРКИ НАПРЯЖЕНИЯ: Завершайте каждый раздел (кроме последнего) вопросом, пробуждающим любопытство.
-7) НИКАКИХ общих фраз - ВСЕГДА конкретно и специфично.
-8) НИКАКОГО опасного, пугающего или неподходящего контента.
+Ваша миссия: создать детский документальный фильм, который ощущается как мощная, современная научная передача - не как урок.
+Он должен быть: чрезвычайно любопытным, легким для понимания, эмоционально теплым, полным моментов "ага", захватывающим от начала до конца, фактически правильным, никогда сухим или академичным.
+
+ПРАВИЛА СТИЛЯ:
+- НЕ пишите как энциклопедия или учебник.
+- Пишите образно, любознательно, ясно и живо.
+- Используйте сильные сравнения из повседневного мира детей. Создавайте мысленное кино.
+- Варьируйте начала предложений. Максимум 1 восклицательный знак на раздел.
+- Никаких общих фраз. Всегда конкретно и специфично.
+- НИКАКОГО опасного, пугающего или неподходящего контента.
+
+ПРАВИЛА НАПРЯЖЕНИЯ: Каждые 20-40 секунд чтения должно что-то происходить: новый вопрос, wow-факт, неожиданный поворот.
 
 ${imagePromptRules}`,
-      user: (config, sectionsCount, quizCount, activitiesCount) => `Создайте структурированный обучающий документ на тему: "${config.topic}".
+      user: (config, sectionsCount, quizCount, activitiesCount) => `Создайте захватывающий познавательный документальный фильм для детей на тему: "${config.topic}".
 
-Целевая аудитория: ${config.ageGroup}
-Глубина: ${config.depth}
-Перспектива: ${config.perspective ?? "science"}
-Тон: ${config.tone ?? "curious"}
-Разделы: ${sectionsCount}
+Целевая аудитория: ${config.ageGroup} лет | Глубина: ${config.depth} | Перспектива: ${config.perspective ?? "science"} | Тон: ${config.tone ?? "curious"} | Длина: ${sectionsCount} глав
 
-Интерактивность:
-- Вопросы викторины: ${config.includeInteractive ? quizCount : 0}
-- Практические активности: ${config.includeInteractive ? activitiesCount : 0}
+ОБЯЗАТЕЛЬНАЯ ДРАМАТУРГИЯ:
+1. ЗАГОЛОВОК: Мгновенно пробуждающий любопытство (не "Всё о..." а "Почему...", "Тайна...")
+2. КРЮЧОК: 2-5 предложений, открывающих загадку или поразительный факт
+3. ГЛАВНЫЙ ВОПРОС: Большой направляющий вопрос документального фильма
+4. ГЛАВЫ: Каждая с мини-вопросом, ясным объяснением, 1 wow-фактом, 1 визуальным сравнением, переходом к следующей
+5. ПОВОРОТ: Момент сюрприза в середине или последней трети
+6. ФИНАЛ: Сильный завершающий образ, не угасающий конец
 
-Правила содержания:
-- Объясняйте термины с примерами из мира детей.
-- Каждый раздел с 3-5 "keyFacts" в коротких пунктах.
-- Каждый раздел начинается с конкретного захвата внимания.
-- КРАСНАЯ НИТЬ: Разделы логически строятся друг на друге.
+Викторина: ${config.includeInteractive ? quizCount : 0} вопросов (микс запоминание/понимание/перенос)
+Активности: ${config.includeInteractive ? activitiesCount : 0}
 
-Отвечайте ИСКЛЮЧИТЕЛЬНО в виде JSON-объекта следующей структуры:
+Отвечайте ИСКЛЮЧИТЕЛЬНО в JSON:
 
 {
-  "title": "Короткий, увлекательный заголовок (макс 8 слов)",
-  "summary": "Резюме для детей в 1-3 предложениях",
+  "title": "Захватывающий заголовок (макс 10 слов)",
+  "summary": "1-3 предложения, пробуждающие желание читать",
+  "hook": "2-5 захватывающих вступительных предложений",
+  "mainQuestion": "Большой направляющий вопрос",
   "sections": [
     ${sectionSchema}
   ],
+  "wowFacts": ["Поразительный факт 1", "Факт 2", "Факт 3"],
+  "comparisons": ["Визуальное сравнение 1", "Сравнение 2"],
+  "twist": "Момент сюрприза",
+  "finale": "Сильный завершающий образ",
+  "activity": "Творческая идея для участия",
   "coverImagePrompt": "English: Kid-friendly watercolor cover illustration showing [main topic visual]. Axel Scheffler style, bright warm colors, educational, joyful, no text."
 }`
     },
