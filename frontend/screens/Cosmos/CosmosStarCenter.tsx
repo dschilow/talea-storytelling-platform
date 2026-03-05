@@ -408,8 +408,8 @@ export const CosmosStarCenter: React.FC<Props> = ({
       />
 
       {/* Ambient fill */}
-      <ambientLight intensity={0.09} color="#b8c4ff" />
-      <hemisphereLight intensity={0.16} color="#a2c6ff" groundColor="#1b112f" />
+      <ambientLight intensity={0.045} color="#9bb3ff" />
+      <hemisphereLight intensity={0.08} color="#95bbff" groundColor="#171129" />
     </group>
   );
 };

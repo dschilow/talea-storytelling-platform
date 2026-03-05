@@ -128,15 +128,10 @@ export function getQualityConfig(preference: CosmosQualityPreference): CosmosQua
 
 export function getTextureSizeForPlanet(
   quality: CosmosQualityConfig,
-  mode: CameraMode,
-  isFocused: boolean
+  _mode: CameraMode,
+  _isFocused: boolean
 ): number {
-  // Hero textures only in detail mode to avoid focus-switch stalls.
-  if (quality.tier === 'aaa' && isFocused && mode === 'detail') {
-    return quality.planetTextureHeroSize;
-  }
-  if (quality.tier === 'standard' && isFocused && mode === 'detail') {
-    return quality.planetTextureHeroSize;
-  }
+  // Keep texture size stable across focus/detail to avoid runtime regeneration stalls.
+  // Detail sharpness comes from stronger biome contrast + higher geometry segments.
   return quality.planetTextureBaseSize;
 }

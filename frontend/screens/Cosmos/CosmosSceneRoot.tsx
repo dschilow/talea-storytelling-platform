@@ -82,6 +82,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
   const domainPositionMapRef = useRef<Map<string, [number, number, number]>>(new Map());
+  const topicTimelineCacheRef = useRef<Map<string, TopicTimelineDTO>>(new Map());
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -109,12 +110,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
     [cosmosState.domains]
   );
-  const visibleDomains = useMemo(() => {
-    if (cameraMode === 'detail' && focusedDomainId) {
-      return sceneDomains.filter((domain) => domain.id === focusedDomainId);
-    }
-    return sceneDomains;
-  }, [cameraMode, focusedDomainId, sceneDomains]);
+  const visibleDomains = sceneDomains;
 
   const focusedDomain = focusedDomainId
     ? getDomainById(focusedDomainId, sceneDomains) ?? null
@@ -301,7 +297,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     let active = true;
 
     async function loadDomainTopics() {
-      if (!focusedDomainId || cameraMode === 'system' || compact) return;
+      if (!focusedDomainId || compact) return;
       setIsLoadingTopics(true);
       try {
         const token = await getToken();
@@ -336,16 +332,24 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     return () => {
       active = false;
     };
-  }, [activeAvatarId, activeChildId, cameraMode, compact, focusedDomainId, getToken]);
+  }, [activeAvatarId, activeChildId, compact, focusedDomainId, getToken]);
 
   useEffect(() => {
     let active = true;
 
     async function loadTopicTimeline() {
-      if (!selectedTopic || cameraMode !== 'detail' || compact) {
+      if (!selectedTopic || compact) {
         if (active) setSelectedTopicTimeline(null);
         return;
       }
+      if (cameraMode !== 'detail') return;
+
+      const cachedTimeline = topicTimelineCacheRef.current.get(selectedTopic.topicId);
+      if (cachedTimeline) {
+        if (active) setSelectedTopicTimeline(cachedTimeline);
+        return;
+      }
+
       setIsLoadingTopicTimeline(true);
       try {
         const token = await getToken();
@@ -358,6 +362,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           { token }
         );
         if (!active) return;
+        topicTimelineCacheRef.current.set(selectedTopic.topicId, timeline);
         setSelectedTopicTimeline(timeline);
       } catch (error) {
         if (!active) return;
@@ -474,6 +479,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       >
         <Suspense fallback={null}>
           <fog attach="fog" args={['#060715', 44, 130]} />
+          <directionalLight position={[12, 7, 9]} intensity={0.2} color="#fff4dd" />
+          <directionalLight position={[-10, -4, -11]} intensity={0.07} color="#7ea9ff" />
 
           {quality.useHdri && (
             quality.hdriFile ? (

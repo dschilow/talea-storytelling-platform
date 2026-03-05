@@ -50,8 +50,8 @@ function getCachedPlanetMaps(
   textureSize: number
 ): PlanetMapSet {
   const quantizedDetail = Math.round(detailFactor * 4) / 4;
-  // Version 2 cache buster to force re-render with nightMaps and new structure
-  const key = `V2|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
+  // Version 3 cache buster to force re-render with stronger biome separation.
+  const key = `V3|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
   const existing = PLANET_MAP_CACHE.get(key);
   if (existing) return existing;
   const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
@@ -205,30 +205,29 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         color: new THREE.Color('#ffffff'),
         map: maps.surfaceMap,
         bumpMap: maps.bumpMap,
-        // Massive bumpScale for dramatic terrain (craters, mountains, ridges)
-        bumpScale: 0.45 + visuals.surfaceDetail * 0.75,
+        // Strong relief so mountains/coasts are readable even on mobile screens.
+        bumpScale: 0.62 + visuals.surfaceDetail * 0.95,
         roughnessMap: maps.roughnessMap,
         roughness:
           progress.stage === 'discovered'
-            ? 0.86
-            : Math.max(0.16, 0.68 - visuals.surfaceDetail * 0.34),
+            ? 0.92
+            : Math.max(0.22, 0.74 - visuals.surfaceDetail * 0.4),
         metalness: 0.015 + visuals.developmentLevel * 0.03,
         clearcoat:
           progress.stage === 'discovered'
-            ? 0.04
-            : 0.13 + visuals.developmentLevel * 0.42,
+            ? 0.02
+            : 0.09 + visuals.developmentLevel * 0.34,
         clearcoatRoughness:
           progress.stage === 'discovered'
-            ? 0.78
-            : 0.4 - visuals.developmentLevel * 0.16,
+            ? 0.85
+            : 0.48 - visuals.developmentLevel * 0.14,
         // Night lights via emissive map (city lights, lava, crystals)
         emissiveMap: maps.nightMap,
         emissive: new THREE.Color('#ffffff'),
-        // Massive reduction to ensure the day-side stays day-side
-        emissiveIntensity: 0.04,
-        envMapIntensity: 0.46 + visuals.developmentLevel * 0.56,
-        sheen: 0.3 + visuals.developmentLevel * 0.4,
-        sheenRoughness: 0.6,
+        emissiveIntensity: 0.018,
+        envMapIntensity: 0.26 + visuals.developmentLevel * 0.34,
+        sheen: 0.12 + visuals.developmentLevel * 0.26,
+        sheenRoughness: 0.72,
         sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
         iridescence: visuals.developmentLevel * 0.15,
         iridescenceIOR: 1.3,
@@ -293,7 +292,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   // Life particles disabled - too noisy for a clean space aesthetic
   const activeLifeParticles = 0;
-  const shouldShowIslands = isFocused && cameraMode === 'focus';
+  const shouldShowIslands = isFocused && (cameraMode === 'focus' || cameraMode === 'detail');
   const visibleIslands = useMemo(
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
     [islands, shouldShowIslands]
@@ -344,10 +343,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
   const baseRadius = 0.52;
-  const isDetailView = cameraMode === 'detail' && isFocused;
-  const planetSegments = isDetailView ? 128 : 96;
-  const cloudSegments = isDetailView ? 96 : 64;
-  const atmosphereSegments = isDetailView ? 160 : 128;
+  // Keep geometry resolution stable to avoid focus <-> detail hitching.
+  const planetSegments = 96;
+  const cloudSegments = 72;
+  const atmosphereSegments = 128;
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
@@ -580,11 +579,15 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
       <group ref={islandAnchorRef}>
         {visibleIslands.map((topic, index) => {
+          const topicOrbitRadius =
+            cameraMode === 'detail'
+              ? baseRadius * visuals.scale * 2.45
+              : baseRadius * visuals.scale * 3.2;
           const pos = latLonToPlanetPosition(
             topic.lat,
             topic.lon,
-            // Keep topic markers clearly separated from planet surface.
-            baseRadius * visuals.scale * 3.2
+            // Keep topic markers clearly separated while still visible in detail view.
+            topicOrbitRadius
           );
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
@@ -797,33 +800,41 @@ function createPlanetMaps(
       const altitude = clamp01((n1 * profile.heightWeight + ridge * profile.ridgeWeight) * 1.4 - 0.2);
 
       const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
+      const latitude = Math.abs(ny * 2 - 1);
+      const climateBand = 1 - smoothstep(0.68, 0.98, latitude);
       const tectonicNoise = fbm2D(nx * 1.5, ny * 1.5, seed + 219, 5);
       const archipelagoNoise = fbm2D(nx * 3.8, ny * 3.8, seed + 577, 3);
-      const continentalBase = smoothstep(0.43, 0.62, tectonicNoise);
-      const archipelagoBase = smoothstep(0.6, 0.76, archipelagoNoise);
+      const continentalSignal = tectonicNoise * 0.68 + archipelagoNoise * 0.32;
+      const continentalBase = smoothstep(0.5, 0.76, continentalSignal + (altitude - 0.5) * 0.14);
+      const erosionNoise = fbm2D(nx * 7.2, ny * 7.2, seed + 887, 3);
+      const erosionCut = smoothstep(0.38, 0.74, erosionNoise);
       const regionMask = hasContinents
-        ? clamp01(continentalBase * 0.82 + archipelagoBase * 0.32 + (altitude - 0.5) * 0.16)
+        ? clamp01(continentalBase - erosionCut * 0.24 + (0.48 - latitude) * 0.06)
         : 0;
 
       const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
       const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
-      const mountainMask = hasContinents ? regionMask * smoothstep(0.56, 0.9, altitude + ridge * 0.14) : 0;
+      const mountainMask = hasContinents
+        ? regionMask * smoothstep(0.54, 0.88, altitude + ridge * 0.22 + micro * 0.06)
+        : 0;
       const oceanMask = hasContinents ? clamp01(1 - regionMask) : 0;
       const shallowOceanMask = hasContinents
-        ? clamp01(oceanMask * smoothstep(0.3, 0.68, 1 - altitude) * 0.75)
+        ? clamp01(oceanMask * smoothstep(0.24, 0.74, 1 - altitude + ridge * 0.09))
         : 0;
-      const deepOceanMask = hasContinents ? clamp01(oceanMask - shallowOceanMask) : 0;
-      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.46) : 0;
+      const deepOceanMask = hasContinents
+        ? clamp01(oceanMask * smoothstep(0.36, 0.82, 1 - altitude + ridge * 0.18))
+        : 0;
+      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.52) : 0;
       const coastMask = hasContinents
         ? clamp01(
-            smoothstep(0.36, 0.66, 1 - Math.abs(regionMask - 0.5) * 2) *
-            (0.52 + (1 - altitude) * 0.3)
+            smoothstep(0.32, 0.66, 1 - Math.abs(regionMask - 0.5) * 2) *
+            (0.46 + (1 - altitude) * 0.34)
           )
         : 0;
 
       const shade = profile.shadeMin + altitude * profile.shadeRange;
       const tint = profile.tintBase + n2 * profile.tintRange;
-      const structureBoost = 0.85 + altitude * 0.6;
+      const structureBoost = 0.74 + altitude * 0.82 + ridge * 0.18;
 
       if (hasContinents) {
         const weightSum = Math.max(
@@ -851,10 +862,29 @@ function createPlanetMaps(
             biomePalette.mountain[2] * mountainMask +
             biomePalette.coast[2] * coastMask * 0.42) /
           weightSum;
+        const oceanContrast = 0.84 + deepOceanMask * 0.24 + shallowOceanMask * 0.14;
+        const landContrast = 0.92 + landMask * 0.2 + coastMask * 0.18 + climateBand * 0.06;
+        const mountainContrast = 1 + mountainMask * 0.35;
+        const terrainContrast =
+          0.9 +
+          (oceanContrast * oceanMask + landContrast * landMask + mountainContrast * mountainMask + coastMask * 0.3) *
+            0.45;
 
-        surfaceData.data[i] = clamp255(rBiome * shade * tint * structureBoost);
-        surfaceData.data[i + 1] = clamp255(gBiome * shade * (profile.greenShift + n1 * 0.14) * structureBoost);
-        surfaceData.data[i + 2] = clamp255(bBiome * shade * (profile.blueShift + ridge * 0.16) * structureBoost);
+        surfaceData.data[i] = clamp255(rBiome * shade * tint * structureBoost * terrainContrast);
+        surfaceData.data[i + 1] = clamp255(
+          gBiome *
+            shade *
+            (profile.greenShift + n1 * 0.11 - deepOceanMask * 0.16 + landMask * 0.06) *
+            structureBoost *
+            terrainContrast
+        );
+        surfaceData.data[i + 2] = clamp255(
+          bBiome *
+            shade *
+            (profile.blueShift + ridge * 0.1 + deepOceanMask * 0.38 + shallowOceanMask * 0.2) *
+            structureBoost *
+            terrainContrast
+        );
       } else {
         surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost);
         surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost);
@@ -862,7 +892,14 @@ function createPlanetMaps(
       }
       surfaceData.data[i + 3] = 255;
 
-      const bump = clamp255(altitude * 255);
+      const terrainHeight = clamp01(
+        altitude * 0.58 +
+          mountainMask * 0.72 +
+          ridge * 0.22 -
+          deepOceanMask * 0.24 +
+          coastMask * 0.08
+      );
+      const bump = clamp255(terrainHeight * 255);
       bumpData.data[i] = bump;
       bumpData.data[i + 1] = bump;
       bumpData.data[i + 2] = bump;
@@ -874,10 +911,10 @@ function createPlanetMaps(
           ridge * 0.52 +
           n1 * 0.16 +
           micro * 0.1 -
-          regionMask * 0.09 -
+          regionMask * 0.12 -
           gasBand * 0.12 +
-          mountainMask * 0.08 -
-          deepOceanMask * 0.16
+          mountainMask * 0.12 -
+          deepOceanMask * 0.24
         ) * 255
       );
       roughData.data[i] = rough;
@@ -931,7 +968,7 @@ function createPlanetMaps(
   [surfaceMap, bumpMap, roughnessMap, cloudMap, nightMap].forEach((texture) => {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1.25, 1.25);
+    texture.repeat.set(1, 1);
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = true;
