@@ -7,7 +7,7 @@
  * - detail: close inspection of selected planet
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -17,6 +17,7 @@ interface Props {
   mode: CameraMode;
   focusedDomain?: CosmosDomain | null;
   focusedPosition?: [number, number, number] | null;
+  onTransitionStateChange?: (isTransitioning: boolean) => void;
 }
 
 const SYSTEM_POS = new THREE.Vector3(16, 9, 30);
@@ -26,6 +27,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   mode,
   focusedDomain,
   focusedPosition,
+  onTransitionStateChange,
 }) => {
   const controlsRef = useRef<any>(null);
   const { camera, size } = useThree();
@@ -40,6 +42,13 @@ export const CosmosCameraController: React.FC<Props> = ({
   const cinematicDuration = useRef(1.0);
   const shotFrom = useRef(new THREE.Vector3());
   const shotTo = useRef(new THREE.Vector3());
+  const transitionStateRef = useRef(false);
+
+  const reportTransitionState = useCallback((next: boolean) => {
+    if (transitionStateRef.current === next) return;
+    transitionStateRef.current = next;
+    onTransitionStateChange?.(next);
+  }, [onTransitionStateChange]);
 
   useEffect(() => {
     if ((mode === 'focus' || mode === 'detail') && focusedDomain) {
@@ -78,6 +87,7 @@ export const CosmosCameraController: React.FC<Props> = ({
       isCinematic.current = true;
       isAnimating.current = true;
       setAutoRotateEnabled(false);
+      reportTransitionState(true);
       return;
     }
 
@@ -87,7 +97,8 @@ export const CosmosCameraController: React.FC<Props> = ({
     cinematicStart.current = null;
     isAnimating.current = true;
     setAutoRotateEnabled(true);
-  }, [camera, focusedDomain, focusedPosition, mode, size.height, size.width]);
+    reportTransitionState(true);
+  }, [camera, focusedDomain, focusedPosition, mode, reportTransitionState, size.height, size.width]);
 
   useFrame(({ clock }) => {
     if ((mode === 'focus' || mode === 'detail') && isCinematic.current) {
@@ -110,6 +121,7 @@ export const CosmosCameraController: React.FC<Props> = ({
 
       if (t >= 1) {
         isCinematic.current = false;
+        reportTransitionState(false);
       }
       return;
     }
@@ -119,6 +131,7 @@ export const CosmosCameraController: React.FC<Props> = ({
         controlsRef.current.enabled = true;
         controlsRef.current.update();
       }
+      reportTransitionState(false);
       return;
     }
 
@@ -137,6 +150,7 @@ export const CosmosCameraController: React.FC<Props> = ({
       currentLookAt.current.distanceTo(targetLookAt.current) < 0.04
     ) {
       isAnimating.current = false;
+      reportTransitionState(false);
     }
   });
 
@@ -177,6 +191,7 @@ export const CosmosCameraController: React.FC<Props> = ({
       onStart={() => {
         isAnimating.current = false;
         isCinematic.current = false;
+        reportTransitionState(false);
         if (controlsRef.current) {
           const activeTarget = controlsRef.current.target as THREE.Vector3;
           currentLookAt.current.copy(activeTarget);

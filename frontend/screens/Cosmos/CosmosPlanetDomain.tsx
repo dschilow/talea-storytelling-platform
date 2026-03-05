@@ -21,6 +21,7 @@ interface Props {
   domain: CosmosDomain;
   progress: DomainProgress;
   isFocused: boolean;
+  isTransitioning?: boolean;
   cameraMode?: CameraMode;
   islands?: TopicIsland[];
   selectedTopicId?: string | null;
@@ -170,6 +171,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
   progress,
   isFocused,
+  isTransitioning = false,
   cameraMode = 'system',
   islands = [],
   selectedTopicId = null,
@@ -404,7 +406,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   // Life particles disabled - too noisy for a clean space aesthetic
   const activeLifeParticles = 0;
-  const shouldShowIslands = isFocused && (cameraMode === 'focus' || cameraMode === 'detail');
+  const shouldShowIslands =
+    isFocused &&
+    (cameraMode === 'focus' || cameraMode === 'detail') &&
+    !isTransitioning;
+  const renderDetailedIslandMeshes = cameraMode === 'detail' && !isTransitioning;
   const visibleIslands = useMemo(
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
     [islands, shouldShowIslands]
@@ -854,85 +860,111 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 document.body.style.cursor = 'auto';
               }}
             >
-              <group rotation={[markerTilt, index * 0.7, -markerTilt * 0.6]}>
-                <mesh>
-                  <cylinderGeometry args={[bodyRadius, bodyRadius, bodyLength, 20]} />
-                  <meshStandardMaterial map={satMetalTex} roughness={0.4} metalness={0.85} />
-                </mesh>
+              {renderDetailedIslandMeshes ? (
+                <group rotation={[markerTilt, index * 0.7, -markerTilt * 0.6]}>
+                  <mesh>
+                    <cylinderGeometry args={[bodyRadius, bodyRadius, bodyLength, 20]} />
+                    <meshStandardMaterial map={satMetalTex} roughness={0.4} metalness={0.85} />
+                  </mesh>
 
-                <mesh position={[0, bodyLength * 0.66, 0]}>
-                  <coneGeometry args={[bodyRadius * 1.02, bodyLength * 0.42, 18]} />
-                  <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.8} />
-                </mesh>
+                  <mesh position={[0, bodyLength * 0.66, 0]}>
+                    <coneGeometry args={[bodyRadius * 1.02, bodyLength * 0.42, 18]} />
+                    <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.8} />
+                  </mesh>
 
-                <mesh position={[0, -bodyLength * 0.66, 0]}>
-                  <cylinderGeometry args={[bodyRadius * 0.62, bodyRadius * 0.48, bodyLength * 0.34, 16]} />
-                  <meshStandardMaterial map={satGoldTex} roughness={0.35} metalness={0.92} />
-                </mesh>
+                  <mesh position={[0, -bodyLength * 0.66, 0]}>
+                    <cylinderGeometry args={[bodyRadius * 0.62, bodyRadius * 0.48, bodyLength * 0.34, 16]} />
+                    <meshStandardMaterial map={satGoldTex} roughness={0.35} metalness={0.92} />
+                  </mesh>
 
-                <mesh position={[0, bodyLength * 0.2, bodyRadius * 1.02]}>
-                  <torusGeometry args={[bodyRadius * 1.06, bodyRadius * 0.03, 8, 28]} />
-                  <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
-                </mesh>
+                  <mesh position={[0, bodyLength * 0.2, bodyRadius * 1.02]}>
+                    <torusGeometry args={[bodyRadius * 1.06, bodyRadius * 0.03, 8, 28]} />
+                    <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
+                  </mesh>
 
-                <mesh position={[0, -bodyLength * 0.08, bodyRadius * 1.02]}>
-                  <torusGeometry args={[bodyRadius * 1.05, bodyRadius * 0.028, 8, 28]} />
-                  <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
-                </mesh>
+                  <mesh position={[0, -bodyLength * 0.08, bodyRadius * 1.02]}>
+                    <torusGeometry args={[bodyRadius * 1.05, bodyRadius * 0.028, 8, 28]} />
+                    <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
+                  </mesh>
 
-                <mesh position={[panelOffsetX, 0, 0]}>
-                  <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
-                  <meshStandardMaterial
-                    map={satSolarTex}
-                    emissive={markerColor}
-                    emissiveIntensity={0.14}
-                    roughness={0.56}
-                    metalness={0.72}
-                  />
-                </mesh>
+                  <mesh position={[panelOffsetX, 0, 0]}>
+                    <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
+                    <meshStandardMaterial
+                      map={satSolarTex}
+                      emissive={markerColor}
+                      emissiveIntensity={0.14}
+                      roughness={0.56}
+                      metalness={0.72}
+                    />
+                  </mesh>
 
-                <mesh position={[-panelOffsetX, 0, 0]}>
-                  <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
-                  <meshStandardMaterial
-                    map={satSolarTex}
-                    emissive={markerColor}
-                    emissiveIntensity={0.14}
-                    roughness={0.56}
-                    metalness={0.72}
-                  />
-                </mesh>
+                  <mesh position={[-panelOffsetX, 0, 0]}>
+                    <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
+                    <meshStandardMaterial
+                      map={satSolarTex}
+                      emissive={markerColor}
+                      emissiveIntensity={0.14}
+                      roughness={0.56}
+                      metalness={0.72}
+                    />
+                  </mesh>
 
-                <mesh position={[0, bodyLength * 1.03, 0]}>
-                  <cylinderGeometry args={[dishRadius * 0.22, dishRadius * 0.22, r * 0.45, 12]} />
-                  <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.82} />
-                </mesh>
+                  <mesh position={[0, bodyLength * 1.03, 0]}>
+                    <cylinderGeometry args={[dishRadius * 0.22, dishRadius * 0.22, r * 0.45, 12]} />
+                    <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.82} />
+                  </mesh>
 
-                <mesh position={[0, bodyLength * 1.24, 0]} rotation={[Math.PI, 0, 0]}>
-                  <cylinderGeometry args={[dishRadius, dishRadius * 0.25, dishDepth, 24, 1, false]} />
-                  <meshStandardMaterial color='#f3f4f6' roughness={0.28} metalness={0.62} side={THREE.DoubleSide} />
-                </mesh>
+                  <mesh position={[0, bodyLength * 1.24, 0]} rotation={[Math.PI, 0, 0]}>
+                    <cylinderGeometry args={[dishRadius, dishRadius * 0.25, dishDepth, 24, 1, false]} />
+                    <meshStandardMaterial color='#f3f4f6' roughness={0.28} metalness={0.62} side={THREE.DoubleSide} />
+                  </mesh>
 
-                <mesh position={[0, bodyLength * 0.02, bodyRadius * 1.36]}>
-                  <planeGeometry args={[r * 1.08, r * 1.08]} />
-                  <meshBasicMaterial
-                    map={markerTexture}
-                    transparent
-                    opacity={0.9}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
+                  <mesh position={[0, bodyLength * 0.02, bodyRadius * 1.36]}>
+                    <planeGeometry args={[r * 1.08, r * 1.08]} />
+                    <meshBasicMaterial
+                      map={markerTexture}
+                      transparent
+                      opacity={0.9}
+                      depthWrite={false}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
 
-                <Sphere args={[r * 0.24, 12, 12]} position={[0, -bodyLength * 0.82, 0]}>
-                  <meshBasicMaterial
-                    color={markerColor}
-                    transparent
-                    opacity={0.9}
-                    depthWrite={false}
-                    blending={THREE.AdditiveBlending}
-                  />
-                </Sphere>
-              </group>
+                  <Sphere args={[r * 0.24, 12, 12]} position={[0, -bodyLength * 0.82, 0]}>
+                    <meshBasicMaterial
+                      color={markerColor}
+                      transparent
+                      opacity={0.9}
+                      depthWrite={false}
+                      blending={THREE.AdditiveBlending}
+                    />
+                  </Sphere>
+                </group>
+              ) : (
+                <group>
+                  <Sphere args={[r * 0.8, 14, 14]}>
+                    <meshStandardMaterial
+                      map={markerTexture}
+                      color="#eef2ff"
+                      roughness={0.46}
+                      metalness={0.12}
+                      emissive={markerColor}
+                      emissiveIntensity={0.1}
+                    />
+                  </Sphere>
+                  <mesh rotation={[Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[r * 1.2, r * 1.45, 32]} />
+                    <meshBasicMaterial
+                      color={markerColor}
+                      transparent
+                      opacity={0.46}
+                      depthWrite={false}
+                      blending={THREE.AdditiveBlending}
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                </group>
+              )}
 
               {isSelected && (
                 <Billboard follow>

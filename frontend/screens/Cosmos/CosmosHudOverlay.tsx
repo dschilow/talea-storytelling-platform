@@ -17,6 +17,7 @@ interface Props {
   isLoadingTopics?: boolean;
   isLoadingTopicTimeline?: boolean;
   isVisible: boolean;
+  isTransitioning?: boolean;
   isDetailMode?: boolean;
   onClose: () => void;
   onOpenDetail: () => void;
@@ -40,6 +41,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   isLoadingTopics = false,
   isLoadingTopicTimeline = false,
   isVisible,
+  isTransitioning = false,
   isDetailMode = false,
   onClose,
   onOpenDetail,
@@ -67,7 +69,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const dueRecall =
     selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
     null;
-  const showTopicInsights = isDetailMode;
+  const showTopicInsights = isDetailMode && !isTransitioning;
   const bottomInset = isDetailMode
     ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
     : "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";

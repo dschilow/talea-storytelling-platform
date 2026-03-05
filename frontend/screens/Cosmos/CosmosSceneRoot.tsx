@@ -91,6 +91,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
   const [pulseNonce, setPulseNonce] = useState(0);
   const [transitionFadeKey, setTransitionFadeKey] = useState(0);
+  const [isCameraTransitioning, setIsCameraTransitioning] = useState(false);
   const [forceStandardQuality, setForceStandardQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
@@ -347,6 +348,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
   useEffect(() => {
     let active = true;
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function loadDomainTopics() {
       if (!focusedDomainId || compact) return;
@@ -380,14 +382,22 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       }
     }
 
-    void loadDomainTopics();
+    if (focusedDomainId && !compact) {
+      loadTimer = setTimeout(() => {
+        if (!active) return;
+        void loadDomainTopics();
+      }, 220);
+    }
+
     return () => {
       active = false;
+      if (loadTimer) clearTimeout(loadTimer);
     };
   }, [activeAvatarId, activeChildId, compact, focusedDomainId, getToken]);
 
   useEffect(() => {
     let active = true;
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function loadTopicTimeline() {
       if (!selectedTopic || compact) {
@@ -425,9 +435,14 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       }
     }
 
-    void loadTopicTimeline();
+    loadTimer = setTimeout(() => {
+      if (!active) return;
+      void loadTopicTimeline();
+    }, 180);
+
     return () => {
       active = false;
+      if (loadTimer) clearTimeout(loadTimer);
     };
   }, [activeAvatarId, activeChildId, cameraMode, compact, getToken, selectedTopic]);
 
@@ -592,6 +607,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               domain={domain}
               progress={getProgress(domain.id)}
               isFocused={focusedDomainId === domain.id}
+              isTransitioning={isCameraTransitioning}
               cameraMode={cameraMode}
               islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
@@ -604,11 +620,12 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           ))}
 
           {!compact && (
-            <CosmosCameraController
-              mode={cameraMode}
-              focusedDomain={focusedDomain}
-              focusedPosition={focusedPosition}
-            />
+          <CosmosCameraController
+            mode={cameraMode}
+            focusedDomain={focusedDomain}
+            focusedPosition={focusedPosition}
+            onTransitionStateChange={setIsCameraTransitioning}
+          />
           )}
 
           {!compact && effectsEnabled && quality.enableBloom && (
@@ -652,6 +669,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           isLoadingTopics={isLoadingTopics}
           isLoadingTopicTimeline={isLoadingTopicTimeline}
           isVisible={cameraMode === 'focus' || cameraMode === 'detail'}
+          isTransitioning={isCameraTransitioning}
           isDetailMode={cameraMode === 'detail'}
           onClose={handleResetFocus}
           onOpenDetail={handleOpenDetail}
