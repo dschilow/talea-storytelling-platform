@@ -50,8 +50,8 @@ function getCachedPlanetMaps(
   textureSize: number
 ): PlanetMapSet {
   const quantizedDetail = Math.round(detailFactor * 4) / 4;
-  // Version 3 cache buster to force re-render with stronger biome separation.
-  const key = `V3|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
+  // Version 4: interpolated value noise for coherent continents/oceans.
+  const key = `V4|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
   const existing = PLANET_MAP_CACHE.get(key);
   if (existing) return existing;
   const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
@@ -802,12 +802,16 @@ function createPlanetMaps(
       const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
       const latitude = Math.abs(ny * 2 - 1);
       const climateBand = 1 - smoothstep(0.68, 0.98, latitude);
-      const tectonicNoise = fbm2D(nx * 1.5, ny * 1.5, seed + 219, 5);
-      const archipelagoNoise = fbm2D(nx * 3.8, ny * 3.8, seed + 577, 3);
-      const continentalSignal = tectonicNoise * 0.68 + archipelagoNoise * 0.32;
-      const continentalBase = smoothstep(0.5, 0.76, continentalSignal + (altitude - 0.5) * 0.14);
-      const erosionNoise = fbm2D(nx * 7.2, ny * 7.2, seed + 887, 3);
-      const erosionCut = smoothstep(0.38, 0.74, erosionNoise);
+      // Large-scale tectonic plates → big coherent continents
+      const tectonicNoise = fbm2D(nx * 2.6, ny * 2.6, seed + 219, 5);
+      // Mid-scale archipelago chains and peninsulas
+      const archipelagoNoise = fbm2D(nx * 5.5, ny * 5.5, seed + 577, 4);
+      // Fine coastline detail
+      const coastDetail = fbm2D(nx * 12.0, ny * 12.0, seed + 743, 3);
+      const continentalSignal = tectonicNoise * 0.58 + archipelagoNoise * 0.28 + coastDetail * 0.14;
+      const continentalBase = smoothstep(0.42, 0.62, continentalSignal + (altitude - 0.5) * 0.18);
+      const erosionNoise = fbm2D(nx * 8.5, ny * 8.5, seed + 887, 3);
+      const erosionCut = smoothstep(0.42, 0.78, erosionNoise);
       const regionMask = hasContinents
         ? clamp01(continentalBase - erosionCut * 0.24 + (0.48 - latitude) * 0.06)
         : 0;
@@ -815,20 +819,21 @@ function createPlanetMaps(
       const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
       const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
       const mountainMask = hasContinents
-        ? regionMask * smoothstep(0.54, 0.88, altitude + ridge * 0.22 + micro * 0.06)
+        ? regionMask * smoothstep(0.48, 0.82, altitude + ridge * 0.28 + micro * 0.08)
         : 0;
       const oceanMask = hasContinents ? clamp01(1 - regionMask) : 0;
       const shallowOceanMask = hasContinents
-        ? clamp01(oceanMask * smoothstep(0.24, 0.74, 1 - altitude + ridge * 0.09))
+        ? clamp01(oceanMask * smoothstep(0.18, 0.58, 1 - altitude + ridge * 0.12))
         : 0;
       const deepOceanMask = hasContinents
-        ? clamp01(oceanMask * smoothstep(0.36, 0.82, 1 - altitude + ridge * 0.18))
+        ? clamp01(oceanMask * smoothstep(0.32, 0.72, 1 - altitude + ridge * 0.22))
         : 0;
-      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.52) : 0;
+      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.56) : 0;
+      // Coastal fringe: narrow band where land meets ocean
       const coastMask = hasContinents
         ? clamp01(
-            smoothstep(0.32, 0.66, 1 - Math.abs(regionMask - 0.5) * 2) *
-            (0.46 + (1 - altitude) * 0.34)
+            smoothstep(0.22, 0.52, 1 - Math.abs(regionMask - 0.5) * 2) *
+            (0.52 + (1 - altitude) * 0.38)
           )
         : 0;
 
@@ -1347,9 +1352,33 @@ function fbm2D(x: number, y: number, seed: number, octaves: number): number {
   return max > 0 ? value / max : 0;
 }
 
-function noise2D(x: number, y: number, seed: number): number {
-  const n = Math.sin(x * 127.1 + y * 311.7 + seed * 0.037) * 43758.5453123;
+// Fast integer hash for grid corners
+function hash2D(ix: number, iy: number, seed: number): number {
+  const n = Math.sin(ix * 127.1 + iy * 311.7 + seed * 0.037) * 43758.5453123;
   return n - Math.floor(n);
+}
+
+// Interpolated value noise — produces smooth, coherent shapes (continents, mountains)
+function noise2D(x: number, y: number, seed: number): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const fx = x - ix;
+  const fy = y - iy;
+
+  // Hermite smoothstep for C1-continuous interpolation
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+
+  // Hash four grid corners
+  const n00 = hash2D(ix, iy, seed);
+  const n10 = hash2D(ix + 1, iy, seed);
+  const n01 = hash2D(ix, iy + 1, seed);
+  const n11 = hash2D(ix + 1, iy + 1, seed);
+
+  // Bilinear interpolation
+  const nx0 = n00 + sx * (n10 - n00);
+  const nx1 = n01 + sx * (n11 - n01);
+  return nx0 + sy * (nx1 - nx0);
 }
 
 function clamp255(value: number): number {
