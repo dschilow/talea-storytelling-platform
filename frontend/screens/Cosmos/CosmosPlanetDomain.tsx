@@ -304,8 +304,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
     [islands, shouldShowIslands]
   );
-  // Moons only appear when at least 2 topics are explored, fading in as the user progresses
-  const topicMoonCount = Math.min(MAX_TOPIC_MOONS, Math.max(0, (progress.topicsExplored || 0) - 1));
+  // Topic moons only unlock with planet evolution (stage/level gating from mapper),
+  // never directly from early topic count alone.
+  const topicMoonCount = Math.min(
+    MAX_TOPIC_MOONS,
+    Math.min(visuals.stageMoonCount, Math.max(0, (progress.topicsExplored || 0) - 1))
+  );
   const topicMoonSeeds = useMemo(
     () =>
       Array.from({ length: topicMoonCount }, (_, index) => {
@@ -586,7 +590,8 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           const pos = latLonToPlanetPosition(
             topic.lat,
             topic.lon,
-            baseRadius * visuals.scale * 1.12
+            // Keep topic markers clearly separated from planet surface.
+            baseRadius * visuals.scale * 1.82
           );
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
