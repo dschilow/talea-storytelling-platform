@@ -5,7 +5,7 @@
  * Shows the full 3D solar system with HUD overlay.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,11 @@ const CosmosScreen: React.FC = () => {
   const { cosmosState, isLoading, activeAvatarId, activeChildId } = useCosmosState();
   const [cameraMode, setCameraMode] = useState<CameraMode>('system');
   const [hasFocusedDomain, setHasFocusedDomain] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+
+  useEffect(() => {
+    setSceneReady(false);
+  }, [activeAvatarId, activeChildId]);
 
   return (
     <div
@@ -85,7 +90,21 @@ const CosmosScreen: React.FC = () => {
             onCameraModeChange={setCameraMode}
             onFocusAvailabilityChange={setHasFocusedDomain}
             showInternalModeTabs={false}
+            onSceneReady={() => setSceneReady(true)}
           />
+        )}
+
+        {!isLoading && !sceneReady && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/15 bg-black/45 px-5 py-4">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                className="h-7 w-7 rounded-full border-2 border-white/70 border-t-transparent"
+              />
+              <p className="text-xs font-semibold text-white/80">Lernkosmos wird geladen...</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

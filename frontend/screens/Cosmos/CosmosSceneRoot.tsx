@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
@@ -50,6 +50,7 @@ interface Props {
   onCameraModeChange?: (mode: CameraMode) => void;
   onFocusAvailabilityChange?: (hasFocusedDomain: boolean) => void;
   showInternalModeTabs?: boolean;
+  onSceneReady?: () => void;
 }
 
 const emptyProgress = (domainId: string): DomainProgress => ({
@@ -72,6 +73,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   onCameraModeChange,
   onFocusAvailabilityChange,
   showInternalModeTabs = true,
+  onSceneReady,
 }) => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -91,6 +93,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
   const domainPositionMapRef = useRef<Map<string, [number, number, number]>>(new Map());
   const topicTimelineCacheRef = useRef<Map<string, TopicTimelineDTO>>(new Map());
+  const lastAppliedModeOverrideRef = useRef<CameraMode | null>(null);
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -178,9 +181,12 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     onCameraModeChange?.(cameraMode);
   }, [cameraMode, onCameraModeChange]);
 
+  // Apply external mode overrides only when the override value changes.
+  // This prevents accidental focus reset after internal planet click transitions.
   useEffect(() => {
     if (!cameraModeOverride) return;
-    if (cameraModeOverride === cameraMode) return;
+    if (lastAppliedModeOverrideRef.current === cameraModeOverride) return;
+    lastAppliedModeOverrideRef.current = cameraModeOverride;
 
     if (cameraModeOverride === 'system') {
       handleResetFocus();
@@ -189,7 +195,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
     if (!focusedDomainId) return;
     setCameraMode(cameraModeOverride);
-  }, [cameraMode, cameraModeOverride, focusedDomainId, handleResetFocus]);
+  }, [cameraModeOverride, focusedDomainId, handleResetFocus]);
 
   const handleSelectStar = useCallback(() => {
     if (compact) {
@@ -548,6 +554,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             opacity={0.45}
           />
 
+          {onSceneReady && <SceneReadyProbe onReady={onSceneReady} />}
+
           <CosmosStarCenter
             avatarImageUrl={cosmosState.avatarImageUrl}
             cameraMode={cameraMode}
@@ -737,6 +745,18 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       )}
     </div>
   );
+};
+
+const SceneReadyProbe: React.FC<{ onReady: () => void }> = ({ onReady }) => {
+  const sentRef = useRef(false);
+
+  useFrame(() => {
+    if (sentRef.current) return;
+    sentRef.current = true;
+    onReady();
+  });
+
+  return null;
 };
 
 const ZoomButton: React.FC<{
