@@ -134,7 +134,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
     const dokuDomainRow = await dokuDB.queryRow<{ domain_id: string | null; topic: string | null }>`
       SELECT
-        metadata->'configSnapshot'->>'domainId' AS domain_id,
+        (metadata::jsonb)->'configSnapshot'->>'domainId' AS domain_id,
         topic
       FROM dokus
       WHERE id = ${req.dokuId}

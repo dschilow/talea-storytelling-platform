@@ -363,8 +363,8 @@ async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
     SELECT
       id,
       COALESCE(
-        metadata->'configSnapshot'->>'domainId',
-        metadata->>'domainId'
+        (metadata::jsonb)->'configSnapshot'->>'domainId',
+        (metadata::jsonb)->>'domainId'
       ) AS domain_id
     FROM dokus
     WHERE id = ANY(${dokuIds})
@@ -973,8 +973,8 @@ async function resolveDomainFromSourceContent(params: {
   if (params.sourceContentType === "doku" && params.sourceContentId) {
     const dokuRow = await dokuDB.queryRow<{ domain_id: string | null }>`
       SELECT COALESCE(
-        metadata->'configSnapshot'->>'domainId',
-        metadata->>'domainId'
+        (metadata::jsonb)->'configSnapshot'->>'domainId',
+        (metadata::jsonb)->>'domainId'
       ) AS domain_id
       FROM dokus
       WHERE id = ${params.sourceContentId}
