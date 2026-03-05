@@ -10,7 +10,7 @@
 
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
-import { Sphere, Ring, Html, Billboard } from '@react-three/drei';
+import { Sphere, Html, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode, CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
 import { mapProgressToVisuals } from './CosmosProgressMapper';
@@ -23,7 +23,6 @@ interface Props {
   islands?: TopicIsland[];
   selectedTopicId?: string | null;
   textureSize?: number;
-  ringTextureSize?: number;
   feedbackPulseNonce?: number;
   onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
   onPositionUpdate?: (domainId: string, position: [number, number, number]) => void;
@@ -140,7 +139,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   islands = [],
   selectedTopicId = null,
   textureSize = 512,
-  ringTextureSize = 512,
   feedbackPulseNonce = 0,
   onSelect,
   onPositionUpdate,
@@ -199,10 +197,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         textureSize
       ),
     [domain.color, domain.planetType, mapDetailLevel, orbitConfig.seed, textureSize]
-  );
-  const ringMap = useMemo(
-    () => getCachedRingMap(domain.color, orbitConfig.seed, ringTextureSize),
-    [domain.color, orbitConfig.seed, ringTextureSize]
   );
 
   const planetMaterial = useMemo(
@@ -350,6 +344,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
 
   const baseRadius = 0.52;
+  const isDetailView = cameraMode === 'detail' && isFocused;
+  const planetSegments = isDetailView ? 128 : 96;
+  const cloudSegments = isDetailView ? 96 : 64;
+  const atmosphereSegments = isDetailView ? 160 : 128;
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
@@ -480,18 +478,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     }
   });
 
-  const ringLayers =
-    visuals.hasRing && visuals.ringOpacity > 0
-      ? Math.max(1, Math.round(visuals.ringOpacity * 3))
-      : 0;
-
   return (
     <group ref={groupRef} position={initialPosition}>
       {/* 🌏 Planet Group with axial tilt (Obliquity) */}
-      <group rotation={[0.41, 0, 0.25]}>
+      <group rotation={getPlanetObliquity(domain.id)}>
         <Sphere
           ref={planetRef}
-          args={[baseRadius * visuals.scale, 96, 96]}
+          args={[baseRadius * visuals.scale, planetSegments, planetSegments]}
           material={planetMaterial}
           onClick={handleClick}
           onPointerOver={(e) => {
@@ -506,13 +499,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
         <Sphere
           ref={cloudRef}
-          args={[baseRadius * visuals.scale * 1.03, 64, 64]}
+          args={[baseRadius * visuals.scale * 1.03, cloudSegments, cloudSegments]}
           material={cloudMaterial}
         />
 
         <Sphere
           ref={atmosphereRef}
-          args={[baseRadius * visuals.scale * 1.12, 128, 96]}
+          args={[baseRadius * visuals.scale * 1.12, atmosphereSegments, cloudSegments]}
           material={atmosphereMaterial}
         />
       </group>
@@ -808,14 +801,25 @@ function createPlanetMaps(
 
       const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
       const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
+      const mountainMask = hasContinents ? regionMask * smoothstep(0.58, 0.9, altitude) : 0;
+      const oceanMask = hasContinents
+        ? clamp01((1 - regionMask) * 0.72 + (1 - smoothstep(0.34, 0.64, altitude)) * 0.44)
+        : 0;
 
       const shade = profile.shadeMin + altitude * profile.shadeRange;
       const tint = profile.tintBase + n2 * profile.tintRange;
       const structureBoost = 0.85 + altitude * 0.6;
 
-      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost);
-      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost);
-      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost);
+      const biomeR =
+        1 - oceanMask * 0.36 + mountainMask * 0.28 + (planetType === 'desert' ? 0.12 : 0);
+      const biomeG =
+        1 - oceanMask * 0.14 + mountainMask * 0.22 + (planetType === 'lush' ? 0.15 : 0);
+      const biomeB =
+        1 + oceanMask * 0.56 + mountainMask * 0.1 + (planetType === 'icy' ? 0.2 : 0);
+
+      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost * biomeR);
+      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost * biomeG);
+      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost * biomeB);
       surfaceData.data[i + 3] = 255;
 
       const bump = clamp255(altitude * 255);
@@ -1221,6 +1225,13 @@ function smoothstep(min: number, max: number, value: number): number {
   if (value >= max) return 1;
   const t = (value - min) / (max - min);
   return t * t * (3 - 2 * t);
+}
+
+function getPlanetObliquity(domainId: string): [number, number, number] {
+  const seed = hashString(`${domainId}:obliquity`);
+  const tiltX = (((seed % 28) + 5) * Math.PI) / 180;
+  const tiltZ = ((((seed >> 5) % 18) - 9) * Math.PI) / 180;
+  return [tiltX, 0, tiltZ];
 }
 
 type OrbitConfig = {

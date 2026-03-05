@@ -35,6 +35,7 @@ import type { CameraMode, CosmosState, DomainProgress, TopicIsland } from './Cos
 import type { CosmosQualityPreference } from './CosmosQuality';
 import {
   getQualityConfig,
+  getTextureSizeForPlanet,
 } from './CosmosQuality';
 import { useTopicSuggestions } from './useTopicSuggestions';
 
@@ -533,8 +534,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               cameraMode={cameraMode}
               islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
-              textureSize={quality.planetTextureBaseSize}
-              ringTextureSize={quality.ringTextureSize}
+              textureSize={getTextureSizeForPlanet(quality, cameraMode, focusedDomainId === domain.id)}
               feedbackPulseNonce={pulseDomainId === domain.id ? pulseNonce : 0}
               onSelect={handleSelectPlanet}
               onPositionUpdate={handleDomainPositionUpdate}

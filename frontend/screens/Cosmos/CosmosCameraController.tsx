@@ -137,11 +137,11 @@ export const CosmosCameraController: React.FC<Props> = ({
     }
   });
 
-  const minDistance = mode === 'detail' ? 2.6 : mode === 'focus' ? 5.2 : 12;
-  const maxDistance = mode === 'detail' ? 6.8 : mode === 'focus' ? 13.5 : 52;
-  const minPolarAngle = mode === 'detail' ? Math.PI * 0.26 : mode === 'focus' ? Math.PI * 0.2 : Math.PI * 0.16;
-  const maxPolarAngle = mode === 'detail' ? Math.PI * 0.44 : mode === 'focus' ? Math.PI * 0.52 : Math.PI * 0.58;
-  const rotateSpeed = mode === 'detail' ? 0.22 : mode === 'focus' ? 0.28 : 0.34;
+  const minDistance = mode === 'detail' ? 1.35 : mode === 'focus' ? 5.2 : 12;
+  const maxDistance = mode === 'detail' ? 5.2 : mode === 'focus' ? 13.5 : 52;
+  const minPolarAngle = mode === 'detail' ? Math.PI * 0.12 : mode === 'focus' ? Math.PI * 0.2 : Math.PI * 0.16;
+  const maxPolarAngle = mode === 'detail' ? Math.PI * 0.88 : mode === 'focus' ? Math.PI * 0.52 : Math.PI * 0.58;
+  const rotateSpeed = mode === 'detail' ? 0.16 : mode === 'focus' ? 0.28 : 0.34;
   const minAzimuthAngle =
     mode === 'system'
       ? -Infinity
