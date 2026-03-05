@@ -9,6 +9,7 @@ import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } fr
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
 import { Environment } from '@react-three/drei';
+import { AnimatePresence, motion } from 'framer-motion';
 import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
@@ -89,6 +90,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [isLoadingTopicTimeline, setIsLoadingTopicTimeline] = useState(false);
   const [pulseDomainId, setPulseDomainId] = useState<string | null>(null);
   const [pulseNonce, setPulseNonce] = useState(0);
+  const [transitionFadeKey, setTransitionFadeKey] = useState(0);
   const [forceStandardQuality, setForceStandardQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
@@ -104,6 +106,10 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => getQualityConfig(forceStandardQuality || compact ? 'standard' : qualityPreference),
     [compact, forceStandardQuality, qualityPreference]
   );
+
+  const triggerSceneFade = useCallback(() => {
+    setTransitionFadeKey((value) => value + 1);
+  }, []);
 
   const progressMap = useMemo(() => {
     const map = new Map<string, DomainProgress>();
@@ -153,6 +159,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         navigate('/cosmos');
         return;
       }
+      triggerSceneFade();
       triggerHaptic('selection');
       playFocusSound();
       setIsChildInfoVisible(false);
@@ -173,7 +180,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     setSelectedTopicTimeline(null);
     setIsSuggestionDrawerOpen(false);
     setCameraMode('system');
-  }, []);
+    triggerSceneFade();
+  }, [triggerSceneFade]);
 
   useEffect(() => {
     onFocusAvailabilityChange?.(Boolean(focusedDomainId));
@@ -210,16 +218,19 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   }, [compact, navigate]);
 
   const handleOpenDetail = useCallback(() => {
-    if (focusedDomainId) setCameraMode('detail');
-  }, [focusedDomainId]);
+    if (!focusedDomainId) return;
+    triggerSceneFade();
+    setCameraMode('detail');
+  }, [focusedDomainId, triggerSceneFade]);
 
   const handleBackFromDetail = useCallback(() => {
     if (focusedDomainId) {
+      triggerSceneFade();
       setCameraMode('focus');
       return;
     }
     handleResetFocus();
-  }, [focusedDomainId, handleResetFocus]);
+  }, [focusedDomainId, handleResetFocus, triggerSceneFade]);
 
   const handleCycleDomain = useCallback(
     (direction: 1 | -1) => {
@@ -234,6 +245,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       const nextDomain = sceneDomains[nextIndex];
       if (!nextDomain) return;
 
+      triggerSceneFade();
       triggerHaptic('selection');
       playFocusSound();
       setIsChildInfoVisible(false);
@@ -255,7 +267,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       setSelectedTopicTimeline(null);
       setCameraMode((current) => (current === 'system' ? 'focus' : current));
     },
-    [focusedDomainId, sceneDomains]
+    [focusedDomainId, sceneDomains, triggerSceneFade]
   );
 
   const handleDomainPositionUpdate = useCallback(
@@ -611,6 +623,23 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           )}
         </Suspense>
       </Canvas>
+
+      <AnimatePresence mode="sync">
+        {transitionFadeKey > 0 && (
+          <motion.div
+            key={`cosmos-scene-fade-${transitionFadeKey}`}
+            className="absolute inset-0 z-[14] pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.16, 0] }}
+            transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => setTransitionFadeKey(0)}
+            style={{
+              background:
+                'radial-gradient(circle at 50% 45%, rgba(29,38,92,0.2) 0%, rgba(8,12,33,0.36) 55%, rgba(3,6,18,0.56) 100%)',
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {!compact && (
         <CosmosHudOverlay

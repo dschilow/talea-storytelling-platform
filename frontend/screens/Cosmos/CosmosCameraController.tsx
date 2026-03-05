@@ -37,7 +37,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   const isAnimating = useRef(false);
   const isCinematic = useRef(false);
   const cinematicStart = useRef<number | null>(null);
-  const cinematicDuration = useRef(0.95);
+  const cinematicDuration = useRef(1.0);
   const shotFrom = useRef(new THREE.Vector3());
   const shotTo = useRef(new THREE.Vector3());
 
@@ -73,7 +73,7 @@ export const CosmosCameraController: React.FC<Props> = ({
 
       targetPos.current.copy(shotTo.current);
       targetLookAt.current.copy(lookAtTarget);
-      cinematicDuration.current = mode === 'detail' ? 0.66 : 0.86;
+      cinematicDuration.current = mode === 'detail' ? 0.84 : 1.08;
       cinematicStart.current = null;
       isCinematic.current = true;
       isAnimating.current = true;
@@ -96,9 +96,9 @@ export const CosmosCameraController: React.FC<Props> = ({
       }
       const elapsed = clock.elapsedTime - cinematicStart.current;
       const t = Math.min(1, elapsed / cinematicDuration.current);
-      const eased = easeOutCubic(t);
+      const eased = easeInOutCubic(t);
       camera.position.lerpVectors(shotFrom.current, shotTo.current, eased);
-      camera.position.y += Math.sin(Math.PI * eased) * (mode === 'detail' ? 0.12 : 0.24);
+      camera.position.y += Math.sin(Math.PI * eased) * (mode === 'detail' ? 0.055 : 0.12);
       currentLookAt.current.lerp(targetLookAt.current, 0.2);
       camera.lookAt(currentLookAt.current);
 
@@ -122,8 +122,8 @@ export const CosmosCameraController: React.FC<Props> = ({
       return;
     }
 
-    camera.position.lerp(targetPos.current, 0.058);
-    currentLookAt.current.lerp(targetLookAt.current, 0.058);
+    camera.position.lerp(targetPos.current, 0.07);
+    currentLookAt.current.lerp(targetLookAt.current, 0.07);
     camera.lookAt(currentLookAt.current);
 
     if (controlsRef.current) {
@@ -191,7 +191,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   );
 };
 
-function easeOutCubic(value: number): number {
+function easeInOutCubic(value: number): number {
   const t = Math.max(0, Math.min(1, value));
-  return 1 - Math.pow(1 - t, 3);
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }

@@ -80,7 +80,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+          transition={{ type: "spring", stiffness: 220, damping: 28, mass: 0.95 }}
           className={[
             "absolute z-30",
             isDetailMode
@@ -103,6 +103,14 @@ export const CosmosHudOverlay: React.FC<Props> = ({
               boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
             }}
           >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={`${domain.id}:${isDetailMode ? "detail" : "focus"}`}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              >
             <button
               onClick={isDetailMode ? onBackFromDetail : onClose}
               className="absolute top-4 right-4 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white/60 hover:text-white/90 hover:bg-white/10 transition-colors"
@@ -381,6 +389,8 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                 Weiterlernen
               </button>
             </div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </motion.div>
       )}
