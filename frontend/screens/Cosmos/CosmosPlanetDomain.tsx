@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CosmosPlanetDomain.tsx - High-fidelity domain planet
  *
  * Uses real NASA/Solar System Scope textures (CC BY 4.0) for photo-realistic
@@ -45,18 +45,18 @@ const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
 const RING_MAP_CACHE = new Map<string, THREE.CanvasTexture>();
 
 // NASA texture paths per planet type (Solar System Scope, CC BY 4.0)
-// Each planetType maps to a unique texture — no duplicates!
+// Each planetType maps to a unique texture â€” no duplicates!
 function getNasaTexturePath(planetType: CosmosDomain['planetType'], _seed: number): string {
   const base = '/textures/planets/';
   switch (planetType) {
-    case 'oceanic': return base + 'earth_daymap.jpg';      // Erde & Klima → Earth
-    case 'lush': return base + 'jupiter.jpg';              // Natur & Tiere → Jupiter
-    case 'terrestrial': return base + 'moon.jpg';          // Mensch & Körper → Moon
-    case 'desert': return base + 'mars.jpg';               // Geschichte → Mars
-    case 'icy': return base + 'neptune.jpg';               // Weltraum → Neptune
-    case 'volcanic': return base + 'venus_surface.jpg';    // Logik & Rätsel → Venus
-    case 'gaseous': return base + 'saturn.jpg';            // Technik → Saturn
-    case 'crystalline': return base + 'mercury.jpg';       // Kunst & Musik → Mercury
+    case 'oceanic': return base + 'earth_daymap.jpg';      // Erde & Klima â†’ Earth
+    case 'lush': return base + 'jupiter.jpg';              // Natur & Tiere â†’ Jupiter
+    case 'terrestrial': return base + 'moon.jpg';          // Mensch & KÃ¶rper â†’ Moon
+    case 'desert': return base + 'mars.jpg';               // Geschichte â†’ Mars
+    case 'icy': return base + 'neptune.jpg';               // Weltraum â†’ Neptune
+    case 'volcanic': return base + 'venus_surface.jpg';    // Logik & RÃ¤tsel â†’ Venus
+    case 'gaseous': return base + 'saturn.jpg';            // Technik â†’ Saturn
+    case 'crystalline': return base + 'mercury.jpg';       // Kunst & Musik â†’ Mercury
     default: return base + 'moon.jpg';
   }
 }
@@ -279,7 +279,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   // Subtle domain-color tint so same-type planets look unique
   const surfaceTint = useMemo(() => {
     const base = new THREE.Color(domain.color);
-    // Lerp towards white to keep it subtle — just enough to distinguish domains
+    // Lerp towards white to keep it subtle â€” just enough to distinguish domains
     return base.lerp(new THREE.Color('#ffffff'), 0.65);
   }, [domain.color]);
 
@@ -345,12 +345,25 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.planetType, maps.cloudMap, nasaCloudTexture, nasaCloudPath, visuals.cloudOpacity]
   );
 
-  // Real CC0 textures for satellites (Poly Haven) + moon texture for topic moons
-  const [satSolarTex, satMetalTex, satGoldTex, moonTex] = useLoader(THREE.TextureLoader, [
+  // Real textures for satellites + topic markers
+  const [
+    satSolarTex,
+    satMetalTex,
+    satGoldTex,
+    moonTex,
+    markerMarsTex,
+    markerEarthTex,
+    markerJupiterTex,
+    markerNeptuneTex,
+  ] = useLoader(THREE.TextureLoader, [
     '/textures/satellite/solar_panel.jpg',
     '/textures/satellite/metal_body.jpg',
     '/textures/satellite/gold_foil.jpg',
     '/textures/planets/moon.jpg',
+    '/textures/planets/mars.jpg',
+    '/textures/planets/earth_daymap.jpg',
+    '/textures/planets/jupiter.jpg',
+    '/textures/planets/neptune.jpg',
   ]);
   useMemo(() => {
     for (const t of [satSolarTex, satMetalTex, satGoldTex]) {
@@ -362,10 +375,24 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     satSolarTex.repeat.set(2, 1);
     satMetalTex.repeat.set(1, 2);
     satGoldTex.repeat.set(2, 2);
-    moonTex.colorSpace = THREE.SRGBColorSpace;
-    moonTex.minFilter = THREE.LinearMipmapLinearFilter;
-    moonTex.generateMipmaps = true;
-  }, [satSolarTex, satMetalTex, satGoldTex, moonTex]);
+    for (const t of [moonTex, markerMarsTex, markerEarthTex, markerJupiterTex, markerNeptuneTex]) {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.magFilter = THREE.LinearFilter;
+      t.generateMipmaps = true;
+      t.repeat.set(1, 1);
+    }
+  }, [
+    satSolarTex,
+    satMetalTex,
+    satGoldTex,
+    moonTex,
+    markerMarsTex,
+    markerEarthTex,
+    markerJupiterTex,
+    markerNeptuneTex,
+  ]);
 
   const atmosphereMaterial = useMemo(
     () => createAtmosphereShellMaterial(domain.color, visuals.atmosphereOpacity, 2.25, 1.05),
@@ -522,7 +549,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       }
     }
 
-    // 🌍 Physics Update: Kepler-inspired orbital speeds (1/sqrt(radius))
+    // ðŸŒ Physics Update: Kepler-inspired orbital speeds (1/sqrt(radius))
     // Farther objects move slower, creating a realistic celestial rhythm
 
     topicMoonRefs.current.forEach((moon, index) => {
@@ -586,7 +613,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   return (
     <group ref={groupRef} position={initialPosition}>
-      {/* 🌏 Planet Group with axial tilt (Obliquity) */}
+      {/* ðŸŒ Planet Group with axial tilt (Obliquity) */}
       <group rotation={getPlanetObliquity(domain.id)}>
         <Sphere
           ref={planetRef}
@@ -688,7 +715,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
           >
             <group scale={0.016}>
-              {/* Main bus — textured metal body */}
+              {/* Main bus â€” textured metal body */}
               <mesh>
                 <cylinderGeometry args={[0.5, 0.6, 1.4, 8]} />
                 <meshPhysicalMaterial
@@ -711,7 +738,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 />
               </mesh>
 
-              {/* Solar panel LEFT — real PV texture */}
+              {/* Solar panel LEFT â€” real PV texture */}
               <mesh position={[1.85, 0, 0]}>
                 <boxGeometry args={[2.4, 0.03, 1.0]} />
                 <meshPhysicalMaterial
@@ -752,7 +779,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.25} />
               </mesh>
 
-              {/* Parabolic dish — polished metal */}
+              {/* Parabolic dish â€” polished metal */}
               <group position={[0, 0.9, 0.22]} rotation={[0.42, 0, 0]}>
                 <mesh>
                   <sphereGeometry args={[0.42, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
@@ -823,78 +850,135 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         {visibleIslands.map((topic, index) => {
           const topicOrbitRadius =
             cameraMode === 'detail'
-              ? baseRadius * visuals.scale * 1.25
-              : baseRadius * visuals.scale * 1.45;
+              ? baseRadius * visuals.scale * 1.95
+              : baseRadius * visuals.scale * 2.15;
           const pos = latLonToPlanetPosition(
             topic.lat,
             topic.lon,
-            // Keep topic markers clearly separated while still visible in detail view.
             topicOrbitRadius
           );
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
 
-          // Use domain color directly for discovered, saturated stage colors otherwise
           const markerColor =
             stage === 'retained' ? '#fbbf24'
-            : stage === 'apply'  ? '#4ade80'
+            : stage === 'apply' ? '#4ade80'
             : stage === 'understood' ? '#38bdf8'
-            : domain.color;           // discovered = domain color (always vivid)
+            : domain.color;
+
+          const markerTexture =
+            stage === 'retained'
+              ? markerJupiterTex
+              : stage === 'apply'
+                ? markerEarthTex
+                : stage === 'understood'
+                  ? markerMarsTex
+                  : markerNeptuneTex;
 
           const r = stage === 'retained' ? 0.052
-            : stage === 'apply'  ? 0.046
-            : stage === 'understood' ? 0.040
+            : stage === 'apply' ? 0.046
+            : stage === 'understood' ? 0.04
             : 0.034;
+
+          const bodyHeight = r * 1.55;
+          const bodyDepth = r * 1.1;
+          const panelWidth = r * 2.25;
+          const panelHeight = r * 0.25;
+          const panelDepth = r * 1.05;
+          const panelOffset = r * 1.38;
+          const markerTilt = ((index % 5) - 2) * 0.12;
 
           return (
             <group
               key={`island_${topic.topicId}_${index}`}
               position={[pos.x, pos.y, pos.z]}
-              onClick={(event) => { event.stopPropagation(); onSelectIsland?.(topic); }}
-              onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = 'pointer'; }}
-              onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectIsland?.(topic);
+              }}
+              onPointerOver={(event) => {
+                event.stopPropagation();
+                document.body.style.cursor = 'pointer';
+              }}
+              onPointerOut={() => {
+                document.body.style.cursor = 'auto';
+              }}
             >
-              {/* Solid glowing core — always visible, strong emissive */}
-              <Sphere args={[r, 20, 20]}>
-                <meshStandardMaterial
-                  color={markerColor}
-                  emissive={markerColor}
-                  emissiveIntensity={2.5}
-                  roughness={0.2}
-                  metalness={0.4}
-                />
-              </Sphere>
-
-              {/* Mid glow halo */}
-              <Sphere args={[r * 1.6, 12, 12]}>
-                <meshBasicMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.3}
-                  depthWrite={false}
-                  blending={THREE.AdditiveBlending}
-                />
-              </Sphere>
-
-              {/* Outer soft bloom */}
-              <Sphere args={[r * 2.6, 8, 8]}>
-                <meshBasicMaterial
-                  color={markerColor}
-                  transparent
-                  opacity={0.1}
-                  depthWrite={false}
-                  blending={THREE.AdditiveBlending}
-                />
-              </Sphere>
-
-              {/* Billboard ring — always faces camera */}
-              <Billboard follow>
+              <group rotation={[markerTilt * 0.5, index * 0.75, markerTilt]}>
                 <mesh>
-                  <ringGeometry args={[r * 1.7, r * 2.0, 40]} />
+                  <boxGeometry args={[r * 0.95, bodyHeight, bodyDepth]} />
+                  <meshStandardMaterial
+                    map={satMetalTex}
+                    roughness={0.44}
+                    metalness={0.85}
+                  />
+                </mesh>
+
+                <mesh position={[0, bodyHeight * 0.42, 0]}>
+                  <cylinderGeometry args={[r * 0.22, r * 0.22, r * 0.38, 10]} />
+                  <meshStandardMaterial
+                    map={satGoldTex}
+                    roughness={0.35}
+                    metalness={0.92}
+                  />
+                </mesh>
+
+                <mesh position={[panelOffset, 0, 0]}>
+                  <boxGeometry args={[panelWidth, panelHeight, panelDepth]} />
+                  <meshStandardMaterial
+                    map={satSolarTex}
+                    emissive={new THREE.Color(markerColor)}
+                    emissiveIntensity={0.22}
+                    roughness={0.58}
+                    metalness={0.68}
+                  />
+                </mesh>
+
+                <mesh position={[-panelOffset, 0, 0]}>
+                  <boxGeometry args={[panelWidth, panelHeight, panelDepth]} />
+                  <meshStandardMaterial
+                    map={satSolarTex}
+                    emissive={new THREE.Color(markerColor)}
+                    emissiveIntensity={0.22}
+                    roughness={0.58}
+                    metalness={0.68}
+                  />
+                </mesh>
+
+                <mesh position={[0, -bodyHeight * 0.45, bodyDepth * 0.18]} rotation={[Math.PI, 0, 0]}>
+                  <coneGeometry args={[r * 0.28, r * 0.5, 14]} />
+                  <meshStandardMaterial color="#cbd5e1" roughness={0.46} metalness={0.6} />
+                </mesh>
+
+                <mesh position={[0, 0, bodyDepth * 0.72]}>
+                  <planeGeometry args={[r * 1.05, r * 1.05]} />
+                  <meshBasicMaterial
+                    map={markerTexture}
+                    transparent
+                    opacity={0.92}
+                    depthWrite={false}
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+
+                <Sphere args={[r * 0.28, 12, 12]} position={[0, bodyHeight * 0.78, 0]}>
                   <meshBasicMaterial
                     color={markerColor}
                     transparent
-                    opacity={0.85}
+                    opacity={0.92}
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                  />
+                </Sphere>
+              </group>
+
+              <Billboard follow>
+                <mesh>
+                  <ringGeometry args={[r * 2.45, r * 2.72, 40]} />
+                  <meshBasicMaterial
+                    color={markerColor}
+                    transparent
+                    opacity={0.42}
                     depthWrite={false}
                     blending={THREE.AdditiveBlending}
                     side={THREE.DoubleSide}
@@ -902,14 +986,14 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 </mesh>
               </Billboard>
 
-              {/* Retained: extra golden outer ring */}
               {stage === 'retained' && (
                 <Billboard follow>
                   <mesh>
-                    <ringGeometry args={[r * 2.2, r * 2.5, 40]} />
+                    <ringGeometry args={[r * 3.05, r * 3.35, 40]} />
                     <meshBasicMaterial
                       color="#fde68a"
-                      transparent opacity={0.9}
+                      transparent
+                      opacity={0.8}
                       depthWrite={false}
                       blending={THREE.AdditiveBlending}
                       side={THREE.DoubleSide}
@@ -918,14 +1002,14 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 </Billboard>
               )}
 
-              {/* Selection ring */}
               {isSelected && (
                 <Billboard follow>
                   <mesh>
-                    <ringGeometry args={[r * 2.8, r * 3.2, 40]} />
+                    <ringGeometry args={[r * 3.55, r * 3.9, 40]} />
                     <meshBasicMaterial
                       color="#ffffff"
-                      transparent opacity={0.95}
+                      transparent
+                      opacity={0.9}
                       depthWrite={false}
                       blending={THREE.AdditiveBlending}
                       side={THREE.DoubleSide}
@@ -1029,7 +1113,7 @@ function createPlanetMaps(
   const TWO_PI = Math.PI * 2;
 
   for (let y = 0; y < size; y += 1) {
-    // UV → spherical coordinates (seamless, no equator seam)
+    // UV â†’ spherical coordinates (seamless, no equator seam)
     const ny = y / size;
     const phi = ny * Math.PI; // 0 = north pole, PI = south pole
     const sinPhi = Math.sin(phi);
@@ -1040,9 +1124,9 @@ function createPlanetMaps(
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
       const nx = x / size;
-      const theta = nx * TWO_PI; // 0 → 2PI longitude
+      const theta = nx * TWO_PI; // 0 â†’ 2PI longitude
 
-      // 3D point on unit sphere — all noise sampled here, no UV seams
+      // 3D point on unit sphere â€” all noise sampled here, no UV seams
       const sx = Math.cos(theta) * sinPhi;
       const sy = cosPhi;
       const sz = Math.sin(theta) * sinPhi;
@@ -1611,7 +1695,7 @@ function hash2D(ix: number, iy: number, seed: number): number {
   return n - Math.floor(n);
 }
 
-// Interpolated value noise — produces smooth, coherent shapes (continents, mountains)
+// Interpolated value noise â€” produces smooth, coherent shapes (continents, mountains)
 function noise2D(x: number, y: number, seed: number): number {
   const ix = Math.floor(x);
   const iy = Math.floor(y);
@@ -1634,13 +1718,13 @@ function noise2D(x: number, y: number, seed: number): number {
   return nx0 + sy * (nx1 - nx0);
 }
 
-// 3D hash for trilinear noise — avoids all UV seam issues
+// 3D hash for trilinear noise â€” avoids all UV seam issues
 function hash3D(ix: number, iy: number, iz: number, seed: number): number {
   const n = Math.sin(ix * 127.1 + iy * 311.7 + iz * 74.7 + seed * 0.037) * 43758.5453123;
   return n - Math.floor(n);
 }
 
-// Trilinear interpolated 3D value noise — seamless on sphere surface
+// Trilinear interpolated 3D value noise â€” seamless on sphere surface
 function noise3D(x: number, y: number, z: number, seed: number): number {
   const ix = Math.floor(x);
   const iy = Math.floor(y);
@@ -1752,4 +1836,4 @@ function latLonToPlanetPosition(lat: number, lon: number, radius: number): THREE
   return new THREE.Vector3(x, y, z);
 }
 
-// ─── (Satellite textures loaded via useLoader in component) ──────────────────
+// â”€â”€â”€ (Satellite textures loaded via useLoader in component) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
