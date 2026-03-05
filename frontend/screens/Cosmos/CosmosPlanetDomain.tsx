@@ -293,7 +293,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
   // Life particles disabled - too noisy for a clean space aesthetic
   const activeLifeParticles = 0;
-  const shouldShowIslands = isFocused && (cameraMode === 'focus' || cameraMode === 'detail');
+  const shouldShowIslands = isFocused && cameraMode === 'focus';
   const visibleIslands = useMemo(
     () => (shouldShowIslands ? islands.slice(0, 20) : []),
     [islands, shouldShowIslands]
@@ -584,7 +584,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             topic.lat,
             topic.lon,
             // Keep topic markers clearly separated from planet surface.
-            baseRadius * visuals.scale * 1.82
+            baseRadius * visuals.scale * 3.2
           );
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
@@ -779,6 +779,7 @@ function createPlanetMaps(
   const baseR = Math.floor(baseColor.r * 255);
   const baseG = Math.floor(baseColor.g * 255);
   const baseB = Math.floor(baseColor.b * 255);
+  const biomePalette = getBiomePalette(planetType, baseColor);
 
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -796,30 +797,69 @@ function createPlanetMaps(
       const altitude = clamp01((n1 * profile.heightWeight + ridge * profile.ridgeWeight) * 1.4 - 0.2);
 
       const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
-      const continentNoise = fbm2D(nx * 2.2, ny * 2.2, seed + 219, 4);
-      const regionMask = hasContinents ? smoothstep(0.4, 0.8, continentNoise) : 0;
+      const tectonicNoise = fbm2D(nx * 1.5, ny * 1.5, seed + 219, 5);
+      const archipelagoNoise = fbm2D(nx * 3.8, ny * 3.8, seed + 577, 3);
+      const continentalBase = smoothstep(0.43, 0.62, tectonicNoise);
+      const archipelagoBase = smoothstep(0.6, 0.76, archipelagoNoise);
+      const regionMask = hasContinents
+        ? clamp01(continentalBase * 0.82 + archipelagoBase * 0.32 + (altitude - 0.5) * 0.16)
+        : 0;
 
       const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
       const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
-      const mountainMask = hasContinents ? regionMask * smoothstep(0.58, 0.9, altitude) : 0;
-      const oceanMask = hasContinents
-        ? clamp01((1 - regionMask) * 0.72 + (1 - smoothstep(0.34, 0.64, altitude)) * 0.44)
+      const mountainMask = hasContinents ? regionMask * smoothstep(0.56, 0.9, altitude + ridge * 0.14) : 0;
+      const oceanMask = hasContinents ? clamp01(1 - regionMask) : 0;
+      const shallowOceanMask = hasContinents
+        ? clamp01(oceanMask * smoothstep(0.3, 0.68, 1 - altitude) * 0.75)
+        : 0;
+      const deepOceanMask = hasContinents ? clamp01(oceanMask - shallowOceanMask) : 0;
+      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.46) : 0;
+      const coastMask = hasContinents
+        ? clamp01(
+            smoothstep(0.36, 0.66, 1 - Math.abs(regionMask - 0.5) * 2) *
+            (0.52 + (1 - altitude) * 0.3)
+          )
         : 0;
 
       const shade = profile.shadeMin + altitude * profile.shadeRange;
       const tint = profile.tintBase + n2 * profile.tintRange;
       const structureBoost = 0.85 + altitude * 0.6;
 
-      const biomeR =
-        1 - oceanMask * 0.36 + mountainMask * 0.28 + (planetType === 'desert' ? 0.12 : 0);
-      const biomeG =
-        1 - oceanMask * 0.14 + mountainMask * 0.22 + (planetType === 'lush' ? 0.15 : 0);
-      const biomeB =
-        1 + oceanMask * 0.56 + mountainMask * 0.1 + (planetType === 'icy' ? 0.2 : 0);
+      if (hasContinents) {
+        const weightSum = Math.max(
+          0.0001,
+          deepOceanMask + shallowOceanMask + landMask + mountainMask + coastMask * 0.42
+        );
+        const rBiome =
+          (biomePalette.oceanDeep[0] * deepOceanMask +
+            biomePalette.oceanShallow[0] * shallowOceanMask +
+            biomePalette.land[0] * landMask +
+            biomePalette.mountain[0] * mountainMask +
+            biomePalette.coast[0] * coastMask * 0.42) /
+          weightSum;
+        const gBiome =
+          (biomePalette.oceanDeep[1] * deepOceanMask +
+            biomePalette.oceanShallow[1] * shallowOceanMask +
+            biomePalette.land[1] * landMask +
+            biomePalette.mountain[1] * mountainMask +
+            biomePalette.coast[1] * coastMask * 0.42) /
+          weightSum;
+        const bBiome =
+          (biomePalette.oceanDeep[2] * deepOceanMask +
+            biomePalette.oceanShallow[2] * shallowOceanMask +
+            biomePalette.land[2] * landMask +
+            biomePalette.mountain[2] * mountainMask +
+            biomePalette.coast[2] * coastMask * 0.42) /
+          weightSum;
 
-      surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost * biomeR);
-      surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost * biomeG);
-      surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost * biomeB);
+        surfaceData.data[i] = clamp255(rBiome * shade * tint * structureBoost);
+        surfaceData.data[i + 1] = clamp255(gBiome * shade * (profile.greenShift + n1 * 0.14) * structureBoost);
+        surfaceData.data[i + 2] = clamp255(bBiome * shade * (profile.blueShift + ridge * 0.16) * structureBoost);
+      } else {
+        surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost);
+        surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost);
+        surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost);
+      }
       surfaceData.data[i + 3] = 255;
 
       const bump = clamp255(altitude * 255);
@@ -828,7 +868,18 @@ function createPlanetMaps(
       bumpData.data[i + 2] = bump;
       bumpData.data[i + 3] = 255;
 
-      const rough = clamp255((profile.roughnessBase + ridge * 0.52 + n1 * 0.16 + micro * 0.1 - regionMask * 0.09 - gasBand * 0.12) * 255);
+      const rough = clamp255(
+        (
+          profile.roughnessBase +
+          ridge * 0.52 +
+          n1 * 0.16 +
+          micro * 0.1 -
+          regionMask * 0.09 -
+          gasBand * 0.12 +
+          mountainMask * 0.08 -
+          deepOceanMask * 0.16
+        ) * 255
+      );
       roughData.data[i] = rough;
       roughData.data[i + 1] = rough;
       roughData.data[i + 2] = rough;
@@ -909,6 +960,58 @@ interface PlanetTypeProfile {
   cloudScale: number;
   cloudThreshold: number;
   cloudGain: number;
+}
+
+type BiomePalette = {
+  oceanDeep: [number, number, number];
+  oceanShallow: [number, number, number];
+  land: [number, number, number];
+  mountain: [number, number, number];
+  coast: [number, number, number];
+};
+
+function getBiomePalette(
+  planetType: CosmosDomain['planetType'],
+  baseColor: THREE.Color
+): BiomePalette {
+  if (planetType === 'lush') {
+    return {
+      oceanDeep: [18, 72, 142],
+      oceanShallow: [46, 130, 188],
+      land: [52, 146, 72],
+      mountain: [132, 150, 120],
+      coast: [208, 198, 140],
+    };
+  }
+  if (planetType === 'oceanic') {
+    return {
+      oceanDeep: [12, 64, 130],
+      oceanShallow: [62, 154, 214],
+      land: [72, 150, 108],
+      mountain: [150, 168, 154],
+      coast: [220, 206, 162],
+    };
+  }
+  if (planetType === 'terrestrial') {
+    return {
+      oceanDeep: [16, 64, 128],
+      oceanShallow: [62, 138, 196],
+      land: [114, 146, 90],
+      mountain: [146, 138, 128],
+      coast: [216, 198, 154],
+    };
+  }
+
+  const baseR = Math.round(baseColor.r * 255);
+  const baseG = Math.round(baseColor.g * 255);
+  const baseB = Math.round(baseColor.b * 255);
+  return {
+    oceanDeep: [Math.max(0, baseR - 68), Math.max(0, baseG - 50), Math.min(255, baseB + 48)],
+    oceanShallow: [Math.max(0, baseR - 32), Math.max(0, baseG - 22), Math.min(255, baseB + 36)],
+    land: [baseR, baseG, baseB],
+    mountain: [Math.min(255, baseR + 38), Math.min(255, baseG + 34), Math.min(255, baseB + 28)],
+    coast: [Math.min(255, baseR + 74), Math.min(255, baseG + 62), Math.min(255, baseB + 36)],
+  };
 }
 
 function getPlanetTypeProfile(type: CosmosDomain['planetType']): PlanetTypeProfile {

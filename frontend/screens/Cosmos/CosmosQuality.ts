@@ -131,7 +131,8 @@ export function getTextureSizeForPlanet(
   mode: CameraMode,
   isFocused: boolean
 ): number {
-  if (quality.tier === 'aaa' && isFocused && (mode === 'focus' || mode === 'detail')) {
+  // Hero textures only in detail mode to avoid focus-switch stalls.
+  if (quality.tier === 'aaa' && isFocused && mode === 'detail') {
     return quality.planetTextureHeroSize;
   }
   if (quality.tier === 'standard' && isFocused && mode === 'detail') {
