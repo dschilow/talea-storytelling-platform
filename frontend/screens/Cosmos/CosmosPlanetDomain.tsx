@@ -50,8 +50,8 @@ function getCachedPlanetMaps(
   textureSize: number
 ): PlanetMapSet {
   const quantizedDetail = Math.round(detailFactor * 4) / 4;
-  // Version 4: interpolated value noise for coherent continents/oceans.
-  const key = `V4|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
+  // Version 5: 3D spherical noise (no equator seam), 2048px default.
+  const key = `V5|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
   const existing = PLANET_MAP_CACHE.get(key);
   if (existing) return existing;
   const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
@@ -138,7 +138,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   cameraMode = 'system',
   islands = [],
   selectedTopicId = null,
-  textureSize = 512,
+  textureSize = 2048,
   feedbackPulseNonce = 0,
   onSelect,
   onPositionUpdate,
@@ -784,33 +784,45 @@ function createPlanetMaps(
   const baseB = Math.floor(baseColor.b * 255);
   const biomePalette = getBiomePalette(planetType, baseColor);
 
+  const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
+  const TWO_PI = Math.PI * 2;
+
   for (let y = 0; y < size; y += 1) {
+    // UV → spherical coordinates (seamless, no equator seam)
+    const ny = y / size;
+    const phi = ny * Math.PI; // 0 = north pole, PI = south pole
+    const sinPhi = Math.sin(phi);
+    const cosPhi = Math.cos(phi);
+    const latitude = Math.abs(ny * 2 - 1);
+    const climateBand = 1 - smoothstep(0.68, 0.98, latitude);
+
     for (let x = 0; x < size; x += 1) {
       const i = (y * size + x) * 4;
       const nx = x / size;
-      const ny = y / size;
+      const theta = nx * TWO_PI; // 0 → 2PI longitude
 
-      // 🏔️ Massive Terrain Logic
-      const n1 = fbm2D(nx * profile.baseScale, ny * profile.baseScale, seed, 6);
-      const n2 = fbm2D(nx * profile.ridgeScale, ny * profile.ridgeScale, seed + 71, 4);
-      const micro = fbm2D(nx * 32, ny * 32, seed + 911, 2);
+      // 3D point on unit sphere — all noise sampled here, no UV seams
+      const sx = Math.cos(theta) * sinPhi;
+      const sy = cosPhi;
+      const sz = Math.sin(theta) * sinPhi;
+
+      // Terrain noise in 3D (seamless)
+      const bs = profile.baseScale;
+      const rs = profile.ridgeScale;
+      const n1 = fbm3D(sx * bs, sy * bs, sz * bs, seed, 6);
+      const n2 = fbm3D(sx * rs, sy * rs, sz * rs, seed + 71, 4);
+      const micro = fbm3D(sx * 32, sy * 32, sz * 32, seed + 911, 2);
       const ridge = Math.pow(Math.abs(0.5 - n2) * 2.0, profile.ridgePower);
 
-      // Altitude with higher contrast for visible mountains
       const altitude = clamp01((n1 * profile.heightWeight + ridge * profile.ridgeWeight) * 1.4 - 0.2);
 
-      const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
-      const latitude = Math.abs(ny * 2 - 1);
-      const climateBand = 1 - smoothstep(0.68, 0.98, latitude);
-      // Large-scale tectonic plates → big coherent continents
-      const tectonicNoise = fbm2D(nx * 2.6, ny * 2.6, seed + 219, 5);
-      // Mid-scale archipelago chains and peninsulas
-      const archipelagoNoise = fbm2D(nx * 5.5, ny * 5.5, seed + 577, 4);
-      // Fine coastline detail
-      const coastDetail = fbm2D(nx * 12.0, ny * 12.0, seed + 743, 3);
-      const continentalSignal = tectonicNoise * 0.58 + archipelagoNoise * 0.28 + coastDetail * 0.14;
+      // Continental plates (3D seamless)
+      const tectonicNoise = fbm3D(sx * 2.6, sy * 2.6, sz * 2.6, seed + 219, 5);
+      const archipelagoNoise = fbm3D(sx * 5.5, sy * 5.5, sz * 5.5, seed + 577, 4);
+      const coastDetailNoise = fbm3D(sx * 12, sy * 12, sz * 12, seed + 743, 3);
+      const continentalSignal = tectonicNoise * 0.58 + archipelagoNoise * 0.28 + coastDetailNoise * 0.14;
       const continentalBase = smoothstep(0.42, 0.62, continentalSignal + (altitude - 0.5) * 0.18);
-      const erosionNoise = fbm2D(nx * 8.5, ny * 8.5, seed + 887, 3);
+      const erosionNoise = fbm3D(sx * 8.5, sy * 8.5, sz * 8.5, seed + 887, 3);
       const erosionCut = smoothstep(0.42, 0.78, erosionNoise);
       const regionMask = hasContinents
         ? clamp01(continentalBase - erosionCut * 0.24 + (0.48 - latitude) * 0.06)
@@ -829,7 +841,6 @@ function createPlanetMaps(
         ? clamp01(oceanMask * smoothstep(0.32, 0.72, 1 - altitude + ridge * 0.22))
         : 0;
       const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.56) : 0;
-      // Coastal fringe: narrow band where land meets ocean
       const coastMask = hasContinents
         ? clamp01(
             smoothstep(0.22, 0.52, 1 - Math.abs(regionMask - 0.5) * 2) *
@@ -927,19 +938,20 @@ function createPlanetMaps(
       roughData.data[i + 2] = rough;
       roughData.data[i + 3] = 255;
 
-      const cloudNoise = fbm2D(nx * profile.cloudScale, ny * profile.cloudScale, seed + 133, 5);
-      const cloudSwirl = fbm2D(nx * profile.cloudScale * 1.8, ny * profile.cloudScale * 1.1, seed + 337, 3);
+      // Clouds also seamless in 3D
+      const cs = profile.cloudScale;
+      const cloudNoise = fbm3D(sx * cs, sy * cs, sz * cs, seed + 133, 5);
+      const cloudSwirl = fbm3D(sx * cs * 1.8, sy * cs * 1.8, sz * cs * 1.8, seed + 337, 3);
       const cloudAlpha = clamp255(Math.max(0, cloudNoise + cloudSwirl * 0.2 - profile.cloudThreshold) * profile.cloudGain);
       cloudData.data[i] = 255;
       cloudData.data[i + 1] = 255;
       cloudData.data[i + 2] = 255;
       cloudData.data[i + 3] = cloudAlpha;
 
-      // Night-side lights: cities on habitable worlds, lava on volcanic, crystals on crystalline
-      const hasContinentsNight = hasContinents;
+      // Night-side lights
       let rN = 0, gN = 0, bN = 0;
-      if (hasContinentsNight) {
-        const cityNoise = fbm2D(nx * 18.2, ny * 18.2, seed + 888, 3);
+      if (hasContinents) {
+        const cityNoise = fbm3D(sx * 18.2, sy * 18.2, sz * 18.2, seed + 888, 3);
         if (regionMask > 0.4 && cityNoise > 0.65 && altitude < 0.65 && detailFactor > 0.05) {
           const glow = Math.pow((cityNoise - 0.65) * 2.8, 2.0) * 255 * Math.min(1.0, detailFactor * 2.2);
           rN = glow * 0.98; gN = glow * 0.94; bN = glow * 1.0;
@@ -1379,6 +1391,62 @@ function noise2D(x: number, y: number, seed: number): number {
   const nx0 = n00 + sx * (n10 - n00);
   const nx1 = n01 + sx * (n11 - n01);
   return nx0 + sy * (nx1 - nx0);
+}
+
+// 3D hash for trilinear noise — avoids all UV seam issues
+function hash3D(ix: number, iy: number, iz: number, seed: number): number {
+  const n = Math.sin(ix * 127.1 + iy * 311.7 + iz * 74.7 + seed * 0.037) * 43758.5453123;
+  return n - Math.floor(n);
+}
+
+// Trilinear interpolated 3D value noise — seamless on sphere surface
+function noise3D(x: number, y: number, z: number, seed: number): number {
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+  const iz = Math.floor(z);
+  const fx = x - ix;
+  const fy = y - iy;
+  const fz = z - iz;
+
+  const sx = fx * fx * (3 - 2 * fx);
+  const sy = fy * fy * (3 - 2 * fy);
+  const sz = fz * fz * (3 - 2 * fz);
+
+  const n000 = hash3D(ix, iy, iz, seed);
+  const n100 = hash3D(ix + 1, iy, iz, seed);
+  const n010 = hash3D(ix, iy + 1, iz, seed);
+  const n110 = hash3D(ix + 1, iy + 1, iz, seed);
+  const n001 = hash3D(ix, iy, iz + 1, seed);
+  const n101 = hash3D(ix + 1, iy, iz + 1, seed);
+  const n011 = hash3D(ix, iy + 1, iz + 1, seed);
+  const n111 = hash3D(ix + 1, iy + 1, iz + 1, seed);
+
+  const nx00 = n000 + sx * (n100 - n000);
+  const nx10 = n010 + sx * (n110 - n010);
+  const nx01 = n001 + sx * (n101 - n001);
+  const nx11 = n011 + sx * (n111 - n011);
+
+  const nxy0 = nx00 + sy * (nx10 - nx00);
+  const nxy1 = nx01 + sy * (nx11 - nx01);
+
+  return nxy0 + sz * (nxy1 - nxy0);
+}
+
+// 3D FBM for seamless spherical sampling
+function fbm3D(x: number, y: number, z: number, seed: number, octaves: number): number {
+  let amplitude = 0.5;
+  let frequency = 1;
+  let value = 0;
+  let max = 0;
+
+  for (let octave = 0; octave < octaves; octave += 1) {
+    value += noise3D(x * frequency, y * frequency, z * frequency, seed + octave * 31) * amplitude;
+    max += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+
+  return max > 0 ? value / max : 0;
 }
 
 function clamp255(value: number): number {
