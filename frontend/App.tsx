@@ -52,6 +52,7 @@ import LandingPage from './screens/Landing/LandingPage';
 import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
 import OfflineContentScreen from './screens/Offline/OfflineContentScreen';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
+import { parseHapticIntent, triggerHaptic } from './utils/haptics';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
@@ -112,6 +113,58 @@ function subscribeToOnlineStatus(callback: () => void) {
 function getOnlineStatus() {
   return _connectivityStatus !== 'offline';
 }
+
+const GLOBAL_HAPTIC_SELECTOR =
+  'button, a[href], [role="button"], input[type="button"], input[type="submit"], [data-haptic]';
+
+const GlobalHaptics: React.FC = () => {
+  useEffect(() => {
+    const pointerListenerOptions: AddEventListenerOptions = {
+      capture: true,
+      passive: true,
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const interactiveElement = target.closest(GLOBAL_HAPTIC_SELECTOR) as HTMLElement | null;
+      if (!interactiveElement) return;
+
+      const hapticAttr = interactiveElement.getAttribute('data-haptic');
+      if (hapticAttr === 'off') return;
+
+      const intent = parseHapticIntent(hapticAttr);
+      triggerHaptic(intent ?? 'tap');
+    };
+
+    const handleKeyboardActivate = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const interactiveElement = target.closest(GLOBAL_HAPTIC_SELECTOR) as HTMLElement | null;
+      if (!interactiveElement) return;
+
+      const hapticAttr = interactiveElement.getAttribute('data-haptic');
+      if (hapticAttr === 'off') return;
+
+      const intent = parseHapticIntent(hapticAttr);
+      triggerHaptic(intent ?? 'tap');
+    };
+
+    document.addEventListener('pointerup', handlePointerUp, pointerListenerOptions);
+    document.addEventListener('keydown', handleKeyboardActivate, true);
+
+    return () => {
+      document.removeEventListener('pointerup', handlePointerUp, true);
+      document.removeEventListener('keydown', handleKeyboardActivate, true);
+    };
+  }, []);
+
+  return null;
+};
 
 const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isLoading, isAdmin } = useOptionalUserAccess();
@@ -227,6 +280,7 @@ const AppContent = () => {
 
   return (
     <MotionConfig reducedMotion="user">
+      <GlobalHaptics />
       <Router>
         <div className="min-h-screen">
           <RouterContent />
@@ -305,6 +359,7 @@ const MissingKeyScreen = () => (
 // Original reader components are used for full feature parity (animations, quiz, facts)
 const OfflineApp = () => (
   <MotionConfig reducedMotion="user">
+    <GlobalHaptics />
     <Router>
       <OfflineClerkProvider>
         <OfflineThemeProvider>

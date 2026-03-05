@@ -71,7 +71,8 @@ function createCoronaTexture(size = 512): THREE.CanvasTexture {
   ctx.clearRect(0, 0, size, size);
 
   // Soft, long rays with tapered alpha gradient.
-  const rayCount = 96;
+  // +20% rays vs previous baseline for denser, more cinematic corona.
+  const rayCount = 116;
   for (let r = 0; r < rayCount; r++) {
     const angle = (r / rayCount) * Math.PI * 2;
     const length = center * (0.46 + Math.random() * 0.5);

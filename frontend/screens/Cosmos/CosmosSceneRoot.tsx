@@ -38,6 +38,7 @@ import {
   getTextureSizeForPlanet,
 } from './CosmosQuality';
 import { useTopicSuggestions } from './useTopicSuggestions';
+import { triggerHaptic } from '../../utils/haptics';
 
 interface Props {
   cosmosState: CosmosState;
@@ -152,6 +153,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         navigate('/cosmos');
         return;
       }
+      triggerHaptic('selection');
       playFocusSound();
       setIsChildInfoVisible(false);
       setIsSuggestionDrawerOpen(false);
@@ -202,6 +204,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       navigate('/cosmos');
       return;
     }
+    triggerHaptic('selection');
     setIsSuggestionDrawerOpen(false);
     setIsChildInfoVisible(true);
   }, [compact, navigate]);
@@ -231,6 +234,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       const nextDomain = sceneDomains[nextIndex];
       if (!nextDomain) return;
 
+      triggerHaptic('selection');
       playFocusSound();
       setIsChildInfoVisible(false);
       setIsSuggestionDrawerOpen(false);
@@ -325,6 +329,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   );
 
   const handleSelectIsland = useCallback((topic: TopicIsland) => {
+    triggerHaptic('tap');
     setSelectedTopic(topic);
   }, []);
 
