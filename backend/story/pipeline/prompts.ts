@@ -1,4 +1,4 @@
-import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed } from "./types";
+import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint } from "./types";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -497,7 +497,408 @@ Nova exhaled. She looked at her hands — the left glove was torn open at the th
 She folded it over and didn't say anything about it. Some things cost what they cost.`;
 }
 
-// --- Optimized Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
+// ═══════════════════════════════════════════════════════════════════════════
+// V7 STORY BLUEPRINT PROMPT — Separates PLANNING from WRITING
+// ═══════════════════════════════════════════════════════════════════════════
+// The blueprint is generated in a fast, cheap LLM call BEFORE chapter writing.
+// It plans the emotional arc, character wants/fears, and the mistake-and-growth
+// trajectory so the writer prompt can focus purely on PROSE QUALITY.
+
+export function buildStoryBlueprintPrompt(input: {
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+}): string {
+  const { directives, cast, dna, language, ageRange } = input;
+  const isGerman = language === "de";
+  const targetTone = input.tone ?? dna.toneBounds?.targetTone ?? "warm";
+  const artifactName = cast.artifact?.name?.trim();
+  const artifactRule = cast.artifact?.storyUseRule || "";
+
+  // Collect character names and compact profiles
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const characterLines: string[] = [];
+  for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet) continue;
+    const role = (sheet as CharacterSheet).roleType === "AVATAR"
+      ? "Child"
+      : getSpeciesLabel((sheet as CharacterSheet).species || "", isGerman) || (sheet as CharacterSheet).roleType || "";
+    const dominant = (sheet as CharacterSheet).enhancedPersonality?.dominant
+      || (sheet as CharacterSheet).personalityTags?.[0]
+      || "curious";
+    const speech = (sheet as CharacterSheet).speechStyleHints?.[0] || "normal";
+    const quirk = (sheet as CharacterSheet).enhancedPersonality?.quirk || "";
+    const rolePart = role ? ` (${role})` : "";
+    const quirkPart = quirk ? ` | Quirk: ${quirk}` : "";
+    characterLines.push(`- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}${quirkPart}`);
+  }
+
+  // Compress directives into seed hints
+  const seedHints = directives.map((d, idx) => {
+    const setting = trimDirectiveText(sanitizeDirectiveNarrativeText(d.setting), 50);
+    const goal = trimDirectiveText(sanitizeDirectiveNarrativeText(d.goal), 80);
+    const conflict = idx === 0 ? "[NONE — orientation only]" : trimDirectiveText(sanitizeDirectiveNarrativeText(d.conflict), 80);
+    return `Ch${idx + 1}: Setting: ${setting} | Goal: ${goal} | Conflict: ${conflict}`;
+  }).join("\n");
+
+  // Theme and conflict from DNA
+  const themeTags = dna.themeTags?.slice(0, 4).join(", ") || "adventure";
+  const coreConflict = dna.coreConflict || "overcoming a challenge through courage and friendship";
+
+  const artifactBlock = artifactName
+    ? `\n::: MAGICAL OBJECT :::\nName: ${artifactName}\nRule: ${artifactRule}\nPlan three things:\n  1. WONDER: What makes it fascinating when first discovered?\n  2. TEMPTATION: Why is it easy to misuse or over-rely on it?\n  3. PRICE: What does it cost to truly use it?\n`
+    : "";
+
+  return `Create a story blueprint (emotional arc plan) for a children's story with 5 chapters.
+Target age: ${ageRange.min}-${ageRange.max}. Tone: ${targetTone}. Output language: ${isGerman ? "German" : language}.
+
+::: CHARACTERS :::
+${characterLines.join("\n")}
+
+::: STORY SEED :::
+Theme: ${themeTags}
+Core conflict: ${coreConflict}
+${seedHints}
+${artifactBlock}
+::: CHAPTER BLUEPRINT :::
+
+For each chapter, answer these questions concisely (1-2 sentences each):
+
+CHAPTER 1 — THE INVITATION (orientation, NO conflict):
+- where: Where are we? (1 sensory detail)
+- who: Who do we meet? (each character: 1 physical detail + 1 personality trait in action)
+- want: What does the child want? (the desire that drives the story)
+- curiosityHook: Last moment — what makes the reader curious?
+
+CHAPTER 2 — THE WONDER (discovery + first complication):
+- newElement: What exciting thing appears? (artifact, new place, new character)
+- boldChoice: What small brave decision does the child make?
+- complication: What doesn't go as planned?
+- openQuestion: What question stays unanswered?
+
+CHAPTER 3 — THE MISTAKE (child's genuine error + consequence):
+- mistake: What does the child do wrong?
+- mistakeReason: WHY do they make this mistake? (impatience? pride? fear? — rooted in their personality)
+- consequence: What breaks, is lost, or goes wrong because of it?
+- bodyReaction: How does the child's body react? (stomach drops, throat tightens, hands shake)
+- stuckFeeling: Why does everything feel hopeless now? (1 sentence)
+
+CHAPTER 4 — DARKEST MOMENT + TURNING POINT:
+- worstMoment: What is the worst situation?
+- almostGivingUp: What makes the child almost give up? (1-2 sentences of doubt)
+- insightTrigger: What small detail triggers the insight? (a memory, a friend's earlier words, a pattern noticed)
+- newChoice: What does the child decide — differently than before?
+
+CHAPTER 5 — THE LANDING (resolution + warmth):
+- concreteWin: What exactly was won? (concrete object/result, not abstract)
+- smallPrice: What small tangible thing was lost? (torn glove, lost trinket, tired legs, missed dinner)
+- ch1Callback: How does this connect back to Chapter 1? (same place/object, but different now)
+- finalImage: Final warm image (physical, specific — not a moral statement)
+
+::: EMOTIONAL ARC :::
+Write one sentence per chapter describing how the child FEELS:
+1. Comfort → Curiosity
+2. Curiosity → Excitement → First Doubt
+3. Confidence → Overreach → "Oh no"
+4. Stuck → Almost Giving Up → One Spark of Courage
+5. Courage → Effort → Success → Quiet Warmth
+
+::: CHARACTER INNER LIFE :::
+For each character, define:
+- WANT: What do they desire in this specific story?
+- FEAR: What are they avoiding or afraid of?
+
+::: OUTPUT FORMAT :::
+Return JSON only:
+{
+  "blueprint": {
+    "chapter1": { "where": "...", "who": "...", "want": "...", "curiosityHook": "..." },
+    "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "..." },
+    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "..." },
+    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "..." },
+    "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "..." }
+  },
+  "emotionalArc": ["...", "...", "...", "...", "..."],
+  "characterWants": { "Name1": "...", "Name2": "..." },
+  "characterFears": { "Name1": "...", "Name2": "..." }${artifactName ? `,
+  "artifactArc": { "wonder": "...", "temptation": "...", "price": "..." }` : ""}
+}
+Keep each field to 1-2 sentences. Total output under 800 words.`;
+}
+
+/**
+ * V7 Blueprint System Prompt — used for the blueprint planning call.
+ */
+export function buildBlueprintSystemPrompt(language: string): string {
+  const isGerman = language === "de";
+  return isGerman
+    ? `Du bist ein erfahrener Kinderbuch-Dramaturg. Du planst Geschichten mit klaren emotionalen Bögen, nachvollziehbaren Kinderfiguren und einer echten Fehler-und-Wachstums-Reise. Deine Pläne sind konkret und kinderfreundlich, nie abstrakt oder belehrend. Antworte immer als JSON.`
+    : `You are an experienced children's book dramaturg. You plan stories with clear emotional arcs, relatable child characters, and a genuine mistake-and-growth journey. Your plans are concrete and child-friendly, never abstract or preachy. Always respond as JSON.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V7 BLUEPRINT-DRIVEN STORY WRITER PROMPT
+// ═══════════════════════════════════════════════════════════════════════════
+// Dramatically simplified compared to V6. The blueprint handles all planning,
+// so this prompt focuses purely on PROSE QUALITY. ~60 lines instead of ~180.
+
+export function buildBlueprintDrivenStoryPrompt(input: {
+  blueprint: StoryBlueprint;
+  cast: CastSet;
+  directives: SceneDirective[];
+  language: string;
+  ageRange: { min: number; max: number };
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  humorLevel?: number;
+  stylePackText?: string;
+  userPrompt?: string;
+  avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+}): string {
+  const { blueprint, cast, directives, language, ageRange, totalWordMin, totalWordMax, wordsPerChapter } = input;
+  const isGerman = language === "de";
+  const outputLang = isGerman ? "German" : language;
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß). No English words." : "";
+
+  // Build compact character profiles — name + detail + speech example only
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const characterLines: string[] = [];
+  const allowedNames: string[] = [];
+  for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet) continue;
+    if (!allowedNames.includes(sheet.displayName)) allowedNames.push(sheet.displayName);
+    const cs = sheet as CharacterSheet;
+    const role = cs.roleType === "AVATAR"
+      ? isGerman ? "Kind" : "Child"
+      : getSpeciesLabel(cs.species || "", isGerman) || "";
+    const rolePart = role ? ` (${role})` : "";
+    const speech = cs.speechStyleHints?.[0] || "normal";
+    const speechEx = generateSpeechExample(cs.displayName, speech, cs.enhancedPersonality?.catchphrase || "", isGerman);
+    characterLines.push(`- ${cs.displayName}${rolePart}: Voice: ${speech}. ${speechEx}`);
+  }
+
+  // Child voice contract
+  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
+
+  // Artifact
+  const artifactName = cast.artifact?.name?.trim();
+
+  // Humor
+  const humorTarget = Math.max(0, Math.min(3, Number.isFinite(input.humorLevel as number) ? Number(input.humorLevel) : 2));
+  const humorRule = humorTarget >= 3
+    ? "Humor: HIGH — 3+ laugh moments (slapstick, misunderstanding, witty comeback)."
+    : humorTarget >= 2
+      ? "Humor: MEDIUM — 2+ laugh moments suitable for children."
+      : humorTarget >= 1
+        ? "Humor: LIGHT — one smile moment."
+        : "";
+
+  // Style pack & custom prompt
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 8);
+  const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 8);
+
+  // Memory reference
+  let memoryLine = "";
+  if (input.avatarMemories && input.avatarMemories.size > 0) {
+    for (const avatar of cast.avatars) {
+      const memories = input.avatarMemories.get(avatar.characterId);
+      if (!memories || memories.length === 0) continue;
+      const topTitle = String(memories[0]?.storyTitle || "").trim();
+      if (topTitle) {
+        memoryLine = `- One avatar may reference an earlier adventure ONCE ("That reminds me of..."): "${topTitle}"`;
+        break;
+      }
+    }
+  }
+
+  // Age rules
+  const ageMax = ageRange.max;
+  const ageRule = ageMax <= 6
+    ? `Sentences: max 8 words. Simple vocabulary. Lots of repetition.`
+    : ageMax <= 8
+      ? `Sentences: max 12 words on average. Everyday language. No jargon, no complex metaphors. Every paragraph must be clear when read aloud.`
+      : `Medium sentences allowed. Richer vocabulary possible. Balance complex with short punchy sentences.`;
+
+  // Safety
+  const safetyRule = "No violence, weapons, blood, horror, bullying, politics/religion, drugs/alcohol.";
+
+  return `Write a 5-chapter children's story in ${outputLang}.${umlautRule}
+Use the BLUEPRINT below as your guide — but NEVER copy it word-for-word. Tell the story, don't report the plan.
+
+::: BLUEPRINT (your emotional roadmap — dramatize, don't copy) :::
+${JSON.stringify(blueprint, null, 2)}
+
+::: CHARACTERS :::
+${characterLines.join("\n")}
+${childVoiceContract ? `\n${childVoiceContract}` : ""}
+
+${artifactName ? `::: ARTIFACT :::\n- ${artifactName}: ${cast.artifact?.storyUseRule || "important magical object"}\n` : ""}
+${memoryLine ? `${memoryLine}\n` : ""}
+${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
+${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
+
+::: WHAT GREAT PROSE SOUNDS LIKE :::
+Mama slammed the basket on the table. Pop.
+"Can I–" "No," said Mom. Quick as a crocodile jaw.
+Alexander leaned in. "I smell apple cake." "And tea," said Adrian.
+He sniffed extra loud. "And... Grandma."
+
+→ Rhythm. Interruption. Humor. Body. Dialogue anchored to action. Every character sounds different.
+
+::: RULES (only these — nothing else) :::
+1. 4-6 paragraphs per chapter. Each paragraph: 2-4 sentences. Blank line between paragraphs.
+2. At least 30% of each chapter is dialogue. Every dialogue line is anchored to a physical action.
+3. Max 2-3 characters in the foreground per chapter. Others can react briefly.
+4. Chapters 1-4 end with unresolved tension — the reader MUST want to turn the page.
+5. Chapter 5 ends with a warm, concrete image. No moral statement.
+6. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
+7. Each character must sound different by sentence length and word choice alone.
+8. ${ageRule}
+9. ${safetyRule}
+${humorRule ? `10. ${humorRule}` : ""}
+
+::: WORD TARGET :::
+Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+Cast lock: only ${allowedNames.join(", ")}. No new names.
+
+::: OUTPUT :::
+{
+  "title": "Short curiosity-driven title (max 6 words)",
+  "description": "One teaser sentence with a question hook",
+  "chapters": [
+    { "chapter": 1, "paragraphs": ["Paragraph 1 (2-4 sentences).", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+  ]
+}
+"paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER put the whole chapter in one string.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V7 SYSTEM PROMPT — used for chapter writing
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function buildV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
+  const isGerman = language === "de";
+  if (isGerman) {
+    return `Du bist ein erfahrener Kinderbuchautor. Deine Geschichten klingen wie echte Bücher von Preußler, Lindgren oder Funke — warm, lebendig, manchmal lustig, immer ehrlich.
+
+Du schreibst für Kinder im Alter von ${ageRange.min} bis ${ageRange.max} Jahren. Das bedeutet:
+- Kurze, klare Sätze. Maximal 12 Wörter pro Satz im Durchschnitt.
+- Keine Fremdwörter, keine Metaphern, die ein Kind nicht versteht.
+- Jeder Absatz muss sofort verständlich sein, wenn er laut vorgelesen wird.
+
+Deine Regeln als Autor:
+1. Gefühle zeigt man durch den Körper, nie durch Etiketten. Nicht "Er hatte Angst" — sondern "Seine Finger krallten sich in den Stoff seiner Jacke."
+2. Jede Figur klingt anders. Am Satzbau allein muss man erkennen, wer spricht.
+3. Jede Dialogzeile ist an eine körperliche Handlung gebunden. Keine schwebenden Zitate.
+4. Absätze atmen: 2-4 Sätze, dann eine Leerzeile. Nie eine Textwand.
+5. Rhythmus: Kurz. Kurz. Ein längerer Satz mit einem überraschenden Detail am Ende.
+6. Humor entsteht durch Situationen und Überraschungen, nie durch Erklärungen.
+7. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzählungen, keine Protokoll-Sprache, keine Moral-Predigten.
+
+Schreibe die Geschichte ausschließlich auf Deutsch. Korrekte Umlaute (ä, ö, ü, ß). Keine englischen Wörter.`;
+  }
+  return `You are an experienced children's book author. Your stories sound like real books by Dahl, Donaldson, or Gaiman — warm, witty, and alive.
+
+You write for children aged ${ageRange.min} to ${ageRange.max}. This means:
+- Short, clear sentences. Max 12 words per sentence on average.
+- No jargon, no metaphors a child wouldn't understand.
+- Every paragraph must be instantly clear when read aloud.
+
+Your rules as an author:
+1. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
+2. Each character sounds different by sentence length and word choice alone.
+3. Every dialogue line is anchored to a physical action. No floating quotes.
+4. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text.
+5. Rhythm: Short. Short. One longer sentence with a surprising detail at the end.
+6. Humor through situations and surprises, never through explanations.
+7. You write a story, not a report. No lists, no protocol language, no moral lectures.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// V7 REVISION PROMPT — blueprint-aware, focused on specific fixes
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function buildV7RevisionPrompt(input: {
+  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; text: string }> };
+  blueprint?: StoryBlueprint;
+  cast: CastSet;
+  language: string;
+  ageRange: { min: number; max: number };
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  qualityIssues: string;
+  stylePackText?: string;
+}): string {
+  const { originalDraft, language, totalWordMin, totalWordMax, wordsPerChapter, qualityIssues } = input;
+  const isGerman = language === "de";
+  const outputLang = isGerman ? "German" : language;
+  const umlautRule = isGerman ? " Korrekte Umlaute (ä, ö, ü, ß). Keine englischen Wörter." : "";
+
+  const allNames = [...input.cast.avatars, ...input.cast.poolCharacters]
+    .map(s => s.displayName)
+    .filter(Boolean)
+    .join(", ");
+
+  const originalText = originalDraft.chapters
+    .map(ch => `--- Chapter ${ch.chapter} ---\n${ch.text}`)
+    .join("\n\n");
+
+  const blueprintHint = input.blueprint
+    ? `\n::: BLUEPRINT (emotional roadmap — use as guide) :::\n${JSON.stringify(input.blueprint, null, 2)}\n`
+    : "";
+
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 5);
+
+  return `TASK: Rewrite this story so it sounds like a REAL PUBLISHED children's book. Fix the specific issues listed below.
+
+::: CRITIC FEEDBACK (MUST FIX) :::
+${qualityIssues || "- General prose improvement needed. Too flat, robot-style prose."}
+${blueprintHint}
+::: REWRITE RULES (focus on these) :::
+
+1. PARAGRAPHS: If chapters have single-sentence chains ("He ran. She said. He nodded."), merge into flowing paragraphs of 2-4 sentences.
+
+2. EMOTIONS = BODY: Find every "he was nervous/happy/sad" and replace with physical sensation.
+
+3. DISTINCT VOICES: Each character must sound different. If you can swap two characters' dialogue without it sounding wrong → fix it.
+
+4. DIALOGUE ANCHORING: Every dialogue line needs a physical action anchor. No floating quotes.
+
+5. CHAPTER TRANSITIONS: The first sentence of each chapter (from Ch2 on) must connect to the last sentence of the previous chapter.
+
+::: HARD RULES :::
+1. Language: ONLY ${outputLang}.${umlautRule}
+2. Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
+3. Cast Lock: ${allNames}. No new names.
+4. Never copy goal/conflict text into the story. Dramatize.
+
+${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
+::: ORIGINAL DRAFT (REWRITE) :::
+${originalText}
+
+::: OUTPUT :::
+{
+  "title": "Story title",
+  "description": "Teaser sentence",
+  "chapters": [
+    { "chapter": 1, "paragraphs": ["Paragraph 1 (2-4 sentences).", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+  ]
+}
+"paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER put the whole chapter in one string.
+Only fix what the critic feedback demands. Do not invent new plot points.`;
+}
+
+// --- Legacy Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
 // KEY INSIGHT: Gemini Flash responds best to EXAMPLES, not to rule lists.
 // V6 changes:
 //   - Shorter system instruction (author persona, not rule engine)
@@ -506,6 +907,7 @@ She folded it over and didn't say anything about it. Some things cost what they 
 //   - Expanded _planning field forcing concrete voice signatures + somatic markers
 //   - Anti-patterns shortened to 4 critical items (long lists cause "avoidance prose")
 //   - Added PARAGRAPH STRUCTURE rule (the #1 quality killer was single-sentence chains)
+// NOTE: V6 is kept as fallback. V7 blueprint-driven prompt is the new default.
 
 export function buildFullStoryPrompt(input: {
   directives: SceneDirective[];

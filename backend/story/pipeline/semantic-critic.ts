@@ -76,10 +76,32 @@ export async function runSemanticCritic(input: {
       text: compressChapter(ch.text, 220),
     }));
 
-    const systemPrompt = `You are a strict senior children's-book editor and release reviewer.
-Evaluate quality only. Never rewrite the full story.
+    const isDE = input.language === "de";
+    const systemPrompt = isDE
+      ? `Du bist ein strenger Kinderbuch-Lektor. Bewerte nur die Qualität. Schreibe die Geschichte NICHT um.
+Fokussiere dich auf konkrete, kapitel-lokale Fehler und umsetzbare Korrekturen.
+Kein allgemeines Lob. Gib knappes JSON zurück, exakt wie angefordert.
+
+PRÜFE GEZIELT:
+1. Kapitel 1: Weiß das Kind nach 2 Absätzen WER, WO, WAS? Wenn nicht → ERROR.
+2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persönlichkeit heraus? Gibt es eine Körperreaktion? Wenn nicht → ERROR.
+3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von außen)? Wenn nicht → ERROR.
+4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rückbezug zu Kapitel 1? Wenn nicht → WARNING.
+5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Pro Kapitel prüfen.
+6. Vorlese-Test: Gibt es Sätze über 15 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
+7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?`
+      : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
 Focus on concrete, chapter-local failures and actionable fixes.
-Avoid generic praise. Return concise JSON exactly as requested.`;
+No generic praise. Return concise JSON exactly as requested.
+
+TARGETED CHECKS:
+1. Chapter 1: After 2 paragraphs, does the child know WHO, WHERE, WHAT? If not → ERROR.
+2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not → ERROR.
+3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not → ERROR.
+4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not → WARNING.
+5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? Check per chapter.
+6. Read-aloud test: Are there sentences over 15 words that would stumble when read aloud? Quote them.
+7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?`;
 
     const userPayload = {
       language: input.language,
@@ -98,13 +120,24 @@ Avoid generic praise. Return concise JSON exactly as requested.`;
         warmth: "emotional warmth, hopeful closure",
       },
       focusChecks: [
-        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained'",
-        "meta-summary leak: reject lines like 'the consequence was clear' / 'the price?'",
-        "rule-exposition tell: reject textbook statements about how artifacts/rules work",
+        "Ch1 orientation: after 2 paragraphs child must know WHO + WHERE + WHAT. If mid-action start → ERROR CH1_ORIENTATION_MISSING",
+        "Ch3 child mistake: child must make a genuine error from their personality (not external bad luck). Body reaction required. If missing → ERROR CHILD_MISTAKE_MISSING",
+        "Ch4 internal turning point: the insight must come from inside the child, not from artifact or adult. If external → ERROR EXTERNAL_RESOLUTION",
+        "Ch5 concrete payoff: show what was won (concrete) + small tangible price + callback to Ch1. If abstract → WARNING",
+        "mistake-growth arc: child mistakes in Ch3, learns in Ch4, acts differently in Ch5. If arc is broken → ERROR GROWTH_ARC_BROKEN",
         "voice separation: children should sound distinct in sentence rhythm and wording",
-        "scene continuity: no abrupt scene jumps without visible transition sentence",
+        "read-aloud stumbles: flag sentences over 15 words that would stumble when read aloud",
+        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment",
+        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained'",
+        "rule-exposition tell: reject textbook statements about how artifacts/rules work",
       ],
       preferredIssueCodes: [
+        "CH1_ORIENTATION_MISSING",
+        "CHILD_MISTAKE_MISSING",
+        "EXTERNAL_RESOLUTION",
+        "GROWTH_ARC_BROKEN",
+        "CHAPTER_TRANSITION_WEAK",
+        "READ_ALOUD_STUMBLE",
         "VOICE_BLEND",
         "VOICE_TAG_FORMULA_OVERUSE",
         "META_FORESHADOW_PHRASE",

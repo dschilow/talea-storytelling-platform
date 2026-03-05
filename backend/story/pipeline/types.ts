@@ -118,6 +118,53 @@ export interface StoryBlueprintBase {
   scenes: SceneBeat[];
 }
 
+/**
+ * V7 Story Blueprint — emotional arc plan generated BEFORE chapter writing.
+ * Separates PLANNING from WRITING so the model tells a story instead of
+ * executing a checklist.
+ */
+export interface StoryBlueprint {
+  chapter1: {
+    where: string;
+    who: string;
+    want: string;
+    curiosityHook: string;
+  };
+  chapter2: {
+    newElement: string;
+    boldChoice: string;
+    complication: string;
+    openQuestion: string;
+  };
+  chapter3: {
+    mistake: string;
+    mistakeReason: string;
+    consequence: string;
+    bodyReaction: string;
+    stuckFeeling: string;
+  };
+  chapter4: {
+    worstMoment: string;
+    almostGivingUp: string;
+    insightTrigger: string;
+    newChoice: string;
+  };
+  chapter5: {
+    concreteWin: string;
+    smallPrice: string;
+    ch1Callback: string;
+    finalImage: string;
+  };
+  emotionalArc: [string, string, string, string, string];
+  characterWants: Record<string, string>;
+  characterFears: Record<string, string>;
+  artifactArc?: {
+    wonder: string;
+    temptation: string;
+    price: string;
+  };
+}
+
 export interface NormalizedRequest {
   storyId: string;
   userId: string;

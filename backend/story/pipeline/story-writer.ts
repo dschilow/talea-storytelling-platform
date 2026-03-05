@@ -1,5 +1,5 @@
-import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets } from "./prompts";
+import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint } from "./types";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildStoryBlueprintPrompt, buildBlueprintSystemPrompt, buildBlueprintDrivenStoryPrompt, buildV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
@@ -69,6 +69,12 @@ const WARNING_POLISH_CODES = new Set([
   "PROTOCOL_STYLE_META",
   "REPORT_STYLE_OVERUSE",
   "PARAGRAPH_CHOPPY",
+  // V7 narrative structure gates
+  "CHILD_MISTAKE_MISSING",
+  "MISTAKE_BODY_REACTION_MISSING",
+  "INTERNAL_TURN_MISSING",
+  "CH1_WORLD_MISSING",
+  "CHAPTER_TRANSITION_WEAK",
 ]);
 
 // Warning-driven rewrites are reserved for persistent quality misses when no hard errors remain.
@@ -98,6 +104,12 @@ const REWRITE_WARNING_CODES = new Set([
   "PROTOCOL_STYLE_META",
   "REPORT_STYLE_OVERUSE",
   "PARAGRAPH_CHOPPY",
+  // V7 narrative structure gates
+  "CHILD_MISTAKE_MISSING",
+  "MISTAKE_BODY_REACTION_MISSING",
+  "INTERNAL_TURN_MISSING",
+  "CH1_WORLD_MISSING",
+  "CHAPTER_TRANSITION_WEAK",
 ]);
 
 const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
@@ -108,6 +120,13 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "LOWPOINT_TOO_SOFT",
   "COMPARISON_CLUSTER",
   "MISSING_INNER_CHILD_MOMENT",
+  // V7 narrative structure gates
+  "CHILD_MISTAKE_MISSING",
+  "MISTAKE_BODY_REACTION_MISSING",
+  "INTERNAL_TURN_MISSING",
+  "CH1_IN_MEDIAS_RES",
+  "CH1_WORLD_MISSING",
+  "CHAPTER_TRANSITION_WEAK",
   "NO_CHILD_ERROR_CORRECTION_ARC",
   "ENDING_PAYOFF_ABSTRACT",
   "ENDING_PRICE_MISSING",
@@ -343,28 +362,124 @@ ${storyLanguageRule}`.trim();
       return Math.min(requested, hardCap);
     };
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // V7 BLUEPRINT PHASE — Plan emotional arc before writing
+    // ═══════════════════════════════════════════════════════════════════════
+    const useV7Blueprint = rawConfig?.promptVersion !== "v6"; // V7 is the new default
+    let storyBlueprint: StoryBlueprint | undefined;
+
+    if (useV7Blueprint && !isTokenBudgetExceeded()) {
+      console.log(`[story-writer] V7: Generating story blueprint...`);
+      try {
+        const blueprintPrompt = buildStoryBlueprintPrompt({
+          directives,
+          cast,
+          dna,
+          language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          tone: normalizedRequest.requestedTone,
+        });
+
+        const blueprintMaxTokens = isGeminiFlashModel ? 1800 : (isReasoningModel ? 2200 : 1500);
+        const blueprintResult = await callStoryModel({
+          systemPrompt: buildBlueprintSystemPrompt(normalizedRequest.language),
+          userPrompt: blueprintPrompt,
+          responseFormat: "json_object",
+          maxTokens: blueprintMaxTokens,
+          temperature: 0.5,
+          reasoningEffort: "low",
+          thinkingBudget: resolveGeminiThinkingBudget("full"),
+          context: "story-writer-blueprint",
+          logSource: "phase6-story-llm",
+          logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },
+        });
+
+        if (blueprintResult.usage) {
+          totalUsage = mergeUsage(totalUsage, blueprintResult.usage, model);
+        }
+
+        const blueprintParsed = safeJson(blueprintResult.content);
+        if (blueprintParsed?.blueprint) {
+          storyBlueprint = blueprintParsed.blueprint as StoryBlueprint;
+          // Merge top-level fields into the blueprint if present
+          if (blueprintParsed.emotionalArc) storyBlueprint.emotionalArc = blueprintParsed.emotionalArc;
+          if (blueprintParsed.characterWants) storyBlueprint.characterWants = blueprintParsed.characterWants;
+          if (blueprintParsed.characterFears) storyBlueprint.characterFears = blueprintParsed.characterFears;
+          if (blueprintParsed.artifactArc) storyBlueprint.artifactArc = blueprintParsed.artifactArc;
+          console.log(`[story-writer] V7: Blueprint generated successfully.`);
+        } else if (blueprintParsed) {
+          // Some models may return the blueprint at top level without wrapping
+          const hasCh1 = blueprintParsed.chapter1 || blueprintParsed.ch1;
+          if (hasCh1) {
+            storyBlueprint = {
+              chapter1: blueprintParsed.chapter1 || blueprintParsed.ch1,
+              chapter2: blueprintParsed.chapter2 || blueprintParsed.ch2,
+              chapter3: blueprintParsed.chapter3 || blueprintParsed.ch3,
+              chapter4: blueprintParsed.chapter4 || blueprintParsed.ch4,
+              chapter5: blueprintParsed.chapter5 || blueprintParsed.ch5,
+              emotionalArc: blueprintParsed.emotionalArc || ["", "", "", "", ""],
+              characterWants: blueprintParsed.characterWants || {},
+              characterFears: blueprintParsed.characterFears || {},
+              artifactArc: blueprintParsed.artifactArc,
+            } as StoryBlueprint;
+            console.log(`[story-writer] V7: Blueprint extracted from flat response.`);
+          } else {
+            console.warn(`[story-writer] V7: Blueprint response missing expected structure, falling back to V6.`);
+          }
+        }
+      } catch (error) {
+        console.warn(`[story-writer] V7: Blueprint generation failed, falling back to V6 prompt.`, error);
+      }
+    }
+
     // ─── Phase A: Generate full story in one call ────────────────────────────
-    const buildStoryPrompt = (promptMode: "full" | "compact") => buildFullStoryPrompt({
-      directives,
-      cast,
-      dna,
-      model,
-      language: normalizedRequest.language,
-      ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-      tone: normalizedRequest.requestedTone,
-      humorLevel,
-      totalWordTarget: Math.round(totalWordTarget),
-      totalWordMin: Math.round(totalWordMin),
-      totalWordMax: Math.round(totalWordMax),
-      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-      stylePackText,
-      strict,
-      fusionSections,
-      avatarMemories,
-      userPrompt: normalizedRequest.rawConfig?.customPrompt,
-      promptMode,
-    });
-    const resolveSystemPrompt = (mode: "full" | "compact") => mode === "compact" ? compactSystemPrompt : systemPrompt;
+    // V7: Use blueprint-driven prompt if blueprint was generated successfully
+    const v7SystemPrompt = buildV7SystemPrompt(normalizedRequest.language, { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax });
+
+    const buildStoryPrompt = (promptMode: "full" | "compact") => {
+      // If V7 blueprint is available, use the simplified blueprint-driven prompt
+      if (storyBlueprint && useV7Blueprint) {
+        return buildBlueprintDrivenStoryPrompt({
+          blueprint: storyBlueprint,
+          cast,
+          directives,
+          language: normalizedRequest.language,
+          ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          totalWordMin: Math.round(totalWordMin),
+          totalWordMax: Math.round(totalWordMax),
+          wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+          humorLevel,
+          stylePackText,
+          userPrompt: normalizedRequest.rawConfig?.customPrompt,
+          avatarMemories,
+        });
+      }
+      // Fallback to V6 prompt
+      return buildFullStoryPrompt({
+        directives,
+        cast,
+        dna,
+        model,
+        language: normalizedRequest.language,
+        ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+        tone: normalizedRequest.requestedTone,
+        humorLevel,
+        totalWordTarget: Math.round(totalWordTarget),
+        totalWordMin: Math.round(totalWordMin),
+        totalWordMax: Math.round(totalWordMax),
+        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+        stylePackText,
+        strict,
+        fusionSections,
+        avatarMemories,
+        userPrompt: normalizedRequest.rawConfig?.customPrompt,
+        promptMode,
+      });
+    };
+    const resolveSystemPrompt = (mode: "full" | "compact") => {
+      if (storyBlueprint && useV7Blueprint) return v7SystemPrompt;
+      return mode === "compact" ? compactSystemPrompt : systemPrompt;
+    };
     const isEmptyTruncatedResponse = (response: { finishReason?: string; content?: string }) =>
       isTruncatedFinishReason(response.finishReason) && !String(response.content || "").trim();
     let activePromptMode: "full" | "compact" = storyPromptMode;
@@ -823,22 +938,36 @@ ${storyLanguageRule}`.trim();
       const prioritizedIssues = prioritizeIssuesForRewrite(actionableIssues);
       const rewriteInstructions = buildRewriteInstructions(prioritizedIssues, normalizedRequest.language);
 
-      const rewritePrompt = buildFullStoryRewritePrompt({
-        originalDraft: draft,
-        directives,
-        cast,
-        dna,
-        language: normalizedRequest.language,
-        ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-        tone: normalizedRequest.requestedTone,
-        humorLevel,
-        totalWordMin: Math.round(totalWordMin),
-        totalWordMax: Math.round(totalWordMax),
-        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-        qualityIssues: rewriteInstructions,
-        stylePackText,
-        userPrompt: normalizedRequest.rawConfig?.customPrompt,
-      });
+      // V7: Use blueprint-aware revision prompt when available
+      const rewritePrompt = (storyBlueprint && useV7Blueprint)
+        ? buildV7RevisionPrompt({
+            originalDraft: draft,
+            blueprint: storyBlueprint,
+            cast,
+            language: normalizedRequest.language,
+            ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+            totalWordMin: Math.round(totalWordMin),
+            totalWordMax: Math.round(totalWordMax),
+            wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+            qualityIssues: rewriteInstructions,
+            stylePackText,
+          })
+        : buildFullStoryRewritePrompt({
+            originalDraft: draft,
+            directives,
+            cast,
+            dna,
+            language: normalizedRequest.language,
+            ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+            tone: normalizedRequest.requestedTone,
+            humorLevel,
+            totalWordMin: Math.round(totalWordMin),
+            totalWordMax: Math.round(totalWordMax),
+            wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+            qualityIssues: rewriteInstructions,
+            stylePackText,
+            userPrompt: normalizedRequest.rawConfig?.customPrompt,
+          });
 
       let rewriteResult;
       const rewriteRequestedTokens = isReasoningModel

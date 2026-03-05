@@ -2415,6 +2415,259 @@ function gateArtifactMiniArc(
 }
 
 // ─── Main Runner ────────────────────────────────────────────────────────────────
+// ─── Gate V7a: Child Mistake Arc ──────────────────────────────────────────────
+// Checks that Chapter 3 contains a genuine child mistake + body reaction
+function gateChildMistakeArc(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+  if (draft.chapters.length < 4) return issues;
+
+  // Chapter 3 (index 2) should contain the mistake
+  const ch3 = draft.chapters[2];
+  if (!ch3) return issues;
+  const text = ch3.text;
+
+  // Check for mistake indicators
+  const mistakePatterns = isDE
+    ? [
+      /\b(?:fehler|falsch|verschuldet|schuld|dummer?|dummerweise|hätte\s+nicht|sollte\s+nicht|warum\s+(?:nur|hab|habe)|zu\s+schnell|zu\s+ungeduldig|ohne\s+nachzudenken|voreilig|übermütig)\b/i,
+      /\b(?:kaputt|zerbrochen|zerriss|verloren|vergessen|verschüttet|umgeworfen|fallen\s+gelassen|zerstört|ruiniert)\b/i,
+    ]
+    : [
+      /\b(?:mistake|wrong|fault|shouldn't\s+have|shouldn't\s+have|why\s+did\s+I|too\s+fast|too\s+impatient|without\s+thinking|reckless|overconfident)\b/i,
+      /\b(?:broke|broken|tore|lost|forgot|spilled|knocked\s+over|dropped|destroyed|ruined)\b/i,
+    ];
+
+  const hasMistakeIndicator = mistakePatterns.some(p => p.test(text));
+
+  // Check for body reaction
+  const bodyReactionPatterns = isDE
+    ? [
+      /\b(?:magen|bauch|kehle|hals|finger|hände|knie|beine|schultern|herz|brust)\b/i,
+      /\b(?:schluckte|zitterte|erstarrte|stockte|krallte|presste|sackte|sackten|drückte|ballte|verkrampfte)\b/i,
+    ]
+    : [
+      /\b(?:stomach|belly|throat|fingers|hands|knees|legs|shoulders|heart|chest)\b/i,
+      /\b(?:swallowed|trembled|froze|stumbled|gripped|pressed|slumped|clenched|tightened)\b/i,
+    ];
+
+  const hasBodyReaction = bodyReactionPatterns.some(p => p.test(text));
+
+  if (!hasMistakeIndicator) {
+    issues.push({
+      gate: "CHILD_MISTAKE_ARC",
+      chapter: ch3.chapter,
+      code: "CHILD_MISTAKE_MISSING",
+      message: isDE
+        ? `Kapitel ${ch3.chapter}: Kein erkennbarer Kinderfehler. Das Kind muss einen echten Fehler machen (aus Ungeduld, Stolz oder Angst), nicht nur Pech haben.`
+        : `Chapter ${ch3.chapter}: No recognizable child mistake. The child must make a genuine error (from impatience, pride, or fear), not just bad luck.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  if (!hasBodyReaction) {
+    issues.push({
+      gate: "CHILD_MISTAKE_ARC",
+      chapter: ch3.chapter,
+      code: "MISTAKE_BODY_REACTION_MISSING",
+      message: isDE
+        ? `Kapitel ${ch3.chapter}: Fehlende Körperreaktion auf den Fehler. Zeige wie der Körper reagiert (Magen zieht sich zusammen, Kehle wird eng, Hände zittern).`
+        : `Chapter ${ch3.chapter}: Missing body reaction to the mistake. Show how the body reacts (stomach drops, throat tightens, hands shake).`,
+      severity: "WARNING",
+    });
+  }
+
+  // Check Ch4 for internal turning point (not external rescue)
+  const ch4 = draft.chapters[3];
+  if (ch4) {
+    const ch4Text = ch4.text;
+    const externalRescuePatterns = isDE
+      ? [
+        /\b(?:rettete\s+(?:sie|ihn|ihm|ihr)|kam\s+(?:ihr|ihm)\s+zu\s+hilfe|erschien\s+(?:ein|eine|der|die)\s+\w+\s+und\s+rettete)\b/i,
+      ]
+      : [
+        /\b(?:rescued\s+(?:them|her|him)|came\s+to\s+(?:their|her|his)\s+rescue|appeared\s+and\s+saved)\b/i,
+      ];
+
+    const internalTurnPatterns = isDE
+      ? [
+        /\b(?:verstand|begriff|erkannte|merkte|wusste|beschloss|entschied|versuchte?\s+es\s+anders|diesmal|auf\s+eine\s+andere\s+(?:art|weise))\b/i,
+        /\b(?:erinnerte\s+sich|fiel\s+(?:ihm|ihr)\s+ein|da\s+(?:fiel|kam))\b/i,
+      ]
+      : [
+        /\b(?:understood|realized|knew|decided|tried\s+(?:differently|another\s+way)|this\s+time)\b/i,
+        /\b(?:remembered|it\s+came\s+(?:to\s+(?:him|her)|back))\b/i,
+      ];
+
+    const hasInternalTurn = internalTurnPatterns.some(p => p.test(ch4Text));
+    if (!hasInternalTurn) {
+      issues.push({
+        gate: "CHILD_MISTAKE_ARC",
+        chapter: ch4.chapter,
+        code: "INTERNAL_TURN_MISSING",
+        message: isDE
+          ? `Kapitel ${ch4.chapter}: Keine erkennbare innere Wende. Das Kind muss selbst eine Erkenntnis haben oder sich an etwas erinnern — nicht von außen gerettet werden.`
+          : `Chapter ${ch4.chapter}: No recognizable internal turning point. The child must have their own insight or memory — not be rescued externally.`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ─── Gate V7b: Chapter Transitions ───────────────────────────────────────────
+// Checks that Ch2-5 opening connects to the previous chapter's ending
+function gateChapterTransitions(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  for (let i = 1; i < draft.chapters.length; i++) {
+    const prevChapter = draft.chapters[i - 1];
+    const currChapter = draft.chapters[i];
+    if (!prevChapter || !currChapter) continue;
+
+    // Get last 2 sentences of previous chapter
+    const prevSentences = splitSentences(prevChapter.text);
+    const lastSentences = prevSentences.slice(-2).join(" ").toLowerCase();
+
+    // Get first 2 sentences of current chapter
+    const currSentences = splitSentences(currChapter.text);
+    const firstSentences = currSentences.slice(0, 2).join(" ").toLowerCase();
+
+    if (!lastSentences || !firstSentences) continue;
+
+    // Check for any connection between chapters:
+    // 1. Shared words (names, objects, places)
+    // 2. Temporal connectors
+    // 3. Continuation indicators
+
+    const prevWords = new Set(
+      lastSentences
+        .replace(/[^a-zäöüß\s]/gi, "")
+        .split(/\s+/)
+        .filter(w => w.length > 3),
+    );
+    const currWords = firstSentences
+      .replace(/[^a-zäöüß\s]/gi, "")
+      .split(/\s+/)
+      .filter(w => w.length > 3);
+
+    const sharedWords = currWords.filter(w => prevWords.has(w));
+
+    // Temporal/continuation patterns
+    const transitionPatterns = isDE
+      ? [
+        /^(?:da|dann|danach|daraufhin|als|noch|immer\s+noch|kaum|plötzlich|in\s+diesem|am\s+nächsten|wenig\s+später|kurz\s+darauf)\b/i,
+        // Pronoun continuations
+        /^(?:er|sie|es|sie)\s+/i,
+      ]
+      : [
+        /^(?:then|when|as|still|just|meanwhile|later|the\s+next|moments?\s+later|shortly\s+after)\b/i,
+        /^(?:he|she|it|they)\s+/i,
+      ];
+
+    const hasTransition = transitionPatterns.some(p => p.test(firstSentences.trim()));
+    const hasSharedContext = sharedWords.length >= 1;
+
+    if (!hasTransition && !hasSharedContext) {
+      issues.push({
+        gate: "CHAPTER_TRANSITION",
+        chapter: currChapter.chapter,
+        code: "CHAPTER_TRANSITION_WEAK",
+        message: isDE
+          ? `Kapitel ${currChapter.chapter}: Schwacher Übergang vom vorherigen Kapitel. Der erste Satz sollte an den letzten Moment des vorherigen Kapitels anknüpfen.`
+          : `Chapter ${currChapter.chapter}: Weak transition from previous chapter. The first sentence should connect to the last moment of the previous chapter.`,
+        severity: ageMax <= 8 ? "WARNING" : "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ─── Gate V7c: Chapter 1 Orientation Check ───────────────────────────────────
+// Validates that Chapter 1 is genuinely an orientation chapter, not in-medias-res
+function gateCh1Orientation(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const ageMax = ageRange?.max ?? 12;
+
+  const ch1 = draft.chapters[0];
+  if (!ch1) return issues;
+  const text = ch1.text;
+  const sentences = splitSentences(text);
+  if (sentences.length < 3) return issues;
+
+  // Check first 3 sentences for action-heavy verbs that suggest in-medias-res
+  const first3 = sentences.slice(0, 3).join(" ");
+  const actionHeavyPatterns = isDE
+    ? [
+      /\b(?:rannte|floh|kämpfte|schrie|stürmte|jagte|hetzte|raste|hastete|flüchtete)\b/i,
+    ]
+    : [
+      /\b(?:ran|fled|fought|screamed|stormed|chased|rushed|raced|hurried|escaped)\b/i,
+    ];
+
+  const isActionOpening = actionHeavyPatterns.some(p => p.test(first3));
+
+  // Check if characters are introduced (names mentioned in first half)
+  const firstHalf = sentences.slice(0, Math.ceil(sentences.length / 2)).join(" ");
+  const avatarNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const avatarsIntroduced = avatarNames.filter(name => {
+    const parts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
+    return parts.some(p => firstHalf.toLowerCase().includes(p));
+  });
+
+  if (isActionOpening && avatarsIntroduced.length < avatarNames.length) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_IN_MEDIAS_RES",
+      message: isDE
+        ? `Kapitel 1 beginnt mitten in der Aktion, bevor die Figuren vorgestellt wurden. Kapitel 1 muss zuerst WER und WO etablieren.`
+        : `Chapter 1 starts mid-action before characters are introduced. Chapter 1 must first establish WHO and WHERE.`,
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  // Check if location/world is established (sensory words in first 5 sentences)
+  const first5 = sentences.slice(0, 5).join(" ");
+  const sensoryPatterns = isDE
+    ? /\b(?:roch|duftete|klang|leuchtete|glänzte|schimmerte|warm|kalt|dunkel|hell|still|laut|weich|rau|feucht|trocken|klein|groß|alt|neu|Haus|Hütte|Dorf|Stadt|Wald|Garten|Zimmer|Küche|Straße|Weg|Wiese)\b/i
+    : /\b(?:smelled|sounded|glowed|shone|warm|cold|dark|bright|quiet|loud|soft|rough|damp|dry|small|big|old|new|house|cottage|village|town|forest|garden|room|kitchen|street|path|meadow)\b/i;
+
+  if (!sensoryPatterns.test(first5)) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_WORLD_MISSING",
+      message: isDE
+        ? `Kapitel 1: Die Welt/der Ort wird nicht sinnlich beschrieben. Füge mindestens 1-2 Sinnesdetails hinzu (Geruch, Klang, Temperatur).`
+        : `Chapter 1: The world/setting is not sensorily described. Add at least 1-2 sensory details (smell, sound, temperature).`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
 export function runQualityGates(input: {
   draft: StoryDraft;
   directives: SceneDirective[];
@@ -2461,6 +2714,10 @@ export function runQualityGates(input: {
     { name: "HUMOR_PRESENCE", fn: () => gateHumorPresence(draft, language, ageRange, humorLevel) },
     { name: "GIMMICK_LOOP", fn: () => gateGimmickLoopOveruse(draft, cast, language, ageRange) },
     { name: "ARTIFACT_MINI_ARC", fn: () => gateArtifactMiniArc(draft, cast, language, artifactArc) },
+    // V7 Quality Gates — narrative structure
+    { name: "CHILD_MISTAKE_ARC", fn: () => gateChildMistakeArc(draft, cast, language, ageRange) },
+    { name: "CHAPTER_TRANSITION", fn: () => gateChapterTransitions(draft, language, ageRange) },
+    { name: "CH1_ORIENTATION", fn: () => gateCh1Orientation(draft, cast, language, ageRange) },
   ];
 
   const allIssues: QualityIssue[] = [];
