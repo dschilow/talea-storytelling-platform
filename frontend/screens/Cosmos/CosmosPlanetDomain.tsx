@@ -45,34 +45,33 @@ const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
 const RING_MAP_CACHE = new Map<string, THREE.CanvasTexture>();
 
 // NASA texture paths per planet type (Solar System Scope, CC BY 4.0)
-function getNasaTexturePath(planetType: CosmosDomain['planetType'], seed: number): string {
+// Each planetType maps to a unique texture — no duplicates!
+function getNasaTexturePath(planetType: CosmosDomain['planetType'], _seed: number): string {
   const base = '/textures/planets/';
   switch (planetType) {
-    case 'terrestrial': return base + 'earth_daymap.jpg';
-    case 'oceanic': return base + 'neptune.jpg';
-    case 'lush': return base + 'earth_daymap.jpg';
-    case 'desert': return base + 'mars.jpg';
-    case 'volcanic': return base + 'venus_surface.jpg';
-    case 'icy': return base + 'uranus.jpg';
-    case 'gaseous': {
-      // Rotate between gas giants for variety
-      const gasTextures = ['jupiter.jpg', 'saturn.jpg'];
-      return base + gasTextures[seed % gasTextures.length];
-    }
-    case 'crystalline': return base + 'mercury.jpg';
+    case 'oceanic': return base + 'earth_daymap.jpg';      // Erde & Klima → Earth
+    case 'lush': return base + 'jupiter.jpg';              // Natur & Tiere → Jupiter
+    case 'terrestrial': return base + 'moon.jpg';          // Mensch & Körper → Moon
+    case 'desert': return base + 'mars.jpg';               // Geschichte → Mars
+    case 'icy': return base + 'neptune.jpg';               // Weltraum → Neptune
+    case 'volcanic': return base + 'venus_surface.jpg';    // Logik & Rätsel → Venus
+    case 'gaseous': return base + 'saturn.jpg';            // Technik → Saturn
+    case 'crystalline': return base + 'mercury.jpg';       // Kunst & Musik → Mercury
     default: return base + 'moon.jpg';
   }
 }
 
 function getNasaNightTexturePath(planetType: CosmosDomain['planetType']): string | null {
-  if (planetType === 'terrestrial' || planetType === 'lush') {
+  // Only Erde & Klima (oceanic) gets real city-lights night map
+  if (planetType === 'oceanic') {
     return '/textures/planets/earth_nightmap.jpg';
   }
   return null;
 }
 
 function getNasaCloudTexturePath(planetType: CosmosDomain['planetType']): string | null {
-  if (planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic') {
+  // Only Erde & Klima (oceanic) gets real cloud texture
+  if (planetType === 'oceanic') {
     return '/textures/planets/earth_clouds.jpg';
   }
   return null;
@@ -606,43 +605,171 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
 
 
-      {/* Topic Moons: Far orbits */}
+      {/* Topic Moons: Textured mini-moons with craters and subtle glow */}
       {Array.from({ length: topicMoonCount }).map((_, index) => {
         const moonSize = 0.038 + index * 0.005;
+        const moonSeed = orbitConfig.seed + index * 137;
+        const moonHue = (moonSeed % 40) - 20; // slight color variation
+        const moonTint = `hsl(${220 + moonHue}, 8%, ${72 + (moonSeed % 12)}%)`;
         return (
           <group
             key={`topic_moon_${index}`}
             ref={(node) => { topicMoonRefs.current[index] = node as unknown as THREE.Group; }}
           >
-            <Sphere args={[moonSize, 24, 24]}>
-              <meshStandardMaterial color="#e2e8f0" roughness={0.85} metalness={0.05} />
+            {/* Moon body with physical material */}
+            <Sphere args={[moonSize, 32, 32]}>
+              <meshPhysicalMaterial
+                color={moonTint}
+                roughness={0.92}
+                metalness={0.02}
+                bumpMap={maps.bumpMap}
+                bumpScale={0.15}
+                clearcoat={0.04}
+                clearcoatRoughness={0.9}
+              />
+            </Sphere>
+            {/* Subtle atmosphere rim */}
+            <Sphere args={[moonSize * 1.12, 16, 16]}>
+              <meshBasicMaterial
+                color={domain.color}
+                transparent
+                opacity={0.06}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+                side={THREE.BackSide}
+              />
             </Sphere>
           </group>
         );
       })}
 
-      {/* Satellites: Extreme orbits */}
-      {Array.from({ length: visuals.satelliteCount }).map((_, index) => (
-        <group
-          key={`sat_main_${index}`}
-          ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
-        >
-          <group scale={0.014}>
-            <mesh>
-              <boxGeometry args={[1, 1, 1.6]} />
-              <meshStandardMaterial color="#c0c0c0" metalness={0.9} />
-            </mesh>
-            <mesh position={[1.5, 0, 0]}>
-              <boxGeometry args={[2.0, 0.04, 1.1]} />
-              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.8} />
-            </mesh>
-            <mesh position={[-1.5, 0, 0]}>
-              <boxGeometry args={[2.0, 0.04, 1.1]} />
-              <meshStandardMaterial color="#001133" emissive="#003366" emissiveIntensity={0.8} />
-            </mesh>
+      {/* Satellites: Detailed space probes with dish, antenna, thrusters */}
+      {Array.from({ length: visuals.satelliteCount }).map((_, index) => {
+        const satSeed = orbitConfig.seed + index * 211;
+        const accentColor = index % 2 === 0 ? '#ff6b35' : '#00d4ff';
+        return (
+          <group
+            key={`sat_main_${index}`}
+            ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
+          >
+            <group scale={0.014}>
+              {/* Main bus (octagonal body) */}
+              <mesh>
+                <cylinderGeometry args={[0.5, 0.6, 1.4, 8]} />
+                <meshPhysicalMaterial color="#b8c0cc" metalness={0.85} roughness={0.2} clearcoat={0.3} />
+              </mesh>
+
+              {/* Solar panel left */}
+              <group position={[1.8, 0, 0]}>
+                <mesh>
+                  <boxGeometry args={[2.2, 0.03, 0.9]} />
+                  <meshPhysicalMaterial
+                    color="#0a1628"
+                    emissive="#1a3a6a"
+                    emissiveIntensity={0.6}
+                    metalness={0.7}
+                    roughness={0.15}
+                    clearcoat={0.8}
+                  />
+                </mesh>
+                {/* Panel grid lines */}
+                <mesh position={[0, 0.02, 0]}>
+                  <boxGeometry args={[2.2, 0.005, 0.9]} />
+                  <meshBasicMaterial color="#2a5a9a" transparent opacity={0.3} />
+                </mesh>
+              </group>
+
+              {/* Solar panel right */}
+              <group position={[-1.8, 0, 0]}>
+                <mesh>
+                  <boxGeometry args={[2.2, 0.03, 0.9]} />
+                  <meshPhysicalMaterial
+                    color="#0a1628"
+                    emissive="#1a3a6a"
+                    emissiveIntensity={0.6}
+                    metalness={0.7}
+                    roughness={0.15}
+                    clearcoat={0.8}
+                  />
+                </mesh>
+                <mesh position={[0, 0.02, 0]}>
+                  <boxGeometry args={[2.2, 0.005, 0.9]} />
+                  <meshBasicMaterial color="#2a5a9a" transparent opacity={0.3} />
+                </mesh>
+              </group>
+
+              {/* Panel arm connectors */}
+              <mesh position={[0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.04, 0.04, 0.3, 6]} />
+                <meshStandardMaterial color="#8a8a8a" metalness={0.9} roughness={0.3} />
+              </mesh>
+              <mesh position={[-0.65, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+                <cylinderGeometry args={[0.04, 0.04, 0.3, 6]} />
+                <meshStandardMaterial color="#8a8a8a" metalness={0.9} roughness={0.3} />
+              </mesh>
+
+              {/* Communication dish */}
+              <group position={[0, 0.85, 0.2]} rotation={[0.4, 0, 0]}>
+                <mesh>
+                  <sphereGeometry args={[0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+                  <meshPhysicalMaterial
+                    color="#d4d4d4"
+                    metalness={0.9}
+                    roughness={0.1}
+                    side={THREE.DoubleSide}
+                    clearcoat={0.5}
+                  />
+                </mesh>
+                {/* Dish feed horn */}
+                <mesh position={[0, 0.3, 0]}>
+                  <cylinderGeometry args={[0.02, 0.03, 0.35, 6]} />
+                  <meshStandardMaterial color="#888" metalness={0.9} roughness={0.2} />
+                </mesh>
+              </group>
+
+              {/* Antenna mast */}
+              <mesh position={[0.3, 0.9, -0.2]}>
+                <cylinderGeometry args={[0.015, 0.015, 0.8, 4]} />
+                <meshStandardMaterial color="#aaa" metalness={0.8} roughness={0.3} />
+              </mesh>
+              {/* Antenna tip beacon */}
+              <mesh position={[0.3, 1.3, -0.2]}>
+                <sphereGeometry args={[0.04, 8, 8]} />
+                <meshBasicMaterial color={accentColor} />
+              </mesh>
+
+              {/* Thruster nozzles */}
+              {(satSeed % 2 === 0) && (
+                <group position={[0, -0.75, 0]}>
+                  <mesh position={[0.2, 0, 0.2]}>
+                    <coneGeometry args={[0.08, 0.16, 6]} />
+                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
+                  </mesh>
+                  <mesh position={[-0.2, 0, 0.2]}>
+                    <coneGeometry args={[0.08, 0.16, 6]} />
+                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
+                  </mesh>
+                  <mesh position={[0, 0, -0.2]}>
+                    <coneGeometry args={[0.08, 0.16, 6]} />
+                    <meshPhysicalMaterial color="#666" metalness={0.9} roughness={0.15} />
+                  </mesh>
+                </group>
+              )}
+
+              {/* Gold foil insulation band */}
+              <mesh position={[0, -0.35, 0]}>
+                <cylinderGeometry args={[0.62, 0.62, 0.2, 8]} />
+                <meshPhysicalMaterial
+                  color="#c8a832"
+                  metalness={0.6}
+                  roughness={0.35}
+                  clearcoat={0.4}
+                />
+              </mesh>
+            </group>
           </group>
-        </group>
-      ))}
+        );
+      })}
 
       {/* Life particles (if enabled) */}
       {activeLifeParticles > 0 && Array.from({ length: activeLifeParticles }).map((_, index) => (
