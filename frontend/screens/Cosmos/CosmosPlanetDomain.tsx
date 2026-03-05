@@ -182,8 +182,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const groupRef = useRef<THREE.Group>(null!);
   const planetRef = useRef<THREE.Mesh>(null!);
   const cloudRef = useRef<THREE.Mesh>(null!);
-  const atmosphereRef = useRef<THREE.Mesh>(null!);
-  const auraRef = useRef<THREE.Mesh>(null!);
   const satelliteRefs = useRef<Array<THREE.Group | null>>([]);
   const topicMoonRefs = useRef<Array<THREE.Group | null>>([]);
   const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
@@ -394,26 +392,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     markerNeptuneTex,
   ]);
 
-  const atmosphereMaterial = useMemo(
-    () => createAtmosphereShellMaterial(domain.color, visuals.atmosphereOpacity, 2.25, 1.05),
-    [domain.color, visuals.atmosphereOpacity]
-  );
-
-  const planetGlowTexture = useMemo(() => createPlanetGlowTexture(domain.color), [domain.color]);
-
-  const planetGlowMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        map: planetGlowTexture,
-        transparent: true,
-        opacity: visuals.auraOpacity * 1.5,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-      }),
-    [planetGlowTexture, visuals.auraOpacity]
-  );
-
   const lifeParticleSeeds = useMemo(
     () =>
       Array.from({ length: MAX_LIFE_PARTICLES }, (_, index) => {
@@ -470,17 +448,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     return () => {
       planetMaterial.dispose();
       cloudMaterial.dispose();
-      atmosphereMaterial.dispose();
-      planetGlowMaterial.dispose();
-      planetGlowTexture.dispose();
     };
-  }, [atmosphereMaterial, planetGlowMaterial, planetGlowTexture, cloudMaterial, planetMaterial]);
+  }, [cloudMaterial, planetMaterial]);
 
   const baseRadius = 0.52;
   // Keep geometry resolution stable to avoid focus <-> detail hitching.
   const planetSegments = 96;
   const cloudSegments = 72;
-  const atmosphereSegments = 128;
 
   useFrame(({ clock }, delta) => {
     if (!groupRef.current) return;
@@ -517,23 +491,6 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       cloudRef.current.rotation.y += 0.0022;
       cloudRef.current.rotation.z += 0.0007;
       cloudRef.current.rotation.x += Math.sin(t * 0.1) * 0.0002; // Tiny wobble
-    }
-
-    if (auraRef.current) {
-      const stableFactor = 0.28 + visuals.orbitStability * 0.72;
-      const glowPulse = 1 + Math.sin(t * (0.4 + stableFactor * 0.45) + orbitConfig.phase) * 0.035;
-      auraRef.current.scale.setScalar(glowPulse + feedbackPulse * 0.08);
-      const mat = auraRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity =
-        visuals.auraOpacity *
-        1.42 *
-        (0.9 + Math.sin(t * (0.7 + stableFactor)) * 0.05 + feedbackPulse * 0.22);
-    }
-
-    if (atmosphereRef.current) {
-      const atmosphereShader = atmosphereRef.current.material as THREE.ShaderMaterial;
-      atmosphereShader.uniforms.uOpacity.value = visuals.atmosphereOpacity;
-      atmosphereShader.uniforms.uSunPos.value.set(0, 0, 0);
     }
 
     if (selectionHaloRef.current) {
@@ -636,19 +593,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
           material={cloudMaterial}
         />
 
-        <Sphere
-          ref={atmosphereRef}
-          args={[baseRadius * visuals.scale * 1.12, atmosphereSegments, cloudSegments]}
-          material={atmosphereMaterial}
-        />
       </group>
-
-      {/* Soft billboard glow behind planet */}
-      <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <mesh ref={auraRef} material={planetGlowMaterial}>
-          <planeGeometry args={[baseRadius * visuals.scale * 4.5, baseRadius * visuals.scale * 4.5]} />
-        </mesh>
-      </Billboard>
 
       {/* Planet rings gated behind mastery level 3+ - off by default */}
 
