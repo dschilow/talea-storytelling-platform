@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { useFrame, ThreeEvent } from '@react-three/fiber';
+import { useFrame, ThreeEvent, useLoader } from '@react-three/fiber';
 import { Sphere, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode } from './CosmosTypes';
@@ -27,13 +27,12 @@ function createGlowTexture(size = 512): THREE.CanvasTexture {
 
   // Multi-layer radial gradient for natural falloff
   const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
-  grad.addColorStop(0, 'rgba(255, 240, 200, 1.0)');
-  grad.addColorStop(0.06, 'rgba(255, 220, 160, 0.95)');
-  grad.addColorStop(0.12, 'rgba(255, 200, 120, 0.7)');
-  grad.addColorStop(0.22, 'rgba(255, 180, 80, 0.35)');
-  grad.addColorStop(0.38, 'rgba(255, 160, 60, 0.14)');
-  grad.addColorStop(0.55, 'rgba(255, 140, 50, 0.05)');
-  grad.addColorStop(0.75, 'rgba(255, 120, 40, 0.015)');
+  grad.addColorStop(0, 'rgba(255, 242, 205, 0.95)');
+  grad.addColorStop(0.08, 'rgba(255, 226, 165, 0.7)');
+  grad.addColorStop(0.18, 'rgba(255, 202, 124, 0.4)');
+  grad.addColorStop(0.34, 'rgba(255, 176, 90, 0.2)');
+  grad.addColorStop(0.52, 'rgba(255, 154, 64, 0.08)');
+  grad.addColorStop(0.72, 'rgba(255, 132, 44, 0.022)');
   grad.addColorStop(1, 'rgba(255, 100, 30, 0.0)');
 
   ctx.fillStyle = grad;
@@ -48,7 +47,7 @@ function createGlowTexture(size = 512): THREE.CanvasTexture {
       const dy = (y - center) / center;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > 0.12 && dist < 0.7) {
-        const noise = (Math.sin(x * 0.08 + y * 0.12) * Math.cos(x * 0.05 - y * 0.09)) * 0.15;
+        const noise = (Math.sin(x * 0.08 + y * 0.12) * Math.cos(x * 0.05 - y * 0.09)) * 0.08;
         const alpha = imageData.data[i + 3];
         imageData.data[i + 3] = Math.max(0, Math.min(255, alpha + alpha * noise));
       }
@@ -71,21 +70,22 @@ function createCoronaTexture(size = 512): THREE.CanvasTexture {
 
   ctx.clearRect(0, 0, size, size);
 
-  // Ray-like corona spikes
-  const rayCount = 48;
+  // Soft, long rays with tapered alpha gradient.
+  const rayCount = 96;
   for (let r = 0; r < rayCount; r++) {
     const angle = (r / rayCount) * Math.PI * 2;
-    const length = center * (0.5 + Math.random() * 0.45);
-    const width = 2 + Math.random() * 5;
-    const opacity = 0.08 + Math.random() * 0.18;
+    const length = center * (0.46 + Math.random() * 0.5);
+    const width = 0.8 + Math.random() * 2.8;
+    const opacity = 0.025 + Math.random() * 0.06;
 
     ctx.save();
     ctx.translate(center, center);
     ctx.rotate(angle);
 
     const grad = ctx.createLinearGradient(0, 0, length, 0);
-    grad.addColorStop(0, `rgba(255, 200, 100, ${opacity})`);
-    grad.addColorStop(0.3, `rgba(255, 170, 70, ${opacity * 0.6})`);
+    grad.addColorStop(0, 'rgba(255, 210, 130, 0)');
+    grad.addColorStop(0.2, `rgba(255, 196, 108, ${opacity})`);
+    grad.addColorStop(0.58, `rgba(255, 173, 84, ${opacity * 0.42})`);
     grad.addColorStop(1, 'rgba(255, 140, 50, 0)');
 
     ctx.fillStyle = grad;
@@ -93,11 +93,12 @@ function createCoronaTexture(size = 512): THREE.CanvasTexture {
     ctx.restore();
   }
 
-  // Soft center overlay
-  const centerGrad = ctx.createRadialGradient(center, center, 0, center, center, center * 0.35);
-  centerGrad.addColorStop(0, 'rgba(255, 240, 200, 0.4)');
-  centerGrad.addColorStop(1, 'rgba(255, 200, 120, 0)');
-  ctx.fillStyle = centerGrad;
+  const outerGrad = ctx.createRadialGradient(center, center, center * 0.18, center, center, center);
+  outerGrad.addColorStop(0, 'rgba(255, 224, 150, 0.22)');
+  outerGrad.addColorStop(0.45, 'rgba(255, 188, 102, 0.1)');
+  outerGrad.addColorStop(0.76, 'rgba(255, 162, 78, 0.035)');
+  outerGrad.addColorStop(1, 'rgba(255, 140, 60, 0)');
+  ctx.fillStyle = outerGrad;
   ctx.fillRect(0, 0, size, size);
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -280,17 +281,20 @@ export const CosmosStarCenter: React.FC<Props> = ({
 
   const glowTexture = useMemo(() => createGlowTexture(512), []);
   const coronaTexture = useMemo(() => createCoronaTexture(512), []);
+  const sunTexture = useLoader(THREE.TextureLoader, '/textures/planets/sun.jpg');
 
   const starMaterial = useMemo(
     () =>
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-        },
-        vertexShader: STAR_SURFACE_VERTEX,
-        fragmentShader: STAR_SURFACE_FRAGMENT,
+      new THREE.MeshStandardMaterial({
+        map: sunTexture,
+        emissiveMap: sunTexture,
+        emissive: new THREE.Color('#ffcf7a'),
+        emissiveIntensity: 1.9,
+        roughness: 0.92,
+        metalness: 0,
+        toneMapped: true,
       }),
-    []
+    [sunTexture]
   );
 
   const glowMaterial = useMemo(
@@ -298,7 +302,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
       new THREE.MeshBasicMaterial({
         map: glowTexture,
         transparent: true,
-        opacity: 0.34,
+        opacity: 0.22,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
@@ -306,49 +310,53 @@ export const CosmosStarCenter: React.FC<Props> = ({
     [glowTexture]
   );
 
-  const coronaProceduralMaterial = useMemo(
+  const coronaMaterial = useMemo(
     () =>
-      new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-        },
-        vertexShader: CORONA_VERTEX,
-        fragmentShader: CORONA_FRAGMENT,
+      new THREE.MeshBasicMaterial({
+        map: coronaTexture,
         transparent: true,
+        opacity: 0.2,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
         side: THREE.DoubleSide,
       }),
-    []
+    [coronaTexture]
   );
+
+  useMemo(() => {
+    sunTexture.colorSpace = THREE.SRGBColorSpace;
+    sunTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    sunTexture.magFilter = THREE.LinearFilter;
+    sunTexture.generateMipmaps = true;
+    sunTexture.wrapS = THREE.RepeatWrapping;
+    sunTexture.wrapT = THREE.RepeatWrapping;
+  }, [sunTexture]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
     const pulse = 1 + Math.sin(t * 1.2) * 0.01;
-    const introBlend = Math.max(0, 1 - t / godRaysDuration);
-    const raysVisible = cameraMode === 'system' ? introBlend : 0;
-
-    starMaterial.uniforms.uTime.value = t;
+    const introBlend = Math.max(0.42, 1 - t / (godRaysDuration * 1.9));
+    const raysVisible = cameraMode === 'system' ? introBlend : 0.54;
 
     if (meshRef.current) {
       meshRef.current.scale.setScalar(pulse);
-      meshRef.current.rotation.y += 0.001;
+      meshRef.current.rotation.y += 0.00085;
     }
     if (glowSpriteRef.current) {
-      const glowPulse = 1 + Math.sin(t * 0.8) * 0.02;
-      glowSpriteRef.current.scale.setScalar(2.8 * glowPulse);
+      const glowPulse = 1 + Math.sin(t * 0.72) * 0.016;
+      glowSpriteRef.current.scale.setScalar(2.64 * glowPulse);
       const mat = glowSpriteRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.33 + Math.sin(t * 0.8) * 0.045;
+      mat.opacity = (0.18 + Math.sin(t * 0.72) * 0.02) * raysVisible;
     }
     if (coronaSpriteRef.current) {
-      coronaSpriteRef.current.rotation.z += 0.0002;
-      const coronaPulse = 1 + Math.sin(t * 0.5) * 0.015;
-      coronaSpriteRef.current.scale.setScalar(2.4 * coronaPulse); // Reduced from 4.5
-      const mat = coronaSpriteRef.current.material as THREE.ShaderMaterial;
-      mat.uniforms.uTime.value = t;
+      coronaSpriteRef.current.rotation.z += 0.0001;
+      const coronaPulse = 1 + Math.sin(t * 0.43) * 0.011;
+      coronaSpriteRef.current.scale.setScalar(2.9 * coronaPulse);
+      const mat = coronaSpriteRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = (0.16 + Math.sin(t * 0.63) * 0.014) * raysVisible;
     }
     if (lightRef.current) {
-      lightRef.current.intensity = 1.35 + Math.sin(t * 1.5) * 0.08;
+      lightRef.current.intensity = 1.18 + Math.sin(t * 1.4) * 0.06;
     }
   });
 
@@ -356,11 +364,11 @@ export const CosmosStarCenter: React.FC<Props> = ({
     return () => {
       starMaterial.dispose();
       glowMaterial.dispose();
-      coronaProceduralMaterial.dispose();
+      coronaMaterial.dispose();
       glowTexture.dispose();
       coronaTexture.dispose();
     };
-  }, [coronaProceduralMaterial, coronaTexture, glowMaterial, glowTexture, starMaterial]);
+  }, [coronaMaterial, coronaTexture, glowMaterial, glowTexture, starMaterial]);
 
   const handleStarClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
@@ -393,7 +401,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
 
       {/* Billboard corona with ray filaments */}
       <Billboard follow lockX={false} lockY={false} lockZ={false}>
-        <mesh ref={coronaSpriteRef} material={coronaProceduralMaterial}>
+        <mesh ref={coronaSpriteRef} material={coronaMaterial}>
           <planeGeometry args={[1, 1]} />
         </mesh>
       </Billboard>
