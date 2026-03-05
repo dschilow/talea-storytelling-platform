@@ -14,6 +14,7 @@ const SUGGESTION_MODEL = "gpt-5-nano";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_LIST_CHARS = 1500;
 const MAX_SUGGESTIONS_IN_CACHE = 56;
+const INITIAL_SUGGESTION_COUNT = 18;
 
 type SuggestionAgeBand = "3-5" | "6-8" | "9-12" | "13+";
 type SuggestionKind = "broaden" | "deepen" | "retention";
@@ -80,7 +81,7 @@ const SYSTEM_PROMPT = [
   "- Output schema exactly as requested.",
 ].join("\n");
 
-const FALLBACK_TITLES: Record<CosmosDomainId, string[]> = {
+const FALLBACK_TITLES: Record<string, string[]> = {
   space: [
     "Warum funkeln Sterne?",
     "Wie leben Astronauten im All?",
@@ -195,7 +196,7 @@ const FALLBACK_TITLES: Record<CosmosDomainId, string[]> = {
   ],
 };
 
-const DOMAIN_LABELS: Record<CosmosDomainId, string> = {
+const DOMAIN_LABELS: Record<string, string> = {
   space: "Weltraum",
   nature: "Natur & Tiere",
   history: "Geschichte & Kulturen",
@@ -236,6 +237,20 @@ function normalizeForKey(value: string): string {
 
 function toAsciiSlug(value: string): string {
   return normalizeForKey(value).slice(0, 72);
+}
+
+function domainLabelFromId(domainId: string): string {
+  const direct = DOMAIN_LABELS[domainId];
+  if (direct) return direct;
+  const title = String(domainId || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+  return title || "diesen Bereich";
 }
 
 function normalizeSkillFocus(input: unknown): SkillFocus {
@@ -436,9 +451,9 @@ function enforceMixRules(items: TopicSuggestionItem[]): TopicSuggestionItem[] {
   const adjusted = [...items];
 
   let retentionCount = adjusted.filter((item) => item.kind === "retention").length;
-  if (retentionCount > 2) {
+  if (retentionCount > 3) {
     for (const item of adjusted) {
-      if (retentionCount <= 2) break;
+      if (retentionCount <= 3) break;
       if (item.kind === "retention") {
         item.kind = "deepen";
         retentionCount -= 1;
@@ -447,9 +462,9 @@ function enforceMixRules(items: TopicSuggestionItem[]): TopicSuggestionItem[] {
   }
 
   let broadenCount = adjusted.filter((item) => item.kind === "broaden").length;
-  if (broadenCount < 5) {
+  if (broadenCount < 10) {
     for (const item of adjusted) {
-      if (broadenCount >= 5) break;
+      if (broadenCount >= 10) break;
       if (item.kind !== "broaden") {
         item.kind = "broaden";
         broadenCount += 1;
@@ -483,7 +498,7 @@ function buildFallbackItem(params: {
   const topicSlug = slugBase.startsWith(`${params.domainId}_`)
     ? slugBase
     : `${params.domainId}_${slugBase}`.slice(0, 72);
-  const label = DOMAIN_LABELS[params.domainId] || "diesen Bereich";
+  const label = domainLabelFromId(params.domainId);
   return {
     suggestionId: `sug_${crypto.randomUUID()}`,
     topicTitle,
@@ -508,7 +523,13 @@ function withFallbackItems(params: {
   allowRetention: boolean;
 }): TopicSuggestionItem[] {
   const out = [...params.items];
-  const fallbackTitles = FALLBACK_TITLES[params.domainId] || [];
+  const fallbackTitles = FALLBACK_TITLES[params.domainId] || [
+    `Warum ist ${domainLabelFromId(params.domainId)} spannend?`,
+    `Wie entdeckt man Neues in ${domainLabelFromId(params.domainId)}?`,
+    `Welche Geheimnisse hat ${domainLabelFromId(params.domainId)}?`,
+    `Wie erklaert man ${domainLabelFromId(params.domainId)} Kindern?`,
+    `Welche Experimente passen zu ${domainLabelFromId(params.domainId)}?`,
+  ];
   let fallbackIndex = 0;
 
   while (out.length < params.targetCount && fallbackIndex < fallbackTitles.length) {
@@ -640,25 +661,52 @@ async function logSuggestionEvent(params: {
 async function callSuggestionLlm(params: {
   userPrompt: string;
   maxCompletionTokens: number;
+  timeoutMs?: number;
 }): Promise<Record<string, unknown>> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${openAIKey()}`,
-    },
-    body: JSON.stringify({
-      model: SUGGESTION_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: params.userPrompt },
-      ],
-      response_format: { type: "json_object" },
-      reasoning_effort: "low",
-      max_completion_tokens: params.maxCompletionTokens,
-      seed: 13,
-    }),
-  });
+  const controller =
+    typeof AbortController !== "undefined" && params.timeoutMs
+      ? new AbortController()
+      : null;
+  const timeout =
+    controller && params.timeoutMs
+      ? setTimeout(() => controller.abort(), params.timeoutMs)
+      : null;
+
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openAIKey()}`,
+      },
+      signal: controller?.signal,
+      body: JSON.stringify({
+        model: SUGGESTION_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: params.userPrompt },
+        ],
+        response_format: { type: "json_object" },
+        reasoning_effort: "low",
+        max_completion_tokens: params.maxCompletionTokens,
+        seed: 13,
+      }),
+    });
+  } catch (error) {
+    if (
+      params.timeoutMs &&
+      error instanceof Error &&
+      error.name === "AbortError"
+    ) {
+      throw new Error(
+        `OpenAI suggestion request timed out after ${params.timeoutMs}ms`
+      );
+    }
+    throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const err = await response.text();
@@ -684,7 +732,7 @@ function buildInitialPrompt(params: {
   strict: boolean;
 }): string {
   return [
-    "Generate 8 topic suggestions for:",
+    `Generate ${INITIAL_SUGGESTION_COUNT} topic suggestions for:`,
     "- language: de",
     `- ageBand: ${params.ageBand}`,
     `- domainId: ${params.domainId}`,
@@ -709,8 +757,8 @@ function buildInitialPrompt(params: {
     "}",
     "",
     "Constraints:",
-    "- 8 items, all different.",
-    "- At least 5 broaden, max 2 retention.",
+    `- ${INITIAL_SUGGESTION_COUNT} items, all different.`,
+    "- At least 10 broaden, max 3 retention.",
     "- No topicTitle similar to excluded.",
     params.strict
       ? "- STRICT: If uncertain, prefer returning fewer but valid unique items."
@@ -782,7 +830,7 @@ async function generateInitialSuggestions(params: {
     try {
       const raw = await callSuggestionLlm({
         userPrompt,
-        maxCompletionTokens: 760,
+        maxCompletionTokens: 1400,
       });
       const rawItems = Array.isArray(raw.items) ? raw.items : [];
       for (const rawItem of rawItems) {
@@ -797,7 +845,7 @@ async function generateInitialSuggestions(params: {
         excludeKeys.add(key);
         collected.push(candidate);
       }
-      if (collected.length >= 8) break;
+      if (collected.length >= INITIAL_SUGGESTION_COUNT) break;
     } catch (error) {
       if (index === prompts.length - 1) {
         console.warn("[suggestions] initial generation failed, using fallback", error);
@@ -807,11 +855,11 @@ async function generateInitialSuggestions(params: {
 
   let finalized = withFallbackItems({
     domainId: params.domainId,
-    items: collected.slice(0, 8),
+    items: collected.slice(0, INITIAL_SUGGESTION_COUNT),
     excludeKeys,
-    targetCount: 8,
+    targetCount: INITIAL_SUGGESTION_COUNT,
     allowRetention: true,
-  }).slice(0, 8);
+  }).slice(0, INITIAL_SUGGESTION_COUNT);
 
   finalized = enforceMixRules(finalized);
 
@@ -845,6 +893,7 @@ async function generateOneSuggestion(params: {
       const raw = await callSuggestionLlm({
         userPrompt,
         maxCompletionTokens: 260,
+        timeoutMs: 2200,
       });
       const candidate = normalizeSuggestionItem({
         raw: raw.item,
@@ -948,7 +997,58 @@ export const getTopicSuggestions = api<SuggestionsQueryRequest, TopicSuggestions
 
     const cached = await readSuggestionCache(context);
     if (cached && Date.now() - cached.updatedAt < CACHE_TTL_MS) {
-      return cached.payload;
+      if (cached.payload.items.length >= INITIAL_SUGGESTION_COUNT) {
+        return cached.payload;
+      }
+
+      const [alreadyTopics, recentDokus] = await Promise.all([
+        getAlreadyTopics(context.childId, context.domainId),
+        getRecentDokus(context.childId, context.domainId),
+      ]);
+      const excludeTitles = mergeExcludeTitles([
+        alreadyTopics,
+        recentDokus,
+        cached.payload.items.map((item) => item.topicTitle),
+        cached.payload.items.map((item) => item.topicSlug),
+      ]);
+
+      const generated = await generateInitialSuggestions({
+        domainId: context.domainId,
+        ageBand: context.ageBand,
+        alreadyTopics,
+        recentDokus,
+        excludeTitles,
+      });
+
+      const dedup = new Map<string, TopicSuggestionItem>();
+      for (const item of [...cached.payload.items, ...generated.items]) {
+        const key = topicDedupKey(item.topicTitle, item.topicSlug);
+        if (!dedup.has(key)) {
+          dedup.set(key, item);
+        }
+      }
+      const upgradedPayload: TopicSuggestionsResponse = {
+        domainId: context.domainId,
+        generatedAt: new Date().toISOString(),
+        items: Array.from(dedup.values()).slice(0, INITIAL_SUGGESTION_COUNT),
+      };
+
+      await writeSuggestionCache({
+        ...context,
+        payload: upgradedPayload,
+      });
+
+      await logSuggestionEvent({
+        childId: context.childId,
+        domainId: context.domainId,
+        action: "upgraded_cached_initial",
+        payload: {
+          previousCount: cached.payload.items.length,
+          newCount: upgradedPayload.items.length,
+        },
+      });
+
+      return upgradedPayload;
     }
 
     const [alreadyTopics, recentDokus] = await Promise.all([

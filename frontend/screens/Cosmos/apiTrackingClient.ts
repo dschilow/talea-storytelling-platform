@@ -21,6 +21,7 @@ export interface SubmitCosmosQuizPayload {
   profileId?: string;
   domainId: string;
   topicId?: string;
+  topicTitle?: string;
   contentId?: string;
   sourceContentId?: string;
   sourceContentType?: "doku" | "story";
@@ -140,6 +141,12 @@ export function inferDomainFromDokuTopic(params: {
       return entry.domainId;
     }
   }
+  const perspective = String(params.perspective || "").toLowerCase().trim();
+  if (perspective === "technology") return "tech";
+  if (perspective === "nature") return "nature";
+  if (perspective === "history") return "history";
+  if (perspective === "culture") return "arts";
+  if (perspective === "science") return "space";
   return "history";
 }
 
@@ -176,4 +183,3 @@ export function inferDifficultyFromQuestion(question: string, optionsCount: numb
   if (optionsCount >= 4) score += 1;
   return Math.max(1, Math.min(5, score));
 }
-

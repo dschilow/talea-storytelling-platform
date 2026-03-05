@@ -12,6 +12,8 @@ interface TrackCosmosReadParams {
   sourceContentType: CosmosSourceType;
   domainId: string;
   topicId?: string;
+  contentTitle?: string;
+  topicTitle?: string;
   summary?: string;
 }
 
@@ -54,6 +56,12 @@ export function inferDomainFromDokuTopic(topic?: string, perspective?: string): 
       return entry.domainId;
     }
   }
+  const p = String(perspective || "").toLowerCase().trim();
+  if (p === "technology") return "tech";
+  if (p === "nature") return "nature";
+  if (p === "history") return "history";
+  if (p === "culture") return "arts";
+  if (p === "science") return "space";
   return "history";
 }
 
@@ -119,22 +127,27 @@ export async function trackCosmosReadEvent(params: TrackCosmosReadParams): Promi
   `;
 
   try {
-    const owner = await avatarDB.queryRow<{ user_id: string }>`
+    const owner = await avatarDB.queryRow<{ user_id: string; profile_id: string | null }>`
       SELECT user_id
+           , profile_id
       FROM avatars
       WHERE id = ${params.avatarId}
       LIMIT 1
     `;
 
     if (owner?.user_id) {
+      const scopedProfileId = params.profileId || owner.profile_id || undefined;
       await recordReadActivity({
         userId: owner.user_id,
-        childId: params.profileId,
+        childId: scopedProfileId,
+        profileId: scopedProfileId,
         avatarId: params.avatarId,
         sourceContentId: params.sourceContentId,
         sourceContentType: params.sourceContentType,
         domainId: normalizedDomainId,
         topicId: topicId || undefined,
+        contentTitle: params.contentTitle,
+        topicTitle: params.topicTitle,
         summary,
       });
     }
@@ -142,4 +155,3 @@ export async function trackCosmosReadEvent(params: TrackCosmosReadParams): Promi
     console.warn("[cosmos-tracking] failed to mirror read event into cosmos mvp", error);
   }
 }
-

@@ -33,6 +33,7 @@ export interface DokuConfig {
   topic: string;
   depth: "basic" | "standard" | "deep";
   ageGroup: "3-5" | "6-8" | "9-12" | "13+";
+  domainId?: string;
   perspective?: "science" | "history" | "technology" | "nature" | "culture";
   includeInteractive?: boolean;
   quizQuestions?: number; // 0..10
@@ -64,6 +65,7 @@ export interface Doku {
     imagesGenerated?: number;
     configSnapshot?: {
       topic?: string;
+      domainId?: string | null;
       ageGroup?: "3-5" | "6-8" | "9-12" | "13+";
       depth?: "basic" | "standard" | "deep";
       perspective?: "science" | "history" | "technology" | "nature" | "culture";

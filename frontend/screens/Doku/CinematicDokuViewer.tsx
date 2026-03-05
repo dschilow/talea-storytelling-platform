@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, useScroll, useSpring, useInView } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Sparkles, BookOpen } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 
 import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
@@ -77,6 +78,7 @@ const CinematicDokuViewer: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { resolvedTheme } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +96,21 @@ const CinematicDokuViewer: React.FC = () => {
     () => new URLSearchParams(location.search).get('mapAvatarId'),
     [location.search],
   );
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const openMode = query.get('open');
+  const autoJumpDoneRef = useRef(false);
+
+  const domainHint = useMemo(() => {
+    const queryDomain = String(query.get("domain") || "")
+      .trim()
+      .toLowerCase();
+    const metadataDomain = String(doku?.metadata?.configSnapshot?.domainId || "")
+      .trim()
+      .toLowerCase();
+    const raw = queryDomain || metadataDomain;
+    if (!raw) return undefined;
+    return raw === "art" ? "arts" : raw;
+  }, [doku?.metadata?.configSnapshot?.domainId, query]);
 
   const { scrollYProgress } = useScroll({ container: containerRef });
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
@@ -101,6 +118,26 @@ const CinematicDokuViewer: React.FC = () => {
   useEffect(() => {
     if (dokuId) void loadDoku();
   }, [dokuId]);
+
+  useEffect(() => {
+    if (!doku) return;
+    if (openMode !== 'quiz') return;
+    if (autoJumpDoneRef.current) return;
+
+    autoJumpDoneRef.current = true;
+    setStarted(true);
+
+    const sections = doku.content?.sections || [];
+    const firstQuizIndex = sections.findIndex(
+      (section) => section?.interactive?.quiz?.enabled && (section.interactive.quiz.questions?.length || 0) > 0,
+    );
+    const targetIndex = firstQuizIndex >= 0 ? firstQuizIndex : 0;
+
+    window.setTimeout(() => {
+      const el = document.getElementById(`section-${targetIndex}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 160);
+  }, [doku, openMode]);
 
   const loadDoku = async () => {
     if (!dokuId) return;
@@ -146,6 +183,8 @@ const CinematicDokuViewer: React.FC = () => {
           dokuTitle: doku.title,
           topic: doku.topic,
           perspective: doku.metadata?.configSnapshot?.perspective,
+          profileId: activeProfileId || undefined,
+          domainId: domainHint,
         }),
       });
       if (response.ok) {

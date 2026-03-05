@@ -40,7 +40,18 @@ export const SuggestionGrid: React.FC<SuggestionGridProps> = ({
   lastInsertedSuggestionId = null,
   maxItems,
 }) => {
-  const visibleItems = typeof maxItems === "number" ? items.slice(0, maxItems) : items;
+  const visibleItems = React.useMemo(() => {
+    if (typeof maxItems !== "number") return items;
+    const sliced = items.slice(0, maxItems);
+    if (!lastInsertedSuggestionId) return sliced;
+    if (sliced.some((item) => item.suggestionId === lastInsertedSuggestionId)) {
+      return sliced;
+    }
+    const inserted = items.find((item) => item.suggestionId === lastInsertedSuggestionId);
+    if (!inserted) return sliced;
+    if (sliced.length < maxItems) return [...sliced, inserted];
+    return [...sliced.slice(0, maxItems - 1), inserted];
+  }, [items, lastInsertedSuggestionId, maxItems]);
 
   if (isLoading && visibleItems.length === 0) {
     return (

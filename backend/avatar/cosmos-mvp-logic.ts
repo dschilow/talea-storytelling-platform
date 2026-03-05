@@ -1,12 +1,4 @@
-export type CosmosDomainId =
-  | "space"
-  | "nature"
-  | "history"
-  | "tech"
-  | "body"
-  | "earth"
-  | "arts"
-  | "logic";
+export type CosmosDomainId = string;
 
 export type AgeBand = "4-6" | "7-12";
 export type TopicKind = "canonical" | "longTail";
@@ -61,7 +53,7 @@ export interface TopicStageContext {
   hasAnyActivity: boolean;
 }
 
-const DOMAIN_IDS: CosmosDomainId[] = [
+export const CORE_DOMAIN_IDS: CosmosDomainId[] = [
   "space",
   "nature",
   "history",
@@ -91,12 +83,15 @@ export const DEFAULT_TOPIC_STATS: TopicStatsState = {
 };
 
 export function normalizeDomainId(input: string | null | undefined): CosmosDomainId {
-  const value = String(input || "").trim().toLowerCase();
-  if (value === "art") return "arts";
-  if (DOMAIN_IDS.includes(value as CosmosDomainId)) {
-    return value as CosmosDomainId;
-  }
-  return "history";
+  const raw = String(input || "").trim().toLowerCase();
+  if (!raw) return "history";
+  const value = raw === "art" ? "arts" : raw;
+  const sanitized = value
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_")
+    .slice(0, 40);
+  return sanitized || "history";
 }
 
 export function normalizeTitle(value: string | null | undefined): string {
@@ -329,16 +324,16 @@ export function computeTopicStage(context: TopicStageContext): TopicStage {
   const hasActivity = context.hasAnyActivity || context.quizSessionsCount > 0;
   if (!hasActivity) return "discovered";
 
-  const isRetained = context.recallPassedCount >= 1 && context.confidence >= 70;
+  const isRetained = context.recallPassedCount >= 1 && context.confidence >= 55;
   if (isRetained) return "retained";
 
-  const isUnderstood = context.quizSessionsCount >= 2 && context.understandRollingAvg >= 0.7;
+  const isUnderstood = context.quizSessionsCount >= 1 && context.understandRollingAvg >= 0.65;
 
   if (context.ageBand === "7-12") {
     const canApply =
-      context.applyTransferSessionsCount >= 2 &&
+      context.applyTransferSessionsCount >= 1 &&
       context.applyTransferRollingAvg >= 0.7;
-    if (canApply) return "apply";
+    if (canApply && isUnderstood) return "apply";
     if (isUnderstood) return "understood";
     return "discovered";
   }
@@ -448,4 +443,3 @@ function toNumberArray(value: unknown): number[] {
     .filter((entry) => Number.isFinite(entry))
     .map((entry) => clamp01(entry));
 }
-

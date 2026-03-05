@@ -34,6 +34,7 @@ interface QuizSubmitRequest {
   sourceContentType?: "doku" | "story";
   domainId: string;
   topicId?: string;
+  topicTitle?: string;
   answers: QuizAnswerInput[];
 }
 
@@ -229,6 +230,7 @@ export const submitQuizV2 = api<QuizSubmitRequest, QuizSubmitResponse>(
       sourceContentType: req.sourceContentType,
       domainId: req.domainId,
       topicId: req.topicId,
+      topicTitle: req.topicTitle,
       answers: req.answers,
     });
   }

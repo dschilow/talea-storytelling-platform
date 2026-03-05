@@ -6,6 +6,7 @@ import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Doku, DokuSection } from '../../types/doku';
@@ -22,7 +23,9 @@ const DokuScrollReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const queryDomainHint = new URLSearchParams(location.search).get('domain');
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +94,10 @@ const DokuScrollReaderScreen: React.FC = () => {
           dokuTitle: doku.title,
           topic: doku.topic,
           perspective: doku.metadata?.configSnapshot?.perspective,
+          profileId: activeProfileId || undefined,
+          domainId:
+            (queryDomainHint ? queryDomainHint : undefined) ||
+            doku.metadata?.configSnapshot?.domainId,
         })
       });
 

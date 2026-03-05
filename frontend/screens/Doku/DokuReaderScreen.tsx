@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useBackend } from '../../hooks/useBackend';
 import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import type { Doku, DokuSection } from '../../types/doku';
@@ -36,7 +37,9 @@ const DokuReaderScreen: React.FC = () => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const queryDomainHint = new URLSearchParams(location.search).get('domain');
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,6 +234,10 @@ const DokuReaderScreen: React.FC = () => {
           dokuTitle: doku.title,
           topic: doku.topic,
           perspective: doku.metadata?.configSnapshot?.perspective,
+          profileId: activeProfileId || undefined,
+          domainId:
+            (queryDomainHint ? queryDomainHint : undefined) ||
+            doku.metadata?.configSnapshot?.domainId,
           // No avatarId = update all eligible avatars
         })
       });

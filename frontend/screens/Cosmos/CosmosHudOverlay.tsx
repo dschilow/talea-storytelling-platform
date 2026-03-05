@@ -26,8 +26,14 @@ interface Props {
   onFocusPrev?: () => void;
   onFocusNext?: () => void;
   onOpenSuggestions: (domainId: string) => void;
-  onStartTopicDoku: (topic: TopicIsland) => void;
-  onStartTopicQuiz: (topic: TopicIsland) => void;
+  onStartTopicDoku: (
+    topic: TopicIsland,
+    entry?: TopicTimelineDTO["docs"][number] | null
+  ) => void;
+  onStartTopicQuiz: (
+    topic: TopicIsland,
+    entry?: TopicTimelineDTO["docs"][number] | null
+  ) => void;
   onSelectTopic: (topic: TopicIsland) => void;
 }
 
@@ -58,6 +64,10 @@ export const CosmosHudOverlay: React.FC<Props> = ({
 
   const stageLabel = getStageLabel(progress.stage);
   const stageColor = getStageColor(progress.stage);
+  const topicsExploredDisplay = Math.max(
+    Number(progress.topicsExplored || 0),
+    activeIslands.length
+  );
   const evidenceLine = progress.recentHighlight || "Neue Lernspur gesammelt.";
   const stages = Object.entries(LEARNING_STAGES) as [string, { label: string }][];
   const currentStageIdx = stages.findIndex(([key]) => key === progress.stage);
@@ -69,6 +79,24 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   const dueRecall =
     selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
     null;
+  const [selectedTimelineDocId, setSelectedTimelineDocId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const firstId = selectedTopicTimeline?.docs?.[0]?.contentId || null;
+    setSelectedTimelineDocId((current) => {
+      if (!selectedTopicTimeline?.docs?.length) return null;
+      if (current && selectedTopicTimeline.docs.some((entry) => entry.contentId === current)) {
+        return current;
+      }
+      return firstId;
+    });
+  }, [selectedTopicTimeline]);
+  const selectedTimelineEntry =
+    selectedTopicTimeline?.docs?.find((entry) => entry.contentId === selectedTimelineDocId) ||
+    selectedTopicTimeline?.docs?.[0] ||
+    null;
+  const canOpenTimelineContent = Boolean(selectedTimelineEntry);
+  const canOpenQuiz =
+    Boolean(selectedTimelineEntry) && selectedTimelineEntry?.type === "doku";
   const showTopicInsights = isDetailMode && !isTransitioning;
   const bottomInset = isDetailMode
     ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
@@ -146,7 +174,7 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                     {stageLabel}
                   </span>
                   <span className="text-[11px] text-white/40">
-                    Level {progress.planetLevel || 1} - {progress.topicsExplored} Themen
+                    Level {progress.planetLevel || 1} - {topicsExploredDisplay} Themen
                   </span>
                 </div>
               </div>
@@ -293,15 +321,33 @@ export const CosmosHudOverlay: React.FC<Props> = ({
 
                     <div className="rounded-lg bg-black/20 border border-white/10 p-2.5 text-xs text-white/75">
                       <div className="font-semibold mb-1">Letzte Dokus/Stories</div>
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         {(selectedTopicTimeline?.docs || []).slice(0, 5).map((entry) => (
-                          <div key={entry.contentId} className="flex items-center justify-between gap-2">
+                          <button
+                            key={entry.contentId}
+                            type="button"
+                            onClick={() => setSelectedTimelineDocId(entry.contentId)}
+                            className="w-full flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
+                            style={{
+                              background:
+                                selectedTimelineEntry?.contentId === entry.contentId
+                                  ? "rgba(255,255,255,0.12)"
+                                  : "rgba(255,255,255,0.04)",
+                              border:
+                                selectedTimelineEntry?.contentId === entry.contentId
+                                  ? `1px solid ${stageColor}66`
+                                  : "1px solid rgba(255,255,255,0.08)",
+                            }}
+                          >
                             <span className="truncate">{entry.title}</span>
                             <span className="text-[10px] text-white/45 uppercase">{entry.type}</span>
-                          </div>
+                          </button>
                         ))}
                         {isLoadingTopicTimeline && (
                           <div className="text-[11px] text-white/45">Timeline wird geladen...</div>
+                        )}
+                        {!isLoadingTopicTimeline && (selectedTopicTimeline?.docs?.length || 0) === 0 && (
+                          <div className="text-[11px] text-white/45">Noch keine Inhalte gespeichert.</div>
                         )}
                       </div>
                     </div>
@@ -309,15 +355,19 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => onStartTopicDoku(selectedTopic)}
-                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors"
+                        onClick={() => onStartTopicDoku(selectedTopic, selectedTimelineEntry)}
+                        disabled={!canOpenTimelineContent}
+                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
                       >
-                        Doku starten
+                        {selectedTimelineEntry?.type === "story"
+                          ? "Story starten"
+                          : "Doku starten"}
                       </button>
                       <button
                         type="button"
-                        onClick={() => onStartTopicQuiz(selectedTopic)}
-                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors"
+                        onClick={() => onStartTopicQuiz(selectedTopic, selectedTimelineEntry)}
+                        disabled={!canOpenQuiz}
+                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
                       >
                         Quiz starten
                       </button>

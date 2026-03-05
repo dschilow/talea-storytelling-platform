@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Story, Chapter } from '../../types/story';
@@ -20,6 +21,7 @@ const StoryScrollReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [story, setStory] = useState<Story | null>(null);
@@ -90,6 +92,7 @@ const StoryScrollReaderScreen: React.FC = () => {
             storyId: storyId,
             storyTitle: story.title,
             genre: story.config.genre,
+            profileId: activeProfileId || undefined,
             ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
           };
         })())

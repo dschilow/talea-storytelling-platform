@@ -280,12 +280,20 @@ export function useCosmosState() {
     const childName = childProfiles?.activeProfile?.name || "";
     const fallbackStories = avatarData?.progression?.stats?.storiesRead ?? 0;
     const fallbackDokus = avatarData?.progression?.stats?.dokusRead ?? 0;
+    const totalStoriesRead = Math.max(
+      Number(remoteTotals?.storiesRead) || 0,
+      Number(fallbackStories) || 0
+    );
+    const totalDokusRead = Math.max(
+      Number(remoteTotals?.dokusRead) || 0,
+      Number(fallbackDokus) || 0
+    );
     return {
       childName,
       avatarImageUrl: avatarData?.imageUrl,
       domains,
-      totalStoriesRead: remoteTotals?.storiesRead ?? fallbackStories,
-      totalDokusRead: remoteTotals?.dokusRead ?? fallbackDokus,
+      totalStoriesRead,
+      totalDokusRead,
     };
   }, [
     avatarData?.imageUrl,

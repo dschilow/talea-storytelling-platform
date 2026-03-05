@@ -40,7 +40,7 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
-            className="absolute inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
+            className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
             onClick={onClose}
           />
 
@@ -51,18 +51,21 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 48, opacity: 0, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="absolute inset-x-0 bottom-0 z-50 mx-auto w-full max-w-3xl px-3 pb-3 md:px-5 md:pb-5"
-            style={{ paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))" }}
+            className="fixed inset-0 z-50 flex items-end justify-center px-3 pb-3 pt-2 md:px-5 md:pb-5"
+            style={{
+              paddingTop: "max(1rem, env(safe-area-inset-top, 0px))",
+              paddingBottom: "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))",
+            }}
           >
             <div
-              className="rounded-3xl border border-white/12 p-4 md:p-5"
+              className="flex h-[min(84dvh,44rem)] w-full max-w-3xl max-h-[calc(100dvh-1.25rem)] flex-col overflow-hidden rounded-3xl border border-white/12 p-4 md:p-5"
               style={{
                 background:
                   "linear-gradient(145deg, rgba(10,12,30,0.95) 0%, rgba(20,20,46,0.96) 55%, rgba(28,16,48,0.94) 100%)",
                 boxShadow: "0 24px 80px rgba(0,0,0,0.55)",
               }}
             >
-              <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="sticky top-0 z-10 mb-3 flex items-start justify-between gap-3 rounded-2xl bg-[rgba(10,12,30,0.88)] pb-2 pt-0.5">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
                     AI Topic Suggestions
@@ -102,13 +105,15 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
                 </div>
               )}
 
-              <SuggestionGrid
-                items={items}
-                isLoading={isLoading}
-                onSelect={onSelect}
-                lastInsertedSuggestionId={lastInsertedSuggestionId}
-                maxItems={8}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1 overscroll-contain">
+                <SuggestionGrid
+                  items={items}
+                  isLoading={isLoading}
+                  onSelect={onSelect}
+                  lastInsertedSuggestionId={lastInsertedSuggestionId}
+                  maxItems={18}
+                />
+              </div>
             </div>
           </motion.section>
         </>

@@ -5,6 +5,7 @@ import { ensureCosmosMvpSchema } from "./cosmos-mvp-schema";
 import {
   AgeBand,
   CanonicalTopicCandidate,
+  CORE_DOMAIN_IDS,
   CosmosDomainId,
   DEFAULT_TOPIC_STATS,
   SkillAccuracyStat,
@@ -12,6 +13,7 @@ import {
   TopicKind,
   TopicStage,
   TopicStatsState,
+  buildLongTailTopicId,
   applyConfidenceDecay,
   computeMasteryDelta,
   computeQuizConfidenceDelta,
@@ -32,17 +34,10 @@ import {
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 const userDB = SQLDatabase.named("user");
+const dokuDB = SQLDatabase.named("doku");
+const storyDB = SQLDatabase.named("story");
 
-const FIXED_DOMAINS: CosmosDomainId[] = [
-  "space",
-  "nature",
-  "history",
-  "tech",
-  "body",
-  "earth",
-  "arts",
-  "logic",
-];
+const FIXED_DOMAINS: CosmosDomainId[] = [...CORE_DOMAIN_IDS];
 
 const ALLOWED_QUESTION_TYPES = new Set([
   "mc_single",
@@ -96,6 +91,7 @@ export interface QuizSubmitRequest {
   sourceContentType?: "doku" | "story";
   domainId: string;
   topicId?: string;
+  topicTitle?: string;
   answers: QuizAnswerInput[];
 }
 
@@ -118,6 +114,7 @@ export interface ReadActivityRequest {
   domainId: string;
   topicId?: string;
   topicTitle?: string;
+  contentTitle?: string;
   summary?: string;
 }
 
@@ -167,6 +164,46 @@ function uuid(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+const DOMAIN_META: Record<string, { title: string; icon: string }> = {
+  space: { title: "Weltraum", icon: "space" },
+  nature: { title: "Natur & Tiere", icon: "nature" },
+  history: { title: "Geschichte & Kulturen", icon: "history" },
+  tech: { title: "Technik & Erfindungen", icon: "tech" },
+  body: { title: "Mensch & Koerper", icon: "body" },
+  earth: { title: "Erde & Klima", icon: "earth" },
+  arts: { title: "Kunst & Musik", icon: "arts" },
+  logic: { title: "Logik & Raetsel", icon: "logic" },
+};
+
+function toDomainLabel(domainId: string): string {
+  const normalized = normalizeDomainId(domainId);
+  if (DOMAIN_META[normalized]?.title) return DOMAIN_META[normalized].title;
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .slice(0, 64) || "Neue Lernwelt";
+}
+
+async function ensureDomainExists(domainId: CosmosDomainId): Promise<void> {
+  const normalized = normalizeDomainId(domainId);
+  const meta = DOMAIN_META[normalized];
+  await avatarDB.exec`
+    INSERT INTO domains (domain_id, title, icon, created_at)
+    VALUES (
+      ${normalized},
+      ${meta?.title || toDomainLabel(normalized)},
+      ${meta?.icon || normalized},
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (domain_id) DO NOTHING
+  `;
+}
+
 function parseAliases(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -207,7 +244,28 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function isValidTopicId(value: string): boolean {
-  return /^(space|nature|history|tech|body|earth|arts|logic|art)_[a-z0-9][a-z0-9_\-]{2,72}$/i.test(value);
+  return /^[a-z0-9][a-z0-9_-]{1,39}_[a-z0-9][a-z0-9_\-]{2,72}$/i.test(value);
+}
+
+function topicTitleFromTopicId(topicId: string): string {
+  const suffix = String(topicId || "").split("_").slice(1).join(" ").trim();
+  const normalized = suffix.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) return "Allgemeines Thema";
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function normalizeTopicDisplayTitle(rawTitle: string | null | undefined, topicId: string): string {
+  const raw = String(rawTitle || "").trim();
+  if (!raw || raw === topicId) {
+    return topicTitleFromTopicId(topicId);
+  }
+  const normalized = raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!normalized) return topicTitleFromTopicId(topicId);
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function normalizeDomainForStorage(value: string | null | undefined): CosmosDomainId {
+  return normalizeDomainId(String(value || "").trim());
 }
 
 function mapStageToRank(stage: TopicStage): number {
@@ -272,10 +330,91 @@ function extractRecallQuestionsFromPackage(contentPackage: unknown, count: numbe
 
 async function ensureBaseRowsForChild(childId: string): Promise<void> {
   for (const domainId of FIXED_DOMAINS) {
+    await ensureDomainExists(domainId);
     await avatarDB.exec`
       INSERT INTO tracking_domain_state (child_id, domain_id, evolution_index, planet_level, updated_at)
       VALUES (${childId}, ${domainId}, 0, 1, CURRENT_TIMESTAMP)
       ON CONFLICT (child_id, domain_id) DO NOTHING
+    `;
+  }
+}
+
+async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
+  const contentRows = await avatarDB.queryAll<{
+    content_id: string;
+    domain_id: string;
+    topic_id: string | null;
+  }>`
+    SELECT content_id, domain_id, topic_id
+    FROM content_items
+    WHERE child_id = ${childId}
+      AND type = 'doku'
+    ORDER BY created_at DESC
+    LIMIT 300
+  `;
+  if (contentRows.length === 0) return;
+
+  const dokuIds = Array.from(
+    new Set(contentRows.map((row) => row.content_id).filter(Boolean))
+  );
+  if (dokuIds.length === 0) return;
+
+  const dokuRows = await dokuDB.queryAll<{ id: string; domain_id: string | null }>`
+    SELECT
+      id,
+      COALESCE(
+        metadata->'configSnapshot'->>'domainId',
+        metadata->>'domainId'
+      ) AS domain_id
+    FROM dokus
+    WHERE id = ANY(${dokuIds})
+  `;
+  const dokuDomainMap = new Map<string, CosmosDomainId>();
+  for (const row of dokuRows) {
+    const rawDomain = String(row.domain_id || "").trim();
+    if (!rawDomain) continue;
+    dokuDomainMap.set(row.id, normalizeDomainForStorage(rawDomain));
+  }
+
+  for (const row of contentRows) {
+    const targetDomain = dokuDomainMap.get(row.content_id);
+    if (!targetDomain) continue;
+
+    const currentDomain = normalizeDomainForStorage(row.domain_id);
+    let nextTopicId = row.topic_id;
+    const parsedTopicDomain = row.topic_id ? parseDomainFromTopicId(row.topic_id) : null;
+    if (row.topic_id && parsedTopicDomain && parsedTopicDomain !== targetDomain) {
+      const suffix = row.topic_id.split("_").slice(1).join("_");
+      const remappedTopicId = buildLongTailTopicId(targetDomain, suffix || row.topic_id);
+      await ensureTopicExists({
+        topicId: remappedTopicId,
+        domainId: targetDomain,
+        topicKind: "longTail",
+        topicTitle: topicTitleFromTopicId(suffix || row.topic_id),
+        aliases: [],
+      });
+      nextTopicId = remappedTopicId;
+    }
+
+    const needsUpdate =
+      currentDomain !== targetDomain ||
+      (nextTopicId && nextTopicId !== row.topic_id);
+    if (!needsUpdate) continue;
+
+    await avatarDB.exec`
+      UPDATE content_items
+      SET domain_id = ${targetDomain},
+          topic_id = ${nextTopicId}
+      WHERE child_id = ${childId}
+        AND content_id = ${row.content_id}
+    `;
+    await avatarDB.exec`
+      UPDATE evidence_events
+      SET domain_id = ${targetDomain},
+          topic_id = COALESCE(${nextTopicId}, topic_id)
+      WHERE profile_id = ${childId}
+        AND source_content_id = ${row.content_id}
+        AND source_content_type = 'doku'
     `;
   }
 }
@@ -298,17 +437,11 @@ export async function resolveChildIdForCosmos(params: {
 }): Promise<string> {
   const direct = params.childId?.trim() || params.profileId?.trim();
   if (direct) {
-    try {
-      return await resolveRequestedProfileId({
-        userId: params.userId,
-        requestedProfileId: direct,
-        fallbackName: undefined,
-      });
-    } catch (error) {
-      if (!params.avatarId) throw error;
-      console.warn("[cosmos-mvp] fallback to avatarId child scope after direct profile resolve failed", error);
-      return params.avatarId;
-    }
+    return await resolveRequestedProfileId({
+      userId: params.userId,
+      requestedProfileId: direct,
+      fallbackName: undefined,
+    });
   }
 
   if (params.avatarId) {
@@ -402,6 +535,7 @@ async function resolveTopic(params: {
   topicKind: TopicKind;
   sourceTitle: string;
 }> {
+  await ensureDomainExists(params.domainId);
   const topic = params.topic || {};
   const explicitTopicId = String(topic.topicId || "").trim();
   const topicTitle = String(topic.topicTitle || "").trim() || params.fallbackTitle || "Neues Thema";
@@ -558,6 +692,7 @@ async function incrementDomainEvolution(params: {
   domainId: CosmosDomainId;
   delta: number;
 }): Promise<{ evolutionIndex: number; planetLevel: number }> {
+  await ensureDomainExists(params.domainId);
   await avatarDB.exec`
     INSERT INTO tracking_domain_state (child_id, domain_id, evolution_index, planet_level, updated_at)
     VALUES (${params.childId}, ${params.domainId}, 0, 1, CURRENT_TIMESTAMP)
@@ -763,29 +898,55 @@ async function resolveTopicFromQuizInput(params: {
   childId: string;
   domainId: CosmosDomainId;
   topicId?: string;
+  topicTitle?: string;
   sourceContentId?: string;
 }): Promise<string> {
+  await ensureDomainExists(params.domainId);
   const explicitTopicId = String(params.topicId || "").trim();
+  const explicitTitle = String(params.topicTitle || "").trim();
   if (explicitTopicId && isValidTopicId(explicitTopicId)) {
+    const explicitDomain = parseDomainFromTopicId(explicitTopicId);
+    if (explicitDomain && explicitDomain !== params.domainId) {
+      const explicitSuffix = explicitTopicId.split("_").slice(1).join("_");
+      const remappedTopicId = buildLongTailTopicId(
+        params.domainId,
+        explicitSuffix || explicitTopicId
+      );
+      await ensureTopicExists({
+        topicId: remappedTopicId,
+        domainId: params.domainId,
+        topicKind: "longTail",
+        topicTitle:
+          explicitTitle ||
+          topicTitleFromTopicId(explicitSuffix || explicitTopicId),
+        aliases: [],
+      });
+      return remappedTopicId;
+    }
     await ensureTopicExists({
       topicId: explicitTopicId,
       domainId: params.domainId,
       topicKind: "longTail",
-      topicTitle: explicitTopicId,
+      topicTitle: explicitTitle || topicTitleFromTopicId(explicitTopicId),
       aliases: [],
     });
     return explicitTopicId;
   }
 
   if (params.sourceContentId) {
-    const content = await avatarDB.queryRow<{ topic_id: string }>`
-      SELECT topic_id
+    const content = await avatarDB.queryRow<{ topic_id: string; domain_id: string }>`
+      SELECT topic_id, domain_id
       FROM content_items
       WHERE child_id = ${params.childId}
         AND content_id = ${params.sourceContentId}
       LIMIT 1
     `;
-    if (content?.topic_id) return content.topic_id;
+    if (
+      content?.topic_id &&
+      normalizeDomainId(content.domain_id) === params.domainId
+    ) {
+      return content.topic_id;
+    }
   }
 
   const fallbackTopicId = `${params.domainId}_general`;
@@ -797,6 +958,53 @@ async function resolveTopicFromQuizInput(params: {
     aliases: [],
   });
   return fallbackTopicId;
+}
+
+async function resolveDomainFromSourceContent(params: {
+  childId: string;
+  requestedDomainId: string;
+  sourceContentId?: string;
+  sourceContentType?: "doku" | "story";
+}): Promise<CosmosDomainId> {
+  const requestedRaw = String(params.requestedDomainId || "").trim();
+  const hasExplicitRequested = requestedRaw.length > 0;
+  const requested = normalizeDomainForStorage(params.requestedDomainId);
+
+  if (params.sourceContentType === "doku" && params.sourceContentId) {
+    const dokuRow = await dokuDB.queryRow<{ domain_id: string | null }>`
+      SELECT COALESCE(
+        metadata->'configSnapshot'->>'domainId',
+        metadata->>'domainId'
+      ) AS domain_id
+      FROM dokus
+      WHERE id = ${params.sourceContentId}
+      LIMIT 1
+    `;
+    if (dokuRow?.domain_id) {
+      return normalizeDomainForStorage(dokuRow.domain_id);
+    }
+  }
+
+  if (hasExplicitRequested) {
+    return requested;
+  }
+
+  if (!params.sourceContentId) {
+    return requested;
+  }
+
+  const contentRow = await avatarDB.queryRow<{ domain_id: string | null }>`
+    SELECT domain_id
+    FROM content_items
+    WHERE child_id = ${params.childId}
+      AND content_id = ${params.sourceContentId}
+    LIMIT 1
+  `;
+  if (contentRow?.domain_id) {
+    return normalizeDomainForStorage(contentRow.domain_id);
+  }
+
+  return requested;
 }
 
 async function loadContentPackageByContentId(childId: string, contentId: string | undefined): Promise<Record<string, unknown> | null> {
@@ -836,13 +1044,55 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
   });
   await ensureBaseRowsForChild(childId);
 
-  const domainId = normalizeDomainId(params.domainId);
+  const domainId = await resolveDomainFromSourceContent({
+    childId,
+    requestedDomainId: params.domainId,
+    sourceContentId: params.sourceContentId || params.contentId,
+    sourceContentType: params.sourceContentType,
+  });
   const topicId = await resolveTopicFromQuizInput({
     childId,
     domainId,
     topicId: params.topicId,
+    topicTitle: params.topicTitle,
     sourceContentId: params.sourceContentId || params.contentId,
   });
+  const resolvedContentId = params.sourceContentId || params.contentId;
+  if (resolvedContentId) {
+    await avatarDB.exec`
+      INSERT INTO content_items (
+        content_id,
+        child_id,
+        domain_id,
+        topic_id,
+        type,
+        package_json,
+        created_at
+      )
+      VALUES (
+        ${resolvedContentId},
+        ${childId},
+        ${domainId},
+        ${topicId},
+        ${params.sourceContentType ?? "doku"},
+        ${JSON.stringify({
+          contentId: resolvedContentId,
+          contentType: params.sourceContentType ?? "doku",
+          domainId,
+          title: resolvedContentId,
+          topic: { topicId, topicTitle: topicId, topicKind: "longTail" },
+          metadata: { source: "quiz_submit" },
+        })}::jsonb,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (content_id)
+      DO UPDATE SET
+        child_id = EXCLUDED.child_id,
+        domain_id = EXCLUDED.domain_id,
+        topic_id = EXCLUDED.topic_id,
+        type = EXCLUDED.type
+    `;
+  }
 
   const normalizedAnswers = (Array.isArray(params.answers) ? params.answers : [])
     .map((answer, index) => ({
@@ -1233,8 +1483,61 @@ export async function recordReadActivity(params: ReadActivityRequest): Promise<{
     childId,
     domainId,
     topicId: params.topicId,
+    topicTitle: params.topicTitle || params.contentTitle,
     sourceContentId: params.sourceContentId,
   });
+
+  const derivedContentTitle =
+    String(params.contentTitle || "").trim() ||
+    String(params.topicTitle || "").trim() ||
+    `${params.sourceContentType === "doku" ? "Doku" : "Story"} ${params.sourceContentId}`;
+  const topicTitle =
+    String(params.topicTitle || "").trim() ||
+    derivedContentTitle;
+  const contentPackage = {
+    contentId: params.sourceContentId,
+    contentType: params.sourceContentType,
+    domainId,
+    title: derivedContentTitle,
+    contentTitle: derivedContentTitle,
+    topic: {
+      topicId,
+      topicTitle,
+      topicKind: "longTail",
+    },
+    metadata: {
+      source: "read_activity",
+      summary: params.summary || null,
+    },
+  };
+
+  await avatarDB.exec`
+    INSERT INTO content_items (
+      content_id,
+      child_id,
+      domain_id,
+      topic_id,
+      type,
+      package_json,
+      created_at
+    )
+    VALUES (
+      ${params.sourceContentId},
+      ${childId},
+      ${domainId},
+      ${topicId},
+      ${params.sourceContentType},
+      ${JSON.stringify(contentPackage)}::jsonb,
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (content_id)
+    DO UPDATE SET
+      child_id = EXCLUDED.child_id,
+      domain_id = EXCLUDED.domain_id,
+      topic_id = EXCLUDED.topic_id,
+      type = EXCLUDED.type,
+      package_json = EXCLUDED.package_json
+  `;
 
   const topicState = await loadTopicState(childId, topicId);
   if (!topicState) {
@@ -1338,10 +1641,39 @@ async function loadDomainTopicRows(params: {
   domainId: CosmosDomainId;
 }): Promise<DomainTopicRow[]> {
   const rows = await avatarDB.queryAll<DomainTopicRow>`
+    WITH candidate_topics AS (
+      SELECT DISTINCT tts.topic_id
+      FROM tracking_topic_state tts
+      JOIN topics t
+        ON t.topic_id = tts.topic_id
+      WHERE tts.child_id = ${params.childId}
+        AND t.domain_id = ${params.domainId}
+
+      UNION
+
+      SELECT DISTINCT ci.topic_id
+      FROM content_items ci
+      WHERE ci.child_id = ${params.childId}
+        AND ci.domain_id = ${params.domainId}
+        AND ci.topic_id IS NOT NULL
+
+      UNION
+
+      SELECT DISTINCT ee.topic_id
+      FROM evidence_events ee
+      WHERE ee.profile_id = ${params.childId}
+        AND ee.domain_id = ${params.domainId}
+        AND ee.topic_id IS NOT NULL
+        AND ee.event_type IN ('doku_read', 'story_read', 'quiz')
+    )
     SELECT
-      t.topic_id,
-      t.title,
-      t.kind,
+      ct.topic_id,
+      COALESCE(
+        NULLIF(t.title, ''),
+        NULLIF(topic_title_source.title, ''),
+        ct.topic_id
+      ) AS title,
+      COALESCE(t.kind, 'longTail') AS kind,
       COALESCE(tts.mastery, 0) AS mastery,
       COALESCE(tts.confidence, 0) AS confidence,
       COALESCE(tts.stage, 'discovered') AS stage,
@@ -1351,21 +1683,61 @@ async function loadDomainTopicRows(params: {
         SELECT MIN(rt.due_at)
         FROM recall_tasks rt
         WHERE rt.child_id = ${params.childId}
-          AND rt.topic_id = t.topic_id
+          AND rt.topic_id = ct.topic_id
           AND rt.status = 'pending'
       ) AS recall_due_at,
       (
-        SELECT COUNT(*)::int
+        SELECT GREATEST(
+          (
+            SELECT COUNT(*)::int
+            FROM content_items ci
+            WHERE ci.child_id = ${params.childId}
+              AND ci.topic_id = ct.topic_id
+          ),
+          (
+            SELECT COUNT(DISTINCT ee.source_content_id)::int
+            FROM evidence_events ee
+            WHERE ee.profile_id = ${params.childId}
+              AND ee.topic_id = ct.topic_id
+              AND ee.event_type IN ('doku_read', 'story_read')
+              AND ee.source_content_id IS NOT NULL
+          )
+        )::int
+      ) AS docs_count
+    FROM candidate_topics ct
+    LEFT JOIN topics t
+      ON t.topic_id = ct.topic_id
+    LEFT JOIN tracking_topic_state tts
+      ON tts.topic_id = ct.topic_id
+     AND tts.child_id = ${params.childId}
+    LEFT JOIN LATERAL (
+      SELECT COALESCE(
+        NULLIF(ci.package_json->'topic'->>'topicTitle', ''),
+        NULLIF(ci.package_json->>'topicTitle', ''),
+        NULLIF(ci.package_json->>'contentTitle', ''),
+        NULLIF(ci.package_json->>'title', ''),
+        NULLIF(ee.payload->>'topicTitle', '')
+      ) AS title,
+      src_created_at
+      FROM (
+        SELECT ci.package_json, NULL::jsonb AS payload, ci.created_at AS src_created_at
         FROM content_items ci
         WHERE ci.child_id = ${params.childId}
-          AND ci.topic_id = t.topic_id
-      ) AS docs_count
-    FROM topics t
-    JOIN tracking_topic_state tts
-      ON tts.topic_id = t.topic_id
-     AND tts.child_id = ${params.childId}
-    WHERE t.domain_id = ${params.domainId}
-    ORDER BY tts.updated_at DESC
+          AND ci.domain_id = ${params.domainId}
+          AND ci.topic_id = ct.topic_id
+
+        UNION ALL
+
+        SELECT NULL::jsonb AS package_json, ee.payload, ee.created_at AS src_created_at
+        FROM evidence_events ee
+        WHERE ee.profile_id = ${params.childId}
+          AND ee.domain_id = ${params.domainId}
+          AND ee.topic_id = ct.topic_id
+      ) source_rows
+      ORDER BY src_created_at DESC
+      LIMIT 1
+    ) AS topic_title_source ON TRUE
+    ORDER BY tts.updated_at DESC NULLS LAST
   `;
 
   return rows;
@@ -1402,7 +1774,7 @@ export async function getDomainTopicsForChild(params: {
     const confidence = toNumber(row.confidence, 0);
     return {
       topicId: row.topic_id,
-      topicTitle: row.title,
+      topicTitle: normalizeTopicDisplayTitle(row.title, row.topic_id),
       topicKind: row.kind,
       stage: row.stage,
       mastery: roundOne(row.mastery),
@@ -1451,6 +1823,11 @@ export async function getCosmosStateForChild(params: {
     avatarId: params.avatarId,
   });
   await ensureBaseRowsForChild(childId);
+  try {
+    await syncDokuDomainMappingsForChild(childId);
+  } catch (error) {
+    console.warn("[cosmos-mvp] failed to sync doku domain mappings", error);
+  }
 
   const domainRows = await avatarDB.queryAll<{
     domain_id: string;
@@ -1467,19 +1844,87 @@ export async function getCosmosStateForChild(params: {
     LEFT JOIN tracking_domain_state tds
       ON tds.domain_id = d.domain_id
      AND tds.child_id = ${childId}
-    WHERE d.domain_id = ANY(${FIXED_DOMAINS})
-    ORDER BY array_position(${FIXED_DOMAINS}::text[], d.domain_id)
+    WHERE
+      d.domain_id = ANY(${FIXED_DOMAINS})
+      OR EXISTS (
+        SELECT 1
+        FROM topics t
+        JOIN tracking_topic_state tts
+          ON tts.topic_id = t.topic_id
+         AND tts.child_id = ${childId}
+        WHERE t.domain_id = d.domain_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM content_items ci
+        WHERE ci.child_id = ${childId}
+          AND ci.domain_id = d.domain_id
+      )
+      OR EXISTS (
+        SELECT 1
+        FROM evidence_events ee
+        WHERE ee.profile_id = ${childId}
+          AND ee.domain_id = d.domain_id
+      )
+      OR tds.child_id IS NOT NULL
+    ORDER BY
+      CASE
+        WHEN d.domain_id = ANY(${FIXED_DOMAINS}) THEN array_position(${FIXED_DOMAINS}::text[], d.domain_id)
+        ELSE 1000
+      END,
+      COALESCE(tds.last_activity_at, d.created_at) DESC,
+      d.domain_id
   `;
 
   const contentTotals = await avatarDB.queryRow<{
     total_stories_read: number;
     total_dokus_read: number;
   }>`
+    WITH content_totals AS (
+      SELECT
+        COALESCE(COUNT(*) FILTER (WHERE type = 'story'), 0)::int AS stories_count,
+        COALESCE(COUNT(*) FILTER (WHERE type = 'doku'), 0)::int AS dokus_count
+      FROM content_items
+      WHERE child_id = ${childId}
+    ),
+    evidence_totals AS (
+      SELECT
+        COALESCE(COUNT(DISTINCT source_content_id) FILTER (
+          WHERE event_type = 'story_read' AND source_content_id IS NOT NULL
+        ), 0)::int AS stories_count,
+        COALESCE(COUNT(DISTINCT source_content_id) FILTER (
+          WHERE event_type = 'doku_read' AND source_content_id IS NOT NULL
+        ), 0)::int AS dokus_count
+      FROM evidence_events
+      WHERE profile_id = ${childId}
+    )
     SELECT
-      COALESCE(COUNT(*) FILTER (WHERE type = 'story'), 0)::int AS total_stories_read,
-      COALESCE(COUNT(*) FILTER (WHERE type = 'doku'), 0)::int AS total_dokus_read
-    FROM content_items
-    WHERE child_id = ${childId}
+      GREATEST(content_totals.stories_count, evidence_totals.stories_count) AS total_stories_read,
+      GREATEST(content_totals.dokus_count, evidence_totals.dokus_count) AS total_dokus_read
+    FROM content_totals, evidence_totals
+  `;
+
+  const dokuProfileTotals = await dokuDB.queryRow<{ total_dokus_read: number }>`
+    SELECT COALESCE(COUNT(*), 0)::int AS total_dokus_read
+    FROM doku_profile_state
+    WHERE profile_id = ${childId}
+      AND completion_state = 'completed'
+  `;
+  const dokuParticipantTotals = await dokuDB.queryRow<{ total_dokus_known: number }>`
+    SELECT COALESCE(COUNT(DISTINCT doku_id), 0)::int AS total_dokus_known
+    FROM doku_participants
+    WHERE profile_id = ${childId}
+  `;
+  const storyProfileTotals = await storyDB.queryRow<{ total_stories_read: number }>`
+    SELECT COALESCE(COUNT(*), 0)::int AS total_stories_read
+    FROM story_profile_state
+    WHERE profile_id = ${childId}
+      AND completion_state = 'completed'
+  `;
+  const storyParticipantTotals = await storyDB.queryRow<{ total_stories_known: number }>`
+    SELECT COALESCE(COUNT(DISTINCT story_id), 0)::int AS total_stories_known
+    FROM story_participants
+    WHERE profile_id = ${childId}
   `;
 
   const domains: CosmosStateDomainDTO[] = [];
@@ -1540,8 +1985,18 @@ export async function getCosmosStateForChild(params: {
   return {
     childId,
     domains,
-    totalStoriesRead: Math.max(0, toNumber(contentTotals?.total_stories_read, 0)),
-    totalDokusRead: Math.max(0, toNumber(contentTotals?.total_dokus_read, 0)),
+    totalStoriesRead: Math.max(
+      0,
+      toNumber(contentTotals?.total_stories_read, 0),
+      toNumber(storyProfileTotals?.total_stories_read, 0),
+      toNumber(storyParticipantTotals?.total_stories_known, 0)
+    ),
+    totalDokusRead: Math.max(
+      0,
+      toNumber(contentTotals?.total_dokus_read, 0),
+      toNumber(dokuProfileTotals?.total_dokus_read, 0),
+      toNumber(dokuParticipantTotals?.total_dokus_known, 0)
+    ),
     selectedDomain,
   };
 }
@@ -1598,6 +2053,109 @@ export async function getTopicTimelineForChild(params: {
     LIMIT 5
   `;
 
+  const fallbackDocs = await avatarDB.queryAll<{
+    source_content_id: string;
+    source_content_type: string | null;
+    event_type: string;
+    created_at: string;
+  }>`
+    SELECT
+      source_content_id,
+      source_content_type,
+      event_type,
+      created_at
+    FROM evidence_events
+    WHERE profile_id = ${childId}
+      AND topic_id = ${params.topicId}
+      AND source_content_id IS NOT NULL
+      AND event_type IN ('doku_read', 'story_read', 'quiz')
+    ORDER BY created_at DESC
+    LIMIT 20
+  `;
+
+  const contentTimelineDocs = docs.map((doc) => {
+    const pkg = doc.package_json && typeof doc.package_json === "object"
+      ? (doc.package_json as Record<string, unknown>)
+      : {};
+    return {
+      contentId: doc.content_id,
+      type: doc.type,
+      rawTitle: String(pkg.title || pkg.contentTitle || "").trim(),
+      createdAt: doc.created_at,
+    };
+  });
+
+  const knownDocIds = new Set(contentTimelineDocs.map((doc) => doc.contentId));
+  const fallbackDocCandidates: Array<{
+    contentId: string;
+    type: "doku" | "story";
+    createdAt: string;
+  }> = [];
+  for (const row of fallbackDocs) {
+    const contentId = String(row.source_content_id || "").trim();
+    if (!contentId || knownDocIds.has(contentId)) continue;
+    const type = row.source_content_type === "story" || row.event_type === "story_read"
+      ? "story"
+      : "doku";
+    fallbackDocCandidates.push({
+      contentId,
+      type,
+      createdAt: row.created_at,
+    });
+    knownDocIds.add(contentId);
+  }
+
+  const titleLookupDocs = [
+    ...contentTimelineDocs.filter(
+      (entry) => !entry.rawTitle || entry.rawTitle === entry.contentId
+    ).map((entry) => ({ contentId: entry.contentId, type: entry.type })),
+    ...fallbackDocCandidates.map((entry) => ({
+      contentId: entry.contentId,
+      type: entry.type,
+    })),
+  ];
+  const dokuIds = Array.from(
+    new Set(
+      titleLookupDocs
+        .filter((entry) => entry.type === "doku")
+        .map((entry) => entry.contentId)
+    )
+  );
+  const storyIds = Array.from(
+    new Set(
+      titleLookupDocs
+        .filter((entry) => entry.type === "story")
+        .map((entry) => entry.contentId)
+    )
+  );
+
+  const dokuTitleRows = dokuIds.length
+    ? await dokuDB.queryAll<{ id: string; title: string }>`
+        SELECT id, title
+        FROM dokus
+        WHERE id = ANY(${dokuIds})
+      `
+    : [];
+  const storyTitleRows = storyIds.length
+    ? await storyDB.queryAll<{ id: string; title: string }>`
+        SELECT id, title
+        FROM stories
+        WHERE id = ANY(${storyIds})
+      `
+    : [];
+  const dokuTitleMap = new Map(dokuTitleRows.map((row) => [row.id, row.title]));
+  const storyTitleMap = new Map(storyTitleRows.map((row) => [row.id, row.title]));
+
+  const fallbackTimelineDocs = fallbackDocCandidates.map((entry) => ({
+    contentId: entry.contentId,
+    type: entry.type,
+    title:
+      (entry.type === "doku"
+        ? dokuTitleMap.get(entry.contentId)
+        : storyTitleMap.get(entry.contentId)) || entry.contentId,
+    createdAt: entry.createdAt,
+  }));
+
   const quizAttempts = await avatarDB.queryAll<{
     id: string;
     score: unknown;
@@ -1633,20 +2191,29 @@ export async function getTopicTimelineForChild(params: {
     LIMIT 10
   `;
 
+  const contentDocsWithResolvedTitles = contentTimelineDocs.map((entry) => ({
+    contentId: entry.contentId,
+    type: entry.type,
+    title:
+      entry.rawTitle ||
+      (entry.type === "doku"
+        ? dokuTitleMap.get(entry.contentId)
+        : storyTitleMap.get(entry.contentId)) ||
+      entry.contentId,
+    createdAt: entry.createdAt,
+  }));
+
+  const mergedDocs = [...contentDocsWithResolvedTitles, ...fallbackTimelineDocs]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+    .slice(0, 5);
+
   return {
     childId,
     topicId: params.topicId,
-    docs: docs.map((doc) => {
-      const pkg = doc.package_json && typeof doc.package_json === "object"
-        ? (doc.package_json as Record<string, unknown>)
-        : {};
-      return {
-        contentId: doc.content_id,
-        type: doc.type,
-        title: String(pkg.title || pkg.contentTitle || doc.content_id),
-        createdAt: doc.created_at,
-      };
-    }),
+    docs: mergedDocs,
     quizAttempts: quizAttempts.map((attempt) => {
       const score = attempt.score && typeof attempt.score === "object"
         ? (attempt.score as Record<string, unknown>)

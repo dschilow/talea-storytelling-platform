@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { useBackend } from '../../hooks/useBackend';
 import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
@@ -31,6 +32,7 @@ const StoryReaderScreen: React.FC = () => {
   const { getToken } = useAuth();
   const { t } = useTranslation();
   const { isAdmin } = useOptionalUserAccess();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
 
   const [story, setStory] = useState<Story | null>(null);
@@ -227,6 +229,7 @@ const StoryReaderScreen: React.FC = () => {
             storyId: storyId,
             storyTitle: story.title,
             genre: story.config.genre,
+            profileId: activeProfileId || undefined,
             ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
           };
         })())

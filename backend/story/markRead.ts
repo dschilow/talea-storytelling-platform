@@ -282,6 +282,8 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             sourceContentType: "story",
             domainId,
             topicId,
+            contentTitle: req.storyTitle,
+            topicTitle: req.genre || req.storyTitle,
             summary: `Story gelesen: ${req.storyTitle}`,
           });
         } catch (trackingError) {

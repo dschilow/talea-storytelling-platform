@@ -29,6 +29,8 @@ interface QuizComponentProps {
   dokuMetadata?: {
     configSnapshot?: {
       perspective?: string;
+      domainId?: string | null;
+      depth?: "basic" | "standard" | "deep";
     };
   };
   onPersonalityChange?: (changes: Array<{ trait: string; change: number }>) => void;
@@ -155,6 +157,13 @@ const calculateScore = (questions: NormalizedQuestion[], selectedAnswers: Array<
   return { correctAnswers, percentage };
 };
 
+const normalizeDomainHint = (value?: string | null): string | null => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "art") return "arts";
+  return normalized;
+};
+
 export const QuizComponent: React.FC<QuizComponentProps> = ({
   section,
   avatarId,
@@ -258,7 +267,9 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     }
 
     const perspective = dokuMetadata?.configSnapshot?.perspective;
-    const inferredDomainId = inferDomainFromDokuTopic({
+    const queryDomain = normalizeDomainHint(new URLSearchParams(location.search).get("domain"));
+    const metadataDomain = normalizeDomainHint(dokuMetadata?.configSnapshot?.domainId);
+    const inferredDomainId = queryDomain || metadataDomain || inferDomainFromDokuTopic({
       topic: dokuTopic,
       perspective,
       title: dokuTitle,
@@ -298,24 +309,29 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
       try {
         const token = await getToken();
         const domainId = inferredDomainId;
+        const depth = dokuMetadata?.configSnapshot?.depth || "standard";
+        const depthDifficultyBonus = depth === "deep" ? 1 : 0;
+        const stableTopicLabel = dokuTopic || dokuTitle || section.title;
         const topicId = buildTopicId({
           sourceContentType: 'doku',
           sourceContentId: dokuId,
           domainId,
-          label: dokuTopic || section.title || dokuTitle,
+          label: stableTopicLabel,
         });
         const cosmosAnswers = questions.map((question, index) => ({
           questionId: question.id || `q_${index}`,
           skillType: question.skillType,
           correct: selectedAnswers[index] === question.answerIndex,
-          difficulty: question.difficulty,
+          difficulty: Math.max(1, Math.min(5, question.difficulty + depthDifficultyBonus)),
         }));
         await submitCosmosQuiz(
           {
             childId: activeChildId || undefined,
+            profileId: activeChildId || undefined,
             avatarId: trackingAvatarId,
             domainId,
             topicId,
+            topicTitle: stableTopicLabel,
             contentId: dokuId,
             sourceContentId: dokuId,
             sourceContentType: 'doku',

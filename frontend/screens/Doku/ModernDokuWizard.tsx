@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -11,7 +11,8 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { SuggestionGrid } from '../Cosmos/SuggestionGrid';
 import { useTopicSuggestions } from '../Cosmos/useTopicSuggestions';
-import type { TopicSuggestionItemDTO } from '../Cosmos/apiCosmosClient';
+import { fetchCosmosState, type TopicSuggestionItemDTO } from '../Cosmos/apiCosmosClient';
+import { resolveCosmosDomains } from '../Cosmos/CosmosAssetsRegistry';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
 type DokuPerspective = 'science' | 'history' | 'technology' | 'nature' | 'culture';
@@ -53,65 +54,128 @@ type GenerationPhase = 'text' | 'cover' | 'sections' | 'personality' | 'complete
 
 const steps = ['Thema', 'Alter & Tiefe', 'Perspektive', 'Inhalt', 'Zusammenfassung'] as const;
 
-const topics = [
-  'Dinosaurier',
-  'Vulkane',
-  'Weltraum',
-  'Ozeane',
-  'Pflanzen',
-  'Bienen',
-  'Klimawandel',
-  'Chemie im Alltag',
-];
-
 interface DomainDokuPreset {
+  id: string;
   label: string;
+  description: string;
   perspective: DokuPerspective;
   topics: string[];
+  isExtra?: boolean;
 }
 
-const DOMAIN_DOKU_PRESETS: Record<string, DomainDokuPreset> = {
-  nature: {
+const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
+  {
+    id: 'nature',
     label: 'Natur & Tiere',
+    description: 'Tiere, Oekosysteme, Pflanzen und Lebensraeume.',
     perspective: 'nature',
-    topics: ['Tierische Superkraefte', 'Regenwald-Oekosysteme', 'Wie Bienen Pflanzen retten'],
+    topics: ['Wie sprechen Tiere miteinander?', 'Wie bauen Ameisen ihre Stadt?', 'Warum wechseln Blaetter die Farbe?'],
   },
-  space: {
+  {
+    id: 'space',
     label: 'Weltraum',
+    description: 'Planeten, Sterne, Raumfahrt und kosmische Raetsel.',
     perspective: 'science',
-    topics: ['Unser Sonnensystem', 'Schwarze Loecher einfach erklaert', 'Wie Sterne entstehen'],
+    topics: ['Unser Sonnensystem', 'Wie entstehen Sterne?', 'Warum hat der Mars rote Farbe?'],
   },
-  history: {
+  {
+    id: 'history',
     label: 'Geschichte & Kulturen',
+    description: 'Wie Menschen frueher lebten und Kulturen entstanden.',
     perspective: 'history',
-    topics: ['Das alte Aegypten', 'Ritterburgen im Mittelalter', 'Wie Menschen frueher lebten'],
+    topics: ['Das alte Aegypten', 'Wie lebten Kinder im Mittelalter?', 'Warum wurden Burgen gebaut?'],
   },
-  tech: {
+  {
+    id: 'tech',
     label: 'Technik & Erfindungen',
+    description: 'Maschinen, Erfinder, Roboter und smarte Technik.',
     perspective: 'technology',
-    topics: ['Wie Roboter lernen', 'Die Geschichte der Erfindungen', 'Wie Computer denken'],
+    topics: ['Wie Roboter lernen', 'Wie funktioniert ein Mikrochip?', 'Wie kommt Strom ins Haus?'],
   },
-  body: {
+  {
+    id: 'body',
     label: 'Mensch & Koerper',
+    description: 'Koerper, Gehirn, Gesundheit und Sinne.',
     perspective: 'science',
-    topics: ['So funktioniert dein Koerper', 'Das Geheimnis des Gehirns', 'Warum wir schlafen'],
+    topics: ['Warum brauchen wir Schlaf?', 'Wie arbeitet das Gehirn?', 'Wie heilt eine Wunde?'],
   },
-  earth: {
+  {
+    id: 'earth',
     label: 'Erde & Klima',
+    description: 'Klima, Wetter, Geografie und Naturkraefte.',
     perspective: 'science',
-    topics: ['Warum sich das Klima veraendert', 'Wetter und Wolken', 'Leben in den Ozeanen'],
+    topics: ['Wie entstehen Wolken?', 'Warum gibt es Jahreszeiten?', 'Wie entsteht ein Vulkan?'],
   },
-  art: {
+  {
+    id: 'arts',
     label: 'Kunst & Musik',
+    description: 'Musik, Farben, Kreativitaet und Ausdruck.',
     perspective: 'culture',
-    topics: ['Wie Musik Gefuehle ausloest', 'Farben in der Kunst', 'Klangwelten entdecken'],
+    topics: ['Wie macht Musik Stimmung?', 'Warum harmonieren Farben?', 'Wie entsteht ein Comic?'],
   },
-  logic: {
+  {
+    id: 'logic',
     label: 'Logik & Raetsel',
+    description: 'Knobeln, Muster erkennen und logisch denken.',
     perspective: 'science',
-    topics: ['Logikraetsel fuer Detektive', 'Muster erkennen', 'Knifflige Denkaufgaben'],
+    topics: ['Wie plant man mehrere Schritte voraus?', 'Wie funktionieren Wenn-Dann-Regeln?', 'Wie loest man Knobelraetsel?'],
   },
-};
+];
+
+const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
+  {
+    id: 'dinosaurs',
+    label: 'Dinosaurier',
+    description: 'Urzeit, Fossilien und Giganten der Erde.',
+    perspective: 'science',
+    topics: ['Warum starben Dinosaurier aus?', 'Wie entstehen Fossilien?', 'Wer war der T-Rex?'],
+    isExtra: true,
+  },
+  {
+    id: 'oceans',
+    label: 'Ozeane & Tiefsee',
+    description: 'Meere, Tiefsee und geheimnisvolle Lebewesen.',
+    perspective: 'nature',
+    topics: ['Was lebt in der Tiefsee?', 'Warum ist das Meer salzig?', 'Wie entstehen Wellen?'],
+    isExtra: true,
+  },
+  {
+    id: 'myths',
+    label: 'Mythen & Legenden',
+    description: 'Sagenwelten und spannende Geschichten aus Kulturen.',
+    perspective: 'history',
+    topics: ['Warum gibt es Drachen-Mythen?', 'Wer waren die Götter in Griechenland?', 'Wie entstehen Legenden?'],
+    isExtra: true,
+  },
+  {
+    id: 'coding',
+    label: 'Coding & KI',
+    description: 'Programmieren, Algorithmen und kuenstliche Intelligenz.',
+    perspective: 'technology',
+    topics: ['Was ist ein Algorithmus?', 'Wie lernen Maschinen Muster?', 'Wie denkt ein Computer?'],
+    isExtra: true,
+  },
+  {
+    id: 'chemistry',
+    label: 'Chemie im Alltag',
+    description: 'Stoffe, Reaktionen und Experimente fuer Kinder.',
+    perspective: 'science',
+    topics: ['Warum rostet Eisen?', 'Wie funktioniert Seife?', 'Warum sprudelt Brausetablette?'],
+    isExtra: true,
+  },
+  {
+    id: 'sports_science',
+    label: 'Sport & Bewegung',
+    description: 'Kraft, Balance, Ausdauer und Bewegung.',
+    perspective: 'science',
+    topics: ['Warum waermen wir uns auf?', 'Wie trainieren Muskeln?', 'Was macht Ausdauer aus?'],
+    isExtra: true,
+  },
+];
+
+const DOMAIN_DOKU_PRESETS: Record<string, DomainDokuPreset> = Object.fromEntries(
+  [...CORE_DOMAIN_PRESETS, ...EXTRA_DOMAIN_PRESETS].map((preset) => [preset.id, preset])
+);
 
 const PERSPECTIVE_DOMAIN_MAP: Record<DokuPerspective, string> = {
   science: 'space',
@@ -121,13 +185,31 @@ const PERSPECTIVE_DOMAIN_MAP: Record<DokuPerspective, string> = {
   culture: 'arts',
 };
 
-const KNOWN_DOMAIN_IDS = new Set(['nature', 'space', 'history', 'tech', 'body', 'earth', 'arts', 'logic']);
-
 function normalizeSuggestionDomain(domainId: string | null | undefined): string | null {
   const value = String(domainId || '').trim().toLowerCase();
   if (!value) return null;
-  if (value === 'art') return 'arts';
-  return KNOWN_DOMAIN_IDS.has(value) ? value : null;
+  const normalized = value === 'art' ? 'arts' : value;
+  const safe = normalized
+    .replace(/[^a-z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_{2,}/g, '_')
+    .slice(0, 40);
+  return safe || null;
+}
+
+function toDomainFromPerspective(perspective: DokuPerspective): string {
+  return PERSPECTIVE_DOMAIN_MAP[perspective] ?? 'space';
+}
+
+function inferPerspectiveForDomain(domainId: string): DokuPerspective {
+  if (DOMAIN_DOKU_PRESETS[domainId]?.perspective) {
+    return DOMAIN_DOKU_PRESETS[domainId].perspective;
+  }
+  if (/history|myth|culture|roman|mittelalter|ancient/i.test(domainId)) return 'history';
+  if (/nature|animal|ocean|forest|earth|climate/i.test(domainId)) return 'nature';
+  if (/tech|robot|coding|ai|invent|machine/i.test(domainId)) return 'technology';
+  if (/art|music|paint|creative|design/i.test(domainId)) return 'culture';
+  return 'science';
 }
 
 const ageOptions = [
@@ -213,24 +295,31 @@ export default function ModernDokuWizard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const backend = useBackend();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { user } = useUser();
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
-  const domainParam = (searchParams.get('domain') || '').trim().toLowerCase();
+  const domainParam = normalizeSuggestionDomain(searchParams.get('domain'));
   const legacyTopicParam = searchParams.get('topicTags');
   const topicParam = searchParams.get('topic') || legacyTopicParam;
-  const selectedDomainPreset = DOMAIN_DOKU_PRESETS[domainParam];
+  const initialDomainId = domainParam || toDomainFromPerspective(toPerspective(searchParams.get('perspective')) ?? 'science');
+  const selectedDomainPreset = DOMAIN_DOKU_PRESETS[initialDomainId];
   const initialTopic = topicParam ?? selectedDomainPreset?.topics[0] ?? '';
-  const initialPerspective = toPerspective(searchParams.get('perspective')) ?? selectedDomainPreset?.perspective ?? 'science';
+  const initialPerspective =
+    toPerspective(searchParams.get('perspective')) ??
+    selectedDomainPreset?.perspective ??
+    inferPerspectiveForDomain(initialDomainId);
   const shouldJumpToSummary = Boolean(legacyTopicParam && !searchParams.get('domain') && !searchParams.get('topic'));
 
   const [activeStep, setActiveStep] = useState(shouldJumpToSummary ? 4 : 0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
   const [language, setLanguage] = useState<DokuApiLanguage>('de');
+  const [selectedDomainId, setSelectedDomainId] = useState<string>(initialDomainId);
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
+  const [dynamicDomainIds, setDynamicDomainIds] = useState<string[]>([]);
   const [credits, setCredits] = useState<DokuCredits | null>(null);
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -248,10 +337,82 @@ export default function ModernDokuWizard() {
     quizQuestions: 3,
     handsOnActivities: 1,
   });
+  const lastAppliedDomainRef = useRef<string>(initialDomainId);
+
+  useEffect(() => {
+    if (!domainParam) return;
+    setSelectedDomainId(domainParam);
+  }, [domainParam]);
+
+  useEffect(() => {
+    let active = true;
+    async function loadDomainCandidates() {
+      if (!userId) return;
+      try {
+        const token = await getToken();
+        const remote = await fetchCosmosState(
+          {
+            childId: activeProfileId || undefined,
+            profileId: activeProfileId || undefined,
+          },
+          { token }
+        );
+        if (!active) return;
+        const ids = Array.from(
+          new Set(
+            (remote.domains || [])
+              .map((entry) => normalizeSuggestionDomain(entry.domainId))
+              .filter((entry): entry is string => Boolean(entry))
+          )
+        );
+        setDynamicDomainIds(ids);
+      } catch (error) {
+        if (active) {
+          console.warn('[ModernDokuWizard] could not load dynamic categories', error);
+        }
+      }
+    }
+    void loadDomainCandidates();
+    return () => {
+      active = false;
+    };
+  }, [activeProfileId, getToken, userId]);
+
+  const categoryPresets = useMemo(() => {
+    const dynamicPresets: DomainDokuPreset[] = resolveCosmosDomains(dynamicDomainIds)
+      .filter((domain) => !DOMAIN_DOKU_PRESETS[domain.id])
+      .map((domain) => ({
+        id: domain.id,
+        label: domain.label,
+        description: 'Neue Lernwelt aus dem Lernkosmos.',
+        perspective: inferPerspectiveForDomain(domain.id),
+        topics: [
+          `Wie funktioniert ${domain.label}?`,
+          `Welche Geheimnisse stecken in ${domain.label}?`,
+          `Warum ist ${domain.label} spannend fuer Kinder?`,
+        ],
+      }));
+
+    const merged = [...CORE_DOMAIN_PRESETS, ...dynamicPresets];
+    if (showMoreCategories) {
+      merged.push(...EXTRA_DOMAIN_PRESETS);
+    }
+
+    const dedup = new Map<string, DomainDokuPreset>();
+    for (const preset of merged) {
+      dedup.set(preset.id, preset);
+    }
+    return Array.from(dedup.values());
+  }, [dynamicDomainIds, showMoreCategories]);
+
+  const selectedCategory = useMemo(
+    () => categoryPresets.find((preset) => preset.id === selectedDomainId) || DOMAIN_DOKU_PRESETS[selectedDomainId],
+    [categoryPresets, selectedDomainId]
+  );
 
   const suggestionDomainId = useMemo(
-    () => normalizeSuggestionDomain(domainParam) ?? PERSPECTIVE_DOMAIN_MAP[state.perspective] ?? null,
-    [domainParam, state.perspective]
+    () => normalizeSuggestionDomain(selectedDomainId) ?? toDomainFromPerspective(state.perspective),
+    [selectedDomainId, state.perspective]
   );
 
   const {
@@ -271,10 +432,10 @@ export default function ModernDokuWizard() {
 
   const headingColor = useMemo(() => (resolvedTheme === 'dark' ? '#e7eef9' : '#1b2838'), [resolvedTheme]);
   const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
-  const topicChoices = useMemo(() => {
-    const merged = [...(selectedDomainPreset?.topics ?? []), ...topics];
-    return Array.from(new Set(merged));
-  }, [selectedDomainPreset]);
+  const quickStartTopics = useMemo(
+    () => Array.from(new Set(selectedCategory?.topics || [])).slice(0, 4),
+    [selectedCategory]
+  );
 
   useEffect(() => {
     setLanguage(toDokuLanguage(i18n.language));
@@ -301,6 +462,27 @@ export default function ModernDokuWizard() {
     (updates: Partial<DokuWizardState>) => setState((prev) => ({ ...prev, ...updates })),
     []
   );
+
+  useEffect(() => {
+    if (!selectedCategory) return;
+    setState((prev) => {
+      const domainChanged = lastAppliedDomainRef.current !== selectedCategory.id;
+      lastAppliedDomainRef.current = selectedCategory.id;
+      const nextTopic = domainChanged
+        ? (selectedCategory.topics[0] || prev.topic)
+        : (prev.topic.trim().length > 0 ? prev.topic : (selectedCategory.topics[0] || prev.topic));
+      const nextPerspective = selectedCategory.perspective;
+      if (prev.topic === nextTopic && prev.perspective === nextPerspective) {
+        return prev;
+      }
+      return {
+        ...prev,
+        perspective: nextPerspective,
+        topic: nextTopic,
+      };
+    });
+  }, [selectedCategory]);
+
   const handleSelectSuggestion = useCallback(
     (item: TopicSuggestionItemDTO) => {
       updateState({ topic: item.topicTitle });
@@ -338,21 +520,28 @@ export default function ModernDokuWizard() {
         });
       }, 3200);
 
+      const effectiveDomainId =
+        normalizeSuggestionDomain(suggestionDomainId || selectedDomainId) ||
+        toDomainFromPerspective(state.perspective);
+
+      const generationConfig = {
+        topic: state.topic.trim(),
+        ageGroup: state.ageGroup,
+        depth: state.depth,
+        perspective: state.perspective,
+        tone: state.tone,
+        length: state.length,
+        includeInteractive: state.includeInteractive,
+        quizQuestions: state.includeInteractive ? state.quizQuestions : 0,
+        handsOnActivities: state.includeInteractive ? state.handsOnActivities : 0,
+        language,
+        domainId: effectiveDomainId,
+      } as any;
+
       const created = await backend.doku.generateDoku({
         userId,
         profileId: activeProfileId || undefined,
-        config: {
-          topic: state.topic.trim(),
-          ageGroup: state.ageGroup,
-          depth: state.depth,
-          perspective: state.perspective,
-          tone: state.tone,
-          length: state.length,
-          includeInteractive: state.includeInteractive,
-          quizQuestions: state.includeInteractive ? state.quizQuestions : 0,
-          handsOnActivities: state.includeInteractive ? state.handsOnActivities : 0,
-          language,
-        },
+        config: generationConfig,
       });
 
       setCredits((prev) =>
@@ -368,7 +557,10 @@ export default function ModernDokuWizard() {
       if (timer) clearInterval(timer);
       setPhase('complete');
       await new Promise((resolve) => setTimeout(resolve, 850));
-      navigate(`/doku-reader/${created.id}`);
+      const query = new URLSearchParams();
+      const createdDomain = normalizeSuggestionDomain(effectiveDomainId);
+      if (createdDomain) query.set('domain', createdDomain);
+      navigate(`/doku-reader/${created.id}${query.toString() ? `?${query.toString()}` : ''}`);
     } catch (error) {
       console.error('[ModernDokuWizard] Error generating doku:', error);
       if (error instanceof Error && error.message.includes('Abo-Limit erreicht')) {
@@ -461,19 +653,81 @@ export default function ModernDokuWizard() {
                   {activeStep === 0 && (
                     <div className="space-y-5">
                       <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Thema waehlen</h2>
-                      {selectedDomainPreset && (
+                      {selectedCategory && (
                         <div className="rounded-xl border border-[#d5bdaf66] bg-[#d5bdaf14] px-3 py-2 text-xs font-semibold text-foreground">
-                          Vorauswahl aus Lernkosmos: {selectedDomainPreset.label}
+                          Kategorie: {selectedCategory.label}
                         </div>
                       )}
-                      <input type="text" value={state.topic} onChange={(e) => updateState({ topic: e.target.value })} placeholder="z.B. Vulkane oder Sonnensystem" className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[#a88f80]" />
-                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                        {topicChoices.map((topic) => (
-                          <button key={topic} type="button" onClick={() => updateState({ topic })} className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`} style={{ borderColor: state.topic === topic ? '#d5bdaf66' : 'var(--color-border)' }}>
-                            {topic}
+
+                      <div className="rounded-2xl border border-border bg-card/65 p-3 md:p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                              Kategorien
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Planeten aus dem Lernkosmos + dynamische Welten
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowMoreCategories((current) => !current)}
+                            className="rounded-lg border border-border bg-card/80 px-3 py-1.5 text-[11px] font-bold text-foreground"
+                          >
+                            {showMoreCategories ? 'Weniger' : 'Mehr'}
                           </button>
-                        ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                          {categoryPresets.map((preset) => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDomainId(preset.id);
+                                updateState({
+                                  perspective: preset.perspective,
+                                  topic: preset.topics[0] || state.topic,
+                                });
+                              }}
+                              className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                                selectedDomainId === preset.id ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                              }`}
+                              style={{ borderColor: selectedDomainId === preset.id ? '#d5bdaf66' : 'var(--color-border)' }}
+                            >
+                              <p className="text-xs font-semibold text-foreground">{preset.label}</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">{preset.description}</p>
+                            </button>
+                          ))}
+                        </div>
                       </div>
+
+                      <input
+                        type="text"
+                        value={state.topic}
+                        onChange={(e) => updateState({ topic: e.target.value })}
+                        placeholder={selectedCategory?.topics?.[0] || 'z.B. Vulkane oder Sonnensystem'}
+                        className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[#a88f80]"
+                      />
+                      {quickStartTopics.length > 0 && (
+                        <div className="rounded-2xl border border-border bg-card/65 p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            Schnellstart-Themen
+                          </p>
+                          <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
+                            {quickStartTopics.map((topic) => (
+                              <button
+                                key={topic}
+                                type="button"
+                                onClick={() => updateState({ topic })}
+                                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`}
+                                style={{ borderColor: state.topic === topic ? '#d5bdaf66' : 'var(--color-border)' }}
+                              >
+                                {topic}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {suggestionDomainId && (
                         <div className="rounded-2xl border border-border bg-card/65 p-3 md:p-4">
@@ -483,7 +737,7 @@ export default function ModernDokuWizard() {
                                 AI Vorschlaege
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                6 Vorschlaege fuer deine Auswahl
+                                {(topicSuggestions?.items?.length || 0)} Vorschlaege in {selectedCategory?.label || "dieser Kategorie"}
                               </p>
                             </div>
                             <button
@@ -504,13 +758,15 @@ export default function ModernDokuWizard() {
                             </div>
                           )}
 
-                          <SuggestionGrid
-                            items={topicSuggestions?.items || []}
-                            isLoading={isSuggestionsLoading}
-                            lastInsertedSuggestionId={lastInsertedSuggestionId}
-                            maxItems={6}
-                            onSelect={handleSelectSuggestion}
-                          />
+                          <div className="max-h-[30rem] overflow-y-auto pr-1">
+                            <SuggestionGrid
+                              items={topicSuggestions?.items || []}
+                              isLoading={isSuggestionsLoading}
+                              lastInsertedSuggestionId={lastInsertedSuggestionId}
+                              maxItems={18}
+                              onSelect={handleSelectSuggestion}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>

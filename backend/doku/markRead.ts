@@ -18,6 +18,7 @@ interface MarkDokuReadRequest {
   dokuTitle: string;
   topic: string;
   perspective?: string;
+  domainId?: string;
   profileId?: string;
   participantProfileIds?: string[];
   avatarId?: string;
@@ -63,6 +64,17 @@ interface DokuChange {
   trait: string;
   change: number;
   description: string;
+}
+
+function normalizeDomainId(value: string | null | undefined): string {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  const normalized = raw === "art" ? "arts" : raw;
+  return normalized
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_")
+    .slice(0, 40);
 }
 
 export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
@@ -119,6 +131,23 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         throw APIError.permissionDenied("Doku belongs to another child profile.");
       }
     }
+
+    const dokuDomainRow = await dokuDB.queryRow<{ domain_id: string | null; topic: string | null }>`
+      SELECT
+        metadata->'configSnapshot'->>'domainId' AS domain_id,
+        topic
+      FROM dokus
+      WHERE id = ${req.dokuId}
+      LIMIT 1
+    `;
+    const resolvedTopicTitle =
+      String(req.topic || "").trim() ||
+      String(dokuDomainRow?.topic || "").trim() ||
+      String(req.dokuTitle || "").trim();
+    const resolvedDomainId =
+      normalizeDomainId(dokuDomainRow?.domain_id) ||
+      normalizeDomainId(req.domainId) ||
+      inferDomainFromDokuTopic(resolvedTopicTitle, req.perspective);
 
     let userAvatars: { id: string; name: string }[] = [];
     const requestedAvatarIds = Array.from(
@@ -250,20 +279,21 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         `;
 
         try {
-          const domainId = inferDomainFromDokuTopic(req.topic, req.perspective);
           const topicId = buildTopicId({
             sourceContentType: "doku",
             sourceContentId: req.dokuId,
-            domainId,
-            label: req.topic || req.dokuTitle,
+            domainId: resolvedDomainId,
+            label: resolvedTopicTitle,
           });
           await trackCosmosReadEvent({
             avatarId: userAvatar.id,
             profileId: activeProfileId,
             sourceContentId: req.dokuId,
             sourceContentType: "doku",
-            domainId,
+            domainId: resolvedDomainId,
             topicId,
+            contentTitle: req.dokuTitle,
+            topicTitle: resolvedTopicTitle,
             summary: `Doku gelesen: ${req.dokuTitle}`,
           });
         } catch (trackingError) {

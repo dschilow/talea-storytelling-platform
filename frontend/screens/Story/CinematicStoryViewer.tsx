@@ -13,6 +13,7 @@ import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
 import { StoryAudioActions } from '../../components/story/StoryAudioActions';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
@@ -97,6 +98,7 @@ const CinematicStoryViewer: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { resolvedTheme } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,6 +200,7 @@ const CinematicStoryViewer: React.FC = () => {
             storyId,
             storyTitle: story.title,
             genre: story.config.genre,
+            profileId: activeProfileId || undefined,
             ...(participantAvatarIds.length > 0 ? { avatarIds: participantAvatarIds } : {}),
           };
         })()),

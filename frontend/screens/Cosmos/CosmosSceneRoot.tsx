@@ -316,29 +316,37 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   );
 
   const handleStartTopicDoku = useCallback(
-    (topic: TopicIsland) => {
-      const domainId = focusedDomainId ?? '';
-      const preset = getDomainLearningPreset(domainId);
-      const params = new URLSearchParams({
-        topic: topic.topicTitle,
-        perspective: preset.perspective,
-      });
-      if (domainId) {
-        params.set('domain', domainId);
+    (
+      topic: TopicIsland,
+      entry?: TopicTimelineDTO["docs"][number] | null
+    ) => {
+      const domainId = focusedDomainId || topic.topicId.split("_")[0] || "";
+      if (entry?.contentId) {
+        if (entry.type === "story") {
+          navigate(`/story-reader/${encodeURIComponent(entry.contentId)}`);
+          return;
+        }
+        const query = new URLSearchParams();
+        if (domainId) query.set("domain", domainId);
+        navigate(`/doku-reader/${encodeURIComponent(entry.contentId)}${query.toString() ? `?${query.toString()}` : ""}`);
       }
-      navigate(`/doku/create?${params.toString()}`);
     },
     [focusedDomainId, navigate]
   );
 
   const handleStartTopicQuiz = useCallback(
-    (topic: TopicIsland) => {
-      const params = new URLSearchParams({
-        tags: topic.topicTitle,
-      });
-      navigate(`/quiz?${params.toString()}`);
+    (
+      topic: TopicIsland,
+      entry?: TopicTimelineDTO["docs"][number] | null
+    ) => {
+      const domainId = focusedDomainId || topic.topicId.split("_")[0] || "";
+      if (entry?.contentId && entry.type === "doku") {
+        const query = new URLSearchParams({ open: "quiz" });
+        if (domainId) query.set("domain", domainId);
+        navigate(`/doku-reader/${encodeURIComponent(entry.contentId)}?${query.toString()}`);
+      }
     },
-    [navigate]
+    [focusedDomainId, navigate]
   );
 
   const handleSelectIsland = useCallback((topic: TopicIsland) => {
@@ -742,7 +750,15 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               <InfoPill label="Dokus" value={cosmosState.totalDokusRead} />
               <InfoPill
                 label="Aktive Welten"
-                value={cosmosState.domains.filter((entry) => entry.mastery > 0).length}
+                value={
+                  cosmosState.domains.filter(
+                    (entry) =>
+                      entry.topicsExplored > 0 ||
+                      entry.mastery > 0 ||
+                      entry.confidence > 0 ||
+                      entry.stage !== "discovered"
+                  ).length
+                }
               />
             </div>
           </div>

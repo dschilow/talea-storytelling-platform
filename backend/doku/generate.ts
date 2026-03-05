@@ -28,6 +28,67 @@ const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 const IMAGE_COST_PER_ITEM = 0.0008;
 
+const COSMOS_DOMAIN_META: Record<string, { title: string; icon: string }> = {
+  space: { title: "Weltraum", icon: "space" },
+  nature: { title: "Natur & Tiere", icon: "nature" },
+  history: { title: "Geschichte & Kulturen", icon: "history" },
+  tech: { title: "Technik & Erfindungen", icon: "tech" },
+  body: { title: "Mensch & Koerper", icon: "body" },
+  earth: { title: "Erde & Klima", icon: "earth" },
+  arts: { title: "Kunst & Musik", icon: "arts" },
+  logic: { title: "Logik & Raetsel", icon: "logic" },
+};
+
+function normalizeCosmosDomainId(value: string | null | undefined): string {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  const normalized = raw === "art" ? "arts" : raw;
+  return normalized
+    .replace(/[^a-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_{2,}/g, "_")
+    .slice(0, 40);
+}
+
+function toCosmosDomainLabel(domainId: string): string {
+  const known = COSMOS_DOMAIN_META[domainId]?.title;
+  if (known) return known;
+  return domainId
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .slice(0, 64) || "Neue Lernwelt";
+}
+
+async function registerGeneratedDomainForProfiles(domainIdRaw: string | undefined, profileIds: string[]): Promise<void> {
+  const domainId = normalizeCosmosDomainId(domainIdRaw);
+  if (!domainId) return;
+
+  const meta = COSMOS_DOMAIN_META[domainId];
+  await avatarDB.exec`
+    INSERT INTO domains (domain_id, title, icon, created_at)
+    VALUES (
+      ${domainId},
+      ${meta?.title || toCosmosDomainLabel(domainId)},
+      ${meta?.icon || domainId},
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (domain_id) DO NOTHING
+  `;
+
+  for (const profileId of profileIds) {
+    await avatarDB.exec`
+      INSERT INTO tracking_domain_state (child_id, domain_id, evolution_index, planet_level, updated_at)
+      VALUES (${profileId}, ${domainId}, 0, 1, CURRENT_TIMESTAMP)
+      ON CONFLICT (child_id, domain_id) DO NOTHING
+    `;
+  }
+}
+
 // Domain types for Doku mode (Galileo/Checker Tobi style)
 export type DokuDepth = "basic" | "standard" | "deep";
 export type DokuAgeGroup = "3-5" | "6-8" | "9-12" | "13+";
@@ -69,6 +130,7 @@ export interface DokuConfig {
   topic: string;
   depth: DokuDepth;
   ageGroup: DokuAgeGroup;
+  domainId?: string;
   perspective?: "science" | "history" | "technology" | "nature" | "culture";
   includeInteractive?: boolean;
   quizQuestions?: number; // 0..10
@@ -171,6 +233,10 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       ...req.config,
       parentalGuidance: parentalGuidance || undefined,
     };
+    const normalizedDomainId = normalizeCosmosDomainId(config.domainId);
+    if (normalizedDomainId) {
+      config.domainId = normalizedDomainId;
+    }
     const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
     const requestedPrimaryProfileId = req.profileId ?? extractRequestedProfileId(req);
     const primaryProfileId = await resolveRequestedProfileId({
@@ -375,6 +441,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         imagesGenerated,
         configSnapshot: {
           topic: config.topic,
+          domainId: config.domainId || null,
           ageGroup: config.ageGroup,
           depth: config.depth,
           perspective: config.perspective ?? "science",
@@ -403,6 +470,12 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
             updated_at = ${new Date()}
         WHERE id = ${id}
       `;
+
+      try {
+        await registerGeneratedDomainForProfiles(config.domainId, participantProfileIds);
+      } catch (domainSyncError) {
+        console.warn("Failed to register generated doku domain for cosmos", domainSyncError);
+      }
 
       // Apply personality & memory updates for ALL user avatars based on Doku topic
       try {
