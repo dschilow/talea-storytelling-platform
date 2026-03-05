@@ -852,19 +852,18 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
             cameraMode === 'detail'
               ? baseRadius * visuals.scale * 1.95
               : baseRadius * visuals.scale * 2.15;
-          const pos = latLonToPlanetPosition(
-            topic.lat,
-            topic.lon,
-            topicOrbitRadius
-          );
+          const pos = latLonToPlanetPosition(topic.lat, topic.lon, topicOrbitRadius);
           const isSelected = selectedTopicId === topic.topicId;
           const stage = topic.stage;
 
           const markerColor =
-            stage === 'retained' ? '#fbbf24'
-            : stage === 'apply' ? '#4ade80'
-            : stage === 'understood' ? '#38bdf8'
-            : domain.color;
+            stage === 'retained'
+              ? '#fbbf24'
+              : stage === 'apply'
+                ? '#4ade80'
+                : stage === 'understood'
+                  ? '#38bdf8'
+                  : domain.color;
 
           const markerTexture =
             stage === 'retained'
@@ -875,18 +874,24 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                   ? markerMarsTex
                   : markerNeptuneTex;
 
-          const r = stage === 'retained' ? 0.052
-            : stage === 'apply' ? 0.046
-            : stage === 'understood' ? 0.04
-            : 0.034;
+          const r =
+            stage === 'retained'
+              ? 0.056
+              : stage === 'apply'
+                ? 0.05
+                : stage === 'understood'
+                  ? 0.044
+                  : 0.038;
 
-          const bodyHeight = r * 1.55;
-          const bodyDepth = r * 1.1;
-          const panelWidth = r * 2.25;
-          const panelHeight = r * 0.25;
-          const panelDepth = r * 1.05;
-          const panelOffset = r * 1.38;
-          const markerTilt = ((index % 5) - 2) * 0.12;
+          const bodyRadius = r * 0.5;
+          const bodyLength = r * 2.6;
+          const panelLength = r * 4.4;
+          const panelHeight = r * 0.9;
+          const panelThickness = r * 0.12;
+          const panelOffsetX = r * 2.35;
+          const dishRadius = r * 1.05;
+          const dishDepth = r * 0.26;
+          const markerTilt = ((index % 7) - 3) * 0.08;
 
           return (
             <group
@@ -904,112 +909,94 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
                 document.body.style.cursor = 'auto';
               }}
             >
-              <group rotation={[markerTilt * 0.5, index * 0.75, markerTilt]}>
+              <group rotation={[markerTilt, index * 0.7, -markerTilt * 0.6]}>
                 <mesh>
-                  <boxGeometry args={[r * 0.95, bodyHeight, bodyDepth]} />
-                  <meshStandardMaterial
-                    map={satMetalTex}
-                    roughness={0.44}
-                    metalness={0.85}
-                  />
+                  <cylinderGeometry args={[bodyRadius, bodyRadius, bodyLength, 20]} />
+                  <meshStandardMaterial map={satMetalTex} roughness={0.4} metalness={0.85} />
                 </mesh>
 
-                <mesh position={[0, bodyHeight * 0.42, 0]}>
-                  <cylinderGeometry args={[r * 0.22, r * 0.22, r * 0.38, 10]} />
-                  <meshStandardMaterial
-                    map={satGoldTex}
-                    roughness={0.35}
-                    metalness={0.92}
-                  />
+                <mesh position={[0, bodyLength * 0.66, 0]}>
+                  <coneGeometry args={[bodyRadius * 1.02, bodyLength * 0.42, 18]} />
+                  <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.8} />
                 </mesh>
 
-                <mesh position={[panelOffset, 0, 0]}>
-                  <boxGeometry args={[panelWidth, panelHeight, panelDepth]} />
-                  <meshStandardMaterial
-                    map={satSolarTex}
-                    emissive={new THREE.Color(markerColor)}
-                    emissiveIntensity={0.22}
-                    roughness={0.58}
-                    metalness={0.68}
-                  />
+                <mesh position={[0, -bodyLength * 0.66, 0]}>
+                  <cylinderGeometry args={[bodyRadius * 0.62, bodyRadius * 0.48, bodyLength * 0.34, 16]} />
+                  <meshStandardMaterial map={satGoldTex} roughness={0.35} metalness={0.92} />
                 </mesh>
 
-                <mesh position={[-panelOffset, 0, 0]}>
-                  <boxGeometry args={[panelWidth, panelHeight, panelDepth]} />
+                <mesh position={[0, bodyLength * 0.2, bodyRadius * 1.02]}>
+                  <torusGeometry args={[bodyRadius * 1.06, bodyRadius * 0.03, 8, 28]} />
+                  <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
+                </mesh>
+
+                <mesh position={[0, -bodyLength * 0.08, bodyRadius * 1.02]}>
+                  <torusGeometry args={[bodyRadius * 1.05, bodyRadius * 0.028, 8, 28]} />
+                  <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
+                </mesh>
+
+                <mesh position={[panelOffsetX, 0, 0]}>
+                  <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
                   <meshStandardMaterial
                     map={satSolarTex}
-                    emissive={new THREE.Color(markerColor)}
-                    emissiveIntensity={0.22}
-                    roughness={0.58}
-                    metalness={0.68}
+                    emissive={markerColor}
+                    emissiveIntensity={0.14}
+                    roughness={0.56}
+                    metalness={0.72}
                   />
                 </mesh>
 
-                <mesh position={[0, -bodyHeight * 0.45, bodyDepth * 0.18]} rotation={[Math.PI, 0, 0]}>
-                  <coneGeometry args={[r * 0.28, r * 0.5, 14]} />
-                  <meshStandardMaterial color="#cbd5e1" roughness={0.46} metalness={0.6} />
+                <mesh position={[-panelOffsetX, 0, 0]}>
+                  <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
+                  <meshStandardMaterial
+                    map={satSolarTex}
+                    emissive={markerColor}
+                    emissiveIntensity={0.14}
+                    roughness={0.56}
+                    metalness={0.72}
+                  />
                 </mesh>
 
-                <mesh position={[0, 0, bodyDepth * 0.72]}>
-                  <planeGeometry args={[r * 1.05, r * 1.05]} />
+                <mesh position={[0, bodyLength * 1.03, 0]}>
+                  <cylinderGeometry args={[dishRadius * 0.22, dishRadius * 0.22, r * 0.45, 12]} />
+                  <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.82} />
+                </mesh>
+
+                <mesh position={[0, bodyLength * 1.24, 0]} rotation={[Math.PI, 0, 0]}>
+                  <cylinderGeometry args={[dishRadius, dishRadius * 0.25, dishDepth, 24, 1, false]} />
+                  <meshStandardMaterial color='#f3f4f6' roughness={0.28} metalness={0.62} side={THREE.DoubleSide} />
+                </mesh>
+
+                <mesh position={[0, bodyLength * 0.02, bodyRadius * 1.36]}>
+                  <planeGeometry args={[r * 1.08, r * 1.08]} />
                   <meshBasicMaterial
                     map={markerTexture}
                     transparent
-                    opacity={0.92}
+                    opacity={0.9}
                     depthWrite={false}
                     side={THREE.DoubleSide}
                   />
                 </mesh>
 
-                <Sphere args={[r * 0.28, 12, 12]} position={[0, bodyHeight * 0.78, 0]}>
+                <Sphere args={[r * 0.24, 12, 12]} position={[0, -bodyLength * 0.82, 0]}>
                   <meshBasicMaterial
                     color={markerColor}
                     transparent
-                    opacity={0.92}
+                    opacity={0.9}
                     depthWrite={false}
                     blending={THREE.AdditiveBlending}
                   />
                 </Sphere>
               </group>
 
-              <Billboard follow>
-                <mesh>
-                  <ringGeometry args={[r * 2.45, r * 2.72, 40]} />
-                  <meshBasicMaterial
-                    color={markerColor}
-                    transparent
-                    opacity={0.42}
-                    depthWrite={false}
-                    blending={THREE.AdditiveBlending}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
-              </Billboard>
-
-              {stage === 'retained' && (
-                <Billboard follow>
-                  <mesh>
-                    <ringGeometry args={[r * 3.05, r * 3.35, 40]} />
-                    <meshBasicMaterial
-                      color="#fde68a"
-                      transparent
-                      opacity={0.8}
-                      depthWrite={false}
-                      blending={THREE.AdditiveBlending}
-                      side={THREE.DoubleSide}
-                    />
-                  </mesh>
-                </Billboard>
-              )}
-
               {isSelected && (
                 <Billboard follow>
                   <mesh>
-                    <ringGeometry args={[r * 3.55, r * 3.9, 40]} />
+                    <ringGeometry args={[r * 4.1, r * 4.5, 40]} />
                     <meshBasicMaterial
-                      color="#ffffff"
+                      color='#ffffff'
                       transparent
-                      opacity={0.9}
+                      opacity={0.88}
                       depthWrite={false}
                       blending={THREE.AdditiveBlending}
                       side={THREE.DoubleSide}
