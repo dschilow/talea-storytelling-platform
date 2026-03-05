@@ -345,11 +345,12 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     [domain.planetType, maps.cloudMap, nasaCloudTexture, nasaCloudPath, visuals.cloudOpacity]
   );
 
-  // Real CC0 textures for satellites (Poly Haven)
-  const [satSolarTex, satMetalTex, satGoldTex] = useLoader(THREE.TextureLoader, [
+  // Real CC0 textures for satellites (Poly Haven) + moon texture for topic moons
+  const [satSolarTex, satMetalTex, satGoldTex, moonTex] = useLoader(THREE.TextureLoader, [
     '/textures/satellite/solar_panel.jpg',
     '/textures/satellite/metal_body.jpg',
     '/textures/satellite/gold_foil.jpg',
+    '/textures/planets/moon.jpg',
   ]);
   useMemo(() => {
     for (const t of [satSolarTex, satMetalTex, satGoldTex]) {
@@ -358,10 +359,13 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       t.minFilter = THREE.LinearMipmapLinearFilter;
       t.generateMipmaps = true;
     }
-    satSolarTex.repeat.set(2, 1);   // 2 cols of cells across panel width
+    satSolarTex.repeat.set(2, 1);
     satMetalTex.repeat.set(1, 2);
     satGoldTex.repeat.set(2, 2);
-  }, [satSolarTex, satMetalTex, satGoldTex]);
+    moonTex.colorSpace = THREE.SRGBColorSpace;
+    moonTex.minFilter = THREE.LinearMipmapLinearFilter;
+    moonTex.generateMipmaps = true;
+  }, [satSolarTex, satMetalTex, satGoldTex, moonTex]);
 
   const atmosphereMaterial = useMemo(
     () => createAtmosphereShellMaterial(domain.color, visuals.atmosphereOpacity, 2.25, 1.05),
@@ -623,62 +627,53 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
 
 
-      {/* Topic Moons: Faceted asteroid-like rocks with glowing orbital ring */}
+      {/* Topic Moons: Real moon texture + colored atmosphere + ring */}
       {Array.from({ length: topicMoonCount }).map((_, index) => {
-        const moonSize = 0.042 + index * 0.005;
+        const moonSize = 0.055 + index * 0.006;
         const moonSeed = orbitConfig.seed + index * 137;
-        // Unique irregular scale per moon so no two look the same
-        const sx = 1.0 + ((moonSeed % 18) - 9) * 0.04;
-        const sy = 1.0 + (((moonSeed >> 3) % 18) - 9) * 0.05;
-        const sz = 1.0 + (((moonSeed >> 6) % 18) - 9) * 0.04;
-        // Rocky tint: slight warm/cool variation
-        const warm = moonSeed % 3 === 0;
-        const moonColor = warm ? '#c8b89a' : '#9eaab8';
-        const ringTilt = (moonSeed % 6) * (Math.PI / 6); // unique tilt per moon
+        const ringTilt = (moonSeed % 6) * (Math.PI / 6);
         return (
           <group
             key={`topic_moon_${index}`}
             ref={(node) => { topicMoonRefs.current[index] = node as unknown as THREE.Group; }}
           >
-            {/* Faceted rocky body — IcosahedronGeometry looks like a real asteroid */}
-            <mesh scale={[moonSize * sx, moonSize * sy, moonSize * sz]}>
-              <icosahedronGeometry args={[1, 1]} />
+            {/* Real NASA moon texture */}
+            <Sphere args={[moonSize, 32, 32]}>
               <meshPhysicalMaterial
-                color={moonColor}
-                roughness={0.88}
-                metalness={0.08}
-                bumpMap={maps.bumpMap}
-                bumpScale={0.3}
-                clearcoat={0.05}
-                clearcoatRoughness={0.95}
-                flatShading
+                map={moonTex}
+                color="#d0cfc8"
+                roughness={0.85}
+                metalness={0.02}
+                bumpMap={moonTex}
+                bumpScale={0.08}
+                clearcoat={0.06}
               />
-            </mesh>
+            </Sphere>
 
-            {/* Glowing orbital ring in domain color */}
-            <mesh rotation={[Math.PI / 2 + ringTilt * 0.4, ringTilt, 0]}>
-              <ringGeometry args={[moonSize * 1.55, moonSize * 1.72, 48]} />
+            {/* Colored atmosphere rim in domain color */}
+            <Sphere args={[moonSize * 1.08, 16, 16]}>
               <meshBasicMaterial
                 color={domain.color}
                 transparent
-                opacity={0.55}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-
-            {/* Soft outer glow */}
-            <Sphere args={[moonSize * 1.6, 8, 8]}>
-              <meshBasicMaterial
-                color={domain.color}
-                transparent
-                opacity={0.07}
+                opacity={0.18}
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
                 side={THREE.BackSide}
               />
             </Sphere>
+
+            {/* Bright orbital ring */}
+            <mesh rotation={[Math.PI / 2 + ringTilt * 0.3, ringTilt, 0]}>
+              <ringGeometry args={[moonSize * 1.5, moonSize * 1.62, 48]} />
+              <meshBasicMaterial
+                color={domain.color}
+                transparent
+                opacity={0.7}
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
           </group>
         );
       })}
