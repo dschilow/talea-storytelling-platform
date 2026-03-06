@@ -36,8 +36,9 @@ const REWRITE_ONLY_ON_ERRORS = true;
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
 const MAX_EXPAND_CALLS = 2;
 
-// Warning polish is opt-in via config to avoid hidden extra full-story costs.
-const MAX_WARNING_POLISH_CALLS = 0;
+// Quality-first default: chapter-local rescue passes repair dialogue, transitions, and child arc
+// after the full draft without paying for multiple full rewrites.
+const MAX_WARNING_POLISH_CALLS = 3;
 const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
 const QUALITY_RECOVERY_SCORE_THRESHOLD = 9.0;
 const QUALITY_RECOVERY_WARNING_COUNT = 2;
@@ -117,6 +118,7 @@ const REWRITE_WARNING_CODES = new Set([
 ]);
 
 const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
+  "DIALOGUE_RATIO_CRITICAL",
   "MISSING_EXPLICIT_STAKES",
   "STAKES_TOO_ABSTRACT",
   "MISSING_LOWPOINT",
@@ -145,6 +147,7 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
 ]);
 
 const FLASH_EMERGENCY_POLISH_CODES = new Set([
+  "DIALOGUE_RATIO_CRITICAL",
   "MISSING_EXPLICIT_STAKES",
   "STAKES_TOO_ABSTRACT",
   "MISSING_LOWPOINT",
@@ -160,6 +163,11 @@ const FLASH_EMERGENCY_POLISH_CODES = new Set([
 ]);
 
 const FLASH_EMERGENCY_POLISH_MAX_CALLS = 3;
+const REWRITE_RESCUE_POLISH_CODES = new Set([
+  ...WARNING_POLISH_CODES,
+  ...CHAPTER_REWRITEABLE_ERROR_CODES,
+  "DIALOGUE_RATIO_CRITICAL",
+]);
 
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
@@ -216,9 +224,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 14000 : (isReasoningModel ? 22000 : 10000);
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 16000 : (isReasoningModel ? 32000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 8000 : (isReasoningModel ? 10000 : 4500);
+    const minStoryTokenBudget = isGeminiFlashModel ? 9000 : (isReasoningModel ? 16000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -525,7 +533,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     );
     console.log(
       `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
-      `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}`
+      `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}, maxWarningPolishCalls=${maxWarningPolishCalls}`
     );
 
     // V6: Higher temperature (0.85) for Gemini to unlock creative prose.
@@ -942,6 +950,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     }
 
     let rewriteAttempt = 0;
+    let rewriteFallbackPolishCalls = 0;
     while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
       const actionableErrors = getActionableErrorIssues(qualityReport);
       const rewriteWarnings = getRewriteWarningIssues(qualityReport);
@@ -996,12 +1005,12 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
 
       let rewriteResult;
       const rewriteRequestedTokens = isReasoningModel
-        ? Math.min(9000, Math.max(2600, Math.round(maxOutputTokens * 0.55)))
-        : Math.min(4800, Math.max(1600, Math.round(maxOutputTokens * 0.8)));
+        ? Math.min(12000, Math.max(4200, Math.round(maxOutputTokens * 0.68)))
+        : Math.min(6200, Math.max(2200, Math.round(maxOutputTokens * 0.9)));
       const rewriteMaxTokens = fitTokensToBudget(
         rewriteRequestedTokens,
-        isReasoningModel ? 1500 : 1000,
-        isReasoningModel ? 900 : 550,
+        isReasoningModel ? 2600 : 1400,
+        isReasoningModel ? 700 : 450,
       );
       if (rewriteMaxTokens < 700) {
         console.warn(
@@ -1026,6 +1035,10 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
       } catch (error) {
         if (isGeminiModel) {
           console.warn(`[story-writer] Rewrite pass ${rewriteAttempt} failed for Gemini model, keeping current draft`, error);
+          rewriteFallbackPolishCalls = Math.max(
+            rewriteFallbackPolishCalls,
+            resolveRewriteRescuePolishCalls(qualityReport.issues, draft.chapters.length),
+          );
           break;
         }
         throw error;
@@ -1042,10 +1055,24 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
         console.warn(
           `[story-writer] Rewrite pass ${rewriteAttempt} returned empty+truncated output; skipping further full rewrites and using chapter-local rescue edits.`,
         );
+        rewriteFallbackPolishCalls = Math.max(
+          rewriteFallbackPolishCalls,
+          resolveRewriteRescuePolishCalls(qualityReport.issues, draft.chapters.length),
+        );
         break;
       }
 
       parsed = safeJson(rewriteResult.content);
+      if (!parsed) {
+        console.warn(
+          `[story-writer] Rewrite pass ${rewriteAttempt} returned invalid or truncated JSON; falling back to chapter-local rescue edits.`,
+        );
+        rewriteFallbackPolishCalls = Math.max(
+          rewriteFallbackPolishCalls,
+          resolveRewriteRescuePolishCalls(qualityReport.issues, draft.chapters.length),
+        );
+        break;
+      }
       const revisedDraft = sanitizeDraft(extractDraftFromAnyFormat({
         parsed,
         directives,
@@ -1124,7 +1151,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     // Cap warning-polish at 1 pass for Gemini Flash to prevent continuity destruction.
     // Multiple polish passes rewrite chapters with different contexts each time,
     // causing characters to appear/disappear and tone to shift mid-story.
-    const emergencyWarningPolishCalls = maxWarningPolishCalls > 0
+    const configuredWarningPolishBudget = maxWarningPolishCalls > 0
       ? (isGeminiFlashModel ? Math.min(maxWarningPolishCalls, 1) : maxWarningPolishCalls)
       : (
         isGeminiFlashModel
@@ -1135,6 +1162,10 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
         )
         : 0
       );
+    const emergencyWarningPolishCalls = Math.max(
+      configuredWarningPolishBudget,
+      rewriteFallbackPolishCalls,
+    );
 
     if (canRunPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
       const warningPolish = await applyWarningPolish(draft, qualityReport, emergencyWarningPolishCalls);
@@ -1896,11 +1927,25 @@ function resolveIssueTargetChapter(
     return 1;
   }
 
+  if (issue.code === "MISSING_INNER_CHILD_MOMENT") {
+    if (chapterCount >= 3) return 3;
+    return 1;
+  }
+
   if (
-    issue.code === "MISSING_INNER_CHILD_MOMENT"
+    issue.code === "CHILD_MISTAKE_MISSING"
+    || issue.code === "MISTAKE_BODY_REACTION_MISSING"
+  ) {
+    if (chapterCount >= 3) return 3;
+    return Math.max(1, Math.min(chapterCount, 2));
+  }
+
+  if (
+    issue.code === "INTERNAL_TURN_MISSING"
     || issue.code === "NO_CHILD_ERROR_CORRECTION_ARC"
   ) {
-    return 1;
+    if (chapterCount >= 4) return 4;
+    return Math.max(1, chapterCount - 1);
   }
 
   if (
@@ -1945,6 +1990,23 @@ function resolveEmergencyPolishCalls(
   return Math.min(FLASH_EMERGENCY_POLISH_MAX_CALLS, targetChapters.size);
 }
 
+function resolveRewriteRescuePolishCalls(
+  issues: Array<{ chapter: number; code: string; severity: "ERROR" | "WARNING" }>,
+  chapterCount: number,
+): number {
+  if (issues.length === 0 || chapterCount <= 0) return 0;
+
+  const targetChapters = new Set<number>();
+  for (const issue of issues) {
+    if (!REWRITE_RESCUE_POLISH_CODES.has(issue.code)) continue;
+    const chapter = resolveIssueTargetChapter(issue, chapterCount);
+    if (chapter > 0) targetChapters.add(chapter);
+  }
+
+  if (targetChapters.size === 0) return 0;
+  return Math.min(FLASH_EMERGENCY_POLISH_MAX_CALLS, Math.max(2, targetChapters.size));
+}
+
 function buildChapterPolishHardFixHints(
   issueCodes: Set<string>,
   chapterNo: number,
@@ -1964,6 +2026,39 @@ function buildChapterPolishHardFixHints(
   if (issueCodes.has("MISSING_INNER_CHILD_MOMENT") || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")) {
     hints.push(
       "HARD FIX: Add one inner child moment with body signal + short thought line for a child in this chapter (show, do not label).",
+    );
+  }
+
+  if (issueCodes.has("MISSING_EXPLICIT_STAKES") || issueCodes.has("STAKES_TOO_ABSTRACT")) {
+    hints.push(
+      "HARD FIX: Name the concrete loss early. Within the first two paragraphs, show what object/person/home-comfort is lost if the child fails.",
+    );
+  }
+
+  if (
+    issueCodes.has("TOO_FEW_DIALOGUES")
+    || issueCodes.has("DIALOGUE_RATIO_LOW")
+    || issueCodes.has("DIALOGUE_RATIO_CRITICAL")
+  ) {
+    hints.push(
+      "HARD FIX: Add 4-6 short back-and-forth dialogue lines. Each line must be anchored to a body action and must change the plan, reveal fear, or create friction.",
+    );
+  }
+
+  if (issueCodes.has("VOICE_INDISTINCT")) {
+    hints.push(
+      "HARD FIX: Separate voices clearly. One speaker uses short bursts, one uses calmer full sentences. Covering the names should still reveal who is talking.",
+    );
+  }
+
+  if (
+    issueCodes.has("CHILD_MISTAKE_MISSING")
+    || issueCodes.has("MISTAKE_BODY_REACTION_MISSING")
+    || issueCodes.has("INTERNAL_TURN_MISSING")
+    || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")
+  ) {
+    hints.push(
+      "HARD FIX: Make the child own the mistake, feel it in the body, then choose a different concrete repair action in this chapter. No adult may solve that inner turn.",
     );
   }
 

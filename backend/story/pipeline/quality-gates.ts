@@ -239,14 +239,15 @@ function gateCharacterIntegration(
       const isAvatarSlot = slot.includes("AVATAR") || slot.includes("PROTAGONIST");
       const isCoreCharacter = coreNames.has(name);
       const isChildFocus = isLikelyChildCharacter(sheet);
+      const shouldHardRequire = isCoreCharacter || isChildFocus;
 
       if (!found) {
         issues.push({
-          gate: isAvatarSlot || isCoreCharacter || isChildFocus ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
+          gate: shouldHardRequire ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
           chapter: ch.chapter,
           code: "MISSING_CHARACTER",
           message: isDE ? `Figur fehlt: ${name}` : `Missing character: ${name}`,
-          severity: isAvatarSlot || isCoreCharacter || isChildFocus ? "ERROR" : "WARNING",
+          severity: shouldHardRequire ? "ERROR" : "WARNING",
         });
         continue;
       }
@@ -254,17 +255,17 @@ function gateCharacterIntegration(
       // Check action using any matching name form (full name or individual parts)
       const hasAction = checkCharacterHasAction(ch.text, name)
         || nameParts.some(part => checkCharacterHasAction(ch.text, part.charAt(0).toUpperCase() + part.slice(1)));
-      // Only flag PASSIVE_CHARACTER as serious for avatar/protagonist slots
-      // Pool characters being briefly mentioned is acceptable and shouldn't trigger rewrites
+      // Only chapter-core / child-focus characters are hard-required.
+      // Brief support mentions are acceptable and shouldn't trigger heavy rewrites.
       if (!hasAction) {
         issues.push({
-          gate: isAvatarSlot ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
+          gate: shouldHardRequire ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
           chapter: ch.chapter,
           code: "PASSIVE_CHARACTER",
           message: isDE
-            ? `${name} ${isAvatarSlot ? "ist nur erwaehnt, hat aber keine aktive Handlung" : `in Kapitel ${ch.chapter}: keine aktive Handlung und kein Dialog`}`
-            : `${name} ${isAvatarSlot ? "is only mentioned, no active action" : `in chapter ${ch.chapter}: no active action or dialogue`}`,
-          severity: isAvatarSlot ? "ERROR" : "WARNING",
+            ? `${name} ${shouldHardRequire ? "ist nur erwaehnt, hat aber keine aktive Handlung" : `in Kapitel ${ch.chapter}: keine aktive Handlung und kein Dialog`}`
+            : `${name} ${shouldHardRequire ? "is only mentioned, no active action" : `in chapter ${ch.chapter}: no active action or dialogue`}`,
+          severity: shouldHardRequire ? "ERROR" : "WARNING",
         });
       }
     }
@@ -409,6 +410,7 @@ function gateCastLock(
       if (language === "de" && germanNonNamePatterns.some(p => p.test(match[1]))) continue;
       // Single German common nouns: check if ALL words in the match are common nouns
       if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
+      if (language === "de" && parts.length >= 2 && isLikelyGermanDescriptivePhrase(match[1])) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
       if (!shouldFlagUnlockedName(ch.text, match[1], matchIndex, language)) continue;
@@ -3527,6 +3529,35 @@ function isGermanCompoundNoun(word: string, knownWords: Set<string>): boolean {
     }
   }
   return false;
+}
+
+function isLikelyGermanDescriptivePhrase(token: string): boolean {
+  const parts = token
+    .split(/\s+/)
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (parts.length < 2) return false;
+
+  const first = parts[0];
+  const rest = parts.slice(1);
+  const commonSceneNouns = new Set([
+    "baum", "baeume", "bäume", "ast", "äste", "aeste", "wald", "waldweg", "tannen",
+    "fichten", "moos", "schlucht", "bruecke", "brücke", "nacht", "schatten",
+    "stille", "finsternis", "dunkelheit", "wind", "regen", "schnee", "wasser",
+    "licht", "feuer", "erde", "himmel", "weg", "pfad", "haus", "stube",
+  ]);
+
+  const firstLooksDescriptive =
+    isCommonWord(first, "de")
+    || /(?:e|en|er|es|em|ig|lich|isch|sam|bar|los|voll)$/.test(first);
+  if (!firstLooksDescriptive) return false;
+
+  return rest.every(part =>
+    isCommonWord(part, "de")
+    || commonSceneNouns.has(part)
+    || /(?:ung|heit|keit|nis|schaft|tum|chen|lein|licht|stein|wald|weg|pfad)$/.test(part),
+  );
 }
 
 function isGermanCommonNounContext(text: string, matchIndex: number): boolean {

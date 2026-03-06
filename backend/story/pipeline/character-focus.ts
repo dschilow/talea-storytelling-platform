@@ -3,7 +3,7 @@ import type { CastSet, CharacterSheet, SceneDirective } from "./types";
 const CHILD_TOKEN_PATTERN =
   /\b(child|kind|kid|boy|girl|human_child|schoolchild|student|schueler|schüler|sibling|brother|sister|junior)\b/i;
 const ADULT_TOKEN_PATTERN =
-  /\b(adult|young_adult|astronaut|wizard|witch|queen|king|emperor|kaiser|teacher|doctor|captain|pirate|police|firefighter|baker|gardener|elder|grandma|grandpa|oma|opa|mentor|zauberer|zauberin|hexe|ritter|knight)\b/i;
+  /\b(adult|young_adult|astronaut|wizard|witch|queen|king|emperor|kaiser|teacher|doctor|captain|kapitaen|kapit[aÃ¤]n|pirate|police|firefighter|baker|gardener|elder|grandma|grandpa|oma|opa|mentor|zauberer|zauberin|hexe|ritter|knight|seemann|seefahrer|matrose|lehrer|lehrerin|polizist|feuerwehr|b[Ã¤a]cker|g[Ã¤a]rtner|arzt|doktor|hauptmann)\b/i;
 
 export function isLikelyChildCharacter(
   sheet: { displayName: string; roleType?: string; role?: string; archetype?: string; species?: string },
@@ -19,6 +19,9 @@ export function isLikelyChildCharacter(
     .join(" ")
     .toLowerCase();
 
+  if (/\b(kapit|seemann|seefahrer|matrose|lehrer|lehrerin|polizist|feuerwehr|doktor|arzt|hauptmann)\b/i.test(combined)) {
+    return false;
+  }
   if (CHILD_TOKEN_PATTERN.test(combined)) return true;
   if (ADULT_TOKEN_PATTERN.test(combined)) return false;
 

@@ -33,11 +33,20 @@ function getPromptRoleLabel(sheet: CharacterSheet, isGerman: boolean): string {
   const speciesLabel = getSpeciesLabel(sheet.species || "", isGerman);
   if (speciesLabel) return speciesLabel;
 
-  if (sheet.roleType === "AVATAR") {
-    return isGerman ? "Protagonist" : "Protagonist";
+  const plainRole = String(sheet.role || "").trim();
+  if (plainRole && !/^(avatar|protagonist|antagonist|helper|mentor|sidekick)$/i.test(plainRole)) {
+    return plainRole;
   }
 
-  return sheet.role || sheet.roleType || "";
+  const roleType = String(sheet.roleType || "").trim();
+  if (/antagonist/i.test(roleType)) {
+    return isGerman ? "Stoerenfried" : "Troublemaker";
+  }
+  if (/helper|mentor/i.test(roleType)) {
+    return isGerman ? "Helfer" : "Helper";
+  }
+
+  return "";
 }
 
 /**
@@ -1576,9 +1585,11 @@ export function buildChapterExpansionPrompt(input: {
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
-  const allowedNames = Array.from(new Set(characterNames)).join(", ");
+  const uniqueCharacterNames = Array.from(new Set(characterNames));
+  const allowedNames = uniqueCharacterNames.join(", ");
   const focusChildNames = getChildFocusNames(cast);
   const chapterFocusNames = getCoreChapterCharacterNames({ directive: chapter, cast, ageMax: ageRange.max });
+  const supportNames = uniqueCharacterNames.filter(name => !chapterFocusNames.includes(name));
   const emotionalFocus = focusChildNames.length > 0
     ? focusChildNames.slice(0, 2).join(", ")
     : characterNames.slice(0, 2).join(", ");
@@ -1605,8 +1616,9 @@ DO NOT make existing sentences longer. Instead: ADD new short dialogue lines and
 # SCENE
     - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
   - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
-  - Characters: ${allowedNames}
-  - Focus characters: ${chapterFocusNames.join(", ") || allowedNames}
+  - Available characters: ${allowedNames}
+  - Foreground characters: ${chapterFocusNames.join(", ") || allowedNames}
+${supportNames.length > 0 ? `  - Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
 ${artifactName && chapter.artifactUsage ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
   - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min} -${ageRange.max}
 ${missingLine}
@@ -1618,18 +1630,19 @@ ${missingLine}
   1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
 2. No new characters.
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
-  4. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-5. SENTENCE LENGTH: Average 10 words per sentence. Max 15 words. Rhythm: Short. Short. One slightly longer sentence. Short again.
-6. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
+  4. Foreground characters must drive the scene through action or dialogue. Support characters may react briefly or stay absent unless continuity requires them.
+5. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
+6. SENTENCE LENGTH: Average 10 words per sentence. Max 15 words. Rhythm: Short. Short. One slightly longer sentence. Short again.
+7. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
 7. Expand by ADDING short dialogue lines and brief action beats — NOT by making existing sentences longer.
-8. Max 1 comparison per paragraph, no metaphor chains.
-9. No preview, meta or summary sentences.
-10. No explanatory sentences about object rules.
-11. Dialogues must sound distinguishable; no speaker - tag formula loops.
-12. Running gag sparsely: same sound - word / catchphrase max 2x.
-13. If output is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue. NO English words in output.
-14. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-15. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+9. Max 1 comparison per paragraph, no metaphor chains.
+10. No preview, meta or summary sentences.
+11. No explanatory sentences about object rules.
+12. Dialogues must sound distinguishable; no speaker - tag formula loops.
+13. Running gag sparsely: same sound - word / catchphrase max 2x.
+14. If output is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue. NO English words in output.
+15. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+16. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -1817,7 +1830,10 @@ export function buildStoryChapterRevisionPrompt(input: {
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
-  const allowedNames = Array.from(new Set(characterNames)).join(", ");
+  const uniqueCharacterNames = Array.from(new Set(characterNames));
+  const allowedNames = uniqueCharacterNames.join(", ");
+  const chapterFocusNames = getCoreChapterCharacterNames({ directive: chapter, cast, ageMax: ageRange.max });
+  const supportNames = uniqueCharacterNames.filter(name => !chapterFocusNames.includes(name));
 
   const issueList = issues.length > 0 ? issues.map(issue => `- ${issue}`).join("\n") : "- Keine";
   const continuityContext = [
@@ -1843,7 +1859,9 @@ SCENE DIRECTIVE (for context only — do NOT rewrite the chapter to match this):
 - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
 - Conflict: ${sanitizeDirectiveNarrativeText(chapter.conflict)}
 - Outcome: ${sanitizeDirectiveNarrativeText(chapter.outcome)}
-- Characters (must appear): ${allowedNames || "none"}
+- Available characters: ${allowedNames || "none"}
+- Foreground characters: ${chapterFocusNames.join(", ") || allowedNames || "none"}
+${supportNames.length > 0 ? `- Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
 - Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
@@ -1854,7 +1872,7 @@ RULES:
 2) No new proper names.
 2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
 3) No meta instructions, labels, previews, or summary lines in prose. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-4) Every character must act or speak.
+4) Foreground characters must act or speak. Support characters may react briefly or stay absent if the chapter is clearer without them.
 5) Remove stock phrases and repetitive speaker formulas.
 6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
 7) Keep dialogue lively (target roughly 25-45% where fitting, no monologue blocks).
