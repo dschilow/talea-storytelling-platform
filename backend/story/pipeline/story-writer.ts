@@ -194,10 +194,10 @@ export class LlmStoryWriter implements StoryWriter {
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
     // Gemini Flash full rewrites are high-cost/low-yield, so keep rewritePasses=0.
-    // But expand calls are cheap per-chapter fixes (~680 tokens each) and critical when
-    // Gemini Flash generates complete stories in one shot — 2 expand calls are enough for edge-case chapters.
+    // Expand calls are cheap per-chapter fixes and handle short chapters. Pro writes shorter
+    // chapters than Flash (~150-180 words vs ~200+), so needs more expand passes.
     const defaultRewritePasses = isGeminiFlashModel ? 0 : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGemini3 ? 2 : MAX_EXPAND_CALLS;
+    const defaultExpandCalls = isGeminiFlashModel ? 2 : (isGemini3 ? 3 : MAX_EXPAND_CALLS);
     const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
@@ -2104,6 +2104,11 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 const NOISY_CODES = new Set([
   "UNLOCKED_CHARACTER",
   "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
+  // Length errors are handled by Expand (cheap per-chapter calls), not by Rewrite (expensive full-story call).
+  // Adding these to NOISY prevents Rewrite from triggering just because chapters are short.
+  "CHAPTER_TOO_SHORT_HARD",
+  "CHAPTER_TOO_SHORT",
+  "TOTAL_TOO_SHORT",
 ]);
 
 function countErrorIssues(report: {

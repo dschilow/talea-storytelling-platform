@@ -785,8 +785,9 @@ Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuche
 10. HUMOR: Every chapter needs at least one smile moment — physical comedy, a witty line, or an unexpected reaction. The reader should LAUGH at least twice in the whole story.
 ${humorRule ? `11. ${humorRule}` : ""}
 
-::: WORD TARGET :::
+::: WORD TARGET (HARD MINIMUM) :::
 Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
+IMPORTANT: Each chapter MUST reach at least ${wordsPerChapter.min} words. Short chapters are the #1 quality failure. When in doubt, add one more dialogue exchange or action beat per paragraph.
 Cast lock: only ${allowedNames.join(", ")}. No new names.
 
 ::: OUTPUT :::
