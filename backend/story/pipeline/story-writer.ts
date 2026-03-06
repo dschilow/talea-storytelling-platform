@@ -5,6 +5,7 @@ import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
+import { getCoreChapterCharacterNames } from "./character-focus";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -649,7 +650,12 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
 
         const wordCount = countWords(chapter.text);
         const sentenceCount = splitSentences(chapter.text).length;
-        const missingCharacters = findMissingCharacters(chapter.text, directive, cast);
+        const missingCharacters = findMissingCharacters(
+          chapter.text,
+          directive,
+          cast,
+          { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+        );
         const needsMissingFix = missingCharacters.length > 0;
 
         // V2: Nur expandieren wenn WIRKLICH zu kurz (unter hartem Minimum) oder < 3 Sätze
@@ -1832,12 +1838,21 @@ function isTruncatedFinishReason(reason?: string): boolean {
     || normalized.includes("length");
 }
 
-function findMissingCharacters(text: string, directive: SceneDirective, cast: CastSet): string[] {
+function findMissingCharacters(
+  text: string,
+  directive: SceneDirective,
+  cast: CastSet,
+  ageRange?: { min: number; max: number },
+): string[] {
   const textLower = text.toLowerCase();
-  const names = directive.charactersOnStage
-    .filter(slot => !slot.includes("ARTIFACT"))
-    .map(slot => findCharacterDisplayName(cast, slot))
-    .filter((name): name is string => Boolean(name));
+  const ageMax = ageRange?.max ?? 12;
+  const coreNames = getCoreChapterCharacterNames({ directive, cast, ageMax });
+  const names = coreNames.length > 0
+    ? coreNames
+    : directive.charactersOnStage
+      .filter(slot => !slot.includes("ARTIFACT"))
+      .map(slot => findCharacterDisplayName(cast, slot))
+      .filter((name): name is string => Boolean(name));
 
   return names.filter(name => {
     // Check full name first

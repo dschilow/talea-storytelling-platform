@@ -90,7 +90,7 @@ PRÜFE GEZIELT:
 5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Mindestens 30% Dialog pro Kapitel. Pro Kapitel prüfen.
 6. Vorlese-Test: Gibt es Sätze über 12 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
 7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?
-8. Humor: Hat JEDES Kapitel mindestens einen Schmunzel-Moment? Slapstick, Missverständnis, witzige Reaktion? Wenn nur 0-1 Kapitel Humor haben → ERROR.
+8. Humor: Gibt es 2-3 echte Schmunzel-Momente in der ganzen Geschichte? Kapitel 4 darf ernster sein, wenn der Tiefpunkt dadurch stärker wird. Wenn fast gar kein Humor vorkommt → ERROR.
 9. Figuren-Fokus: Maximal 2 Figuren im Vordergrund pro Kapitel. Wenn 4+ aktive Figuren → ERROR.
 10. Rhythmus: Gibt es Variation? Kurz-kurz-lang? Oder nur gleichförmige mittellange Sätze? → WARNING.`
       : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
@@ -105,7 +105,7 @@ TARGETED CHECKS:
 5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? At least 30% dialogue per chapter. Check per chapter.
 6. Read-aloud test: Are there sentences over 12 words that would stumble when read aloud? Quote them.
 7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?
-8. Humor: Does EVERY chapter have at least one smile moment? Slapstick, misunderstanding, witty reaction? If only 0-1 chapters have humor → ERROR.
+8. Humor: Are there 2-3 genuine smile moments across the whole story? Chapter 4 may stay more serious if that strengthens the low point. If there is almost no humor at all → ERROR.
 9. Character focus: Max 2 characters in the foreground per chapter. If 4+ active characters → ERROR.
 10. Rhythm: Is there sentence length variation? Short-short-long? Or only uniform medium sentences? → WARNING.`;
 
@@ -136,7 +136,7 @@ TARGETED CHECKS:
         "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment → WARNING CHAPTER_TRANSITION_WEAK",
         "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained' → WARNING META_FORESHADOW_PHRASE",
         "rule-exposition tell: reject textbook statements about how artifacts/rules work → WARNING RULE_EXPOSITION_TELL",
-        "humor per chapter: EACH chapter needs at least one playful/funny moment. If 0-1 chapters have humor → ERROR HUMOR_MISSING",
+        "humor distribution: the story should contain 2-3 playful/funny moments overall. Chapter 4 may stay more serious. If the story has almost no humor → ERROR HUMOR_MISSING",
         "character focus: max 2 characters in foreground per chapter. If 4+ actively speaking/acting → ERROR CHARACTER_OVERLOAD",
         "dialogue ratio: each chapter should have 30-40% dialogue. If under 20% → ERROR DIALOGUE_TOO_LOW",
       ],

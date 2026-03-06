@@ -2,6 +2,7 @@ import type { CastSet, SceneDirective, StoryDraft, ArtifactArcPlan } from "./typ
 import type { WordBudget } from "./word-budget";
 import { ALL_BANNED_PHRASES } from "./canon-fusion";
 import { findTemplatePhraseMatches } from "./template-phrases";
+import { getChildFocusNames, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 
 export interface QualityIssue {
   gate: string;
@@ -134,9 +135,9 @@ function gateDialogueQuote(
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
-  const minDialogueRatio = ageMax <= 8 ? 0.24 : 0.16;
+  const minDialogueRatio = ageMax <= 8 ? 0.2 : 0.16;
   const maxDialogueRatio = ageMax <= 8 ? 0.58 : 0.75;
-  const criticalDialogueRatio = ageMax <= 8 ? 0.18 : 0.1;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.14 : 0.1;
   const extremeHighDialogueRatio = ageMax <= 8 ? 0.66 : 0.84;
 
   for (const ch of draft.chapters) {
@@ -224,23 +225,28 @@ function gateCharacterIntegration(
 
     const textLower = ch.text.toLowerCase();
     const characterSlots = directive.charactersOnStage.filter(slot => !slot.includes("ARTIFACT"));
+    const coreNames = new Set(getCoreChapterCharacterNames({ directive, cast, ageMax: 8 }));
 
     for (const slot of characterSlots) {
       const name = findCharacterName(cast, slot);
-      if (!name) continue;
+      const sheet = cast.avatars.find(a => a.slotKey === slot) || cast.poolCharacters.find(c => c.slotKey === slot);
+      if (!name || !sheet) continue;
 
       // Check full name first, then individual name parts (e.g. "Mia" from "Mia Neugier")
       const nameLower = name.toLowerCase();
       const nameParts = nameLower.split(/\s+/).filter(p => p.length > 2);
       const found = textLower.includes(nameLower) || nameParts.some(p => textLower.includes(p));
+      const isAvatarSlot = slot.includes("AVATAR") || slot.includes("PROTAGONIST");
+      const isCoreCharacter = coreNames.has(name);
+      const isChildFocus = isLikelyChildCharacter(sheet);
 
       if (!found) {
         issues.push({
-          gate: "CHARACTER_INTEGRATION",
+          gate: isAvatarSlot || isCoreCharacter || isChildFocus ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
           chapter: ch.chapter,
           code: "MISSING_CHARACTER",
           message: isDE ? `Figur fehlt: ${name}` : `Missing character: ${name}`,
-          severity: "ERROR",
+          severity: isAvatarSlot || isCoreCharacter || isChildFocus ? "ERROR" : "WARNING",
         });
         continue;
       }
@@ -250,7 +256,6 @@ function gateCharacterIntegration(
         || nameParts.some(part => checkCharacterHasAction(ch.text, part.charAt(0).toUpperCase() + part.slice(1)));
       // Only flag PASSIVE_CHARACTER as serious for avatar/protagonist slots
       // Pool characters being briefly mentioned is acceptable and shouldn't trigger rewrites
-      const isAvatarSlot = slot.includes("AVATAR") || slot.includes("PROTAGONIST");
       if (!hasAction) {
         issues.push({
           gate: isAvatarSlot ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
@@ -385,7 +390,7 @@ function gateCastLock(
     // Quantifier + Noun: "Zehn Grad", "Drei Kinder", "Minuten Zeitverschwendung"
     /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz|minuten?|stunden?|tage?)\s+/i,
     // Genitive possessive: "Omas Küche", "Vaters Stuhl", "Brunos Laden"
-    /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto|magen|schal|lieblingsschal|bilder?|jacke|ärmel|aermel)$/i,
+    /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto|magen|schal|lieblingsschal|bilder?|jacke|ärmel|aermel|schuh|schuhe|knie|bein|beine|stirn|rücken|ruecken)$/i,
   ] : [];
 
   for (const ch of draft.chapters) {
@@ -2114,8 +2119,8 @@ function gateChildEmotionArc(
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
-  const avatarNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  if (avatarNames.length === 0) return issues;
+  const childFocusNames = getChildFocusNames(cast);
+  if (childFocusNames.length === 0) return issues;
 
   const fullText = draft.chapters.map(ch => ch.text).join(" ");
   const innerMarkers = isDE
@@ -2130,7 +2135,7 @@ function gateChildEmotionArc(
 
   let hasChildErrorCorrectionArc = false;
 
-  for (const name of avatarNames) {
+  for (const name of childFocusNames) {
     // Try full name AND individual name parts (e.g. "Adrian" from "Adrian Mutig")
     const nameParts = [name, ...name.split(/\s+/).filter(p => p.length > 2)];
     const uniqueParts = [...new Set(nameParts)];
@@ -2653,13 +2658,15 @@ function gateCh1Orientation(
 
   // Check if characters are introduced (names mentioned in first half)
   const firstHalf = sentences.slice(0, Math.ceil(sentences.length / 2)).join(" ");
-  const avatarNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const avatarsIntroduced = avatarNames.filter(name => {
+  const focusNames = getChildFocusNames(cast).length > 0
+    ? getChildFocusNames(cast)
+    : cast.avatars.map(a => a.displayName).filter(Boolean);
+  const avatarsIntroduced = focusNames.filter(name => {
     const parts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
     return parts.some(p => firstHalf.toLowerCase().includes(p));
   });
 
-  if (isActionOpening && avatarsIntroduced.length < avatarNames.length) {
+  if (isActionOpening && avatarsIntroduced.length < focusNames.length) {
     issues.push({
       gate: "CH1_ORIENTATION",
       chapter: ch1.chapter,

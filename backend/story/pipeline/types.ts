@@ -129,12 +129,16 @@ export interface StoryBlueprint {
     who: string;
     want: string;
     curiosityHook: string;
+    foreground?: string;
+    humorBeat?: string;
   };
   chapter2: {
     newElement: string;
     boldChoice: string;
     complication: string;
     openQuestion: string;
+    foreground?: string;
+    humorBeat?: string;
   };
   chapter3: {
     mistake: string;
@@ -142,18 +146,22 @@ export interface StoryBlueprint {
     consequence: string;
     bodyReaction: string;
     stuckFeeling: string;
+    foreground?: string;
   };
   chapter4: {
     worstMoment: string;
     almostGivingUp: string;
     insightTrigger: string;
     newChoice: string;
+    foreground?: string;
   };
   chapter5: {
     concreteWin: string;
     smallPrice: string;
     ch1Callback: string;
     finalImage: string;
+    foreground?: string;
+    humorBeat?: string;
   };
   emotionalArc: [string, string, string, string, string];
   characterWants: Record<string, string>;

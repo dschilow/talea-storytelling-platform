@@ -1,4 +1,5 @@
 import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint } from "./types";
+import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -22,6 +23,21 @@ interface CharacterSheet {
   role?: string;
   species?: string;
   catchphraseContext?: string;
+}
+
+function getPromptRoleLabel(sheet: CharacterSheet, isGerman: boolean): string {
+  if (isLikelyChildCharacter(sheet)) {
+    return isGerman ? "Kind" : "Child";
+  }
+
+  const speciesLabel = getSpeciesLabel(sheet.species || "", isGerman);
+  if (speciesLabel) return speciesLabel;
+
+  if (sheet.roleType === "AVATAR") {
+    return isGerman ? "Protagonist" : "Protagonist";
+  }
+
+  return sheet.role || sheet.roleType || "";
 }
 
 /**
@@ -64,13 +80,8 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
 
   // Line 1: Name + core personality
   let line1 = `**${name}**`;
-  if (sheet.roleType === "AVATAR") {
-    line1 += ` (Child)`;
-  } else if (species && !species.includes("human_child")) {
-    // Species/profession for non-children
-    const speciesLabel = getSpeciesLabel(species, isGerman);
-    if (speciesLabel) line1 += ` (${speciesLabel})`;
-  }
+  const roleLabel = getPromptRoleLabel(sheet, isGerman);
+  if (roleLabel) line1 += ` (${roleLabel})`;
   line1 += `: ${personality}`;
   if (secondaryTraits) line1 += `; ${secondaryTraits}`;
   lines.push(line1);
@@ -101,9 +112,7 @@ function buildCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string
 }
 
 function buildCompactCharacterProfile(sheet: CharacterSheet, isGerman: boolean): string {
-  const role = sheet.roleType === "AVATAR"
-    ? "Child"
-    : getSpeciesLabel(sheet.species || "", isGerman) || sheet.roleType || "";
+  const role = getPromptRoleLabel(sheet, isGerman);
   const dominant = sheet.enhancedPersonality?.dominant
     || sheet.personalityTags?.[0]
     || "curious";
@@ -310,6 +319,28 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
     .join("\n");
 
   const globalRule = "  - IMPORTANT: Children must sound COMPLETELY different. A child recognizes WHO speaks by the sentence alone.";
+
+  return `${lines}\n${globalRule}`;
+}
+
+function buildFocusedChildVoiceContract(childSheets: CharacterSheet[], isGerman: boolean): string {
+  if (childSheets.length === 0) return "";
+
+  const lines = childSheets
+    .slice(0, 3)
+    .map((sheet) => {
+      const speechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || (isGerman ? "klar" : "clear");
+      const speechExample = generateSpeechExample(
+        sheet.displayName,
+        speechStyle,
+        sheet.enhancedPersonality?.catchphrase || "",
+        isGerman,
+      );
+      return `  - ${sheet.displayName}: keep one stable child voice (${speechStyle}). The rhythm and wording must stay recognizable from line to line. ${speechExample}`;
+    })
+    .join("\n");
+
+  const globalRule = "  - IMPORTANT: Child characters must sound clearly different from each other, but adults/mentors should not be forced into child-speech patterns.";
 
   return `${lines}\n${globalRule}`;
 }
@@ -525,9 +556,7 @@ export function buildStoryBlueprintPrompt(input: {
     if (slot.includes("ARTIFACT")) continue;
     const sheet = findCharacterBySlot(cast, slot);
     if (!sheet) continue;
-    const role = (sheet as CharacterSheet).roleType === "AVATAR"
-      ? "Child"
-      : getSpeciesLabel((sheet as CharacterSheet).species || "", isGerman) || (sheet as CharacterSheet).roleType || "";
+    const role = getPromptRoleLabel(sheet as CharacterSheet, isGerman);
     const dominant = (sheet as CharacterSheet).enhancedPersonality?.dominant
       || (sheet as CharacterSheet).personalityTags?.[0]
       || "curious";
@@ -537,6 +566,10 @@ export function buildStoryBlueprintPrompt(input: {
     const quirkPart = quirk ? ` | Quirk: ${quirk}` : "";
     characterLines.push(`- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}${quirkPart}`);
   }
+  const childFocusNames = getChildFocusNames(cast);
+  const childFocusBlock = childFocusNames.length > 0
+    ? `\n::: CHILD STORY FOCUS :::\n- The emotional arc, mistake, shame, courage, and repair must belong primarily to ${childFocusNames.join(" and ")}.\n- If adults or mentors are present, they may help, but they must not own the child's growth moment.\n`
+    : "";
 
   // Compress directives into seed hints
   const seedHints = directives.map((d, idx) => {
@@ -559,6 +592,7 @@ Target age: ${ageRange.min}-${ageRange.max}. Tone: ${targetTone}. Output languag
 
 ::: CHARACTERS :::
 ${characterLines.join("\n")}
+${childFocusBlock}
 
 ::: STORY SEED :::
 Theme: ${themeTags}
@@ -621,7 +655,7 @@ For each character, define:
 - FEAR: What are they avoiding or afraid of?
 
 ::: DIALOGUE PLAN :::
-- Each chapter needs 30-40% dialogue (at least 4-5 spoken lines per chapter)
+- Across the whole story, aim for roughly 25-35% dialogue. Quiet orientation and low-point passages may use less if clarity improves.
 - Every dialogue line = 1 physical action + 1 spoken line. Never floating quotes.
 - Characters must sound DIFFERENT: vary sentence length, vocabulary, and energy level.
 
@@ -688,9 +722,7 @@ export function buildBlueprintDrivenStoryPrompt(input: {
     if (!sheet) continue;
     if (!allowedNames.includes(sheet.displayName)) allowedNames.push(sheet.displayName);
     const cs = sheet as CharacterSheet;
-    const role = cs.roleType === "AVATAR"
-      ? isGerman ? "Kind" : "Child"
-      : getSpeciesLabel(cs.species || "", isGerman) || "";
+    const role = getPromptRoleLabel(cs, isGerman);
     const rolePart = role ? ` (${role})` : "";
     const speech = cs.speechStyleHints?.[0] || "normal";
     const speechEx = generateSpeechExample(cs.displayName, speech, cs.enhancedPersonality?.catchphrase || "", isGerman);
@@ -698,8 +730,21 @@ export function buildBlueprintDrivenStoryPrompt(input: {
   }
 
   // Child voice contract
-  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
+  const focusChildSheets = getChildFocusSheets(cast);
+  const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
+  const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
+  const chapterFocusFallback = (chapterNumber: number): string => {
+    const directive = directives.find(item => item.chapter === chapterNumber);
+    if (!directive) return "tight pair";
+    return getCoreChapterCharacterNames({ directive, cast, ageMax: ageRange.max }).join(", ") || "tight pair";
+  };
+  const chapterFocusBlock = [
+    `- Chapter 1 foreground: ${(blueprint.chapter1 as any).foreground || chapterFocusFallback(1)}`,
+    `- Chapter 2 foreground: ${(blueprint.chapter2 as any).foreground || chapterFocusFallback(2)}`,
+    `- Chapter 3 foreground: ${(blueprint.chapter3 as any).foreground || chapterFocusFallback(3)}`,
+    `- Chapter 4 foreground: ${(blueprint.chapter4 as any).foreground || chapterFocusFallback(4)}`,
+    `- Chapter 5 foreground: ${(blueprint.chapter5 as any).foreground || chapterFocusFallback(5)}`,
+  ].join("\n");
 
   // Artifact
   const artifactName = cast.artifact?.name?.trim();
@@ -753,6 +798,12 @@ ${JSON.stringify(blueprint, null, 2)}
 ${characterLines.join("\n")}
 ${childVoiceContract ? `\n${childVoiceContract}` : ""}
 
+::: STORY FOCUS :::
+- The emotional POV and mistake-growth arc belong primarily to ${focusChildNames.join(", ") || allowedNames.slice(0, 2).join(", ")}.
+- Adults, mentors, or magical helpers may support, but they must not solve the inner problem for the child.
+- Keep chapter focus narrow:
+${chapterFocusBlock}
+
 ${artifactName ? `::: ARTIFACT :::\n- ${artifactName}: ${cast.artifact?.storyUseRule || "important magical object"}\n` : ""}
 ${memoryLine ? `${memoryLine}\n` : ""}
 ${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
@@ -770,11 +821,11 @@ Oma kicherte und schob ihm ein Stück Kuchen über den Tisch. "Probier mal." Adr
 BAD (report-style, no body, no humor, floating dialogue):
 Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuchen rochen. "Das riecht gut", sagte einer von ihnen. Oma lächelte. Sie gab ihnen Kuchen. Alle waren glücklich.
 
-→ Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), HUMOR (at least 1 smile per chapter), and DIALOGUE anchored to a physical action.
+→ Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), and DIALOGUE anchored to a physical action. Humor should appear across the story, but not every paragraph needs a joke.
 
 ::: RULES (only these — nothing else) :::
 1. 4-6 paragraphs per chapter. Each paragraph: 2-4 sentences. Blank line between paragraphs.
-2. At least 30% of each chapter MUST be dialogue — that means 4-6 spoken lines minimum. Every "..." is paired with a body action. NO floating quotes.
+2. Aim for roughly 25-35% dialogue across the whole story. Quiet orientation or low-point chapters may dip lower if clarity improves. Every "..." is paired with a body action. NO floating quotes.
 3. Max 2 characters in the FOREGROUND per chapter (speak + act). 1 more may react with a single line. Others are background.
 4. Chapters 1-4 end with a cliffhanger — the reader MUST want to turn the page. Never resolve tension at chapter end.
 5. Chapter 5 ends with a warm, concrete image. No moral, no "and they learned...". Show, don't tell.
@@ -782,7 +833,7 @@ Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuche
 7. Each character sounds different: one speaks in short bursts, another in longer flowing sentences, another interrupts.
 8. ${ageRule}
 9. ${safetyRule}
-10. HUMOR: Every chapter needs at least one smile moment — physical comedy, a witty line, or an unexpected reaction. The reader should LAUGH at least twice in the whole story.
+10. HUMOR: Place 2-3 clear smile moments across the story. Chapter 4 may stay more serious if the turning point becomes stronger.
 ${humorRule ? `11. ${humorRule}` : ""}
 
 EXTRA CHILD-BOOK RULES:
@@ -821,15 +872,18 @@ Du schreibst für Kinder im Alter von ${ageRange.min} bis ${ageRange.max} Jahren
 - Kurze, klare Sätze. Maximal 10 Wörter pro Satz im Durchschnitt, nie über 15.
 - Keine Fremdwörter, keine Metaphern, die ein Kind nicht versteht.
 - Jeder Absatz muss sofort verständlich sein, wenn er laut vorgelesen wird.
-- Mindestens 30% Dialog pro Kapitel. Kinder lieben Gespräche!
+- Nutze Dialog lebendig, aber nicht starr. Ruhige Orientierung und ernste Tiefpunkte dürfen weniger Dialog haben, wenn die Szene dadurch klarer wird.
 
 Deine Regeln als Autor:
+ZUSAETZLICH:
+- Dialogquote flexibel halten. Orientierung und klare Ursache-Folge sind wichtiger als eine starre Prozentzahl.
+- Baue 2-3 echte Schmunzelmomente in die ganze Geschichte ein. Kapitel 4 darf ernster sein.
 1. Gefühle zeigt man durch den KÖRPER, nie durch Etiketten. Nicht "Er hatte Angst" — sondern "Seine Finger krallten sich in den Stoff seiner Jacke."
 2. Jede Figur klingt ANDERS. Einer spricht in kurzen Fetzen, einer in fließenden Sätzen, einer unterbricht ständig.
 3. Jede Dialogzeile ist an eine körperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Ärmel. NICHT: "Komm!", sagte sie.
 4. Absätze atmen: 2-4 Sätze, dann eine Leerzeile. Nie eine Textwand.
 5. Rhythmus: Kurz. Kurz. Ein längerer Satz mit einem überraschenden Detail am Ende. Dann wieder kurz.
-6. HUMOR ist Pflicht: Jedes Kapitel braucht mindestens einen Schmunzel-Moment. Slapstick, Missverständnis, Wortspiel — Kinder müssen lachen!
+6. Humor soll natürlich wirken: Baue 2-3 echte Schmunzelmomente in die Geschichte ein. Im Tiefpunkt darf es ernster sein.
 7. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzählungen, keine Protokoll-Sprache, keine Moral-Predigten.
 8. Pro Kapitel maximal 2 Figuren im Vordergrund. Andere dürfen kurz reagieren, aber der Fokus bleibt eng.
 
@@ -841,15 +895,18 @@ You write for children aged ${ageRange.min} to ${ageRange.max}. This means:
 - Short, clear sentences. Max 10 words per sentence on average, never over 15.
 - No jargon, no metaphors a child wouldn't understand.
 - Every paragraph must be instantly clear when read aloud.
-- At least 30% dialogue per chapter. Kids love conversations!
+- Use dialogue generously, but not rigidly. Quiet orientation and serious low points may use less dialogue if the scene becomes clearer.
 
 Your rules as an author:
+ADDITIONAL:
+- Keep dialogue flexible. Clear orientation and cause-effect matter more than a rigid percentage.
+- Place 2-3 genuine smile moments across the whole story. Chapter 4 may stay more serious.
 1. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
 2. Each character sounds DIFFERENT. One speaks in short bursts, one in flowing sentences, one interrupts.
 3. Every dialogue line is anchored to a physical action. "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
 4. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text.
 5. Rhythm: Short. Short. One longer sentence with a surprising detail at the end. Then short again.
-6. HUMOR is mandatory: Every chapter needs at least one smile moment. Slapstick, misunderstanding, wordplay — kids must laugh!
+6. Humor should feel natural: place 2-3 genuine smile moments across the story. The darkest chapter may stay more serious.
 7. You write a story, not a report. No lists, no protocol language, no moral lectures.
 8. Max 2 characters in the foreground per chapter. Others may react briefly, but focus stays tight.`;
 }
@@ -989,15 +1046,16 @@ export function buildFullStoryPrompt(input: {
     );
   }
 
-  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
+  const focusChildSheets = getChildFocusSheets(cast);
+  const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
+  const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const avatarRule = focusChildNames.length >= 2
-    ? `- Avatar requirement: ${focusChildNames.join(" and ")} are equal protagonists and must be active in EVERY beat (each beat: at least one action + one dialogue line per child).`
+    ? `- Child-focus requirement: ${focusChildNames.join(" and ")} carry the emotional arc and must stay active in EVERY beat. Supporting adults or mentors may help, but must not take over the child's growth.`
     : focusChildNames.length === 1
-      ? `- Protagonist requirement: ${focusChildNames[0]} must be active in EVERY beat (action or dialogue).`
+      ? `- Child-focus requirement: ${focusChildNames[0]} must stay emotionally active in EVERY beat (action, dialogue, or body reaction).`
       : "";
 
   const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(stylePackText, isGerman), isCompactPrompt ? 5 : 10);
@@ -1124,7 +1182,7 @@ ABSOLUTE RULES:
 - NEVER start Chapter 1 mid-action or mid-quest. The reader must first understand the world.
 - NEVER assume the reader knows who the characters are. Introduce everyone.
 - The mission/goal must be so clear that a 6-year-old can repeat it back.
-- Every character present MUST speak at least one line AND perform at least one physical action.`;
+- Keep the foreground on a tight pair. Any additional character may only react briefly.`;
 
   const humorTarget = Math.max(0, Math.min(3, Number.isFinite(humorLevel as number) ? Number(humorLevel) : 2));
   const humorRule = humorTarget >= 3
@@ -1144,8 +1202,9 @@ ABSOLUTE RULES:
       .map(slot => findCharacterBySlot(cast, slot)?.displayName)
       .filter((name): name is string => Boolean(name));
     const uniqueCast = Array.from(new Set(castNames));
+    const focusCast = getCoreChapterCharacterNames({ directive, cast, ageMax });
 
-    let specialRule = "Every listed character gets at least one physical action and one spoken line.";
+    let specialRule = `Keep the foreground on ${focusCast.join(", ") || uniqueCast.slice(0, 2).join(", ") || "a tight pair"}. Any additional character may only react briefly.`;
     if (idx === 0) {
       specialRule += isGerman
         ? " KAPITEL 1: Stelle jeden Charakter zuerst mit einem einprägsamen Detail vor (Aussehen/Eigenart), bevor die Handlung beginnt. Dann: Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
@@ -1388,12 +1447,13 @@ export function buildFullStoryRewritePrompt(input: {
     .filter((name): name is string => Boolean(name))
     .join(", ");
 
-  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
-  const childVoiceContract = buildChildVoiceContract(focusChildNames, isGerman);
+  const focusChildSheets = getChildFocusSheets(cast);
+  const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
+  const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
   const avatarRule = focusChildNames.length >= 2
-    ? `- ${focusChildNames.join(" and ")} must be active in EVERY beat(each beat: at least one action + one dialogue line per child).`
+    ? `- ${focusChildNames.join(" and ")} carry the emotional arc and must stay active in EVERY beat. Supporting adults or mentors may help, but must not own the child's growth.`
     : focusChildNames.length === 1
-      ? `- ${focusChildNames[0]} must be active in EVERY beat.`
+      ? `- ${focusChildNames[0]} must stay emotionally active in EVERY beat.`
       : "";
 
   const stylePackBlock = sanitizeStylePackBlock(stylePackText, isGerman);
@@ -1517,7 +1577,8 @@ export function buildChapterExpansionPrompt(input: {
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
   const allowedNames = Array.from(new Set(characterNames)).join(", ");
-  const focusChildNames = cast.avatars.map(a => a.displayName).filter(Boolean);
+  const focusChildNames = getChildFocusNames(cast);
+  const chapterFocusNames = getCoreChapterCharacterNames({ directive: chapter, cast, ageMax: ageRange.max });
   const emotionalFocus = focusChildNames.length > 0
     ? focusChildNames.slice(0, 2).join(", ")
     : characterNames.slice(0, 2).join(", ");
@@ -1536,7 +1597,7 @@ export function buildChapterExpansionPrompt(input: {
   return `# TASK
 Expand the chapter without changing the plot. Show, don't tell!
 IMPORTANT: Keep sentences SHORT. Average 10 words per sentence, NEVER over 15.
-Add dialogue (at least 30% of text must be dialogue) and body-action, NOT longer descriptions.
+Add dialogue where it improves clarity and momentum, plus body-action. Quiet setup or low-point beats may use slightly less dialogue.
 No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
 Target quality: published children's fiction (Preußler/Lindgren level). Short punchy sentences, humor, body reactions.
 DO NOT make existing sentences longer. Instead: ADD new short dialogue lines and brief action beats.
@@ -1545,6 +1606,7 @@ DO NOT make existing sentences longer. Instead: ADD new short dialogue lines and
     - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
   - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
   - Characters: ${allowedNames}
+  - Focus characters: ${chapterFocusNames.join(", ") || allowedNames}
 ${artifactName && chapter.artifactUsage ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
   - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min} -${ageRange.max}
 ${missingLine}
@@ -2017,6 +2079,9 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
   const banned = isGerman
     ? /(ausblick|vorschau|kapitelende|kapitel endet|epilog|hook)/i
     : /(outlook|preview|chapter ending|chapter ends|epilogue|hook)/i;
+  const overlyRigid = isGerman
+    ? /(dialogue first|40%\s*dialog|30-40%\s*dialog|jedes kapitel.*schmunzel|humor ist pflicht|ohne dialog oder physical action|ohne dialog oder koerperliche aktion|keine abs[aä]tze ohne dialog)/i
+    : /(dialogue first|40%\s*dialogue|30-40%\s*dialogue|every chapter needs at least one smile|humor is mandatory|paragraphs without dialogue or physical action)/i;
   const controlLine = buildControlLinePattern(isGerman);
   const lines = base
     .split("\n")
@@ -2024,8 +2089,21 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
     .filter(Boolean)
     .filter(line => !banned.test(line))
     .filter(line => !controlLine.test(line))
-    .slice(0, 10);
-  return lines.join("\n").trim();
+    .filter(line => !overlyRigid.test(line));
+  const curatedLines = isGerman
+    ? [
+      "ORIENTATION FIRST: Kapitel 1 darf ruhig und klar beginnen. Nach Absatz 2 muessen WER, WO, WAS und WARUM klar sein.",
+      "FOCUS: Meist 2 aktive Figuren pro Kapitel. Weitere Figuren reagieren nur kurz.",
+      "DIALOGUE BALANCE: Dialog belebt die Szene, aber Orientierung und Ursache-Folge sind wichtiger als eine starre Quote.",
+      "TRANSITIONS: Jeder neue Ort, Hinweis oder Plan braucht einen kurzen Brueckensatz.",
+    ]
+    : [
+      "ORIENTATION FIRST: Chapter 1 may begin quietly and clearly. By paragraph 2, WHO, WHERE, WHAT, and WHY must be clear.",
+      "FOCUS: Usually keep 2 active characters per chapter. Others may only react briefly.",
+      "DIALOGUE BALANCE: Dialogue should enliven the scene, but clarity and cause-effect matter more than a rigid quota.",
+      "TRANSITIONS: Every new place, clue, or plan needs one short bridge sentence.",
+    ];
+  return [...curatedLines, ...lines].slice(0, 10).join("\n").trim();
 }
 
 function sanitizeDirectiveNarrativeText(value: string | undefined): string {
