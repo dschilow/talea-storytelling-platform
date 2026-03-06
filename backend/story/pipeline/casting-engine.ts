@@ -1,6 +1,6 @@
 ﻿import * as crypto from "crypto";
 import { storyDB } from "../db";
-import type { ArtifactRequirement } from "../types";
+import type { ArtifactCategory, ArtifactRequirement } from "../types";
 import { artifactMatcher, recordStoryArtifact } from "../artifact-matcher";
 import type { AvatarDetail, CastSet, CharacterSheet, EnhancedPersonality, MatchScore, NormalizedRequest, RoleSlot, StoryBlueprintBase, StoryVariantPlan } from "./types";
 import { createSeededRandom } from "./utils";
@@ -61,6 +61,27 @@ const ARTIFACT_ABILITY_MAP: Record<string, string> = {
   CALLS_HELP: "communication",
   TIME_BUFFER: "time",
   CONNECTS_PEOPLE: "communication",
+};
+
+const ARTIFACT_CATEGORY_BY_ABILITY: Record<string, ArtifactCategory[]> = {
+  navigation: ["map", "tool", "book", "clothing", "jewelry", "magic"],
+  protection: ["armor", "clothing", "jewelry", "tool", "magic", "nature"],
+  wisdom: ["book", "map", "tool", "jewelry", "magic"],
+  magic: ["magic", "book", "jewelry", "tool"],
+  healing: ["potion", "nature", "magic", "tool"],
+  communication: ["tool", "book", "jewelry", "magic", "clothing"],
+  time: ["magic", "tech", "tool"],
+  discovery: ["tool", "map", "book", "magic"],
+  light: ["tool", "magic", "clothing", "jewelry"],
+};
+
+const STORY_ARTIFACT_CATEGORY_BIAS: Record<string, ArtifactCategory[]> = {
+  "Abenteuer & Schätze": ["map", "tool", "weapon", "jewelry", "magic"],
+  "Märchenwelten & Magie": ["magic", "jewelry", "book", "nature", "potion"],
+  "Tierwelten": ["nature", "tool", "clothing", "magic", "potion"],
+  "Sci-Fi & Zukunft": ["tech", "tool", "map", "magic"],
+  "Modern & Realität": ["tool", "book", "clothing", "jewelry", "map"],
+  "Klassische Märchen": ["magic", "jewelry", "book", "clothing", "tool"],
 };
 
 const AI_MATCH_MODEL = "gpt-5-nano";
@@ -124,11 +145,12 @@ export async function buildCastSet(input: {
     used.add(candidate.characterId);
   }
 
+  const recentStoryIds = await loadRecentStoryIdsForArtifactMatching(normalized.userId, normalized.storyId, 12);
   const artifactRequirement = buildArtifactRequirement(variantPlan);
   const artifact = await artifactMatcher.match(
     artifactRequirement,
     normalized.category,
-    [],
+    recentStoryIds,
     normalized.language
   );
 
@@ -622,16 +644,65 @@ function safeJson(value: string) {
 function buildArtifactRequirement(variantPlan: StoryVariantPlan): ArtifactRequirement {
   const functionVariant = variantPlan.variantChoices.artifactFunctionVariant || "GUIDES_TRUE";
   const ability = ARTIFACT_ABILITY_MAP[functionVariant] ?? "navigation";
+  const preferredCategory = pickArtifactCategory({
+    storyCategory: variantPlan.category,
+    ability,
+    variantSeed: variantPlan.variantSeed,
+  });
 
   return {
     placeholder: "{{ARTIFACT_REWARD}}",
-    preferredCategory: "magic" as any,
+    preferredCategory,
     requiredAbility: ability,
-    contextHint: `Artifact function ${functionVariant}`,
+    contextHint: `Artifact function ${functionVariant}; favor a fresh, concrete artifact that feels specific to the story world.`,
     discoveryChapter: 2,
     usageChapter: 4,
     importance: "high",
   };
+}
+
+function pickArtifactCategory(input: {
+  storyCategory?: string;
+  ability: string;
+  variantSeed?: number;
+}): ArtifactCategory {
+  const abilityBias = ARTIFACT_CATEGORY_BY_ABILITY[input.ability] || ["magic", "tool", "book", "jewelry"];
+  const storyBias = STORY_ARTIFACT_CATEGORY_BIAS[input.storyCategory || ""] || [];
+  const intersection = storyBias.filter(category => abilityBias.includes(category));
+  const ranked = Array.from(new Set([
+    ...intersection,
+    ...abilityBias,
+    ...storyBias,
+  ]));
+
+  if (ranked.length === 0) {
+    return "magic";
+  }
+
+  const rotationLimit = Math.min(3, ranked.length);
+  const offset = Math.abs(Number(input.variantSeed) || 0) % rotationLimit;
+  return ranked[offset];
+}
+
+async function loadRecentStoryIdsForArtifactMatching(
+  userId: string,
+  currentStoryId: string,
+  limit: number
+): Promise<string[]> {
+  try {
+    const rows = await storyDB.queryAll<{ id: string }>`
+      SELECT id
+      FROM stories
+      WHERE user_id = ${userId}
+        AND id <> ${currentStoryId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    return rows.map(row => row.id).filter(Boolean);
+  } catch (error) {
+    console.warn("[pipeline] Failed to load recent stories for artifact matching", (error as Error)?.message || error);
+    return [];
+  }
 }
 
 function trimMatchScores(scores: MatchScore[]): MatchScore[] {

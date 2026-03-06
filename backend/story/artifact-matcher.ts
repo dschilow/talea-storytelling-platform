@@ -98,6 +98,9 @@ export class ArtifactMatcher {
         score: c.score,
         category: c.artifact.category,
         rarity: c.artifact.rarity,
+        recentUsageCount: c.artifact.recentUsageCount,
+        totalUsageCount: c.artifact.totalUsageCount,
+        userRecentUsage: recentUsage.get(c.artifact.id) || 0,
       }))
     );
 
@@ -118,20 +121,23 @@ export class ArtifactMatcher {
 
     // 6. Tiered Random Selection for variety
     const topScore = validCandidates[0].score;
-    const varianceThreshold = 15; // All within 15 points of the best
-    const topTier = validCandidates.filter(c => c.score >= topScore - varianceThreshold);
-
-    // Randomly select from top tier
-    const randomIndex = Math.floor(Math.random() * topTier.length);
-    const selected = topTier[randomIndex].artifact;
+    const varianceThreshold = 12; // Keep quality tight, then diversify inside that band
+    const topTier = validCandidates
+      .filter(c => c.score >= topScore - varianceThreshold)
+      .slice(0, 12);
+    const userFreshPool = topTier.filter(c => (recentUsage.get(c.artifact.id) || 0) === 0);
+    const selectionPool = userFreshPool.length >= 3 ? userFreshPool : topTier;
+    const selectedEntry = this.selectCandidateWithDiversity(selectionPool, topScore - varianceThreshold, recentUsage);
+    const selected = selectedEntry.artifact;
 
     console.log("[ArtifactMatcher] Selected artifact:", {
       id: selected.id,
       name: selected.name.de,
       category: selected.category,
       rarity: selected.rarity,
-      score: topTier[randomIndex].score,
+      score: selectedEntry.score,
       topTierSize: topTier.length,
+      selectionPoolSize: selectionPool.length,
     });
 
     // 7. Update usage counter
@@ -178,13 +184,7 @@ export class ArtifactMatcher {
 
     // ===== FRESHNESS SCORING (±30 points) =====
     const usageCount = recentUsage.get(artifact.id) || 0;
-    if (usageCount === 0) {
-      score += 20; // Bonus for unused/rarely used artifacts
-    } else if (usageCount === 1) {
-      score -= 10; // Small penalty for recently used
-    } else {
-      score -= 30; // Large penalty for frequently used
-    }
+    score += this.calculateFreshnessAdjustment(artifact, usageCount);
 
     // ===== RARITY BONUS (10 points max) =====
     // Rare artifacts get a small bonus for variety
@@ -197,6 +197,86 @@ export class ArtifactMatcher {
     score += rarityBonus[artifact.rarity] || 0;
 
     return Math.max(0, score); // Never negative
+  }
+
+  private calculateFreshnessAdjustment(artifact: ArtifactTemplate, userRecentUsage: number): number {
+    let adjustment = 0;
+
+    if (userRecentUsage === 0) adjustment += 12;
+    else if (userRecentUsage === 1) adjustment -= 18;
+    else adjustment -= 30;
+
+    if (artifact.recentUsageCount === 0) adjustment += 10;
+    else adjustment -= Math.min(18, artifact.recentUsageCount * 1.8);
+
+    if (artifact.totalUsageCount === 0) adjustment += 6;
+    else adjustment -= Math.min(12, artifact.totalUsageCount * 0.22);
+
+    const daysSinceLastUse = this.daysSince(artifact.lastUsedAt);
+    if (daysSinceLastUse !== null) {
+      if (daysSinceLastUse < 1) adjustment -= 10;
+      else if (daysSinceLastUse < 3) adjustment -= 7;
+      else if (daysSinceLastUse < 7) adjustment -= 4;
+      else if (daysSinceLastUse > 45) adjustment += 2;
+    }
+
+    return Math.max(-30, Math.min(24, adjustment));
+  }
+
+  private selectCandidateWithDiversity(
+    candidates: Array<{ artifact: ArtifactTemplate; score: number }>,
+    floorScore: number,
+    recentUsage: Map<string, number>
+  ): { artifact: ArtifactTemplate; score: number } {
+    if (candidates.length === 1) return candidates[0];
+
+    const weighted = candidates.map(candidate => {
+      const userRecentUsage = recentUsage.get(candidate.artifact.id) || 0;
+      const scoreWeight = Math.max(1, candidate.score - floorScore + 1);
+      const freshnessWeight = this.calculateSelectionFreshnessWeight(candidate.artifact, userRecentUsage);
+      return {
+        ...candidate,
+        weight: Math.max(0.05, scoreWeight * freshnessWeight),
+      };
+    });
+
+    const totalWeight = weighted.reduce((sum, candidate) => sum + candidate.weight, 0);
+    if (totalWeight <= 0) return weighted[0];
+
+    let roll = Math.random() * totalWeight;
+    for (const candidate of weighted) {
+      roll -= candidate.weight;
+      if (roll <= 0) {
+        return { artifact: candidate.artifact, score: candidate.score };
+      }
+    }
+
+    const fallback = weighted[weighted.length - 1];
+    return { artifact: fallback.artifact, score: fallback.score };
+  }
+
+  private calculateSelectionFreshnessWeight(artifact: ArtifactTemplate, userRecentUsage: number): number {
+    let weight = 1;
+
+    if (userRecentUsage > 0) weight *= 0.08;
+    weight *= 1 / (1 + artifact.recentUsageCount * 0.45);
+    weight *= 1 / (1 + artifact.totalUsageCount * 0.03);
+
+    const daysSinceLastUse = this.daysSince(artifact.lastUsedAt);
+    if (daysSinceLastUse !== null) {
+      if (daysSinceLastUse < 1) weight *= 0.35;
+      else if (daysSinceLastUse < 7) weight *= 0.65;
+      else if (daysSinceLastUse > 30) weight *= 1.1;
+    }
+
+    return Math.max(0.05, Math.min(2.5, weight));
+  }
+
+  private daysSince(date?: Date): number | null {
+    if (!date) return null;
+    const diff = Date.now() - date.getTime();
+    if (!Number.isFinite(diff) || diff < 0) return 0;
+    return diff / (1000 * 60 * 60 * 24);
   }
 
   /**

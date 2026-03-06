@@ -17,6 +17,7 @@ import {
   Sparkles,
   RefreshCw,
   Filter,
+  LogIn,
   X
 } from "lucide-react";
 
@@ -32,9 +33,22 @@ import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import {
+  TaleaActionButton,
+  TaleaLoadingState,
+  TaleaPageBackground,
+  TaleaSectionHeading,
+  taleaBodyFont,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaInputClass,
+  taleaInsetSurfaceClass,
+  taleaSurfaceClass,
+} from "@/components/talea/TaleaPastelPrimitives";
 
-const headingFont = '"Nunito", "Quicksand", "Fredoka", sans-serif';
-const bodyFont = '"Nunito", "Quicksand", "Fredoka", sans-serif';
+const headingFont = taleaDisplayFont;
+const bodyFont = taleaBodyFont;
 
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
@@ -152,22 +166,7 @@ function getStoryAvatarParticipants(story: Story): StoryAvatarFilterOption[] {
 
 // Organic floating background
 const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
-  <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-    {isDark ? (
-      <div className="absolute inset-0 bg-[#0f172a] transition-colors duration-500">
-        <motion.div animate={{ rotate: 360, x: [0, 50, 0], y: [0, -50, 0] }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }} className="absolute -top-[20%] -right-[10%] h-[70vh] w-[70vh] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-indigo-900/30 blur-[80px]" />
-        <motion.div animate={{ rotate: -360, x: [0, -30, 0], y: [0, 40, 0] }} transition={{ duration: 35, repeat: Infinity, ease: "linear" }} className="absolute top-[20%] -left-[10%] h-[60vh] w-[60vh] rounded-[60%_40%_30%_70%/50%_60%_40%_50%] bg-blue-900/20 blur-[100px]" />
-        <motion.div animate={{ scale: [1, 1.1, 1], x: [0, 20, 0] }} transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }} className="absolute -bottom-[20%] left-[20%] h-[80vh] w-[80vh] rounded-full bg-purple-900/20 blur-[100px]" />
-      </div>
-    ) : (
-      <div className="absolute inset-0 bg-[#f8fbff] transition-colors duration-500">
-        <motion.div animate={{ rotate: 360, x: [0, 30, 0], y: [0, -30, 0] }} transition={{ duration: 30, repeat: Infinity, ease: "linear" }} className="absolute -top-[10%] -right-[10%] h-[60vh] w-[60vh] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-pink-200/40 blur-[80px]" />
-        <motion.div animate={{ rotate: -360, x: [0, -40, 0], y: [0, 30, 0] }} transition={{ duration: 45, repeat: Infinity, ease: "linear" }} className="absolute top-[10%] -left-[10%] h-[50vh] w-[50vh] rounded-[60%_40%_30%_70%/50%_60%_40%_50%] bg-yellow-200/40 blur-[90px]" />
-        <motion.div animate={{ rotate: 180, scale: [1, 1.2, 1] }} transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }} className="absolute -bottom-[10%] left-[30%] h-[70vh] w-[70vh] rounded-[50%_50%_40%_60%/60%_40%_50%_50%] bg-cyan-200/40 blur-[100px]" />
-      </div>
-    )}
-    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjEiIGZpbGw9InJnYmEoMTI4LCAxMjgsIDEyOCwgMC4xKSIvPjwvc3ZnPg==')] opacity-50 dark:opacity-20" />
-  </div>
+  <TaleaPageBackground isDark={isDark} />
 );
 
 const PlayfulButton: React.FC<{
@@ -207,10 +206,11 @@ const BouncingLoader: React.FC = () => (
 );
 
 const LoadingState: React.FC = () => (
-  <div className="flex flex-col items-center justify-center py-20 gap-4">
-     <BouncingLoader />
-     <p className="text-slate-500 dark:text-slate-400 font-bold">Lade magische Geschichten...</p>
-  </div>
+  <TaleaLoadingState
+    title="Die Bibliothek ordnet ihre Geschichten"
+    subtitle="Einen Moment, die Story-Regale werden sortiert und die Filter vorbereitet."
+    icon={<BookOpen className="h-9 w-9" />}
+  />
 );
 
 const BentoBox: React.FC<{ children: React.ReactNode; className?: string; delay?: number; }> = ({ children, className, delay = 0 }) => {
@@ -231,7 +231,7 @@ const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; opt
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
-    className="h-12 w-full rounded-2xl border-4 border-white/80 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 px-4 text-sm font-bold text-slate-600 dark:text-slate-300 outline-none transition-all focus:border-indigo-300 dark:focus:border-indigo-500 cursor-pointer shadow-sm appearance-none"
+    className={cn(taleaInputClass, "cursor-pointer appearance-none")}
     aria-label={label}
   >
     <option value="all">Alle {label}</option>
@@ -244,7 +244,7 @@ const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; opt
 );
 
 const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => (
-  <span className={cn("inline-flex rounded-full border-2 px-3 py-1 text-[11px] font-bold uppercase tracking-wider shadow-sm", statusMeta[status].className)}>
+  <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm", statusMeta[status].className)}>
     {statusMeta[status].label}
   </span>
 );
@@ -271,24 +271,24 @@ const GridStoryCard: React.FC<{
       transition={{ delay: index * 0.05 }}
       whileHover={reduceMotion ? undefined : { y: -8, scale: 1.02 }}
       whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-      className="group cursor-pointer flex flex-col h-full bg-white dark:bg-slate-800 rounded-[2rem] border-4 border-slate-100 dark:border-slate-700 overflow-hidden shadow-[0_4px_20px_rgb(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgb(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow"
+      className={cn(taleaSurfaceClass, "group flex h-full cursor-pointer flex-col overflow-hidden border-0 transition-shadow hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]")}
       onClick={onRead}
     >
       <div className="relative h-56 w-full p-2 shrink-0">
-        <div className="w-full h-full rounded-[1.5rem] overflow-hidden relative">
+        <div className={cn(taleaInsetSurfaceClass, "relative h-full w-full overflow-hidden rounded-[26px] border-0 p-2")}>
           <ProgressiveImage
             src={story.coverImageUrl}
             alt={story.title}
             revealDelayMs={index * 35}
             containerClassName="w-full h-full"
-            imageClassName="transition-transform duration-700 ease-out group-hover:scale-110 object-cover"
+            imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             fallback={
-              <div className="flex h-full w-full items-center justify-center bg-indigo-50 dark:bg-slate-700/50 text-indigo-300">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f7dfe9_0%,#dff0ff_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(92,68,97,0.48)_0%,rgba(53,82,116,0.4)_100%)] dark:text-slate-100">
                 <BookOpen className="h-14 w-14" />
               </div>
             }
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent opacity-80" />
+          <div className="absolute inset-2 rounded-[18px] bg-gradient-to-t from-black/40 via-black/10 to-transparent opacity-80" />
         </div>
 
         <div className="absolute left-4 top-4">
@@ -297,31 +297,31 @@ const GridStoryCard: React.FC<{
 
         <div className="absolute right-4 top-4 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
           {canSaveOffline && story.status === "complete" && onToggleOffline && (
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-xl border-2 border-white/20 bg-black/40 backdrop-blur-md p-2 text-white hover:bg-black/60 shadow-sm">
+            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
               {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-400" /> : <Bookmark className="h-4 w-4" />}
             </motion.button>
           )}
           {canDownload && story.status === "complete" && (
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-xl border-2 border-white/20 bg-black/40 backdrop-blur-md p-2 text-white hover:bg-black/60 shadow-sm">
+            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
               {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </motion.button>
           )}
-          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-xl border-2 border-white/20 bg-rose-500/80 backdrop-blur-md p-2 text-white hover:bg-rose-600 shadow-sm">
+          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-white/20 bg-[#7d434f]/82 backdrop-blur-md p-2 text-white hover:bg-[#8f4c5a] shadow-sm">
             <Trash2 className="h-4 w-4" />
           </motion.button>
         </div>
       </div>
 
       <div className="p-5 flex-1 flex flex-col">
-        <h3 className="line-clamp-2 text-xl font-bold text-slate-800 dark:text-neutral-100 leading-tight" style={{ fontFamily: headingFont }}>{story.title}</h3>
-        <p className="line-clamp-2 text-sm text-slate-500 dark:text-slate-400 font-semibold mt-3 flex-1 leading-relaxed">
+        <h3 className="line-clamp-2 text-xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
+        <p className="mt-3 flex-1 line-clamp-2 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
           {getStoryPreviewText(story)}
         </p>
 
-        <div className="mt-5 pt-5 border-t-2 border-slate-100 dark:border-slate-700/50 flex flex-col gap-3">
+        <div className="mt-5 flex flex-col gap-3 border-t border-[#efe4da] pt-5 dark:border-white/10">
           <StoryParticipantsDialog story={story} maxVisible={4} />
           <div className="flex justify-between items-center">
-             <span className="text-xs font-bold text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-700/50 px-3 py-1 rounded-lg">{formatDate(story.createdAt)}</span>
+             <span className="rounded-full border border-white/80 bg-white/86 px-3 py-1 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{formatDate(story.createdAt)}</span>
           </div>
         </div>
       </div>
@@ -354,16 +354,16 @@ const ListStoryRow: React.FC<{
       onClick={onRead}
       className="group cursor-pointer"
     >
-      <div className="bg-white dark:bg-slate-800 rounded-[2rem] border-4 border-slate-100 dark:border-slate-700 shadow-[0_4px_20px_rgb(0,0,0,0.05)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-all duration-300 overflow-hidden flex flex-col sm:flex-row p-2 gap-4">
-        <div className="relative h-48 sm:h-auto sm:w-64 shrink-0 rounded-[1.5rem] overflow-hidden">
+      <div className={cn(taleaSurfaceClass, "flex flex-col gap-4 overflow-hidden border-0 p-2 transition-all duration-300 hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)] sm:flex-row")}>
+        <div className={cn(taleaInsetSurfaceClass, "relative h-48 shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:h-auto sm:w-64")}>
           <ProgressiveImage
             src={story.coverImageUrl}
             alt={story.title}
             revealDelayMs={index * 30}
             containerClassName="w-full h-full"
-            imageClassName="transition-transform duration-700 ease-out group-hover:scale-105 object-cover"
+            imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             fallback={
-              <div className="flex h-full w-full items-center justify-center bg-indigo-50 dark:bg-slate-700/50 text-indigo-300">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f7dfe9_0%,#dff0ff_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(92,68,97,0.48)_0%,rgba(53,82,116,0.4)_100%)] dark:text-slate-100">
                 <BookOpen className="h-10 w-10" />
               </div>
             }
@@ -372,37 +372,388 @@ const ListStoryRow: React.FC<{
 
         <div className="flex flex-1 flex-col py-4 pr-4">
           <div className="flex items-start justify-between gap-4">
-            <h3 className="line-clamp-2 text-2xl font-bold text-slate-800 dark:text-neutral-100 leading-tight" style={{ fontFamily: headingFont }}>{story.title}</h3>
+            <h3 className="line-clamp-2 text-2xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
             <div className="flex items-center gap-2 shrink-0">
               <StoryStatusChip status={story.status} />
               
               <div className="hidden sm:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 {canSaveOffline && story.status === "complete" && onToggleOffline && (
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                     {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
                   </motion.button>
                 )}
                 {canDownload && story.status === "complete" && (
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
+                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                     {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   </motion.button>
                 )}
-                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-xl border-2 border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900/50 p-2 text-rose-500 hover:bg-rose-100 hover:text-rose-600">
+                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2 text-[#a14b5e] dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]">
                   <Trash2 className="h-4 w-4" />
                 </motion.button>
               </div>
             </div>
           </div>
           
-          <p className="mt-3 line-clamp-2 text-base text-slate-500 dark:text-slate-400 font-semibold leading-relaxed">{getStoryPreviewText(story)}</p>
+          <p className="mt-3 line-clamp-2 text-base font-medium leading-7 text-slate-600 dark:text-slate-300">{getStoryPreviewText(story)}</p>
           
-          <div className="mt-auto pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t-2 border-slate-50 dark:border-slate-700/50">
+          <div className="mt-auto flex flex-col gap-4 border-t border-[#efe4da] pt-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
             <StoryParticipantsDialog story={story} maxVisible={5} />
-            <span className="text-sm font-bold text-slate-400 bg-slate-50 dark:bg-slate-700 px-3 py-1.5 rounded-xl self-start sm:self-auto">{formatDate(story.createdAt)}</span>
+            <span className="self-start rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 sm:self-auto">{formatDate(story.createdAt)}</span>
           </div>
         </div>
       </div>
     </motion.article>
+  );
+};
+
+const PremiumStoriesSignedOut: React.FC = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex min-h-[78vh] items-center justify-center px-4 py-10">
+      <div className={cn(taleaSurfaceClass, "w-full max-w-5xl overflow-hidden p-3 md:p-4")}>
+        <div className="grid gap-4 lg:grid-cols-[1.06fr_0.94fr]">
+          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-8 p-8 md:p-10")}>
+            <div>
+              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 rounded-2xl object-cover" />
+                Talea Bibliothek
+              </span>
+              <h1 className="mt-8 text-[2.8rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
+                Die Stories bekommen eine echte Bibliotheksansicht statt Standardraster.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+                Sanfte Pastellflaechen, kuratierte Story-Bereiche, klares Filtern und ruhige Bewegungen machen die Seite hochwertiger und entspannter.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <TaleaActionButton icon={<LogIn className="h-4 w-4" />} onClick={() => navigate("/auth")}>
+                Jetzt anmelden
+              </TaleaActionButton>
+              <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => navigate("/auth")}>
+                Bibliothek betreten
+              </TaleaActionButton>
+            </div>
+          </div>
+
+          <div className="grid gap-4">
+            {[
+              "Featured Story statt standardmaessiger erster Karte",
+              "Filterleiste mit mehr Ruhe und besserer Hierarchie",
+              "Sanfte Reaktionen fuer Suche, Laden und Layoutwechsel",
+            ].map((item) => (
+              <div key={item} className={cn(taleaSurfaceClass, "p-6")}>
+                <p className="text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+type StoriesSignedInContentProps = {
+  contentTab: ContentTab;
+  setContentTab: (value: ContentTab) => void;
+  total: number;
+  completeCount: number;
+  generatingCount: number;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  viewMode: ViewMode;
+  setViewMode: (value: ViewMode) => void;
+  showFilters: boolean;
+  setShowFilters: (value: boolean) => void;
+  sortMode: SortMode;
+  setSortMode: (value: SortMode) => void;
+  genreFilter: string;
+  setGenreFilter: (value: string) => void;
+  ageGroupFilter: string;
+  setAgeGroupFilter: (value: string) => void;
+  lengthFilter: string;
+  setLengthFilter: (value: string) => void;
+  avatarFilter: string;
+  setAvatarFilter: (value: string) => void;
+  genreFilterOptions: { label: string; value: string }[];
+  ageGroupFilterOptions: { label: string; value: string }[];
+  lengthFilterOptions: { label: string; value: string }[];
+  avatarFilterOptions: { label: string; value: string }[];
+  filteredStories: Story[];
+  loading: boolean;
+  hasActiveFilters: boolean;
+  isDesktop: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
+  observerTarget: React.RefObject<HTMLDivElement | null>;
+  isAdmin: boolean;
+  downloadingStoryId: string | null;
+  canUseOffline: boolean;
+  isStorySaved: (storyId: string) => boolean;
+  isSaving: (storyId: string) => boolean;
+  toggleStory: (storyId: string) => void;
+  onDeleteStory: (storyId: string, title: string) => void;
+  onDownloadPdf: (storyId: string, status: Story["status"], event: React.MouseEvent<HTMLButtonElement>) => void;
+  onResetFilters: () => void;
+  onRefresh: () => void;
+  goTo: (path: string) => void;
+};
+
+const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
+  contentTab,
+  setContentTab,
+  total,
+  completeCount,
+  generatingCount,
+  searchQuery,
+  setSearchQuery,
+  viewMode,
+  setViewMode,
+  showFilters,
+  setShowFilters,
+  sortMode,
+  setSortMode,
+  genreFilter,
+  setGenreFilter,
+  ageGroupFilter,
+  setAgeGroupFilter,
+  lengthFilter,
+  setLengthFilter,
+  avatarFilter,
+  setAvatarFilter,
+  genreFilterOptions,
+  ageGroupFilterOptions,
+  lengthFilterOptions,
+  avatarFilterOptions,
+  filteredStories,
+  loading,
+  hasActiveFilters,
+  isDesktop,
+  loadingMore,
+  hasMore,
+  observerTarget,
+  isAdmin,
+  downloadingStoryId,
+  canUseOffline,
+  isStorySaved,
+  isSaving,
+  toggleStory,
+  onDeleteStory,
+  onDownloadPdf,
+  onResetFilters,
+  onRefresh,
+  goTo,
+}) => {
+  const featuredStory = filteredStories[0];
+  const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
+  const showFilterPanel = isDesktop || showFilters;
+
+  return (
+    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
+      <div className={cn(taleaSurfaceClass, "p-6 md:p-8 lg:p-10")}>
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-3xl">
+            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+              Talea Bibliothek
+            </span>
+            <h1 className="mt-5 text-[2.7rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[4rem]" style={{ fontFamily: headingFont }}>
+              Geschichten brauchen mehr als ein Grid.
+            </h1>
+            <p className="mt-5 text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+              Die Seite fuehrt jetzt mit einer grossen Titelbuehne, ruhigen Steuerflaechen und einer klaren Dramaturgie vom Featured-Moment bis zur letzten Karte.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
+              Neu laden
+            </TaleaActionButton>
+            <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
+              Neue Story
+            </TaleaActionButton>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-5 py-3 text-sm font-semibold transition", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+            Meine Stories
+          </button>
+          <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-5 py-3 text-sm font-semibold transition", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+            Talea Studio
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Gesamt</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{total}</p></div>
+          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Fertig</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{completeCount}</p></div>
+          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">In Arbeit</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{generatingCount}</p></div>
+        </div>
+      </div>
+
+      {contentTab === "stories" ? (
+        <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
+          <div className="w-full xl:w-80 xl:shrink-0 xl:sticky xl:top-24">
+            <div className="flex items-center gap-3 xl:hidden">
+              <TaleaActionButton variant="secondary" className="flex-1" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)}>
+                Filter
+              </TaleaActionButton>
+              <div className={cn(taleaSurfaceClass, "flex gap-1 p-1")}>
+                <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-white/90 text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
+                <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-white/90 text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
+              </div>
+            </div>
+
+            <AnimatePresence>
+              {showFilterPanel ? (
+                <motion.div initial={{ opacity: 0, height: isDesktop ? "auto" : 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                  <div className={cn(taleaSurfaceClass, "mt-3 p-5 xl:mt-0")}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Kuratiere deine Ansicht</p>
+                      {hasActiveFilters ? (
+                        <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-[#a65769] dark:text-[#ffb7c3]">
+                          Zuruecksetzen
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      <FilterSelect label="Sortierung" value={sortMode} onChange={(value) => setSortMode(value as SortMode)} options={[{ value: "newest", label: "Neueste zuerst" }, { value: "oldest", label: "Aelteste zuerst" }, { value: "title", label: "Titel A-Z" }]} />
+                      <FilterSelect label="Genre" value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} />
+                      <FilterSelect label="Altersgruppe" value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} />
+                      <FilterSelect label="Laenge" value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} />
+                      <FilterSelect label="Teilnehmer" value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} />
+                    </div>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className={cn(taleaSurfaceClass, "p-5 md:p-6")}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex-1">
+                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Story suchen..." className={cn(taleaInputClass, "pl-11 pr-4")} />
+                </div>
+                <div className="hidden xl:flex gap-1 rounded-full border border-white/80 bg-white/86 p-1 dark:border-white/10 dark:bg-white/5">
+                  <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[#f5dce8] text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-[#f5dce8] text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
+                </div>
+              </div>
+            </div>
+
+            {featuredStory ? (
+              <div className="mt-6">
+                <TaleaSectionHeading eyebrow="Featured Story" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
+              </div>
+            ) : null}
+
+            <div className="mt-6" role="status" aria-live="polite">
+              {loading ? (
+                <LoadingState />
+              ) : filteredStories.length === 0 ? (
+                <div className={cn(taleaSurfaceClass, "p-10 text-center")}>
+                  <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                    {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
+                  </h3>
+                  <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                    {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Die erste Geschichte wird hier als grosser Einstieg erscheinen."}
+                  </p>
+                  <div className="mt-6 flex justify-center">
+                    <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
+                      {hasActiveFilters ? "Filter zuruecksetzen" : "Erste Story erstellen"}
+                    </TaleaActionButton>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {featuredStory ? (
+                    <GridStoryCard
+                      story={featuredStory}
+                      index={0}
+                      onRead={() => goTo(`/story-reader/${featuredStory.id}`)}
+                      onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
+                      canDownload={isAdmin}
+                      onDownloadPdf={(event) => onDownloadPdf(featuredStory.id, featuredStory.status, event)}
+                      isDownloading={downloadingStoryId === featuredStory.id}
+                      canSaveOffline={canUseOffline}
+                      isSavedOffline={isStorySaved(featuredStory.id)}
+                      isSavingOffline={isSaving(featuredStory.id)}
+                      onToggleOffline={(event) => {
+                        event.stopPropagation();
+                        toggleStory(featuredStory.id);
+                      }}
+                    />
+                  ) : null}
+
+                  <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3" : "flex flex-col gap-6")}>
+                    {shelfStories.map((story, index) =>
+                      viewMode === "grid" ? (
+                        <GridStoryCard
+                          key={story.id}
+                          story={story}
+                          index={index + 1}
+                          onRead={() => goTo(`/story-reader/${story.id}`)}
+                          onDelete={() => onDeleteStory(story.id, story.title)}
+                          canDownload={isAdmin}
+                          onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                          isDownloading={downloadingStoryId === story.id}
+                          canSaveOffline={canUseOffline}
+                          isSavedOffline={isStorySaved(story.id)}
+                          isSavingOffline={isSaving(story.id)}
+                          onToggleOffline={(event) => {
+                            event.stopPropagation();
+                            toggleStory(story.id);
+                          }}
+                        />
+                      ) : (
+                        <ListStoryRow
+                          key={story.id}
+                          story={story}
+                          index={index + 1}
+                          onRead={() => goTo(`/story-reader/${story.id}`)}
+                          onDelete={() => onDeleteStory(story.id, story.title)}
+                          canDownload={isAdmin}
+                          onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                          isDownloading={downloadingStoryId === story.id}
+                          canSaveOffline={canUseOffline}
+                          isSavedOffline={isStorySaved(story.id)}
+                          isSavingOffline={isSaving(story.id)}
+                          onToggleOffline={(event) => {
+                            event.stopPropagation();
+                            toggleStory(story.id);
+                          }}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {hasMore && !loading ? (
+              <div ref={observerTarget} className="mt-12 flex justify-center">
+                {loadingMore ? (
+                  <div className={cn(taleaSurfaceClass, "inline-flex items-center gap-3 px-6 py-4 text-sm font-semibold text-slate-700 dark:text-slate-100")}>
+                    <Clock3 className="h-4 w-4 animate-spin" />
+                    Mehr Stories laden...
+                  </div>
+                ) : (
+                  <div className="h-10" />
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className={cn(taleaSurfaceClass, "p-2")}>
+          <div className={cn(taleaInsetSurfaceClass, "p-0")}>
+            <TaleaStudioWorkspace />
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -418,6 +769,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
+  const isDesktop = useMediaQuery("(min-width: 1280px)");
 
   const [stories, setStories] = useState<Story[]>([]);
   const [contentTab, setContentTab] = useState<ContentTab>("stories");
@@ -579,19 +931,66 @@ const TaleaStoriesScreen: React.FC = () => {
       <KidsAppBackground isDark={isDark} />
 
       <SignedOut>
-        <div className="flex min-h-[80vh] items-center justify-center p-4">
-           <BentoBox className="max-w-md w-full text-center p-10 flex flex-col items-center gap-6">
-             <div className="w-20 h-20 bg-indigo-100 dark:bg-slate-700 text-indigo-500 rounded-3xl flex items-center justify-center mb-2 shadow-inner">
-               <BookOpen className="w-10 h-10" />
-             </div>
-             <h1 className="text-3xl font-extrabold text-slate-800 dark:text-neutral-100" style={{ fontFamily: headingFont }}>Willkommen in der Bibliothek</h1>
-             <p className="text-slate-500 dark:text-slate-400 font-semibold mb-2">Melde dich an, um all deine zauberhaften Geschichten zu verwalten und auf Abenteuerreise zu gehen.</p>
-             <PlayfulButton onClick={() => navigate("/auth")} className="w-full text-lg">Jetzt Anmelden</PlayfulButton>
-           </BentoBox>
-        </div>
+        <PremiumStoriesSignedOut />
       </SignedOut>
 
       <SignedIn>
+        <StoriesSignedInContent
+          contentTab={contentTab}
+          setContentTab={setContentTab}
+          total={total}
+          completeCount={completeCount}
+          generatingCount={generatingCount}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          showFilters={showFilters}
+          setShowFilters={setShowFilters}
+          sortMode={sortMode}
+          setSortMode={setSortMode}
+          genreFilter={genreFilter}
+          setGenreFilter={setGenreFilter}
+          ageGroupFilter={ageGroupFilter}
+          setAgeGroupFilter={setAgeGroupFilter}
+          lengthFilter={lengthFilter}
+          setLengthFilter={setLengthFilter}
+          avatarFilter={avatarFilter}
+          setAvatarFilter={setAvatarFilter}
+          genreFilterOptions={genreFilterOptions}
+          ageGroupFilterOptions={ageGroupFilterOptions}
+          lengthFilterOptions={lengthFilterOptions}
+          avatarFilterOptions={avatarFilterOptions}
+          filteredStories={filteredStories}
+          loading={loading}
+          hasActiveFilters={hasActiveFilters}
+          isDesktop={isDesktop}
+          loadingMore={loadingMore}
+          hasMore={hasMore}
+          observerTarget={observerTarget}
+          isAdmin={isAdmin}
+          downloadingStoryId={downloadingStoryId}
+          canUseOffline={canUseOffline}
+          isStorySaved={isStorySaved}
+          isSaving={isSaving}
+          toggleStory={toggleStory}
+          onDeleteStory={handleDeleteStory}
+          onDownloadPdf={handleDownloadPdf}
+          onResetFilters={() => {
+            setSearchQuery("");
+            setGenreFilter("all");
+            setAgeGroupFilter("all");
+            setLengthFilter("all");
+            setAvatarFilter("all");
+          }}
+          onRefresh={() => {
+            if (contentTab === "stories") {
+              void loadStories();
+            }
+          }}
+          goTo={navigate}
+        />
+        {false && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 flex flex-col gap-8">
           
           {/* Header Bento */}
@@ -751,6 +1150,7 @@ const TaleaStoriesScreen: React.FC = () => {
           )}
 
         </div>
+        )}
       </SignedIn>
     </div>
   );
