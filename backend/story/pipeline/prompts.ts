@@ -1517,7 +1517,7 @@ export function buildChapterExpansionPrompt(input: {
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const missingLine = requiredCharacters?.length
-    ? `\n ** MISSING CHARACTERS(MUST BE INCLUDED WITH FOCUS):** ${requiredCharacters.join(", ")} \nName each missing character doing a short concrete action.Total limit remains max ${focusMaxActive} active characters.`
+    ? `\n** MISSING CHARACTERS (ADD WITH MINIMAL CHANGES):** ${requiredCharacters.join(", ")}\nAdd 1-2 short sentences per missing character (a brief action + one dialogue line). Do NOT rewrite the existing text — only INSERT the new character. Total limit remains max ${focusMaxActive} active characters.`
     : "";
 
   const contextLines = [
@@ -1526,10 +1526,12 @@ export function buildChapterExpansionPrompt(input: {
   ].filter(Boolean).join("\n");
 
   return `# TASK
-Expand the chapter without changing the plot.Show, don't tell!
-  IMPORTANT: Vivid prose! Concrete details(smell, taste, feel), dialogue - humor, sentence variation.
-No feeling - diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
-Target quality: published children's fiction (concrete action, distinct voices, emotional subtext), never report-style prose.
+Expand the chapter without changing the plot. Show, don't tell!
+IMPORTANT: Keep sentences SHORT. Average 10 words per sentence, NEVER over 15.
+Add dialogue (at least 30% of text must be dialogue) and body-action, NOT longer descriptions.
+No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
+Target quality: published children's fiction (Preußler/Lindgren level). Short punchy sentences, humor, body reactions.
+DO NOT make existing sentences longer. Instead: ADD new short dialogue lines and brief action beats.
 
 # SCENE
     - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
@@ -1546,10 +1548,10 @@ ${missingLine}
   1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
 2. No new characters.
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
-  4. No meta - labels in the text.NEVER copy the Goal, Conflict, or Setting text directly into the story.
-5. Chapter rhythm: short / fast -> calm / emotional -> short / fast.
-6. At least 1 inner child - moment of ${emotionalFocus} (body signal + thought).
-  7. Expand via concrete action + 2 - 3 dialogue lines.
+  4. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
+5. SENTENCE LENGTH: Average 10 words per sentence. Max 15 words. Rhythm: Short. Short. One slightly longer sentence. Short again.
+6. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
+7. Expand by ADDING short dialogue lines and brief action beats — NOT by making existing sentences longer.
 8. Max 1 comparison per paragraph, no metaphor chains.
 9. No preview, meta or summary sentences.
 10. No explanatory sentences about object rules.

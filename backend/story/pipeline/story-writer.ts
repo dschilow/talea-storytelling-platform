@@ -25,7 +25,9 @@ const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded.
 // (Niedrigerer Wert = weniger Expand-Calls)
-const HARD_MIN_CHAPTER_WORDS = 210;
+// Lowered from 210: Gemini Flash generates ~200-word chapters which are fine for age 6-8.
+// At 210, almost every chapter triggered unnecessary expand calls that bloated prose.
+const HARD_MIN_CHAPTER_WORDS = 180;
 
 // Nur Rewrites bei ERRORs durchführen, WARNINGs standardmäßig nicht full-rewrite treiben.
 const REWRITE_ONLY_ON_ERRORS = true;
@@ -238,7 +240,8 @@ Write flowing paragraphs, not single-sentence chains. Show emotions through body
 Each character must sound different. 25-40% dialogue anchored to action.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
-    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
+    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.
+CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by adding dialogue and action beats, NOT by making sentences longer or more descriptive.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
@@ -388,7 +391,7 @@ ${storyLanguageRule}`.trim();
           maxTokens: blueprintMaxTokens,
           temperature: 0.5,
           reasoningEffort: "low",
-          thinkingBudget: resolveGeminiThinkingBudget("full"),
+          thinkingBudget: resolveGeminiThinkingBudget("expand"),
           context: "story-writer-blueprint",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },

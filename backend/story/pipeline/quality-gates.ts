@@ -2458,10 +2458,14 @@ function gateChildMistakeArc(
     ? [
       /\b(?:fehler|falsch|verschuldet|schuld|dummer?|dummerweise|hätte\s+nicht|sollte\s+nicht|warum\s+(?:nur|hab|habe)|zu\s+schnell|zu\s+ungeduldig|ohne\s+nachzudenken|voreilig|übermütig)\b/i,
       /\b(?:kaputt|zerbrochen|zerriss|verloren|vergessen|verschüttet|umgeworfen|fallen\s+gelassen|zerstört|ruiniert)\b/i,
+      /\b(?:verschenkt|eingetauscht|weggegeben|hergegeben|verraten|getauscht|abgegeben|preisgegeben)\b/i,
+      /\b(?:nicht\s+(?:zuhören|aufpassen|nachdenken)|ignoriert|übersehen|überhört|missachtet)\b/i,
     ]
     : [
       /\b(?:mistake|wrong|fault|shouldn't\s+have|shouldn't\s+have|why\s+did\s+I|too\s+fast|too\s+impatient|without\s+thinking|reckless|overconfident)\b/i,
       /\b(?:broke|broken|tore|lost|forgot|spilled|knocked\s+over|dropped|destroyed|ruined)\b/i,
+      /\b(?:gave\s+away|traded|handed\s+over|betrayed|swapped|surrendered)\b/i,
+      /\b(?:didn't\s+(?:listen|pay\s+attention|think)|ignored|overlooked|missed)\b/i,
     ];
 
   const hasMistakeIndicator = mistakePatterns.some(p => p.test(text));
