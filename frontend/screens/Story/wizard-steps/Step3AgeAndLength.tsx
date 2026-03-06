@@ -53,18 +53,18 @@ const models: ModelOption[] = [
   },
   {
     id: 'gemini-3.1-pro-preview',
-    title: 'Gemini 3.1 Pro Preview',
-    subtitle: 'Google AI',
+    title: 'Gemini 3.1 Pro',
+    subtitle: 'Beste Kinderbuch-Qualität',
     cost: 'Preview',
     tone: '#8d7f6c',
+    recommended: true,
   },
   {
     id: 'gemini-3-flash-preview',
     title: 'Gemini 3 Flash',
-    subtitle: 'Google AI',
+    subtitle: 'Schnell & kostenlos',
     cost: 'FREE',
     tone: '#b79f8e',
-    recommended: true,
   },
   {
     id: 'gpt-5-nano',

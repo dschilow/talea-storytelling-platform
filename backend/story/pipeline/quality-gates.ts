@@ -463,7 +463,7 @@ function gateRepetitionLimiter(
 
   const bannedWordPatterns = isDE
     ? [
-      { token: "plötzlich", regex: /\bpl(?:ö|oe|o)tzlich\b/gi, maxPerChapter: 0, hard: false },
+      { token: "plötzlich", regex: /\bpl(?:ö|oe|o)tzlich\b/gi, maxPerChapter: 0, hard: true },
       { token: "irgendwie", regex: /\birgendwie\b/gi, maxPerChapter: 0, hard: false },
       { token: "ein bisschen", regex: /\bein\s+bisschen\b/gi, maxPerChapter: 1, hard: false },
       { token: "ziemlich", regex: /\bziemlich\b/gi, maxPerChapter: 1, hard: false },

@@ -1517,7 +1517,7 @@ export function buildChapterExpansionPrompt(input: {
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
   const missingLine = requiredCharacters?.length
-    ? `\n** MISSING CHARACTERS (ADD WITH MINIMAL CHANGES):** ${requiredCharacters.join(", ")}\nAdd 1-2 short sentences per missing character (a brief action + one dialogue line). Do NOT rewrite the existing text — only INSERT the new character. Total limit remains max ${focusMaxActive} active characters.`
+    ? `\n** MISSING CHARACTERS (ADD WITH MINIMAL CHANGES):** ${requiredCharacters.join(", ")}\nFor each missing character: INSERT 2-3 sentences that CONNECT to the existing action. The character must REACT to what just happened or CONTRIBUTE to the current goal — not just appear randomly. Include one body action + one dialogue line that reveals personality. Do NOT rewrite the existing text. Total limit remains max ${focusMaxActive} active characters.`
     : "";
 
   const contextLines = [
@@ -1755,13 +1755,19 @@ export function buildStoryChapterRevisionPrompt(input: {
     nextContext ? `- Next chapter starts with: "${nextContext}"` : "",
   ].filter(Boolean).join("\n");
 
-  return `Revise the chapter below to satisfy the rules without losing the plot. Write the output in ${isGerman ? "German" : language}.
+  return `Revise the chapter below to fix ONLY the listed issues. Write the output in ${isGerman ? "German" : language}.
 Target quality: published children's fiction (concrete action, distinct voices, emotional subtext), never report-style prose.
 
-ISSUES:
+CRITICAL PLOT PRESERVATION:
+- Keep the SAME events, characters, dialogue, and ending as the original.
+- You may ADD lines, REPHRASE sentences, or REMOVE weak phrases.
+- You must NOT replace the plot, invent new scenes, or change what happens.
+- The revised chapter must be recognizably the same story as the original.
+
+ISSUES TO FIX:
 ${issueList}
 
-SCENE DIRECTIVE:
+SCENE DIRECTIVE (for context only — do NOT rewrite the chapter to match this):
 - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}
 - Mood: ${chapter.mood ?? "COZY"}
 - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}

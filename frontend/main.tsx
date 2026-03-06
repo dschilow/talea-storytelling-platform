@@ -90,7 +90,6 @@ async function unregisterServiceWorkersAndClearCaches(): Promise<void> {
   await Promise.allSettled([
     deleteIndexedDb("workbox-expiration"),
     deleteIndexedDb("workbox-precache-v2"),
-    deleteIndexedDb("talea-offline"),
   ]);
 }
 

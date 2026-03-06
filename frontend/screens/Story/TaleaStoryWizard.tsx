@@ -296,7 +296,7 @@ export default function TaleaStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: customTags ? `Thema: ${customTags}` : '',
-    aiModel: 'gemini-3-flash-preview',
+    aiModel: 'gemini-3.1-pro-preview',
   });
 
   useEffect(() => {
@@ -304,8 +304,8 @@ export default function TaleaStoryWizard() {
   }, [i18n.language]);
 
   useEffect(() => {
-    if (!isAdmin && state.aiModel !== 'gemini-3-flash-preview') {
-      setState((prev) => ({ ...prev, aiModel: 'gemini-3-flash-preview' }));
+    if (!isAdmin && state.aiModel !== 'gemini-3.1-pro-preview') {
+      setState((prev) => ({ ...prev, aiModel: 'gemini-3.1-pro-preview' }));
     }
   }, [isAdmin, state.aiModel]);
 
@@ -640,7 +640,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin: 
     hasTwist: state.surpriseEnd,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
-    aiModel: isAdmin ? state.aiModel : 'gemini-3-flash-preview',
+    aiModel: isAdmin ? state.aiModel : 'gemini-3.1-pro-preview',
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },

@@ -66,6 +66,33 @@ let dbOpenPromise: Promise<IDBPDatabase<TaleaOfflineDB>> | null = null;
 let dbDisabled = false;
 let hasWarnedUnavailable = false;
 
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' ? message : String(error);
+  }
+  return String(error);
+}
+
+function getErrorName(error: unknown): string {
+  if (error && typeof error === 'object' && 'name' in error) {
+    const name = (error as { name?: unknown }).name;
+    return typeof name === 'string' ? name : '';
+  }
+  return '';
+}
+
+function resetDbConnection(): void {
+  try {
+    dbInstance?.close();
+  } catch {
+    // no-op
+  }
+  dbInstance = null;
+  dbOpenPromise = null;
+}
+
 function warnOfflineUnavailable(error: unknown): void {
   if (hasWarnedUnavailable) return;
   hasWarnedUnavailable = true;
@@ -74,32 +101,43 @@ function warnOfflineUnavailable(error: unknown): void {
 
 function markDbUnavailable(error: unknown): void {
   dbDisabled = true;
-  try {
-    dbInstance?.close();
-  } catch {
-    // no-op
-  }
-  dbInstance = null;
+  resetDbConnection();
   warnOfflineUnavailable(error);
 }
 
 function isRecoverableDbError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error).toLowerCase();
+  const name = getErrorName(error).toLowerCase();
   return (
-    message.includes('UnknownError') ||
-    message.includes('Internal error') ||
-    message.includes('VersionError') ||
-    message.includes('InvalidStateError') ||
-    message.includes('QuotaExceededError') ||
-    message.includes('FILE_ERROR_NO_SPACE')
+    name === 'unknownerror' ||
+    name === 'versionerror' ||
+    name === 'invalidstateerror' ||
+    name === 'quotaexceedederror' ||
+    message.includes('unknownerror') ||
+    message.includes('internal error') ||
+    message.includes('versionerror') ||
+    message.includes('invalidstateerror') ||
+    message.includes('quotaexceedederror') ||
+    message.includes('file_error_no_space') ||
+    message.includes('database connection is closing')
   );
 }
 
 function isDbUnavailableError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   return (
     message.includes('Offline storage is unavailable') ||
     isRecoverableDbError(error)
+  );
+}
+
+function isDbConnectionClosingError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  const name = getErrorName(error).toLowerCase();
+  return (
+    name === 'invalidstateerror' ||
+    message.includes('database connection is closing') ||
+    message.includes('the database connection is closing')
   );
 }
 
@@ -111,6 +149,19 @@ async function withDbReadFallback<T>(
     const db = await getDb();
     return await reader(db);
   } catch (error) {
+    if (isDbConnectionClosingError(error)) {
+      resetDbConnection();
+      try {
+        const db = await getDb();
+        return await reader(db);
+      } catch (retryError) {
+        if (isDbUnavailableError(retryError)) {
+          markDbUnavailable(retryError);
+          return fallback;
+        }
+        throw retryError;
+      }
+    }
     if (isDbUnavailableError(error)) {
       markDbUnavailable(error);
       return fallback;
@@ -126,6 +177,20 @@ async function withDbWriteFallback(
     const db = await getDb();
     await writer(db);
   } catch (error) {
+    if (isDbConnectionClosingError(error)) {
+      resetDbConnection();
+      try {
+        const db = await getDb();
+        await writer(db);
+        return;
+      } catch (retryError) {
+        if (isDbUnavailableError(retryError)) {
+          markDbUnavailable(retryError);
+          return;
+        }
+        throw retryError;
+      }
+    }
     if (isDbUnavailableError(error)) {
       markDbUnavailable(error);
       return;
@@ -159,6 +224,10 @@ async function openOfflineDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
   });
 
   db.onversionchange = () => {
+    if (dbInstance === db) {
+      dbInstance = null;
+      dbOpenPromise = null;
+    }
     db.close();
   };
   return db;
@@ -182,8 +251,7 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
       }
 
       console.warn('[Offline] IndexedDB corrupted, trying database reset...');
-      dbInstance?.close();
-      dbInstance = null;
+      resetDbConnection();
 
       try {
         await deleteDB(DB_NAME);
@@ -490,10 +558,17 @@ export async function getAllOfflineGeneratedAudios(): Promise<GeneratedAudioLibr
 
 export async function getBlobUrl(originalUrl: string): Promise<string | null> {
   return withDbReadFallback(null, async (db) => {
-    const entry = await db.get('offline-blobs', originalUrl);
-    if (!entry) return null;
-    return URL.createObjectURL(entry.blob);
+    return getBlobUrlForDb(db, originalUrl);
   });
+}
+
+async function getBlobUrlForDb(
+  db: IDBPDatabase<TaleaOfflineDB>,
+  originalUrl: string
+): Promise<string | null> {
+  const entry = await db.get('offline-blobs', originalUrl);
+  if (!entry) return null;
+  return URL.createObjectURL(entry.blob);
 }
 
 export async function getOfflineStory(storyId: string): Promise<Story | null> {
@@ -506,7 +581,7 @@ export async function getOfflineStory(storyId: string): Promise<Story | null> {
 
     // Replace cover image
     if (story.coverImageUrl) {
-      const blobUrl = await getBlobUrl(story.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, story.coverImageUrl);
       if (blobUrl) story.coverImageUrl = blobUrl;
     }
 
@@ -515,12 +590,12 @@ export async function getOfflineStory(storyId: string): Promise<Story | null> {
     for (let i = 0; i < items.length; i++) {
       const imageUrl = items[i]?.imageUrl;
       if (imageUrl) {
-        const blobUrl = await getBlobUrl(imageUrl);
+        const blobUrl = await getBlobUrlForDb(db, imageUrl);
         if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
       }
       const scenicImageUrl = items[i]?.scenicImageUrl;
       if (scenicImageUrl) {
-        const scenicBlobUrl = await getBlobUrl(scenicImageUrl);
+        const scenicBlobUrl = await getBlobUrlForDb(db, scenicImageUrl);
         if (scenicBlobUrl) items[i] = { ...items[i], scenicImageUrl: scenicBlobUrl };
       }
     }
@@ -538,7 +613,7 @@ export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
 
     // Replace cover image
     if (doku.coverImageUrl) {
-      const blobUrl = await getBlobUrl(doku.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, doku.coverImageUrl);
       if (blobUrl) doku.coverImageUrl = blobUrl;
     }
 
@@ -548,7 +623,7 @@ export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
       for (const section of doku.content.sections) {
         const newSection = { ...section };
         if (newSection.imageUrl) {
-          const blobUrl = await getBlobUrl(newSection.imageUrl);
+          const blobUrl = await getBlobUrlForDb(db, newSection.imageUrl);
           if (blobUrl) newSection.imageUrl = blobUrl;
         }
         sections.push(newSection);
@@ -569,13 +644,13 @@ export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDok
 
     // Replace cover image
     if (audioDoku.coverImageUrl) {
-      const blobUrl = await getBlobUrl(audioDoku.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, audioDoku.coverImageUrl);
       if (blobUrl) audioDoku.coverImageUrl = blobUrl;
     }
 
     // Replace audio URL
     if (audioDoku.audioUrl) {
-      const blobUrl = await getBlobUrl(audioDoku.audioUrl);
+      const blobUrl = await getBlobUrlForDb(db, audioDoku.audioUrl);
       if (blobUrl) audioDoku.audioUrl = blobUrl;
     }
 
@@ -590,11 +665,11 @@ export async function getOfflineGeneratedAudio(entryId: string): Promise<Generat
 
     const generatedAudio = { ...entry.generatedAudio };
     if (generatedAudio.coverImageUrl) {
-      const coverBlob = await getBlobUrl(generatedAudio.coverImageUrl);
+      const coverBlob = await getBlobUrlForDb(db, generatedAudio.coverImageUrl);
       if (coverBlob) generatedAudio.coverImageUrl = coverBlob;
     }
     if (generatedAudio.audioUrl) {
-      const audioBlob = await getBlobUrl(generatedAudio.audioUrl);
+      const audioBlob = await getBlobUrlForDb(db, generatedAudio.audioUrl);
       if (audioBlob) generatedAudio.audioUrl = audioBlob;
     }
 

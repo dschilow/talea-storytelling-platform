@@ -25,9 +25,9 @@ const MAX_REWRITE_PASSES = 1;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded.
 // (Niedrigerer Wert = weniger Expand-Calls)
-// Lowered from 210: Gemini Flash generates ~200-word chapters which are fine for age 6-8.
-// At 210, almost every chapter triggered unnecessary expand calls that bloated prose.
-const HARD_MIN_CHAPTER_WORDS = 180;
+// Must match quality-gate hardMin (220 for 4+ chapters, medium+ length).
+// Flash generates ~200-word chapters, so most will need 1 expand call.
+const HARD_MIN_CHAPTER_WORDS = 220;
 
 // Nur Rewrites bei ERRORs durchführen, WARNINGs standardmäßig nicht full-rewrite treiben.
 const REWRITE_ONLY_ON_ERRORS = true;
@@ -77,6 +77,7 @@ const WARNING_POLISH_CODES = new Set([
   "INTERNAL_TURN_MISSING",
   "CH1_WORLD_MISSING",
   "CHAPTER_TRANSITION_WEAK",
+  "BANNED_WORD_USED",
 ]);
 
 // Warning-driven rewrites are reserved for persistent quality misses when no hard errors remain.
@@ -1964,6 +1965,12 @@ function buildChapterPolishHardFixHints(
   if (hasEndingPayoff || chapterNo === chapterCount) {
     hints.push(
       "HARD FIX: End this chapter with a concrete win object + a small tangible price sentence using 'aber' or 'kostete/musste', and call back to chapter-1 goal.",
+    );
+  }
+
+  if (issueCodes.has("BANNED_WORD_USED")) {
+    hints.push(
+      'HARD FIX: Remove ALL instances of "plötzlich" / "irgendwie" / "Es war einmal". Replace with a concrete action or short dialogue beat.',
     );
   }
 

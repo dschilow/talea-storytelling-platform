@@ -320,7 +320,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
     const requestedAiModel = req.config.aiModel;
-    const defaultAiModel: AIModel = "gpt-5-mini";
+    const defaultAiModel: AIModel = "gemini-3.1-pro-preview";
     const effectiveAiModel: AIModel = requestedAiModel ?? defaultAiModel;
     if (requestedAiModel && requestedAiModel !== defaultAiModel) {
       console.log("[story.generate] Model override from wizard applied", {

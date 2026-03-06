@@ -323,7 +323,7 @@ export class FourPhaseOrchestrator {
         ageGroup: configWithExperience.ageGroup,
         complexity: configWithExperience.complexity,
         length: configWithExperience.length,
-        aiModel: configWithExperience.aiModel || "gpt-5-mini",
+        aiModel: configWithExperience.aiModel || "gemini-3.1-pro-preview",
         stylePreset: configWithExperience.stylePreset,
         tone: configWithExperience.tone,
         pacing: configWithExperience.pacing,
@@ -531,7 +531,7 @@ export class FourPhaseOrchestrator {
       phase: 3,
       label: "PHASE 3: M├ñrchen-basierte Story-Implementierung",
       config: {
-        aiModel: configWithExperience.aiModel || "gpt-5-mini",
+        aiModel: configWithExperience.aiModel || "gemini-3.1-pro-preview",
         ageGroup: configWithExperience.ageGroup,
         genre: configWithExperience.genre,
         stylePreset: configWithExperience.stylePreset,
@@ -725,19 +725,19 @@ export class FourPhaseOrchestrator {
         imagesGenerated: chaptersWithImages.length + 1, // chapters + cover
         phases: phaseDurations,
         characterPoolUsed,
-        model: configWithExperience.aiModel || "gpt-5-mini",
+        model: configWithExperience.aiModel || "gemini-3.1-pro-preview",
         storyExperience: this.summarizeExperience(experienceContext),
         tokensUsed: {
           prompt: totalPromptTokens,
           completion: totalCompletionTokens,
           total: totalTokens,
-          modelUsed: configWithExperience.aiModel || "gpt-5-mini",
+          modelUsed: configWithExperience.aiModel || "gemini-3.1-pro-preview",
           // Calculate costs based on model pricing
           // gpt-5-mini: $0.075 per 1M input, $0.30 per 1M output
           // gpt-5: $2.50 per 1M input, $10.00 per 1M output
-          inputCostUSD: this.calculateInputCost(totalPromptTokens, configWithExperience.aiModel || "gpt-5-mini"),
-          outputCostUSD: this.calculateOutputCost(totalCompletionTokens, configWithExperience.aiModel || "gpt-5-mini"),
-          totalCostUSD: this.calculateTotalCost(totalPromptTokens, totalCompletionTokens, configWithExperience.aiModel || "gpt-5-mini"),
+          inputCostUSD: this.calculateInputCost(totalPromptTokens, configWithExperience.aiModel || "gemini-3.1-pro-preview"),
+          outputCostUSD: this.calculateOutputCost(totalCompletionTokens, configWithExperience.aiModel || "gemini-3.1-pro-preview"),
+          totalCostUSD: this.calculateTotalCost(totalPromptTokens, totalCompletionTokens, configWithExperience.aiModel || "gemini-3.1-pro-preview"),
           breakdown: {
             phase1: phase1Result.usage ?? null,
             phase3: phase3Result.usage ?? null,
