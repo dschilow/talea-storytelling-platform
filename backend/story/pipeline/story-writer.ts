@@ -188,9 +188,9 @@ export class LlmStoryWriter implements StoryWriter {
     let canRunPostEdits = allowPostEdits;
     // Gemini Flash full rewrites are high-cost/low-yield, so keep rewritePasses=0.
     // But expand calls are cheap per-chapter fixes (~680 tokens each) and critical when
-    // the initial call cannot generate all 5 chapters in one shot — allow up to 5.
+    // Gemini Flash generates complete stories in one shot — 2 expand calls are enough for edge-case chapters.
     const defaultRewritePasses = isGeminiFlashModel ? 0 : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGeminiFlashModel ? Math.min(MAX_EXPAND_CALLS * 3, 5) : (isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS);
+    const defaultExpandCalls = isGeminiFlashModel ? 2 : (isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS);
     const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);

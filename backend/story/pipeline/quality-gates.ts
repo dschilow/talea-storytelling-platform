@@ -555,9 +555,9 @@ function gateReadabilityComplexity(
   if (!ageRange) return issues;
 
   const ageMax = ageRange.max;
-  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 16 : 26;
-  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 12 : 19;
-  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.15 : 0.28;
+  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 18 : 26;
+  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 13 : 19;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.18 : 0.28;
 
   for (const ch of draft.chapters) {
     const sentences = splitSentences(ch.text);
