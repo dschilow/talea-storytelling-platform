@@ -174,10 +174,14 @@ export class LlmStoryWriter implements StoryWriter {
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
-    const model = rawConfig?.aiModel ?? "gpt-5-mini";
+    const model = rawConfig?.aiModel ?? "gemini-3.1-pro-preview";
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const isGeminiFlashModel = model.startsWith("gemini-3-flash");
+    // Support steps (blueprint, expand, warning-polish) always use Flash to save tokens.
+    // Only the Full Story call uses the primary model (Pro).
+    const flashModel = isGeminiModel ? "gemini-3-flash-preview" : model;
+    const isFlashModelGemini = flashModel.startsWith("gemini-");
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
@@ -192,7 +196,7 @@ export class LlmStoryWriter implements StoryWriter {
     // But expand calls are cheap per-chapter fixes (~680 tokens each) and critical when
     // Gemini Flash generates complete stories in one shot — 2 expand calls are enough for edge-case chapters.
     const defaultRewritePasses = isGeminiFlashModel ? 0 : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGeminiFlashModel ? 2 : (isGemini3 ? Math.max(MAX_EXPAND_CALLS, 3) : MAX_EXPAND_CALLS);
+    const defaultExpandCalls = isGemini3 ? 2 : MAX_EXPAND_CALLS;
     const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
@@ -250,9 +254,12 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
 
     const resolveGeminiThinkingBudget = (
       step: "full" | "recovery" | "expand" | "warning-polish" | "rewrite" | "title",
+      forFlashOverride?: boolean,
     ): number | undefined => {
-      if (!isGeminiModel) return undefined;
-      if (isGeminiFlashModel) {
+      if (!isGeminiModel && !forFlashOverride) return undefined;
+      // Support steps (expand/warning-polish/blueprint) run with Flash model override
+      const effectivelyFlash = forFlashOverride || isGeminiFlashModel;
+      if (effectivelyFlash) {
         switch (step) {
           case "full":
             return 896;
@@ -301,12 +308,15 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
       reasoningEffort?: "low" | "medium" | "high";
       seed?: number;
       thinkingBudget?: number;
+      modelOverride?: string;
     }) => {
-      if (isGeminiModel) {
+      const activeModel = input.modelOverride ?? model;
+      const activeIsGemini = activeModel.startsWith("gemini-");
+      if (activeIsGemini) {
         const geminiResponse = await generateWithGemini({
           systemPrompt: input.systemPrompt,
           userPrompt: input.userPrompt,
-          model,
+          model: activeModel,
           maxTokens: clampMaxTokens(input.maxTokens),
           temperature: input.temperature,
           thinkingBudget: input.thinkingBudget,
@@ -326,7 +336,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
       }
 
       return callChatCompletion({
-        model,
+        model: activeModel,
         messages: [
           { role: "system", content: input.systemPrompt },
           { role: "user", content: input.userPrompt },
@@ -383,7 +393,8 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
           tone: normalizedRequest.requestedTone,
         });
 
-        const blueprintMaxTokens = isGeminiFlashModel ? 1800 : (isReasoningModel ? 2200 : 1500);
+        // Blueprint always runs with flashModel
+        const blueprintMaxTokens = isFlashModelGemini ? 1800 : (isReasoningModel ? 2200 : 1500);
         const blueprintResult = await callStoryModel({
           systemPrompt: buildBlueprintSystemPrompt(normalizedRequest.language),
           userPrompt: blueprintPrompt,
@@ -391,10 +402,11 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
           maxTokens: blueprintMaxTokens,
           temperature: 0.5,
           reasoningEffort: "low",
-          thinkingBudget: resolveGeminiThinkingBudget("expand"),
+          thinkingBudget: resolveGeminiThinkingBudget("expand", isFlashModelGemini),
           context: "story-writer-blueprint",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },
+          modelOverride: flashModel,
         });
 
         if (blueprintResult.usage) {
@@ -672,9 +684,10 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
         });
 
         const baseMaxTokens = Math.round(Math.max(420, lengthTargets.wordMax * 1.4));
-        const expandReasoningMultiplier = isGeminiFlashModel ? 1.05 : (isReasoningModel ? 1.2 : 1);
-        const expandMinTokens = isGeminiFlashModel ? 680 : 550;
-        const expandMaxTokensCap = isGeminiFlashModel ? 2100 : 1800;
+        // Expand always runs with flashModel, so use Flash token sizes
+        const expandReasoningMultiplier = isFlashModelGemini ? 1.05 : (isReasoningModel ? 1.2 : 1);
+        const expandMinTokens = isFlashModelGemini ? 680 : 550;
+        const expandMaxTokensCap = isFlashModelGemini ? 2100 : 1800;
         const maxTokens = Math.min(expandMaxTokensCap, Math.max(expandMinTokens, Math.round(baseMaxTokens * expandReasoningMultiplier)));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
@@ -687,12 +700,12 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
             responseFormat: "json_object",
             maxTokens,
             temperature: 0.4,
-            thinkingBudget: resolveGeminiThinkingBudget("expand"),
+            thinkingBudget: resolveGeminiThinkingBudget("expand", isFlashModelGemini),
             context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter, candidateTag },
-            // V3: Reasoning-Effort explizit auf "low" setzen
             reasoningEffort: "low",
+            modelOverride: flashModel,
           });
 
           if (result.usage) {
@@ -808,9 +821,10 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
         });
 
         const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
-        const polishReasoningMultiplier = isGeminiFlashModel ? 1.1 : (isReasoningModel ? 1.2 : 1);
-        const polishMinTokens = isGeminiFlashModel ? 720 : (isReasoningModel ? 850 : 450);
-        const polishMaxTokensCap = isGeminiFlashModel ? 1800 : (isReasoningModel ? 1900 : 1500);
+        // Warning-polish always runs with flashModel, so use Flash token sizes
+        const polishReasoningMultiplier = isFlashModelGemini ? 1.1 : (isReasoningModel ? 1.2 : 1);
+        const polishMinTokens = isFlashModelGemini ? 720 : (isReasoningModel ? 850 : 450);
+        const polishMaxTokensCap = isFlashModelGemini ? 1800 : (isReasoningModel ? 1900 : 1500);
         const maxTokens = Math.min(polishMaxTokensCap, Math.max(polishMinTokens, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
@@ -821,10 +835,11 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
             maxTokens,
             temperature: 0.35,
             reasoningEffort: "low",
-            thinkingBudget: resolveGeminiThinkingBudget("warning-polish"),
+            thinkingBudget: resolveGeminiThinkingBudget("warning-polish", isFlashModelGemini),
             context: `story-writer-warning-polish-${chapterNo}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo, candidateTag },
+            modelOverride: flashModel,
           });
 
           if (result.usage) {
@@ -845,7 +860,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
             console.warn(
               `[story-writer] Warning polish chapter ${chapterNo} truncated before valid JSON text extraction (finishReason=${result.finishReason}, maxTokens=${maxTokens}).`,
             );
-            if (isGeminiFlashModel && truncatedNoTextCount >= 1) {
+            if (isFlashModelGemini && truncatedNoTextCount >= 1) {
               console.warn("[story-writer] Stopping further warning polish calls for Gemini Flash after truncated+unusable response.");
               break;
             }
