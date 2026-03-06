@@ -570,58 +570,70 @@ ${artifactBlock}
 For each chapter, answer these questions concisely (1-2 sentences each):
 
 CHAPTER 1 — THE INVITATION (orientation, NO conflict):
-- where: Where are we? (1 sensory detail)
-- who: Who do we meet? (each character: 1 physical detail + 1 personality trait in action)
+- where: Where are we? (1 sensory detail: smell, sound, or temperature)
+- who: Who do we meet? (each character: 1 physical detail + 1 personality trait SHOWN in action)
 - want: What does the child want? (the desire that drives the story)
-- curiosityHook: Last moment — what makes the reader curious?
+- curiosityHook: Last moment — what makes the reader NEED to turn the page?
+- foreground: Which 2 characters are in the foreground? (max 2, others react briefly)
+- humorBeat: What is one funny or playful moment? (physical comedy, misunderstanding, or witty line)
 
 CHAPTER 2 — THE WONDER (discovery + first complication):
 - newElement: What exciting thing appears? (artifact, new place, new character)
 - boldChoice: What small brave decision does the child make?
 - complication: What doesn't go as planned?
 - openQuestion: What question stays unanswered?
+- foreground: Which 2 characters are most active? (others can react with 1 line)
+- humorBeat: What makes the reader smile? (a quirky reaction, an unexpected detail)
 
 CHAPTER 3 — THE MISTAKE (child's genuine error + consequence):
-- mistake: What does the child do wrong?
-- mistakeReason: WHY do they make this mistake? (impatience? pride? fear? — rooted in their personality)
-- consequence: What breaks, is lost, or goes wrong because of it?
-- bodyReaction: How does the child's body react? (stomach drops, throat tightens, hands shake)
-- stuckFeeling: Why does everything feel hopeless now? (1 sentence)
+- mistake: What does the child do wrong? (MUST be an active choice, NOT bad luck)
+- mistakeReason: WHY do they make this mistake? (impatience? pride? fear? — rooted in their CHARACTER TRAIT)
+- consequence: What CONCRETE thing breaks, is lost, or goes wrong because of it?
+- bodyReaction: How does the child's body react? (stomach drops, throat tightens, hands shake — be specific)
+- stuckFeeling: Why does everything feel hopeless now? (1 sentence of inner doubt)
+- foreground: Which 2 characters carry this scene?
 
 CHAPTER 4 — DARKEST MOMENT + TURNING POINT:
-- worstMoment: What is the worst situation?
-- almostGivingUp: What makes the child almost give up? (1-2 sentences of doubt)
+- worstMoment: What is the WORST situation? (concrete, not abstract)
+- almostGivingUp: What does the child SAY or THINK that shows they want to give up? (direct thought/dialogue)
 - insightTrigger: What small detail triggers the insight? (a memory, a friend's earlier words, a pattern noticed)
-- newChoice: What does the child decide — differently than before?
+- newChoice: What does the child decide — DIFFERENTLY than in Ch3?
+- foreground: Which 2 characters are central?
 
 CHAPTER 5 — THE LANDING (resolution + warmth):
-- concreteWin: What exactly was won? (concrete object/result, not abstract)
-- smallPrice: What small tangible thing was lost? (torn glove, lost trinket, tired legs, missed dinner)
-- ch1Callback: How does this connect back to Chapter 1? (same place/object, but different now)
-- finalImage: Final warm image (physical, specific — not a moral statement)
+- concreteWin: What EXACTLY was won? (tangible object/result, not "they learned")
+- smallPrice: What small TANGIBLE thing was lost? (torn glove, scratched knee, tired legs — NOT abstract)
+- ch1Callback: How does this echo Chapter 1? (same place/object/phrase, but the child has changed)
+- finalImage: Final warm image (physical, specific — NOT a moral statement, NOT "and they lived happily")
+- humorBeat: One last smile (a funny callback, a light moment of relief)
 
 ::: EMOTIONAL ARC :::
 Write one sentence per chapter describing how the child FEELS:
-1. Comfort → Curiosity
-2. Curiosity → Excitement → First Doubt
-3. Confidence → Overreach → "Oh no"
-4. Stuck → Almost Giving Up → One Spark of Courage
-5. Courage → Effort → Success → Quiet Warmth
+1. Comfort → Curiosity (warm, safe start)
+2. Curiosity → Excitement → First Doubt (the world expands)
+3. Confidence → Overreach → "Oh no, what have I done?" (the child's own fault)
+4. Stuck → Almost Giving Up → One Spark of Courage (darkest, then light from within)
+5. Courage → Effort → Success → Quiet Warmth (earned, not given)
 
 ::: CHARACTER INNER LIFE :::
 For each character, define:
 - WANT: What do they desire in this specific story?
 - FEAR: What are they avoiding or afraid of?
 
+::: DIALOGUE PLAN :::
+- Each chapter needs 30-40% dialogue (at least 4-5 spoken lines per chapter)
+- Every dialogue line = 1 physical action + 1 spoken line. Never floating quotes.
+- Characters must sound DIFFERENT: vary sentence length, vocabulary, and energy level.
+
 ::: OUTPUT FORMAT :::
 Return JSON only:
 {
   "blueprint": {
-    "chapter1": { "where": "...", "who": "...", "want": "...", "curiosityHook": "..." },
-    "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "..." },
-    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "..." },
-    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "..." },
-    "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "..." }
+    "chapter1": { "where": "...", "who": "...", "want": "...", "curiosityHook": "...", "foreground": "...", "humorBeat": "..." },
+    "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "...", "foreground": "...", "humorBeat": "..." },
+    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
+    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "foreground": "..." },
+    "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "...", "humorBeat": "..." }
   },
   "emotionalArc": ["...", "...", "...", "...", "..."],
   "characterWants": { "Name1": "...", "Name2": "..." },
@@ -747,24 +759,31 @@ ${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
 ::: WHAT GREAT PROSE SOUNDS LIKE :::
-Mama slammed the basket on the table. Pop.
-"Can I–" "No," said Mom. Quick as a crocodile jaw.
-Alexander leaned in. "I smell apple cake." "And tea," said Adrian.
-He sniffed extra loud. "And... Grandma."
 
-→ Rhythm. Interruption. Humor. Body. Dialogue anchored to action. Every character sounds different.
+GOOD (notice: short sentences, body, humor, dialogue = 40%):
+Mama knallte den Korb auf den Tisch. Peng.
+"Darf ich–" "Nein", sagte Mama. Schnell wie ein Krokodilmaul.
+Alexander beugte sich vor. "Ich rieche Apfelkuchen." "Und Tee", sagte Adrian.
+Er schnüffelte extra laut. "Und... Oma."
+Oma kicherte und schob ihm ein Stück Kuchen über den Tisch. "Probier mal." Adrian stopfte sich das halbe Stück in den Mund. Krümel flogen. "Mmphf", machte er und grinste breit.
+
+BAD (report-style, no body, no humor, floating dialogue):
+Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuchen rochen. "Das riecht gut", sagte einer von ihnen. Oma lächelte. Sie gab ihnen Kuchen. Alle waren glücklich.
+
+→ Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), HUMOR (at least 1 smile per chapter), and DIALOGUE anchored to a physical action.
 
 ::: RULES (only these — nothing else) :::
 1. 4-6 paragraphs per chapter. Each paragraph: 2-4 sentences. Blank line between paragraphs.
-2. At least 30% of each chapter is dialogue. Every dialogue line is anchored to a physical action.
-3. Max 2-3 characters in the foreground per chapter. Others can react briefly.
-4. Chapters 1-4 end with unresolved tension — the reader MUST want to turn the page.
-5. Chapter 5 ends with a warm, concrete image. No moral statement.
-6. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
-7. Each character must sound different by sentence length and word choice alone.
+2. At least 30% of each chapter MUST be dialogue — that means 4-6 spoken lines minimum. Every "..." is paired with a body action. NO floating quotes.
+3. Max 2 characters in the FOREGROUND per chapter (speak + act). 1 more may react with a single line. Others are background.
+4. Chapters 1-4 end with a cliffhanger — the reader MUST want to turn the page. Never resolve tension at chapter end.
+5. Chapter 5 ends with a warm, concrete image. No moral, no "and they learned...". Show, don't tell.
+6. Show emotions through BODY, never labels. Not "Er hatte Angst" → "Seine Finger krallten sich in den Stoff."
+7. Each character sounds different: one speaks in short bursts, another in longer flowing sentences, another interrupts.
 8. ${ageRule}
 9. ${safetyRule}
-${humorRule ? `10. ${humorRule}` : ""}
+10. HUMOR: Every chapter needs at least one smile moment — physical comedy, a witty line, or an unexpected reaction. The reader should LAUGH at least twice in the whole story.
+${humorRule ? `11. ${humorRule}` : ""}
 
 ::: WORD TARGET :::
 Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
@@ -791,36 +810,40 @@ export function buildV7SystemPrompt(language: string, ageRange: { min: number; m
     return `Du bist ein erfahrener Kinderbuchautor. Deine Geschichten klingen wie echte Bücher von Preußler, Lindgren oder Funke — warm, lebendig, manchmal lustig, immer ehrlich.
 
 Du schreibst für Kinder im Alter von ${ageRange.min} bis ${ageRange.max} Jahren. Das bedeutet:
-- Kurze, klare Sätze. Maximal 12 Wörter pro Satz im Durchschnitt.
+- Kurze, klare Sätze. Maximal 10 Wörter pro Satz im Durchschnitt, nie über 15.
 - Keine Fremdwörter, keine Metaphern, die ein Kind nicht versteht.
 - Jeder Absatz muss sofort verständlich sein, wenn er laut vorgelesen wird.
+- Mindestens 30% Dialog pro Kapitel. Kinder lieben Gespräche!
 
 Deine Regeln als Autor:
-1. Gefühle zeigt man durch den Körper, nie durch Etiketten. Nicht "Er hatte Angst" — sondern "Seine Finger krallten sich in den Stoff seiner Jacke."
-2. Jede Figur klingt anders. Am Satzbau allein muss man erkennen, wer spricht.
-3. Jede Dialogzeile ist an eine körperliche Handlung gebunden. Keine schwebenden Zitate.
+1. Gefühle zeigt man durch den KÖRPER, nie durch Etiketten. Nicht "Er hatte Angst" — sondern "Seine Finger krallten sich in den Stoff seiner Jacke."
+2. Jede Figur klingt ANDERS. Einer spricht in kurzen Fetzen, einer in fließenden Sätzen, einer unterbricht ständig.
+3. Jede Dialogzeile ist an eine körperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Ärmel. NICHT: "Komm!", sagte sie.
 4. Absätze atmen: 2-4 Sätze, dann eine Leerzeile. Nie eine Textwand.
-5. Rhythmus: Kurz. Kurz. Ein längerer Satz mit einem überraschenden Detail am Ende.
-6. Humor entsteht durch Situationen und Überraschungen, nie durch Erklärungen.
+5. Rhythmus: Kurz. Kurz. Ein längerer Satz mit einem überraschenden Detail am Ende. Dann wieder kurz.
+6. HUMOR ist Pflicht: Jedes Kapitel braucht mindestens einen Schmunzel-Moment. Slapstick, Missverständnis, Wortspiel — Kinder müssen lachen!
 7. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzählungen, keine Protokoll-Sprache, keine Moral-Predigten.
+8. Pro Kapitel maximal 2 Figuren im Vordergrund. Andere dürfen kurz reagieren, aber der Fokus bleibt eng.
 
 Schreibe die Geschichte ausschließlich auf Deutsch. Korrekte Umlaute (ä, ö, ü, ß). Keine englischen Wörter.`;
   }
   return `You are an experienced children's book author. Your stories sound like real books by Dahl, Donaldson, or Gaiman — warm, witty, and alive.
 
 You write for children aged ${ageRange.min} to ${ageRange.max}. This means:
-- Short, clear sentences. Max 12 words per sentence on average.
+- Short, clear sentences. Max 10 words per sentence on average, never over 15.
 - No jargon, no metaphors a child wouldn't understand.
 - Every paragraph must be instantly clear when read aloud.
+- At least 30% dialogue per chapter. Kids love conversations!
 
 Your rules as an author:
 1. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
-2. Each character sounds different by sentence length and word choice alone.
-3. Every dialogue line is anchored to a physical action. No floating quotes.
+2. Each character sounds DIFFERENT. One speaks in short bursts, one in flowing sentences, one interrupts.
+3. Every dialogue line is anchored to a physical action. "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
 4. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text.
-5. Rhythm: Short. Short. One longer sentence with a surprising detail at the end.
-6. Humor through situations and surprises, never through explanations.
-7. You write a story, not a report. No lists, no protocol language, no moral lectures.`;
+5. Rhythm: Short. Short. One longer sentence with a surprising detail at the end. Then short again.
+6. HUMOR is mandatory: Every chapter needs at least one smile moment. Slapstick, misunderstanding, wordplay — kids must laugh!
+7. You write a story, not a report. No lists, no protocol language, no moral lectures.
+8. Max 2 characters in the foreground per chapter. Others may react briefly, but focus stays tight.`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -87,9 +87,12 @@ PRÜFE GEZIELT:
 2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persönlichkeit heraus? Gibt es eine Körperreaktion? Wenn nicht → ERROR.
 3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von außen)? Wenn nicht → ERROR.
 4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rückbezug zu Kapitel 1? Wenn nicht → WARNING.
-5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Pro Kapitel prüfen.
-6. Vorlese-Test: Gibt es Sätze über 15 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
-7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?`
+5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Mindestens 30% Dialog pro Kapitel. Pro Kapitel prüfen.
+6. Vorlese-Test: Gibt es Sätze über 12 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
+7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?
+8. Humor: Hat JEDES Kapitel mindestens einen Schmunzel-Moment? Slapstick, Missverständnis, witzige Reaktion? Wenn nur 0-1 Kapitel Humor haben → ERROR.
+9. Figuren-Fokus: Maximal 2 Figuren im Vordergrund pro Kapitel. Wenn 4+ aktive Figuren → ERROR.
+10. Rhythmus: Gibt es Variation? Kurz-kurz-lang? Oder nur gleichförmige mittellange Sätze? → WARNING.`
       : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
 Focus on concrete, chapter-local failures and actionable fixes.
 No generic praise. Return concise JSON exactly as requested.
@@ -99,9 +102,12 @@ TARGETED CHECKS:
 2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not → ERROR.
 3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not → ERROR.
 4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not → WARNING.
-5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? Check per chapter.
-6. Read-aloud test: Are there sentences over 15 words that would stumble when read aloud? Quote them.
-7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?`;
+5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? At least 30% dialogue per chapter. Check per chapter.
+6. Read-aloud test: Are there sentences over 12 words that would stumble when read aloud? Quote them.
+7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?
+8. Humor: Does EVERY chapter have at least one smile moment? Slapstick, misunderstanding, witty reaction? If only 0-1 chapters have humor → ERROR.
+9. Character focus: Max 2 characters in the foreground per chapter. If 4+ active characters → ERROR.
+10. Rhythm: Is there sentence length variation? Short-short-long? Or only uniform medium sentences? → WARNING.`;
 
     const userPayload = {
       language: input.language,
@@ -125,11 +131,14 @@ TARGETED CHECKS:
         "Ch4 internal turning point: the insight must come from inside the child, not from artifact or adult. If external → ERROR EXTERNAL_RESOLUTION",
         "Ch5 concrete payoff: show what was won (concrete) + small tangible price + callback to Ch1. If abstract → WARNING",
         "mistake-growth arc: child mistakes in Ch3, learns in Ch4, acts differently in Ch5. If arc is broken → ERROR GROWTH_ARC_BROKEN",
-        "voice separation: children should sound distinct in sentence rhythm and wording",
-        "read-aloud stumbles: flag sentences over 15 words that would stumble when read aloud",
-        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment",
-        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained'",
-        "rule-exposition tell: reject textbook statements about how artifacts/rules work",
+        "voice separation: children should sound distinct in sentence rhythm and wording. If all characters sound the same → ERROR VOICE_BLEND",
+        "read-aloud stumbles: flag sentences over 12 words that would stumble when read aloud → WARNING READ_ALOUD_STUMBLE",
+        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment → WARNING CHAPTER_TRANSITION_WEAK",
+        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained' → WARNING META_FORESHADOW_PHRASE",
+        "rule-exposition tell: reject textbook statements about how artifacts/rules work → WARNING RULE_EXPOSITION_TELL",
+        "humor per chapter: EACH chapter needs at least one playful/funny moment. If 0-1 chapters have humor → ERROR HUMOR_MISSING",
+        "character focus: max 2 characters in foreground per chapter. If 4+ actively speaking/acting → ERROR CHARACTER_OVERLOAD",
+        "dialogue ratio: each chapter should have 30-40% dialogue. If under 20% → ERROR DIALOGUE_TOO_LOW",
       ],
       preferredIssueCodes: [
         "CH1_ORIENTATION_MISSING",
@@ -145,8 +154,12 @@ TARGETED CHECKS:
         "RULE_EXPOSITION_TELL",
         "ABRUPT_SCENE_SHIFT",
         "DIALOGUE_PROSE_IMBALANCE",
+        "DIALOGUE_TOO_LOW",
         "METAPHOR_DENSITY_HIGH",
         "GIMMICK_LOOP_OVERUSE",
+        "HUMOR_MISSING",
+        "CHARACTER_OVERLOAD",
+        "RHYTHM_MONOTONE",
       ],
       outputSchema: {
         overallScore: "number 0..10",

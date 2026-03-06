@@ -555,9 +555,9 @@ function gateReadabilityComplexity(
   if (!ageRange) return issues;
 
   const ageMax = ageRange.max;
-  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 18 : 26;
-  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 14 : 19;
-  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.18 : 0.28;
+  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 16 : 26;
+  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 12 : 19;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.15 : 0.28;
 
   for (const ch of draft.chapters) {
     const sentences = splitSentences(ch.text);
@@ -1949,13 +1949,29 @@ function gateStakesAndLowpoint(
   const setbackPatterns = isDE
     ? [
       /scheiter|fehl(?!erlos)|falsch|verlor|blockier|geschlossen|schlie(?:s|ß)t|bricht|sackgasse|nicht\s+weiter|zu\s+sp(?:ae|ä)t/i,
+      /steckte?\s+fest|gefangen|versperrt|kein(?:en?)?\s+ausweg|hilflos|ohnm(?:ae|ä)chtig|aussichtslos|hoffnungslos|vergeblich|umsonst/i,
+      /fiel(?:en?)?\s+(?:hin|um|herunter)|rutschte|stürzte|krachte|knackte|riss|zerbrach|schmolz/i,
+      /konnte\s+nicht|schaffte?\s+es\s+nicht|war\s+zu\s+(?:schwer|spät|dunkel|weit)|gab\s+nach/i,
     ]
     : [
       /fail|wrong|lost|blocked|closed|collapse|dead\s*end|can't\s+go\s+on|too\s+late/i,
+      /stuck|trapped|no\s+way\s+out|helpless|hopeless|useless|impossible/i,
+      /fell|slipped|crashed|cracked|broke|shattered|crumbled/i,
+      /couldn't|wasn't\s+able|too\s+(?:heavy|late|dark|far)|gave\s+way/i,
     ];
   const emotionPatterns = isDE
-    ? [/zitter|schluck|magen|bauch|traute?\s+sich\s+nicht|zweifel|angst|herz/i]
-    : [/trembl|swallow|stomach|doubt|fear|heart/i];
+    ? [
+      /zitter|schluck|magen|bauch|traute?\s+sich\s+nicht|zweifel|angst|herz/i,
+      /kehle|tr(?:ae|ä)nen|weinte|biss\s+sich|presste|krallte|verkrampfte|erstarrte|stockte/i,
+      /klopfte|h(?:ae|ä)mmerte|pochte|brannte|kribbelte|sackte|sackten|schwer\s+wie\s+blei/i,
+      /konnte\s+kaum\s+(?:atmen|sprechen|schlucken)|wurde?\s+(?:blass|bleich|rot|still)/i,
+    ]
+    : [
+      /trembl|swallow|stomach|doubt|fear|heart/i,
+      /throat|tears|cried|bit\s+(?:his|her)|pressed|gripped|clenched|froze|stumbled/i,
+      /pounding|hammering|burning|tingling|sank|heavy\s+as\s+lead/i,
+      /could\s+barely\s+(?:breathe|speak|swallow)|turned?\s+(?:pale|white|red|quiet)/i,
+    ];
 
   let lowpointChapter: StoryDraft["chapters"][number] | null = null;
   let lowpointHasEmotion = false;
@@ -2201,16 +2217,20 @@ function gateHumorPresence(
   const minHumorMoments = level >= 3 ? 3 : level >= 2 ? 2 : 1;
   const humorPatterns = isDE
     ? [
-      /\b(lacht|lachen|lachte|kichert|kicherte|kichernd|grinst|grinste|prustet|prustete)\b/i,
-      /\b(hihi|haha|hehe|kicher|prust)\b/i,
-      /\b(witz|scherz|komisch|lustig)\b/i,
-      /\b(stolperte[^.!?]{0,50}und[^.!?]{0,50}lachte)\b/i,
+      /\b(lacht|lachen|lachte|kichert|kicherte|kichernd|grinst|grinste|prustet|prustete|schmunzelt|schmunzelte|gluckste|glucksen)\b/i,
+      /\b(hihi|haha|hehe|kicher|prust|mmphf|peng|platsch|schwupps|plumps|knacks|hoppla|ups)\b/i,
+      /\b(witz|scherz|komisch|lustig|albern|quatsch|blödsinn|kichernd|witzig)\b/i,
+      /\b(stolperte|rutschte|fiel|purzelte|kullerte|plumpste)[^.!?]{0,60}(lach|grinst|kicher|prust)/i,
+      /\b(verdrehte\s+die\s+augen|schnitt\s+eine?\s+grimasse|zog\s+eine?\s+schnute|streckte\s+die\s+zunge|machte\s+große\s+augen)\b/i,
+      /\b(kr(?:ue|ü)mel\s+fl|stopfte\s+sich|mund\s+voll|verschluckte\s+sich|nieste|hickste|hicksen|rülpste)\b/i,
     ]
     : [
-      /\b(laugh|laughed|giggle|giggled|grin|grinned|snort|snorted|chuckle|chuckled)\b/i,
-      /\b(ha-ha|haha|hehe|teehee)\b/i,
-      /\b(joke|funny|playful|comical)\b/i,
-      /\b(stumbled[^.!?]{0,50}and[^.!?]{0,50}laughed)\b/i,
+      /\b(laugh|laughed|giggle|giggled|grin|grinned|snort|snorted|chuckle|chuckled|smirk|smirked)\b/i,
+      /\b(ha-ha|haha|hehe|teehee|oops|whoops|splat|splash|thud|bonk|pop)\b/i,
+      /\b(joke|funny|playful|comical|silly|nonsense|ridiculous)\b/i,
+      /\b(stumbled|slipped|tripped|tumbled|rolled)[^.!?]{0,60}(laugh|grin|giggl|chuckl)/i,
+      /\b(rolled\s+(?:his|her|their)\s+eyes|made\s+a\s+face|stuck\s+out\s+(?:his|her|their)\s+tongue|wide\s+eyes)\b/i,
+      /\b(crumbs\s+fl|stuffed|mouth\s+full|choked\s+on|sneezed|hiccup)/i,
     ];
 
   let humorChapterHits = 0;
