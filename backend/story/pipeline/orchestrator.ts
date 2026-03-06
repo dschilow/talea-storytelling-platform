@@ -88,6 +88,11 @@ interface TaleSelectionCandidate {
   age_max: number | null;
   tone: string | null;
   tags: string[];
+  coreConflict: string;
+  fixedElements: string[];
+  iconicBeats: string[];
+  contentRules: string[];
+  protagonistConstraints: string[];
 }
 
 function buildSupplementalScenicImageSpecs(input: {
@@ -1148,6 +1153,11 @@ async function selectBestFairyTale(input: {
     age_max: number | null;
     tone: string | null;
     tags_json: any;
+    core_conflict: string | null;
+    fixed_json: any;
+    iconic_json: any;
+    content_rules_json: any;
+    roles_json: any;
   }>`
     SELECT
       tale_id,
@@ -1155,7 +1165,12 @@ async function selectBestFairyTale(input: {
       NULLIF(tale_dna->'tale'->'age'->>'min', '')::int AS age_min,
       NULLIF(tale_dna->'tale'->'age'->>'max', '')::int AS age_max,
       LOWER(COALESCE(tale_dna->'tale'->'toneBounds'->>'targetTone', '')) AS tone,
-      COALESCE(tale_dna->'tale'->'themeTags', '[]'::jsonb) AS tags_json
+      COALESCE(tale_dna->'tale'->'themeTags', '[]'::jsonb) AS tags_json,
+      COALESCE(tale_dna->'tale'->>'coreConflict', '') AS core_conflict,
+      COALESCE(tale_dna->'tale'->'fixedElements', '[]'::jsonb) AS fixed_json,
+      COALESCE(tale_dna->'tale'->'iconicBeats', '[]'::jsonb) AS iconic_json,
+      COALESCE(tale_dna->'tale'->'toneBounds'->'contentRules', '[]'::jsonb) AS content_rules_json,
+      COALESCE(tale_dna->'roles', '[]'::jsonb) AS roles_json
     FROM tale_dna
   `;
   if (rawCandidates.length === 0) return null;
@@ -1167,6 +1182,11 @@ async function selectBestFairyTale(input: {
     age_max: row.age_max,
     tone: row.tone,
     tags: parseThemeTags(row.tags_json),
+    coreConflict: String(row.core_conflict || "").toLowerCase(),
+    fixedElements: parseStringArray(row.fixed_json),
+    iconicBeats: parseStringArray(row.iconic_json),
+    contentRules: parseStringArray(row.content_rules_json),
+    protagonistConstraints: extractProtagonistConstraints(row.roles_json),
   }));
 
   const recentRows = await storyDB.queryAll<{ tale_id: string | null }>`
@@ -1194,7 +1214,14 @@ async function selectBestFairyTale(input: {
     const ageMin = candidate.age_min ?? input.ageMin;
     const ageMax = candidate.age_max ?? input.ageMax;
     const candidateMid = (ageMin + ageMax) / 2;
-    const toneText = [candidate.tone || "", ...(candidate.tags || [])].join(" ").toLowerCase();
+    const toneText = [
+      candidate.tone || "",
+      ...(candidate.tags || []),
+      candidate.coreConflict,
+      ...(candidate.fixedElements || []),
+      ...(candidate.iconicBeats || []),
+      ...(candidate.contentRules || []),
+    ].join(" ").toLowerCase();
 
     let score = 0;
     if (rangesOverlap(ageMin, ageMax, input.ageMin, input.ageMax)) score += 2.2;
@@ -1213,6 +1240,9 @@ async function selectBestFairyTale(input: {
       score -= 2.5;
     }
 
+    const childFitScore = input.ageMax <= 8 ? scoreYoungReaderTaleFit(candidate) : 0;
+    score += childFitScore;
+
     const repeatCount = recentIds.filter(id => id === candidate.tale_id).length;
     score -= repeatCount * 1.5;
 
@@ -1229,8 +1259,9 @@ async function selectBestFairyTale(input: {
     `pool=${pool.length}/${candidates.length}`,
     `age=${best.candidate.age_min ?? "?"}-${best.candidate.age_max ?? "?"}`,
     `tone=${best.candidate.tone || "n/a"}`,
+    input.ageMax <= 8 ? `child-fit=${scoreYoungReaderTaleFit(best.candidate).toFixed(1)}` : "",
     hardAvoid.size > 0 ? `recent-avoid=${hardAvoid.size}` : "recent-avoid=0",
-  ];
+  ].filter(Boolean);
   return {
     taleId: best.candidate.tale_id,
     title: best.candidate.title,
@@ -1241,19 +1272,76 @@ async function selectBestFairyTale(input: {
 }
 
 function parseThemeTags(tagsJson: any): string[] {
-  if (!tagsJson) return [];
-  if (Array.isArray(tagsJson)) {
-    return tagsJson.map(value => String(value).toLowerCase()).filter(Boolean);
+  return parseStringArray(tagsJson);
+}
+
+function parseStringArray(value: any): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map(entry => String(entry).toLowerCase()).filter(Boolean);
   }
-  if (typeof tagsJson === "string") {
+  if (typeof value === "string") {
     try {
-      const parsed = JSON.parse(tagsJson);
-      if (Array.isArray(parsed)) return parsed.map(value => String(value).toLowerCase()).filter(Boolean);
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(entry => String(entry).toLowerCase()).filter(Boolean);
     } catch {
-      return tagsJson.split(/[,\s]+/).map(value => value.toLowerCase()).filter(Boolean);
+      return value.split(/[,\s]+/).map(entry => entry.toLowerCase()).filter(Boolean);
     }
   }
   return [];
+}
+
+function parseJsonArray(value: any): any[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function extractProtagonistConstraints(rolesJson: any): string[] {
+  const roles = parseJsonArray(rolesJson);
+  return roles
+    .filter(role => String(role?.roleType || "").toUpperCase() === "PROTAGONIST")
+    .flatMap(role => parseStringArray(role?.constraints));
+}
+
+function scoreYoungReaderTaleFit(candidate: TaleSelectionCandidate): number {
+  const corpus = [
+    candidate.title,
+    candidate.tone || "",
+    candidate.coreConflict,
+    ...(candidate.tags || []),
+    ...(candidate.fixedElements || []),
+    ...(candidate.iconicBeats || []),
+    ...(candidate.contentRules || []),
+  ].join(" ").toLowerCase();
+  const constraints = candidate.protagonistConstraints.map(value => value.toLowerCase());
+
+  let score = 0;
+  if (constraints.some(value => value.includes("age=child"))) score += 2.4;
+  if (constraints.some(value => value.includes("species=animal"))) score += 0.6;
+  if (constraints.some(value => value.includes("age=young_adult") || value.includes("age=adult"))) score -= 2.2;
+
+  if (/\b(?:epic|legendary|tragic|haunting|revenge|treachery|betray|sacrifice|kingdom|throne|sorcerer|war|battle|impossible\s+quests?|quests?)\b/i.test(corpus)) {
+    score -= 1.8;
+  }
+  if (/\b(?:prince|princess|tsar|zar|king|queen)\b/i.test(corpus)) {
+    score -= 1.2;
+  }
+  if (/\b(?:playful|simple|gentle|warm|cozy|cosy|funny|humorous|lighthearted|friendship|teamwork|kindness|encouraging|joyful)\b/i.test(corpus)) {
+    score += 1.4;
+  }
+  if (/\b(?:repeat|repetitive|cumulative|rhythmic)\b/i.test(corpus)) {
+    score += 0.6;
+  }
+
+  return score;
 }
 
 function tokenizeTone(tone?: string): string[] {

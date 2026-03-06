@@ -785,6 +785,13 @@ Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuche
 10. HUMOR: Every chapter needs at least one smile moment — physical comedy, a witty line, or an unexpected reaction. The reader should LAUGH at least twice in the whole story.
 ${humorRule ? `11. ${humorRule}` : ""}
 
+EXTRA CHILD-BOOK RULES:
+- After paragraph 2 of Chapter 1, a child must know WHO is here, WHERE they are, WHAT they must do, and WHY it matters.
+- Chapters 2-5 must open by anchoring the consequence of the previous chapter and naming what the child is trying now.
+- Never introduce a new place, clue, or danger without one bridge sentence that explains how the characters got there and why it matters now.
+- Chapter 3 must contain a child-caused mistake. Not bad luck. The wrong choice comes from the child's trait.
+- Chapter 5 must resolve the SAME mission/object set up in Chapter 1.
+
 ::: WORD TARGET (HARD MINIMUM) :::
 Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
 IMPORTANT: Each chapter MUST reach at least ${wordsPerChapter.min} words. Short chapters are the #1 quality failure. When in doubt, add one more dialogue exchange or action beat per paragraph.
