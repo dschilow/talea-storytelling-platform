@@ -10,7 +10,6 @@ import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import Button from '../../components/common/Button';
-import Card from '../../components/common/Card';
 import type { Doku, DokuSection } from '../../types/doku';
 import type { Avatar } from '../../types/avatar';
 import { QuizComponent } from '../../components/reader/QuizComponent';
@@ -21,6 +20,15 @@ import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebratio
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { getOfflineDoku } from '../../utils/offlineDb';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
+import { useTheme } from '../../contexts/ThemeContext';
+import {
+  TaleaActionButton,
+  TaleaPageBackground,
+  TaleaSurface,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaPageShellClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 // Define a new type for our flattened, displayable sections
 interface DisplayableSection {
@@ -40,6 +48,8 @@ const DokuReaderScreen: React.FC = () => {
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
   const queryDomainHint = new URLSearchParams(location.search).get('domain');
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
@@ -391,10 +401,18 @@ const DokuReaderScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg text-gray-600 dark:text-gray-300">{t('doku.loading')}</p>
+      <div className="relative min-h-screen">
+        <TaleaPageBackground isDark={isDark} />
+        <div className={`${taleaPageShellClass} flex min-h-screen items-center justify-center py-12`}>
+          <TaleaSurface className="w-full max-w-lg p-8 text-center sm:p-10">
+            <div className="mx-auto mb-5 h-14 w-14 rounded-full border-[3px] border-[#8dbcae] border-t-transparent animate-spin dark:border-[#9dc6e4]" />
+            <h2
+              className="text-[2rem] font-semibold text-slate-900 dark:text-white"
+              style={{ fontFamily: taleaDisplayFont }}
+            >
+              {t('doku.loading')}
+            </h2>
+          </TaleaSurface>
         </div>
       </div>
     );
@@ -402,13 +420,25 @@ const DokuReaderScreen: React.FC = () => {
 
   if (error || !doku) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
-          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('doku.notFound')}</p>
-          <button onClick={() => navigate('/doku')} className="px-4 py-2 bg-teal-500 text-white rounded hover:bg-teal-600 transition-colors flex items-center mx-auto">
-            <ArrowLeft size={18} className="mr-2" /> {t('common.back')}
-          </button>
+      <div className="relative min-h-screen">
+        <TaleaPageBackground isDark={isDark} />
+        <div className={`${taleaPageShellClass} flex min-h-screen items-center justify-center py-12`}>
+          <TaleaSurface className="w-full max-w-lg p-8 text-center sm:p-10">
+            <h2
+              className="text-[2rem] font-semibold text-slate-900 dark:text-white"
+              style={{ fontFamily: taleaDisplayFont }}
+            >
+              {t('common.error')}
+            </h2>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+              {error || t('doku.notFound')}
+            </p>
+            <div className="mt-6 flex justify-center">
+              <TaleaActionButton variant="secondary" onClick={() => navigate('/doku')} icon={<ArrowLeft className="h-4 w-4" />}>
+                {t('common.back')}
+              </TaleaActionButton>
+            </div>
+          </TaleaSurface>
         </div>
       </div>
     );
@@ -417,50 +447,82 @@ const DokuReaderScreen: React.FC = () => {
   const currentDisplayableSection = displayableSections[currentIndex];
 
   return (
-    <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-      <button onClick={() => isReading ? setIsReading(false) : navigate('/doku')} className="absolute top-4 left-4 z-20 p-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition-transform">
-        <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+    <div className="relative h-screen overflow-hidden">
+      <TaleaPageBackground isDark={isDark} />
+      <button
+        onClick={() => isReading ? setIsReading(false) : navigate('/doku')}
+        className="absolute left-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 shadow-[0_14px_32px_-24px_rgba(150,122,99,0.46)] backdrop-blur-xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e7fb] dark:border-white/10 dark:bg-white/8 dark:text-slate-100 dark:shadow-[0_18px_40px_-26px_rgba(2,8,23,0.9)] dark:focus-visible:ring-[#243753]"
+        aria-label={t('common.back')}
+      >
+        <ArrowLeft className="h-5 w-5" />
       </button>
 
       <AnimatePresence initial={false}>
         {!isReading ? (
-          <motion.div key="summary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
-            <img src={doku?.coverImageUrl || '/placeholder-doku.jpg'} alt={doku?.title} className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover" />
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{doku?.title}</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{doku?.summary}</p>
+          <motion.div key="summary" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex h-full items-center justify-center px-3 py-24">
+            <div className={`${taleaPageShellClass}`}>
+              <TaleaSurface className="mx-auto max-w-5xl p-5 md:p-7">
+                <div className="grid gap-6 lg:grid-cols-[minmax(16rem,24rem)_minmax(0,1fr)] lg:items-center">
+                  <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_24px_56px_-32px_rgba(150,122,99,0.54)] dark:border-white/10 dark:bg-white/5">
+                    <img src={doku?.coverImageUrl || '/placeholder-doku.jpg'} alt={doku?.title} className="aspect-[4/5] w-full object-cover" />
+                  </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-              <button
-                onClick={startReading}
-                className="px-8 py-3 bg-teal-600 text-white font-bold rounded-full shadow-lg hover:bg-teal-700 transition-transform hover:scale-105"
-              >
-                {t('doku.readDoku')}
-              </button>
+                  <div className="text-left">
+                    <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[#7da697] dark:border-white/10 dark:bg-white/5 dark:text-[#a9d6c6]`}>
+                      Doku Reader
+                    </span>
+                    <h1
+                      className="mt-4 text-4xl font-semibold leading-tight text-slate-900 dark:text-white md:text-[3.4rem]"
+                      style={{ fontFamily: taleaDisplayFont }}
+                    >
+                      {doku?.title}
+                    </h1>
+                    <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 dark:text-slate-300">
+                      {doku?.summary}
+                    </p>
 
-              {isAdmin && (
-                <button
-                  onClick={handleExportPDF}
-                  disabled={isExportingPDF}
-                  className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isExportingPDF ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>{exportProgress}%</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-5 h-5" />
-                      <span>PDF herunterladen</span>
-                    </>
-                  )}
-                </button>
-              )}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Abschnitte</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{displayableSections.length || 0}</p>
+                      </div>
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Thema</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{doku?.topic || 'Doku'}</p>
+                      </div>
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Bereit</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">Mit Quiz, Fakten und Aktivitaeten</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                      <TaleaActionButton onClick={startReading} icon={<FlaskConical className="h-4 w-4" />}>
+                        {t('doku.readDoku')}
+                      </TaleaActionButton>
+
+                      {isAdmin && (
+                        <TaleaActionButton
+                          variant="secondary"
+                          onClick={handleExportPDF}
+                          disabled={isExportingPDF}
+                          icon={
+                            isExportingPDF
+                              ? <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                              : <Download className="h-4 w-4" />
+                          }
+                        >
+                          {isExportingPDF ? `${exportProgress}%` : 'PDF herunterladen'}
+                        </TaleaActionButton>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TaleaSurface>
             </div>
           </motion.div>
         ) : (
-          <div key="reader" className="w-full h-full flex flex-col">
+          <div key="reader" className="w-full h-full flex flex-col px-3 pb-24 pt-16">
             <AnimatePresence initial={false} custom={animationDirection}>
               <motion.div
                 key={currentIndex}
@@ -469,26 +531,33 @@ const DokuReaderScreen: React.FC = () => {
                 initial="enter"
                 animate="center"
                 exit="exit"
-                className="w-full h-full absolute inset-0"
+                className="absolute inset-x-0 bottom-24 top-16"
               >
                 {currentDisplayableSection && renderSection(currentDisplayableSection)}
               </motion.div>
             </AnimatePresence>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
-              <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-                <motion.button onClick={() => goToIndex(currentIndex - 1)} disabled={currentIndex === 0} className="p-3 rounded-full disabled:opacity-30" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex > 0 ? 1 : 0 }}>
-                  <ChevronLeft className="w-8 h-8" />
+            <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3">
+              <div className="mx-auto max-w-4xl">
+                <TaleaSurface className="p-3 md:p-4">
+                  <div className="flex items-center justify-between gap-4">
+                <motion.button onClick={() => goToIndex(currentIndex - 1)} disabled={currentIndex === 0} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition disabled:opacity-35 dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex > 0 ? 1 : 0 }}>
+                    <ChevronLeft className="h-6 w-6" />
                 </motion.button>
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
-                    <motion.div className="bg-teal-600 h-2.5 rounded-full" initial={{ width: '0%' }} animate={{ width: `${((currentIndex + 1) / (displayableSections.length || 1)) * 100}%` }} transition={{ ease: "easeInOut" }} />
+                    <div className="flex-1">
+                      <div className="h-2.5 overflow-hidden rounded-full bg-slate-300/45 dark:bg-white/10">
+                        <motion.div className="h-full rounded-full bg-[linear-gradient(90deg,#b8d9cd_0%,#d9e8f7_100%)]" initial={{ width: '0%' }} animate={{ width: `${((currentIndex + 1) / (displayableSections.length || 1)) * 100}%` }} transition={{ ease: "easeInOut" }} />
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        <span>{t('doku.sections')} {currentIndex + 1}</span>
+                        <span>{displayableSections.length || 1}</span>
+                      </div>
+                    </div>
+                <motion.button onClick={() => goToIndex(currentIndex + 1)} disabled={currentIndex === displayableSections.length - 1} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition disabled:opacity-35 dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex < displayableSections.length - 1 ? 1 : 0 }}>
+                    <ChevronRight className="h-6 w-6" />
+                </motion.button>
                   </div>
-                  <span className="text-xs mt-1.5">{t('doku.sections')} {currentIndex + 1} / {displayableSections.length || 1}</span>
-                </div>
-                <motion.button onClick={() => goToIndex(currentIndex + 1)} disabled={currentIndex === displayableSections.length - 1} className="p-3 rounded-full disabled:opacity-30" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex < displayableSections.length - 1 ? 1 : 0 }}>
-                  <ChevronRight className="w-8 h-8" />
-                </motion.button>
+                </TaleaSurface>
               </div>
             </div>
           </div>

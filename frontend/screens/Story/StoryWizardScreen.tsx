@@ -22,6 +22,8 @@ import { StoryGenerationStep } from '../../components/story/StoryGenerationProgr
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
+import { useTheme } from '../../contexts/ThemeContext';
+import { TaleaPageBackground, taleaDisplayFont, taleaPageShellClass } from '@/components/talea/TaleaPastelPrimitives';
 
 type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
 
@@ -121,6 +123,8 @@ const StoryWizardScreen: React.FC = () => {
   const { user } = useUser();
   const { isAdmin } = useOptionalUserAccess();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   // UPDATED: Neue Steps eingefügt
   const steps = [
@@ -341,26 +345,29 @@ const StoryWizardScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="relative min-h-screen pb-20">
+      <TaleaPageBackground isDark={isDark} />
       <FadeInView delay={0}>
-        <div className="bg-white border-b border-gray-200 p-4">
+        <div className={`${taleaPageShellClass} pt-4`}>
+          <div className="rounded-[28px] border border-white/75 bg-white/72 p-4 shadow-[0_20px_48px_-30px_rgba(150,122,99,0.42)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/5 dark:shadow-[0_22px_52px_-32px_rgba(2,8,23,0.88)]">
           <div className="flex items-center mb-4">
             <button
               onClick={goBack}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors mr-3"
+              className="p-2 rounded-full hover:bg-white/70 dark:hover:bg-white/10 transition-colors mr-3"
               disabled={generating}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="text-center flex-1">
-              <h1 className="text-2xl font-bold text-gray-800">{t('story.wizard.title')}</h1>
-              <p className="text-gray-600">{t('story.wizard.subtitle')}</p>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white" style={{ fontFamily: taleaDisplayFont }}>{t('story.wizard.title')}</h1>
+              <p className="text-slate-600 dark:text-slate-300">{t('story.wizard.subtitle')}</p>
             </div>
           </div>
         </div>
+        </div>
       </FadeInView>
 
-      <div className="px-6 py-6">
+      <div className={`${taleaPageShellClass} py-6`}>
         <FadeInView delay={100}>
           <Card variant="elevated" className="mb-6">
             <div className="text-center mb-4">

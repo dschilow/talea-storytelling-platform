@@ -1,127 +1,88 @@
-import React from 'react';
-import { colors } from '../../utils/constants/colors';
-import { spacing, radii, shadows } from '../../utils/constants/spacing';
+import React from "react";
+
+import { cn } from "@/lib/utils";
+import { colors } from "../../utils/constants/colors";
+import { spacing, radii } from "../../utils/constants/spacing";
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'outlined' | 'playful' | 'glass';
+  variant?: "default" | "elevated" | "outlined" | "playful" | "glass";
   padding?: keyof typeof spacing;
   onPress?: () => void;
   style?: React.CSSProperties;
 }
 
+type CardVariant = NonNullable<CardProps["variant"]>;
+
+const variantStyles: Record<CardVariant, React.CSSProperties> = {
+  default: {
+    background: colors.surface,
+    border: `1px solid ${colors.border.normal}`,
+    boxShadow: "var(--talea-shadow-soft)",
+  },
+  elevated: {
+    background: colors.elevatedSurface,
+    border: `1px solid ${colors.border.light}`,
+    boxShadow: "var(--talea-shadow-medium)",
+  },
+  outlined: {
+    background: colors.background.card,
+    border: `1px solid ${colors.border.strong}`,
+    boxShadow: "var(--talea-shadow-soft)",
+  },
+  playful: {
+    background: colors.glass.warmBackground,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: "var(--talea-shadow-medium)",
+  },
+  glass: {
+    background: colors.glass.backgroundAlt,
+    border: `1px solid ${colors.glass.border}`,
+    boxShadow: "var(--talea-shadow-medium)",
+    backdropFilter: "blur(20px) saturate(140%)",
+    WebkitBackdropFilter: "blur(20px) saturate(140%)",
+  },
+};
+
 const Card: React.FC<CardProps> = ({
   children,
-  className = '',
-  variant = 'default',
-  padding = 'lg',
+  className = "",
+  variant = "default",
+  padding = "lg",
   onPress,
-  style = {}
+  style = {},
 }) => {
-  const baseStyles: React.CSSProperties = {
+  const baseStyle: React.CSSProperties = {
     borderRadius: `${radii.xl}px`,
-    transition: 'all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1)',
     padding: `${spacing[padding]}px`,
-    cursor: onPress ? 'pointer' : 'default',
-    userSelect: 'none',
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
+    userSelect: "none",
+    transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease, border-color 220ms ease, background 220ms ease",
+    ...variantStyles[variant],
     ...style,
   };
 
-  const glassStyles: React.CSSProperties = {
-    background: colors.glass.background,
-    border: `1px solid ${colors.glass.border}`,
-    boxShadow: colors.glass.shadow,
-    backdropFilter: 'blur(18px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(18px) saturate(160%)',
-  };
+  const sharedClassName = cn(
+    "group before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.72),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_26%)] before:opacity-100 before:transition-opacity after:pointer-events-none after:absolute after:left-5 after:right-5 after:top-0 after:h-px after:bg-white/70 after:content-[''] dark:before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.09),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_24%)] dark:after:bg-white/10",
+    onPress &&
+      "cursor-pointer touch-manipulation hover:-translate-y-1 hover:shadow-[var(--talea-shadow-strong)] active:translate-y-0 active:scale-[0.992] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e7fb] dark:focus-visible:ring-[#243753]",
+    className
+  );
 
-  const variantStyles = {
-    default: {
-      backgroundColor: colors.surface,
-      border: `1px solid ${colors.border}`,
-    },
-    elevated: {
-      // Adopt subtle glass effect for elevated cards
-      ...glassStyles,
-    },
-    outlined: {
-      backgroundColor: colors.elevatedSurface,
-      border: `2px solid ${colors.border}`,
-    },
-    playful: {
-      // Playful with glass warmth
-      ...glassStyles,
-      background: colors.glass.warmBackground,
-      border: `1px solid ${colors.glass.border}`,
-      boxShadow: shadows.soft,
-    },
-    glass: {
-      ...glassStyles,
-    },
-  };
-
-  const hoverStyles = onPress ? {
-    transform: 'translateY(-4px) scale(1.02)',
-    boxShadow: shadows.lg,
-  } : {};
-
-  const activeStyles = onPress ? {
-    transform: 'translateY(-1px) scale(0.98)',
-  } : {};
-
-  const cardStyle = {
-    ...baseStyles,
-    ...variantStyles[variant],
-  };
-
-  const Component = onPress ? 'button' : 'div';
+  if (onPress) {
+    return (
+      <button type="button" onClick={onPress} style={baseStyle} className={sharedClassName}>
+        <div className="relative z-[1]">{children}</div>
+      </button>
+    );
+  }
 
   return (
-    <Component
-      style={cardStyle}
-      onClick={onPress}
-      className={className}
-      onMouseEnter={(e) => {
-        if (onPress) {
-          Object.assign(e.currentTarget.style, { ...cardStyle, ...hoverStyles });
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (onPress) {
-          Object.assign(e.currentTarget.style, cardStyle);
-        }
-      }}
-      onMouseDown={(e) => {
-        if (onPress) {
-          Object.assign(e.currentTarget.style, { ...cardStyle, ...activeStyles });
-        }
-      }}
-      onMouseUp={(e) => {
-        if (onPress) {
-          Object.assign(e.currentTarget.style, { ...cardStyle, ...hoverStyles });
-        }
-      }}
-    >
-      {/* Glossy highlight */}
-      {(variant === 'glass' || variant === 'elevated' || variant === 'playful') && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: '-20%',
-            right: '-20%',
-            height: '80px',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.0) 100%)',
-            filter: 'blur(8px)',
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-      {children}
-    </Component>
+    <div style={baseStyle} className={sharedClassName}>
+      <div className="relative z-[1]">{children}</div>
+    </div>
   );
 };
 

@@ -20,8 +20,29 @@ const AppLayout: React.FC = () => {
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const showSettingsButton = location.pathname !== "/settings";
   const isSettingsRoute = location.pathname.startsWith("/settings");
-  const usesImmersiveShell = location.pathname === "/" || location.pathname.startsWith("/stories");
+  const isReaderRoute =
+    location.pathname.startsWith("/story-reader") ||
+    location.pathname.startsWith("/doku-reader");
+  const usesImmersiveShell =
+    location.pathname === "/" ||
+    location.pathname.startsWith("/stories") ||
+    location.pathname.startsWith("/avatar") ||
+    location.pathname.startsWith("/story") ||
+    location.pathname.startsWith("/doku") ||
+    location.pathname.startsWith("/quiz") ||
+    location.pathname.startsWith("/community") ||
+    location.pathname.startsWith("/map") ||
+    location.pathname.startsWith("/fairytales") ||
+    location.pathname.startsWith("/characters") ||
+    location.pathname.startsWith("/artifacts") ||
+    location.pathname.startsWith("/logs");
   const hasPlaylistItems = playlist.length > 0;
+  const shellStyle = isCosmosFullScreenRoute || isReaderRoute
+    ? undefined
+    : {
+        paddingLeft: "max(env(safe-area-inset-left), 0.7rem)",
+        paddingRight: "max(env(safe-area-inset-right), 0.7rem)",
+      };
 
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
@@ -36,13 +57,14 @@ const AppLayout: React.FC = () => {
 
       <main className="flex-1 min-h-screen transition-all duration-300">
         <div
+          style={shellStyle}
           className={
-            isCosmosFullScreenRoute
+            isCosmosFullScreenRoute || isReaderRoute
               ? "w-full min-h-screen p-0 m-0 max-w-none"
               : usesImmersiveShell
-                ? "w-full mx-auto max-w-none px-0 pb-20 md:pb-10"
-                : `w-full mx-auto pb-20 px-1.5 sm:px-2 md:pb-10 ${
-                    isSettingsRoute ? "md:pt-6 md:px-6 max-w-[1480px]" : "md:pt-10 md:px-10 max-w-[1120px]"
+                ? "w-full mx-auto max-w-none pb-20 md:pb-10"
+                : `w-full mx-auto pb-20 md:pb-10 ${
+                    isSettingsRoute ? "md:pt-6 md:px-5 max-w-[1520px]" : "md:pt-8 md:px-8 max-w-[1260px]"
                   }`
           }
         >

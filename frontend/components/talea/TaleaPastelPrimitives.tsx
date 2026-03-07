@@ -14,7 +14,10 @@ export const taleaInsetSurfaceClass =
   "relative overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(255,252,247,0.82)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_18px_42px_-30px_rgba(186,155,129,0.34)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.8),transparent_50%),linear-gradient(135deg,rgba(245,224,235,0.4)_0%,transparent_46%,rgba(223,240,255,0.36)_100%)] before:content-[''] sm:rounded-[26px] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(19,31,47,0.92)_0%,rgba(14,24,38,0.88)_100%)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_-28px_rgba(2,8,23,0.86)] dark:before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_46%),linear-gradient(135deg,rgba(111,84,114,0.16)_0%,transparent_48%,rgba(65,96,131,0.16)_100%)]";
 
 export const taleaPageShellClass =
-  "mx-auto w-full max-w-[1440px] px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10";
+  "mx-auto w-full max-w-[1480px] px-2.5 sm:px-4 md:px-6 lg:px-8 xl:px-10";
+
+export const taleaGlassPanelClass =
+  "relative overflow-hidden rounded-[24px] border border-white/70 bg-white/76 shadow-[0_20px_52px_-34px_rgba(166,138,116,0.42)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.76),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.16),transparent_26%)] before:content-[''] dark:border-white/10 dark:bg-[rgba(17,28,42,0.76)] dark:shadow-[0_28px_70px_-36px_rgba(2,8,23,0.88)] dark:before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_24%)]";
 
 export const taleaInputClass =
   "h-12 w-full rounded-[20px] border border-white/80 bg-white/88 px-4 text-sm font-semibold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] outline-none transition focus:border-[#d8c4ef] focus:ring-4 focus:ring-[#f6eefe]/80 dark:border-white/10 dark:bg-[rgba(18,30,46,0.9)] dark:text-slate-100 dark:focus:border-[#7c82ff] dark:focus:ring-[#1d2b42]";
@@ -304,3 +307,69 @@ export const TaleaLoadingState: React.FC<{
     </div>
   );
 };
+
+export const TaleaMetricPill: React.FC<{
+  label: string;
+  value: string;
+  className?: string;
+}> = ({ label, value, className }) => (
+  <div
+    className={cn(
+      taleaInsetSurfaceClass,
+      "px-4 py-3",
+      className
+    )}
+  >
+    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+      {label}
+    </p>
+    <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-white">{value}</p>
+  </div>
+);
+
+export const TaleaProgressSteps: React.FC<{
+  steps: Array<{ id: string; label: string }>;
+  activeIndex: number;
+}> = ({ steps, activeIndex }) => (
+  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
+    {steps.map((step, index) => {
+      const isDone = index < activeIndex;
+      const isActive = index === activeIndex;
+
+      return (
+        <React.Fragment key={step.id}>
+          <div className="flex items-center gap-2">
+            <span
+              className={cn(
+                "inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold transition",
+                isDone
+                  ? "border-transparent bg-[#b79f8e] text-white dark:bg-[#8ea7cc]"
+                  : isActive
+                    ? "border-white/70 bg-white/80 text-slate-800 shadow-[0_12px_28px_-18px_rgba(167,142,123,0.55)] dark:border-white/10 dark:bg-white/10 dark:text-white"
+                    : "border-white/70 bg-white/45 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400"
+              )}
+            >
+              {isDone ? "OK" : index + 1}
+            </span>
+            <span
+              className={cn(
+                "max-w-[5.5rem] text-[11px] font-semibold uppercase tracking-[0.16em]",
+                isActive || isDone ? "text-slate-700 dark:text-slate-200" : "text-slate-400 dark:text-slate-500"
+              )}
+            >
+              {step.label}
+            </span>
+          </div>
+          {index < steps.length - 1 ? (
+            <span
+              className={cn(
+                "hidden h-px w-6 rounded-full sm:block",
+                isDone ? "bg-[#b79f8e] dark:bg-[#8ea7cc]" : "bg-white/70 dark:bg-white/10"
+              )}
+            />
+          ) : null}
+        </React.Fragment>
+      );
+    })}
+  </div>
+);

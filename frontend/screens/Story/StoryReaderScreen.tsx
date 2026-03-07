@@ -9,8 +9,6 @@ import { useBackend } from '../../hooks/useBackend';
 import { useGrowthCelebration } from '../../hooks/useGrowthCelebration';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
-import Button from '../../components/common/Button';
-import Card from '../../components/common/Card';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
@@ -23,6 +21,15 @@ import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
+import { useTheme } from '../../contexts/ThemeContext';
+import {
+  TaleaActionButton,
+  TaleaPageBackground,
+  TaleaSurface,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaPageShellClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -31,9 +38,11 @@ const StoryReaderScreen: React.FC = () => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { t } = useTranslation();
+  const { resolvedTheme } = useTheme();
   const { isAdmin } = useOptionalUserAccess();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const isDark = resolvedTheme === 'dark';
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -432,10 +441,18 @@ const StoryReaderScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-stone-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg text-gray-600 dark:text-gray-300">{t('story.reader.loading')}</p>
+      <div className="relative min-h-screen">
+        <TaleaPageBackground isDark={isDark} />
+        <div className={`${taleaPageShellClass} flex min-h-screen items-center justify-center py-12`}>
+          <TaleaSurface className="w-full max-w-lg p-8 text-center sm:p-10">
+            <div className="mx-auto mb-5 h-14 w-14 rounded-full border-[3px] border-[#b4879f] border-t-transparent animate-spin dark:border-[#9dc6e4]" />
+            <h2
+              className="text-[2rem] font-semibold text-slate-900 dark:text-white"
+              style={{ fontFamily: taleaDisplayFont }}
+            >
+              {t('story.reader.loading')}
+            </h2>
+          </TaleaSurface>
         </div>
       </div>
     );
@@ -443,13 +460,25 @@ const StoryReaderScreen: React.FC = () => {
 
   if (error || !story) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="text-center p-8 bg-[#13102B]/90 backdrop-blur-xl border border-white/10 rounded-lg shadow-xl">
-          <h2 className="text-2xl font-bold text-red-500 mb-4">{t('common.error')}</h2>
-          <p className="text-gray-700 dark:text-gray-200 mb-6">{error || t('story.reader.notFound')}</p>
-          <button onClick={() => navigate('/stories')} className="px-4 py-2 bg-stone-500 text-white rounded hover:bg-stone-600 transition-colors flex items-center mx-auto">
-            <ArrowLeft size={18} className="mr-2" /> {t('common.back')}
-          </button>
+      <div className="relative min-h-screen">
+        <TaleaPageBackground isDark={isDark} />
+        <div className={`${taleaPageShellClass} flex min-h-screen items-center justify-center py-12`}>
+          <TaleaSurface className="w-full max-w-lg p-8 text-center sm:p-10">
+            <h2
+              className="text-[2rem] font-semibold text-slate-900 dark:text-white"
+              style={{ fontFamily: taleaDisplayFont }}
+            >
+              {t('common.error')}
+            </h2>
+            <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+              {error || t('story.reader.notFound')}
+            </p>
+            <div className="mt-6 flex justify-center">
+              <TaleaActionButton variant="secondary" onClick={() => navigate('/stories')} icon={<ArrowLeft className="h-4 w-4" />}>
+                {t('common.back')}
+              </TaleaActionButton>
+            </div>
+          </TaleaSurface>
         </div>
       </div>
     );
@@ -469,11 +498,17 @@ const StoryReaderScreen: React.FC = () => {
   const primaryChapterImage =
     currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`;
   const scenicChapterImage = currentChapter?.scenicImageUrl;
+  const storyProgress = `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%`;
 
   return (
-    <div className="w-screen h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
-      <button onClick={() => isReading ? setIsReading(false) : navigate('/stories')} className="absolute top-4 left-4 z-20 p-2 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-full shadow-md hover:scale-105 transition-transform">
-        <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+    <div className="relative h-screen overflow-hidden">
+      <TaleaPageBackground isDark={isDark} />
+      <button
+        onClick={() => isReading ? setIsReading(false) : navigate('/stories')}
+        className="absolute left-3 top-3 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 shadow-[0_14px_32px_-24px_rgba(150,122,99,0.46)] backdrop-blur-xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e7fb] dark:border-white/10 dark:bg-white/8 dark:text-slate-100 dark:shadow-[0_18px_40px_-26px_rgba(2,8,23,0.9)] dark:focus-visible:ring-[#243753]"
+        aria-label={t('common.back')}
+      >
+        <ArrowLeft className="h-5 w-5" />
       </button>
 
       <AnimatePresence initial={false}>
@@ -483,49 +518,76 @@ const StoryReaderScreen: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full h-full flex flex-col items-center justify-center p-8 text-center"
+            className="flex h-full items-center justify-center px-3 py-24"
           >
-            <motion.img
-              src={story.coverImageUrl || '/placeholder-story.jpg'}
-              alt={story.title}
-              className="w-48 h-48 md:w-64 md:h-64 rounded-lg shadow-2xl mb-6 object-cover"
-              layoutId={`story-cover-${story.id}`}
-            />
-            <h1 className="text-3xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">{story.title}</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mb-8">{story.summary}</p>
+            <div className={`${taleaPageShellClass}`}>
+              <TaleaSurface className="mx-auto max-w-5xl p-5 md:p-7">
+                <div className="grid gap-6 lg:grid-cols-[minmax(16rem,24rem)_minmax(0,1fr)] lg:items-center">
+                  <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_24px_56px_-32px_rgba(150,122,99,0.54)] dark:border-white/10 dark:bg-white/5">
+                    <motion.img
+                      src={story.coverImageUrl || '/placeholder-story.jpg'}
+                      alt={story.title}
+                      className="aspect-[4/5] w-full object-cover"
+                      layoutId={`story-cover-${story.id}`}
+                    />
+                  </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-              <button
-                onClick={startReading}
-                className="px-8 py-3 bg-stone-600 text-white font-bold rounded-full shadow-lg hover:bg-stone-700 transition-transform hover:scale-105"
-              >
-                {t('story.reader.read')}
-              </button>
+                  <div className="text-left">
+                    <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[#ab7f95] dark:border-white/10 dark:bg-white/5 dark:text-[#cbb8ef]`}>
+                      Story Reader
+                    </span>
+                    <h1
+                      className="mt-4 text-4xl font-semibold leading-tight text-slate-900 dark:text-white md:text-[3.4rem]"
+                      style={{ fontFamily: taleaDisplayFont }}
+                    >
+                      {story.title}
+                    </h1>
+                    <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 dark:text-slate-300">
+                      {story.summary}
+                    </p>
 
-              {isAdmin && (
-                <button
-                  onClick={handleExportPDF}
-                  disabled={isExportingPDF}
-                  className="px-8 py-3 bg-green-600 text-white font-bold rounded-full shadow-lg hover:bg-green-700 transition-transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isExportingPDF ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>{exportProgress}%</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-5 h-5" />
-                      <span>PDF herunterladen</span>
-                    </>
-                  )}
-                </button>
-              )}
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Kapitel</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{story.chapters?.length || 0}</p>
+                      </div>
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Format</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">Lesemodus</p>
+                      </div>
+                      <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Bereit</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">Mit Audio und Belohnungen</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                      <TaleaActionButton onClick={startReading} icon={<Sparkles className="h-4 w-4" />}>
+                        {t('story.reader.read')}
+                      </TaleaActionButton>
+
+                      {isAdmin && (
+                        <TaleaActionButton
+                          variant="secondary"
+                          onClick={handleExportPDF}
+                          disabled={isExportingPDF}
+                          icon={
+                            isExportingPDF
+                              ? <div className="h-4 w-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                              : <Download className="h-4 w-4" />
+                          }
+                        >
+                          {isExportingPDF ? `${exportProgress}%` : 'PDF herunterladen'}
+                        </TaleaActionButton>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </TaleaSurface>
             </div>
           </motion.div>
         ) : (
-          <div key="reader" className="w-full h-full flex flex-col">
+          <div key="reader" className="w-full h-full flex flex-col px-3 pb-24 pt-16">
             <AnimatePresence initial={false} custom={animationDirection}>
               <motion.div
                 key={currentChapterIndex}
@@ -534,69 +596,87 @@ const StoryReaderScreen: React.FC = () => {
                 initial="enter"
                 animate="center"
                 exit="exit"
-                className="w-full h-full flex flex-col pt-20 pb-32 absolute inset-0"
+                className="absolute inset-x-0 bottom-24 top-16 flex justify-center px-3"
               >
-                <div className="text-center px-4">
-                  <h2 className="text-2xl md:text-4xl font-bold text-gray-800 dark:text-white mb-6">{currentChapter?.title}</h2>
-                </div>
-                <div ref={contentRef} className="flex-1 overflow-y-auto px-4 md:px-12">
-                  <div className="max-w-4xl mx-auto text-lg md:text-xl text-gray-700 dark:text-gray-300 leading-loose tracking-wide space-y-6 text-justify hyphens-auto">
+                <TaleaSurface className="flex h-full w-full max-w-5xl flex-col p-0">
+                  <div className="border-b border-white/70 px-5 pb-4 pt-5 dark:border-white/10 md:px-8">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <span className={`${taleaChipClass} border-white/70 bg-white/72 text-[#9f7b89] dark:border-white/10 dark:bg-white/5 dark:text-[#c1b6ef]`}>
+                          {t('story.reader.chapter')} {currentChapterIndex + 1}
+                        </span>
+                        <h2
+                          className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white md:text-[2.8rem]"
+                          style={{ fontFamily: taleaDisplayFont }}
+                        >
+                          {currentChapter?.title}
+                        </h2>
+                      </div>
+
+                      {currentChapter && (
+                        <AudioPlayer text={currentChapter.content} className="md:mt-1" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div ref={contentRef} className="talea-soft-scrollbar flex-1 overflow-y-auto px-5 pb-6 pt-5 md:px-8">
+                    <div className="mx-auto max-w-4xl space-y-6 text-[1.02rem] leading-8 text-slate-700 dark:text-slate-300 md:text-[1.12rem] md:leading-9">
                     {chapterParagraphs.map((paragraph, i) => (
                       <React.Fragment key={i}>
-                        <p>{paragraph}</p>
+                          <p className="talea-reading-prose">{paragraph}</p>
                         {imageInsertPoints.primaryAfterSegment === i && (
-                          <div className="w-full rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden my-8">
+                            <div className="my-8 overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_22px_48px_-30px_rgba(150,122,99,0.52)] dark:border-white/10 dark:bg-white/5">
                             <img
                               src={primaryChapterImage}
                               alt={`${currentChapter?.title || 'Kapitel'} - Szene`}
-                              className="w-full h-auto max-h-[40vh] object-contain"
+                                className="w-full h-auto max-h-[40vh] object-contain"
                             />
                           </div>
                         )}
                         {imageInsertPoints.scenicAfterSegment === i && scenicChapterImage && (
-                          <div className="w-full rounded-lg shadow-lg bg-gray-200 dark:bg-gray-800 overflow-hidden my-8">
+                            <div className="my-8 overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_22px_48px_-30px_rgba(150,122,99,0.52)] dark:border-white/10 dark:bg-white/5">
                             <img
                               src={scenicChapterImage}
                               alt={`${currentChapter?.title || 'Kapitel'} - Umgebung`}
-                              className="w-full h-auto max-h-[40vh] object-contain"
+                                className="w-full h-auto max-h-[40vh] object-contain"
                             />
                           </div>
                         )}
                       </React.Fragment>
                     ))}
                   </div>
-                </div>
+                  </div>
+                </TaleaSurface>
               </motion.div>
             </AnimatePresence>
 
-            {/* Navigation & Progress */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700">
-              <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+            <div className="absolute inset-x-0 bottom-0 z-20 px-3 pb-3">
+              <div className="mx-auto max-w-5xl">
+                <TaleaSurface className="p-3 md:p-4">
+                  <div className="flex items-center gap-3 md:gap-4">
                 <motion.button
                   onClick={() => goToChapter(currentChapterIndex - 1)}
                   disabled={currentChapterIndex === 0}
-                  className="p-3 rounded-full disabled:opacity-30 transition-opacity"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition disabled:opacity-35 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   animate={{ opacity: showNav || currentChapterIndex > 0 ? 1 : 0 }}
                 >
-                  <ChevronLeft className="w-8 h-8" />
+                  <ChevronLeft className="h-6 w-6" />
                 </motion.button>
 
-                {/* Audio Player */}
-                {currentChapter && (
-                  <AudioPlayer text={currentChapter.content} className="mr-2" />
-                )}
-
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="w-full bg-gray-300/50 dark:bg-gray-600/50 rounded-full h-2.5">
+                <div className="flex-1">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-300/45 dark:bg-white/10">
                     <motion.div
-                      className="bg-stone-600 h-2.5 rounded-full"
+                      className="h-full rounded-full bg-[linear-gradient(90deg,#d4b3c7_0%,#d9e8f7_100%)]"
                       initial={{ width: '0%' }}
-                      animate={{ width: `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%` }}
+                      animate={{ width: storyProgress }}
                       transition={{ ease: "easeInOut" }}
                     />
                   </div>
-                  <span className="text-xs mt-1.5">{t('story.reader.chapter')} {currentChapterIndex + 1} / {story.chapters?.length || 1}</span>
+                  <div className="mt-1.5 flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                    <span>{t('story.reader.chapter')} {currentChapterIndex + 1}</span>
+                    <span>{story.chapters?.length || 1}</span>
+                  </div>
                 </div>
 
                 {/* Next Chapter / Complete Story Button */}
@@ -610,9 +690,10 @@ const StoryReaderScreen: React.FC = () => {
                       }
                     }}
                     disabled={storyCompleted}
-                    className={`px-6 py-3 rounded-full font-bold text-white transition-all ${storyCompleted
-                      ? 'bg-green-600 cursor-default'
-                      : 'bg-amber-600 hover:bg-amber-700 hover:scale-105'
+                    className={`rounded-full border px-5 py-3 text-sm font-bold transition ${
+                      storyCompleted
+                        ? 'border-transparent bg-[#7daf99] text-white dark:bg-[#7fa3c8]'
+                        : 'border-white/75 bg-[linear-gradient(135deg,#f2d8e4_0%,#f9e9ca_46%,#dfeefc_100%)] text-[#334257] dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.54)_0%,rgba(65,96,131,0.44)_100%)] dark:text-white'
                       }`}
                     whileHover={!storyCompleted ? { scale: 1.05 } : {}}
                     whileTap={!storyCompleted ? { scale: 0.95 } : {}}
@@ -625,13 +706,15 @@ const StoryReaderScreen: React.FC = () => {
                   <motion.button
                     onClick={() => goToChapter(currentChapterIndex + 1)}
                     disabled={!story.chapters || currentChapterIndex === story.chapters.length - 1}
-                    className="p-3 rounded-full disabled:opacity-30 transition-opacity"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition disabled:opacity-35 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
                     whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                     animate={{ opacity: showNav || (story.chapters && currentChapterIndex < story.chapters.length - 1) ? 1 : 0 }}
                   >
-                    <ChevronRight className="w-8 h-8" />
+                    <ChevronRight className="h-6 w-6" />
                   </motion.button>
                 )}
+                  </div>
+                </TaleaSurface>
               </div>
             </div>
           </div>
