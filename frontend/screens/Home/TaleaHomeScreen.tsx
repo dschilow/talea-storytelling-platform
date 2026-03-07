@@ -46,6 +46,7 @@ import {
   taleaChipClass,
   taleaDisplayFont,
   taleaInsetSurfaceClass,
+  taleaPageShellClass,
   taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 
@@ -304,10 +305,10 @@ const StoryCard: React.FC<{
       <StoryStatusTag status={story.status} />
 
       <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-all group-hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:group-hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]")}>
-        <div className={cn("flex h-full", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
+        <div className={cn("flex h-full min-w-0", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
           <div className={cn(
-            "relative overflow-hidden p-3", 
-            isFeatured ? "sm:w-1/2 sm:p-4" : "h-56"
+            "relative overflow-hidden p-2 sm:p-3", 
+            isFeatured ? "sm:w-[48%] sm:p-3" : "h-56"
           )}>
             <div className={cn(taleaInsetSurfaceClass, "h-full w-full overflow-hidden rounded-[28px] border-0 p-2")}>
               {story.coverImageUrl ? (
@@ -325,7 +326,7 @@ const StoryCard: React.FC<{
               <div className="absolute inset-2 rounded-[20px] bg-gradient-to-t from-slate-900/50 via-slate-900/5 to-transparent" />
             </div>
 
-            <div className="absolute left-6 bottom-6 flex items-center gap-2 z-10">
+            <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 sm:bottom-6 sm:left-6">
               {canSaveOffline && story.status === "complete" && onToggleOffline && (
                 <motion.button
                   whileHover={{ scale: 1.15, rotate: 5 }}
@@ -361,10 +362,15 @@ const StoryCard: React.FC<{
             </div>
           </div>
 
-          <CardContent className={cn("flex flex-col justify-between p-6", isFeatured ? "sm:w-1/2 sm:p-8 sm:pr-10" : "")}>
+          <CardContent className={cn("flex flex-col justify-between p-5 sm:p-6", isFeatured ? "sm:w-[52%] sm:p-7 lg:p-8 lg:pr-10" : "")}>
             <div className="space-y-3">
+              {isFeatured ? (
+                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                  Titelgeschichte
+                </span>
+              ) : null}
               <h3
-                className="line-clamp-2 text-2xl font-semibold leading-tight text-slate-900 dark:text-white transition-colors"
+                className="line-clamp-2 text-[1.75rem] font-semibold leading-tight text-slate-900 transition-colors dark:text-white sm:text-2xl"
                 style={{ fontFamily: headingFont }}
               >
                 {story.title}
@@ -380,10 +386,13 @@ const StoryCard: React.FC<{
             <div className="mt-6 space-y-4">
               <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 6 : 4} />
 
-              <div className="mt-4 flex items-center justify-between border-t border-[#efe4da] pt-3 dark:border-white/10">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#efe4da] pt-4 dark:border-white/10">
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{formatDate(story.createdAt)}</span>
                 <span className="rounded-full border border-white/80 bg-white/86 px-4 py-2 text-[0px] font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-100">
-                  <span className="text-sm font-semibold">Jetzt lesen</span>
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                    <span>Jetzt lesen</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
                   Loslesen ✨
                 </span>
               </div>
@@ -413,10 +422,10 @@ const AvatarTile: React.FC<{
         onOpen();
       }
     }}
-    className={cn(taleaSurfaceClass, "group relative flex h-48 w-36 flex-shrink-0 flex-col items-center justify-center p-4 text-center sm:h-56 sm:w-44")}
+    className={cn(taleaSurfaceClass, "group relative flex h-[11rem] w-[8.75rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center sm:h-56 sm:w-44 sm:p-4")}
   >
-    <div className="relative mx-auto inline-block mb-3">
-      <div className={cn(taleaInsetSurfaceClass, "h-24 w-24 overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] sm:h-28 sm:w-28")}>
+    <div className="relative mx-auto mb-3 inline-block">
+      <div className={cn(taleaInsetSurfaceClass, "h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] sm:h-28 sm:w-28")}>
         <img
           src={
             avatar.imageUrl ||
@@ -432,7 +441,10 @@ const AvatarTile: React.FC<{
       </span>
     </div>
 
-    <p className="w-full truncate px-2 text-lg font-semibold text-slate-900 dark:text-white">{avatar.name}</p>
+    <p className="w-full truncate px-2 text-base font-semibold text-slate-900 dark:text-white sm:text-lg">{avatar.name}</p>
+    <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+      {avatar.creationType === "ai-generated" ? "AI-Figur" : "Fotofigur"}
+    </p>
     
     <div className="absolute -top-3 -left-3 opacity-0 transition-all duration-300 scale-50 group-hover:opacity-100 group-hover:scale-100 z-10">
       <motion.button
@@ -461,7 +473,7 @@ const DokuBentoTicket: React.FC<{
     variants={itemVariants}
     whileHover={{ y: -4, scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
-    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden border-0 p-5")}
+    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden border-0 p-4 sm:p-5")}
     role="button"
     tabIndex={0}
     onClick={onRead}
@@ -472,8 +484,8 @@ const DokuBentoTicket: React.FC<{
       }
     }}
   >
-    <div className="flex items-center gap-5">
-      <div className={cn(taleaInsetSurfaceClass, "relative h-20 w-20 shrink-0 overflow-hidden rounded-[22px] border-0 p-2")}>
+    <div className="flex items-center gap-4 sm:gap-5">
+      <div className={cn(taleaInsetSurfaceClass, "relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-[22px] border-0 p-2 sm:h-20 sm:w-20")}>
         {doku.coverImageUrl ? (
           <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full rounded-[16px] object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
@@ -527,30 +539,28 @@ const EmptyStateContainer: React.FC<{
   colorClass: string;
 }> = ({ title, description, icon, actionLabel, onAction, colorClass }) => (
   <motion.div variants={itemVariants}>
-    <Card className="overflow-hidden rounded-[3rem] border-4 border-dashed border-white/80 dark:border-slate-700 bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl">
-      <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+    <Card className={cn(taleaSurfaceClass, "overflow-hidden border-0")}>
+      <CardContent className="p-3 sm:p-4">
+        <div className={cn(taleaInsetSurfaceClass, "flex flex-col items-center justify-center p-6 text-center sm:p-8 md:p-10")}>
         <motion.div 
           animate={{ y: [0, -10, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className={cn("mb-6 flex h-24 w-24 items-center justify-center rounded-[2rem] shadow-inner", colorClass)}
+          className={cn("mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] shadow-inner sm:mb-6 sm:h-24 sm:w-24", colorClass)}
         >
           {icon}
         </motion.div>
-        <h3 className="text-3xl font-black text-slate-800 dark:text-slate-100" style={{ fontFamily: headingFont }}>
+        <h3 className="text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white sm:text-[2.4rem]" style={{ fontFamily: headingFont }}>
           {title}
         </h3>
-        <p className="mx-auto mt-4 max-w-md text-lg font-bold text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mx-auto mt-4 max-w-xl text-sm font-medium leading-7 text-slate-600 dark:text-slate-300 sm:text-base">{description}</p>
         {actionLabel && onAction && (
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            type="button"
-            onClick={onAction}
-            className="mt-8 inline-flex items-center gap-3 rounded-[2rem] bg-gradient-to-r from-pink-500 to-purple-500 px-8 py-4 text-lg font-black text-white shadow-xl shadow-pink-300/50"
-          >
+          <div className="mt-7">
+            <TaleaActionButton type="button" onClick={onAction} icon={<ArrowRight className="h-4 w-4" />}>
             {actionLabel}
-          </motion.button>
+            </TaleaActionButton>
+          </div>
         )}
+        </div>
       </CardContent>
     </Card>
   </motion.div>
@@ -562,22 +572,22 @@ const PremiumSignedOutStart: React.FC = () => {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="flex min-h-[78vh] items-center justify-center px-4 py-10">
+    <div className="flex min-h-[78vh] items-center justify-center px-3 py-8 sm:px-4 sm:py-10">
       <motion.div
         initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className={cn(taleaSurfaceClass, "w-full max-w-6xl overflow-hidden p-3 md:p-4")}
+        className={cn(taleaSurfaceClass, "w-full max-w-6xl overflow-hidden p-2 sm:p-3 md:p-4")}
       >
         <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-8 p-8 md:p-10")}>
+          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 rounded-2xl object-cover" />
                 Talea Kinderatelier
               </span>
               <h1
-                className="mt-8 max-w-3xl text-[2.8rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[4rem]"
+                className="mt-6 max-w-3xl text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[4rem]"
                 style={{ fontFamily: headingFont }}
               >
                 Geschichten, Figuren und Wissen fuehlen sich wie aus einem Guss an.
@@ -618,7 +628,7 @@ const PremiumSignedOutStart: React.FC = () => {
                 tone: "from-[#f3e4fb] to-[#eee1d2]",
               },
             ].map((item) => (
-              <div key={item.title} className={cn(taleaSurfaceClass, "relative overflow-hidden p-6")}>
+              <div key={item.title} className={cn(taleaSurfaceClass, "relative overflow-hidden p-5 sm:p-6")}>
                 <div className={cn("absolute inset-0 bg-gradient-to-br opacity-75", item.tone)} />
                 <div className="relative z-10">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Talea</p>
@@ -686,11 +696,11 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     variants={containerVariants}
     initial="hidden"
     animate="show"
-    className="mx-auto max-w-7xl space-y-10 px-4 pt-6 md:px-8 md:pt-8"
+    className={cn(taleaPageShellClass, "space-y-8 pt-4 sm:space-y-10 sm:pt-6 md:pt-8")}
   >
-    <section className="grid gap-6 xl:grid-cols-[1.55fr_0.92fr]">
+    <section className="grid gap-5 sm:gap-6 xl:grid-cols-[1.55fr_0.92fr]">
       <motion.div variants={itemVariants}>
-        <div className={cn(taleaSurfaceClass, "p-6 md:p-8 lg:p-10")}>
+        <div className={cn(taleaSurfaceClass, "p-5 sm:p-6 md:p-8 lg:p-10")}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className={cn(taleaInsetSurfaceClass, "rounded-[24px] p-2")}>
@@ -724,11 +734,11 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             </TaleaActionButton>
           </div>
 
-          <p className="mt-8 max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+          <p className="mt-6 max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 sm:mt-8 md:text-lg">
             Home fuehrt jetzt mit einem klaren Schwerpunkt, grossen Pastellflaechen und ruhigen Aktionen durch die wichtigsten Inhalte deiner Kinderapp.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-7 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
             <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
               Neue Story zaubern
             </TaleaActionButton>
@@ -774,8 +784,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         </div>
       </motion.div>
 
-      <div className="grid gap-6">
-        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-6")}>
+      <div className="grid gap-5 sm:gap-6">
+        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-5 sm:p-6")}>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Heute im Atelier</p>
           <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
             Drei schnelle Wege fuer neue Magie
@@ -826,7 +836,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           onAction={() => goTo("/story")}
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1.28fr_0.92fr]">
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1.28fr_0.92fr]">
           <StoryCard
             story={stories[0]}
             index={0}
@@ -842,7 +852,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           />
 
           <div className="grid gap-4">
-            <button type="button" onClick={() => goTo("/story")} className={cn(taleaSurfaceClass, "overflow-hidden p-6 text-left")}>
+            <button type="button" onClick={() => goTo("/story")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
               <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>Neue Szene</p>
               <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                 Eine weitere Geschichte vorbereiten
@@ -892,10 +902,10 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           onAction={() => goTo("/avatar/create")}
         />
       ) : (
-        <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-          <div className="flex gap-4 pb-4">
-            <button type="button" onClick={() => goTo("/avatar/create")} className={cn(taleaSurfaceClass, "w-44 shrink-0 p-6 text-left")}>
-              <div className={cn(taleaInsetSurfaceClass, "flex h-full min-h-[180px] flex-col items-center justify-center gap-4 p-6 text-center")}>
+        <div className="-mx-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+          <div className="flex gap-3.5 pb-4 sm:gap-4">
+            <button type="button" onClick={() => goTo("/avatar/create")} className={cn(taleaSurfaceClass, "w-[8.9rem] shrink-0 p-4 text-left sm:w-44 sm:p-6")}>
+              <div className={cn(taleaInsetSurfaceClass, "flex h-full min-h-[170px] flex-col items-center justify-center gap-4 p-5 text-center sm:min-h-[180px] sm:p-6")}>
                 <Plus className="h-10 w-10 text-slate-700 dark:text-white" />
                 <p className="text-lg font-semibold text-slate-900 dark:text-white">Neuer Held</p>
               </div>
@@ -933,7 +943,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           onAction={() => goTo("/doku/create")}
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1.22fr_0.98fr]">
+        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1.22fr_0.98fr]">
           <DokuBentoTicket
             doku={dokus[0]}
             onRead={() => goTo(`/doku-reader/${dokus[0].id}`)}
@@ -941,7 +951,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           />
 
           <div className="grid gap-4">
-            <button type="button" onClick={() => goTo("/doku/create")} className={cn(taleaSurfaceClass, "overflow-hidden p-6 text-left")}>
+            <button type="button" onClick={() => goTo("/doku/create")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
               <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d50] dark:border-white/10 dark:bg-white/5 dark:text-[#f0c989]")}>Neues Thema</p>
               <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                 Eine neue Entdeckungsreise anlegen
@@ -1135,7 +1145,7 @@ const TaleaHomeScreen: React.FC = () => {
   }
 
   return (
-    <div className="relative min-h-screen pb-32 overflow-x-hidden" style={{ fontFamily: bodyFont }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-24 sm:pb-28" style={{ fontFamily: bodyFont }}>
       <KidsAppBackground isDark={isDark} />
 
       <SignedOut>

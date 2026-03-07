@@ -8,10 +8,13 @@ export const taleaDisplayFont = '"Fraunces", "Cormorant Garamond", serif';
 export const taleaBodyFont = '"Manrope", "Sora", sans-serif';
 
 export const taleaSurfaceClass =
-  "rounded-[32px] border border-white/75 bg-white/72 shadow-[0_24px_64px_-34px_rgba(178,146,120,0.38)] backdrop-blur-2xl dark:border-white/10 dark:bg-[rgba(17,28,42,0.82)] dark:shadow-[0_34px_80px_-42px_rgba(2,8,23,0.92)]";
+  "rounded-[24px] sm:rounded-[32px] border border-white/75 bg-white/72 shadow-[0_24px_64px_-34px_rgba(178,146,120,0.38)] backdrop-blur-2xl dark:border-white/10 dark:bg-[rgba(17,28,42,0.82)] dark:shadow-[0_34px_80px_-42px_rgba(2,8,23,0.92)]";
 
 export const taleaInsetSurfaceClass =
-  "rounded-[26px] border border-white/80 bg-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_18px_42px_-30px_rgba(186,155,129,0.34)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(19,31,47,0.88)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_-28px_rgba(2,8,23,0.86)]";
+  "rounded-[20px] sm:rounded-[26px] border border-white/80 bg-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_18px_42px_-30px_rgba(186,155,129,0.34)] backdrop-blur-xl dark:border-white/10 dark:bg-[rgba(19,31,47,0.88)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_-28px_rgba(2,8,23,0.86)]";
+
+export const taleaPageShellClass =
+  "mx-auto w-full max-w-[1440px] px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10";
 
 export const taleaInputClass =
   "h-12 w-full rounded-[20px] border border-white/80 bg-white/88 px-4 text-sm font-semibold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] outline-none transition focus:border-[#d8c4ef] focus:ring-4 focus:ring-[#f6eefe]/80 dark:border-white/10 dark:bg-[rgba(18,30,46,0.9)] dark:text-slate-100 dark:focus:border-[#7c82ff] dark:focus:ring-[#1d2b42]";
@@ -75,7 +78,7 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
         animate={makeFloat(18, [0, 28, -12], [0, -18, 8], [1, 1.06, 0.98])}
         transition={transitionFor(18)}
         className={cn(
-          "absolute -top-24 right-[-8%] h-[34rem] w-[34rem] rounded-full blur-[110px]",
+          "absolute -top-20 right-[-28%] h-[22rem] w-[22rem] rounded-full blur-[90px] sm:-top-24 sm:right-[-8%] sm:h-[34rem] sm:w-[34rem] sm:blur-[110px]",
           isDark ? "bg-[#4b628f]/25" : "bg-[#f3d6e5]/70"
         )}
       />
@@ -83,7 +86,7 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
         animate={makeFloat(22, [0, -24, 12], [0, 20, -14], [1, 0.96, 1.05])}
         transition={transitionFor(22, 1.2)}
         className={cn(
-          "absolute left-[-8%] top-[12%] h-[30rem] w-[30rem] rounded-full blur-[110px]",
+          "absolute left-[-22%] top-[10%] h-[21rem] w-[21rem] rounded-full blur-[90px] sm:left-[-8%] sm:top-[12%] sm:h-[30rem] sm:w-[30rem] sm:blur-[110px]",
           isDark ? "bg-[#365a6d]/22" : "bg-[#d6efe7]/78"
         )}
       />
@@ -91,7 +94,7 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
         animate={makeFloat(26, [0, 20, -16], [0, -12, 18], [1, 1.08, 0.97])}
         transition={transitionFor(26, 2.1)}
         className={cn(
-          "absolute bottom-[-10rem] left-[22%] h-[28rem] w-[28rem] rounded-full blur-[120px]",
+          "absolute bottom-[-7rem] left-[10%] h-[20rem] w-[20rem] rounded-full blur-[96px] sm:bottom-[-10rem] sm:left-[22%] sm:h-[28rem] sm:w-[28rem] sm:blur-[120px]",
           isDark ? "bg-[#77649f]/18" : "bg-[#f5e2bf]/72"
         )}
       />
@@ -190,7 +193,7 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
       whileTap={reduceMotion ? undefined : { scale: 0.985 }}
       type={type}
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e9fb]/90 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-[#23344d]",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold transition sm:px-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e9fb]/90 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-[#23344d]",
         variantClassName,
         className
       )}
@@ -209,7 +212,7 @@ export const TaleaSectionHeading: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ eyebrow, title, subtitle, actionLabel, onAction }) => (
-  <div className="flex flex-wrap items-end justify-between gap-4">
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div className="space-y-2">
       {eyebrow ? (
         <span className="inline-flex items-center rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9b7c8b] dark:border-white/10 dark:bg-white/5 dark:text-[#d1c4ff]">
@@ -230,7 +233,7 @@ export const TaleaSectionHeading: React.FC<{
     </div>
 
     {actionLabel && onAction ? (
-      <TaleaActionButton variant="secondary" onClick={onAction}>
+      <TaleaActionButton variant="secondary" onClick={onAction} className="w-full justify-center sm:w-auto">
         {actionLabel}
       </TaleaActionButton>
     ) : null}
@@ -252,7 +255,7 @@ export const TaleaLoadingState: React.FC<{
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
       <motion.div
         {...fadeUp(reduceMotion, 0)}
-        className={cn(taleaSurfaceClass, "w-full max-w-lg p-10 text-center")}
+        className={cn(taleaSurfaceClass, "w-full max-w-lg p-8 text-center sm:p-10")}
       >
         <div className="mx-auto flex w-fit flex-col items-center gap-5">
           <motion.div

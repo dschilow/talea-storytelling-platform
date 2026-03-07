@@ -44,6 +44,7 @@ import {
   taleaDisplayFont,
   taleaInputClass,
   taleaInsetSurfaceClass,
+  taleaPageShellClass,
   taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 
@@ -263,6 +264,7 @@ const GridStoryCard: React.FC<{
   onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
+  const isFeatured = index === 0;
 
   return (
     <motion.article
@@ -271,10 +273,14 @@ const GridStoryCard: React.FC<{
       transition={{ delay: index * 0.05 }}
       whileHover={reduceMotion ? undefined : { y: -8, scale: 1.02 }}
       whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-      className={cn(taleaSurfaceClass, "group flex h-full cursor-pointer flex-col overflow-hidden border-0 transition-shadow hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]")}
+      className={cn(
+        taleaSurfaceClass,
+        "group flex h-full cursor-pointer flex-col overflow-hidden border-0 transition-shadow hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]",
+        isFeatured && "lg:flex-row"
+      )}
       onClick={onRead}
     >
-      <div className="relative h-56 w-full p-2 shrink-0">
+      <div className={cn("relative w-full shrink-0 p-2", isFeatured ? "h-64 lg:h-auto lg:w-[44%]" : "h-56")}>
         <div className={cn(taleaInsetSurfaceClass, "relative h-full w-full overflow-hidden rounded-[26px] border-0 p-2")}>
           <ProgressiveImage
             src={story.coverImageUrl}
@@ -312,17 +318,32 @@ const GridStoryCard: React.FC<{
         </div>
       </div>
 
-      <div className="p-5 flex-1 flex flex-col">
-        <h3 className="line-clamp-2 text-xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
-        <p className="mt-3 flex-1 line-clamp-2 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+      <div className={cn("flex flex-1 flex-col p-4 sm:p-5", isFeatured && "lg:justify-between lg:py-6")}>
+        <div>
+          {isFeatured ? (
+            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+              Kuratiert
+            </span>
+          ) : null}
+          <h3 className={cn("line-clamp-2 font-semibold leading-tight text-slate-900 dark:text-white", isFeatured ? "mt-4 text-[1.85rem] sm:text-[2.2rem]" : "text-xl")} style={{ fontFamily: headingFont }}>
+            {story.title}
+          </h3>
+        </div>
+        <p className={cn("mt-3 flex-1 font-medium leading-7 text-slate-600 dark:text-slate-300", isFeatured ? "line-clamp-4 text-base" : "line-clamp-2 text-sm")}>
           {getStoryPreviewText(story)}
         </p>
 
         <div className="mt-5 flex flex-col gap-3 border-t border-[#efe4da] pt-5 dark:border-white/10">
-          <StoryParticipantsDialog story={story} maxVisible={4} />
-          <div className="flex justify-between items-center">
-             <span className="rounded-full border border-white/80 bg-white/86 px-3 py-1 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{formatDate(story.createdAt)}</span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 5 : 4} />
+            <span className="rounded-full border border-white/80 bg-white/86 px-3 py-1 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{formatDate(story.createdAt)}</span>
           </div>
+          {isFeatured ? (
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
+              <Sparkles className="h-4 w-4 text-[#c68fa5] dark:text-[#d2c5ff]" />
+              Leicht animiert, klar fokussiert, direkt lesbar.
+            </div>
+          ) : null}
         </div>
       </div>
     </motion.article>
@@ -354,8 +375,8 @@ const ListStoryRow: React.FC<{
       onClick={onRead}
       className="group cursor-pointer"
     >
-      <div className={cn(taleaSurfaceClass, "flex flex-col gap-4 overflow-hidden border-0 p-2 transition-all duration-300 hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)] sm:flex-row")}>
-        <div className={cn(taleaInsetSurfaceClass, "relative h-48 shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:h-auto sm:w-64")}>
+      <div className={cn(taleaSurfaceClass, "flex flex-col gap-4 overflow-hidden border-0 p-1.5 transition-all duration-300 hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)] sm:flex-row sm:p-2")}>
+        <div className={cn(taleaInsetSurfaceClass, "relative h-44 shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:h-auto sm:w-56 lg:w-64")}>
           <ProgressiveImage
             src={story.coverImageUrl}
             alt={story.title}
@@ -370,8 +391,8 @@ const ListStoryRow: React.FC<{
           />
         </div>
 
-        <div className="flex flex-1 flex-col py-4 pr-4">
-          <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-1 flex-col px-2 pb-4 sm:px-0 sm:py-4 sm:pr-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <h3 className="line-clamp-2 text-2xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
             <div className="flex items-center gap-2 shrink-0">
               <StoryStatusChip status={story.status} />
@@ -400,6 +421,21 @@ const ListStoryRow: React.FC<{
             <StoryParticipantsDialog story={story} maxVisible={5} />
             <span className="self-start rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 sm:self-auto">{formatDate(story.createdAt)}</span>
           </div>
+          <div className="mt-3 flex items-center gap-2 sm:hidden">
+            {canSaveOffline && story.status === "complete" && onToggleOffline && (
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
+              </motion.button>
+            )}
+            {canDownload && story.status === "complete" && (
+              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+                {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              </motion.button>
+            )}
+            <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2 text-[#a14b5e] dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]">
+              <Trash2 className="h-4 w-4" />
+            </motion.button>
+          </div>
         </div>
       </div>
     </motion.article>
@@ -410,16 +446,16 @@ const PremiumStoriesSignedOut: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-[78vh] items-center justify-center px-4 py-10">
-      <div className={cn(taleaSurfaceClass, "w-full max-w-5xl overflow-hidden p-3 md:p-4")}>
+    <div className="flex min-h-[78vh] items-center justify-center px-3 py-8 sm:px-4 sm:py-10">
+      <div className={cn(taleaSurfaceClass, "w-full max-w-5xl overflow-hidden p-2 sm:p-3 md:p-4")}>
         <div className="grid gap-4 lg:grid-cols-[1.06fr_0.94fr]">
-          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-8 p-8 md:p-10")}>
+          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 rounded-2xl object-cover" />
                 Talea Bibliothek
               </span>
-              <h1 className="mt-8 text-[2.8rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
+              <h1 className="mt-6 text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
                 Die Stories bekommen eine echte Bibliotheksansicht statt Standardraster.
               </h1>
               <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
@@ -443,7 +479,7 @@ const PremiumStoriesSignedOut: React.FC = () => {
               "Filterleiste mit mehr Ruhe und besserer Hierarchie",
               "Sanfte Reaktionen fuer Suche, Laden und Layoutwechsel",
             ].map((item) => (
-              <div key={item} className={cn(taleaSurfaceClass, "p-6")}>
+              <div key={item} className={cn(taleaSurfaceClass, "p-5 sm:p-6")}>
                 <p className="text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">{item}</p>
               </div>
             ))}
@@ -550,8 +586,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const showFilterPanel = isDesktop || showFilters;
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 pb-8 pt-6 sm:px-6 sm:pt-8">
-      <div className={cn(taleaSurfaceClass, "p-6 md:p-8 lg:p-10")}>
+    <div className={cn(taleaPageShellClass, "flex flex-col gap-6 pb-6 pt-4 sm:gap-8 sm:pb-8 sm:pt-6 md:pt-8")}>
+      <div className={cn(taleaSurfaceClass, "p-5 sm:p-6 md:p-8 lg:p-10")}>
         <div className="flex flex-wrap items-start justify-between gap-6">
           <div className="max-w-3xl">
             <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
@@ -565,7 +601,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5 sm:gap-3">
             <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
               Neu laden
             </TaleaActionButton>
@@ -575,11 +611,11 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-5 py-3 text-sm font-semibold transition", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+        <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
+          <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
             Meine Stories
           </button>
-          <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-5 py-3 text-sm font-semibold transition", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+          <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
             Talea Studio
           </button>
         </div>
@@ -592,8 +628,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
       </div>
 
       {contentTab === "stories" ? (
-        <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
-          <div className="w-full xl:w-80 xl:shrink-0 xl:sticky xl:top-24">
+        <div className="flex flex-col gap-6 sm:gap-8 xl:flex-row xl:items-start">
+          <div className="w-full xl:w-[18.5rem] xl:shrink-0 xl:sticky xl:top-24">
             <div className="flex items-center gap-3 xl:hidden">
               <TaleaActionButton variant="secondary" className="flex-1" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)}>
                 Filter
@@ -607,7 +643,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <AnimatePresence>
               {showFilterPanel ? (
                 <motion.div initial={{ opacity: 0, height: isDesktop ? "auto" : 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className={cn(taleaSurfaceClass, "mt-3 p-5 xl:mt-0")}>
+                  <div className={cn(taleaSurfaceClass, "mt-3 p-4 sm:p-5 xl:mt-0")}>
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Kuratiere deine Ansicht</p>
                       {hasActiveFilters ? (
@@ -630,7 +666,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className={cn(taleaSurfaceClass, "p-5 md:p-6")}>
+            <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -653,7 +689,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               {loading ? (
                 <LoadingState />
               ) : filteredStories.length === 0 ? (
-                <div className={cn(taleaSurfaceClass, "p-10 text-center")}>
+                <div className={cn(taleaSurfaceClass, "p-8 text-center sm:p-10")}>
                   <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                     {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
                   </h3>
@@ -687,7 +723,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                     />
                   ) : null}
 
-                  <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-3" : "flex flex-col gap-6")}>
+                  <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3 sm:gap-6" : "flex flex-col gap-5 sm:gap-6")}>
                     {shelfStories.map((story, index) =>
                       viewMode === "grid" ? (
                         <GridStoryCard
@@ -927,7 +963,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const hasActiveFilters = searchQuery.trim().length > 0 || genreFilter !== "all" || ageGroupFilter !== "all" || lengthFilter !== "all" || avatarFilter !== "all";
 
   return (
-    <div className="relative min-h-screen pb-32" style={{ fontFamily: bodyFont }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-24 sm:pb-28" style={{ fontFamily: bodyFont }}>
       <KidsAppBackground isDark={isDark} />
 
       <SignedOut>

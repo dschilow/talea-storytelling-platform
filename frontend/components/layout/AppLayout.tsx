@@ -20,6 +20,7 @@ const AppLayout: React.FC = () => {
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const showSettingsButton = location.pathname !== "/settings";
   const isSettingsRoute = location.pathname.startsWith("/settings");
+  const usesImmersiveShell = location.pathname === "/" || location.pathname.startsWith("/stories");
   const hasPlaylistItems = playlist.length > 0;
 
   return (
@@ -38,9 +39,11 @@ const AppLayout: React.FC = () => {
           className={
             isCosmosFullScreenRoute
               ? "w-full min-h-screen p-0 m-0 max-w-none"
-              : `pb-20 md:pb-10 px-4 w-full mx-auto ${
-                  isSettingsRoute ? "md:pt-6 md:px-6 max-w-[1480px]" : "md:pt-10 md:px-10 max-w-[1120px]"
-                }`
+              : usesImmersiveShell
+                ? "w-full mx-auto max-w-none px-0 pb-20 md:pb-10"
+                : `w-full mx-auto pb-20 px-1.5 sm:px-2 md:pb-10 ${
+                    isSettingsRoute ? "md:pt-6 md:px-6 max-w-[1480px]" : "md:pt-10 md:px-10 max-w-[1120px]"
+                  }`
           }
         >
           <Outlet />
