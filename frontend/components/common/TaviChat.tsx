@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Send, Sparkles, Bot, ArrowRight } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { TaviChatAction, TaviChatResponse } from '../../types/tavi';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 
 interface Message {
   id: string;
@@ -144,6 +145,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
+  const activeProfile = useOptionalChildProfiles()?.activeProfile ?? null;
   const translate = (key: string, fallback?: string): string => {
     const translator = t as unknown as (
       query: string,
@@ -153,11 +155,19 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     return typeof result === 'string' ? result : fallback ?? key;
   };
 
+  const welcomeText = useMemo(() => {
+    if (!activeProfile) {
+      return translate('chat.welcome', 'Hi, ich bin Tavi.');
+    }
+
+    return `Hi ${activeProfile.name}, ich bin Tavi. Ich passe Geschichten, Dokus und Ideen direkt an dein Profil an.`;
+  }, [activeProfile, translate]);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       sender: 'tavi',
-      text: translate('chat.welcome', 'Hi, ich bin Tavi.'),
+      text: welcomeText,
       timestamp: new Date(),
     },
   ]);
@@ -182,6 +192,23 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length > 1) {
+        return prev;
+      }
+
+      return [
+        {
+          id: prev[0]?.id || '1',
+          sender: 'tavi',
+          text: welcomeText,
+          timestamp: new Date(),
+        },
+      ];
+    });
+  }, [welcomeText]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -236,6 +263,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             language: i18n.language,
             intentHint,
             pendingRequest: pendingRequestText,
+            profileId: activeProfile?.id,
           },
         }),
       });

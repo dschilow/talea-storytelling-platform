@@ -15,6 +15,7 @@ export type ChildProfile = {
   interests: string[];
   noGoTopics: string[];
   learningGoals: string[];
+  childAvatarId?: string;
   competencyState: Record<string, unknown>;
   preferredAvatarIds: string[];
   quizSettings: Record<string, unknown>;
@@ -63,6 +64,11 @@ type CreateProfileInput = {
   avatarColor?: string;
   age?: number;
   readingLevel?: string;
+  interests?: string[];
+  noGoTopics?: string[];
+  learningGoals?: string[];
+  childAvatarId?: string;
+  preferredAvatarIds?: string[];
 };
 
 type UpdateProfileInput = {
@@ -71,6 +77,11 @@ type UpdateProfileInput = {
   avatarColor?: string | null;
   age?: number | null;
   readingLevel?: string | null;
+  interests?: string[];
+  noGoTopics?: string[];
+  learningGoals?: string[];
+  childAvatarId?: string | null;
+  preferredAvatarIds?: string[];
   isDefault?: boolean;
 };
 
@@ -225,6 +236,11 @@ export const ChildProfilesProvider: React.FC<{ children: React.ReactNode }> = ({
           avatarColor: input.avatarColor,
           age: input.age,
           readingLevel: input.readingLevel,
+          interests: input.interests,
+          noGoTopics: input.noGoTopics,
+          learningGoals: input.learningGoals,
+          childAvatarId: input.childAvatarId,
+          preferredAvatarIds: input.preferredAvatarIds,
         })) as unknown as ChildProfile;
         await refresh();
         if (user?.id) {
@@ -245,6 +261,11 @@ export const ChildProfilesProvider: React.FC<{ children: React.ReactNode }> = ({
           avatarColor: input.avatarColor,
           age: input.age,
           readingLevel: input.readingLevel,
+          interests: input.interests,
+          noGoTopics: input.noGoTopics,
+          learningGoals: input.learningGoals,
+          childAvatarId: input.childAvatarId,
+          preferredAvatarIds: input.preferredAvatarIds,
           isDefault: input.isDefault,
         })) as unknown as ChildProfile;
         await refresh();

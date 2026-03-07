@@ -136,6 +136,7 @@ export interface Avatar {
   sharedBy?: AvatarSharedBy;
   sharedWithCount?: number;
   activeShareRecipients?: AvatarShareRecipient[];
+  avatarRole?: "child" | "companion";
   sourceType?: "profile" | "pool" | "family" | "clone";
   sourceAvatarId?: string;
   originalAvatarId?: string;
@@ -177,6 +178,7 @@ export interface CreateAvatarRequest {
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
   creationType: "ai-generated" | "photo-upload";
+  avatarRole?: "child" | "companion";
   sourceType?: "profile" | "pool" | "family" | "clone";
   sourceAvatarId?: string;
 }

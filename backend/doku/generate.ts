@@ -9,7 +9,11 @@ import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { getAuthData } from "~encore/auth";
 import { claimGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
-import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import {
+  assertProfilesBelongToUser,
+  getProfileForUser,
+  resolveRequestedProfileId,
+} from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import {
   assertParentalDailyLimit,
@@ -17,6 +21,10 @@ import {
   getParentalControlsForUser,
   sanitizeTextWithBlockedTerms,
 } from "../helpers/parental-controls";
+import {
+  ageToAgeGroup,
+  buildDokuProfilePrompt,
+} from "../helpers/child-profile-personalization";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -139,6 +147,7 @@ export interface DokuConfig {
   length?: "short" | "medium" | "long";
   language?: DokuLanguage;
   parentalGuidance?: string;
+  personalizationPrompt?: string;
 }
 
 export interface Doku {
@@ -244,6 +253,10 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       requestedProfileId: requestedPrimaryProfileId,
       fallbackName: auth?.email ?? undefined,
     });
+    const primaryProfile = await getProfileForUser({
+      userId: currentUserId,
+      profileId: primaryProfileId,
+    });
     const requestedParticipants = extractParticipantProfileIds(req);
     const participantProfileIds = uniqueTrimmed([
       primaryProfileId,
@@ -253,6 +266,10 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           : []
       ),
     ]);
+    const inferredAgeGroup = ageToAgeGroup(primaryProfile.age);
+    const personalizationPrompt = buildDokuProfilePrompt(primaryProfile);
+    config.ageGroup = config.ageGroup || inferredAgeGroup || "6-8";
+    config.personalizationPrompt = personalizationPrompt || config.personalizationPrompt;
     await ensureAvatarProfileLinksTable();
 
     await claimGenerationUsage({
@@ -621,7 +638,10 @@ function buildOpenAIPayload(config: DokuConfig) {
   const parentalSection = config.parentalGuidance
     ? `\n\nPARENTAL SAFETY AND LEARNING RULES (MUST FOLLOW):\n${config.parentalGuidance}\n`
     : "";
-  const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${parentalSection}`;
+  const personalizationSection = config.personalizationPrompt
+    ? `\n\nCHILD PROFILE CONTEXT (USE FOR PERSONALIZATION):\n${config.personalizationPrompt}\n`
+    : "";
+  const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${parentalSection}${personalizationSection}`;
 
   return {
     model: MODEL,

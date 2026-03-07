@@ -7,6 +7,14 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 import type { DokuConfig } from "../doku/generate";
 import type { StoryConfig } from "../story/generate";
+import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
+import {
+  ageToAgeGroup,
+  buildDokuProfilePrompt,
+  buildStoryProfilePrompt,
+  buildTaviProfilePrompt,
+} from "../helpers/child-profile-personalization";
+import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -21,6 +29,7 @@ interface TaviChatContext {
   language?: string;
   intentHint?: TaviActionType;
   pendingRequest?: string;
+  profileId?: string;
 }
 
 interface TaviChatRequest {
@@ -61,7 +70,7 @@ interface OpenAIChatResponse {
   };
 }
 
-const TAVI_SYSTEM_PROMPT = `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform! ðŸ§žâ€â™‚ï¸âœ¨
+const TAVI_SYSTEM_PROMPT_BASE = `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform! ðŸ§žâ€â™‚ï¸âœ¨
 
 PersÃ¶nlichkeit:
 - Freundlich, hilfsbereit und voller magischer Energie
@@ -85,6 +94,19 @@ Regeln:
 - Falls du etwas nicht weiÃŸt, sage es ehrlich aber bleibe hilfreich
 
 Antworte immer auf Deutsch und mit viel Begeisterung fÃ¼r Geschichten und KreativitÃ¤t! ðŸŒŸ`;
+
+function buildTaviSystemPrompt(profilePrompt?: string): string {
+  if (!profilePrompt) {
+    return TAVI_SYSTEM_PROMPT_BASE;
+  }
+
+  return `${TAVI_SYSTEM_PROMPT_BASE}
+
+AKTIVES KINDERPROFIL:
+${profilePrompt}
+
+Begruesse das Kind direkt mit Namen, wenn es natuerlich passt.`;
+}
 
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["de", "en", "fr", "es", "it", "nl", "ru"];
 
@@ -359,13 +381,24 @@ function selectAvatarIds(message: string, avatars: Array<{ id: string; name: str
   };
 }
 
+function mergePromptBlocks(...blocks: Array<string | undefined>): string | undefined {
+  const merged = blocks
+    .map((block) => block?.trim())
+    .filter((block): block is string => Boolean(block))
+    .join("\n\n");
+
+  return merged.length > 0 ? merged : undefined;
+}
+
 function buildStoryConfig(params: {
   message: string;
   avatarIds: string[];
   language: SupportedLanguage;
+  fallbackAgeGroup?: AgeGroup;
+  profilePrompt?: string;
 }): StoryConfig {
-  const { message, avatarIds, language } = params;
-  const ageGroup = parseAgeGroup(message) ?? "6-8";
+  const { message, avatarIds, language, fallbackAgeGroup, profilePrompt } = params;
+  const ageGroup = parseAgeGroup(message) ?? fallbackAgeGroup ?? "6-8";
   const length = parseLength(message) ?? "medium";
   const genre = detectStoryGenre(message);
   const setting = deriveStorySetting(message, genre);
@@ -390,7 +423,7 @@ function buildStoryConfig(params: {
     humorLevel,
     allowRhymes,
     hasTwist,
-    customPrompt: customPrompt.length > 0 ? customPrompt : undefined,
+    customPrompt: mergePromptBlocks(customPrompt.length > 0 ? customPrompt : undefined, profilePrompt),
     language,
     aiModel: "gemini-3-flash-preview",
     preferences: {
@@ -402,9 +435,11 @@ function buildStoryConfig(params: {
 function buildDokuConfig(params: {
   message: string;
   language: SupportedLanguage;
+  fallbackAgeGroup?: AgeGroup;
+  profilePrompt?: string;
 }): DokuConfig {
-  const { message, language } = params;
-  const ageGroup = parseAgeGroup(message) ?? "6-8";
+  const { message, language, fallbackAgeGroup, profilePrompt } = params;
+  const ageGroup = parseAgeGroup(message) ?? fallbackAgeGroup ?? "6-8";
   const depth = parseDokuDepth(message) ?? "standard";
   const perspective = parseDokuPerspective(message) ?? "science";
   const tone = parseDokuTone(message) ?? "curious";
@@ -422,7 +457,67 @@ function buildDokuConfig(params: {
     quizQuestions: includeInteractive ? 3 : 0,
     handsOnActivities: includeInteractive ? 1 : 0,
     language,
+    personalizationPrompt: profilePrompt,
   };
+}
+
+async function loadProfileScopedAvatars(params: {
+  userId: string;
+  profileId: string;
+  childAvatarId?: string;
+  preferredAvatarIds?: string[];
+}): Promise<Array<{ id: string; name: string }>> {
+  await ensureAvatarProfileLinksTable();
+  const rows = await avatarDB.queryAll<{
+    id: string;
+    name: string;
+    avatar_role: string | null;
+    created_at: Date;
+  }>`
+    SELECT
+      a.id,
+      a.name,
+      a.avatar_role,
+      a.created_at
+    FROM avatars a
+    WHERE a.user_id = ${params.userId}
+      AND (
+        a.profile_id = ${params.profileId}
+        OR EXISTS (
+          SELECT 1
+          FROM avatar_profile_links apl
+          WHERE apl.avatar_id = a.id
+            AND apl.user_id = ${params.userId}
+            AND apl.profile_id = ${params.profileId}
+        )
+      )
+    ORDER BY a.created_at DESC
+  `;
+
+  const preferred = new Set((params.preferredAvatarIds || []).map((value) => value.trim()).filter(Boolean));
+  const childAvatarId = params.childAvatarId?.trim();
+
+  return rows
+    .slice()
+    .sort((left, right) => {
+      const leftChild = left.id === childAvatarId || left.avatar_role === "child" ? 1 : 0;
+      const rightChild = right.id === childAvatarId || right.avatar_role === "child" ? 1 : 0;
+      if (leftChild !== rightChild) {
+        return rightChild - leftChild;
+      }
+
+      const leftPreferred = preferred.has(left.id) ? 1 : 0;
+      const rightPreferred = preferred.has(right.id) ? 1 : 0;
+      if (leftPreferred !== rightPreferred) {
+        return rightPreferred - leftPreferred;
+      }
+
+      return left.name.localeCompare(right.name, "de");
+    })
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+    }));
 }
 
 export const taviChat = api<TaviChatRequest, TaviChatResponse>(
@@ -443,6 +538,19 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     const language = normalizeLanguage(context?.language) ?? "de";
     const intentHint = context?.intentHint;
     const pendingRequest = context?.pendingRequest;
+    const activeProfileId = await resolveRequestedProfileId({
+      userId: auth.userID,
+      requestedProfileId: context?.profileId,
+      fallbackName: auth.email ?? undefined,
+    });
+    const activeProfile = await getProfileForUser({
+      userId: auth.userID,
+      profileId: activeProfileId,
+    });
+    const profileAgeGroup = ageToAgeGroup(activeProfile.age);
+    const storyProfilePrompt = buildStoryProfilePrompt(activeProfile);
+    const dokuProfilePrompt = buildDokuProfilePrompt(activeProfile);
+    const taviProfilePrompt = buildTaviProfilePrompt(activeProfile);
     let intent = detectIntent(message);
 
     if (intent === "ambiguous") {
@@ -482,9 +590,12 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         };
       }
 
-      const avatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT id, name FROM avatars WHERE user_id = ${auth.userID} ORDER BY created_at DESC
-      `;
+      const avatars = await loadProfileScopedAvatars({
+        userId: auth.userID,
+        profileId: activeProfileId,
+        childAvatarId: activeProfile.childAvatarId,
+        preferredAvatarIds: activeProfile.preferredAvatarIds,
+      });
 
       if (avatars.length === 0) {
         return {
@@ -498,10 +609,16 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         message: requestText,
         avatarIds: selection.ids,
         language,
+        fallbackAgeGroup: profileAgeGroup,
+        profilePrompt: storyProfilePrompt,
       });
 
       try {
-        const created = await story.generate({ userId: auth.userID, config });
+        const created = await story.generate({
+          userId: auth.userID,
+          profileId: activeProfileId,
+          config,
+        });
         const responseText = `Deine Geschichte "${created.title}" ist fertig. Ich kann sie dir oeffnen.`;
         return {
           response: responseText,
@@ -534,7 +651,12 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       const requestText = confirmed
         ? (pendingRequest && pendingRequest.trim().length > 0 ? pendingRequest : message)
         : message;
-      const config = buildDokuConfig({ message: requestText, language });
+      const config = buildDokuConfig({
+        message: requestText,
+        language,
+        fallbackAgeGroup: profileAgeGroup,
+        profilePrompt: dokuProfilePrompt,
+      });
 
       if (!config.topic || config.topic.length < 2) {
         return {
@@ -554,7 +676,11 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       }
 
       try {
-        const created = await doku.generateDoku({ userId: auth.userID, config });
+        const created = await doku.generateDoku({
+          userId: auth.userID,
+          profileId: activeProfileId,
+          config,
+        });
         const responseText = `Deine Doku "${created.title}" ist fertig. Ich kann sie dir oeffnen.`;
         return {
           response: responseText,
@@ -580,7 +706,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       const payload = {
         model: "gpt-5-mini",
         messages: [
-          { role: "system", content: TAVI_SYSTEM_PROMPT },
+          { role: "system", content: buildTaviSystemPrompt(taviProfilePrompt) },
           { role: "user", content: message },
         ],
         max_completion_tokens: 4000, // Increased for longer responses (riddles, stories, etc.)

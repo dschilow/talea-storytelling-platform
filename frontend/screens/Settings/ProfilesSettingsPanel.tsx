@@ -2,15 +2,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Crown, Save, Shield, Star, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { formatKeywordInput, parseKeywordInput } from "@/lib/child-profile-defaults";
 
 type ProfileDraft = {
   name: string;
   avatarColor: string;
   age: string;
   readingLevel: string;
+  interests: string;
+  learningGoals: string;
+  noGoTopics: string;
   storySoftCap: string;
   storyHardCap: string;
   dokuSoftCap: string;
@@ -33,6 +38,9 @@ function safeDraft(
     avatarColor?: string;
     age?: number;
     readingLevel?: string;
+    interests?: string[];
+    learningGoals?: string[];
+    noGoTopics?: string[];
     storySoftCap?: number | null;
     storyHardCap?: number | null;
     dokuSoftCap?: number | null;
@@ -46,6 +54,9 @@ function safeDraft(
     avatarColor: fallback.avatarColor || "#8ec5ff",
     age: fallback.age == null ? "" : String(fallback.age),
     readingLevel: fallback.readingLevel || "",
+    interests: formatKeywordInput(fallback.interests),
+    learningGoals: formatKeywordInput(fallback.learningGoals),
+    noGoTopics: formatKeywordInput(fallback.noGoTopics),
     storySoftCap: fallback.storySoftCap == null ? "" : String(fallback.storySoftCap),
     storyHardCap: fallback.storyHardCap == null ? "" : String(fallback.storyHardCap),
     dokuSoftCap: fallback.dokuSoftCap == null ? "" : String(fallback.dokuSoftCap),
@@ -55,6 +66,7 @@ function safeDraft(
 }
 
 const ProfilesSettingsPanel: React.FC = () => {
+  const navigate = useNavigate();
   const {
     isLoading,
     isMutating,
@@ -76,6 +88,9 @@ const ProfilesSettingsPanel: React.FC = () => {
   const [newName, setNewName] = useState("");
   const [newAge, setNewAge] = useState("");
   const [newReadingLevel, setNewReadingLevel] = useState("");
+  const [newInterests, setNewInterests] = useState("");
+  const [newLearningGoals, setNewLearningGoals] = useState("");
+  const [newNoGoTopics, setNewNoGoTopics] = useState("");
   const [newColor, setNewColor] = useState("#8ec5ff");
   const [reserveStory, setReserveStory] = useState("");
   const [reserveDoku, setReserveDoku] = useState("");
@@ -90,6 +105,9 @@ const ProfilesSettingsPanel: React.FC = () => {
           avatarColor: profile.avatarColor,
           age: profile.age,
           readingLevel: profile.readingLevel,
+          interests: profile.interests,
+          learningGoals: profile.learningGoals,
+          noGoTopics: profile.noGoTopics,
           storySoftCap: profile.budget?.storySoftCap,
           storyHardCap: profile.budget?.storyHardCap,
           dokuSoftCap: profile.budget?.dokuSoftCap,
@@ -125,6 +143,16 @@ const ProfilesSettingsPanel: React.FC = () => {
     setDrafts((prev) => ({ ...prev, [profileId]: { ...prev[profileId], ...patch } }));
   };
 
+  const openChildAvatarFlow = (profileId: string, childAvatarId?: string) => {
+    setActiveProfileId(profileId);
+    if (childAvatarId) {
+      navigate(`/avatar/edit/${childAvatarId}`);
+      return;
+    }
+
+    navigate(`/avatar/create?mode=child&profileId=${encodeURIComponent(profileId)}`);
+  };
+
   const onCreateProfile = async () => {
     const trimmed = newName.trim();
     if (!trimmed) {
@@ -138,11 +166,17 @@ const ProfilesSettingsPanel: React.FC = () => {
         avatarColor: newColor,
         age: toNullableNumber(newAge) ?? undefined,
         readingLevel: newReadingLevel.trim() || undefined,
+        interests: parseKeywordInput(newInterests),
+        learningGoals: parseKeywordInput(newLearningGoals),
+        noGoTopics: parseKeywordInput(newNoGoTopics),
       });
       setActiveProfileId(created.id);
       setNewName("");
       setNewAge("");
       setNewReadingLevel("");
+      setNewInterests("");
+      setNewLearningGoals("");
+      setNewNoGoTopics("");
       setNewColor("#8ec5ff");
       toast.success(`Profil "${created.name}" wurde erstellt.`);
     } catch (error: any) {
@@ -161,6 +195,9 @@ const ProfilesSettingsPanel: React.FC = () => {
         avatarColor: draft.avatarColor || null,
         age: toNullableNumber(draft.age),
         readingLevel: draft.readingLevel.trim() || null,
+        interests: parseKeywordInput(draft.interests),
+        learningGoals: parseKeywordInput(draft.learningGoals),
+        noGoTopics: parseKeywordInput(draft.noGoTopics),
       });
       toast.success("Profil gespeichert.");
     } catch (error: any) {
@@ -298,6 +335,24 @@ const ProfilesSettingsPanel: React.FC = () => {
             onChange={(event) => setNewColor(event.target.value)}
             className="h-10 rounded-xl border border-border bg-background px-2"
           />
+          <input
+            value={newInterests}
+            onChange={(event) => setNewInterests(event.target.value)}
+            placeholder="Vorlieben (Komma getrennt)"
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
+          />
+          <input
+            value={newLearningGoals}
+            onChange={(event) => setNewLearningGoals(event.target.value)}
+            placeholder="Lernziele (Komma getrennt)"
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
+          />
+          <input
+            value={newNoGoTopics}
+            onChange={(event) => setNewNoGoTopics(event.target.value)}
+            placeholder="Tabuthemen / vermeiden"
+            className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-4"
+          />
         </div>
         <Button
           type="button"
@@ -334,6 +389,9 @@ const ProfilesSettingsPanel: React.FC = () => {
                   <div>
                     <p className="text-sm font-bold text-foreground">{profile.name}</p>
                     <p className="text-xs text-muted-foreground">
+                      Kind-Avatar: {profile.childAvatarId ? "verbunden" : "fehlt"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       Usage: {profile.usage.storyCount} Storys • {profile.usage.dokuCount} Dokus • {profile.usage.audioCount} Audio
                     </p>
                   </div>
@@ -350,6 +408,15 @@ const ProfilesSettingsPanel: React.FC = () => {
                       Aktiv
                     </span>
                   )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openChildAvatarFlow(profile.id, profile.childAvatarId)}
+                    disabled={isMutating}
+                  >
+                    {profile.childAvatarId ? "Kind-Avatar bearbeiten" : "Kind-Avatar erstellen"}
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -409,6 +476,24 @@ const ProfilesSettingsPanel: React.FC = () => {
                   value={draft.avatarColor}
                   onChange={(event) => updateDraft(profile.id, { avatarColor: event.target.value })}
                   className="h-10 rounded-xl border border-border bg-background px-2"
+                />
+                <input
+                  value={draft.interests}
+                  onChange={(event) => updateDraft(profile.id, { interests: event.target.value })}
+                  placeholder="Vorlieben (Komma getrennt)"
+                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
+                />
+                <input
+                  value={draft.learningGoals}
+                  onChange={(event) => updateDraft(profile.id, { learningGoals: event.target.value })}
+                  placeholder="Lernziele (Komma getrennt)"
+                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-2"
+                />
+                <input
+                  value={draft.noGoTopics}
+                  onChange={(event) => updateDraft(profile.id, { noGoTopics: event.target.value })}
+                  placeholder="Tabuthemen / vermeiden"
+                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm md:col-span-4"
                 />
               </div>
 

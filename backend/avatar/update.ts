@@ -14,6 +14,12 @@ import {
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
+import {
+  ensureAvatarColumns,
+  isHumanAvatarInput,
+  normalizeAvatarRole,
+  syncChildAvatarLink,
+} from "./schema";
 
 interface UpdateAvatarRequest {
   id: string;
@@ -32,6 +38,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
   { expose: true, method: "PUT", path: "/avatar/:id", auth: true },
   async (req) => {
     const auth = getAuthData()!;
+    await ensureAvatarColumns();
     await ensureAvatarProfileLinksTable();
     const { id, ...updates } = req;
     const activeProfileId = await resolveRequestedProfileId({
@@ -52,6 +59,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
+      avatar_role: string | null;
       source_avatar_id: string | null;
       original_avatar_id: string | null;
       created_at: Date;
@@ -122,6 +130,17 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       }
     }
 
+    const avatarRole = normalizeAvatarRole(existingAvatar.avatar_role);
+    if (
+      avatarRole === "child" &&
+      !isHumanAvatarInput({
+        physicalTraits: updatedPhysicalTraits,
+        visualProfile: updatedVisualProfile,
+      })
+    ) {
+      throw APIError.invalidArgument("The dedicated child avatar must remain human.");
+    }
+
     const normalizedImageUrl = updates.imageUrl !== undefined
       ? (updates.imageUrl
           ? await normalizeImageUrlForStorage(updates.imageUrl)
@@ -153,6 +172,13 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       WHERE id = ${id}
     `;
 
+    await syncChildAvatarLink({
+      userId: auth.userID,
+      profileId: existingAvatar.profile_id || activeProfileId,
+      avatarId: id,
+      role: avatarRole,
+    });
+
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
     const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated?.image_url || undefined);
 
@@ -168,6 +194,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
       creationType: updated.creation_type,
       isPublic: updated.is_public,
+      avatarRole,
       sourceType: (updated.source_type as Avatar["sourceType"]) || "profile",
       sourceAvatarId: updated.source_avatar_id || undefined,
       originalAvatarId: updated.original_avatar_id || undefined,

@@ -55,6 +55,7 @@ interface Avatar {
   name: string;
   imageUrl?: string;
   creationType: "ai-generated" | "photo-upload";
+  avatarRole?: "child" | "companion";
 }
 
 interface Doku {
@@ -658,11 +659,12 @@ type HomeSignedInContentProps = {
   avatars: Avatar[];
   dokus: Doku[];
   dokusTotal: number;
+  createAvatarPath: string;
   refreshing: boolean;
   onRefresh: () => void;
   goTo: (path: string) => void;
   onDeleteStory: (storyId: string, title: string) => void;
-  onDeleteAvatar: (avatarId: string, name: string) => void;
+  onDeleteAvatar: (avatar: Avatar) => void;
   onDeleteDoku: (dokuId: string, title: string) => void;
   canUseOffline: boolean;
   isStorySaved: (storyId: string) => boolean;
@@ -680,6 +682,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
   avatars,
   dokus,
   dokusTotal,
+  createAvatarPath,
   refreshing,
   onRefresh,
   goTo,
@@ -964,12 +967,12 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           icon={<UserPlus className="h-12 w-12 text-pink-500 dark:text-pink-300" />}
           colorClass="bg-pink-100 dark:bg-slate-700"
           actionLabel="Avatar erstellen"
-          onAction={() => goTo("/avatar/create")}
+          onAction={() => goTo(createAvatarPath)}
         />
       ) : (
         <div className="-mx-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
           <div className="flex gap-3.5 pb-4 sm:gap-4">
-            <button type="button" onClick={() => goTo("/avatar/create")} className={cn(taleaSurfaceClass, "w-[8.9rem] shrink-0 p-4 text-left sm:w-44 sm:p-6")}>
+            <button type="button" onClick={() => goTo(createAvatarPath)} className={cn(taleaSurfaceClass, "w-[8.9rem] shrink-0 p-4 text-left sm:w-44 sm:p-6")}>
               <div className={cn(taleaInsetSurfaceClass, "flex h-full min-h-[170px] flex-col items-center justify-center gap-4 p-5 text-center sm:min-h-[180px] sm:p-6")}>
                 <Plus className="h-10 w-10 text-slate-700 dark:text-white" />
                 <p className="text-lg font-semibold text-slate-900 dark:text-white">Neuer Held</p>
@@ -981,7 +984,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
                 key={avatar.id}
                 avatar={avatar}
                 onOpen={() => goTo(`/avatar/edit/${avatar.id}`)}
-                onDelete={() => onDeleteAvatar(avatar.id, avatar.name)}
+                onDelete={() => onDeleteAvatar(avatar)}
               />
             ))}
           </div>
@@ -1045,7 +1048,9 @@ const TaleaHomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isLoaded, isSignedIn } = useUser();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
@@ -1067,6 +1072,15 @@ const TaleaHomeScreen: React.FC = () => {
     if (hour < 18) return "Guten Tag";
     return "Guten Abend";
   }, []);
+  const createAvatarPath = useMemo(() => {
+    if (!activeProfile || activeProfile.childAvatarId) {
+      return "/avatar/create";
+    }
+
+    return activeProfileId
+      ? `/avatar/create?mode=child&profileId=${encodeURIComponent(activeProfileId)}`
+      : "/avatar/create?mode=child";
+  }, [activeProfile, activeProfileId]);
 
   const loadData = useCallback(async () => {
     try {
@@ -1082,6 +1096,7 @@ const TaleaHomeScreen: React.FC = () => {
         name: avatar.name,
         imageUrl: avatar.imageUrl,
         creationType: avatar.creationType,
+        avatarRole: avatar.avatarRole,
       }));
 
       const normalizedStories: Story[] = (storiesResponse.stories || []).map((storyItem) => {
@@ -1167,16 +1182,19 @@ const TaleaHomeScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const handleDeleteAvatar = async (avatarId: string, avatarName: string) => {
-    if (!window.confirm(`"${avatarName}" wirklich loeschen?`)) return;
+  const handleDeleteAvatar = useCallback(async (avatar: Avatar) => {
+    if (!window.confirm(`"${avatar.name}" wirklich loeschen?`)) return;
 
     try {
-      await backend.avatar.deleteAvatar({ id: avatarId, profileId: activeProfileId || undefined });
-      setAvatars((prev) => prev.filter((avatar) => avatar.id !== avatarId));
+      await backend.avatar.deleteAvatar({ id: avatar.id, profileId: activeProfileId || undefined });
+      if (avatar.avatarRole === "child" || avatar.id === activeProfile?.childAvatarId) {
+        await childProfiles?.refresh();
+      }
+      setAvatars((prev) => prev.filter((item) => item.id !== avatar.id));
     } catch (error) {
       console.error("Error deleting avatar:", error);
     }
-  };
+  }, [activeProfile?.childAvatarId, activeProfileId, backend.avatar, childProfiles]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} "${storyTitle}"?`)) return;
@@ -1227,6 +1245,7 @@ const TaleaHomeScreen: React.FC = () => {
           avatars={avatars}
           dokus={dokus}
           dokusTotal={dokusTotal}
+          createAvatarPath={createAvatarPath}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           goTo={navigate}

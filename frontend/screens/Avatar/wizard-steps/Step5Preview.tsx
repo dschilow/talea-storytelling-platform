@@ -21,6 +21,7 @@ interface Step5PreviewProps {
   onGeneratePreview: () => void;
   onCreateAvatar: () => void;
   isCreating: boolean;
+  childMode?: boolean;
 }
 
 export default function Step5Preview({
@@ -30,6 +31,7 @@ export default function Step5Preview({
   onGeneratePreview,
   onCreateAvatar,
   isCreating,
+  childMode = false,
 }: Step5PreviewProps) {
   const characterType = CHARACTER_TYPES.find((t) => t.id === formData.characterType);
   const isHuman = isHumanCharacter(formData.characterType);
@@ -55,7 +57,11 @@ export default function Step5Preview({
         >
           Vorschau & Erstellen
         </h2>
-        <p className="text-muted-foreground text-sm">Generiere ein Bild und erwecke deinen Avatar zum Leben</p>
+        <p className="text-muted-foreground text-sm">
+          {childMode
+            ? "Erstelle den festen Kind-Avatar fuer dieses Profil."
+            : "Generiere ein Bild und erwecke deinen Avatar zum Leben"}
+        </p>
       </div>
 
       {/* Summary Card */}
@@ -215,9 +221,9 @@ export default function Step5Preview({
           background: 'linear-gradient(135deg, #34D399, #10B981)',
           boxShadow: '0 8px 30px rgba(52,211,153,0.3)',
         }}
-      >
+        >
         <Rocket className="w-5 h-5" />
-        Avatar erstellen
+        {childMode ? "Kind-Avatar erstellen" : "Avatar erstellen"}
       </motion.button>
     </div>
   );

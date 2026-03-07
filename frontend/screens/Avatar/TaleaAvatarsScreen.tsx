@@ -162,9 +162,20 @@ const AvatarCard: React.FC<{
             {avatar.creationType === "photo-upload" ? "Foto" : "AI"}
           </span>
 
+          {avatar.avatarRole === "child" ? (
+            <span
+              className="absolute left-3 top-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
+            >
+              Kind
+            </span>
+          ) : null}
+
           {!canManage ? (
             <span
-              className="absolute left-3 top-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              className={`absolute left-3 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
+                avatar.avatarRole === "child" ? "top-[4.5rem]" : "top-10"
+              }`}
               style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
             >
               <Share2 className="h-3 w-3" />
@@ -225,7 +236,9 @@ const TaleaAvatarsScreen: React.FC = () => {
   const backend = useBackend();
   const { user, isLoaded, isSignedIn } = useUser();
   const { resolvedTheme } = useTheme();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
 
   const isDark = resolvedTheme === "dark";
   const palette = useMemo(() => getPalette(isDark), [isDark]);
@@ -233,6 +246,17 @@ const TaleaAvatarsScreen: React.FC = () => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const needsChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
+
+  const openCreateAvatar = (mode: "child" | "companion" = "companion") => {
+    if (mode === "child") {
+      const query = activeProfileId ? `?mode=child&profileId=${encodeURIComponent(activeProfileId)}` : "?mode=child";
+      navigate(`/avatar/create${query}`);
+      return;
+    }
+
+    navigate("/avatar/create");
+  };
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -273,6 +297,9 @@ const TaleaAvatarsScreen: React.FC = () => {
 
     try {
       await backend.avatar.deleteAvatar({ id: avatar.id, profileId: activeProfileId || undefined });
+      if (avatar.avatarRole === "child") {
+        await childProfiles?.refresh();
+      }
       setAvatars((prev) => prev.filter((item) => item.id !== avatar.id));
     } catch (error) {
       console.error("Failed to delete avatar:", error);
@@ -330,16 +357,16 @@ const TaleaAvatarsScreen: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => navigate("/avatar/create")}
+                onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
                 className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold shadow-[0_10px_22px_rgba(51,62,79,0.16)]"
                 style={{ borderColor: palette.border, background: palette.action, color: palette.actionText }}
               >
                 <Plus className="h-4 w-4" />
-                {t("avatar.create", "Neuer Avatar")}
+                {needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.create", "Neuer Avatar")}
               </button>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto_auto] md:items-center">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto] md:items-center">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: palette.textMuted }} />
                 <input
@@ -368,6 +395,9 @@ const TaleaAvatarsScreen: React.FC = () => {
               <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
                 {ownedCount} eigene
               </div>
+              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
+                Kind-Avatar: {activeProfile?.childAvatarId ? "bereit" : "fehlt"}
+              </div>
             </div>
           </header>
 
@@ -375,11 +405,15 @@ const TaleaAvatarsScreen: React.FC = () => {
             <LoadingSkeleton palette={palette} />
           ) : filteredAvatars.length === 0 && avatars.length === 0 ? (
             <EmptyAvatars
-              onCreate={() => navigate("/avatar/create")}
+              onCreate={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
               palette={palette}
-              title={t("homePage.emptyAvatarsTitle", "Noch keine Avatare")}
-              description={t("homePage.emptyAvatarsDesc", "Erstelle deinen ersten Avatar fuer Geschichten und Dokus.")}
-              cta={t("avatar.createNew", "Ersten Avatar erstellen")}
+              title={needsChildAvatar ? "Kind-Avatar fehlt" : t("homePage.emptyAvatarsTitle", "Noch keine Avatare")}
+              description={
+                needsChildAvatar
+                  ? "Lege zuerst den festen Kind-Avatar an. Danach kannst du beliebige Zusatz-Avatare fuer Geschichten erstellen."
+                  : t("homePage.emptyAvatarsDesc", "Erstelle deinen ersten Avatar fuer Geschichten und Dokus.")
+              }
+              cta={needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.createNew", "Ersten Avatar erstellen")}
             />
           ) : filteredAvatars.length === 0 ? (
             <div className="rounded-3xl border p-10 text-center" style={{ borderColor: palette.border, background: palette.panel }}>

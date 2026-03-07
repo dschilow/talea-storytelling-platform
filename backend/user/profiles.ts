@@ -51,6 +51,7 @@ type CreateProfileRequest = {
   interests?: string[];
   noGoTopics?: string[];
   learningGoals?: string[];
+  childAvatarId?: string;
   competencyState?: Record<string, unknown>;
   preferredAvatarIds?: string[];
   quizSettings?: Record<string, unknown>;
@@ -65,6 +66,7 @@ type UpdateProfileRequest = {
   interests?: string[];
   noGoTopics?: string[];
   learningGoals?: string[];
+  childAvatarId?: string | null;
   competencyState?: Record<string, unknown>;
   preferredAvatarIds?: string[];
   quizSettings?: Record<string, unknown>;
@@ -245,6 +247,7 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
         interests,
         no_go_topics,
         learning_goals,
+        child_avatar_id,
         competency_state,
         preferred_avatar_ids,
         quiz_settings,
@@ -263,6 +266,7 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
         ${cleanTextArray(req.interests)},
         ${cleanTextArray(req.noGoTopics)},
         ${cleanTextArray(req.learningGoals)},
+        ${req.childAvatarId ?? null},
         ${JSON.stringify(req.competencyState ?? {})}::jsonb,
         ${cleanTextArray(req.preferredAvatarIds)},
         ${JSON.stringify(req.quizSettings ?? {})}::jsonb,
@@ -310,6 +314,7 @@ export const updateProfile = api<UpdateProfileRequest, ChildProfile>(
         interests = CASE WHEN ${req.interests !== undefined} THEN ${cleanTextArray(req.interests)} ELSE interests END,
         no_go_topics = CASE WHEN ${req.noGoTopics !== undefined} THEN ${cleanTextArray(req.noGoTopics)} ELSE no_go_topics END,
         learning_goals = CASE WHEN ${req.learningGoals !== undefined} THEN ${cleanTextArray(req.learningGoals)} ELSE learning_goals END,
+        child_avatar_id = CASE WHEN ${req.childAvatarId !== undefined} THEN ${req.childAvatarId} ELSE child_avatar_id END,
         competency_state = CASE WHEN ${req.competencyState !== undefined} THEN ${JSON.stringify(req.competencyState)}::jsonb ELSE competency_state END,
         preferred_avatar_ids = CASE WHEN ${req.preferredAvatarIds !== undefined} THEN ${cleanTextArray(req.preferredAvatarIds)} ELSE preferred_avatar_ids END,
         quiz_settings = CASE WHEN ${req.quizSettings !== undefined} THEN ${JSON.stringify(req.quizSettings)}::jsonb ELSE quiz_settings END,

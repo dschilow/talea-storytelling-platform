@@ -3,6 +3,7 @@ import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable, hasAvatarProfileLink, unlinkAvatarFromProfile } from "./profile-links";
+import { clearChildAvatarLink, ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface DeleteAvatarParams {
   id: string;
@@ -14,13 +15,18 @@ export const deleteAvatar = api<DeleteAvatarParams, void>(
   { expose: true, method: "DELETE", path: "/avatar/:id", auth: true },
   async ({ id, profileId }) => {
     const auth = getAuthData()!;
+    await ensureAvatarColumns();
     await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: profileId,
     });
-    const existingAvatar = await avatarDB.queryRow<{ user_id: string; profile_id: string | null }>`
-      SELECT user_id, profile_id FROM avatars WHERE id = ${id}
+    const existingAvatar = await avatarDB.queryRow<{
+      user_id: string;
+      profile_id: string | null;
+      avatar_role: string | null;
+    }>`
+      SELECT user_id, profile_id, avatar_role FROM avatars WHERE id = ${id}
     `;
 
     if (!existingAvatar) {
@@ -58,5 +64,12 @@ export const deleteAvatar = api<DeleteAvatarParams, void>(
             DELETE FROM avatars
       WHERE id = ${id}
     `;
+
+    if (normalizeAvatarRole(existingAvatar.avatar_role) === "child") {
+      await clearChildAvatarLink({
+        userId: auth.userID,
+        avatarId: id,
+      });
+    }
   }
 );

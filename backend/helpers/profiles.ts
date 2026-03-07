@@ -22,6 +22,7 @@ type ChildProfileRow = {
   interests: string[] | null;
   no_go_topics: string[] | null;
   learning_goals: string[] | null;
+  child_avatar_id: string | null;
   competency_state: unknown;
   preferred_avatar_ids: string[] | null;
   quiz_settings: unknown;
@@ -41,6 +42,7 @@ export interface ChildProfile {
   interests: string[];
   noGoTopics: string[];
   learningGoals: string[];
+  childAvatarId?: string;
   competencyState: Record<string, unknown>;
   preferredAvatarIds: string[];
   quizSettings: Record<string, unknown>;
@@ -112,6 +114,7 @@ function mapProfile(row: ChildProfileRow): ChildProfile {
     interests: parseStringArray(row.interests),
     noGoTopics: parseStringArray(row.no_go_topics),
     learningGoals: parseStringArray(row.learning_goals),
+    childAvatarId: row.child_avatar_id || undefined,
     competencyState: parseObject(row.competency_state),
     preferredAvatarIds: parseStringArray(row.preferred_avatar_ids),
     quizSettings: parseObject(row.quiz_settings),
@@ -184,6 +187,11 @@ export async function ensureProfileSchema(): Promise<void> {
   `;
 
   await userDB.exec`
+    ALTER TABLE child_profiles
+    ADD COLUMN IF NOT EXISTS child_avatar_id TEXT
+  `;
+
+  await userDB.exec`
     CREATE INDEX IF NOT EXISTS idx_child_profiles_user
     ON child_profiles(user_id)
   `;
@@ -253,6 +261,7 @@ export async function listProfilesForUser(userId: string): Promise<ChildProfile[
       interests,
       no_go_topics,
       learning_goals,
+      child_avatar_id,
       competency_state,
       preferred_avatar_ids,
       quiz_settings,
@@ -285,6 +294,7 @@ export async function ensureDefaultProfileForUser(
       interests,
       no_go_topics,
       learning_goals,
+      child_avatar_id,
       competency_state,
       preferred_avatar_ids,
       quiz_settings,
@@ -334,6 +344,7 @@ export async function ensureDefaultProfileForUser(
         interests,
         no_go_topics,
         learning_goals,
+        child_avatar_id,
         competency_state,
         preferred_avatar_ids,
         quiz_settings,
@@ -386,6 +397,7 @@ export async function ensureDefaultProfileForUser(
       interests,
       no_go_topics,
       learning_goals,
+      child_avatar_id,
       competency_state,
       preferred_avatar_ids,
       quiz_settings,
@@ -431,6 +443,44 @@ export async function resolveRequestedProfileId(params: {
   }
 
   return row.id;
+}
+
+export async function getProfileForUser(params: {
+  userId: string;
+  profileId: string;
+}): Promise<ChildProfile> {
+  await ensureProfileSchema();
+  const row = await userDB.queryRow<ChildProfileRow>`
+    SELECT
+      id,
+      user_id,
+      name,
+      avatar_color,
+      age,
+      reading_level,
+      interests,
+      no_go_topics,
+      learning_goals,
+      child_avatar_id,
+      competency_state,
+      preferred_avatar_ids,
+      quiz_settings,
+      is_default,
+      is_archived,
+      created_at,
+      updated_at
+    FROM child_profiles
+    WHERE id = ${params.profileId}
+      AND user_id = ${params.userId}
+      AND is_archived = FALSE
+    LIMIT 1
+  `;
+
+  if (!row) {
+    throw APIError.permissionDenied("Profile does not belong to current account");
+  }
+
+  return mapProfile(row);
 }
 
 export async function assertProfilesBelongToUser(

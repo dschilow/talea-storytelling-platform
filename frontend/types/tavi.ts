@@ -6,6 +6,7 @@ export interface TaviChatRequest {
     language?: string;
     intentHint?: 'story' | 'doku';
     pendingRequest?: string;
+    profileId?: string;
   };
 }
 

@@ -6,6 +6,7 @@ import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureAvatarSharingTables } from "./sharing";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable } from "./profile-links";
+import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface ListAvatarsRequest {
   profileId?: string;
@@ -29,6 +30,7 @@ type AvatarListRow = {
   creation_type: "ai-generated" | "photo-upload";
   is_public: boolean;
   source_type: string | null;
+  avatar_role: string | null;
   source_avatar_id: string | null;
   original_avatar_id: string | null;
   created_at: Date;
@@ -44,6 +46,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
   { expose: true, method: "GET", path: "/avatars", auth: true },
   async (req) => {
     const auth = getAuthData()!;
+    await ensureAvatarColumns();
     await ensureAvatarSharingTables();
     await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
@@ -67,6 +70,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.creation_type,
         a.is_public,
         a.source_type,
+        a.avatar_role,
         a.source_avatar_id,
         a.original_avatar_id,
         a.created_at,
@@ -99,6 +103,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.creation_type,
         a.is_public,
         a.source_type,
+        a.avatar_role,
         a.source_avatar_id,
         a.original_avatar_id,
         a.created_at,
@@ -122,6 +127,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         isShared: (row.share_count ?? 0) > 0,
         isOwnedByCurrentUser: true,
         sharedWithCount: row.share_count ?? 0,
+        avatarRole: normalizeAvatarRole(row.avatar_role),
         sourceType: (row.source_type as Avatar["sourceType"]) || "profile",
         sourceAvatarId: row.source_avatar_id || undefined,
         originalAvatarId: row.original_avatar_id || undefined,

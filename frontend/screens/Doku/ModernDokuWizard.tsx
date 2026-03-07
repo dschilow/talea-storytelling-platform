@@ -13,6 +13,7 @@ import { SuggestionGrid } from '../Cosmos/SuggestionGrid';
 import { useTopicSuggestions } from '../Cosmos/useTopicSuggestions';
 import { fetchCosmosState, type TopicSuggestionItemDTO } from '../Cosmos/apiCosmosClient';
 import { resolveCosmosDomains } from '../Cosmos/CosmosAssetsRegistry';
+import { ageToAgeGroup } from '@/lib/child-profile-defaults';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
 type DokuPerspective = 'science' | 'history' | 'technology' | 'nature' | 'culture';
@@ -296,7 +297,9 @@ export default function ModernDokuWizard() {
   const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId, getToken } = useAuth();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
   const { user } = useUser();
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
@@ -338,11 +341,29 @@ export default function ModernDokuWizard() {
     handsOnActivities: 1,
   });
   const lastAppliedDomainRef = useRef<string>(initialDomainId);
+  const lastAppliedProfileRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!domainParam) return;
     setSelectedDomainId(domainParam);
   }, [domainParam]);
+
+  useEffect(() => {
+    if (!activeProfile || lastAppliedProfileRef.current === activeProfile.id) {
+      return;
+    }
+
+    lastAppliedProfileRef.current = activeProfile.id;
+    const defaultAgeGroup = ageToAgeGroup(activeProfile.age);
+    if (!defaultAgeGroup) {
+      return;
+    }
+
+    setState((prev) => ({
+      ...prev,
+      ageGroup: defaultAgeGroup,
+    }));
+  }, [activeProfile]);
 
   useEffect(() => {
     let active = true;

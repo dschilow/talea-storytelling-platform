@@ -147,6 +147,7 @@ export interface Avatar {
   sharedBy?: AvatarSharedBy;
   sharedWithCount?: number;
   activeShareRecipients?: AvatarShareRecipient[];
+  avatarRole?: 'child' | 'companion';
 
   // Memory system
   memories?: AvatarMemory[];

@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   AvatarFormData,
@@ -14,6 +14,7 @@ import {
 } from '../../types/avatarForm';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 
 import Step1Basics from './wizard-steps/Step1Basics';
 import Step2AgeBody from './wizard-steps/Step2AgeBody';
@@ -125,10 +126,18 @@ const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({
 
 const AvatarWizardScreen: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const backend = useBackend();
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfile = childProfiles?.activeProfile ?? null;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => paletteFor(isDark), [isDark]);
+  const childMode = searchParams.get('mode') === 'child';
+  const requiresChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
+  const effectiveChildMode = childMode || requiresChildAvatar;
+  const targetProfileId = searchParams.get('profileId') || activeProfile?.id;
+  const backTarget = childMode ? '/settings' : '/avatar';
 
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
@@ -140,7 +149,11 @@ const AvatarWizardScreen: React.FC = () => {
   const updateFormData = useCallback((updates: Partial<AvatarFormData>) => {
     setFormData((prev) => {
       const newData = { ...prev, ...updates };
-      if (updates.characterType) {
+
+      if (effectiveChildMode) {
+        newData.characterType = 'human';
+        newData.customCharacterType = undefined;
+      } else if (updates.characterType) {
         if (isHumanCharacter(updates.characterType)) {
           newData.skinTone = 'medium';
         } else if (isAnimalCharacter(updates.characterType)) {
@@ -149,9 +162,25 @@ const AvatarWizardScreen: React.FC = () => {
           newData.skinTone = 'golden';
         }
       }
+
       return newData;
     });
-  }, []);
+  }, [effectiveChildMode]);
+
+  React.useEffect(() => {
+    if (!effectiveChildMode || !activeProfile) {
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      name: prev.name || activeProfile.name,
+      age: activeProfile.age ?? prev.age,
+      characterType: 'human',
+      customCharacterType: undefined,
+      skinTone: prev.skinTone || 'medium',
+    }));
+  }, [activeProfile, effectiveChildMode]);
 
   const canProceed = useMemo(() => {
     if (activeStep === 0) return formData.name.trim().length > 0;
@@ -259,6 +288,7 @@ const AvatarWizardScreen: React.FC = () => {
       };
 
       const createRequest = {
+        profileId: targetProfileId || undefined,
         name: formData.name.trim(),
         description: formData.additionalDescription || description,
         physicalTraits: {
@@ -272,14 +302,22 @@ const AvatarWizardScreen: React.FC = () => {
         imageUrl: previewUrl,
         visualProfile,
         creationType: 'ai-generated' as const,
+        avatarRole: effectiveChildMode ? ('child' as const) : ('companion' as const),
       };
 
       await (backend.avatar as any).create(createRequest);
+      if (effectiveChildMode) {
+        await childProfiles?.refresh();
+      }
       import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(formData.name);
         showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich erstellt!`);
       });
-      navigate('/avatar', { state: { refresh: true } });
+      if (childMode) {
+        navigate('/settings');
+      } else {
+        navigate('/avatar', { state: { refresh: true } });
+      }
     } catch (error) {
       console.error('Error creating avatar:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
@@ -297,7 +335,7 @@ const AvatarWizardScreen: React.FC = () => {
   const renderStep = () => {
     switch (activeStep) {
       case 0:
-        return <Step1Basics formData={formData} updateFormData={updateFormData} />;
+        return <Step1Basics formData={formData} updateFormData={updateFormData} childMode={effectiveChildMode} />;
       case 1:
         return <Step2AgeBody formData={formData} updateFormData={updateFormData} />;
       case 2:
@@ -320,6 +358,7 @@ const AvatarWizardScreen: React.FC = () => {
             onGeneratePreview={handleGeneratePreview}
             onCreateAvatar={handleCreateAvatar}
             isCreating={isCreating}
+            childMode={effectiveChildMode}
           />
         );
       default:
@@ -334,7 +373,7 @@ const AvatarWizardScreen: React.FC = () => {
       <div className="relative z-10 pt-4">
         <div className="flex items-center gap-3 px-3 pb-3">
           <button
-            onClick={() => navigate('/avatar')}
+            onClick={() => navigate(backTarget)}
             className="p-2 rounded-lg transition-all"
             style={{ color: palette.muted, background: palette.panel, border: `1px solid ${palette.border}` }}
           >
@@ -342,7 +381,7 @@ const AvatarWizardScreen: React.FC = () => {
           </button>
           <div className="flex-1">
             <h1 className="text-3xl leading-none" style={{ color: palette.text, fontFamily: headingFont }}>
-              Avatar erstellen
+              {effectiveChildMode ? 'Kind-Avatar erstellen' : 'Avatar erstellen'}
             </h1>
             <p className="text-xs mt-1" style={{ color: palette.muted }}>
               Schritt {activeStep + 1} von {WIZARD_STEPS.length}

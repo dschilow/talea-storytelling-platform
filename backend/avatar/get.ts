@@ -8,6 +8,7 @@ import { buildAvatarProgressionSummary } from "./progression";
 import { ensureAvatarSharingTables } from "./sharing";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
+import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface GetAvatarParams {
   id: string;
@@ -20,6 +21,7 @@ export const get = api<GetAvatarParams, Avatar>(
   async ({ id, profileId }) => {
     try {
       const auth = getAuthData()!;
+      await ensureAvatarColumns();
       await ensureAvatarSharingTables();
       await ensureAvatarProfileLinksTable();
       const activeProfileId = await resolveRequestedProfileId({
@@ -39,6 +41,7 @@ export const get = api<GetAvatarParams, Avatar>(
         creation_type: "ai-generated" | "photo-upload";
         is_public: boolean;
         source_type: string | null;
+        avatar_role: string | null;
         source_avatar_id: string | null;
         original_avatar_id: string | null;
         created_at: Date;
@@ -189,6 +192,7 @@ export const get = api<GetAvatarParams, Avatar>(
             }))
           : undefined,
         originalAvatarId: row.original_avatar_id || undefined,
+        avatarRole: normalizeAvatarRole(row.avatar_role),
         sourceType: (row.source_type as Avatar["sourceType"]) || "profile",
         sourceAvatarId: row.source_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),

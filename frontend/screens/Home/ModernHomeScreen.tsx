@@ -238,12 +238,19 @@ const ModernHomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
   const { user, isSignedIn, isLoaded } = useUser();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
 
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [loading, setLoading] = useState(true);
+  const createAvatarPath = activeProfile && !activeProfile.childAvatarId
+    ? activeProfileId
+      ? `/avatar/create?mode=child&profileId=${encodeURIComponent(activeProfileId)}`
+      : '/avatar/create?mode=child'
+    : '/avatar/create';
 
   const loadData = useCallback(async () => {
     try {
@@ -397,7 +404,7 @@ const ModernHomeScreen: React.FC = () => {
                   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                   gap: '16px',
                 }}>
-                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate('/avatar/create')}>
+                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate(createAvatarPath)}>
                     {t('homePage.quickCreateAvatar')}
                   </ModernButton>
                   <ModernButton variant="blush" icon={<BookOpen size={20} />} onClick={() => navigate('/story')}>
@@ -458,7 +465,7 @@ const ModernHomeScreen: React.FC = () => {
                   <p style={{ fontSize: '16px', color: colors.text.secondary, marginBottom: '24px' }}>
                     {t('homePage.emptyAvatarsDesc')}
                   </p>
-                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate('/avatar/create')}>
+                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate(createAvatarPath)}>
                     {t('homePage.quickCreateAvatar')}
                   </ModernButton>
                 </div>

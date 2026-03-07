@@ -6,6 +6,7 @@ import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable, linkAvatarToProfile } from "./profile-links";
+import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 type CloneAvatarParams = {
   id: string;
@@ -39,21 +40,6 @@ type AdoptPoolParams = {
   name?: string;
 };
 
-async function ensureAvatarColumns(): Promise<void> {
-  await avatarDB.exec`
-    ALTER TABLE avatars
-    ADD COLUMN IF NOT EXISTS profile_id TEXT
-  `;
-  await avatarDB.exec`
-    ALTER TABLE avatars
-    ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'profile'
-  `;
-  await avatarDB.exec`
-    ALTER TABLE avatars
-    ADD COLUMN IF NOT EXISTS source_avatar_id TEXT
-  `;
-}
-
 async function mapAvatarRow(row: {
   id: string;
   user_id: string;
@@ -67,6 +53,7 @@ async function mapAvatarRow(row: {
   creation_type: "ai-generated" | "photo-upload";
   is_public: boolean;
   source_type: string | null;
+  avatar_role?: string | null;
   source_avatar_id: string | null;
   original_avatar_id: string | null;
   created_at: Date;
@@ -86,6 +73,7 @@ async function mapAvatarRow(row: {
     visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
     creationType: row.creation_type,
     isPublic: row.is_public,
+    avatarRole: normalizeAvatarRole(row.avatar_role),
     sourceType: (row.source_type as Avatar["sourceType"]) || "clone",
     sourceAvatarId: row.source_avatar_id || undefined,
     originalAvatarId: row.original_avatar_id || undefined,
@@ -120,6 +108,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
+      avatar_role: string | null;
       source_avatar_id: string | null;
       original_avatar_id: string | null;
     }>`
@@ -136,6 +125,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         creation_type,
         is_public,
         source_type,
+        avatar_role,
         source_avatar_id,
         original_avatar_id
       FROM avatars
@@ -153,6 +143,10 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
     }
 
     if (ownAvatar) {
+      if (normalizeAvatarRole(source.avatar_role) === "child" && source.profile_id !== targetProfileId) {
+        throw APIError.failedPrecondition("The dedicated child avatar cannot be linked to another child profile.");
+      }
+
       if (source.profile_id !== targetProfileId) {
         await linkAvatarToProfile({
           avatarId: source.id,
@@ -174,6 +168,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         creation_type: "ai-generated" | "photo-upload";
         is_public: boolean;
         source_type: string | null;
+        avatar_role: string | null;
         source_avatar_id: string | null;
         original_avatar_id: string | null;
         created_at: Date;
@@ -254,6 +249,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
+      avatar_role: string | null;
       source_avatar_id: string | null;
       original_avatar_id: string | null;
       created_at: Date;
@@ -354,6 +350,7 @@ export const adoptPoolTemplate = api<AdoptPoolParams, Avatar>(
         creation_type,
         is_public,
         source_type,
+        avatar_role,
         source_avatar_id,
         original_avatar_id,
         created_at,
@@ -396,6 +393,7 @@ export const adoptPoolTemplate = api<AdoptPoolParams, Avatar>(
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
+      avatar_role: string | null;
       source_avatar_id: string | null;
       original_avatar_id: string | null;
       created_at: Date;

@@ -23,6 +23,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
+import { ageToAgeGroup, getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
@@ -243,7 +244,9 @@ export default function TaleaStoryWizard() {
   const backend = useBackend();
   const { userId } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
 
@@ -298,10 +301,27 @@ export default function TaleaStoryWizard() {
     customWish: customTags ? `Thema: ${customTags}` : '',
     aiModel: 'gemini-3.1-pro-preview',
   });
+  const lastAppliedProfileRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     if (i18n.language) setUserLanguage(i18n.language);
   }, [i18n.language]);
+
+  useEffect(() => {
+    if (!activeProfile || isMapAutoFill || lastAppliedProfileRef.current === activeProfile.id) {
+      return;
+    }
+
+    lastAppliedProfileRef.current = activeProfile.id;
+    const defaultAgeGroup = ageToAgeGroup(activeProfile.age);
+    const defaultAvatarIds = getPreferredAvatarIds(activeProfile).slice(0, 3);
+
+    setState((prev) => ({
+      ...prev,
+      ageGroup: defaultAgeGroup || prev.ageGroup,
+      selectedAvatars: defaultAvatarIds.length > 0 ? defaultAvatarIds : prev.selectedAvatars,
+    }));
+  }, [activeProfile, isMapAutoFill]);
 
   useEffect(() => {
     if (!isAdmin && state.aiModel !== 'gemini-3.1-pro-preview') {

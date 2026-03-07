@@ -29,7 +29,11 @@ import {
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
-import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import {
+  assertProfilesBelongToUser,
+  getProfileForUser,
+  resolveRequestedProfileId,
+} from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable, hasAvatarProfileLinkForAny } from "../avatar/profile-links";
 import type {
   StorySoulKey,
@@ -37,6 +41,10 @@ import type {
   StoryTempoKey,
   SpecialIngredientKey,
 } from "./story-experience";
+import {
+  ageToAgeGroup,
+  buildStoryProfilePrompt,
+} from "../helpers/child-profile-personalization";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -280,6 +288,15 @@ function uniqueTrimmed(values: string[]): string[] {
   );
 }
 
+function mergePromptBlocks(...blocks: Array<string | undefined>): string | undefined {
+  const merged = blocks
+    .map((block) => block?.trim())
+    .filter((block): block is string => Boolean(block))
+    .join("\n\n");
+
+  return merged.length > 0 ? merged : undefined;
+}
+
 // Generates a new story based on the provided configuration.
 export const generate = api<GenerateStoryRequest, Story>(
   { expose: true, method: "POST", path: "/story/generate", auth: true },
@@ -330,20 +347,16 @@ export const generate = api<GenerateStoryRequest, Story>(
       });
     }
 
-    const config: StoryConfig = {
-      ...req.config,
-      aiModel: effectiveAiModel,
-      parentalGuidance: parentalGuidance || undefined,
-      // Keep parental guidance separate; it is injected via STYLE PACK block downstream.
-      // Merging it into customPrompt duplicates constraints and degrades prose quality.
-      customPrompt: req.config.customPrompt,
-    };
     const blockedTerms = parentalControls.enabled ? parentalControls.blockedTerms : [];
     const requestedPrimaryProfileId = req.profileId ?? extractRequestedProfileId(req);
     const primaryProfileId = await resolveRequestedProfileId({
       userId: currentUserId,
       requestedProfileId: requestedPrimaryProfileId,
       fallbackName: auth?.email ?? undefined,
+    });
+    const primaryProfile = await getProfileForUser({
+      userId: currentUserId,
+      profileId: primaryProfileId,
     });
     const requestedParticipants = extractParticipantProfileIds(req);
     const participantProfileIds = uniqueTrimmed([
@@ -354,6 +367,17 @@ export const generate = api<GenerateStoryRequest, Story>(
           : []
       ),
     ]);
+    const inferredAgeGroup = ageToAgeGroup(primaryProfile.age);
+    const profilePrompt = buildStoryProfilePrompt(primaryProfile);
+    const config: StoryConfig = {
+      ...req.config,
+      ageGroup: req.config.ageGroup || inferredAgeGroup || "6-8",
+      aiModel: effectiveAiModel,
+      parentalGuidance: parentalGuidance || undefined,
+      // Keep parental guidance separate; it is injected via STYLE PACK block downstream.
+      // Merge child-profile context into the user's prompt so generation stays child-specific.
+      customPrompt: mergePromptBlocks(req.config.customPrompt, profilePrompt),
+    };
     await ensureAvatarProfileLinksTable();
 
     await claimGenerationUsage({

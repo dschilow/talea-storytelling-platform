@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useBackend } from '../../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
+import { getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 
 interface Avatar {
   id: string;
@@ -14,6 +15,7 @@ interface Avatar {
   imageUrl?: string;
   age: number;
   gender: string;
+  avatarRole?: 'child' | 'companion';
   isOwnedByCurrentUser?: boolean;
   sharedByLabel?: string;
 }
@@ -30,9 +32,15 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId;
+  const activeProfile = childProfiles?.activeProfile ?? null;
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [loading, setLoading] = useState(true);
+  const needsChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
+  const createAvatarRoute = needsChildAvatar
+    ? `/avatar/create?mode=child${activeProfileId ? `&profileId=${encodeURIComponent(activeProfileId)}` : ''}`
+    : '/avatar/create';
 
   useEffect(() => {
     void loadAvatars();
@@ -48,6 +56,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           imageUrl: avatar.imageUrl,
           age: avatar.age || 0,
           gender: avatar.gender || 'unknown',
+          avatarRole: avatar.avatarRole,
           isOwnedByCurrentUser: avatar.isOwnedByCurrentUser !== false,
           sharedByLabel: avatar.sharedBy?.name || avatar.sharedBy?.email || undefined,
         }))
@@ -68,6 +77,41 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
   };
 
   const selectedCount = state.selectedAvatars.length;
+  const orderedAvatars = useMemo(() => {
+    const preferredIds = new Set(getPreferredAvatarIds(activeProfile));
+
+    return [...avatars].sort((left, right) => {
+      const leftChild = left.id === activeProfile?.childAvatarId || left.avatarRole === 'child' ? 1 : 0;
+      const rightChild = right.id === activeProfile?.childAvatarId || right.avatarRole === 'child' ? 1 : 0;
+      if (leftChild !== rightChild) {
+        return rightChild - leftChild;
+      }
+
+      const leftPreferred = preferredIds.has(left.id) ? 1 : 0;
+      const rightPreferred = preferredIds.has(right.id) ? 1 : 0;
+      if (leftPreferred !== rightPreferred) {
+        return rightPreferred - leftPreferred;
+      }
+
+      return left.name.localeCompare(right.name, 'de');
+    });
+  }, [activeProfile, avatars]);
+
+  useEffect(() => {
+    if (state.selectedAvatars.length > 0 || orderedAvatars.length === 0) {
+      return;
+    }
+
+    const preferredIds = getPreferredAvatarIds(activeProfile).filter((avatarId) =>
+      orderedAvatars.some((avatar) => avatar.id === avatarId)
+    );
+
+    if (preferredIds.length === 0) {
+      return;
+    }
+
+    updateState({ selectedAvatars: preferredIds.slice(0, 3) });
+  }, [activeProfile, orderedAvatars, state.selectedAvatars.length, updateState]);
 
   const selectedLabel = useMemo(() => {
     if (selectedCount === 0) return t('wizard.subtitles.avatars');
@@ -106,17 +150,17 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
           <p className="mb-5 text-sm text-muted-foreground">{t('homePage.emptyAvatarsTitle')}</p>
           <button
             type="button"
-            onClick={() => navigate('/avatar/create')}
+            onClick={() => navigate(createAvatarRoute)}
             className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-[#1e2d42] shadow-[0_10px_20px_rgba(44,57,76,0.14)]"
             style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
           >
             <Plus className="h-4 w-4" />
-            {t('avatar.create')}
+            {needsChildAvatar ? 'Kind-Avatar erstellen' : t('avatar.create')}
           </button>
         </motion.div>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-          {avatars.map((avatar, index) => {
+          {orderedAvatars.map((avatar, index) => {
             const isSelected = state.selectedAvatars.includes(avatar.id);
             return (
               <motion.button
@@ -146,6 +190,9 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 </div>
 
                 <p className="truncate text-sm font-semibold text-foreground">{avatar.name}</p>
+                {avatar.avatarRole === 'child' ? (
+                  <p className="mt-0.5 text-xs font-semibold text-[#a88f80]">Kind-Avatar</p>
+                ) : null}
                 {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
                   <p className="mt-0.5 text-xs text-[#6f8cab]">Geteilt von {avatar.sharedByLabel}</p>
                 ) : (

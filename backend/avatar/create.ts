@@ -1,4 +1,4 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { Avatar, CreateAvatarRequest } from "./avatar";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
@@ -14,6 +14,13 @@ import {
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import {
+  assertCanAssignChildAvatar,
+  ensureAvatarColumns,
+  isHumanAvatarInput,
+  normalizeAvatarRole,
+  syncChildAvatarLink,
+} from "./schema";
 
 export const create = api(
   {
@@ -28,10 +35,12 @@ export const create = api(
     const auth = getAuthData()!;
     const userId = auth.userID;
     const avatarId = crypto.randomUUID();
+    await ensureAvatarColumns();
     const profileId = await resolveRequestedProfileId({
       userId,
       requestedProfileId: req.profileId,
     });
+    const avatarRole = normalizeAvatarRole(req.avatarRole);
 
     console.log(`Generated avatarId: ${avatarId} for userId: ${userId}`);
 
@@ -73,6 +82,16 @@ export const create = api(
 
     const resolvedImageUrl = await buildAvatarImageUrlForClient(avatarId, finalImageUrl);
 
+    if (avatarRole === "child") {
+      if (!isHumanAvatarInput(req)) {
+        throw APIError.invalidArgument("The dedicated child avatar must be human.");
+      }
+      await assertCanAssignChildAvatar({
+        userId,
+        profileId,
+      });
+    }
+
     const avatar: Avatar = {
       id: avatarId,
       userId: userId,
@@ -85,6 +104,7 @@ export const create = api(
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
       creationType: req.creationType,
       isPublic: false,
+      avatarRole,
       sourceType: req.sourceType || "profile",
       sourceAvatarId: req.sourceAvatarId,
       originalAvatarId: undefined,
@@ -103,6 +123,7 @@ export const create = api(
     console.log(`- user_id: ${userId}`);
     console.log(`- name: ${req.name}`);
     console.log(`- profile_id: ${profileId}`);
+    console.log(`- avatar_role: ${avatarRole}`);
     console.log(`- description: ${req.description || null}`);
     console.log(`- physical_traits: ${physicalTraitsJson}`);
     console.log(`- personality_traits: ${personalityTraitsJson}`);
@@ -115,7 +136,7 @@ export const create = api(
       await avatarDB.exec`
         INSERT INTO avatars (
           id, user_id, name, description,
-          profile_id, source_type, source_avatar_id,
+          profile_id, avatar_role, source_type, source_avatar_id,
           physical_traits, personality_traits, image_url,
           visual_profile,
           creation_type, is_public, original_avatar_id,
@@ -127,6 +148,7 @@ export const create = api(
           ${req.name},
           ${req.description || null},
           ${profileId},
+          ${avatarRole},
           ${req.sourceType || "profile"},
           ${req.sourceAvatarId || null},
           ${physicalTraitsJson},
@@ -144,6 +166,12 @@ export const create = api(
       `;
       console.log("Avatar created successfully in DB");
       console.log(`- visual_profile saved: ${visualProfileJson ? 'YES' : 'NO'}`);
+      await syncChildAvatarLink({
+        userId,
+        profileId,
+        avatarId,
+        role: avatarRole,
+      });
     } catch (e) {
       console.error("Error inserting avatar into DB:", e);
       throw e; // re-throw the error to let encore handle it

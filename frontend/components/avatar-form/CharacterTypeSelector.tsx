@@ -8,6 +8,7 @@ interface CharacterTypeSelectorProps {
   customValue?: string;
   onCustomChange?: (value: string) => void;
   darkMode?: boolean;
+  allowedTypes?: CharacterTypeId[];
 }
 
 export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
@@ -16,51 +17,75 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
   customValue,
   onCustomChange,
   darkMode = false,
+  allowedTypes,
 }) => {
+  const allowed = allowedTypes ? new Set(allowedTypes) : null;
+
   // Group by category
   const categories = {
-    common: CHARACTER_TYPES.filter(t => t.category === 'common'),
-    animal: CHARACTER_TYPES.filter(t => t.category === 'animal'),
-    fantasy: CHARACTER_TYPES.filter(t => t.category === 'fantasy'),
-    other: CHARACTER_TYPES.filter(t => t.category === 'other'),
+    common: CHARACTER_TYPES.filter(t => t.category === 'common' && (!allowed || allowed.has(t.id))),
+    animal: CHARACTER_TYPES.filter(t => t.category === 'animal' && (!allowed || allowed.has(t.id))),
+    fantasy: CHARACTER_TYPES.filter(t => t.category === 'fantasy' && (!allowed || allowed.has(t.id))),
+    other: CHARACTER_TYPES.filter(t => t.category === 'other' && (!allowed || allowed.has(t.id))),
   };
 
   return (
     <div className="space-y-4">
       {/* Common Types */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-        {categories.common.map((type) => (
-          <CharacterTypeButton
-            key={type.id}
-            type={type}
-            isSelected={value === type.id}
-            onClick={() => onChange(type.id)}
-            darkMode={darkMode}
-          />
-        ))}
-      </div>
+      {categories.common.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {categories.common.map((type) => (
+            <CharacterTypeButton
+              key={type.id}
+              type={type}
+              isSelected={value === type.id}
+              onClick={() => onChange(type.id)}
+              darkMode={darkMode}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Animals */}
-      <div>
-        <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Tiere</p>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-          {categories.animal.map((type) => (
-            <CharacterTypeButton
-              key={type.id}
-              type={type}
-              isSelected={value === type.id}
-              onClick={() => onChange(type.id)}
-              darkMode={darkMode}
-            />
-          ))}
+      {categories.animal.length > 0 && (
+        <div>
+          <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Tiere</p>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {categories.animal.map((type) => (
+              <CharacterTypeButton
+                key={type.id}
+                type={type}
+                isSelected={value === type.id}
+                onClick={() => onChange(type.id)}
+                darkMode={darkMode}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Fantasy */}
-      <div>
-        <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Fantasiewesen</p>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {categories.fantasy.map((type) => (
+      {categories.fantasy.length > 0 && (
+        <div>
+          <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Fantasiewesen</p>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {categories.fantasy.map((type) => (
+              <CharacterTypeButton
+                key={type.id}
+                type={type}
+                isSelected={value === type.id}
+                onClick={() => onChange(type.id)}
+                darkMode={darkMode}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other with custom input */}
+      {categories.other.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+          {categories.other.map((type) => (
             <CharacterTypeButton
               key={type.id}
               type={type}
@@ -70,20 +95,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             />
           ))}
         </div>
-      </div>
-
-      {/* Other with custom input */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-        {categories.other.map((type) => (
-          <CharacterTypeButton
-            key={type.id}
-            type={type}
-            isSelected={value === type.id}
-            onClick={() => onChange(type.id)}
-            darkMode={darkMode}
-          />
-        ))}
-      </div>
+      )}
 
       {/* Custom input when "other" is selected */}
       {value === 'other' && onCustomChange && (
