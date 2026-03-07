@@ -587,43 +587,59 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
   return (
     <div className={cn(taleaPageShellClass, "flex flex-col gap-6 pb-6 pt-4 sm:gap-8 sm:pb-8 sm:pt-6 md:pt-8")}>
-      <div className={cn(taleaSurfaceClass, "p-5 sm:p-6 md:p-8 lg:p-10")}>
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="max-w-3xl">
-            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
-              Talea Bibliothek
-            </span>
-            <h1 className="mt-5 text-[2.7rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[4rem]" style={{ fontFamily: headingFont }}>
-              Geschichten brauchen mehr als ein Grid.
-            </h1>
-            <p className="mt-5 text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-              Die Seite fuehrt jetzt mit einer grossen Titelbuehne, ruhigen Steuerflaechen und einer klaren Dramaturgie vom Featured-Moment bis zur letzten Karte.
-            </p>
+      <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6 lg:p-8")}>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_17rem]">
+          <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5 md:p-6")}>
+            <div className="flex flex-wrap items-start justify-between gap-6">
+              <div className="max-w-3xl">
+                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                  Talea Bibliothek
+                </span>
+                <h1 className="mt-5 text-[2.85rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.2rem]" style={{ fontFamily: headingFont }}>
+                  Geschichten brauchen eine Buehne.
+                </h1>
+                <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+                  Stories fuehlen sich jetzt wie eine kuratierte Kinderbibliothek an: mehr Ausstellung, weniger Listenverwaltung.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2.5 sm:gap-3">
+                <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
+                  Neu laden
+                </TaleaActionButton>
+                <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
+                  Neue Story
+                </TaleaActionButton>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
+              <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+                Meine Stories
+              </button>
+              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+                Talea Studio
+              </button>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-2.5 sm:gap-3">
-            <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
-              Neu laden
-            </TaleaActionButton>
-            <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
-              Neue Story
-            </TaleaActionButton>
+          <div className="grid gap-3">
+            {[
+              { label: "Gesamt", value: total, accent: "from-[#f7dce7] to-[#faebd0]" },
+              { label: "Fertig", value: completeCount, accent: "from-[#deefff] to-[#e2f4ec]" },
+              { label: "In Arbeit", value: generatingCount, accent: "from-[#fbe9cf] to-[#efe5fb]" },
+            ].map((item) => (
+              <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{item.label}</p>
+                  <div className={cn("h-10 w-10 rounded-full bg-gradient-to-br opacity-80", item.accent)} />
+                </div>
+                <p className="mt-4 text-[2.25rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                  {item.value}
+                </p>
+              </div>
+            ))}
           </div>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
-          <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-            Meine Stories
-          </button>
-          <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-            Talea Studio
-          </button>
-        </div>
-
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Gesamt</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{total}</p></div>
-          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Fertig</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{completeCount}</p></div>
-          <div className={cn(taleaInsetSurfaceClass, "p-5")}><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">In Arbeit</p><p className="mt-3 text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{generatingCount}</p></div>
         </div>
       </div>
 
@@ -679,93 +695,101 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               </div>
             </div>
 
-            {featuredStory ? (
-              <div className="mt-6">
-                <TaleaSectionHeading eyebrow="Featured Story" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
+            <div className={cn(taleaSurfaceClass, "mt-6 p-4 sm:p-5 md:p-6")} role="status" aria-live="polite">
+              {featuredStory ? (
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
+                  <TaleaSectionHeading eyebrow="Ausstellungsstueck" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
+                  <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Leseraum</p>
+                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                      {filteredStories.length} Titel werden nicht mehr nur angezeigt, sondern wie kleine Exponate praesentiert.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className={featuredStory ? "mt-6" : ""}>
+                {loading ? (
+                  <LoadingState />
+                ) : filteredStories.length === 0 ? (
+                  <div className={cn(taleaInsetSurfaceClass, "p-8 text-center sm:p-10")}>
+                    <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                      {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
+                    </h3>
+                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                      {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Die erste Geschichte wird hier als grosser Einstieg erscheinen."}
+                    </p>
+                    <div className="mt-6 flex justify-center">
+                      <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
+                        {hasActiveFilters ? "Filter zuruecksetzen" : "Erste Story erstellen"}
+                      </TaleaActionButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {featuredStory ? (
+                      <GridStoryCard
+                        story={featuredStory}
+                        index={0}
+                        onRead={() => goTo(`/story-reader/${featuredStory.id}`)}
+                        onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
+                        canDownload={isAdmin}
+                        onDownloadPdf={(event) => onDownloadPdf(featuredStory.id, featuredStory.status, event)}
+                        isDownloading={downloadingStoryId === featuredStory.id}
+                        canSaveOffline={canUseOffline}
+                        isSavedOffline={isStorySaved(featuredStory.id)}
+                        isSavingOffline={isSaving(featuredStory.id)}
+                        onToggleOffline={(event) => {
+                          event.stopPropagation();
+                          toggleStory(featuredStory.id);
+                        }}
+                      />
+                    ) : null}
+
+                    <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3 sm:gap-6" : "flex flex-col gap-5 sm:gap-6")}>
+                      {shelfStories.map((story, index) =>
+                        viewMode === "grid" ? (
+                          <GridStoryCard
+                            key={story.id}
+                            story={story}
+                            index={index + 1}
+                            onRead={() => goTo(`/story-reader/${story.id}`)}
+                            onDelete={() => onDeleteStory(story.id, story.title)}
+                            canDownload={isAdmin}
+                            onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                            isDownloading={downloadingStoryId === story.id}
+                            canSaveOffline={canUseOffline}
+                            isSavedOffline={isStorySaved(story.id)}
+                            isSavingOffline={isSaving(story.id)}
+                            onToggleOffline={(event) => {
+                              event.stopPropagation();
+                              toggleStory(story.id);
+                            }}
+                          />
+                        ) : (
+                          <ListStoryRow
+                            key={story.id}
+                            story={story}
+                            index={index + 1}
+                            onRead={() => goTo(`/story-reader/${story.id}`)}
+                            onDelete={() => onDeleteStory(story.id, story.title)}
+                            canDownload={isAdmin}
+                            onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                            isDownloading={downloadingStoryId === story.id}
+                            canSaveOffline={canUseOffline}
+                            isSavedOffline={isStorySaved(story.id)}
+                            isSavingOffline={isSaving(story.id)}
+                            onToggleOffline={(event) => {
+                              event.stopPropagation();
+                              toggleStory(story.id);
+                            }}
+                          />
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : null}
-
-            <div className="mt-6" role="status" aria-live="polite">
-              {loading ? (
-                <LoadingState />
-              ) : filteredStories.length === 0 ? (
-                <div className={cn(taleaSurfaceClass, "p-8 text-center sm:p-10")}>
-                  <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                    {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
-                  </h3>
-                  <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                    {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Die erste Geschichte wird hier als grosser Einstieg erscheinen."}
-                  </p>
-                  <div className="mt-6 flex justify-center">
-                    <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
-                      {hasActiveFilters ? "Filter zuruecksetzen" : "Erste Story erstellen"}
-                    </TaleaActionButton>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {featuredStory ? (
-                    <GridStoryCard
-                      story={featuredStory}
-                      index={0}
-                      onRead={() => goTo(`/story-reader/${featuredStory.id}`)}
-                      onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
-                      canDownload={isAdmin}
-                      onDownloadPdf={(event) => onDownloadPdf(featuredStory.id, featuredStory.status, event)}
-                      isDownloading={downloadingStoryId === featuredStory.id}
-                      canSaveOffline={canUseOffline}
-                      isSavedOffline={isStorySaved(featuredStory.id)}
-                      isSavingOffline={isSaving(featuredStory.id)}
-                      onToggleOffline={(event) => {
-                        event.stopPropagation();
-                        toggleStory(featuredStory.id);
-                      }}
-                    />
-                  ) : null}
-
-                  <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3 sm:gap-6" : "flex flex-col gap-5 sm:gap-6")}>
-                    {shelfStories.map((story, index) =>
-                      viewMode === "grid" ? (
-                        <GridStoryCard
-                          key={story.id}
-                          story={story}
-                          index={index + 1}
-                          onRead={() => goTo(`/story-reader/${story.id}`)}
-                          onDelete={() => onDeleteStory(story.id, story.title)}
-                          canDownload={isAdmin}
-                          onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
-                          isDownloading={downloadingStoryId === story.id}
-                          canSaveOffline={canUseOffline}
-                          isSavedOffline={isStorySaved(story.id)}
-                          isSavingOffline={isSaving(story.id)}
-                          onToggleOffline={(event) => {
-                            event.stopPropagation();
-                            toggleStory(story.id);
-                          }}
-                        />
-                      ) : (
-                        <ListStoryRow
-                          key={story.id}
-                          story={story}
-                          index={index + 1}
-                          onRead={() => goTo(`/story-reader/${story.id}`)}
-                          onDelete={() => onDeleteStory(story.id, story.title)}
-                          canDownload={isAdmin}
-                          onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
-                          isDownloading={downloadingStoryId === story.id}
-                          canSaveOffline={canUseOffline}
-                          isSavedOffline={isStorySaved(story.id)}
-                          isSavingOffline={isSaving(story.id)}
-                          onToggleOffline={(event) => {
-                            event.stopPropagation();
-                            toggleStory(story.id);
-                          }}
-                        />
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {hasMore && !loading ? (

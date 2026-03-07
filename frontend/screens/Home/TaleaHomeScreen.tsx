@@ -698,114 +698,169 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     animate="show"
     className={cn(taleaPageShellClass, "space-y-8 pt-4 sm:space-y-10 sm:pt-6 md:pt-8")}
   >
-    <section className="grid gap-5 sm:gap-6 xl:grid-cols-[1.55fr_0.92fr]">
+    <section className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.42fr)_minmax(19rem,0.88fr)]">
       <motion.div variants={itemVariants}>
-        <div className={cn(taleaSurfaceClass, "p-5 sm:p-6 md:p-8 lg:p-10")}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div className={cn(taleaInsetSurfaceClass, "rounded-[24px] p-2")}>
-                <UserButton
-                  afterSignOutUrl="/"
-                  userProfileMode="navigation"
-                  userProfileUrl="/settings"
-                  appearance={{ elements: { avatarBox: "h-14 w-14 md:h-16 md:w-16" } }}
-                />
+        <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6 lg:p-8")}>
+          <div className="relative z-10 flex flex-col gap-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className={cn(taleaInsetSurfaceClass, "rounded-[24px] p-2")}>
+                  <UserButton
+                    afterSignOutUrl="/"
+                    userProfileMode="navigation"
+                    userProfileUrl="/settings"
+                    appearance={{ elements: { avatarBox: "h-14 w-14 md:h-16 md:w-16" } }}
+                  />
+                </div>
+                <div>
+                  <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                    Talea Atelier
+                  </span>
+                  <h1
+                    className="mt-4 text-[2.9rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.35rem]"
+                    style={{ fontFamily: headingFont }}
+                  >
+                    {greeting}, {userName || "Entdecker"}.
+                  </h1>
+                </div>
               </div>
-              <div>
-                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
-                  Talea Atelier
-                </span>
-                <h1
-                  className="mt-4 text-[2.8rem] font-semibold leading-[1.04] text-slate-900 dark:text-white md:text-[4rem]"
-                  style={{ fontFamily: headingFont }}
-                >
-                  {greeting}, {userName || "Entdecker"}.
-                </h1>
-              </div>
+
+              <TaleaActionButton
+                variant="secondary"
+                onClick={onRefresh}
+                icon={<RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />}
+                aria-label="Startseite aktualisieren"
+              >
+                Atelier neu ordnen
+              </TaleaActionButton>
             </div>
 
-            <TaleaActionButton
-              variant="secondary"
-              onClick={onRefresh}
-              icon={<RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />}
-              aria-label="Startseite aktualisieren"
-            >
-              Aktualisieren
-            </TaleaActionButton>
-          </div>
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_15rem]">
+              <div className="space-y-6">
+                <p className="max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+                  Home fuehlt sich jetzt wie eine kuratierte Kinderbuch-Auslage an: weich geschichtet, klar gefuehrt und deutlich weniger nach Standard-Dashboard.
+                </p>
 
-          <p className="mt-6 max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 sm:mt-8 md:text-lg">
-            Home fuehrt jetzt mit einem klaren Schwerpunkt, grossen Pastellflaechen und ruhigen Aktionen durch die wichtigsten Inhalte deiner Kinderapp.
-          </p>
-
-          <div className="mt-7 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
-            <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
-              Neue Story zaubern
-            </TaleaActionButton>
-            <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
-              Bibliothek oeffnen
-            </TaleaActionButton>
-            <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
-              Wissensreise starten
-            </TaleaActionButton>
-          </div>
-
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            <div className={cn(taleaInsetSurfaceClass, "p-5")}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f8dde8_0%,#fbead1_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(109,84,114,0.5)_0%,rgba(92,76,55,0.38)_100%)] dark:text-white">
-                  <ScrollText className="h-5 w-5" />
+                <div className="flex flex-wrap gap-2.5 sm:gap-3">
+                  <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
+                    Neue Story zaubern
+                  </TaleaActionButton>
+                  <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
+                    Bibliothek oeffnen
+                  </TaleaActionButton>
+                  <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
+                    Wissensreise starten
+                  </TaleaActionButton>
                 </div>
-                <span className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{storiesTotal}</span>
-              </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Geschichten</p>
-            </div>
 
-            <div className={cn(taleaInsetSurfaceClass, "p-5")}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#dff0ff_0%,#e2f4ec_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(65,98,130,0.46)_0%,rgba(47,89,79,0.32)_100%)] dark:text-white">
-                  <Swords className="h-5 w-5" />
-                </div>
-                <span className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{avatars.length}</span>
-              </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Avatare</p>
-            </div>
+                <div className={cn(taleaInsetSurfaceClass, "grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:p-5")}>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Heute im Fokus</p>
+                    <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                      Ein leiser Start mit klarer Richtung.
+                    </h2>
+                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                      Statt vieler gleich lauter Kacheln fuehrt Home zuerst durch das Wichtigste und laesst die naechste Aktion wie eine Empfehlung wirken.
+                    </p>
+                  </div>
 
-            <div className={cn(taleaInsetSurfaceClass, "p-5")}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#fbe9cf_0%,#efe5fb_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(92,77,52,0.46)_0%,rgba(88,69,123,0.34)_100%)] dark:text-white">
-                  <Library className="h-5 w-5" />
+                  <div className="grid gap-2.5">
+                    {[
+                      { label: "Story", text: "Neue Fantasiereise", icon: <WandSparkles className="h-4 w-4" />, path: "/story" },
+                      { label: "Avatar", text: "Helden bereitmachen", icon: <UserPlus className="h-4 w-4" />, path: "/avatar" },
+                      { label: "Doku", text: "Wissen sanft entdecken", icon: <Library className="h-4 w-4" />, path: "/doku" },
+                    ].map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => goTo(item.path)}
+                        className="flex min-h-11 items-center justify-between gap-3 rounded-[20px] border border-white/75 bg-white/80 px-4 py-3 text-left shadow-sm transition hover:bg-white/92 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
+                            {item.icon}
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{item.label}</p>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.text}</p>
+                          </div>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <span className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{dokusTotal}</span>
               </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Dokus</p>
+
+              <div className="grid gap-3 content-start">
+                {[
+                  {
+                    label: "Geschichten",
+                    value: storiesTotal,
+                    icon: <ScrollText className="h-5 w-5" />,
+                    tone: "bg-[linear-gradient(135deg,#f8dde8_0%,#fbead1_100%)] dark:bg-[linear-gradient(135deg,rgba(109,84,114,0.5)_0%,rgba(92,76,55,0.38)_100%)]",
+                  },
+                  {
+                    label: "Avatare",
+                    value: avatars.length,
+                    icon: <Swords className="h-5 w-5" />,
+                    tone: "bg-[linear-gradient(135deg,#dff0ff_0%,#e2f4ec_100%)] dark:bg-[linear-gradient(135deg,rgba(65,98,130,0.46)_0%,rgba(47,89,79,0.32)_100%)]",
+                  },
+                  {
+                    label: "Dokus",
+                    value: dokusTotal,
+                    icon: <Library className="h-5 w-5" />,
+                    tone: "bg-[linear-gradient(135deg,#fbe9cf_0%,#efe5fb_100%)] dark:bg-[linear-gradient(135deg,rgba(92,77,52,0.46)_0%,rgba(88,69,123,0.34)_100%)]",
+                  },
+                ].map((item) => (
+                  <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className={cn("flex h-12 w-12 items-center justify-center rounded-[18px] text-slate-700 dark:text-white", item.tone)}>
+                        {item.icon}
+                      </div>
+                      <span className="text-[2.2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                        {item.value}
+                      </span>
+                    </div>
+                    <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{item.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </motion.div>
 
       <div className="grid gap-5 sm:gap-6">
-        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-5 sm:p-6")}>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Heute im Atelier</p>
-          <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-            Drei schnelle Wege fuer neue Magie
-          </h2>
-          <div className="mt-6 grid gap-3">
-            {[
-              { title: "Eine Story beginnen", text: "Direkt in den Generator.", icon: <WandSparkles className="h-5 w-5" />, path: "/story" },
-              { title: "Helden pflegen", text: "Avatare bearbeiten oder neu anlegen.", icon: <UserPlus className="h-5 w-5" />, path: "/avatar" },
-              { title: "Wissen sammeln", text: "Neue Dokus fuer neugierige Kinder starten.", icon: <Library className="h-5 w-5" />, path: "/doku" },
-            ].map((item) => (
-              <button key={item.title} type="button" onClick={() => goTo(item.path)} className={cn(taleaInsetSurfaceClass, "flex items-start gap-4 p-5 text-left")}>
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f5dce8_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
-                  {item.icon}
-                </div>
-                <div>
-                  <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                  <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{item.text}</p>
-                </div>
-              </button>
-            ))}
+        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
+          <div className={cn(taleaInsetSurfaceClass, "space-y-4 p-4 sm:p-5")}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Atelierpfad</p>
+              <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                Nicht klicken, sondern gefuehrt werden.
+              </h2>
+              <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                Jede naechste Aktion wirkt wie ein sanfter Vorschlag, nicht wie ein uebliches Shortcut-Panel.
+              </p>
+            </div>
+
+            <div className="grid gap-3">
+              {[
+                { title: "Eine Story beginnen", text: "Direkt in den Generator.", icon: <WandSparkles className="h-5 w-5" />, path: "/story" },
+                { title: "Helden pflegen", text: "Avatare neu anlegen oder ueberarbeiten.", icon: <UserPlus className="h-5 w-5" />, path: "/avatar" },
+                { title: "Wissen sammeln", text: "Neue Dokus fuer neugierige Kinder starten.", icon: <Library className="h-5 w-5" />, path: "/doku" },
+              ].map((item) => (
+                <button key={item.title} type="button" onClick={() => goTo(item.path)} className={cn(taleaInsetSurfaceClass, "flex items-start gap-4 p-4 text-left sm:p-5")}>
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#f5dce8_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
+                    {item.icon}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
+                    <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{item.text}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </motion.div>
 
@@ -817,14 +872,23 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       </div>
     </section>
 
-    <section className="space-y-6">
-      <TaleaSectionHeading
-        eyebrow="Start mit Geschichten"
-        title="Eine groessere Buehne fuer die wichtigsten Abenteuer"
-        subtitle="Home zeigt nicht mehr nur Kacheln, sondern fuehrt zuerst zur bedeutendsten Story und ordnet den Rest wie kuratierte Empfehlungen darum herum."
-        actionLabel="Alle Stories"
-        onAction={() => goTo("/stories")}
-      />
+    <section className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}>
+      <div className="relative z-10 space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
+        <TaleaSectionHeading
+          eyebrow="Start mit Geschichten"
+          title="Eine groessere Buehne fuer die wichtigsten Abenteuer"
+          subtitle="Home zeigt nicht mehr nur Kacheln, sondern fuehrt zuerst zur bedeutendsten Story und ordnet den Rest wie kuratierte Empfehlungen darum herum."
+          actionLabel="Alle Stories"
+          onAction={() => goTo("/stories")}
+        />
+        <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Kuratiert</p>
+          <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+            {storiesTotal} Geschichten stehen jetzt nicht mehr nebeneinander, sondern wirken wie bewusst ausgewaehlte Titel in einer kleinen Auslage.
+          </p>
+        </div>
+      </div>
 
       {stories.length === 0 ? (
         <EmptyStateContainer
@@ -881,6 +945,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           </div>
         </div>
       )}
+      </div>
     </section>
 
     <section className="space-y-6">
