@@ -128,6 +128,7 @@ export interface StoryBlueprint {
     where: string;
     who: string;
     want: string;
+    stakes?: string;
     curiosityHook: string;
     foreground?: string;
     humorBeat?: string;

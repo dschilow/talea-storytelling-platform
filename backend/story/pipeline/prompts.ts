@@ -303,6 +303,27 @@ function generateSpeechExample(name: string, speechStyle: string, catchphrase: s
   return "";
 }
 
+function isGenericChildVoiceHint(value: string): boolean {
+  const normalized = String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return normalized.length === 0 || [
+    "klar",
+    "clear",
+    "normal",
+    "neutral",
+    "direkt",
+    "direct",
+    "einfach",
+    "simple",
+    "ruhig",
+    "calm",
+  ].includes(normalized);
+}
+
 function buildChildVoiceContract(childNames: string[], isGerman: boolean): string {
   if (childNames.length === 0) return "";
 
@@ -335,21 +356,59 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
 function buildFocusedChildVoiceContract(childSheets: CharacterSheet[], isGerman: boolean): string {
   if (childSheets.length === 0) return "";
 
+  const fallbackVoices = isGerman
+    ? [
+      {
+        label: "vorsichtig und genau",
+        guide: "spricht ruhig, bemerkt kleine Details und stellt klare Fragen",
+        example: `Example: "Warte. Da stimmt etwas nicht."`,
+      },
+      {
+        label: "schnell und mutig",
+        guide: "spricht in kurzen Ausrufen, platzt dazwischen und handelt zuerst",
+        example: `Example: "Los jetzt! Keine Zeit!"`,
+      },
+      {
+        label: "spielerisch und ueberraschend",
+        guide: "macht konkrete, unerwartete Beobachtungen und staunt laut",
+        example: `Example: "Das sieht aus wie ein Keks mit Zaehnen."`,
+      },
+    ]
+    : [
+      {
+        label: "careful and exact",
+        guide: "speaks calmly, notices small details, asks clear questions",
+        example: `Example: "Wait. Something is wrong here."`,
+      },
+      {
+        label: "quick and bold",
+        guide: "speaks in short bursts, interrupts, acts first",
+        example: `Example: "Move now! No time!"`,
+      },
+      {
+        label: "playful and surprising",
+        guide: "makes concrete unexpected observations and blurts them out",
+        example: `Example: "That looks like a biscuit with teeth."`,
+      },
+    ];
+
   const lines = childSheets
     .slice(0, 3)
-    .map((sheet) => {
-      const speechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || (isGerman ? "klar" : "clear");
+    .map((sheet, idx) => {
+      const rawSpeechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || "";
+      const fallback = fallbackVoices[idx] || fallbackVoices[fallbackVoices.length - 1];
+      const speechStyle = isGenericChildVoiceHint(rawSpeechStyle) ? fallback.label : rawSpeechStyle;
       const speechExample = generateSpeechExample(
         sheet.displayName,
         speechStyle,
         sheet.enhancedPersonality?.catchphrase || "",
         isGerman,
-      );
-      return `  - ${sheet.displayName}: keep one stable child voice (${speechStyle}). The rhythm and wording must stay recognizable from line to line. ${speechExample}`;
+      ) || fallback.example;
+      return `  - ${sheet.displayName}: keep one stable child voice (${speechStyle}). ${fallback.guide}. ${speechExample}`;
     })
     .join("\n");
 
-  const globalRule = "  - IMPORTANT: Child characters must sound clearly different from each other, but adults/mentors should not be forced into child-speech patterns.";
+  const globalRule = "  - IMPORTANT: Child characters must sound clearly different from each other, even when names are similar. Distinguish them through rhythm, wording, and behavior, not labels.";
 
   return `${lines}\n${globalRule}`;
 }
@@ -593,7 +652,7 @@ export function buildStoryBlueprintPrompt(input: {
   const coreConflict = dna.coreConflict || "overcoming a challenge through courage and friendship";
 
   const artifactBlock = artifactName
-    ? `\n::: MAGICAL OBJECT :::\nName: ${artifactName}\nRule: ${artifactRule}\nPlan three things:\n  1. WONDER: What makes it fascinating when first discovered?\n  2. TEMPTATION: Why is it easy to misuse or over-rely on it?\n  3. PRICE: What does it cost to truly use it?\n`
+    ? `\nMAGICAL OBJECT\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Plan only: wonder, temptation, price\n`
     : "";
 
   return `Create a story blueprint (emotional arc plan) for a children's story with 5 chapters.
@@ -701,6 +760,230 @@ export function buildBlueprintSystemPrompt(language: string): string {
 // ═══════════════════════════════════════════════════════════════════════════
 // Dramatically simplified compared to V6. The blueprint handles all planning,
 // so this prompt focuses purely on PROSE QUALITY. ~60 lines instead of ~180.
+
+export function buildLeanBlueprintDrivenStoryPrompt(input: {
+  blueprint: StoryBlueprint;
+  cast: CastSet;
+  directives: SceneDirective[];
+  language: string;
+  ageRange: { min: number; max: number };
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  humorLevel?: number;
+  stylePackText?: string;
+  userPrompt?: string;
+  avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+}): string {
+  const { blueprint, cast, directives, language, ageRange, totalWordMin, totalWordMax, wordsPerChapter } = input;
+  const isGerman = language === "de";
+  const outputLang = isGerman ? "German" : language;
+  const umlautRule = isGerman ? " Use proper German umlauts (ä, ö, ü, ß). No English words." : "";
+
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const allowedNames: string[] = [];
+  const characterLines: string[] = [];
+  for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet) continue;
+    if (!allowedNames.includes(sheet.displayName)) allowedNames.push(sheet.displayName);
+    const cs = sheet as CharacterSheet;
+    const role = getPromptRoleLabel(cs, isGerman);
+    const rolePart = role ? ` (${role})` : "";
+    const speech = cs.speechStyleHints?.[0] || "normal";
+    const quirk = cs.enhancedPersonality?.quirk ? ` Quirk: ${cs.enhancedPersonality.quirk}.` : "";
+    characterLines.push(`- ${cs.displayName}${rolePart}: Voice: ${speech}.${quirk}`);
+  }
+
+  const focusChildSheets = getChildFocusSheets(cast);
+  const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
+  const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
+  const chapterBeatLines = [
+    `- Ch1: ${blueprint.chapter1.where} | Want: ${blueprint.chapter1.want}${blueprint.chapter1.stakes ? ` | Stakes: ${blueprint.chapter1.stakes}` : ""} | Hook: ${blueprint.chapter1.curiosityHook}`,
+    `- Ch2: ${blueprint.chapter2.newElement} | Choice: ${blueprint.chapter2.boldChoice} | Complication: ${blueprint.chapter2.complication}`,
+    `- Ch3: Mistake: ${blueprint.chapter3.mistake} | Because: ${blueprint.chapter3.mistakeReason} | Consequence: ${blueprint.chapter3.consequence}`,
+    `- Ch4: Worst: ${blueprint.chapter4.worstMoment} | Trigger: ${blueprint.chapter4.insightTrigger} | New choice: ${blueprint.chapter4.newChoice}`,
+    `- Ch5: Win: ${blueprint.chapter5.concreteWin} | Price: ${blueprint.chapter5.smallPrice} | Final image: ${blueprint.chapter5.finalImage}`,
+  ].map(line => sanitizePromptBlock(line, 320) || line);
+  const emotionalArcLines = blueprint.emotionalArc
+    .map((beat, idx) => `- Ch${idx + 1}: ${beat}`)
+    .join("\n");
+  const artifactName = cast.artifact?.name?.trim();
+  const humorTarget = Math.max(0, Math.min(3, Number.isFinite(input.humorLevel as number) ? Number(input.humorLevel) : 2));
+  const humorRule = humorTarget >= 3
+    ? "Place at least 3 genuine smile moments across the story."
+    : humorTarget >= 2
+      ? "Place 2 genuine smile moments across the story."
+      : humorTarget >= 1
+        ? "Place 1 light smile moment."
+        : "";
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 4);
+  const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
+
+  let memoryLine = "";
+  if (input.avatarMemories && input.avatarMemories.size > 0) {
+    for (const avatar of cast.avatars) {
+      const memories = input.avatarMemories.get(avatar.characterId);
+      if (!memories || memories.length === 0) continue;
+      const topTitle = String(memories[0]?.storyTitle || "").trim();
+      if (topTitle) {
+        memoryLine = `- One avatar may reference an earlier adventure ONCE: "${topTitle}"`;
+        break;
+      }
+    }
+  }
+
+  return `Write a 5-chapter children's story in ${outputLang}.${umlautRule}
+Use the blueprint as guidance, but tell a natural story. Never copy blueprint wording literally.
+
+CHARACTERS
+${characterLines.join("\n")}
+${childVoiceContract ? `\nVOICE CONTRACT\n${childVoiceContract}` : ""}
+
+STORY BEATS
+${chapterBeatLines.join("\n")}
+
+EMOTIONAL ARC
+${emotionalArcLines}
+
+FOCUS
+- The emotional POV belongs mainly to ${focusChildNames.join(", ") || allowedNames.slice(0, 2).join(", ")}.
+- Adults or magical helpers may support, but they must not solve the inner problem for the child.
+${artifactName ? `- Artifact: ${artifactName} matters through action, temptation, and price.` : ""}
+${memoryLine ? memoryLine : ""}
+${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
+${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
+
+NON-NEGOTIABLES
+1. Chapter 1 starts clear. After paragraph 2, WHO, WHERE, WHAT, and WHY are obvious.
+2. Chapter 1 states the concrete stakes early.
+3. Chapters 2-5 open by connecting to the previous chapter's ending.
+4. Chapter 3 contains a child-caused mistake with a clear consequence.
+5. Chapter 4 contains the low point and an internal turning point.
+6. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
+7. Keep 2 foreground characters per chapter. One support character may react briefly.
+8. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
+9. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
+10. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
+11. No report prose, no moral summary, no new names.
+12. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
+${humorRule ? `13. ${humorRule}` : ""}
+
+OUTPUT
+{
+  "title": "Short curiosity-driven title (max 6 words)",
+  "description": "One teaser sentence with a question hook",
+  "chapters": [
+    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+  ]
+}
+"paragraphs" MUST be a JSON array of 4-5 strings. Each string = one paragraph. NEVER put the whole chapter in one string.`;
+}
+
+export function buildLeanStoryBlueprintPrompt(input: {
+  directives: SceneDirective[];
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  language: string;
+  ageRange: { min: number; max: number };
+  tone?: string;
+}): string {
+  const { directives, cast, dna, language, ageRange } = input;
+  const isGerman = language === "de";
+  const targetTone = input.tone ?? dna.toneBounds?.targetTone ?? "warm";
+  const artifactName = cast.artifact?.name?.trim();
+  const artifactRule = cast.artifact?.storyUseRule || "";
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const characterLines: string[] = [];
+  for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
+    const sheet = findCharacterBySlot(cast, slot);
+    if (!sheet) continue;
+    const role = getPromptRoleLabel(sheet as CharacterSheet, isGerman);
+    const dominant = (sheet as CharacterSheet).enhancedPersonality?.dominant
+      || (sheet as CharacterSheet).personalityTags?.[0]
+      || "curious";
+    const speech = (sheet as CharacterSheet).speechStyleHints?.[0] || "normal";
+    const rolePart = role ? ` (${role})` : "";
+    characterLines.push(`- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}`);
+  }
+  const childFocusNames = getChildFocusNames(cast);
+  const childFocusBlock = childFocusNames.length > 0
+    ? `- The child's emotional arc belongs mainly to ${childFocusNames.join(" and ")}.`
+    : "";
+  const seedHints = directives.map((d, idx) => {
+    const setting = trimDirectiveText(sanitizeDirectiveNarrativeText(d.setting), 42);
+    const goal = trimDirectiveText(sanitizeDirectiveNarrativeText(d.goal), 60);
+    const conflict = idx === 0 ? "orientation only" : trimDirectiveText(sanitizeDirectiveNarrativeText(d.conflict), 60);
+    return `- Ch${idx + 1}: ${setting} | Goal: ${goal} | Conflict: ${conflict}`;
+  }).join("\n");
+  const themeTags = dna.themeTags?.slice(0, 4).join(", ") || "adventure";
+  const coreConflict = dna.coreConflict || "overcoming a challenge through courage and friendship";
+  const artifactBlock = artifactName
+    ? `\nMAGICAL OBJECT\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Plan: wonder, temptation, price`
+    : "";
+
+  return `Create a SHORT story blueprint for a 5-chapter children's story.
+Target age: ${ageRange.min}-${ageRange.max}. Tone: ${targetTone}. Output language: ${isGerman ? "German" : language}.
+
+CHARACTERS
+${characterLines.join("\n")}
+${childFocusBlock}
+
+STORY SEED
+- Theme: ${themeTags}
+- Core conflict: ${coreConflict}
+${seedHints}
+${artifactBlock}
+
+RULES
+- Concrete, child-readable, no abstract morals.
+- Keep every field short. Prefer one sentence.
+- Chapter 1 must name the concrete risk if the child fails.
+- Chapter 3 mistake comes from the child's trait, not bad luck.
+- Chapter 4 turning point comes from inside the child.
+- Chapter 5 shows concrete win + small price + callback to chapter 1.
+- Max 2 foreground characters per chapter.
+
+RETURN JSON ONLY:
+{
+  "blueprint": {
+    "chapter1": { "where": "...", "who": "...", "want": "...", "stakes": "...", "curiosityHook": "...", "foreground": "...", "humorBeat": "..." },
+    "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "...", "foreground": "...", "humorBeat": "..." },
+    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
+    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "foreground": "..." },
+    "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "...", "foreground": "...", "humorBeat": "..." }
+  },
+  "emotionalArc": ["...", "...", "...", "...", "..."],
+  "characterWants": { "Name1": "...", "Name2": "..." },
+  "characterFears": { "Name1": "...", "Name2": "..." }${artifactName ? `,
+  "artifactArc": { "wonder": "...", "temptation": "...", "price": "..." }` : ""}
+}
+Total output under 500 words.`;
+}
+
+export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
+  const isGerman = language === "de";
+  if (isGerman) {
+    return `Du bist ein erfahrener Kinderbuchautor fuer Kinder von ${ageRange.min} bis ${ageRange.max} Jahren.
+Schreibe release-faehige Vorleseprosa: klar, warm, konkret und leicht zu verfolgen.
+- Nutze meist kurze bis mittlere Saetze. Viele liegen bei 6-14 Woertern. Einzelne laengere Saetze sind okay, wenn sie laut vorgelesen klar bleiben.
+- Ursache und Wirkung muessen jederzeit leicht zu verstehen sein.
+- Zeige Gefuehle ueber Verhalten, Koerper und kleine Entscheidungen, nicht ueber Etiketten.
+- Kinderfiguren muessen klar unterscheidbar klingen. Wenn Namen aehnlich sind, unterscheide sie noch staerker ueber Rhythmus und Wortwahl.
+- Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung, keine prompt-artigen Formulierungen.
+- Schreibe ausschliesslich auf Deutsch mit korrekten Umlauten.`;
+  }
+
+  return `You are an experienced children's book author writing for children aged ${ageRange.min}-${ageRange.max}.
+Write release-ready read-aloud prose: clear, warm, concrete, and easy to follow.
+- Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they still read aloud smoothly.
+- Cause and effect must stay easy to follow.
+- Show feelings through behavior, body reactions, and small decisions, not labels.
+- Child characters must sound clearly different. If names are similar, separate them even more through rhythm and wording.
+- No report prose, checklist prose, moral summaries, or prompt-like phrasing.`;
+}
 
 export function buildBlueprintDrivenStoryPrompt(input: {
   blueprint: StoryBlueprint;
@@ -1607,11 +1890,11 @@ export function buildChapterExpansionPrompt(input: {
 
   return `# TASK
 Expand the chapter without changing the plot. Show, don't tell!
-IMPORTANT: Keep sentences SHORT. Average 10 words per sentence, NEVER over 15.
+IMPORTANT: Keep read-aloud clarity high. Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they stay easy to follow.
 Add dialogue where it improves clarity and momentum, plus body-action. Quiet setup or low-point beats may use slightly less dialogue.
 No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
-Target quality: published children's fiction (Preußler/Lindgren level). Short punchy sentences, humor, body reactions.
-DO NOT make existing sentences longer. Instead: ADD new short dialogue lines and brief action beats.
+Target quality: published children's fiction (Preußler/Lindgren level). Clear cause-effect, concrete action, body reactions, distinct voices.
+Expand by adding one more concrete beat, reaction, or dialogue exchange. Smooth existing sentences only if it improves clarity.
 
 # SCENE
     - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
@@ -1632,9 +1915,9 @@ ${missingLine}
 3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
   4. Foreground characters must drive the scene through action or dialogue. Support characters may react briefly or stay absent unless continuity requires them.
 5. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-6. SENTENCE LENGTH: Average 10 words per sentence. Max 15 words. Rhythm: Short. Short. One slightly longer sentence. Short again.
+6. SENTENCE LENGTH: Mix short and medium sentences. Many should stay in a child-friendly 6-14 word range, but a few longer read-aloud sentences are okay when clear.
 7. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
-7. Expand by ADDING short dialogue lines and brief action beats — NOT by making existing sentences longer.
+8. Expand by ADDING concrete dialogue lines, reactions, and action beats — not by piling on vague description.
 9. Max 1 comparison per paragraph, no metaphor chains.
 10. No preview, meta or summary sentences.
 11. No explanatory sentences about object rules.

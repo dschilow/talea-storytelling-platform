@@ -1,5 +1,5 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildStoryBlueprintPrompt, buildBlueprintSystemPrompt, buildBlueprintDrivenStoryPrompt, buildV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
@@ -205,9 +205,9 @@ export class LlmStoryWriter implements StoryWriter {
     // Gemini Flash full rewrites are high-cost/low-yield, so keep rewritePasses=0.
     // Expand calls are cheap per-chapter fixes and handle short chapters. Pro writes shorter
     // chapters than Flash (~150-180 words vs ~200+), so needs more expand passes.
-    const defaultRewritePasses = isGeminiFlashModel ? 0 : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGeminiFlashModel ? 2 : (isGemini3 ? 3 : MAX_EXPAND_CALLS);
-    const defaultWarningPolishCalls = MAX_WARNING_POLISH_CALLS;
+    const defaultRewritePasses = isGeminiModel ? 0 : MAX_REWRITE_PASSES;
+    const defaultExpandCalls = isGeminiModel ? 1 : MAX_EXPAND_CALLS;
+    const defaultWarningPolishCalls = isGeminiModel ? 1 : Math.min(2, MAX_WARNING_POLISH_CALLS);
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
@@ -224,9 +224,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 16000 : (isReasoningModel ? 32000 : 12000);
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 12000 : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 9000 : (isReasoningModel ? 16000 : 5000);
+    const minStoryTokenBudget = isGeminiFlashModel ? 7000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -255,7 +255,7 @@ Each character must sound different. 25-40% dialogue anchored to action.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.
-CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by adding dialogue and action beats, NOT by making sentences longer or more descriptive.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
+CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentences. Many should land around 6-14 words, but a few longer sentences are fine if they stay clear. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
@@ -272,38 +272,38 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
       if (effectivelyFlash) {
         switch (step) {
           case "full":
-            return 896;
+            return 224;
           case "recovery":
-            return 640;
+            return 160;
           case "rewrite":
-            return 384;
+            return 128;
           case "expand":
           case "warning-polish":
-            return 192;
-          case "title":
             return 64;
+          case "title":
+            return 32;
           default:
-            return 256;
+            return 96;
         }
       }
       if (isGemini3) {
         switch (step) {
           case "full":
-            return 1536;
+            return 384;
           case "recovery":
-            return 1024;
+            return 256;
           case "rewrite":
-            return 768;
+            return 192;
           case "expand":
           case "warning-polish":
-            return 320;
-          case "title":
             return 96;
+          case "title":
+            return 48;
           default:
-            return 384;
+            return 128;
         }
       }
-      return 512;
+      return 160;
     };
 
     const callStoryModel = async (input: {
@@ -394,7 +394,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     if (useV7Blueprint && !isTokenBudgetExceeded()) {
       console.log(`[story-writer] V7: Generating story blueprint...`);
       try {
-        const blueprintPrompt = buildStoryBlueprintPrompt({
+        const blueprintPrompt = buildLeanStoryBlueprintPrompt({
           directives,
           cast,
           dna,
@@ -404,13 +404,13 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
         });
 
         // Blueprint always runs with flashModel
-        const blueprintMaxTokens = isFlashModelGemini ? 1800 : (isReasoningModel ? 2200 : 1500);
+        const blueprintMaxTokens = isFlashModelGemini ? 900 : (isReasoningModel ? 1200 : 900);
         const blueprintResult = await callStoryModel({
           systemPrompt: buildBlueprintSystemPrompt(normalizedRequest.language),
           userPrompt: blueprintPrompt,
           responseFormat: "json_object",
           maxTokens: blueprintMaxTokens,
-          temperature: 0.5,
+          temperature: 0.4,
           reasoningEffort: "low",
           thinkingBudget: resolveGeminiThinkingBudget("expand", isFlashModelGemini),
           context: "story-writer-blueprint",
@@ -459,12 +459,12 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
 
     // ─── Phase A: Generate full story in one call ────────────────────────────
     // V7: Use blueprint-driven prompt if blueprint was generated successfully
-    const v7SystemPrompt = buildV7SystemPrompt(normalizedRequest.language, { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax });
+    const v7SystemPrompt = buildReleaseV7SystemPrompt(normalizedRequest.language, { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax });
 
     const buildStoryPrompt = (promptMode: "full" | "compact") => {
       // If V7 blueprint is available, use the simplified blueprint-driven prompt
       if (storyBlueprint && useV7Blueprint) {
-        return buildBlueprintDrivenStoryPrompt({
+        return buildLeanBlueprintDrivenStoryPrompt({
           blueprint: storyBlueprint,
           cast,
           directives,
@@ -513,17 +513,17 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     // Cost/latency tuned per model family.
     // Gemini Flash was over-provisioned before (16k per initial call) and showed token/runtime spikes.
     const baseOutputTokens = isGeminiFlashModel
-      ? Math.max(5000, Math.round(totalWordMax * 2.2))
+      ? Math.max(3200, Math.round(totalWordMax * 1.8))
       : isReasoningModel
-        ? Math.max(8000, Math.round(totalWordMax * 3.0))
+        ? Math.max(4200, Math.round(totalWordMax * 2.1))
         : Math.max(2200, Math.round(totalWordMax * 1.5));
 
-    const reasoningMultiplier = isGeminiFlashModel ? 1.15 : (isReasoningModel ? 2.0 : 1);
+    const reasoningMultiplier = isGeminiFlashModel ? 1.0 : (isReasoningModel ? 1.1 : 1);
 
     const maxOutputTokens = isGeminiFlashModel
-      ? Math.min(Math.max(5200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
+      ? Math.min(Math.max(3200, Math.round(baseOutputTokens * reasoningMultiplier)), 6000)
       : isReasoningModel
-        ? Math.min(Math.max(12000, Math.round(baseOutputTokens * reasoningMultiplier)), 24000)
+        ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
 
     const initialCallMaxTokens = fitTokensToBudget(
@@ -540,7 +540,7 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
     // Higher reasoning effort ("high") for initial call — this is the most important generation.
     const storyTemperature = strict
       ? 0.4
-      : (isGeminiFlashModel ? 0.72 : (isGeminiModel ? 0.8 : 0.7));
+      : (isGeminiFlashModel ? 0.68 : (isGeminiModel ? 0.72 : 0.7));
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
@@ -563,9 +563,9 @@ CRITICAL: Keep sentences SHORT (average 10 words, never over 15). Expand by addi
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
       const recoveryMaxTokens = isGeminiFlashModel
-        ? Math.min(Math.max(maxOutputTokens + 900, 3000), 9000)
+        ? Math.min(Math.max(maxOutputTokens + 600, 3000), 6000)
         : isReasoningModel
-          ? Math.min(Math.max(maxOutputTokens + 2000, 9000), 14000)
+          ? Math.min(Math.max(maxOutputTokens + 900, 4200), 8000)
           : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
       const recoveryBudgetedMaxTokens = fitTokensToBudget(
         recoveryMaxTokens,
