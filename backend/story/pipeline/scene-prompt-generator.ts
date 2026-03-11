@@ -1,7 +1,7 @@
 import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
 import { callChatCompletion } from "./llm-client";
 
-const MODEL = "gpt-4.1-mini";
+const MODEL = "gpt-5-nano";
 const MAX_CHAPTER_WORDS = 220;
 const LEAD_WORDS = 130;
 const TAIL_WORDS = 80;
@@ -232,9 +232,8 @@ Return JSON:
   ]
 }`;
 
-  // This step is structured extraction, not creative reasoning. A non-reasoning mini model
-  // is cheaper and more reliable here than GPT-5 nano, which was burning tokens and
-  // returning empty truncated JSON.
+  // Keep batches smaller and reasoning minimal so the model returns JSON instead of burning
+  // the entire completion budget on internal reasoning.
   const baseTokens = Math.max(1500, chapterInputs.length * 600);
   const isReasoningModel = MODEL.includes("gpt-5") || MODEL.includes("o4");
   const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
