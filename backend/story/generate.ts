@@ -45,6 +45,7 @@ import {
   ageToAgeGroup,
   buildStoryProfilePrompt,
 } from "../helpers/child-profile-personalization";
+import { reserveGenerationCapacity } from "../helpers/generationCapacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -379,23 +380,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       customPrompt: mergePromptBlocks(req.config.customPrompt, profilePrompt),
     };
     await ensureAvatarProfileLinksTable();
-
-    await claimGenerationUsage({
-      userId: currentUserId,
-      kind: "story",
-      profileId: primaryProfileId,
-      contentRef: id,
-      clerkToken,
-    });
     const mcpApiKey = mcpServerApiKey();
-
-    const safe = (obj: any) => {
-      try {
-        return JSON.stringify(obj).slice(0, 2000);
-      } catch {
-        return String(obj).slice(0, 2000);
-      }
-    };
 
     console.log("[story.generate] Incoming request:", {
       storyId: id,
@@ -429,60 +414,74 @@ export const generate = api<GenerateStoryRequest, Story>(
       } : undefined,
     });
 
-    // Create initial story record
-    await storyDB.exec`
-      INSERT INTO stories (
-        id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
-      ) VALUES (
-        ${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...', 
-        ${JSON.stringify(config)}, 'generating', ${now}, ${now}
-      )
-    `;
-
-    for (const participantProfileId of participantProfileIds) {
-      await storyDB.exec`
-        INSERT INTO story_participants (
-          id,
-          story_id,
-          profile_id,
-          avatar_ids,
-          created_at
-        )
-        VALUES (
-          ${crypto.randomUUID()},
-          ${id},
-          ${participantProfileId},
-          ${JSON.stringify(config.avatarIds || [])}::jsonb,
-          ${now}
-        )
-        ON CONFLICT (story_id, profile_id) DO UPDATE
-        SET avatar_ids = EXCLUDED.avatar_ids
-      `;
-
-      await storyDB.exec`
-        INSERT INTO story_profile_state (
-          profile_id,
-          story_id,
-          is_favorite,
-          progress_pct,
-          completion_state,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          ${participantProfileId},
-          ${id},
-          FALSE,
-          0,
-          'not_started',
-          ${now},
-          ${now}
-        )
-        ON CONFLICT (profile_id, story_id) DO NOTHING
-      `;
-    }
+    await reserveGenerationCapacity({
+      db: storyDB,
+      resource: "story",
+      userId: currentUserId,
+      createReservation: async (tx) => {
+        await tx.exec`
+          INSERT INTO stories (
+            id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
+          ) VALUES (
+            ${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...',
+            ${JSON.stringify(config)}, 'generating', ${now}, ${now}
+          )
+        `;
+      },
+    });
 
     try {
+      await claimGenerationUsage({
+        userId: currentUserId,
+        kind: "story",
+        profileId: primaryProfileId,
+        contentRef: id,
+        clerkToken,
+      });
+
+      for (const participantProfileId of participantProfileIds) {
+        await storyDB.exec`
+          INSERT INTO story_participants (
+            id,
+            story_id,
+            profile_id,
+            avatar_ids,
+            created_at
+          )
+          VALUES (
+            ${crypto.randomUUID()},
+            ${id},
+            ${participantProfileId},
+            ${JSON.stringify(config.avatarIds || [])}::jsonb,
+            ${now}
+          )
+          ON CONFLICT (story_id, profile_id) DO UPDATE
+          SET avatar_ids = EXCLUDED.avatar_ids
+        `;
+
+        await storyDB.exec`
+          INSERT INTO story_profile_state (
+            profile_id,
+            story_id,
+            is_favorite,
+            progress_pct,
+            completion_state,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            ${participantProfileId},
+            ${id},
+            FALSE,
+            0,
+            'not_started',
+            ${now},
+            ${now}
+          )
+          ON CONFLICT (profile_id, story_id) DO NOTHING
+        `;
+      }
+
       console.log("[story.generate] Loading avatar details...", { count: config.avatarIds.length });
       // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
       const avatarDetails: StoryAvatar[] = [];

@@ -25,6 +25,8 @@ import {
   ageToAgeGroup,
   buildDokuProfilePrompt,
 } from "../helpers/child-profile-personalization";
+import { reserveGenerationCapacity } from "../helpers/generationCapacity";
+import { mapWithConcurrency } from "../helpers/asyncPool";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -35,6 +37,7 @@ const MODEL = "gpt-5-mini";
 const INPUT_COST_PER_1M = 5.0;
 const OUTPUT_COST_PER_1M = 15.0;
 const IMAGE_COST_PER_ITEM = 0.0008;
+const DEFAULT_DOKU_SECTION_IMAGE_CONCURRENCY = 2;
 
 const COSMOS_DOMAIN_META: Record<string, { title: string; icon: string }> = {
   space: { title: "Weltraum", icon: "space" },
@@ -200,6 +203,20 @@ function uniqueTrimmed(values: string[]): string[] {
   );
 }
 
+function resolveDokuOpenAITimeoutMs(length?: DokuConfig["length"]): number {
+  if (length === "long") return 240_000;
+  if (length === "medium") return 180_000;
+  return 120_000;
+}
+
+function resolveDokuSectionImageConcurrency(): number {
+  const raw = Number.parseInt(process.env.TALEA_DOKU_SECTION_IMAGE_CONCURRENCY || "", 10);
+  if (!Number.isFinite(raw)) {
+    return DEFAULT_DOKU_SECTION_IMAGE_CONCURRENCY;
+  }
+  return Math.max(1, Math.min(4, raw));
+}
+
 export const generateDoku = api<GenerateDokuRequest, Doku>(
   { expose: true, method: "POST", path: "/doku/generate", auth: true },
   async (req) => {
@@ -271,75 +288,96 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
     config.ageGroup = config.ageGroup || inferredAgeGroup || "6-8";
     config.personalizationPrompt = personalizationPrompt || config.personalizationPrompt;
     await ensureAvatarProfileLinksTable();
-
-    await claimGenerationUsage({
+    await reserveGenerationCapacity({
+      db: dokuDB,
+      resource: "doku",
       userId: currentUserId,
-      kind: "doku",
-      profileId: primaryProfileId,
-      contentRef: id,
-      clerkToken,
+      createReservation: async (tx) => {
+        await tx.exec`
+          INSERT INTO dokus (id, user_id, primary_profile_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
+          VALUES (${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', ${config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
+        `;
+      },
     });
-
-    await dokuDB.exec`
-      INSERT INTO dokus (id, user_id, primary_profile_id, title, topic, content, cover_image_url, is_public, status, created_at, updated_at)
-      VALUES (${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', ${config.topic}, ${JSON.stringify({ sections: [] })}, NULL, false, 'generating', ${now}, ${now})
-    `;
-    for (const participantProfileId of participantProfileIds) {
-      await dokuDB.exec`
-        INSERT INTO doku_participants (
-          id,
-          doku_id,
-          profile_id,
-          avatar_ids,
-          created_at
-        )
-        VALUES (
-          ${crypto.randomUUID()},
-          ${id},
-          ${participantProfileId},
-          '[]'::jsonb,
-          ${now}
-        )
-        ON CONFLICT (doku_id, profile_id) DO NOTHING
-      `;
-
-      await dokuDB.exec`
-        INSERT INTO doku_profile_state (
-          profile_id,
-          doku_id,
-          is_favorite,
-          progress_pct,
-          completion_state,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          ${participantProfileId},
-          ${id},
-          FALSE,
-          0,
-          'not_started',
-          ${now},
-          ${now}
-        )
-        ON CONFLICT (profile_id, doku_id) DO NOTHING
-      `;
-    }
 
     const startTime = Date.now();
     let imagesGenerated = 0;
 
     try {
-      const payload = buildOpenAIPayload(config);
-
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify(payload),
+      await claimGenerationUsage({
+        userId: currentUserId,
+        kind: "doku",
+        profileId: primaryProfileId,
+        contentRef: id,
+        clerkToken,
       });
+
+      for (const participantProfileId of participantProfileIds) {
+        await dokuDB.exec`
+          INSERT INTO doku_participants (
+            id,
+            doku_id,
+            profile_id,
+            avatar_ids,
+            created_at
+          )
+          VALUES (
+            ${crypto.randomUUID()},
+            ${id},
+            ${participantProfileId},
+            '[]'::jsonb,
+            ${now}
+          )
+          ON CONFLICT (doku_id, profile_id) DO NOTHING
+        `;
+
+        await dokuDB.exec`
+          INSERT INTO doku_profile_state (
+            profile_id,
+            doku_id,
+            is_favorite,
+            progress_pct,
+            completion_state,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            ${participantProfileId},
+            ${id},
+            FALSE,
+            0,
+            'not_started',
+            ${now},
+            ${now}
+          )
+          ON CONFLICT (profile_id, doku_id) DO NOTHING
+        `;
+      }
+
+      const payload = buildOpenAIPayload(config);
+      const dokuTimeoutMs = resolveDokuOpenAITimeoutMs(config.length);
+      const abortController = new AbortController();
+      const timeoutHandle = setTimeout(() => abortController.abort(), dokuTimeoutMs);
+      let res: Response;
+
+      try {
+        res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openAIKey()}`,
+          },
+          body: JSON.stringify(payload),
+          signal: abortController.signal,
+        });
+      } catch (error) {
+        if ((error as any)?.name === "AbortError") {
+          throw new Error(`OpenAI request timed out after ${Math.round(dokuTimeoutMs / 1000)}s`);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutHandle);
+      }
 
       if (!res.ok) {
         const errText = await res.text();
@@ -413,9 +451,10 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       }
 
       // === SECTION IMAGE GENERATION ===
-      // Generate images for each section in parallel using Promise.allSettled
-      const sectionImageResults = await Promise.allSettled(
-        parsed.sections.map(async (section, index) => {
+      const sectionImageResults = await mapWithConcurrency(
+        parsed.sections,
+        resolveDokuSectionImageConcurrency(),
+        async (section, index) => {
           const rawPrompt = section.sectionImagePrompt || section.imageIdea;
           if (!rawPrompt) return { index, imageUrl: undefined };
 
@@ -436,13 +475,13 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
             console.warn(`Section ${index} image generation failed:`, err);
             return { index, imageUrl: undefined };
           }
-        })
+        }
       );
 
       // Attach imageUrl to each section
       for (const result of sectionImageResults) {
-        if (result.status === "fulfilled" && result.value.imageUrl) {
-          parsed.sections[result.value.index].imageUrl = result.value.imageUrl;
+        if (result.imageUrl) {
+          parsed.sections[result.index].imageUrl = result.imageUrl;
           imagesGenerated++;
         }
       }

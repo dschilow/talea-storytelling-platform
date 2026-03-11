@@ -3,6 +3,16 @@ const DEFAULT_MCP_VALIDATOR_URL = "https://talea-mcp-validator-production.up.rai
 
 const mcpMainUrl = process.env.MCP_MAIN_URL ?? DEFAULT_MCP_MAIN_URL;
 const mcpValidatorUrl = process.env.MCP_VALIDATOR_URL ?? DEFAULT_MCP_VALIDATOR_URL;
+const DEFAULT_MCP_TIMEOUT_MS = 15_000;
+
+function resolveMcpTimeoutMs(): number {
+  const parsed = Number.parseInt(process.env.TALEA_MCP_TIMEOUT_MS || "", 10);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_MCP_TIMEOUT_MS;
+  }
+
+  return Math.max(1_000, Math.min(120_000, parsed));
+}
 
 // Type definitions for MCP validator responses
 export interface ValidationResult {
@@ -37,15 +47,30 @@ async function callMcpEndpoint<T>(
   console.log(`[MCP] Calling ${url} with body:`, JSON.stringify(body).substring(0, 200));
 
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-MCP-API-Key": apiKey,
-        ...extraHeaders,
-      },
-      body: JSON.stringify(body),
-    });
+    const timeoutMs = resolveMcpTimeoutMs();
+    const abortController = new AbortController();
+    const timeoutHandle = setTimeout(() => abortController.abort(), timeoutMs);
+    let response: Response;
+
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-MCP-API-Key": apiKey,
+          ...extraHeaders,
+        },
+        body: JSON.stringify(body),
+        signal: abortController.signal,
+      });
+    } catch (error) {
+      if ((error as any)?.name === "AbortError") {
+        throw new Error(`MCP request timed out after ${timeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -53,7 +78,7 @@ async function callMcpEndpoint<T>(
       throw new Error(`MCP request failed (${response.status}): ${text}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as any;
     console.log(`[MCP] Response received:`, JSON.stringify(result).substring(0, 200));
 
     const content = Array.isArray(result.content) ? result.content[0] : undefined;

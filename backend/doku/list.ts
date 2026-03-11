@@ -20,6 +20,27 @@ interface ListDokusResponse {
   hasMore: boolean;
 }
 
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
+
+function clampLimit(value?: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_PAGE_SIZE;
+  }
+
+  return Math.max(1, Math.min(MAX_PAGE_SIZE, Math.trunc(parsed)));
+}
+
+function clampOffset(value?: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(parsed));
+}
+
 // Safely normalize JSONB/text content coming from the DB into an object.
 function normalizeContent(raw: unknown): { sections: DokuSection[]; summary?: string; title?: string } {
   if (raw == null) return { sections: [] };
@@ -41,8 +62,8 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
   { expose: true, method: "GET", path: "/dokus", auth: true },
   async (req) => {
     const auth = getAuthData()!;
-    const limit = req.limit || 10;
-    const offset = req.offset || 0;
+    const limit = clampLimit(req.limit);
+    const offset = clampOffset(req.offset);
     const includeFamily = req.includeFamily === true;
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,

@@ -20,13 +20,83 @@ interface ListStoriesResponse {
   hasMore: boolean;
 }
 
+type StoryConfigRecord = Record<string, any> & {
+  avatarIds?: string[];
+};
+
+type StoryMetadataRecord = Record<string, any> & {
+  characterPoolUsed?: Array<{
+    characterId?: string;
+    characterName?: string;
+  }>;
+};
+
+const DEFAULT_PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 50;
+
+function clampLimit(value?: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_PAGE_SIZE;
+  }
+
+  return Math.max(1, Math.min(MAX_PAGE_SIZE, Math.trunc(parsed)));
+}
+
+function clampOffset(value?: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function parseJsonObject<T extends Record<string, any>>(value: unknown): T | null {
+  if (!value) return null;
+  if (typeof value === "object") return value as T;
+  if (typeof value !== "string") return null;
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? (parsed as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAvatarIds(config: StoryConfigRecord | null): string[] {
+  if (!Array.isArray(config?.avatarIds)) {
+    return [];
+  }
+
+  return config.avatarIds
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+}
+
+function extractCharacterPoolUsed(
+  castSet: Record<string, any> | null
+): Array<{ characterId?: string; characterName?: string }> {
+  const poolCharacters = Array.isArray(castSet?.poolCharacters) ? castSet.poolCharacters : [];
+  if (poolCharacters.length === 0) {
+    return [];
+  }
+
+  return poolCharacters.map((character: any) => ({
+    characterId: typeof character?.characterId === "string" ? character.characterId : undefined,
+    characterName: typeof character?.displayName === "string" ? character.displayName : undefined,
+  }));
+}
+
 // Retrieves stories for the authenticated user with pagination.
 export const list = api<ListStoriesRequest, ListStoriesResponse>(
   { expose: true, method: "GET", path: "/stories", auth: true },
   async (req) => {
     const auth = getAuthData()!;
-    const limit = req.limit || 10;
-    const offset = req.offset || 0;
+    const limit = clampLimit(req.limit);
+    const offset = clampOffset(req.offset);
     const includeFamily = req.includeFamily === true;
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
@@ -36,7 +106,6 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
 
-    // Get total count
     const countResult = await storyDB.queryRow<{ count: number }>`
       SELECT COUNT(*) as count
       FROM stories s
@@ -63,7 +132,6 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     `;
     const total = countResult?.count || 0;
 
-    // Get paginated stories
     const storyRows = await storyDB.queryAll<{
       id: string;
       user_id: string;
@@ -115,6 +183,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       ORDER BY s.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
+
     const storyIds = storyRows.map((row) => row.id);
     const participantRows = storyIds.length > 0
       ? await storyDB.queryAll<{
@@ -128,9 +197,9 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       : [];
     const participantsByStoryId = new Map<string, string[]>();
     for (const row of participantRows) {
-      const entries = participantsByStoryId.get(row.story_id) || [];
-      entries.push(row.profile_id);
-      participantsByStoryId.set(row.story_id, entries);
+      const existing = participantsByStoryId.get(row.story_id) || [];
+      existing.push(row.profile_id);
+      participantsByStoryId.set(row.story_id, existing);
     }
 
     const profileStateRows = storyIds.length > 0
@@ -158,153 +227,157 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       profileStateRows.map((row) => [row.story_id, row])
     );
 
-    // Get all unique avatar IDs from stories
-    const allAvatarIds = new Set<string>();
-    const parsedConfigs = storyRows.map(row => JSON.parse(row.config));
-
-    parsedConfigs.forEach(config => {
-      if (config.avatarIds && Array.isArray(config.avatarIds)) {
-        config.avatarIds.forEach((id: string) => allAvatarIds.add(id));
-      }
-    });
-
-    // Fetch all avatars in one query
-    const avatarMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
-    if (allAvatarIds.size > 0) {
-      // Fetch avatars one by one to avoid SQL IN array issues
-      for (const avatarId of allAvatarIds) {
-        const avatar = await avatarDB.queryRow<{
+    const parsedConfigs = storyRows.map((row) => parseJsonObject<StoryConfigRecord>(row.config));
+    const avatarIds = Array.from(
+      new Set(parsedConfigs.flatMap((config) => normalizeAvatarIds(config)))
+    );
+    const avatarRows = avatarIds.length > 0
+      ? await avatarDB.queryAll<{
           id: string;
           name: string;
           image_url: string | null;
         }>`
-          SELECT id, name, image_url FROM avatars WHERE id = ${avatarId}
-        `;
-        if (avatar) {
-          avatarMap.set(avatar.id, {
-            id: avatar.id,
-            name: avatar.name,
-            imageUrl: await buildAvatarImageUrlForClient(avatar.id, avatar.image_url || undefined) || null
-          });
-        }
-      }
-    }
+          SELECT id, name, image_url
+          FROM avatars
+          WHERE id = ANY(${avatarIds})
+        `
+      : [];
+    const avatarEntries = await Promise.all(
+      avatarRows.map(async (avatar) => [
+        avatar.id,
+        {
+          id: avatar.id,
+          name: avatar.name,
+          imageUrl: (await buildAvatarImageUrlForClient(avatar.id, avatar.image_url || undefined)) || null,
+        },
+      ] as const)
+    );
+    const avatarMap = new Map<string, { id: string; name: string; imageUrl: string | null }>(avatarEntries);
 
-    // Get all unique character IDs from story metadata
-    const allCharacterIds = new Set<string>();
-    const parsedMetadata = await Promise.all(storyRows.map(async row => {
-      let base = row.metadata ? JSON.parse(row.metadata) : null;
-      if (base?.characterPoolUsed && Array.isArray(base.characterPoolUsed) && base.characterPoolUsed.length > 0) {
-        return base;
-      }
-
-      const castRow = await storyDB.queryRow<{ cast_set: any }>`
-        SELECT cast_set FROM story_cast_sets WHERE story_instance_id = ${row.id}
-      `;
-      if (!castRow?.cast_set) {
-        return base;
-      }
-
-      let castSet: any = castRow.cast_set;
-      if (typeof castSet === "string") {
-        try {
-          castSet = JSON.parse(castSet);
-        } catch {
-          return base;
-        }
-      }
-
-      const poolCharacters = Array.isArray(castSet?.poolCharacters) ? castSet.poolCharacters : [];
-      if (poolCharacters.length === 0) {
-        return base;
-      }
-
-      const characterPoolUsed = poolCharacters.map((character: any) => ({
-        characterId: character.characterId,
-        characterName: character.displayName,
-      }));
-
-      base = base || {};
-      base.characterPoolUsed = characterPoolUsed;
-      return base;
-    }));
-
-    // Extract character IDs from metadata (no verbose logging)
-    parsedMetadata.forEach(metadata => {
-      if (metadata?.characterPoolUsed && Array.isArray(metadata.characterPoolUsed)) {
-        metadata.characterPoolUsed.forEach((char: any) => {
-          if (char.characterId) {
-            allCharacterIds.add(char.characterId);
-          }
-        });
-      }
-    });
-
-    // Fetch all characters from character pool
-    const characterMap = new Map<string, { id: string; name: string; imageUrl: string | null }>();
-    if (allCharacterIds.size > 0) {
-      for (const characterId of allCharacterIds) {
-        const character = await storyDB.queryRow<{
-          id: string;
-          name: string;
-          image_url: string | null;
+    const baseMetadataByIndex = storyRows.map((row) => parseJsonObject<StoryMetadataRecord>(row.metadata));
+    const castRows = storyIds.length > 0
+      ? await storyDB.queryAll<{
+          story_instance_id: string;
+          cast_set: any;
         }>`
-          SELECT id, name, image_url FROM character_pool WHERE id = ${characterId}
-        `;
-        if (character) {
-          characterMap.set(character.id, {
-            id: character.id,
-            name: character.name,
-            imageUrl: await resolveImageUrlForClient(character.image_url || undefined) || null
-          });
-        }
+          SELECT story_instance_id, cast_set
+          FROM story_cast_sets
+          WHERE story_instance_id = ANY(${storyIds})
+        `
+      : [];
+    const castSetByStoryId = new Map<string, Record<string, any> | null>(
+      castRows.map((row) => [row.story_instance_id, parseJsonObject<Record<string, any>>(row.cast_set)])
+    );
+
+    const parsedMetadata: Array<Record<string, any> | null> = storyRows.map((row, index) => {
+      const baseMetadata = baseMetadataByIndex[index];
+      if (Array.isArray(baseMetadata?.characterPoolUsed) && baseMetadata.characterPoolUsed.length > 0) {
+        return baseMetadata;
       }
-    }
 
-    const stories: StorySummary[] = await Promise.all(storyRows.map(async (storyRow, idx) => {
-      const config = parsedConfigs[idx];
-      const metadata = parsedMetadata[idx];
-
-      // Add avatar details to config
-      const avatars = (config.avatarIds || [])
-        .map((avatarId: string) => avatarMap.get(avatarId))
-        .filter((avatar: { id: string; name: string; imageUrl: string | null } | undefined): avatar is { id: string; name: string; imageUrl: string | null } => avatar !== undefined);
-
-      // Add character details from character pool
-      const characters = (metadata?.characterPoolUsed || [])
-        .map((char: any) => characterMap.get(char.characterId))
-        .filter((character: { id: string; name: string; imageUrl: string | null } | undefined): character is { id: string; name: string; imageUrl: string | null } => character !== undefined);
+      const characterPoolUsed = extractCharacterPoolUsed(castSetByStoryId.get(row.id) || null);
+      if (characterPoolUsed.length === 0) {
+        return baseMetadata;
+      }
 
       return {
-        id: storyRow.id,
-        userId: storyRow.user_id,
-        primaryProfileId: storyRow.primary_profile_id || undefined,
-        participantProfileIds: participantsByStoryId.get(storyRow.id) || [],
-        title: storyRow.title,
-        summary: storyRow.description, // Frontend expects 'summary'
-        description: storyRow.description,
-        coverImageUrl: await resolveImageUrlForClient(storyRow.cover_image_url || undefined),
-        config: { ...config, avatars, characters },
-        profileState: profileStateByStoryId.get(storyRow.id)
-          ? {
-              profileId: activeProfileId,
-              isFavorite: profileStateByStoryId.get(storyRow.id)!.is_favorite,
-              progressPct: Number(profileStateByStoryId.get(storyRow.id)!.progress_pct || 0),
-              completionState: profileStateByStoryId.get(storyRow.id)!.completion_state,
-              lastPositionSec: profileStateByStoryId.get(storyRow.id)!.last_position_sec ?? undefined,
-              lastPlayedAt: profileStateByStoryId.get(storyRow.id)!.last_played_at ?? undefined,
-            }
-          : undefined,
-        metadata,
-        status: storyRow.status,
-        isPublic: storyRow.is_public,
-        createdAt: storyRow.created_at,
-        updatedAt: storyRow.updated_at,
+        ...(baseMetadata || {}),
+        characterPoolUsed,
       };
-    }));
+    });
 
-    const hasMore = offset + limit < total;
+    const characterIds = Array.from(
+      new Set(
+        parsedMetadata.flatMap((metadata) =>
+          ((Array.isArray(metadata?.characterPoolUsed)
+            ? metadata.characterPoolUsed
+            : []) as Array<{ characterId?: string }>)
+            .map((entry: { characterId?: string }) =>
+              typeof entry.characterId === "string" ? entry.characterId.trim() : ""
+            )
+            .filter((entry: string) => entry.length > 0)
+        )
+      )
+    );
+    const characterRows = characterIds.length > 0
+      ? await storyDB.queryAll<{
+          id: string;
+          name: string;
+          image_url: string | null;
+        }>`
+          SELECT id, name, image_url
+          FROM character_pool
+          WHERE id = ANY(${characterIds})
+        `
+      : [];
+    const characterEntries = await Promise.all(
+      characterRows.map(async (character) => [
+        character.id,
+        {
+          id: character.id,
+          name: character.name,
+          imageUrl: (await resolveImageUrlForClient(character.image_url || undefined)) || null,
+        },
+      ] as const)
+    );
+    const characterMap = new Map<string, { id: string; name: string; imageUrl: string | null }>(characterEntries);
 
-    return { stories, total, hasMore };
+    const stories: StorySummary[] = await Promise.all(
+      storyRows.map(async (storyRow, index) => {
+        const config = parsedConfigs[index] || {};
+        const metadata = parsedMetadata[index];
+        const characterPoolUsed = (Array.isArray(metadata?.characterPoolUsed)
+          ? metadata.characterPoolUsed
+          : []) as Array<{ characterId?: string }>;
+        const avatars = normalizeAvatarIds(config)
+          .map((avatarId) => avatarMap.get(avatarId))
+          .filter(
+            (avatar): avatar is { id: string; name: string; imageUrl: string | null } =>
+              Boolean(avatar)
+          );
+        const characters = characterPoolUsed
+          .map((entry: { characterId?: string }) => entry.characterId)
+          .filter((characterId: string | undefined): characterId is string => typeof characterId === "string")
+          .map((characterId: string) => characterMap.get(characterId))
+          .filter(
+            (character): character is { id: string; name: string; imageUrl: string | null } =>
+              Boolean(character)
+          );
+        const profileState = profileStateByStoryId.get(storyRow.id);
+
+        return {
+          id: storyRow.id,
+          userId: storyRow.user_id,
+          primaryProfileId: storyRow.primary_profile_id || undefined,
+          participantProfileIds: participantsByStoryId.get(storyRow.id) || [],
+          title: storyRow.title,
+          summary: storyRow.description,
+          description: storyRow.description,
+          coverImageUrl: await resolveImageUrlForClient(storyRow.cover_image_url || undefined),
+          config: { ...config, avatars, characters } as any,
+          profileState: profileState
+            ? {
+                profileId: activeProfileId,
+                isFavorite: profileState.is_favorite,
+                progressPct: Number(profileState.progress_pct || 0),
+                completionState: profileState.completion_state,
+                lastPositionSec: profileState.last_position_sec ?? undefined,
+                lastPlayedAt: profileState.last_played_at ?? undefined,
+              }
+            : undefined,
+          metadata: (metadata || undefined) as any,
+          status: storyRow.status,
+          isPublic: storyRow.is_public,
+          createdAt: storyRow.created_at,
+          updatedAt: storyRow.updated_at,
+        };
+      })
+    );
+
+    return {
+      stories,
+      total,
+      hasMore: offset + limit < total,
+    };
   }
 );
