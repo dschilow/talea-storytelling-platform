@@ -10,7 +10,7 @@ type Length = 'short' | 'medium' | 'long' | null;
 type AIModel =
   | 'gpt-5-nano'
   | 'gpt-5-mini'
-  | 'gpt-5.2'
+  | 'gpt-5.4'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
@@ -81,8 +81,8 @@ const models: ModelOption[] = [
     tone: '#8e7daf',
   },
   {
-    id: 'gpt-5.2',
-    title: 'GPT-5.2',
+    id: 'gpt-5.4',
+    title: 'GPT-5.4',
     subtitle: 'Beste Qualitaet',
     cost: '$1.25 / 1M',
     tone: '#c5828c',
@@ -222,4 +222,3 @@ export default function Step3AgeAndLength({
     </div>
   );
 }
-

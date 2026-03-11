@@ -7,7 +7,7 @@ import FadeInView from '../../../components/animated/FadeInView';
 type AIModel =
   | 'gpt-5-nano'
   | 'gpt-5-mini'
-  | 'gpt-5.2'
+  | 'gpt-5.4'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
@@ -146,8 +146,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       description: '$0.25/1M - Bewaehrt',
     },
     {
-      key: 'gpt-5.2',
-      label: 'GPT-5.2',
+      key: 'gpt-5.4',
+      label: 'GPT-5.4',
       icon: 'P',
       description: '$1.25/1M - Beste Qualitaet',
     },

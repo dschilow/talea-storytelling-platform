@@ -1186,7 +1186,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"
                       >
                         {generatingText ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        KI generieren (GPT-5.2)
+                        KI generieren (GPT-5.4)
                       </button>
                     </div>
 

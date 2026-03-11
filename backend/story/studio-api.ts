@@ -873,7 +873,7 @@ async function generateEpisodeScenesWithOpenAI(input: {
     .join("\n");
 
   const payload = {
-    model: "gpt-5.2",
+    model: "gpt-5.4",
     max_completion_tokens: 7000,
     response_format: { type: "json_object" },
     messages: [
@@ -1008,7 +1008,7 @@ async function generateEpisodeTextWithOpenAI(input: {
     .join("\n");
 
   const payload = {
-    model: "gpt-5.2",
+    model: "gpt-5.4",
     temperature: 0.85,
     max_completion_tokens: 5000,
     messages: [
@@ -1650,7 +1650,7 @@ export const generateStudioEpisodeText = api<GenerateStudioEpisodeTextRequest, S
       seriesId: req.seriesId,
       episodeId: req.episodeId,
       words,
-      model: "gpt-5.2",
+      model: "gpt-5.4",
     });
 
     const now = new Date();

@@ -308,8 +308,8 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
-  "gpt-5.2": {
-    name: "gpt-5.2",
+  "gpt-5.4": {
+    name: "gpt-5.4",
     inputCostPer1M: 1.250,      // $1.250/1M tokens
     outputCostPer1M: 10.000,    // $10.000/1M tokens
     maxCompletionTokens: 16000,
