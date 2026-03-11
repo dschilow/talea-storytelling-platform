@@ -62,25 +62,51 @@ export async function callChatCompletion(input: {
   responseFormat?: "json_object" | "text";
   maxTokens?: number;
   temperature?: number;
-  reasoningEffort?: "low" | "medium" | "high";
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
   seed?: number;
   context?: string;
   logSource?: string;
   logMetadata?: Record<string, any>;
 }): Promise<ChatCompletionResult> {
+  const isReasoningModel = input.model.includes("gpt-5") || input.model.includes("o4");
+  const prefersMinimalJsonReasoning =
+    input.responseFormat === "json_object"
+    && (input.model.includes("gpt-5-mini") || input.model.includes("gpt-5-nano"));
+  const jsonHeadroomFloor =
+    !prefersMinimalJsonReasoning
+      ? 0
+      : input.context?.startsWith("story-writer")
+        ? 2200
+        : input.context?.startsWith("scene-prompt-generator")
+          ? 1600
+          : input.context?.startsWith("story-release-surgery")
+            ? 1800
+            : 1400;
+  const needsJsonHeadroom =
+    prefersMinimalJsonReasoning
+    && Boolean(input.context)
+    && (
+      input.context!.startsWith("story-writer")
+      || input.context!.startsWith("scene-prompt-generator")
+      || input.context!.startsWith("story-release-surgery")
+    );
+  const requestedMaxCompletionTokens = input.maxTokens ?? 2000;
   const payload: any = {
     model: input.model,
     messages: input.messages,
-    max_completion_tokens: input.maxTokens ?? 2000,
+    max_completion_tokens: needsJsonHeadroom
+      ? Math.max(requestedMaxCompletionTokens, jsonHeadroomFloor)
+      : requestedMaxCompletionTokens,
   };
 
   if (input.responseFormat === "json_object") {
     payload.response_format = { type: "json_object" };
   }
 
-  const isReasoningModel = input.model.includes("gpt-5") || input.model.includes("o4");
   if (isReasoningModel) {
-    payload.reasoning_effort = input.reasoningEffort ?? "low";
+    payload.reasoning_effort = prefersMinimalJsonReasoning
+      ? "minimal"
+      : (input.reasoningEffort ?? "low");
   } else {
     payload.temperature = input.temperature ?? 0.7;
     payload.top_p = 0.95;

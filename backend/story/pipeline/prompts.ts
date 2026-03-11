@@ -926,6 +926,7 @@ NON-NEGOTIABLES
 2. The very first sentence must begin with a child action, spoken line, or concrete problem. Never open with an atmosphere-only smell sentence like "Es roch nach...".
 3. Chapter 1 states the concrete stakes early.
 4. Chapters 2-5 open by connecting to the previous chapter's ending.
+4b. Never start ANY chapter with an atmosphere-only smell sentence. Chapter openings begin with action, voice, or a visible problem.
 5. Chapter 3 contains a child-caused mistake with a clear consequence.
 6. Chapter 4 contains the low point and an internal turning point.
 7. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
@@ -1699,7 +1700,7 @@ This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories f
 
 **SENSORY DISCIPLINE:**
 - Use sensory detail only when it sharpens action, danger, or place.
-- Never begin Chapter 1 with an atmosphere-only smell sentence like "Es roch nach...".
+- Never begin any chapter with an atmosphere-only smell sentence like "Es roch nach...".
 - Prefer movement, sound, texture, or a visible problem over perfume-style description.
 
 **SENTENCE RHYTHM:**
@@ -1957,6 +1958,10 @@ export function buildChapterExpansionPrompt(input: {
   } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
+  const artifactAlreadyPresent = Boolean(
+    artifactName
+    && [originalText, previousContext].some(text => String(text || "").includes(artifactName))
+  );
 
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
@@ -1995,7 +2000,8 @@ Expand by adding one more concrete beat, reaction, or dialogue exchange. Smooth 
   - Available characters: ${allowedNames}
   - Foreground characters: ${chapterFocusNames.join(", ") || allowedNames}
 ${supportNames.length > 0 ? `  - Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
-${artifactName && chapter.artifactUsage ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
+${artifactName && chapter.artifactUsage && artifactAlreadyPresent ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
+${artifactName && !artifactAlreadyPresent ? `- Artifact status: ${artifactName} is NOT on stage yet. Do not introduce it in this chapter unless it already exists in the original text.` : ""}
   - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min} -${ageRange.max}
 ${missingLine}
 
@@ -2019,6 +2025,7 @@ ${missingLine}
 14. If output is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue. NO English words in output.
 15. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
 16. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+17. Never introduce the artifact early. If it is not already present in the original text or continuity context, leave it out.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -2203,6 +2210,10 @@ export function buildStoryChapterRevisionPrompt(input: {
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
+  const artifactAlreadyPresent = Boolean(
+    artifactName
+    && [originalText, previousContext].some(text => String(text || "").includes(artifactName))
+  );
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
@@ -2238,7 +2249,11 @@ SCENE DIRECTIVE (for context only — do NOT rewrite the chapter to match this):
 - Available characters: ${allowedNames || "none"}
 - Foreground characters: ${chapterFocusNames.join(", ") || allowedNames || "none"}
 ${supportNames.length > 0 ? `- Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
-- Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)}${artifactName ? ` (Name: ${artifactName} must be named)` : ""}
+${artifactName && chapter.artifactUsage && artifactAlreadyPresent
+  ? `- Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)} (Name: ${artifactName} may be named because it is already on stage)`
+  : artifactName
+    ? `- Artifact status: ${artifactName} is not on stage yet. Do not introduce or name it in this revision.`
+    : "- Artifact: none"}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
@@ -2259,6 +2274,7 @@ RULES:
 12) No meta/report lines like "Die Szene endete" / "The scene ended".
 13) Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
 14) Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+15) Never pull the artifact into an earlier chapter just because it exists later in the story.
 
 PROMPT LEAK PREVENTION:
 You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.

@@ -1,12 +1,12 @@
 import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
 import { callChatCompletion } from "./llm-client";
 
-const MODEL = "gpt-5-nano";
+const MODEL = "gpt-4.1-mini";
 const MAX_CHAPTER_WORDS = 220;
 const LEAD_WORDS = 130;
 const TAIL_WORDS = 80;
 const MAX_RETRIES = 1;
-const CHAPTER_BATCH_SIZE = 5;
+const CHAPTER_BATCH_SIZE = 3;
 const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
 const KNOWN_TTS_TAGS = new Set<string>([
   "excited",
@@ -232,7 +232,9 @@ Return JSON:
   ]
 }`;
 
-  // gpt-5-nano is also a reasoning model — needs headroom for thinking tokens
+  // This step is structured extraction, not creative reasoning. A non-reasoning mini model
+  // is cheaper and more reliable here than GPT-5 nano, which was burning tokens and
+  // returning empty truncated JSON.
   const baseTokens = Math.max(1500, chapterInputs.length * 600);
   const isReasoningModel = MODEL.includes("gpt-5") || MODEL.includes("o4");
   const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
@@ -246,7 +248,7 @@ Return JSON:
     responseFormat: "json_object",
     maxTokens: maxCompletionTokens,
     temperature: 0.6,
-    reasoningEffort: "medium",
+    reasoningEffort: "minimal",
     context: "scene-prompt-generator-batch",
     logSource: "phase6.5-scene-prompts-llm",
     logMetadata: { storyId, chapters: chapterInputs.length },

@@ -173,6 +173,120 @@ const REWRITE_RESCUE_POLISH_CODES = new Set([
   "DIALOGUE_RATIO_CRITICAL",
 ]);
 
+function compactBlueprintText(value: string | undefined, fallback: string, maxLength = 150): string {
+  const cleaned = String(value || "")
+    .replace(/\[[^\]]+\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return fallback;
+  if (cleaned.length <= maxLength) return cleaned;
+  return `${cleaned.slice(0, Math.max(0, maxLength - 1)).trim()}…`;
+}
+
+function resolveForegroundPair(input: {
+  directive?: SceneDirective;
+  cast: CastSet;
+  ageMax: number;
+  fallbackNames: string[];
+}): string {
+  const { directive, cast, ageMax, fallbackNames } = input;
+  if (!directive) return fallbackNames.slice(0, 2).join(" & ");
+  const names = getCoreChapterCharacterNames({ directive, cast, ageMax }).filter(Boolean);
+  const pair = (names.length > 0 ? names : fallbackNames).slice(0, 2);
+  return pair.join(" & ");
+}
+
+function buildDeterministicFallbackBlueprint(input: {
+  directives: SceneDirective[];
+  cast: CastSet;
+  ageMax: number;
+}): StoryBlueprint {
+  const { directives, cast, ageMax } = input;
+  const avatarNames = cast.avatars
+    .map(avatar => String(avatar.displayName || "").trim())
+    .filter(Boolean);
+  const leadName = avatarNames[0] || "Das Kind";
+  const secondName = avatarNames[1] || avatarNames[0] || "das andere Kind";
+  const artifactName = String(cast.artifact?.name || "").trim();
+  const artifactThing = artifactName || "das besondere Fundstück";
+  const [ch1, ch2, ch3, ch4, ch5] = directives;
+
+  return {
+    chapter1: {
+      where: compactBlueprintText(ch1?.setting, "Ein vertrauter Ort zeigt sofort, dass heute etwas Wichtiges nicht stimmt."),
+      who: `${leadName} reagiert genau und ruhig. ${secondName} ist schneller, lauter und drängt nach vorn.`,
+      want: compactBlueprintText(ch1?.goal, `${leadName} und ${secondName} wollen den nächsten Hinweis erreichen.`),
+      stakes: "Wenn sie die Spur verlieren, rückt ihr Ziel sofort außer Reichweite.",
+      curiosityHook: compactBlueprintText(ch1?.outcome, "Am Ende taucht ein erster beunruhigender Hinweis auf."),
+      foreground: resolveForegroundPair({ directive: ch1, cast, ageMax, fallbackNames: avatarNames }),
+      humorBeat: `${secondName} will schon losstürmen, bevor der Plan fertig erklärt ist.`,
+    },
+    chapter2: {
+      newElement: compactBlueprintText(ch2?.setting, "Am Rand des nächsten Ortes taucht etwas Verlockendes oder Fremdes auf."),
+      boldChoice: `${secondName} will den schnellen Weg nehmen und nicht länger warten.`,
+      complication: compactBlueprintText(ch2?.conflict, "Der direkte Weg erweist sich als riskanter als gedacht."),
+      openQuestion: compactBlueprintText(ch2?.outcome, "Kurz vor dem Ziel kippt die Lage, und eine neue Frage bleibt offen."),
+      foreground: resolveForegroundPair({ directive: ch2, cast, ageMax, fallbackNames: avatarNames }),
+      humorBeat: `${leadName} bremst den übereiligen Plan mit einer trockenen, genauen Bemerkung.`,
+    },
+    chapter3: {
+      mistake: artifactName
+        ? `${secondName} greift aus Ungeduld zu schnell nach ${artifactThing} und verschlimmert die Lage selbst.`
+        : `${secondName} entscheidet sich aus Ungeduld für den schnellen Griff und macht die Lage selbst schlimmer.`,
+      mistakeReason: `${secondName} will beweisen, dass sie es ohne Warten sofort schaffen können.`,
+      consequence: compactBlueprintText(ch3?.conflict, "Etwas blockiert den direkten Weg, die Zeit läuft, und die Spur reißt fast ab."),
+      bodyReaction: `${leadName} merkt, wie der Magen hart wird und die Hände plötzlich zu kalt wirken.`,
+      stuckFeeling: "Für einen Moment fühlt es sich an, als hätten sie Zeit, Mut und Spur gleichzeitig verloren.",
+      foreground: resolveForegroundPair({ directive: ch3, cast, ageMax, fallbackNames: avatarNames }),
+    },
+    chapter4: {
+      worstMoment: compactBlueprintText(ch4?.conflict, "Jetzt scheint wirklich alles zu spät: Der Weg ist versperrt, und das Ziel rutscht weg."),
+      almostGivingUp: `"Vielleicht reicht es diesmal nicht," sagt ${leadName} leise.`,
+      insightTrigger: `${leadName} bemerkt ein kleines Muster oder erinnert sich an einen frühen Hinweis vom Anfang.`,
+      newChoice: `${leadName} entscheidet sich diesmal für Geduld, Genauigkeit und Zusammenarbeit statt für den schnellen Sprung.`,
+      foreground: resolveForegroundPair({ directive: ch4, cast, ageMax, fallbackNames: avatarNames }),
+    },
+    chapter5: {
+      concreteWin: compactBlueprintText(ch5?.goal, "Die Kinder bringen den fehlenden Hinweis wirklich an seinen Platz zurück."),
+      smallPrice: "Ein kleiner Preis bleibt sichtbar: kalte Finger, ein verlorener Stift, ein Riss im Stoff oder ein verpasster Bissen Abendbrot.",
+      ch1Callback: "Das Ende greift den ersten Auftrag und den Anfangsort wieder auf, nur dass die Kinder jetzt sicherer zusammen handeln.",
+      finalImage: "Etwas Warmes, Sichtbares und Ruhiges liegt am Ende im vertrauten Raum, während draußen die Gefahr nachlässt.",
+      foreground: resolveForegroundPair({ directive: ch5, cast, ageMax, fallbackNames: avatarNames }),
+      humorBeat: `${secondName} will den Sieg groß ankündigen und stolpert dabei in einen kleinen, warmen Lacher.`,
+    },
+    emotionalArc: [
+      "Geborgenheit kippt in Neugier und erste Spannung.",
+      "Neugier wird zu Aufregung und einem ersten Zweifel.",
+      "Zu viel Sicherheit kippt in einen echten Fehler und ein mulmiges Oh nein.",
+      "Alles wirkt verloren, bis aus dem Inneren ein kleiner, klarer Entschluss kommt.",
+      "Anstrengung führt zu echtem Erfolg und stiller, verdienter Wärme.",
+    ],
+    characterWants: Object.fromEntries(
+      avatarNames.map((name, index) => [
+        name,
+        index === 0
+          ? "will den Hinweis richtig verstehen und sicher ans Ziel bringen"
+          : "will das Problem schnell lösen und beweisen, dass Mut hilft",
+      ]),
+    ),
+    characterFears: Object.fromEntries(
+      avatarNames.map((name, index) => [
+        name,
+        index === 0
+          ? "fürchtet, dass ein kleiner Fehler alle aus der Spur wirft"
+          : "fürchtet, zu langsam zu sein oder den entscheidenden Moment zu verpassen",
+      ]),
+    ),
+    artifactArc: artifactName
+      ? {
+          wonder: `${artifactThing} wirkt zuerst wie die schnelle Antwort auf das Problem.`,
+          temptation: `Die Kinder wollen ${artifactThing} zu direkt und zu früh einsetzen.`,
+          price: `Der Preis von ${artifactThing} zeigt sich sofort körperlich und praktisch.`,
+        }
+      : undefined,
+  };
+}
+
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
     normalizedRequest: NormalizedRequest;
@@ -322,7 +436,7 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       context?: string;
       logSource?: string;
       logMetadata?: Record<string, any>;
-      reasoningEffort?: "low" | "medium" | "high";
+      reasoningEffort?: "minimal" | "low" | "medium" | "high";
       seed?: number;
       thinkingBudget?: number;
       modelOverride?: string;
@@ -377,6 +491,12 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
             return callStoryModel({
               ...input,
               modelOverride: flashFallbackChatModel,
+              maxTokens: input.responseFormat === "json_object"
+                ? Math.max(input.maxTokens ?? 0, 2200)
+                : input.maxTokens,
+              reasoningEffort: input.responseFormat === "json_object"
+                ? "minimal"
+                : input.reasoningEffort,
               fallbackModels: undefined,
               fetchTimeoutMs: undefined,
               maxRetries: undefined,
@@ -432,6 +552,13 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
     // ═══════════════════════════════════════════════════════════════════════
     const useV7Blueprint = rawConfig?.promptVersion !== "v6"; // V7 is the new default
     let storyBlueprint: StoryBlueprint | undefined;
+    const deterministicFallbackBlueprint = useV7Blueprint
+      ? buildDeterministicFallbackBlueprint({
+          directives,
+          cast,
+          ageMax: normalizedRequest.ageMax,
+        })
+      : undefined;
 
     if (useV7Blueprint && !isTokenBudgetExceeded()) {
       console.log(`[story-writer] V7: Generating story blueprint...`);
@@ -491,11 +618,16 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
             } as StoryBlueprint;
             console.log(`[story-writer] V7: Blueprint extracted from flat response.`);
           } else {
-            console.warn(`[story-writer] V7: Blueprint response missing expected structure, falling back to V6.`);
+            console.warn(`[story-writer] V7: Blueprint response missing expected structure.`);
           }
         }
       } catch (error) {
-        console.warn(`[story-writer] V7: Blueprint generation failed, falling back to V6 prompt.`, error);
+        console.warn(`[story-writer] V7: Blueprint generation failed.`, error);
+      }
+
+      if (!storyBlueprint && deterministicFallbackBlueprint) {
+        storyBlueprint = deterministicFallbackBlueprint;
+        console.warn("[story-writer] V7: Using deterministic fallback blueprint to stay on the lean prompt path.");
       }
     }
 
@@ -504,7 +636,7 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
     const v7SystemPrompt = buildReleaseV7SystemPrompt(normalizedRequest.language, { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax });
 
     const buildStoryPrompt = (promptMode: "full" | "compact") => {
-      // If V7 blueprint is available, use the simplified blueprint-driven prompt
+      // Keep the lean V7 prompt path even when the model-generated blueprint fails.
       if (storyBlueprint && useV7Blueprint) {
         return buildLeanBlueprintDrivenStoryPrompt({
           blueprint: storyBlueprint,
@@ -521,7 +653,7 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
           avatarMemories,
         });
       }
-      // Fallback to V6 prompt
+      // Legacy fallback only when V7 is explicitly disabled.
       return buildFullStoryPrompt({
         directives,
         cast,
@@ -699,43 +831,76 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       let changed = false;
       let usage: TokenUsage | undefined;
       let expandAttemptCount = 0; // Zähle Expand-Versuche
+      const chapterIssueCodes = new Map<number, Set<string>>();
+      for (const issue of qualityReport?.issues || []) {
+        if (!issue?.chapter || issue.chapter <= 0) continue;
+        const codes = chapterIssueCodes.get(issue.chapter) ?? new Set<string>();
+        codes.add(issue.code);
+        chapterIssueCodes.set(issue.chapter, codes);
+      }
 
-      for (let i = 0; i < updatedChapters.length; i++) {
+      const rankedExpansionCandidates = updatedChapters
+        .map((chapter, index) => {
+          const directive = directives.find(d => d.chapter === chapter.chapter);
+          if (!directive) return null;
+
+          const wordCount = countWords(chapter.text);
+          const sentenceCount = splitSentences(chapter.text).length;
+          const missingCharacters = findMissingCharacters(
+            chapter.text,
+            directive,
+            cast,
+            { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+          );
+          const needsMissingFix = missingCharacters.length > 0;
+          const needsExpand = Boolean(wordCount < HARD_MIN_CHAPTER_WORDS || sentenceCount < 3 || needsMissingFix);
+          if (!needsExpand) return null;
+
+          const issueCodes = chapterIssueCodes.get(chapter.chapter) ?? new Set<string>();
+          const shortfall = Math.max(0, HARD_MIN_CHAPTER_WORDS - wordCount);
+          const priority =
+            shortfall * 4
+            + (needsMissingFix ? 260 : 0)
+            + (sentenceCount < 3 ? 180 : 0)
+            + (issueCodes.has("CHILD_MISTAKE_MISSING") ? 140 : 0)
+            + (issueCodes.has("GOAL_THREAD_WEAK_ENDING") ? 110 : 0)
+            + (issueCodes.has("ENDING_PAYOFF_ABSTRACT") ? 90 : 0);
+
+          return {
+            index,
+            chapter,
+            directive,
+            wordCount,
+            sentenceCount,
+            missingCharacters,
+            priority,
+          };
+        })
+        .filter(Boolean)
+        .sort((a: any, b: any) => b.priority - a.priority || a.chapter.chapter - b.chapter.chapter) as Array<{
+          index: number;
+          chapter: StoryDraft["chapters"][number];
+          directive: SceneDirective;
+          wordCount: number;
+          sentenceCount: number;
+          missingCharacters: string[];
+          priority: number;
+        }>;
+
+      for (const candidate of rankedExpansionCandidates) {
         // Stoppe wenn maxExpandCalls erreicht
         if (expandAttemptCount >= maxExpandCalls) {
           console.log(`[story-writer] Max expand calls (${maxExpandCalls}) reached, skipping remaining chapters`);
           break;
         }
 
-        const chapter = updatedChapters[i];
-        const directive = directives.find(d => d.chapter === chapter.chapter);
-        if (!directive) continue;
-
-        const wordCount = countWords(chapter.text);
-        const sentenceCount = splitSentences(chapter.text).length;
-        const missingCharacters = findMissingCharacters(
-          chapter.text,
-          directive,
-          cast,
-          { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
-        );
-        const needsMissingFix = missingCharacters.length > 0;
-
-        // V2: Nur expandieren wenn WIRKLICH zu kurz (unter hartem Minimum) oder < 3 Sätze
-        // Template-Fixes werden im nächsten Rewrite-Pass erledigt, nicht separat
-        const needsExpand = Boolean(wordCount < HARD_MIN_CHAPTER_WORDS || sentenceCount < 3 || needsMissingFix);
-
-        // V2: Keine separaten Template-Fix-Calls mehr - zu teuer
-        // const templateMatches = findTemplatePhraseMatches(chapter.text, normalizedRequest.language);
-        // const needsTemplateFix = templateMatches.length > 0 && !needsExpand;
-
-        if (!needsExpand) continue;
+        const { index, chapter, directive, wordCount, sentenceCount, missingCharacters } = candidate;
 
         // V2: Nur Expand-Calls, keine separaten Template-Fix-Calls mehr
         console.log(`[story-writer] Expanding chapter ${chapter.chapter}: ${wordCount} words, ${sentenceCount} sentences, missing: ${missingCharacters.join(", ") || "none"}`);
 
-        const prevContext = i > 0 ? getEdgeContext(updatedChapters[i - 1]?.text || "", "end") : "";
-        const nextContext = i < updatedChapters.length - 1 ? getEdgeContext(updatedChapters[i + 1]?.text || "", "start") : "";
+        const prevContext = index > 0 ? getEdgeContext(updatedChapters[index - 1]?.text || "", "end") : "";
+        const nextContext = index < updatedChapters.length - 1 ? getEdgeContext(updatedChapters[index + 1]?.text || "", "start") : "";
 
         const prompt = buildChapterExpansionPrompt({
           chapter: directive,

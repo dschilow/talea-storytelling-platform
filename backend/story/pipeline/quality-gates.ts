@@ -2761,15 +2761,22 @@ function gateCh1Orientation(
   const sensoryPatterns = isDE
     ? /\b(?:roch|duftete|klang|leuchtete|glänzte|schimmerte|warm|kalt|dunkel|hell|still|laut|weich|rau|feucht|trocken|klein|groß|alt|neu|Haus|Hütte|Dorf|Stadt|Wald|Garten|Zimmer|Küche|Straße|Weg|Wiese)\b/i
     : /\b(?:smelled|sounded|glowed|shone|warm|cold|dark|bright|quiet|loud|soft|rough|damp|dry|small|big|old|new|house|cottage|village|town|forest|garden|room|kitchen|street|path|meadow)\b/i;
+  const groundedWorldCuePattern = isDE
+    ? /\b(?:Huette|Hütte|Kueche|Küche|Straße|Tuer|Tür|Brunnen|Tisch|Feuer|Fenster|Licht|Schatten)\b/i
+    : /\b(?:door|window|table|fire|light|shadow|bridge|well)\b/i;
+  const hasGroundedWorldCue = sensoryPatterns.test(first5) || groundedWorldCuePattern.test(first5);
+  const worldGroundingMessage = isDE
+    ? "Kapitel 1: Die Welt/der Ort wird nicht klar genug verankert. Fuege 1-2 konkrete Ortsanker hinzu, am besten Klang, Licht, Oberflaeche oder ein sichtbares Problem statt Geruch."
+    : "Chapter 1: The world/setting is not grounded clearly enough. Add 1-2 concrete place cues, preferably sound, light, texture, or a visible problem instead of smell.";
 
-  if (!sensoryPatterns.test(first5)) {
+  if (!hasGroundedWorldCue) {
     issues.push({
       gate: "CH1_ORIENTATION",
       chapter: ch1.chapter,
       code: "CH1_WORLD_MISSING",
-      message: isDE
+      message: worldGroundingMessage || (isDE
         ? `Kapitel 1: Die Welt/der Ort wird nicht sinnlich beschrieben. Füge mindestens 1-2 Sinnesdetails hinzu (Geruch, Klang, Temperatur).`
-        : `Chapter 1: The world/setting is not sensorily described. Add at least 1-2 sensory details (smell, sound, temperature).`,
+        : `Chapter 1: The world/setting is not sensorily described. Add at least 1-2 sensory details (smell, sound, temperature).`),
       severity: "WARNING",
     });
   }
