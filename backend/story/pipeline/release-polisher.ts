@@ -1,5 +1,6 @@
 import { buildStoryChapterRevisionPrompt, resolveLengthTargets } from "./prompts";
 import { callChatCompletion } from "./llm-client";
+import { generateWithGemini } from "../gemini-generation";
 import type {
   CastSet,
   NormalizedRequest,
@@ -46,6 +47,7 @@ export async function applySelectiveSurgery(input: {
   }
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
+  const isGeminiModel = model.startsWith("gemini-");
   const maxTokens = isReasoningModel ? 1800 : 1200;
   const lengthTargets = input.normalizedRequest.wordBudget
     ? {
@@ -92,25 +94,50 @@ export async function applySelectiveSurgery(input: {
     });
 
     try {
-      const result = await callChatCompletion({
-        model,
-        messages: [
-          {
-            role: "system",
-            content: input.normalizedRequest.language === "de"
-              ? "Du bist ein sehr praeziser Kinderbuch-Lektor. Gib nur JSON aus."
-              : "You are a precise children's-book editor. Output JSON only.",
-          },
-          { role: "user", content: prompt },
-        ],
-        responseFormat: "json_object",
-        maxTokens,
-        reasoningEffort: "low",
-        temperature: 0.3,
-        context: `story-release-surgery-ch${chapterNo}`,
-        logSource: "phase6-story-release-surgery-llm",
-        logMetadata: { storyId: input.storyId, chapter: chapterNo, taskCount: tasks.length },
-      });
+      const systemMessage = input.normalizedRequest.language === "de"
+        ? "Du bist ein sehr praeziser Kinderbuch-Lektor. Gib nur JSON aus."
+        : "You are a precise children's-book editor. Output JSON only.";
+
+      const result = isGeminiModel
+        ? await (async () => {
+            const geminiResult = await generateWithGemini({
+              systemPrompt: systemMessage,
+              userPrompt: prompt,
+              model,
+              maxTokens,
+              temperature: 0.3,
+              thinkingBudget: model.includes("flash") ? 64 : 96,
+              logSource: "phase6-story-release-surgery-llm",
+              logMetadata: { storyId: input.storyId, chapter: chapterNo, taskCount: tasks.length },
+            });
+            return {
+              content: geminiResult.content,
+              finishReason: geminiResult.finishReason,
+              usage: {
+                promptTokens: geminiResult.usage.promptTokens,
+                completionTokens: geminiResult.usage.completionTokens,
+                totalTokens: geminiResult.usage.totalTokens,
+                model: geminiResult.model,
+                inputCostUSD: 0,
+                outputCostUSD: 0,
+                totalCostUSD: 0,
+              } satisfies TokenUsage,
+            };
+          })()
+        : await callChatCompletion({
+            model,
+            messages: [
+              { role: "system", content: systemMessage },
+              { role: "user", content: prompt },
+            ],
+            responseFormat: "json_object",
+            maxTokens,
+            reasoningEffort: "low",
+            temperature: 0.3,
+            context: `story-release-surgery-ch${chapterNo}`,
+            logSource: "phase6-story-release-surgery-llm",
+            logMetadata: { storyId: input.storyId, chapter: chapterNo, taskCount: tasks.length },
+          });
 
       const parsed = safeJson(result.content);
       const revised = typeof parsed?.text === "string" ? parsed.text.trim() : "";
@@ -119,7 +146,7 @@ export async function applySelectiveSurgery(input: {
         changed = true;
         editedChapters.push(chapterNo);
       }
-      usage = mergeUsage(usage, result.usage as TokenUsage | undefined, model);
+      usage = mergeUsage(usage, result.usage as TokenUsage | undefined, result.usage?.model || model);
     } catch (error) {
       console.warn(`[release-polisher] Chapter ${chapterNo} surgery failed`, error);
     }

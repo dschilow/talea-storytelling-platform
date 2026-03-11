@@ -9,6 +9,7 @@ import { scoreCandidate } from "./matching-score";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 import { callChatCompletion } from "./llm-client";
+import { generateWithGemini } from "../gemini-generation";
 
 interface CharacterPoolRow {
   id: string;
@@ -84,9 +85,15 @@ const STORY_ARTIFACT_CATEGORY_BIAS: Record<string, ArtifactCategory[]> = {
   "Klassische Märchen": ["magic", "jewelry", "book", "clothing", "tool"],
 };
 
-const AI_MATCH_MODEL = "gpt-5-nano";
 const AI_MATCH_MIN_CONFIDENCE = 0.35;
 const AI_MATCH_MAX_CANDIDATES = 12;
+
+function resolveSimpleTaskModel(selectedStoryModel?: string): string {
+  const normalized = String(selectedStoryModel || "").toLowerCase().trim();
+  if (normalized.startsWith("gemini-")) return "gemini-3-flash-preview";
+  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5-nano";
+  return "gpt-5-nano";
+}
 
 export async function buildCastSet(input: {
   normalized: NormalizedRequest;
@@ -349,6 +356,7 @@ async function selectCandidateForSlot(input: {
   blueprint?: StoryBlueprintBase;
 }): Promise<CharacterSheet | null> {
   const { slot, pool, used, rng, matchScores, normalized, variantPlan, blueprint } = input;
+  const aiMatchModel = resolveSimpleTaskModel((normalized.rawConfig as any)?.aiModel);
   const allAvailable = pool.filter(candidate => !used.has(candidate.id));
   const eligibleCandidates = allAvailable.filter(candidate => passesHardConstraints(slot, candidate));
   if (eligibleCandidates.length === 0) return null;
@@ -377,6 +385,7 @@ async function selectCandidateForSlot(input: {
     blueprint,
     eligibleCandidates,
     scored,
+    model: aiMatchModel,
   });
 
   const picked = aiPick ?? fallbackPick;
@@ -385,7 +394,7 @@ async function selectCandidateForSlot(input: {
   if (aiPick) {
     const entry = matchScores.find(score => score.slotKey === slot.slotKey && score.candidateId === aiPick.id);
     if (entry) {
-      entry.notes = [entry.notes, "ai-selected (gpt-5-nano)"].filter(Boolean).join(", ");
+      entry.notes = [entry.notes, `ai-selected (${aiMatchModel})`].filter(Boolean).join(", ");
     }
   }
 
@@ -399,8 +408,9 @@ async function selectCandidateForSlotWithAI(input: {
   blueprint?: StoryBlueprintBase;
   eligibleCandidates: CharacterPoolRow[];
   scored: ScoredCandidate[];
+  model: string;
 }): Promise<CharacterPoolRow | null> {
-  const { slot, normalized, variantPlan, blueprint, eligibleCandidates, scored } = input;
+  const { slot, normalized, variantPlan, blueprint, eligibleCandidates, scored, model } = input;
   if (eligibleCandidates.length <= 1) {
     return eligibleCandidates[0] ?? null;
   }
@@ -465,28 +475,53 @@ Return compact JSON only with selectedCandidateId and confidence.`;
       },
     };
 
-    const response = await callChatCompletion({
-      model: AI_MATCH_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: JSON.stringify(userPayload) },
-      ],
-      responseFormat: "json_object",
-      maxTokens: 800,   // Reasoning models need token budget for thinking + output (was 220, caused 100% failures)
-      temperature: 0.3,
-      reasoningEffort: "low",
-      context: "casting-ai-match",
-      logSource: "phase3-casting-ai-match",
-      logMetadata: {
-        storyId: normalized.storyId,
-        slotKey: slot.slotKey,
-        candidateCount: candidateOptions.length,
-        eligibleCount: eligibleCandidates.length,
-      },
-    });
+    const response = model.startsWith("gemini-")
+      ? await (async () => {
+          const geminiResult = await generateWithGemini({
+            systemPrompt,
+            userPrompt: JSON.stringify(userPayload),
+            model,
+            maxTokens: 800,
+            temperature: 0.3,
+            thinkingBudget: model.includes("flash") ? 64 : 96,
+            logSource: "phase3-casting-ai-match",
+            logMetadata: {
+              storyId: normalized.storyId,
+              slotKey: slot.slotKey,
+              candidateCount: candidateOptions.length,
+              eligibleCount: eligibleCandidates.length,
+              model,
+            },
+          });
+          return {
+            content: geminiResult.content,
+            finishReason: String(geminiResult.finishReason || "").toLowerCase(),
+          };
+        })()
+      : await callChatCompletion({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: JSON.stringify(userPayload) },
+          ],
+          responseFormat: "json_object",
+          maxTokens: 800,   // Reasoning models need token budget for thinking + output (was 220, caused 100% failures)
+          temperature: 0.3,
+          reasoningEffort: "low",
+          context: "casting-ai-match",
+          logSource: "phase3-casting-ai-match",
+          logMetadata: {
+            storyId: normalized.storyId,
+            slotKey: slot.slotKey,
+            candidateCount: candidateOptions.length,
+            eligibleCount: eligibleCandidates.length,
+            model,
+          },
+        });
 
     // Guard against truncated responses (finish_reason: "length")
-    if (response.finishReason === "length" || !response.content?.trim()) {
+    const finishReason = String(response.finishReason || "").toLowerCase();
+    if (finishReason === "length" || finishReason === "max_tokens" || !response.content?.trim()) {
       console.warn(`[casting-engine] AI match response truncated or empty for slot ${slot.slotKey}, falling back to score-based`);
       return null;
     }

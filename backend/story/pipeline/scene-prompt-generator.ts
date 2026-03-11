@@ -1,7 +1,8 @@
 import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
 import { callChatCompletion } from "./llm-client";
+import { generateWithGemini } from "../gemini-generation";
 
-const MODEL = "gpt-5-nano";
+const DEFAULT_MODEL = "gpt-5-nano";
 const MAX_CHAPTER_WORDS = 220;
 const LEAD_WORDS = 130;
 const TAIL_WORDS = 80;
@@ -28,6 +29,13 @@ const KNOWN_TTS_TAGS = new Set<string>([
   "serious",
   "short pause",
 ]);
+
+function resolveScenePromptModel(selectedStoryModel?: string): string {
+  const normalized = String(selectedStoryModel || "").toLowerCase().trim();
+  if (normalized.startsWith("gemini-")) return "gemini-3-flash-preview";
+  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5-nano";
+  return DEFAULT_MODEL;
+}
 
 function normalizeTag(tag: string): string {
   return String(tag || "")
@@ -64,8 +72,10 @@ export async function generateSceneDescriptions(input: {
   cast: CastSet;
   language: string;
   storyId?: string;
+  selectedStoryModel?: string;
 }): Promise<{ descriptions: (AISceneDescription | null)[]; usage?: any }> {
-  const { chapters, directives, cast, language, storyId } = input;
+  const { chapters, directives, cast, language, storyId, selectedStoryModel } = input;
+  const scenePromptModel = resolveScenePromptModel(selectedStoryModel);
 
   const characterMap = buildCharacterMap(cast);
 
@@ -100,6 +110,7 @@ export async function generateSceneDescriptions(input: {
       chapterInputs: chunk,
       language,
       storyId,
+      model: scenePromptModel,
     });
     batchResults.push(...chunkResult);
   }
@@ -137,11 +148,12 @@ async function extractBatchWithRetry(input: {
   }>;
   language: string;
   storyId?: string;
+  model: string;
 }): Promise<Array<any>> {
-  const { chapterInputs, storyId, language } = input;
+  const { chapterInputs, storyId, language, model } = input;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
-      return await extractBatchSceneDescriptions(chapterInputs, storyId, language);
+      return await extractBatchSceneDescriptions(chapterInputs, storyId, language, model);
     } catch (error) {
       const isLastAttempt = attempt > MAX_RETRIES;
       if (isLastAttempt) {
@@ -168,7 +180,8 @@ async function extractBatchSceneDescriptions(
     onStageNames: string[];
   }>,
   storyId?: string,
-  language?: string
+  language?: string,
+  model: string = DEFAULT_MODEL,
 ): Promise<Array<any>> {
   const systemPrompt = `You are an art director for a premium children's picture book (ages 4-10). Extract one vivid NARRATIVE MOMENT per chapter — the kind of scene a master illustrator like Quentin Blake, Shaun Tan or Beatrix Potter would paint.
 
@@ -235,23 +248,41 @@ Return JSON:
   // Keep batches smaller and reasoning minimal so the model returns JSON instead of burning
   // the entire completion budget on internal reasoning.
   const baseTokens = Math.max(1500, chapterInputs.length * 600);
-  const isReasoningModel = MODEL.includes("gpt-5") || MODEL.includes("o4");
+  const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
   const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
 
-  const result = await callChatCompletion({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    model: MODEL,
-    responseFormat: "json_object",
-    maxTokens: maxCompletionTokens,
-    temperature: 0.6,
-    reasoningEffort: "minimal",
-    context: "scene-prompt-generator-batch",
-    logSource: "phase6.5-scene-prompts-llm",
-    logMetadata: { storyId, chapters: chapterInputs.length },
-  });
+  const isGeminiModel = model.startsWith("gemini-");
+  const result = isGeminiModel
+    ? await (async () => {
+        const geminiResult = await generateWithGemini({
+          systemPrompt,
+          userPrompt,
+          model,
+          maxTokens: maxCompletionTokens,
+          temperature: 0.6,
+          thinkingBudget: model.includes("flash") ? 64 : 96,
+          logSource: "phase6.5-scene-prompts-llm",
+          logMetadata: { storyId, chapters: chapterInputs.length, model },
+        });
+        return {
+          content: geminiResult.content,
+          finishReason: geminiResult.finishReason,
+        };
+      })()
+    : await callChatCompletion({
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        model,
+        responseFormat: "json_object",
+        maxTokens: maxCompletionTokens,
+        temperature: 0.6,
+        reasoningEffort: "minimal",
+        context: "scene-prompt-generator-batch",
+        logSource: "phase6.5-scene-prompts-llm",
+        logMetadata: { storyId, chapters: chapterInputs.length, model },
+      });
 
   let parsed: any;
   try {

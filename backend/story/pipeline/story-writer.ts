@@ -306,9 +306,11 @@ export class LlmStoryWriter implements StoryWriter {
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const isGeminiFlashModel = model.startsWith("gemini-3-flash");
-    // Support steps (blueprint, expand, warning-polish) always use Flash to save tokens.
-    // Only the Full Story call uses the primary model (Pro).
-    const flashModel = isGeminiModel ? "gemini-3-flash-preview" : model;
+    // Support steps (blueprint, expand, warning-polish) use a family-specific cheap model:
+    // - Gemini selection -> gemini-3-flash-preview
+    // - GPT selection -> gpt-5-nano
+    // The full-story call still uses the user-selected final model.
+    const flashModel = isGeminiModel ? "gemini-3-flash-preview" : "gpt-5-nano";
     const flashFallbackChatModel = isGeminiModel ? "gpt-5-mini" : undefined;
     const isFlashModelGemini = flashModel.startsWith("gemini-");
     const supportStepFetchTimeoutMs = flashFallbackChatModel ? 45000 : undefined;

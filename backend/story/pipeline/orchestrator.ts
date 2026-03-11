@@ -748,6 +748,7 @@ export class StoryPipelineOrchestrator {
           cast: castSet,
           language: normalized.language,
           storyId: normalized.storyId,
+          selectedStoryModel: String(normalized.rawConfig?.aiModel || ""),
         });
         aiSceneDescriptions = sceneResult.descriptions;
         const successCount = aiSceneDescriptions.filter(Boolean).length;
@@ -1129,9 +1130,9 @@ function mergeTokenUsage(current: any, next: any): any {
 
 function resolveSurgeryModel(model?: string): string {
   if (!model) return "gpt-5-nano";
-  if (model.startsWith("gemini-")) return "gpt-5-nano";
-  if (model.startsWith("gpt-5-mini")) return "gpt-5-nano";
-  return model;
+  if (model.startsWith("gemini-")) return "gemini-3-flash-preview";
+  if (model.startsWith("gpt-") || model.startsWith("o4-")) return "gpt-5-nano";
+  return "gpt-5-nano";
 }
 
 function clampNumber(value: number, min: number, max: number): number {
