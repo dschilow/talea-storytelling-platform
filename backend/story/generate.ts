@@ -45,7 +45,7 @@ import {
   ageToAgeGroup,
   buildStoryProfilePrompt,
 } from "../helpers/child-profile-personalization";
-import { reserveGenerationCapacity } from "../helpers/generationCapacity";
+import { reserveStoryGenerationCapacity } from "./generation-capacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 
@@ -414,9 +414,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       } : undefined,
     });
 
-    await reserveGenerationCapacity({
-      db: storyDB,
-      resource: "story",
+    await reserveStoryGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
         await tx.exec`

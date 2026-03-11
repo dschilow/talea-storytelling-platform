@@ -25,8 +25,8 @@ import {
   ageToAgeGroup,
   buildDokuProfilePrompt,
 } from "../helpers/child-profile-personalization";
-import { reserveGenerationCapacity } from "../helpers/generationCapacity";
 import { mapWithConcurrency } from "../helpers/asyncPool";
+import { reserveDokuGenerationCapacity } from "./generation-capacity";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
@@ -288,9 +288,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
     config.ageGroup = config.ageGroup || inferredAgeGroup || "6-8";
     config.personalizationPrompt = personalizationPrompt || config.personalizationPrompt;
     await ensureAvatarProfileLinksTable();
-    await reserveGenerationCapacity({
-      db: dokuDB,
-      resource: "doku",
+    await reserveDokuGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
         await tx.exec`
