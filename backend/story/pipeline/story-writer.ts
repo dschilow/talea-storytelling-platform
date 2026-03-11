@@ -195,7 +195,10 @@ export class LlmStoryWriter implements StoryWriter {
     // Support steps (blueprint, expand, warning-polish) always use Flash to save tokens.
     // Only the Full Story call uses the primary model (Pro).
     const flashModel = isGeminiModel ? "gemini-3-flash-preview" : model;
+    const flashFallbackChatModel = isGeminiModel ? "gpt-5-mini" : undefined;
     const isFlashModelGemini = flashModel.startsWith("gemini-");
+    const supportStepFetchTimeoutMs = flashFallbackChatModel ? 45000 : undefined;
+    const supportStepMaxRetries = flashFallbackChatModel ? 1 : undefined;
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
@@ -323,30 +326,65 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       seed?: number;
       thinkingBudget?: number;
       modelOverride?: string;
+      fallbackModels?: string[];
+      fetchTimeoutMs?: number;
+      maxRetries?: number;
+      preferImmediateFallbackOnTransient?: boolean;
     }) => {
       const activeModel = input.modelOverride ?? model;
       const activeIsGemini = activeModel.startsWith("gemini-");
+      const activeIsGeminiFlash = activeModel.startsWith("gemini-3-flash");
+      const shouldFallbackFlashToChatModel = (error: unknown): boolean => {
+        const message = error instanceof Error ? error.message : String(error ?? "");
+        const lowered = message.toLowerCase();
+        return lowered.includes("503")
+          || lowered.includes("429")
+          || lowered.includes("high demand")
+          || lowered.includes("service unavailable")
+          || lowered.includes("unavailable")
+          || lowered.includes("timeout")
+          || lowered.includes("aborted");
+      };
       if (activeIsGemini) {
-        const geminiResponse = await generateWithGemini({
-          systemPrompt: input.systemPrompt,
-          userPrompt: input.userPrompt,
-          model: activeModel,
-          maxTokens: clampMaxTokens(input.maxTokens),
-          temperature: input.temperature,
-          thinkingBudget: input.thinkingBudget,
-          logSource: input.logSource,
-          logMetadata: input.logMetadata,
-        });
-        return {
-          content: geminiResponse.content,
-          usage: {
-            promptTokens: geminiResponse.usage.promptTokens,
-            completionTokens: geminiResponse.usage.completionTokens,
-            totalTokens: geminiResponse.usage.totalTokens,
-            model: geminiResponse.model,
-          },
-          finishReason: geminiResponse.finishReason,
-        };
+        try {
+          const geminiResponse = await generateWithGemini({
+            systemPrompt: input.systemPrompt,
+            userPrompt: input.userPrompt,
+            model: activeModel,
+            fallbackModels: input.fallbackModels,
+            maxTokens: clampMaxTokens(input.maxTokens),
+            temperature: input.temperature,
+            thinkingBudget: input.thinkingBudget,
+            fetchTimeoutMs: input.fetchTimeoutMs ?? (activeIsGeminiFlash ? supportStepFetchTimeoutMs : undefined),
+            maxRetries: input.maxRetries ?? (activeIsGeminiFlash ? supportStepMaxRetries : undefined),
+            preferImmediateFallbackOnTransient: input.preferImmediateFallbackOnTransient ?? activeIsGeminiFlash,
+            logSource: input.logSource,
+            logMetadata: input.logMetadata,
+          });
+          return {
+            content: geminiResponse.content,
+            usage: {
+              promptTokens: geminiResponse.usage.promptTokens,
+              completionTokens: geminiResponse.usage.completionTokens,
+              totalTokens: geminiResponse.usage.totalTokens,
+              model: geminiResponse.model,
+            },
+            finishReason: geminiResponse.finishReason,
+          };
+        } catch (error) {
+          if (activeIsGeminiFlash && flashFallbackChatModel && shouldFallbackFlashToChatModel(error)) {
+            console.warn(`[story-writer] Flash unavailable for ${input.context || "story step"}; retrying with ${flashFallbackChatModel}.`);
+            return callStoryModel({
+              ...input,
+              modelOverride: flashFallbackChatModel,
+              fallbackModels: undefined,
+              fetchTimeoutMs: undefined,
+              maxRetries: undefined,
+              preferImmediateFallbackOnTransient: undefined,
+            });
+          }
+          throw error;
+        }
       }
 
       return callChatCompletion({
@@ -511,6 +549,18 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
     };
     const isEmptyTruncatedResponse = (response: { finishReason?: string; content?: string }) =>
       isTruncatedFinishReason(response.finishReason) && !String(response.content || "").trim();
+    const parseDraftResult = (content: string) => {
+      const parsedResponse = safeJson(content);
+      const parsedDraft = sanitizeDraft(extractDraftFromAnyFormat({
+        parsed: parsedResponse,
+        directives,
+        language: normalizedRequest.language,
+        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+      }), normalizedRequest.language);
+      return { parsed: parsedResponse, draft: parsedDraft };
+    };
+    const hasMeaningfulDraftContent = (draftInput: StoryDraft) =>
+      draftInput.chapters.some(ch => countWords(ch.text) >= 70 || String(ch.text || "").trim().length >= 320);
     let activePromptMode: "full" | "compact" = storyPromptMode;
     let prompt = buildStoryPrompt(activePromptMode);
 
@@ -562,7 +612,12 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
     if (result.usage) {
       totalUsage = mergeUsage(totalUsage, result.usage, model);
     }
-    if (isEmptyTruncatedResponse(result) && !isTokenBudgetExceeded()) {
+    let parsedResult = parseDraftResult(result.content);
+    const needsFullRecovery =
+      isTruncatedFinishReason(result.finishReason)
+      && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft));
+
+    if (needsFullRecovery && !isTokenBudgetExceeded()) {
       const recoveryPromptMode: "compact" = "compact";
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
@@ -582,7 +637,7 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
         );
       } else {
         console.warn(
-          `[story-writer] Full story response was empty+truncated; running one compact recovery attempt (maxTokens=${recoveryBudgetedMaxTokens}).`,
+          `[story-writer] Full story response was truncated or structurally unusable; running one compact recovery attempt (maxTokens=${recoveryBudgetedMaxTokens}).`,
         );
         try {
           const recoveryResult = await callStoryModel({
@@ -608,23 +663,19 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
             totalUsage = mergeUsage(totalUsage, recoveryResult.usage, model);
           }
           result = recoveryResult;
+          parsedResult = parseDraftResult(result.content);
         } catch (error) {
           console.warn("[story-writer] Full recovery attempt failed; continuing with fallback draft path.", error);
         }
       }
     }
-    if (isEmptyTruncatedResponse(result)) {
-      console.warn("[story-writer] Full story response remained empty+truncated; skipping expensive post-edits for this candidate.");
+    if (isTruncatedFinishReason(result.finishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))) {
+      console.warn("[story-writer] Full story response remained truncated or structurally unusable; skipping expensive post-edits for this candidate.");
       canRunPostEdits = false;
     }
 
-    let parsed = safeJson(result.content);
-    let draft = sanitizeDraft(extractDraftFromAnyFormat({
-      parsed,
-      directives,
-      language: normalizedRequest.language,
-      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-    }), normalizedRequest.language);
+    let parsed = parsedResult.parsed;
+    let draft = parsedResult.draft;
 
     // ─── Phase B: Quality Gates + Rewrite Passes ─────────────────────────────
     let qualityReport = runQualityGates({

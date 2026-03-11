@@ -38,18 +38,31 @@ function parseRetryDelayMs(errorText: string, response: Response): number | null
   return null;
 }
 
-function resolveGeminiModelCandidates(requestedModel?: string): string[] {
+function uniqueGeminiModels(models: Array<string | undefined>): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of models) {
+    const value = (raw || "").trim();
+    if (!value || !value.startsWith("gemini-") || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
+function resolveGeminiModelCandidates(requestedModel?: string, fallbackModels?: string[]): string[] {
   const normalized = (requestedModel || "").trim();
   const primaryModel =
     normalized.length > 0 && normalized.startsWith("gemini-")
       ? normalized
       : DEFAULT_GEMINI_MODEL;
+  const explicitFallbacks = uniqueGeminiModels(fallbackModels || []);
 
   if (primaryModel === DEFAULT_GEMINI_MODEL) {
-    return [DEFAULT_GEMINI_MODEL];
+    return uniqueGeminiModels([DEFAULT_GEMINI_MODEL, ...explicitFallbacks]);
   }
 
-  return [primaryModel, DEFAULT_GEMINI_MODEL];
+  return uniqueGeminiModels([primaryModel, ...explicitFallbacks, DEFAULT_GEMINI_MODEL]);
 }
 
 function shouldFallbackToDefaultModel(input: {
@@ -115,9 +128,13 @@ interface GeminiGenerationRequest {
   systemPrompt: string;
   userPrompt: string;
   model?: string;
+  fallbackModels?: string[];
   maxTokens: number;
   temperature?: number;
   thinkingBudget?: number; // Optional override for internal reasoning tokens.
+  fetchTimeoutMs?: number;
+  maxRetries?: number;
+  preferImmediateFallbackOnTransient?: boolean;
   logSource?: string;
   logMetadata?: Record<string, any>;
 }
@@ -182,8 +199,14 @@ export async function generateWithGemini(
       "Gemini API key not configured. Set ENCORE_SECRET_GEMINIAPIKEY or GEMINI_API_KEY."
     );
   }
-  const modelCandidates = resolveGeminiModelCandidates(request.model);
+  const modelCandidates = resolveGeminiModelCandidates(request.model, request.fallbackModels);
   const maxOutputTokens = request.maxTokens || 65536;
+  const requestMaxRetries = Number.isFinite(request.maxRetries)
+    ? Math.max(1, Math.min(3, Number(request.maxRetries)))
+    : MAX_RETRIES;
+  const requestFetchTimeoutMs = Number.isFinite(request.fetchTimeoutMs)
+    ? Math.max(5000, Math.min(120000, Number(request.fetchTimeoutMs)))
+    : GEMINI_FETCH_TIMEOUT_MS;
 
   let lastError: Error | null = null;
 
@@ -235,15 +258,16 @@ export async function generateWithGemini(
     let data: any = null;
     let responseTime = 0;
     let fallbackTriggered = false;
+    const nextFallbackModel = hasFallback ? modelCandidates[modelIndex + 1] : undefined;
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+    for (let attempt = 1; attempt <= requestMaxRetries; attempt += 1) {
       console.log(
-        `[gemini-generation] Calling Gemini API model=${modelName} (attempt ${attempt}/${MAX_RETRIES}), maxOutputTokens=${maxOutputTokens}, thinkingBudget=${thinkingBudget}...`
+        `[gemini-generation] Calling Gemini API model=${modelName} (attempt ${attempt}/${requestMaxRetries}), maxOutputTokens=${maxOutputTokens}, thinkingBudget=${thinkingBudget}...`
       );
       const startTime = Date.now();
 
       const abortController = new AbortController();
-      const timeoutHandle = setTimeout(() => abortController.abort(), GEMINI_FETCH_TIMEOUT_MS);
+      const timeoutHandle = setTimeout(() => abortController.abort(), requestFetchTimeoutMs);
       let response: Response;
       try {
         response = await fetch(url, {
@@ -266,13 +290,13 @@ export async function generateWithGemini(
 
         if (hasFallback && isTimeoutLikeFetchError(fetchError)) {
           console.warn(
-            `[gemini-generation] Model ${modelName} timed out. Falling back to ${DEFAULT_GEMINI_MODEL}.`
+            `[gemini-generation] Model ${modelName} timed out. Falling back to ${nextFallbackModel}.`
           );
           fallbackTriggered = true;
           break;
         }
 
-        if (attempt < MAX_RETRIES) {
+        if (attempt < requestMaxRetries) {
           const delay = Math.min(INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1), MAX_RETRY_DELAY_MS);
           console.warn(`[gemini-generation] Network/fetch error; waiting ${delay}ms before retry`);
           await sleep(delay);
@@ -303,6 +327,15 @@ export async function generateWithGemini(
         body: errorText,
       });
 
+      const transientStatus = response.status === 429 || response.status === 500 || response.status === 503;
+      if (hasFallback && request.preferImmediateFallbackOnTransient && transientStatus) {
+        console.warn(
+          `[gemini-generation] Model ${modelName} returned ${response.status}. Falling back immediately to ${nextFallbackModel}.`
+        );
+        fallbackTriggered = true;
+        break;
+      }
+
       if (
         hasFallback &&
         shouldFallbackToDefaultModel({
@@ -312,14 +345,14 @@ export async function generateWithGemini(
         })
       ) {
         console.warn(
-          `[gemini-generation] Model ${modelName} unavailable. Falling back to ${DEFAULT_GEMINI_MODEL}.`
+          `[gemini-generation] Model ${modelName} unavailable. Falling back to ${nextFallbackModel}.`
         );
         fallbackTriggered = true;
         break;
       }
 
-      const retryable = response.status === 429 || response.status === 503 || response.status === 500;
-      if (retryable && attempt < MAX_RETRIES) {
+      const retryable = transientStatus;
+      if (retryable && attempt < requestMaxRetries) {
         const delay = Math.min(
           parseRetryDelayMs(errorText, response) ?? INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1),
           MAX_RETRY_DELAY_MS
