@@ -1,4 +1,4 @@
-import type { AgentDefinition, AgentId } from '../types/agent';
+import type { AgentDefinition, AgentId, AgentMessages } from '../types/agent';
 
 export const agentDefinitions: Record<AgentId, AgentDefinition> = {
   tavi: {
@@ -22,36 +22,24 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(213, 160, 178, 0.1)',
     },
     animationType: 'float-pulse',
-    statusMessages: {
-      idle: [
-        'Tavi wartet auf dich …',
-        'Bereit für ein neues Abenteuer?',
-      ],
+    messages: {
       preparing: [
-        'Tavi bereitet etwas für dich vor …',
-        'Tavi sammelt alles Wichtige zusammen …',
+        'Tavi sammelt deine Wünsche …',
+        'Tavi bereitet dein Abenteuer vor …',
         'Tavi denkt kurz nach …',
       ],
       active: [
         'Tavi kümmert sich darum …',
-        'Tavi arbeitet gerade für dich …',
         'Gleich ist alles bereit …',
       ],
       success: [
-        'Tavi hat alles vorbereitet!',
-        'Fertig – Tavi ist zufrieden!',
+        'Dein Abenteuer ist bereit!',
         'Alles ist bereit für dich!',
       ],
-      warning: [
-        'Tavi braucht noch einen Moment …',
-        'Fast geschafft, nur noch ein kleiner Moment …',
-      ],
     },
-    visibilityLevel: 'always',
     featureArea: 'orchestration',
     isPrimary: true,
-    futureCharacterCapable: true,
-    events: ['story_generation_started', 'story_generation_complete', 'doku_generation_started', 'doku_generation_complete'],
+    targetAudience: 'both',
   },
 
   fluesterfeder: {
@@ -75,33 +63,23 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(184, 165, 222, 0.1)',
     },
     animationType: 'feather-trail',
-    statusMessages: {
-      idle: [
-        'Die Flüsterfeder ruht still …',
-        'Erinnerungen warten geduldig …',
-      ],
+    messages: {
       preparing: [
         'Die Flüsterfeder breitet sich aus …',
         'Leise Erinnerungen werden gesammelt …',
       ],
       active: [
-        'Die Flüsterfeder notiert dein Abenteuer …',
-        'Jedes Wort wird sorgsam bewahrt …',
+        'Die Flüsterfeder erinnert sich an dein letztes Abenteuer …',
         'Die Feder schreibt deine Geschichte weiter …',
       ],
       success: [
         'Deine Erinnerung ist sicher aufbewahrt.',
         'Die Flüsterfeder hat alles notiert.',
       ],
-      warning: [
-        'Die Feder sucht noch nach den richtigen Worten …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'memory',
     isPrimary: false,
-    futureCharacterCapable: true,
-    events: ['memory_saved'],
+    targetAudience: 'child',
   },
 
   sternenweber: {
@@ -125,15 +103,10 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(147, 176, 207, 0.1)',
     },
     animationType: 'star-connect',
-    statusMessages: {
-      idle: [
-        'Der Sternenweber wartet auf Inspiration …',
-        'Die Sterne sind bereit …',
-      ],
+    messages: {
       preparing: [
         'Der Sternenweber sammelt Ideen …',
         'Sterne beginnen sich zu ordnen …',
-        'Ein Muster entsteht am Himmel …',
       ],
       active: [
         'Der Sternenweber webt deine nächste Reise …',
@@ -144,15 +117,10 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
         'Der Sternenweber hat dein Abenteuer gewoben!',
         'Die Sterne haben sich verbunden.',
       ],
-      warning: [
-        'Der Sternenweber sucht noch den roten Faden …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'story-planning',
     isPrimary: false,
-    futureCharacterCapable: true,
-    events: ['story_plan_created', 'story_generation_started'],
+    targetAudience: 'child',
   },
 
   traumwaechter: {
@@ -176,33 +144,21 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(138, 192, 175, 0.1)',
     },
     animationType: 'shield-glow',
-    statusMessages: {
-      idle: [
-        'Der Traumwächter wacht still …',
-        'Alles ist sicher und geborgen.',
-      ],
+    messages: {
       preparing: [
         'Der Traumwächter schaut genau hin …',
-        'Ein sanftes Licht prüft alles …',
       ],
       active: [
         'Der Traumwächter macht alles sanft und passend …',
-        'Jedes Detail wird liebevoll geprüft …',
-        'Der Schutzschild ist aktiv …',
       ],
       success: [
         'Der Traumwächter ist zufrieden – alles passt!',
         'Sicher und geborgen.',
       ],
-      warning: [
-        'Der Traumwächter passt etwas an …',
-      ],
     },
-    visibilityLevel: 'background',
     featureArea: 'safety',
     isPrimary: false,
-    futureCharacterCapable: false,
-    events: ['content_checked'],
+    targetAudience: 'parent',
   },
 
   funkenwerkstatt: {
@@ -226,33 +182,23 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(222, 171, 135, 0.1)',
     },
     animationType: 'spark-bounce',
-    statusMessages: {
-      idle: [
-        'Die Funkenwerkstatt glimmt leise …',
-        'Kleine Funken warten …',
-      ],
+    messages: {
       preparing: [
         'Die Funkenwerkstatt heizt sich auf …',
         'Funken beginnen zu sprühen …',
       ],
       active: [
-        'Die Funkenwerkstatt hat Fragen vorbereitet …',
         'Funken der Neugier fliegen umher …',
         'Spannende Fragen entstehen …',
       ],
       success: [
-        'Die Funkenwerkstatt hat etwas Besonderes geschmiedet!',
+        'Die Funkenwerkstatt hat Fragen vorbereitet!',
         'Neue Fragen warten auf dich!',
       ],
-      warning: [
-        'Die Funken brauchen noch etwas Wärme …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'quiz',
     isPrimary: false,
-    futureCharacterCapable: true,
-    events: ['quiz_created'],
+    targetAudience: 'child',
   },
 
   artefaktschmied: {
@@ -276,33 +222,23 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(212, 181, 109, 0.1)',
     },
     animationType: 'crystal-forge',
-    statusMessages: {
-      idle: [
-        'Der Artefaktschmied ruht an seiner Esse …',
-        'Leises Glühen in der Schmiede …',
-      ],
+    messages: {
       preparing: [
         'Der Artefaktschmied wählt sein Material …',
         'Das Feuer der Schmiede erwacht …',
       ],
       active: [
         'Der Artefaktschmied formt eine neue Belohnung …',
-        'Funken und Glanz in der Schmiede …',
         'Etwas Wertvolles entsteht …',
       ],
       success: [
         'Der Artefaktschmied hat ein Artefakt geschaffen!',
         'Eine neue Belohnung wartet auf dich!',
       ],
-      warning: [
-        'Die Schmiede braucht noch etwas Hitze …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'rewards',
     isPrimary: false,
-    futureCharacterCapable: true,
-    events: ['reward_created'],
+    targetAudience: 'child',
   },
 
   pfadfinder: {
@@ -326,32 +262,21 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(143, 179, 157, 0.1)',
     },
     animationType: 'compass-spin',
-    statusMessages: {
-      idle: [
-        'Der Pfadfinder schaut in die Ferne …',
-        'Neue Wege warten …',
-      ],
+    messages: {
       preparing: [
         'Der Pfadfinder studiert die Karte …',
-        'Mögliche Pfade werden erkundet …',
       ],
       active: [
-        'Der Pfadfinder hat Empfehlungen für dich …',
-        'Ein spannender Weg zeichnet sich ab …',
+        'Der Pfadfinder hat neue Reisen für dich entdeckt …',
       ],
       success: [
         'Der Pfadfinder hat den perfekten Weg gefunden!',
         'Neue Abenteuer liegen vor dir!',
       ],
-      warning: [
-        'Der Pfadfinder orientiert sich noch …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'recommendations',
     isPrimary: false,
-    futureCharacterCapable: true,
-    events: ['recommendations_ready'],
+    targetAudience: 'child',
   },
 
   leuchtglas: {
@@ -375,10 +300,7 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       darkBg: 'rgba(120, 178, 198, 0.1)',
     },
     animationType: 'lens-shimmer',
-    statusMessages: {
-      idle: [
-        'Das Leuchtglas ruht klar und still …',
-      ],
+    messages: {
       preparing: [
         'Das Leuchtglas sammelt Eindrücke …',
       ],
@@ -389,36 +311,28 @@ export const agentDefinitions: Record<AgentId, AgentDefinition> = {
       success: [
         'Das Leuchtglas zeigt dir die Entwicklung.',
       ],
-      warning: [
-        'Das Leuchtglas klärt sich noch …',
-      ],
     },
-    visibilityLevel: 'contextual',
     featureArea: 'parent-insight',
     isPrimary: false,
-    futureCharacterCapable: false,
-    events: ['parent_summary_ready'],
+    targetAudience: 'parent',
   },
 };
 
 export const agentList = Object.values(agentDefinitions);
 
-export const primaryAgents = agentList.filter(a => a.isPrimary);
-
-export const agentsByFeature = (feature: AgentDefinition['featureArea']) =>
-  agentList.filter(a => a.featureArea === feature);
-
-export const agentsByEvent = (event: AgentDefinition['events'][number]) =>
-  agentList.filter(a => a.events.includes(event));
-
 export function getAgent(id: AgentId): AgentDefinition {
   return agentDefinitions[id];
 }
 
-export function getRandomStatusMessage(
-  id: AgentId,
-  state: keyof AgentDefinition['statusMessages'],
-): string {
-  const messages = agentDefinitions[id].statusMessages[state];
-  return messages[Math.floor(Math.random() * messages.length)];
+export function pickMessage(id: AgentId, phase: keyof AgentMessages): string {
+  const msgs = agentDefinitions[id].messages[phase];
+  return msgs[Math.floor(Math.random() * msgs.length)];
 }
+
+// Legacy compat
+export const getRandomStatusMessage = (id: AgentId, state: string): string => {
+  const phase = state === 'idle' || state === 'warning' || state === 'completed' || state === 'hidden'
+    ? 'preparing'
+    : state as keyof AgentMessages;
+  return pickMessage(id, phase);
+};
