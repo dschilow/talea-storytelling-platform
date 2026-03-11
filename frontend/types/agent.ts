@@ -1,3 +1,5 @@
+// ─── Agent Identity ───────────────────────────────────────────────
+
 export type AgentId =
   | 'tavi'
   | 'fluesterfeder'
@@ -8,36 +10,7 @@ export type AgentId =
   | 'pfadfinder'
   | 'leuchtglas';
 
-export type AgentState =
-  | 'idle'
-  | 'preparing'
-  | 'active'
-  | 'success'
-  | 'warning'
-  | 'completed'
-  | 'hidden';
-
 export type AgentSize = 'small' | 'medium' | 'large';
-
-export type AgentContext =
-  | 'inline'
-  | 'button'
-  | 'loading'
-  | 'panel'
-  | 'reward'
-  | 'parent-dashboard'
-  | 'story-start'
-  | 'story-finish';
-
-export type AgentFeatureArea =
-  | 'orchestration'
-  | 'memory'
-  | 'story-planning'
-  | 'safety'
-  | 'quiz'
-  | 'rewards'
-  | 'recommendations'
-  | 'parent-insight';
 
 export type AgentAnimationType =
   | 'float-pulse'
@@ -49,18 +22,27 @@ export type AgentAnimationType =
   | 'compass-spin'
   | 'lens-shimmer';
 
-export type AgentEvent =
-  | 'story_generation_started'
-  | 'story_plan_created'
-  | 'story_generation_complete'
-  | 'memory_saved'
-  | 'content_checked'
-  | 'quiz_created'
-  | 'reward_created'
-  | 'recommendations_ready'
-  | 'parent_summary_ready'
-  | 'doku_generation_started'
-  | 'doku_generation_complete';
+export type AgentFeatureArea =
+  | 'orchestration'
+  | 'memory'
+  | 'story-planning'
+  | 'safety'
+  | 'quiz'
+  | 'rewards'
+  | 'recommendations'
+  | 'parent-insight';
+
+// ─── Presentation States ──────────────────────────────────────────
+// An agent is either not visible or going through a phase sequence.
+
+export type AgentPhase =
+  | 'hidden'     // not rendered at all
+  | 'preparing'  // fading in, short teaser text
+  | 'active'     // main animation + status line
+  | 'success'    // brief celebration, then fades
+  | 'result';    // shows result card (stays until dismissed)
+
+// ─── Color & Visual ──────────────────────────────────────────────
 
 export interface AgentColorPalette {
   primary: string;
@@ -76,12 +58,12 @@ export interface AgentColorPalette {
   darkBg: string;
 }
 
-export interface AgentStatusMessages {
-  idle: string[];
+// ─── Agent Definition (registry) ─────────────────────────────────
+
+export interface AgentMessages {
   preparing: string[];
   active: string[];
   success: string[];
-  warning: string[];
 }
 
 export interface AgentDefinition {
@@ -93,21 +75,71 @@ export interface AgentDefinition {
   tone: string;
   colorPalette: AgentColorPalette;
   animationType: AgentAnimationType;
-  statusMessages: AgentStatusMessages;
-  visibilityLevel: 'always' | 'contextual' | 'background';
+  messages: AgentMessages;
   featureArea: AgentFeatureArea;
   isPrimary: boolean;
-  futureCharacterCapable: boolean;
-  events: AgentEvent[];
+  targetAudience: 'child' | 'parent' | 'both';
 }
 
-export interface AgentRuntimeState {
+// ─── Runtime: what a single agent is doing right now ─────────────
+
+export interface AgentLiveState {
   agentId: AgentId;
-  state: AgentState;
-  message?: string;
-  progress?: number;
-  data?: Record<string, unknown>;
+  phase: AgentPhase;
+  message: string;
 }
+
+// ─── Result: the visible output after an agent finished ──────────
+
+export interface AgentResult {
+  agentId: AgentId;
+  headline: string;
+  body?: string;
+  cta?: { label: string; action: string; payload?: Record<string, unknown> };
+  timestamp: number;
+}
+
+// ─── Session: a group of agents working together on one flow ─────
+
+export type FlowId =
+  | 'story-generation'
+  | 'story-completion'
+  | 'quiz-generation'
+  | 'reward-reveal'
+  | 'recommendations'
+  | 'parent-summary'
+  | 'doku-generation';
+
+export interface FlowStep {
+  agentId: AgentId;
+  phase: Exclude<AgentPhase, 'hidden' | 'result'>;
+  message: string;
+  /** ms to stay in this phase before auto-transitioning (0 = manual) */
+  duration: number;
+}
+
+export interface AgentSession {
+  flowId: FlowId;
+  steps: FlowStep[];
+  currentIndex: number;
+  results: AgentResult[];
+  isComplete: boolean;
+}
+
+// ─── Events (for loose coupling to backend) ──────────────────────
+
+export type AgentEvent =
+  | 'story_generation_started'
+  | 'story_plan_created'
+  | 'story_generation_complete'
+  | 'memory_saved'
+  | 'content_checked'
+  | 'quiz_created'
+  | 'reward_created'
+  | 'recommendations_ready'
+  | 'parent_summary_ready'
+  | 'doku_generation_started'
+  | 'doku_generation_complete';
 
 export interface AgentEventPayload {
   event: AgentEvent;
@@ -115,3 +147,11 @@ export interface AgentEventPayload {
   timestamp: number;
   data?: Record<string, unknown>;
 }
+
+// ─── Legacy compat aliases (used by existing components) ─────────
+
+export type AgentState = AgentPhase;
+export type AgentStatusMessages = AgentMessages & { idle: string[]; warning: string[] };
+export type AgentContext =
+  | 'inline' | 'button' | 'loading' | 'panel'
+  | 'reward' | 'parent-dashboard' | 'story-start' | 'story-finish';
