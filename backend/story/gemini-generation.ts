@@ -174,16 +174,16 @@ async function logGeminiLlmEvent(input: {
 function resolveDefaultThinkingBudget(modelName: string, maxTokens: number): number {
   const normalized = (modelName || "").toLowerCase();
   if (normalized.includes("flash")) {
-    if (maxTokens >= 5000) return 224;
-    if (maxTokens >= 2500) return 160;
-    return 64;
+    if (maxTokens >= 5000) return 192;
+    if (maxTokens >= 2500) return 128;
+    return 48;
   }
   if (normalized.includes("gemini-3")) {
-    if (maxTokens >= 7000) return 384;
-    if (maxTokens >= 3500) return 256;
-    return 96;
+    if (maxTokens >= 7000) return 224;
+    if (maxTokens >= 3500) return 160;
+    return 72;
   }
-  return 160;
+  return 128;
 }
 
 /**

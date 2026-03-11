@@ -34,7 +34,7 @@ const HARD_MIN_CHAPTER_WORDS = 220;
 const REWRITE_ONLY_ON_ERRORS = true;
 
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
-const MAX_EXPAND_CALLS = 2;
+const MAX_EXPAND_CALLS = 4;
 
 // Quality-first default: chapter-local rescue passes repair dialogue, transitions, and child arc
 // after the full draft without paying for multiple full rewrites.
@@ -395,9 +395,9 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       if (effectivelyFlash) {
         switch (step) {
           case "full":
-            return 224;
+            return 192;
           case "recovery":
-            return 160;
+            return 128;
           case "rewrite":
             return 128;
           case "expand":
@@ -412,18 +412,18 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       if (isGemini3) {
         switch (step) {
           case "full":
-            return 384;
+            return 224;
           case "recovery":
-            return 256;
+            return 160;
           case "rewrite":
-            return 192;
+            return 128;
           case "expand":
           case "warning-polish":
-            return 96;
+            return 64;
           case "title":
-            return 48;
+            return 32;
           default:
-            return 128;
+            return 96;
         }
       }
       return 160;

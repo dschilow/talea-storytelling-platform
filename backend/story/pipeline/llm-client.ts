@@ -6,6 +6,17 @@ const openAIKey = secret("OpenAIKey");
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_STATUS_RETRIES = 2;
+const MAX_MODEL_FALLBACKS = 4;
+
+const OPENAI_MODEL_FALLBACKS: Record<string, string[]> = {
+  "gpt-5.4": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+  "gpt-5.2": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+  "gpt-5-pro": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
+  "gpt-5": ["gpt-5-mini", "gpt-5-nano"],
+  "gpt-5-mini": ["gpt-5-nano"],
+  "o4-mini": ["gpt-5-mini", "gpt-5-nano"],
+};
 
 function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof Error) {
@@ -43,6 +54,61 @@ async function fetchWithRetry(url: string, options: RequestInit, context: string
   throw lastError ?? new Error("Unknown network error");
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function uniqueModels(models: Array<string | undefined>): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of models) {
+    const model = String(raw || "").trim();
+    if (!model || seen.has(model)) continue;
+    seen.add(model);
+    out.push(model);
+  }
+  return out;
+}
+
+function resolveOpenAiModelCandidates(primaryModel: string, explicitFallbacks?: string[]): string[] {
+  const normalizedPrimary = String(primaryModel || "").trim() || "gpt-5-mini";
+  const mappedFallbacks = OPENAI_MODEL_FALLBACKS[normalizedPrimary]
+    ?? (normalizedPrimary.startsWith("gpt-5") ? ["gpt-5-mini", "gpt-5-nano"] : []);
+  return uniqueModels([
+    normalizedPrimary,
+    ...(explicitFallbacks || []),
+    ...mappedFallbacks,
+  ]).slice(0, MAX_MODEL_FALLBACKS + 1);
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function shouldFallbackToNextModel(status: number, errorText: string): boolean {
+  if (status === 404) return true;
+  if (!isRetryableStatus(status) && status !== 400) return false;
+
+  const lowered = errorText.toLowerCase();
+  if (isRetryableStatus(status)) {
+    return (
+      lowered.includes("unavailable")
+      || lowered.includes("high demand")
+      || lowered.includes("overloaded")
+      || lowered.includes("temporarily")
+    );
+  }
+
+  // 400-series model/parameter issues that indicate wrong/unsupported model.
+  return (
+    lowered.includes("unknown model")
+    || lowered.includes("unsupported model")
+    || lowered.includes("is not supported")
+    || lowered.includes("model")
+    && (lowered.includes("not found") || lowered.includes("does not exist") || lowered.includes("invalid"))
+  );
+}
+
 export interface ChatCompletionResult {
   content: string;
   usage?: {
@@ -59,6 +125,7 @@ export interface ChatCompletionResult {
 export async function callChatCompletion(input: {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   model: string;
+  fallbackModels?: string[];
   responseFormat?: "json_object" | "text";
   maxTokens?: number;
   temperature?: number;
@@ -67,123 +134,183 @@ export async function callChatCompletion(input: {
   context?: string;
   logSource?: string;
   logMetadata?: Record<string, any>;
+  preferImmediateFallbackOnTransient?: boolean;
+  maxStatusRetries?: number;
 }): Promise<ChatCompletionResult> {
-  const isReasoningModel = input.model.includes("gpt-5") || input.model.includes("o4");
-  const prefersMinimalJsonReasoning =
-    input.responseFormat === "json_object"
-    && (input.model.includes("gpt-5-mini") || input.model.includes("gpt-5-nano"));
-  const jsonHeadroomFloor =
-    !prefersMinimalJsonReasoning
-      ? 0
-      : input.context?.startsWith("story-writer")
-        ? 2200
-        : input.context?.startsWith("scene-prompt-generator")
-          ? 1600
-          : input.context?.startsWith("story-release-surgery")
-            ? 1800
-            : 1400;
-  const needsJsonHeadroom =
-    prefersMinimalJsonReasoning
-    && Boolean(input.context)
-    && (
-      input.context!.startsWith("story-writer")
-      || input.context!.startsWith("scene-prompt-generator")
-      || input.context!.startsWith("story-release-surgery")
-    );
   const requestedMaxCompletionTokens = input.maxTokens ?? 2000;
-  const payload: any = {
-    model: input.model,
-    messages: input.messages,
-    max_completion_tokens: needsJsonHeadroom
-      ? Math.max(requestedMaxCompletionTokens, jsonHeadroomFloor)
-      : requestedMaxCompletionTokens,
-  };
-
-  if (input.responseFormat === "json_object") {
-    payload.response_format = { type: "json_object" };
-  }
-
-  if (isReasoningModel) {
-    payload.reasoning_effort = prefersMinimalJsonReasoning
-      ? "minimal"
-      : (input.reasoningEffort ?? "low");
-  } else {
-    payload.temperature = input.temperature ?? 0.7;
-    payload.top_p = 0.95;
-  }
-
-  if (typeof input.seed === "number") {
-    payload.seed = input.seed;
-  }
-
-  const requestPayload = { ...payload };
+  const modelCandidates = resolveOpenAiModelCandidates(input.model, input.fallbackModels);
   const logSource = resolveLogSource(input.logSource, input.context);
   const logMetadata = buildLogMetadata(input.context, input.logMetadata);
+  const statusRetries = Number.isFinite(input.maxStatusRetries)
+    ? Math.max(1, Math.min(3, Number(input.maxStatusRetries)))
+    : MAX_STATUS_RETRIES;
+  let lastError: Error | null = null;
 
-  let response: Response;
-  try {
-    response = await fetchWithRetry(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify(payload),
-      },
-      input.context ?? "chat"
-    );
-  } catch (error) {
-    await logLlmEvent({
-      source: logSource,
-      request: requestPayload,
-      response: { error: String((error as Error)?.message || error) },
-      metadata: logMetadata,
-    });
-    throw error;
-  }
+  for (let modelIndex = 0; modelIndex < modelCandidates.length; modelIndex += 1) {
+    const activeModel = modelCandidates[modelIndex];
+    const hasFallback = modelIndex < modelCandidates.length - 1;
+    let fallbackTriggered = false;
+    const isReasoningModel = activeModel.includes("gpt-5") || activeModel.includes("o4");
+    const prefersMinimalJsonReasoning =
+      input.responseFormat === "json_object"
+      && (activeModel.includes("gpt-5-mini") || activeModel.includes("gpt-5-nano"));
+    const jsonHeadroomFloor =
+      !prefersMinimalJsonReasoning
+        ? 0
+        : input.context?.startsWith("story-writer")
+          ? 2200
+          : input.context?.startsWith("scene-prompt-generator")
+            ? 1600
+            : input.context?.startsWith("story-release-surgery")
+              ? 1800
+              : 1400;
+    const needsJsonHeadroom =
+      prefersMinimalJsonReasoning
+      && Boolean(input.context)
+      && (
+        input.context!.startsWith("story-writer")
+        || input.context!.startsWith("scene-prompt-generator")
+        || input.context!.startsWith("story-release-surgery")
+      );
 
-  if (!response.ok) {
-    const text = await response.text();
-    await logLlmEvent({
-      source: logSource,
-      request: requestPayload,
-      response: { status: response.status, error: text },
-      metadata: logMetadata,
-    });
-    throw new Error(`OpenAI API error ${response.status}: ${text}`);
-  }
+    const payload: any = {
+      model: activeModel,
+      messages: input.messages,
+      max_completion_tokens: needsJsonHeadroom
+        ? Math.max(requestedMaxCompletionTokens, jsonHeadroomFloor)
+        : requestedMaxCompletionTokens,
+    };
 
-  const data = await response.json();
-  await logLlmEvent({
-    source: logSource,
-    request: requestPayload,
-    response: data,
-    metadata: logMetadata,
-  });
-  const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
-  const content = data.choices?.[0]?.message?.content ?? "";
-  const usage = data.usage
-    ? {
-        promptTokens: data.usage.prompt_tokens ?? 0,
-        completionTokens: data.usage.completion_tokens ?? 0,
-        totalTokens: data.usage.total_tokens ?? 0,
-        model: input.model,
-        reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+    if (input.responseFormat === "json_object") {
+      payload.response_format = { type: "json_object" };
+    }
+
+    if (isReasoningModel) {
+      payload.reasoning_effort = prefersMinimalJsonReasoning
+        ? "minimal"
+        : (input.reasoningEffort ?? "low");
+    } else {
+      payload.temperature = input.temperature ?? 0.7;
+      payload.top_p = 0.95;
+    }
+
+    if (typeof input.seed === "number") {
+      payload.seed = input.seed;
+    }
+
+    for (let attempt = 1; attempt <= statusRetries; attempt += 1) {
+      const requestPayload = { ...payload };
+      let response: Response;
+      try {
+        response = await fetchWithRetry(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${openAIKey()}`,
+            },
+            body: JSON.stringify(payload),
+          },
+          input.context ?? "chat"
+        );
+      } catch (error) {
+        await logLlmEvent({
+          source: logSource,
+          request: requestPayload,
+          response: { error: String((error as Error)?.message || error) },
+          metadata: logMetadata,
+        });
+        if (hasFallback && isTransientNetworkError(error)) {
+          console.warn(
+            `[llm-client] Network error on ${activeModel}; falling back to ${modelCandidates[modelIndex + 1]}`
+          );
+          fallbackTriggered = true;
+          break;
+        }
+        lastError = error as Error;
+        break;
       }
-    : undefined;
 
-  // Detect truncated responses — finish_reason "length" means max_tokens was hit
-  if (finishReason === "length") {
-    console.warn(
-      `[llm-client] Response truncated (finish_reason=length) for context="${input.context ?? "unknown"}", ` +
-      `model=${input.model}, maxTokens=${input.maxTokens ?? 2000}. ` +
-      `Content length: ${content.length} chars. Consider increasing maxTokens.`
-    );
+      if (!response.ok) {
+        const text = await response.text();
+        await logLlmEvent({
+          source: logSource,
+          request: requestPayload,
+          response: { status: response.status, error: text },
+          metadata: logMetadata,
+        });
+
+        const retryableStatus = isRetryableStatus(response.status);
+        const transientFallbackEnabled = input.preferImmediateFallbackOnTransient !== false;
+        if (
+          hasFallback
+          && (
+            shouldFallbackToNextModel(response.status, text)
+            || (transientFallbackEnabled && retryableStatus)
+          )
+        ) {
+          console.warn(
+            `[llm-client] Model ${activeModel} failed with ${response.status}; falling back to ${modelCandidates[modelIndex + 1]}`
+          );
+          fallbackTriggered = true;
+          break;
+        }
+
+        if (retryableStatus && attempt < statusRetries) {
+          const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+          console.warn(
+            `[llm-client] Retryable OpenAI status ${response.status} for ${activeModel}; retrying in ${delay}ms`
+          );
+          await sleep(delay);
+          continue;
+        }
+
+        lastError = new Error(`OpenAI API error ${response.status}: ${text}`);
+        break;
+      }
+
+      const data: any = await response.json();
+      await logLlmEvent({
+        source: logSource,
+        request: requestPayload,
+        response: data,
+        metadata: logMetadata,
+      });
+      const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
+      const content = data.choices?.[0]?.message?.content ?? "";
+      const usage = data.usage
+        ? {
+            promptTokens: data.usage.prompt_tokens ?? 0,
+            completionTokens: data.usage.completion_tokens ?? 0,
+            totalTokens: data.usage.total_tokens ?? 0,
+            model: activeModel,
+            reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+          }
+        : undefined;
+
+      // Detect truncated responses — finish_reason "length" means max_tokens was hit
+      if (finishReason === "length") {
+        console.warn(
+          `[llm-client] Response truncated (finish_reason=length) for context="${input.context ?? "unknown"}", ` +
+          `model=${activeModel}, maxTokens=${input.maxTokens ?? 2000}. ` +
+          `Content length: ${content.length} chars. Consider increasing maxTokens.`
+        );
+      }
+
+      return { content, usage, finishReason };
+    }
+
+    if (fallbackTriggered) {
+      continue;
+    }
+
+    if (lastError && !hasFallback) {
+      break;
+    }
   }
 
-  return { content, usage, finishReason };
+  throw lastError ?? new Error("OpenAI API error: failed to receive response");
 }
 
 function resolveLogSource(explicitSource?: string, context?: string): string {
