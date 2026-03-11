@@ -1,19 +1,19 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import type { AgentId, AgentState } from '../../types/agent';
+import type { AgentId, AgentPhase } from '../../types/agent';
 import { agentDefinitions } from '../registry';
 import { AgentIcon } from '../icons/AgentIcons';
 
 interface AgentStatusLineProps {
   agentId: AgentId;
-  state: AgentState;
+  state: AgentPhase;
   message?: string;
   className?: string;
 }
 
 export function AgentStatusLine({ agentId, state, message, className }: AgentStatusLineProps) {
   const agent = agentDefinitions[agentId];
-  const visible = state !== 'idle' && state !== 'hidden';
+  const visible = state !== 'hidden';
   const isActive = state === 'preparing' || state === 'active';
 
   return (

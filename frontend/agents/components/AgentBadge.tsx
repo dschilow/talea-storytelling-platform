@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import type { AgentId, AgentSize, AgentState } from '../../types/agent';
+import type { AgentId, AgentPhase, AgentSize } from '../../types/agent';
 import { agentDefinitions } from '../registry';
 import { AgentIcon } from '../icons/AgentIcons';
 import { AgentAnimation } from '../animations/AgentAnimations';
 
 interface AgentBadgeProps {
   agentId: AgentId;
-  state?: AgentState;
+  state?: AgentPhase;
   size?: AgentSize;
   showLabel?: boolean;
   className?: string;
@@ -22,7 +22,7 @@ const sizeMap = {
 
 export function AgentBadge({
   agentId,
-  state = 'idle',
+  state = 'hidden',
   size = 'medium',
   showLabel = false,
   className,
@@ -44,7 +44,7 @@ export function AgentBadge({
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter') onClick(); } : undefined}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
-      <AgentAnimation agentId={agentId} state={isAnimating ? state : 'idle'}>
+      <AgentAnimation agentId={agentId} state={isAnimating ? state : 'hidden'}>
         <div
           className="rounded-full flex items-center justify-center"
           style={{

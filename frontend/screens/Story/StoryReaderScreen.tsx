@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +30,7 @@ import {
   taleaDisplayFont,
   taleaPageShellClass,
 } from '@/components/talea/TaleaPastelPrimitives';
+import { usePostStoryFlow, AgentResultFeed } from '../../agents';
 
 const StoryReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -71,6 +72,9 @@ const StoryReaderScreen: React.FC = () => {
 
   // Growth celebration modal
   const { isOpen: showGrowthCelebration, data: growthData, triggerCelebration, closeCelebration } = useGrowthCelebration();
+
+  // Agent result feed after story completion
+  const { showCompletionResults } = usePostStoryFlow();
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -392,6 +396,13 @@ const StoryReaderScreen: React.FC = () => {
           const { showSuccessToast } = await import('../../utils/toastUtils');
           showSuccessToast(`🎉 ${t('story.reader.toast.completed', { count: result.updatedAvatars })}`);
         }
+
+        // 🌟 Show agent result feed (contextual completion cards)
+        showCompletionResults({
+          hasMemory: true,
+          artifactName: collectedArtifacts.length > 0 ? collectedArtifacts[0].item.name : undefined,
+          storyId,
+        });
 
       } else {
         const errorText = await response.text();
@@ -720,6 +731,23 @@ const StoryReaderScreen: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Agent Result Feed — contextual completion cards (memories, quiz, artifacts, next adventure) */}
+      {storyCompleted && (
+        <div className="fixed bottom-28 right-4 z-30 w-80 max-h-[50vh] overflow-y-auto">
+          <AgentResultFeed
+            onAction={(action, payload) => {
+              if (action === 'navigate' && payload?.to) {
+                navigate(payload.to as string);
+              }
+              if (action === 'open-quiz') {
+                // TODO: navigate to quiz when quiz feature is ready
+                console.log('[AgentResultFeed] open-quiz action triggered');
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Level Up Modal */}
       {currentReward && (

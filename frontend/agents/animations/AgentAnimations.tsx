@@ -1,16 +1,16 @@
 import { motion, type TargetAndTransition, type Transition } from 'framer-motion';
 import type { ReactNode } from 'react';
-import type { AgentAnimationType, AgentId, AgentState } from '../../types/agent';
+import type { AgentAnimationType, AgentId, AgentPhase } from '../../types/agent';
 import { agentDefinitions } from '../registry';
 
 interface AnimationWrapperProps {
   agentId: AgentId;
-  state: AgentState;
+  state: AgentPhase;
   children: ReactNode;
   className?: string;
 }
 
-const stateToAnimating = (state: AgentState) =>
+const stateToAnimating = (state: AgentPhase) =>
   state === 'preparing' || state === 'active';
 
 export function AgentAnimation({ agentId, state, children, className }: AnimationWrapperProps) {

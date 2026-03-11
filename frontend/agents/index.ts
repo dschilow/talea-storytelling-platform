@@ -1,31 +1,36 @@
-// Types
+// ─── Types ──────────────────────────────────────────────────────
 export type {
   AgentId,
-  AgentState,
+  AgentPhase,
   AgentSize,
-  AgentContext,
   AgentFeatureArea,
   AgentAnimationType,
   AgentEvent,
   AgentColorPalette,
-  AgentStatusMessages,
+  AgentMessages,
   AgentDefinition,
-  AgentRuntimeState,
+  AgentLiveState,
+  AgentResult,
+  AgentSession,
+  FlowId,
+  FlowStep,
   AgentEventPayload,
+  // Legacy compat aliases
+  AgentState,
+  AgentStatusMessages,
+  AgentContext,
 } from '../types/agent';
 
-// Registry
+// ─── Registry ───────────────────────────────────────────────────
 export {
   agentDefinitions,
   agentList,
-  primaryAgents,
-  agentsByFeature,
-  agentsByEvent,
   getAgent,
+  pickMessage,
   getRandomStatusMessage,
 } from './registry';
 
-// Context & Hooks
+// ─── Context & Hooks ────────────────────────────────────────────
 export {
   AgentProvider,
   useAgents,
@@ -33,9 +38,15 @@ export {
   subscribeAgentEvent,
   emitAgentEvent,
 } from './AgentContext';
-export { useAgentFlow } from './useAgentFlow';
 
-// Icons
+// ─── Flow Hooks ─────────────────────────────────────────────────
+export {
+  useStoryAgentFlow,
+  usePostStoryFlow,
+  buildParentInsights,
+} from './useAgentFlow';
+
+// ─── Icons ──────────────────────────────────────────────────────
 export { AgentIcon } from './icons/AgentIcons';
 export {
   Tavi,
@@ -48,10 +59,16 @@ export {
   Leuchtglas,
 } from './icons/AgentIcons';
 
-// Animations
+// ─── Animations ─────────────────────────────────────────────────
 export { AgentAnimation } from './animations/AgentAnimations';
 
-// UI Components
+// ─── UI Components (contextual) ─────────────────────────────────
+export { ActiveAgentStack } from './components/ActiveAgentStack';
+export { AgentResultCard } from './components/AgentResultCard';
+export { AgentResultFeed } from './components/AgentResultFeed';
+export { ParentInsightCard } from './components/ParentInsightCard';
+
+// ─── UI Components (building blocks) ────────────────────────────
 export { AgentBadge } from './components/AgentBadge';
 export { AgentStatusLine } from './components/AgentStatusLine';
 export { AgentLoader } from './components/AgentLoader';

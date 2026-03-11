@@ -10,6 +10,7 @@ import { StoryGenerationProgress, StoryGenerationStep } from "../../components/s
 import LevelUpModal from "../../components/gamification/LevelUpModal";
 import type { InventoryItem } from "../../types/avatar";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useStoryAgentFlow, ActiveAgentStack } from "../../agents";
 import Step1AvatarSelection from "./wizard-steps/Step1AvatarSelection";
 import Step2CategorySelection from "./wizard-steps/Step2CategorySelection";
 import Step3AgeAndLength from "./wizard-steps/Step3AgeAndLength";
@@ -87,6 +88,7 @@ export default function ModernStoryWizard() {
   const { t, i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const { onPhaseChange, onStoryReady } = useStoryAgentFlow();
 
   const steps = [
     t("wizard.steps.avatars"),
@@ -120,6 +122,13 @@ export default function ModernStoryWizard() {
     customWish: "",
     aiModel: "gemini-3-flash-preview",
   });
+
+  // Sync agent flow with generation phases
+  useEffect(() => {
+    if (generating) {
+      onPhaseChange(generationStep);
+    }
+  }, [generationStep, generating, onPhaseChange]);
 
   useEffect(() => {
     if (i18n.language) {
@@ -207,6 +216,7 @@ export default function ModernStoryWizard() {
     } finally {
       setGenerating(false);
       setGenerationStep("profiles");
+      onStoryReady();
     }
   };
 
@@ -323,6 +333,9 @@ export default function ModernStoryWizard() {
           <TaleaSurface className="p-5 md:p-6">
             <StoryGenerationProgress currentStep={generationStep} />
           </TaleaSurface>
+
+          {/* Contextual agent banners — appear only during active generation */}
+          <ActiveAgentStack className="mt-1" />
         </div>
       </div>
     );

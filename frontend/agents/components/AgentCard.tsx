@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import type { AgentId, AgentState } from '../../types/agent';
+import type { AgentId, AgentPhase } from '../../types/agent';
 import { agentDefinitions } from '../registry';
 import { AgentIcon } from '../icons/AgentIcons';
 import { AgentAnimation } from '../animations/AgentAnimations';
 
 interface AgentCardProps {
   agentId: AgentId;
-  state?: AgentState;
+  state?: AgentPhase;
   message?: string;
   className?: string;
   children?: React.ReactNode;
@@ -16,7 +16,7 @@ interface AgentCardProps {
 
 export function AgentCard({
   agentId,
-  state = 'idle',
+  state = 'hidden',
   message,
   className,
   children,
@@ -47,7 +47,7 @@ export function AgentCard({
       onClick={onClick}
     >
       <div className="flex items-start gap-4">
-        <AgentAnimation agentId={agentId} state={isAnimating ? state : 'idle'}>
+        <AgentAnimation agentId={agentId} state={isAnimating ? state : 'hidden'}>
           <div
             className="rounded-full flex items-center justify-center shrink-0"
             style={{

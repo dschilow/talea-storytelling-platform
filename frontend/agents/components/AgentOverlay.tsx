@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from '../../lib/utils';
-import type { AgentId, AgentState } from '../../types/agent';
+import type { AgentId, AgentPhase } from '../../types/agent';
 import { agentDefinitions } from '../registry';
 import { AgentLoader } from './AgentLoader';
 
 interface AgentOverlayProps {
   agentId: AgentId;
-  state: AgentState;
+  state: AgentPhase;
   message?: string;
   visible?: boolean;
   className?: string;
