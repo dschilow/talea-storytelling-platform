@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AgentBadge, AgentStatusLine, agentList } from "../../agents";
 import { useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
@@ -1041,8 +1042,52 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         </div>
       )}
     </section>
+
+    {/* Magische Helfer – Agent-System */}
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+          Deine magischen Helfer
+        </p>
+      </div>
+      <AgentSystemStrip />
+    </section>
   </motion.div>
 );
+
+/** Zeigt alle Agenten als kompakten horizontalen Streifen. */
+const AgentSystemStrip: React.FC = () => {
+  const visibleAgents = agentList.filter(a => a.visibilityLevel !== 'background');
+  return (
+    <div className="rounded-[24px] border border-white/60 bg-white/60 p-5 dark:border-white/10 dark:bg-white/5 backdrop-blur-sm">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+        {visibleAgents.map((agent) => (
+          <div
+            key={agent.id}
+            className="rounded-[18px] border p-3 transition-shadow hover:shadow-md"
+            style={{
+              background: agent.colorPalette.bgSubtle,
+              borderColor: agent.colorPalette.border,
+            }}
+          >
+            <AgentBadge
+              agentId={agent.id}
+              state="idle"
+              size="small"
+              showLabel
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Statuszeilen – zeigen dem Team was die Helfer gerade tun */}
+      <div className="mt-4 space-y-2">
+        <AgentStatusLine agentId="sternenweber" state="preparing" message="Der Sternenweber wartet auf deine nächste Reise …" />
+        <AgentStatusLine agentId="fluesterfeder" state="success" message="Deine letzte Erinnerung ist sicher aufbewahrt." />
+      </div>
+    </div>
+  );
+};
 
 const TaleaHomeScreen: React.FC = () => {
   const navigate = useNavigate();

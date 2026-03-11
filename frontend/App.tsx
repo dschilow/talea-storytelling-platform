@@ -53,6 +53,7 @@ import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScree
 import OfflineContentScreen from './screens/Offline/OfflineContentScreen';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 import { parseHapticIntent, triggerHaptic } from './utils/haptics';
+import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
 
@@ -470,7 +471,9 @@ export default function App() {
               <UserAccessProvider>
                 <ChildProfilesProvider>
                   <OfflineStorageProvider>
-                    <AppContent />
+                    <AgentProvider>
+                      <AppContent />
+                    </AgentProvider>
                   </OfflineStorageProvider>
                 </ChildProfilesProvider>
               </UserAccessProvider>
