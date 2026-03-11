@@ -478,11 +478,164 @@
   color: white;
 }
 
+/* ========================================
+   Agent Micro-Animations
+   ======================================== */
+
+@keyframes agent-float-pulse {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translateY(-6px) scale(1.02);
+    filter: brightness(1.05);
+  }
+}
+
+@keyframes agent-feather-trail {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% {
+    transform: translateX(3px) translateY(-4px) rotate(2deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(-2px) translateY(-7px) rotate(-1deg);
+    opacity: 0.9;
+  }
+  75% {
+    transform: translateX(1px) translateY(-3px) rotate(1deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+    opacity: 0.7;
+  }
+}
+
+@keyframes agent-star-connect {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes agent-shield-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(111, 174, 156, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(111, 174, 156, 0.35), 0 0 40px rgba(111, 174, 156, 0.1);
+  }
+}
+
+@keyframes agent-spark-bounce {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  20% {
+    transform: translateY(-5px) scale(1.08);
+  }
+  40% {
+    transform: translateY(0) scale(1);
+  }
+  60% {
+    transform: translateY(-3px) scale(1.04);
+  }
+  80% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes agent-crystal-forge {
+  0% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+  30% {
+    filter: brightness(1.15) saturate(1.1);
+    transform: scale(1.03);
+  }
+  60% {
+    filter: brightness(1.05) saturate(1.2);
+    transform: scale(1.01);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+}
+
+@keyframes agent-compass-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(15deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes agent-lens-shimmer {
+  0%, 100% {
+    opacity: 0.8;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.12);
+  }
+}
+
+@keyframes agent-glow-ring {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes agent-particle-float {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-24px) translateX(var(--particle-drift, 6px)) scale(0.4);
+    opacity: 0;
+  }
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .landing-page *,
   .landing-page *::before,
-  .landing-page *::after {
+  .landing-page *::after,
+  [data-agent-animated] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
