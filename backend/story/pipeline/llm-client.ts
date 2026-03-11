@@ -154,6 +154,11 @@ export async function callChatCompletion(input: {
     const prefersMinimalJsonReasoning =
       input.responseFormat === "json_object"
       && (activeModel.includes("gpt-5-mini") || activeModel.includes("gpt-5-nano"));
+    const prefersConservativeJsonReasoning =
+      input.responseFormat === "json_object"
+      && Boolean(input.context)
+      && input.context!.startsWith("story-writer")
+      && activeModel.startsWith("gpt-5");
     const jsonHeadroomFloor =
       !prefersMinimalJsonReasoning
         ? 0
@@ -186,9 +191,14 @@ export async function callChatCompletion(input: {
     }
 
     if (isReasoningModel) {
-      payload.reasoning_effort = prefersMinimalJsonReasoning
-        ? "minimal"
-        : (input.reasoningEffort ?? "low");
+      let effectiveReasoningEffort: "minimal" | "low" | "medium" | "high" = input.reasoningEffort ?? "low";
+      if (prefersMinimalJsonReasoning) {
+        effectiveReasoningEffort = "minimal";
+      } else if (prefersConservativeJsonReasoning && effectiveReasoningEffort === "high") {
+        // gpt-5 story-writer JSON calls can burn completion budget on reasoning and return empty text.
+        effectiveReasoningEffort = "low";
+      }
+      payload.reasoning_effort = effectiveReasoningEffort;
     } else {
       payload.temperature = input.temperature ?? 0.7;
       payload.top_p = 0.95;
@@ -296,6 +306,21 @@ export async function callChatCompletion(input: {
           `model=${activeModel}, maxTokens=${input.maxTokens ?? 2000}. ` +
           `Content length: ${content.length} chars. Consider increasing maxTokens.`
         );
+      }
+
+      const isEmptyTruncated = finishReason === "length" && !String(content || "").trim();
+      if (isEmptyTruncated && hasFallback) {
+        console.warn(
+          `[llm-client] Empty truncated response from ${activeModel}; falling back to ${modelCandidates[modelIndex + 1]}`
+        );
+        fallbackTriggered = true;
+        break;
+      }
+      if (isEmptyTruncated) {
+        lastError = new Error(
+          `OpenAI returned empty truncated response for context="${input.context ?? "unknown"}" on model ${activeModel}`
+        );
+        break;
       }
 
       return { content, usage, finishReason };

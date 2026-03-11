@@ -509,12 +509,15 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
         }
       }
 
+      const openAiFallbackModels = input.fallbackModels
+        ?? (activeModel === "gpt-5.4" ? ["gpt-5-mini", "gpt-5-nano"] : undefined);
       return callChatCompletion({
         model: activeModel,
         messages: [
           { role: "system", content: input.systemPrompt },
           { role: "user", content: input.userPrompt },
         ],
+        fallbackModels: openAiFallbackModels,
         responseFormat: input.responseFormat,
         maxTokens: input.maxTokens,
         temperature: input.temperature,
@@ -523,6 +526,8 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
         context: input.context,
         logSource: input.logSource,
         logMetadata: input.logMetadata,
+        preferImmediateFallbackOnTransient: input.preferImmediateFallbackOnTransient ?? true,
+        maxStatusRetries: typeof input.maxRetries === "number" ? input.maxRetries : undefined,
       });
     };
 
