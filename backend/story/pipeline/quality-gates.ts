@@ -1565,6 +1565,82 @@ function gateNarrativeNaturalness(
   return issues;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function gateAppearanceContinuity(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const smellOpenerPattern = isDE
+    ? /^\s*(?:am|im|in|auf|vor|hinter|zwischen)?[^.!?]{0,120}\broch\s+(?:es\s+)?nach\b/i
+    : /^\s*(?:at|in|on|near|inside|outside)?[^.!?]{0,120}\bsmelled\s+of\b/i;
+
+  for (const chapter of draft.chapters) {
+    const firstSentence = splitSentences(chapter.text || "")[0]?.trim() || "";
+    if (firstSentence && smellOpenerPattern.test(firstSentence)) {
+      issues.push({
+        gate: "APPEARANCE_CONTINUITY",
+        chapter: chapter.chapter,
+        code: "SMELL_OPENER_CLICHE",
+        message: isDE
+          ? `Kapitel ${chapter.chapter}: Kapitelbeginn mit Geruchs-Klischee ("roch nach ..."). Besser mit Handlung, Stimme oder sichtbarem Problem beginnen.`
+          : `Chapter ${chapter.chapter}: chapter opens with a smell cliché ("smelled of ..."). Start with action, voice, or a visible problem instead.`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  const characters = [...cast.avatars, ...cast.poolCharacters];
+  const accessoryChecks = [
+    { key: "glasses", pattern: isDE ? /\bbrille\b/i : /\bglasses\b/i, allowPattern: /\b(brille|glasses)\b/i },
+    { key: "cap", pattern: isDE ? /\b(?:m[uü]tze|kappe|hut)\b/i : /\b(?:cap|hat)\b/i, allowPattern: /\b(?:m[uü]tze|kappe|hut|cap|hat)\b/i },
+    { key: "scarf", pattern: isDE ? /\bschal\b/i : /\bscarf\b/i, allowPattern: /\b(?:schal|scarf)\b/i },
+  ];
+
+  for (const character of characters) {
+    const name = String(character.displayName || "").trim();
+    if (!name) continue;
+
+    const lockText = [
+      ...(character.visualSignature || []),
+      ...(character.outfitLock || []),
+      ...(character.faceLock || []),
+    ].join(" ");
+
+    const namePattern = new RegExp(`\\b${escapeRegExp(name)}\\b`, "i");
+
+    for (const chapter of draft.chapters) {
+      const sentences = splitSentences(chapter.text || "");
+      for (const sentence of sentences) {
+        if (!namePattern.test(sentence)) continue;
+
+        for (const check of accessoryChecks) {
+          if (!check.pattern.test(sentence)) continue;
+          if (check.allowPattern.test(lockText)) continue;
+
+          issues.push({
+            gate: "APPEARANCE_CONTINUITY",
+            chapter: chapter.chapter,
+            code: "INVENTED_APPEARANCE_DETAIL",
+            message: isDE
+              ? `Kapitel ${chapter.chapter}: ${name} bekommt ein erfundenes Merkmal (${check.key}), das im Cast nicht bestaetigt ist.`
+              : `Chapter ${chapter.chapter}: ${name} gets an invented appearance detail (${check.key}) not confirmed in the cast locks.`,
+            severity: "WARNING",
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  return issues;
+}
+
 function gateSceneContinuity(
   draft: StoryDraft,
   language: string,
@@ -2740,6 +2816,7 @@ export function runQualityGates(input: {
     { name: "SHOW_DONT_TELL_EXPOSITION", fn: () => gateRuleExpositionTell(draft, language, ageRange) },
     { name: "NARRATIVE_META", fn: () => gateNarrativeSummaryMeta(draft, language, ageRange) },
     { name: "NARRATIVE_NATURALNESS", fn: () => gateNarrativeNaturalness(draft, language, ageRange) },
+    { name: "APPEARANCE_CONTINUITY", fn: () => gateAppearanceContinuity(draft, cast, language) },
     { name: "SCENE_CONTINUITY", fn: () => gateSceneContinuity(draft, language, ageRange) },
     // V2 Quality Gates
     { name: "CANON_FUSION", fn: () => gateCanonFusion(draft, cast, language) },
@@ -2778,6 +2855,7 @@ export function runQualityGates(input: {
     IMAGERY_BALANCE: 1,
     RHYTHM_VARIATION: 1,
     READABILITY_COMPLEXITY: 1,
+    APPEARANCE_CONTINUITY: 1,
     SCENE_CONTINUITY: 1,
     NARRATIVE_NATURALNESS: 1,
     // All other gates: default cap at 2

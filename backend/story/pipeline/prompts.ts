@@ -11,6 +11,9 @@ interface CharacterSheet {
   personalityTags?: string[];
   speechStyleHints?: string[];
   visualSignature?: string[];
+  outfitLock?: string[];
+  faceLock?: string[];
+  forbidden?: string[];
   enhancedPersonality?: {
     dominant?: string;
     catchphrase?: string;
@@ -129,6 +132,65 @@ function buildCompactCharacterProfile(sheet: CharacterSheet, isGerman: boolean):
     || "clear and direct";
   const rolePart = role ? ` (${role})` : "";
   return `- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}.`;
+}
+
+function uniquePromptItems(items: Array<string | undefined>, limit = 4): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of items) {
+    const value = String(raw || "").trim();
+    if (!value) continue;
+    const normalized = value.toLowerCase();
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(value);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function isPlaceholderAppearanceToken(value: string): boolean {
+  const normalized = String(value || "").trim().toLowerCase();
+  return [
+    "distinct child",
+    "clear facial features",
+    "recognizable outfit",
+    "consistent outfit",
+    "distinct supporting character",
+    "adult proportions",
+    "duplicate character",
+    "extra limbs",
+    "complete teeth, no gap",
+  ].includes(normalized);
+}
+
+function buildAppearanceLockBlock(sheets: CharacterSheet[], isGerman: boolean): string {
+  const lines = sheets
+    .map((sheet) => {
+      const allowed = uniquePromptItems([
+        ...(sheet.visualSignature || []),
+        ...(sheet.outfitLock || []),
+        ...(sheet.faceLock || []),
+      ].filter(value => !isPlaceholderAppearanceToken(value)), 4);
+      const forbidden = uniquePromptItems((sheet.forbidden || []).filter(value => !isPlaceholderAppearanceToken(value)), 4);
+      if (allowed.length === 0 && forbidden.length === 0) return "";
+
+      if (isGerman) {
+        return `- ${sheet.displayName}: Nur bestaetigte Merkmale verwenden${allowed.length ? ` (${allowed.join(", ")})` : ""}. ${forbidden.length ? `Niemals erfinden: ${forbidden.join(", ")}.` : "Wenn hier kein Accessoire steht, keines dazudichten."}`;
+      }
+
+      return `- ${sheet.displayName}: Use only confirmed visual markers${allowed.length ? ` (${allowed.join(", ")})` : ""}. ${forbidden.length ? `Never invent: ${forbidden.join(", ")}.` : "If no accessory is listed here, do not add one."}`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  if (!lines) return "";
+
+  const globalRule = isGerman
+    ? "- GLOBAL: Erfinde niemals Brille, Muetze, Schal, Haarfarbe, Augenfarbe oder andere Markenzeichen, wenn sie unten nicht ausdruecklich bestaetigt sind."
+    : "- GLOBAL: Never invent glasses, hats, scarves, hair color, eye color, or signature accessories unless they are explicitly confirmed below.";
+
+  return `${lines}\n${globalRule}`;
 }
 
 /**
@@ -419,14 +481,14 @@ function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
 SZENE 0 – SO BEGINNT KAPITEL 1 (Pflicht-Vorlage: Welt + Figuren + Auftrag):
 Es war einmal, in einem kleinen Dorf am Rande eines großen, dunklen Waldes, da lebten zwei Brüder.
-Der ältere hieß Alexander und war acht Jahre alt. Er war mutig, klug und immer bereit, ein Abenteuer zu erleben.
-Sein kleiner Bruder Adrian war erst fünf und hatte die größten braunen Augen der Welt, mit denen er jeden um den Finger wickeln konnte.
+Das ältere Kind hieß Mira und war acht Jahre alt. Sie hatte immer einen Plan und blieb nie lange still stehen.
+Ihr kleiner Bruder Timo war erst fünf und fragte schon nach dem ersten Blick, was als Nächstes passieren würde.
 
 Eines Morgens rief ihre Mutter die beiden in die Küche. Auf dem Tisch stand ein großer Korb, gefüllt mit frisch gebackenem Kuchen.
 "Eure Großmutter ist krank", sagte die Mutter mit besorgtem Blick. "Sie wohnt drüben auf der anderen Seite des Waldes. Bringt ihr bitte diesen Korb, damit sie schnell wieder gesund wird."
 
-Alexander nickte ernst. "Keine Sorge, Mama. Ich passe auf Adrian auf."
-Adrian zog sich seine rote Kappe über den Kopf — seine Lieblingsmütze, die er niemals ablegte.
+Mira nickte ernst. "Keine Sorge, Mama. Ich passe auf Timo auf."
+Timo rückte näher an den Tisch. "Dann gehen wir jetzt, oder?"
 Die Mutter lächelte. "Denkt daran: Bleibt auf dem Weg und sprecht nicht mit Fremden!"
 
 WHY THIS OPENING WORKS:
@@ -438,13 +500,13 @@ WHY THIS OPENING WORKS:
 SZENE A – Rhythmus + Unterbrechung:
 Mama knallte den Korb auf den Tisch. Plopp.
 "Darf ich–" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
-Alexander beugte sich vor. "Ich riech Apfelkuchen." "Und Tee", sagte Adrian.
-Er schnupperte extra laut. "Und… Oma."
+Mira beugte sich vor. "Da dampft was." "Und es klappert", sagte Timo.
+Er tippte mit dem Finger gegen den Korb. "Und das klingt nicht nach Ruhe."
 
 SZENE B – Humor durch Situation:
 "Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
-"Kann sie wenigstens einmal–" Mama schob die Muenze in Alexanders Tasche.
-Adrian seufzte. "Das ist streng-magisch."
+"Kann sie wenigstens einmal–" Mama schob die Muenze in Miras Tasche.
+Timo seufzte. "Das ist streng-magisch."
 
 SZENE C – Figur-Eintritt mit Detail:
 Am Rand der Lichtung stand ein Wolf. Gross. Grau. Mit einer knallroten Nase.
@@ -457,38 +519,38 @@ Augen gefaehrlich. "RAUS", sagte sie.
 Der Wolf stolperte rueckwaerts ueber den Zaun. Das Taschentuch wehte hinterher.
 
 SZENE E – Innerer Moment (Somatic Marker):
-Adrian drueckte die Haende in die Taschen. Der Stoff war warm vom Rennen.
+Timo drueckte die Haende in die Taschen. Der Stoff war warm vom Rennen.
 Sein Bauch machte dieses komische Ziehen, wenn etwas Grosses gleich passiert.
 Er schluckte. "Okay", sagte er. Ganz leise. Nur fuer sich.
 
 SZENE F – Szene mit Dreier-Rhythmus:
 Der Stein war glatt. Kalt. Und viel zu schwer fuer einen allein.
-"Ich heb an", sagte Adrian. "Ich halte", sagte Alexander.
+"Ich heb an", sagte Timo. "Ich halte", sagte Mira.
 Sie zogen gleichzeitig. Der Stein rutschte eine Handbreit. Dann noch eine.
 Kapitaen Blubbert verschraenkte die Arme. "Ihr habt vergessen, mich zu fragen."
 Er packte den Stein mit einer Hand. Hob ihn hoch.
-Adrian starrte. Alexander auch.
+Timo starrte. Mira auch.
 "Ihr koennt jetzt klatschen", sagte Kapitaen Blubbert.
 
 SZENE G – Absaetze, die atmen (Prosa-Rhythmus):
-Der Laden roch nach altem Holz und Zimtschnecken. Bruno wischte die Theke mit einem Lappen,
+Der Laden war eng und warm. Bruno wischte die Theke mit einem Lappen,
 der frueher mal weiss gewesen war. Jetzt war er braun. Und ein bisschen klebrig.
 "Ich brauch Mehl", sagte er, ohne aufzusehen. "Drei Saecke. Und Glueck."
-Adrian legte den Kopf schief. "Glueck kann man nicht kaufen."
+Timo legte den Kopf schief. "Glueck kann man nicht kaufen."
 "Doch", sagte Bruno. "Es kostet nur mehr als Mehl."
 """` ;
 
   const englishExamples = `"""
 SCENE 0 – HOW CHAPTER 1 MUST OPEN (mandatory template: World + Characters + Mission):
 Once upon a time, in a small village at the edge of a great dark forest, there lived two brothers.
-The older one was called Alexander and was eight years old. He was brave, clever, and always ready for adventure.
-His little brother Adrian was only five and had the biggest brown eyes in the world — eyes that could wrap anyone around his finger.
+The older child was called Mira and was eight years old. She always had a plan and never stood still for long.
+Her little brother Timo was only five and asked what happened next before anyone had finished the first sentence.
 
 One morning their mother called them into the kitchen. On the table stood a large basket, filled with freshly baked cake.
 "Your grandmother is sick," said their mother with a worried look. "She lives on the other side of the forest. Please bring her this basket so she gets better soon."
 
-Alexander nodded seriously. "Don't worry, Mama. I'll look after Adrian."
-Adrian pulled his red cap over his head — his favorite hat that he never took off.
+Mira nodded seriously. "Don't worry, Mama. I'll look after Timo."
+Timo stepped closer to the table. "Then we should go now, right?"
 Their mother smiled. "Remember: stay on the path and don't talk to strangers!"
 
 WHY THIS OPENING WORKS:
@@ -500,13 +562,13 @@ WHY THIS OPENING WORKS:
 SCENE A – Rhythm + interruption:
 Mom slammed the basket on the table. Pop.
 "Can I–" "No," said Mom. Quick as a crocodile jaw.
-Alexander leaned in. "I smell apple cake." "And tea," said Adrian.
-He sniffed extra loud. "And... Grandma."
+Mira leaned in. "Something is steaming." "And rattling," said Timo.
+He tapped the basket. "And that does not sound calm."
 
 SCENE B – Humor through situation:
 "Can it beep?" "No." "Can it say Stop?" "No."
-"Can it at least once–" Mom pushed the coin into Alexander's pocket.
-Adrian sighed. "That's strict-magic."
+"Can it at least once–" Mom pushed the coin into Mira's pocket.
+Timo sighed. "That's strict-magic."
 
 SCENE C – Character entrance with detail:
 At the edge of the clearing stood a wolf. Big. Gray. With a bright red nose.
@@ -519,7 +581,7 @@ Nose red. Eyes dangerous. "OUT," she said.
 The wolf stumbled backwards over the fence. The tissue fluttered after him.
 
 SCENE E – Inner Moment (Somatic Marker):
-Adrian pressed his hands into his pockets. The fabric was warm from running.
+Timo pressed his hands into his pockets. The fabric was warm from running.
 His belly did that weird pull-thing when something big is about to happen.
 He swallowed. "Okay," he said. Very quietly. Just for himself.
 
@@ -584,11 +646,11 @@ EXAMPLE: Stakes sentence (must appear end of Chapter 1):
 Ben's stomach did that tight pulling thing. He pressed his hands into his pockets and said nothing.
 
 EXAMPLE: Lowpoint + physical body reaction (Chapter 3 or 4):
-The map was ruined. Just brown pulp in Adrian's fist.
+The map was ruined. Just brown pulp in Ben's fist.
 He stared at it. His throat went dry. His legs felt suddenly too heavy to lift.
 "It's okay," said Nova. But her voice came out wrong — too quiet, too careful.
 It wasn't okay. They both knew it.
-Then Flitz squeaked something. Adrian looked up.
+Then Flitz squeaked something. Ben looked up.
 
 EXAMPLE: Small tangible price (Chapter 5 ending):
 The garden bloomed again, all at once, like someone had turned a switch.
@@ -672,8 +734,8 @@ ${artifactBlock}
 For each chapter, answer these questions concisely (1-2 sentences each):
 
 CHAPTER 1 — THE INVITATION (orientation, NO conflict):
-- where: Where are we? (1 sensory detail: smell, sound, or temperature)
-- who: Who do we meet? (each character: 1 physical detail + 1 personality trait SHOWN in action)
+- where: Where are we? (1 concrete place cue; prefer sound, texture, or visible problem, not a smell opener)
+- who: Who do we meet? (each character: 1 action cue or explicitly locked canon detail + 1 personality trait SHOWN in action)
 - want: What does the child want? (the desire that drives the story)
 - curiosityHook: Last moment — what makes the reader NEED to turn the page?
 - foreground: Which 2 characters are in the foreground? (max 2, others react briefly)
@@ -783,12 +845,14 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
   const allowedNames: string[] = [];
   const characterLines: string[] = [];
+  const promptSheets: CharacterSheet[] = [];
   for (const slot of allSlots) {
     if (slot.includes("ARTIFACT")) continue;
     const sheet = findCharacterBySlot(cast, slot);
     if (!sheet) continue;
     if (!allowedNames.includes(sheet.displayName)) allowedNames.push(sheet.displayName);
     const cs = sheet as CharacterSheet;
+    promptSheets.push(cs);
     const role = getPromptRoleLabel(cs, isGerman);
     const rolePart = role ? ` (${role})` : "";
     const speech = cs.speechStyleHints?.[0] || "normal";
@@ -799,6 +863,7 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
   const focusChildSheets = getChildFocusSheets(cast);
   const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
   const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const chapterBeatLines = [
     `- Ch1: ${blueprint.chapter1.where} | Want: ${blueprint.chapter1.want}${blueprint.chapter1.stakes ? ` | Stakes: ${blueprint.chapter1.stakes}` : ""} | Hook: ${blueprint.chapter1.curiosityHook}`,
     `- Ch2: ${blueprint.chapter2.newElement} | Choice: ${blueprint.chapter2.boldChoice} | Complication: ${blueprint.chapter2.complication}`,
@@ -840,6 +905,7 @@ Use the blueprint as guidance, but tell a natural story. Never copy blueprint wo
 CHARACTERS
 ${characterLines.join("\n")}
 ${childVoiceContract ? `\nVOICE CONTRACT\n${childVoiceContract}` : ""}
+${appearanceLockBlock ? `\nAPPEARANCE LOCKS\n${appearanceLockBlock}` : ""}
 
 STORY BEATS
 ${chapterBeatLines.join("\n")}
@@ -857,18 +923,21 @@ ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
 NON-NEGOTIABLES
 1. Chapter 1 starts clear. After paragraph 2, WHO, WHERE, WHAT, and WHY are obvious.
-2. Chapter 1 states the concrete stakes early.
-3. Chapters 2-5 open by connecting to the previous chapter's ending.
-4. Chapter 3 contains a child-caused mistake with a clear consequence.
-5. Chapter 4 contains the low point and an internal turning point.
-6. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
-7. Keep 2 foreground characters per chapter. One support character may react briefly.
-8. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
-9. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
-10. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
-11. No report prose, no moral summary, no new names.
-12. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
-${humorRule ? `13. ${humorRule}` : ""}
+2. The very first sentence must begin with a child action, spoken line, or concrete problem. Never open with an atmosphere-only smell sentence like "Es roch nach...".
+3. Chapter 1 states the concrete stakes early.
+4. Chapters 2-5 open by connecting to the previous chapter's ending.
+5. Chapter 3 contains a child-caused mistake with a clear consequence.
+6. Chapter 4 contains the low point and an internal turning point.
+7. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
+8. Keep 2 foreground characters per chapter. One support character may react briefly.
+9. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
+10. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
+11. Use sensory detail sparingly and concretely. Prefer sound, texture, movement, or a visible problem over smell. Never force smell into chapter openings.
+12. Only mention appearance details that are explicitly locked above. Never invent glasses, hats, scarves, eye colors, or signature accessories.
+13. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
+14. No report prose, no moral summary, no new names.
+15. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
+${humorRule ? `16. ${humorRule}` : ""}
 
 OUTPUT
 {
@@ -896,10 +965,12 @@ export function buildLeanStoryBlueprintPrompt(input: {
   const artifactRule = cast.artifact?.storyUseRule || "";
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
   const characterLines: string[] = [];
+  const promptSheets: CharacterSheet[] = [];
   for (const slot of allSlots) {
     if (slot.includes("ARTIFACT")) continue;
     const sheet = findCharacterBySlot(cast, slot);
     if (!sheet) continue;
+    promptSheets.push(sheet as CharacterSheet);
     const role = getPromptRoleLabel(sheet as CharacterSheet, isGerman);
     const dominant = (sheet as CharacterSheet).enhancedPersonality?.dominant
       || (sheet as CharacterSheet).personalityTags?.[0]
@@ -909,6 +980,7 @@ export function buildLeanStoryBlueprintPrompt(input: {
     characterLines.push(`- ${sheet.displayName}${rolePart}: ${dominant}; Voice: ${speech}`);
   }
   const childFocusNames = getChildFocusNames(cast);
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const childFocusBlock = childFocusNames.length > 0
     ? `- The child's emotional arc belongs mainly to ${childFocusNames.join(" and ")}.`
     : "";
@@ -930,6 +1002,7 @@ Target age: ${ageRange.min}-${ageRange.max}. Tone: ${targetTone}. Output languag
 CHARACTERS
 ${characterLines.join("\n")}
 ${childFocusBlock}
+${appearanceLockBlock ? `\nAPPEARANCE LOCKS\n${appearanceLockBlock}` : ""}
 
 STORY SEED
 - Theme: ${themeTags}
@@ -945,6 +1018,7 @@ RULES
 - Chapter 4 turning point comes from inside the child.
 - Chapter 5 shows concrete win + small price + callback to chapter 1.
 - Max 2 foreground characters per chapter.
+- No smell-led opener and no invented accessories. Appearance details only if explicitly locked.
 
 RETURN JSON ONLY:
 {
@@ -971,6 +1045,8 @@ Schreibe release-faehige Vorleseprosa: klar, warm, konkret und leicht zu verfolg
 - Nutze meist kurze bis mittlere Saetze. Viele liegen bei 6-14 Woertern. Einzelne laengere Saetze sind okay, wenn sie laut vorgelesen klar bleiben.
 - Ursache und Wirkung muessen jederzeit leicht zu verstehen sein.
 - Zeige Gefuehle ueber Verhalten, Koerper und kleine Entscheidungen, nicht ueber Etiketten.
+- Beginne Kapitel 1 nie mit einem reinen Geruchssatz wie "Es roch nach ...". Starte mit Handlung, Stimme oder einem sichtbaren Problem.
+- Erfinde keine Brille, Muetze, Schals oder andere Markenzeichen, wenn sie nicht ausdruecklich vorgegeben sind.
 - Kinderfiguren muessen klar unterscheidbar klingen. Wenn Namen aehnlich sind, unterscheide sie noch staerker ueber Rhythmus und Wortwahl.
 - Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung, keine prompt-artigen Formulierungen.
 - Schreibe ausschliesslich auf Deutsch mit korrekten Umlauten.`;
@@ -981,6 +1057,8 @@ Write release-ready read-aloud prose: clear, warm, concrete, and easy to follow.
 - Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they still read aloud smoothly.
 - Cause and effect must stay easy to follow.
 - Show feelings through behavior, body reactions, and small decisions, not labels.
+- Never open chapter 1 with a pure smell sentence like "It smelled of...". Start with action, voice, or a visible problem.
+- Never invent glasses, hats, scarves, or signature accessories unless they are explicitly provided.
 - Child characters must sound clearly different. If names are similar, separate them even more through rhythm and wording.
 - No report prose, checklist prose, moral summaries, or prompt-like phrasing.`;
 }
@@ -1106,12 +1184,12 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 GOOD (notice: short sentences, body, humor, dialogue = 40%):
 Mama knallte den Korb auf den Tisch. Peng.
 "Darf ich–" "Nein", sagte Mama. Schnell wie ein Krokodilmaul.
-Alexander beugte sich vor. "Ich rieche Apfelkuchen." "Und Tee", sagte Adrian.
-Er schnüffelte extra laut. "Und... Oma."
-Oma kicherte und schob ihm ein Stück Kuchen über den Tisch. "Probier mal." Adrian stopfte sich das halbe Stück in den Mund. Krümel flogen. "Mmphf", machte er und grinste breit.
+Mira beugte sich vor. "Da dampft was." "Und es klappert", sagte Timo.
+Er tippte gegen den Korb. "Und... das macht Ärger."
+Oma kicherte und schob ihm ein Stück Kuchen über den Tisch. "Probier mal." Timo stopfte sich das halbe Stück in den Mund. Krümel flogen. "Mmphf", machte er und grinste breit.
 
 BAD (report-style, no body, no humor, floating dialogue):
-Alexander und Adrian kamen bei Oma an. Sie waren aufgeregt, weil sie einen Kuchen rochen. "Das riecht gut", sagte einer von ihnen. Oma lächelte. Sie gab ihnen Kuchen. Alle waren glücklich.
+Mira und Timo kamen bei Oma an. Sie waren aufgeregt. "Das ist gut", sagte einer von ihnen. Oma lächelte. Sie gab ihnen Kuchen. Alle waren glücklich.
 
 → Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), and DIALOGUE anchored to a physical action. Humor should appear across the story, but not every paragraph needs a joke.
 
@@ -1323,6 +1401,7 @@ export function buildFullStoryPrompt(input: {
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
   const allowedNames: string[] = [];
   const characterProfiles: string[] = [];
+  const promptSheets: CharacterSheet[] = [];
 
   for (const slot of allSlots) {
     if (slot.includes("ARTIFACT")) continue;
@@ -1331,16 +1410,19 @@ export function buildFullStoryPrompt(input: {
     if (!allowedNames.includes(sheet.displayName)) {
       allowedNames.push(sheet.displayName);
     }
+    const promptSheet = sheet as CharacterSheet;
+    promptSheets.push(promptSheet);
     characterProfiles.push(
       isCompactPrompt
-        ? buildCompactCharacterProfile(sheet as CharacterSheet, isGerman)
-        : buildCharacterProfile(sheet as CharacterSheet, isGerman),
+        ? buildCompactCharacterProfile(promptSheet, isGerman)
+        : buildCharacterProfile(promptSheet, isGerman),
     );
   }
 
   const focusChildSheets = getChildFocusSheets(cast);
   const focusChildNames = focusChildSheets.map(sheet => sheet.displayName).filter(Boolean);
   const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const focusMaxActive = ageRange.max <= 8 ? 3 : 4;
   const focusIdealRange = ageRange.max <= 8 ? "2-3" : "3-4";
 
@@ -1455,16 +1537,16 @@ ${pressureLine}
 
 A child picks up this book knowing NOTHING. Chapter 1 is not action — it is ORIENTATION.
 Before any danger, quest, or problem begins, the reader needs to know:
-  1. WHO are the characters? (name + one vivid physical detail + one personality trait)
-  2. WHERE are they? (the world in 1-2 sensory sentences)
+  1. WHO are the characters? (name + one concrete behavior cue; use appearance only if it is canonically locked)
+  2. WHERE are they? (the place in one concrete, child-readable cue; do NOT open with "It smelled of...")
   3. WHAT is the mission/goal? (stated clearly and simply, like a parent explaining it)
   4. WHY does it matter? (what bad thing happens if they fail — concrete, not vague)
 
 CHAPTER 1 STRUCTURE (mandatory order):
-  PARAGRAPH 1 – WORLD + CHARACTERS: Introduce the setting and EACH character with one vivid physical detail and one personality trait. No name-drops — weave details into action.
-    EXAMPLE: "Alexander war acht und hatte immer einen Plan. Sein kleiner Bruder Adrian war fünf und hatte die größten braunen Augen der Welt, mit denen er jeden um den Finger wickeln konnte."
+  PARAGRAPH 1 – WORLD + CHARACTERS: Introduce the setting and EACH character through action, position, or voice. Mention appearance only when it is explicitly locked. No name-drops — weave details into action.
+    EXAMPLE: "Mira hatte schon die Hand am Eimer, bevor jemand etwas sagen konnte. Neben ihr tippte Timo mit dem Schuh gegen den Brunnenrand und fragte als Erster, was kaputt war."
   PARAGRAPH 2 – THE MISSION: Explain clearly and simply WHAT the characters must do and WHY. A child must understand in one reading.
-    EXAMPLE: "Eure Großmutter ist krank", sagte die Mutter. "Bringt ihr diesen Korb — sie wohnt drüben auf der anderen Seite des Waldes."
+    EXAMPLE: "Der Brunnen verliert Wasser", sagte die Mutter. "Bringt diesen Eimer zum Zauberkreis, sonst bleibt das Dorf heute Abend dunkel."
   PARAGRAPH 3+ – THE HOOK: Something goes slightly wrong or mysterious appears. A question forms. The adventure begins.
   FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — not relief.
 
@@ -1472,7 +1554,9 @@ Characters who appear in Chapter 1: ${ch1CharIntroNames}.
 
 ABSOLUTE RULES:
 - NEVER start Chapter 1 mid-action or mid-quest. The reader must first understand the world.
+- NEVER open Chapter 1 with an atmosphere-only smell sentence like "Es roch nach...".
 - NEVER assume the reader knows who the characters are. Introduce everyone.
+- NEVER invent glasses, hats, scarves, eye colors, or signature accessories unless they are explicitly locked in the character section.
 - The mission/goal must be so clear that a 6-year-old can repeat it back.
 - Keep the foreground on a tight pair. Any additional character may only react briefly.`;
 
@@ -1499,8 +1583,8 @@ ABSOLUTE RULES:
     let specialRule = `Keep the foreground on ${focusCast.join(", ") || uniqueCast.slice(0, 2).join(", ") || "a tight pair"}. Any additional character may only react briefly.`;
     if (idx === 0) {
       specialRule += isGerman
-        ? " KAPITEL 1: Stelle jeden Charakter zuerst mit einem einprägsamen Detail vor (Aussehen/Eigenart), bevor die Handlung beginnt. Dann: Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
-        : " CHAPTER 1: Introduce each character first with one memorable detail (look/quirk) before the action starts. Then: Include one explicit stakes sentence with \"if ... otherwise ...\" and one concrete thing at risk (key, path, map).";
+        ? " KAPITEL 1: Fuehre jede Figur zuerst ueber Handlung, Stimme oder Position ein. Aussehen nur nennen, wenn es im Appearance-Lock bestaetigt ist. Kein Geruchs-Opener. Dann: Enthaelt einen expliziten Stakes-Satz mit \"Wenn ... sonst ...\" und einem konkreten Ding (z. B. Schluessel, Weg, Karte)."
+        : " CHAPTER 1: Introduce each character first through action, voice, or position. Mention looks only if confirmed in the appearance lock. No smell-led opener. Then: Include one explicit stakes sentence with \"if ... otherwise ...\" and one concrete thing at risk (key, path, map).";
     }
     if (idx === 2 || idx === 3) {
       specialRule += isGerman
@@ -1524,7 +1608,7 @@ ${geminiMicroExamples}
 
 # NON-NEGOTIABLE QUALITY TARGET
 - Prose must read like published children's fiction, never like prompt output.
-- Use paragraphs that breathe (usually 2-4 sentences), varied rhythm, concrete sensory detail.
+- Use paragraphs that breathe (usually 2-4 sentences), varied rhythm, and sensory detail only when it sharpens action. Do not force smell into openings.
 - Dialogue must be character-specific and anchored to action (no talking heads).
 - No moral lecture, no meta narration, no scene labels, no protocol/report tone.
 - BANNED fillers: "plötzlich", "auf einmal", "suddenly", repetitive "dann" sentence starts.
@@ -1540,8 +1624,9 @@ ${geminiMicroExamples}
 8. STRICT ANTI-ECHO: Do not reuse ANY 4+ word phrase from STORY BEATS as dialogue or narration. Beat text = instructions, not prose. If a beat says "if they lose the trail, the garden stays dark" → no character may speak those words. Instead: show a dying flower, a cracked clock face, a character's jaw going tight. Translate instructions into ACTIONS and IMAGES.
 8b. Before finalizing each chapter: check your first 3 dialogue lines — do they echo the Goal/Conflict wording? If yes → rewrite as physical action.
 9. Keep optional metadata ultra-short; spend tokens on chapter prose.
-10. Validator anchors (must be natural prose, not checklist text):
-   - Ch1 PARAGRAPH 1: Establish WHO + WHERE — every character gets a vivid physical detail + personality trait. Never start mid-action.
+10. APPEARANCE LOCK: Never invent glasses, hats, scarves, hair colors, eye colors, or signature accessories unless they are explicitly confirmed below.
+11. Validator anchors (must be natural prose, not checklist text):
+   - Ch1 PARAGRAPH 1: Establish WHO + WHERE through action, voice, and place. Mention appearance only when explicitly locked. Never start mid-action and never start with "Es roch nach...".
    - Ch1 PARAGRAPH 2: State the MISSION clearly (what + why). Must be so simple a 6-year-old can repeat it.
    - Ch1 includes a concrete stakes sentence: what is lost if they fail.
    - Ch1-4 each end on UNRESOLVED TENSION (never "...and they were relieved" or "...they continued").
@@ -1549,10 +1634,10 @@ ${geminiMicroExamples}
    - EVERY character listed in a chapter speaks at least one line AND does one physical action.
    - Ch3 or Ch4 contains setback + physical body reaction (2-3 sentences of feeling stuck).
    - Final chapter includes concrete win + small tangible price + callback to Ch1's opening.
-11. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-12. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
-13. ${ageGroupRule}
-14. PARAGRAPH STRUCTURE: Use blank lines between paragraphs. Each chapter needs 4-6 paragraphs of 2-4 sentences each. NEVER one block of text.
+12. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
+13. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
+14. ${ageGroupRule}
+15. PARAGRAPH STRUCTURE: Use blank lines between paragraphs. Each chapter needs 4-6 paragraphs of 2-4 sentences each. NEVER one block of text.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -1564,6 +1649,7 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 ::: CHARACTER VOICES :::
 ${characterProfiles.join("\n")}
 ${childVoiceContract ? `\n${childVoiceContract}` : ""}
+${appearanceLockBlock ? `\n::: CHARACTER APPEARANCE LOCKS :::\n${appearanceLockBlock}\n` : ""}
 ${memorySection}
 ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery -> Misuse -> Mastery (child-led resolution).\n` : ""}
 
@@ -1611,6 +1697,11 @@ Paragraph length: 2-4 sentences. Never 1. Never 8+.
 After every 3-4 sentences of action → one short dialogue exchange. After dialogue → return to action/environment.
 This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories feel ALIVE.
 
+**SENSORY DISCIPLINE:**
+- Use sensory detail only when it sharpens action, danger, or place.
+- Never begin Chapter 1 with an atmosphere-only smell sentence like "Es roch nach...".
+- Prefer movement, sound, texture, or a visible problem over perfume-style description.
+
 **SENTENCE RHYTHM:**
 - Short. Short. One longer flowing sentence with a surprise or image at the end.
 - Interrupt dialogue with action: "I can–" She tripped. "–do this."
@@ -1657,9 +1748,10 @@ This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories f
 8. STRICT ANTI-ECHO: Do not reuse ANY 4+ word phrase from STORY BEATS as dialogue or narration. Beat text = instructions, not prose. If a beat says "if they lose the trail, the garden stays dark" → no character may speak those words. Instead: show a dying flower, a cracked clock face, a character's jaw going tight. Translate instructions into ACTIONS and IMAGES.
 8b. Before finalizing each chapter: check your first 3 dialogue lines — do they echo the Goal/Conflict wording? If yes → rewrite as physical action.
 9. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-10. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns instead.
-11. ${ageGroupRule}
-12. PARAGRAPH BREAKS: Use blank lines between paragraphs. 4-7 paragraphs per chapter minimum. Never one text wall.
+10. APPEARANCE LOCK: Never invent glasses, hats, scarves, hair colors, eye colors, or signature accessories unless they are explicitly confirmed below.
+11. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns instead.
+12. ${ageGroupRule}
+13. PARAGRAPH BREAKS: Use blank lines between paragraphs. 4-7 paragraphs per chapter minimum. Never one text wall.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -1671,6 +1763,7 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 ::: CHARACTER VOICES :::
 ${characterProfiles.join("\n")}
 ${childVoiceContract ? `\n${childVoiceContract}` : ""}
+${appearanceLockBlock ? `\n::: CHARACTER APPEARANCE LOCKS :::\n${appearanceLockBlock}\n` : ""}
 ${memorySection}
 ${artifactName ? `::: ARTIFACT :::\n- Name: ${artifactName}\n- Rule: ${artifactRule}\n- Arc: Discovery → Temptation → Child-led Mastery (the CHILD decides how the artifact is used, it never acts alone).\n` : ""}
 
@@ -1681,8 +1774,8 @@ ${beatLines}
 - Chapter 1: WORLD SETUP → MISSION → HOOK → STAKES (NO ACTION CONFLICT)
   ⚠️ CHAPTER 1 HAS NO CONFLICT. The Beat Card conflict field for Ch1 is IGNORED. Ch1 is PURE ORIENTATION.
   Chapter 1 is ORIENTATION first, action second. The reader knows nothing.
-  PARAGRAPH 1 – WORLD + CHARACTERS: State WHO and WHERE. Each character gets one vivid physical detail and one personality trait. Write as if explaining to a 6-year-old who has never heard of these characters.
-    FORBIDDEN: Starting in the middle of action ("Adrian rannte durch den Wald..."). REQUIRED: Start with the world and the people in it.
+  PARAGRAPH 1 – WORLD + CHARACTERS: State WHO and WHERE through action, voice, and a concrete place cue. Mention appearance only when it is explicitly locked. Write as if explaining to a 6-year-old who has never heard of these characters.
+    FORBIDDEN: Starting in the middle of action ("Adrian rannte durch den Wald..."). FORBIDDEN: smell-led openings like "Es roch nach...". REQUIRED: Start with the world and the people in it.
   PARAGRAPH 2 – THE MISSION (mandatory): An adult/authority figure gives the characters a clear task. State WHAT they must do and WHY in simple language. Any child must be able to repeat the mission after reading this paragraph.
   PARAGRAPH 3 – FIRST STEP / HOOK: The characters set out. Something small goes slightly wrong or mysterious. The question forms.
   FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — a sound, a shadow, a question unanswered.
@@ -1698,7 +1791,7 @@ Write a JSON object:
 {
   "_planning": {
     "voice_signatures": { "[char1]": "style + 2 words", "[char2]": "style + 2 words" },
-    "ch1_intro_check": "List each character in Ch1 + one vivid physical detail + their spoken line",
+    "ch1_intro_check": "List each character in Ch1 + one action cue or locked canon detail + their spoken line",
     "obstacles": { "ch1": "none (orientation)", "ch2": "type", "ch3": "type", "ch4": "type", "ch5": "type" },
     "payoff_and_price": "Ch5: what is won (concrete) + what small thing is lost"
   },
