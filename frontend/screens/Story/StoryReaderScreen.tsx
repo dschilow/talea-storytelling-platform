@@ -84,7 +84,7 @@ const StoryReaderScreen: React.FC = () => {
     }
 
     // Keine Avatar-Auswahl mehr nötig – Updates erfolgen serverseitig bei Generierung
-  }, [storyId, location.state]);
+  }, [storyId, activeProfileId, location.state]);
 
   useEffect(() => {
     const contentEl = contentRef.current;
@@ -173,7 +173,7 @@ const StoryReaderScreen: React.FC = () => {
 
       // If not found offline, fetch from backend
       if (!storyData) {
-        storyData = await backend.story.get({ id: storyId });
+        storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
       } else {
         console.log('[StoryReaderScreen] Loaded story from offline storage');
       }
@@ -540,6 +540,8 @@ const StoryReaderScreen: React.FC = () => {
                       alt={story.title}
                       className="aspect-[4/5] w-full object-cover"
                       layoutId={`story-cover-${story.id}`}
+                      loading="eager"
+                      decoding="async"
                     />
                   </div>
 
@@ -640,7 +642,9 @@ const StoryReaderScreen: React.FC = () => {
                             <img
                               src={primaryChapterImage}
                               alt={`${currentChapter?.title || 'Kapitel'} - Szene`}
-                                className="w-full h-auto max-h-[40vh] object-contain"
+                              className="w-full h-auto max-h-[40vh] object-contain"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </div>
                         )}
@@ -649,7 +653,9 @@ const StoryReaderScreen: React.FC = () => {
                             <img
                               src={scenicChapterImage}
                               alt={`${currentChapter?.title || 'Kapitel'} - Umgebung`}
-                                className="w-full h-auto max-h-[40vh] object-contain"
+                              className="w-full h-auto max-h-[40vh] object-contain"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </div>
                         )}

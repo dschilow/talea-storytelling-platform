@@ -60,11 +60,22 @@ interface TaleaOfflineDB extends DBSchema {
 
 const DB_NAME = 'talea-offline';
 const DB_VERSION = 2;
+const DB_OPEN_TIMEOUT_MS = 1200;
+const DB_READ_TIMEOUT_MS = 1500;
+const DB_WRITE_TIMEOUT_MS = 3000;
 
 let dbInstance: IDBPDatabase<TaleaOfflineDB> | null = null;
 let dbOpenPromise: Promise<IDBPDatabase<TaleaOfflineDB>> | null = null;
 let dbDisabled = false;
 let hasWarnedUnavailable = false;
+let dbSession = 0;
+
+class OfflineDbTimeoutError extends Error {
+  constructor(operation: string, timeoutMs: number) {
+    super(`[Offline] IndexedDB ${operation} timed out after ${timeoutMs}ms`);
+    this.name = 'OfflineDbTimeoutError';
+  }
+}
 
 function getErrorMessage(error: unknown): string {
   if (typeof error === 'string') return error;
@@ -83,7 +94,31 @@ function getErrorName(error: unknown): string {
   return '';
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promise;
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new OfflineDbTimeoutError(operation, timeoutMs));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 function resetDbConnection(): void {
+  dbSession += 1;
   try {
     dbInstance?.close();
   } catch {
@@ -105,7 +140,14 @@ function markDbUnavailable(error: unknown): void {
   warnOfflineUnavailable(error);
 }
 
+function isDbTimeoutError(error: unknown): boolean {
+  return getErrorName(error) === 'OfflineDbTimeoutError';
+}
+
 function isRecoverableDbError(error: unknown): boolean {
+  if (isDbTimeoutError(error)) {
+    return true;
+  }
   const message = getErrorMessage(error).toLowerCase();
   const name = getErrorName(error).toLowerCase();
   return (
@@ -127,6 +169,7 @@ function isDbUnavailableError(error: unknown): boolean {
   const message = getErrorMessage(error);
   return (
     message.includes('Offline storage is unavailable') ||
+    isDbTimeoutError(error) ||
     isRecoverableDbError(error)
   );
 }
@@ -147,13 +190,13 @@ async function withDbReadFallback<T>(
 ): Promise<T> {
   try {
     const db = await getDb();
-    return await reader(db);
+    return await withTimeout(reader(db), DB_READ_TIMEOUT_MS, 'read');
   } catch (error) {
     if (isDbConnectionClosingError(error)) {
       resetDbConnection();
       try {
         const db = await getDb();
-        return await reader(db);
+        return await withTimeout(reader(db), DB_READ_TIMEOUT_MS, 'read');
       } catch (retryError) {
         if (isDbUnavailableError(retryError)) {
           markDbUnavailable(retryError);
@@ -175,13 +218,13 @@ async function withDbWriteFallback(
 ): Promise<void> {
   try {
     const db = await getDb();
-    await writer(db);
+    await withTimeout(writer(db), DB_WRITE_TIMEOUT_MS, 'write');
   } catch (error) {
     if (isDbConnectionClosingError(error)) {
       resetDbConnection();
       try {
         const db = await getDb();
-        await writer(db);
+        await withTimeout(writer(db), DB_WRITE_TIMEOUT_MS, 'write');
         return;
       } catch (retryError) {
         if (isDbUnavailableError(retryError)) {
@@ -238,11 +281,23 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
   if (dbDisabled) {
     throw new Error('Offline storage is unavailable in this browser context');
   }
-  if (dbOpenPromise) return dbOpenPromise;
+  if (dbOpenPromise) {
+    return withTimeout(dbOpenPromise, DB_OPEN_TIMEOUT_MS, 'open');
+  }
 
+  const sessionAtStart = dbSession;
   dbOpenPromise = (async () => {
     try {
-      dbInstance = await openOfflineDb();
+      const openedDb = await withTimeout(openOfflineDb(), DB_OPEN_TIMEOUT_MS, 'open');
+      if (dbDisabled || sessionAtStart !== dbSession) {
+        try {
+          openedDb.close();
+        } catch {
+          // no-op
+        }
+        throw new Error('Offline storage is unavailable in this browser context');
+      }
+      dbInstance = openedDb;
       return dbInstance;
     } catch (error) {
       if (!isRecoverableDbError(error)) {
@@ -250,8 +305,9 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
         throw error;
       }
 
-      console.warn('[Offline] IndexedDB corrupted, trying database reset...');
+      console.warn('[Offline] IndexedDB unavailable or unresponsive, trying database reset...');
       resetDbConnection();
+      const recoverySession = dbSession;
 
       try {
         await deleteDB(DB_NAME);
@@ -260,7 +316,16 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
       }
 
       try {
-        dbInstance = await openOfflineDb();
+        const reopenedDb = await withTimeout(openOfflineDb(), DB_OPEN_TIMEOUT_MS, 're-open');
+        if (dbDisabled || recoverySession !== dbSession) {
+          try {
+            reopenedDb.close();
+          } catch {
+            // no-op
+          }
+          throw new Error('Offline storage is unavailable in this browser context');
+        }
+        dbInstance = reopenedDb;
         return dbInstance;
       } catch (recoveryError) {
         dbDisabled = true;

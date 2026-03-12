@@ -6,56 +6,55 @@ import { Toaster } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { store } from './store/store';
 
-import HomeScreen from './screens/Home/TaleaHomeScreen';
-import AvatarWizardScreen from './screens/Avatar/AvatarWizardScreen';
-import EditAvatarScreen from './screens/Avatar/EditAvatarScreen';
-import AvatarsScreen from './screens/Avatar/TaleaAvatarsScreen';
-import AvatarDetailScreen from './screens/Avatar/AvatarDetailScreen';
-import StoryWizardScreen from './screens/Story/StoryWizardScreen';
-import ModernStoryWizard from './screens/Story/TaleaStoryWizard';
-import StoryReaderScreen from './screens/Story/StoryReaderScreen';
-import StoryScrollReaderScreen from './screens/Story/StoryScrollReaderScreen';
-import CinematicStoryViewer from './screens/Story/CinematicStoryViewer';
-import CinematicDokuViewer from './screens/Doku/CinematicDokuViewer';
-
-import StoriesScreen from './screens/Story/TaleaStoriesScreen';
-import FairyTaleSelectionScreen from './screens/Story/FairyTaleSelectionScreen';
-import CharacterMappingScreen from './screens/Story/CharacterMappingScreen';
-import LogViewerScreen from './screens/Logs/LogViewerScreen';
 import AppLayout from './components/layout/AppLayout';
 import TaviButton from './components/common/TaviButton';
 import { colors } from './utils/constants/colors';
-import AuthScreen from './screens/Auth/AuthScreen';
-import AdminDashboard from './screens/Admin/AdminDashboard';
 import { clerkPublishableKey } from './config';
-import ModernDokuWizard from './screens/Doku/ModernDokuWizard';
-import DokuReaderScreen from './screens/Doku/DokuReaderScreen';
-import DokuScrollReaderScreen from './screens/Doku/DokuScrollReaderScreen';
-import DokusScreen from './screens/Doku/TaleaDokusScreen';
-import CreateAudioDokuScreen from './screens/Doku/CreateAudioDokuScreen';
-import CharacterPoolScreen from './screens/CharacterPool/CharacterPoolScreen';
-import ArtifactPoolScreen from './screens/ArtifactPool/ArtifactPoolScreen';
-import FairyTalesScreen from './screens/FairyTales/FairyTalesScreen';
-import SettingsScreen from './screens/Settings/SettingsScreen';
-import CommunityQuizScreen from './screens/Quiz/CommunityQuizScreen';
-import TaleaLearningPathMapView from './screens/Journey/TaleaLearningPathMapView';
-// Lazy-load Cosmos screens (Three.js is ~1.5 MB, keep it out of main bundle)
-const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
-const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import { ChildProfilesProvider } from './contexts/ChildProfilesContext';
 import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
-import ModernHomeScreen from './screens/Home/ModernHomeScreen';
-import LandingPage from './screens/Landing/LandingPage';
-import ParentalOnboardingScreen from './screens/Settings/ParentalOnboardingScreen';
-import OfflineContentScreen from './screens/Offline/OfflineContentScreen';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 import { parseHapticIntent, triggerHaptic } from './utils/haptics';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
+
+const HomeScreen = React.lazy(() => import('./screens/Home/TaleaHomeScreen'));
+const ModernHomeScreen = React.lazy(() => import('./screens/Home/ModernHomeScreen'));
+const LandingPage = React.lazy(() => import('./screens/Landing/LandingPage'));
+const AuthScreen = React.lazy(() => import('./screens/Auth/AuthScreen'));
+const AvatarsScreen = React.lazy(() => import('./screens/Avatar/TaleaAvatarsScreen'));
+const AvatarWizardScreen = React.lazy(() => import('./screens/Avatar/AvatarWizardScreen'));
+const AvatarDetailScreen = React.lazy(() => import('./screens/Avatar/AvatarDetailScreen'));
+const EditAvatarScreen = React.lazy(() => import('./screens/Avatar/EditAvatarScreen'));
+const StoryWizardScreen = React.lazy(() => import('./screens/Story/StoryWizardScreen'));
+const ModernStoryWizard = React.lazy(() => import('./screens/Story/TaleaStoryWizard'));
+const FairyTaleSelectionScreen = React.lazy(() => import('./screens/Story/FairyTaleSelectionScreen'));
+const CharacterMappingScreen = React.lazy(() => import('./screens/Story/CharacterMappingScreen'));
+const StoriesScreen = React.lazy(() => import('./screens/Story/TaleaStoriesScreen'));
+const StoryReaderScreen = React.lazy(() => import('./screens/Story/StoryReaderScreen'));
+const StoryScrollReaderScreen = React.lazy(() => import('./screens/Story/StoryScrollReaderScreen'));
+const CinematicStoryViewer = React.lazy(() => import('./screens/Story/CinematicStoryViewer'));
+const DokusScreen = React.lazy(() => import('./screens/Doku/TaleaDokusScreen'));
+const ModernDokuWizard = React.lazy(() => import('./screens/Doku/ModernDokuWizard'));
+const CreateAudioDokuScreen = React.lazy(() => import('./screens/Doku/CreateAudioDokuScreen'));
+const DokuReaderScreen = React.lazy(() => import('./screens/Doku/DokuReaderScreen'));
+const DokuScrollReaderScreen = React.lazy(() => import('./screens/Doku/DokuScrollReaderScreen'));
+const CinematicDokuViewer = React.lazy(() => import('./screens/Doku/CinematicDokuViewer'));
+const CommunityQuizScreen = React.lazy(() => import('./screens/Quiz/CommunityQuizScreen'));
+const TaleaLearningPathMapView = React.lazy(() => import('./screens/Journey/TaleaLearningPathMapView'));
+const SettingsScreen = React.lazy(() => import('./screens/Settings/SettingsScreen'));
+const ParentalOnboardingScreen = React.lazy(() => import('./screens/Settings/ParentalOnboardingScreen'));
+const CharacterPoolScreen = React.lazy(() => import('./screens/CharacterPool/CharacterPoolScreen'));
+const ArtifactPoolScreen = React.lazy(() => import('./screens/ArtifactPool/ArtifactPoolScreen'));
+const FairyTalesScreen = React.lazy(() => import('./screens/FairyTales/FairyTalesScreen'));
+const LogViewerScreen = React.lazy(() => import('./screens/Logs/LogViewerScreen'));
+const AdminDashboard = React.lazy(() => import('./screens/Admin/AdminDashboard'));
+const OfflineContentScreen = React.lazy(() => import('./screens/Offline/OfflineContentScreen'));
+const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
+const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
 
 // Reactive online/offline detection.
 // navigator.onLine is unreliable (returns true when connected to a local network
@@ -167,6 +166,12 @@ const GlobalHaptics: React.FC = () => {
   return null;
 };
 
+const RouteLoadingFallback = () => (
+  <div className="flex h-screen items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c47832] border-t-transparent" />
+  </div>
+);
+
 const AdminOnlyRoute: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   const { isLoading, isAdmin } = useOptionalUserAccess();
   if (isLoading) {
@@ -209,54 +214,56 @@ const RouterContent = () => {
 
   return (
     <>
-      <Routes>
-        {!isSignedIn ? (
-          <>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/landing" element={<LandingPage />} />
-            <Route path="/auth" element={<AuthScreen />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        ) : (
-          <>
-            <Route path="/landing" element={<Navigate to="/" replace />} />
-            <Route path="/parental-onboarding" element={<ParentalOnboardingScreen />} />
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<HomeScreen />} />
-              <Route path="/avatar" element={<AvatarsScreen />} />
-              <Route path="/avatar/create" element={<AvatarWizardScreen />} />
-              <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
-              <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
-              <Route path="/story" element={<ModernStoryWizard />} />
-              <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
-              <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
-              <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
-              <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-              <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-              <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-              <Route path="/stories" element={<StoriesScreen />} />
-              <Route path="/community" element={<ModernHomeScreen />} />
-              <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
-              <Route path="/doku" element={<DokusScreen />} />
-              <Route path="/createaudiodoku" element={<AdminOnlyRoute><CreateAudioDokuScreen /></AdminOnlyRoute>} />
-              <Route path="/quiz" element={<CommunityQuizScreen />} />
-              <Route path="/characters" element={<AdminOnlyRoute><CharacterPoolScreen /></AdminOnlyRoute>} />
-              <Route path="/artifacts" element={<AdminOnlyRoute><ArtifactPoolScreen /></AdminOnlyRoute>} />
-              <Route path="/fairytales" element={<AdminOnlyRoute><FairyTalesScreen /></AdminOnlyRoute>} />
-              <Route path="/doku/create" element={<ModernDokuWizard />} />
-              <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-              <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-              <Route path="/auth" element={<Navigate to="/" replace />} />
-              <Route path="/settings" element={<SettingsScreen />} />
-              <Route path="/cosmos" element={<React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" /></div>}><CosmosScreen /></React.Suspense>} />
-              <Route path="/cosmos/parent" element={<React.Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-500 border-t-transparent" /></div>}><ParentDashboardRoot /></React.Suspense>} />
-              <Route path="/map" element={<TaleaLearningPathMapView />} />
-              <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </>
-        )}
-      </Routes>
+      <React.Suspense fallback={<RouteLoadingFallback />}>
+        <Routes>
+          {!isSignedIn ? (
+            <>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/landing" element={<LandingPage />} />
+              <Route path="/auth" element={<AuthScreen />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          ) : (
+            <>
+              <Route path="/landing" element={<Navigate to="/" replace />} />
+              <Route path="/parental-onboarding" element={<ParentalOnboardingScreen />} />
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<HomeScreen />} />
+                <Route path="/avatar" element={<AvatarsScreen />} />
+                <Route path="/avatar/create" element={<AvatarWizardScreen />} />
+                <Route path="/avatar/:avatarId" element={<AvatarDetailScreen />} />
+                <Route path="/avatar/edit/:avatarId" element={<EditAvatarScreen />} />
+                <Route path="/story" element={<ModernStoryWizard />} />
+                <Route path="/story/wizard-old" element={<StoryWizardScreen />} />
+                <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
+                <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
+                <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+                <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+                <Route path="/stories" element={<StoriesScreen />} />
+                <Route path="/community" element={<ModernHomeScreen />} />
+                <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
+                <Route path="/doku" element={<DokusScreen />} />
+                <Route path="/createaudiodoku" element={<AdminOnlyRoute><CreateAudioDokuScreen /></AdminOnlyRoute>} />
+                <Route path="/quiz" element={<CommunityQuizScreen />} />
+                <Route path="/characters" element={<AdminOnlyRoute><CharacterPoolScreen /></AdminOnlyRoute>} />
+                <Route path="/artifacts" element={<AdminOnlyRoute><ArtifactPoolScreen /></AdminOnlyRoute>} />
+                <Route path="/fairytales" element={<AdminOnlyRoute><FairyTalesScreen /></AdminOnlyRoute>} />
+                <Route path="/doku/create" element={<ModernDokuWizard />} />
+                <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+                <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+                <Route path="/auth" element={<Navigate to="/" replace />} />
+                <Route path="/settings" element={<SettingsScreen />} />
+                <Route path="/cosmos" element={<CosmosScreen />} />
+                <Route path="/cosmos/parent" element={<ParentDashboardRoot />} />
+                <Route path="/map" element={<TaleaLearningPathMapView />} />
+                <Route path="/_admin" element={<AdminOnlyRoute><AdminDashboard /></AdminOnlyRoute>} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
+        </Routes>
+      </React.Suspense>
       {isSignedIn && !isLandingRoute && !isCosmosFullscreenRoute && <TaviButton showLauncher={false} />}
       <Toaster
         position="top-right"
@@ -365,15 +372,17 @@ const OfflineApp = () => (
       <OfflineClerkProvider>
         <OfflineThemeProvider>
           <AudioPlayerProvider>
-            <Routes>
-              <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-              <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-              <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-              <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-              <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-              <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
-              <Route path="*" element={<OfflineContentScreen />} />
-            </Routes>
+            <React.Suspense fallback={<RouteLoadingFallback />}>
+              <Routes>
+                <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+                <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+                <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+                <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+                <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
+                <Route path="*" element={<OfflineContentScreen />} />
+              </Routes>
+            </React.Suspense>
           </AudioPlayerProvider>
         </OfflineThemeProvider>
       </OfflineClerkProvider>

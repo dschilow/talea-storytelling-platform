@@ -130,7 +130,7 @@ const CinematicStoryViewer: React.FC = () => {
 
   useEffect(() => {
     if (storyId) void loadStory();
-  }, [storyId]);
+  }, [storyId, activeProfileId]);
 
   useEffect(() => {
     if (!currentArtifact && artifactQueue.length > 0) {
@@ -147,7 +147,7 @@ const CinematicStoryViewer: React.FC = () => {
       setError(null);
       let rawStory: any = await getOfflineStory(storyId);
       if (!rawStory) {
-        const storyData = await backend.story.get({ id: storyId });
+        const storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
         rawStory = storyData as any;
       }
       setStory(rawStory as Story);
@@ -643,7 +643,13 @@ const ChapterSection: React.FC<{
                 className="sr-chapter-image-wrap"
                 style={{ marginTop: "1.3rem", marginBottom: "1.3rem" }}
               >
-                <img src={primaryImage} alt={`${chapter.title} - Szene`} className="sr-chapter-image" />
+                <img
+                  src={primaryImage}
+                  alt={`${chapter.title} - Szene`}
+                  className="sr-chapter-image"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
                 <div className="sr-chapter-image-overlay" />
               </motion.div>
             )}
@@ -657,7 +663,13 @@ const ChapterSection: React.FC<{
                 className="sr-chapter-image-wrap"
                 style={{ marginTop: "1.3rem", marginBottom: "1.3rem" }}
               >
-                <img src={scenicImage} alt={`${chapter.title} - Umgebung`} className="sr-chapter-image" />
+                <img
+                  src={scenicImage}
+                  alt={`${chapter.title} - Umgebung`}
+                  className="sr-chapter-image"
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                />
                 <div className="sr-chapter-image-overlay" />
               </motion.div>
             )}
@@ -689,4 +701,3 @@ const ChapterSection: React.FC<{
 };
 
 export default CinematicStoryViewer;
-

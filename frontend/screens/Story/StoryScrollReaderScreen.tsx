@@ -35,7 +35,7 @@ const StoryScrollReaderScreen: React.FC = () => {
     if (storyId) {
       loadStory();
     }
-  }, [storyId]);
+  }, [storyId, activeProfileId]);
 
   const loadStory = async () => {
     if (!storyId) return;
@@ -48,7 +48,7 @@ const StoryScrollReaderScreen: React.FC = () => {
 
       // If not found offline, fetch from backend
       if (!storyData) {
-        storyData = await backend.story.get({ id: storyId });
+        storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
       } else {
         console.log('[StoryScrollReaderScreen] Loaded story from offline storage');
       }
@@ -323,6 +323,8 @@ const StoryScrollReaderScreen: React.FC = () => {
                                   src={primaryImage}
                                   alt={`${chapter.title} - Szene`}
                                   className="w-full h-auto max-h-[60vh] object-contain"
+                                  loading={index === 0 ? 'eager' : 'lazy'}
+                                  decoding="async"
                                 />
                               </div>
                             )}
@@ -333,6 +335,8 @@ const StoryScrollReaderScreen: React.FC = () => {
                                   src={scenicImage}
                                   alt={`${chapter.title} - Umgebung`}
                                   className="w-full h-auto max-h-[60vh] object-contain"
+                                  loading={index === 0 ? 'eager' : 'lazy'}
+                                  decoding="async"
                                 />
                               </div>
                             )}
