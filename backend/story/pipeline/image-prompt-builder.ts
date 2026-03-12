@@ -122,6 +122,11 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     : "";
   const nonHumanRule = [animalRule, humanoidFantasyRule].filter(Boolean).join("\n") || "";
 
+  const artifactPromptLabel = resolveArtifactPromptLabel(spec, cast);
+  const artifactVisibilityRule = artifactPromptLabel
+    ? `- REQUIRED PROP: ${artifactPromptLabel} must be clearly visible in the scene and integrated into the action`
+    : "";
+
   const constraints = [
     "ABSOLUTE HARD RULES (MUST FOLLOW):",
     `- EXACTLY ${formatCountWord(count)} character${count !== 1 ? "s" : ""} total: ${namesLine}`,
@@ -141,6 +146,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     "- Single continuous scene; no panels, split-screen, collage, or multi-image layout",
     "- No written text or typography; no watermarks or logos",
     hasBird ? "- EXACTLY 1 bird total (if present), no other animals" : "- No extra animals",
+    artifactVisibilityRule,
     identityLock,
     ...identityConsistencyRules,
     nonHumanRule,
@@ -163,7 +169,10 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
     .map((item) => stripTtsEmotionTags(item || ""))
     .filter(Boolean)
     .join(", ");
-  const actionBlock = `ACTION (DO NOT SWAP): ${stagingLine ? `${stagingLine}. ` : ""}${actionText}${propsText ? ` Key props: ${propsText}.` : ""}`;
+  const artifactActionPrefix = artifactPromptLabel
+    ? `${artifactPromptLabel} must remain visible while the characters interact with it. `
+    : "";
+  const actionBlock = `ACTION (DO NOT SWAP): ${stagingLine ? `${stagingLine}. ` : ""}${artifactActionPrefix}${actionText}${propsText ? ` Key props: ${propsText}.` : ""}`;
 
   const characterIdentityBlock = characterDetails.length > 0
     ? `CHARACTER IDENTITY LOCKS:\n${characterDetails.map(detail => `- ${detail}`).join("\n")}`
@@ -309,6 +318,33 @@ function normalizeNameToken(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]/gi, "")
+    .toLowerCase();
+}
+
+function resolveArtifactPromptLabel(spec: ImageSpec, cast: CastSet): string {
+  const rawArtifactName = String(cast.artifact?.name || "").trim();
+  const artifactRef = Object.values(spec.refs || {}).find(value => value.includes("PROP/ARTIFACT"));
+  if (artifactRef) {
+    const refName = extractRefName(artifactRef);
+    if (refName) return refName;
+  }
+  if (!rawArtifactName) return "";
+
+  const normalizedArtifact = normalizePromptToken(rawArtifactName);
+  const propMatch = (spec.propsVisible || []).find((item) => {
+    const normalizedItem = normalizePromptToken(item);
+    return normalizedItem && (normalizedItem.includes(normalizedArtifact) || normalizedArtifact.includes(normalizedItem));
+  });
+
+  return propMatch || rawArtifactName;
+}
+
+function normalizePromptToken(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .trim()
     .toLowerCase();
 }
 

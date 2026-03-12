@@ -115,21 +115,21 @@ function collectIssues(spec: ImageSpec, cast: CastSet, maxPropsVisible: number):
 
 function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
   const issues: ImageValidationIssue[] = [];
-  const fullPrompt = stripNegativeBlock(spec.finalPromptText || "").toLowerCase();
+  const fullPrompt = stripNegativeBlock(spec.finalPromptText || "");
 
-  if (!fullPrompt.includes("exactly")) {
+  if (!fullPrompt.toLowerCase().includes("exactly")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_EXACT_COUNT", message: "Prompt missing exact character count" });
   }
-  if (!fullPrompt.includes("full body") && !fullPrompt.includes("head-to-toe")) {
+  if (!fullPrompt.toLowerCase().includes("full body") && !fullPrompt.toLowerCase().includes("head-to-toe")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_FULL_BODY", message: "Prompt missing full body requirement" });
   }
-  if (fullPrompt.includes("portrait") || fullPrompt.includes("selfie") || fullPrompt.includes("close-up")) {
+  if (fullPrompt.toLowerCase().includes("portrait") || fullPrompt.toLowerCase().includes("selfie") || fullPrompt.toLowerCase().includes("close-up")) {
     issues.push({ chapter: spec.chapter, code: "FORBIDDEN_PORTRAIT", message: "Prompt includes portrait-like phrasing" });
   }
-  if (!fullPrompt.includes("not at camera") && !fullPrompt.includes("not looking at camera")) {
+  if (!fullPrompt.toLowerCase().includes("not at camera") && !fullPrompt.toLowerCase().includes("not looking at camera")) {
     issues.push({ chapter: spec.chapter, code: "MISSING_NO_CAMERA", message: "Prompt missing 'no looking at camera'" });
   }
-  if (fullPrompt.includes("avoid (negative") || fullPrompt.includes("negative prompt:")) {
+  if (fullPrompt.toLowerCase().includes("avoid (negative") || fullPrompt.toLowerCase().includes("negative prompt:")) {
     issues.push({ chapter: spec.chapter, code: "NEGATIVE_IN_POSITIVE", message: "Negative prompt mixed into positive prompt" });
   }
   if (hasStaticActionLanguage(spec.actions)) {
@@ -139,9 +139,10 @@ function lintPrompt(spec: ImageSpec, cast: CastSet): ImageValidationIssue[] {
     issues.push({ chapter: spec.chapter, code: "ACTION_COVERAGE_WEAK", message: "Not every on-stage character has a clear action line" });
   }
 
-  const artifactName = cast.artifact?.name?.toLowerCase() ?? "";
-  if (artifactName && (spec.propsVisible || []).some(item => item.toLowerCase().includes(artifactName))) {
-    if (!fullPrompt.includes(artifactName)) {
+  const artifactAliases = resolveArtifactAliases(spec, cast);
+  if (artifactAliases.length > 0) {
+    const hasArtifactMention = artifactAliases.some(alias => promptIncludesAlias(fullPrompt, alias));
+    if (!hasArtifactMention) {
       issues.push({ chapter: spec.chapter, code: "MISSING_ARTIFACT", message: "Prompt missing artifact visibility" });
     }
   }
@@ -154,6 +155,52 @@ function stripNegativeBlock(text: string): string {
   const lines = text.split(/\r?\n/);
   const filtered = lines.filter(line => !line.trim().toLowerCase().startsWith("negative"));
   return filtered.join("\n");
+}
+
+function resolveArtifactAliases(spec: ImageSpec, cast: CastSet): string[] {
+  const aliases = new Set<string>();
+  const rawArtifactName = String(cast.artifact?.name || "").trim();
+  if (rawArtifactName) aliases.add(rawArtifactName);
+
+  for (const value of Object.values(spec.refs || {})) {
+    if (!value.includes("PROP/ARTIFACT")) continue;
+    const refName = extractArtifactNameFromRef(value);
+    if (refName) aliases.add(refName);
+  }
+
+  if (rawArtifactName) {
+    const normalizedArtifact = normalizePromptToken(rawArtifactName);
+    for (const item of spec.propsVisible || []) {
+      const normalizedItem = normalizePromptToken(item);
+      if (!normalizedItem) continue;
+      if (normalizedItem.includes(normalizedArtifact) || normalizedArtifact.includes(normalizedItem)) {
+        aliases.add(item);
+      }
+    }
+  }
+
+  return Array.from(aliases).filter(Boolean);
+}
+
+function extractArtifactNameFromRef(value: string): string {
+  const normalized = String(value || "").replace(/[–—]/g, "-");
+  const [head] = normalized.split(/\s+-\s+/);
+  return (head || normalized).trim();
+}
+
+function promptIncludesAlias(prompt: string, alias: string): boolean {
+  const normalizedPrompt = normalizePromptToken(prompt);
+  const normalizedAlias = normalizePromptToken(alias);
+  return Boolean(normalizedAlias) && normalizedPrompt.includes(normalizedAlias);
+}
+
+function normalizePromptToken(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function expectedRefs(spec: ImageSpec, cast: CastSet): Record<string, string> {

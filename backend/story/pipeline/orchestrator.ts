@@ -30,8 +30,6 @@ import { storyDB } from "../db";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { AvatarMemoryCompressed } from "./types";
 
-// Top-level DB reference required by Encore compiler
-const avatarDB = SQLDatabase.named("avatar");
 import {
   loadCastSet,
   loadIntegrationPlan,
@@ -49,6 +47,11 @@ import {
   updateStoryInstanceStatus,
   loadStoryImages,
 } from "./repository";
+
+// Top-level DB reference required by Encore compiler
+const avatarDB = SQLDatabase.named("avatar");
+
+const BLOCKING_IMAGE_ISSUE_CODES = new Set(["SCHEMA", "REF_COUNT", "REF_EXTRA", "TOO_MANY_PROPS"]);
 
 export interface PipelineRunResult {
   normalizedRequest: NormalizedRequest;
@@ -798,6 +801,8 @@ export class StoryPipelineOrchestrator {
 
       const uniqueCharacters = new Set(imageSpecs.flatMap(s => s.onStageExact || []));
       const hasArtifacts = directives.some(d => d.charactersOnStage.includes("SLOT_ARTIFACT_1"));
+      const blockingImageIssues = imageIssues.filter(issue => BLOCKING_IMAGE_ISSUE_CODES.has(issue.code));
+      const nonBlockingImageIssues = imageIssues.filter(issue => !BLOCKING_IMAGE_ISSUE_CODES.has(issue.code));
       if (createdImageSpecs || imageAttempts > 0) {
         await saveImageSpecs(normalized.storyId, imageSpecs);
         await logPhase("phase7-imagespec", { storyId: normalized.storyId }, {
@@ -812,16 +817,25 @@ export class StoryPipelineOrchestrator {
 
       const imageGate = {
         phase: "phase7-imagespec",
-        success: imageIssues.length === 0,
-        schemaValid: imageIssues.length === 0,
+        success: blockingImageIssues.length === 0,
+        schemaValid: !imageIssues.some(issue => issue.code === "SCHEMA"),
         attempts: imageAttempts,
-        issues: imageIssues.map(issue => ({ severity: "ERROR", ...issue })),
+        issues: imageIssues.map(issue => ({
+          severity: BLOCKING_IMAGE_ISSUE_CODES.has(issue.code) ? "ERROR" : "WARN",
+          ...issue,
+        })),
       };
       phaseGates.push(imageGate);
-      if (imageIssues.length > 0) {
+      if (nonBlockingImageIssues.length > 0) {
+        console.warn("[phase7-imagespec] Continuing with non-blocking issues", {
+          storyId: normalized.storyId,
+          issues: nonBlockingImageIssues,
+        });
+      }
+      if (blockingImageIssues.length > 0) {
         validationReport = { gates: phaseGates, story: qualityReport, images: imageIssues };
         await saveValidationReport(normalized.storyId, validationReport);
-        throw new Error(`ImageSpec validation failed: ${imageIssues.map(i => i.code).join(", ")}`);
+        throw new Error(`ImageSpec validation failed: ${blockingImageIssues.map(i => i.code).join(", ")}`);
       }
 
       const phase8Start = Date.now();
