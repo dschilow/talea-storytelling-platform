@@ -922,23 +922,24 @@ ${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
 ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
 NON-NEGOTIABLES
-1. Chapter 1 starts clear. After paragraph 2, WHO, WHERE, WHAT, and WHY are obvious.
-2. The very first sentence must begin with a child action, spoken line, or concrete problem. Never open with an atmosphere-only smell sentence like "Es roch nach...".
-3. Chapter 1 states the concrete stakes early.
-4. Chapters 2-5 open by connecting to the previous chapter's ending.
-4b. Never start ANY chapter with an atmosphere-only smell sentence. Chapter openings begin with action, voice, or a visible problem.
-5. Chapter 3 contains a child-caused mistake with a clear consequence.
-6. Chapter 4 contains the low point and an internal turning point.
-7. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
-8. Keep 2 foreground characters per chapter. One support character may react briefly.
-9. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
-10. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
-11. Use sensory detail sparingly and concretely. Prefer sound, texture, movement, or a visible problem over smell. Never force smell into chapter openings.
-12. Only mention appearance details that are explicitly locked above. Never invent glasses, hats, scarves, eye colors, or signature accessories.
-13. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
-14. No report prose, no moral summary, no new names.
-15. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
-${humorRule ? `16. ${humorRule}` : ""}
+1. Chapter 1 uses a soft launch, not a hard cold-open. Paragraph 1 may be quiet, but it must anchor the lead child in a familiar place through action, voice, or a visible child-linked detail.
+2. Do not throw the reader straight into chase/fight panic in sentence 1. For ages 6-8, after paragraph 2 WHO, WHERE, WHAT, and WHY must be obvious.
+3. Chapter 1 states the mission and the concrete stakes by paragraph 2.
+4. The first sentence of chapter 1 may begin with a child action, a spoken line, or a visible familiar-world detail that points straight to the child. Never open with pure atmosphere or smell.
+5. Chapters 2-5 open by connecting to the previous chapter's ending.
+5b. Never start ANY chapter with an atmosphere-only smell sentence. Chapter openings begin with child action, voice, or a visible problem.
+6. Chapter 3 contains a child-caused mistake with a clear consequence.
+7. Chapter 4 contains the low point and an internal turning point.
+8. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
+9. Keep 2 foreground characters per chapter. One support character may react briefly.
+10. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
+11. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
+12. Use sensory detail sparingly and concretely. Prefer sound, texture, movement, or a visible problem over smell. Never force smell into chapter openings.
+13. Only mention appearance details that are explicitly locked above. Never invent glasses, hats, scarves, eye colors, or signature accessories.
+14. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
+15. No report prose, no moral summary, no new names.
+16. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
+${humorRule ? `17. ${humorRule}` : ""}
 
 OUTPUT
 {
@@ -1014,6 +1015,7 @@ ${artifactBlock}
 RULES
 - Concrete, child-readable, no abstract morals.
 - Keep every field short. Prefer one sentence.
+- Chapter 1 uses a soft launch for ages 6-8: familiar place + child behavior first, mission + concrete risk by paragraph 2, oddity or trouble by paragraph 3.
 - Chapter 1 must name the concrete risk if the child fails.
 - Chapter 3 mistake comes from the child's trait, not bad luck.
 - Chapter 4 turning point comes from inside the child.
@@ -1046,7 +1048,8 @@ Schreibe release-faehige Vorleseprosa: klar, warm, konkret und leicht zu verfolg
 - Nutze meist kurze bis mittlere Saetze. Viele liegen bei 6-14 Woertern. Einzelne laengere Saetze sind okay, wenn sie laut vorgelesen klar bleiben.
 - Ursache und Wirkung muessen jederzeit leicht zu verstehen sein.
 - Zeige Gefuehle ueber Verhalten, Koerper und kleine Entscheidungen, nicht ueber Etiketten.
-- Beginne Kapitel 1 nie mit einem reinen Geruchssatz wie "Es roch nach ...". Starte mit Handlung, Stimme oder einem sichtbaren Problem.
+- Fuer 6-8 jaehrige Kinder funktioniert meist ein geerdeter, ruhiger Auftakt besser als ein harter Action-Kaltstart: vertrauter Ort + Kind in Bewegung, dann Aufgabe und Risiko.
+- Beginne Kapitel 1 nie mit einem reinen Geruchssatz wie "Es roch nach ...". Der erste Satz darf ruhig sein, muss aber direkt zum Kind oder zum sichtbaren Problem fuehren.
 - Erfinde keine Brille, Muetze, Schals oder andere Markenzeichen, wenn sie nicht ausdruecklich vorgegeben sind.
 - Kinderfiguren muessen klar unterscheidbar klingen. Wenn Namen aehnlich sind, unterscheide sie noch staerker ueber Rhythmus und Wortwahl.
 - Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung, keine prompt-artigen Formulierungen.
@@ -1058,7 +1061,8 @@ Write release-ready read-aloud prose: clear, warm, concrete, and easy to follow.
 - Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they still read aloud smoothly.
 - Cause and effect must stay easy to follow.
 - Show feelings through behavior, body reactions, and small decisions, not labels.
-- Never open chapter 1 with a pure smell sentence like "It smelled of...". Start with action, voice, or a visible problem.
+- For ages 6-8, a grounded soft launch usually works better than a hard action cold-open: familiar place + child in motion first, then mission and risk.
+- Never open chapter 1 with a pure smell sentence like "It smelled of...". The first sentence may be quiet, but it must lead straight to the child or the visible problem.
 - Never invent glasses, hats, scarves, or signature accessories unless they are explicitly provided.
 - Child characters must sound clearly different. If names are similar, separate them even more through rhythm and wording.
 - No report prose, checklist prose, moral summaries, or prompt-like phrasing.`;
@@ -1335,11 +1339,14 @@ ${blueprintHint}
 
 5. CHAPTER TRANSITIONS: The first sentence of each chapter (from Ch2 on) must connect to the last sentence of the previous chapter.
 
+6. CHAPTER 1 OPENING: Keep a soft launch. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail. Paragraph 2 states mission + concrete risk. Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
+
 ::: HARD RULES :::
 1. Language: ONLY ${outputLang}.${umlautRule}
 2. Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
 3. Cast Lock: ${allNames}. No new names.
 4. Never copy goal/conflict text into the story. Dramatize.
+5. Chapter 1 may open quietly, but the first sentence must already point to the lead child or the concrete child-world problem. No pure scenic setup.
 
 ${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
 ::: ORIGINAL DRAFT (REWRITE) :::
@@ -1869,7 +1876,7 @@ ${qualityIssues || "- General prose improvement needed. Too flat, robot-style pr
 
 ${goldenExampleRef}
 
-::: THE REWRITE RULES(focus on these 4 things) :::
+::: THE REWRITE RULES(focus on these 5 things) :::
 
   1. ** PARAGRAPH STRUCTURE(THE #1 PROBLEM) **
     The draft likely has single - sentence chains: "He ran. She said. He nodded."
@@ -1889,6 +1896,11 @@ ${goldenExampleRef}
     Every dialogue line needs a physical action anchor.No talking heads.
       Bad: "Hallo", sagte Tom.Good: Tom trat gegen den Dreck. "Hallo."
 
+  5. ** CHAPTER 1 OPENING **
+    Keep a soft launch for ages 6-8. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail.
+    Paragraph 2 states the mission and the concrete risk.
+    Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
+
 ::: HARD RULES:::
   1) Language: ONLY ${outputLang}.${umlautRule}
   2) Length: ${totalWordMin} -${totalWordMax} words.Chapters: ${wordsPerChapter.min} -${wordsPerChapter.max}.
@@ -1897,6 +1909,7 @@ ${goldenExampleRef}
     ${humorRewriteLine}
   5) NEVER copy Goal / Conflict / Setting text into the story.Dramatize!
   6) BANNED: "plötzlich", emotion labels, single - sentence chains, moral lectures.
+  7) Chapter 1 may open quietly, but the first sentence must already point to the lead child or the concrete child-world problem. No pure scenic setup.
 
     ${stylePackBlock ? `::: STYLE PACK :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}

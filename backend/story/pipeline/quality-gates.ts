@@ -2721,6 +2721,7 @@ function gateCh1Orientation(
   const text = ch1.text;
   const sentences = splitSentences(text);
   if (sentences.length < 3) return issues;
+  const firstSentence = sentences[0] || "";
 
   // Check first 3 sentences for action-heavy verbs that suggest in-medias-res
   const first3 = sentences.slice(0, 3).join(" ");
@@ -2743,6 +2744,18 @@ function gateCh1Orientation(
     const parts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
     return parts.some(p => firstHalf.toLowerCase().includes(p));
   });
+  const focusNameParts = focusNames
+    .flatMap(name => name.toLowerCase().split(/\s+/))
+    .filter(part => part.length > 2);
+  const firstSentenceLower = firstSentence.toLowerCase();
+  const firstSentenceHasFocusChild = focusNameParts.some(part => firstSentenceLower.includes(part));
+  const firstSentenceHasDialogue = /^\s*(?:[""„«»“”'‘’]|[—–-]\s)/.test(firstSentence);
+  const scenicOpeningPattern = isDE
+    ? /^(?:vor dem|vor der|hinter dem|hinter der|im |in der |am |auf dem|auf der|zwischen|neben|unter|über dem|ueber dem|dort|da)\b/i
+    : /^(?:in the|at the|by the|near the|behind the|before the|under the|over the|between|there)\b/i;
+  const staticSceneVerbPattern = isDE
+    ? /\b(?:lag|lagen|stand|standen|war|waren|begann|begannen|hing|hingen)\b/i
+    : /\b(?:lay|stood|was|were|began|hung)\b/i;
 
   if (isActionOpening && avatarsIntroduced.length < focusNames.length) {
     issues.push({
@@ -2753,6 +2766,23 @@ function gateCh1Orientation(
         ? `Kapitel 1 beginnt mitten in der Aktion, bevor die Figuren vorgestellt wurden. Kapitel 1 muss zuerst WER und WO etablieren.`
         : `Chapter 1 starts mid-action before characters are introduced. Chapter 1 must first establish WHO and WHERE.`,
       severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  if (
+    scenicOpeningPattern.test(firstSentenceLower)
+    && staticSceneVerbPattern.test(firstSentence)
+    && !firstSentenceHasFocusChild
+    && !firstSentenceHasDialogue
+  ) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_STATIC_SCENIC_OPENING",
+      message: isDE
+        ? "Kapitel 1 beginnt mit einer statischen Kulisse ohne Kind-Anker. Fuer 6-8 jaehrige Leser darf der Auftakt ruhig sein, muss aber sofort zum Kind oder zum sichtbaren Problem fuehren."
+        : "Chapter 1 opens with static scenery and no child anchor. For ages 6-8 the opening may be calm, but it must immediately point to the child or the visible problem.",
+      severity: ageMax <= 8 ? "WARNING" : "WARNING",
     });
   }
 
