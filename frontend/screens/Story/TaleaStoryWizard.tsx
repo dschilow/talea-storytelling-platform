@@ -24,6 +24,7 @@ import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { ageToAgeGroup, getPreferredAvatarIds } from '@/lib/child-profile-defaults';
+import { useStoryAgentFlow, ActiveAgentStack } from '../../agents';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
@@ -114,7 +115,7 @@ function getPalette(isDark: boolean): Palette {
   };
 }
 
-const GENERATION_STEPS: { key: GenerationStep; icon: React.ElementType; label: string; description: string }[] = [
+const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: string; style?: React.CSSProperties }>; label: string; description: string }[] = [
   { key: 'profiles', icon: Users, label: 'Avatar-Profile', description: 'Lade visuelle Profile und Eigenschaften' },
   { key: 'memories', icon: Sparkles, label: 'Erinnerungen', description: 'Sammle Erlebnisse und Entwicklung' },
   { key: 'text', icon: FileText, label: 'Geschichte', description: 'KI schreibt die Geschichte' },
@@ -274,6 +275,7 @@ export default function TaleaStoryWizard() {
   const [activeStep, setActiveStep] = useState(isMapAutoFill ? 5 : 0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
+  const { onPhaseChange, onStoryReady } = useStoryAgentFlow();
   const [userLanguage, setUserLanguage] = useState<string>('de');
   const [storyCredits, setStoryCredits] = useState<StoryCredits | null>(null);
   const [billingPermissions, setBillingPermissions] = useState<BillingPermissions | null>(null);
@@ -400,10 +402,13 @@ export default function TaleaStoryWizard() {
     try {
       setGenerating(true);
       setGenerationStep('profiles');
+      onPhaseChange('profiles');
       await new Promise((r) => setTimeout(r, 1200));
       setGenerationStep('memories');
+      onPhaseChange('memories');
       await new Promise((r) => setTimeout(r, 1200));
       setGenerationStep('text');
+      onPhaseChange('text');
 
       const storyConfig = mapWizardStateToAPI(state, userLanguage, isAdmin);
       const story = await generateStoryWithModelFallback(backend.story.generate, {
@@ -423,10 +428,13 @@ export default function TaleaStoryWizard() {
       );
 
       setGenerationStep('validation');
+      onPhaseChange('validation');
       await new Promise((r) => setTimeout(r, 900));
       setGenerationStep('images');
+      onPhaseChange('images');
       await new Promise((r) => setTimeout(r, 1200));
       setGenerationStep('complete');
+      onPhaseChange('complete');
       await new Promise((r) => setTimeout(r, 800));
 
       const storyData = story as any;
@@ -449,6 +457,7 @@ export default function TaleaStoryWizard() {
         setPendingStoryId(story.id);
         setShowLootModal(true);
       } else {
+        onStoryReady();
         navigate(`/story-reader/${story.id}`);
       }
     } catch (error) {
@@ -467,6 +476,7 @@ export default function TaleaStoryWizard() {
     } finally {
       setGenerating(false);
       setGenerationStep('profiles');
+      onStoryReady();
     }
   };
 
@@ -521,6 +531,9 @@ export default function TaleaStoryWizard() {
       <div className="relative min-h-screen pb-10 pt-6">
         <WizardBackground palette={palette} />
         <GenerationProgress currentStep={generationStep} palette={palette} />
+        <div className="relative z-10 mx-auto mt-4 max-w-xl px-4">
+          <ActiveAgentStack />
+        </div>
       </div>
     );
   }

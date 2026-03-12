@@ -18,6 +18,7 @@ import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
+import { usePostStoryFlow, AgentResultFeed } from '../../agents';
 import './CinematicStoryViewer.css';
 
 /* ── Palette ── */
@@ -115,6 +116,7 @@ const CinematicStoryViewer: React.FC = () => {
   const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
   const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
   const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+  const { showCompletionResults } = usePostStoryFlow();
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getStoryPalette(isDark), [isDark]);
@@ -258,6 +260,14 @@ const CinematicStoryViewer: React.FC = () => {
       } else {
         showSuccessToast('Geschichte abgeschlossen.');
       }
+
+      // Show contextual agent result cards (memory saved, quiz, artifact, next adventure)
+      showCompletionResults({
+        hasMemory: true,
+        artifactName: collectedArtifacts.length > 0 ? collectedArtifacts[0].item.name : undefined,
+        storyId,
+      });
+
       emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
     } catch (error) {
       console.error('Error completing story:', error);
@@ -513,6 +523,19 @@ const CinematicStoryViewer: React.FC = () => {
           </motion.div>
         </section>
       </div>
+
+      {/* ── Agent Result Feed — contextual completion cards ── */}
+      {storyCompleted && (
+        <div className="fixed bottom-6 right-4 z-30 w-80 max-h-[50vh] overflow-y-auto">
+          <AgentResultFeed
+            onAction={(action, payload) => {
+              if (action === 'navigate' && payload?.to) {
+                navigate(payload.to as string);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* ── Modals ── */}
       <ArtifactRewardToast
