@@ -581,6 +581,8 @@ export const importArtifacts = api<ImportArtifactsRequest, { success: boolean; i
 
     try {
       await storyDB.exec`BEGIN`;
+      // story_artifacts has a FK to artifact_pool, so delete referencing rows first
+      await storyDB.exec`DELETE FROM story_artifacts`;
       await storyDB.exec`DELETE FROM artifact_pool`;
 
       for (const artifact of sanitized) {
