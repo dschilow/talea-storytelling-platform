@@ -5,47 +5,47 @@ import { validateVariantPlan } from "./schema-validator";
 
 const FAIRY_VARIANTS = {
   settingVariant: ["FOREST_AUTUMN", "FOREST_WINTER", "FOREST_FOG", "FOREST_SUNSET"],
-  encounterVariant: ["FLOWERS_DISTRACTION", "RIDDLE_DISTRACTION", "FALSE_MAP", "HELPFUL_STRANGER_ACT"],
+  encounterVariant: ["FLOWERS_DISTRACTION", "RIDDLE_DISTRACTION", "FALSE_MAP", "HELPFUL_STRANGER_ACT", "WRONG_ASSUMPTION", "SILLY_OBSTACLE", "OVERHEARD_SECRET", "BROKEN_TOOL"],
   artifactFunctionVariant: ["GUIDES_TRUE", "GETS_HIJACKED", "SOLVES_RIDDLE", "WARNS_DANGER"],
   rescueVariant: ["HUNTER_RESCUE", "GRANDMA_TRICK", "AVATAR_PLAN", "TEAMWORK_TRAP"],
-  twistVariant: ["WOLF_LEARNS_LESSON", "FAKE_WOLF", "DOUBLE_BLIND", "ARTIFACT_SECRET"],
+  twistVariant: ["WOLF_LEARNS_LESSON", "FAKE_WOLF", "DOUBLE_BLIND", "ARTIFACT_SECRET", "UNEXPECTED_ALLY"],
 };
 
 const CATEGORY_VARIANTS: Record<string, Record<string, string[]>> = {
   "Abenteuer & Schätze": {
     settingVariant: ["JUNGLE_RUINS", "ISLAND_COVE", "DESERT_TEMPLE", "MOUNTAIN_PASS"],
-    encounterVariant: ["RIVAL_CREW", "TRAP_MAZE", "STORM_NIGHT", "HIDDEN_GUARDIAN"],
+    encounterVariant: ["RIVAL_CREW", "TRAP_MAZE", "STORM_NIGHT", "HIDDEN_GUARDIAN", "WRONG_ASSUMPTION", "BROKEN_TOOL", "OVERHEARD_SECRET"],
     artifactFunctionVariant: ["GUIDES_TRUE", "WARNS_DANGER", "SOLVES_RIDDLE", "REVEALS_MAP"],
     rescueVariant: ["TEAMWORK_RESCUE", "CLEVER_DECOY", "AVATAR_PLAN", "HELPER_BRIDGE"],
-    twistVariant: ["TREASURE_IS_KEY", "ALLY_IS_RIVAL", "MAP_REWRITES", "ARTIFACT_SECRET"],
+    twistVariant: ["TREASURE_IS_KEY", "ALLY_IS_RIVAL", "MAP_REWRITES", "ARTIFACT_SECRET", "UNEXPECTED_ALLY"],
   },
   "Märchenwelten & Magie": {
     settingVariant: ["CRYSTAL_FOREST", "SKY_CASTLE", "UNDERGROUND_GROVE", "MIST_LAKE"],
-    encounterVariant: ["SPELL_GLITCH", "TRICKSTER_FAIRY", "RIDDLE_GATE", "CURSED_PATH"],
+    encounterVariant: ["SPELL_GLITCH", "TRICKSTER_FAIRY", "RIDDLE_GATE", "CURSED_PATH", "SILLY_OBSTACLE", "WRONG_ASSUMPTION", "OVERHEARD_SECRET"],
     artifactFunctionVariant: ["GUIDES_TRUE", "SOLVES_RIDDLE", "WARNS_DANGER", "RESTORES_MAGIC"],
     rescueVariant: ["MENTOR_REVEAL", "AVATAR_PLAN", "TEAMWORK_TRAP", "HELPER_SACRIFICE"],
-    twistVariant: ["CURSE_BREAKS", "FALSE_VILLAIN", "DOUBLE_BLIND", "ARTIFACT_SECRET"],
+    twistVariant: ["CURSE_BREAKS", "FALSE_VILLAIN", "DOUBLE_BLIND", "ARTIFACT_SECRET", "UNEXPECTED_ALLY"],
   },
   "Tierwelten": {
     settingVariant: ["FOREST_RAIN", "SAVANNA_DRY", "OCEAN_REEF", "MOUNTAIN_SNOW"],
-    encounterVariant: ["PREDATOR_SHADOW", "LOST_NEST", "RIVER_FLOOD", "STRANGE_TRACKS"],
+    encounterVariant: ["PREDATOR_SHADOW", "LOST_NEST", "RIVER_FLOOD", "STRANGE_TRACKS", "WRONG_ASSUMPTION", "BROKEN_TOOL"],
     artifactFunctionVariant: ["WARNS_DANGER", "GUIDES_TRUE", "HEALS_WOUND", "CALLS_HELP"],
     rescueVariant: ["TEAMWORK_RESCUE", "AVATAR_PLAN", "NATURE_HELP", "HELPER_BRIDGE"],
-    twistVariant: ["FRIEND_REVEALED", "STORM_CLEARS", "ARTIFACT_SECRET", "NEW_HOME"],
+    twistVariant: ["FRIEND_REVEALED", "STORM_CLEARS", "ARTIFACT_SECRET", "NEW_HOME", "UNEXPECTED_ALLY"],
   },
   "Sci-Fi & Zukunft": {
     settingVariant: ["ORBITAL_STATION", "MARS_COLONY", "NEBULA_GATE", "UNDERWATER_CITY"],
-    encounterVariant: ["ROGUE_AI", "ALIEN_SIGNAL", "GRAVITY_GLITCH", "LOST_DRONE"],
+    encounterVariant: ["ROGUE_AI", "ALIEN_SIGNAL", "GRAVITY_GLITCH", "LOST_DRONE", "WRONG_ASSUMPTION", "BROKEN_TOOL", "OVERHEARD_SECRET"],
     artifactFunctionVariant: ["GUIDES_TRUE", "WARNS_DANGER", "SOLVES_RIDDLE", "TIME_BUFFER"],
     rescueVariant: ["AVATAR_PLAN", "SYSTEM_REBOOT", "TEAMWORK_TRAP", "HELPER_BRIDGE"],
-    twistVariant: ["ALIEN_HELPER", "FAKE_ALARM", "DOUBLE_BLIND", "ARTIFACT_SECRET"],
+    twistVariant: ["ALIEN_HELPER", "FAKE_ALARM", "DOUBLE_BLIND", "ARTIFACT_SECRET", "UNEXPECTED_ALLY"],
   },
   "Modern & Realität": {
     settingVariant: ["CITY_PARK", "SCHOOL_EVENT", "NEIGHBORHOOD_BLOCK", "MUSEUM_DAY"],
-    encounterVariant: ["LOST_ITEM", "MISUNDERSTANDING", "RIVAL_TEAM", "SURPRISE_VISITOR"],
+    encounterVariant: ["LOST_ITEM", "MISUNDERSTANDING", "RIVAL_TEAM", "SURPRISE_VISITOR", "WRONG_ASSUMPTION", "SILLY_OBSTACLE", "OVERHEARD_SECRET"],
     artifactFunctionVariant: ["GUIDES_TRUE", "SOLVES_RIDDLE", "WARNS_DANGER", "CONNECTS_PEOPLE"],
     rescueVariant: ["FRIEND_APOLOGY", "AVATAR_PLAN", "TEAMWORK_TRAP", "HELPER_BRIDGE"],
-    twistVariant: ["MISTAKE_LEARNT", "NEW_FRIEND", "ARTIFACT_SECRET", "DOUBLE_BLIND"],
+    twistVariant: ["MISTAKE_LEARNT", "NEW_FRIEND", "ARTIFACT_SECRET", "DOUBLE_BLIND", "UNEXPECTED_ALLY"],
   },
 };
 
@@ -262,6 +262,10 @@ function adaptClassicFairyLabel(input: {
     RIDDLE_DISTRACTION: "eine knifflige Ablenkung",
     FALSE_MAP: "eine irreführende Spur",
     HELPFUL_STRANGER_ACT: "eine unerwartete Begegnung",
+    WRONG_ASSUMPTION: "eine falsche Annahme",
+    SILLY_OBSTACLE: "ein absurdes Hindernis",
+    OVERHEARD_SECRET: "ein belauschtes Geheimnis",
+    BROKEN_TOOL: "ein kaputtes Werkzeug",
   };
   const rescueMapDE: Record<string, string> = {
     HUNTER_RESCUE: "Hilfe im letzten Moment",
@@ -274,6 +278,7 @@ function adaptClassicFairyLabel(input: {
     FAKE_WOLF: "ein falscher Verdacht",
     DOUBLE_BLIND: "ein doppelter Bluff",
     ARTIFACT_SECRET: "ein Artefakt-Geheimnis",
+    UNEXPECTED_ALLY: "der vermeintliche Feind hilft",
   };
 
   const encounterMapEN: Record<string, string> = {
@@ -281,6 +286,10 @@ function adaptClassicFairyLabel(input: {
     RIDDLE_DISTRACTION: "a tricky distraction",
     FALSE_MAP: "a misleading clue",
     HELPFUL_STRANGER_ACT: "an unexpected encounter",
+    WRONG_ASSUMPTION: "a wrong assumption",
+    SILLY_OBSTACLE: "an absurd obstacle",
+    OVERHEARD_SECRET: "an overheard secret",
+    BROKEN_TOOL: "a broken tool",
   };
   const rescueMapEN: Record<string, string> = {
     HUNTER_RESCUE: "last-minute help",
@@ -293,6 +302,7 @@ function adaptClassicFairyLabel(input: {
     FAKE_WOLF: "a false suspicion",
     DOUBLE_BLIND: "a double bluff",
     ARTIFACT_SECRET: "an artifact secret",
+    UNEXPECTED_ALLY: "the supposed enemy helps",
   };
 
   if (kind === "encounter") {
@@ -407,4 +417,9 @@ const VARIANT_LABELS_DE: Record<string, string> = {
   FAKE_ALARM: "falscher Alarm",
   MISTAKE_LEARNT: "aus einem Fehler gelernt",
   NEW_FRIEND: "neuer Freund",
+  WRONG_ASSUMPTION: "eine falsche Annahme",
+  SILLY_OBSTACLE: "ein absurdes Hindernis",
+  OVERHEARD_SECRET: "ein belauschtes Geheimnis",
+  BROKEN_TOOL: "das wichtigste Werkzeug geht kaputt",
+  UNEXPECTED_ALLY: "der vermeintliche Feind hilft",
 };

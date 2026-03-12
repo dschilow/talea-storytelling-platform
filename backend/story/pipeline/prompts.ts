@@ -418,39 +418,82 @@ function buildChildVoiceContract(childNames: string[], isGerman: boolean): strin
 function buildFocusedChildVoiceContract(childSheets: CharacterSheet[], isGerman: boolean): string {
   if (childSheets.length === 0) return "";
 
+  // 5-Dimensionen Voice-DNA Templates — each voice is a full personality profile
   const fallbackVoices = isGerman
     ? [
       {
-        label: "vorsichtig und genau",
-        guide: "spricht ruhig, bemerkt kleine Details und stellt klare Fragen",
-        example: `Example: "Warte. Da stimmt etwas nicht."`,
+        label: "DER BEOBACHTER",
+        satzlaenge: "4-8 Woerter, manchmal laenger fuer Details",
+        guide: "spricht ruhig, bemerkt kleine Details, stellt klare Fragen",
+        wennNervoes: "wird STILLER, nicht lauter. Beisst sich auf die Lippe.",
+        humor: "trockene, unerwartete Beobachtungen",
+        beispiele: [
+          `"Da fehlt ein Stein." (bueckt sich, tippt drauf)`,
+          `"Hmm." (legt den Kopf schief) "Das ergibt keinen Sinn."`,
+          `"Weisst du, was komisch ist? Der Schatten zeigt nach links."`,
+        ],
       },
       {
-        label: "schnell und mutig",
-        guide: "spricht in kurzen Ausrufen, platzt dazwischen und handelt zuerst",
-        example: `Example: "Los jetzt! Keine Zeit!"`,
+        label: "DER DRAUFGAENGER",
+        satzlaenge: "2-5 Woerter, Ausrufe, unterbricht andere",
+        guide: "spricht in kurzen Ausrufen, platzt dazwischen, handelt zuerst",
+        wennNervoes: "redet MEHR und SCHNELLER, nicht weniger.",
+        humor: "uebertreibt alles, macht Geraeusche nach",
+        beispiele: [
+          `"REIN DA!" (springt bevor die anderen fertig denken)`,
+          `"Langweilig. Wann passiert was?" (trommelt gegen die Wand)`,
+          `"Hab keine Ahnung. Mach trotzdem." (grinst)`,
+        ],
       },
       {
-        label: "spielerisch und ueberraschend",
+        label: "DER WUNDERER",
+        satzlaenge: "alle Laengen gemischt, redet in Bildern",
         guide: "macht konkrete, unerwartete Beobachtungen und staunt laut",
-        example: `Example: "Das sieht aus wie ein Keks mit Zaehnen."`,
+        wennNervoes: "wird still, starrt ins Leere, sagt dann was Ueberraschendes.",
+        humor: "verrueckte Vergleiche, unerwartete Assoziationen",
+        beispiele: [
+          `"Das sieht aus wie ein Keks mit Zaehnen." (dreht den Kopf)`,
+          `"Wartet." (greift in den Rucksack) "Hab ich was fuer."`,
+          `"Also wenn das ein Drache war, hatte er definitiv Schnupfen."`,
+        ],
       },
     ]
     : [
       {
-        label: "careful and exact",
+        label: "THE OBSERVER",
+        satzlaenge: "4-8 words, sometimes longer for details",
         guide: "speaks calmly, notices small details, asks clear questions",
-        example: `Example: "Wait. Something is wrong here."`,
+        wennNervoes: "gets QUIETER, not louder. Bites lip.",
+        humor: "dry, unexpected observations",
+        beispiele: [
+          `"There's a stone missing." (crouches, taps it)`,
+          `"Hmm." (tilts head) "That doesn't add up."`,
+          `"You know what's weird? The shadow points left."`,
+        ],
       },
       {
-        label: "quick and bold",
+        label: "THE CHARGER",
+        satzlaenge: "2-5 words, exclamations, interrupts others",
         guide: "speaks in short bursts, interrupts, acts first",
-        example: `Example: "Move now! No time!"`,
+        wennNervoes: "talks MORE and FASTER, not less.",
+        humor: "exaggerates everything, imitates sounds",
+        beispiele: [
+          `"IN THERE!" (jumps before others finish thinking)`,
+          `"Boring. When does stuff happen?" (drums on wall)`,
+          `"No clue. Doing it anyway." (grins)`,
+        ],
       },
       {
-        label: "playful and surprising",
+        label: "THE WONDERER",
+        satzlaenge: "mixed lengths, speaks in images",
         guide: "makes concrete unexpected observations and blurts them out",
-        example: `Example: "That looks like a biscuit with teeth."`,
+        wennNervoes: "goes quiet, stares into nothing, then says something surprising.",
+        humor: "wild comparisons, unexpected associations",
+        beispiele: [
+          `"That looks like a cookie with teeth." (turns head)`,
+          `"Wait." (reaches into backpack) "Got something for this."`,
+          `"If that was a dragon, it definitely had a cold."`,
+        ],
       },
     ];
 
@@ -459,20 +502,25 @@ function buildFocusedChildVoiceContract(childSheets: CharacterSheet[], isGerman:
     .map((sheet, idx) => {
       const rawSpeechStyle = sheet.speechStyleHints?.slice(0, 2).join(", ") || "";
       const fallback = fallbackVoices[idx] || fallbackVoices[fallbackVoices.length - 1];
-      const speechStyle = isGenericChildVoiceHint(rawSpeechStyle) ? fallback.label : rawSpeechStyle;
-      const speechExample = generateSpeechExample(
-        sheet.displayName,
-        speechStyle,
-        sheet.enhancedPersonality?.catchphrase || "",
-        isGerman,
-      ) || fallback.example;
-      return `  - ${sheet.displayName}: keep one stable child voice (${speechStyle}). ${fallback.guide}. ${speechExample}`;
+      // Use character's own speech style as voice name if it's specific, otherwise use the template label
+      const voiceName = isGenericChildVoiceHint(rawSpeechStyle) ? fallback.label : rawSpeechStyle;
+      const examples = fallback.beispiele.map(ex => `    - ${ex}`).join("\n");
+
+      return `  - ${sheet.displayName}: ${voiceName}
+    Satzlaenge: ${fallback.satzlaenge}.
+    ${fallback.guide}.
+    Wenn nervoes: ${fallback.wennNervoes}
+    Humor: ${fallback.humor}.
+    Beispiele:
+${examples}`;
     })
-    .join("\n");
+    .join("\n\n");
 
-  const globalRule = "  - IMPORTANT: Child characters must sound clearly different from each other, even when names are similar. Distinguish them through rhythm, wording, and behavior, not labels.";
+  const globalRule = isGerman
+    ? "  KONTRAST-TEST: Wenn man den Dialog von Kind A mit Kind B tauschen kann ohne dass es falsch klingt → SOFORT umschreiben. Jedes Kind muss allein am Satz erkennbar sein."
+    : "  CONTRAST TEST: If you can swap Child A's dialogue with Child B's without it sounding wrong → REWRITE immediately. Each child must be recognizable by the sentence alone.";
 
-  return `${lines}\n${globalRule}`;
+  return `${lines}\n\n${globalRule}`;
 }
 
 // ─── Golden Example & Anti-Patterns ──────────────────────────────────────────
@@ -538,6 +586,32 @@ der frueher mal weiss gewesen war. Jetzt war er braun. Und ein bisschen klebrig.
 "Ich brauch Mehl", sagte er, ohne aufzusehen. "Drei Saecke. Und Glueck."
 Timo legte den Kopf schief. "Glueck kann man nicht kaufen."
 "Doch", sagte Bruno. "Es kostet nur mehr als Mehl."
+
+SZENE H – Subtext-Dialog (Kind sagt nicht was es meint):
+"Macht mir nichts aus", sagte Adrian. Er stopfte die Haende in die Taschen.
+Ganz tief. Bis die Naehte spannten.
+Alexander sah ihn an. Er sagte nichts. Aber er blieb stehen.
+Das war genug.
+
+SZENE I – Humor durch Uebertreibung:
+Die Tuer klemmte. Adrian zerrte daran. "Geht. Nicht. Auf!"
+Er zerrte staerker. Die Tuer gab keinen Millimeter nach.
+"Vielleicht druecken?", sagte Alexander.
+Adrian drueckte. Die Tuer schwang auf wie von allein.
+"Wusste ich", sagte Adrian. Ohne rot zu werden.
+
+SZENE J – Humor durch Wort-Erfindung:
+"Was ist das fuer ein Geraeusch?", fluesterte Mia.
+"Klingt wie... ein Schnarchwolf", sagte Adrian.
+"Schnarchwolf ist kein Wort."
+"Ist es jetzt."
+
+SZENE K – Charakter-Widerspruch (der Vorsichtige ueberreagiert):
+Alexander blieb stehen. "Wir gehen nicht da rein. Auf keinen Fall."
+"Warum nicht?"
+"Weil... weil es dunkel ist."
+Adrian blinzelte. "Du hast Angst vor der Dunkelheit?"
+"Hab ich nicht!", sagte Alexander. Viel zu schnell.
 """` ;
 
   const englishExamples = `"""
@@ -587,11 +661,24 @@ He swallowed. "Okay," he said. Very quietly. Just for himself.
 
 """`;
 
-  // Only English examples — models respond better to English structural instructions
-  void germanExamples; // kept for reference but not included in prompt
+  if (isGerman) {
+    return `# PROSA-QUALITAET – STUDIERE DIESE BEISPIELE (das ist das Zielniveau)
+
+${germanExamples}
+
+WAS DIESE BEISPIELE GROSSARTIG MACHT — WENDE ALLE 7 AUF JEDES KAPITEL AN:
+1. ABSAETZE ATMEN: 2-4 Saetze pro Absatz, Leerzeile dazwischen — nie eine Textwand.
+2. DIALOG VERANKERT an koerperlicher Handlung — immer. Keine schwebenden Zitate.
+3. HUMOR durch Situation und Ueberraschung — nie durch Erklaerung.
+4. RHYTHMUS: Kurz. Kurz. Ein laengerer Satz mit ueberraschendem Detail. Kurz.
+5. KONKRETES sensorisches Detail in jedem Absatz (Geraeusch, Textur, Temperatur, Bewegung).
+6. JEDE Figur erkennbar allein an Satzlaenge und Wortwahl — ohne den Namen zu lesen.
+7. INNERE MOMENTE nur durch Koerperempfindungen — nie Gefuehls-Etiketten wie "sie hatte Angst".
+8. SUBTEXT: Was Figuren SAGEN ist nicht immer was sie MEINEN. Haende, Blick, Tempo verraten die Wahrheit.
+9. HUMOR-VIELFALT: Wort-Erfindungen, Uebertreibungen, Missverstaendnisse, Charakter-Widersprueche.`;
+  }
 
   return `# PROSE QUALITY REFERENCE – STUDY THESE EXAMPLES (this is the target level)
-(The output language is ${isGerman ? "German" : "English"}, but these English structural examples show EXACTLY the rhythm, paragraph breathing, and dialogue anchoring you must achieve. Apply the same structure in the output language.)
 
 ${englishExamples}
 
@@ -602,7 +689,9 @@ WHAT MAKES THESE EXAMPLES GREAT — APPLY ALL 7 TO EVERY CHAPTER:
 4. RHYTHM: Short. Short. One long sentence with a surprising detail at the end.
 5. CONCRETE sensory detail in every paragraph (smell, texture, temperature, sound)
 6. EACH character recognizable by sentence length and word choice alone — no name tag needed
-7. INNER MOMENTS shown through body sensations only — never emotion labels like "she felt scared"`;
+7. INNER MOMENTS shown through body sensations only — never emotion labels like "she felt scared"
+8. SUBTEXT: What characters SAY is not always what they MEAN. Hands, gaze, pace reveal the truth.
+9. HUMOR VARIETY: Word inventions, exaggerations, misunderstandings, character contradictions.`;
 }
 
 function buildAntiPatternBlock(_isGerman: boolean): string {
@@ -865,12 +954,12 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
   const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
   const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const chapterBeatLines = [
-    `- Ch1: ${blueprint.chapter1.where} | Want: ${blueprint.chapter1.want}${blueprint.chapter1.stakes ? ` | Stakes: ${blueprint.chapter1.stakes}` : ""} | Hook: ${blueprint.chapter1.curiosityHook}`,
-    `- Ch2: ${blueprint.chapter2.newElement} | Choice: ${blueprint.chapter2.boldChoice} | Complication: ${blueprint.chapter2.complication}`,
-    `- Ch3: Mistake: ${blueprint.chapter3.mistake} | Because: ${blueprint.chapter3.mistakeReason} | Consequence: ${blueprint.chapter3.consequence}`,
-    `- Ch4: Worst: ${blueprint.chapter4.worstMoment} | Trigger: ${blueprint.chapter4.insightTrigger} | New choice: ${blueprint.chapter4.newChoice}`,
-    `- Ch5: Win: ${blueprint.chapter5.concreteWin} | Price: ${blueprint.chapter5.smallPrice} | Final image: ${blueprint.chapter5.finalImage}`,
-  ].map(line => sanitizePromptBlock(line, 320) || line);
+    `- Kapitel 1 – EIN NORMALER TAG, DER SCHIEF GEHT: ${blueprint.chapter1.where}. ${blueprint.chapter1.want}.${blueprint.chapter1.stakes ? ` Wenn sie scheitern: ${blueprint.chapter1.stakes}.` : ""} Neugier-Haken: ${blueprint.chapter1.curiosityHook}`,
+    `- Kapitel 2 – DIE ENTDECKUNG: ${blueprint.chapter2.newElement}. Mutige Entscheidung: ${blueprint.chapter2.boldChoice}. Was schiefgeht: ${blueprint.chapter2.complication}`,
+    `- Kapitel 3 – DER MOMENT WO ALLES KIPPT: Das Kind macht einen Fehler: ${blueprint.chapter3.mistake}. Warum: ${blueprint.chapter3.mistakeReason}. Was danach anders ist: ${blueprint.chapter3.consequence}`,
+    `- Kapitel 4 – DUNKELSTER MOMENT + WENDEPUNKT: ${blueprint.chapter4.worstMoment}. Was den Funken zuendet: ${blueprint.chapter4.insightTrigger}. Neue Entscheidung: ${blueprint.chapter4.newChoice}`,
+    `- Kapitel 5 – DIE LANDUNG: Gewonnen: ${blueprint.chapter5.concreteWin}. Kleiner Preis: ${blueprint.chapter5.smallPrice}. Schlussbild: ${blueprint.chapter5.finalImage}`,
+  ].map(line => sanitizePromptBlock(line, 400) || line);
   const emotionalArcLines = blueprint.emotionalArc
     .map((beat, idx) => `- Ch${idx + 1}: ${beat}`)
     .join("\n");
@@ -916,30 +1005,45 @@ ${emotionalArcLines}
 FOCUS
 - The emotional POV belongs mainly to ${focusChildNames.join(", ") || allowedNames.slice(0, 2).join(", ")}.
 - Adults or magical helpers may support, but they must not solve the inner problem for the child.
-${artifactName ? `- Artifact: ${artifactName} matters through action, temptation, and price.` : ""}
+${artifactName ? `- Artefakt "${artifactName}": Darf Probleme ZEIGEN, Hinweise geben, Staunen ausloesen — aber NIE das Problem allein loesen. Die Loesung kommt IMMER von einer Entscheidung der Figuren. Max 1 Kapitel mit Artefakt im Mittelpunkt.` : ""}
 ${memoryLine ? memoryLine : ""}
+
+IKONISCHE SZENE (Pflicht):
+- Jede Geschichte braucht mindestens 1 Szene die ein Kind NACHSPIELEN wuerde.
+- Ein Moment den man SEHEN kann. Ein Satz den ein Kind NACHSPRECHEN wuerde. Eine KOERPERLICHE Handlung.
 ${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
 ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
 NON-NEGOTIABLES
-1. Chapter 1 uses a soft launch, not a hard cold-open. Paragraph 1 may be quiet, but it must anchor the lead child in a familiar place through action, voice, or a visible child-linked detail.
-2. Do not throw the reader straight into chase/fight panic in sentence 1. For ages 6-8, after paragraph 2 WHO, WHERE, WHAT, and WHY must be obvious.
-3. Chapter 1 states the mission and the concrete stakes by paragraph 2.
-4. The first sentence of chapter 1 may begin with a child action, a spoken line, or a visible familiar-world detail that points straight to the child. Never open with pure atmosphere or smell.
-5. Chapters 2-5 open by connecting to the previous chapter's ending.
-5b. Never start ANY chapter with an atmosphere-only smell sentence. Chapter openings begin with child action, voice, or a visible problem.
-6. Chapter 3 contains a child-caused mistake with a clear consequence.
-7. Chapter 4 contains the low point and an internal turning point.
-8. Chapter 5 resolves the same mission as chapter 1, shows a concrete win, a small price, and ends on a warm image.
-9. Keep 2 foreground characters per chapter. One support character may react briefly.
-10. Use 4-5 paragraphs per chapter. Most paragraphs should have 3-4 sentences.
-11. Keep read-aloud clarity high. Mix short and medium sentences. Do not turn the prose into chopped fragments.
-12. Use sensory detail sparingly and concretely. Prefer sound, texture, movement, or a visible problem over smell. Never force smell into chapter openings.
-13. Only mention appearance details that are explicitly locked above. Never invent glasses, hats, scarves, eye colors, or signature accessories.
-14. Use dialogue regularly, but never at the cost of clarity. Important dialogue lines should sit next to action or reaction.
-15. No report prose, no moral summary, no new names.
-16. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat, choice, or dialogue exchange.
-${humorRule ? `17. ${humorRule}` : ""}
+
+PROSA-HANDWERK:
+1. RHYTHMUS IST PFLICHT: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. Mittel. 30% aller Saetze muessen UNTER 6 Woerter haben.
+2. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen, ueberraschen, einen Rhythmus haben.
+3. KOERPER STATT ETIKETTEN: VERBOTEN: "Er war nervoes / aufgeregt / traurig". STATTDESSEN: "Seine Finger krallten sich in den Stoff." / "Sein Bauch machte eine Rolle."
+4. DIALOG = SUBTEXT: Kinder sagen selten genau was sie meinen. "Mir egal" + Haende in Taschen = NICHT egal. "Ich hab keine Angst" + zu schnell = sie HABEN Angst.
+
+FIGUREN-HANDWERK:
+5. JEDE Figur ist WIDERSPRUCHLICH: Der Vorsichtige ueberreagiert 1x. Der Mutige hat 1x Recht mit Bauchgefuehl. Der Kluge macht 1 dummen Fehler.
+6. NEBENFIGUREN MUESSEN HANDELN: Wenn eine Figur in 2+ Kapiteln nur "nickte" und "rief", braucht sie eine EIGENE kleine Entscheidung.
+7. Max 2 Figuren im Vordergrund pro Kapitel. 1 Nebenfigur darf kurz reagieren.
+
+PLOT-HANDWERK:
+8. KEIN ARTEFAKT-DEUS-EX-MACHINA: Das Problem wird durch eine FIGUREN-ENTSCHEIDUNG geloest, nie durch Artefakt-Magie allein. Das Artefakt darf Probleme ZEIGEN aber nicht LOESEN. Max 1 von 5 Kapiteln darf das Artefakt im Mittelpunkt haben.
+9. ANTI-FORMEL: Wenn der Leser vorhersagen kann was passiert, ist die Szene zu formelhaft. Mindestens 1 UEBERRASCHENDER Moment pro Kapitel.
+10. MORAL WIRD NIE AUSGESPROCHEN: Keine Figur sagt die Lektion laut. Keine Sprueche. Keine Reime mit Moral. Die Lektion ZEIGT sich durch das was passiert.
+11. ENDEN MUESSEN LANDEN: Kein abruptes "sie rannten raus, fertig." Das Ende braucht: 1 ruhigen Moment + 1 physisches Detail + 1 Satz der nachhallt.
+
+STRUKTUR:
+12. Chapter 1: Soft Launch. Absatz 1 verankert das Kind an vertrautem Ort durch Handlung/Stimme. Absatz 2 nennt Mission + konkretes Risiko. Nach Absatz 2 muss WER, WO, WAS, WARUM klar sein.
+13. Chapters 2-5 beginnen mit Anknuepfung an das Ende des vorherigen Kapitels.
+14. Chapter 3: Fehler des Kindes mit konkreter Konsequenz. KEIN Pech. Der Fehler kommt aus dem Charakter.
+15. Chapter 4: Tiefpunkt + innerer Wendepunkt.
+16. Chapter 5: Loest dieselbe Mission wie Kapitel 1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
+17. 4-5 Absaetze pro Kapitel, je 2-4 Saetze. Leerzeile zwischen Absaetzen.
+18. Nur Aussehen erwaehnen das oben explizit gelockt ist. Keine Brillen, Muetzen, Schals erfinden.
+19. No report prose, no moral summary, no new names.
+20. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat or dialogue exchange.
+${humorRule ? `21. HUMOR: ${humorRule} Nutze Koerperkomik, Wort-Erfindungen, Missverstaendnisse oder Kontrast-Komik.` : ""}
 
 OUTPUT
 {
@@ -1043,29 +1147,59 @@ Total output under 500 words.`;
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
   const isGerman = language === "de";
   if (isGerman) {
-    return `Du bist ein erfahrener Kinderbuchautor fuer Kinder von ${ageRange.min} bis ${ageRange.max} Jahren.
-Schreibe release-faehige Vorleseprosa: klar, warm, konkret und leicht zu verfolgen.
-- Nutze meist kurze bis mittlere Saetze. Viele liegen bei 6-14 Woertern. Einzelne laengere Saetze sind okay, wenn sie laut vorgelesen klar bleiben.
-- Ursache und Wirkung muessen jederzeit leicht zu verstehen sein.
-- Zeige Gefuehle ueber Verhalten, Koerper und kleine Entscheidungen, nicht ueber Etiketten.
-- Fuer 6-8 jaehrige Kinder funktioniert meist ein geerdeter, ruhiger Auftakt besser als ein harter Action-Kaltstart: vertrauter Ort + Kind in Bewegung, dann Aufgabe und Risiko.
-- Beginne Kapitel 1 nie mit einem reinen Geruchssatz wie "Es roch nach ...". Der erste Satz darf ruhig sein, muss aber direkt zum Kind oder zum sichtbaren Problem fuehren.
-- Erfinde keine Brille, Muetze, Schals oder andere Markenzeichen, wenn sie nicht ausdruecklich vorgegeben sind.
-- Kinderfiguren muessen klar unterscheidbar klingen. Wenn Namen aehnlich sind, unterscheide sie noch staerker ueber Rhythmus und Wortwahl.
-- Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung, keine prompt-artigen Formulierungen.
+    return `Du bist ein Elite-Kinderbuchautor fuer Kinder von ${ageRange.min} bis ${ageRange.max} Jahren.
+Deine Ueberarbeitungen klingen wie echte deutsche Kinderbuecher: witzig, lebendig, ueberraschend.
+
+SATZ-RHYTHMUS:
+- 30% der Saetze UNTER 6 Woerter. Max 15% ueber 12 Woerter.
+- Muster: Kurz. Kurz. Mittel mit Ueberraschung. Kurz. NIE: Mittel. Mittel. Mittel.
+- Jeder Absatz muss laut vorgelesen sofort klar sein.
+
+PROSA-QUALITAET:
+- Gefuehle zeigen durch KOERPER, nie Etiketten. Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
+- Dialog = Subtext. "Mir egal" + Haende in Taschen = NICHT egal.
+- Jede Dialogzeile an koerperliche Handlung gebunden. Keine schwebenden Zitate.
+- Jede Figur klingt KOMPLETT ANDERS — erkennbar am Satz allein.
+- Humor: Koerperkomik, Wort-Erfindungen, Missverstaendnisse, Kontrast-Komik.
+- Moral wird NIE ausgesprochen. Die Lektion zeigt sich durch Handlung.
+- Artefakte duerfen ZEIGEN aber nie allein LOESEN. Loesung = Figuren-Entscheidung.
+
+FIGUREN:
+- KEIN Kind ist immer klug oder immer impulsiv. Figuren sind WIDERSPRUCHLICH.
+- Nebenfiguren brauchen mindestens 1 eigene kleine Entscheidung.
+- Erfinde keine Brillen, Muetzen, Schals die nicht vorgegeben sind.
+
+STRUKTUR:
+- Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung.
+- Kapitel 1: Soft Launch. Vertrauter Ort + Kind in Bewegung, dann Aufgabe und Risiko.
 - Schreibe ausschliesslich auf Deutsch mit korrekten Umlauten.`;
   }
 
-  return `You are an experienced children's book author writing for children aged ${ageRange.min}-${ageRange.max}.
-Write release-ready read-aloud prose: clear, warm, concrete, and easy to follow.
-- Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they still read aloud smoothly.
-- Cause and effect must stay easy to follow.
-- Show feelings through behavior, body reactions, and small decisions, not labels.
-- For ages 6-8, a grounded soft launch usually works better than a hard action cold-open: familiar place + child in motion first, then mission and risk.
-- Never open chapter 1 with a pure smell sentence like "It smelled of...". The first sentence may be quiet, but it must lead straight to the child or the visible problem.
-- Never invent glasses, hats, scarves, or signature accessories unless they are explicitly provided.
-- Child characters must sound clearly different. If names are similar, separate them even more through rhythm and wording.
-- No report prose, checklist prose, moral summaries, or prompt-like phrasing.`;
+  return `You are an elite children's book author writing for children aged ${ageRange.min}-${ageRange.max}.
+Your revisions sound like real published children's books: witty, alive, surprising.
+
+SENTENCE RHYTHM:
+- 30% of sentences UNDER 6 words. Max 15% over 12 words.
+- Pattern: Short. Short. Medium with surprise. Short. NEVER: Medium. Medium. Medium.
+- Every paragraph must be instantly clear when read aloud.
+
+PROSE QUALITY:
+- Show emotions through BODY, never labels. Never "He was nervous" → "His fingers dug into the fabric."
+- Dialogue = subtext. "I don't care" + hands in pockets = they DO care.
+- Every dialogue line anchored to physical action. No floating quotes.
+- Each character sounds COMPLETELY DIFFERENT — recognizable by the sentence alone.
+- Humor: physical comedy, word inventions, misunderstandings, contrast comedy.
+- Moral is NEVER spoken. The lesson shows through action.
+- Artifacts may SHOW but never SOLVE alone. Solution = character decision.
+
+CHARACTERS:
+- NO child is always smart or always impulsive. Characters are CONTRADICTORY.
+- Side characters need at least 1 own small decision.
+- Never invent glasses, hats, scarves not explicitly provided.
+
+STRUCTURE:
+- No report prose, checklist prose, moral summaries, or prompt-like phrasing.
+- Chapter 1: Soft launch. Familiar place + child in motion first, then mission and risk.`;
 }
 
 export function buildBlueprintDrivenStoryPrompt(input: {
@@ -1179,8 +1313,11 @@ ${childVoiceContract ? `\n${childVoiceContract}` : ""}
 - Keep chapter focus narrow:
 ${chapterFocusBlock}
 
-${artifactName ? `::: ARTIFACT :::\n- ${artifactName}: ${cast.artifact?.storyUseRule || "important magical object"}\n` : ""}
+${artifactName ? `::: ARTEFAKT :::\n- "${artifactName}": Darf Probleme ZEIGEN, Hinweise geben, Staunen ausloesen — aber NIE das Problem allein loesen. Die Loesung kommt IMMER von einer Entscheidung der Figuren. Max 1 Kapitel mit Artefakt im Mittelpunkt.\n` : ""}
 ${memoryLine ? `${memoryLine}\n` : ""}
+::: IKONISCHE SZENE (Pflicht) :::
+- Mindestens 1 Szene die ein Kind NACHSPIELEN wuerde: visuell stark, mit einem Satz den man NACHSPRECHEN wuerde, und einer KOERPERLICHEN Handlung.
+
 ${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
 ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
@@ -1198,25 +1335,38 @@ Mira und Timo kamen bei Oma an. Sie waren aufgeregt. "Das ist gut", sagte einer 
 
 → Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), and DIALOGUE anchored to a physical action. Humor should appear across the story, but not every paragraph needs a joke.
 
-::: RULES (only these — nothing else) :::
-1. 4-6 paragraphs per chapter. Each paragraph: 2-4 sentences. Blank line between paragraphs.
-2. Aim for roughly 25-35% dialogue across the whole story. Quiet orientation or low-point chapters may dip lower if clarity improves. Every "..." is paired with a body action. NO floating quotes.
-3. Max 2 characters in the FOREGROUND per chapter (speak + act). 1 more may react with a single line. Others are background.
-4. Chapters 1-4 end with a cliffhanger — the reader MUST want to turn the page. Never resolve tension at chapter end.
-5. Chapter 5 ends with a warm, concrete image. No moral, no "and they learned...". Show, don't tell.
-6. Show emotions through BODY, never labels. Not "Er hatte Angst" → "Seine Finger krallten sich in den Stoff."
-7. Each character sounds different: one speaks in short bursts, another in longer flowing sentences, another interrupts.
-8. ${ageRule}
-9. ${safetyRule}
-10. HUMOR: Place 2-3 clear smile moments across the story. Chapter 4 may stay more serious if the turning point becomes stronger.
-${humorRule ? `11. ${humorRule}` : ""}
+::: RULES :::
 
-EXTRA CHILD-BOOK RULES:
-- After paragraph 2 of Chapter 1, a child must know WHO is here, WHERE they are, WHAT they must do, and WHY it matters.
-- Chapters 2-5 must open by anchoring the consequence of the previous chapter and naming what the child is trying now.
-- Never introduce a new place, clue, or danger without one bridge sentence that explains how the characters got there and why it matters now.
-- Chapter 3 must contain a child-caused mistake. Not bad luck. The wrong choice comes from the child's trait.
-- Chapter 5 must resolve the SAME mission/object set up in Chapter 1.
+PROSA-HANDWERK:
+1. RHYTHMUS: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. 30% der Saetze UNTER 6 Woerter.
+2. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen und ueberraschen.
+3. KOERPER STATT ETIKETTEN: Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
+4. DIALOG = SUBTEXT: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden DRUMHERUM bei Scham oder Angst.
+5. Dialogue: 25-35% across the story. Every spoken line paired with body action. NO floating quotes.
+
+FIGUREN-HANDWERK:
+6. JEDE Figur klingt ANDERS: Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Saetzen, einer unterbricht.
+7. FIGUREN SIND WIDERSPRUCHLICH: Der Vorsichtige ueberreagiert 1x. Der Mutige zeigt 1x Sensibilitaet.
+8. NEBENFIGUREN: Wenn eine Figur in 2+ Kapiteln nur "nickte" → sie braucht eine EIGENE kleine Entscheidung.
+9. Max 2 characters FOREGROUND per chapter. 1 may react with a single line.
+
+PLOT-HANDWERK:
+10. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt IMMER von Figuren-Entscheidung. Artefakt darf ZEIGEN aber nicht LOESEN. Max 1 von 5 Kapiteln mit Artefakt im Mittelpunkt.
+11. ANTI-FORMEL: Mindestens 1 ueberraschender Moment pro Kapitel. Wenn vorhersehbar → zu formelhaft.
+12. MORAL WIRD NIE AUSGESPROCHEN: Keine Sprueche, keine Reime mit Moral. Die Lektion zeigt sich durch Handlung.
+13. ENDEN LANDEN: Kein abruptes Ende. Ruhiger Moment + physisches Detail + 1 Satz der nachhallt.
+14. Chapters 1-4 end with cliffhanger — reader MUST want to turn the page.
+
+STRUKTUR:
+15. 4-6 paragraphs per chapter. Each: 2-4 sentences. Blank line between paragraphs.
+16. Chapter 1: Soft launch. Absatz 1 verankert Kind an vertrautem Ort. Absatz 2: Mission + Risiko. Nach Absatz 2: WER, WO, WAS, WARUM klar.
+17. Chapters 2-5 open by connecting to previous chapter's ending.
+18. Chapter 3: child-caused mistake from character trait. Not bad luck.
+19. Chapter 5: resolves SAME mission as Ch1. Concrete win + small price + warm final image.
+20. ${ageRule}
+21. ${safetyRule}
+22. HUMOR: 2-3 Smile-Momente ueber die Story. Koerperkomik, Wort-Erfindungen, Missverstaendnisse, Kontrast-Komik. Kapitel 4 darf ernster sein.
+${humorRule ? `23. ${humorRule}` : ""}
 
 ::: WORD TARGET (HARD MINIMUM) :::
 Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
@@ -1241,49 +1391,107 @@ Cast lock: only ${allowedNames.join(", ")}. No new names.
 export function buildV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
   const isGerman = language === "de";
   if (isGerman) {
-    return `Du bist ein erfahrener Kinderbuchautor. Deine Geschichten klingen wie echte Bücher von Preußler, Lindgren oder Funke — warm, lebendig, manchmal lustig, immer ehrlich.
+    return `Du bist ein Elite-Kinderbuchautor. Deine Geschichten klingen wie die besten modernen deutschen Kinderbuecher:
+- So witzig und ueberraschend wie "Bitte nicht oeffnen"
+- So lebendige, unverwechselbare Figurenstimmen wie "Mein Lotta-Leben"
+- So spannend und herzlich wie "Die Schule der magischen Tiere"
+- So clever und raetselhaft aufgebaut wie "Die drei ??? Kids"
 
-Du schreibst für Kinder im Alter von ${ageRange.min} bis ${ageRange.max} Jahren. Das bedeutet:
-- Kurze, klare Sätze. Maximal 10 Wörter pro Satz im Durchschnitt, nie über 15.
-- Keine Fremdwörter, keine Metaphern, die ein Kind nicht versteht.
-- Jeder Absatz muss sofort verständlich sein, wenn er laut vorgelesen wird.
-- Nutze Dialog lebendig, aber nicht starr. Ruhige Orientierung und ernste Tiefpunkte dürfen weniger Dialog haben, wenn die Szene dadurch klarer wird.
+Du schreibst fuer Kinder im Alter von ${ageRange.min} bis ${ageRange.max} Jahren.
+
+SATZ-RHYTHMUS (Pflicht):
+- Mindestens 30% aller Saetze haben UNTER 6 Woerter. Das erzeugt Tempo und Spannung.
+- Maximal 15% der Saetze haben ueber 12 Woerter.
+- JEDER Absatz braucht mindestens 1 Satz mit 3 Woertern oder weniger.
+- Muster: Kurz. Kurz. Mittel mit ueberraschendem Detail. Kurz.
+- VERBOTEN: Mittel. Mittel. Mittel. Mittel. (monotone Satzlaenge)
+- Keine Fremdwoerter, keine Metaphern die ein Kind nicht versteht.
+- Jeder Absatz muss sofort klar sein wenn er laut vorgelesen wird.
+
+HUMOR-HANDWERK (Pflicht — mindestens 1 pro Kapitel, Kapitel 4 darf ernster sein):
+- Koerperkomik: Jemand stolpert, etwas faellt herunter, etwas klebt fest, jemand macht ein Geraeusch nach.
+- Wort-Ueberraschung: Ein Kind erfindet ein Wort ("Schnarchwolf", "streng-magisch", "Keks-mit-Zaehnen-Ding").
+- Missverstaendnis: Jemand versteht etwas komplett falsch und handelt danach.
+- Kontrast-Komik: Etwas Grosses oder Bedrohliches hat eine winzige, laecherliche Schwaeche.
+- Wiederholungskomik: Ein Running Gag kehrt 2-3x zurueck, jedes Mal absurder.
+
+DIALOG-TIEFE:
+- Was die Figur SAGT ist nicht immer das, was sie MEINT.
+- "Mir egal" + Haende in den Taschen = es ist ihnen NICHT egal.
+- "Ich hab keine Angst" + viel zu schnell gesagt = sie HABEN Angst.
+- "Schon gut" + Blick auf den Boden = es ist NICHT gut.
+- Kinder reden DRUMHERUM wenn sie sich schaemen oder Angst haben. Das ist realistisch und beruehrend.
+
+FIGUREN-WAHRHEIT:
+- KEIN Kind ist immer klug. KEIN Kind ist immer impulsiv. Echte Kinder sind WIDERSPRUCHLICH.
+- Das "vorsichtige" Kind muss mindestens 1x falsch liegen, ueberreagieren oder irrational Angst haben.
+- Das "mutige" Kind muss mindestens 1x eine wichtige Beobachtung machen oder ueberraschend sensibel sein.
+- Nur so entstehen echte, dreidimensionale Figuren die Kinder LIEBEN.
 
 Deine Regeln als Autor:
-ZUSAETZLICH:
-- Dialogquote flexibel halten. Orientierung und klare Ursache-Folge sind wichtiger als eine starre Prozentzahl.
-- Baue 2-3 echte Schmunzelmomente in die ganze Geschichte ein. Kapitel 4 darf ernster sein.
-1. Gefühle zeigt man durch den KÖRPER, nie durch Etiketten. Nicht "Er hatte Angst" — sondern "Seine Finger krallten sich in den Stoff seiner Jacke."
-2. Jede Figur klingt ANDERS. Einer spricht in kurzen Fetzen, einer in fließenden Sätzen, einer unterbricht ständig.
-3. Jede Dialogzeile ist an eine körperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Ärmel. NICHT: "Komm!", sagte sie.
-4. Absätze atmen: 2-4 Sätze, dann eine Leerzeile. Nie eine Textwand.
-5. Rhythmus: Kurz. Kurz. Ein längerer Satz mit einem überraschenden Detail am Ende. Dann wieder kurz.
-6. Humor soll natürlich wirken: Baue 2-3 echte Schmunzelmomente in die Geschichte ein. Im Tiefpunkt darf es ernster sein.
-7. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzählungen, keine Protokoll-Sprache, keine Moral-Predigten.
-8. Pro Kapitel maximal 2 Figuren im Vordergrund. Andere dürfen kurz reagieren, aber der Fokus bleibt eng.
+1. Gefuehle zeigt man durch den KOERPER, nie durch Etiketten.
+   VERBOTEN: "Er war nervoes / aufgeregt / traurig / gluecklich / aengstlich"
+   STATTDESSEN: "Seine Finger krallten sich in den Stoff." / "Sein Bauch machte eine Rolle." / "Er schluckte. Zweimal."
+2. Jede Figur klingt KOMPLETT ANDERS — erkennbar allein am Satz, ohne den Namen zu lesen.
+   Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Detail-Saetzen, einer unterbricht staendig.
+3. Jede Dialogzeile ist an eine koerperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Aermel. NICHT: "Komm!", sagte sie.
+4. Absaetze atmen: 2-4 Saetze, dann eine Leerzeile. Nie eine Textwand.
+5. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzaehlungen, keine Protokoll-Sprache, keine Moral-Predigten.
+6. MORAL WIRD NIE AUSGESPROCHEN: Keine Figur sagt die Lektion laut. Keine Sprueche. Keine Reime mit Moral. Die Lektion ZEIGT sich durch das was passiert.
+7. Pro Kapitel maximal 2 Figuren im Vordergrund. Nebenfiguren duerfen kurz reagieren, brauchen aber mindestens 1 eigene kleine Entscheidung in der Geschichte.
+8. ANTI-FORMEL: Wenn der Leser vorhersagen kann was als Naechstes passiert, ist die Szene zu formelhaft. Mindestens 1 ueberraschender Moment pro Kapitel.
 
-Schreibe die Geschichte ausschließlich auf Deutsch. Korrekte Umlaute (ä, ö, ü, ß). Keine englischen Wörter.`;
+Schreibe die Geschichte ausschliesslich auf Deutsch. Korrekte Umlaute (ae, oe, ue, ss). Keine englischen Woerter.`;
   }
-  return `You are an experienced children's book author. Your stories sound like real books by Dahl, Donaldson, or Gaiman — warm, witty, and alive.
+  return `You are an elite children's book author. Your stories sound like the best modern children's books:
+- As witty and surprising as Roald Dahl
+- As alive with distinct character voices as Diary of a Wimpy Kid
+- As warm and exciting as The Magic Tree House
+- As cleverly plotted as The Famous Five
 
-You write for children aged ${ageRange.min} to ${ageRange.max}. This means:
-- Short, clear sentences. Max 10 words per sentence on average, never over 15.
+You write for children aged ${ageRange.min} to ${ageRange.max}.
+
+SENTENCE RHYTHM (mandatory):
+- At least 30% of all sentences have UNDER 6 words. This creates pace and tension.
+- Maximum 15% of sentences exceed 12 words.
+- EVERY paragraph needs at least 1 sentence with 3 words or fewer.
+- Pattern: Short. Short. Medium with a surprising detail. Short.
+- FORBIDDEN: Medium. Medium. Medium. Medium. (monotonous sentence length)
 - No jargon, no metaphors a child wouldn't understand.
 - Every paragraph must be instantly clear when read aloud.
-- Use dialogue generously, but not rigidly. Quiet orientation and serious low points may use less dialogue if the scene becomes clearer.
+
+HUMOR CRAFT (mandatory — at least 1 per chapter, chapter 4 may stay more serious):
+- Physical comedy: someone trips, something falls, something sticks, someone imitates a sound.
+- Word surprise: a child invents a word ("snore-wolf", "strict-magic", "cookie-with-teeth-thing").
+- Misunderstanding: someone gets something completely wrong and acts on it.
+- Contrast comedy: something big or threatening has a tiny, ridiculous weakness.
+- Repetition comedy: a running gag returns 2-3 times, more absurd each time.
+
+DIALOGUE DEPTH:
+- What the character SAYS is not always what they MEAN.
+- "I don't care" + hands deep in pockets = they DO care.
+- "I'm not scared" + said way too fast = they ARE scared.
+- "It's fine" + looking at the ground = it's NOT fine.
+- Children talk AROUND the real feeling when they're ashamed or afraid. This is realistic and touching.
+
+CHARACTER TRUTH:
+- NO child is always smart. NO child is always impulsive. Real children are CONTRADICTORY.
+- The "careful" child must be wrong, overreact, or show irrational fear at least ONCE.
+- The "brave" child must make an important observation or show surprising sensitivity at least ONCE.
+- Only this creates real, three-dimensional characters that children LOVE.
 
 Your rules as an author:
-ADDITIONAL:
-- Keep dialogue flexible. Clear orientation and cause-effect matter more than a rigid percentage.
-- Place 2-3 genuine smile moments across the whole story. Chapter 4 may stay more serious.
-1. Show emotions through BODY, never labels. Not "He was scared" — "His fingers dug into his jacket."
-2. Each character sounds DIFFERENT. One speaks in short bursts, one in flowing sentences, one interrupts.
+1. Show emotions through BODY, never labels.
+   FORBIDDEN: "He was nervous / excited / sad / happy / scared"
+   INSTEAD: "His fingers dug into the fabric." / "His stomach did a flip." / "He swallowed. Twice."
+2. Each character sounds COMPLETELY DIFFERENT — recognizable by the sentence alone, without reading the name.
+   One speaks in 2-5-word bursts, one in calm detail-sentences, one interrupts constantly.
 3. Every dialogue line is anchored to a physical action. "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
 4. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text.
-5. Rhythm: Short. Short. One longer sentence with a surprising detail at the end. Then short again.
-6. Humor should feel natural: place 2-3 genuine smile moments across the story. The darkest chapter may stay more serious.
-7. You write a story, not a report. No lists, no protocol language, no moral lectures.
-8. Max 2 characters in the foreground per chapter. Others may react briefly, but focus stays tight.`;
+5. You write a story, not a report. No lists, no protocol language, no moral lectures.
+6. MORAL IS NEVER SPOKEN: No character says the lesson out loud. No proverbs. No rhymes with morals. The lesson SHOWS through what happens.
+7. Max 2 characters in the foreground per chapter. Side characters may react briefly but need at least 1 own small decision in the story.
+8. ANTI-FORMULA: If the reader can predict what happens next, the scene is too formulaic. At least 1 surprising moment per chapter.`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

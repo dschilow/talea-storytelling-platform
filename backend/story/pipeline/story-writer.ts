@@ -21,8 +21,10 @@ import { getCoreChapterCharacterNames } from "./character-focus";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Cost-first default: one rewrite pass keeps quality recovery while cutting token spend.
+// Quality-cost balance: 1 pass for minor issues, 2 passes for severely broken drafts (5+ errors).
 const MAX_REWRITE_PASSES = 1;
+const MAX_REWRITE_PASSES_SEVERE = 2;
+const SEVERE_ERROR_THRESHOLD = 5;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded.
 // (Niedrigerer Wert = weniger Expand-Calls)
@@ -325,12 +327,11 @@ export class LlmStoryWriter implements StoryWriter {
           : (isReasoningModel ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
-    // Gemini Flash full rewrites are high-cost/low-yield, so keep rewritePasses=0.
-    // Expand calls are cheap per-chapter fixes and handle short chapters. Pro writes shorter
-    // chapters than Flash (~150-180 words vs ~200+), so needs more expand passes.
-    const defaultRewritePasses = isGeminiModel ? 0 : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGeminiModel ? 1 : MAX_EXPAND_CALLS;
-    const defaultWarningPolishCalls = isGeminiModel ? 1 : Math.min(2, MAX_WARNING_POLISH_CALLS);
+    // Gemini Flash: allow 1 rewrite pass (quality recovery outweighs cost).
+    // Severely broken drafts (5+ errors) get 2 passes for all models.
+    const defaultRewritePasses = isGeminiModel ? MAX_REWRITE_PASSES : MAX_REWRITE_PASSES;
+    const defaultExpandCalls = isGeminiModel ? 2 : MAX_EXPAND_CALLS;
+    const defaultWarningPolishCalls = isGeminiModel ? 2 : Math.min(2, MAX_WARNING_POLISH_CALLS);
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
@@ -1169,8 +1170,10 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
       hardErrorIssuesInitial.length === 0 &&
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
     const emergencyRewriteNeeded = hardErrorIssuesInitial.length > 0 || warningRecoveryNeededInitial;
+    // Severely broken drafts (5+ errors) get extra rewrite budget for quality recovery.
+    const isSeverelyBroken = hardErrorIssuesInitial.length >= SEVERE_ERROR_THRESHOLD;
     const effectiveRewritePasses = canRunPostEdits
-      ? maxRewritePasses
+      ? (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses)
       : 0;
     if (emergencyRewriteNeeded && effectiveRewritePasses === 0) {
       console.log("[story-writer] Rewrite needed but disabled by config (maxRewritePasses=0).");
