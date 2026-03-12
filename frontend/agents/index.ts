@@ -76,3 +76,4 @@ export { AgentPulse } from './components/AgentPulse';
 export { AgentCard } from './components/AgentCard';
 export { AgentInlineHint } from './components/AgentInlineHint';
 export { AgentOverlay } from './components/AgentOverlay';
+export { TaviHomeGreeting } from './components/TaviHomeGreeting';

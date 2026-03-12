@@ -32,6 +32,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import CosmosHomeCard from '../Cosmos/CosmosHomeCard';
 import { useCosmosState } from '../Cosmos/useCosmosState';
+import { TaviHomeGreeting } from '../../agents';
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
   Card,
@@ -701,6 +702,15 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     animate="show"
     className={cn(taleaPageShellClass, "space-y-8 pt-4 sm:space-y-10 sm:pt-6 md:pt-8")}
   >
+    {/* Tavi — contextual agent greeting */}
+    <motion.div variants={itemVariants}>
+      <TaviHomeGreeting
+        userName={userName}
+        storyCount={storiesTotal}
+        avatarCount={avatars.length}
+      />
+    </motion.div>
+
     <section className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.42fr)_minmax(19rem,0.88fr)]">
       <motion.div variants={itemVariants}>
         <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6 lg:p-8")}>
