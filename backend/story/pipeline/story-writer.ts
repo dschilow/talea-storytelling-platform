@@ -351,9 +351,11 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 12000 : (isReasoningModel ? 20000 : 12000);
+    // Gemini Flash is free during preview — budget must cover: blueprint (~2k) + story (~6k) + rewrite (~7k) + polish (~3k).
+    // 12k was too tight: caused "Token budget reached" after 1 rewrite with no polish possible.
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 22000 : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 7000 : (isReasoningModel ? 10000 : 5000);
+    const minStoryTokenBudget = isGeminiFlashModel ? 14000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -584,7 +586,9 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
         });
 
         // Blueprint always runs with flashModel
-        const blueprintMaxTokens = isFlashModelGemini ? 900 : (isReasoningModel ? 1200 : 900);
+        // 900 is too tight for 5-chapter blueprints with emotionalArc + characterWants/Fears + artifactArc
+        // — causes MAX_TOKENS truncation → fallback to deterministic blueprint → poor stories.
+        const blueprintMaxTokens = isFlashModelGemini ? 1500 : (isReasoningModel ? 1800 : 1200);
         const blueprintResult = await callStoryModel({
           systemPrompt: buildBlueprintSystemPrompt(normalizedRequest.language),
           userPrompt: blueprintPrompt,
@@ -1252,8 +1256,10 @@ CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentence
         break;
       }
       try {
+        // Use V7 system prompt for rewrites when blueprint path is active
+        const rewriteSystemPrompt = (storyBlueprint && useV7Blueprint) ? v7SystemPrompt : systemPrompt;
         rewriteResult = await callStoryModel({
-          systemPrompt,
+          systemPrompt: rewriteSystemPrompt,
           userPrompt: rewritePrompt,
           responseFormat: "json_object",
           maxTokens: rewriteMaxTokens,

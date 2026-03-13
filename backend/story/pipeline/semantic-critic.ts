@@ -199,7 +199,7 @@ TARGETED CHECKS:
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 1800,
+      maxTokens: 2400,
       reasoningEffort: "low",
       temperature: 0.2,
       context: "story-semantic-critic",
