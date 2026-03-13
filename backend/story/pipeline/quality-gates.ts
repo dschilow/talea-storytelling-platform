@@ -206,6 +206,20 @@ function gateDialogueQuote(
     }
   }
 
+  // Aggregate check: if 3+ chapters have low dialogue, escalate to ERROR
+  const lowDialogueChapters = issues.filter(i => i.code === "DIALOGUE_RATIO_LOW").length;
+  if (lowDialogueChapters >= 3) {
+    issues.push({
+      gate: "DIALOGUE_QUOTE",
+      chapter: 0,
+      code: "DIALOGUE_RATIO_PERSISTENTLY_LOW",
+      message: isDE
+        ? `${lowDialogueChapters} von ${draft.chapters.length} Kapiteln haben zu wenig Dialog. Die Geschichte braucht insgesamt mehr Gespraeche.`
+        : `${lowDialogueChapters} of ${draft.chapters.length} chapters have low dialogue. The story needs more conversations overall.`,
+      severity: "ERROR",
+    });
+  }
+
   return issues;
 }
 

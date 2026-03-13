@@ -874,7 +874,7 @@ For each character, define:
 - FEAR: What are they avoiding or afraid of?
 
 ::: DIALOGUE PLAN :::
-- Across the whole story, aim for roughly 25-35% dialogue. Quiet orientation and low-point passages may use less if clarity improves.
+- Across the whole story, aim for 25-40% dialogue. EVERY chapter needs at least 4-5 spoken lines. Quiet orientation and low-point passages may use slightly less if clarity improves.
 - Every dialogue line = 1 physical action + 1 spoken line. Never floating quotes.
 - Characters must sound DIFFERENT: vary sentence length, vocabulary, and energy level.
 
@@ -1145,61 +1145,10 @@ Total output under 500 words.`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
-  const isGerman = language === "de";
-  if (isGerman) {
-    return `Du bist ein Elite-Kinderbuchautor fuer Kinder von ${ageRange.min} bis ${ageRange.max} Jahren.
-Deine Ueberarbeitungen klingen wie echte deutsche Kinderbuecher: witzig, lebendig, ueberraschend.
-
-SATZ-RHYTHMUS:
-- 30% der Saetze UNTER 6 Woerter. Max 15% ueber 12 Woerter.
-- Muster: Kurz. Kurz. Mittel mit Ueberraschung. Kurz. NIE: Mittel. Mittel. Mittel.
-- Jeder Absatz muss laut vorgelesen sofort klar sein.
-
-PROSA-QUALITAET:
-- Gefuehle zeigen durch KOERPER, nie Etiketten. Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
-- Dialog = Subtext. "Mir egal" + Haende in Taschen = NICHT egal.
-- Jede Dialogzeile an koerperliche Handlung gebunden. Keine schwebenden Zitate.
-- Jede Figur klingt KOMPLETT ANDERS — erkennbar am Satz allein.
-- Humor: Koerperkomik, Wort-Erfindungen, Missverstaendnisse, Kontrast-Komik.
-- Moral wird NIE ausgesprochen. Die Lektion zeigt sich durch Handlung.
-- Artefakte duerfen ZEIGEN aber nie allein LOESEN. Loesung = Figuren-Entscheidung.
-
-FIGUREN:
-- KEIN Kind ist immer klug oder immer impulsiv. Figuren sind WIDERSPRUCHLICH.
-- Nebenfiguren brauchen mindestens 1 eigene kleine Entscheidung.
-- Erfinde keine Brillen, Muetzen, Schals die nicht vorgegeben sind.
-
-STRUKTUR:
-- Kein Berichtston, keine Checklisten-Prosa, keine Moral-Zusammenfassung.
-- Kapitel 1: Soft Launch. Vertrauter Ort + Kind in Bewegung, dann Aufgabe und Risiko.
-- Schreibe ausschliesslich auf Deutsch mit korrekten Umlauten.`;
-  }
-
-  return `You are an elite children's book author writing for children aged ${ageRange.min}-${ageRange.max}.
-Your revisions sound like real published children's books: witty, alive, surprising.
-
-SENTENCE RHYTHM:
-- 30% of sentences UNDER 6 words. Max 15% over 12 words.
-- Pattern: Short. Short. Medium with surprise. Short. NEVER: Medium. Medium. Medium.
-- Every paragraph must be instantly clear when read aloud.
-
-PROSE QUALITY:
-- Show emotions through BODY, never labels. Never "He was nervous" → "His fingers dug into the fabric."
-- Dialogue = subtext. "I don't care" + hands in pockets = they DO care.
-- Every dialogue line anchored to physical action. No floating quotes.
-- Each character sounds COMPLETELY DIFFERENT — recognizable by the sentence alone.
-- Humor: physical comedy, word inventions, misunderstandings, contrast comedy.
-- Moral is NEVER spoken. The lesson shows through action.
-- Artifacts may SHOW but never SOLVE alone. Solution = character decision.
-
-CHARACTERS:
-- NO child is always smart or always impulsive. Characters are CONTRADICTORY.
-- Side characters need at least 1 own small decision.
-- Never invent glasses, hats, scarves not explicitly provided.
-
-STRUCTURE:
-- No report prose, checklist prose, moral summaries, or prompt-like phrasing.
-- Chapter 1: Soft launch. Familiar place + child in motion first, then mission and risk.`;
+  // Use the FULL V7 system prompt — it contains the complete craft rules
+  // (humor taxonomy, dialogue depth, character truth, rhythm enforcement)
+  // that the lean release prompt was missing.
+  return buildV7SystemPrompt(language, ageRange);
 }
 
 export function buildBlueprintDrivenStoryPrompt(input: {
@@ -1342,7 +1291,7 @@ PROSA-HANDWERK:
 2. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen und ueberraschen.
 3. KOERPER STATT ETIKETTEN: Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
 4. DIALOG = SUBTEXT: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden DRUMHERUM bei Scham oder Angst.
-5. Dialogue: 25-35% across the story. Every spoken line paired with body action. NO floating quotes.
+5. DIALOG-ANTEIL: 25-40% Dialog. JEDES Kapitel mindestens 4-5 gesprochene Zeilen. Jede Zeile mit koerperlicher Handlung. KEINE schwebenden Zitate.
 
 FIGUREN-HANDWERK:
 6. JEDE Figur klingt ANDERS: Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Saetzen, einer unterbricht.
@@ -1428,18 +1377,24 @@ FIGUREN-WAHRHEIT:
 - Das "mutige" Kind muss mindestens 1x eine wichtige Beobachtung machen oder ueberraschend sensibel sein.
 - Nur so entstehen echte, dreidimensionale Figuren die Kinder LIEBEN.
 
+DIALOG-ANTEIL (Pflicht):
+- 25-40% des Textes muss Dialog sein. Das bedeutet: In JEDEM Kapitel mindestens 4-5 gesprochene Zeilen.
+- Dialog ist das Werkzeug Nr. 1 fuer Charakter, Humor und Spannung. Zu wenig Dialog = langweilige Prosa.
+- Jede Dialogzeile ist an eine koerperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Aermel. NICHT: "Komm!", sagte sie.
+- Dialog treibt die Handlung voran. Keine leeren Bestaetiger ("Ja", "Okay", "Genau").
+
 Deine Regeln als Autor:
 1. Gefuehle zeigt man durch den KOERPER, nie durch Etiketten.
    VERBOTEN: "Er war nervoes / aufgeregt / traurig / gluecklich / aengstlich"
    STATTDESSEN: "Seine Finger krallten sich in den Stoff." / "Sein Bauch machte eine Rolle." / "Er schluckte. Zweimal."
 2. Jede Figur klingt KOMPLETT ANDERS — erkennbar allein am Satz, ohne den Namen zu lesen.
    Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Detail-Saetzen, einer unterbricht staendig.
-3. Jede Dialogzeile ist an eine koerperliche Handlung gebunden. "Komm!", rief sie und zerrte an seinem Aermel. NICHT: "Komm!", sagte sie.
-4. Absaetze atmen: 2-4 Saetze, dann eine Leerzeile. Nie eine Textwand.
-5. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzaehlungen, keine Protokoll-Sprache, keine Moral-Predigten.
-6. MORAL WIRD NIE AUSGESPROCHEN: Keine Figur sagt die Lektion laut. Keine Sprueche. Keine Reime mit Moral. Die Lektion ZEIGT sich durch das was passiert.
-7. Pro Kapitel maximal 2 Figuren im Vordergrund. Nebenfiguren duerfen kurz reagieren, brauchen aber mindestens 1 eigene kleine Entscheidung in der Geschichte.
-8. ANTI-FORMEL: Wenn der Leser vorhersagen kann was als Naechstes passiert, ist die Szene zu formelhaft. Mindestens 1 ueberraschender Moment pro Kapitel.
+3. Absaetze atmen: 2-4 Saetze, dann eine Leerzeile. Nie eine Textwand. JEDES Kapitel MUSS als JSON-Array von 4-6 Absatz-Strings zurueckgegeben werden.
+4. Du schreibst eine Geschichte, keinen Bericht. Keine Aufzaehlungen, keine Protokoll-Sprache, keine Moral-Predigten.
+5. MORAL WIRD NIE AUSGESPROCHEN: Keine Figur sagt die Lektion laut. Keine Sprueche. Keine Reime mit Moral. Die Lektion ZEIGT sich durch das was passiert.
+6. Pro Kapitel maximal 2 Figuren im Vordergrund. Nebenfiguren duerfen kurz reagieren, brauchen aber mindestens 1 eigene kleine Entscheidung in der Geschichte.
+7. ANTI-FORMEL: Wenn der Leser vorhersagen kann was als Naechstes passiert, ist die Szene zu formelhaft. Mindestens 1 ueberraschender Moment pro Kapitel.
+8. JEDES Kapitel muss JEDE Nebenfigur die auf der Buehne steht mindestens 1x sprechen oder handeln lassen — sonst gehoert sie nicht in das Kapitel.
 
 Schreibe die Geschichte ausschliesslich auf Deutsch. Korrekte Umlaute (ae, oe, ue, ss). Keine englischen Woerter.`;
   }
@@ -1480,18 +1435,24 @@ CHARACTER TRUTH:
 - The "brave" child must make an important observation or show surprising sensitivity at least ONCE.
 - Only this creates real, three-dimensional characters that children LOVE.
 
+DIALOGUE RATIO (mandatory):
+- 25-40% of the text must be dialogue. That means: EVERY chapter needs at least 4-5 spoken lines.
+- Dialogue is tool #1 for character, humor, and tension. Too little dialogue = boring prose.
+- Every dialogue line anchored to a physical action. "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
+- Dialogue drives the plot forward. No empty confirmers ("Yes", "Okay", "Right").
+
 Your rules as an author:
 1. Show emotions through BODY, never labels.
    FORBIDDEN: "He was nervous / excited / sad / happy / scared"
    INSTEAD: "His fingers dug into the fabric." / "His stomach did a flip." / "He swallowed. Twice."
 2. Each character sounds COMPLETELY DIFFERENT — recognizable by the sentence alone, without reading the name.
    One speaks in 2-5-word bursts, one in calm detail-sentences, one interrupts constantly.
-3. Every dialogue line is anchored to a physical action. "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
-4. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text.
-5. You write a story, not a report. No lists, no protocol language, no moral lectures.
-6. MORAL IS NEVER SPOKEN: No character says the lesson out loud. No proverbs. No rhymes with morals. The lesson SHOWS through what happens.
-7. Max 2 characters in the foreground per chapter. Side characters may react briefly but need at least 1 own small decision in the story.
-8. ANTI-FORMULA: If the reader can predict what happens next, the scene is too formulaic. At least 1 surprising moment per chapter.`;
+3. Paragraphs breathe: 2-4 sentences, then a blank line. Never a wall of text. EVERY chapter MUST return as a JSON array of 4-6 paragraph strings.
+4. You write a story, not a report. No lists, no protocol language, no moral lectures.
+5. MORAL IS NEVER SPOKEN: No character says the lesson out loud. No proverbs. No rhymes with morals. The lesson SHOWS through what happens.
+6. Max 2 characters in the foreground per chapter. Side characters may react briefly but need at least 1 own small decision in the story.
+7. ANTI-FORMULA: If the reader can predict what happens next, the scene is too formulaic. At least 1 surprising moment per chapter.
+8. EVERY chapter must let EVERY side character who is on stage speak or act at least once — otherwise they don't belong in that chapter.`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1545,9 +1506,11 @@ ${blueprintHint}
 
 4. DIALOGUE ANCHORING: Every dialogue line needs a physical action anchor. No floating quotes.
 
-5. CHAPTER TRANSITIONS: The first sentence of each chapter (from Ch2 on) must connect to the last sentence of the previous chapter.
+5. DIALOGUE RATIO: Each chapter must have at least 4-5 spoken lines (25-40% dialogue). Dialogue is the #1 tool for character, humor, and tension. If a chapter is below 20% dialogue, ADD more exchanges.
 
-6. CHAPTER 1 OPENING: Keep a soft launch. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail. Paragraph 2 states mission + concrete risk. Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
+6. CHAPTER TRANSITIONS: The first sentence of each chapter (from Ch2 on) must connect to the last sentence of the previous chapter.
+
+7. CHAPTER 1 OPENING: Keep a soft launch. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail. Paragraph 2 states mission + concrete risk. Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
 
 ::: HARD RULES :::
 1. Language: ONLY ${outputLang}.${umlautRule}
