@@ -157,7 +157,18 @@ function gateDialogueQuote(
       });
     }
 
-    if (sentenceCount >= 8 && dialogueRatio < minDialogueRatio) {
+    if (sentenceCount >= 8 && dialogueRatio < criticalDialogueRatio) {
+      // Critical subsumes LOW — only emit one issue per chapter to avoid double-counting
+      issues.push({
+        gate: "DIALOGUE_QUOTE",
+        chapter: ch.chapter,
+        code: "DIALOGUE_RATIO_CRITICAL",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Dialoganteil kritisch niedrig (${Math.round(dialogueRatio * 100)}%, mindestens ${Math.round(criticalDialogueRatio * 100)}% noetig)`
+          : `Chapter ${ch.chapter}: critically low dialogue ratio (${Math.round(dialogueRatio * 100)}%, need at least ${Math.round(criticalDialogueRatio * 100)}%)`,
+        severity: "WARNING",
+      });
+    } else if (sentenceCount >= 8 && dialogueRatio < minDialogueRatio) {
       issues.push({
         gate: "DIALOGUE_QUOTE",
         chapter: ch.chapter,
@@ -166,18 +177,6 @@ function gateDialogueQuote(
           ? `Kapitel ${ch.chapter}: Dialoganteil zu niedrig (${Math.round(dialogueRatio * 100)}%, Ziel mindestens ${Math.round(minDialogueRatio * 100)}%)`
           : `Chapter ${ch.chapter}: dialogue ratio too low (${Math.round(dialogueRatio * 100)}%, target at least ${Math.round(minDialogueRatio * 100)}%)`,
         severity: "WARNING",
-      });
-    }
-
-    if (sentenceCount >= 8 && dialogueRatio < criticalDialogueRatio) {
-      issues.push({
-        gate: "DIALOGUE_QUOTE",
-        chapter: ch.chapter,
-        code: "DIALOGUE_RATIO_CRITICAL",
-        message: isDE
-          ? `Kapitel ${ch.chapter}: Dialoganteil kritisch niedrig (${Math.round(dialogueRatio * 100)}%, mindestens ${Math.round(criticalDialogueRatio * 100)}% noetig)`
-          : `Chapter ${ch.chapter}: critically low dialogue ratio (${Math.round(dialogueRatio * 100)}%, need at least ${Math.round(criticalDialogueRatio * 100)}%)`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
       });
     }
 
@@ -601,7 +600,7 @@ function gateReadabilityComplexity(
         message: isDE
           ? `Kapitel ${ch.chapter}: Satzlaenge zu hoch (${avgSentenceWords.toFixed(1)} Woerter im Schnitt, max ${maxAvgSentenceWords})`
           : `Chapter ${ch.chapter}: sentence complexity too high (${avgSentenceWords.toFixed(1)} words avg, max ${maxAvgSentenceWords})`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 
@@ -613,7 +612,7 @@ function gateReadabilityComplexity(
         message: isDE
           ? `Kapitel ${ch.chapter}: zu viele lange Saetze (${Math.round(longSentenceRatio * 100)}%, max ${Math.round(maxLongSentenceRatio * 100)}%)`
           : `Chapter ${ch.chapter}: too many long sentences (${Math.round(longSentenceRatio * 100)}%, max ${Math.round(maxLongSentenceRatio * 100)}%)`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 
@@ -684,7 +683,7 @@ function gateCharacterVoiceDistinctness(
         message: isDE
           ? `Kapitel ${chapter.chapter}: Rollenbezeichnungen mit Namen zu oft wiederholt (${roleLabelCount}x, max ${roleLabelThreshold})`
           : `Chapter ${chapter.chapter}: role labels repeated with names too often (${roleLabelCount}x, max ${roleLabelThreshold})`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 
@@ -710,7 +709,7 @@ function gateCharacterVoiceDistinctness(
         message: isDE
           ? `Kapitel ${chapter.chapter}: zu viele wiederholte Sprach-Formeln fuer Sprecher (${formulaHits}x, max ${maxFormulaHits}).`
           : `Chapter ${chapter.chapter}: too many repeated speaker-tag formulas (${formulaHits}, max ${maxFormulaHits}).`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -748,6 +747,8 @@ function gateImageryBalance(
         paragraphComparisons += paragraph.match(pattern)?.length ?? 0;
       }
       if (paragraphComparisons > paragraphMaxComparisons) {
+        // Only ERROR if severely over limit (3+), otherwise WARNING to avoid excessive rewrite triggers
+        const severeCluster = paragraphComparisons >= 3;
         issues.push({
           gate: "IMAGERY_BALANCE",
           chapter: ch.chapter,
@@ -755,7 +756,7 @@ function gateImageryBalance(
           message: isDE
             ? `Kapitel ${ch.chapter}: Absatz ${pIdx + 1} hat zu viele Vergleiche (${paragraphComparisons}, max ${paragraphMaxComparisons}).`
             : `Chapter ${ch.chapter}: paragraph ${pIdx + 1} has too many comparisons (${paragraphComparisons}, max ${paragraphMaxComparisons}).`,
-          severity: ageMax <= 8 ? "ERROR" : "WARNING",
+          severity: severeCluster ? "ERROR" : "WARNING",
         });
       }
     }
@@ -774,7 +775,7 @@ function gateImageryBalance(
         message: isDE
           ? `Kapitel ${ch.chapter}: ${metaphorCount} Metaphern/Vergleiche (max ${chapterMaxComparisons} pro Kapitel)`
           : `Chapter ${ch.chapter}: ${metaphorCount} metaphors/similes (max ${chapterMaxComparisons} per chapter)`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -845,7 +846,7 @@ function gatePoeticDensity(
         message: isDE
           ? `Kapitel ${ch.chapter}: zu poetisch-dichte Formulierungen (${hitCount} Treffer, max ${maxPoeticHits - 1}). Fuer 6-8 klarer und konkreter schreiben.`
           : `Chapter ${ch.chapter}: poetic language is too dense (${hitCount} hits, max ${maxPoeticHits - 1}). Use clearer, more concrete language for ages 6-8.`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -1072,7 +1073,7 @@ function gateEndingPayoff(
         message: isDE
           ? `Letztes Kapitel endet mit Cliffhanger statt warmem Abschluss`
           : `Last chapter ends with cliffhanger instead of warm resolution`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
       break;
     }
@@ -1106,7 +1107,7 @@ function gateEndingPayoff(
       message: isDE
         ? "Letzter Abschnitt oeffnet neue Unsicherheit statt klaren warmen Abschluss."
         : "Final section opens new uncertainty instead of a clear warm closure.",
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -1122,7 +1123,7 @@ function gateEndingPayoff(
       message: isDE
         ? "Im Schluss fehlt ein klarer warmer Anker (z. B. sicher/zu Hause/zusammen)."
         : "Ending lacks a clear warm anchor (e.g., safe/home/together).",
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -1142,7 +1143,7 @@ function gateEndingPayoff(
         message: isDE
           ? "Das Ende greift das Anfangsziel kaum wieder auf. Leitfaden wirkt abgerissen."
           : "Ending barely reconnects to the initial goal. Main thread feels dropped.",
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -1163,7 +1164,7 @@ function gateEndingPayoff(
       message: isDE
         ? "Finale bleibt zu abstrakt. Zeige konkret, was gesichert/gewonnen wurde."
         : "Ending payoff is too abstract. Show concretely what was secured or won.",
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -1440,7 +1441,7 @@ function gateRuleExpositionTell(
       message: isDE
         ? `Kapitel ${chapter.chapter}: erklaerende Regel-Prosa erkannt. Wirkung als Handlung/Dialog zeigen statt erklaeren.`
         : `Chapter ${chapter.chapter}: explanatory rule prose detected. Show the effect via action/dialogue instead.`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -1482,7 +1483,7 @@ function gateNarrativeSummaryMeta(
       message: isDE
         ? `Kapitel ${chapter.chapter}: zusammenfassende Meta-Formulierung statt Szene erkannt (z. B. "Die Konsequenz war klar", "Der Preis?").`
         : `Chapter ${chapter.chapter}: summary-like meta phrasing detected instead of scene writing (e.g., "The consequence was clear", "The price?").`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -2037,7 +2038,7 @@ function gateStakesAndLowpoint(
         message: isDE
           ? "Stakes sind vorhanden, aber zu abstrakt. Benenne frueh konkret, was genau verloren geht."
           : "Stakes exist but are too abstract. Name early what concrete thing will be lost.",
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -2098,7 +2099,7 @@ function gateStakesAndLowpoint(
       message: isDE
         ? `Kapitel ${lowpointChapter.chapter}: Rueckschlag vorhanden, aber innere Gefuehlsreaktion zu schwach.`
         : `Chapter ${lowpointChapter.chapter}: setback present, but internal emotional reaction is too weak.`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -2128,7 +2129,7 @@ function gateStakesAndLowpoint(
         message: isDE
           ? `Kapitel ${lowpointChapter.chapter}: Tiefpunkt wird sofort verharmlost; fuege einen echten Preis/Verlust ein.`
           : `Chapter ${lowpointChapter.chapter}: low point is immediately softened; add a real cost/loss.`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -2173,7 +2174,7 @@ function gateRhythmVariation(
         message: isDE
           ? `Kapitel ${chapter.chapter}: zu viele laengere Saetze fuer 6-8 Jahre.`
           : `Chapter ${chapter.chapter}: too many longer sentences for age 6-8.`,
-        severity: "ERROR",
+        severity: "WARNING",
       });
     }
 
@@ -2194,7 +2195,7 @@ function gateRhythmVariation(
         message: isDE
           ? `Kapitel ${chapter.chapter}: Bildsprache zu dicht (${comparisonCount} Vergleiche bei ${sentences.length} Saetzen).`
           : `Chapter ${chapter.chapter}: imagery too dense (${comparisonCount} comparisons for ${sentences.length} sentences).`,
-        severity: (ageRange?.max ?? 12) <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
   }
@@ -2261,7 +2262,7 @@ function gateChildEmotionArc(
         message: isDE
           ? `Innere Perspektive fuer ${name} fehlt oder ist zu schwach.`
           : `Inner perspective for ${name} is missing or too weak.`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 
@@ -2291,7 +2292,7 @@ function gateChildEmotionArc(
       message: isDE
         ? "Fehler-und-Korrektur-Bogen eines Kindes fehlt (Fehlentscheidung -> aktive Korrektur)."
         : "Missing child error-correction arc (bad decision -> active correction).",
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -2344,7 +2345,7 @@ function gateHumorPresence(
       message: isDE
         ? `Humor-Level zu niedrig: ${humorChapterHits} humorvolle Kapitel, Ziel mindestens ${minHumorMoments}.`
         : `Humor level too low: ${humorChapterHits} humorous chapters, target at least ${minHumorMoments}.`,
-      severity: level >= 2 && ageMax <= 12 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 
@@ -2419,7 +2420,7 @@ function gateGimmickLoopOveruse(
           message: isDE
             ? `Kapitel ${chapter.chapter}: Running-Gag "${token}" zu oft wiederholt (${hits}x, max ${chapterMax}).`
             : `Chapter ${chapter.chapter}: running gag "${token}" repeated too often (${hits}, max ${chapterMax}).`,
-          severity: ageMax <= 8 ? "ERROR" : "WARNING",
+          severity: "WARNING",
         });
       }
     }
@@ -2432,7 +2433,7 @@ function gateGimmickLoopOveruse(
         message: isDE
           ? `Running-Gag "${token}" in der Geschichte uebernutzt (${storyHits}x, max ${storyMax}).`
           : `Running gag "${token}" overused across the story (${storyHits}, max ${storyMax}).`,
-        severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 
@@ -2452,7 +2453,7 @@ function gateGimmickLoopOveruse(
       message: isDE
         ? `Kapitel ${chapter.chapter}: Lautmalerei-Schleife erkannt (${bursts}x). Einmal reicht oft.`
         : `Chapter ${chapter.chapter}: onomatopoeia loop detected (${bursts}). Once is often enough.`,
-      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+      severity: "WARNING",
     });
   }
 

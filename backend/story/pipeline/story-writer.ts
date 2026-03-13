@@ -21,9 +21,10 @@ import { getCoreChapterCharacterNames } from "./character-focus";
 //   + einzelne Expand-Calls nur wenn < HARD_MIN_WORDS
 // ════════════════════════════════════════════════════════════════════════════
 
-// Quality-cost balance: 1 pass for minor issues, 2 passes for severely broken drafts (5+ errors).
+// Quality-cost balance: 1 rewrite pass max. A second pass rarely improves Flash output
+// and doubles cost (~7k tokens each). If the first rewrite doesn't help, polish is better.
 const MAX_REWRITE_PASSES = 1;
-const MAX_REWRITE_PASSES_SEVERE = 2;
+const MAX_REWRITE_PASSES_SEVERE = 1;
 const SEVERE_ERROR_THRESHOLD = 5;
 
 // Hartes Minimum für Kapitel-Wörter - unter diesem Wert wird expanded.
@@ -351,11 +352,11 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    // Gemini Flash is free during preview — budget must cover: blueprint (~2k) + story (~6k) + rewrite (~7k) + polish (~3k).
-    // 12k was too tight: caused "Token budget reached" after 1 rewrite with no polish possible.
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 22000 : (isReasoningModel ? 20000 : 12000);
+    // Budget: blueprint (~2.5k) + story (~6k) + 1 rewrite (~7k) = ~15.5k.
+    // Flash on Vertex AI costs real money — keep budget tight but sufficient for 1 rewrite cycle.
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 16000 : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 14000 : (isReasoningModel ? 10000 : 5000);
+    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
