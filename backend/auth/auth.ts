@@ -12,6 +12,9 @@ const dokuDB = SQLDatabase.named("doku");
 
 // Secret configured in the Encore infrastructure settings.
 const clerkSecretKey = secret("ClerkSecretKey");
+// Optional: PEM public key from Clerk dashboard (API Keys → JWT public key).
+// When set, verifyToken skips the remote JWKS fetch — eliminates network dependency.
+const clerkJwtKey = secret("ClerkJwtKey");
 
 // Clerk client to fetch user data when needed.
 const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
@@ -192,8 +195,12 @@ export const auth = authHandler<AuthParams, AuthData>(async (data) => {
 
     console.log("✅ ClerkSecretKey is configured (length: " + secretKey.length + ")");
 
+    // Use local JWT public key if available to avoid remote JWKS fetch (prevents
+    // auth failures caused by transient Railway → api.clerk.com network issues).
+    const jwtKey = (() => { try { return clerkJwtKey(); } catch { return ""; } })();
     const verifiedToken = await verifyToken(token, {
       secretKey,
+      ...(jwtKey ? { jwtKey } : {}),
       // Clock-Skew-Toleranz fuer Edge-Deployments.
       clockSkewInMs: 120000,
     });
