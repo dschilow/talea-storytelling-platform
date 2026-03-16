@@ -814,7 +814,7 @@ For each character, define:
 - FEAR: What are they avoiding or afraid of?
 
 ::: DIALOGUE PLAN :::
-- Across the whole story, aim for 25-40% dialogue. EVERY chapter needs at least 4-5 spoken lines. Quiet orientation and low-point passages may use slightly less if clarity improves.
+- Across the whole story, aim for 40-50% dialogue. EVERY chapter needs at least 6-8 spoken lines. Dialogue drives the plot. Quiet orientation and low-point passages may use slightly less if clarity improves.
 - Every dialogue line = 1 physical action + 1 spoken line. Never floating quotes.
 - Characters must sound DIFFERENT: vary sentence length, vocabulary, and energy level.
 
@@ -928,7 +928,7 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
     }
   }
 
-  return `Write a 5-chapter children's story in ${outputLang}.${umlautRule}
+  return `Write a 5-chapter children's story in ${outputLang}. EACH chapter MUST have ${wordsPerChapter.min}-${wordsPerChapter.max} words (total ${totalWordMin}-${totalWordMax}). Chapter 5 MUST be the SAME length as chapters 1-4. Short chapters are REJECTED.${umlautRule}
 Use the blueprint as guidance, but tell a natural story. Never copy blueprint wording literally.
 
 CHARACTERS
@@ -954,26 +954,31 @@ IKONISCHE SZENE (Pflicht):
 ${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
 ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
-NON-NEGOTIABLES (Ergaenzend zum System-Prompt — hier nur STRUKTUR + PLOT-Regeln)
+NON-NEGOTIABLES (ALLE Regeln — wer sie bricht wird abgelehnt)
+
+STIL (WICHTIGSTE REGELN — bestimmen die Qualitaet!):
+1. ERZAEHLERSTIMME: Du bist KEIN neutraler Erzaehler. Du kommentierst in Klammern, uebertreibst, sprichst den Leser direkt an. Mindestens 3 Erzaehler-Kommentare pro Kapitel. Beispiele: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer." / "Was dann passierte — na ja."
+2. DIALOG = 40-50% des Textes. Mindestens 6-8 Dialogzeilen pro Kapitel. Dialog treibt die Handlung. JEDE Dialogzeile hat eine Koerper-Aktion dabei.
+3. RHYTHMUS: Mindestens jeder 3. Satz hat UNTER 6 Woerter. Kein Satz ueber 15 Woerter. SO: "Er rannte. Schnell. Die Tuer klemmte, aber er zerrte daran. Nichts passierte." NICHT SO: "Er rannte schnell zur Tuer und zerrte daran, aber sie klemmte und nichts passierte."
+4. KOERPER STATT ETIKETTEN: VERBOTEN: "Er war nervoes/traurig/gluecklich." STATTDESSEN: "Sein Magen drehte sich." / "Seine Finger krallten sich in den Stoff."
 
 PLOT:
-1. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein. VERBOTEN: Artefakt wird zerstoert/eingesetzt und loest damit das Problem. VERBOTEN: Artefakt-Energie besiegt Hindernis. Das Kind loest das Problem durch Mut, Wissen oder Zusammenarbeit.
-2. MORAL WIRD NIE AUSGESPROCHEN. Lektion zeigt sich durch Handlung. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste" — kein moralischer Schlusssatz.
-3. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
+5. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein.
+6. MORAL WIRD NIE AUSGESPROCHEN. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste".
+7. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
 
 LAENGE (KRITISCH — Story wird abgelehnt wenn zu kurz!):
-4. JEDES Kapitel MUSS ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter haben. Gesamt: ${totalWordMin}-${totalWordMax}. Kapitel unter ${wordsPerChapter.min} Woerter = AUTOMATISCH ABGELEHNT.
-5. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
+8. JEDES Kapitel MUSS ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter haben. Gesamt: ${totalWordMin}-${totalWordMax}. Kapitel unter ${wordsPerChapter.min} Woerter = AUTOMATISCH ABGELEHNT. AUCH das letzte Kapitel!
+9. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
 
 STRUKTUR:
-6. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko. Nach Abs.2 muss WER/WO/WAS/WARUM klar sein.
-7. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
-8. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
-9. Ch4: Tiefpunkt + innerer Wendepunkt.
-10. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
-11. Nur explizit gelocktes Aussehen erwaehnen. Keine Brillen/Muetzen/Schals erfinden.
-12. Keine neuen Namen. Kein Report-Stil. Keine Moral-Zusammenfassung.
-${humorRule ? `13. HUMOR: ${humorRule}` : ""}
+10. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko.
+11. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
+12. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
+13. Ch4: Tiefpunkt + innerer Wendepunkt.
+14. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
+15. Keine neuen Namen. Kein Report-Stil.
+${humorRule ? `16. HUMOR: ${humorRule}` : ""}
 
 OUTPUT
 {
@@ -1176,7 +1181,7 @@ export function buildBlueprintDrivenStoryPrompt(input: {
   // Safety
   const safetyRule = "No violence, weapons, blood, horror, bullying, politics/religion, drugs/alcohol.";
 
-  return `Write a 5-chapter children's story in ${outputLang}. EACH chapter MUST have ${wordsPerChapter.min}-${wordsPerChapter.max} words (total ${totalWordMin}-${totalWordMax}). Chapters under ${wordsPerChapter.min} words are REJECTED.${umlautRule}
+  return `Write a 5-chapter children's story in ${outputLang}. EACH chapter MUST have ${wordsPerChapter.min}-${wordsPerChapter.max} words (total ${totalWordMin}-${totalWordMax}). Chapter 5 MUST be the SAME length as chapters 1-4. Short chapters are REJECTED.${umlautRule}
 Use the BLUEPRINT below as your guide — but NEVER copy it word-for-word. Tell the story, don't report the plan.
 
 ::: BLUEPRINT (your emotional roadmap — dramatize, don't copy) :::
@@ -1217,35 +1222,36 @@ Mira und Timo kamen bei Oma an. Sie waren aufgeregt. "Das ist gut", sagte einer 
 ::: RULES :::
 
 PROSA-HANDWERK:
-1. RHYTHMUS: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. 30% der Saetze UNTER 6 Woerter.
-2. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen und ueberraschen.
-3. KOERPER STATT ETIKETTEN: Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
-4. DIALOG = SUBTEXT: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden DRUMHERUM bei Scham oder Angst.
-5. DIALOG-ANTEIL: 25-40% Dialog. JEDES Kapitel mindestens 4-5 gesprochene Zeilen. Jede Zeile mit koerperlicher Handlung. KEINE schwebenden Zitate.
+1. ERZAEHLERSTIMME (PFLICHT): Du bist KEIN neutraler Erzaehler. Du kommentierst in Klammern, uebertreibst, sprichst den Leser an. Mindestens 3 Erzaehler-Kommentare pro Kapitel. Beispiele: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer."
+2. RHYTHMUS: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. Jeder 3. Satz UNTER 6 Woerter. Kein Satz ueber 15 Woerter.
+3. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen und ueberraschen.
+4. KOERPER STATT ETIKETTEN: Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
+5. DIALOG = SUBTEXT: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden DRUMHERUM bei Scham oder Angst.
+6. DIALOG-ANTEIL: 40-50% Dialog. JEDES Kapitel mindestens 6-8 gesprochene Zeilen. Jede Zeile mit koerperlicher Handlung. KEINE schwebenden Zitate.
 
 FIGUREN-HANDWERK:
-6. JEDE Figur klingt ANDERS: Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Saetzen, einer unterbricht.
-7. FIGUREN SIND WIDERSPRUCHLICH: Der Vorsichtige ueberreagiert 1x. Der Mutige zeigt 1x Sensibilitaet.
-8. NEBENFIGUREN: Wenn eine Figur in 2+ Kapiteln nur "nickte" → sie braucht eine EIGENE kleine Entscheidung.
-9. Max 2 characters FOREGROUND per chapter. 1 may react with a single line.
+7. JEDE Figur klingt ANDERS: Einer spricht in 2-5-Wort-Fetzen, einer in ruhigen Saetzen, einer unterbricht.
+8. FIGUREN SIND WIDERSPRUCHLICH: Der Vorsichtige ueberreagiert 1x. Der Mutige zeigt 1x Sensibilitaet.
+9. NEBENFIGUREN: Wenn eine Figur in 2+ Kapiteln nur "nickte" → sie braucht eine EIGENE kleine Entscheidung.
+10. Max 2 characters FOREGROUND per chapter. 1 may react with a single line.
 
 PLOT-HANDWERK:
-10. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt IMMER von Figuren-Entscheidung. Artefakt darf ZEIGEN aber nicht LOESEN. VERBOTEN: Artefakt wird zerstoert/geopfert und loest damit das Problem. Das Kind loest das Problem durch Mut, Wissen oder Zusammenarbeit.
-11. ANTI-FORMEL: Mindestens 1 ueberraschender Moment pro Kapitel. Wenn vorhersehbar → zu formelhaft.
-12. MORAL WIRD NIE AUSGESPROCHEN: Keine Sprueche, keine Reime mit Moral. Die Lektion zeigt sich durch Handlung. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste".
-13. ENDEN LANDEN: Kein abruptes Ende. Ruhiger Moment + physisches Detail + 1 Satz der nachhallt.
-14. Chapters 1-4 end with cliffhanger — reader MUST want to turn the page.
+11. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt IMMER von Figuren-Entscheidung. Artefakt darf ZEIGEN aber nicht LOESEN.
+12. ANTI-FORMEL: Mindestens 1 ueberraschender Moment pro Kapitel.
+13. MORAL WIRD NIE AUSGESPROCHEN. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste".
+14. ENDEN LANDEN: Ruhiger Moment + physisches Detail + 1 Satz der nachhallt.
+15. Chapters 1-4 end with cliffhanger.
 
 STRUKTUR:
-15. 4-6 paragraphs per chapter. Each: 2-4 sentences. Blank line between paragraphs.
-16. Chapter 1: Soft launch. Absatz 1 verankert Kind an vertrautem Ort. Absatz 2: Mission + Risiko. Nach Absatz 2: WER, WO, WAS, WARUM klar.
-17. Chapters 2-5 open by connecting to previous chapter's ending.
-18. Chapter 3: child-caused mistake from character trait. Not bad luck.
-19. Chapter 5: resolves SAME mission as Ch1. Concrete win + small price + warm final image.
-20. ${ageRule}
-21. ${safetyRule}
-22. HUMOR: 2-3 Smile-Momente ueber die Story. Koerperkomik, Wort-Erfindungen, Missverstaendnisse, Kontrast-Komik. Kapitel 4 darf ernster sein.
-${humorRule ? `23. ${humorRule}` : ""}
+16. 4-6 paragraphs per chapter. Each: 2-4 sentences.
+17. Chapter 1: Soft launch. Abs.1 vertraut, Abs.2 Mission+Risiko. Nach Abs.2: WER, WO, WAS, WARUM klar.
+18. Chapters 2-5 open by connecting to previous chapter's ending.
+19. Chapter 3: child-caused mistake from character trait. Not bad luck.
+20. Chapter 5: resolves SAME mission as Ch1. Concrete win + small price + warm final image.
+21. ${ageRule}
+22. ${safetyRule}
+23. HUMOR: 2-3 Smile-Momente ueber die Story. Kapitel 4 darf ernster sein.
+${humorRule ? `24. ${humorRule}` : ""}
 
 ::: WORD TARGET (HARD MINIMUM) :::
 Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words.
@@ -1383,10 +1389,13 @@ MUST FIX:
 ${qualityIssues || "- General prose improvement needed."}
 ${blueprintHint}
 REWRITE FOCUS:
+- NARRATOR VOICE: Comment in parentheses, exaggerate, address the reader. At least 3 narrator comments per chapter. Example: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert."
 - Paragraphs: 2-4 sentences each. No single-sentence chains.
-- Emotions = body, never labels. Dialogue 25-40%, anchored to action.
+- Emotions = body, never labels. Dialogue 40-50%, anchored to body action.
+- RHYTHM: Every 3rd sentence under 6 words. No sentence over 15 words. Pattern: Short. Short. Medium. Short.
 - Each character sounds different. Ch2-5 connect to previous chapter ending.
 - Ch1: soft launch (familiar place → mission + risk). No scenic postcard.
+- EVERY chapter must have ${wordsPerChapter.min}-${wordsPerChapter.max} words. INCLUDING chapter 5!
 
 HARD RULES:
 - Language: ONLY ${outputLang}.${umlautRule}
@@ -2059,15 +2068,16 @@ ${missingLine}
 # TARGET: ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences
 
 # RULES
-1. ONLY these names: ${allowedNames}. No new characters. Max ${focusMaxActive} active, ideal ${focusIdealRange}.
-2. Emotions through body, never labels ("nervoes/traurig"). 30%+ sentences under 6 words.
-3. 25-40% dialogue. Each character sounds different. Dialogue anchored to body action.
-4. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
-5. No meta-labels, no Goal/Conflict text in prose, no moral summary.
-6. Max 1 comparison per paragraph. Running gag max 2x.
-7. ${isGerman ? "Korrekte deutsche Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
-8. Double quotes "..." for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
-9. Never introduce artifact if not already in original text.
+1. NARRATOR VOICE: Comment in parentheses, exaggerate, address reader. At least 2 narrator comments in the expanded chapter. Example: "(Of course she was.)" / "Ja, ihr habt richtig gehoert."
+2. ONLY these names: ${allowedNames}. No new characters. Max ${focusMaxActive} active, ideal ${focusIdealRange}.
+3. Emotions through body, never labels ("nervoes/traurig"). Every 3rd sentence under 6 words. No sentence over 15 words.
+4. 40-50% dialogue. At least 6 dialogue lines. Each character sounds different. Dialogue anchored to body action.
+5. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
+6. No meta-labels, no Goal/Conflict text in prose, no moral summary.
+7. Max 1 comparison per paragraph. Running gag max 2x.
+8. ${isGerman ? "Korrekte deutsche Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
+9. Double quotes "..." for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
+10. Never introduce artifact if not already in original text.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -2302,7 +2312,7 @@ ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
 1) Only these names: ${allowedNames || "none"}. No new characters.
-2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. 25-40% dialogue.
+2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. 40-50% dialogue.
 3) Emotions through body, never labels. Each character sounds different.
 4) No meta-labels, no Goal/Conflict text in prose. No report chains.
 5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
