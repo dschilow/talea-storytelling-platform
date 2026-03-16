@@ -1073,10 +1073,9 @@ function shouldSkipSemanticCritic(quality: any): boolean {
   if (!quality) return false;
   const issues = Array.isArray(quality.issues) ? quality.issues : [];
   const hasPlaceholder = issues.some((issue: any) => issue?.code === "CHAPTER_PLACEHOLDER");
-  const hasTooShort = issues.some((issue: any) => issue?.code === "TOTAL_TOO_SHORT");
-  // Only skip critic for structurally unsalvageable drafts (missing chapters / too short).
-  // High error counts still benefit from critic feedback for rewrite guidance.
-  return hasPlaceholder || hasTooShort;
+  // Only skip critic for truly unsalvageable drafts (placeholder chapters).
+  // TOTAL_TOO_SHORT alone is recoverable via expand — critic feedback is still valuable.
+  return hasPlaceholder;
 }
 
 function buildSkippedCriticReport(model: string): SemanticCriticReport {

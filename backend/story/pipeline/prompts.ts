@@ -919,8 +919,8 @@ ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 NON-NEGOTIABLES (Ergaenzend zum System-Prompt — hier nur STRUKTUR + PLOT-Regeln)
 
 PLOT:
-1. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein. Artefakt darf zeigen/hinweisen, nicht loesen.
-2. MORAL WIRD NIE AUSGESPROCHEN. Lektion zeigt sich durch Handlung.
+1. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein. VERBOTEN: Artefakt wird zerstoert/eingesetzt und loest damit das Problem. VERBOTEN: Artefakt-Energie besiegt Hindernis. Das Kind loest das Problem durch Mut, Wissen oder Zusammenarbeit.
+2. MORAL WIRD NIE AUSGESPROCHEN. Lektion zeigt sich durch Handlung. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste" — kein moralischer Schlusssatz.
 3. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
 
 STRUKTUR:
@@ -1190,9 +1190,9 @@ FIGUREN-HANDWERK:
 9. Max 2 characters FOREGROUND per chapter. 1 may react with a single line.
 
 PLOT-HANDWERK:
-10. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt IMMER von Figuren-Entscheidung. Artefakt darf ZEIGEN aber nicht LOESEN. Max 1 von 5 Kapiteln mit Artefakt im Mittelpunkt.
+10. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt IMMER von Figuren-Entscheidung. Artefakt darf ZEIGEN aber nicht LOESEN. VERBOTEN: Artefakt wird zerstoert/geopfert und loest damit das Problem. Das Kind loest das Problem durch Mut, Wissen oder Zusammenarbeit.
 11. ANTI-FORMEL: Mindestens 1 ueberraschender Moment pro Kapitel. Wenn vorhersehbar → zu formelhaft.
-12. MORAL WIRD NIE AUSGESPROCHEN: Keine Sprueche, keine Reime mit Moral. Die Lektion zeigt sich durch Handlung.
+12. MORAL WIRD NIE AUSGESPROCHEN: Keine Sprueche, keine Reime mit Moral. Die Lektion zeigt sich durch Handlung. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste".
 13. ENDEN LANDEN: Kein abruptes Ende. Ruhiger Moment + physisches Detail + 1 Satz der nachhallt.
 14. Chapters 1-4 end with cliffhanger — reader MUST want to turn the page.
 

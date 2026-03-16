@@ -334,7 +334,8 @@ export class LlmStoryWriter implements StoryWriter {
     // Gemini Flash: allow 1 rewrite pass (quality recovery outweighs cost).
     // Severely broken drafts (5+ errors) get 2 passes for all models.
     const defaultRewritePasses = isGeminiModel ? MAX_REWRITE_PASSES : MAX_REWRITE_PASSES;
-    const defaultExpandCalls = isGeminiModel ? 2 : MAX_EXPAND_CALLS;
+    // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
+    const defaultExpandCalls = isGeminiModel ? 4 : MAX_EXPAND_CALLS;
     const defaultWarningPolishCalls = isGeminiModel ? 2 : Math.min(2, MAX_WARNING_POLISH_CALLS);
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
