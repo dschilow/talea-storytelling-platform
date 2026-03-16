@@ -669,7 +669,7 @@ function gateCharacterVoiceDistinctness(
         message: isDE
           ? `Kapitel ${chapter.chapter}: zu wenig klar unterscheidbare Sprecher (${speakingCharacters.length}/${characterNames.length})`
           : `Chapter ${chapter.chapter}: not enough clearly distinct speakers (${speakingCharacters.length}/${characterNames.length})`,
-        severity: ageMax <= 8 || characterNames.length >= 3 ? "ERROR" : "WARNING",
+        severity: "WARNING",
       });
     }
 

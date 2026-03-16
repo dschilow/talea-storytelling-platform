@@ -353,9 +353,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    // Budget: blueprint (~2.5k) + story (~6k) + 1 rewrite (~7k) = ~15.5k.
-    // Flash on Vertex AI costs real money — keep budget tight but sufficient for 1 rewrite cycle.
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 16000 : (isReasoningModel ? 20000 : 12000);
+    // Budget breakdown: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5.2k) + rewrite (~5.5k) = ~18k.
+    // Raised from 16k: previous budget caused expand calls to be cut off after the rewrite consumed tokens.
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 22000 : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
@@ -707,9 +707,10 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
     let prompt = buildStoryPrompt(activePromptMode);
 
     // Cost/latency tuned per model family.
-    // Gemini Flash was over-provisioned before (16k per initial call) and showed token/runtime spikes.
+    // 2.4x multiplier accounts for German wordiness + JSON wrapper overhead (~20%).
+    // Without it, 5-chapter stories consistently generate ~900 words instead of 1120+ minimum.
     const baseOutputTokens = isGeminiFlashModel
-      ? Math.max(3200, Math.round(totalWordMax * 1.8))
+      ? Math.max(3600, Math.round(totalWordMax * 2.4))
       : isReasoningModel
         ? Math.max(4200, Math.round(totalWordMax * 2.1))
         : Math.max(2200, Math.round(totalWordMax * 1.5));
@@ -717,7 +718,7 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
     const reasoningMultiplier = isGeminiFlashModel ? 1.0 : (isReasoningModel ? 1.1 : 1);
 
     const maxOutputTokens = isGeminiFlashModel
-      ? Math.min(Math.max(3200, Math.round(baseOutputTokens * reasoningMultiplier)), 6000)
+      ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000)
       : isReasoningModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
@@ -2453,6 +2454,8 @@ const NOISY_CODES = new Set([
   "CHAPTER_TOO_SHORT_HARD",
   "CHAPTER_TOO_SHORT",
   "TOTAL_TOO_SHORT",
+  // Banned words are deterministically removed by sanitizeChapterText — no LLM rewrite needed.
+  "BANNED_WORD_USED",
 ]);
 
 function countErrorIssues(report: {
