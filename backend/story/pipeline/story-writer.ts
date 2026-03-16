@@ -353,9 +353,9 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    // Budget breakdown: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5.2k) + rewrite (~5.5k) = ~18k.
-    // Raised from 16k: previous budget caused expand calls to be cut off after the rewrite consumed tokens.
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 22000 : (isReasoningModel ? 20000 : 12000);
+    // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
+    // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
+    const defaultStoryTokenBudget = isGeminiFlashModel ? 18000 : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
@@ -1172,7 +1172,10 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
       enableWarningDrivenRewrite &&
       hardErrorIssuesInitial.length === 0 &&
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
-    const emergencyRewriteNeeded = hardErrorIssuesInitial.length > 0 || warningRecoveryNeededInitial;
+    // Gemini Flash rewrites rarely improve quality and cost ~5k tokens.
+    // Only trigger rewrite when ≥2 actionable errors exist (1 error is better handled by expand/polish).
+    const minErrorsForRewrite = isGeminiFlashModel ? 2 : 1;
+    const emergencyRewriteNeeded = hardErrorIssuesInitial.length >= minErrorsForRewrite || warningRecoveryNeededInitial;
     // Severely broken drafts (5+ errors) get extra rewrite budget for quality recovery.
     const isSeverelyBroken = hardErrorIssuesInitial.length >= SEVERE_ERROR_THRESHOLD;
     const effectiveRewritePasses = canRunPostEdits
@@ -2449,13 +2452,16 @@ function truncateTextToWordTarget(text: string, targetWords: number): string {
 const NOISY_CODES = new Set([
   "UNLOCKED_CHARACTER",
   "GLOBAL_CAST_OVERLOAD",            // Cast is determined before writing; LLM can't remove characters
+  "TOO_MANY_ACTIVE_CHARACTERS",      // With 4-person cast this fires constantly; Rewrite can't reduce cast
   // Length errors are handled by Expand (cheap per-chapter calls), not by Rewrite (expensive full-story call).
-  // Adding these to NOISY prevents Rewrite from triggering just because chapters are short.
   "CHAPTER_TOO_SHORT_HARD",
   "CHAPTER_TOO_SHORT",
   "TOTAL_TOO_SHORT",
   // Banned words are deterministically removed by sanitizeChapterText — no LLM rewrite needed.
   "BANNED_WORD_USED",
+  // Stakes/transitions are structural issues set during blueprint; LLM rewrites don't fix them reliably.
+  "MISSING_EXPLICIT_STAKES",
+  "CHAPTER_TRANSITION_WEAK",
 ]);
 
 function countErrorIssues(report: {

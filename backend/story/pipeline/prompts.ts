@@ -923,16 +923,18 @@ PLOT:
 2. MORAL WIRD NIE AUSGESPROCHEN. Lektion zeigt sich durch Handlung. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste" — kein moralischer Schlusssatz.
 3. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
 
+LAENGE (KRITISCH — Story wird abgelehnt wenn zu kurz!):
+4. JEDES Kapitel MUSS ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter haben. Gesamt: ${totalWordMin}-${totalWordMax}. Kapitel unter ${wordsPerChapter.min} Woerter = AUTOMATISCH ABGELEHNT.
+5. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
+
 STRUKTUR:
-4. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko. Nach Abs.2 muss WER/WO/WAS/WARUM klar sein.
-5. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
-6. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
-7. Ch4: Tiefpunkt + innerer Wendepunkt.
-8. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
-9. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
-10. Nur explizit gelocktes Aussehen erwaehnen. Keine Brillen/Muetzen/Schals erfinden.
-11. Keine neuen Namen. Kein Report-Stil. Keine Moral-Zusammenfassung.
-12. Wortanzahl: ${totalWordMin}-${totalWordMax} gesamt; ${wordsPerChapter.min}-${wordsPerChapter.max} pro Kapitel.
+6. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko. Nach Abs.2 muss WER/WO/WAS/WARUM klar sein.
+7. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
+8. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
+9. Ch4: Tiefpunkt + innerer Wendepunkt.
+10. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
+11. Nur explizit gelocktes Aussehen erwaehnen. Keine Brillen/Muetzen/Schals erfinden.
+12. Keine neuen Namen. Kein Report-Stil. Keine Moral-Zusammenfassung.
 ${humorRule ? `13. HUMOR: ${humorRule}` : ""}
 
 OUTPUT
@@ -1136,7 +1138,7 @@ export function buildBlueprintDrivenStoryPrompt(input: {
   // Safety
   const safetyRule = "No violence, weapons, blood, horror, bullying, politics/religion, drugs/alcohol.";
 
-  return `Write a 5-chapter children's story in ${outputLang}.${umlautRule}
+  return `Write a 5-chapter children's story in ${outputLang}. EACH chapter MUST have ${wordsPerChapter.min}-${wordsPerChapter.max} words (total ${totalWordMin}-${totalWordMax}). Chapters under ${wordsPerChapter.min} words are REJECTED.${umlautRule}
 Use the BLUEPRINT below as your guide — but NEVER copy it word-for-word. Tell the story, don't report the plan.
 
 ::: BLUEPRINT (your emotional roadmap — dramatize, don't copy) :::
