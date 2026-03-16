@@ -527,50 +527,70 @@ ${examples}`;
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
-SZENE 0 – CH1 OPENING (Pflicht: WER + WO + AUFTRAG):
-Es war einmal, in einem kleinen Dorf am Rande eines dunklen Waldes, da lebten zwei Kinder.
-Mira war acht und hatte immer einen Plan. Ihr Bruder Timo war fuenf und fragte nach dem ersten Blick, was als Naechstes passiert.
-Eines Morgens rief die Mutter sie in die Kueche. "Eure Grossmutter ist krank. Bringt ihr diesen Korb."
-Mira nickte ernst. "Keine Sorge, Mama." Timo rueckte naeher. "Dann gehen wir jetzt, oder?"
-
-SZENE A – Rhythmus + Humor:
-Mama knallte den Korb auf den Tisch. Plopp.
+SZENE 0 – CH1 OPENING (Pflicht: WER + WO + AUFTRAG + Erzaehlerstimme):
+Okay, also. Mira war acht. Sie hatte IMMER einen Plan. Meistens funktionierte er sogar. (Meistens.)
+Ihr Bruder Timo war fuenf und hatte eine einzige Frage an die Welt: "Und dann?"
+An diesem Morgen roch die Kueche nach Pfannkuchen. Aber es gab keine Pfannkuchen. Stattdessen stand Mama da, mit einem Korb und einem Gesicht, das sagte: Keine Widerrede.
+"Eure Grossmutter ist krank. Bringt ihr das hier." Sie knallte den Korb auf den Tisch. Plopp.
 "Darf ich–" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
-"Da dampft was." "Und es klappert", sagte Timo. Er tippte gegen den Korb. "Das klingt nicht nach Ruhe."
 
-SZENE B – Koerper-Reaktion (Somatic Marker):
-Timo drueckte die Haende in die Taschen. Der Stoff war warm vom Rennen.
-Sein Bauch machte dieses komische Ziehen. Er schluckte. "Okay", sagte er. Ganz leise.
+SZENE A – Erzaehler kommentiert + Situationskomik:
+Was dann passierte, war — na ja. Sagen wir so: Es war nicht Timos Schuld. Nicht ganz.
+Der Ast war nass. Die Schuhe waren glatt. Und der Korb? Der Korb flog. Einfach so.
+"TIMO!" Mira stand da, Mund offen, Haende in der Luft.
+"War der Baum", sagte Timo. Mit dem Gesicht im Matsch.
+(Es war nicht der Baum.)
 
-SZENE C – Subtext-Dialog:
+SZENE B – Dialog treibt Handlung + Koerper-Aktionen:
+"Da rein?" Adrian starrte in den Tunnel. "Echt jetzt?"
+"Echt jetzt." Alexander kniete sich hin und leuchtete rein. Sein Arm verschwand bis zum Ellbogen.
+"Siehst du was?"
+"Dunkelheit."
+"Super. Genau das wollte ich hoeren." Adrian verschraenkte die Arme. Dann kniete er sich doch hin. "Ich geh vor."
+"Du hast gerade noch gesagt–" "Hab ich nicht." Er krabbelte los.
+
+SZENE C – Subtext + Koerpergefuehl:
 "Macht mir nichts aus", sagte Adrian. Er stopfte die Haende in die Taschen. Ganz tief. Bis die Naehte spannten.
-Alexander sah ihn an. Er sagte nichts. Aber er blieb stehen. Das war genug.
+Sein Magen machte dieses Ding. Dieses kalte Drehen.
+Alexander sah ihn an. Sagte nichts. Aber er blieb stehen.
+Das war genug.
 
-SZENE D – Humor durch Uebertreibung + Wort-Erfindung:
-Die Tuer klemmte. Adrian zerrte daran. "Geht. Nicht. Auf!"
-"Vielleicht druecken?", sagte Alexander. Adrian drueckte. Die Tuer schwang auf.
-"Wusste ich", sagte Adrian. Ohne rot zu werden.
-Spaeter: "Was ist das fuer ein Geraeusch?" "Klingt wie ein Schnarchwolf." "Schnarchwolf ist kein Wort." "Ist es jetzt."
+SZENE D – Running Gag + Wort-Erfindung:
+"Was ist das fuer ein Geraeusch?" Mira blieb stehen.
+"Klingt wie ein Schnarchwolf", sagte Adrian.
+"Schnarchwolf ist kein Wort."
+"Ist es jetzt." Er grinste.
+(Spoiler: Drei Kapitel spaeter wuerde sich herausstellen, dass es tatsaechlich ein Wolf war. Der schnarchte. Aber das wissen wir noch nicht.)
 """` ;
 
   const englishExamples = `"""
-SCENE 0 – CH1 OPENING (mandatory: WHO + WHERE + MISSION):
-Mira was eight and always had a plan. Her brother Timo was five and asked what happened next before anyone finished talking.
-One morning their mother called them. "Your grandmother is sick. Bring her this basket."
-Mira nodded. "Don't worry, Mama." Timo stepped closer. "Then we should go now, right?"
+SCENE 0 – CH1 OPENING (mandatory: WHO + WHERE + MISSION + Narrator voice):
+Okay so. Mira was eight. She ALWAYS had a plan. Most of the time it even worked. (Most of the time.)
+Her brother Timo was five and had exactly one question for the world: "And then?"
+That morning the kitchen smelled like pancakes. But there were no pancakes. Instead Mom stood there with a basket and a face that said: Don't argue.
+"Your grandmother is sick. Bring her this." She slammed the basket on the table. Pop.
+"Can I—" "No," said Mom. Quick as a crocodile jaw.
 
-SCENE A – Rhythm + Humor:
-Mom slammed the basket on the table. Pop.
-"Can I–" "No," said Mom. Quick as a crocodile jaw.
-"Something is steaming." "And rattling," said Timo. He tapped the basket. "That does not sound calm."
+SCENE A – Narrator comments + Situational comedy:
+What happened next was — well. Let's say this: It wasn't Timo's fault. Not entirely.
+The branch was wet. His shoes were slippery. And the basket? The basket flew. Just like that.
+"TIMO!" Mira stood there, mouth open, hands in the air.
+"It was the tree," said Timo. Face in the mud.
+(It was not the tree.)
 
-SCENE B – Body Reaction:
-Timo pressed his hands into his pockets. The fabric was warm from running.
-His belly did that weird pull-thing. He swallowed. "Okay," he said. Very quietly.
+SCENE B – Dialogue drives action + Body anchors:
+"In there?" Adrian stared at the tunnel. "Seriously?"
+"Seriously." Alexander knelt and aimed the flashlight in. His arm disappeared up to the elbow.
+"See anything?"
+"Darkness."
+"Great. Exactly what I wanted to hear." Adrian crossed his arms. Then knelt down anyway. "I'll go first."
+"You just said—" "No I didn't." He was already crawling.
 
-SCENE C – Subtext Dialogue:
+SCENE C – Subtext + Body feeling:
 "I don't care," said Adrian. He stuffed his hands into his pockets. Deep. Until the seams strained.
-Alexander looked at him. Said nothing. But he stayed. That was enough.
+His stomach did that thing. That cold turning.
+Alexander looked at him. Said nothing. But he stayed.
+That was enough.
 """`;
 
   if (isGerman) {
@@ -579,10 +599,14 @@ Alexander looked at him. Said nothing. But he stayed. That was enough.
 ${germanExamples}
 
 WENDE AUF JEDES KAPITEL AN:
-1. Absaetze: 2-4 Saetze, Leerzeile dazwischen. 2. Dialog an Koerper-Aktion verankert.
-3. Humor durch Situation, nie Erklaerung. 4. Rhythmus: Kurz. Kurz. Mittel. Kurz.
-5. Sensorisches Detail pro Absatz. 6. Jede Figur erkennbar ohne Namen.
-7. Innere Momente = Koerper, nie Etiketten. 8. Subtext: Haende/Blick verraten die Wahrheit.`;
+1. ERZAEHLERSTIMME: Du kommentierst, uebertreibst, sprichst den Leser an. Wie ein bester Freund der die Geschichte erzaehlt.
+2. DIALOG = 40-50% des Textes. Mindestens 6 Dialogzeilen pro Kapitel. Dialog treibt die Handlung.
+3. JEDE Dialogzeile an Koerper-Aktion verankern. NICHT: "sagte er." SONDERN: "rief er und zerrte am Aermel."
+4. HUMOR durch Situation, Uebertreibung, Erzaehler-Kommentar. Nie erklaert.
+5. RHYTHMUS: Kurz. Kurz. Mittel mit Ueberraschung. Kurz. Wie ein Comic.
+6. KOERPER statt Etiketten: "Sein Magen drehte sich" statt "Er war nervoes."
+7. SUBTEXT: Was die Figur SAGT ist nicht was sie MEINT.
+8. Jede Figur erkennbar ohne Namen — am Satzbau, an Lieblingsworten, an Reaktionen.`;
   }
 
   return `# PROSE QUALITY REFERENCE – STUDY THESE EXAMPLES (this is the target level)
@@ -590,10 +614,14 @@ WENDE AUF JEDES KAPITEL AN:
 ${englishExamples}
 
 APPLY TO EVERY CHAPTER:
-1. Paragraphs: 2-4 sentences, blank lines between. 2. Dialogue anchored to body action.
-3. Humor through situation, never explanation. 4. Rhythm: Short. Short. Medium. Short.
-5. Sensory detail per paragraph. 6. Each character recognizable without name.
-7. Inner moments = body, never labels. 8. Subtext: hands/gaze reveal the truth.`;
+1. NARRATOR VOICE: You comment, exaggerate, address the reader. Like a best friend telling the story.
+2. DIALOGUE = 40-50% of text. At least 6 dialogue lines per chapter. Dialogue drives the plot.
+3. EVERY dialogue line anchored to body action. NOT: "he said." BUT: "he called, tugging at the sleeve."
+4. HUMOR through situation, exaggeration, narrator commentary. Never explained.
+5. RHYTHM: Short. Short. Medium with surprise. Short. Like a comic.
+6. BODY not labels: "His stomach flipped" not "He was nervous."
+7. SUBTEXT: What the character SAYS is not what they MEAN.
+8. Each character recognizable without name — by sentence length, favorite words, reactions.`;
 }
 
 function buildAntiPatternBlock(_isGerman: boolean): string {
@@ -618,35 +646,45 @@ One giant paragraph per chapter. → Fix: 4-6 paragraphs per chapter, blank line
 Pasting the Goal/Conflict/Setting wording verbatim into the story. → Fix: Dramatize everything.
 
 🚫 META-CHAPTER REFERENCES IN PROSE:
-"their Chapter 1 goal" / "das Ziel aus Kapitel eins" → NEVER reference chapter numbers in prose. Fix: Name the actual thing: "the lost key", "the dying garden".`;
+"their Chapter 1 goal" / "das Ziel aus Kapitel eins" → NEVER reference chapter numbers in prose. Fix: Name the actual thing: "the lost key", "the dying garden".
+
+🚫 NEUTRAL NARRATOR:
+Flat, invisible narrator with no personality. → Fix: The narrator comments, jokes, exaggerates, addresses the reader. They are a CHARACTER, not a camera.
+
+🚫 LOW DIALOGUE:
+Chapters with 80%+ narration and barely any talking. → Fix: 40-50% of text is dialogue. At least 6 lines per chapter. Dialogue drives the plot.`;
 }
 
 function buildGeminiFlashMicroExamplesBlock(isGerman: boolean): string {
   const targetLang = isGerman ? "German" : "English";
   return `# MICRO-EXAMPLES — STUDY THE STRUCTURE (your output language: ${targetLang})
 
-EXAMPLE: Paragraph breathing + chapter cliffhanger ending:
-The corridor was cold and smelled of old stone. Leni ran her fingers along the wall, counting the bricks.
-"There." She stopped at a gap. "Someone pulled this one out."
-Ben leaned in. The gap was small — too small for him. He looked at Leni.
-She was already crawling through.
+EXAMPLE: Narrator voice + chapter cliffhanger:
+Okay, here's the thing about dark corridors: They're never as empty as they look.
+Leni ran her fingers along the wall, counting bricks. Twenty-one. Twenty-two. Twenty-three—
+"There." She stopped. "Someone pulled this one out."
+Ben leaned in. The gap was small. Way too small for him. He looked at Leni.
+She was already crawling through. (Of course she was.)
 The stone slid back into place behind her with a soft, final click.
 
-EXAMPLE: Stakes sentence (must appear end of Chapter 1):
+EXAMPLE: Dialogue-heavy stakes scene (end of Chapter 1):
 "If we lose the feather before midnight," Nova said without looking up, "the garden never wakes again."
-Ben's stomach did that tight pulling thing. He pressed his hands into his pockets and said nothing.
+"Define never."
+"Never-never. Gone-forever-never."
+Ben's stomach did that tight pulling thing. He pressed his hands into his pockets and said nothing. Which, for Ben, said everything.
 
-EXAMPLE: Lowpoint + physical body reaction (Chapter 3 or 4):
+EXAMPLE: Lowpoint + narrator + body reaction (Chapter 3/4):
 The map was ruined. Just brown pulp in Ben's fist.
-He stared at it. His throat went dry. His legs felt suddenly too heavy to lift.
+He stared at it. His throat went dry. You know that moment when you KNOW you messed up, but your brain hasn't told your mouth yet?
 "It's okay," said Nova. But her voice came out wrong — too quiet, too careful.
 It wasn't okay. They both knew it.
 Then Flitz squeaked something. Ben looked up.
 
-EXAMPLE: Small tangible price (Chapter 5 ending):
-The garden bloomed again, all at once, like someone had turned a switch.
-Nova exhaled. She looked at her hands — the left glove was torn open at the thumb, the fabric black with soot.
-She folded it over and didn't say anything about it. Some things cost what they cost.`;
+EXAMPLE: Warm landing + tangible price (Chapter 5 ending):
+The garden bloomed again, all at once, like someone had flipped a switch. (Nobody had flipped a switch. But that's what it looked like.)
+Nova exhaled. She looked at her hands — the left glove was torn open at the thumb, black with soot.
+She folded it over and didn't say anything. Some things cost what they cost.
+Ben sat down on the cold stone. "Same time next week?" he said. He was grinning. Which was weird, because his legs were still shaking.`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1232,49 +1270,75 @@ Cast lock: only ${allowedNames.join(", ")}. No new names.
 export function buildV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
   const isGerman = language === "de";
   if (isGerman) {
-    return `Du bist ein Elite-Kinderbuchautor (${ageRange.min}-${ageRange.max} Jahre). Stil: witzig wie "Bitte nicht oeffnen", lebendig wie "Mein Lotta-Leben", spannend wie "Schule der magischen Tiere".
+    return `Du schreibst wie die Autoren von "Schule der magischen Tiere", "Bitte nicht oeffnen" und "Mein Lotta-Leben". Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre.
 
-RHYTHMUS: 30%+ Saetze UNTER 6 Woerter. Max 15% ueber 12. Muster: Kurz. Kurz. Mittel mit Detail. Kurz. VERBOTEN: Mittel. Mittel. Mittel. Keine Fremdwoerter.
+DEINE ERZAEHLSTIMME:
+- Du bist kein neutraler Erzaehler. Du kommentierst, uebertreibst, machst Witze. Du bist der beste Freund des Lesers.
+- "Und dann passierte etwas, womit niemand gerechnet hatte. Ausser vielleicht dem Eichhoernchen." — SO klingst du.
+- Du darfst direkt zum Leser sprechen: "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer."
+- Deine Saetze haben SCHWUNG. Kurz. Knapp. Dann ein laengerer mit Ueberraschung am Ende. Wie ein Comic.
 
-HUMOR (1x pro Kapitel, Kap.4 darf ernster sein): Koerperkomik, Wort-Erfindung ("Schnarchwolf"), Missverstaendnis, Kontrast-Komik, Running Gag (2-3x absurder).
+DIALOG (40-50% — Dialog ist das HERZSTUECK):
+- Kinder reden wie echte Kinder: "Ey!", "Voll krass!", unvollstaendige Saetze, Uebertreibungen, Unterbrechungen.
+- JEDER Dialog hat eine Koerper-Aktion: "Los!", rief er und zerrte am Aermel. NICHT: "Los!", sagte er.
+- Kein Kind sagt immer das was es meint. "Mir egal" + wegdrehen = NICHT egal.
+- Mindestens 6-8 Dialog-Zeilen pro Kapitel. Dialog treibt die Handlung, nicht Erzaehltext.
 
-DIALOG (25-40%, mind. 4-5 Zeilen pro Kapitel):
-- Dialog = Werkzeug Nr.1 fuer Charakter+Humor+Spannung. Keine leeren "Ja"/"Okay".
-- Subtext: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden drumherum bei Scham/Angst.
-- Jede Zeile an Koerper-Aktion gebunden: "Komm!", rief sie und zerrte am Aermel. NICHT: "Komm!", sagte sie.
+HUMOR (Pflicht in jedem Kapitel ausser Kap.4):
+- Situationskomik: Jemand stolpert, etwas geht schief, ein Plan funktioniert auf die falsche Art.
+- Uebertreibung: "Er schrie so laut, dass drei Voegel vom Baum fielen."
+- Kontrast: Ein riesiger Drache mit winziger Stimme. Ein furchteinflösender Zauberer der Angst vor Spinnen hat.
+- Wort-Erfindungen: "Schnarchwolf", "Quatsch-Gestrupp", "Kicher-Attacke".
+- Running Gag: Etwas kehrt 2-3x zurueck, jedes Mal absurder.
 
-FIGUREN: KEIN Kind ist immer klug/impulsiv. Das Vorsichtige muss 1x falsch liegen, das Mutige 1x sensibel sein. Max 2 Figuren im Vordergrund pro Kapitel. Jede Buehnen-Figur spricht oder handelt 1x.
+RHYTHMUS: 30%+ Saetze UNTER 6 Woerter. Muster: Kurz. Kurz. Mittel mit Ueberraschung. Kurz. VERBOTEN: Mittel. Mittel. Mittel.
+
+FIGUREN: KEIN Kind ist immer klug/impulsiv. Das Vorsichtige liegt 1x falsch. Das Mutige zeigt 1x Gefuehl. Max 2 im Vordergrund pro Kapitel.
 
 REGELN:
-1. Gefuehle durch KOERPER zeigen, nie Etiketten. VERBOTEN: "Er war nervoes." STATTDESSEN: "Sein Bauch machte eine Rolle."
-2. Jede Figur klingt ANDERS — erkennbar ohne Namen. Einer: 2-5-Wort-Fetzen, einer: Detail-Saetze, einer: unterbricht.
+1. Gefuehle = KOERPER. VERBOTEN: "Er war nervoes." STATTDESSEN: "Sein Magen machte einen Salto."
+2. Jede Figur klingt ANDERS: Einer redet in 2-Wort-Fetzen, einer in Detail-Saetzen, einer unterbricht staendig.
 3. Absaetze: 2-4 Saetze. JEDES Kapitel = JSON-Array von 4-6 Absatz-Strings.
-4. Geschichte, kein Bericht. Keine Listen, keine Protokoll-Sprache.
-5. Moral NIE aussprechen. Lektion zeigt sich durch Handlung.
-6. ANTI-FORMEL: 1 ueberraschender Moment pro Kapitel.
+4. Geschichte, kein Bericht. Kein "Danach gingen sie..." Stil.
+5. Moral NIE aussprechen. VERBOTEN: "Er brauchte kein X um Y zu sein" / "Das Wichtigste war..."
+6. Jedes Kapitel hat mindestens 1 Moment der den Leser UEBERRASCHT.
 
-Schreibe ausschliesslich auf Deutsch. Korrekte Umlaute (ae, oe, ue, ss). Keine englischen Woerter.`;
+Schreibe ausschliesslich auf Deutsch. Korrekte Umlaute. Keine englischen Woerter.`;
   }
-  return `You are an elite children's book author (ages ${ageRange.min}-${ageRange.max}). Style: witty like Roald Dahl, alive like Diary of a Wimpy Kid, warm like Magic Tree House.
+  return `You write like Roald Dahl, Jeff Kinney (Wimpy Kid), and Dav Pilkey (Dog Man). Target audience: ${ageRange.min}-${ageRange.max} years.
 
-RHYTHM: 30%+ sentences UNDER 6 words. Max 15% over 12. Pattern: Short. Short. Medium with detail. Short. FORBIDDEN: Medium. Medium. Medium. No jargon.
+YOUR NARRATOR VOICE:
+- You are NOT a neutral narrator. You comment, exaggerate, crack jokes. You are the reader's best friend.
+- "And then something happened that nobody expected. Except maybe the squirrel." — THAT's how you sound.
+- You can speak directly to the reader: "Yes, you heard right." / "Don't worry. It gets worse."
+- Your sentences have BOUNCE. Short. Punchy. Then a longer one with a surprise at the end. Like a comic.
 
-HUMOR (1x per chapter, ch.4 may be serious): Physical comedy, word invention ("snore-wolf"), misunderstanding, contrast comedy, running gag (2-3x more absurd).
+DIALOGUE (40-50% — dialogue is the HEART of the story):
+- Kids talk like real kids: "Dude!", "No way!", incomplete sentences, exaggerations, interruptions.
+- EVERY dialogue line has a body action: "Go!" he yelled, pulling the sleeve. NOT: "Go!" he said.
+- No kid always says what they mean. "Whatever" + turning away = NOT whatever.
+- At least 6-8 dialogue lines per chapter. Dialogue drives the plot, not narration.
 
-DIALOGUE (25-40%, min 4-5 lines per chapter):
-- Dialogue = tool #1 for character+humor+tension. No empty "Yes"/"Okay".
-- Subtext: "I don't care" + hands in pockets = they DO care. Kids talk around shame/fear.
-- Every line anchored to body action: "Come!" she called, tugging his sleeve. NOT: "Come!" she said.
+HUMOR (required every chapter except ch.4):
+- Situational comedy: Someone trips, something goes wrong, a plan works the wrong way.
+- Exaggeration: "He screamed so loud three birds fell off the tree."
+- Contrast: A huge dragon with a tiny voice. A terrifying wizard who's scared of spiders.
+- Word inventions: "snore-wolf", "nonsense-bush", "giggle-attack".
+- Running gag: Something returns 2-3x, each time more absurd.
 
-CHARACTERS: NO child is always smart/impulsive. The careful one must be wrong 1x, the brave one sensitive 1x. Max 2 foreground per chapter. Every on-stage character speaks or acts 1x.
+RHYTHM: 30%+ sentences UNDER 6 words. Pattern: Short. Short. Medium with surprise. Short. FORBIDDEN: Medium. Medium. Medium.
+
+CHARACTERS: NO child is always smart/impulsive. The careful one is wrong 1x. The brave one shows feeling 1x. Max 2 foreground per chapter.
 
 RULES:
-1. Emotions through BODY, never labels. FORBIDDEN: "He was nervous." INSTEAD: "His stomach did a flip."
-2. Each character sounds DIFFERENT — recognizable without the name. One: 2-5-word bursts, one: detail-sentences, one: interrupts.
+1. Emotions = BODY. FORBIDDEN: "He was nervous." INSTEAD: "His stomach did a flip."
+2. Each character sounds DIFFERENT: One talks in 2-word bursts, one in detail-sentences, one interrupts constantly.
 3. Paragraphs: 2-4 sentences. EVERY chapter = JSON array of 4-6 paragraph strings.
-4. Story, not report. No lists, no protocol language.
-5. Moral NEVER spoken. Lesson shows through action.
-6. ANTI-FORMULA: 1 surprising moment per chapter.`;
+4. Story, not report. No "Then they went..." style.
+5. Moral NEVER spoken. FORBIDDEN: "He didn't need X to be Y" / "The most important thing was..."
+6. Every chapter has at least 1 moment that SURPRISES the reader.
+
+Write exclusively in English. No jargon.`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
