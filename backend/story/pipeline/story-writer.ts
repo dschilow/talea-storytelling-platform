@@ -396,18 +396,18 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
       if (effectivelyFlash) {
         switch (step) {
           case "full":
-            return 192;
+            return 512;  // V7: More thinking = better story planning, dialogue, rhythm
           case "recovery":
-            return 128;
+            return 256;
           case "rewrite":
-            return 128;
+            return 256;
           case "expand":
           case "warning-polish":
-            return 64;
+            return 128;
           case "title":
             return 32;
           default:
-            return 96;
+            return 128;
         }
       }
       if (isGemini3) {
@@ -733,11 +733,12 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
       `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}, maxWarningPolishCalls=${maxWarningPolishCalls}`
     );
 
-    // V6: Higher temperature (0.85) for Gemini to unlock creative prose.
-    // Higher reasoning effort ("high") for initial call — this is the most important generation.
+    // V7: Temperature 0.82 for Flash unlocks creative prose without instability.
+    // Research shows commercial 235B+ models stable at 0.7-0.9 range.
+    // Below 0.7 = flat, mechanical prose. Above 0.9 = coherence risk.
     const storyTemperature = strict
       ? 0.4
-      : (isGeminiFlashModel ? 0.68 : (isGeminiModel ? 0.72 : 0.7));
+      : (isGeminiFlashModel ? 0.82 : (isGeminiModel ? 0.78 : 0.75));
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,

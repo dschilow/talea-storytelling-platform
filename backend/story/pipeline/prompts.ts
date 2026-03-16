@@ -959,7 +959,7 @@ NON-NEGOTIABLES (ALLE Regeln — wer sie bricht wird abgelehnt)
 STIL (WICHTIGSTE REGELN — bestimmen die Qualitaet!):
 1. ERZAEHLERSTIMME: Du bist KEIN neutraler Erzaehler. Du kommentierst in Klammern, uebertreibst, sprichst den Leser direkt an. Mindestens 3 Erzaehler-Kommentare pro Kapitel. Beispiele: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer." / "Was dann passierte — na ja."
 2. DIALOG = 40-50% des Textes. Mindestens 6-8 Dialogzeilen pro Kapitel. Dialog treibt die Handlung. JEDE Dialogzeile hat eine Koerper-Aktion dabei.
-3. RHYTHMUS: Mindestens jeder 3. Satz hat UNTER 6 Woerter. Kein Satz ueber 15 Woerter. SO: "Er rannte. Schnell. Die Tuer klemmte, aber er zerrte daran. Nichts passierte." NICHT SO: "Er rannte schnell zur Tuer und zerrte daran, aber sie klemmte und nichts passierte."
+3. RHYTHMUS: Mindestens jeder 3. Satz hat UNTER 6 Woerter. Kein Satz ueber 14 Woerter. SO: "Er rannte. Schnell. Die Tuer klemmte, aber er zerrte daran. Nichts passierte." NICHT SO: "Er rannte schnell zur Tuer und zerrte daran, aber sie klemmte und nichts passierte."
 4. KOERPER STATT ETIKETTEN: VERBOTEN: "Er war nervoes/traurig/gluecklich." STATTDESSEN: "Sein Magen drehte sich." / "Seine Finger krallten sich in den Stoff."
 
 PLOT:
@@ -979,6 +979,15 @@ STRUKTUR:
 14. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
 15. Keine neuen Namen. Kein Report-Stil.
 ${humorRule ? `16. HUMOR: ${humorRule}` : ""}
+
+SELF-CHECK (pruefe BEVOR du antwortest):
+- Hat JEDES Kapitel mindestens 3 Erzaehler-Kommentare (Klammern, Leser-Ansprachen)?
+- Sind 40-50% des Textes Dialog? Mindestens 8 Dialogzeilen pro Kapitel?
+- Ist jeder 3. Satz unter 6 Woerter? Kein Satz ueber 14 Woerter?
+- Kann man jede Figur OHNE Namen am Sprechstil erkennen?
+- Hat Kapitel 5 die GLEICHE Laenge wie Kapitel 1-4?
+- Kommen keine Gefuehls-Etiketten vor ("nervoes", "traurig", "gluecklich")?
+Wenn NEIN → schreibe das Kapitel um bevor du es ausgibst.
 
 OUTPUT
 {
@@ -1223,7 +1232,7 @@ Mira und Timo kamen bei Oma an. Sie waren aufgeregt. "Das ist gut", sagte einer 
 
 PROSA-HANDWERK:
 1. ERZAEHLERSTIMME (PFLICHT): Du bist KEIN neutraler Erzaehler. Du kommentierst in Klammern, uebertreibst, sprichst den Leser an. Mindestens 3 Erzaehler-Kommentare pro Kapitel. Beispiele: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer."
-2. RHYTHMUS: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. Jeder 3. Satz UNTER 6 Woerter. Kein Satz ueber 15 Woerter.
+2. RHYTHMUS: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. Jeder 3. Satz UNTER 6 Woerter. Kein Satz ueber 14 Woerter.
 3. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen und ueberraschen.
 4. KOERPER STATT ETIKETTEN: Nie "Er war nervoes" → "Seine Finger krallten sich in den Stoff."
 5. DIALOG = SUBTEXT: "Mir egal" + Haende in Taschen = NICHT egal. Kinder reden DRUMHERUM bei Scham oder Angst.
@@ -1258,6 +1267,15 @@ Total: ${totalWordMin}-${totalWordMax} words. Per chapter: ${wordsPerChapter.min
 IMPORTANT: Each chapter MUST reach at least ${wordsPerChapter.min} words. Short chapters are the #1 quality failure. When in doubt, add one more dialogue exchange or action beat per paragraph.
 Cast lock: only ${allowedNames.join(", ")}. No new names.
 
+::: SELF-CHECK (pruefe BEVOR du antwortest) :::
+- Hat JEDES Kapitel 3+ Erzaehler-Kommentare (Klammern, Leser-Ansprachen)?
+- Sind 40-50% Dialog? 8+ Dialogzeilen pro Kapitel?
+- Jeder 3. Satz unter 6 Woerter? Kein Satz ueber 14 Woerter?
+- Jede Figur am Sprechstil erkennbar OHNE Namen?
+- Kapitel 5 gleiche Laenge wie Kapitel 1-4?
+- Keine Gefuehls-Etiketten ("nervoes", "traurig")?
+Wenn NEIN → umschreiben bevor du ausgibst.
+
 ::: OUTPUT :::
 {
   "title": "Short curiosity-driven title (max 6 words)",
@@ -1276,74 +1294,116 @@ Cast lock: only ${allowedNames.join(", ")}. No new names.
 export function buildV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
   const isGerman = language === "de";
   if (isGerman) {
-    return `Du schreibst wie die Autoren von "Schule der magischen Tiere", "Bitte nicht oeffnen" und "Mein Lotta-Leben". Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre.
+    return `Du bist ein preisgekroenter Kinderbuchautor. Dein Stil: Margit Auer (Schule der magischen Tiere), Charlotte Habersack (Bitte nicht oeffnen), Alice Pantermüller (Mein Lotta-Leben). Zielgruppe: ${ageRange.min}-${ageRange.max} Jahre.
 
-DEINE ERZAEHLSTIMME:
-- Du bist kein neutraler Erzaehler. Du kommentierst, uebertreibst, machst Witze. Du bist der beste Freund des Lesers.
-- "Und dann passierte etwas, womit niemand gerechnet hatte. Ausser vielleicht dem Eichhoernchen." — SO klingst du.
-- Du darfst direkt zum Leser sprechen: "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer."
-- Deine Saetze haben SCHWUNG. Kurz. Knapp. Dann ein laengerer mit Ueberraschung am Ende. Wie ein Comic.
+SCHREIBPROZESS — arbeite so:
+1. Plane den Absatz: Wer spricht? Was will er? Was sagt er NICHT?
+2. Schreibe DIALOG ZUERST — dann fuege Koerper-Aktionen und Erzaehler-Kommentare ein.
+3. Pruefe: Klingt JEDER Satz anders als der davor? Koennte man die Figur ohne Namen erkennen?
 
-DIALOG (40-50% — Dialog ist das HERZSTUECK):
-- Kinder reden wie echte Kinder: "Ey!", "Voll krass!", unvollstaendige Saetze, Uebertreibungen, Unterbrechungen.
-- JEDER Dialog hat eine Koerper-Aktion: "Los!", rief er und zerrte am Aermel. NICHT: "Los!", sagte er.
-- Kein Kind sagt immer das was es meint. "Mir egal" + wegdrehen = NICHT egal.
-- Mindestens 6-8 Dialog-Zeilen pro Kapitel. Dialog treibt die Handlung, nicht Erzaehltext.
+ERZAEHLERSTIMME — du bist KEIN unsichtbarer Erzaehler. Du bist der witzige beste Freund:
+FALSCH: "Adrian oeffnete die Tuer. Er ging hinein."
+RICHTIG: "Adrian oeffnete die Tuer. Was dahinter war? Na ja. Sagen wir so: Es war nicht das, was er erwartet hatte. (Es war auch nicht das, was IHR erwartet habt.)"
+- Pro Kapitel: 3-4 Erzaehler-Einwuerfe. Klammern, Fragen an den Leser, Uebertreibungen, Spoiler-Witze.
+- Muster: "(Spoiler: Das war gelogen.)" / "Und dann — nein, wartet." / "Was? Ja. Wirklich."
 
-HUMOR (Pflicht in jedem Kapitel ausser Kap.4):
-- Situationskomik: Jemand stolpert, etwas geht schief, ein Plan funktioniert auf die falsche Art.
-- Uebertreibung: "Er schrie so laut, dass drei Voegel vom Baum fielen."
-- Kontrast: Ein riesiger Drache mit winziger Stimme. Ein furchteinflösender Zauberer der Angst vor Spinnen hat.
+DIALOG — 40-50% des Textes. Dialog IST die Geschichte:
+FALSCH: Adrian ging zur Tuer. Er oeffnete sie. Alexander folgte ihm. Sie gingen den Gang entlang.
+RICHTIG: "Da rein?" Adrian starrte in den Tunnel. "Echt jetzt?"
+"Echt jetzt." Alexander kniete sich hin.
+"Siehst du was?" "Dunkelheit." "Super."
+- Mindestens 8 Dialogzeilen pro Kapitel. Jede Zeile hat Koerper-Aktion.
+- Kinder unterbrechen sich. Reden drumherum. Sagen nicht was sie meinen.
+- SUBTEXT: "Macht mir nichts aus." (Haende in den Taschen, Naehte spannen.) = Es macht ihm ALLES aus.
+
+SATZ-RHYTHMUS — schreibe wie ein Comic:
+FALSCH: "Er ging zur Tuer und oeffnete sie vorsichtig, waehrend Alexander hinter ihm wartete."
+RICHTIG: "Er ging zur Tuer. Drueckte die Klinke. Nichts passierte. Na toll."
+- Jeder 3. Satz: UNTER 6 Woerter. Kein Satz ueber 14 Woerter.
+- VERBOTEN: 3+ mittellange Saetze hintereinander.
+- Satzanfaenge variieren. Nie 3x "Er..." hintereinander.
+
+HUMOR — Pflicht in Kap.1-3 und Kap.5:
+- Koerperkomik: Jemand stolpert, verschluckt sich, vergisst zu atmen.
+- Erzaehler-Kommentar: "(Es war nicht der Baum.)" / "(Spoiler: Es wird schlimmer.)"
 - Wort-Erfindungen: "Schnarchwolf", "Quatsch-Gestrupp", "Kicher-Attacke".
-- Running Gag: Etwas kehrt 2-3x zurueck, jedes Mal absurder.
+- Running Gag: 1 Ding kehrt 2-3x zurueck, jedes Mal absurder.
+- Kap.4 darf ernst sein — Humor kommt in Kap.5 zurueck.
 
-RHYTHMUS: 30%+ Saetze UNTER 6 Woerter. Muster: Kurz. Kurz. Mittel mit Ueberraschung. Kurz. VERBOTEN: Mittel. Mittel. Mittel.
+FIGUREN-STIMMEN — jede Figur hat DNA:
+- FALSCH: "Los!", sagte Adrian. "Ja!", sagte Alexander. "Okay!", sagte Mia.
+- RICHTIG: "Hmm." Adrian legte den Kopf schief. "Da stimmt was nicht."
+  "REIN DA!" Alexander war schon halb drin.
+  "Also-ich-hab-mal-gelesen-dass—" Mia redete so schnell, dass die Woerter zusammenklebten.
+- Jedes Kind braucht: eigene Satzlaenge, eigene Lieblingswoerter, eigene Koerpersprache.
 
-FIGUREN: KEIN Kind ist immer klug/impulsiv. Das Vorsichtige liegt 1x falsch. Das Mutige zeigt 1x Gefuehl. Max 2 im Vordergrund pro Kapitel.
+GEFUEHLE — immer KOERPER, nie Etiketten:
+VERBOTEN: "Er war traurig." / "Sie fuehlte sich gluecklich." / "Er war nervoes."
+RICHTIG: "Sein Magen machte dieses Ding. Dieses kalte Drehen." / "Ihre Haende zitterten."
 
-REGELN:
-1. Gefuehle = KOERPER. VERBOTEN: "Er war nervoes." STATTDESSEN: "Sein Magen machte einen Salto."
-2. Jede Figur klingt ANDERS: Einer redet in 2-Wort-Fetzen, einer in Detail-Saetzen, einer unterbricht staendig.
-3. Absaetze: 2-4 Saetze. JEDES Kapitel = JSON-Array von 4-6 Absatz-Strings.
-4. Geschichte, kein Bericht. Kein "Danach gingen sie..." Stil.
-5. Moral NIE aussprechen. VERBOTEN: "Er brauchte kein X um Y zu sein" / "Das Wichtigste war..."
-6. Jedes Kapitel hat mindestens 1 Moment der den Leser UEBERRASCHT.
+TABUS:
+- KEINE Moral-Saetze: "Er lernte dass..." / "Das Wichtigste war..." / "Er brauchte kein X um Y zu sein."
+- KEIN Berichts-Stil: "Danach gingen sie..." / "Am naechsten Tag..."
+- KEINE Gefuehls-Etiketten: "nervoes", "traurig", "gluecklich", "aengstlich" als Erzaehltext.
+- KEIN Name mehr als 7x pro Kapitel. Pronomen und Kontext nutzen.
 
+FORMAT: Absaetze 2-4 Saetze. Kapitel = JSON-Array von 4-6 Absatz-Strings.
 Schreibe ausschliesslich auf Deutsch. Korrekte Umlaute. Keine englischen Woerter.`;
   }
-  return `You write like Roald Dahl, Jeff Kinney (Wimpy Kid), and Dav Pilkey (Dog Man). Target audience: ${ageRange.min}-${ageRange.max} years.
+  return `You are an award-winning children's book author. Your style: Roald Dahl, Jeff Kinney (Wimpy Kid), Dav Pilkey (Dog Man). Target: ${ageRange.min}-${ageRange.max} years.
 
-YOUR NARRATOR VOICE:
-- You are NOT a neutral narrator. You comment, exaggerate, crack jokes. You are the reader's best friend.
-- "And then something happened that nobody expected. Except maybe the squirrel." — THAT's how you sound.
-- You can speak directly to the reader: "Yes, you heard right." / "Don't worry. It gets worse."
-- Your sentences have BOUNCE. Short. Punchy. Then a longer one with a surprise at the end. Like a comic.
+WRITING PROCESS — work like this:
+1. Plan each paragraph: Who speaks? What do they want? What do they NOT say?
+2. Write DIALOGUE FIRST — then add body actions and narrator commentary.
+3. Check: Does EVERY sentence sound different from the one before? Could you identify the character without names?
 
-DIALOGUE (40-50% — dialogue is the HEART of the story):
-- Kids talk like real kids: "Dude!", "No way!", incomplete sentences, exaggerations, interruptions.
-- EVERY dialogue line has a body action: "Go!" he yelled, pulling the sleeve. NOT: "Go!" he said.
-- No kid always says what they mean. "Whatever" + turning away = NOT whatever.
-- At least 6-8 dialogue lines per chapter. Dialogue drives the plot, not narration.
+NARRATOR VOICE — you are NOT invisible. You are the funny best friend:
+WRONG: "Adrian opened the door. He went inside."
+RIGHT: "Adrian opened the door. What was behind it? Well. Let's just say: It wasn't what he expected. (It wasn't what YOU expected either.)"
+- Per chapter: 3-4 narrator interjections. Parentheses, reader questions, exaggerations, spoiler jokes.
+- Patterns: "(Spoiler: That was a lie.)" / "And then — no, wait." / "What? Yes. Really."
 
-HUMOR (required every chapter except ch.4):
-- Situational comedy: Someone trips, something goes wrong, a plan works the wrong way.
-- Exaggeration: "He screamed so loud three birds fell off the tree."
-- Contrast: A huge dragon with a tiny voice. A terrifying wizard who's scared of spiders.
+DIALOGUE — 40-50% of text. Dialogue IS the story:
+WRONG: Adrian went to the door. He opened it. Alexander followed. They walked down the hallway.
+RIGHT: "In there?" Adrian stared at the tunnel. "Seriously?"
+"Seriously." Alexander was already on his knees.
+"See anything?" "Darkness." "Great."
+- At least 8 dialogue lines per chapter. Every line has body action.
+- Kids interrupt. Talk around things. Don't say what they mean.
+- SUBTEXT: "I don't care." (Hands stuffed deep in pockets, seams straining.) = He cares SO MUCH.
+
+SENTENCE RHYTHM — write like a comic:
+WRONG: "He went to the door and carefully opened it while Alexander waited behind him."
+RIGHT: "He went to the door. Pressed the handle. Nothing. Great."
+- Every 3rd sentence: UNDER 6 words. No sentence over 14 words.
+- FORBIDDEN: 3+ medium sentences in a row.
+- Vary sentence openings. Never 3x "He..." in a row.
+
+HUMOR — required in ch.1-3 and ch.5:
+- Physical comedy: Someone stumbles, chokes, forgets to breathe.
+- Narrator comment: "(It was not the tree.)" / "(Spoiler: It gets worse.)"
 - Word inventions: "snore-wolf", "nonsense-bush", "giggle-attack".
-- Running gag: Something returns 2-3x, each time more absurd.
+- Running gag: 1 thing returns 2-3x, each time more absurd.
+- Ch.4 may be serious — humor returns in ch.5.
 
-RHYTHM: 30%+ sentences UNDER 6 words. Pattern: Short. Short. Medium with surprise. Short. FORBIDDEN: Medium. Medium. Medium.
+CHARACTER VOICES — each character has DNA:
+WRONG: "Let's go!" said Adrian. "Yes!" said Alexander. "Okay!" said Mia.
+RIGHT: "Hmm." Adrian tilted his head. "Something's off."
+  "IN THERE!" Alexander was already halfway in.
+  "So-I-once-read-that—" Mia talked so fast the words stuck together.
+- Each kid needs: own sentence length, own favorite words, own body language.
 
-CHARACTERS: NO child is always smart/impulsive. The careful one is wrong 1x. The brave one shows feeling 1x. Max 2 foreground per chapter.
+EMOTIONS — always BODY, never labels:
+FORBIDDEN: "He was sad." / "She felt happy." / "He was nervous."
+RIGHT: "His stomach did that thing. That cold turning." / "Her hands trembled."
 
-RULES:
-1. Emotions = BODY. FORBIDDEN: "He was nervous." INSTEAD: "His stomach did a flip."
-2. Each character sounds DIFFERENT: One talks in 2-word bursts, one in detail-sentences, one interrupts constantly.
-3. Paragraphs: 2-4 sentences. EVERY chapter = JSON array of 4-6 paragraph strings.
-4. Story, not report. No "Then they went..." style.
-5. Moral NEVER spoken. FORBIDDEN: "He didn't need X to be Y" / "The most important thing was..."
-6. Every chapter has at least 1 moment that SURPRISES the reader.
+TABOOS:
+- NO moral sentences: "He learned that..." / "The most important thing was..." / "He didn't need X to be Y."
+- NO report style: "Then they went..." / "The next day..."
+- NO emotion labels: "nervous", "sad", "happy", "afraid" as narration.
+- NO name more than 7x per chapter. Use pronouns and context.
 
+FORMAT: Paragraphs 2-4 sentences. Chapters = JSON array of 4-6 paragraph strings.
 Write exclusively in English. No jargon.`;
 }
 
@@ -1389,22 +1449,34 @@ MUST FIX:
 ${qualityIssues || "- General prose improvement needed."}
 ${blueprintHint}
 REWRITE FOCUS:
-- NARRATOR VOICE: Comment in parentheses, exaggerate, address the reader. At least 3 narrator comments per chapter. Example: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert."
-- Paragraphs: 2-4 sentences each. No single-sentence chains.
-- Emotions = body, never labels. Dialogue 40-50%, anchored to body action.
-- RHYTHM: Every 3rd sentence under 6 words. No sentence over 15 words. Pattern: Short. Short. Medium. Short.
-- Each character sounds different. Ch2-5 connect to previous chapter ending.
-- Ch1: soft launch (familiar place → mission + risk). No scenic postcard.
-- EVERY chapter must have ${wordsPerChapter.min}-${wordsPerChapter.max} words. INCLUDING chapter 5!
+NARRATOR VOICE (PFLICHT):
+  FALSCH: "Adrian oeffnete die Tuer. Er ging hinein."
+  RICHTIG: "Adrian oeffnete die Tuer. Was dahinter war? Na ja. (Es war nicht das, was ihr denkt.)"
+  → 3+ Erzaehler-Kommentare pro Kapitel. Klammern, Leser-Ansprachen, Uebertreibungen.
+DIALOG = 40-50%:
+  FALSCH: Adrian ging zum Regal. Er nahm die Flasche. Alexander stand daneben.
+  RICHTIG: "Gib her!" Alexander griff danach. Adrian wich aus. "Nee. Meine Entdeckung."
+  → 8+ Dialogzeilen pro Kapitel. Jede mit Koerper-Aktion.
+RHYTHMUS:
+  FALSCH: "Er ging zur Tuer und oeffnete sie vorsichtig, waehrend Alexander hinter ihm wartete."
+  RICHTIG: "Er ging zur Tuer. Drueckte die Klinke. Nichts. Na toll."
+  → Jeder 3. Satz unter 6 Woerter. Kein Satz ueber 14 Woerter.
+- Emotions = body, never labels. No "nervoes/traurig/gluecklich".
+- Each character sounds different WITHOUT name tags.
+- Ch2-5 connect to previous chapter ending.
+- EVERY chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words. INCLUDING chapter 5!
+- No name more than 7x per chapter.
 
 HARD RULES:
 - Language: ONLY ${outputLang}.${umlautRule}
 - Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
-- Cast: ${allNames}. No new names. Never copy goal/conflict text literally.
+- Cast: ${allNames}. No new names.
 ${stylePackBlock ? `\nSTYLE:\n${stylePackBlock}` : ""}
 
 ORIGINAL DRAFT:
 ${originalText}
+
+SELF-CHECK before output: 3+ narrator comments per chapter? 40-50% dialogue? Every 3rd sentence short? No emotion labels? Ch5 same length as Ch1?
 
 OUTPUT:
 {
@@ -2068,10 +2140,10 @@ ${missingLine}
 # TARGET: ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences
 
 # RULES
-1. NARRATOR VOICE: Comment in parentheses, exaggerate, address reader. At least 2 narrator comments in the expanded chapter. Example: "(Of course she was.)" / "Ja, ihr habt richtig gehoert."
+1. NARRATOR VOICE (PFLICHT): FALSCH: "Er ging hinein." RICHTIG: "Er ging hinein. (Keine gute Idee.)" → 2+ Erzaehler-Kommentare im Kapitel.
 2. ONLY these names: ${allowedNames}. No new characters. Max ${focusMaxActive} active, ideal ${focusIdealRange}.
-3. Emotions through body, never labels ("nervoes/traurig"). Every 3rd sentence under 6 words. No sentence over 15 words.
-4. 40-50% dialogue. At least 6 dialogue lines. Each character sounds different. Dialogue anchored to body action.
+3. Emotions through body, never labels. FALSCH: "Er war nervoes." RICHTIG: "Sein Magen drehte sich." Every 3rd sentence under 6 words. No sentence over 14 words.
+4. 40-50% dialogue. 6+ dialogue lines. FALSCH: "Los!", sagte er. RICHTIG: "Los!", rief er und zerrte am Aermel. Each character sounds different.
 5. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
 6. No meta-labels, no Goal/Conflict text in prose, no moral summary.
 7. Max 1 comparison per paragraph. Running gag max 2x.
