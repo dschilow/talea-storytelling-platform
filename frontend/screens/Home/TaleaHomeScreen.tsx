@@ -1495,7 +1495,7 @@ const TaleaHomeScreen: React.FC = () => {
                         <AvatarTile
                           avatar={avatar}
                           onOpen={() => navigate(`/avatar/edit/${avatar.id}`)}
-                          onDelete={() => handleDeleteAvatar(avatar.id, avatar.name)}
+                          onDelete={() => handleDeleteAvatar(avatar)}
                         />
                       </div>
                     ))}
