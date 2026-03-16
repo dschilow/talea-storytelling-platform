@@ -527,138 +527,50 @@ ${examples}`;
 
 function buildGoldenExampleBlock(isGerman: boolean): string {
   const germanExamples = `"""
-SZENE 0 – SO BEGINNT KAPITEL 1 (Pflicht-Vorlage: Welt + Figuren + Auftrag):
-Es war einmal, in einem kleinen Dorf am Rande eines großen, dunklen Waldes, da lebten zwei Brüder.
-Das ältere Kind hieß Mira und war acht Jahre alt. Sie hatte immer einen Plan und blieb nie lange still stehen.
-Ihr kleiner Bruder Timo war erst fünf und fragte schon nach dem ersten Blick, was als Nächstes passieren würde.
+SZENE 0 – CH1 OPENING (Pflicht: WER + WO + AUFTRAG):
+Es war einmal, in einem kleinen Dorf am Rande eines dunklen Waldes, da lebten zwei Kinder.
+Mira war acht und hatte immer einen Plan. Ihr Bruder Timo war fuenf und fragte nach dem ersten Blick, was als Naechstes passiert.
+Eines Morgens rief die Mutter sie in die Kueche. "Eure Grossmutter ist krank. Bringt ihr diesen Korb."
+Mira nickte ernst. "Keine Sorge, Mama." Timo rueckte naeher. "Dann gehen wir jetzt, oder?"
 
-Eines Morgens rief ihre Mutter die beiden in die Küche. Auf dem Tisch stand ein großer Korb, gefüllt mit frisch gebackenem Kuchen.
-"Eure Großmutter ist krank", sagte die Mutter mit besorgtem Blick. "Sie wohnt drüben auf der anderen Seite des Waldes. Bringt ihr bitte diesen Korb, damit sie schnell wieder gesund wird."
-
-Mira nickte ernst. "Keine Sorge, Mama. Ich passe auf Timo auf."
-Timo rückte näher an den Tisch. "Dann gehen wir jetzt, oder?"
-Die Mutter lächelte. "Denkt daran: Bleibt auf dem Weg und sprecht nicht mit Fremden!"
-
-WHY THIS OPENING WORKS:
-- Paragraph 1: WHO + WHERE (2 characters, vivid traits, world established)
-- Paragraph 2: MISSION (what + why — crystal clear, any 6-year-old understands)
-- Paragraph 3: CHARACTER VOICES + RULE (dialogue anchors personality, sets up later danger)
-- The reader knows everything before the adventure starts.
-
-SZENE A – Rhythmus + Unterbrechung:
+SZENE A – Rhythmus + Humor:
 Mama knallte den Korb auf den Tisch. Plopp.
 "Darf ich–" "Nein", sagte Mama. So schnell, als waere der Deckel ein Krokodilmaul.
-Mira beugte sich vor. "Da dampft was." "Und es klappert", sagte Timo.
-Er tippte mit dem Finger gegen den Korb. "Und das klingt nicht nach Ruhe."
+"Da dampft was." "Und es klappert", sagte Timo. Er tippte gegen den Korb. "Das klingt nicht nach Ruhe."
 
-SZENE B – Humor durch Situation:
-"Kann sie auch piepen?" "Nein." "Kann sie Stopp sagen?" "Nein."
-"Kann sie wenigstens einmal–" Mama schob die Muenze in Miras Tasche.
-Timo seufzte. "Das ist streng-magisch."
-
-SZENE C – Figur-Eintritt mit Detail:
-Am Rand der Lichtung stand ein Wolf. Gross. Grau. Mit einer knallroten Nase.
-Und einem Taschentuch. Einem echten Taschentuch.
-Er putzte sich, ohne aufzusehen. "Allergie", murmelte er.
-
-SZENE D – Konfrontation + Action:
-Oma kam raus wie ein Gewitter mit Schal. Kochloeffel in der Hand. Nase rot.
-Augen gefaehrlich. "RAUS", sagte sie.
-Der Wolf stolperte rueckwaerts ueber den Zaun. Das Taschentuch wehte hinterher.
-
-SZENE E – Innerer Moment (Somatic Marker):
+SZENE B – Koerper-Reaktion (Somatic Marker):
 Timo drueckte die Haende in die Taschen. Der Stoff war warm vom Rennen.
-Sein Bauch machte dieses komische Ziehen, wenn etwas Grosses gleich passiert.
-Er schluckte. "Okay", sagte er. Ganz leise. Nur fuer sich.
+Sein Bauch machte dieses komische Ziehen. Er schluckte. "Okay", sagte er. Ganz leise.
 
-SZENE F – Szene mit Dreier-Rhythmus:
-Der Stein war glatt. Kalt. Und viel zu schwer fuer einen allein.
-"Ich heb an", sagte Timo. "Ich halte", sagte Mira.
-Sie zogen gleichzeitig. Der Stein rutschte eine Handbreit. Dann noch eine.
-Kapitaen Blubbert verschraenkte die Arme. "Ihr habt vergessen, mich zu fragen."
-Er packte den Stein mit einer Hand. Hob ihn hoch.
-Timo starrte. Mira auch.
-"Ihr koennt jetzt klatschen", sagte Kapitaen Blubbert.
+SZENE C – Subtext-Dialog:
+"Macht mir nichts aus", sagte Adrian. Er stopfte die Haende in die Taschen. Ganz tief. Bis die Naehte spannten.
+Alexander sah ihn an. Er sagte nichts. Aber er blieb stehen. Das war genug.
 
-SZENE G – Absaetze, die atmen (Prosa-Rhythmus):
-Der Laden war eng und warm. Bruno wischte die Theke mit einem Lappen,
-der frueher mal weiss gewesen war. Jetzt war er braun. Und ein bisschen klebrig.
-"Ich brauch Mehl", sagte er, ohne aufzusehen. "Drei Saecke. Und Glueck."
-Timo legte den Kopf schief. "Glueck kann man nicht kaufen."
-"Doch", sagte Bruno. "Es kostet nur mehr als Mehl."
-
-SZENE H – Subtext-Dialog (Kind sagt nicht was es meint):
-"Macht mir nichts aus", sagte Adrian. Er stopfte die Haende in die Taschen.
-Ganz tief. Bis die Naehte spannten.
-Alexander sah ihn an. Er sagte nichts. Aber er blieb stehen.
-Das war genug.
-
-SZENE I – Humor durch Uebertreibung:
+SZENE D – Humor durch Uebertreibung + Wort-Erfindung:
 Die Tuer klemmte. Adrian zerrte daran. "Geht. Nicht. Auf!"
-Er zerrte staerker. Die Tuer gab keinen Millimeter nach.
-"Vielleicht druecken?", sagte Alexander.
-Adrian drueckte. Die Tuer schwang auf wie von allein.
+"Vielleicht druecken?", sagte Alexander. Adrian drueckte. Die Tuer schwang auf.
 "Wusste ich", sagte Adrian. Ohne rot zu werden.
-
-SZENE J – Humor durch Wort-Erfindung:
-"Was ist das fuer ein Geraeusch?", fluesterte Mia.
-"Klingt wie... ein Schnarchwolf", sagte Adrian.
-"Schnarchwolf ist kein Wort."
-"Ist es jetzt."
-
-SZENE K – Charakter-Widerspruch (der Vorsichtige ueberreagiert):
-Alexander blieb stehen. "Wir gehen nicht da rein. Auf keinen Fall."
-"Warum nicht?"
-"Weil... weil es dunkel ist."
-Adrian blinzelte. "Du hast Angst vor der Dunkelheit?"
-"Hab ich nicht!", sagte Alexander. Viel zu schnell.
+Spaeter: "Was ist das fuer ein Geraeusch?" "Klingt wie ein Schnarchwolf." "Schnarchwolf ist kein Wort." "Ist es jetzt."
 """` ;
 
   const englishExamples = `"""
-SCENE 0 – HOW CHAPTER 1 MUST OPEN (mandatory template: World + Characters + Mission):
-Once upon a time, in a small village at the edge of a great dark forest, there lived two brothers.
-The older child was called Mira and was eight years old. She always had a plan and never stood still for long.
-Her little brother Timo was only five and asked what happened next before anyone had finished the first sentence.
+SCENE 0 – CH1 OPENING (mandatory: WHO + WHERE + MISSION):
+Mira was eight and always had a plan. Her brother Timo was five and asked what happened next before anyone finished talking.
+One morning their mother called them. "Your grandmother is sick. Bring her this basket."
+Mira nodded. "Don't worry, Mama." Timo stepped closer. "Then we should go now, right?"
 
-One morning their mother called them into the kitchen. On the table stood a large basket, filled with freshly baked cake.
-"Your grandmother is sick," said their mother with a worried look. "She lives on the other side of the forest. Please bring her this basket so she gets better soon."
-
-Mira nodded seriously. "Don't worry, Mama. I'll look after Timo."
-Timo stepped closer to the table. "Then we should go now, right?"
-Their mother smiled. "Remember: stay on the path and don't talk to strangers!"
-
-WHY THIS OPENING WORKS:
-- Paragraph 1: WHO + WHERE (2 characters, vivid traits, world established)
-- Paragraph 2: MISSION (what + why — crystal clear, any 6-year-old understands)
-- Paragraph 3: CHARACTER VOICES + RULE (dialogue anchors personality, sets up later danger)
-- The reader knows everything before the adventure starts.
-
-SCENE A – Rhythm + interruption:
+SCENE A – Rhythm + Humor:
 Mom slammed the basket on the table. Pop.
 "Can I–" "No," said Mom. Quick as a crocodile jaw.
-Mira leaned in. "Something is steaming." "And rattling," said Timo.
-He tapped the basket. "And that does not sound calm."
+"Something is steaming." "And rattling," said Timo. He tapped the basket. "That does not sound calm."
 
-SCENE B – Humor through situation:
-"Can it beep?" "No." "Can it say Stop?" "No."
-"Can it at least once–" Mom pushed the coin into Mira's pocket.
-Timo sighed. "That's strict-magic."
-
-SCENE C – Character entrance with detail:
-At the edge of the clearing stood a wolf. Big. Gray. With a bright red nose.
-And a tissue. A real tissue.
-He blew his nose without looking up. "Allergies," he muttered.
-
-SCENE D – Confrontation + Action:
-Grandma came out like a thunderstorm in a scarf. Wooden spoon in hand.
-Nose red. Eyes dangerous. "OUT," she said.
-The wolf stumbled backwards over the fence. The tissue fluttered after him.
-
-SCENE E – Inner Moment (Somatic Marker):
+SCENE B – Body Reaction:
 Timo pressed his hands into his pockets. The fabric was warm from running.
-His belly did that weird pull-thing when something big is about to happen.
-He swallowed. "Okay," he said. Very quietly. Just for himself.
+His belly did that weird pull-thing. He swallowed. "Okay," he said. Very quietly.
 
+SCENE C – Subtext Dialogue:
+"I don't care," said Adrian. He stuffed his hands into his pockets. Deep. Until the seams strained.
+Alexander looked at him. Said nothing. But he stayed. That was enough.
 """`;
 
   if (isGerman) {
@@ -666,32 +578,22 @@ He swallowed. "Okay," he said. Very quietly. Just for himself.
 
 ${germanExamples}
 
-WAS DIESE BEISPIELE GROSSARTIG MACHT — WENDE ALLE 7 AUF JEDES KAPITEL AN:
-1. ABSAETZE ATMEN: 2-4 Saetze pro Absatz, Leerzeile dazwischen — nie eine Textwand.
-2. DIALOG VERANKERT an koerperlicher Handlung — immer. Keine schwebenden Zitate.
-3. HUMOR durch Situation und Ueberraschung — nie durch Erklaerung.
-4. RHYTHMUS: Kurz. Kurz. Ein laengerer Satz mit ueberraschendem Detail. Kurz.
-5. KONKRETES sensorisches Detail in jedem Absatz (Geraeusch, Textur, Temperatur, Bewegung).
-6. JEDE Figur erkennbar allein an Satzlaenge und Wortwahl — ohne den Namen zu lesen.
-7. INNERE MOMENTE nur durch Koerperempfindungen — nie Gefuehls-Etiketten wie "sie hatte Angst".
-8. SUBTEXT: Was Figuren SAGEN ist nicht immer was sie MEINEN. Haende, Blick, Tempo verraten die Wahrheit.
-9. HUMOR-VIELFALT: Wort-Erfindungen, Uebertreibungen, Missverstaendnisse, Charakter-Widersprueche.`;
+WENDE AUF JEDES KAPITEL AN:
+1. Absaetze: 2-4 Saetze, Leerzeile dazwischen. 2. Dialog an Koerper-Aktion verankert.
+3. Humor durch Situation, nie Erklaerung. 4. Rhythmus: Kurz. Kurz. Mittel. Kurz.
+5. Sensorisches Detail pro Absatz. 6. Jede Figur erkennbar ohne Namen.
+7. Innere Momente = Koerper, nie Etiketten. 8. Subtext: Haende/Blick verraten die Wahrheit.`;
   }
 
   return `# PROSE QUALITY REFERENCE – STUDY THESE EXAMPLES (this is the target level)
 
 ${englishExamples}
 
-WHAT MAKES THESE EXAMPLES GREAT — APPLY ALL 7 TO EVERY CHAPTER:
-1. PARAGRAPH BREATHING: 2-4 sentences per paragraph, separated by blank lines — never a wall of text
-2. DIALOGUE ANCHORED to physical action every single time — no floating quotes
-3. HUMOR through situation and surprise — never through explanation
-4. RHYTHM: Short. Short. One long sentence with a surprising detail at the end.
-5. CONCRETE sensory detail in every paragraph (smell, texture, temperature, sound)
-6. EACH character recognizable by sentence length and word choice alone — no name tag needed
-7. INNER MOMENTS shown through body sensations only — never emotion labels like "she felt scared"
-8. SUBTEXT: What characters SAY is not always what they MEAN. Hands, gaze, pace reveal the truth.
-9. HUMOR VARIETY: Word inventions, exaggerations, misunderstandings, character contradictions.`;
+APPLY TO EVERY CHAPTER:
+1. Paragraphs: 2-4 sentences, blank lines between. 2. Dialogue anchored to body action.
+3. Humor through situation, never explanation. 4. Rhythm: Short. Short. Medium. Short.
+5. Sensory detail per paragraph. 6. Each character recognizable without name.
+7. Inner moments = body, never labels. 8. Subtext: hands/gaze reveal the truth.`;
 }
 
 function buildAntiPatternBlock(_isGerman: boolean): string {
@@ -1014,36 +916,24 @@ IKONISCHE SZENE (Pflicht):
 ${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
 ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
-NON-NEGOTIABLES
+NON-NEGOTIABLES (Ergaenzend zum System-Prompt — hier nur STRUKTUR + PLOT-Regeln)
 
-PROSA-HANDWERK:
-1. RHYTHMUS IST PFLICHT: Kurz. Kurz. Ein laengerer mit Ueberraschung. Kurz. NIEMALS: Mittel. Mittel. Mittel. Mittel. 30% aller Saetze muessen UNTER 6 Woerter haben.
-2. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." ist VERBOTEN. Saetze muessen atmen, ueberraschen, einen Rhythmus haben.
-3. KOERPER STATT ETIKETTEN: VERBOTEN: "Er war nervoes / aufgeregt / traurig". STATTDESSEN: "Seine Finger krallten sich in den Stoff." / "Sein Bauch machte eine Rolle."
-4. DIALOG = SUBTEXT: Kinder sagen selten genau was sie meinen. "Mir egal" + Haende in Taschen = NICHT egal. "Ich hab keine Angst" + zu schnell = sie HABEN Angst.
-
-FIGUREN-HANDWERK:
-5. JEDE Figur ist WIDERSPRUCHLICH: Der Vorsichtige ueberreagiert 1x. Der Mutige hat 1x Recht mit Bauchgefuehl. Der Kluge macht 1 dummen Fehler.
-6. NEBENFIGUREN MUESSEN HANDELN: Wenn eine Figur in 2+ Kapiteln nur "nickte" und "rief", braucht sie eine EIGENE kleine Entscheidung.
-7. Max 2 Figuren im Vordergrund pro Kapitel. 1 Nebenfigur darf kurz reagieren.
-
-PLOT-HANDWERK:
-8. KEIN ARTEFAKT-DEUS-EX-MACHINA: Das Problem wird durch eine FIGUREN-ENTSCHEIDUNG geloest, nie durch Artefakt-Magie allein. Das Artefakt darf Probleme ZEIGEN aber nicht LOESEN. Max 1 von 5 Kapiteln darf das Artefakt im Mittelpunkt haben.
-9. ANTI-FORMEL: Wenn der Leser vorhersagen kann was passiert, ist die Szene zu formelhaft. Mindestens 1 UEBERRASCHENDER Moment pro Kapitel.
-10. MORAL WIRD NIE AUSGESPROCHEN: Keine Figur sagt die Lektion laut. Keine Sprueche. Keine Reime mit Moral. Die Lektion ZEIGT sich durch das was passiert.
-11. ENDEN MUESSEN LANDEN: Kein abruptes "sie rannten raus, fertig." Das Ende braucht: 1 ruhigen Moment + 1 physisches Detail + 1 Satz der nachhallt.
+PLOT:
+1. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein. Artefakt darf zeigen/hinweisen, nicht loesen.
+2. MORAL WIRD NIE AUSGESPROCHEN. Lektion zeigt sich durch Handlung.
+3. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
 
 STRUKTUR:
-12. Chapter 1: Soft Launch. Absatz 1 verankert das Kind an vertrautem Ort durch Handlung/Stimme. Absatz 2 nennt Mission + konkretes Risiko. Nach Absatz 2 muss WER, WO, WAS, WARUM klar sein.
-13. Chapters 2-5 beginnen mit Anknuepfung an das Ende des vorherigen Kapitels.
-14. Chapter 3: Fehler des Kindes mit konkreter Konsequenz. KEIN Pech. Der Fehler kommt aus dem Charakter.
-15. Chapter 4: Tiefpunkt + innerer Wendepunkt.
-16. Chapter 5: Loest dieselbe Mission wie Kapitel 1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
-17. 4-5 Absaetze pro Kapitel, je 2-4 Saetze. Leerzeile zwischen Absaetzen.
-18. Nur Aussehen erwaehnen das oben explizit gelockt ist. Keine Brillen, Muetzen, Schals erfinden.
-19. No report prose, no moral summary, no new names.
-20. Word target: total ${totalWordMin}-${totalWordMax}; per chapter ${wordsPerChapter.min}-${wordsPerChapter.max}. If short, add one more concrete beat or dialogue exchange.
-${humorRule ? `21. HUMOR: ${humorRule} Nutze Koerperkomik, Wort-Erfindungen, Missverstaendnisse oder Kontrast-Komik.` : ""}
+4. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko. Nach Abs.2 muss WER/WO/WAS/WARUM klar sein.
+5. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
+6. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
+7. Ch4: Tiefpunkt + innerer Wendepunkt.
+8. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
+9. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
+10. Nur explizit gelocktes Aussehen erwaehnen. Keine Brillen/Muetzen/Schals erfinden.
+11. Keine neuen Namen. Kein Report-Stil. Keine Moral-Zusammenfassung.
+12. Wortanzahl: ${totalWordMin}-${totalWordMax} gesamt; ${wordsPerChapter.min}-${wordsPerChapter.max} pro Kapitel.
+${humorRule ? `13. HUMOR: ${humorRule}` : ""}
 
 OUTPUT
 {
@@ -1421,48 +1311,35 @@ export function buildV7RevisionPrompt(input: {
 
   const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 5);
 
-  return `TASK: Rewrite this story so it sounds like a REAL PUBLISHED children's book. Fix the specific issues listed below.
+  return `TASK: Rewrite this story. Fix ONLY the listed issues. Do not invent new plot points.
 
-::: CRITIC FEEDBACK (MUST FIX) :::
-${qualityIssues || "- General prose improvement needed. Too flat, robot-style prose."}
+MUST FIX:
+${qualityIssues || "- General prose improvement needed."}
 ${blueprintHint}
-::: REWRITE RULES (focus on these) :::
+REWRITE FOCUS:
+- Paragraphs: 2-4 sentences each. No single-sentence chains.
+- Emotions = body, never labels. Dialogue 25-40%, anchored to action.
+- Each character sounds different. Ch2-5 connect to previous chapter ending.
+- Ch1: soft launch (familiar place → mission + risk). No scenic postcard.
 
-1. PARAGRAPHS: If chapters have single-sentence chains ("He ran. She said. He nodded."), merge into flowing paragraphs of 2-4 sentences.
+HARD RULES:
+- Language: ONLY ${outputLang}.${umlautRule}
+- Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
+- Cast: ${allNames}. No new names. Never copy goal/conflict text literally.
+${stylePackBlock ? `\nSTYLE:\n${stylePackBlock}` : ""}
 
-2. EMOTIONS = BODY: Find every "he was nervous/happy/sad" and replace with physical sensation.
-
-3. DISTINCT VOICES: Each character must sound different. If you can swap two characters' dialogue without it sounding wrong → fix it.
-
-4. DIALOGUE ANCHORING: Every dialogue line needs a physical action anchor. No floating quotes.
-
-5. DIALOGUE RATIO: Each chapter must have at least 4-5 spoken lines (25-40% dialogue). Dialogue is the #1 tool for character, humor, and tension. If a chapter is below 20% dialogue, ADD more exchanges.
-
-6. CHAPTER TRANSITIONS: The first sentence of each chapter (from Ch2 on) must connect to the last sentence of the previous chapter.
-
-7. CHAPTER 1 OPENING: Keep a soft launch. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail. Paragraph 2 states mission + concrete risk. Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
-
-::: HARD RULES :::
-1. Language: ONLY ${outputLang}.${umlautRule}
-2. Length: ${totalWordMin}-${totalWordMax} words. Chapters: ${wordsPerChapter.min}-${wordsPerChapter.max}.
-3. Cast Lock: ${allNames}. No new names.
-4. Never copy goal/conflict text into the story. Dramatize.
-5. Chapter 1 may open quietly, but the first sentence must already point to the lead child or the concrete child-world problem. No pure scenic setup.
-
-${stylePackBlock ? `::: STYLE :::\n${stylePackBlock}\n` : ""}
-::: ORIGINAL DRAFT (REWRITE) :::
+ORIGINAL DRAFT:
 ${originalText}
 
-::: OUTPUT :::
+OUTPUT:
 {
   "title": "Story title",
   "description": "Teaser sentence",
   "chapters": [
-    { "chapter": 1, "paragraphs": ["Paragraph 1 (2-4 sentences).", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
   ]
 }
-"paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER put the whole chapter in one string.
-Only fix what the critic feedback demands. Do not invent new plot points.`;
+"paragraphs" = JSON array of 4-6 strings. Each = one paragraph.`;
 }
 
 // --- Legacy Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------
@@ -2101,45 +1978,30 @@ export function buildChapterExpansionPrompt(input: {
   ].filter(Boolean).join("\n");
 
   return `# TASK
-Expand the chapter without changing the plot. Show, don't tell!
-IMPORTANT: Keep read-aloud clarity high. Use mostly short-to-medium sentences. Many should land around 6-14 words. A few longer sentences are fine if they stay easy to follow.
-Add dialogue where it improves clarity and momentum, plus body-action. Quiet setup or low-point beats may use slightly less dialogue.
-No feeling-diagnosis sentences like "he was very nervous/sad"; instead show behavior + speech.
-Target quality: published children's fiction (Preußler/Lindgren level). Clear cause-effect, concrete action, body reactions, distinct voices.
-Expand by adding one more concrete beat, reaction, or dialogue exchange. Smooth existing sentences only if it improves clarity.
+Expand the chapter without changing the plot. Add concrete dialogue + action beats, not vague padding.
 
 # SCENE
-    - Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
-  - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
-  - Available characters: ${allowedNames}
-  - Foreground characters: ${chapterFocusNames.join(", ") || allowedNames}
-${supportNames.length > 0 ? `  - Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
+- Setting: ${sanitizeDirectiveNarrativeText(chapter.setting)}, Mood: ${chapter.mood ?? "COZY"}
+- Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
+- Foreground: ${chapterFocusNames.join(", ") || allowedNames} | All allowed: ${allowedNames}
+${supportNames.length > 0 ? `- Support: ${supportNames.join(", ")} (brief reaction only)` : ""}
 ${artifactName && chapter.artifactUsage && artifactAlreadyPresent ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
-${artifactName && !artifactAlreadyPresent ? `- Artifact status: ${artifactName} is NOT on stage yet. Do not introduce it in this chapter unless it already exists in the original text.` : ""}
-  - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min} -${ageRange.max}
+${artifactName && !artifactAlreadyPresent ? `- Artifact: ${artifactName} NOT on stage. Do not introduce.` : ""}
+- Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min}-${ageRange.max}
 ${missingLine}
 
-# LENGTH TARGET
-    ** ${lengthTargets.wordMin} -${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin} -${lengthTargets.sentenceMax} sentences **
+# TARGET: ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences
 
 # RULES
-  1. ONLY these names: ${allowedNames}. NEVER invent new characters, names, or entities.
-2. No new characters.
-3. Max ${focusMaxActive} active characters per chapter, ideal ${focusIdealRange}.
-  4. Foreground characters must drive the scene through action or dialogue. Support characters may react briefly or stay absent unless continuity requires them.
-5. No meta-labels in the text. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-6. SENTENCE LENGTH: Mix short and medium sentences. Many should stay in a child-friendly 6-14 word range, but a few longer read-aloud sentences are okay when clear.
-7. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
-8. Expand by ADDING concrete dialogue lines, reactions, and action beats — not by piling on vague description.
-9. Max 1 comparison per paragraph, no metaphor chains.
-10. No preview, meta or summary sentences.
-11. No explanatory sentences about object rules.
-12. Dialogues must sound distinguishable; no speaker - tag formula loops.
-13. Running gag sparsely: same sound - word / catchphrase max 2x.
-14. If output is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue. NO English words in output.
-15. Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-16. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
-17. Never introduce the artifact early. If it is not already present in the original text or continuity context, leave it out.
+1. ONLY these names: ${allowedNames}. No new characters. Max ${focusMaxActive} active, ideal ${focusIdealRange}.
+2. Emotions through body, never labels ("nervoes/traurig"). 30%+ sentences under 6 words.
+3. 25-40% dialogue. Each character sounds different. Dialogue anchored to body action.
+4. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
+5. No meta-labels, no Goal/Conflict text in prose, no moral summary.
+6. Max 1 comparison per paragraph. Running gag max 2x.
+7. ${isGerman ? "Korrekte deutsche Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
+8. Double quotes "..." for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
+9. Never introduce artifact if not already in original text.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -2373,22 +2235,14 @@ ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
-1) Use only these names: ${allowedNames || "none"}. NEVER invent new characters, names, or entities.
-2) No new proper names.
-2b) If output language is German: use proper German spelling; do not use ASCII substitutions like ae/oe/ue.
-3) No meta instructions, labels, previews, or summary lines in prose. NEVER copy the Goal, Conflict, or Setting text directly into the story.
-4) Foreground characters must act or speak. Support characters may react briefly or stay absent if the chapter is clearer without them.
-5) Remove stock phrases and repetitive speaker formulas.
-6) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences.
-7) Keep dialogue lively (target roughly 25-45% where fitting, no monologue blocks).
-8) Keep continuity with adjacent chapters using explicit transitions where needed.
-9) Do not explain object rules as textbook statements; show via action + reaction + short dialogue.
-10) Keep running gags sparse: same onomatopoeia/catchphrase at most 2 times in this chapter.
-11) Use normal prose paragraphs (mostly 2-4 sentences); no one-sentence report chains.
-12) No meta/report lines like "Die Szene endete" / "The scene ended".
-13) Dialogue formatting: use standard double quotes "..." for dialogue, never single quotes.
-14) Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns (sein/ihr) instead.
-15) Never pull the artifact into an earlier chapter just because it exists later in the story.
+1) Only these names: ${allowedNames || "none"}. No new characters.
+2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. 25-40% dialogue.
+3) Emotions through body, never labels. Each character sounds different.
+4) No meta-labels, no Goal/Conflict text in prose. No report chains.
+5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
+6) Double quotes for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
+7) Running gag max 2x. Max 1 comparison per paragraph.
+8) Never introduce artifact if not in original text.
 
 PROMPT LEAK PREVENTION:
 You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.

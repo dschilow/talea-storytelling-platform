@@ -369,23 +369,16 @@ export class LlmStoryWriter implements StoryWriter {
     const storyLanguageRule = isGerman
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
       : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
-    const systemPrompt = `You are a world-class children's book author. You write prose that sounds like a REAL PUBLISHED BOOK by ${isGerman ? "Preussler, Lindgren, or Funke" : "Dahl, Donaldson, or Gaiman"} — warm, witty, and alive.
-
-Critical prose rules:
-1. Write in flowing PARAGRAPHS (2-5 sentences), never single-sentence chains.
-2. Show emotions through BODY and OBJECTS, never labels ("he was sad").
-3. Each character sounds different by sentence length, word choice, and attitude.
-4. 25-40% dialogue, anchored to physical action. No talking heads.
-5. Rhythm: short-short-LONG. Mix fragments with flowing sentences.
-6. BANNED: "plötzlich", nature personification, meta-narration, moral lectures.
+    const systemPrompt = `You are an elite children's book author. Warm, witty, alive prose.
+Rules: Flowing paragraphs (2-4 sentences). Emotions through body, never labels. Each character sounds different. 25-40% dialogue anchored to action. 30%+ sentences under 6 words. No moral lectures, no meta-narration.
 ${storyLanguageRule}`.trim();
     const compactSystemPrompt = `You are a world-class children's book author writing prose as JSON output.
 Write flowing paragraphs, not single-sentence chains. Show emotions through body language, not labels.
 Each character must sound different. 25-40% dialogue anchored to action.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
-    const editSystemPrompt = `You are a senior children's book editor. You expand and polish chapters while preserving plot, voice, and continuity.
-CRITICAL: Keep the prose easy to read aloud. Use mostly short-to-medium sentences. Many should land around 6-14 words, but a few longer sentences are fine if they stay clear. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
+    const editSystemPrompt = `You are a senior children's book editor. Preserve plot, voice, and continuity.
+Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. Each character sounds different. 25-40% dialogue anchored to action. No report-style chains. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
