@@ -448,7 +448,13 @@ async function selectCandidateForSlotWithAI(input: {
     const systemPrompt = `You are a casting director for children's stories.
 Pick the best candidate for the slot from the candidate list.
 Prefer strongest fit + distinct voice + reliable long-arc value.
-When fit is close, prefer less recently used characters to keep casts diverse across stories.
+
+DIVERSITY IS CRITICAL:
+- Characters with recentUsageCount > 10 are OVERUSED. Strongly prefer fresher characters.
+- Characters with recentUsageCount > 20 should ONLY be picked if no other candidate fits at all.
+- When 2+ candidates fit reasonably well, ALWAYS pick the one with lower recentUsageCount.
+- A character with scoreHint 0.05 lower but half the usage count is the BETTER choice.
+
 Return compact JSON only with selectedCandidateId and confidence.`;
 
     const userPayload = {

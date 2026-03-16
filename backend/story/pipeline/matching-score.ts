@@ -106,8 +106,15 @@ export function scoreCandidate(slot: RoleSlot, candidate: CandidateProfile): Mat
 
   let finalScore = (narrativeFit + personalitySync + visualHarmony + conflictPotential) / 4;
 
-  const recentUsagePenalty = Math.min(0.35, (candidate.recent_usage_count || 0) * 0.08);
-  const lifetimeUsagePenalty = Math.min(0.16, (candidate.total_usage_count || 0) / 140);
+  // Usage penalties with logarithmic scaling to strongly penalize overused characters.
+  // Old formula capped at 0.35 — Mia with 46 uses got same penalty as 5 uses.
+  // New: log-based curve that keeps growing. At 5 uses: ~0.17, 10: ~0.30, 20: ~0.45, 46: ~0.62
+  const recentCount = candidate.recent_usage_count || 0;
+  const recentUsagePenalty = recentCount <= 0 ? 0
+    : Math.min(0.80, 0.10 * Math.log2(recentCount + 1) + recentCount * 0.005);
+  const totalCount = candidate.total_usage_count || 0;
+  const lifetimeUsagePenalty = totalCount <= 0 ? 0
+    : Math.min(0.30, 0.05 * Math.log2(totalCount + 1));
   finalScore = clamp01(finalScore - recentUsagePenalty - lifetimeUsagePenalty);
 
   const notes: string[] = [];

@@ -779,6 +779,7 @@ CHAPTER 2 — THE WONDER (discovery + first complication):
 - humorBeat: What makes the reader smile? (a quirky reaction, an unexpected detail)
 
 CHAPTER 3 — THE MISTAKE (child's genuine error + consequence):
+- mistakeChild: Which child makes the mistake? (THIS child must be the one who grows in Ch4-5!)
 - mistake: What does the child do wrong? (MUST be an active choice, NOT bad luck)
 - mistakeReason: WHY do they make this mistake? (impatience? pride? fear? — rooted in their CHARACTER TRAIT)
 - consequence: What CONCRETE thing breaks, is lost, or goes wrong because of it?
@@ -788,9 +789,10 @@ CHAPTER 3 — THE MISTAKE (child's genuine error + consequence):
 
 CHAPTER 4 — DARKEST MOMENT + TURNING POINT:
 - worstMoment: What is the WORST situation? (concrete, not abstract)
-- almostGivingUp: What does the child SAY or THINK that shows they want to give up? (direct thought/dialogue)
+- almostGivingUp: What does the SAME child from Ch3 SAY or THINK that shows they want to give up?
 - insightTrigger: What small detail triggers the insight? (a memory, a friend's earlier words, a pattern noticed)
-- newChoice: What does the child decide — DIFFERENTLY than in Ch3?
+- newChoice: What does the SAME child from Ch3 decide — DIFFERENTLY than their mistake?
+- whoSolves: The CHILD solves it, NOT an adult or artifact. Adults may give hints, but the child decides.
 - foreground: Which 2 characters are central?
 
 CHAPTER 5 — THE LANDING (resolution + warmth):
@@ -824,8 +826,8 @@ Return JSON only:
   "blueprint": {
     "chapter1": { "where": "...", "who": "...", "want": "...", "curiosityHook": "...", "foreground": "...", "humorBeat": "..." },
     "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "...", "foreground": "...", "humorBeat": "..." },
-    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
-    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "foreground": "..." },
+    "chapter3": { "mistakeChild": "...", "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
+    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "whoSolves": "...", "foreground": "..." },
     "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "...", "humorBeat": "..." }
   },
   "emotionalArc": ["...", "...", "...", "...", "..."],
@@ -974,9 +976,9 @@ LAENGE (KRITISCH — Story wird abgelehnt wenn zu kurz!):
 STRUKTUR:
 10. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko.
 11. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
-12. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz.
-13. Ch4: Tiefpunkt + innerer Wendepunkt.
-14. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild.
+12. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz + KOERPERREAKTION (Magen, Haende, Kehle). Das Kind das den Fehler macht MUSS dasselbe Kind sein das in Ch4-5 die Einsicht hat und waechst.
+13. Ch4: Tiefpunkt + innerer Wendepunkt. Das Kind (nicht Erwachsene, nicht Artefakt) findet die Loesung SELBST. Erwachsene/Helfer duerfen Hinweise geben, aber die ENTSCHEIDUNG trifft das Kind.
+14. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild. Callback zu einem Detail aus Kap.1.
 15. Keine neuen Namen. Kein Report-Stil.
 ${humorRule ? `16. HUMOR: ${humorRule}` : ""}
 
@@ -987,6 +989,9 @@ SELF-CHECK (pruefe BEVOR du antwortest):
 - Kann man jede Figur OHNE Namen am Sprechstil erkennen?
 - Hat Kapitel 5 die GLEICHE Laenge wie Kapitel 1-4?
 - Kommen keine Gefuehls-Etiketten vor ("nervoes", "traurig", "gluecklich")?
+- Macht in Ch3 ein KIND einen Fehler (nicht Pech, nicht Erwachsene)? Mit Koerperreaktion?
+- Ist das Kind das den Fehler macht DASSELBE das in Ch4-5 waechst?
+- Loest in Ch4-5 das KIND das Problem (nicht Erwachsene/Artefakt)?
 Wenn NEIN → schreibe das Kapitel um bevor du es ausgibst.
 
 OUTPUT
@@ -1065,8 +1070,8 @@ RULES
 - Keep every field short. Prefer one sentence.
 - Chapter 1 uses a soft launch for ages 6-8: familiar place + child behavior first, mission + concrete risk by paragraph 2, oddity or trouble by paragraph 3.
 - Chapter 1 must name the concrete risk if the child fails.
-- Chapter 3 mistake comes from the child's trait, not bad luck.
-- Chapter 4 turning point comes from inside the child.
+- Chapter 3 mistake comes from the child's trait, not bad luck. Include a BODY REACTION (stomach, hands, throat). The child who makes the mistake MUST be the same child who grows in Ch4-5.
+- Chapter 4 turning point comes from inside the child — NOT from adults or artifact magic. Helpers may give hints, but the CHILD makes the decision.
 - Chapter 5 shows concrete win + small price + callback to chapter 1.
 - Max 2 foreground characters per chapter.
 - No smell-led opener and no invented accessories. Appearance details only if explicitly locked.
@@ -1076,8 +1081,8 @@ RETURN JSON ONLY:
   "blueprint": {
     "chapter1": { "where": "...", "who": "...", "want": "...", "stakes": "...", "curiosityHook": "...", "foreground": "...", "humorBeat": "..." },
     "chapter2": { "newElement": "...", "boldChoice": "...", "complication": "...", "openQuestion": "...", "foreground": "...", "humorBeat": "..." },
-    "chapter3": { "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
-    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "foreground": "..." },
+    "chapter3": { "mistakeChild": "...", "mistake": "...", "mistakeReason": "...", "consequence": "...", "bodyReaction": "...", "stuckFeeling": "...", "foreground": "..." },
+    "chapter4": { "worstMoment": "...", "almostGivingUp": "...", "insightTrigger": "...", "newChoice": "...", "whoSolves": "...", "foreground": "..." },
     "chapter5": { "concreteWin": "...", "smallPrice": "...", "ch1Callback": "...", "finalImage": "...", "foreground": "...", "humorBeat": "..." }
   },
   "emotionalArc": ["...", "...", "...", "...", "..."],
@@ -1255,8 +1260,9 @@ STRUKTUR:
 16. 4-6 paragraphs per chapter. Each: 2-4 sentences.
 17. Chapter 1: Soft launch. Abs.1 vertraut, Abs.2 Mission+Risiko. Nach Abs.2: WER, WO, WAS, WARUM klar.
 18. Chapters 2-5 open by connecting to previous chapter's ending.
-19. Chapter 3: child-caused mistake from character trait. Not bad luck.
-20. Chapter 5: resolves SAME mission as Ch1. Concrete win + small price + warm final image.
+19. Chapter 3: child-caused mistake from character trait. Not bad luck. Body reaction required (stomach, hands, throat). The child who makes the mistake MUST be the same child who grows in Ch4-5.
+20. Chapter 4: The CHILD solves the problem, not adults or artifact. Helpers may hint, but the child decides.
+21. Chapter 5: resolves SAME mission as Ch1. Concrete win + small price + warm final image.
 21. ${ageRule}
 22. ${safetyRule}
 23. HUMOR: 2-3 Smile-Momente ueber die Story. Kapitel 4 darf ernster sein.
@@ -1346,6 +1352,7 @@ TABUS:
 - KEIN Berichts-Stil: "Danach gingen sie..." / "Am naechsten Tag..."
 - KEINE Gefuehls-Etiketten: "nervoes", "traurig", "gluecklich", "aengstlich" als Erzaehltext.
 - KEIN Name mehr als 7x pro Kapitel. Pronomen und Kontext nutzen.
+- VERBOTENE WOERTER: "ploetzlich", "auf einmal", "mit einem Mal". Stattdessen: die Handlung einfach passieren lassen.
 
 FORMAT: Absaetze 2-4 Saetze. Kapitel = JSON-Array von 4-6 Absatz-Strings.
 Schreibe ausschliesslich auf Deutsch. Korrekte Umlaute. Keine englischen Woerter.`;
