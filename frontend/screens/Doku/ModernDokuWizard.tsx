@@ -279,12 +279,12 @@ function Choice({
       onClick={onClick}
       className={`relative rounded-2xl border p-3 text-left transition-colors ${selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
         }`}
-      style={{ borderColor: selected ? '#d5bdaf66' : 'var(--color-border)' }}
+      style={{ borderColor: selected ? 'var(--talea-border-light)' : 'var(--color-border)' }}
     >
       <p className="text-sm font-semibold text-foreground">{title}</p>
       <p className="mt-1 text-xs text-muted-foreground">{description}</p>
       {selected && (
-        <span className="absolute right-2 top-2 rounded-full bg-[#b79f8e] px-2 py-0.5 text-[10px] font-bold text-white">
+        <span className="absolute right-2 top-2 rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[10px] font-bold text-white">
           OK
         </span>
       )}
@@ -637,8 +637,8 @@ export default function ModernDokuWizard() {
         {generating ? (
           <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card/70 p-6">
             <div className="mb-6 text-center">
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }} className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[#d5bdaf1f]">
-                <Loader2 className="h-7 w-7 text-[#a88f80]" />
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }} className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(111,174,156,0.12)]">
+                <Loader2 className="h-7 w-7 text-[var(--talea-text-tertiary)]" />
               </motion.div>
               <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
                 {phaseLabels[phase]}
@@ -646,9 +646,9 @@ export default function ModernDokuWizard() {
             </div>
             <div className="space-y-2">
               {(Object.keys(phaseLabels) as GenerationPhase[]).map((item, index) => (
-                <div key={item} className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${item === phase ? 'border-[#d5bdaf66] bg-[#d5bdaf14]' : 'border-border bg-card/60'}`}>
+                <div key={item} className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${item === phase ? 'border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)]' : 'border-border bg-card/60'}`}>
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    {index < (Object.keys(phaseLabels) as GenerationPhase[]).indexOf(phase) ? <Check className="h-4 w-4 text-[#b79f8e]" /> : <Sparkles className="h-4 w-4" />}
+                    {index < (Object.keys(phaseLabels) as GenerationPhase[]).indexOf(phase) ? <Check className="h-4 w-4 text-[var(--talea-text-tertiary)]" /> : <Sparkles className="h-4 w-4" />}
                   </span>
                   <span className="text-sm font-semibold text-foreground">{phaseLabels[item]}</span>
                 </div>
@@ -660,10 +660,10 @@ export default function ModernDokuWizard() {
             <div className="mb-7 flex items-center justify-center gap-2">
               {steps.map((label, index) => (
                 <React.Fragment key={label}>
-                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${index < activeStep ? 'bg-[#b79f8e] text-white' : index === activeStep ? 'bg-[#a88f80] text-white' : 'bg-muted text-muted-foreground'}`}>
+                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${index < activeStep ? 'bg-[var(--talea-text-tertiary)] text-white' : index === activeStep ? 'bg-[var(--talea-text-tertiary)] text-white' : 'bg-muted text-muted-foreground'}`}>
                     {index < activeStep ? <Check className="h-4 w-4" /> : index + 1}
                   </span>
-                  {index < steps.length - 1 && <span className={`h-px w-6 rounded-full ${index < activeStep ? 'bg-[#b79f8e]' : 'bg-border'}`} />}
+                  {index < steps.length - 1 && <span className={`h-px w-6 rounded-full ${index < activeStep ? 'bg-[var(--talea-text-tertiary)]' : 'bg-border'}`} />}
                 </React.Fragment>
               ))}
             </div>
@@ -675,7 +675,7 @@ export default function ModernDokuWizard() {
                     <div className="space-y-5">
                       <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Thema waehlen</h2>
                       {selectedCategory && (
-                        <div className="rounded-xl border border-[#d5bdaf66] bg-[#d5bdaf14] px-3 py-2 text-xs font-semibold text-foreground">
+                        <div className="rounded-xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] px-3 py-2 text-xs font-semibold text-foreground">
                           Kategorie: {selectedCategory.label}
                         </div>
                       )}
@@ -713,7 +713,7 @@ export default function ModernDokuWizard() {
                               className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                                 selectedDomainId === preset.id ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
                               }`}
-                              style={{ borderColor: selectedDomainId === preset.id ? '#d5bdaf66' : 'var(--color-border)' }}
+                              style={{ borderColor: selectedDomainId === preset.id ? 'var(--talea-border-light)' : 'var(--color-border)' }}
                             >
                               <p className="text-xs font-semibold text-foreground">{preset.label}</p>
                               <p className="mt-0.5 text-[10px] text-muted-foreground">{preset.description}</p>
@@ -727,7 +727,7 @@ export default function ModernDokuWizard() {
                         value={state.topic}
                         onChange={(e) => updateState({ topic: e.target.value })}
                         placeholder={selectedCategory?.topics?.[0] || 'z.B. Vulkane oder Sonnensystem'}
-                        className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[#a88f80]"
+                        className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[var(--talea-border-soft)]"
                       />
                       {quickStartTopics.length > 0 && (
                         <div className="rounded-2xl border border-border bg-card/65 p-3">
@@ -741,7 +741,7 @@ export default function ModernDokuWizard() {
                                 type="button"
                                 onClick={() => updateState({ topic })}
                                 className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`}
-                                style={{ borderColor: state.topic === topic ? '#d5bdaf66' : 'var(--color-border)' }}
+                                style={{ borderColor: state.topic === topic ? 'var(--talea-border-light)' : 'var(--color-border)' }}
                               >
                                 {topic}
                               </button>
@@ -813,7 +813,7 @@ export default function ModernDokuWizard() {
                       <div className="rounded-2xl border border-border bg-card/70 p-4">
                         <div className="mb-3 flex items-center justify-between">
                           <div><p className="text-sm font-semibold text-foreground">Interaktive Elemente</p><p className="text-xs text-muted-foreground">Quizfragen und Aktivitaeten</p></div>
-                          <button type="button" onClick={() => updateState({ includeInteractive: !state.includeInteractive })} className={`relative h-7 w-14 rounded-full ${state.includeInteractive ? 'bg-[#a88f80]' : 'bg-muted'}`}><motion.span animate={{ x: state.includeInteractive ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" /></button>
+                          <button type="button" onClick={() => updateState({ includeInteractive: !state.includeInteractive })} className={`relative h-7 w-14 rounded-full ${state.includeInteractive ? 'bg-[var(--talea-text-tertiary)]' : 'bg-muted'}`}><motion.span animate={{ x: state.includeInteractive ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" /></button>
                         </div>
                         {state.includeInteractive && (
                           <div className="grid grid-cols-2 gap-4 border-t border-border pt-3">

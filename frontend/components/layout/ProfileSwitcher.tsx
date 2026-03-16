@@ -52,7 +52,7 @@ const ProfileSwitcher: React.FC = () => {
         onClick={() => setOpen((prev) => !prev)}
         className="inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm backdrop-blur-xl shadow-lg"
         style={{
-          borderColor: isDark ? "#3d5575" : "#d5bdaf",
+          borderColor: isDark ? "#3d5575" : "var(--primary)",
           background: isDark ? "rgba(24,36,55,0.9)" : "rgba(255,250,243,0.92)",
           color: isDark ? "#d8e5f8" : "#3b332d",
           boxShadow: isDark ? "0 10px 24px rgba(6,12,20,0.5)" : "0 10px 24px rgba(116,95,78,0.2)",
@@ -61,7 +61,7 @@ const ProfileSwitcher: React.FC = () => {
         <span
           className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-[11px] font-bold"
           style={{
-            background: selected.avatarColor || (isDark ? "#506d91" : "#d5bdaf"),
+            background: selected.avatarColor || (isDark ? "#506d91" : "var(--primary)"),
             color: "#fff",
           }}
         >
@@ -75,7 +75,7 @@ const ProfileSwitcher: React.FC = () => {
         <div
           className="mt-2 w-[280px] rounded-2xl border p-2 shadow-2xl"
           style={{
-            borderColor: isDark ? "#3d5575" : "#d5bdaf",
+            borderColor: isDark ? "#3d5575" : "var(--primary)",
             background: isDark ? "rgba(20,31,47,0.96)" : "rgba(255,249,240,0.98)",
             color: isDark ? "#d8e5f8" : "#3b332d",
           }}
@@ -102,7 +102,7 @@ const ProfileSwitcher: React.FC = () => {
                     background: selectedProfile
                       ? isDark
                         ? "rgba(105,130,164,0.22)"
-                        : "rgba(169,137,242,0.14)"
+                        : "rgba(111,174,156,0.14)"
                       : isDark
                       ? "rgba(34,50,72,0.45)"
                       : "rgba(255,255,255,0.6)",
@@ -110,7 +110,7 @@ const ProfileSwitcher: React.FC = () => {
                 >
                   <span
                     className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[11px] font-bold text-white"
-                    style={{ background: profile.avatarColor || (isDark ? "#506d91" : "#d5bdaf") }}
+                    style={{ background: profile.avatarColor || (isDark ? "#506d91" : "var(--primary)") }}
                   >
                     {profileInitials(profile.name)}
                   </span>

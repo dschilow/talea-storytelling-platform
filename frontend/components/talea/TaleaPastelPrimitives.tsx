@@ -5,27 +5,27 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const taleaDisplayFont = '"Fraunces", "Cormorant Garamond", serif';
-export const taleaBodyFont = '"Manrope", "Sora", sans-serif';
+export const taleaBodyFont = '"Inter", "Manrope", "Sora", sans-serif';
 
 export const taleaSurfaceClass =
-  "relative overflow-hidden rounded-[24px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.92)_0%,rgba(248,242,235,0.8)_100%)] shadow-[0_24px_64px_-34px_rgba(178,146,120,0.38)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(247,221,232,0.42),transparent_30%)] before:content-[''] after:pointer-events-none after:absolute after:left-6 after:right-6 after:top-0 after:h-px after:bg-white/90 after:content-[''] sm:rounded-[32px] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(18,29,44,0.94)_0%,rgba(13,22,35,0.88)_100%)] dark:shadow-[0_34px_80px_-42px_rgba(2,8,23,0.92)] dark:before:bg-[radial-gradient(circle_at_top_left,rgba(133,110,170,0.18),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(76,126,164,0.16),transparent_28%)] dark:after:bg-white/10";
+  "relative overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/80 shadow-[var(--talea-shadow-soft)] backdrop-blur-xl sm:rounded-2xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)]";
 
 export const taleaInsetSurfaceClass =
-  "relative overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94)_0%,rgba(255,252,247,0.82)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.75),0_18px_42px_-30px_rgba(186,155,129,0.34)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.8),transparent_50%),linear-gradient(135deg,rgba(245,224,235,0.4)_0%,transparent_46%,rgba(223,240,255,0.36)_100%)] before:content-[''] sm:rounded-[26px] dark:border-white/10 dark:bg-[linear-gradient(180deg,rgba(19,31,47,0.92)_0%,rgba(14,24,38,0.88)_100%)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_40px_-28px_rgba(2,8,23,0.86)] dark:before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_46%),linear-gradient(135deg,rgba(111,84,114,0.16)_0%,transparent_48%,rgba(65,96,131,0.16)_100%)]";
+  "relative overflow-hidden rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] backdrop-blur-lg sm:rounded-xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-inset)]";
 
 export const taleaPageShellClass =
   "mx-auto w-full max-w-[1480px] px-2.5 sm:px-4 md:px-6 lg:px-8 xl:px-10";
 
 export const taleaGlassPanelClass =
-  "relative overflow-hidden rounded-[24px] border border-white/70 bg-white/76 shadow-[0_20px_52px_-34px_rgba(166,138,116,0.42)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.76),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.16),transparent_26%)] before:content-[''] dark:border-white/10 dark:bg-[rgba(17,28,42,0.76)] dark:shadow-[0_28px_70px_-36px_rgba(2,8,23,0.88)] dark:before:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_24%)]";
+  "relative overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/80 shadow-[var(--talea-shadow-soft)] backdrop-blur-xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)]";
 
 export const taleaInputClass =
-  "h-12 w-full rounded-[20px] border border-white/80 bg-white/88 px-4 text-sm font-semibold text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] outline-none transition focus:border-[#d8c4ef] focus:ring-4 focus:ring-[#f6eefe]/80 dark:border-white/10 dark:bg-[rgba(18,30,46,0.9)] dark:text-slate-100 dark:focus:border-[#7c82ff] dark:focus:ring-[#1d2b42]";
+  "h-11 w-full rounded-xl border border-[var(--talea-border-soft)] bg-white/90 px-4 text-sm font-medium text-[var(--talea-text-primary)] outline-none transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 dark:border-[var(--talea-border-soft)] dark:bg-[var(--talea-surface-inset)] dark:text-[var(--talea-text-primary)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/15";
 
 export const taleaChipClass =
-  "inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]";
+  "inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/60 dark:bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-secondary)]";
 
-const enterEase = [0.22, 1, 0.36, 1] as const;
+const enterEase = [0.25, 0.1, 0.25, 1] as const;
 
 export function fadeUp(reduceMotion: boolean, delay = 0): MotionProps {
   if (reduceMotion) {
@@ -37,9 +37,9 @@ export function fadeUp(reduceMotion: boolean, delay = 0): MotionProps {
   }
 
   return {
-    initial: { opacity: 0, y: 20, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1 },
-    transition: { duration: 0.48, delay, ease: enterEase },
+    initial: { opacity: 0, y: 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.4, delay, ease: enterEase },
   };
 }
 
@@ -54,11 +54,7 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
   ): MotionProps["animate"] =>
     reduceMotion
       ? { opacity: 1 }
-      : {
-          x,
-          y,
-          scale,
-        };
+      : { x, y, scale };
 
   const transitionFor = (duration: number, delay = 0) => ({
     duration,
@@ -73,57 +69,32 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
       <div
         className={cn(
           "absolute inset-0 transition-colors duration-500",
-          isDark ? "bg-[#0d1724]" : "bg-[#fbf7f2]"
+          isDark ? "bg-[var(--talea-page-solid)]" : "bg-[var(--talea-page-solid)]"
         )}
       />
 
       <motion.div
-        animate={makeFloat(18, [0, 28, -12], [0, -18, 8], [1, 1.06, 0.98])}
-        transition={transitionFor(18)}
+        animate={makeFloat(20, [0, 20, -8], [0, -14, 6], [1, 1.04, 0.98])}
+        transition={transitionFor(20)}
         className={cn(
-          "absolute -top-20 right-[-28%] h-[22rem] w-[22rem] rounded-full blur-[90px] sm:-top-24 sm:right-[-8%] sm:h-[34rem] sm:w-[34rem] sm:blur-[110px]",
-          isDark ? "bg-[#4b628f]/25" : "bg-[#f3d6e5]/70"
+          "absolute -top-20 right-[-28%] h-[22rem] w-[22rem] rounded-full blur-[100px] sm:-top-24 sm:right-[-8%] sm:h-[34rem] sm:w-[34rem] sm:blur-[120px]",
+          isDark ? "bg-[var(--primary)]/8" : "bg-[var(--primary)]/12"
         )}
       />
       <motion.div
-        animate={makeFloat(22, [0, -24, 12], [0, 20, -14], [1, 0.96, 1.05])}
-        transition={transitionFor(22, 1.2)}
+        animate={makeFloat(24, [0, -18, 10], [0, 16, -10], [1, 0.97, 1.03])}
+        transition={transitionFor(24, 1.5)}
         className={cn(
-          "absolute left-[-22%] top-[10%] h-[21rem] w-[21rem] rounded-full blur-[90px] sm:left-[-8%] sm:top-[12%] sm:h-[30rem] sm:w-[30rem] sm:blur-[110px]",
-          isDark ? "bg-[#365a6d]/22" : "bg-[#d6efe7]/78"
+          "absolute left-[-22%] top-[10%] h-[21rem] w-[21rem] rounded-full blur-[100px] sm:left-[-8%] sm:top-[12%] sm:h-[30rem] sm:w-[30rem] sm:blur-[120px]",
+          isDark ? "bg-[var(--talea-accent-sky)]/6" : "bg-[var(--talea-accent-peach)]/10"
         )}
       />
       <motion.div
-        animate={makeFloat(26, [0, 20, -16], [0, -12, 18], [1, 1.08, 0.97])}
-        transition={transitionFor(26, 2.1)}
+        animate={makeFloat(28, [0, 16, -12], [0, -10, 14], [1, 1.05, 0.97])}
+        transition={transitionFor(28, 2.5)}
         className={cn(
-          "absolute bottom-[-7rem] left-[10%] h-[20rem] w-[20rem] rounded-full blur-[96px] sm:bottom-[-10rem] sm:left-[22%] sm:h-[28rem] sm:w-[28rem] sm:blur-[120px]",
-          isDark ? "bg-[#77649f]/18" : "bg-[#f5e2bf]/72"
-        )}
-      />
-
-      <div
-        className={cn(
-          "absolute inset-0",
-          isDark
-            ? "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.04),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.03),transparent_26%)]"
-            : "bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.85),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.45),transparent_24%)]"
-        )}
-      />
-      <div
-        className={cn(
-          "absolute inset-0 opacity-50",
-          isDark
-            ? "bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)] bg-[size:26px_26px]"
-            : "bg-[radial-gradient(circle_at_1px_1px,rgba(199,172,148,0.16)_1px,transparent_0)] bg-[size:26px_26px]"
-        )}
-      />
-      <div
-        className={cn(
-          "absolute inset-x-0 top-0 h-56",
-          isDark
-            ? "bg-gradient-to-b from-white/[0.04] to-transparent"
-            : "bg-gradient-to-b from-white/65 to-transparent"
+          "absolute bottom-[-7rem] left-[10%] h-[20rem] w-[20rem] rounded-full blur-[100px] sm:bottom-[-10rem] sm:left-[22%] sm:h-[28rem] sm:w-[28rem] sm:blur-[130px]",
+          isDark ? "bg-[var(--talea-accent-peach)]/5" : "bg-[var(--talea-accent-sky)]/8"
         )}
       />
     </div>
@@ -149,7 +120,7 @@ export const TaleaSurface: React.FC<TaleaSurfaceProps> = ({
       {...fadeUp(reduceMotion, delay)}
       whileHover={
         hoverable && !reduceMotion
-          ? { y: -4, scale: 1.01, transition: { duration: 0.22, ease: "easeOut" } }
+          ? { y: -3, transition: { duration: 0.2, ease: "easeOut" } }
           : undefined
       }
       className={cn(taleaSurfaceClass, className)}
@@ -177,26 +148,22 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
 
   const variantClassName =
     variant === "primary"
-      ? "border-white/80 bg-[linear-gradient(135deg,#f6dbe7_0%,#fae9c8_48%,#ddeefe_100%)] text-[#4b3c43] shadow-[0_18px_42px_-24px_rgba(210,154,177,0.6)] dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(137,106,135,0.45)_0%,rgba(126,156,187,0.34)_100%)] dark:text-white"
+      ? "bg-[var(--primary)] text-white border-transparent shadow-sm hover:shadow-md dark:bg-[var(--primary)] dark:text-[var(--talea-text-inverse)]"
       : variant === "secondary"
-        ? "border-white/80 bg-white/86 text-slate-700 shadow-[0_14px_32px_-24px_rgba(167,146,123,0.45)] dark:border-white/10 dark:bg-[rgba(18,29,44,0.9)] dark:text-slate-100"
-        : "border-transparent bg-transparent text-slate-600 shadow-none dark:text-slate-300";
+        ? "border-[var(--talea-border-light)] bg-white/80 text-[var(--talea-text-primary)] shadow-sm hover:shadow-md dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)] dark:text-[var(--talea-text-primary)]"
+        : "border-transparent bg-transparent text-[var(--talea-text-secondary)] shadow-none";
 
   return (
     <motion.button
       whileHover={
         reduceMotion
           ? undefined
-          : {
-              y: -2,
-              scale: 1.01,
-              transition: { duration: 0.18, ease: "easeOut" },
-            }
+          : { y: -1, scale: 1.01, transition: { duration: 0.15, ease: "easeOut" } }
       }
-      whileTap={reduceMotion ? undefined : { scale: 0.985 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
       type={type}
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-3 text-sm font-semibold transition sm:px-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e9fb]/90 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-[#23344d]",
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50",
         variantClassName,
         className
       )}
@@ -218,18 +185,18 @@ export const TaleaSectionHeading: React.FC<{
   <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div className="space-y-2">
       {eyebrow ? (
-        <span className="inline-flex items-center rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9b7c8b] dark:border-white/10 dark:bg-white/5 dark:text-[#d1c4ff]">
+        <span className={taleaChipClass}>
           {eyebrow}
         </span>
       ) : null}
       <div>
         <h2
-          className="text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white md:text-[2.35rem]"
+          className="text-2xl font-semibold leading-tight text-[var(--talea-text-primary)] md:text-3xl"
           style={{ fontFamily: taleaDisplayFont }}
         >
           {title}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300 md:text-base">
+        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--talea-text-secondary)] md:text-base">
           {subtitle}
         </p>
       </div>
@@ -258,49 +225,43 @@ export const TaleaLoadingState: React.FC<{
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
       <motion.div
         {...fadeUp(reduceMotion, 0)}
-        className={cn(taleaSurfaceClass, "w-full max-w-lg p-8 text-center sm:p-10")}
+        className="w-full max-w-md text-center"
       >
         <div className="mx-auto flex w-fit flex-col items-center gap-5">
           <motion.div
             animate={
               reduceMotion
                 ? undefined
-                : {
-                    y: [0, -6, 0],
-                    scale: [1, 1.03, 1],
-                  }
+                : { y: [0, -4, 0], scale: [1, 1.02, 1] }
             }
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-            className={cn(
-              taleaInsetSurfaceClass,
-              "relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[28px]"
-            )}
+            transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--primary)]/10"
           >
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(245,212,228,0.72),rgba(225,239,252,0.72))] dark:bg-[linear-gradient(135deg,rgba(106,86,131,0.44),rgba(65,96,135,0.28))]" />
-            <div className="relative z-10 text-[#7e6d73] dark:text-[#f5f7fb]">
-              {icon ?? <Sparkles className="h-9 w-9" />}
+            <div className="text-[var(--primary)]">
+              {icon ?? <Sparkles className="h-7 w-7" />}
             </div>
           </motion.div>
 
-          <div className="flex items-center gap-2" aria-hidden>
+          {/* Loading dots */}
+          <div className="flex items-center gap-1.5" aria-hidden>
             {[0, 1, 2].map((index) => (
               <motion.span
                 key={index}
-                animate={reduceMotion ? undefined : { y: [0, -8, 0], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 0.9, repeat: Infinity, delay: index * 0.12, ease: "easeInOut" }}
-                className="h-2.5 w-2.5 rounded-full bg-[#d7b6ca] dark:bg-[#8ea7cc]"
+                animate={reduceMotion ? undefined : { opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: index * 0.15, ease: "easeInOut" }}
+                className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
               />
             ))}
           </div>
         </div>
 
         <h1
-          className="mt-6 text-[2rem] font-semibold text-slate-900 dark:text-white"
+          className="mt-6 text-2xl font-semibold text-[var(--talea-text-primary)]"
           style={{ fontFamily: taleaDisplayFont }}
         >
           {title}
         </h1>
-        <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-sm font-medium leading-relaxed text-[var(--talea-text-secondary)]">
           {subtitle}
         </p>
       </motion.div>
@@ -315,15 +276,14 @@ export const TaleaMetricPill: React.FC<{
 }> = ({ label, value, className }) => (
   <div
     className={cn(
-      taleaInsetSurfaceClass,
-      "px-4 py-3",
+      "rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3",
       className
     )}
   >
-    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-tertiary)]">
       {label}
     </p>
-    <p className="mt-1 text-sm font-semibold text-slate-800 dark:text-white">{value}</p>
+    <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">{value}</p>
   </div>
 );
 
@@ -341,20 +301,20 @@ export const TaleaProgressSteps: React.FC<{
           <div className="flex items-center gap-2">
             <span
               className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-semibold transition",
+                "inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all",
                 isDone
-                  ? "border-transparent bg-[#b79f8e] text-white dark:bg-[#8ea7cc]"
+                  ? "bg-[var(--primary)] text-white"
                   : isActive
-                    ? "border-white/70 bg-white/80 text-slate-800 shadow-[0_12px_28px_-18px_rgba(167,142,123,0.55)] dark:border-white/10 dark:bg-white/10 dark:text-white"
-                    : "border-white/70 bg-white/45 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400"
+                    ? "border-2 border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                    : "border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-muted)] dark:bg-[var(--talea-surface-inset)]"
               )}
             >
-              {isDone ? "OK" : index + 1}
+              {isDone ? "✓" : index + 1}
             </span>
             <span
               className={cn(
-                "max-w-[5.5rem] text-[11px] font-semibold uppercase tracking-[0.16em]",
-                isActive || isDone ? "text-slate-700 dark:text-slate-200" : "text-slate-400 dark:text-slate-500"
+                "max-w-[5.5rem] text-[11px] font-medium tracking-wide",
+                isActive || isDone ? "text-[var(--talea-text-primary)]" : "text-[var(--talea-text-muted)]"
               )}
             >
               {step.label}
@@ -363,8 +323,8 @@ export const TaleaProgressSteps: React.FC<{
           {index < steps.length - 1 ? (
             <span
               className={cn(
-                "hidden h-px w-6 rounded-full sm:block",
-                isDone ? "bg-[#b79f8e] dark:bg-[#8ea7cc]" : "bg-white/70 dark:bg-white/10"
+                "hidden h-px w-5 rounded-full sm:block",
+                isDone ? "bg-[var(--primary)]" : "bg-[var(--talea-border-light)]"
               )}
             />
           ) : null}

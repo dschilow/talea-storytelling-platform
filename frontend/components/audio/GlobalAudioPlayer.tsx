@@ -170,7 +170,7 @@ export const GlobalAudioPlayer: React.FC = () => {
               <motion.div
                 className="h-full"
                 style={{
-                  background: 'linear-gradient(90deg, #d5bdaf 0%, #b087c8 55%, #7699d6 100%)',
+                  background: 'linear-gradient(90deg, var(--primary) 0%, var(--talea-accent-sky) 55%, var(--talea-accent-peach) 100%)',
                   width: `${progress}%`,
                 }}
                 transition={{ ease: 'easeOut', duration: 0.2 }}

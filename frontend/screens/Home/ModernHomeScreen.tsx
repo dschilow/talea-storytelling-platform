@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 import {
@@ -8,18 +8,13 @@ import {
   BookOpen,
   FlaskConical,
   Plus,
-  TrendingUp,
-  Zap,
-  LogIn,
   ArrowRight,
   Award,
   Settings,
+  LogIn,
+  ChevronRight,
 } from 'lucide-react';
 
-import { ModernCard, ModernCardHeader, ModernCardTitle, ModernCardDescription, ModernCardContent } from '../../components/ui/modern-card';
-import { ModernButton } from '../../components/ui/modern-button';
-import { ModernBadge } from '../../components/ui/modern-badge';
-import { colors } from '../../utils/constants/colors';
 import { useBackend } from '../../hooks/useBackend';
 import { useTranslation } from 'react-i18next';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
@@ -49,190 +44,184 @@ interface Doku {
   createdAt: string;
 }
 
-// Landing Page for signed-out users
+/* ───────── Animations ───────── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.06, duration: 0.45, ease: [0.25, 0.1, 0.25, 1] },
+  }),
+};
+
+const staggerContainer = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+
+/* ───────── Loading Skeleton ───────── */
+const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
+  <div
+    className={`animate-pulse rounded-lg bg-[var(--talea-border-light)] ${className || ''}`}
+  />
+);
+
+/* ───────── Landing Page ───────── */
 const LandingPage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
+  const features = [
+    { icon: User, title: t('homePage.featureAvatarTitle'), desc: t('homePage.featureAvatarDesc') },
+    { icon: BookOpen, title: t('homePage.featureStoryTitle'), desc: t('homePage.featureStoryDesc') },
+    { icon: FlaskConical, title: t('homePage.featureDokuTitle'), desc: t('homePage.featureDokuDesc') },
+  ];
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: colors.gradients.background,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px 20px',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 py-16">
       <motion.div
-        style={{
-          position: 'absolute',
-          width: '500px',
-          height: '500px',
-          background: colors.sage[200],
-          borderRadius: '50%',
-          filter: 'blur(100px)',
-          opacity: 0.3,
-          top: '-10%',
-          right: '-5%',
-        }}
-        animate={{ scale: [1, 1.2, 1], x: [0, 30, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        style={{
-          position: 'absolute',
-          width: '400px',
-          height: '400px',
-          background: colors.blush[200],
-          borderRadius: '50%',
-          filter: 'blur(100px)',
-          opacity: 0.3,
-          bottom: '-5%',
-          left: '-5%',
-        }}
-        animate={{ scale: [1, 1.3, 1], y: [0, -30, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      <div style={{ maxWidth: '1200px', width: '100%', zIndex: 1 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          style={{ textAlign: 'center', marginBottom: '60px' }}
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+        className="text-center max-w-2xl mx-auto"
+      >
+        <h1
+          className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
+          style={{ fontFamily: '"Fraunces", serif' }}
         >
-          <h1 style={{
-            fontSize: '64px',
-            fontWeight: '800',
-            fontFamily: '"Fredoka", sans-serif',
-            background: colors.gradients.nature,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            marginBottom: '24px',
-            lineHeight: '1.2',
-          }}>
-            {t('homePage.landingTitle')}
-          </h1>
+          {t('homePage.landingTitle')}
+        </h1>
 
-          <p style={{
-            fontSize: '24px',
-            color: colors.text.secondary,
-            maxWidth: '700px',
-            margin: '0 auto 48px',
-            lineHeight: '1.6',
-          }}>
-            {t('homePage.landingSubtitle')}
-          </p>
+        <p className="mt-5 text-base sm:text-lg text-[var(--talea-text-secondary)] leading-relaxed max-w-lg mx-auto">
+          {t('homePage.landingSubtitle')}
+        </p>
 
-          <ModernButton
-            variant="sage"
-            size="lg"
-            icon={<LogIn size={24} />}
-            onClick={() => navigate('/auth')}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/auth')}
+          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition-shadow hover:shadow-md"
+        >
+          <LogIn className="h-4 w-4" />
+          {t('homePage.ctaStart')}
+        </motion.button>
+      </motion.div>
+
+      <motion.div
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+        className="mt-20 grid grid-cols-1 sm:grid-cols-3 gap-5 max-w-3xl w-full"
+      >
+        {features.map((f, i) => (
+          <motion.div
+            key={i}
+            variants={fadeUp}
+            custom={i}
+            className="group rounded-2xl border border-[var(--talea-border-light)] bg-white/60 dark:bg-[var(--talea-surface-primary)] p-6 text-center transition-all duration-300 hover:border-[var(--primary)]/20 hover:shadow-md"
           >
-            {t('homePage.ctaStart')}
-          </ModernButton>
-        </motion.div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '24px',
-          marginTop: '60px',
-        }}>
-          {[
-            { icon: User, title: t('homePage.featureAvatarTitle'), desc: t('homePage.featureAvatarDesc'), color: colors.sage[400] },
-            { icon: BookOpen, title: t('homePage.featureStoryTitle'), desc: t('homePage.featureStoryDesc'), color: colors.blush[400] },
-            { icon: FlaskConical, title: t('homePage.featureDokuTitle'), desc: t('homePage.featureDokuDesc'), color: colors.ocean[400] },
-          ].map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + index * 0.1, duration: 0.5 }}
-            >
-              <ModernCard hover>
-                <div style={{ padding: '32px', textAlign: 'center' }}>
-                  <div style={{
-                    width: '80px',
-                    height: '80px',
-                    background: feature.color,
-                    borderRadius: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 20px',
-                    boxShadow: `0 8px 24px ${feature.color}40`,
-                  }}>
-                    <feature.icon size={40} color={colors.text.inverse} />
-                  </div>
-                  <h3 style={{
-                    fontSize: '20px',
-                    fontWeight: '700',
-                    color: colors.text.primary,
-                    marginBottom: '8px',
-                  }}>
-                    {feature.title}
-                  </h3>
-                  <p style={{ fontSize: '14px', color: colors.text.secondary }}>
-                    {feature.desc}
-                  </p>
-                </div>
-              </ModernCard>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]/8">
+              <f.icon className="h-5 w-5 text-[var(--primary)]" />
+            </div>
+            <h3 className="text-sm font-semibold text-[var(--talea-text-primary)]">{f.title}</h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-[var(--talea-text-tertiary)]">{f.desc}</p>
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
   );
 };
 
-const StatCard: React.FC<{ icon: any; label: string; value: number; color: string; trend?: string }> = ({
+/* ───────── Stat Card ───────── */
+const StatCard: React.FC<{ icon: any; label: string; value: number; accent: string }> = ({
   icon: Icon,
   label,
   value,
-  color,
-  trend,
+  accent,
 }) => (
-  <ModernCard hover={false}>
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{
-          width: '48px',
-          height: '48px',
-          background: `${color}20`,
-          borderRadius: '16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <Icon size={24} color={color} />
-        </div>
-        {trend && (
-          <ModernBadge variant="sage">
-            <TrendingUp size={12} />
-            <span style={{ marginLeft: '4px' }}>{trend}</span>
-          </ModernBadge>
-        )}
+  <motion.div
+    variants={fadeUp}
+    className="group rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] p-5 transition-all duration-300 hover:border-transparent hover:shadow-md"
+  >
+    <div className="flex items-center gap-3">
+      <div
+        className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors"
+        style={{ background: `${accent}12` }}
+      >
+        <Icon className="h-4.5 w-4.5" style={{ color: accent }} />
       </div>
-      <div style={{
-        fontSize: '32px',
-        fontWeight: '800',
-        color: colors.text.primary,
-        fontFamily: '"Fredoka", sans-serif',
-        marginBottom: '4px',
-      }}>
-        {value}
-      </div>
-      <div style={{ fontSize: '14px', color: colors.text.secondary }}>
-        {label}
+      <div>
+        <p className="text-2xl font-bold tracking-tight text-[var(--talea-text-primary)]" style={{ fontFamily: '"Fraunces", serif' }}>
+          {value}
+        </p>
+        <p className="text-[11px] font-medium text-[var(--talea-text-tertiary)] tracking-wide">{label}</p>
       </div>
     </div>
-  </ModernCard>
+  </motion.div>
 );
 
+/* ───────── Quick Action ───────── */
+const QuickAction: React.FC<{ icon: any; label: string; onClick: () => void; accent: string }> = ({
+  icon: Icon,
+  label,
+  onClick,
+  accent,
+}) => (
+  <motion.button
+    whileHover={{ y: -2 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={onClick}
+    className="group flex items-center gap-3 rounded-xl border border-[var(--talea-border-light)] bg-white/60 dark:bg-[var(--talea-surface-primary)] px-4 py-3.5 text-left transition-all duration-300 hover:border-transparent hover:shadow-md w-full"
+  >
+    <div
+      className="flex h-9 w-9 items-center justify-center rounded-lg transition-colors"
+      style={{ background: `${accent}12` }}
+    >
+      <Icon className="h-4 w-4" style={{ color: accent }} />
+    </div>
+    <span className="text-sm font-medium text-[var(--talea-text-primary)]">{label}</span>
+    <ChevronRight className="ml-auto h-4 w-4 text-[var(--talea-text-muted)] group-hover:text-[var(--talea-text-tertiary)] transition-colors" />
+  </motion.button>
+);
+
+/* ───────── Avatar Card ───────── */
+const AvatarCard: React.FC<{ avatar: Avatar; index: number; onClick: () => void }> = ({
+  avatar,
+  index,
+  onClick,
+}) => (
+  <motion.div
+    variants={fadeUp}
+    custom={index}
+    whileHover={{ y: -4 }}
+    onClick={onClick}
+    className="group cursor-pointer overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] transition-all duration-300 hover:border-transparent hover:shadow-lg"
+  >
+    <div className="relative aspect-[4/3] overflow-hidden bg-[var(--talea-gradient-nature)]">
+      {avatar.imageUrl ? (
+        <img
+          src={avatar.imageUrl}
+          alt={avatar.name}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <User className="h-12 w-12 text-white/60" />
+        </div>
+      )}
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+    </div>
+    <div className="p-4">
+      <h3 className="text-sm font-semibold text-[var(--talea-text-primary)] truncate">{avatar.name}</h3>
+      <p className="mt-0.5 text-[11px] text-[var(--talea-text-tertiary)]">
+        {avatar.creationType === 'ai-generated' ? 'KI-generiert' : 'Foto'}
+      </p>
+    </div>
+  </motion.div>
+);
+
+/* ───────── Main Screen ───────── */
 const ModernHomeScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -285,247 +274,182 @@ const ModernHomeScreen: React.FC = () => {
     void loadData();
   }, [isLoaded, isSignedIn, user?.id, loadData, activeProfileId]);
 
+  /* Loading state with elegant skeleton */
   if (loading || !isLoaded) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: colors.gradients.background,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          style={{ textAlign: 'center' }}
-        >
-          <p style={{ fontSize: '20px', fontWeight: '600', color: colors.text.secondary }}>
-            {t('homePage.loading')}
-          </p>
-        </motion.div>
+      <div className="min-h-screen px-4 py-8 md:px-8 md:py-10">
+        <div className="mx-auto max-w-5xl space-y-8">
+          {/* Header skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="h-10 w-10 rounded-full" />
+          </div>
+          {/* Stats skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
+          {/* Cards skeleton */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-52 rounded-2xl" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: colors.gradients.background,
-      paddingBottom: '120px',
-    }}>
+    <div className="min-h-screen pb-28 md:pb-10">
       <SignedOut>
         <LandingPage />
       </SignedOut>
 
       <SignedIn>
-        <div style={{
-          padding: '32px 40px',
-          borderBottom: `1px solid ${colors.border.light}`,
-          background: colors.glass.background,
-          backdropFilter: 'blur(20px)',
-        }}>
-          <div style={{
-            maxWidth: '1400px',
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
+        <div className="mx-auto max-w-5xl px-4 py-6 md:px-8 md:py-10">
+          {/* ── Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            className="flex items-start justify-between mb-10"
+          >
             <div>
-              <motion.h1
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                style={{
-                  fontSize: '40px',
-                  fontWeight: '800',
-                  fontFamily: '"Fredoka", sans-serif',
-                  color: colors.text.primary,
-                  marginBottom: '8px',
-                }}
+              <h1
+                className="text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
+                style={{ fontFamily: '"Fraunces", serif' }}
               >
                 {t('homePage.greeting')}
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                style={{ fontSize: '18px', color: colors.text.secondary }}
-              >
+              </h1>
+              <p className="mt-1.5 text-sm text-[var(--talea-text-secondary)]">
                 {t('homePage.greetingSubtitle')}
-              </motion.p>
+              </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <ModernButton
-                variant="outline"
-                size="sm"
-                icon={<Settings size={18} />}
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => navigate('/settings')}
+                className="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--talea-border-light)] text-[var(--talea-text-tertiary)] hover:text-[var(--talea-text-secondary)] transition-colors"
               >
-                {t('navigation.settings')}
-              </ModernButton>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <UserButton
-                  afterSignOutUrl="/"
-                  userProfileMode="navigation"
-                  userProfileUrl="/settings"
-                />
-              </motion.div>
+                <Settings className="h-4 w-4" />
+              </motion.button>
+              <UserButton
+                afterSignOutUrl="/"
+                userProfileMode="navigation"
+                userProfileUrl="/settings"
+              />
             </div>
-          </div>
-        </div>
-
-        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '32px 40px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '20px',
-            marginBottom: '40px',
-          }}>
-            <StatCard icon={User} label={t('homePage.statAvatars')} value={avatars.length} color={colors.sage[500]} trend="+2" />
-            <StatCard icon={BookOpen} label={t('homePage.statStories')} value={stories.length} color={colors.blush[500]} trend="+5" />
-            <StatCard icon={FlaskConical} label={t('homePage.statDokus')} value={dokus.length} color={colors.ocean[500]} />
-            <StatCard icon={Award} label={t('homePage.statBadges')} value={12} color={colors.honey[500]} />
-          </div>
-
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
-            <ModernCard>
-              <ModernCardHeader>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Zap size={24} color={colors.sage[500]} />
-                  <ModernCardTitle>{t('homePage.quickActionsTitle')}</ModernCardTitle>
-                </div>
-                <ModernCardDescription>
-                  {t('homePage.quickActionsDesc')}
-                </ModernCardDescription>
-              </ModernCardHeader>
-              <ModernCardContent>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                  gap: '16px',
-                }}>
-                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate(createAvatarPath)}>
-                    {t('homePage.quickCreateAvatar')}
-                  </ModernButton>
-                  <ModernButton variant="blush" icon={<BookOpen size={20} />} onClick={() => navigate('/story')}>
-                    {t('homePage.quickCreateStory')}
-                  </ModernButton>
-                  <ModernButton variant="ocean" icon={<FlaskConical size={20} />} onClick={() => navigate('/doku/create')}>
-                    {t('homePage.quickCreateDoku')}
-                  </ModernButton>
-                </div>
-              </ModernCardContent>
-            </ModernCard>
           </motion.div>
 
+          {/* ── Stats ── */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            style={{ marginTop: '32px' }}
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10"
           >
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '20px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <h2 style={{
-                  fontSize: '28px',
-                  fontWeight: '700',
-                  color: colors.text.primary,
-                  fontFamily: '"Fredoka", sans-serif',
-                }}>
+            <StatCard icon={User} label={t('homePage.statAvatars')} value={avatars.length} accent="#6fae9c" />
+            <StatCard icon={BookOpen} label={t('homePage.statStories')} value={stories.length} accent="#d79a73" />
+            <StatCard icon={FlaskConical} label={t('homePage.statDokus')} value={dokus.length} accent="#7f9dc0" />
+            <StatCard icon={Award} label={t('homePage.statBadges')} value={12} accent="#c5a46e" />
+          </motion.div>
+
+          {/* ── Quick Actions ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="mb-10"
+          >
+            <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--talea-text-muted)] mb-3">
+              {t('homePage.quickActionsTitle')}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <QuickAction icon={Plus} label={t('homePage.quickCreateAvatar')} onClick={() => navigate(createAvatarPath)} accent="#6fae9c" />
+              <QuickAction icon={BookOpen} label={t('homePage.quickCreateStory')} onClick={() => navigate('/story')} accent="#d79a73" />
+              <QuickAction icon={FlaskConical} label={t('homePage.quickCreateDoku')} onClick={() => navigate('/doku/create')} accent="#7f9dc0" />
+            </div>
+          </motion.div>
+
+          {/* ── Avatars ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.4 }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <h2
+                  className="text-xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
+                  style={{ fontFamily: '"Fraunces", serif' }}
+                >
                   {t('homePage.sectionAvatars')}
                 </h2>
-                <ModernBadge variant="sage">{avatars.length}</ModernBadge>
+                <span className="inline-flex items-center justify-center h-5 min-w-5 rounded-md bg-[var(--primary)]/10 px-1.5 text-[10px] font-bold text-[var(--primary)]">
+                  {avatars.length}
+                </span>
               </div>
-              <ModernButton
-                variant="outline"
-                size="sm"
-                icon={<ArrowRight size={16} />}
+              <button
                 onClick={() => navigate('/avatar')}
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--talea-text-tertiary)] hover:text-[var(--primary)] transition-colors"
               >
                 {t('homePage.viewAll')}
-              </ModernButton>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
             </div>
 
-            {avatars.length === 0 ? (
-              <ModernCard>
-                <div style={{ padding: '60px 40px', textAlign: 'center' }}>
-                  <h3 style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    color: colors.text.primary,
-                    marginBottom: '12px',
-                  }}>
+            <AnimatePresence mode="wait">
+              {avatars.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="rounded-2xl border border-dashed border-[var(--talea-border-soft)] p-12 text-center"
+                >
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)]/8">
+                    <Sparkles className="h-6 w-6 text-[var(--primary)]" />
+                  </div>
+                  <h3 className="text-base font-semibold text-[var(--talea-text-primary)]">
                     {t('homePage.emptyAvatarsTitle')}
                   </h3>
-                  <p style={{ fontSize: '16px', color: colors.text.secondary, marginBottom: '24px' }}>
+                  <p className="mt-1.5 text-sm text-[var(--talea-text-tertiary)] max-w-sm mx-auto">
                     {t('homePage.emptyAvatarsDesc')}
                   </p>
-                  <ModernButton variant="sage" icon={<Plus size={20} />} onClick={() => navigate(createAvatarPath)}>
-                    {t('homePage.quickCreateAvatar')}
-                  </ModernButton>
-                </div>
-              </ModernCard>
-            ) : (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '20px',
-              }}>
-                {avatars.slice(0, 6).map((avatar, index) => (
-                  <motion.div
-                    key={avatar.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 * index }}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => navigate(createAvatarPath)}
+                    className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm"
                   >
-                    <ModernCard onClick={() => navigate(`/avatar/${avatar.id}`)}>
-                      <div style={{ position: 'relative' }}>
-                        <div style={{
-                          height: '200px',
-                          background: avatar.imageUrl
-                            ? `url(${avatar.imageUrl}) center/cover`
-                            : colors.gradients.nature,
-                          borderRadius: '22px 22px 0 0',
-                          position: 'relative',
-                        }}>
-                          {!avatar.imageUrl && (
-                            <div style={{
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}>
-                              <User size={64} color={colors.text.inverse} opacity={0.8} />
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ padding: '20px' }}>
-                          <h3 style={{
-                            fontSize: '18px',
-                            fontWeight: '700',
-                            color: colors.text.primary,
-                            marginBottom: '8px',
-                          }}>
-                            {avatar.name}
-                          </h3>
-                          <ModernBadge variant={avatar.creationType === 'ai-generated' ? 'lilac' : 'ocean'}>
-                            {avatar.creationType === 'ai-generated'
-                              ? t('homePage.badgeAi')
-                              : t('homePage.badgePhoto')}
-                          </ModernBadge>
-                        </div>
-                      </div>
-                    </ModernCard>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                    <Plus className="h-4 w-4" />
+                    {t('homePage.quickCreateAvatar')}
+                  </motion.button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="grid"
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
+                  className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"
+                >
+                  {avatars.slice(0, 8).map((avatar, index) => (
+                    <AvatarCard
+                      key={avatar.id}
+                      avatar={avatar}
+                      index={index}
+                      onClick={() => navigate(`/avatar/${avatar.id}`)}
+                    />
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       </SignedIn>

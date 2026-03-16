@@ -326,7 +326,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                 className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
                 style={{
                   borderColor: 'transparent',
-                  background: 'linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 56%,#d6ccc2 100%)',
+                  background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
                   color: '#3a322d',
                 }}
               >
@@ -374,7 +374,7 @@ const FormSection: React.FC<FormSectionProps> = ({
   <section
     className="overflow-hidden rounded-2xl border"
     style={{
-      borderColor: isDark ? '#33495f' : '#d6ccc2',
+      borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
       background: isDark ? 'rgba(24,35,50,0.85)' : 'rgba(255,251,245,0.88)',
     }}
   >
@@ -385,7 +385,7 @@ const FormSection: React.FC<FormSectionProps> = ({
       style={{ color: isDark ? '#e8f0fb' : '#223347' }}
     >
       <div className="flex items-center gap-2">
-        <span className="rounded-lg border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]" style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#a6bad4' : '#7d6e62' }}>
+        <span className="rounded-lg border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]" style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#a6bad4' : '#7d6e62' }}>
           {icon}
         </span>
         <span className="text-sm font-semibold">{title}</span>
@@ -395,7 +395,7 @@ const FormSection: React.FC<FormSectionProps> = ({
           </span>
         )}
         {badge && (
-          <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#c4d6ec' : '#6f6258' }}>
+          <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#c4d6ec' : '#6f6258' }}>
             {badge}
           </span>
         )}

@@ -268,14 +268,13 @@ const GridStoryCard: React.FC<{
 
   return (
     <motion.article
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.05 }}
-      whileHover={reduceMotion ? undefined : { y: -8, scale: 1.02 }}
-      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+      whileHover={reduceMotion ? undefined : { y: -4 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
       className={cn(
-        taleaSurfaceClass,
-        "group flex h-full cursor-pointer flex-col overflow-hidden border-0 transition-shadow hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]",
+        "group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] transition-all duration-300 hover:border-transparent hover:shadow-lg",
         isFeatured && "lg:flex-row"
       )}
       onClick={onRead}
@@ -289,7 +288,7 @@ const GridStoryCard: React.FC<{
             containerClassName="w-full h-full"
             imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             fallback={
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f7dfe9_0%,#dff0ff_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(92,68,97,0.48)_0%,rgba(53,82,116,0.4)_100%)] dark:text-slate-100">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)] dark:bg-[var(--talea-gradient-nature)] dark:text-[var(--talea-text-tertiary)]">
                 <BookOpen className="h-14 w-14" />
               </div>
             }
@@ -321,7 +320,7 @@ const GridStoryCard: React.FC<{
       <div className={cn("flex flex-1 flex-col p-4 sm:p-5", isFeatured && "lg:justify-between lg:py-6")}>
         <div>
           {isFeatured ? (
-            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
               Kuratiert
             </span>
           ) : null}
@@ -333,14 +332,14 @@ const GridStoryCard: React.FC<{
           {getStoryPreviewText(story)}
         </p>
 
-        <div className="mt-5 flex flex-col gap-3 border-t border-[#efe4da] pt-5 dark:border-white/10">
+        <div className="mt-5 flex flex-col gap-3 border-t border-[var(--talea-border-light)] pt-5 dark:border-white/10">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 5 : 4} />
             <span className="rounded-full border border-white/80 bg-white/86 px-3 py-1 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{formatDate(story.createdAt)}</span>
           </div>
           {isFeatured ? (
             <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
-              <Sparkles className="h-4 w-4 text-[#c68fa5] dark:text-[#d2c5ff]" />
+              <Sparkles className="h-4 w-4 text-[var(--primary)] dark:text-[var(--talea-text-secondary)]" />
               Leicht animiert, klar fokussiert, direkt lesbar.
             </div>
           ) : null}
@@ -367,15 +366,15 @@ const ListStoryRow: React.FC<{
 
   return (
     <motion.article
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      whileHover={reduceMotion ? undefined : { y: -4, scale: 1.01 }}
-      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+      whileHover={reduceMotion ? undefined : { y: -2 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.995 }}
       onClick={onRead}
       className="group cursor-pointer"
     >
-      <div className={cn(taleaSurfaceClass, "flex flex-col gap-4 overflow-hidden border-0 p-1.5 transition-all duration-300 hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)] sm:flex-row sm:p-2")}>
+      <div className="flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] p-1.5 transition-all duration-300 hover:border-transparent hover:shadow-lg sm:flex-row sm:p-2">
         <div className={cn(taleaInsetSurfaceClass, "relative h-44 shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:h-auto sm:w-56 lg:w-64")}>
           <ProgressiveImage
             src={story.coverImageUrl}
@@ -384,7 +383,7 @@ const ListStoryRow: React.FC<{
             containerClassName="w-full h-full"
             imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             fallback={
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#f7dfe9_0%,#dff0ff_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(92,68,97,0.48)_0%,rgba(53,82,116,0.4)_100%)] dark:text-slate-100">
+              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)] dark:bg-[var(--talea-gradient-nature)] dark:text-[var(--talea-text-tertiary)]">
                 <BookOpen className="h-10 w-10" />
               </div>
             }
@@ -417,7 +416,7 @@ const ListStoryRow: React.FC<{
           
           <p className="mt-3 line-clamp-2 text-base font-medium leading-7 text-slate-600 dark:text-slate-300">{getStoryPreviewText(story)}</p>
           
-          <div className="mt-auto flex flex-col gap-4 border-t border-[#efe4da] pt-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-auto flex flex-col gap-4 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
             <StoryParticipantsDialog story={story} maxVisible={5} />
             <span className="self-start rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 sm:self-auto">{formatDate(story.createdAt)}</span>
           </div>
@@ -451,7 +450,7 @@ const PremiumStoriesSignedOut: React.FC = () => {
         <div className="grid gap-4 lg:grid-cols-[1.06fr_0.94fr]">
           <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
-              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 rounded-2xl object-cover" />
                 Talea Bibliothek
               </span>
@@ -592,7 +591,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5 md:p-6")}>
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="max-w-3xl">
-                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
                   Talea Bibliothek
                 </span>
                 <h1 className="mt-5 text-[2.85rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.2rem]" style={{ fontFamily: headingFont }}>
@@ -614,10 +613,10 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             </div>
 
             <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
-              <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+              <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
                 Meine Stories
               </button>
-              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-900 shadow-sm dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
+              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
                 Talea Studio
               </button>
             </div>
@@ -625,9 +624,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
           <div className="grid gap-3">
             {[
-              { label: "Gesamt", value: total, accent: "from-[#f7dce7] to-[#faebd0]" },
-              { label: "Fertig", value: completeCount, accent: "from-[#deefff] to-[#e2f4ec]" },
-              { label: "In Arbeit", value: generatingCount, accent: "from-[#fbe9cf] to-[#efe5fb]" },
+              { label: "Gesamt", value: total, accent: "from-[var(--talea-accent-mint)]/15 to-[var(--talea-accent-sky)]/10" },
+              { label: "Fertig", value: completeCount, accent: "from-[var(--talea-accent-mint)]/20 to-[var(--talea-accent-mint)]/5" },
+              { label: "In Arbeit", value: generatingCount, accent: "from-[var(--talea-accent-peach)]/20 to-[var(--talea-accent-gold)]/10" },
             ].map((item) => (
               <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
                 <div className="flex items-start justify-between gap-4">
@@ -663,7 +662,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Kuratiere deine Ansicht</p>
                       {hasActiveFilters ? (
-                        <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-[#a65769] dark:text-[#ffb7c3]">
+                        <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-red-500 dark:text-red-400">
                           Zuruecksetzen
                         </button>
                       ) : null}
@@ -689,8 +688,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                   <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Story suchen..." className={cn(taleaInputClass, "pl-11 pr-4")} />
                 </div>
                 <div className="hidden xl:flex gap-1 rounded-full border border-white/80 bg-white/86 p-1 dark:border-white/10 dark:bg-white/5">
-                  <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[#f5dce8] text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-[#f5dce8] text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
                 </div>
               </div>
             </div>
@@ -700,7 +699,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
                   <TaleaSectionHeading eyebrow="Ausstellungsstueck" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
                   <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Leseraum</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--talea-text-secondary)]">Leseraum</p>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
                       {filteredStories.length} Titel werden nicht mehr nur angezeigt, sondern wie kleine Exponate praesentiert.
                     </p>

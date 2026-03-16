@@ -367,7 +367,7 @@ const StoryCard: React.FC<{
           <CardContent className={cn("flex flex-col justify-between p-5 sm:p-6", isFeatured ? "sm:w-[52%] sm:p-7 lg:p-8 lg:pr-10" : "")}>
             <div className="space-y-3">
               {isFeatured ? (
-                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
                   Titelgeschichte
                 </span>
               ) : null}
@@ -584,7 +584,7 @@ const PremiumSignedOutStart: React.FC = () => {
         <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
           <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
-              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 rounded-2xl object-cover" />
                 Talea Kinderatelier
               </span>
@@ -633,7 +633,7 @@ const PremiumSignedOutStart: React.FC = () => {
               <div key={item.title} className={cn(taleaSurfaceClass, "relative overflow-hidden p-5 sm:p-6")}>
                 <div className={cn("absolute inset-0 bg-gradient-to-br opacity-75", item.tone)} />
                 <div className="relative z-10">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Talea</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Talea</p>
                   <h2
                     className="mt-3 text-[1.7rem] font-semibold leading-tight text-slate-900 dark:text-white"
                     style={{ fontFamily: headingFont }}
@@ -726,7 +726,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
                   />
                 </div>
                 <div>
-                  <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#8f7284] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>
+                  <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
                     Talea Atelier
                   </span>
                   <h1
@@ -768,7 +768,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
                 <div className={cn(taleaInsetSurfaceClass, "grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:p-5")}>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Heute im Fokus</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Heute im Fokus</p>
                     <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                       Ein leiser Start mit klarer Richtung.
                     </h2>
@@ -848,7 +848,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
           <div className={cn(taleaInsetSurfaceClass, "space-y-4 p-4 sm:p-5")}>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Atelierpfad</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Atelierpfad</p>
               <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                 Nicht klicken, sondern gefuehrt werden.
               </h2>
@@ -864,7 +864,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
                 { title: "Wissen sammeln", text: "Neue Dokus fuer neugierige Kinder starten.", icon: <Library className="h-5 w-5" />, path: "/doku" },
               ].map((item) => (
                 <button key={item.title} type="button" onClick={() => goTo(item.path)} className={cn(taleaInsetSurfaceClass, "flex items-start gap-4 p-4 text-left sm:p-5")}>
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#f5dce8_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,var(--primary)_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
                     {item.icon}
                   </div>
                   <div className="min-w-0">
@@ -896,7 +896,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           onAction={() => goTo("/stories")}
         />
         <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8f7284] dark:text-[#d2c5ff]">Kuratiert</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Kuratiert</p>
           <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
             {storiesTotal} Geschichten stehen jetzt nicht mehr nebeneinander, sondern wirken wie bewusst ausgewaehlte Titel in einer kleinen Auslage.
           </p>
@@ -930,7 +930,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
           <div className="grid gap-4">
             <button type="button" onClick={() => goTo("/story")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
-              <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d8f] dark:border-white/10 dark:bg-white/5 dark:text-[#d2c5ff]")}>Neue Szene</p>
+              <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>Neue Szene</p>
               <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
                 Eine weitere Geschichte vorbereiten
               </h3>

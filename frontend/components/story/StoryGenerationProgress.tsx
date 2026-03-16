@@ -140,7 +140,7 @@ export function StoryGenerationProgress({ currentStep, className }: StoryGenerat
 
       <div className="mt-6 rounded-[22px] border border-white/70 bg-white/74 p-4 shadow-[0_16px_34px_-26px_rgba(150,122,99,0.4)] dark:border-white/10 dark:bg-white/5 dark:shadow-[0_20px_44px_-28px_rgba(2,8,23,0.88)]">
         <div className="flex items-center gap-2 text-sm">
-          <Sparkles className="size-4 text-[#b4879f] dark:text-[#9dc6e4]" />
+          <Sparkles className="size-4 text-[var(--primary)] dark:text-[#9dc6e4]" />
           <span className="font-medium text-slate-900 dark:text-slate-100">
             Geschaetzte Gesamtdauer: 75-90 Sekunden
           </span>

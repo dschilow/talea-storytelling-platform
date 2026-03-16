@@ -421,7 +421,7 @@ const EditAvatarScreen: React.FC = () => {
         <div
           className="w-full max-w-md rounded-3xl border p-6 text-center"
           style={{
-            borderColor: isDark ? '#34495f' : '#d6ccc2',
+            borderColor: isDark ? '#34495f' : 'var(--talea-border-soft)',
             background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
           }}
         >
@@ -447,14 +447,14 @@ const EditAvatarScreen: React.FC = () => {
       style={{
         background: isDark
           ? 'radial-gradient(980px 520px at 100% 0%, rgba(102,88,138,0.26) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, rgba(80,111,148,0.23) 0%, transparent 62%), #131d2b'
-          : 'radial-gradient(980px 520px at 100% 0%, #e3d5ca 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, #f5ebe0 0%, transparent 62%), #edede9',
+          : 'radial-gradient(980px 520px at 100% 0%, var(--talea-border-light) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, var(--talea-surface-inset) 0%, transparent 62%), #edede9',
       }}
     >
       <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pt-3 sm:px-5">
         <header
           className="sticky top-2 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl"
           style={{
-            borderColor: isDark ? '#33485f' : '#d6ccc2',
+            borderColor: isDark ? '#33485f' : 'var(--talea-border-soft)',
             background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',
           }}
         >
@@ -462,7 +462,7 @@ const EditAvatarScreen: React.FC = () => {
             type="button"
             onClick={() => navigate(`/avatar/${avatar.id}`)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-            style={{ borderColor: isDark ? '#425a74' : '#d5bdaf', color: isDark ? '#d2e0f4' : '#6a5c52' }}
+            style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#d2e0f4' : '#6a5c52' }}
             aria-label="Zurueck"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -478,7 +478,7 @@ const EditAvatarScreen: React.FC = () => {
             disabled={saving || !formData.name.trim()}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             style={{
-              borderColor: isDark ? '#425a74' : '#d5bdaf',
+              borderColor: isDark ? '#425a74' : 'var(--primary)',
               color: isDark ? '#d2e0f4' : '#6a5c52',
               background: saving ? (isDark ? 'rgba(56,74,97,0.6)' : 'rgba(234,226,214,0.8)') : 'transparent',
             }}
@@ -492,7 +492,7 @@ const EditAvatarScreen: React.FC = () => {
           <section
             className="rounded-3xl border p-4 sm:p-5"
             style={{
-              borderColor: isDark ? '#33495f' : '#d6ccc2',
+              borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
               background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
             }}
           >
@@ -510,7 +510,7 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : '#d6ccc2',
+                borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
@@ -552,7 +552,7 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : '#d6ccc2',
+                borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
                 background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
               }}
             >
@@ -601,7 +601,7 @@ const EditAvatarScreen: React.FC = () => {
         <footer
           className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:justify-end"
           style={{
-            borderColor: isDark ? '#33495f' : '#d6ccc2',
+            borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
             background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
           }}
         >
@@ -621,7 +621,7 @@ const EditAvatarScreen: React.FC = () => {
             className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
             style={{
               borderColor: 'transparent',
-              background: 'linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 56%,#d6ccc2 100%)',
+              background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
               color: '#3a322d',
             }}
           >

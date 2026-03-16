@@ -358,7 +358,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
     <section
       className="rounded-3xl border px-4 py-5"
       style={{
-        borderColor: isDark ? "#33495f" : "#d6ccc2",
+        borderColor: isDark ? "#33495f" : "var(--talea-border-soft)",
         background: isDark ? "rgba(21,32,47,0.88)" : "rgba(255,251,245,0.92)",
       }}
     >
@@ -542,14 +542,14 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
             <div
               key={`share-skeleton-${index}`}
               className="h-24 animate-pulse rounded-2xl border"
-              style={{ borderColor: isDark ? "#34495f" : "#d6ccc2", background: isDark ? "rgba(28,42,60,0.7)" : "rgba(255,255,255,0.72)" }}
+              style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(28,42,60,0.7)" : "rgba(255,255,255,0.72)" }}
             />
           ))}
         </div>
       ) : contacts.length === 0 ? (
         <div
           className="mt-4 rounded-2xl border px-4 py-8 text-center"
-          style={{ borderColor: isDark ? "#34495f" : "#d6ccc2", background: isDark ? "rgba(24,35,50,0.82)" : "rgba(255,251,245,0.9)" }}
+          style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(24,35,50,0.82)" : "rgba(255,251,245,0.9)" }}
         >
           <MailPlus className="mx-auto h-8 w-8" style={{ color: isDark ? "#a5b8d0" : "#6a7f98" }} />
           <p className="mt-2 text-sm" style={{ color: isDark ? "#a5b8d0" : "#6a7f98" }}>
@@ -571,7 +571,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
                   exit={reduceMotion ? undefined : { opacity: 0, y: 6 }}
                   transition={{ duration: reduceMotion ? 0 : 0.2, delay: reduceMotion ? 0 : index * 0.03 }}
                   className="rounded-2xl border p-3"
-                  style={{ borderColor: isDark ? "#34495f" : "#d6ccc2", background: isDark ? "rgba(24,35,50,0.9)" : "rgba(255,255,255,0.86)" }}
+                  style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(24,35,50,0.9)" : "rgba(255,255,255,0.86)" }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">

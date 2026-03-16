@@ -95,7 +95,7 @@ function getPalette(isDark: boolean): Palette {
       text: '#e8eef8',
       muted: '#9db0c8',
       soft: 'rgba(145,166,194,0.16)',
-      primary: 'linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 46%,#d6ccc2 100%)',
+      primary: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 46%,var(--talea-border-soft) 100%)',
       primaryText: '#121b2a',
       secondary: 'rgba(34,46,63,0.88)',
     };
@@ -144,7 +144,7 @@ const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: P
                 i < activeStep
                   ? { background: '#34D399', color: '#0f1828' }
                   : i === activeStep
-                    ? { background: '#d5bdaf2b', border: '2px solid #a88f80', color: '#a88f80' }
+                    ? { background: 'rgba(111,174,156,0.17)', border: '2px solid var(--talea-text-tertiary)', color: 'var(--talea-text-tertiary)' }
                     : { background: palette.soft, border: `1px solid ${palette.panelBorder}`, color: palette.muted }
               }
             >
@@ -197,7 +197,7 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palet
                 key={step.key}
                 className="flex items-center gap-3 rounded-2xl border px-3 py-3"
                 style={{
-                  borderColor: isActive ? '#a88f80' : palette.panelBorder,
+                  borderColor: isActive ? 'var(--talea-text-tertiary)' : palette.panelBorder,
                   background: isActive ? palette.soft : palette.secondary,
                 }}
               >
@@ -229,7 +229,7 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palet
         <div className="mt-5 h-2 w-full overflow-hidden rounded-full" style={{ background: palette.soft }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: 'linear-gradient(90deg,#a88f80,#d6ccc2,#d5bdaf)' }}
+            style={{ background: 'linear-gradient(90deg,var(--talea-text-tertiary),var(--talea-border-soft),var(--primary))' }}
             animate={{ width: `${((currentIndex + 1) / GENERATION_STEPS.length) * 100}%` }}
             transition={{ duration: 0.35 }}
           />

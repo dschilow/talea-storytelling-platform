@@ -309,7 +309,7 @@ export default function ModernStoryWizard() {
           <TaleaSurface className="p-5 md:p-6">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(20rem,0.8fr)] lg:items-center">
               <div>
-                <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[#ab7f95] dark:border-white/10 dark:bg-white/5 dark:text-[#cbb8ef]`}>
+                <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[var(--primary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]`}>
                   Story Atelier
                 </span>
                 <h1
@@ -348,7 +348,7 @@ export default function ModernStoryWizard() {
         <TaleaSurface className="p-5 md:p-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)] lg:items-end">
             <div>
-              <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[#ab7f95] dark:border-white/10 dark:bg-white/5 dark:text-[#cbb8ef]`}>
+              <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[var(--primary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]`}>
                 Story Atelier
               </span>
               <h1
@@ -394,10 +394,10 @@ export default function ModernStoryWizard() {
                       <span
                         className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
                           done
-                            ? "bg-[#7daf99] text-white dark:bg-[#7fa3c8]"
+                            ? "bg-[var(--primary)] text-white"
                             : active
-                              ? "bg-[linear-gradient(135deg,#f2d8e4_0%,#dfeefc_100%)] text-[#425166] dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.54)_0%,rgba(65,96,131,0.44)_100%)] dark:text-white"
-                              : "bg-white/80 text-slate-400 dark:bg-white/8 dark:text-slate-500"
+                              ? "border-2 border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                              : "border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-muted)] dark:bg-[var(--talea-surface-inset)] dark:text-[var(--talea-text-muted)]"
                         }`}
                       >
                         {done ? <CheckCircle size={16} /> : index + 1}
@@ -425,7 +425,7 @@ export default function ModernStoryWizard() {
           <TaleaSurface className="p-4 md:p-6">
             <div className="mb-6 flex flex-col gap-4 border-b border-white/70 pb-5 dark:border-white/10 md:flex-row md:items-end md:justify-between">
               <div>
-                <span className={`${taleaChipClass} border-white/70 bg-white/72 text-[#9f7b89] dark:border-white/10 dark:bg-white/5 dark:text-[#c1b6ef]`}>
+                <span className={`${taleaChipClass} border-white/70 bg-white/72 text-[var(--primary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]`}>
                   Schritt {activeStep + 1}
                 </span>
                 <h2
@@ -440,7 +440,7 @@ export default function ModernStoryWizard() {
               </div>
 
               <div className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/70 px-3 py-2 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                <WandSparkles className="h-4 w-4 text-[#b4879f] dark:text-[#9dc6e4]" />
+                <WandSparkles className="h-4 w-4 text-[var(--primary)]" />
                 {t("story.wizard.stepCounter", { current: activeStep + 1, total: steps.length })}
               </div>
             </div>

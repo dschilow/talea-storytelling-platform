@@ -114,7 +114,7 @@ export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProp
       justifyContent: 'center',
       gap: '8px',
       fontWeight: '600',
-      fontFamily: '"Nunito", sans-serif',
+      fontFamily: '"Inter", "Manrope", "Sora", sans-serif',
       position: 'relative',
       overflow: 'hidden',
     };

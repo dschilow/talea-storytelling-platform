@@ -95,7 +95,7 @@ const OfflineContentScreen: React.FC = () => {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-          style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(169,137,242,0.3)', borderTopColor: '#a989f2' }}
+          style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(111,174,156,0.3)', borderTopColor: '#a989f2' }}
         />
       </div>
     );
@@ -112,7 +112,7 @@ const OfflineContentScreen: React.FC = () => {
       <div style={{
         padding: '2rem 1.5rem 1.5rem',
         textAlign: 'center',
-        borderBottom: '1px solid rgba(169,137,242,0.15)',
+        borderBottom: '1px solid rgba(111,174,156,0.15)',
       }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -143,8 +143,8 @@ const OfflineContentScreen: React.FC = () => {
         {totalItems === 0 ? (
           <div style={{
             textAlign: 'center', padding: '3rem 1rem',
-            background: 'rgba(169,137,242,0.08)', borderRadius: 20,
-            border: '1px solid rgba(169,137,242,0.15)',
+            background: 'rgba(111,174,156,0.08)', borderRadius: 20,
+            border: '1px solid rgba(111,174,156,0.15)',
           }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📚</div>
             <p style={{ color: '#9a8bbf', fontSize: 15, margin: '0 0 8px', lineHeight: 1.6 }}>
@@ -258,7 +258,7 @@ const Section: React.FC<{
       {title}
       <span style={{
         fontSize: 12, color: '#9a8bbf',
-        background: 'rgba(169,137,242,0.15)',
+        background: 'rgba(111,174,156,0.15)',
         padding: '2px 8px', borderRadius: 10,
       }}>
         {count}
@@ -283,8 +283,8 @@ const ContentCard: React.FC<{
     style={{
       display: 'flex', alignItems: 'center', gap: 14,
       padding: 12, borderRadius: 16,
-      background: 'rgba(169,137,242,0.08)',
-      border: '1px solid rgba(169,137,242,0.15)',
+      background: 'rgba(111,174,156,0.08)',
+      border: '1px solid rgba(111,174,156,0.15)',
       cursor: 'pointer', width: '100%',
       textAlign: 'left', color: '#e2d9f3',
       transition: 'background 0.2s',
@@ -302,7 +302,7 @@ const ContentCard: React.FC<{
     ) : (
       <div style={{
         width: 56, height: 56, borderRadius: 12,
-        background: 'rgba(169,137,242,0.15)',
+        background: 'rgba(111,174,156,0.15)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 24, flexShrink: 0,
       }}>
@@ -335,8 +335,8 @@ const GeneratedAudioCard: React.FC<{
     style={{
       padding: 12,
       borderRadius: 16,
-      background: 'rgba(169,137,242,0.08)',
-      border: '1px solid rgba(169,137,242,0.15)',
+      background: 'rgba(111,174,156,0.08)',
+      border: '1px solid rgba(111,174,156,0.15)',
     }}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -358,7 +358,7 @@ const GeneratedAudioCard: React.FC<{
             width: 48,
             height: 48,
             borderRadius: 10,
-            background: 'rgba(169,137,242,0.15)',
+            background: 'rgba(111,174,156,0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -386,8 +386,8 @@ const GeneratedAudioCard: React.FC<{
       <button
         onClick={onOpenRelated}
         style={{
-          border: '1px solid rgba(169,137,242,0.2)',
-          background: 'rgba(169,137,242,0.12)',
+          border: '1px solid rgba(111,174,156,0.2)',
+          background: 'rgba(111,174,156,0.12)',
           color: '#d9cbf8',
           borderRadius: 10,
           padding: '6px 10px',

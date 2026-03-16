@@ -25,8 +25,8 @@ interface Props {
   updateState: (updates: any) => void;
 }
 
-const accent = '#a88f80';
-const success = '#b79f8e';
+const accent = 'var(--talea-text-tertiary)';
+const success = 'var(--talea-text-tertiary)';
 
 export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
@@ -124,7 +124,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
-          className="mb-3 h-10 w-10 rounded-full border-[3px] border-[#a88f80] border-t-transparent"
+          className="mb-3 h-10 w-10 rounded-full border-[3px] border-[var(--talea-text-tertiary)] border-t-transparent"
         />
         <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       </div>
@@ -191,7 +191,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
                 <p className="truncate text-sm font-semibold text-foreground">{avatar.name}</p>
                 {avatar.avatarRole === 'child' ? (
-                  <p className="mt-0.5 text-xs font-semibold text-[#a88f80]">Kind-Avatar</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[var(--talea-text-tertiary)]">Kind-Avatar</p>
                 ) : null}
                 {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
                   <p className="mt-0.5 text-xs text-[#6f8cab]">Geteilt von {avatar.sharedByLabel}</p>

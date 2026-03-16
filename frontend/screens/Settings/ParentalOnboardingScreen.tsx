@@ -128,7 +128,7 @@ export default function ParentalOnboardingScreen() {
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-[linear-gradient(180deg,#f8f1e8_0%,#f6efe4_100%)] dark:bg-[linear-gradient(180deg,#121a26_0%,#0f1723_100%)]">
-        <div className="rounded-2xl border border-[#d6ccc2] bg-[#fffaf3] px-5 py-4 text-sm text-muted-foreground dark:border-[#4b617a] dark:bg-[#18273b]">
+        <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fffaf3] px-5 py-4 text-sm text-muted-foreground dark:border-[#4b617a] dark:bg-[#18273b]">
           Lade Eltern-Onboarding...
         </div>
       </div>
@@ -136,14 +136,14 @@ export default function ParentalOnboardingScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(860px_500px_at_90%_0%,#e3d5ca_0%,transparent_62%),radial-gradient(780px_460px_at_0%_16%,#f5ebe0_0%,transparent_62%),linear-gradient(180deg,#f8f1e8_0%,#f6efe4_100%)] px-4 py-8 dark:bg-[radial-gradient(860px_500px_at_90%_0%,rgba(93,109,133,0.32)_0%,transparent_62%),radial-gradient(780px_460px_at_0%_16%,rgba(78,108,128,0.28)_0%,transparent_62%),linear-gradient(180deg,#121a26_0%,#0f1723_100%)]">
+    <div className="min-h-screen bg-[radial-gradient(860px_500px_at_90%_0%,var(--talea-border-light)_0%,transparent_62%),radial-gradient(780px_460px_at_0%_16%,var(--talea-surface-inset)_0%,transparent_62%),linear-gradient(180deg,#f8f1e8_0%,#f6efe4_100%)] px-4 py-8 dark:bg-[radial-gradient(860px_500px_at_90%_0%,rgba(93,109,133,0.32)_0%,transparent_62%),radial-gradient(780px_460px_at_0%_16%,rgba(78,108,128,0.28)_0%,transparent_62%),linear-gradient(180deg,#121a26_0%,#0f1723_100%)]">
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mx-auto w-full max-w-3xl rounded-3xl border border-[#d6ccc2] bg-[#fffaf3]/95 p-6 shadow-[0_24px_48px_rgba(97,75,54,0.2)] dark:border-[#4b617a] dark:bg-[#18273b]/95"
+        className="mx-auto w-full max-w-3xl rounded-3xl border border-[var(--talea-border-soft)] bg-[#fffaf3]/95 p-6 shadow-[0_24px_48px_rgba(97,75,54,0.2)] dark:border-[#4b617a] dark:bg-[#18273b]/95"
       >
         <div className="mb-5 flex items-center gap-3">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#d5bdaf] via-[#e3d5ca] to-[#d6ccc2] text-[#2f4058]">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--primary)] via-[var(--talea-border-light)] to-[var(--talea-border-soft)] text-[#2f4058]">
             <Shield className="h-6 w-6" />
           </div>
           <div>
@@ -155,27 +155,27 @@ export default function ParentalOnboardingScreen() {
         </div>
 
         {!apiAvailable && (
-          <div className="mb-4 rounded-2xl border border-[#d5bdaf] bg-[#f5ebe0] px-4 py-3 text-sm text-[#4f6075] dark:border-[#4d627d] dark:bg-[#213650] dark:text-[#c9dcf3]">
+          <div className="mb-4 rounded-2xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-4 py-3 text-sm text-[#4f6075] dark:border-[#4d627d] dark:bg-[#213650] dark:text-[#c9dcf3]">
             Das Eltern-Dashboard ist auf dem Backend noch nicht verfuegbar. Du kannst die App jetzt nutzen und spaeter erneut konfigurieren.
           </div>
         )}
 
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-[#d6ccc2] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
+          <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
             <Ban className="mb-2 h-4 w-4 text-[#5a728d]" />
             Blockiert sensible Themen und Begriffe.
           </div>
-          <div className="rounded-2xl border border-[#d6ccc2] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
+          <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
             <Target className="mb-2 h-4 w-4 text-[#5a728d]" />
             Setzt klare Lernziele fuer Storys und Dokus.
           </div>
-          <div className="rounded-2xl border border-[#d6ccc2] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
+          <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
             <Sparkles className="mb-2 h-4 w-4 text-[#5a728d]" />
             Schuetzt Tagesverbrauch von Credits.
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
+        <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <div className="mb-2 flex items-center gap-2 text-sm font-bold">
             <KeyRound className="h-4 w-4" />
             Eltern-PIN festlegen
@@ -187,7 +187,7 @@ export default function ParentalOnboardingScreen() {
               value={pin}
               onChange={(event) => setPin(event.target.value)}
               placeholder="PIN (4-8 Ziffern)"
-              className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#4a617a] dark:bg-[#20324a]"
+              className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#4a617a] dark:bg-[#20324a]"
             />
             <input
               type="password"
@@ -195,12 +195,12 @@ export default function ParentalOnboardingScreen() {
               value={confirmPin}
               onChange={(event) => setConfirmPin(event.target.value)}
               placeholder="PIN bestaetigen"
-              className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] dark:border-[#4a617a] dark:bg-[#20324a]"
+              className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#4a617a] dark:bg-[#20324a]"
             />
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
+        <div className="mt-4 rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <p className="mb-2 text-sm font-bold">Schnell-Auswahl Tabu-Themen</p>
           <div className="flex flex-wrap gap-2">
             {themePresets.length === 0 && (
@@ -215,7 +215,7 @@ export default function ParentalOnboardingScreen() {
                   key={preset.id}
                   type="button"
                   onClick={() => togglePresetKeywords(preset, selectedThemes, setSelectedThemes)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-[#b79f8e] bg-[#e3d5ca] text-[#2b3a4d]' : 'border-[#d6ccc2] bg-[#f8f1e8] text-[#5a728d] dark:border-[#44607e] dark:bg-[#22364f] dark:text-[#bfd1e8]'}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-[var(--talea-text-tertiary)] bg-[var(--talea-border-light)] text-[#2b3a4d]' : 'border-[var(--talea-border-soft)] bg-[#f8f1e8] text-[#5a728d] dark:border-[#44607e] dark:bg-[#22364f] dark:text-[#bfd1e8]'}`}
                 >
                   {preset.label}
                 </button>
@@ -224,7 +224,7 @@ export default function ParentalOnboardingScreen() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
+        <div className="mt-4 rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <p className="mb-2 text-sm font-bold">Schnell-Auswahl Lernziele</p>
           <div className="flex flex-wrap gap-2">
             {goalPresets.length === 0 && (
@@ -239,7 +239,7 @@ export default function ParentalOnboardingScreen() {
                   key={preset.id}
                   type="button"
                   onClick={() => togglePresetKeywords(preset, selectedGoals, setSelectedGoals)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-[#b79f8e] bg-[#e3d5ca] text-[#2b3a4d]' : 'border-[#d6ccc2] bg-[#f8f1e8] text-[#5a728d] dark:border-[#44607e] dark:bg-[#22364f] dark:text-[#bfd1e8]'}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-[var(--talea-text-tertiary)] bg-[var(--talea-border-light)] text-[#2b3a4d]' : 'border-[var(--talea-border-soft)] bg-[#f8f1e8] text-[#5a728d] dark:border-[#44607e] dark:bg-[#22364f] dark:text-[#bfd1e8]'}`}
                 >
                   {preset.label}
                 </button>
@@ -248,13 +248,13 @@ export default function ParentalOnboardingScreen() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[#d6ccc2] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
+        <div className="mt-4 rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#47607c] dark:bg-[#1b2c42]">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-bold">Tageslimits aktiv</p>
             <button
               type="button"
               onClick={() => setEnableLimits((prev) => !prev)}
-              className={`relative h-7 w-14 overflow-hidden rounded-full ${enableLimits ? 'bg-[#b79f8e]' : 'bg-[#d6ccc2]'}`}
+              className={`relative h-7 w-14 overflow-hidden rounded-full ${enableLimits ? 'bg-[var(--talea-text-tertiary)]' : 'bg-[var(--talea-border-soft)]'}`}
             >
               <motion.span
                 animate={{ x: enableLimits ? 28 : 0 }}
@@ -271,7 +271,7 @@ export default function ParentalOnboardingScreen() {
               value={dailyStoryLimit}
               onChange={(event) => setDailyStoryLimit(Number(event.target.value))}
               placeholder="Storys / Tag"
-              className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] disabled:opacity-50 dark:border-[#4a617a] dark:bg-[#20324a]"
+              className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] disabled:opacity-50 dark:border-[#4a617a] dark:bg-[#20324a]"
             />
             <input
               type="number"
@@ -281,7 +281,7 @@ export default function ParentalOnboardingScreen() {
               value={dailyDokuLimit}
               onChange={(event) => setDailyDokuLimit(Number(event.target.value))}
               placeholder="Dokus / Tag"
-              className="h-10 rounded-xl border border-[#d6ccc2] bg-white px-3 text-sm outline-none focus:border-[#b79f8e] disabled:opacity-50 dark:border-[#4a617a] dark:bg-[#20324a]"
+              className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] disabled:opacity-50 dark:border-[#4a617a] dark:bg-[#20324a]"
             />
           </div>
         </div>
@@ -290,7 +290,7 @@ export default function ParentalOnboardingScreen() {
           <button
             type="button"
             onClick={() => void deferOnboarding()}
-            className="rounded-xl border border-[#d6ccc2] bg-white px-4 py-2 text-sm font-semibold text-[#3f526a] dark:border-[#4b617a] dark:bg-[#20324a] dark:text-[#d8e8fa]"
+            className="rounded-xl border border-[var(--talea-border-soft)] bg-white px-4 py-2 text-sm font-semibold text-[#3f526a] dark:border-[#4b617a] dark:bg-[#20324a] dark:text-[#d8e8fa]"
           >
             Spaeter
           </button>
@@ -298,7 +298,7 @@ export default function ParentalOnboardingScreen() {
             type="button"
             onClick={completeOnboarding}
             disabled={saving || !apiAvailable}
-            className="rounded-xl bg-gradient-to-r from-[#f2d9d6] via-[#e3d5ca] to-[#d5e3cf] px-4 py-2 text-sm font-bold text-[#24354d] disabled:opacity-60"
+            className="rounded-xl bg-gradient-to-r from-[var(--primary)] via-[var(--talea-border-light)] to-[#d5e3cf] px-4 py-2 text-sm font-bold text-[#24354d] disabled:opacity-60"
           >
             {saving ? 'Speichere...' : 'Onboarding abschliessen'}
           </button>

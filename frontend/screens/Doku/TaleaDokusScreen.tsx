@@ -1048,7 +1048,7 @@ const TaleaDokusScreen: React.FC = () => {
                     onClick={() => setActiveTab(tab.key)}
                     className="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
                     style={{
-                      borderColor: active ? '#a88f80' : palette.border,
+                      borderColor: active ? 'var(--talea-text-tertiary)' : palette.border,
                       background: active ? palette.primary : palette.soft,
                       color: active ? palette.primaryText : palette.text,
                     }}

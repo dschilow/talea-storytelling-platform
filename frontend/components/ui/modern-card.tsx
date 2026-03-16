@@ -69,7 +69,7 @@ export const ModernCardTitle: React.FC<{ children: React.ReactNode; className?: 
       fontSize: '20px',
       fontWeight: '700',
       color: colors.text.primary,
-      fontFamily: '"Fredoka", "Nunito", sans-serif',
+      fontFamily: '"Fraunces", "Cormorant Garamond", serif',
       marginBottom: '8px',
     }}
     className={className}

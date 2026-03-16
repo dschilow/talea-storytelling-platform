@@ -149,14 +149,14 @@ export default function Step5Preview({
               alt={formData.name}
               className="w-48 h-48 rounded-3xl object-cover shadow-2xl"
               style={{
-                border: '3px solid rgba(169,137,242,0.3)',
-                boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(169,137,242,0.15)',
+                border: '3px solid rgba(111,174,156,0.3)',
+                boxShadow: '0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(111,174,156,0.15)',
               }}
             />
             <motion.div
               animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="absolute -top-3 -right-3 rounded-full border border-[#d6ccc2] bg-[#f5ebe0] p-2 text-[#a88f80]"
+              className="absolute -top-3 -right-3 rounded-full border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] p-2 text-[var(--talea-text-tertiary)]"
             >
               <Sparkles className="h-5 w-5" />
             </motion.div>

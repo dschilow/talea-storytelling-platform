@@ -27,8 +27,8 @@ export const WaveformEqualizer: React.FC<WaveformEqualizerProps> = ({
   const containerH = isMd ? 'h-6' : 'h-4';
   const barWidth = isMd ? 'w-[2.5px]' : 'w-[2px]';
 
-  const gradientFrom = isDark ? '#7699d6' : '#d5bdaf';
-  const gradientTo = isDark ? '#b087c8' : '#b183c4';
+  const gradientFrom = isDark ? '#7f9dc0' : '#6fae9c';
+  const gradientTo = isDark ? '#6fae9c' : '#7f9dc0';
 
   return (
     <div className={`flex ${containerH} items-end gap-[2px]`}>

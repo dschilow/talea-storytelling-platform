@@ -30,22 +30,20 @@ import { WaveformEqualizer } from "@/components/audio/WaveformEqualizer";
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   path?: string;
-  tone: string;
   labelKey?: string;
   label?: string;
   onClick?: () => void;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: Home, labelKey: "navigation.home", path: "/", tone: "#a88f80" },
-  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories", tone: "#b69684" },
-  { icon: User, labelKey: "navigation.avatars", path: "/avatar", tone: "#9b8a7d" },
-  { icon: FlaskConical, label: "Dokus", path: "/doku", tone: "#bf9f8c" },
-  { icon: Brain, label: "Quiz", path: "/quiz", tone: "#a38978" },
+  { icon: Home, labelKey: "navigation.home", path: "/" },
+  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories" },
+  { icon: User, labelKey: "navigation.avatars", path: "/avatar" },
+  { icon: FlaskConical, label: "Dokus", path: "/doku" },
+  { icon: Brain, label: "Quiz", path: "/quiz" },
   {
     icon: Bot,
     label: "Tavi",
-    tone: "#9a8f85",
     onClick: () => {
       window.dispatchEvent(new Event("tavi:open"));
     },
@@ -83,33 +81,7 @@ const BottomNav: React.FC = () => {
   } = useAudioPlayer();
 
   const [playerExpanded, setPlayerExpanded] = useState(false);
-
   const isDark = resolvedTheme === "dark";
-  const colors = useMemo(
-    () =>
-      isDark
-        ? {
-            nav: "rgba(20,29,42,0.96)",
-            border: "#2f3f57",
-            text: "#9fb2cc",
-            textActive: "#edf3fd",
-            audioBg: "rgba(27,38,54,0.96)",
-            audioBorder: "#3b4d67",
-            audioSurface: "rgba(19,28,40,0.42)",
-            progressBase: "rgba(131,152,184,0.3)",
-          }
-        : {
-            nav: "rgba(245,235,224,0.96)",
-            border: "#d5bdaf",
-            text: "#5f554d",
-            textActive: "#2e2722",
-            audioBg: "rgba(237,237,233,0.98)",
-            audioBorder: "#d6ccc2",
-            audioSurface: "rgba(255,255,255,0.58)",
-            progressBase: "rgba(131,118,106,0.24)",
-          },
-    [isDark]
-  );
 
   const isVisible = track || waitingForConversion;
 
@@ -145,27 +117,29 @@ const BottomNav: React.FC = () => {
         key={item.path ?? item.label ?? item.labelKey ?? "tavi"}
         type="button"
         onClick={() => (item.onClick ? item.onClick() : item.path ? navigate(item.path) : undefined)}
-        className="relative flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1"
+        className="relative flex flex-1 flex-col items-center gap-0.5 py-1.5"
         aria-label={labelOf(item)}
       >
         {active && (
           <motion.span
             layoutId="talea-mobile-active"
-            className="absolute -top-[2px] h-[3px] w-5 rounded-full"
-            style={{ background: item.tone }}
+            className="absolute -top-0.5 h-[2px] w-6 rounded-full bg-[var(--primary)]"
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
           />
         )}
 
-        <span
-          className="inline-flex h-6 w-6 items-center justify-center rounded-lg"
-          style={{ background: active ? `${item.tone}20` : "transparent" }}
-        >
-          <Icon className="h-4 w-4" style={{ color: active ? item.tone : colors.text }} />
-        </span>
+        <Icon
+          className={cn(
+            "h-[18px] w-[18px] transition-colors duration-200",
+            active ? "text-[var(--primary)]" : "text-[var(--talea-text-tertiary)]"
+          )}
+        />
 
         <span
-          className="text-[10px] font-semibold leading-none"
-          style={{ color: active ? colors.textActive : colors.text }}
+          className={cn(
+            "text-[9px] font-medium leading-none tracking-wide transition-colors duration-200",
+            active ? "text-[var(--primary)] font-semibold" : "text-[var(--talea-text-tertiary)]"
+          )}
         >
           {labelOf(item)}
         </span>
@@ -175,20 +149,22 @@ const BottomNav: React.FC = () => {
 
   return (
     <>
-      {/* Mobile playlist drawer */}
       <AnimatePresence>
         {isPlaylistDrawerOpen && <PlaylistDrawer variant="mobile" />}
       </AnimatePresence>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1 md:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-1.5 md:hidden">
         <div
-          className="pointer-events-auto overflow-hidden rounded-[18px] border backdrop-blur"
+          className="pointer-events-auto overflow-hidden rounded-2xl border backdrop-blur-xl"
           style={{
-            borderColor: colors.border,
-            background: colors.nav,
-            boxShadow: isDark ? "0 10px 26px rgba(13,20,32,0.42)" : "0 10px 24px rgba(118,98,82,0.18)",
+            borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)",
+            background: isDark ? "rgba(17,19,23,0.94)" : "rgba(255,255,255,0.92)",
+            boxShadow: isDark
+              ? "0 -1px 3px rgba(0,0,0,0.2), 0 -8px 24px rgba(0,0,0,0.15)"
+              : "0 -1px 3px rgba(0,0,0,0.03), 0 -8px 24px rgba(0,0,0,0.05)",
           }}
         >
+          {/* Audio Player */}
           <AnimatePresence>
             {isVisible && (
               <motion.div
@@ -196,9 +172,12 @@ const BottomNav: React.FC = () => {
                 initial={{ y: 14, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 14, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 360, damping: 34 }}
-                className="mx-1 mb-0.5 mt-1 overflow-hidden rounded-xl border"
-                style={{ borderColor: colors.audioBorder, background: colors.audioBg }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="mx-1.5 mb-0.5 mt-1.5 overflow-hidden rounded-xl border"
+                style={{
+                  borderColor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+                  background: isDark ? "rgba(26,29,36,0.9)" : "rgba(247,245,241,0.9)",
+                }}
               >
                 <div
                   role="button"
@@ -210,33 +189,32 @@ const BottomNav: React.FC = () => {
                       setPlayerExpanded((value) => !value);
                     }
                   }}
-                  className="cursor-pointer px-2 pt-2"
+                  className="cursor-pointer px-2.5 pt-2"
                   aria-label={playerExpanded ? "Audio-Player einklappen" : "Audio-Player ausklappen"}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 overflow-hidden rounded-lg border border-white/20 bg-slate-200/40 dark:bg-slate-700/40">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 overflow-hidden rounded-lg bg-[var(--talea-surface-inset)]">
                       {waitingForConversion && !track ? (
                         <div className="flex h-full w-full items-center justify-center">
-                          <Loader2 className="h-4 w-4 animate-spin text-[#8b7567]" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--primary)]" />
                         </div>
                       ) : track?.coverImageUrl ? (
                         <img src={track.coverImageUrl} alt={track.title} className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center">
-                          <Volume2 className="h-4 w-4 text-[#8b7567]" />
+                          <Volume2 className="h-3.5 w-3.5 text-[var(--talea-text-tertiary)]" />
                         </div>
                       )}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[10px] font-semibold leading-tight" style={{ color: colors.textActive }}>
+                      <p className="truncate text-[11px] font-semibold leading-tight text-[var(--talea-text-primary)]">
                         {waitingForConversion && !track ? "Wird konvertiert..." : track?.title}
                       </p>
-                      <p className="truncate text-[9px]" style={{ color: colors.text }}>
+                      <p className="truncate text-[9px] text-[var(--talea-text-tertiary)]">
                         {waitingForConversion && !track
                           ? "Audio wird vorbereitet"
                           : `${isPlaying ? "Wird abgespielt" : "Pausiert"} - ${formatTime(currentTime)} / ${formatTime(duration)}`}
-                        {/* chunk counter hidden — user sees chapters in drawer */}
                       </p>
                     </div>
 
@@ -249,16 +227,15 @@ const BottomNav: React.FC = () => {
                         togglePlay();
                       }}
                       disabled={waitingForConversion && !track}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border disabled:opacity-50"
-                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--primary)] text-white disabled:opacity-40 transition-transform active:scale-95"
                       aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
                     >
                       {waitingForConversion && !track ? (
-                        <Loader2 className="h-4 w-4 animate-spin" style={{ color: colors.textActive }} />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : isPlaying ? (
-                        <Pause className="h-4 w-4" style={{ color: colors.textActive }} />
+                        <Pause className="h-3.5 w-3.5" />
                       ) : (
-                        <Play className="h-4 w-4" style={{ color: colors.textActive }} />
+                        <Play className="h-3.5 w-3.5" />
                       )}
                     </button>
 
@@ -268,50 +245,46 @@ const BottomNav: React.FC = () => {
                         event.stopPropagation();
                         close();
                       }}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
-                      style={{ borderColor: "#c6a093", background: "rgba(198,160,147,0.2)" }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:text-[var(--talea-text-secondary)] transition-colors"
                       aria-label="Audio schliessen"
                     >
-                      <X className="h-4 w-4 text-[#9e6d5f]" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
 
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full" style={{ background: colors.progressBase }}>
+                  {/* Progress bar */}
+                  <div className="mt-2 mb-1.5 h-[2px] overflow-hidden rounded-full bg-[var(--talea-border-light)]">
                     <motion.div
-                      className="h-full rounded-full"
-                      style={{
-                        background: "linear-gradient(90deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
-                        width: `${progress}%`,
-                      }}
+                      className="h-full rounded-full bg-[var(--primary)]"
+                      style={{ width: `${progress}%` }}
                       transition={{ ease: "easeOut", duration: 0.2 }}
                     />
                   </div>
                 </div>
 
+                {/* Expanded controls */}
                 <AnimatePresence initial={false}>
                   {playerExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.24, ease: "easeOut" }}
+                      transition={{ duration: 0.2, ease: "easeOut" }}
                       className="overflow-hidden border-t"
-                      style={{ borderColor: colors.audioBorder, background: colors.audioSurface }}
+                      style={{ borderColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)" }}
                     >
-                      <div className="px-2 pb-2 pt-1.5">
-                        <p className="line-clamp-2 text-[9px] leading-relaxed" style={{ color: colors.text }}>
+                      <div className="px-3 pb-2.5 pt-2">
+                        <p className="line-clamp-2 text-[9px] leading-relaxed text-[var(--talea-text-tertiary)]">
                           {track?.description || "Audio aus Talea"}
                         </p>
 
-                        <div className="mt-1.5 flex items-center justify-center gap-1.5">
-                          {/* Previous track */}
+                        <div className="mt-2 flex items-center justify-center gap-2">
                           {showNav && (
                             <button
                               type="button"
                               onClick={() => playPrevious()}
                               disabled={!hasPrev}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-30"
-                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] disabled:opacity-30 transition-colors hover:text-[var(--talea-text-primary)]"
                               aria-label="Vorheriger Track"
                             >
                               <SkipBack className="h-3.5 w-3.5" />
@@ -321,8 +294,7 @@ const BottomNav: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleSkip(-15)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
-                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:text-[var(--talea-text-primary)] transition-colors"
                             aria-label="15 Sekunden zurueck"
                           >
                             <Rewind className="h-4 w-4" />
@@ -331,11 +303,7 @@ const BottomNav: React.FC = () => {
                           <button
                             type="button"
                             onClick={togglePlay}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-                            style={{
-                              background: "linear-gradient(135deg,#d5bdaf 0%,#e3d5ca 55%,#d6ccc2 100%)",
-                              color: "#433a34",
-                            }}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-white transition-transform active:scale-95"
                             aria-label={isPlaying ? "Audio pausieren" : "Audio starten"}
                           >
                             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-[1px] h-4 w-4" />}
@@ -344,28 +312,24 @@ const BottomNav: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleSkip(15)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
-                            style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:text-[var(--talea-text-primary)] transition-colors"
                             aria-label="15 Sekunden vor"
                           >
                             <FastForward className="h-4 w-4" />
                           </button>
 
-                          {/* Next track */}
                           {showNav && (
                             <button
                               type="button"
                               onClick={() => playNext()}
                               disabled={!hasNext}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-30"
-                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] disabled:opacity-30 transition-colors hover:text-[var(--talea-text-primary)]"
                               aria-label="Naechster Track"
                             >
                               <SkipForward className="h-3.5 w-3.5" />
                             </button>
                           )}
 
-                          {/* Playlist drawer button */}
                           {isPlaylistActive && (
                             <button
                               type="button"
@@ -373,8 +337,7 @@ const BottomNav: React.FC = () => {
                                 e.stopPropagation();
                                 togglePlaylistDrawer();
                               }}
-                              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border"
-                              style={{ borderColor: colors.audioBorder, background: "transparent", color: colors.text }}
+                              className="ml-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:text-[var(--talea-text-primary)] transition-colors"
                               aria-label="Warteschlange"
                             >
                               <ListMusic className="h-4 w-4" />
@@ -389,7 +352,8 @@ const BottomNav: React.FC = () => {
             )}
           </AnimatePresence>
 
-          <nav className={cn("px-1", isVisible ? "pb-0.5 pt-0.5" : "py-0.5")} aria-label="Mobile Navigation">
+          {/* Navigation Items */}
+          <nav className={cn("px-1", isVisible ? "pb-0.5 pt-0.5" : "py-1")} aria-label="Mobile Navigation">
             <div className="flex items-center">{NAV_ITEMS.map(renderNavItem)}</div>
           </nav>
         </div>

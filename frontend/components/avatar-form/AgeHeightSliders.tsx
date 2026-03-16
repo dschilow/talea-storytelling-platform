@@ -118,7 +118,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             }`}
             style={{
               background: darkMode
-                ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(169,137,242,0.3))'
+                ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(111,174,156,0.3))'
                 : 'linear-gradient(to right, #E9D5FF, #C084FC, #A855F7)',
             }}
           />
@@ -159,7 +159,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 }`}
                 style={{
                   background: darkMode
-                    ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(169,137,242,0.3))'
+                    ? 'linear-gradient(to right, rgba(45,212,191,0.3), rgba(111,174,156,0.3))'
                     : 'linear-gradient(to right, #BFDBFE, #C084FC, #F9A8D4)',
                 }}
               />

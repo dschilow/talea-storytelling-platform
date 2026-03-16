@@ -183,7 +183,7 @@ const TaleaStudioWorkspace: React.FC = () => {
             sub: "border-[#e3d7c8] bg-[#f8efe2]",
             text: "text-[#253246]",
             muted: "text-[#617387]",
-            input: "border-[#e1d3c1] bg-[#f5ebe0] text-[#243246]",
+            input: "border-[#e1d3c1] bg-[var(--talea-surface-inset)] text-[#243246]",
           },
     [isDark]
   );
@@ -858,22 +858,22 @@ const TaleaStudioWorkspace: React.FC = () => {
         <div className={cn("rounded-2xl border p-4", palette.sub)}>
           <h3 className={cn("text-xl", palette.text)} style={{ fontFamily: headingFont }}>Neue Serie</h3>
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input value={seriesTitle} onChange={(e) => setSeriesTitle(e.target.value)} placeholder="Serientitel" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
-            <input value={seriesLogline} onChange={(e) => setSeriesLogline(e.target.value)} placeholder="Logline (optional)" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
+            <input value={seriesTitle} onChange={(e) => setSeriesTitle(e.target.value)} placeholder="Serientitel" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
+            <input value={seriesLogline} onChange={(e) => setSeriesLogline(e.target.value)} placeholder="Logline (optional)" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
           </div>
           <textarea
             value={seriesDescription}
             onChange={(e) => setSeriesDescription(e.target.value)}
             placeholder="Allgemeine Serien-Infos / Vorgeschichte (optional)"
             rows={3}
-            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
           />
           <textarea
             value={seriesCanon}
             onChange={(e) => setSeriesCanon(e.target.value)}
             placeholder="Serien-Canon / feste Regeln fuer alle Folgen (optional)"
             rows={3}
-            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+            className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
           />
           <button type="button" disabled={saving || !seriesTitle.trim()} onClick={handleCreateSeries} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50">
             <Sparkles className="h-4 w-4" />
@@ -894,7 +894,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                 initial={reduceMotion ? false : { opacity: 0, x: -10 }}
                 animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
                 transition={{ duration: 0.25, delay: index * 0.03 }}
-                className={cn("w-full rounded-xl border px-3 py-2.5 text-left", selectedSeriesId === item.id ? "border-[#a88f80] bg-[#f3e8da] dark:bg-[#2a394f]" : palette.sub)}
+                className={cn("w-full rounded-xl border px-3 py-2.5 text-left", selectedSeriesId === item.id ? "border-[var(--talea-text-tertiary)] bg-[#f3e8da] dark:bg-[#2a394f]" : palette.sub)}
               >
                 <p className="text-sm font-semibold text-[#243246] dark:text-[#e6edf8]">{item.title}</p>
                 <p className="text-xs text-[#68788c] dark:text-[#9fb0c7]">{item.status}</p>
@@ -925,13 +925,13 @@ const TaleaStudioWorkspace: React.FC = () => {
                     value={seriesEditTitle}
                     onChange={(event) => setSeriesEditTitle(event.target.value)}
                     placeholder="Serientitel"
-                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                   />
                   <input
                     value={seriesEditLogline}
                     onChange={(event) => setSeriesEditLogline(event.target.value)}
                     placeholder="Logline"
-                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                    className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                   />
                 </div>
                 <textarea
@@ -939,14 +939,14 @@ const TaleaStudioWorkspace: React.FC = () => {
                   onChange={(event) => setSeriesEditDescription(event.target.value)}
                   placeholder="Vorgeschichte / allgemeine Serieninfos"
                   rows={3}
-                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                 />
                 <textarea
                   value={seriesEditCanon}
                   onChange={(event) => setSeriesEditCanon(event.target.value)}
                   placeholder="Canon / feste Regeln fuer alle Folgen"
                   rows={3}
-                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                  className={cn("mt-3 w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                 />
                 <button
                   type="button"
@@ -963,9 +963,9 @@ const TaleaStudioWorkspace: React.FC = () => {
                 <div className={cn("rounded-xl border p-4", palette.sub)}>
                   <p className={cn("text-xs font-semibold uppercase tracking-wide", palette.muted)}>Serie-exklusiv</p>
                   <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <input value={characterName} onChange={(e) => setCharacterName(e.target.value)} placeholder="Name" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
-                    <input value={characterRole} onChange={(e) => setCharacterRole(e.target.value)} placeholder="Rolle" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
-                    <input value={characterPrompt} onChange={(e) => setCharacterPrompt(e.target.value)} placeholder="Generierungs-Prompt" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
+                    <input value={characterName} onChange={(e) => setCharacterName(e.target.value)} placeholder="Name" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
+                    <input value={characterRole} onChange={(e) => setCharacterRole(e.target.value)} placeholder="Rolle" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
+                    <input value={characterPrompt} onChange={(e) => setCharacterPrompt(e.target.value)} placeholder="Generierungs-Prompt" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
                   </div>
                   <button type="button" disabled={saving || !characterName.trim() || !characterPrompt.trim()} onClick={handleCreateCharacter} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl border border-[#d8c8ba] bg-[linear-gradient(135deg,#f2d7d3_0%,#e9d8e8_45%,#d8e3d2_100%)] px-4 text-sm font-semibold text-[#2f3c4f] disabled:opacity-50"><Wand2 className="h-4 w-4" /> Charakter generieren</button>
                 </div>
@@ -974,8 +974,8 @@ const TaleaStudioWorkspace: React.FC = () => {
               {showEpisodeForm && (
                 <div className={cn("rounded-xl border p-4", palette.sub)}>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <input type="number" min={1} value={episodeNumber} onChange={(e) => setEpisodeNumber(Number(e.target.value))} placeholder="Folge Nr." className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
-                    <input value={episodeTitle} onChange={(e) => setEpisodeTitle(e.target.value)} placeholder="Folgentitel" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)} />
+                    <input type="number" min={1} value={episodeNumber} onChange={(e) => setEpisodeNumber(Number(e.target.value))} placeholder="Folge Nr." className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
+                    <input value={episodeTitle} onChange={(e) => setEpisodeTitle(e.target.value)} placeholder="Folgentitel" className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)} />
                     <div className={cn("rounded-xl border px-3 py-2 text-xs", palette.input)}>
                       <p className={cn("mb-1 font-semibold uppercase tracking-wide", palette.muted)}>Charaktere</p>
                       <div className="max-h-24 space-y-1 overflow-auto">
@@ -1031,27 +1031,27 @@ const TaleaStudioWorkspace: React.FC = () => {
                                 value={editingCharacterName}
                                 onChange={(event) => setEditingCharacterName(event.target.value)}
                                 placeholder="Name"
-                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                               />
                               <input
                                 value={editingCharacterRole}
                                 onChange={(event) => setEditingCharacterRole(event.target.value)}
                                 placeholder="Rolle"
-                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                                className={cn("h-9 w-full rounded-lg border px-2.5 text-xs outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                               />
                               <textarea
                                 value={editingCharacterDescription}
                                 onChange={(event) => setEditingCharacterDescription(event.target.value)}
                                 placeholder="Beschreibung"
                                 rows={2}
-                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                               />
                               <textarea
                                 value={editingCharacterPrompt}
                                 onChange={(event) => setEditingCharacterPrompt(event.target.value)}
                                 placeholder="Generierungs-Prompt"
                                 rows={2}
-                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[#a88f80]", palette.input)}
+                                className={cn("w-full rounded-lg border px-2.5 py-1.5 text-xs outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                               />
                               <div className="flex flex-wrap gap-2">
                                 <button
@@ -1093,7 +1093,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                           className={cn(
                             "rounded-lg border p-2.5 text-sm",
                             selectedEpisodeId === episode.id
-                              ? "border-[#a88f80] bg-[#f3e8da] dark:bg-[#2a394f]"
+                              ? "border-[var(--talea-text-tertiary)] bg-[#f3e8da] dark:bg-[#2a394f]"
                               : "border-[#d8cbbf] bg-white/60 dark:border-[#415676] dark:bg-[#1f2c42]"
                           )}
                         >
@@ -1177,7 +1177,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                         value={generationPrompt}
                         onChange={(e) => setGenerationPrompt(e.target.value)}
                         placeholder="Optionaler Zusatzprompt fuer KI-Generierung (z. B. Stimmung, Twist, Stil)"
-                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                       />
                       <button
                         type="button"
@@ -1198,7 +1198,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                       value={episodeEditorSummary}
                       onChange={(e) => setEpisodeEditorSummary(e.target.value)}
                       placeholder="Kurz-Zusammenfassung der Folge (optional)"
-                      className={cn("h-11 w-full rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                      className={cn("h-11 w-full rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                     />
 
                     <textarea
@@ -1206,7 +1206,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                       onChange={(e) => setEpisodeEditorText(e.target.value)}
                       placeholder="Episodentext (1200-1500 Woerter). Hier KI-Text anpassen oder externen Text einfuegen."
                       rows={16}
-                      className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                      className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                     />
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -1256,7 +1256,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                         value={splitPrompt}
                         onChange={(event) => setSplitPrompt(event.target.value)}
                         placeholder="Optional: Hinweise fuer Szenen-Aufteilung und Bildstil"
-                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                        className={cn("h-11 rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                       />
                       <button
                         type="button"
@@ -1323,7 +1323,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                                   value={scene.title}
                                   onChange={(event) => updateSceneDraft(scene.id, { title: event.target.value })}
                                   placeholder="Szenentitel"
-                                  className={cn("h-10 w-full rounded-xl border px-3 text-sm outline-none focus:border-[#a88f80]", palette.input)}
+                                  className={cn("h-10 w-full rounded-xl border px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                                 />
 
                                 <textarea
@@ -1331,7 +1331,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                                   onChange={(event) => updateSceneDraft(scene.id, { sceneText: event.target.value })}
                                   rows={5}
                                   placeholder="Szeneninhalt"
-                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                                 />
 
                                 <textarea
@@ -1339,7 +1339,7 @@ const TaleaStudioWorkspace: React.FC = () => {
                                   onChange={(event) => updateSceneDraft(scene.id, { imagePrompt: event.target.value })}
                                   rows={3}
                                   placeholder="Bildprompt"
-                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[#a88f80]", palette.input)}
+                                  className={cn("w-full rounded-xl border px-3 py-2 text-sm leading-relaxed outline-none focus:border-[var(--talea-text-tertiary)]", palette.input)}
                                 />
 
                                 <div className={cn("rounded-xl border px-3 py-2", palette.input)}>

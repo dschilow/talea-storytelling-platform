@@ -54,16 +54,16 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
         border: '#34455d',
         text: '#d9e5f8',
         sub: '#95a7bf',
-        accentStart: '#86a7db',
-        accentEnd: '#b084c7',
+        accentStart: 'var(--primary)',
+        accentEnd: 'var(--talea-accent-sky)',
       }
     : {
         surface: 'rgba(255,255,255,0.72)',
         border: '#decfbf',
         text: '#2a3b52',
         sub: '#687a91',
-        accentStart: '#d5bdaf',
-        accentEnd: '#b183c4',
+        accentStart: 'var(--primary)',
+        accentEnd: 'var(--talea-accent-sky)',
       };
 
   const handleSeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {

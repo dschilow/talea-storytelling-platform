@@ -32,7 +32,7 @@ const TypingDots: React.FC<{ isDark: boolean }> = ({ isDark }) => (
     exit={{ opacity: 0, y: -10 }}
     className="flex max-w-[80%] items-end gap-2 self-start"
   >
-    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#a88f80] to-[#b79f8e] shadow-md">
+    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] shadow-md">
       <Bot size={14} className="text-white" />
     </div>
     <div className="rounded-2xl rounded-bl-sm border border-border bg-card/90 px-4 py-3 shadow-sm backdrop-blur-md">
@@ -66,7 +66,7 @@ const MessageBubble: React.FC<{
       className={`flex max-w-[85%] items-end gap-2 ${isTavi ? 'self-start' : 'self-end flex-row-reverse'}`}
     >
       {isTavi && (
-        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#a88f80] to-[#b79f8e] shadow-md">
+        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] shadow-md">
           <Bot size={14} className="text-white" />
         </div>
       )}
@@ -76,7 +76,7 @@ const MessageBubble: React.FC<{
           className={`whitespace-pre-wrap px-4 py-2.5 text-sm leading-relaxed ${
             isTavi
               ? 'rounded-2xl rounded-bl-sm border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md'
-              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[#a88f80] to-[#b79f8e] text-white shadow-lg shadow-slate-500/20'
+              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/20'
           }`}
         >
           {message.text}
@@ -129,7 +129,7 @@ const QuickSuggestions: React.FC<{
           whileHover={{ scale: 1.04, y: -1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => onSelect(suggestion.text)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/85 px-3 py-1.5 text-xs font-medium text-foreground/80 shadow-sm transition-colors hover:border-[#a88f80]/45 hover:text-[#b79f8e] dark:hover:text-[#a88f80]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/85 px-3 py-1.5 text-xs font-medium text-foreground/80 shadow-sm transition-colors hover:border-[var(--talea-text-tertiary)]/45 hover:text-[var(--talea-text-tertiary)] dark:hover:text-[var(--talea-text-tertiary)]"
         >
           <span>{suggestion.emoji}</span>
           {suggestion.text}
@@ -374,12 +374,12 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             }}
           >
             <div className="relative flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#a88f80] via-[#d5bdaf] to-[#b79f8e]" />
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--talea-text-tertiary)] via-[var(--primary)] to-[var(--talea-text-tertiary)]" />
 
               <div className="flex items-center gap-3">
                 <div className="relative">
                   <div
-                    className="h-11 w-11 rounded-full border-[2.5px] border-[#a88f80]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
+                    className="h-11 w-11 rounded-full border-[2.5px] border-[var(--talea-text-tertiary)]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
                     style={{ backgroundImage: 'url(/tavi.png)' }}
                   />
                   <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
@@ -431,11 +431,11 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     placeholder={t('chat.placeholder')}
                     disabled={isLoading}
                     maxLength={300}
-                    className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-[#a88f80]/50 focus:ring-2 focus:ring-[#a88f80]/20"
+                    className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-[var(--talea-text-tertiary)]/50 focus:ring-2 focus:ring-[var(--talea-text-tertiary)]/20"
                   />
                   {isLoading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Sparkles size={14} className="animate-pulse text-[#a88f80]" />
+                      <Sparkles size={14} className="animate-pulse text-[var(--talea-text-tertiary)]" />
                     </div>
                   )}
                 </div>
@@ -447,7 +447,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                   disabled={!canSend}
                   className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all ${
                     canSend
-                      ? 'bg-gradient-to-br from-[#a88f80] to-[#b79f8e] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
+                      ? 'bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
                       : 'cursor-not-allowed border border-border bg-card/70 text-muted-foreground'
                   }`}
                 >
@@ -456,7 +456,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[#a88f80]/10 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--talea-text-tertiary)]/10 to-transparent" />
           </motion.div>
         </motion.div>
       )}

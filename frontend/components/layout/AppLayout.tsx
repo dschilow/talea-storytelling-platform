@@ -49,7 +49,7 @@ const AppLayout: React.FC = () => {
       <SignedIn>
         {!isCosmosFullScreenRoute && (
           <>
-            <div className="hidden md:block w-[88px] flex-shrink-0" />
+            <div className="hidden md:block w-[72px] flex-shrink-0" />
             <Sidebar />
           </>
         )}
@@ -78,13 +78,15 @@ const AppLayout: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate("/settings")}
-            className="fixed right-3 top-3 z-[95] inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur md:hidden"
+            className="fixed right-3 top-3 z-[95] inline-flex h-9 w-9 items-center justify-center rounded-xl border backdrop-blur-lg md:hidden transition-colors"
             aria-label="Einstellungen"
             style={{
-              borderColor: isDark ? "#355072" : "#d5bdaf",
-              color: isDark ? "#e8f1fe" : "#3b332d",
-              background: isDark ? "rgba(21,32,47,0.84)" : "rgba(255,250,243,0.86)",
-              boxShadow: isDark ? "0 8px 18px rgba(8,13,22,0.38)" : "0 8px 18px rgba(116,95,78,0.2)",
+              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
+              background: isDark ? "rgba(17,19,23,0.88)" : "rgba(255,255,255,0.88)",
+              boxShadow: isDark
+                ? "0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15)"
+                : "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
             }}
           >
             <Settings className="h-4 w-4" />
@@ -94,7 +96,7 @@ const AppLayout: React.FC = () => {
 
       <GlobalAudioPlayer />
 
-      {/* Floating player/playlist button — mobile: top-left, desktop: bottom-right */}
+      {/* Floating playlist button */}
       <SignedIn>
         <AnimatePresence>
           {hasPlaylistItems && (
@@ -103,29 +105,25 @@ const AppLayout: React.FC = () => {
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0, opacity: 0 }}
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
                 type="button"
                 onClick={togglePlaylistDrawer}
-                className="fixed z-[96] inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-lg left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5"
+                className="fixed z-[96] inline-flex h-9 w-9 items-center justify-center rounded-xl border backdrop-blur-lg left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5 transition-colors"
                 aria-label="Wiedergabeliste"
                 style={{
-                  borderColor: isDark ? '#3d5575' : '#d5bdaf',
-                  color: isDark ? '#c4d5ed' : '#5a4a3e',
-                  background: isDark ? 'rgba(27,38,56,0.88)' : 'rgba(255,248,240,0.9)',
-                  boxShadow: isDark ? '0 8px 20px rgba(8,13,22,0.4)' : '0 8px 20px rgba(116,95,78,0.22)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                  color: isDark ? 'var(--talea-text-primary)' : 'var(--talea-text-secondary)',
+                  background: isDark ? 'rgba(17,19,23,0.88)' : 'rgba(255,255,255,0.88)',
+                  boxShadow: isDark
+                    ? '0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15)'
+                    : '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)',
                 }}
               >
                 <Headphones className="h-4 w-4" />
                 {playlist.length > 0 && (
                   <span
-                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                    style={{
-                      background: isDark
-                        ? 'linear-gradient(135deg, #86a7db, #b084c7)'
-                        : 'linear-gradient(135deg, #d5bdaf, #b183c4)',
-                      color: isDark ? '#0f1722' : '#fff',
-                    }}
+                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold bg-[var(--primary)] text-white"
                   >
                     {playlist.length}
                   </span>

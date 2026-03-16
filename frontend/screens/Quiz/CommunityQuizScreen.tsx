@@ -191,11 +191,11 @@ const CommunityQuizScreen: React.FC = () => {
           }
         : {
             page:
-              "radial-gradient(900px 480px at 100% 0%, rgba(227,213,202,0.45) 0%, transparent 58%), radial-gradient(820px 500px at 0% 20%, rgba(213,189,175,0.38) 0%, transparent 62%), #f5ebe0",
+              "radial-gradient(900px 480px at 100% 0%, rgba(227,213,202,0.45) 0%, transparent 58%), radial-gradient(820px 500px at 0% 20%, rgba(213,189,175,0.38) 0%, transparent 62%), var(--talea-surface-inset)",
             panel: "rgba(255,250,243,0.9)",
-            panelBorder: "#d6ccc2",
+            panelBorder: "var(--talea-border-soft)",
             card: "rgba(255,251,246,0.98)",
-            cardBorder: "#d5bdaf",
+            cardBorder: "var(--primary)",
             text: "#2f2823",
             muted: "#6d6259",
             accent: "#9f8777",
@@ -570,7 +570,7 @@ const CommunityQuizScreen: React.FC = () => {
                       <motion.div
                         className="h-full rounded-full"
                         animate={{ width: `${((currentIndex + 1) / deck.length) * 100}%` }}
-                        style={{ background: `linear-gradient(90deg, ${colors.accent} 0%, #d5bdaf 100%)` }}
+                        style={{ background: `linear-gradient(90deg, ${colors.accent} 0%, var(--primary) 100%)` }}
                       />
                     </div>
 

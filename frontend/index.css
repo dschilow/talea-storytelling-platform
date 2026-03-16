@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -17,199 +17,190 @@
 
 /* Custom Utilities for Glassmorphism */
 @utility glass {
-  background: rgba(245, 235, 224, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(213, 189, 175, 0.42);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 @utility glass-dark {
-  background: rgba(30, 30, 40, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 25, 32, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 :root {
-  --radius: 1.5rem;
-  --talea-parchment: #edede9;
-  --talea-bone: #d6ccc2;
-  --talea-linen: #f5ebe0;
-  --talea-almond-cream: #e3d5ca;
-  --talea-almond-silk: #d5bdaf;
-  --talea-ink: #2f2a25;
-  --shadow-soft: 0 10px 28px rgba(108, 91, 78, 0.12);
-  --shadow-soft-strong: 0 16px 40px rgba(108, 91, 78, 0.16);
-  --talea-page-solid: #fbf7f2;
-  --talea-page: radial-gradient(1360px 720px at 100% -8%, rgba(246, 213, 228, 0.72) 0%, transparent 56%),
-    radial-gradient(1180px 680px at -4% 18%, rgba(216, 238, 229, 0.78) 0%, transparent 60%),
-    radial-gradient(920px 520px at 50% 100%, rgba(245, 227, 198, 0.68) 0%, transparent 58%),
-    linear-gradient(180deg, #fffaf4 0%, #f7f1ea 48%, #efe3d7 100%);
-  --talea-page-overlay: radial-gradient(circle at top, rgba(255, 255, 255, 0.78), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, transparent 28%);
-  --talea-surface-primary: rgba(255, 252, 247, 0.84);
-  --talea-surface-secondary: rgba(255, 248, 242, 0.7);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 241, 233, 0.82) 100%);
-  --talea-surface-inset: rgba(255, 255, 255, 0.58);
-  --talea-panel: rgba(255, 250, 244, 0.9);
-  --talea-option: rgba(255, 255, 255, 0.72);
-  --talea-item-bg: rgba(255, 255, 255, 0.76);
-  --talea-border-light: rgba(224, 207, 189, 0.62);
-  --talea-border-soft: rgba(210, 190, 171, 0.74);
-  --talea-border-strong: rgba(188, 165, 143, 0.82);
-  --talea-border-accent: rgba(176, 148, 182, 0.72);
-  --talea-text-primary: #2a313d;
-  --talea-text-secondary: #66768a;
-  --talea-text-tertiary: #8e9aae;
-  --talea-text-muted: #9aa6b5;
+  --radius: 1rem;
+  --talea-parchment: #f8f7f4;
+  --talea-bone: #e8e4de;
+  --talea-linen: #f5f3ef;
+  --talea-almond-cream: #ede9e3;
+  --talea-almond-silk: #ddd7ce;
+  --talea-ink: #1a1a1a;
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-soft-strong: 0 4px 16px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.04);
+  --talea-page-solid: #faf9f7;
+  --talea-page: linear-gradient(180deg, #fdfcfa 0%, #f8f6f2 50%, #f5f2ed 100%);
+  --talea-page-overlay: none;
+  --talea-surface-primary: rgba(255, 255, 255, 0.88);
+  --talea-surface-secondary: rgba(255, 255, 255, 0.6);
+  --talea-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 250, 247, 0.92) 100%);
+  --talea-surface-inset: rgba(247, 245, 241, 0.7);
+  --talea-panel: rgba(255, 255, 255, 0.92);
+  --talea-option: rgba(255, 255, 255, 0.8);
+  --talea-item-bg: rgba(255, 255, 255, 0.85);
+  --talea-border-light: rgba(0, 0, 0, 0.06);
+  --talea-border-soft: rgba(0, 0, 0, 0.08);
+  --talea-border-strong: rgba(0, 0, 0, 0.12);
+  --talea-border-accent: rgba(111, 174, 156, 0.3);
+  --talea-text-primary: #1a1a1a;
+  --talea-text-secondary: #6b7280;
+  --talea-text-tertiary: #9ca3af;
+  --talea-text-muted: #b0b7c3;
   --talea-text-inverse: #ffffff;
-  --talea-accent-rose: #c88498;
-  --talea-accent-lavender: #9a8dbb;
+  --talea-accent-rose: #d4917e;
+  --talea-accent-lavender: #7f9dc0;
   --talea-accent-mint: #6fae9c;
   --talea-accent-sky: #7f9dc0;
   --talea-accent-peach: #d79a73;
   --talea-accent-gold: #c5a46e;
-  --talea-gradient-primary: linear-gradient(135deg, #f2d8e4 0%, #f9e9ca 45%, #dfeefc 100%);
-  --talea-gradient-secondary: linear-gradient(135deg, #d9eee7 0%, #dbeaf7 100%);
-  --talea-gradient-warm: linear-gradient(135deg, #f5d6c9 0%, #efc1d6 100%);
-  --talea-gradient-cool: linear-gradient(135deg, #ddd7f5 0%, #d7ebfb 100%);
-  --talea-gradient-sunset: linear-gradient(135deg, #f6d8cf 0%, #efc0cb 48%, #e3d4f2 100%);
-  --talea-gradient-ocean: linear-gradient(135deg, #d8ece7 0%, #d7e5f7 100%);
-  --talea-gradient-lavender: linear-gradient(135deg, #eadff7 0%, #d7e5f8 100%);
-  --talea-gradient-nature: linear-gradient(135deg, #dceedd 0%, #d7e5ef 100%);
-  --talea-glass-bg: linear-gradient(135deg, rgba(255, 253, 250, 0.84) 0%, rgba(247, 239, 231, 0.72) 100%);
-  --talea-glass-bg-alt: linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(246, 238, 230, 0.76) 100%);
-  --talea-glass-bg-warm: linear-gradient(135deg, rgba(250, 232, 239, 0.82) 0%, rgba(246, 238, 216, 0.76) 100%);
-  --talea-glass-border: rgba(214, 196, 178, 0.62);
-  --talea-shadow-soft: 0 18px 40px -28px rgba(138, 110, 88, 0.32);
-  --talea-shadow-medium: 0 24px 54px -30px rgba(130, 100, 82, 0.36);
-  --talea-shadow-strong: 0 30px 72px -32px rgba(120, 93, 74, 0.42);
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --talea-gradient-primary: linear-gradient(135deg, #f0e6df 0%, #e8efe6 45%, #e3eef5 100%);
+  --talea-gradient-secondary: linear-gradient(135deg, #e4f0eb 0%, #e3eef5 100%);
+  --talea-gradient-warm: linear-gradient(135deg, #f5e6de 0%, #f0e0d0 100%);
+  --talea-gradient-cool: linear-gradient(135deg, #e3eef5 0%, #e8f0f5 100%);
+  --talea-gradient-sunset: linear-gradient(135deg, #f5e6de 0%, #f0ddd5 48%, #e8efe6 100%);
+  --talea-gradient-ocean: linear-gradient(135deg, #e4f0eb 0%, #e3eef5 100%);
+  --talea-gradient-lavender: linear-gradient(135deg, #e3eef5 0%, #e8f0f5 100%);
+  --talea-gradient-nature: linear-gradient(135deg, #e8efe6 0%, #e4f0eb 100%);
+  --talea-glass-bg: rgba(255, 255, 255, 0.8);
+  --talea-glass-bg-alt: rgba(255, 255, 255, 0.88);
+  --talea-glass-bg-warm: rgba(255, 252, 248, 0.85);
+  --talea-glass-border: rgba(0, 0, 0, 0.06);
+  --talea-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.03);
+  --talea-shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.04);
+  --talea-shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.06), 0 20px 48px rgba(0, 0, 0, 0.05);
+  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
   /* Light Mode */
-  --background: #edede9;
-  --foreground: #2f2a25;
-  --card: #f5ebe0;
-  --card-foreground: #2f2a25;
-  --popover: #f5ebe0;
-  --popover-foreground: #2f2a25;
+  --background: #faf9f7;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
 
-  --primary: #d5bdaf;
-  --primary-foreground: #2f2a25;
-  --secondary: #d6ccc2;
-  --secondary-foreground: #3d332d;
-  --accent: #e3d5ca;
-  --accent-foreground: #3d332d;
-  --muted: #ece2d7;
-  --muted-foreground: #6f6258;
+  --primary: #6fae9c;
+  --primary-foreground: #ffffff;
+  --secondary: #f0ece7;
+  --secondary-foreground: #374151;
+  --accent: #f5f2ed;
+  --accent-foreground: #374151;
+  --muted: #f3f1ed;
+  --muted-foreground: #6b7280;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: #d6ccc2;
-  --input: #e3d5ca;
-  --ring: #d5bdaf;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: #6fae9c;
 
-  --chart-1: #d5bdaf;
-  --chart-2: #cab5a8;
-  --chart-3: #e3d5ca;
-  --chart-4: #d6ccc2;
-  --chart-5: #bfa89a;
+  --chart-1: #6fae9c;
+  --chart-2: #d79a73;
+  --chart-3: #7f9dc0;
+  --chart-4: #c5a46e;
+  --chart-5: #d4917e;
 
-  --sidebar: #f5ebe0;
-  --sidebar-foreground: #3d332d;
-  --sidebar-primary: #d5bdaf;
-  --sidebar-primary-foreground: #2f2a25;
-  --sidebar-accent: #e3d5ca;
-  --sidebar-accent-foreground: #3d332d;
-  --sidebar-border: #d6ccc2;
-  --sidebar-ring: #d5bdaf;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #374151;
+  --sidebar-primary: #6fae9c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f2ed;
+  --sidebar-accent-foreground: #374151;
+  --sidebar-border: rgba(0, 0, 0, 0.06);
+  --sidebar-ring: #6fae9c;
 }
 
 .dark {
-  --background: oklch(0.20 0.05 280);
-  --foreground: oklch(0.95 0.02 280);
-  --card: oklch(0.25 0.05 280);
-  --card-foreground: oklch(0.95 0.02 280);
-  --popover: oklch(0.25 0.05 280);
-  --popover-foreground: oklch(0.95 0.02 280);
+  --background: #111317;
+  --foreground: #f0f0f0;
+  --card: #1a1d24;
+  --card-foreground: #f0f0f0;
+  --popover: #1a1d24;
+  --popover-foreground: #f0f0f0;
 
-  --primary: oklch(0.75 0.15 290);
-  --primary-foreground: oklch(0.15 0.05 280);
-  --secondary: oklch(0.30 0.08 160);
-  --secondary-foreground: oklch(0.95 0.02 280);
-  --muted: oklch(0.30 0.05 280);
-  --muted-foreground: oklch(0.70 0.02 280);
-  --accent: oklch(0.35 0.10 60);
-  --accent-foreground: oklch(0.95 0.02 280);
+  --primary: #7fc4b0;
+  --primary-foreground: #111317;
+  --secondary: #1e2129;
+  --secondary-foreground: #e5e7eb;
+  --muted: #1e2129;
+  --muted-foreground: #9ca3af;
+  --accent: #252830;
+  --accent-foreground: #e5e7eb;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.35 0.05 280);
-  --input: oklch(0.35 0.05 280);
-  --ring: oklch(0.60 0.15 290);
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.06);
+  --ring: #7fc4b0;
 
-  --sidebar: oklch(0.20 0.05 280);
-  --sidebar-foreground: oklch(0.95 0.02 280);
-  --sidebar-primary: oklch(0.75 0.15 290);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.30 0.05 280);
-  --sidebar-accent-foreground: oklch(0.95 0.02 280);
-  --sidebar-border: oklch(0.35 0.05 280);
-  --sidebar-ring: oklch(0.60 0.15 290);
-  --talea-page-solid: #0f1723;
-  --talea-page: radial-gradient(1220px 680px at 100% -8%, rgba(110, 89, 145, 0.3) 0%, transparent 54%),
-    radial-gradient(1120px 620px at -5% 16%, rgba(66, 106, 126, 0.28) 0%, transparent 58%),
-    radial-gradient(880px 520px at 50% 100%, rgba(76, 98, 136, 0.22) 0%, transparent 56%),
-    linear-gradient(180deg, #111a27 0%, #0f1723 54%, #0c1520 100%);
-  --talea-page-overlay: radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 28%);
-  --talea-surface-primary: rgba(18, 29, 44, 0.84);
-  --talea-surface-secondary: rgba(16, 26, 39, 0.72);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(20, 31, 46, 0.94) 0%, rgba(13, 22, 35, 0.88) 100%);
-  --talea-surface-inset: rgba(28, 39, 56, 0.58);
-  --talea-panel: rgba(17, 27, 40, 0.9);
-  --talea-option: rgba(29, 40, 58, 0.72);
-  --talea-item-bg: rgba(32, 44, 62, 0.76);
-  --talea-border-light: rgba(91, 118, 148, 0.4);
-  --talea-border-soft: rgba(76, 104, 136, 0.58);
-  --talea-border-strong: rgba(101, 134, 171, 0.72);
-  --talea-border-accent: rgba(147, 128, 194, 0.68);
-  --talea-text-primary: #e6eefb;
-  --talea-text-secondary: #a3b6cf;
-  --talea-text-tertiary: #8fa1ba;
-  --talea-text-muted: #8394ab;
-  --talea-text-inverse: #f7fbff;
-  --talea-accent-rose: #d2a2b3;
-  --talea-accent-lavender: #b3a7df;
-  --talea-accent-mint: #90ccb8;
+  --sidebar: #15171c;
+  --sidebar-foreground: #e5e7eb;
+  --sidebar-primary: #7fc4b0;
+  --sidebar-primary-foreground: #111317;
+  --sidebar-accent: #1e2129;
+  --sidebar-accent-foreground: #e5e7eb;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #7fc4b0;
+  --talea-page-solid: #111317;
+  --talea-page: linear-gradient(180deg, #131519 0%, #111317 50%, #0f1115 100%);
+  --talea-page-overlay: none;
+  --talea-surface-primary: rgba(26, 29, 36, 0.9);
+  --talea-surface-secondary: rgba(22, 25, 31, 0.8);
+  --talea-surface-elevated: linear-gradient(180deg, rgba(30, 33, 41, 0.95) 0%, rgba(22, 25, 31, 0.9) 100%);
+  --talea-surface-inset: rgba(20, 23, 29, 0.7);
+  --talea-panel: rgba(26, 29, 36, 0.92);
+  --talea-option: rgba(30, 34, 42, 0.8);
+  --talea-item-bg: rgba(34, 38, 47, 0.85);
+  --talea-border-light: rgba(255, 255, 255, 0.06);
+  --talea-border-soft: rgba(255, 255, 255, 0.08);
+  --talea-border-strong: rgba(255, 255, 255, 0.12);
+  --talea-border-accent: rgba(127, 196, 176, 0.25);
+  --talea-text-primary: #f0f0f0;
+  --talea-text-secondary: #9ca3af;
+  --talea-text-tertiary: #6b7280;
+  --talea-text-muted: #4b5563;
+  --talea-text-inverse: #111317;
+  --talea-accent-rose: #e0a896;
+  --talea-accent-lavender: #98b4de;
+  --talea-accent-mint: #7fc4b0;
   --talea-accent-sky: #98b4de;
   --talea-accent-peach: #e0b396;
   --talea-accent-gold: #d6ba89;
-  --talea-gradient-primary: linear-gradient(135deg, rgba(114, 90, 132, 0.55) 0%, rgba(173, 130, 140, 0.36) 44%, rgba(103, 138, 182, 0.42) 100%);
-  --talea-gradient-secondary: linear-gradient(135deg, rgba(66, 122, 118, 0.48) 0%, rgba(77, 122, 168, 0.44) 100%);
-  --talea-gradient-warm: linear-gradient(135deg, rgba(150, 101, 88, 0.5) 0%, rgba(148, 101, 132, 0.42) 100%);
-  --talea-gradient-cool: linear-gradient(135deg, rgba(116, 105, 170, 0.44) 0%, rgba(90, 134, 181, 0.4) 100%);
-  --talea-gradient-sunset: linear-gradient(135deg, rgba(155, 108, 96, 0.52) 0%, rgba(148, 103, 124, 0.44) 48%, rgba(109, 124, 177, 0.44) 100%);
-  --talea-gradient-ocean: linear-gradient(135deg, rgba(66, 118, 121, 0.5) 0%, rgba(83, 126, 172, 0.46) 100%);
-  --talea-gradient-lavender: linear-gradient(135deg, rgba(116, 104, 167, 0.5) 0%, rgba(94, 132, 178, 0.42) 100%);
-  --talea-gradient-nature: linear-gradient(135deg, rgba(77, 127, 115, 0.48) 0%, rgba(84, 125, 153, 0.44) 100%);
-  --talea-glass-bg: linear-gradient(135deg, rgba(18, 29, 44, 0.88) 0%, rgba(13, 23, 37, 0.8) 100%);
-  --talea-glass-bg-alt: linear-gradient(135deg, rgba(21, 31, 46, 0.92) 0%, rgba(15, 24, 37, 0.82) 100%);
-  --talea-glass-bg-warm: linear-gradient(135deg, rgba(58, 47, 69, 0.7) 0%, rgba(26, 38, 55, 0.84) 100%);
-  --talea-glass-border: rgba(82, 108, 139, 0.42);
-  --talea-shadow-soft: 0 18px 42px -28px rgba(2, 8, 23, 0.66);
-  --talea-shadow-medium: 0 24px 56px -30px rgba(2, 8, 23, 0.72);
-  --talea-shadow-strong: 0 32px 76px -32px rgba(2, 8, 23, 0.82);
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --talea-gradient-primary: linear-gradient(135deg, rgba(111, 174, 156, 0.15) 0%, rgba(127, 157, 192, 0.1) 45%, rgba(215, 154, 115, 0.1) 100%);
+  --talea-gradient-secondary: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
+  --talea-gradient-warm: linear-gradient(135deg, rgba(215, 154, 115, 0.12) 0%, rgba(212, 145, 126, 0.1) 100%);
+  --talea-gradient-cool: linear-gradient(135deg, rgba(127, 157, 192, 0.12) 0%, rgba(152, 180, 222, 0.1) 100%);
+  --talea-gradient-sunset: linear-gradient(135deg, rgba(215, 154, 115, 0.12) 0%, rgba(212, 145, 126, 0.1) 48%, rgba(127, 157, 192, 0.1) 100%);
+  --talea-gradient-ocean: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
+  --talea-gradient-lavender: linear-gradient(135deg, rgba(127, 157, 192, 0.12) 0%, rgba(152, 180, 222, 0.1) 100%);
+  --talea-gradient-nature: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
+  --talea-glass-bg: rgba(26, 29, 36, 0.85);
+  --talea-glass-bg-alt: rgba(30, 33, 41, 0.88);
+  --talea-glass-bg-warm: rgba(30, 28, 26, 0.85);
+  --talea-glass-border: rgba(255, 255, 255, 0.06);
+  --talea-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.15);
+  --talea-shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.2);
+  --talea-shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.3), 0 20px 48px rgba(0, 0, 0, 0.25);
+  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 @theme inline {
-  --font-sans: 'Sora', sans-serif;
-  /* Ensure clean font */
+  --font-sans: 'Inter', 'Manrope', 'Sora', system-ui, sans-serif;
 
-  --radius-sm: calc(var(--radius) - 8px);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
   --radius-xl: calc(var(--radius) + 8px);
-  --radius-2xl: calc(var(--radius) + 16px);
+  --radius-2xl: calc(var(--radius) + 12px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -254,14 +245,17 @@
     @apply bg-background text-foreground antialiased;
     min-width: 320px;
     background-color: var(--talea-page-solid);
-    background-image: var(--talea-page), var(--talea-page-overlay);
+    background-image: var(--talea-page);
     background-attachment: fixed;
     color: var(--talea-text-primary);
+    font-family: 'Inter', 'Manrope', 'Sora', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .dark body {
     background-color: var(--talea-page-solid);
-    background-image: var(--talea-page), var(--talea-page-overlay);
+    background-image: var(--talea-page);
   }
 
   #root {
@@ -269,7 +263,7 @@
   }
 
   ::selection {
-    background: rgba(194, 156, 178, 0.3);
+    background: rgba(111, 174, 156, 0.2);
     color: var(--talea-text-primary);
   }
 }
@@ -277,17 +271,17 @@
 @layer utilities {
   .talea-soft-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(173, 150, 132, 0.55) transparent;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
   }
 
   .talea-soft-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   .talea-soft-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(201, 168, 148, 0.72), rgba(181, 148, 174, 0.7));
+    background: rgba(0, 0, 0, 0.12);
   }
 
   .talea-soft-scrollbar::-webkit-scrollbar-track {
@@ -457,24 +451,24 @@
 
 /* Landing Page Custom Styles */
 .landing-page::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .landing-page::-webkit-scrollbar-track {
-  background: #05081A;
+  background: #111317;
 }
 
 .landing-page::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #7C4DFF 0%, #5E35B1 100%);
-  border-radius: 4px;
+  background: rgba(127, 196, 176, 0.4);
+  border-radius: 999px;
 }
 
 .landing-page::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #9B6DFF 0%, #7C4DFF 100%);
+  background: rgba(127, 196, 176, 0.6);
 }
 
 .landing-page ::selection {
-  background: rgba(124, 77, 255, 0.3);
+  background: rgba(111, 174, 156, 0.3);
   color: white;
 }
 
@@ -670,13 +664,13 @@
 }
 
 .talea-settings-profile .cl-navbar {
-  background: rgba(245, 235, 224, 0.75) !important;
-  border-right: 1px solid #d6ccc2 !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
 }
 
 .dark .talea-settings-profile .cl-navbar {
-  background: rgba(26, 39, 57, 0.82) !important;
-  border-right: 1px solid #415a75 !important;
+  background: rgba(26, 29, 36, 0.85) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
 }
 
 .talea-settings-profile .cl-pageScrollBox,
@@ -714,14 +708,14 @@
     width: 100% !important;
     max-width: none !important;
     border-right: 0 !important;
-    border-bottom: 1px solid #d6ccc2 !important;
-    background: rgba(245, 235, 224, 0.92) !important;
-    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: blur(16px) !important;
   }
 
   .dark .talea-settings-profile .cl-navbar {
-    border-bottom: 1px solid #415a75 !important;
-    background: rgba(23, 38, 58, 0.92) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+    background: rgba(26, 29, 36, 0.92) !important;
   }
 
   .talea-settings-profile .cl-navbarMobileMenuRow,

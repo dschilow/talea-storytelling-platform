@@ -275,7 +275,7 @@ const ProfilesSettingsPanel: React.FC = () => {
       <div
         className="rounded-2xl border p-4 md:p-5"
         style={{
-          borderColor: isDark ? "#425a79" : "#d6ccc2",
+          borderColor: isDark ? "#425a79" : "var(--talea-border-soft)",
           background: isDark ? "rgba(26,39,58,0.6)" : "rgba(255,255,255,0.75)",
         }}
       >

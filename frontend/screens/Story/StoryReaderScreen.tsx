@@ -456,7 +456,7 @@ const StoryReaderScreen: React.FC = () => {
         <TaleaPageBackground isDark={isDark} />
         <div className={`${taleaPageShellClass} flex min-h-screen items-center justify-center py-12`}>
           <TaleaSurface className="w-full max-w-lg p-8 text-center sm:p-10">
-            <div className="mx-auto mb-5 h-14 w-14 rounded-full border-[3px] border-[#b4879f] border-t-transparent animate-spin dark:border-[#9dc6e4]" />
+            <div className="mx-auto mb-5 h-14 w-14 rounded-full border-[3px] border-[var(--primary)] border-t-transparent animate-spin dark:border-[#9dc6e4]" />
             <h2
               className="text-[2rem] font-semibold text-slate-900 dark:text-white"
               style={{ fontFamily: taleaDisplayFont }}
@@ -546,7 +546,7 @@ const StoryReaderScreen: React.FC = () => {
                   </div>
 
                   <div className="text-left">
-                    <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[#ab7f95] dark:border-white/10 dark:bg-white/5 dark:text-[#cbb8ef]`}>
+                    <span className={`${taleaChipClass} border-white/75 bg-white/75 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]`}>
                       Story Reader
                     </span>
                     <h1
@@ -615,7 +615,7 @@ const StoryReaderScreen: React.FC = () => {
                   <div className="border-b border-white/70 px-5 pb-4 pt-5 dark:border-white/10 md:px-8">
                     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                       <div>
-                        <span className={`${taleaChipClass} border-white/70 bg-white/72 text-[#9f7b89] dark:border-white/10 dark:bg-white/5 dark:text-[#c1b6ef]`}>
+                        <span className={`${taleaChipClass} border-white/70 bg-white/72 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]`}>
                           {t('story.reader.chapter')} {currentChapterIndex + 1}
                         </span>
                         <h2
