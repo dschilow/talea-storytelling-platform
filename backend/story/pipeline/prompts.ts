@@ -2123,10 +2123,7 @@ export function buildChapterExpansionPrompt(input: {
   } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
-  const artifactAlreadyPresent = Boolean(
-    artifactName
-    && [originalText, previousContext].some(text => String(text || "").includes(artifactName))
-  );
+  const artifactAlreadyPresent = hasArtifactReference([originalText, previousContext], artifactName);
 
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
@@ -2361,10 +2358,7 @@ export function buildStoryChapterRevisionPrompt(input: {
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
-  const artifactAlreadyPresent = Boolean(
-    artifactName
-    && [originalText, previousContext].some(text => String(text || "").includes(artifactName))
-  );
+  const artifactAlreadyPresent = hasArtifactReference([originalText, previousContext], artifactName);
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
     .filter(Boolean) as string[];
@@ -2387,6 +2381,7 @@ CRITICAL PLOT PRESERVATION:
 - You may ADD lines, REPHRASE sentences, or REMOVE weak phrases.
 - You must NOT replace the plot, invent new scenes, or change what happens.
 - The revised chapter must be recognizably the same story as the original.
+- Keep roughly the SAME chapter length. Do not compress the scene or remove whole beats.
 
 ISSUES TO FIX:
 ${issueList}
@@ -2437,6 +2432,42 @@ ${includePlanning ? `{
   "paragraphs": ["Paragraph one (2-4 sentences).", "Paragraph two (2-4 sentences).", "Paragraph three.", "Paragraph four."]
 }`}
 IMPORTANT: "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER use a "text" field.`;
+}
+
+function hasArtifactReference(texts: Array<string | undefined>, artifactName?: string): boolean {
+  const normalizedArtifact = normalizeArtifactToken(artifactName);
+  if (!normalizedArtifact) return false;
+
+  const candidateTokens = new Set<string>([normalizedArtifact]);
+  for (const token of normalizedArtifact.split(/[\s-]+/).filter(Boolean)) {
+    if (token.length >= 5) candidateTokens.add(token);
+  }
+  if (normalizedArtifact.length >= 6) {
+    candidateTokens.add(normalizedArtifact.slice(-6));
+  }
+  if (normalizedArtifact.length >= 8) {
+    candidateTokens.add(normalizedArtifact.slice(-8));
+  }
+
+  return texts.some((text) => {
+    const normalizedText = normalizeArtifactToken(text);
+    if (!normalizedText) return false;
+    for (const token of candidateTokens) {
+      if (token.length >= 5 && normalizedText.includes(token)) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+
+function normalizeArtifactToken(value?: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9äöü-]+/g, "");
 }
 
 export function buildTemplatePhraseRewritePrompt(input: {

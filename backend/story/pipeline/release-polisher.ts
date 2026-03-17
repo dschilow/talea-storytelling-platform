@@ -144,10 +144,24 @@ export async function applySelectiveSurgery(input: {
 
       const parsed = safeJson(result.content);
       const revised = extractRevisedChapterText(parsed);
-      if (revised.length > 30 && revised !== chapter.text) {
+      const originalWordCount = countWords(chapter.text);
+      const revisedWordCount = countWords(revised);
+      const softLengthFloor = input.normalizedRequest.wordBudget
+        ? Math.max(220, input.normalizedRequest.wordBudget.minWordsPerChapter - 20)
+        : 220;
+      const minAcceptedWords = Math.max(
+        Math.floor(originalWordCount * 0.9),
+        Math.min(originalWordCount, softLengthFloor),
+      );
+
+      if (revised.length > 30 && revised !== chapter.text && revisedWordCount >= minAcceptedWords) {
         chapter.text = revised;
         changed = true;
         editedChapters.push(chapterNo);
+      } else if (revised.length > 30 && revised !== chapter.text) {
+        console.warn(
+          `[release-polisher] Rejecting chapter ${chapterNo} surgery because it shrank from ${originalWordCount} to ${revisedWordCount} words (min accepted ${minAcceptedWords}).`,
+        );
       }
       usage = mergeNormalizedTokenUsage(usage, result.usage as TokenUsage | undefined, result.usage?.model || model);
       const costEntry = buildLlmCostEntry({
@@ -229,4 +243,8 @@ function extractRevisedChapterText(parsed: any): string {
     }
   }
   return "";
+}
+
+function countWords(text: string): number {
+  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }

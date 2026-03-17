@@ -525,7 +525,7 @@ export class LlmStoryWriter implements StoryWriter {
       ? 0
       : configuredRewritePasses;
     const candidateExpandCalls = isSecondaryCandidate
-      ? Math.min(configuredExpandCalls, 1)
+      ? 0
       : configuredExpandCalls;
     const enableWarningDrivenRewrite =
       typeof rawConfig?.enableWarningDrivenRewrite === "boolean"
@@ -1064,6 +1064,10 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // - Begrenzt auf MAX_EXPAND_CALLS um API-Kosten zu reduzieren
     // - Template-Fixes werden NICHT mehr separat gemacht (im Rewrite enthalten)
     // ════════════════════════════════════════════════════════════════════════
+    const softExpandMinChapterWords = !isSecondaryCandidate && normalizedRequest.wordBudget
+      ? Math.max(HARD_MIN_CHAPTER_WORDS, normalizedRequest.wordBudget.minWordsPerChapter - 12)
+      : HARD_MIN_CHAPTER_WORDS;
+
     const applyTargetedEdits = async (draftInput: StoryDraft): Promise<{ draft: StoryDraft; usage?: TokenUsage; changed: boolean }> => {
       const updatedChapters = draftInput.chapters.map(ch => ({ ...ch }));
       let changed = false;
@@ -1091,11 +1095,11 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           );
           const needsMissingFix = missingCharacters.length > 0;
-          const needsExpand = Boolean(wordCount < HARD_MIN_CHAPTER_WORDS || sentenceCount < 3 || needsMissingFix);
+          const needsExpand = Boolean(wordCount < softExpandMinChapterWords || sentenceCount < 3 || needsMissingFix);
           if (!needsExpand) return null;
 
           const issueCodes = chapterIssueCodes.get(chapter.chapter) ?? new Set<string>();
-          const shortfall = Math.max(0, HARD_MIN_CHAPTER_WORDS - wordCount);
+          const shortfall = Math.max(0, softExpandMinChapterWords - wordCount);
           const priority =
             shortfall * 4
             + (needsMissingFix ? 260 : 0)
@@ -1424,7 +1428,9 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Severely broken drafts (5+ errors) get extra rewrite budget for quality recovery.
     const isSeverelyBroken = hardErrorIssuesInitial.length >= SEVERE_ERROR_THRESHOLD;
     const effectiveRewritePasses = canRunPostEdits
-      ? (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses)
+      ? (isSecondaryCandidate
+        ? maxRewritePasses
+        : (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses))
       : 0;
     if (emergencyRewriteNeeded && effectiveRewritePasses === 0) {
       console.log("[story-writer] Rewrite needed but disabled by config (maxRewritePasses=0).");
@@ -1616,11 +1622,14 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Template-Phrasen werden im Rewrite behandelt, nicht mit extra API-Calls
     if (canRunPostEdits && maxExpandCalls > 0 && !isTokenBudgetExceeded()) {
       const needsFinalTargeted = qualityReport.issues.some(issue =>
-        issue.code === "CHAPTER_TOO_SHORT_HARD" || issue.code === "CHAPTER_PLACEHOLDER" || issue.code === "MISSING_CHARACTER"
+        issue.code === "CHAPTER_TOO_SHORT_HARD"
+        || issue.code === "CHAPTER_PLACEHOLDER"
+        || issue.code === "MISSING_CHARACTER"
+        || (!isSecondaryCandidate && (issue.code === "TOTAL_TOO_SHORT" || issue.code === "CHAPTER_TOO_SHORT"))
         // V2: TEMPLATE_PHRASE entfernt - zu teuer für extra API-Calls
       );
       if (needsFinalTargeted) {
-        console.log(`[story-writer] Final targeted edit needed for: ${qualityReport.issues.filter(i => ["CHAPTER_TOO_SHORT_HARD", "CHAPTER_PLACEHOLDER", "MISSING_CHARACTER"].includes(i.code)).map(i => i.code).join(", ")}`);
+        console.log(`[story-writer] Final targeted edit needed for: ${qualityReport.issues.filter(i => ["CHAPTER_TOO_SHORT_HARD", "CHAPTER_TOO_SHORT", "TOTAL_TOO_SHORT", "CHAPTER_PLACEHOLDER", "MISSING_CHARACTER"].includes(i.code)).map(i => i.code).join(", ")}`);
         const targetedAfter = await applyTargetedEdits(draft);
         if (targetedAfter.changed) {
           draft = targetedAfter.draft;

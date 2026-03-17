@@ -411,6 +411,10 @@ function gateCastLock(
     /^(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|hundert|tausend|viele|wenige|einige|mehrere|alle|beide|halb|ganz|minuten?|stunden?|tage?)\s+/i,
     // Genitive possessive: "Omas Küche", "Vaters Stuhl", "Brunos Laden"
     /^\w+s\s+(?:küche|haus|zimmer|laden|werkstatt|garten|stimme|hand|hände|kopf|nase|augen|finger|tasche|schulter|stube|tür|keller|dach|auto|magen|schal|lieblingsschal|bilder?|jacke|ärmel|aermel|schuh|schuhe|knie|bein|beine|stirn|rücken|ruecken)$/i,
+    // Preposition + possessive form: "Mit Adrians ...", "Bei Brunos ..."
+    /^(?:mit|bei|nach|vor|hinter|unter|über|ueber|neben|zwischen|ohne|für|fuer|durch|gegen|an|auf|in)\s+\w+s\b/i,
+    // Time phrases: "Nächstes Mal", "Dieses Mal"
+    /^(?:nächstes|naechstes|dieses|letztes)\s+mal$/i,
   ] : [];
 
   for (const ch of draft.chapters) {
@@ -1992,6 +1996,7 @@ function gateStakesAndLowpoint(
       /wenn\s+wir[^.!?]{0,90}(schlafen|bleiben|landen|st(?:u|ü)rzen|unter\s+tr(?:u|ü)mmern)/i,
       /wenn\s+[^.!?]{0,80}nicht\s+schaff/i,
       /wenn\s+[^.!?]{0,90}(einst(?:u|ü)rzt|zusammenbricht|kaputtgeht|zerbricht)/i,
+      /ohne\s+[^.!?]{0,70}(w(?:u|ü)rde|faellt|fällt|gibt\s+es\s+kein|bleibt)\b/i,
       /sonst[^.!?]{0,80}(verlieren|bleiben|schaffen|geht|schlie(?:s|ß)t)/i,
       /\bverlieren\s+wir\b/i,
       /\bdroht\b[^.!?]{0,70}\b(verlust|zu\s+sp(?:ae|ä)t|weg|gefangen)\b/i,

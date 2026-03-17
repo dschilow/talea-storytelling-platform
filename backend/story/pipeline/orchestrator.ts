@@ -590,6 +590,7 @@ export class StoryPipelineOrchestrator {
             && rescueableQualityBand
             && (!candidateCritic.releaseReady || qualityErrors > 0)
           ) {
+            const preSurgeryDraft = candidateDraft;
             const surgery = await applySelectiveSurgery({
               storyId: normalized.storyId,
               normalizedRequest: normalized,
@@ -654,6 +655,10 @@ export class StoryPipelineOrchestrator {
               if (postScore >= preScore) {
                 candidateQuality = postSurgeryQuality;
                 candidateCritic = postSurgeryCritic;
+              } else {
+                candidateDraft = preSurgeryDraft;
+                surgeryApplied = false;
+                editedChapters = [];
               }
             }
           }
@@ -691,12 +696,16 @@ export class StoryPipelineOrchestrator {
               candidateCritic.releaseReady &&
               candidateCritic.overallScore >= criticMinScore &&
               candidateErrors === 0;
-            if (firstCandidateStrong) {
+            const firstCandidateGoodEnough =
+              candidateCritic.overallScore >= Math.max(7.3, criticMinScore - 0.9) &&
+              candidateErrors <= 2;
+            if (firstCandidateStrong || firstCandidateGoodEnough) {
               break;
             }
             const firstCandidateRetryWorthIt =
-              candidateCritic.overallScore >= Math.max(7.0, criticMinScore - 1.2)
-              || (candidateCritic.overallScore >= Math.max(6.6, criticMinScore - 1.6) && candidateErrors <= 2);
+              candidateCritic.overallScore >= Math.max(6.4, criticMinScore - 1.8)
+              && candidateCritic.overallScore < Math.max(7.3, criticMinScore - 0.9)
+              && candidateErrors <= 5;
             if (!firstCandidateRetryWorthIt) {
               break;
             }
