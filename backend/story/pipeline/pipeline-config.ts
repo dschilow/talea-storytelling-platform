@@ -20,7 +20,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   storyRetryMax: 2,
   imageRetryMax: 2,
   maxPropsVisible: 7,
-  releaseCandidateCount: 2,
+  releaseCandidateCount: 1,
   criticModel: "gpt-5-mini",
   criticMinScore: 8.2,
   maxSelectiveSurgeryEdits: 1,

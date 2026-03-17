@@ -508,11 +508,13 @@ export class LlmStoryWriter implements StoryWriter {
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
+    // Secondary candidates are only a cheap diversity probe.
+    // Keep them lightweight and spend the real polish budget on the main draft.
     const candidateRewritePasses = isSecondaryCandidate
-      ? Math.min(configuredRewritePasses, 1)
+      ? 0
       : configuredRewritePasses;
     const candidateExpandCalls = isSecondaryCandidate
-      ? Math.min(configuredExpandCalls, 2)
+      ? Math.min(configuredExpandCalls, 1)
       : configuredExpandCalls;
     const enableWarningDrivenRewrite =
       typeof rawConfig?.enableWarningDrivenRewrite === "boolean"
@@ -530,7 +532,7 @@ export class LlmStoryWriter implements StoryWriter {
     // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
     // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
     const defaultStoryTokenBudget = isGeminiFlashModel
-      ? (isSecondaryCandidate ? 16000 : 18000)
+      ? (isSecondaryCandidate ? 12000 : 18000)
       : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);

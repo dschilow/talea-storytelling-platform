@@ -369,20 +369,20 @@ export class StoryPipelineOrchestrator {
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
-      const selectedStoryModel = String((normalized.rawConfig as any)?.aiModel || "");
-      const isGeminiFlashModel = selectedStoryModel.startsWith("gemini-3-flash");
-      const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 2);
+      const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      // Quality-first default: compare at least two candidates unless the caller explicitly overrides it.
-      // Gemini Flash stays capped at 2 to avoid runaway latency, but a floor of 2 is worth the cost.
-      const baseDefaultCandidateCount = Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 2;
-      const defaultCandidateCount = isGeminiFlashModel
-        ? Math.max(2, Math.min(2, baseDefaultCandidateCount))
-        : Math.max(2, baseDefaultCandidateCount);
-      const releaseCandidateCount = releaseEnabled
-        ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
+      // Production default: invest in one strong candidate first.
+      // A second candidate is a fallback tool, not the baseline path.
+      const defaultCandidateCount = Number.isFinite(configuredCandidateCount)
+        ? Math.max(1, Math.min(3, Math.round(configuredCandidateCount)))
         : 1;
-      const enableAdaptiveSecondCandidate = Boolean((normalized.rawConfig as any)?.enableAdaptiveSecondCandidate);
+      const releaseCandidateCount = releaseEnabled
+        ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? Math.round(explicitCandidateCount) : defaultCandidateCount))
+        : 1;
+      const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
+      const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
+        ? adaptiveSecondCandidateRaw
+        : releaseCandidateCount === 1;
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !Number.isFinite(explicitCandidateCount) &&
@@ -573,6 +573,10 @@ export class StoryPipelineOrchestrator {
           // but still block hopeless candidates that would burn tokens without upside.
           const nearReleaseBand = candidateCritic.overallScore >= Math.max(7.0, criticMinScore - 1.1);
           const rescueableQualityBand = qualityErrors <= 6 || candidateCritic.overallScore >= Math.max(7.4, criticMinScore - 0.5);
+          const candidateSurgeryEdits =
+            candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
+              ? Math.max(maxSelectiveSurgeryEdits, 2)
+              : maxSelectiveSurgeryEdits;
           if (
             surgeryEnabled
             && candidateCritic.patchTasks.length > 0
@@ -590,7 +594,7 @@ export class StoryPipelineOrchestrator {
               draft: candidateDraft,
               patchTasks: candidateCritic.patchTasks,
               stylePackText,
-              maxEdits: maxSelectiveSurgeryEdits,
+              maxEdits: candidateSurgeryEdits,
               model: resolveSurgeryModel(normalized.rawConfig?.aiModel),
               candidateTag,
             });
@@ -677,11 +681,18 @@ export class StoryPipelineOrchestrator {
           });
 
           if (adaptiveSecondCandidate && candidateIdx === 0) {
+            const candidateErrors = Number(candidateQuality?.errorCount ?? 0);
             const firstCandidateStrong =
               candidateCritic.releaseReady &&
               candidateCritic.overallScore >= criticMinScore &&
-              Number(candidateQuality?.errorCount ?? 0) === 0;
+              candidateErrors === 0;
             if (firstCandidateStrong) {
+              break;
+            }
+            const firstCandidateRetryWorthIt =
+              candidateCritic.overallScore >= Math.max(7.0, criticMinScore - 1.2)
+              || (candidateCritic.overallScore >= Math.max(6.6, criticMinScore - 1.6) && candidateErrors <= 2);
+            if (!firstCandidateRetryWorthIt) {
               break;
             }
           }
@@ -1246,9 +1257,15 @@ function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | unde
   const errorCount = Math.max(0, Number(quality?.errorCount ?? 0));
   const warningCount = Math.max(0, Number(quality?.warningCount ?? 0));
 
-  const blend = qualityScore * 0.58 + criticScore * 0.42;
-  const penalties = errorCount * 1.3 + Math.min(1.8, warningCount * 0.06);
-  const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.8 : 0;
+  // Quality-gate score often collapses to 0 for otherwise salvageable prose.
+  // In that regime, trust the semantic critic more and soften structural penalties.
+  const qualitySignalCollapsed = qualityScore <= 0.05;
+  const effectiveQualityScore = qualitySignalCollapsed ? criticScore : qualityScore;
+  const blend = effectiveQualityScore * 0.28 + criticScore * 0.72;
+  const errorPenaltyWeight = qualitySignalCollapsed ? 0.75 : 1.15;
+  const warningPenaltyCap = qualitySignalCollapsed ? 1.2 : 1.6;
+  const penalties = errorCount * errorPenaltyWeight + Math.min(warningPenaltyCap, warningCount * 0.04);
+  const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.6 : 0;
   return Number((blend - penalties - releasePenalty).toFixed(4));
 }
 
@@ -1262,9 +1279,13 @@ function pickBestCandidate<T extends { compositeScore: number; quality: any; cri
     throw new Error("No story candidates available for selection");
   }
   return [...candidates].sort((a, b) => {
-    if (b.compositeScore !== a.compositeScore) return b.compositeScore - a.compositeScore;
     const aErrors = Number(a.quality?.errorCount ?? 0);
     const bErrors = Number(b.quality?.errorCount ?? 0);
+    const criticGap = Number(b.critic?.overallScore ?? 0) - Number(a.critic?.overallScore ?? 0);
+    if (Math.abs(criticGap) >= 0.5 && Math.abs(aErrors - bErrors) <= 1) {
+      return criticGap;
+    }
+    if (b.compositeScore !== a.compositeScore) return b.compositeScore - a.compositeScore;
     if (aErrors !== bErrors) return aErrors - bErrors;
     return Number(b.critic?.overallScore ?? 0) - Number(a.critic?.overallScore ?? 0);
   })[0];

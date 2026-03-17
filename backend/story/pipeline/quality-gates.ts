@@ -134,10 +134,10 @@ function gateDialogueQuote(
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
-  const minDialogueLines = ageMax <= 8 ? 3 : 2;
-  const minDialogueRatio = ageMax <= 8 ? 0.25 : 0.20;
+  const minDialogueLines = ageMax <= 8 ? 2 : 2;
+  const minDialogueRatio = ageMax <= 8 ? 0.22 : 0.20;
   const maxDialogueRatio = ageMax <= 8 ? 0.55 : 0.75;
-  const criticalDialogueRatio = ageMax <= 8 ? 0.16 : 0.14;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.14 : 0.14;
   const extremeHighDialogueRatio = ageMax <= 8 ? 0.68 : 0.84;
 
   for (const ch of draft.chapters) {
@@ -207,7 +207,8 @@ function gateDialogueQuote(
 
   // Aggregate check: if 3+ chapters have low dialogue, escalate to ERROR
   const lowDialogueChapters = issues.filter(i => i.code === "DIALOGUE_RATIO_LOW" || i.code === "DIALOGUE_RATIO_CRITICAL").length;
-  if (lowDialogueChapters >= 3) {
+  const aggregateLowDialogueThreshold = ageMax <= 8 ? 4 : 3;
+  if (lowDialogueChapters >= aggregateLowDialogueThreshold) {
     issues.push({
       gate: "DIALOGUE_QUOTE",
       chapter: 0,
@@ -1866,7 +1867,7 @@ function gateCharacterFocusLoad(
 ): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
-  const maxActive = (ageRange?.max ?? 12) <= 8 ? 3 : 4;
+  const maxActive = (ageRange?.max ?? 12) <= 8 ? 4 : 4;
   const idealActive = (ageRange?.max ?? 12) <= 8 ? 2 : 3;
 
   for (const directive of directives) {

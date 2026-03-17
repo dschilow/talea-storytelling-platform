@@ -73,7 +73,7 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map(ch => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 160),
+      text: compressChapter(ch.text, 120),
     }));
 
     const isDE = input.language === "de";
@@ -206,7 +206,7 @@ TARGETED CHECKS:
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 2400,
+      maxTokens: 1800,
       reasoningEffort: "minimal",
       temperature: 0.2,
       context: "story-semantic-critic",
