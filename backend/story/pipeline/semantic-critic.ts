@@ -87,7 +87,7 @@ PRÜFE GEZIELT:
 2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persönlichkeit heraus? Gibt es eine Körperreaktion? Wenn nicht → ERROR.
 3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von außen)? Wenn nicht → ERROR.
 4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rückbezug zu Kapitel 1? Wenn nicht → WARNING.
-5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Mindestens 30% Dialog pro Kapitel. Pro Kapitel prüfen.
+5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Mindestens 40% Dialog pro Kapitel. Pro Kapitel prüfen. Wenn unter 25% → ERROR.
 6. Vorlese-Test: Gibt es Sätze über 12 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
 7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?
 8. Humor: Gibt es 2-3 echte Schmunzel-Momente in der ganzen Geschichte? Kapitel 4 darf ernster sein, wenn der Tiefpunkt dadurch stärker wird. Wenn fast gar kein Humor vorkommt → ERROR.
@@ -102,7 +102,7 @@ TARGETED CHECKS:
 2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not → ERROR.
 3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not → ERROR.
 4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not → WARNING.
-5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? At least 30% dialogue per chapter. Check per chapter.
+5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? At least 40% dialogue per chapter. Check per chapter. If under 25% → ERROR.
 6. Read-aloud test: Are there sentences over 12 words that would stumble when read aloud? Quote them.
 7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?
 8. Humor: Are there 2-3 genuine smile moments across the whole story? Chapter 4 may stay more serious if that strengthens the low point. If there is almost no humor at all → ERROR.
@@ -138,7 +138,7 @@ TARGETED CHECKS:
         "rule-exposition tell: reject textbook statements about how artifacts/rules work → WARNING RULE_EXPOSITION_TELL",
         "humor distribution: the story should contain 2-3 playful/funny moments overall. Chapter 4 may stay more serious. If the story has almost no humor → ERROR HUMOR_MISSING",
         "character focus: max 2 characters in foreground per chapter. If 4+ actively speaking/acting → ERROR CHARACTER_OVERLOAD",
-        "dialogue ratio: each chapter should have 30-40% dialogue. If under 20% → ERROR DIALOGUE_TOO_LOW",
+        "dialogue ratio: each chapter should have 40-50% dialogue. If under 25% → ERROR DIALOGUE_TOO_LOW. Count quotation marks: each chapter needs 10+ pairs.",
       ],
       preferredIssueCodes: [
         "CH1_ORIENTATION_MISSING",

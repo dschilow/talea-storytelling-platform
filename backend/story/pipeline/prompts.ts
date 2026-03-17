@@ -2639,8 +2639,8 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
     ? /(ausblick|vorschau|kapitelende|kapitel endet|epilog|hook)/i
     : /(outlook|preview|chapter ending|chapter ends|epilogue|hook)/i;
   const overlyRigid = isGerman
-    ? /(dialogue first|40%\s*dialog|30-40%\s*dialog|jedes kapitel.*schmunzel|humor ist pflicht|ohne dialog oder physical action|ohne dialog oder koerperliche aktion|keine abs[aä]tze ohne dialog)/i
-    : /(dialogue first|40%\s*dialogue|30-40%\s*dialogue|every chapter needs at least one smile|humor is mandatory|paragraphs without dialogue or physical action)/i;
+    ? /(jedes kapitel.*schmunzel|humor ist pflicht)/i
+    : /(every chapter needs at least one smile|humor is mandatory)/i;
   const controlLine = buildControlLinePattern(isGerman);
   const lines = base
     .split("\n")
@@ -2653,13 +2653,13 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
     ? [
       "ORIENTATION FIRST: Kapitel 1 darf ruhig und klar beginnen. Nach Absatz 2 muessen WER, WO, WAS und WARUM klar sein.",
       "FOCUS: Meist 2 aktive Figuren pro Kapitel. Weitere Figuren reagieren nur kurz.",
-      "DIALOGUE BALANCE: Dialog belebt die Szene, aber Orientierung und Ursache-Folge sind wichtiger als eine starre Quote.",
+      "DIALOGUE QUOTA 40-50%: Mindestens 40% des Textes MUSS Dialog sein. ZAEHLE: Mindestens 10 Anfuehrungszeichen-Paare pro Kapitel. KEIN Absatz ohne mindestens 1 Dialogzeile.",
       "TRANSITIONS: Jeder neue Ort, Hinweis oder Plan braucht einen kurzen Brueckensatz.",
     ]
     : [
       "ORIENTATION FIRST: Chapter 1 may begin quietly and clearly. By paragraph 2, WHO, WHERE, WHAT, and WHY must be clear.",
       "FOCUS: Usually keep 2 active characters per chapter. Others may only react briefly.",
-      "DIALOGUE BALANCE: Dialogue should enliven the scene, but clarity and cause-effect matter more than a rigid quota.",
+      "DIALOGUE QUOTA 40-50%: At least 40% of text MUST be dialogue. COUNT: At least 10 quotation mark pairs per chapter. NO paragraph without at least 1 spoken line.",
       "TRANSITIONS: Every new place, clue, or plan needs one short bridge sentence.",
     ];
   return [...curatedLines, ...lines].slice(0, 10).join("\n").trim();

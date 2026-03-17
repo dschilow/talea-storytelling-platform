@@ -371,15 +371,15 @@ export class LlmStoryWriter implements StoryWriter {
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
       : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
     const systemPrompt = `You are an elite children's book author. Warm, witty, alive prose.
-Rules: Flowing paragraphs (2-4 sentences). Emotions through body, never labels. Each character sounds different. 25-40% dialogue anchored to action. 30%+ sentences under 6 words. No moral lectures, no meta-narration.
+Rules: Flowing paragraphs (2-4 sentences). Emotions through body, never labels. Each character sounds different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter. 30%+ sentences under 6 words. No moral lectures, no meta-narration.
 ${storyLanguageRule}`.trim();
     const compactSystemPrompt = `You are a world-class children's book author writing prose as JSON output.
 Write flowing paragraphs, not single-sentence chains. Show emotions through body language, not labels.
-Each character must sound different. 25-40% dialogue anchored to action.
+Each character must sound different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. Preserve plot, voice, and continuity.
-Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. Each character sounds different. 25-40% dialogue anchored to action. No report-style chains. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
+Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. Each character sounds different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter. No report-style chains. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
@@ -396,14 +396,14 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
       if (effectivelyFlash) {
         switch (step) {
           case "full":
-            return 512;  // V7: More thinking = better story planning, dialogue, rhythm
+            return 1024;  // V7: High budget → plan dialogue per chapter, 40%+ quota, rhythm
           case "recovery":
-            return 256;
+            return 512;
           case "rewrite":
-            return 256;
+            return 512;
           case "expand":
           case "warning-polish":
-            return 128;
+            return 256;
           case "title":
             return 32;
           default:

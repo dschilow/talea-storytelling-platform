@@ -135,9 +135,9 @@ function gateDialogueQuote(
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
-  const minDialogueRatio = ageMax <= 8 ? 0.2 : 0.16;
-  const maxDialogueRatio = ageMax <= 8 ? 0.58 : 0.75;
-  const criticalDialogueRatio = ageMax <= 8 ? 0.14 : 0.1;
+  const minDialogueRatio = ageMax <= 8 ? 0.30 : 0.20;
+  const maxDialogueRatio = ageMax <= 8 ? 0.60 : 0.75;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.20 : 0.14;
   const extremeHighDialogueRatio = ageMax <= 8 ? 0.66 : 0.84;
 
   for (const ch of draft.chapters) {
@@ -166,7 +166,7 @@ function gateDialogueQuote(
         message: isDE
           ? `Kapitel ${ch.chapter}: Dialoganteil kritisch niedrig (${Math.round(dialogueRatio * 100)}%, mindestens ${Math.round(criticalDialogueRatio * 100)}% noetig)`
           : `Chapter ${ch.chapter}: critically low dialogue ratio (${Math.round(dialogueRatio * 100)}%, need at least ${Math.round(criticalDialogueRatio * 100)}%)`,
-        severity: "WARNING",
+        severity: "ERROR",
       });
     } else if (sentenceCount >= 8 && dialogueRatio < minDialogueRatio) {
       issues.push({
@@ -206,7 +206,7 @@ function gateDialogueQuote(
   }
 
   // Aggregate check: if 3+ chapters have low dialogue, escalate to ERROR
-  const lowDialogueChapters = issues.filter(i => i.code === "DIALOGUE_RATIO_LOW").length;
+  const lowDialogueChapters = issues.filter(i => i.code === "DIALOGUE_RATIO_LOW" || i.code === "DIALOGUE_RATIO_CRITICAL").length;
   if (lowDialogueChapters >= 3) {
     issues.push({
       gate: "DIALOGUE_QUOTE",
@@ -2960,8 +2960,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
   }
   if (issueCodes.has("DIALOGUE_RATIO_LOW") || issueCodes.has("DIALOGUE_RATIO_CRITICAL") || issueCodes.has("TOO_FEW_DIALOGUES")) {
     lines.push(isDE
-      ? "- Mehr lebendige Dialogszenen einbauen: pro Kapitel mehrere kurze Wechselrede-Zeilen, nicht nur Erzaehlertext. Ziel grob 25-45 % Dialoganteil."
-      : "- Add more lively dialogue scenes: multiple short turn-taking lines per chapter, not mostly narration. Target roughly 25-45% dialogue ratio.");
+      ? "- Mehr lebendige Dialogszenen einbauen: pro Kapitel mindestens 10 Anfuehrungszeichen-Paare, nicht nur Erzaehlertext. Ziel 40-50% Dialoganteil. KEIN Absatz ohne Dialog."
+      : "- Add more lively dialogue scenes: at least 10 quotation mark pairs per chapter, not mostly narration. Target 40-50% dialogue ratio. NO paragraph without dialogue.");
   }
   if (issueCodes.has("POETIC_LANGUAGE_OVERLOAD")) {
     lines.push(isDE
