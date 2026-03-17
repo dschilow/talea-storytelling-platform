@@ -154,6 +154,7 @@ export interface StoryBlueprint {
     almostGivingUp: string;
     insightTrigger: string;
     newChoice: string;
+    whoSolves?: string;
     foreground?: string;
   };
   chapter5: {
