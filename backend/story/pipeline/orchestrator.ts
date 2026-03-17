@@ -23,6 +23,7 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
+import { resolveCriticModelForPipeline, resolveSurgeryModelForPipeline } from "./model-routing";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
@@ -388,7 +389,11 @@ export class StoryPipelineOrchestrator {
         !Number.isFinite(explicitCandidateCount) &&
         releaseCandidateCount === 1 &&
         enableAdaptiveSecondCandidate;
-      const criticModel = String((normalized.rawConfig as any)?.criticModel || pipelineConfig.criticModel || "gpt-4.1-mini");
+      const criticModel = resolveCriticModelForPipeline({
+        selectedStoryModel: String((normalized.rawConfig as any)?.aiModel || ""),
+        explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
+        defaultModel: String(pipelineConfig.criticModel || "gemini-3.1-flash-lite-preview"),
+      });
       const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // For 6-8 stories, default to one edit unless explicitly overridden.
@@ -595,7 +600,7 @@ export class StoryPipelineOrchestrator {
               patchTasks: candidateCritic.patchTasks,
               stylePackText,
               maxEdits: candidateSurgeryEdits,
-              model: resolveSurgeryModel(normalized.rawConfig?.aiModel),
+              model: resolveSurgeryModelForPipeline(normalized.rawConfig?.aiModel),
               candidateTag,
             });
 
@@ -1293,12 +1298,6 @@ function pickBestCandidate<T extends { compositeScore: number; quality: any; cri
 
 function mergeTokenUsage(current: any, next: any): any {
   return mergeNormalizedTokenUsage(current, next);
-}
-
-function resolveSurgeryModel(model?: string): string {
-  if (!model) return "gpt-5-mini";
-  if (model.startsWith("gpt-5.4")) return "gpt-5.4";
-  return "gpt-5-mini";
 }
 
 function clampNumber(value: number, min: number, max: number): number {

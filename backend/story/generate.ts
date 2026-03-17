@@ -30,6 +30,7 @@ import {
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import { buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
+import { GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import {
   assertProfilesBelongToUser,
   getProfileForUser,
@@ -107,6 +108,7 @@ export type AIModel =
   | "gpt-4.1"
   | "o4-mini"
   | "gemini-3-flash-preview"
+  | "gemini-3.1-flash-lite-preview"
   | "gemini-3-pro-preview"
   | "gemini-3.1-pro-preview";
 
@@ -339,7 +341,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
     const requestedAiModel = req.config.aiModel;
-    const defaultAiModel: AIModel = "gemini-3.1-pro-preview";
+    const defaultAiModel: AIModel = "gemini-3-flash-preview";
     const effectiveAiModel: AIModel = requestedAiModel ?? defaultAiModel;
     if (requestedAiModel && requestedAiModel !== defaultAiModel) {
       console.log("[story.generate] Model override from wizard applied", {
@@ -640,7 +642,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               inputCostUSD: pipelineResult.tokenUsage.inputCostUSD,
               outputCostUSD: pipelineResult.tokenUsage.outputCostUSD,
               totalCostUSD: pipelineResult.tokenUsage.totalCostUSD,
-              modelUsed: pipelineResult.tokenUsage.model || config.aiModel || "gpt-5-mini",
+              modelUsed: pipelineResult.tokenUsage.model || config.aiModel || GEMINI_MAIN_STORY_MODEL,
             }
           : { prompt: 0, completion: 0, total: 0 };
 
@@ -773,7 +775,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               promptTokens: metadataUsage.prompt || 0,
               completionTokens: metadataUsage.completion || 0,
               totalTokens: metadataUsage.total || 0,
-              model: metadataUsage.modelUsed || config.aiModel || "gpt-5-mini",
+              model: metadataUsage.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL,
             }
           : undefined;
       const fallbackCostEntries = fallbackUsage
@@ -782,7 +784,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               phase: "story-generation",
               step: "legacy-total",
               usage: fallbackUsage,
-              fallbackModel: fallbackUsage.model || config.aiModel || "gpt-5-mini",
+              fallbackModel: fallbackUsage.model || config.aiModel || GEMINI_MAIN_STORY_MODEL,
             }),
           ].filter(Boolean)
         : [];
@@ -799,7 +801,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       const inputCost = costSummary.totals.llm.inputCostUSD || 0;
       const outputCost = costSummary.totals.llm.outputCostUSD || 0;
       const totalCost = costSummary.totals.overall.trackedCostUSD || 0;
-      const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || config.aiModel || 'gpt-5-mini';
+      const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL;
       const mcpCost = 0; // TODO: Track MCP costs separately
 
       console.log("[story.generate] Cost tracking:", {

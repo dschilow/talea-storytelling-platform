@@ -1,5 +1,6 @@
 import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint } from "./types";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
+import { isGeminiFlashFamilyModel } from "./model-routing";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -1469,6 +1470,8 @@ ${blueprintHint}
 REWRITE FOCUS:
 - Baue Kapitel wie echte Szenen um, nicht wie eine Reparaturliste.
 - Dialog gezielt staerken: nur dort erhoehen, wo Reibung, Humor, Angst oder Naehe entstehen. Keine Quote-Maschine.
+- Verteile Humor bewusst: frueher Schmunzelmoment, spaeter Entlastung, am Ende ein warmer kleiner Lacher.
+- Lege vor dem Umschreiben fuer jede Hauptfigur eine klare Sprechsignatur fest (Rhythmus + typische Woerter).
 - Erzähler-Kommentare nur sparsam und nur wenn sie wirklich Charme bringen.
 - Rhythmus vorlesbar halten: kurze Saetze an Druckstellen, sonst natuerlicher Mischrhythmus.
 - Kapitel 4: Die innere Wende gehoert dem Kind. Kein Artefakt, kein Erwachsener loest das Kernproblem.
@@ -1535,7 +1538,7 @@ export function buildFullStoryPrompt(input: {
   const promptMode = input.promptMode ?? "full";
   const isCompactPrompt = promptMode === "compact";
   const modelName = String(model || "").toLowerCase();
-  const isGeminiFlashModel = modelName.startsWith("gemini-3-flash");
+  const isGeminiFlashModel = isGeminiFlashFamilyModel(modelName);
   const isGerman = language === "de";
   const targetLanguage = isGerman ? "Deutsch" : language;
   const targetTone = tone ?? dna.toneBounds?.targetTone ?? (isGerman ? "warm" : "warm");
@@ -1898,6 +1901,8 @@ This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories f
 13. PARAGRAPH BREAKS: Use blank lines between paragraphs. 4-7 paragraphs per chapter minimum. Never one text wall.
 14. Chapter 1 sentence 1 MUST contain the lead child name or the concrete problem object. No scenic throat-clearing.
 15. Chapter 3 or 4 MUST show a child-made wrong choice causing the setback. Bad luck alone is not enough.
+16. Plan 3 humor beats across the story: one by Ch2, one by Ch3 or Ch4, one warm/light callback in Ch5.
+17. Before each chapter, lock the 2 foreground voices: one rhythm cue + one word-choice cue per child.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -1938,8 +1943,11 @@ Write a JSON object:
   "_planning": {
     "voice_signatures": { "[char1]": "style + 2 words", "[char2]": "style + 2 words" },
     "ch1_intro_check": "List each character in Ch1 + one action cue or locked canon detail + their spoken line",
+    "humor_beats": { "ch1_or_2": "playful beat", "ch3_or_4": "relief or friction laugh", "ch5": "warm callback smile" },
+    "mistake_growth_arc": { "mistake_child": "name", "wrong_choice": "short", "lesson_in_ch4": "short", "different_action_in_ch5": "short" },
     "obstacles": { "ch1": "none (orientation)", "ch2": "type", "ch3": "type", "ch4": "type", "ch5": "type" },
-    "payoff_and_price": "Ch5: what is won (concrete) + what small thing is lost"
+    "payoff_and_price": "Ch5: what is won (concrete) + what small thing is lost",
+    "read_aloud_guards": ["one sentence to simplify", "one dialogue exchange to sharpen"]
   },
   "title": "${titleHint}",
   "description": "Teaser sentence that plants a QUESTION in the reader's mind",
@@ -2038,6 +2046,9 @@ ${goldenExampleRef}
     Keep a soft launch for ages 6-8. Paragraph 1 grounds the lead child in a familiar place through action, voice, or a visible child-linked detail.
     Paragraph 2 states the mission and the concrete risk.
     Do NOT rewrite chapter 1 into a static scenic postcard or a hard action cold-open.
+  6. ** HUMOR + PAYOFF DISTRIBUTION **
+    Add 2-3 child-friendly smile moments across the story and make the final one feel like a callback, not a random joke.
+    The mistake child must act differently in Chapter 5, visibly and concretely.
 
 ::: HARD RULES:::
   1) Language: ONLY ${outputLang}.${umlautRule}
@@ -2064,6 +2075,9 @@ ${originalText}
         "[character1]": "sentence style + 2 typical words",
           "[character2]": "sentence style + 2 typical words"
       },
+      "humor_repairs": ["where a smile moment returns", "which chapter gets relief humor"],
+      "mistake_growth_fix": "How the child clearly acts differently in Chapter 5",
+      "read_aloud_repairs": ["1 clumsy sentence I will simplify", "1 dialogue exchange I will sharpen"],
       "fix_strategy": "How I will fix the critic feedback issues"
     },
     "title": "Story title",

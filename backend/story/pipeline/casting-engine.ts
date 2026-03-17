@@ -11,6 +11,7 @@ import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
+import { resolveSupportTaskModel } from "./model-routing";
 
 interface CharacterPoolRow {
   id: string;
@@ -90,10 +91,7 @@ const AI_MATCH_MIN_CONFIDENCE = 0.35;
 const AI_MATCH_MAX_CANDIDATES = 12;
 
 function resolveSimpleTaskModel(selectedStoryModel?: string): string {
-  const normalized = String(selectedStoryModel || "").toLowerCase().trim();
-  if (normalized.startsWith("gemini-")) return "gemini-3-flash-preview";
-  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5-nano";
-  return "gpt-5-nano";
+  return resolveSupportTaskModel(selectedStoryModel);
 }
 
 export async function buildCastSet(input: {

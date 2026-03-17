@@ -2,6 +2,7 @@ import { buildStoryChapterRevisionPrompt, resolveLengthTargets } from "./prompts
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage, normalizeTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
+import { GEMINI_SUPPORT_MODEL } from "./model-routing";
 import type {
   CastSet,
   NormalizedRequest,
@@ -36,7 +37,7 @@ export async function applySelectiveSurgery(input: {
   candidateTag?: string;
 }): Promise<SelectiveSurgeryResult> {
   const maxEdits = Math.max(1, Math.min(5, input.maxEdits ?? 3));
-  const model = input.model || "gpt-5-nano";
+  const model = input.model || GEMINI_SUPPORT_MODEL;
   const chapters = input.draft.chapters.map(ch => ({ ...ch }));
   const editedChapters: number[] = [];
   let usage: TokenUsage | undefined;

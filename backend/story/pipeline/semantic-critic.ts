@@ -1,5 +1,7 @@
 import { callChatCompletion } from "./llm-client";
 import type { CastSet, SceneDirective, StoryDraft, TokenUsage } from "./types";
+import { GEMINI_SUPPORT_MODEL } from "./model-routing";
+import { generateWithGemini } from "../gemini-generation";
 
 export interface SemanticCriticIssue {
   chapter: number;
@@ -44,7 +46,7 @@ export async function runSemanticCritic(input: {
   model?: string;
   targetMinScore?: number;
 }): Promise<SemanticCriticReport> {
-  const model = input.model || "gpt-5-mini";
+  const model = input.model || GEMINI_SUPPORT_MODEL;
   const targetMinScore = clampNumber(input.targetMinScore ?? 8.2, 0, 10);
   const humorLevel = clampNumber(input.humorLevel ?? 2, 0, 3);
 
@@ -199,20 +201,42 @@ TARGETED CHECKS:
       },
     };
 
-    const result = await callChatCompletion({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: JSON.stringify(userPayload) },
-      ],
-      responseFormat: "json_object",
-      maxTokens: 1800,
-      reasoningEffort: "minimal",
-      temperature: 0.2,
-      context: "story-semantic-critic",
-      logSource: "phase6-story-critic-llm",
-      logMetadata: { storyId: input.storyId, chapters: chapters.length },
-    });
+    const result = model.startsWith("gemini-")
+      ? await (async () => {
+          const geminiResult = await generateWithGemini({
+            systemPrompt,
+            userPrompt: JSON.stringify(userPayload),
+            model,
+            maxTokens: 1800,
+            temperature: 0.2,
+            thinkingBudget: 96,
+            logSource: "phase6-story-critic-llm",
+            logMetadata: { storyId: input.storyId, chapters: chapters.length },
+          });
+          return {
+            content: geminiResult.content,
+            usage: {
+              promptTokens: geminiResult.usage.promptTokens,
+              completionTokens: geminiResult.usage.completionTokens,
+              totalTokens: geminiResult.usage.totalTokens,
+              model: geminiResult.model,
+            } as TokenUsage,
+          };
+        })()
+      : await callChatCompletion({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: JSON.stringify(userPayload) },
+          ],
+          responseFormat: "json_object",
+          maxTokens: 1800,
+          reasoningEffort: "minimal",
+          temperature: 0.2,
+          context: "story-semantic-critic",
+          logSource: "phase6-story-critic-llm",
+          logMetadata: { storyId: input.storyId, chapters: chapters.length },
+        });
 
     const parsed = safeJson(result.content);
     if (!parsed || typeof parsed !== "object") {

@@ -393,6 +393,7 @@ export function calculateTokenCosts(usage: {
 }
 
 function inputPricePerMillion(model: string): number {
+  if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.05;
@@ -410,6 +411,7 @@ function cachedInputPricePerMillion(model: string): number {
 }
 
 function outputPricePerMillion(model: string): number {
+  if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
   if (model.includes("gpt-5-nano")) return 0.25;
@@ -420,5 +422,4 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gpt-4")) return 10.0;
   return 2.0;
 }
-
 

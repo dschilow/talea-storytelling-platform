@@ -21,7 +21,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   imageRetryMax: 2,
   maxPropsVisible: 7,
   releaseCandidateCount: 1,
-  criticModel: "gpt-5-mini",
+  criticModel: "gemini-3.1-flash-lite-preview",
   criticMinScore: 8.2,
   maxSelectiveSurgeryEdits: 1,
 };

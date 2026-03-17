@@ -7,6 +7,7 @@ import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-focus";
+import { GEMINI_MAIN_STORY_MODEL, resolveGeminiSupportFallback, resolveSupportTaskModel, isGeminiFlashFamilyModel } from "./model-routing";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -472,20 +473,18 @@ export class LlmStoryWriter implements StoryWriter {
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
-    const model = rawConfig?.aiModel ?? "gemini-3.1-pro-preview";
+    const model = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
-    const isGeminiFlashModel = model.startsWith("gemini-3-flash");
-    // Support steps (blueprint, expand, warning-polish) use a family-specific cheap model:
-    // - Gemini selection -> gemini-3-flash-preview
-    // - GPT selection -> gpt-5-nano
-    // The full-story call still uses the user-selected final model.
-    const flashModel = isGeminiModel ? "gemini-3-flash-preview" : "gpt-5-nano";
-    const blueprintModel = isGeminiFlashModel && normalizedRequest.ageMax <= 9 ? "gpt-5-mini" : flashModel;
-    const flashFallbackChatModel = isGeminiModel ? "gpt-5-mini" : undefined;
-    const isFlashModelGemini = flashModel.startsWith("gemini-");
-    const supportStepFetchTimeoutMs = flashFallbackChatModel ? 45000 : undefined;
-    const supportStepMaxRetries = flashFallbackChatModel ? 1 : undefined;
+    const isGeminiFlashModel = isGeminiFlashFamilyModel(model);
+    // Main prose path stays on the selected story model.
+    // Support jobs (blueprint, expand, warning-polish) run on the cheaper family side-model.
+    const supportModel = resolveSupportTaskModel(model);
+    const blueprintModel = supportModel;
+    const supportModelFallback = resolveGeminiSupportFallback(model);
+    const isSupportModelGemini = supportModel.startsWith("gemini-");
+    const supportStepFetchTimeoutMs = supportModelFallback ? 45000 : undefined;
+    const supportStepMaxRetries = supportModelFallback ? 1 : undefined;
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
@@ -628,7 +627,11 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     }) => {
       const activeModel = input.modelOverride ?? model;
       const activeIsGemini = activeModel.startsWith("gemini-");
-      const activeIsGeminiFlash = activeModel.startsWith("gemini-3-flash");
+      const activeIsGeminiFlash = isGeminiFlashFamilyModel(activeModel);
+      const activeGeminiFallback =
+        activeModel === supportModel && supportModelFallback && supportModelFallback !== activeModel
+          ? supportModelFallback
+          : undefined;
       const shouldFallbackFlashToChatModel = (error: unknown): boolean => {
         const message = error instanceof Error ? error.message : String(error ?? "");
         const lowered = message.toLowerCase();
@@ -667,17 +670,14 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             finishReason: geminiResponse.finishReason,
           };
         } catch (error) {
-          if (activeIsGeminiFlash && flashFallbackChatModel && shouldFallbackFlashToChatModel(error)) {
-            console.warn(`[story-writer] Flash unavailable for ${input.context || "story step"}; retrying with ${flashFallbackChatModel}.`);
+          if (activeIsGeminiFlash && activeGeminiFallback && shouldFallbackFlashToChatModel(error)) {
+            console.warn(`[story-writer] Flash-family support model unavailable for ${input.context || "story step"}; retrying with ${activeGeminiFallback}.`);
             return callStoryModel({
               ...input,
-              modelOverride: flashFallbackChatModel,
+              modelOverride: activeGeminiFallback,
               maxTokens: input.responseFormat === "json_object"
                 ? Math.max(input.maxTokens ?? 0, 2200)
                 : input.maxTokens,
-              reasoningEffort: input.responseFormat === "json_object"
-                ? "minimal"
-                : input.reasoningEffort,
               fallbackModels: undefined,
               fetchTimeoutMs: undefined,
               maxRetries: undefined,
@@ -759,10 +759,10 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           tone: normalizedRequest.requestedTone,
         });
 
-        // Blueprint always runs with flashModel
+        // Blueprint runs on the cheaper side-model.
         // 900 is too tight for 5-chapter blueprints with emotionalArc + characterWants/Fears + artifactArc
         // — causes MAX_TOKENS truncation → fallback to deterministic blueprint → poor stories.
-        const blueprintMaxTokens = isFlashModelGemini ? 1500 : (isReasoningModel ? 1800 : 1200);
+        const blueprintMaxTokens = isSupportModelGemini ? 1500 : (isReasoningModel ? 1800 : 1200);
         const blueprintResult = await callStoryModel({
           systemPrompt: buildBlueprintSystemPrompt(normalizedRequest.language),
           userPrompt: blueprintPrompt,
@@ -770,7 +770,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           maxTokens: blueprintMaxTokens,
           temperature: 0.4,
           reasoningEffort: "low",
-          thinkingBudget: resolveGeminiThinkingBudget("expand", isFlashModelGemini),
+          thinkingBudget: resolveGeminiThinkingBudget("expand", isSupportModelGemini),
           context: "story-writer-blueprint",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },
@@ -1142,10 +1142,10 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         });
 
         const baseMaxTokens = Math.round(Math.max(420, lengthTargets.wordMax * 1.4));
-        // Expand always runs with flashModel, so use Flash token sizes
-        const expandReasoningMultiplier = isFlashModelGemini ? 1.05 : (isReasoningModel ? 1.2 : 1);
-        const expandMinTokens = isFlashModelGemini ? 680 : 550;
-        const expandMaxTokensCap = isFlashModelGemini ? 2100 : 1800;
+        // Expand runs on the cheaper side-model, so use support-model token sizes.
+        const expandReasoningMultiplier = isSupportModelGemini ? 1.05 : (isReasoningModel ? 1.2 : 1);
+        const expandMinTokens = isSupportModelGemini ? 680 : 550;
+        const expandMaxTokensCap = isSupportModelGemini ? 2100 : 1800;
         const maxTokens = Math.min(expandMaxTokensCap, Math.max(expandMinTokens, Math.round(baseMaxTokens * expandReasoningMultiplier)));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
@@ -1158,12 +1158,12 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             responseFormat: "json_object",
             maxTokens,
             temperature: 0.4,
-            thinkingBudget: resolveGeminiThinkingBudget("expand", isFlashModelGemini),
+            thinkingBudget: resolveGeminiThinkingBudget("expand", isSupportModelGemini),
             context: `story-writer-expand-chapter-${chapter.chapter}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "expand", chapter: chapter.chapter, candidateTag },
             reasoningEffort: "low",
-            modelOverride: flashModel,
+            modelOverride: supportModel,
           });
 
           if (result.usage) {
@@ -1172,7 +1172,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
               phase: "phase6-story",
               step: "expand",
               usage: result.usage,
-              fallbackModel: flashModel,
+              fallbackModel: supportModel,
               candidateTag,
               chapter: chapter.chapter,
             });
@@ -1288,10 +1288,10 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         });
 
         const baseMaxTokens = Math.round(Math.max(380, lengthTargets.wordMax * 1.3));
-        // Warning-polish always runs with flashModel, so use Flash token sizes
-        const polishReasoningMultiplier = isFlashModelGemini ? 1.1 : (isReasoningModel ? 1.2 : 1);
-        const polishMinTokens = isFlashModelGemini ? 720 : (isReasoningModel ? 850 : 450);
-        const polishMaxTokensCap = isFlashModelGemini ? 1800 : (isReasoningModel ? 1900 : 1500);
+        // Warning-polish runs on the cheaper side-model, so use support-model token sizes.
+        const polishReasoningMultiplier = isSupportModelGemini ? 1.1 : (isReasoningModel ? 1.2 : 1);
+        const polishMinTokens = isSupportModelGemini ? 720 : (isReasoningModel ? 850 : 450);
+        const polishMaxTokensCap = isSupportModelGemini ? 1800 : (isReasoningModel ? 1900 : 1500);
         const maxTokens = Math.min(polishMaxTokensCap, Math.max(polishMinTokens, Math.round(baseMaxTokens * polishReasoningMultiplier)));
 
         try {
@@ -1302,11 +1302,11 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             maxTokens,
             temperature: 0.35,
             reasoningEffort: "low",
-            thinkingBudget: resolveGeminiThinkingBudget("warning-polish", isFlashModelGemini),
+            thinkingBudget: resolveGeminiThinkingBudget("warning-polish", isSupportModelGemini),
             context: `story-writer-warning-polish-${chapterNo}`,
             logSource: "phase6-story-llm",
             logMetadata: { storyId: normalizedRequest.storyId, step: "warning-polish", chapter: chapterNo, candidateTag },
-            modelOverride: flashModel,
+            modelOverride: supportModel,
           });
 
           if (result.usage) {
@@ -1315,7 +1315,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
               phase: "phase6-story",
               step: "warning-polish",
               usage: result.usage,
-              fallbackModel: flashModel,
+              fallbackModel: supportModel,
               candidateTag,
               chapter: chapterNo,
             });
@@ -1336,8 +1336,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             console.warn(
               `[story-writer] Warning polish chapter ${chapterNo} truncated before valid JSON text extraction (finishReason=${result.finishReason}, maxTokens=${maxTokens}).`,
             );
-            if (isFlashModelGemini && truncatedNoTextCount >= 1) {
-              console.warn("[story-writer] Stopping further warning polish calls for Gemini Flash after truncated+unusable response.");
+            if (isSupportModelGemini && truncatedNoTextCount >= 1) {
+              console.warn("[story-writer] Stopping further warning polish calls for Gemini support model after truncated+unusable response.");
               break;
             }
           }

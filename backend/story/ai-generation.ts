@@ -357,6 +357,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 65536,
     supportsReasoningEffort: false,
   },
+  "gemini-3.1-flash-lite-preview": {
+    name: "gemini-3.1-flash-lite-preview",
+    inputCostPer1M: 0.25,       // $0.25/1M tokens
+    outputCostPer1M: 1.50,      // $1.50/1M tokens
+    maxCompletionTokens: 65536,
+    supportsReasoningEffort: false,
+  },
   "gemini-3-pro-preview": {
     name: "gemini-3-pro-preview",
     inputCostPer1M: 0.00,       // Preview pricing (configure when finalized)
@@ -374,7 +381,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
 };
 
 // Default model
-const DEFAULT_MODEL = "gpt-5-mini";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 const openAIKey = secret("OpenAIKey");
 

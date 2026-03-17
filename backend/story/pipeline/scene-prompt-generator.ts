@@ -2,6 +2,7 @@ import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, St
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
+import { resolveSupportTaskModel } from "./model-routing";
 
 const DEFAULT_MODEL = "gpt-5-nano";
 const MAX_CHAPTER_WORDS = 220;
@@ -32,10 +33,7 @@ const KNOWN_TTS_TAGS = new Set<string>([
 ]);
 
 function resolveScenePromptModel(selectedStoryModel?: string): string {
-  const normalized = String(selectedStoryModel || "").toLowerCase().trim();
-  if (normalized.startsWith("gemini-")) return "gemini-3-flash-preview";
-  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5-nano";
-  return DEFAULT_MODEL;
+  return resolveSupportTaskModel(selectedStoryModel) || DEFAULT_MODEL;
 }
 
 function normalizeTag(tag: string): string {
