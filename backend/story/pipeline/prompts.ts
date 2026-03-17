@@ -816,8 +816,8 @@ For each character, define:
 - FEAR: What are they avoiding or afraid of?
 
 ::: DIALOGUE PLAN :::
-- Across the whole story, aim for 40-50% dialogue. EVERY chapter needs at least 6-8 spoken lines. Dialogue drives the plot. Quiet orientation and low-point passages may use slightly less if clarity improves.
-- Every dialogue line = 1 physical action + 1 spoken line. Never floating quotes.
+- Let dialogue carry scenes whenever it adds friction, warmth, humor, or a clue. Most chapters should feel dialogue-active, but quiet orientation and low-point passages may use less direct speech.
+- Pair spoken lines with action or reaction when helpful. Avoid floating quotes and avoid mechanical quote spam.
 - Characters must sound DIFFERENT: vary sentence length, vocabulary, and energy level.
 
 ::: OUTPUT FORMAT :::
@@ -956,49 +956,26 @@ IKONISCHE SZENE (Pflicht):
 ${stylePackBlock ? `\nSTYLE\n${stylePackBlock}` : ""}
 ${customPromptBlock ? `\nUSER REQUIREMENTS\n${customPromptBlock}` : ""}
 
-NON-NEGOTIABLES (ALLE Regeln — wer sie bricht wird abgelehnt)
+QUALITAETSBAR (echte Kinderbuchwirkung statt KI-Regeltext):
+- Schreibe die Art von Geschichte, die Kinder weitererzaehlen wuerden: merkbare Figuren, ein starkes Bild, eine peinliche oder mutige Entscheidung, ein kleiner Lacher, ein warmes Ende.
+- Zielmix: Gruppenwaerme und Freundschaft, geheimnisvoller Sog, konkrete Komik, klare Kapitelhaken.
+- Dialog soll die Szene tragen, aber nicht mechanisch Quote auf Quote stapeln. Meist 25-35% direkte Rede reichen. Tiefpunkt-Kapitel duerfen knapper sein, wenn Spannung und Klarheit gewinnen.
+- Erzaehler-Einschuebe nur sparsam und pointiert. Keine Dauer-Klammern, kein Dauer-Spoiler-Ton.
+- Jede Figur braucht eigenes Sprechtempo: eine Figur knapp und impulsiv, eine genauer oder trockener, eine dritte falls vorhanden nur kurz und klar.
+- Kapitel 1 startet klar und vertraut: Wer? Wo? Was ist der Auftrag? Warum ist er wichtig?
+- Kapitel 3: ein kindlicher Fehler aus Uebereifer, Neugier, Angst oder Sturheit.
+- Kapitel 4: echter Tiefpunkt, dann eine Einsicht aus Beobachtung, Erinnerung oder Charakterstaerke des Kindes.
+- Kapitel 5: konkreter Gewinn, kleiner Preis, warmes physisches Schlussbild und ein leichter Rueckbezug auf Kapitel 1.
+- Keine Moral-Saetze. Keine Prompt-Sprache. Keine Platzhalter wie "ploetzlich" oder "auf einmal".
+- 4-6 Absätze pro Kapitel, je 2-4 Sätze. Kapitel 5 muss sich genauso voll und verdient anfuehlen wie die anderen.
+${humorRule ? `- HUMOR: ${humorRule}` : ""}
 
-STIL (BESTSELLER-QUALITÄT WIE "SCHULE DER MAGISCHEN TIERE" & "BITTE NICHT ÖFFNEN"):
-1. ERZÄHLERSTIMME (PFLICHT!): Du bist ein witziger, frecher Beobachter (wie bei Charlotte Habersack oder Alice Pantermüller). Kommentiere in Klammern, sprich den Leser direkt an, nutze Ironie.
-   FALSCH: "Adrian fand einen Karton."
-   RICHTIG: "Adrian starrte den Karton an. Ein Paket? Für ihn? (Spoiler: Das konnte nichts Gutes bedeuten.)"
-   → Mindestens 3 direkte Leser-Ansprachen/Erzählerwitze pro Kapitel!
-2. DIALOG = LEBENDIGKEIT (40-50% des Textes): Bestseller leben von coolen Dialogen (wie bei "Die drei ??? Kids"). Keine schwebenden Zitate, immer mit Handlung verknüpft!
-   FALSCH: "Machen wir das", sagte er. Sie nickte.
-   RICHTIG: "Wirklich jetzt?" Er zog eine Augenbraue hoch. "Das ist dein brillanter Plan?" - "Hast du 'nen besseren?" Sie verschränkte die Arme.
-   → Mindestens 10 knackige Dialogzeilen pro Kapitel!
-3. RHYTHMUS & VORLESE-FLOW: Spannung und Humor brauchen den perfekten Beat.
-   FALSCH: "Er rannte zur Tür und versuchte sie aufzuziehen, aber sie ließ sich absolut nicht bewegen."
-   RICHTIG: "Er rannte los. Riss an der Türklinke. Nichts. Kein Zentimeter. Verflixt."
-   → Baue bewusst extrem kurze Sätze (1-4 Wörter) für Punchlines und Spannung ein. Keine langen Bandwurmsätze über 14 Wörter!
-4. SINNLICHKEIT & KÖRPER (Show, don't tell): Streiche alle Gefühls-Etiketten wie "nervös", "glücklich", "traurig".
-   → Nutze Körper und Sinne: "Sein Bauch kribbelte wie Brausepulver", "Die Handflächen wurden nass", "Knisterndes Laub", "Es roch verbrannt."
-
-PLOT & EMOTIONEN:
-5. MAGIE & CHAOS: Wie bei "Die Schule der magischen Tiere" kommt die Lösung nicht 100% durch das Artefakt/Magie. Das Kind selbst muss Mut beweisen!
-6. KEINE BELEHRUNGEN (MORAL WIRD NIE AUSGESPROCHEN):
-   VERBOTEN: "Er wusste, dass Zusammenhalt wichtig ist." / "Die Lektion war gelernt."
-   ERLAUBT: Zeige Zusammenhalt! Ein kurzes Abklatschen, ein geteilter Keks, ein warmes Lächeln. Der Leser muss es selbst fühlen!
-7. KAPITEL 4 (TIEFPUNKT & ENTSCHEIDUNG): Hier braucht es Cleverness oder emotionalen Mut. Die Kinder ringen mit sich und entscheiden SELBST (keine Erwachsenengouvernante!).
-8. LANDUNG: Kapitel 5 endet mit 1 ruhigen Moment + 1 lustigen Schlussgag + 1 physischen Detail (Wärme & Augenzwinkern).
-
-STRUKTUR & LAENGE:
-9. JEDES Kapitel MUSS ${wordsPerChapter.min}-${wordsPerChapter.max} Wörter haben. Gesamt: ${totalWordMin}-${totalWordMax}. (Verstoß führt zu Spielerverlust!).
-10. KAPITEL 5 MUSS genau so lang und detailliert sein wie Kapitel 1-4. Kein schnelles Ausblenden!
-11. 4-6 Absätze pro Kapitel, je 2-4 Sätze.
-12. KAPITEL-ÜBERGÄNGE: Der 1. Satz eines neuen Kapitels greift sofort die Handlung des letzten Satzes auf.
-13. KINDERFEHLER (Ch3): Passieren aus kindlichem Übereifer, Neugier, Angst oder Trotzköpfchen (wie bei "Max und die wilde 7"). Niemals "Pech".
-14. Keine Platzhalter-Wörter wie "Plötzlich" oder "Auf einmal".
-${humorRule ? `15. HUMOR: ${humorRule}` : ""}
-
-SELF-CHECK (prüfe vor Ausgabe rigoros):
-- Hat JEDES Kapitel mind. 3 humorvolle Leser-Ansprachen/Klammern?
-- Gibt es reichlich Dialog (40-50%, mind. 8-10 Zeilen pro Kapitel)?
-- Gibt es richtig kurze Punchline-Sätze (1-3 Wörter)?
-- Ist das Wort "glücklich", "traurig" oder "nervös" getilgt und durch Körpersprache ersetzt?
-- Wurde auf eine platte, ausgesprochene Moral am Ende verzichtet?
-- Ist Kapitel 5 ausreichend lang?
-Wenn NEIN → umschreiben bevor du ausgibst.
+SELF-CHECK:
+- Klingt das wie ein rundes Kapitel aus einem Kinderbuch und nicht wie eine Aufgabenliste?
+- Koennte man jede Hauptfigur am Tonfall erkennen?
+- Gibt es in jedem Kapitel mindestens einen konkreten szenischen Moment, nicht nur Erklaerung?
+- Ist der Tiefpunkt in Kapitel 4 innen spuerbar und die Loesung nicht vom Artefakt erledigt?
+- Endet Kapitel 5 warm, konkret und verdient?
 
 OUTPUT
 {
@@ -1100,10 +1077,44 @@ Total output under 500 words.`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
-  // Use the FULL V7 system prompt — it contains the complete craft rules
-  // (humor taxonomy, dialogue depth, character truth, rhythm enforcement)
-  // that the lean release prompt was missing.
-  return buildV7SystemPrompt(language, ageRange);
+  const isGerman = language === "de";
+  if (isGerman) {
+    return `Du bist ein erstklassiger Autor fuer moderne Kinderbuecher fuer ${ageRange.min}-${ageRange.max} Jahre.
+Zielgefuehl: warm, spannend, humorvoll, konkret, vorlesbar. Denk an die Mischung aus Freundschaft, kleinem Geheimnis, alltagsnaher Magie, echter Kinderperspektive und klarer Szenenfuehrung.
+
+WICHTIGER ALS EFFEKTE:
+- starke Szene statt Regelstapel
+- unterscheidbare Kinderstimmen
+- kleine Geheimnisse, konkrete Hindernisse, echter Tiefpunkt
+- Humor aus Verhalten, Missverstaendnissen und Timing
+- Wende aus der Figur selbst, nicht aus Magie oder Erwachsenenhilfe
+
+SCHREIBE WIE EIN VERLAGSTEXT:
+- klare, lebendige Abschnitte
+- gemischter Rhythmus: kurze Saetze an Spannungsstellen, sonst natuerlicher Fluss
+- direkte Rede nur dort, wo sie Beziehung, Reibung oder Komik traegt
+- Erzähler-Kommentare sparsam: maximal 0-1 augenzwinkernder Einschub pro Kapitel, nie Dauer-Kommentar
+- keine Moral-Saetze, keine Listenprosa, keine Prompt-Sprache
+- Emotionen ueber Koerper, Blick, Handeln
+- Deutsch natuerlich, sauber, mit Umlauten`;
+  }
+  return `You are a top-tier contemporary children's book author for ages ${ageRange.min}-${ageRange.max}.
+Target feel: warm, funny, suspenseful, concrete, highly readable aloud. Blend friendship, a small mystery, everyday magic, and a genuine child point of view.
+
+PRIORITIZE:
+- strong scenes over rule-following
+- distinct child voices
+- concrete stakes, a real low point, and an earned inner turn
+- humor from behavior, misunderstanding, and timing
+- resolutions driven by the child, not by magic or adults
+
+WRITE LIKE A PUBLISHED BOOK:
+- clear lively paragraphs
+- varied rhythm: short sentences at pressure points, natural flow elsewhere
+- dialogue only where it sharpens conflict, warmth, or comedy
+- narrator asides used sparingly, never constantly
+- no moralizing, no report prose, no prompt language
+- emotions through body, gaze, and action`;
 }
 
 export function buildBlueprintDrivenStoryPrompt(input: {
@@ -1195,7 +1206,7 @@ export function buildBlueprintDrivenStoryPrompt(input: {
   const ageRule = ageMax <= 6
     ? `Sentences: max 8 words. Simple vocabulary. Lots of repetition.`
     : ageMax <= 8
-      ? `Sentences: max 12 words on average. Everyday language. No jargon, no complex metaphors. Every paragraph must be clear when read aloud.`
+      ? `Sentences: short to medium with clean read-aloud flow. Everyday language. No jargon, no dense metaphor stacks. Longer sentences are fine if they stay crystal clear.`
       : `Medium sentences allowed. Richer vocabulary possible. Balance complex with short punchy sentences.`;
 
   // Safety
@@ -1227,7 +1238,7 @@ ${customPromptBlock ? `::: USER REQUEST :::\n${customPromptBlock}\n` : ""}
 
 ::: WHAT GREAT PROSE SOUNDS LIKE :::
 
-GOOD (notice: short sentences, body, humor, dialogue = 40%):
+GOOD (notice: scene clarity, body, humor, and useful dialogue):
 Mama knallte den Korb auf den Tisch. Peng.
 "Darf ich–" "Nein", sagte Mama. Schnell wie ein Krokodilmaul.
 Mira beugte sich vor. "Da dampft was." "Und es klappert", sagte Timo.
@@ -1237,19 +1248,19 @@ Oma kicherte und schob ihm ein Stück Kuchen über den Tisch. "Probier mal." Tim
 BAD (report-style, no body, no humor, floating dialogue):
 Mira und Timo kamen bei Oma an. Sie waren aufgeregt. "Das ist gut", sagte einer von ihnen. Oma lächelte. Sie gab ihnen Kuchen. Alle waren glücklich.
 
-→ Every paragraph needs RHYTHM (short-short-long), BODY (what hands/feet/face do), and DIALOGUE anchored to a physical action. Humor should appear across the story, but not every paragraph needs a joke.
+→ Every paragraph needs RHYTHM, BODY (what hands/feet/face do), and scene energy. Dialogue should be anchored to action when it appears. Humor should appear across the story, but not every paragraph needs a joke.
 
 ::: RULES :::
 
 ::: BESTSELLER RULES (WIE "SCHULE DER MAGISCHEN TIERE", "BITTE NICHT ÖFFNEN", "DIE DREI ??? KIDS") :::
 
 PROSA-HANDWERK:
-1. ERZÄHLERSTIMME (PFLICHT!): Du bist ein charmanter, witziger Begleiter des Lesers (z.B. wie im "Lotta-Leben"). Nutze Klammern und ironische Vorwarnungen. Mindestens 3 direkte Leser-Ansprachen pro Kapitel! (Beispiel: "(Spoiler: Sehr schlechte Idee.)").
-2. RHYTHMUS & MELODIE: Spannung braucht Takt. Kurz. Kurz. Ein normaler Satz, der ausholt. Dann wieder ein Punch. JEDER 3. Satz extrem kurz (unter 6 Wörter). Keine endlosen Schachtelsätze.
+1. ERZÄHLERSTIMME: Du darfst charmant und leicht augenzwinkernd erzählen, aber sparsam. Ein kleiner Einschub wirkt nur, wenn er wirklich Charme bringt.
+2. RHYTHMUS & MELODIE: Spannung braucht Takt. Nutze kurze Sätze an Druckstellen und sonst einen natürlichen Fluss. Keine trägen Satzketten und keine mechanische Taktvorgabe.
 3. KEINE BERICHTSPROSA: "Er ging. Sie sagte. Er nickte." -> VERBOTEN. Lass das Setting und die Figuren atmen und interagieren.
 4. SINNESDETAILS & KÖRPER: Keine Gefühls-Schubladen wie "Er war nervös". Nutze Sinne: "Sein Hals schnürte sich zu", "Ihre Finger gruben sich in das Holz", "Es roch nach staubigem Plüsch."
 5. DIALOG = SUBTEXT: Figuren sagen oft das Gegenteil von dem, was sie fühlen. Ein trotziges "Mir doch egal!", während eine Träne weggewischt wird, zählt.
-6. DIALOG-ANTEIL: 40-50% des Kapitels! Mindestens 8 Zeilen pro Kapitel. Jede Zeile zwingend mit Action-Beat gekoppelt.
+6. DIALOG-EINSATZ: Nutze direkte Rede dort, wo sie Reibung, Wärme, Witz oder ein Rätsel trägt. Nicht jeder Absatz braucht Dialog, aber Szenen dürfen nie nur berichtet wirken.
 
 FIGUREN-HANDWERK:
 7. JEDE Figur klingt ANDERS: Einer poltert furchtlos los, einer murmelt kurze Halbsätze, einer redet hektisch doppelt so schnell.
@@ -1281,9 +1292,9 @@ IMPORTANT: Each chapter MUST reach at least ${wordsPerChapter.min} words. Short 
 Cast lock: only ${allowedNames.join(", ")}. No new names.
 
 ::: SELF-CHECK :::
-- Mind. 3 humorvolle Erzähler-Kommentare (Leser-Ansprache/Klammern) in JEDEM Kapitel?
-- Fast 50% knackiger Dialog?
-- Extreme kurze Spannungssätze (1-4 Wörter) dabei?
+- Gibt es nur dort Erzähler-Einschübe, wo sie echten Charme bringen?
+- Fühlen sich die Kapitel szenisch und lebendig an, statt berichtet?
+- Gibt es Rhythmuswechsel zwischen Druckstellen und ruhigem Fluss?
 - Wurden alle Gefühlslaute ("nervös", "ängstlich") durch körperliche Reaktionen ersetzt?
 - Keine platt ausgesprochene Moral?
 - Hat Kapitel 5 genau so viel Text wie Kapitel 1-4?
@@ -1363,22 +1374,22 @@ WRITING PROCESS — work like this:
 NARRATOR VOICE — you are NOT invisible. You are the funny best friend:
 WRONG: "Adrian opened the door. He went inside."
 RIGHT: "Adrian opened the door. What was behind it? Well. Let's just say: It wasn't what he expected. (It wasn't what YOU expected either.)"
-- Per chapter: 3-4 narrator interjections. Parentheses, reader questions, exaggerations, spoiler jokes.
+- Narrator interjections are optional and should stay sparse. Use them only when they genuinely add charm or comic timing.
 - Patterns: "(Spoiler: That was a lie.)" / "And then — no, wait." / "What? Yes. Really."
 
-DIALOGUE — 40-50% of text. Dialogue IS the story:
+DIALOGUE — scene-driven, not quota-driven:
 WRONG: Adrian went to the door. He opened it. Alexander followed. They walked down the hallway.
 RIGHT: "In there?" Adrian stared at the tunnel. "Seriously?"
 "Seriously." Alexander was already on his knees.
 "See anything?" "Darkness." "Great."
-- At least 8 dialogue lines per chapter. Every line has body action.
+- Use dialogue whenever it sharpens friction, humor, warmth, or mystery. Quiet passages without dialogue are allowed.
 - Kids interrupt. Talk around things. Don't say what they mean.
 - SUBTEXT: "I don't care." (Hands stuffed deep in pockets, seams straining.) = He cares SO MUCH.
 
 SENTENCE RHYTHM — write like a comic:
 WRONG: "He went to the door and carefully opened it while Alexander waited behind him."
 RIGHT: "He went to the door. Pressed the handle. Nothing. Great."
-- Every 3rd sentence: UNDER 6 words. No sentence over 14 words.
+- Use short sentences at pressure points, but keep the overall rhythm natural and easy to read aloud.
 - FORBIDDEN: 3+ medium sentences in a row.
 - Vary sentence openings. Never 3x "He..." in a row.
 
@@ -1452,27 +1463,13 @@ MUST FIX:
 ${qualityIssues || "- General prose improvement needed."}
 ${blueprintHint}
 REWRITE FOCUS:
-NARRATOR VOICE (PFLICHT):
-  FALSCH: "Adrian oeffnete die Tuer. Er ging hinein."
-  RICHTIG: "Adrian oeffnete die Tuer. Was dahinter war? Na ja. (Es war nicht das, was ihr denkt.)"
-  → 3+ Erzaehler-Kommentare pro Kapitel. Klammern, Leser-Ansprachen, Uebertreibungen.
-DIALOG = 40-50% (ZAEHLE: mindestens 10 Anfuehrungszeichen-Paare pro Kapitel!):
-  FALSCH (15% Dialog): Er ging zum Regal. Er nahm die Flasche. Er stellte sie ab. Alexander stand daneben.
-  RICHTIG (45% Dialog): "Gib her!" Alexander griff danach. Adrian wich aus. "Nee. Meine Entdeckung." "Zeig mal!" "Nee." "Adrian!" "Was?"
-  → 10+ Dialogzeilen pro Kapitel. Jede mit Koerper-Aktion.
-  → KEIN Absatz ohne Dialog (ausser reiner Erzaehler-Kommentar).
-RHYTHMUS:
-  FALSCH: "Er ging zur Tuer und oeffnete sie vorsichtig, waehrend Alexander hinter ihm wartete."
-  RICHTIG: "Er ging zur Tuer. Drueckte die Klinke. Nichts. Na toll."
-  → Jeder 3. Satz unter 6 Woerter. Kein Satz ueber 14 Woerter.
-KAPITEL 4 — KEIN EXTERNER RETTER:
-  FALSCH: Erwachsener sagt Alexander was zu tun ist. Alexander tut es.
-  RICHTIG: Kind erinnert sich an etwas. Kind entscheidet SELBST. Erwachsene duerfen FRAGEN stellen, nicht ANTWORTEN geben.
-KEINE MORAL-SAETZE:
-  VERBOTEN: "Mut ist..." / "Er wusste dass..." / "Nie wieder wuerde er..." / "Das fuehlte sich richtig an" / "Fehler haben Konsequenzen"
-  → Zeige die Lektion durch HANDLUNG, nicht durch Worte.
-- Emotions = body, never labels. No "nervoes/traurig/gluecklich".
-- Each character sounds different WITHOUT name tags.
+- Baue Kapitel wie echte Szenen um, nicht wie eine Reparaturliste.
+- Dialog gezielt staerken: nur dort erhoehen, wo Reibung, Humor, Angst oder Naehe entstehen. Keine Quote-Maschine.
+- Erzähler-Kommentare nur sparsam und nur wenn sie wirklich Charme bringen.
+- Rhythmus vorlesbar halten: kurze Saetze an Druckstellen, sonst natuerlicher Mischrhythmus.
+- Kapitel 4: Die innere Wende gehoert dem Kind. Kein Artefakt, kein Erwachsener loest das Kernproblem.
+- Kapitel 5: konkreter Gewinn + kleiner Preis + Rueckbezug auf das Anfangsziel.
+- Emotions = body, never labels. Each character sounds different WITHOUT name tags.
 - Ch2-5: FIRST sentence connects to LAST moment of previous chapter.
 - EVERY chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words. INCLUDING chapter 5!
 - No name more than 7x per chapter.
@@ -1486,7 +1483,7 @@ ${stylePackBlock ? `\nSTYLE:\n${stylePackBlock}` : ""}
 ORIGINAL DRAFT:
 ${originalText}
 
-SELF-CHECK before output: 3+ narrator comments per chapter? 40-50% dialogue? Every 3rd sentence short? No emotion labels? Ch5 same length as Ch1?
+SELF-CHECK before output: stronger scene? clearer voices? no artifact deus-ex? no moral sentence? chapter 5 concrete and warm?
 
 OUTPUT:
 {
@@ -1663,7 +1660,7 @@ ${pressureLine}
   const ageGroupRule = ageMax <= 6
     ? `AGE GROUP ${ageMin}-${ageMax}: VERY short sentences (max 8 words each). Only simple everyday vocabulary. Lots of repetition for rhythm. One action per sentence. No background knowledge required. The output language is ${outputLang} but these structural rules always apply.`
     : ageMax <= 8
-      ? `AGE GROUP ${ageMin}-${ageMax}: Short to medium sentences (max 12 words). Everyday conversational language. No jargon, no complex metaphors. Every paragraph must be immediately understandable to a child reading aloud. The output language is ${outputLang} but these structural rules always apply.`
+      ? `AGE GROUP ${ageMin}-${ageMax}: Short to medium sentences with clean read-aloud flow. Everyday conversational language. No jargon or dense metaphor stacks. Longer sentences are allowed when they stay crystal clear. The output language is ${outputLang} but these structural rules always apply.`
       : `AGE GROUP ${ageMin}-${ageMax}: Medium sentences allowed. Richer vocabulary and imagery possible. Some complex sentences okay if balanced with short punchy ones.`;
 
   // Chapter 1 character introduction requirement
@@ -2150,10 +2147,10 @@ ${missingLine}
 # TARGET: ${lengthTargets.wordMin}-${lengthTargets.wordMax} words, ${lengthTargets.sentenceMin}-${lengthTargets.sentenceMax} sentences
 
 # RULES
-1. NARRATOR VOICE (PFLICHT): FALSCH: "Er ging hinein." RICHTIG: "Er ging hinein. (Keine gute Idee.)" → 2+ Erzaehler-Kommentare im Kapitel.
+1. NARRATOR VOICE: A tiny narrator wink is allowed if it adds charm, but never force commentary into the chapter.
 2. ONLY these names: ${allowedNames}. No new characters. Max ${focusMaxActive} active, ideal ${focusIdealRange}.
-3. Emotions through body, never labels. FALSCH: "Er war nervoes." RICHTIG: "Sein Magen drehte sich." Every 3rd sentence under 6 words. No sentence over 14 words.
-4. 40-50% dialogue. 6+ dialogue lines. FALSCH: "Los!", sagte er. RICHTIG: "Los!", rief er und zerrte am Aermel. Each character sounds different.
+3. Emotions through body, never labels. FALSCH: "Er war nervoes." RICHTIG: "Sein Magen drehte sich." Keep the rhythm read-aloud friendly. Split only sentences that feel overloaded or clumsy.
+4. Use dialogue where friction, warmth, humor, or clues happen. Quiet paragraphs without dialogue are allowed. Each character sounds different.
 5. At least 1 inner child-moment of ${emotionalFocus} (body signal + thought).
 6. No meta-labels, no Goal/Conflict text in prose, no moral summary.
 7. Max 1 comparison per paragraph. Running gag max 2x.
@@ -2363,7 +2360,7 @@ export function buildStoryChapterRevisionPrompt(input: {
   ].filter(Boolean).join("\n");
 
   return `Revise the chapter below to fix ONLY the listed issues. Write the output in ${isGerman ? "German" : language}.
-Target quality: published children's fiction (concrete action, distinct voices, emotional subtext), never report-style prose.
+Target quality: published children's fiction with clear scene work, distinct voices, emotional subtext, and read-aloud flow. Never report-style prose.
 
 CRITICAL PLOT PRESERVATION:
 - Keep the SAME events, characters, dialogue, and ending as the original.
@@ -2394,7 +2391,7 @@ ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
 1) Only these names: ${allowedNames || "none"}. No new characters.
-2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. 40-50% dialogue.
+2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. Use as much dialogue as the scene truly needs, usually dialogue-rich but never mechanical.
 3) Emotions through body, never labels. Each character sounds different.
 4) No meta-labels, no Goal/Conflict text in prose. No report chains.
 5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
@@ -2630,13 +2627,13 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
     ? [
       "ORIENTATION FIRST: Kapitel 1 darf ruhig und klar beginnen. Nach Absatz 2 muessen WER, WO, WAS und WARUM klar sein.",
       "FOCUS: Meist 2 aktive Figuren pro Kapitel. Weitere Figuren reagieren nur kurz.",
-      "DIALOGUE QUOTA 40-50%: Mindestens 40% des Textes MUSS Dialog sein. ZAEHLE: Mindestens 10 Anfuehrungszeichen-Paare pro Kapitel. KEIN Absatz ohne mindestens 1 Dialogzeile.",
+      "DIALOGUE SUPPORTS SCENES: Dialog soll Reibung, Waerme, Witz oder Hinweise tragen. Ruhige Passagen sind erlaubt, aber ein Kapitel darf nicht nur berichtet wirken.",
       "TRANSITIONS: Jeder neue Ort, Hinweis oder Plan braucht einen kurzen Brueckensatz.",
     ]
     : [
       "ORIENTATION FIRST: Chapter 1 may begin quietly and clearly. By paragraph 2, WHO, WHERE, WHAT, and WHY must be clear.",
       "FOCUS: Usually keep 2 active characters per chapter. Others may only react briefly.",
-      "DIALOGUE QUOTA 40-50%: At least 40% of text MUST be dialogue. COUNT: At least 10 quotation mark pairs per chapter. NO paragraph without at least 1 spoken line.",
+      "DIALOGUE SUPPORTS SCENES: Dialogue should carry friction, warmth, humor, or clues. Quiet passages are allowed, but a chapter must not read like report prose.",
       "TRANSITIONS: Every new place, clue, or plan needs one short bridge sentence.",
     ];
   return [...curatedLines, ...lines].slice(0, 10).join("\n").trim();

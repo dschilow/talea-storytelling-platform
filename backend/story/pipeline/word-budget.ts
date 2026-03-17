@@ -22,11 +22,31 @@ export function computeWordBudget(input: {
   chapterCount: number;
   wpm?: number;
   pacing?: "fast" | "balanced" | "slow";
+  ageMax?: number;
+  releaseMode?: boolean;
 }): WordBudget {
   const lengthKey = input.lengthHint || "medium";
-  const minutes = LENGTH_MINUTES[lengthKey] ?? LENGTH_MINUTES.medium;
+  const baseMinutes = LENGTH_MINUTES[lengthKey] ?? LENGTH_MINUTES.medium;
+  const ageMax = input.ageMax ?? 12;
+  const releaseMode = input.releaseMode !== false;
+  const chapterBookBoost =
+    releaseMode && ageMax >= 7
+      ? lengthKey === "medium"
+        ? { min: 2, max: 2 }
+        : lengthKey === "long"
+          ? { min: 1, max: 2 }
+          : { min: 0, max: 0 }
+      : { min: 0, max: 0 };
+  const minutes = {
+    min: baseMinutes.min + chapterBookBoost.min,
+    max: baseMinutes.max + chapterBookBoost.max,
+  };
   const wpm = input.wpm ?? 150;
-  const pacingFactor = input.pacing === "fast" ? 0.9 : input.pacing === "slow" ? 1.1 : 1;
+  const basePacingFactor = input.pacing === "fast" ? 0.9 : input.pacing === "slow" ? 1.1 : 1;
+  const pacingFactor =
+    releaseMode && ageMax >= 7 && lengthKey !== "short"
+      ? Math.max(1, basePacingFactor)
+      : basePacingFactor;
 
   const selectedMinutes = Math.round((minutes.min + minutes.max) / 2);
   const targetWords = Math.max(300, Math.round(selectedMinutes * wpm * pacingFactor));

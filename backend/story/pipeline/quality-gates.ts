@@ -135,10 +135,10 @@ function gateDialogueQuote(
   const isDE = language === "de";
   const ageMax = ageRange?.max ?? 12;
   const minDialogueLines = ageMax <= 8 ? 3 : 2;
-  const minDialogueRatio = ageMax <= 8 ? 0.30 : 0.20;
-  const maxDialogueRatio = ageMax <= 8 ? 0.60 : 0.75;
-  const criticalDialogueRatio = ageMax <= 8 ? 0.20 : 0.14;
-  const extremeHighDialogueRatio = ageMax <= 8 ? 0.66 : 0.84;
+  const minDialogueRatio = ageMax <= 8 ? 0.25 : 0.20;
+  const maxDialogueRatio = ageMax <= 8 ? 0.55 : 0.75;
+  const criticalDialogueRatio = ageMax <= 8 ? 0.16 : 0.14;
+  const extremeHighDialogueRatio = ageMax <= 8 ? 0.68 : 0.84;
 
   for (const ch of draft.chapters) {
     const sentenceCount = Math.max(1, splitSentences(ch.text).length);
@@ -421,6 +421,7 @@ function gateCastLock(
       if (language === "de" && /(?:lich|ig|isch|sam|bar|haft|los|voll|weise|wärts)$/.test(name)) continue;
       // Multi-word German non-name patterns (possessives, articles, quantifiers + noun)
       if (language === "de" && germanNonNamePatterns.some(p => p.test(match[1]))) continue;
+      if (language === "de" && isLikelyQuotedSpeechPhrase(ch.text, match[1], matchIndex)) continue;
       // Single German common nouns: check if ALL words in the match are common nouns
       if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
       if (language === "de" && parts.length >= 2 && isLikelyGermanDescriptivePhrase(match[1])) continue;
@@ -2951,7 +2952,12 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
   if (issueCodes.has("SENTENCE_COMPLEXITY_HIGH") || issueCodes.has("LONG_SENTENCE_OVERUSE") || issueCodes.has("VERY_LONG_SENTENCE")) {
     lines.push(isDE
       ? "- Lesbarkeit reparieren: JEDEN Satz ueber 14 Woerter aufteilen. Ziel: 4-10 Woerter pro Satz, hoechstens 15 % duerfen 14 erreichen. Rhythmus variieren: ein kurzer Satz (3-5 W.), dann ein mittlerer (6-10 W.), dann vielleicht ein laengerer (11-14 W.). Beispiel VORHER: 'Sie rannte durch den Wald und suchte den Stein, den der alte Mann ihr beschrieben hatte.' → NACHHER: 'Sie rannte los. Der Wald verschluckte sie. Irgendwo hier lag der Stein – der alte Mann hatte ihn genau beschrieben.'"
-      : "- Fix readability: split EVERY sentence over 14 words. Target: 4-10 words per sentence, at most 15% may reach 14. Vary rhythm: short (3-5w), medium (6-10w), then maybe longer (11-14w).");
+      : "- Fix readability: split only overloaded or clumsy sentences. Aim for natural read-aloud flow with short pressure beats and clear medium sentences. Longer lines are fine if they stay easy to carry aloud.");
+  }
+  if (issueCodes.has("SENTENCE_COMPLEXITY_HIGH") || issueCodes.has("LONG_SENTENCE_OVERUSE") || issueCodes.has("VERY_LONG_SENTENCE")) {
+    lines.push(isDE
+      ? "- Vorrang fuer natuerlichen Vorlese-Fluss: nicht mechanisch kuerzen. Teile nur die Saetze, die wirklich holpern, und behalte an ruhigen Stellen auch etwas laengere, klare Saetze."
+      : "- Prioritize natural read-aloud flow over mechanical shortening. Split only the lines that genuinely stumble, and keep slightly longer clear sentences where they help.");
   }
   if (issueCodes.has("VOICE_INDISTINCT") || issueCodes.has("ROLE_LABEL_OVERUSE") || issueCodes.has("VOICE_TAG_FORMULA_OVERUSE")) {
     lines.push(isDE
@@ -2960,8 +2966,8 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
   }
   if (issueCodes.has("DIALOGUE_RATIO_LOW") || issueCodes.has("DIALOGUE_RATIO_CRITICAL") || issueCodes.has("TOO_FEW_DIALOGUES")) {
     lines.push(isDE
-      ? "- Mehr lebendige Dialogszenen einbauen: pro Kapitel mindestens 10 Anfuehrungszeichen-Paare, nicht nur Erzaehlertext. Ziel 40-50% Dialoganteil. KEIN Absatz ohne Dialog."
-      : "- Add more lively dialogue scenes: at least 10 quotation mark pairs per chapter, not mostly narration. Target 40-50% dialogue ratio. NO paragraph without dialogue.");
+      ? "- Mehr lebendige Interaktion einbauen: dort mehr direkte Rede setzen, wo Reibung, Waerme, Witz oder Hinweise entstehen. Nicht jeder Absatz braucht Dialog, aber ein Kapitel darf nicht ueberwiegend wie Bericht wirken."
+      : "- Add more live interaction: use more direct speech where friction, warmth, humor, or clues emerge. Not every paragraph needs dialogue, but a chapter should not read mostly like report prose.");
   }
   if (issueCodes.has("POETIC_LANGUAGE_OVERLOAD")) {
     lines.push(isDE
@@ -3783,6 +3789,25 @@ function isLikelySentenceStart(text: string, index: number): boolean {
   while (i >= 0 && /\s/.test(text[i])) i--;
   if (i < 0) return true;
   return /[.!?\n]/.test(text[i]);
+}
+
+function isLikelyQuotedSpeechPhrase(text: string, token: string, matchIndex: number): boolean {
+  const startQuote = text.lastIndexOf('"', matchIndex);
+  if (startQuote === -1) return false;
+  const endQuote = text.indexOf('"', matchIndex + token.length);
+  if (endQuote === -1) return false;
+  if (startQuote > matchIndex || endQuote < matchIndex + token.length) return false;
+
+  const quoted = text.slice(startQuote + 1, endQuote).trim();
+  if (!quoted.includes(token)) return false;
+
+  const before = text.slice(Math.max(0, startQuote - 24), startQuote);
+  const after = text.slice(endQuote + 1, Math.min(text.length, endQuote + 40));
+  const looksLikeSpeakerAttribution = /\b(sagte|rief|fragte|murmelte|knurrte|antwortete|flüsterte|kicherte|brüllte|meinte)\b/i.test(after)
+    || /\b(sagte|rief|fragte|murmelte|knurrte|antwortete|flüsterte|kicherte|brüllte|meinte)\b/i.test(before);
+  if (looksLikeSpeakerAttribution) return false;
+
+  return quoted.split(/\s+/).length <= 3;
 }
 
 function shouldFlagUnlockedName(text: string, token: string, matchIndex: number, language: string): boolean {

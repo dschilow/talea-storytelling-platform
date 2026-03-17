@@ -5,7 +5,7 @@ import { callChatCompletion, calculateTokenCosts } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
-import { getCoreChapterCharacterNames } from "./character-focus";
+import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-focus";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -293,6 +293,169 @@ function buildDeterministicFallbackBlueprint(input: {
   };
 }
 
+function sanitizeStoryBlueprint(input: {
+  blueprint: StoryBlueprint;
+  fallback: StoryBlueprint;
+  cast: CastSet;
+}): StoryBlueprint {
+  const childNames = getChildFocusNames(input.cast).filter(Boolean);
+  const avatarNames = input.cast.avatars
+    .map(avatar => String(avatar.displayName || "").trim())
+    .filter(Boolean);
+  const leadName = childNames[0] || avatarNames[0] || "Das Kind";
+  const secondName = childNames.find(name => name !== leadName) || avatarNames.find(name => name !== leadName) || leadName;
+  const growthChild = resolveGrowthChildName({ blueprint: input.blueprint, childNames, leadName, secondName });
+  const companion = childNames.find(name => name !== growthChild) || secondName || growthChild;
+  const artifactTerms = buildArtifactTerms(input.cast.artifact?.name);
+  const adultHelperNames = input.cast.poolCharacters
+    .filter(sheet => !childNames.includes(sheet.displayName))
+    .map(sheet => sheet.displayName.toLowerCase());
+
+  const sanitized: StoryBlueprint = {
+    ...input.blueprint,
+    chapter1: {
+      ...input.blueprint.chapter1,
+      stakes: pickConcreteBlueprintLine(input.blueprint.chapter1.stakes, input.fallback.chapter1.stakes || ""),
+      foreground: buildForegroundPair(leadName, secondName),
+    },
+    chapter2: {
+      ...input.blueprint.chapter2,
+      foreground: ensureForegroundContainsChildPair(input.blueprint.chapter2.foreground, leadName, secondName),
+    },
+    chapter3: {
+      ...input.blueprint.chapter3,
+      mistake: ensureStartsWithChild(input.blueprint.chapter3.mistake, growthChild),
+      mistakeReason: ensureStartsWithChild(input.blueprint.chapter3.mistakeReason, growthChild),
+      bodyReaction: pickConcreteBlueprintLine(input.blueprint.chapter3.bodyReaction, input.fallback.chapter3.bodyReaction),
+      foreground: buildForegroundPair(growthChild, companion),
+    },
+    chapter4: {
+      ...input.blueprint.chapter4,
+      worstMoment: pickConcreteBlueprintLine(input.blueprint.chapter4.worstMoment, input.fallback.chapter4.worstMoment),
+      almostGivingUp: ensureStartsWithChild(input.blueprint.chapter4.almostGivingUp, growthChild),
+      insightTrigger: containsExternalRescueCue(input.blueprint.chapter4.insightTrigger, artifactTerms, adultHelperNames)
+        ? input.fallback.chapter4.insightTrigger
+        : pickConcreteBlueprintLine(input.blueprint.chapter4.insightTrigger, input.fallback.chapter4.insightTrigger),
+      newChoice: ensureStartsWithChild(input.blueprint.chapter4.newChoice, growthChild),
+      foreground: buildForegroundPair(growthChild, companion),
+    },
+    chapter5: {
+      ...input.blueprint.chapter5,
+      concreteWin: pickConcreteBlueprintLine(input.blueprint.chapter5.concreteWin, input.fallback.chapter5.concreteWin),
+      smallPrice: pickConcreteBlueprintLine(input.blueprint.chapter5.smallPrice, input.fallback.chapter5.smallPrice),
+      ch1Callback: pickConcreteBlueprintLine(input.blueprint.chapter5.ch1Callback, input.fallback.chapter5.ch1Callback),
+      finalImage: pickConcreteBlueprintLine(input.blueprint.chapter5.finalImage, input.fallback.chapter5.finalImage),
+      foreground: buildForegroundPair(growthChild, companion),
+    },
+    emotionalArc: sanitizeEmotionalArc(input.blueprint.emotionalArc, input.fallback.emotionalArc),
+    characterWants: sanitizeCharacterInnerMap(input.blueprint.characterWants, input.fallback.characterWants, childNames),
+    characterFears: sanitizeCharacterInnerMap(input.blueprint.characterFears, input.fallback.characterFears, childNames),
+    artifactArc: input.blueprint.artifactArc ?? input.fallback.artifactArc,
+  };
+
+  return sanitized;
+}
+
+function resolveGrowthChildName(input: {
+  blueprint: StoryBlueprint;
+  childNames: string[];
+  leadName: string;
+  secondName: string;
+}): string {
+  const joined = [
+    (input.blueprint as any)?.chapter3?.mistakeChild,
+    input.blueprint.chapter3?.mistake,
+    input.blueprint.chapter4?.almostGivingUp,
+    input.blueprint.chapter4?.newChoice,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  for (const name of input.childNames) {
+    if (joined.includes(name.toLowerCase())) return name;
+  }
+
+  return input.childNames[1] || input.secondName || input.childNames[0] || input.leadName;
+}
+
+function sanitizeEmotionalArc(value: StoryBlueprint["emotionalArc"], fallback: StoryBlueprint["emotionalArc"]): StoryBlueprint["emotionalArc"] {
+  const source = Array.isArray(value) ? value : fallback;
+  const result = source.map((entry, index) => {
+    const cleaned = String(entry || "").trim();
+    return cleaned.length >= 8 ? cleaned : fallback[index];
+  });
+  return [
+    result[0] || fallback[0],
+    result[1] || fallback[1],
+    result[2] || fallback[2],
+    result[3] || fallback[3],
+    result[4] || fallback[4],
+  ];
+}
+
+function sanitizeCharacterInnerMap(
+  value: Record<string, string> | undefined,
+  fallback: Record<string, string>,
+  preferredNames: string[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of Object.keys(fallback)) {
+    const candidate = String(value?.[name] || "").trim();
+    out[name] = candidate.length >= 8 ? candidate : fallback[name];
+  }
+  for (const name of preferredNames) {
+    if (!out[name] && fallback[name]) out[name] = fallback[name];
+  }
+  return out;
+}
+
+function buildForegroundPair(first: string, second: string): string {
+  const safeSecond = second && second !== first ? second : first;
+  return `${first}, ${safeSecond}`;
+}
+
+function ensureForegroundContainsChildPair(value: string | undefined, first: string, second: string): string {
+  const text = String(value || "").toLowerCase();
+  if (text.includes(first.toLowerCase()) && text.includes(second.toLowerCase())) {
+    return value!;
+  }
+  return buildForegroundPair(first, second);
+}
+
+function buildArtifactTerms(artifactName?: string): string[] {
+  const parts = String(artifactName || "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  return [...new Set(["artefakt", "artifact", "ring", "amulett", ...parts])];
+}
+
+function containsExternalRescueCue(text: string | undefined, artifactTerms: string[], helperNames: string[]): boolean {
+  const lower = String(text || "").toLowerCase();
+  if (!lower) return true;
+  if (artifactTerms.some(token => token && lower.includes(token))) return true;
+  if (helperNames.some(token => token && lower.includes(token))) return true;
+  return /\b(erwachs|oma|fee|mentor|zauber|magie|magic|hilft|rettet|sagt ihm|sagt ihr)\b/i.test(lower);
+}
+
+function pickConcreteBlueprintLine(value: string | undefined, fallback: string): string {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) return fallback;
+  if (cleaned.length < 12) return fallback;
+  if (/\b(lernen|lektion|moral|wichtig ist|zusammenhalt|mut ist|freundschaft ist)\b/i.test(cleaned)) {
+    return fallback;
+  }
+  return cleaned;
+}
+
+function ensureStartsWithChild(text: string | undefined, childName: string): string {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return childName;
+  if (cleaned.toLowerCase().includes(childName.toLowerCase())) return cleaned;
+  return `${childName} ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
+}
+
 export class LlmStoryWriter implements StoryWriter {
   async writeStory(input: {
     normalizedRequest: NormalizedRequest;
@@ -317,6 +480,7 @@ export class LlmStoryWriter implements StoryWriter {
     // - GPT selection -> gpt-5-nano
     // The full-story call still uses the user-selected final model.
     const flashModel = isGeminiModel ? "gemini-3-flash-preview" : "gpt-5-nano";
+    const blueprintModel = isGeminiFlashModel && normalizedRequest.ageMax <= 9 ? "gpt-5-mini" : flashModel;
     const flashFallbackChatModel = isGeminiModel ? "gpt-5-mini" : undefined;
     const isFlashModelGemini = flashModel.startsWith("gemini-");
     const supportStepFetchTimeoutMs = flashFallbackChatModel ? 45000 : undefined;
@@ -371,15 +535,15 @@ export class LlmStoryWriter implements StoryWriter {
       ? `8. Write the story ONLY in German. Use proper German umlauts (ä, ö, ü, ß). No English words in the story text.`
       : `8. Write the story in ${targetLanguage}.${languageGuard ? `\n${languageGuard}` : ""}`;
     const systemPrompt = `You are an elite children's book author. Warm, witty, alive prose.
-Rules: Flowing paragraphs (2-4 sentences). Emotions through body, never labels. Each character sounds different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter. 30%+ sentences under 6 words. No moral lectures, no meta-narration.
+Rules: Flowing paragraphs (2-4 sentences). Emotions through body, never labels. Each character sounds different. Dialogue should sharpen conflict, warmth, or humor instead of filling quota. Keep the rhythm read-aloud friendly. No moral lectures, no meta-narration.
 ${storyLanguageRule}`.trim();
     const compactSystemPrompt = `You are a world-class children's book author writing prose as JSON output.
 Write flowing paragraphs, not single-sentence chains. Show emotions through body language, not labels.
-Each character must sound different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter.
+Each character must sound different. Dialogue should be purposeful, lively, and anchored to action.
 ${storyLanguageRule}`.trim();
     const editLanguageNote = isGerman ? " Write exclusively in German with proper umlauts." : "";
     const editSystemPrompt = `You are a senior children's book editor. Preserve plot, voice, and continuity.
-Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. Each character sounds different. 40-50% dialogue anchored to action — at least 10 quotation mark pairs per chapter. No report-style chains. Expand by adding concrete dialogue and action beats, not vague padding.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
+Prose rules: read-aloud friendly rhythm, distinct character voices, emotions through body, and concrete action. Add dialogue only where it sharpens tension, humor, or relationship. Avoid checklist prose, over-narration, and robotic quote spam.${editLanguageNote}${languageGuard ? `\n${languageGuard}` : ""}`.trim();
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
@@ -595,7 +759,7 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
           context: "story-writer-blueprint",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },
-          modelOverride: flashModel,
+          modelOverride: blueprintModel,
         });
 
         if (blueprintResult.usage) {
@@ -638,6 +802,13 @@ Prose rules: 30%+ sentences under 6 words. Emotions through body, never labels. 
       if (!storyBlueprint && deterministicFallbackBlueprint) {
         storyBlueprint = deterministicFallbackBlueprint;
         console.warn("[story-writer] V7: Using deterministic fallback blueprint to stay on the lean prompt path.");
+      }
+      if (storyBlueprint && deterministicFallbackBlueprint) {
+        storyBlueprint = sanitizeStoryBlueprint({
+          blueprint: storyBlueprint,
+          fallback: deterministicFallbackBlueprint,
+          cast,
+        });
       }
     }
 

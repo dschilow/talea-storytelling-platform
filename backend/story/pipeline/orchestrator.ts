@@ -176,6 +176,8 @@ export class StoryPipelineOrchestrator {
       chapterCount: normalized.chapterCount,
       wpm: pipelineConfig.wpm,
       pacing: normalized.rawConfig?.pacing ?? "balanced",
+      ageMax: normalized.ageMax,
+      releaseMode: (normalized.rawConfig as any)?.releaseMode,
     });
     const stylePack = await loadStylePack({ language: normalized.language, category: normalized.category });
     const parentalGuidance =
@@ -343,12 +345,12 @@ export class StoryPipelineOrchestrator {
       const isGeminiFlashModel = selectedStoryModel.startsWith("gemini-3-flash");
       const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 2);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      // Cost/latency guard: Gemini Flash defaults to max 2 candidates unless explicitly overridden.
-      // 3 candidates + rewrites caused significant latency spikes and token blowups in production logs.
+      // Quality-first default: compare at least two candidates unless the caller explicitly overrides it.
+      // Gemini Flash stays capped at 2 to avoid runaway latency, but a floor of 2 is worth the cost.
       const baseDefaultCandidateCount = Number.isFinite(configuredCandidateCount) ? configuredCandidateCount : 2;
       const defaultCandidateCount = isGeminiFlashModel
-        ? Math.max(1, Math.min(2, baseDefaultCandidateCount))
-        : baseDefaultCandidateCount;
+        ? Math.max(2, Math.min(2, baseDefaultCandidateCount))
+        : Math.max(2, baseDefaultCandidateCount);
       const releaseCandidateCount = releaseEnabled
         ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? explicitCandidateCount : defaultCandidateCount))
         : 1;
@@ -1142,10 +1144,9 @@ function mergeTokenUsage(current: any, next: any): any {
 }
 
 function resolveSurgeryModel(model?: string): string {
-  if (!model) return "gpt-5-nano";
-  if (model.startsWith("gemini-")) return "gemini-3-flash-preview";
-  if (model.startsWith("gpt-") || model.startsWith("o4-")) return "gpt-5-nano";
-  return "gpt-5-nano";
+  if (!model) return "gpt-5-mini";
+  if (model.startsWith("gpt-5.4")) return "gpt-5.4";
+  return "gpt-5-mini";
 }
 
 function clampNumber(value: number, min: number, max: number): number {

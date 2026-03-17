@@ -78,36 +78,36 @@ export async function runSemanticCritic(input: {
 
     const isDE = input.language === "de";
     const systemPrompt = isDE
-      ? `Du bist ein strenger Kinderbuch-Lektor. Bewerte nur die Qualität. Schreibe die Geschichte NICHT um.
+      ? `Du bist ein strenger Kinderbuch-Lektor. Bewerte nur die Qualitaet. Schreibe die Geschichte NICHT um.
 Fokussiere dich auf konkrete, kapitel-lokale Fehler und umsetzbare Korrekturen.
-Kein allgemeines Lob. Gib knappes JSON zurück, exakt wie angefordert.
+Kein allgemeines Lob. Gib knappes JSON zurueck, exakt wie angefordert.
 
-PRÜFE GEZIELT:
-1. Kapitel 1: Weiß das Kind nach 2 Absätzen WER, WO, WAS? Wenn nicht → ERROR.
-2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persönlichkeit heraus? Gibt es eine Körperreaktion? Wenn nicht → ERROR.
-3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von außen)? Wenn nicht → ERROR.
-4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rückbezug zu Kapitel 1? Wenn nicht → WARNING.
-5. Dialog: Klingt jede Figur anders? Ist Dialog an Handlung gebunden? Mindestens 40% Dialog pro Kapitel. Pro Kapitel prüfen. Wenn unter 25% → ERROR.
-6. Vorlese-Test: Gibt es Sätze über 12 Wörter, die beim Vorlesen stolpern lassen? Zitiere sie.
+PRUEFE GEZIELT:
+1. Kapitel 1: Weiss das Kind nach 2 Absaetzen WER, WO, WAS? Wenn nicht -> ERROR.
+2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persoenlichkeit heraus? Gibt es eine Koerperreaktion? Wenn nicht -> ERROR.
+3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von aussen)? Wenn nicht -> ERROR.
+4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rueckbezug zu Kapitel 1? Wenn nicht -> WARNING.
+5. Dialog: Klingt jede Figur anders? Traegt Dialog Reibung, Witz, Naehe oder Hinweis? Ruhige Passagen sind erlaubt. Nur wenn ein Kapitel fast nur aus Bericht besteht und kaum direkte Rede hat -> ERROR.
+6. Vorlese-Test: Markiere nur Saetze, die beim Vorlesen wirklich holpern, ueberladen oder unklar klingen. Laenge allein ist kein Fehler.
 7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?
-8. Humor: Gibt es 2-3 echte Schmunzel-Momente in der ganzen Geschichte? Kapitel 4 darf ernster sein, wenn der Tiefpunkt dadurch stärker wird. Wenn fast gar kein Humor vorkommt → ERROR.
-9. Figuren-Fokus: Maximal 2 Figuren im Vordergrund pro Kapitel. Wenn 4+ aktive Figuren → ERROR.
-10. Rhythmus: Gibt es Variation? Kurz-kurz-lang? Oder nur gleichförmige mittellange Sätze? → WARNING.`
+8. Humor: Gibt es 2-3 echte Schmunzel-Momente in der ganzen Geschichte? Kapitel 4 darf ernster sein, wenn der Tiefpunkt dadurch staerker wird. Wenn fast gar kein Humor vorkommt -> ERROR.
+9. Figuren-Fokus: Meist 2 Vordergrundfiguren, 3 sind okay wenn die Szene klar bleibt. Erst wenn 4+ gleichzeitig konkurrieren und die Szene unklar wird -> ERROR.
+10. Rhythmus: Gibt es Variation zwischen kurzen Druckstellen und natuerlichem Fluss? Oder nur gleichfoermige Mittellage? -> WARNING.`
       : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
 Focus on concrete, chapter-local failures and actionable fixes.
 No generic praise. Return concise JSON exactly as requested.
 
 TARGETED CHECKS:
-1. Chapter 1: After 2 paragraphs, does the child know WHO, WHERE, WHAT? If not → ERROR.
-2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not → ERROR.
-3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not → ERROR.
-4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not → WARNING.
-5. Dialogue: Does each character sound distinct? Is dialogue anchored to action? At least 40% dialogue per chapter. Check per chapter. If under 25% → ERROR.
-6. Read-aloud test: Are there sentences over 12 words that would stumble when read aloud? Quote them.
+1. Chapter 1: After 2 paragraphs, does the child know WHO, WHERE, WHAT? If not -> ERROR.
+2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not -> ERROR.
+3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not -> ERROR.
+4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not -> WARNING.
+5. Dialogue: Does each character sound distinct? Does dialogue carry friction, humor, warmth, or clues? Quiet passages are allowed. Only if a chapter is mostly report prose with barely any direct speech -> ERROR.
+6. Read-aloud test: Flag only sentences that would genuinely stumble aloud because they are overloaded, awkward, or unclear. Length alone is not a bug.
 7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?
-8. Humor: Are there 2-3 genuine smile moments across the whole story? Chapter 4 may stay more serious if that strengthens the low point. If there is almost no humor at all → ERROR.
-9. Character focus: Max 2 characters in the foreground per chapter. If 4+ active characters → ERROR.
-10. Rhythm: Is there sentence length variation? Short-short-long? Or only uniform medium sentences? → WARNING.`;
+8. Humor: Are there 2-3 genuine smile moments across the whole story? Chapter 4 may stay more serious if that strengthens the low point. If there is almost no humor at all -> ERROR.
+9. Character focus: Usually keep 2 foreground figures, but 3 can work if the scene stays clear. Only if 4+ active figures compete and muddy the scene -> ERROR.
+10. Rhythm: Is there sentence-length variation between pressure beats and natural flow? Or only uniform medium sentences? -> WARNING.`;
 
     const userPayload = {
       language: input.language,
@@ -126,19 +126,19 @@ TARGETED CHECKS:
         warmth: "emotional warmth, hopeful closure",
       },
       focusChecks: [
-        "Ch1 orientation: after 2 paragraphs child must know WHO + WHERE + WHAT. If mid-action start → ERROR CH1_ORIENTATION_MISSING",
-        "Ch3 child mistake: child must make a genuine error from their personality (not external bad luck). Body reaction required. If missing → ERROR CHILD_MISTAKE_MISSING",
-        "Ch4 internal turning point: the insight must come from inside the child, not from artifact or adult. If external → ERROR EXTERNAL_RESOLUTION",
-        "Ch5 concrete payoff: show what was won (concrete) + small tangible price + callback to Ch1. If abstract → WARNING",
-        "mistake-growth arc: child mistakes in Ch3, learns in Ch4, acts differently in Ch5. If arc is broken → ERROR GROWTH_ARC_BROKEN",
-        "voice separation: children should sound distinct in sentence rhythm and wording. If all characters sound the same → ERROR VOICE_BLEND",
-        "read-aloud stumbles: flag sentences over 12 words that would stumble when read aloud → WARNING READ_ALOUD_STUMBLE",
-        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment → WARNING CHAPTER_TRANSITION_WEAK",
-        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained' → WARNING META_FORESHADOW_PHRASE",
-        "rule-exposition tell: reject textbook statements about how artifacts/rules work → WARNING RULE_EXPOSITION_TELL",
-        "humor distribution: the story should contain 2-3 playful/funny moments overall. Chapter 4 may stay more serious. If the story has almost no humor → ERROR HUMOR_MISSING",
-        "character focus: max 2 characters in foreground per chapter. If 4+ actively speaking/acting → ERROR CHARACTER_OVERLOAD",
-        "dialogue ratio: each chapter should have 40-50% dialogue. If under 25% → ERROR DIALOGUE_TOO_LOW. Count quotation marks: each chapter needs 10+ pairs.",
+        "Ch1 orientation: after 2 paragraphs child must know WHO + WHERE + WHAT. If mid-action start -> ERROR CH1_ORIENTATION_MISSING",
+        "Ch3 child mistake: child must make a genuine error from their personality (not external bad luck). Body reaction required. If missing -> ERROR CHILD_MISTAKE_MISSING",
+        "Ch4 internal turning point: the insight must come from inside the child, not from artifact or adult. If external -> ERROR EXTERNAL_RESOLUTION",
+        "Ch5 concrete payoff: show what was won (concrete) + small tangible price + callback to Ch1. If abstract -> WARNING",
+        "mistake-growth arc: child mistakes in Ch3, learns in Ch4, acts differently in Ch5. If arc is broken -> ERROR GROWTH_ARC_BROKEN",
+        "voice separation: children should sound distinct in sentence rhythm and wording. If all characters sound the same -> ERROR VOICE_BLEND",
+        "read-aloud stumbles: flag only overloaded or awkward sentences that would genuinely stumble when read aloud -> WARNING READ_ALOUD_STUMBLE",
+        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment -> WARNING CHAPTER_TRANSITION_WEAK",
+        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained' -> WARNING META_FORESHADOW_PHRASE",
+        "rule-exposition tell: reject textbook statements about how artifacts/rules work -> WARNING RULE_EXPOSITION_TELL",
+        "humor distribution: the story should contain 2-3 playful/funny moments overall. Chapter 4 may stay more serious. If the story has almost no humor -> ERROR HUMOR_MISSING",
+        "character focus: usually 2 foreground figures, 3 is acceptable if staging stays clear. If 4+ actively compete for attention -> ERROR CHARACTER_OVERLOAD",
+        "dialogue balance: chapters should feel scene-led and alive. Use WARNING DIALOGUE_PROSE_IMBALANCE when a chapter would benefit from more live interaction. Use ERROR DIALOGUE_TOO_LOW only when direct speech is nearly absent and the chapter reads mostly like report prose.",
       ],
       preferredIssueCodes: [
         "CH1_ORIENTATION_MISSING",
