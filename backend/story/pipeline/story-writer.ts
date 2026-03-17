@@ -1095,7 +1095,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           );
           const needsMissingFix = missingCharacters.length > 0;
-          const needsExpand = Boolean(wordCount < softExpandMinChapterWords || sentenceCount < 3 || needsMissingFix);
+          const hasUsableBaseText = wordCount >= 40 || String(chapter.text || "").trim().length >= 200;
+          const needsExpand = hasUsableBaseText && Boolean(wordCount < softExpandMinChapterWords || sentenceCount < 3 || needsMissingFix);
           if (!needsExpand) return null;
 
           const issueCodes = chapterIssueCodes.get(chapter.chapter) ?? new Set<string>();
@@ -1793,18 +1794,16 @@ function extractDraftFromAnyFormat(input: {
   wordsPerChapter: { min: number; max: number };
 }): StoryDraft {
   const { parsed, directives, language, wordsPerChapter } = input;
-  const hasStructuredChapters = Array.isArray(parsed?.chapters)
-    && parsed.chapters.some((ch: any) =>
-      (Array.isArray(ch?.paragraphs) && ch.paragraphs.some((p: any) => typeof p === "string" && p.trim().length > 0))
-      || (typeof ch?.text === "string" && ch.text.trim().length > 0)
-    );
-  if (hasStructuredChapters) {
-    return extractDraftFromChapterArray(parsed, directives, language);
-  }
+  const structuredDraft = extractDraftFromChapterArray(parsed, directives, language);
+  const structuredNonEmptyChapters = structuredDraft.chapters.filter(ch =>
+    countWords(ch.text) >= 40 || String(ch.text || "").trim().length >= 200,
+  ).length;
+  const structuredWordTotal = structuredDraft.chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+  const structuredLooksComplete = structuredNonEmptyChapters >= Math.max(2, directives.length - 1);
 
   const continuous = extractContinuousStoryPayload(parsed, language);
   if (continuous?.storyText) {
-    return buildDraftFromContinuousStory({
+    const continuousDraft = buildDraftFromContinuousStory({
       title: continuous.title,
       description: continuous.description,
       storyText: continuous.storyText,
@@ -1812,8 +1811,15 @@ function extractDraftFromAnyFormat(input: {
       language,
       wordsPerChapter,
     });
+    const continuousWordTotal = continuousDraft.chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+    const continuousLooksStronger =
+      !structuredLooksComplete ||
+      continuousWordTotal > structuredWordTotal * 1.2;
+    if (continuousLooksStronger) {
+      return continuousDraft;
+    }
   }
-  return extractDraftFromChapterArray(parsed, directives, language);
+  return structuredDraft;
 }
 
 function extractContinuousStoryPayload(parsed: any, language: string): {

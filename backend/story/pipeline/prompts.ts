@@ -979,11 +979,16 @@ SELF-CHECK:
 - Endet Kapitel 5 warm, konkret und verdient?
 
 OUTPUT
+You MUST return EXACTLY 5 chapter objects: chapters 1, 2, 3, 4, 5. Missing chapters are INVALID.
 {
   "title": "Short curiosity-driven title (max 6 words)",
   "description": "One teaser sentence with a question hook",
   "chapters": [
-    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 2, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 3, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 4, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 5, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
   ]
 }
 "paragraphs" MUST be a JSON array of 4-5 strings. Each string = one paragraph. NEVER put the whole chapter in one string.`;
@@ -1306,11 +1311,16 @@ Cast lock: only ${allowedNames.join(", ")}. No new names.
 Wenn NEIN → umschreiben!
 
 ::: OUTPUT :::
+You MUST return EXACTLY 5 chapter objects: chapters 1, 2, 3, 4, 5. Missing chapters are INVALID.
 {
   "title": "Short curiosity-driven title (max 6 words)",
   "description": "One teaser sentence with a question hook",
   "chapters": [
-    { "chapter": 1, "paragraphs": ["Paragraph 1 (2-4 sentences).", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+    { "chapter": 1, "paragraphs": ["Paragraph 1 (2-4 sentences).", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 2, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 3, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 4, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] },
+    { "chapter": 5, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
   ]
 }
 "paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph. NEVER put the whole chapter in one string.`;
