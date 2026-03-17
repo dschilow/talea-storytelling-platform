@@ -1,5 +1,5 @@
 ﻿import crypto from "crypto";
-import type { AvatarDetail, CastSet, ImageSpec, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription } from "./types";
+import type { AvatarDetail, CastSet, ImageSpec, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription, StoryCostEntry } from "./types";
 import { normalizeRequest } from "./normalizer";
 import { loadStoryBlueprintBase } from "./dna-loader";
 import { createVariantPlan } from "./variant-planner";
@@ -24,6 +24,7 @@ import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
+import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -65,12 +66,33 @@ export interface PipelineRunResult {
     imageUrl?: string;
     prompt: string;
     provider?: string;
+    model?: string;
+    providerCostUSD?: number | null;
+    providerCostCredits?: number | null;
+    promptChars?: number;
+    negativePromptChars?: number;
+    referenceCount?: number;
+    success?: boolean;
+    metadata?: Record<string, any>;
     scenicImageUrl?: string;
     scenicPrompt?: string;
   }>;
-  coverImage?: { imageUrl?: string; prompt: string; provider?: string };
+  coverImage?: {
+    imageUrl?: string;
+    prompt: string;
+    provider?: string;
+    model?: string;
+    providerCostUSD?: number | null;
+    providerCostCredits?: number | null;
+    promptChars?: number;
+    negativePromptChars?: number;
+    referenceCount?: number;
+    success?: boolean;
+    metadata?: Record<string, any>;
+  };
   validationReport?: any;
   tokenUsage?: any;
+  costEntries?: StoryCostEntry[];
   artifactMeta?: any;
   canonFusionPlan?: any;
   criticReport?: SemanticCriticReport;
@@ -194,6 +216,8 @@ export class StoryPipelineOrchestrator {
       .join("\n\n");
     const phaseGates: Array<{ phase: string; success: boolean; schemaValid?: boolean; issues?: any[]; attempts?: number; artifactRef?: any }> = [];
     let validationReport: any | undefined;
+    let tokenUsage: any;
+    const costEntries: StoryCostEntry[] = [];
 
     try {
       // ─── Phase 0.5: Fairy Tale Selection (quality/diversity fit) ─────────
@@ -257,13 +281,18 @@ export class StoryPipelineOrchestrator {
       const phase3Start = Date.now();
       let castSet = await loadCastSet(normalized.storyId);
       if (!castSet) {
-        castSet = await buildCastSet({
+        const castBuildResult = await buildCastSet({
           normalized: { ...normalized, variantSeed },
           roles: blueprint.roles,
           variantPlan,
           blueprint,
           avatars: input.avatars,
         });
+        castSet = castBuildResult.castSet;
+        tokenUsage = mergeTokenUsage(tokenUsage, castBuildResult.usage);
+        if (castBuildResult.costEntries?.length) {
+          costEntries.push(...castBuildResult.costEntries);
+        }
         await saveCastSet(normalized.storyId, castSet);
       }
       const castValidation = validateCastSet(castSet);
@@ -336,7 +365,6 @@ export class StoryPipelineOrchestrator {
 
       const phase6Start = Date.now();
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
-      let tokenUsage: any;
       let qualityReport: any;
       let criticReport: SemanticCriticReport | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
@@ -443,6 +471,15 @@ export class StoryPipelineOrchestrator {
           targetMinScore: criticMinScore,
         });
         tokenUsage = mergeTokenUsage(tokenUsage, criticReport.usage);
+        if (criticReport.usage) {
+          const criticCost = buildLlmCostEntry({
+            phase: "phase6-story",
+            step: "critic",
+            usage: criticReport.usage,
+            fallbackModel: criticModel,
+          });
+          if (criticCost) costEntries.push(criticCost);
+        }
         releaseReport = {
           enabled: releaseEnabled,
           candidateCount: 1,
@@ -497,6 +534,9 @@ export class StoryPipelineOrchestrator {
           );
 
           let candidateUsage = writeResult.usage;
+          if (writeResult.costEntries?.length) {
+            costEntries.push(...writeResult.costEntries);
+          }
           let candidateCritic: SemanticCriticReport;
           if (shouldSkipSemanticCritic(candidateQuality)) {
             candidateCritic = buildSkippedCriticReport(criticModel);
@@ -513,12 +553,30 @@ export class StoryPipelineOrchestrator {
               targetMinScore: criticMinScore,
             });
             candidateUsage = mergeTokenUsage(candidateUsage, candidateCritic.usage);
+            if (candidateCritic.usage) {
+              const criticCost = buildLlmCostEntry({
+                phase: "phase6-story",
+                step: "critic",
+                usage: candidateCritic.usage,
+                fallbackModel: criticModel,
+                candidateTag,
+              });
+              if (criticCost) costEntries.push(criticCost);
+            }
           }
 
           let surgeryApplied = false;
           let editedChapters: number[] = [];
           const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
-          if (surgeryEnabled && candidateCritic.patchTasks.length > 0 && (!candidateCritic.releaseReady || qualityErrors > 0)) {
+          const hasPriorityOneLocalTask = candidateCritic.patchTasks.some(task => task.chapter > 0 && task.priority === 1);
+          const nearReleaseBand = candidateCritic.overallScore >= Math.max(7.8, criticMinScore - 0.4);
+          if (
+            surgeryEnabled
+            && candidateCritic.patchTasks.length > 0
+            && hasPriorityOneLocalTask
+            && nearReleaseBand
+            && (!candidateCritic.releaseReady || qualityErrors > 0)
+          ) {
             const surgery = await applySelectiveSurgery({
               storyId: normalized.storyId,
               normalizedRequest: normalized,
@@ -530,6 +588,7 @@ export class StoryPipelineOrchestrator {
               stylePackText,
               maxEdits: maxSelectiveSurgeryEdits,
               model: resolveSurgeryModel(normalized.rawConfig?.aiModel),
+              candidateTag,
             });
 
             if (surgery.changed) {
@@ -537,6 +596,9 @@ export class StoryPipelineOrchestrator {
               editedChapters = surgery.editedChapters;
               candidateDraft = surgery.draft;
               candidateUsage = mergeTokenUsage(candidateUsage, surgery.usage);
+              if (surgery.costEntries?.length) {
+                costEntries.push(...surgery.costEntries);
+              }
 
               const postSurgeryQuality = toQualitySummary(
                 runQualityGates({
@@ -563,6 +625,16 @@ export class StoryPipelineOrchestrator {
                 targetMinScore: criticMinScore,
               });
               candidateUsage = mergeTokenUsage(candidateUsage, postSurgeryCritic.usage);
+              if (postSurgeryCritic.usage) {
+                const criticCost = buildLlmCostEntry({
+                  phase: "phase6-story",
+                  step: "critic-post-surgery",
+                  usage: postSurgeryCritic.usage,
+                  fallbackModel: criticModel,
+                  candidateTag,
+                });
+                if (criticCost) costEntries.push(criticCost);
+              }
 
               const preScore = scoreReleaseCandidate(candidateQuality, candidateCritic, releaseEnabled);
               const postScore = scoreReleaseCandidate(postSurgeryQuality, postSurgeryCritic, releaseEnabled);
@@ -756,6 +828,10 @@ export class StoryPipelineOrchestrator {
           selectedStoryModel: String(normalized.rawConfig?.aiModel || ""),
         });
         aiSceneDescriptions = sceneResult.descriptions;
+        tokenUsage = mergeTokenUsage(tokenUsage, sceneResult.usage);
+        if (sceneResult.costEntries?.length) {
+          costEntries.push(...sceneResult.costEntries);
+        }
         const successCount = aiSceneDescriptions.filter(Boolean).length;
         await logPhase("phase6.5-scene-prompts", { storyId: normalized.storyId }, {
           durationMs: Date.now() - phase65Start,
@@ -841,7 +917,7 @@ export class StoryPipelineOrchestrator {
       }
 
       const phase8Start = Date.now();
-      let coverImage: { imageUrl?: string; prompt: string; provider?: string } | undefined;
+      let coverImage: PipelineRunResult["coverImage"] | undefined;
       try {
         const coverSpec = await buildCoverSpec({
           normalizedRequest: normalized,
@@ -858,6 +934,21 @@ export class StoryPipelineOrchestrator {
           logContext: { storyId: normalized.storyId, phase: "phase8-cover" },
         });
         coverImage = coverImages[0];
+        if (coverImage) {
+          costEntries.push(buildImageCostEntry({
+            phase: "phase8-cover",
+            step: "image-generation",
+            provider: coverImage.provider || "runware",
+            model: coverImage.model,
+            chapter: 0,
+            success: Boolean(coverImage.imageUrl),
+            prompt: coverImage.prompt,
+            providerCostUSD: coverImage.providerCostUSD,
+            providerCostCredits: coverImage.providerCostCredits,
+            referenceCount: coverImage.referenceCount,
+            metadata: coverImage.metadata,
+          }));
+        }
         await logPhase("phase8-cover", { storyId: normalized.storyId }, {
           durationMs: Date.now() - phase8Start,
           success: !!coverImage?.imageUrl,
@@ -877,6 +968,21 @@ export class StoryPipelineOrchestrator {
           pipelineConfig,
           logContext: { storyId: normalized.storyId, phase: "phase9-imagegen" },
         });
+        for (const image of primaryImages) {
+          costEntries.push(buildImageCostEntry({
+            phase: "phase9-imagegen",
+            step: "image-generation",
+            provider: image.provider || "runware",
+            model: image.model,
+            chapter: image.chapter,
+            success: Boolean(image.imageUrl),
+            prompt: image.prompt,
+            providerCostUSD: image.providerCostUSD,
+            providerCostCredits: image.providerCostCredits,
+            referenceCount: image.referenceCount,
+            metadata: image.metadata,
+          }));
+        }
 
         const supplementalSpecs = buildSupplementalScenicImageSpecs({
           imageSpecs,
@@ -885,7 +991,7 @@ export class StoryPipelineOrchestrator {
           language: normalized.language,
         });
 
-        let supplementalImages: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }> = [];
+        let supplementalImages: PipelineRunResult["images"] = [];
         let supplementalError: string | undefined;
         try {
           supplementalImages = await this.imageGenerator.generateImages({
@@ -896,6 +1002,21 @@ export class StoryPipelineOrchestrator {
             pipelineConfig,
             logContext: { storyId: normalized.storyId, phase: "phase9-imagegen-scenic" },
           });
+          for (const image of supplementalImages) {
+            costEntries.push(buildImageCostEntry({
+              phase: "phase9-imagegen-scenic",
+              step: "image-generation",
+              provider: image.provider || "runware",
+              model: image.model,
+              chapter: image.chapter,
+              success: Boolean(image.imageUrl),
+              prompt: image.prompt,
+              providerCostUSD: image.providerCostUSD,
+              providerCostCredits: image.providerCostCredits,
+              referenceCount: image.referenceCount,
+              metadata: image.metadata,
+            }));
+          }
         } catch (err) {
           supplementalError = String((err as Error)?.message || err);
           console.warn("[pipeline] Supplemental scenic image generation failed", err);
@@ -960,6 +1081,21 @@ export class StoryPipelineOrchestrator {
             pipelineConfig,
             logContext: { storyId: normalized.storyId, phase: "phase10-vision-retry-imagegen" },
           });
+          for (const image of retryImages) {
+            costEntries.push(buildImageCostEntry({
+              phase: "phase10-vision-retry-imagegen",
+              step: "image-generation",
+              provider: image.provider || "runware",
+              model: image.model,
+              chapter: image.chapter,
+              success: Boolean(image.imageUrl),
+              prompt: image.prompt,
+              providerCostUSD: image.providerCostUSD,
+              providerCostCredits: image.providerCostCredits,
+              referenceCount: image.referenceCount,
+              metadata: image.metadata,
+            }));
+          }
 
           if (retryImages.length > 0) {
             const retryMap = new Map(retryImages.map(img => [img.chapter, img]));
@@ -1010,6 +1146,7 @@ export class StoryPipelineOrchestrator {
         coverImage,
         validationReport,
         tokenUsage,
+        costEntries,
         artifactMeta,
         canonFusionPlan,
         criticReport,
@@ -1130,17 +1267,7 @@ function pickBestCandidate<T extends { compositeScore: number; quality: any; cri
 }
 
 function mergeTokenUsage(current: any, next: any): any {
-  if (!next) return current;
-  if (!current) return { ...next };
-  return {
-    promptTokens: (current.promptTokens || 0) + (next.promptTokens || 0),
-    completionTokens: (current.completionTokens || 0) + (next.completionTokens || 0),
-    totalTokens: (current.totalTokens || 0) + (next.totalTokens || 0),
-    model: current.model || next.model,
-    inputCostUSD: (current.inputCostUSD || 0) + (next.inputCostUSD || 0),
-    outputCostUSD: (current.outputCostUSD || 0) + (next.outputCostUSD || 0),
-    totalCostUSD: (current.totalCostUSD || 0) + (next.totalCostUSD || 0),
-  };
+  return mergeNormalizedTokenUsage(current, next);
 }
 
 function resolveSurgeryModel(model?: string): string {

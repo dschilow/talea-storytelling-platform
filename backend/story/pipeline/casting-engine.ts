@@ -9,6 +9,7 @@ import { scoreCandidate } from "./matching-score";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 import { callChatCompletion } from "./llm-client";
+import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 
 interface CharacterPoolRow {
@@ -101,13 +102,15 @@ export async function buildCastSet(input: {
   variantPlan: StoryVariantPlan;
   blueprint?: StoryBlueprintBase;
   avatars: AvatarDetail[];
-}): Promise<CastSet> {
+}): Promise<{ castSet: CastSet; usage?: any; costEntries?: any[] }> {
   const { normalized, roles, variantPlan, blueprint, avatars } = input;
   const rng = createSeededRandom(variantPlan.variantSeed);
 
   const pool = await loadCharacterPool();
   const used = new Set<string>();
   const matchScores: MatchScore[] = [];
+  let usage: any;
+  const costEntries: any[] = [];
 
   const avatarSheets = await buildAvatarSheets(avatars);
   avatarSheets.forEach(sheet => used.add(sheet.characterId));
@@ -130,7 +133,7 @@ export async function buildCastSet(input: {
     if (slot.roleType === "ARTIFACT") continue;
     if (poolSheets.length >= maxPoolChars) continue;
 
-    const candidate = await selectCandidateForSlot({
+    const candidateResult = await selectCandidateForSlot({
       slot,
       pool,
       used,
@@ -140,6 +143,11 @@ export async function buildCastSet(input: {
       variantPlan,
       blueprint,
     });
+    const candidate = candidateResult.sheet;
+    usage = mergeNormalizedTokenUsage(usage, candidateResult.usage);
+    if (candidateResult.costEntries?.length) {
+      costEntries.push(...candidateResult.costEntries);
+    }
     if (!candidate) {
       if (slot.required) {
         throw new Error(`No suitable character found for required slot ${slot.slotKey}. Update character_pool or slot constraints.`);
@@ -181,19 +189,23 @@ export async function buildCastSet(input: {
   }
 
   return {
-    avatars: avatarSheets,
-    poolCharacters: poolSheets,
-    artifact: {
-      artifactId: artifact.id,
-      name: normalized.language === "en" ? artifact.name.en : artifact.name.de,
-      category: artifact.category,
-      storyUseRule: artifact.storyRole,
-      visualRule: artifact.visualKeywords.join(", ") || "artifact must be visible",
-      rarity: artifact.rarity?.toUpperCase() as any,
-      imageUrl: artifact.imageUrl,
+    castSet: {
+      avatars: avatarSheets,
+      poolCharacters: poolSheets,
+      artifact: {
+        artifactId: artifact.id,
+        name: normalized.language === "en" ? artifact.name.en : artifact.name.de,
+        category: artifact.category,
+        storyUseRule: artifact.storyRole,
+        visualRule: artifact.visualKeywords.join(", ") || "artifact must be visible",
+        rarity: artifact.rarity?.toUpperCase() as any,
+        imageUrl: artifact.imageUrl,
+      },
+      slotAssignments,
+      matchScores: trimmedScores,
     },
-    slotAssignments,
-    matchScores: trimmedScores,
+    usage,
+    costEntries,
   };
 }
 async function recordPoolCharacterUsage(input: {
@@ -354,12 +366,14 @@ async function selectCandidateForSlot(input: {
   normalized: NormalizedRequest;
   variantPlan: StoryVariantPlan;
   blueprint?: StoryBlueprintBase;
-}): Promise<CharacterSheet | null> {
+}): Promise<{ sheet: CharacterSheet | null; usage?: any; costEntries?: any[] }> {
   const { slot, pool, used, rng, matchScores, normalized, variantPlan, blueprint } = input;
   const aiMatchModel = resolveSimpleTaskModel((normalized.rawConfig as any)?.aiModel);
   const allAvailable = pool.filter(candidate => !used.has(candidate.id));
   const eligibleCandidates = allAvailable.filter(candidate => passesHardConstraints(slot, candidate));
-  if (eligibleCandidates.length === 0) return null;
+  if (eligibleCandidates.length === 0) {
+    return { sheet: null, usage: undefined, costEntries: [] };
+  }
 
   const scored: ScoredCandidate[] = eligibleCandidates.map(candidate => {
     const scoreDetails = scoreCandidate(slot, candidate as any);
@@ -378,7 +392,7 @@ async function selectCandidateForSlot(input: {
   const topTier = scored.filter(item => item.score >= topScore - 0.15);
   const fallbackPick = topTier[Math.floor(rng.next() * Math.max(1, topTier.length))]?.candidate;
 
-  const aiPick = await selectCandidateForSlotWithAI({
+  const aiResult = await selectCandidateForSlotWithAI({
     slot,
     normalized,
     variantPlan,
@@ -387,9 +401,12 @@ async function selectCandidateForSlot(input: {
     scored,
     model: aiMatchModel,
   });
+  const aiPick = aiResult.candidate;
 
   const picked = aiPick ?? fallbackPick;
-  if (!picked) return null;
+  if (!picked) {
+    return { sheet: null, usage: aiResult.usage, costEntries: aiResult.costEntry ? [aiResult.costEntry] : [] };
+  }
 
   if (aiPick) {
     const entry = matchScores.find(score => score.slotKey === slot.slotKey && score.candidateId === aiPick.id);
@@ -398,7 +415,11 @@ async function selectCandidateForSlot(input: {
     }
   }
 
-  return await buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType);
+  return {
+    sheet: await buildPoolCharacterSheet(picked, slot.slotKey, slot.roleType),
+    usage: aiResult.usage,
+    costEntries: aiResult.costEntry ? [aiResult.costEntry] : [],
+  };
 }
 
 async function selectCandidateForSlotWithAI(input: {
@@ -409,10 +430,10 @@ async function selectCandidateForSlotWithAI(input: {
   eligibleCandidates: CharacterPoolRow[];
   scored: ScoredCandidate[];
   model: string;
-}): Promise<CharacterPoolRow | null> {
+}): Promise<{ candidate: CharacterPoolRow | null; usage?: any; costEntry: any | null }> {
   const { slot, normalized, variantPlan, blueprint, eligibleCandidates, scored, model } = input;
   if (eligibleCandidates.length <= 1) {
-    return eligibleCandidates[0] ?? null;
+    return { candidate: eligibleCandidates[0] ?? null, usage: undefined, costEntry: null };
   }
 
   try {
@@ -499,11 +520,17 @@ Return compact JSON only with selectedCandidateId and confidence.`;
               model,
             },
           });
-          return {
-            content: geminiResult.content,
-            finishReason: String(geminiResult.finishReason || "").toLowerCase(),
-          };
-        })()
+        return {
+          content: geminiResult.content,
+          finishReason: String(geminiResult.finishReason || "").toLowerCase(),
+          usage: {
+            promptTokens: geminiResult.usage.promptTokens,
+            completionTokens: geminiResult.usage.completionTokens,
+            totalTokens: geminiResult.usage.totalTokens,
+            model: geminiResult.model,
+          },
+        };
+      })()
       : await callChatCompletion({
           model,
           messages: [
@@ -529,27 +556,50 @@ Return compact JSON only with selectedCandidateId and confidence.`;
     const finishReason = String(response.finishReason || "").toLowerCase();
     if (finishReason === "length" || finishReason === "max_tokens" || !response.content?.trim()) {
       console.warn(`[casting-engine] AI match response truncated or empty for slot ${slot.slotKey}, falling back to score-based`);
-      return null;
+      return { candidate: null, usage: response.usage, costEntry: buildLlmCostEntry({
+        phase: "phase3-casting",
+        step: "ai-match",
+        usage: response.usage,
+        fallbackModel: model,
+        slotKey: slot.slotKey,
+        metadata: {
+          storyId: normalized.storyId,
+          candidateCount: candidateOptions.length,
+          eligibleCount: eligibleCandidates.length,
+        },
+      }) };
     }
 
     const parsed = JSON.parse(response.content) as AiCastingDecision;
     const selectedId = String(parsed?.selectedCandidateId || "").trim();
-    if (!selectedId) return null;
+    const costEntry = buildLlmCostEntry({
+      phase: "phase3-casting",
+      step: "ai-match",
+      usage: response.usage,
+      fallbackModel: model,
+      slotKey: slot.slotKey,
+      metadata: {
+        storyId: normalized.storyId,
+        candidateCount: candidateOptions.length,
+        eligibleCount: eligibleCandidates.length,
+      },
+    });
+    if (!selectedId) return { candidate: null, usage: response.usage, costEntry };
 
     const candidate = eligibleCandidates.find(item => item.id === selectedId) || null;
-    if (!candidate) return null;
+    if (!candidate) return { candidate: null, usage: response.usage, costEntry };
 
     const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence)
       ? parsed.confidence
       : 0.5;
     if (confidence < AI_MATCH_MIN_CONFIDENCE) {
-      return null;
+      return { candidate: null, usage: response.usage, costEntry };
     }
 
-    return candidate;
+    return { candidate, usage: response.usage, costEntry };
   } catch (error) {
     console.warn("[casting-engine] AI matching failed, falling back to score-based matching", (error as Error)?.message || error);
-    return null;
+    return { candidate: null, usage: undefined, costEntry: null };
   }
 }
 

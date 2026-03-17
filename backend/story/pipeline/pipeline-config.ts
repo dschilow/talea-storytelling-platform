@@ -23,7 +23,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   releaseCandidateCount: 2,
   criticModel: "gpt-5-mini",
   criticMinScore: 8.2,
-  maxSelectiveSurgeryEdits: 3,
+  maxSelectiveSurgeryEdits: 1,
 };
 
 let cached: PipelineConfig | null = null;

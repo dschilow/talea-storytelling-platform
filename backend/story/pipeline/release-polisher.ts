@@ -1,10 +1,12 @@
 import { buildStoryChapterRevisionPrompt, resolveLengthTargets } from "./prompts";
 import { callChatCompletion } from "./llm-client";
+import { buildLlmCostEntry, mergeNormalizedTokenUsage, normalizeTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 import type {
   CastSet,
   NormalizedRequest,
   SceneDirective,
+  StoryCostEntry,
   StoryDraft,
   StoryDNA,
   TaleDNA,
@@ -17,6 +19,7 @@ export interface SelectiveSurgeryResult {
   changed: boolean;
   editedChapters: number[];
   usage?: TokenUsage;
+  costEntries?: StoryCostEntry[];
 }
 
 export async function applySelectiveSurgery(input: {
@@ -30,12 +33,14 @@ export async function applySelectiveSurgery(input: {
   stylePackText?: string;
   maxEdits?: number;
   model?: string;
+  candidateTag?: string;
 }): Promise<SelectiveSurgeryResult> {
   const maxEdits = Math.max(1, Math.min(5, input.maxEdits ?? 3));
   const model = input.model || "gpt-5-nano";
   const chapters = input.draft.chapters.map(ch => ({ ...ch }));
   const editedChapters: number[] = [];
   let usage: TokenUsage | undefined;
+  const costEntries: StoryCostEntry[] = [];
 
   const grouped = groupTasksByChapter(input.patchTasks);
   const rankedChapters = [...grouped.entries()]
@@ -43,12 +48,12 @@ export async function applySelectiveSurgery(input: {
     .slice(0, maxEdits);
 
   if (rankedChapters.length === 0) {
-    return { draft: input.draft, changed: false, editedChapters, usage };
+    return { draft: input.draft, changed: false, editedChapters, usage, costEntries };
   }
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
   const isGeminiModel = model.startsWith("gemini-");
-  const maxTokens = isReasoningModel ? 1800 : 1200;
+  const maxTokens = isReasoningModel ? 1200 : 900;
   const lengthTargets = input.normalizedRequest.wordBudget
     ? {
         wordMin: input.normalizedRequest.wordBudget.minWordsPerChapter,
@@ -113,15 +118,12 @@ export async function applySelectiveSurgery(input: {
             return {
               content: geminiResult.content,
               finishReason: geminiResult.finishReason,
-              usage: {
+              usage: normalizeTokenUsage({
                 promptTokens: geminiResult.usage.promptTokens,
                 completionTokens: geminiResult.usage.completionTokens,
                 totalTokens: geminiResult.usage.totalTokens,
                 model: geminiResult.model,
-                inputCostUSD: 0,
-                outputCostUSD: 0,
-                totalCostUSD: 0,
-              } satisfies TokenUsage,
+              }, geminiResult.model) as TokenUsage,
             };
           })()
         : await callChatCompletion({
@@ -132,7 +134,7 @@ export async function applySelectiveSurgery(input: {
             ],
             responseFormat: "json_object",
             maxTokens,
-            reasoningEffort: "low",
+            reasoningEffort: "minimal",
             temperature: 0.3,
             context: `story-release-surgery-ch${chapterNo}`,
             logSource: "phase6-story-release-surgery-llm",
@@ -140,13 +142,23 @@ export async function applySelectiveSurgery(input: {
           });
 
       const parsed = safeJson(result.content);
-      const revised = typeof parsed?.text === "string" ? parsed.text.trim() : "";
+      const revised = extractRevisedChapterText(parsed);
       if (revised.length > 30 && revised !== chapter.text) {
         chapter.text = revised;
         changed = true;
         editedChapters.push(chapterNo);
       }
-      usage = mergeUsage(usage, result.usage as TokenUsage | undefined, result.usage?.model || model);
+      usage = mergeNormalizedTokenUsage(usage, result.usage as TokenUsage | undefined, result.usage?.model || model);
+      const costEntry = buildLlmCostEntry({
+        phase: "phase6-story",
+        step: "release-surgery",
+        usage: result.usage as TokenUsage | undefined,
+        fallbackModel: result.usage?.model || model,
+        candidateTag: input.candidateTag,
+        chapter: chapterNo,
+        itemCount: tasks.length,
+      });
+      if (costEntry) costEntries.push(costEntry);
     } catch (error) {
       console.warn(`[release-polisher] Chapter ${chapterNo} surgery failed`, error);
     }
@@ -157,6 +169,7 @@ export async function applySelectiveSurgery(input: {
     changed,
     editedChapters,
     usage,
+    costEntries,
   };
 }
 
@@ -198,26 +211,21 @@ function safeJson(value: string): any {
   }
 }
 
-function mergeUsage(current: TokenUsage | undefined, next: TokenUsage | undefined, model: string): TokenUsage | undefined {
-  if (!next) return current;
-  if (!current) {
-    return {
-      promptTokens: next.promptTokens || 0,
-      completionTokens: next.completionTokens || 0,
-      totalTokens: next.totalTokens || 0,
-      model: next.model || model,
-      inputCostUSD: next.inputCostUSD || 0,
-      outputCostUSD: next.outputCostUSD || 0,
-      totalCostUSD: next.totalCostUSD || 0,
-    };
+function extractRevisedChapterText(parsed: any): string {
+  if (!parsed || typeof parsed !== "object") return "";
+  if (typeof parsed.text === "string" && parsed.text.trim()) {
+    return parsed.text.trim();
   }
-  return {
-    promptTokens: (current.promptTokens || 0) + (next.promptTokens || 0),
-    completionTokens: (current.completionTokens || 0) + (next.completionTokens || 0),
-    totalTokens: (current.totalTokens || 0) + (next.totalTokens || 0),
-    model: current.model || next.model || model,
-    inputCostUSD: (current.inputCostUSD || 0) + (next.inputCostUSD || 0),
-    outputCostUSD: (current.outputCostUSD || 0) + (next.outputCostUSD || 0),
-    totalCostUSD: (current.totalCostUSD || 0) + (next.totalCostUSD || 0),
-  };
+  if (typeof parsed.chapterText === "string" && parsed.chapterText.trim()) {
+    return parsed.chapterText.trim();
+  }
+  if (Array.isArray(parsed.paragraphs)) {
+    const paragraphs = parsed.paragraphs
+      .map((p: any) => String(p || "").trim())
+      .filter(Boolean);
+    if (paragraphs.length > 0) {
+      return paragraphs.join("\n\n");
+    }
+  }
+  return "";
 }

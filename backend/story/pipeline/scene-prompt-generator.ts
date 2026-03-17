@@ -1,5 +1,6 @@
-import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText } from "./types";
+import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, StoryChapterText, StoryCostEntry, TokenUsage } from "./types";
 import { callChatCompletion } from "./llm-client";
+import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 
 const DEFAULT_MODEL = "gpt-5-nano";
@@ -73,9 +74,11 @@ export async function generateSceneDescriptions(input: {
   language: string;
   storyId?: string;
   selectedStoryModel?: string;
-}): Promise<{ descriptions: (AISceneDescription | null)[]; usage?: any }> {
+}): Promise<{ descriptions: (AISceneDescription | null)[]; usage?: TokenUsage; costEntries?: StoryCostEntry[] }> {
   const { chapters, directives, cast, language, storyId, selectedStoryModel } = input;
   const scenePromptModel = resolveScenePromptModel(selectedStoryModel);
+  let usage: TokenUsage | undefined;
+  const costEntries: StoryCostEntry[] = [];
 
   const characterMap = buildCharacterMap(cast);
 
@@ -112,7 +115,11 @@ export async function generateSceneDescriptions(input: {
       storyId,
       model: scenePromptModel,
     });
-    batchResults.push(...chunkResult);
+    batchResults.push(...chunkResult.entries);
+    usage = mergeNormalizedTokenUsage(usage, chunkResult.usage, scenePromptModel);
+    if (chunkResult.costEntry) {
+      costEntries.push(chunkResult.costEntry);
+    }
   }
 
   const byChapter = new Map<number, any>();
@@ -136,7 +143,7 @@ export async function generateSceneDescriptions(input: {
   const failCount = results.length - successCount;
   console.log(`[scene-prompt-generator] Completed: ${successCount}/${results.length} chapters (${failCount} fallback to templates)`);
 
-  return { descriptions: results };
+  return { descriptions: results, usage, costEntries };
 }
 
 async function extractBatchWithRetry(input: {
@@ -149,7 +156,7 @@ async function extractBatchWithRetry(input: {
   language: string;
   storyId?: string;
   model: string;
-}): Promise<Array<any>> {
+}): Promise<{ entries: any[]; usage?: TokenUsage; costEntry: StoryCostEntry | null }> {
   const { chapterInputs, storyId, language, model } = input;
   for (let attempt = 1; attempt <= MAX_RETRIES + 1; attempt++) {
     try {
@@ -161,7 +168,7 @@ async function extractBatchWithRetry(input: {
           `[scene-prompt-generator] Batch failed after ${MAX_RETRIES + 1} attempts, using default template prompts.`,
           (error as Error)?.message || error
         );
-        return [];
+        return { entries: [], usage: undefined as TokenUsage | undefined, costEntry: null as StoryCostEntry | null };
       }
       console.warn(
         `[scene-prompt-generator] Batch attempt ${attempt}/${MAX_RETRIES + 1} failed, retrying...`,
@@ -169,7 +176,7 @@ async function extractBatchWithRetry(input: {
       );
     }
   }
-  return [];
+  return { entries: [], usage: undefined as TokenUsage | undefined, costEntry: null as StoryCostEntry | null };
 }
 
 async function extractBatchSceneDescriptions(
@@ -182,7 +189,7 @@ async function extractBatchSceneDescriptions(
   storyId?: string,
   language?: string,
   model: string = DEFAULT_MODEL,
-): Promise<Array<any>> {
+): Promise<{ entries: any[]; usage?: TokenUsage; costEntry: StoryCostEntry | null }> {
   const systemPrompt = `You are an art director for a premium children's picture book (ages 4-10). Extract one vivid NARRATIVE MOMENT per chapter — the kind of scene a master illustrator like Quentin Blake, Shaun Tan or Beatrix Potter would paint.
 
 CRITICAL RULES:
@@ -267,6 +274,12 @@ Return JSON:
         return {
           content: geminiResult.content,
           finishReason: geminiResult.finishReason,
+          usage: {
+            promptTokens: geminiResult.usage.promptTokens,
+            completionTokens: geminiResult.usage.completionTokens,
+            totalTokens: geminiResult.usage.totalTokens,
+            model: geminiResult.model,
+          },
         };
       })()
     : await callChatCompletion({
@@ -284,6 +297,15 @@ Return JSON:
         logMetadata: { storyId, chapters: chapterInputs.length, model },
       });
 
+  const costEntry = buildLlmCostEntry({
+    phase: "phase6.5-scene-prompts",
+    step: "scene-prompt-batch",
+    usage: result.usage,
+    fallbackModel: model,
+    itemCount: chapterInputs.length,
+    metadata: { storyId },
+  });
+
   let parsed: any;
   try {
     parsed = JSON.parse(result.content);
@@ -292,9 +314,17 @@ Return JSON:
     throw parseError;
   }
 
-  if (Array.isArray(parsed)) return parsed;
-  if (Array.isArray(parsed?.chapters)) return parsed.chapters;
-  return [];
+  const entries = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.chapters)
+      ? parsed.chapters
+      : [];
+
+  return {
+    entries,
+    usage: result.usage,
+    costEntry,
+  };
 }
 
 function normalizeSceneDescription(input: {

@@ -2,6 +2,7 @@ import { ai } from "~encore/clients";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import type { CastSet, ImageGenerator, ImageSpec, NormalizedRequest, SceneDirective } from "./types";
+import { extractRunwareCostMetrics } from "./cost-ledger";
 import { buildReferenceImages, selectReferenceSlots } from "./reference-images";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 
@@ -64,8 +65,34 @@ export class RunwareImageGenerator implements ImageGenerator {
     imageSpecs: ImageSpec[];
     pipelineConfig?: { runwareSteps: number; runwareCfgScale: number; imageRetryMax: number };
     logContext?: { storyId?: string; phase?: string };
-  }): Promise<Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }>> {
-    const results: Array<{ chapter: number; imageUrl?: string; prompt: string; provider?: string }> = [];
+  }): Promise<Array<{
+    chapter: number;
+    imageUrl?: string;
+    prompt: string;
+    provider?: string;
+    model?: string;
+    providerCostUSD?: number | null;
+    providerCostCredits?: number | null;
+    promptChars?: number;
+    negativePromptChars?: number;
+    referenceCount?: number;
+    success?: boolean;
+    metadata?: Record<string, any>;
+  }>> {
+    const results: Array<{
+      chapter: number;
+      imageUrl?: string;
+      prompt: string;
+      provider?: string;
+      model?: string;
+      providerCostUSD?: number | null;
+      providerCostCredits?: number | null;
+      promptChars?: number;
+      negativePromptChars?: number;
+      referenceCount?: number;
+      success?: boolean;
+      metadata?: Record<string, any>;
+    }> = [];
     const config = input.pipelineConfig;
     const logContext = input.logContext;
 
@@ -89,7 +116,7 @@ export class RunwareImageGenerator implements ImageGenerator {
       const prompt = stripTtsEmotionTags(spec.finalPromptText || "");
       const negativePrompt = (spec.negatives || []).join(", ");
 
-      const imageUrl = await generateWithRetry({
+      const imageResult = await generateWithRetry({
         prompt,
         negativePrompt,
         referenceImages,
@@ -102,9 +129,17 @@ export class RunwareImageGenerator implements ImageGenerator {
 
       results.push({
         chapter: spec.chapter,
-        imageUrl,
+        imageUrl: imageResult.imageUrl,
         prompt,
         provider: "runware",
+        model: "runware:400@4",
+        providerCostUSD: imageResult.providerCostUSD,
+        providerCostCredits: imageResult.providerCostCredits,
+        promptChars: prompt.length,
+        negativePromptChars: negativePrompt.length,
+        referenceCount: referenceImages.length,
+        success: Boolean(imageResult.imageUrl),
+        metadata: imageResult.metadata,
       });
     }
 
@@ -121,7 +156,12 @@ async function generateWithRetry(input: {
   steps?: number;
   cfgScale?: number;
   logContext?: { storyId?: string; phase?: string; chapter?: number };
-}): Promise<string | undefined> {
+}): Promise<{
+  imageUrl?: string;
+  providerCostUSD?: number | null;
+  providerCostCredits?: number | null;
+  metadata?: Record<string, any>;
+}> {
   let attempt = 0;
   let lastError: unknown;
   const logSource = resolveImageLogSource(input.logContext?.phase);
@@ -138,6 +178,7 @@ async function generateWithRetry(input: {
         steps: input.steps,
         CFGScale: input.cfgScale,
       });
+      const providerCosts = extractRunwareCostMetrics(response?.debugInfo?.responseReceived ?? response);
       await publishWithTimeout(logTopic as any, {
         source: logSource,
         timestamp: new Date(),
@@ -153,7 +194,17 @@ async function generateWithRetry(input: {
         response,
         metadata: input.logContext ?? null,
       });
-      return response.imageUrl;
+      return {
+        imageUrl: response.imageUrl,
+        providerCostUSD: providerCosts.providerCostUSD,
+        providerCostCredits: providerCosts.providerCostCredits,
+        metadata: {
+          costMatches: providerCosts.matches,
+          steps: input.steps,
+          cfgScale: input.cfgScale,
+          referenceCount: input.referenceImages.length,
+        },
+      };
     } catch (error) {
       lastError = error;
       await publishWithTimeout(logTopic as any, {
@@ -177,7 +228,17 @@ async function generateWithRetry(input: {
   }
 
   console.error("[pipeline] Image generation failed", lastError);
-  return undefined;
+  return {
+    imageUrl: undefined,
+    providerCostUSD: null,
+    providerCostCredits: null,
+    metadata: {
+      steps: input.steps,
+      cfgScale: input.cfgScale,
+      referenceCount: input.referenceImages.length,
+      error: String((lastError as Error)?.message || lastError),
+    },
+  };
 }
 
 function resolveImageLogSource(phase?: string): string {

@@ -391,7 +391,7 @@ export interface StoryWriter {
     avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
     generationSeed?: number;
     candidateTag?: string;
-  }) => Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }>;
+  }) => Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }>;
 }
 
 /** Compressed avatar memory for prompt injection */
@@ -423,6 +423,14 @@ export interface ImageGenerator {
     imageUrl?: string;
     prompt: string;
     provider?: string;
+    model?: string;
+    providerCostUSD?: number | null;
+    providerCostCredits?: number | null;
+    promptChars?: number;
+    negativePromptChars?: number;
+    referenceCount?: number;
+    success?: boolean;
+    metadata?: Record<string, any>;
     scenicImageUrl?: string;
     scenicPrompt?: string;
   }>>;
@@ -446,6 +454,32 @@ export interface TokenUsage {
   inputCostUSD?: number;
   outputCostUSD?: number;
   totalCostUSD?: number;
+}
+
+export interface StoryCostEntry {
+  kind: "llm" | "image";
+  phase: string;
+  step: string;
+  provider: string;
+  model?: string;
+  candidateTag?: string;
+  chapter?: number;
+  attempt?: number;
+  slotKey?: string;
+  success?: boolean;
+  itemCount?: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  inputCostUSD?: number;
+  outputCostUSD?: number;
+  totalCostUSD?: number;
+  providerCostUSD?: number | null;
+  providerCostCredits?: number | null;
+  promptChars?: number;
+  negativePromptChars?: number;
+  referenceCount?: number;
+  metadata?: Record<string, any>;
 }
 
 export type AvatarDetail = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "createdAt" | "updatedAt">;

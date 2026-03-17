@@ -29,6 +29,7 @@ import {
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
+import { buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
 import {
   assertProfilesBelongToUser,
   getProfileForUser,
@@ -580,12 +581,13 @@ export const generate = api<GenerateStoryRequest, Story>(
       // Check if we should use the Story Pipeline v2
       const useCharacterPool = config.useCharacterPool ?? true; // Default to true
       let generatedStory: any;
+      let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (useCharacterPool) {
         console.log("[story.generate] Using Story Pipeline v2...");
         const orchestrator = new StoryPipelineOrchestrator();
 
-        const pipelineResult = await orchestrator.run({
+        pipelineResult = await orchestrator.run({
           storyId: id,
           userId: currentUserId,
           config,
@@ -692,6 +694,9 @@ export const generate = api<GenerateStoryRequest, Story>(
                 }
               : undefined,
             releasePipeline: pipelineResult.releaseReport,
+            costBreakdown: pipelineResult.costEntries?.length
+              ? summarizeStoryCostEntries(pipelineResult.costEntries)
+              : undefined,
           },
         };
       } else {
@@ -756,16 +761,41 @@ export const generate = api<GenerateStoryRequest, Story>(
       }
 
       // Extract cost data from metadata (now properly calculated in four-phase-orchestrator)
+      const metadataUsage = generatedStory.metadata?.tokensUsed;
+      const fallbackUsage = pipelineResult?.tokenUsage
+        ? pipelineResult.tokenUsage
+        : metadataUsage
+          ? {
+              promptTokens: metadataUsage.prompt || 0,
+              completionTokens: metadataUsage.completion || 0,
+              totalTokens: metadataUsage.total || 0,
+              model: metadataUsage.modelUsed || config.aiModel || "gpt-5-mini",
+            }
+          : undefined;
+      const fallbackCostEntries = fallbackUsage
+        ? [
+            buildLlmCostEntry({
+              phase: "story-generation",
+              step: "legacy-total",
+              usage: fallbackUsage,
+              fallbackModel: fallbackUsage.model || config.aiModel || "gpt-5-mini",
+            }),
+          ].filter(Boolean)
+        : [];
+      const storyCostEntries = pipelineResult?.costEntries?.length
+        ? pipelineResult.costEntries
+        : fallbackCostEntries;
+      const costSummary = summarizeStoryCostEntries((storyCostEntries.filter(Boolean) as any[]));
       const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
-      const inputCost = (generatedStory.metadata?.tokensUsed as any)?.inputCostUSD || 0;
-      const outputCost = (generatedStory.metadata?.tokensUsed as any)?.outputCostUSD || 0;
-      const totalCost = (generatedStory.metadata?.tokensUsed as any)?.totalCostUSD || 0;
+      const inputCost = costSummary.totals.llm.inputCostUSD || 0;
+      const outputCost = costSummary.totals.llm.outputCostUSD || 0;
+      const totalCost = costSummary.totals.overall.trackedCostUSD || 0;
       const modelUsed = (generatedStory.metadata?.tokensUsed as any)?.modelUsed || config.aiModel || 'gpt-5-mini';
       const mcpCost = 0; // TODO: Track MCP costs separately
 
       console.log("[story.generate] Cost tracking:", {
         model: modelUsed,
-        tokens: tokensUsed,
+        tokens: costSummary.totals.llm,
         inputCost: `$${inputCost.toFixed(6)}`,
         outputCost: `$${outputCost.toFixed(6)}`,
         totalCost: `$${totalCost.toFixed(6)}`,
@@ -782,16 +812,21 @@ export const generate = api<GenerateStoryRequest, Story>(
         },
         response: {
           tokens: {
-            input: tokensUsed.prompt || 0,
-            output: tokensUsed.completion || 0,
-            total: tokensUsed.total || 0,
+            input: costSummary.totals.llm.inputTokens || tokensUsed.prompt || 0,
+            output: costSummary.totals.llm.outputTokens || tokensUsed.completion || 0,
+            total: costSummary.totals.llm.totalTokens || tokensUsed.total || 0,
           },
           costs: {
             input_usd: inputCost,
             output_usd: outputCost,
             total_usd: totalCost,
+            llm_total_usd: costSummary.totals.llm.totalCostUSD || 0,
+            image_total_usd: costSummary.totals.images.providerCostUSD || 0,
+            image_total_credits: costSummary.totals.images.providerCostCredits || 0,
             mcp_usd: mcpCost,
           },
+          totals: costSummary.totals,
+          breakdown: costSummary.breakdown,
           title: generatedStory.title,
         },
       });

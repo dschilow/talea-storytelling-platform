@@ -576,9 +576,9 @@ function gateReadabilityComplexity(
   if (!ageRange) return issues;
 
   const ageMax = ageRange.max;
-  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 18 : 26;
-  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 13 : 19;
-  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.18 : 0.28;
+  const longSentenceThreshold = ageMax <= 5 ? 13 : ageMax <= 8 ? 20 : 26;
+  const maxAvgSentenceWords = ageMax <= 5 ? 10 : ageMax <= 8 ? 14 : 19;
+  const maxLongSentenceRatio = ageMax <= 5 ? 0.1 : ageMax <= 8 ? 0.22 : 0.28;
 
   for (const ch of draft.chapters) {
     const sentences = splitSentences(ch.text);
@@ -591,7 +591,8 @@ function gateReadabilityComplexity(
     const avgSentenceWords = totalSentenceWords / sentenceWordCounts.length;
     const longSentenceCount = sentenceWordCounts.filter(n => n > longSentenceThreshold).length;
     const longSentenceRatio = longSentenceCount / sentenceWordCounts.length;
-    const hasVeryLongSentence = sentenceWordCounts.some(n => n >= longSentenceThreshold + 8);
+    const veryLongSentenceThreshold = longSentenceThreshold + (ageMax <= 8 ? 10 : 8);
+    const hasVeryLongSentence = sentenceWordCounts.some(n => n >= veryLongSentenceThreshold);
 
     if (avgSentenceWords > maxAvgSentenceWords) {
       issues.push({
@@ -2167,7 +2168,7 @@ function gateRhythmVariation(
       });
     }
 
-    if ((ageRange?.max ?? 12) <= 8 && longCount > Math.ceil(lengths.length * 0.28)) {
+    if ((ageRange?.max ?? 12) <= 8 && longCount > Math.ceil(lengths.length * 0.34)) {
       issues.push({
         gate: "RHYTHM_VARIATION",
         chapter: chapter.chapter,

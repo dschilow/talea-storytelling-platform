@@ -73,7 +73,7 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map(ch => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 220),
+      text: compressChapter(ch.text, 160),
     }));
 
     const isDE = input.language === "de";
@@ -81,6 +81,7 @@ export async function runSemanticCritic(input: {
       ? `Du bist ein strenger Kinderbuch-Lektor. Bewerte nur die Qualitaet. Schreibe die Geschichte NICHT um.
 Fokussiere dich auf konkrete, kapitel-lokale Fehler und umsetzbare Korrekturen.
 Kein allgemeines Lob. Gib knappes JSON zurueck, exakt wie angefordert.
+Maximal 7 issues und maximal 5 patchTasks.
 
 PRUEFE GEZIELT:
 1. Kapitel 1: Weiss das Kind nach 2 Absaetzen WER, WO, WAS? Wenn nicht -> ERROR.
@@ -96,6 +97,7 @@ PRUEFE GEZIELT:
       : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
 Focus on concrete, chapter-local failures and actionable fixes.
 No generic praise. Return concise JSON exactly as requested.
+Return at most 7 issues and at most 5 patchTasks.
 
 TARGETED CHECKS:
 1. Chapter 1: After 2 paragraphs, does the child know WHO, WHERE, WHAT? If not -> ERROR.
@@ -140,6 +142,11 @@ TARGETED CHECKS:
         "character focus: usually 2 foreground figures, 3 is acceptable if staging stays clear. If 4+ actively compete for attention -> ERROR CHARACTER_OVERLOAD",
         "dialogue balance: chapters should feel scene-led and alive. Use WARNING DIALOGUE_PROSE_IMBALANCE when a chapter would benefit from more live interaction. Use ERROR DIALOGUE_TOO_LOW only when direct speech is nearly absent and the chapter reads mostly like report prose.",
       ],
+      outputBudget: {
+        maxIssues: 7,
+        maxPatchTasks: 5,
+        maxMessageChars: 120,
+      },
       preferredIssueCodes: [
         "CH1_ORIENTATION_MISSING",
         "CHILD_MISTAKE_MISSING",
@@ -177,7 +184,7 @@ TARGETED CHECKS:
             chapter: "number (0 for global)",
             code: "string",
             severity: "ERROR|WARNING",
-            message: "string",
+            message: "string, concise, max 120 chars, at most 7 issues total",
             patchInstruction: "string optional",
           },
         ],
@@ -186,7 +193,7 @@ TARGETED CHECKS:
             chapter: "number",
             priority: "1|2|3",
             objective: "string",
-            instruction: "string concise, chapter-local",
+            instruction: "string concise, chapter-local, at most 5 tasks total",
           },
         ],
       },
@@ -199,8 +206,8 @@ TARGETED CHECKS:
         { role: "user", content: JSON.stringify(userPayload) },
       ],
       responseFormat: "json_object",
-      maxTokens: 4800,
-      reasoningEffort: "low",
+      maxTokens: 2400,
+      reasoningEffort: "minimal",
       temperature: 0.2,
       context: "story-semantic-critic",
       logSource: "phase6-story-critic-llm",

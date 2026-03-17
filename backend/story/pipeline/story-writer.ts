@@ -1,7 +1,8 @@
-import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint } from "./types";
+import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint, StoryCostEntry } from "./types";
 import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
-import { callChatCompletion, calculateTokenCosts } from "./llm-client";
+import { callChatCompletion } from "./llm-client";
+import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
@@ -468,7 +469,7 @@ export class LlmStoryWriter implements StoryWriter {
     avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
     generationSeed?: number;
     candidateTag?: string;
-  }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any }> {
+  }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
     const model = rawConfig?.aiModel ?? "gemini-3.1-pro-preview";
@@ -500,7 +501,9 @@ export class LlmStoryWriter implements StoryWriter {
     const defaultRewritePasses = isGeminiModel ? MAX_REWRITE_PASSES : MAX_REWRITE_PASSES;
     // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
     const defaultExpandCalls = isGeminiModel ? 4 : MAX_EXPAND_CALLS;
-    const defaultWarningPolishCalls = isGeminiModel ? 2 : Math.min(2, MAX_WARNING_POLISH_CALLS);
+    // Cost guard: Gemini Flash should avoid generic warning-polish by default.
+    // It is expensive, often low-impact, and targeted release surgery on the winner is cheaper.
+    const defaultWarningPolishCalls = isGeminiModel ? 0 : Math.min(2, MAX_WARNING_POLISH_CALLS);
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
@@ -709,6 +712,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     const totalWordMax = normalizedRequest.wordBudget?.maxWords ?? lengthTargets.wordMax * directives.length;
 
     let totalUsage: TokenUsage | undefined;
+    const costEntries: StoryCostEntry[] = [];
     const isTokenBudgetExceeded = () => (totalUsage?.totalTokens || 0) >= maxStoryTokens;
     const remainingTokenBudget = () => Math.max(0, maxStoryTokens - (totalUsage?.totalTokens || 0));
     const fitTokensToBudget = (requested: number, minPreferred: number, reserveForTail: number) => {
@@ -764,6 +768,14 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
         if (blueprintResult.usage) {
           totalUsage = mergeUsage(totalUsage, blueprintResult.usage, model);
+          const costEntry = buildLlmCostEntry({
+            phase: "phase6-story",
+            step: "blueprint",
+            usage: blueprintResult.usage,
+            fallbackModel: blueprintModel,
+            candidateTag,
+          });
+          if (costEntry) costEntries.push(costEntry);
         }
 
         const blueprintParsed = safeJson(blueprintResult.content);
@@ -926,6 +938,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
     if (result.usage) {
       totalUsage = mergeUsage(totalUsage, result.usage, model);
+      const costEntry = buildLlmCostEntry({
+        phase: "phase6-story",
+        step: "full",
+        usage: result.usage,
+        fallbackModel: model,
+        candidateTag,
+        metadata: { promptMode: activePromptMode },
+      });
+      if (costEntry) costEntries.push(costEntry);
     }
     let parsedResult = parseDraftResult(result.content);
     const needsFullRecovery =
@@ -976,6 +997,14 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           });
           if (recoveryResult.usage) {
             totalUsage = mergeUsage(totalUsage, recoveryResult.usage, model);
+            const costEntry = buildLlmCostEntry({
+              phase: "phase6-story",
+              step: "full-recovery",
+              usage: recoveryResult.usage,
+              fallbackModel: model,
+              candidateTag,
+            });
+            if (costEntry) costEntries.push(costEntry);
           }
           result = recoveryResult;
           parsedResult = parseDraftResult(result.content);
@@ -1128,6 +1157,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
           if (result.usage) {
             usage = mergeUsage(usage, result.usage, model);
+            const costEntry = buildLlmCostEntry({
+              phase: "phase6-story",
+              step: "expand",
+              usage: result.usage,
+              fallbackModel: flashModel,
+              candidateTag,
+              chapter: chapter.chapter,
+            });
+            if (costEntry) costEntries.push(costEntry);
           }
 
           const parsed = safeJson(result.content);
@@ -1262,6 +1300,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
           if (result.usage) {
             usage = mergeUsage(usage, result.usage, model);
+            const costEntry = buildLlmCostEntry({
+              phase: "phase6-story",
+              step: "warning-polish",
+              usage: result.usage,
+              fallbackModel: flashModel,
+              candidateTag,
+              chapter: chapterNo,
+            });
+            if (costEntry) costEntries.push(costEntry);
           }
 
           const parsed = safeJson(result.content);
@@ -1456,6 +1503,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
       if (rewriteResult?.usage) {
         totalUsage = mergeUsage(totalUsage, rewriteResult.usage, model);
+        const costEntry = buildLlmCostEntry({
+          phase: "phase6-story",
+          step: "rewrite",
+          usage: rewriteResult.usage,
+          fallbackModel: model,
+          candidateTag,
+          attempt: rewriteAttempt,
+        });
+        if (costEntry) costEntries.push(costEntry);
         if (isTokenBudgetExceeded()) {
           console.warn(`[story-writer] Token budget reached (${totalUsage?.totalTokens}/${maxStoryTokens}), stopping rewrite loop.`);
           break;
@@ -1615,6 +1671,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           return {
             draft,
             usage: totalUsage,
+            costEntries,
             qualityReport: {
               score: qualityReport.score,
               passedGates: qualityReport.passedGates,
@@ -1652,6 +1709,14 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
         if (titleResult.usage) {
           totalUsage = mergeUsage(totalUsage, titleResult.usage, model);
+          const costEntry = buildLlmCostEntry({
+            phase: "phase6-story",
+            step: "title",
+            usage: titleResult.usage,
+            fallbackModel: model,
+            candidateTag,
+          });
+          if (costEntry) costEntries.push(costEntry);
         }
       } catch (error) {
         console.warn("[story-writer] Failed to generate story title", error);
@@ -1661,6 +1726,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     return {
       draft,
       usage: totalUsage,
+      costEntries,
       qualityReport: {
         score: qualityReport.score,
         passedGates: qualityReport.passedGates,
@@ -2731,25 +2797,7 @@ function isWarningPolishBetter(
 }
 
 function mergeUsage(existing: TokenUsage | undefined, incoming: TokenUsage, model: string): TokenUsage {
-  const merged = {
-    promptTokens: (existing?.promptTokens ?? 0) + incoming.promptTokens,
-    completionTokens: (existing?.completionTokens ?? 0) + incoming.completionTokens,
-    totalTokens: (existing?.totalTokens ?? 0) + incoming.totalTokens,
-    model,
-  } as TokenUsage;
-
-  const costs = calculateTokenCosts({
-    promptTokens: merged.promptTokens,
-    completionTokens: merged.completionTokens,
-    model,
-  });
-
-  return {
-    ...merged,
-    inputCostUSD: costs.inputCostUSD,
-    outputCostUSD: costs.outputCostUSD,
-    totalCostUSD: costs.totalCostUSD,
-  };
+  return mergeNormalizedTokenUsage(existing, incoming, model) as TokenUsage;
 }
 
 function countWords(text: string): number {
