@@ -175,6 +175,15 @@ const FLASH_EMERGENCY_POLISH_CODES = new Set([
 ]);
 
 const FLASH_EMERGENCY_POLISH_MAX_CALLS = 3;
+const FLASH_LOCAL_POLISH_ERROR_CODES = new Set([
+  "COMPARISON_CLUSTER",
+  "RULE_EXPOSITION_TELL",
+  "VOICE_INDISTINCT",
+  "VOICE_TAG_FORMULA_OVERUSE",
+  "PROTOCOL_STYLE_META",
+  "REPORT_STYLE_OVERUSE",
+  "PARAGRAPH_CHOPPY",
+]);
 const REWRITE_RESCUE_POLISH_CODES = new Set([
   ...WARNING_POLISH_CODES,
   ...CHAPTER_REWRITEABLE_ERROR_CODES,
@@ -483,7 +492,10 @@ export class LlmStoryWriter implements StoryWriter {
     const blueprintModel = supportModel;
     const supportModelFallback = resolveGeminiSupportFallback(model);
     const isSupportModelGemini = supportModel.startsWith("gemini-");
-    const supportStepFetchTimeoutMs = supportModelFallback ? 45000 : undefined;
+    // Support jobs should fail over faster than the main prose path, but 45s was too aggressive
+    // and caused frequent blueprint timeouts on Railway. Keep the main story model on Gemini's
+    // default timeout and only cap the cheap side-model.
+    const supportStepFetchTimeoutMs = supportModelFallback ? 90000 : undefined;
     const supportStepMaxRetries = supportModelFallback ? 1 : undefined;
     const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
@@ -564,7 +576,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     };
 
     const resolveGeminiThinkingBudget = (
-      step: "full" | "recovery" | "expand" | "warning-polish" | "rewrite" | "title",
+      step: "blueprint" | "full" | "recovery" | "expand" | "warning-polish" | "rewrite" | "title",
       forFlashOverride?: boolean,
     ): number | undefined => {
       if (!isGeminiModel && !forFlashOverride) return undefined;
@@ -572,15 +584,18 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       const effectivelyFlash = forFlashOverride || isGeminiFlashModel;
       if (effectivelyFlash) {
         switch (step) {
+          case "blueprint":
+            return 96;
           case "full":
-            return 1024;  // V7: High budget → plan dialogue per chapter, 40%+ quota, rhythm
+            return 768;
           case "recovery":
-            return 512;
+            return 384;
           case "rewrite":
-            return 512;
+            return 320;
           case "expand":
+            return 128;
           case "warning-polish":
-            return 256;
+            return 96;
           case "title":
             return 32;
           default:
@@ -653,8 +668,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             maxTokens: clampMaxTokens(input.maxTokens),
             temperature: input.temperature,
             thinkingBudget: input.thinkingBudget,
-            fetchTimeoutMs: input.fetchTimeoutMs ?? (activeIsGeminiFlash ? supportStepFetchTimeoutMs : undefined),
-            maxRetries: input.maxRetries ?? (activeIsGeminiFlash ? supportStepMaxRetries : undefined),
+            fetchTimeoutMs: input.fetchTimeoutMs ?? (activeModel === supportModel ? supportStepFetchTimeoutMs : undefined),
+            maxRetries: input.maxRetries ?? (activeModel === supportModel ? supportStepMaxRetries : undefined),
             preferImmediateFallbackOnTransient: input.preferImmediateFallbackOnTransient ?? activeIsGeminiFlash,
             logSource: input.logSource,
             logMetadata: input.logMetadata,
@@ -770,7 +785,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           maxTokens: blueprintMaxTokens,
           temperature: 0.4,
           reasoningEffort: "low",
-          thinkingBudget: resolveGeminiThinkingBudget("expand", isSupportModelGemini),
+          thinkingBudget: resolveGeminiThinkingBudget("blueprint", isSupportModelGemini),
           context: "story-writer-blueprint",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "blueprint", candidateTag },
@@ -1397,7 +1412,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       }
     }
 
-    const hardErrorIssuesInitial = getActionableErrorIssues(qualityReport);
+    const hardErrorIssuesInitial = filterRewriteIssuesForModel(getActionableErrorIssues(qualityReport), isGeminiFlashModel);
     const warningRecoveryNeededInitial =
       enableWarningDrivenRewrite &&
       hardErrorIssuesInitial.length === 0 &&
@@ -1418,7 +1433,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     let rewriteAttempt = 0;
     let rewriteFallbackPolishCalls = 0;
     while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
-      const actionableErrors = getActionableErrorIssues(qualityReport);
+      const actionableErrors = filterRewriteIssuesForModel(getActionableErrorIssues(qualityReport), isGeminiFlashModel);
       const rewriteWarnings = getRewriteWarningIssues(qualityReport);
       const warningDrivenRewrite =
         enableWarningDrivenRewrite &&
@@ -1585,7 +1600,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       // Detect stale actionable issues to avoid paying for repeated ineffective rewrites.
       const currentActionable = warningDrivenRewrite
         ? getRewriteWarningIssues(qualityReport)
-        : getActionableErrorIssues(qualityReport);
+        : filterRewriteIssuesForModel(getActionableErrorIssues(qualityReport), isGeminiFlashModel);
       const currentKeys = new Set(currentActionable.map(issue => `${issue.chapter}:${issue.code}`));
       const previousKeys = new Set(actionableIssues.map(issue => `${issue.chapter}:${issue.code}`));
       const unchanged = [...currentKeys].filter(key => previousKeys.has(key));
@@ -1628,6 +1643,9 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Cap warning-polish at 1 pass for Gemini Flash to prevent continuity destruction.
     // Multiple polish passes rewrite chapters with different contexts each time,
     // causing characters to appear/disappear and tone to shift mid-story.
+    const flashLocalPolishCalls = isGeminiFlashModel
+      ? resolveFlashLocalPolishCalls(qualityReport.issues, draft.chapters.length)
+      : 0;
     const configuredWarningPolishBudget = maxWarningPolishCalls > 0
       ? (isGeminiFlashModel ? Math.min(maxWarningPolishCalls, 1) : maxWarningPolishCalls)
       : (
@@ -1642,6 +1660,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     const emergencyWarningPolishCalls = Math.max(
       configuredWarningPolishBudget,
       rewriteFallbackPolishCalls,
+      flashLocalPolishCalls,
     );
 
     if (canRunPostEdits && emergencyWarningPolishCalls > 0 && !isTokenBudgetExceeded()) {
@@ -2392,6 +2411,11 @@ function getActionableErrorIssues(report: { issues: QualityIssue[] }): QualityIs
   return report.issues.filter(issue => issue.severity === "ERROR" && !NOISY_CODES.has(issue.code));
 }
 
+function filterRewriteIssuesForModel(issues: QualityIssue[], isGeminiFlashModel: boolean): QualityIssue[] {
+  if (!isGeminiFlashModel) return issues;
+  return issues.filter(issue => !FLASH_LOCAL_POLISH_ERROR_CODES.has(issue.code));
+}
+
 function getRewriteWarningIssues(report: { issues: QualityIssue[] }): QualityIssue[] {
   return report.issues.filter(issue => issue.severity === "WARNING" && REWRITE_WARNING_CODES.has(issue.code));
 }
@@ -2492,6 +2516,25 @@ function resolveRewriteRescuePolishCalls(
 
   if (targetChapters.size === 0) return 0;
   return Math.min(FLASH_EMERGENCY_POLISH_MAX_CALLS, Math.max(2, targetChapters.size));
+}
+
+function resolveFlashLocalPolishCalls(
+  issues: Array<{ chapter: number; code: string; severity: "ERROR" | "WARNING" }>,
+  chapterCount: number,
+): number {
+  if (issues.length === 0 || chapterCount <= 0) return 0;
+
+  const targetChapters = new Set<number>();
+  for (const issue of issues) {
+    if (issue.severity !== "ERROR") continue;
+    if (!FLASH_LOCAL_POLISH_ERROR_CODES.has(issue.code)) continue;
+    const chapter = resolveIssueTargetChapter(issue, chapterCount);
+    if (chapter > 0) targetChapters.add(chapter);
+    else if (issue.chapter > 0) targetChapters.add(Math.min(chapterCount, issue.chapter));
+  }
+
+  if (targetChapters.size === 0) return 0;
+  return Math.min(2, targetChapters.size);
 }
 
 function buildChapterPolishHardFixHints(
