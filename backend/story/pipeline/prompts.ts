@@ -897,11 +897,11 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
   const childVoiceContract = buildFocusedChildVoiceContract(focusChildSheets as CharacterSheet[], isGerman);
   const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const chapterBeatLines = [
-    `- Kapitel 1 – EIN NORMALER TAG, DER SCHIEF GEHT: ${blueprint.chapter1.where}. ${blueprint.chapter1.want}.${blueprint.chapter1.stakes ? ` Wenn sie scheitern: ${blueprint.chapter1.stakes}.` : ""} Neugier-Haken: ${blueprint.chapter1.curiosityHook}`,
-    `- Kapitel 2 – DIE ENTDECKUNG: ${blueprint.chapter2.newElement}. Mutige Entscheidung: ${blueprint.chapter2.boldChoice}. Was schiefgeht: ${blueprint.chapter2.complication}`,
-    `- Kapitel 3 – DER MOMENT WO ALLES KIPPT: Das Kind macht einen Fehler: ${blueprint.chapter3.mistake}. Warum: ${blueprint.chapter3.mistakeReason}. Was danach anders ist: ${blueprint.chapter3.consequence}`,
-    `- Kapitel 4 – DUNKELSTER MOMENT + WENDEPUNKT: ${blueprint.chapter4.worstMoment}. Was den Funken zuendet: ${blueprint.chapter4.insightTrigger}. Neue Entscheidung: ${blueprint.chapter4.newChoice}`,
-    `- Kapitel 5 – DIE LANDUNG: Gewonnen: ${blueprint.chapter5.concreteWin}. Kleiner Preis: ${blueprint.chapter5.smallPrice}. Schlussbild: ${blueprint.chapter5.finalImage}`,
+    `- Kapitel 1 – EIN NORMALER TAG, DER SCHIEF GEHT: ${blueprint.chapter1.where}. ${blueprint.chapter1.want}.${blueprint.chapter1.stakes ? ` Wenn sie scheitern: ${blueprint.chapter1.stakes}.` : ""} Neugier-Haken: ${blueprint.chapter1.curiosityHook}.${blueprint.chapter1.humorBeat ? ` Schmunzler: ${blueprint.chapter1.humorBeat}.` : ""}`,
+    `- Kapitel 2 – DIE ENTDECKUNG: ${blueprint.chapter2.newElement}. Mutige Entscheidung: ${blueprint.chapter2.boldChoice}. Was schiefgeht: ${blueprint.chapter2.complication}.${blueprint.chapter2.humorBeat ? ` Spielmoment: ${blueprint.chapter2.humorBeat}.` : ""}`,
+    `- Kapitel 3 – DER MOMENT WO ALLES KIPPT: Das Kind macht einen Fehler: ${blueprint.chapter3.mistake}. Warum: ${blueprint.chapter3.mistakeReason}. Koerpersignal direkt danach: ${blueprint.chapter3.bodyReaction}. Was danach anders ist: ${blueprint.chapter3.consequence}`,
+    `- Kapitel 4 – DUNKELSTER MOMENT + WENDEPUNKT: ${blueprint.chapter4.worstMoment}. Fast-Aufgeben: ${blueprint.chapter4.almostGivingUp}. Was den Funken zuendet: ${blueprint.chapter4.insightTrigger}. Neue Entscheidung: ${blueprint.chapter4.newChoice}. Das Kind loest es: ${blueprint.chapter4.whoSolves}`,
+    `- Kapitel 5 – DIE LANDUNG: Gewonnen: ${blueprint.chapter5.concreteWin}. Kleiner Preis: ${blueprint.chapter5.smallPrice}. Rueckbezug: ${blueprint.chapter5.ch1Callback}. Schlussbild: ${blueprint.chapter5.finalImage}.${blueprint.chapter5.humorBeat ? ` Letzter Schmunzler: ${blueprint.chapter5.humorBeat}.` : ""}`,
   ].map(line => sanitizePromptBlock(line, 400) || line);
   const emotionalArcLines = blueprint.emotionalArc
     .map((beat, idx) => `- Ch${idx + 1}: ${beat}`)
@@ -1932,9 +1932,9 @@ ${beatLines}
   FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — a sound, a shadow, a question unanswered.
   Conflict starts in Chapter 2. Not before.
 - Chapter 2: DISCOVERY + TEMPTATION. One exciting thing appears. One character wants to take a shortcut. Chapter ends with a door slamming, a trap springing, a wrong choice — unresolved.
-- Chapter 3: COMPLICATION + SETBACK. A CHILD'S wrong choice or shortcut causes the setback. Something breaks or is lost. Show the physical/emotional reaction for 2-3 sentences. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
-- Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. The same child must actively correct the earlier mistake through courage or insight. Chapter ends with forward momentum but danger still present.
-- Chapter 5: RESOLUTION + CALLBACK + SMALL PRICE. Show EXACTLY what was won. Connect back to Chapter 1's opening image or problem. Include ONE small tangible loss (torn glove, lost hat, missed dinner). Final image: specific and warm, not a moral statement.
+- Chapter 3: COMPLICATION + SETBACK. A CHILD'S wrong choice or shortcut causes the setback. Something breaks or is lost. Within the NEXT 2 sentences after the mistake, show one body signal (stomach / hands / throat / face) and one short self-justifying line from that child. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
+- Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. Before any repair works, the SAME child must admit the mistake aloud in one short line and choose a DIFFERENT action. Outside need may reveal the clue, but the turn starts with the child's confession/decision, not with the world solving it.
+- Chapter 5: RESOLUTION + CALLBACK + SMALL PRICE. Show EXACTLY what was won in the first half of the chapter. Connect back to Chapter 1's opening image or problem. Include ONE small tangible loss (torn glove, lost hat, missed dinner). Final image: specific and warm, not a moral statement.
 
 ::: OUTPUT FORMAT :::
 Write a JSON object:

@@ -392,11 +392,43 @@ function defaultSummary(language: string, score: number, releaseReady: boolean):
 }
 
 function compressChapter(text: string, maxWords: number): string {
-  const words = String(text || "").split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return words.join(" ");
-  const lead = words.slice(0, Math.floor(maxWords * 0.7)).join(" ");
-  const tail = words.slice(-Math.ceil(maxWords * 0.2)).join(" ");
-  return `${lead} ... ${tail}`;
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return normalized;
+
+  const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+  if (sentences.length <= 2) {
+    return words.slice(0, maxWords).join(" ");
+  }
+
+  const leadBudget = Math.max(30, Math.floor(maxWords * 0.7));
+  const tailBudget = Math.max(12, maxWords - leadBudget);
+
+  const lead: string[] = [];
+  let leadWords = 0;
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.split(/\s+/).filter(Boolean).length;
+    if (lead.length > 0 && leadWords + sentenceWords > leadBudget) break;
+    lead.push(sentence);
+    leadWords += sentenceWords;
+  }
+
+  const tail: string[] = [];
+  let tailWords = 0;
+  for (let i = sentences.length - 1; i >= 0; i -= 1) {
+    const sentence = sentences[i];
+    if (lead.includes(sentence)) break;
+    const sentenceWords = sentence.split(/\s+/).filter(Boolean).length;
+    if (tail.length > 0 && tailWords + sentenceWords > tailBudget) break;
+    tail.unshift(sentence);
+    tailWords += sentenceWords;
+  }
+
+  return tail.length > 0
+    ? `${lead.join(" ")} [... gekuerzt ...] ${tail.join(" ")}`
+    : lead.join(" ");
 }
 
 function safeJson(value: string): any {

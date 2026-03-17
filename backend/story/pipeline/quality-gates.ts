@@ -266,12 +266,17 @@ function gateCharacterIntegration(
         continue;
       }
 
-      // Check action using any matching name form (full name or individual parts)
-      const hasAction = checkCharacterHasAction(ch.text, name)
-        || nameParts.some(part => checkCharacterHasAction(ch.text, part.charAt(0).toUpperCase() + part.slice(1)));
+      // Check action/dialogue using any matching name form (full name or individual parts)
+      const nameVariants = [name, ...nameParts.map(part => part.charAt(0).toUpperCase() + part.slice(1))];
+      const hasAction = nameVariants.some(variant => checkCharacterHasAction(ch.text, variant));
+      const hasDialogue = nameVariants.some(variant => hasAttributedDialogueForCharacter(ch.text, variant, language));
       // Only chapter-core / child-focus characters are hard-required.
       // Brief support mentions are acceptable and shouldn't trigger heavy rewrites.
-      if (!hasAction) {
+      if (
+        !hasAction
+        && !hasDialogue
+        && !nameVariants.some(variant => checkCharacterHasAction(ch.text, variant) || hasAttributedDialogueForCharacter(ch.text, variant, language))
+      ) {
         issues.push({
           gate: shouldHardRequire ? "CHARACTER_INTEGRATION" : "ACTIVE_PRESENCE",
           chapter: ch.chapter,
@@ -426,6 +431,7 @@ function gateCastLock(
       if (language === "de" && isLikelyGermanSignPhrase(ch.text, match[1], matchIndex)) continue;
       // Single German common nouns: check if ALL words in the match are common nouns
       if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
+      if (language === "de" && isLikelyGermanGenitiveNounPhrase(parts)) continue;
       if (language === "de" && parts.length >= 2 && isLikelyGermanDescriptivePhrase(match[1])) continue;
       if (language === "de" && isGermanCommonNounContext(ch.text, matchIndex)) continue;
       if (language === "de" && parts.length === 1 && !isLikelyGermanNameCandidate(ch.text, match[1], matchIndex)) continue;
@@ -1999,11 +2005,11 @@ function gateStakesAndLowpoint(
     ? /\b(wenn|falls|sonst|ohne|bevor|damit|droht)\b/i
     : /\b(if|otherwise|unless|without|before|or\s+else|at\s+risk)\b/i;
   const stakesConsequencePattern = isDE
-    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|verlust|keine?\s+chance|kein\s+zuhause|fuer\s+immer|unter\s+tr(?:u|ü)mmern|einst(?:u|ü)rzt|zusammenbricht)\b/i
-    : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever)\b/i;
+    ? /\b(verlieren|verpasst?|bleibt?|verschwind|zerbricht|geht\s+kaputt|gefangen|zu\s+spaet|allein|verlust|keine?\s+chance|kein\s+zuhause|fuer\s+immer|unter\s+tr(?:u|ü)mmern|einst(?:u|ü)rzt|zusammenbricht|klaut|stiehlt|pl(?:u|ü)ndert|raubt)\b/i
+    : /\b(lose|miss|stuck|trapped|too\s+late|breaks?|gone|alone|no\s+chance|no\s+home|forever|steals?|robs?|loots?)\b/i;
   const stakesConcreteNounPattern = isDE
-    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|freund|team|gruppe|schatz|ziel|licht|bruecke|m(?:u|ü)hle|feder|kiste|erbe)\b/i
-    : /\b(artifact|orb|map|compass|key|gate|path|home|village|friend|team|group|treasure|goal|bridge)\b/i;
+    ? /\b(amulett|kugel|karte|kompass|schluessel|tor|weg|pfad|zuhause|dorf|dorfspeicher|speicher|vorrat|proviant|freund|team|gruppe|schatz|ziel|licht|bruecke|m(?:u|ü)hle|feder|kiste|erbe)\b/i
+    : /\b(artifact|orb|map|compass|key|gate|path|home|village|storehouse|supplies|food|friend|team|group|treasure|goal|bridge)\b/i;
   const openingSentences = splitSentences(firstTwoText).slice(0, 16);
 
   const hasSentenceLevelConsequence = openingSentences.some(sentence =>
@@ -3696,6 +3702,17 @@ function isLikelyGermanDescriptivePhrase(token: string): boolean {
     isCommonWord(part, "de")
     || commonSceneNouns.has(part)
     || /(?:ung|heit|keit|nis|schaft|tum|chen|lein|licht|stein|wald|weg|pfad)$/.test(part),
+  );
+}
+
+function isLikelyGermanGenitiveNounPhrase(parts: string[]): boolean {
+  if (parts.length !== 2) return false;
+  const [first, second] = parts;
+  if (!/s$/.test(first)) return false;
+  if (second.length < 4) return false;
+  return (
+    isCommonWord(second, "de")
+    || /(?:ung|keit|heit|schaft|tion|nis|tum|erei|mut|blick|stimme|schritt|atem|herz|magen|hand|haende|hände|augen|kopf|idee|spur|karte|tasche|aufmerksamkeit)$/i.test(second)
   );
 }
 
