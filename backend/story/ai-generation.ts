@@ -289,14 +289,7 @@ interface ModelConfig {
 
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
   "claude-sonnet-4-6": {
-    name: "claude-sonnet-4-6-20260115",
-    inputCostPer1M: 3.00,
-    outputCostPer1M: 15.00,
-    maxCompletionTokens: 16000,
-    supportsReasoningEffort: false,
-  },
-  "claude-sonnet-4-6-20260115": {
-    name: "claude-sonnet-4-6-20260115",
+    name: "claude-sonnet-4-6",
     inputCostPer1M: 3.00,
     outputCostPer1M: 15.00,
     maxCompletionTokens: 16000,

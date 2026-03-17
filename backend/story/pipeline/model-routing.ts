@@ -1,7 +1,7 @@
 export const GEMINI_MAIN_STORY_MODEL = "gemini-3-flash-preview";
 export const GEMINI_SUPPORT_MODEL = "gemini-3.1-flash-lite-preview";
 export const CLAUDE_SONNET_46_WIZARD_MODEL = "claude-sonnet-4-6";
-export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6-20260115";
+export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 
 export function isGeminiFamilyModel(model?: string): boolean {
   return String(model || "").trim().toLowerCase().startsWith("gemini-");
@@ -14,7 +14,11 @@ export function isClaudeFamilyModel(model?: string): boolean {
 
 export function resolveClaudeStoryModel(model?: string): string {
   const normalized = String(model || "").trim().toLowerCase();
-  if (normalized === CLAUDE_SONNET_46_WIZARD_MODEL || normalized === CLAUDE_SONNET_46_MODEL) {
+  if (
+    normalized === CLAUDE_SONNET_46_WIZARD_MODEL
+    || normalized === CLAUDE_SONNET_46_MODEL
+    || normalized === "claude-sonnet-4-20250514"
+  ) {
     return CLAUDE_SONNET_46_MODEL;
   }
   return String(model || "").trim();
