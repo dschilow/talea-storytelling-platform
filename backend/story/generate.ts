@@ -695,7 +695,11 @@ export const generate = api<GenerateStoryRequest, Story>(
               : undefined,
             releasePipeline: pipelineResult.releaseReport,
             costBreakdown: pipelineResult.costEntries?.length
-              ? summarizeStoryCostEntries(pipelineResult.costEntries)
+              ? summarizeStoryCostEntries(pipelineResult.costEntries, {
+                  selectedCandidateTag: pipelineResult.releaseReport?.selectedCandidateIndex
+                    ? `cand-${pipelineResult.releaseReport.selectedCandidateIndex}`
+                    : undefined,
+                })
               : undefined,
           },
         };
@@ -785,7 +789,12 @@ export const generate = api<GenerateStoryRequest, Story>(
       const storyCostEntries = pipelineResult?.costEntries?.length
         ? pipelineResult.costEntries
         : fallbackCostEntries;
-      const costSummary = summarizeStoryCostEntries((storyCostEntries.filter(Boolean) as any[]));
+      const selectedCandidateTag = pipelineResult?.releaseReport?.selectedCandidateIndex
+        ? `cand-${pipelineResult.releaseReport.selectedCandidateIndex}`
+        : undefined;
+      const costSummary = summarizeStoryCostEntries((storyCostEntries.filter(Boolean) as any[]), {
+        selectedCandidateTag,
+      });
       const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
       const inputCost = costSummary.totals.llm.inputCostUSD || 0;
       const outputCost = costSummary.totals.llm.outputCostUSD || 0;
@@ -811,12 +820,17 @@ export const generate = api<GenerateStoryRequest, Story>(
           model: modelUsed,
         },
         response: {
+          title: generatedStory.title,
+          summary: costSummary.summary,
+          sections: costSummary.sections,
           tokens: {
             input: costSummary.totals.llm.inputTokens || tokensUsed.prompt || 0,
+            cached_input: (costSummary.totals.llm as any).cachedInputTokens || 0,
             output: costSummary.totals.llm.outputTokens || tokensUsed.completion || 0,
             total: costSummary.totals.llm.totalTokens || tokensUsed.total || 0,
           },
           costs: {
+            cached_input_usd: (costSummary.totals.llm as any).cachedInputCostUSD || 0,
             input_usd: inputCost,
             output_usd: outputCost,
             total_usd: totalCost,
@@ -827,7 +841,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           },
           totals: costSummary.totals,
           breakdown: costSummary.breakdown,
-          title: generatedStory.title,
+          debug: costSummary.debug,
         },
       });
 

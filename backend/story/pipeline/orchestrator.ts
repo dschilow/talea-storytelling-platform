@@ -393,7 +393,7 @@ export class StoryPipelineOrchestrator {
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // For 6-8 stories, default to one edit unless explicitly overridden.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
-      const implicitSurgeryEdits = 2;
+      const implicitSurgeryEdits = 1;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : implicitSurgeryEdits;
@@ -569,12 +569,16 @@ export class StoryPipelineOrchestrator {
           let editedChapters: number[] = [];
           const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
           const hasPriorityOneLocalTask = candidateCritic.patchTasks.some(task => task.chapter > 0 && task.priority === 1);
-          const nearReleaseBand = candidateCritic.overallScore >= Math.max(7.8, criticMinScore - 0.4);
+          // Cheap rescue mode: allow surgery for clearly salvageable near-release drafts,
+          // but still block hopeless candidates that would burn tokens without upside.
+          const nearReleaseBand = candidateCritic.overallScore >= Math.max(7.0, criticMinScore - 1.1);
+          const rescueableQualityBand = qualityErrors <= 6 || candidateCritic.overallScore >= Math.max(7.4, criticMinScore - 0.5);
           if (
             surgeryEnabled
             && candidateCritic.patchTasks.length > 0
             && hasPriorityOneLocalTask
             && nearReleaseBand
+            && rescueableQualityBand
             && (!candidateCritic.releaseReady || qualityErrors > 0)
           ) {
             const surgery = await applySelectiveSurgery({

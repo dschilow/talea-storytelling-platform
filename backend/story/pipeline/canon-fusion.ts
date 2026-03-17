@@ -584,11 +584,16 @@ function generateDialogueCue(
     directive: SceneDirective,
     isGerman: boolean,
 ): string | undefined {
-    const personality = character.enhancedPersonality;
-    if (!personality) return undefined;
+    const personality = character.enhancedPersonality || {
+        dominant: resolveFallbackDialogueDominant(character, isGerman),
+        secondary: character.personalityTags?.slice(1) || [],
+        speechPatterns: character.speechStyleHints || [],
+        emotionalTriggers: [],
+        dialogueStyle: resolveFallbackDialogueStyle(character),
+    };
 
-    const style = personality.dialogueStyle || "casual";
-    const dominant = personality.dominant;
+    const style = personality.dialogueStyle || resolveFallbackDialogueStyle(character);
+    const dominant = personality.dominant || resolveFallbackDialogueDominant(character, isGerman);
     const speechHints = character.speechStyleHints?.slice(0, 3) || personality.speechPatterns?.slice(0, 3) || [];
 
     // Generate a dialogue cue hint based on personality
@@ -661,6 +666,45 @@ function generateDialogueCue(
     }
 
     return baseCue;
+}
+
+function resolveFallbackDialogueStyle(
+    character: CharacterSheet,
+): "formal" | "casual" | "playful" | "wise" | "grumpy" {
+    const hintText = (character.speechStyleHints || []).join(" ").toLowerCase();
+
+    if (/(foermlich|förmlich|formal|höflich|hoeflich)/.test(hintText)) return "formal";
+    if (/(weise|ruhig|bedacht|sanft)/.test(hintText) || character.roleType === "MENTOR") return "wise";
+    if (/(grumm|mürrisch|muerrisch|knurr|grantig)/.test(hintText)) return "grumpy";
+    if (
+        /(verspielt|spielerisch|witzig|frech|quatschig|laut|sprunghaft)/.test(hintText)
+        || character.roleType === "COMIC_RELIEF"
+        || character.roleType === "TRICKSTER"
+    ) {
+        return "playful";
+    }
+
+    return "casual";
+}
+
+function resolveFallbackDialogueDominant(character: CharacterSheet, isGerman: boolean): string {
+    const tagged = character.personalityTags?.find(Boolean)?.toLowerCase();
+    if (tagged) return tagged;
+
+    switch (character.roleType) {
+        case "COMIC_RELIEF":
+            return isGerman ? "lustig" : "playful";
+        case "MENTOR":
+            return isGerman ? "weise" : "wise";
+        case "HELPER":
+            return isGerman ? "hilfsbereit" : "helpful";
+        case "TRICKSTER":
+            return isGerman ? "frech" : "cheeky";
+        case "GUARDIAN":
+            return isGerman ? "grummelig" : "grumpy";
+        default:
+            return isGerman ? "neugierig" : "curious";
+    }
 }
 
 // ─── Emotional Beat Resolution ─────────────────────────────────────────────

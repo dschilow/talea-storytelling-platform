@@ -8,16 +8,19 @@ export function normalizeTokenUsage(
   if (!usage) return undefined;
 
   const promptTokens = toNumber(usage.promptTokens);
+  const cachedPromptTokens = Math.max(0, Math.min(promptTokens, toNumber((usage as any).cachedPromptTokens)));
   const completionTokens = toNumber(usage.completionTokens);
   const totalTokens = toNumber(usage.totalTokens, promptTokens + completionTokens);
   const model = String(usage.model || fallbackModel || "gpt-5-mini");
-  const costs = calculateTokenCosts({ promptTokens, completionTokens, model });
+  const costs = calculateTokenCosts({ promptTokens, cachedPromptTokens, completionTokens, model });
 
   return {
     promptTokens,
+    cachedPromptTokens,
     completionTokens,
     totalTokens,
     model,
+    cachedInputCostUSD: isFiniteNumber((usage as any).cachedInputCostUSD) ? Number((usage as any).cachedInputCostUSD) : costs.cachedInputCostUSD,
     inputCostUSD: isFiniteNumber(usage.inputCostUSD) ? Number(usage.inputCostUSD) : costs.inputCostUSD,
     outputCostUSD: isFiniteNumber(usage.outputCostUSD) ? Number(usage.outputCostUSD) : costs.outputCostUSD,
     totalCostUSD: isFiniteNumber(usage.totalCostUSD) ? Number(usage.totalCostUSD) : costs.totalCostUSD,
@@ -43,9 +46,11 @@ export function mergeNormalizedTokenUsage(
 
   return {
     promptTokens: mergedPrompt,
+    cachedPromptTokens: toNumber((current as any).cachedPromptTokens) + toNumber((normalizedNext as any).cachedPromptTokens),
     completionTokens: mergedCompletion,
     totalTokens: mergedTotal,
     model,
+    cachedInputCostUSD: round6(toNumber((current as any).cachedInputCostUSD) + toNumber((normalizedNext as any).cachedInputCostUSD)),
     inputCostUSD: round6(toNumber(current.inputCostUSD) + toNumber(normalizedNext.inputCostUSD)),
     outputCostUSD: round6(toNumber(current.outputCostUSD) + toNumber(normalizedNext.outputCostUSD)),
     totalCostUSD: round6(toNumber(current.totalCostUSD) + toNumber(normalizedNext.totalCostUSD)),
@@ -82,8 +87,10 @@ export function buildLlmCostEntry(input: {
     success: input.success,
     itemCount: input.itemCount,
     promptTokens: usage.promptTokens,
+    cachedPromptTokens: (usage as any).cachedPromptTokens,
     completionTokens: usage.completionTokens,
     totalTokens: usage.totalTokens,
+    cachedInputCostUSD: (usage as any).cachedInputCostUSD,
     inputCostUSD: usage.inputCostUSD,
     outputCostUSD: usage.outputCostUSD,
     totalCostUSD: usage.totalCostUSD,
@@ -126,25 +133,46 @@ export function buildImageCostEntry(input: {
   };
 }
 
-export function summarizeStoryCostEntries(entries: StoryCostEntry[]) {
+export function summarizeStoryCostEntries(
+  entries: StoryCostEntry[],
+  options?: { selectedCandidateTag?: string | null },
+) {
   const normalizedEntries = [...entries].map(normalizeEntry);
 
   const llmEntries = normalizedEntries.filter(entry => entry.kind === "llm");
   const imageEntries = normalizedEntries.filter(entry => entry.kind === "image");
+  const selectedCandidateTag = resolveSelectedCandidateTag(normalizedEntries, options?.selectedCandidateTag);
+  const selectedStoryEntries = selectedCandidateTag
+    ? llmEntries.filter(entry => entry.candidateTag === selectedCandidateTag)
+    : [];
+  const discardedCandidateEntries = llmEntries.filter(entry =>
+    entry.candidateTag && entry.candidateTag !== selectedCandidateTag
+  );
+  const sharedLlmEntries = llmEntries.filter(entry => !entry.candidateTag);
 
   const llmTotals = aggregateEntries(llmEntries);
   const imageTotals = aggregateEntries(imageEntries);
+  const selectedStoryTotals = aggregateEntries(selectedStoryEntries);
+  const discardedCandidateTotals = aggregateEntries(discardedCandidateEntries);
+  const sharedLlmTotals = aggregateEntries(sharedLlmEntries);
 
   const trackedImageCostUSD = Number((imageTotals.providerCostUSD || 0).toFixed(6));
   const trackedLlmCostUSD = Number((llmTotals.totalCostUSD || 0).toFixed(6));
+  const trackedOverallCostUSD = Number((trackedLlmCostUSD + trackedImageCostUSD).toFixed(6));
+  const byCandidate = aggregateGrouped(
+    llmEntries.filter(entry => entry.candidateTag),
+    entry => entry.candidateTag as string,
+  );
 
   return {
     totals: {
       llm: {
         calls: llmEntries.length,
         inputTokens: llmTotals.promptTokens,
+        cachedInputTokens: (llmTotals as any).cachedPromptTokens,
         outputTokens: llmTotals.completionTokens,
         totalTokens: llmTotals.totalTokens,
+        cachedInputCostUSD: (llmTotals as any).cachedInputCostUSD,
         inputCostUSD: llmTotals.inputCostUSD,
         outputCostUSD: llmTotals.outputCostUSD,
         totalCostUSD: llmTotals.totalCostUSD,
@@ -159,12 +187,48 @@ export function summarizeStoryCostEntries(entries: StoryCostEntry[]) {
         untrackedEntries: imageEntries.filter(entry => !isFiniteNumber(entry.providerCostUSD) && !isFiniteNumber(entry.providerCostCredits)).length,
       },
       overall: {
-        trackedCostUSD: Number((trackedLlmCostUSD + trackedImageCostUSD).toFixed(6)),
+        trackedCostUSD: trackedOverallCostUSD,
         llmCostUSD: trackedLlmCostUSD,
         imageCostUSD: trackedImageCostUSD,
         imageCostCredits: imageTotals.providerCostCredits,
         totalTokens: llmTotals.totalTokens,
       },
+    },
+    summary: {
+      selectedCandidateTag: selectedCandidateTag || null,
+      candidateCount: byCandidate.length,
+      totalTokens: llmTotals.totalTokens,
+      trackedTotalUSD: trackedOverallCostUSD,
+      llmTotalUSD: trackedLlmCostUSD,
+      imageTotalUSD: trackedImageCostUSD,
+      cachedInputTokens: (llmTotals as any).cachedPromptTokens,
+      cachedInputCostUSD: (llmTotals as any).cachedInputCostUSD,
+      selectedStoryTokens: selectedStoryTotals.totalTokens,
+      selectedStoryCostUSD: selectedStoryTotals.totalCostUSD,
+      discardedCandidateTokens: discardedCandidateTotals.totalTokens,
+      discardedCandidateCostUSD: discardedCandidateTotals.totalCostUSD,
+      sharedOverheadTokens: sharedLlmTotals.totalTokens,
+      sharedOverheadCostUSD: sharedLlmTotals.totalCostUSD,
+    },
+    sections: {
+      selectedStoryPath: buildSectionSummary(
+        selectedStoryEntries,
+        "selected-story-path",
+        { selectedCandidateTag },
+      ),
+      discardedCandidates: buildSectionSummary(
+        discardedCandidateEntries,
+        "discarded-candidates",
+        { includeCandidates: true },
+      ),
+      sharedLlmOverhead: buildSectionSummary(
+        sharedLlmEntries,
+        "shared-llm-overhead",
+      ),
+      images: buildSectionSummary(
+        imageEntries,
+        "images",
+      ),
     },
     breakdown: {
       byPhase: aggregateGrouped(normalizedEntries, entry => entry.phase),
@@ -174,6 +238,10 @@ export function summarizeStoryCostEntries(entries: StoryCostEntry[]) {
         entry => entry.model as string,
       ),
       byProvider: aggregateGrouped(normalizedEntries, entry => entry.provider || "unknown"),
+      byCandidate,
+      entryCount: normalizedEntries.length,
+    },
+    debug: {
       entries: normalizedEntries,
     },
   };
@@ -256,8 +324,10 @@ function aggregateGrouped(
         calls: groupEntries.length,
         successCount: groupEntries.filter(entry => entry.success !== false).length,
         inputTokens: totals.promptTokens,
+        cachedInputTokens: (totals as any).cachedPromptTokens,
         outputTokens: totals.completionTokens,
         totalTokens: totals.totalTokens,
+        cachedInputCostUSD: (totals as any).cachedInputCostUSD,
         inputCostUSD: totals.inputCostUSD,
         outputCostUSD: totals.outputCostUSD,
         totalCostUSD: totals.totalCostUSD,
@@ -273,11 +343,58 @@ function aggregateGrouped(
     });
 }
 
+function buildSectionSummary(
+  entries: StoryCostEntry[],
+  label: string,
+  options?: {
+    selectedCandidateTag?: string;
+    includeCandidates?: boolean;
+  },
+) {
+  const totals = aggregateEntries(entries);
+  const llmEntries = entries.filter(entry => entry.kind === "llm");
+  const imageEntries = entries.filter(entry => entry.kind === "image");
+
+  return {
+    label,
+    selectedCandidateTag: options?.selectedCandidateTag || null,
+    calls: entries.length,
+    llmCalls: llmEntries.length,
+    imageCalls: imageEntries.length,
+    successCount: entries.filter(entry => entry.success !== false).length,
+    inputTokens: totals.promptTokens,
+    cachedInputTokens: (totals as any).cachedPromptTokens,
+    outputTokens: totals.completionTokens,
+    totalTokens: totals.totalTokens,
+    cachedInputCostUSD: (totals as any).cachedInputCostUSD,
+    inputCostUSD: totals.inputCostUSD,
+    outputCostUSD: totals.outputCostUSD,
+    llmCostUSD: totals.totalCostUSD,
+    imageCostUSD: totals.providerCostUSD,
+    providerCostCredits: totals.providerCostCredits,
+    trackedCostUSD: round6(totals.totalCostUSD + totals.providerCostUSD),
+    topPhases: aggregateGrouped(entries, entry => entry.phase).slice(0, 6),
+    topSteps: aggregateGrouped(entries, entry => `${entry.phase}:${entry.step}`).slice(0, 8),
+    models: aggregateGrouped(
+      llmEntries.filter(entry => entry.model),
+      entry => entry.model as string,
+    ).slice(0, 6),
+    candidates: options?.includeCandidates
+      ? aggregateGrouped(
+          llmEntries.filter(entry => entry.candidateTag),
+          entry => entry.candidateTag as string,
+        )
+      : undefined,
+  };
+}
+
 function aggregateEntries(entries: StoryCostEntry[]) {
   return {
     promptTokens: entries.reduce((sum, entry) => sum + toNumber(entry.promptTokens), 0),
+    cachedPromptTokens: entries.reduce((sum, entry) => sum + toNumber((entry as any).cachedPromptTokens), 0),
     completionTokens: entries.reduce((sum, entry) => sum + toNumber(entry.completionTokens), 0),
     totalTokens: entries.reduce((sum, entry) => sum + toNumber(entry.totalTokens), 0),
+    cachedInputCostUSD: round6(entries.reduce((sum, entry) => sum + toNumber((entry as any).cachedInputCostUSD), 0)),
     inputCostUSD: round6(entries.reduce((sum, entry) => sum + toNumber(entry.inputCostUSD), 0)),
     outputCostUSD: round6(entries.reduce((sum, entry) => sum + toNumber(entry.outputCostUSD), 0)),
     totalCostUSD: round6(entries.reduce((sum, entry) => sum + toNumber(entry.totalCostUSD), 0)),
@@ -290,8 +407,10 @@ function normalizeEntry(entry: StoryCostEntry): StoryCostEntry {
   return {
     ...entry,
     promptTokens: toNumber(entry.promptTokens),
+    cachedPromptTokens: toNumber((entry as any).cachedPromptTokens),
     completionTokens: toNumber(entry.completionTokens),
     totalTokens: toNumber(entry.totalTokens),
+    cachedInputCostUSD: round6(toNumber((entry as any).cachedInputCostUSD)),
     inputCostUSD: round6(toNumber(entry.inputCostUSD)),
     outputCostUSD: round6(toNumber(entry.outputCostUSD)),
     totalCostUSD: round6(toNumber(entry.totalCostUSD)),
@@ -302,6 +421,20 @@ function normalizeEntry(entry: StoryCostEntry): StoryCostEntry {
     referenceCount: toNumber(entry.referenceCount),
     itemCount: toNumber(entry.itemCount),
   };
+}
+
+function resolveSelectedCandidateTag(
+  entries: StoryCostEntry[],
+  preferredTag?: string | null,
+): string | undefined {
+  const candidateTags = Array.from(new Set(
+    entries
+      .map(entry => entry.candidateTag)
+      .filter((tag): tag is string => Boolean(tag)),
+  ));
+  if (candidateTags.length === 0) return undefined;
+  if (preferredTag && candidateTags.includes(preferredTag)) return preferredTag;
+  return candidateTags[0];
 }
 
 function inferProviderFromModel(model?: string): string {

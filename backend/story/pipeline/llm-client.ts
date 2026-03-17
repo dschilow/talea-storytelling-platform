@@ -113,6 +113,7 @@ export interface ChatCompletionResult {
   content: string;
   usage?: {
     promptTokens: number;
+    cachedPromptTokens?: number;
     completionTokens: number;
     totalTokens: number;
     model?: string;
@@ -294,6 +295,7 @@ export async function callChatCompletion(input: {
       const usage = data.usage
         ? {
             promptTokens: data.usage.prompt_tokens ?? 0,
+            cachedPromptTokens: data.usage.prompt_tokens_details?.cached_tokens ?? 0,
             completionTokens: data.usage.completion_tokens ?? 0,
             totalTokens: data.usage.total_tokens ?? 0,
             model: activeModel,
@@ -369,21 +371,32 @@ async function logLlmEvent(input: {
   });
 }
 
-export function calculateTokenCosts(usage: { promptTokens: number; completionTokens: number; model?: string }) {
+export function calculateTokenCosts(usage: {
+  promptTokens: number;
+  cachedPromptTokens?: number;
+  completionTokens: number;
+  model?: string;
+}) {
   const model = usage.model || "gpt-5-mini";
-  const inputCost = (usage.promptTokens * inputPricePerMillion(model)) / 1_000_000;
+  const cachedPromptTokens = Math.max(0, Number(usage.cachedPromptTokens || 0));
+  const uncachedPromptTokens = Math.max(0, usage.promptTokens - cachedPromptTokens);
+  const cachedInputCost = (cachedPromptTokens * cachedInputPricePerMillion(model)) / 1_000_000;
+  const uncachedInputCost = (uncachedPromptTokens * inputPricePerMillion(model)) / 1_000_000;
+  const inputCost = uncachedInputCost + cachedInputCost;
   const outputCost = (usage.completionTokens * outputPricePerMillion(model)) / 1_000_000;
   return {
     inputCostUSD: inputCost,
+    cachedInputCostUSD: cachedInputCost,
     outputCostUSD: outputCost,
     totalCostUSD: inputCost + outputCost,
   };
 }
 
 function inputPricePerMillion(model: string): number {
+  if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
-  if (model.includes("gpt-5-nano")) return 0.03;
-  if (model.includes("gpt-5-mini")) return 0.25;   // $0.25 per 1M input tokens (corrected 2025-07)
+  if (model.includes("gpt-5-nano")) return 0.05;
+  if (model.includes("gpt-5-mini")) return 0.25;
   if (model.includes("gpt-5-pro")) return 5.0;
   if (model.includes("gpt-5")) return 2.5;
   if (model.includes("o4-mini")) return 1.1;
@@ -391,16 +404,21 @@ function inputPricePerMillion(model: string): number {
   return 0.25;
 }
 
+function cachedInputPricePerMillion(model: string): number {
+  if (model.includes("gpt-5-mini")) return 0.025;
+  return inputPricePerMillion(model);
+}
+
 function outputPricePerMillion(model: string): number {
+  if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
-  if (model.includes("gpt-5-nano")) return 0.12;
-  if (model.includes("gpt-5-mini")) return 2.0;    // $2.00 per 1M output tokens (corrected 2025-07)
+  if (model.includes("gpt-5-nano")) return 0.25;
+  if (model.includes("gpt-5-mini")) return 2.0;
   if (model.includes("gpt-5-pro")) return 20.0;
   if (model.includes("gpt-5")) return 10.0;
   if (model.includes("o4-mini")) return 4.4;
   if (model.includes("gpt-4")) return 10.0;
   return 2.0;
 }
-
 
 

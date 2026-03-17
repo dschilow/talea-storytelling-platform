@@ -290,7 +290,7 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
   "gpt-5-nano": {
     name: "gpt-5-nano",
     inputCostPer1M: 0.050,      // $0.050/1M tokens
-    outputCostPer1M: 0.400,     // $0.400/1M tokens
+    outputCostPer1M: 0.250,     // $0.250/1M tokens
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
@@ -352,8 +352,8 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
   },
   "gemini-3-flash-preview": {
     name: "gemini-3-flash-preview",
-    inputCostPer1M: 0.00,       // FREE during preview
-    outputCostPer1M: 0.00,      // FREE during preview
+    inputCostPer1M: 0.50,       // $0.50/1M tokens
+    outputCostPer1M: 3.00,      // $3.00/1M tokens
     maxCompletionTokens: 65536,
     supportsReasoningEffort: false,
   },

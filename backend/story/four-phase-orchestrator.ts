@@ -2302,26 +2302,28 @@ ${repairRule}`;
    * Get input token pricing per million tokens for model
    */
   private getInputPricePerMillion(model: string): number {
-    if (model.includes("gpt-5-nano")) return 0.03; // $0.03 per 1M
-    if (model.includes("gpt-5-mini")) return 0.075; // $0.075 per 1M
+    if (model.includes("gemini-3-flash")) return 0.50; // $0.50 per 1M
+    if (model.includes("gpt-5-nano")) return 0.05; // $0.05 per 1M
+    if (model.includes("gpt-5-mini")) return 0.25; // $0.25 per 1M
     if (model.includes("gpt-5-pro")) return 5.00; // $5.00 per 1M
     if (model.includes("gpt-5")) return 2.50; // $2.50 per 1M (base gpt-5)
     if (model.includes("o4-mini")) return 1.10; // $1.10 per 1M
     if (model.includes("gpt-4")) return 2.50; // $2.50 per 1M (fallback)
-    return 0.075; // Default to gpt-5-mini pricing
+    return 0.25; // Default to gpt-5-mini pricing
   }
 
   /**
    * Get output token pricing per million tokens for model
    */
   private getOutputPricePerMillion(model: string): number {
-    if (model.includes("gpt-5-nano")) return 0.12; // $0.12 per 1M
-    if (model.includes("gpt-5-mini")) return 0.30; // $0.30 per 1M
+    if (model.includes("gemini-3-flash")) return 3.00; // $3.00 per 1M
+    if (model.includes("gpt-5-nano")) return 0.25; // $0.25 per 1M
+    if (model.includes("gpt-5-mini")) return 2.00; // $2.00 per 1M
     if (model.includes("gpt-5-pro")) return 20.00; // $20.00 per 1M
     if (model.includes("gpt-5")) return 10.00; // $10.00 per 1M (base gpt-5)
     if (model.includes("o4-mini")) return 4.40; // $4.40 per 1M
     if (model.includes("gpt-4")) return 10.00; // $10.00 per 1M (fallback)
-    return 0.30; // Default to gpt-5-mini pricing
+    return 2.00; // Default to gpt-5-mini pricing
   }
 
   /**

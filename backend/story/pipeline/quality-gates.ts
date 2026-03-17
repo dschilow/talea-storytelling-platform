@@ -422,6 +422,7 @@ function gateCastLock(
       // Multi-word German non-name patterns (possessives, articles, quantifiers + noun)
       if (language === "de" && germanNonNamePatterns.some(p => p.test(match[1]))) continue;
       if (language === "de" && isLikelyQuotedSpeechPhrase(ch.text, match[1], matchIndex)) continue;
+      if (language === "de" && isLikelyGermanSignPhrase(ch.text, match[1], matchIndex)) continue;
       // Single German common nouns: check if ALL words in the match are common nouns
       if (language === "de" && parts.length >= 2 && parts.every(p => isCommonWord(p, language) || germanNonNames.has(p))) continue;
       if (language === "de" && parts.length >= 2 && isLikelyGermanDescriptivePhrase(match[1])) continue;
@@ -3348,7 +3349,7 @@ function isCommonWord(word: string, language: string): boolean {
     "himmel", "sonne", "mond", "stern", "wolke", "nebel", "dunst",
     "wind", "regen", "schnee", "sturm", "gewitter", "blitz", "donner",
     "feuer", "wasser", "erde", "luft", "eis", "dampf", "rauch",
-    "baum", "blume", "gras", "busch", "blatt", "ast", "wurzel", "moos", "pilz",
+    "baum", "blume", "gras", "busch", "blatt", "ast", "wurzel", "moos", "pilz", "schilf",
     "stein", "fels", "kiesel", "sand", "lehm", "staub",
     "gold", "silber", "eisen", "kupfer", "bronze", "kristall", "diamant", "edelstein", "glas", "messing",
     "blech", "metall", "rost", "zinn",
@@ -3809,6 +3810,29 @@ function isLikelyQuotedSpeechPhrase(text: string, token: string, matchIndex: num
   if (looksLikeSpeakerAttribution) return false;
 
   return quoted.split(/\s+/).length <= 3;
+}
+
+function isLikelyGermanSignPhrase(text: string, token: string, matchIndex: number): boolean {
+  const normalized = token.trim();
+  if (!normalized) return false;
+
+  const parts = normalized
+    .split(/\s+/)
+    .map(part => part.trim().toLowerCase())
+    .filter(Boolean);
+  if (parts.length === 0 || parts.length > 4) return false;
+
+  const window = text
+    .slice(Math.max(0, matchIndex - 48), Math.min(text.length, matchIndex + normalized.length + 48))
+    .toLowerCase();
+  if (!/\b(schild|aufschrift|darauf|darunter|stand|steht|standen|las|lesen|gelesen|warnte|verboten)\b/.test(window)) {
+    return false;
+  }
+
+  return parts.every(part =>
+    isCommonWord(part, "de")
+    || /(?:e|en|er|es|em|ig|lich|isch|sam|bar|los|voll|t)$/.test(part),
+  );
 }
 
 function shouldFlagUnlockedName(text: string, token: string, matchIndex: number, language: string): boolean {

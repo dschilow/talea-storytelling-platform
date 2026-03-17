@@ -448,9 +448,11 @@ export interface VisionValidator {
 
 export interface TokenUsage {
   promptTokens: number;
+  cachedPromptTokens?: number;
   completionTokens: number;
   totalTokens: number;
   model?: string;
+  cachedInputCostUSD?: number;
   inputCostUSD?: number;
   outputCostUSD?: number;
   totalCostUSD?: number;
@@ -469,8 +471,10 @@ export interface StoryCostEntry {
   success?: boolean;
   itemCount?: number;
   promptTokens?: number;
+  cachedPromptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  cachedInputCostUSD?: number;
   inputCostUSD?: number;
   outputCostUSD?: number;
   totalCostUSD?: number;

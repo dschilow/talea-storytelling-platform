@@ -496,6 +496,7 @@ export class LlmStoryWriter implements StoryWriter {
           : (isReasoningModel ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
+    const isSecondaryCandidate = Boolean(candidateTag && candidateTag !== "cand-1");
     // Gemini Flash: allow 1 rewrite pass (quality recovery outweighs cost).
     // Severely broken drafts (5+ errors) get 2 passes for all models.
     const defaultRewritePasses = isGeminiModel ? MAX_REWRITE_PASSES : MAX_REWRITE_PASSES;
@@ -507,22 +508,30 @@ export class LlmStoryWriter implements StoryWriter {
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
+    const candidateRewritePasses = isSecondaryCandidate
+      ? Math.min(configuredRewritePasses, 1)
+      : configuredRewritePasses;
+    const candidateExpandCalls = isSecondaryCandidate
+      ? Math.min(configuredExpandCalls, 2)
+      : configuredExpandCalls;
     const enableWarningDrivenRewrite =
       typeof rawConfig?.enableWarningDrivenRewrite === "boolean"
         ? rawConfig.enableWarningDrivenRewrite
         : ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT;
-    const maxRewritePasses = allowPostEdits && Number.isFinite(configuredRewritePasses)
-      ? Math.max(0, Math.min(2, configuredRewritePasses))
+    const maxRewritePasses = allowPostEdits && Number.isFinite(candidateRewritePasses)
+      ? Math.max(0, Math.min(2, candidateRewritePasses))
       : 0;
-    const maxExpandCalls = allowPostEdits && Number.isFinite(configuredExpandCalls)
-      ? Math.max(0, Math.min(5, configuredExpandCalls))
+    const maxExpandCalls = allowPostEdits && Number.isFinite(candidateExpandCalls)
+      ? Math.max(0, Math.min(5, candidateExpandCalls))
       : 0;
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
     // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
     // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
-    const defaultStoryTokenBudget = isGeminiFlashModel ? 18000 : (isReasoningModel ? 20000 : 12000);
+    const defaultStoryTokenBudget = isGeminiFlashModel
+      ? (isSecondaryCandidate ? 16000 : 18000)
+      : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)

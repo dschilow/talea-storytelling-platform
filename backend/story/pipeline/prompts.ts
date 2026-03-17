@@ -1088,6 +1088,8 @@ WICHTIGER ALS EFFEKTE:
 - kleine Geheimnisse, konkrete Hindernisse, echter Tiefpunkt
 - Humor aus Verhalten, Missverstaendnissen und Timing
 - Wende aus der Figur selbst, nicht aus Magie oder Erwachsenenhilfe
+- ein Kind verursacht in Kapitel 3 oder 4 durch einen eigenen Fehler echten Schaden und repariert ihn spaeter aktiv
+- Humor verteilt ueber die Geschichte: fruehes Schmunzeln, mittleres Chaos, warmer Callback am Ende
 
 SCHREIBE WIE EIN VERLAGSTEXT:
 - klare, lebendige Abschnitte
@@ -1107,6 +1109,8 @@ PRIORITIZE:
 - concrete stakes, a real low point, and an earned inner turn
 - humor from behavior, misunderstanding, and timing
 - resolutions driven by the child, not by magic or adults
+- a child causes a real setback through a wrong choice in chapter 3 or 4 and later repairs it actively
+- spread humor across the story: early smile, mid-story chaos beat, warm callback near the end
 
 WRITE LIKE A PUBLISHED BOOK:
 - clear lively paragraphs
@@ -1892,6 +1896,8 @@ This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories f
 11. Avoid possessive name+noun constructs like "Adrians Magen" or "Mamas Schal"; use pronouns instead.
 12. ${ageGroupRule}
 13. PARAGRAPH BREAKS: Use blank lines between paragraphs. 4-7 paragraphs per chapter minimum. Never one text wall.
+14. Chapter 1 sentence 1 MUST contain the lead child name or the concrete problem object. No scenic throat-clearing.
+15. Chapter 3 or 4 MUST show a child-made wrong choice causing the setback. Bad luck alone is not enough.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}
@@ -1915,14 +1921,14 @@ ${beatLines}
   ⚠️ CHAPTER 1 HAS NO CONFLICT. The Beat Card conflict field for Ch1 is IGNORED. Ch1 is PURE ORIENTATION.
   Chapter 1 is ORIENTATION first, action second. The reader knows nothing.
   PARAGRAPH 1 – WORLD + CHARACTERS: State WHO and WHERE through action, voice, and a concrete place cue. Mention appearance only when it is explicitly locked. Write as if explaining to a 6-year-old who has never heard of these characters.
-    FORBIDDEN: Starting in the middle of action ("Adrian rannte durch den Wald..."). FORBIDDEN: smell-led openings like "Es roch nach...". REQUIRED: Start with the world and the people in it.
+    FORBIDDEN: Starting in the middle of action ("Adrian rannte durch den Wald..."). FORBIDDEN: smell-led openings like "Es roch nach...". REQUIRED: Start with the world and the people in it. Sentence 1 must already name the lead child or the concrete problem object.
   PARAGRAPH 2 – THE MISSION (mandatory): An adult/authority figure gives the characters a clear task. State WHAT they must do and WHY in simple language. Any child must be able to repeat the mission after reading this paragraph.
   PARAGRAPH 3 – FIRST STEP / HOOK: The characters set out. Something small goes slightly wrong or mysterious. The question forms.
   FINAL PARAGRAPH – STAKES: State CONCRETELY what is lost if they fail. End on unresolved tension — a sound, a shadow, a question unanswered.
   Conflict starts in Chapter 2. Not before.
 - Chapter 2: DISCOVERY + TEMPTATION. One exciting thing appears. One character wants to take a shortcut. Chapter ends with a door slamming, a trap springing, a wrong choice — unresolved.
-- Chapter 3: COMPLICATION + SETBACK. A plan fails. Something breaks or is lost. Show the physical/emotional reaction for 2-3 sentences. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
-- Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. A character almost gives up. ONE moment of courage or insight changes everything. Chapter ends with forward momentum but danger still present.
+- Chapter 3: COMPLICATION + SETBACK. A CHILD'S wrong choice or shortcut causes the setback. Something breaks or is lost. Show the physical/emotional reaction for 2-3 sentences. Characters feel stuck — before one small idea emerges. Chapter ends mid-action or with a new danger.
+- Chapter 4: DARKEST MOMENT → TURNING POINT. The worst thing happens. The same child must actively correct the earlier mistake through courage or insight. Chapter ends with forward momentum but danger still present.
 - Chapter 5: RESOLUTION + CALLBACK + SMALL PRICE. Show EXACTLY what was won. Connect back to Chapter 1's opening image or problem. Include ONE small tangible loss (torn glove, lost hat, missed dinner). Final image: specific and warm, not a moral statement.
 
 ::: OUTPUT FORMAT :::
