@@ -5,6 +5,7 @@ import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
 
 type AIModel =
+  | 'claude-sonnet-4-6'
   | 'gpt-5-nano'
   | 'gpt-5-mini'
   | 'gpt-5.4'
@@ -114,6 +115,12 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   ];
 
   const aiModelOptions = [
+    {
+      key: 'claude-sonnet-4-6',
+      label: 'Claude Sonnet 4.6',
+      icon: 'C4',
+      description: '$3 in / $15 out - Starke Prosa',
+    },
     {
       key: 'gemini-3-pro-preview',
       label: 'Gemini 3 Pro Preview',

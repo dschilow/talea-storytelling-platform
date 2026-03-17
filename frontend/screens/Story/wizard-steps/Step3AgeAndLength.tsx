@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
 type AIModel =
+  | 'claude-sonnet-4-6'
   | 'gpt-5-nano'
   | 'gpt-5-mini'
   | 'gpt-5.4'
@@ -44,6 +45,13 @@ const lengths = [
 ] as const;
 
 const models: ModelOption[] = [
+  {
+    id: 'claude-sonnet-4-6',
+    title: 'Claude Sonnet 4.6',
+    subtitle: 'Anthropic, starke Prosa',
+    cost: '$3 in / $15 out',
+    tone: '#b06f4f',
+  },
   {
     id: 'gemini-3-pro-preview',
     title: 'Gemini 3 Pro Preview',

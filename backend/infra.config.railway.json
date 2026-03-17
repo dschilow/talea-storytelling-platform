@@ -67,6 +67,9 @@
     "OpenAIKey": {
       "$env": "OPENAI_API_KEY"
     },
+    "AnthropicAPIKey": {
+      "$env": "ANTHROPIC_API_KEY"
+    },
     "RunwareApiKey": {
       "$env": "RUNWARE_API_KEY"
     },

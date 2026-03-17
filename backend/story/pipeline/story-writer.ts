@@ -1,13 +1,21 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint, StoryCostEntry } from "./types";
 import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
-import { callChatCompletion } from "./llm-client";
+import { callAnthropicCompletion, callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-focus";
-import { GEMINI_MAIN_STORY_MODEL, resolveGeminiSupportFallback, resolveSupportTaskModel, isGeminiFlashFamilyModel } from "./model-routing";
+import {
+  CLAUDE_SONNET_46_MODEL,
+  GEMINI_MAIN_STORY_MODEL,
+  isClaudeFamilyModel,
+  isGeminiFlashFamilyModel,
+  resolveClaudeStoryModel,
+  resolveGeminiSupportFallback,
+  resolveSupportTaskModel,
+} from "./model-routing";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -482,7 +490,11 @@ export class LlmStoryWriter implements StoryWriter {
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
     const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
-    const model = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
+    const requestedModel = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
+    const model = isClaudeFamilyModel(requestedModel)
+      ? resolveClaudeStoryModel(requestedModel)
+      : requestedModel;
+    const isClaudeModel = isClaudeFamilyModel(model);
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const isGeminiFlashModel = isGeminiFlashFamilyModel(model);
@@ -497,7 +509,7 @@ export class LlmStoryWriter implements StoryWriter {
     // default timeout and only cap the cheap side-model.
     const supportStepFetchTimeoutMs = supportModelFallback ? 90000 : undefined;
     const supportStepMaxRetries = supportModelFallback ? 1 : undefined;
-    const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3");
+    const isReasoningModel = model.includes("gpt-5") || model.includes("o4") || model.includes("gemini-3") || isClaudeModel;
     const requestedPromptMode = String(rawConfig?.storyPromptMode || "").toLowerCase();
     const storyPromptMode: "full" | "compact" =
       requestedPromptMode === "full"
@@ -572,6 +584,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     const clampMaxTokens = (maxTokens?: number) => {
       const safeMax = maxTokens ?? 2000;
       if (isGemini3) return Math.min(safeMax, 65536);
+      if (isClaudeModel) return Math.min(safeMax, 16000);
       return isGeminiModel ? Math.min(safeMax, 8192) : safeMax;
     };
 
@@ -641,6 +654,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       preferImmediateFallbackOnTransient?: boolean;
     }) => {
       const activeModel = input.modelOverride ?? model;
+      const activeIsClaude = isClaudeFamilyModel(activeModel);
       const activeIsGemini = activeModel.startsWith("gemini-");
       const activeIsGeminiFlash = isGeminiFlashFamilyModel(activeModel);
       const activeGeminiFallback =
@@ -701,6 +715,22 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           }
           throw error;
         }
+      }
+
+      if (activeIsClaude) {
+        return callAnthropicCompletion({
+          model: resolveClaudeStoryModel(activeModel) || CLAUDE_SONNET_46_MODEL,
+          messages: [
+            { role: "system", content: input.systemPrompt },
+            { role: "user", content: input.userPrompt },
+          ],
+          fallbackModels: input.fallbackModels,
+          maxTokens: clampMaxTokens(input.maxTokens),
+          temperature: input.temperature,
+          context: input.context,
+          logSource: input.logSource,
+          logMetadata: input.logMetadata,
+        });
       }
 
       const openAiFallbackModels = input.fallbackModels

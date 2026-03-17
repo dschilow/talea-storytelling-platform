@@ -143,7 +143,7 @@ export namespace admin {
         }
 
         /**
-         * Deletes a user and their related content (avatars and stories).
+         * Deletes a user, removes all created content, and cancels paid subscriptions at period end.
          */
         public async deleteUser(params: { id: string }): Promise<ResponseType<typeof api_admin_users_delete_deleteUser>> {
             // Now make the actual call to the API
@@ -390,6 +390,23 @@ import {
     cloneToProfile as api_avatar_clone_cloneToProfile,
     listPoolTemplates as api_avatar_clone_listPoolTemplates
 } from "~backend/avatar/clone";
+import {
+    getCosmosStateV2 as api_avatar_cosmos_api_v2_getCosmosStateV2,
+    getDomainTopicsV2 as api_avatar_cosmos_api_v2_getDomainTopicsV2,
+    getTopicTimelineV2 as api_avatar_cosmos_api_v2_getTopicTimelineV2,
+    ingestContentPackageV2 as api_avatar_cosmos_api_v2_ingestContentPackageV2,
+    submitQuizV2 as api_avatar_cosmos_api_v2_submitQuizV2,
+    submitRecallV2 as api_avatar_cosmos_api_v2_submitRecallV2
+} from "~backend/avatar/cosmos-api-v2";
+import { cosmosParentSummary as api_avatar_cosmos_parent_summary_cosmosParentSummary } from "~backend/avatar/cosmos-parent-summary";
+import { cosmosQuizSubmit as api_avatar_cosmos_quiz_submit_cosmosQuizSubmit } from "~backend/avatar/cosmos-quiz-submit";
+import { cosmosRecallSubmit as api_avatar_cosmos_recall_submit_cosmosRecallSubmit } from "~backend/avatar/cosmos-recall-submit";
+import { getCosmosState as api_avatar_cosmos_state_getCosmosState } from "~backend/avatar/cosmos-state";
+import {
+    getTopicSuggestions as api_avatar_cosmos_suggestions_api_getTopicSuggestions,
+    refreshOneTopicSuggestion as api_avatar_cosmos_suggestions_api_refreshOneTopicSuggestion,
+    selectTopicSuggestion as api_avatar_cosmos_suggestions_api_selectTopicSuggestion
+} from "~backend/avatar/cosmos-suggestions-api";
 import { create as api_avatar_create_create } from "~backend/avatar/create";
 import { debugPersonality as api_avatar_debugPersonality_debugPersonality } from "~backend/avatar/debugPersonality";
 import { deleteAvatar as api_avatar_delete_deleteAvatar } from "~backend/avatar/delete";
@@ -402,6 +419,7 @@ import { generatePortrait as api_avatar_portrait_api_generatePortrait } from "~b
 import { reducePersonalityTrait as api_avatar_reducePersonalityTrait_reducePersonalityTrait } from "~backend/avatar/reducePersonalityTrait";
 import { resetDokuHistory as api_avatar_resetDokuHistory_resetDokuHistory } from "~backend/avatar/resetDokuHistory";
 import { resetPersonalityTraits as api_avatar_resetPersonalityTraits_resetPersonalityTraits } from "~backend/avatar/resetPersonalityTraits";
+import { runMigrationSQL as api_avatar_run_migration_sql_runMigrationSQL } from "~backend/avatar/run-migration-sql";
 import {
     deleteShareContact as api_avatar_share_deleteShareContact,
     listAvatarShares as api_avatar_share_listAvatarShares,
@@ -425,6 +443,9 @@ export namespace avatar {
             this.addMemory = this.addMemory.bind(this)
             this.adoptPoolTemplate = this.adoptPoolTemplate.bind(this)
             this.cloneToProfile = this.cloneToProfile.bind(this)
+            this.cosmosParentSummary = this.cosmosParentSummary.bind(this)
+            this.cosmosQuizSubmit = this.cosmosQuizSubmit.bind(this)
+            this.cosmosRecallSubmit = this.cosmosRecallSubmit.bind(this)
             this.create = this.create.bind(this)
             this.debugPersonality = this.debugPersonality.bind(this)
             this.deleteAvatar = this.deleteAvatar.bind(this)
@@ -432,16 +453,27 @@ export namespace avatar {
             this.deleteShareContact = this.deleteShareContact.bind(this)
             this.generatePortrait = this.generatePortrait.bind(this)
             this.get = this.get.bind(this)
+            this.getCosmosState = this.getCosmosState.bind(this)
+            this.getCosmosStateV2 = this.getCosmosStateV2.bind(this)
+            this.getDomainTopicsV2 = this.getDomainTopicsV2.bind(this)
             this.getMemories = this.getMemories.bind(this)
+            this.getTopicSuggestions = this.getTopicSuggestions.bind(this)
+            this.getTopicTimelineV2 = this.getTopicTimelineV2.bind(this)
+            this.ingestContentPackageV2 = this.ingestContentPackageV2.bind(this)
             this.list = this.list.bind(this)
             this.listAvatarShares = this.listAvatarShares.bind(this)
             this.listPoolTemplates = this.listPoolTemplates.bind(this)
             this.listShareContacts = this.listShareContacts.bind(this)
             this.migrateToEnglish = this.migrateToEnglish.bind(this)
             this.reducePersonalityTrait = this.reducePersonalityTrait.bind(this)
+            this.refreshOneTopicSuggestion = this.refreshOneTopicSuggestion.bind(this)
             this.resetDokuHistory = this.resetDokuHistory.bind(this)
             this.resetPersonalityTraits = this.resetPersonalityTraits.bind(this)
+            this.runMigrationSQL = this.runMigrationSQL.bind(this)
+            this.selectTopicSuggestion = this.selectTopicSuggestion.bind(this)
             this.shareAvatarWithContact = this.shareAvatarWithContact.bind(this)
+            this.submitQuizV2 = this.submitQuizV2.bind(this)
+            this.submitRecallV2 = this.submitRecallV2.bind(this)
             this.suggestShareContacts = this.suggestShareContacts.bind(this)
             this.unshareAvatarFromContact = this.unshareAvatarFromContact.bind(this)
             this.update = this.update.bind(this)
@@ -478,6 +510,31 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/clone-to-profile`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_clone_cloneToProfile>
+        }
+
+        public async cosmosParentSummary(params: RequestType<typeof api_avatar_cosmos_parent_summary_cosmosParentSummary>): Promise<ResponseType<typeof api_avatar_cosmos_parent_summary_cosmosParentSummary>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                profileId: params.profileId,
+                range:     params.range,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/cosmos-parent-summary`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_parent_summary_cosmosParentSummary>
+        }
+
+        public async cosmosQuizSubmit(params: RequestType<typeof api_avatar_cosmos_quiz_submit_cosmosQuizSubmit>): Promise<ResponseType<typeof api_avatar_cosmos_quiz_submit_cosmosQuizSubmit>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/cosmos-quiz-submit`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_quiz_submit_cosmosQuizSubmit>
+        }
+
+        public async cosmosRecallSubmit(params: RequestType<typeof api_avatar_cosmos_recall_submit_cosmosRecallSubmit>): Promise<ResponseType<typeof api_avatar_cosmos_recall_submit_cosmosRecallSubmit>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/cosmos-recall-submit`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_recall_submit_cosmosRecallSubmit>
         }
 
         public async create(params: RequestType<typeof api_avatar_create_create>): Promise<ResponseType<typeof api_avatar_create_create>> {
@@ -542,14 +599,87 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_get_get>
         }
 
+        public async getCosmosState(params: RequestType<typeof api_avatar_cosmos_state_getCosmosState>): Promise<ResponseType<typeof api_avatar_cosmos_state_getCosmosState>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/cosmos-state`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_state_getCosmosState>
+        }
+
+        public async getCosmosStateV2(params: RequestType<typeof api_avatar_cosmos_api_v2_getCosmosStateV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_getCosmosStateV2>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                childId:   params.childId,
+                domainId:  params.domainId,
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/cosmos/state`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_getCosmosStateV2>
+        }
+
+        public async getDomainTopicsV2(params: RequestType<typeof api_avatar_cosmos_api_v2_getDomainTopicsV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_getDomainTopicsV2>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                childId:   params.childId,
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/domain/${encodeURIComponent(params.domainId)}/topics`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_getDomainTopicsV2>
+        }
+
         public async getMemories(params: { id: string }): Promise<ResponseType<typeof api_avatar_getMemories_getMemories>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/memories`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_getMemories_getMemories>
         }
 
+        public async getTopicSuggestions(params: RequestType<typeof api_avatar_cosmos_suggestions_api_getTopicSuggestions>): Promise<ResponseType<typeof api_avatar_cosmos_suggestions_api_getTopicSuggestions>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                childId:   params.childId,
+                domainId:  params.domainId,
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/suggestions`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_suggestions_api_getTopicSuggestions>
+        }
+
+        public async getTopicTimelineV2(params: RequestType<typeof api_avatar_cosmos_api_v2_getTopicTimelineV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_getTopicTimelineV2>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                avatarId:  params.avatarId,
+                childId:   params.childId,
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/topic/${encodeURIComponent(params.topicId)}/timeline`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_getTopicTimelineV2>
+        }
+
+        public async ingestContentPackageV2(params: RequestType<typeof api_avatar_cosmos_api_v2_ingestContentPackageV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_ingestContentPackageV2>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/content/ingest`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_ingestContentPackageV2>
+        }
+
         /**
-         * Retrieves avatars owned by the user and avatars shared with the user.
+         * Retrieves avatars owned by the authenticated user for the active profile
+         * (directly assigned or shared into the profile via avatar_profile_links).
          */
         public async list(params: RequestType<typeof api_avatar_list_list>): Promise<ResponseType<typeof api_avatar_list_list>> {
             // Convert our params into the objects we need for the request
@@ -603,6 +733,12 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_reducePersonalityTrait_reducePersonalityTrait>
         }
 
+        public async refreshOneTopicSuggestion(params: RequestType<typeof api_avatar_cosmos_suggestions_api_refreshOneTopicSuggestion>): Promise<ResponseType<typeof api_avatar_cosmos_suggestions_api_refreshOneTopicSuggestion>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/suggestions/refresh-one`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_suggestions_api_refreshOneTopicSuggestion>
+        }
+
         /**
          * Reset doku reading history for an avatar (allows re-reading dokus)
          */
@@ -626,6 +762,18 @@ export namespace avatar {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_resetPersonalityTraits_resetPersonalityTraits>
         }
 
+        public async runMigrationSQL(params: RequestType<typeof api_avatar_run_migration_sql_runMigrationSQL>): Promise<ResponseType<typeof api_avatar_run_migration_sql_runMigrationSQL>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/avatar/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_run_migration_sql_runMigrationSQL>
+        }
+
+        public async selectTopicSuggestion(params: RequestType<typeof api_avatar_cosmos_suggestions_api_selectTopicSuggestion>): Promise<ResponseType<typeof api_avatar_cosmos_suggestions_api_selectTopicSuggestion>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/suggestions/select`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_suggestions_api_selectTopicSuggestion>
+        }
+
         public async shareAvatarWithContact(params: RequestType<typeof api_avatar_share_shareAvatarWithContact>): Promise<ResponseType<typeof api_avatar_share_shareAvatarWithContact>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
@@ -635,6 +783,18 @@ export namespace avatar {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/avatar/${encodeURIComponent(params.id)}/share`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_share_shareAvatarWithContact>
+        }
+
+        public async submitQuizV2(params: RequestType<typeof api_avatar_cosmos_api_v2_submitQuizV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_submitQuizV2>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/quiz/submit`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_submitQuizV2>
+        }
+
+        public async submitRecallV2(params: RequestType<typeof api_avatar_cosmos_api_v2_submitRecallV2>): Promise<ResponseType<typeof api_avatar_cosmos_api_v2_submitRecallV2>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/api/recall/submit`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_avatar_cosmos_api_v2_submitRecallV2>
         }
 
         public async suggestShareContacts(params: RequestType<typeof api_avatar_share_suggestShareContacts>): Promise<ResponseType<typeof api_avatar_share_suggestShareContacts>> {
@@ -722,6 +882,7 @@ import {
     submitDokuQuizResult as api_doku_profile_state_submitDokuQuizResult,
     updateDokuProfileState as api_doku_profile_state_updateDokuProfileState
 } from "~backend/doku/profile-state";
+import { runMigrationSql as api_doku_run_migration_sql_runMigrationSql } from "~backend/doku/run-migration-sql";
 import { updateDoku as api_doku_update_updateDoku } from "~backend/doku/update";
 
 export namespace doku {
@@ -744,6 +905,7 @@ export namespace doku {
             this.listDokus = this.listDokus.bind(this)
             this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.runMigrationSql = this.runMigrationSql.bind(this)
             this.submitDokuQuizResult = this.submitDokuQuizResult.bind(this)
             this.updateAudioDoku = this.updateAudioDoku.bind(this)
             this.updateDoku = this.updateDoku.bind(this)
@@ -868,6 +1030,12 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
+        }
+
+        public async runMigrationSql(params: RequestType<typeof api_doku_run_migration_sql_runMigrationSql>): Promise<ResponseType<typeof api_doku_run_migration_sql_runMigrationSql>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/run-migration-sql`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_run_migration_sql_runMigrationSql>
         }
 
         public async submitDokuQuizResult(params: RequestType<typeof api_doku_profile_state_submitDokuQuizResult>): Promise<ResponseType<typeof api_doku_profile_state_submitDokuQuizResult>> {
@@ -2588,6 +2756,7 @@ export namespace user {
             const body: Record<string, any> = {
                 age:                params.age,
                 avatarColor:        params.avatarColor,
+                childAvatarId:      params.childAvatarId,
                 competencyState:    params.competencyState,
                 interests:          params.interests,
                 isDefault:          params.isDefault,

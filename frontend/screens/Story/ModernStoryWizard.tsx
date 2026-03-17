@@ -44,6 +44,7 @@ interface WizardState {
   surpriseEnd: boolean;
   customWish: string;
   aiModel:
+    | "claude-sonnet-4-6"
     | "gpt-5-nano"
     | "gpt-5-mini"
     | "gpt-5.4"

@@ -1,8 +1,10 @@
 ﻿import { secret } from "encore.dev/config";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
+import { resolveClaudeStoryModel } from "./model-routing";
 
 const openAIKey = secret("OpenAIKey");
+const anthropicApiKey = secret("AnthropicAPIKey");
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
@@ -121,6 +123,112 @@ export interface ChatCompletionResult {
   };
   /** OpenAI finish_reason: "stop" | "length" | "content_filter" | etc. */
   finishReason?: string;
+}
+
+export async function callAnthropicCompletion(input: {
+  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+  model: string;
+  fallbackModels?: string[];
+  maxTokens?: number;
+  temperature?: number;
+  context?: string;
+  logSource?: string;
+  logMetadata?: Record<string, any>;
+}): Promise<ChatCompletionResult> {
+  const requestedModel = resolveClaudeStoryModel(input.model);
+  const fallbackModels = uniqueModels((input.fallbackModels || []).map(resolveClaudeStoryModel));
+  const modelCandidates = uniqueModels([requestedModel, ...fallbackModels]);
+  const logSource = resolveLogSource(input.logSource, input.context);
+  const logMetadata = buildLogMetadata(input.context, input.logMetadata);
+  let lastError: Error | null = null;
+
+  for (const activeModel of modelCandidates) {
+    const systemMessages = input.messages.filter(message => message.role === "system");
+    const chatMessages = input.messages
+      .filter(message => message.role !== "system")
+      .map(message => ({
+        role: message.role,
+        content: [{ type: "text", text: message.content }],
+      }));
+    const requestPayload: any = {
+      model: activeModel,
+      max_tokens: input.maxTokens ?? 2000,
+      temperature: input.temperature ?? 0.7,
+      messages: chatMessages.length > 0
+        ? chatMessages
+        : [{ role: "user", content: [{ type: "text", text: "" }] }],
+    };
+
+    if (systemMessages.length > 0) {
+      requestPayload.system = systemMessages.map(message => message.content).join("\n\n");
+    }
+
+    let response: Response;
+    try {
+      response = await fetchWithRetry(
+        "https://api.anthropic.com/v1/messages",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": anthropicApiKey(),
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify(requestPayload),
+        },
+        input.context ?? "anthropic-chat"
+      );
+    } catch (error) {
+      await logLlmEvent({
+        source: logSource,
+        request: requestPayload,
+        response: { error: String((error as Error)?.message || error) },
+        metadata: logMetadata,
+      });
+      lastError = error as Error;
+      continue;
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      await logLlmEvent({
+        source: logSource,
+        request: requestPayload,
+        response: { status: response.status, error: text },
+        metadata: logMetadata,
+      });
+      lastError = new Error(`Anthropic API error ${response.status}: ${text}`);
+      continue;
+    }
+
+    const data: any = await response.json();
+    await logLlmEvent({
+      source: logSource,
+      request: requestPayload,
+      response: data,
+      metadata: logMetadata,
+    });
+
+    const content = Array.isArray(data.content)
+      ? data.content
+          .filter((block: any) => block?.type === "text")
+          .map((block: any) => String(block?.text || ""))
+          .join("")
+      : "";
+    const finishReason = data.stop_reason ?? "unknown";
+    const usage = data.usage
+      ? {
+          promptTokens: data.usage.input_tokens ?? 0,
+          completionTokens: data.usage.output_tokens ?? 0,
+          totalTokens: (data.usage.input_tokens ?? 0) + (data.usage.output_tokens ?? 0),
+          model: activeModel,
+        }
+      : undefined;
+
+    return { content, usage, finishReason };
+  }
+
+  throw lastError ?? new Error("Anthropic API error: failed to receive response");
 }
 
 export async function callChatCompletion(input: {
@@ -393,6 +501,7 @@ export function calculateTokenCosts(usage: {
 }
 
 function inputPricePerMillion(model: string): number {
+  if (model.includes("claude-sonnet-4-6")) return 3.0;
   if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
@@ -411,6 +520,7 @@ function cachedInputPricePerMillion(model: string): number {
 }
 
 function outputPricePerMillion(model: string): number {
+  if (model.includes("claude-sonnet-4-6")) return 15.0;
   if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
@@ -422,4 +532,3 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gpt-4")) return 10.0;
   return 2.0;
 }
-

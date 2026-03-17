@@ -51,6 +51,7 @@ import {
   type StoryCharacterConsistency,
   TALEA_DEFAULT_STYLE,
 } from "./image-consistency-system";
+import { callAnthropicCompletion } from "./pipeline/llm-client";
 
 /**
  * OPTIMIZED v3.0: Smart prompt clamping that NEVER removes character identity blocks
@@ -287,6 +288,20 @@ interface ModelConfig {
 }
 
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
+  "claude-sonnet-4-6": {
+    name: "claude-sonnet-4-6-20260115",
+    inputCostPer1M: 3.00,
+    outputCostPer1M: 15.00,
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
+  "claude-sonnet-4-6-20260115": {
+    name: "claude-sonnet-4-6-20260115",
+    inputCostPer1M: 3.00,
+    outputCostPer1M: 15.00,
+    maxCompletionTokens: 16000,
+    supportsReasoningEffort: false,
+  },
   "gpt-5-nano": {
     name: "gpt-5-nano",
     inputCostPer1M: 0.050,      // $0.050/1M tokens
@@ -2257,6 +2272,7 @@ You MUST implement this style consistently in ALL chapters!`
 
   // Check if using Gemini model
   const isGeminiModel = modelConfig.name.startsWith("gemini-");
+  const isClaudeModel = modelConfig.name.startsWith("claude-");
 
   if (isGeminiModel) {
     // Use Gemini API
@@ -2293,6 +2309,36 @@ You MUST implement this style consistently in ALL chapters!`
       console.error(`[ai-generation] ❌ Gemini generation failed:`, error);
       throw new Error(`Gemini generation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+  } else if (isClaudeModel) {
+    console.log(`[ai-generation] 🤖 Using Anthropic Claude model: ${modelConfig.name}`);
+
+    const anthropicResponse = await callAnthropicCompletion({
+      model: modelConfig.name,
+      messages,
+      maxTokens: modelConfig.maxCompletionTokens,
+      temperature: 0.9,
+      context: "legacy-story-generation",
+      logSource: "openai-story-generation",
+      logMetadata: { provider: "anthropic", path: "legacy" },
+    });
+
+    content = anthropicResponse.content;
+    if (!content) {
+      throw new Error("Empty response received from Anthropic.");
+    }
+
+    if (anthropicResponse.usage) {
+      usageTotals.prompt = anthropicResponse.usage.promptTokens ?? 0;
+      usageTotals.completion = anthropicResponse.usage.completionTokens ?? 0;
+      usageTotals.total = anthropicResponse.usage.totalTokens ?? 0;
+    }
+
+    finalRequest = {
+      model: modelConfig.name,
+      messages,
+      max_tokens: modelConfig.maxCompletionTokens,
+    };
+    finalResponse = anthropicResponse;
   } else {
     // Use OpenAI API
     const payload = {

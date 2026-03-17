@@ -98,6 +98,8 @@ export type PlotHookKey =
   | "moral_choice";
 
 export type AIModel =
+  | "claude-sonnet-4-6"
+  | "claude-sonnet-4-6-20260115"
   | "gpt-5-nano"
   | "gpt-5-mini"
   | "gpt-5"

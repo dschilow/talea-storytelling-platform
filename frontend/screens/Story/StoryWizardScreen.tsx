@@ -19,7 +19,6 @@ import StoryFlavorStep, {
 } from './steps/StoryFlavorStep';
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
-import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -42,6 +41,7 @@ interface StoryConfig {
   language?: 'de' | 'en';
 
   aiModel?:
+    | 'claude-sonnet-4-6'
     | 'gpt-5-nano'
     | 'gpt-5-mini'
     | 'gpt-5.4'
@@ -121,7 +121,6 @@ const StoryWizardScreen: React.FC = () => {
 
   const backend = useBackend();
   const { user } = useUser();
-  const { isAdmin } = useOptionalUserAccess();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -225,13 +224,6 @@ const StoryWizardScreen: React.FC = () => {
 
     try {
       setGenerating(true);
-      const effectiveStoryConfig = isAdmin
-        ? storyConfig
-        : {
-            ...storyConfig,
-            aiModel: 'gemini-3-flash-preview' as const,
-          };
-
       setGenerationStep('profiles');
       await new Promise(r => setTimeout(r, 1200));
       setGenerationStep('memories');
@@ -241,7 +233,7 @@ const StoryWizardScreen: React.FC = () => {
       // Story-Experience-Einstellungen werden ueber storyConfig uebergeben.
       const story = await generateStoryWithModelFallback(backend.story.generate, {
         userId: user.id,
-        config: effectiveStoryConfig,
+        config: storyConfig,
         profileId: activeProfileId || undefined,
       });
 
@@ -312,15 +304,11 @@ const StoryWizardScreen: React.FC = () => {
             complexity={storyConfig.complexity}
             ageGroup={storyConfig.ageGroup}
             aiModel={storyConfig.aiModel}
-            showAiModelSelection={isAdmin}
+            showAiModelSelection
             onLengthChange={(length) => updateStoryConfig({ length })}
             onComplexityChange={(complexity) => updateStoryConfig({ complexity })}
             onAgeGroupChange={(ageGroup) => updateStoryConfig({ ageGroup })}
-            onAiModelChange={(aiModel) => {
-              if (isAdmin) {
-                updateStoryConfig({ aiModel });
-              }
-            }}
+            onAiModelChange={(aiModel) => updateStoryConfig({ aiModel })}
           />
         );
       case 'learning':
