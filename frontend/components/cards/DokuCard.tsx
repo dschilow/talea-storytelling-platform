@@ -39,29 +39,16 @@ type Palette = {
   statusError: string;
 };
 
-function getPalette(isDark: boolean): Palette {
-  if (isDark) {
-    return {
-      card: 'rgba(27,39,55,0.9)',
-      border: '#32465f',
-      text: '#e6eef9',
-      muted: '#9fb1c8',
-      soft: 'rgba(145,166,194,0.16)',
-      statusDone: 'rgba(84,164,137,0.2)',
-      statusProgress: 'rgba(190,147,95,0.24)',
-      statusError: 'rgba(186,102,102,0.26)',
-    };
-  }
-
+function getPalette(_: boolean): Palette {
   return {
-    card: 'rgba(255,250,243,0.9)',
-    border: '#dfcfbb',
-    text: '#1b2838',
-    muted: '#607388',
-    soft: 'rgba(232,220,205,0.7)',
-    statusDone: 'rgba(88,154,130,0.16)',
-    statusProgress: 'rgba(198,148,92,0.2)',
-    statusError: 'rgba(184,96,96,0.2)',
+    card: 'var(--talea-surface-primary)',
+    border: 'var(--talea-border-light)',
+    text: 'var(--talea-text-primary)',
+    muted: 'var(--talea-text-secondary)',
+    soft: 'var(--talea-surface-inset)',
+    statusDone: 'var(--talea-success-soft)',
+    statusProgress: 'var(--talea-warning-soft)',
+    statusError: 'var(--talea-danger-soft)',
   };
 }
 
@@ -190,7 +177,7 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             alt={doku.title}
             containerClassName="h-full w-full"
             imageClassName="transition-transform duration-500 group-hover:scale-[1.05]"
-            skeletonClassName="bg-[#ece7de] dark:bg-[#27364b]"
+            skeletonClassName="bg-[var(--talea-media-skeleton)]"
             fallback={
               <div className="flex h-full w-full items-center justify-center">
                 <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
@@ -198,20 +185,20 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             }
           />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/8 to-transparent" />
+          <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay)' }} />
 
           <div className="absolute left-3 top-3">
             <span
               className="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
               style={{
-                borderColor: palette.border,
-                color: palette.text,
+                borderColor: 'var(--talea-media-chrome-border)',
+                color: 'var(--talea-media-foreground)',
                 background:
                   doku.status === 'complete'
-                    ? palette.statusDone
+                    ? 'color-mix(in srgb, var(--talea-success-soft) 60%, var(--talea-media-chrome-bg))'
                     : doku.status === 'generating'
-                    ? palette.statusProgress
-                    : palette.statusError,
+                    ? 'color-mix(in srgb, var(--talea-warning-soft) 62%, var(--talea-media-chrome-bg))'
+                    : 'color-mix(in srgb, var(--talea-danger-soft) 60%, var(--talea-media-chrome-bg))',
               }}
             >
               {statusLabel(doku.status)}
@@ -298,8 +285,12 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-xl border p-2 text-[#b35b5b]"
-                style={{ borderColor: '#d8a3a3', background: palette.card }}
+                className="rounded-xl border p-2"
+                style={{
+                  borderColor: 'var(--talea-danger-border)',
+                  background: 'var(--talea-danger-soft)',
+                  color: 'var(--talea-danger)',
+                }}
                 aria-label="Doku loeschen"
               >
                 <Trash2 className="h-4 w-4" />
@@ -315,7 +306,14 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="pointer-events-none absolute inset-0 flex items-center justify-center"
               >
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
+                <div
+                  className="inline-flex h-14 w-14 items-center justify-center rounded-full border"
+                  style={{
+                    borderColor: 'var(--talea-media-control-border)',
+                    background: 'var(--talea-media-control-bg)',
+                    color: 'var(--talea-media-foreground)',
+                  }}
+                >
                   <Sparkles className="h-5 w-5" />
                 </div>
               </motion.div>

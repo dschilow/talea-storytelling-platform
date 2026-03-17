@@ -5,25 +5,31 @@ import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const taleaDisplayFont = '"Fraunces", "Cormorant Garamond", serif';
-export const taleaBodyFont = '"Inter", "Manrope", "Sora", sans-serif';
+export const taleaBodyFont = '"Manrope", "Sora", sans-serif';
 
 export const taleaSurfaceClass =
-  "relative overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/80 shadow-[var(--talea-shadow-soft)] backdrop-blur-xl sm:rounded-2xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)]";
+  "relative overflow-hidden rounded-[2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/75 before:opacity-80 after:pointer-events-none after:absolute after:inset-x-8 after:top-0 after:h-24 after:-translate-y-1/2 after:rounded-full after:bg-white/30 after:blur-3xl dark:before:bg-white/10 dark:after:bg-white/6";
 
 export const taleaInsetSurfaceClass =
-  "relative overflow-hidden rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] backdrop-blur-lg sm:rounded-xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-inset)]";
+  "relative overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] shadow-[0_8px_24px_rgba(91,72,59,0.06)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/65 dark:before:bg-white/8";
 
 export const taleaPageShellClass =
-  "mx-auto w-full max-w-[1480px] px-2.5 sm:px-4 md:px-6 lg:px-8 xl:px-10";
+  "mx-auto w-full max-w-[1600px] px-3 sm:px-5 md:px-6 lg:px-8 xl:px-10";
 
 export const taleaGlassPanelClass =
-  "relative overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/80 shadow-[var(--talea-shadow-soft)] backdrop-blur-xl dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)]";
+  "relative overflow-hidden rounded-[1.8rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl";
+
+export const taleaToolbarClass =
+  "relative flex flex-wrap items-center gap-3 rounded-[1.7rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]/95 p-3 shadow-[0_10px_28px_rgba(88,67,54,0.06)] backdrop-blur-xl";
+
+export const taleaMetricCardClass =
+  "relative overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-4 shadow-[0_10px_26px_rgba(88,67,54,0.05)] backdrop-blur-xl";
 
 export const taleaInputClass =
-  "h-11 w-full rounded-xl border border-[var(--talea-border-soft)] bg-white/90 px-4 text-sm font-medium text-[var(--talea-text-primary)] outline-none transition-all focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 dark:border-[var(--talea-border-soft)] dark:bg-[var(--talea-surface-inset)] dark:text-[var(--talea-text-primary)] dark:focus:border-[var(--primary)] dark:focus:ring-[var(--primary)]/15";
+  "h-11 w-full rounded-[1.1rem] border border-[var(--talea-border-soft)] bg-white/80 px-4 text-sm font-medium text-[var(--talea-text-primary)] outline-none transition-all placeholder:text-[var(--talea-text-muted)] focus:border-[var(--primary)] focus:bg-white/95 focus:ring-4 focus:ring-[var(--primary)]/12 dark:bg-[var(--talea-surface-inset)] dark:focus:bg-[var(--talea-surface-primary)]";
 
 export const taleaChipClass =
-  "inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/60 dark:bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-secondary)]";
+  "inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/72 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-secondary)] shadow-[0_4px_14px_rgba(91,72,59,0.05)] dark:bg-[var(--talea-surface-inset)]";
 
 const enterEase = [0.25, 0.1, 0.25, 1] as const;
 
@@ -97,6 +103,15 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) =
           isDark ? "bg-[var(--talea-accent-peach)]/5" : "bg-[var(--talea-accent-sky)]/8"
         )}
       />
+      <motion.div
+        animate={makeFloat(32, [0, -12, 18], [0, 18, -10], [1, 1.02, 0.96])}
+        transition={transitionFor(32, 0.8)}
+        className={cn(
+          "absolute left-[32%] top-[28%] h-[14rem] w-[14rem] rounded-full blur-[90px] sm:left-[38%] sm:top-[22%] sm:h-[20rem] sm:w-[20rem] sm:blur-[120px]",
+          isDark ? "bg-[var(--talea-accent-lavender)]/7" : "bg-[var(--talea-accent-rose)]/10"
+        )}
+      />
+      <div className="talea-grid-lines absolute inset-0" />
     </div>
   );
 };
@@ -120,7 +135,7 @@ export const TaleaSurface: React.FC<TaleaSurfaceProps> = ({
       {...fadeUp(reduceMotion, delay)}
       whileHover={
         hoverable && !reduceMotion
-          ? { y: -3, transition: { duration: 0.2, ease: "easeOut" } }
+          ? { y: -4, scale: 1.005, transition: { duration: 0.2, ease: "easeOut" } }
           : undefined
       }
       className={cn(taleaSurfaceClass, className)}
@@ -148,10 +163,10 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
 
   const variantClassName =
     variant === "primary"
-      ? "bg-[var(--primary)] text-white border-transparent shadow-sm hover:shadow-md dark:bg-[var(--primary)] dark:text-[var(--talea-text-inverse)]"
+      ? "border-transparent bg-[linear-gradient(135deg,var(--primary)_0%,color-mix(in_srgb,var(--talea-accent-sky)_68%,white)_100%)] text-white shadow-[0_14px_34px_rgba(123,168,156,0.24)] hover:shadow-[0_18px_38px_rgba(123,168,156,0.3)] dark:text-[var(--talea-text-inverse)]"
       : variant === "secondary"
-        ? "border-[var(--talea-border-light)] bg-white/80 text-[var(--talea-text-primary)] shadow-sm hover:shadow-md dark:border-[var(--talea-border-light)] dark:bg-[var(--talea-surface-primary)] dark:text-[var(--talea-text-primary)]"
-        : "border-transparent bg-transparent text-[var(--talea-text-secondary)] shadow-none";
+        ? "border-[var(--talea-border-light)] bg-white/76 text-[var(--talea-text-primary)] shadow-[0_8px_24px_rgba(91,72,59,0.05)] hover:bg-white/92 hover:shadow-[0_12px_30px_rgba(91,72,59,0.08)] dark:bg-[var(--talea-surface-primary)] dark:text-[var(--talea-text-primary)]"
+        : "border-transparent bg-transparent text-[var(--talea-text-secondary)] shadow-none hover:bg-[var(--talea-surface-inset)]";
 
   return (
     <motion.button
@@ -163,7 +178,7 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
       whileTap={reduceMotion ? undefined : { scale: 0.98 }}
       type={type}
       className={cn(
-        "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-10 items-center justify-center gap-2 rounded-[1.1rem] border px-4 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/14 disabled:cursor-not-allowed disabled:opacity-50",
         variantClassName,
         className
       )}
@@ -182,7 +197,7 @@ export const TaleaSectionHeading: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ eyebrow, title, subtitle, actionLabel, onAction }) => (
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+  <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
     <div className="space-y-2">
       {eyebrow ? (
         <span className={taleaChipClass}>
@@ -191,12 +206,12 @@ export const TaleaSectionHeading: React.FC<{
       ) : null}
       <div>
         <h2
-          className="text-2xl font-semibold leading-tight text-[var(--talea-text-primary)] md:text-3xl"
+          className="text-[2rem] font-semibold leading-[1.02] text-[var(--talea-text-primary)] md:text-[2.45rem]"
           style={{ fontFamily: taleaDisplayFont }}
         >
           {title}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--talea-text-secondary)] md:text-base">
+        <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] md:text-base">
           {subtitle}
         </p>
       </div>
@@ -276,14 +291,14 @@ export const TaleaMetricPill: React.FC<{
 }> = ({ label, value, className }) => (
   <div
     className={cn(
-      "rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3",
+      "rounded-[1.3rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3.5",
       className
     )}
   >
-    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-tertiary)]">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-tertiary)]">
       {label}
     </p>
-    <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">{value}</p>
+    <p className="mt-1.5 text-sm font-semibold text-[var(--talea-text-primary)]">{value}</p>
   </div>
 );
 

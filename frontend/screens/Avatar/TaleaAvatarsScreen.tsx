@@ -12,6 +12,18 @@ import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
+import {
+  TaleaActionButton,
+  TaleaMetricPill,
+  TaleaPageBackground,
+  taleaBodyFont,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaInputClass,
+  taleaPageShellClass,
+  taleaSurfaceClass,
+  taleaToolbarClass,
+} from "@/components/talea/TaleaPastelPrimitives";
 
 type Palette = {
   pageGradient: string;
@@ -24,58 +36,31 @@ type Palette = {
   text: string;
   textMuted: string;
   soft: string;
-  badge: string;
   action: string;
   actionText: string;
 };
 
-const headingFont = '"Cormorant Garamond", serif';
+const headingFont = taleaDisplayFont;
+const bodyFont = taleaBodyFont;
 
-function getPalette(isDark: boolean): Palette {
-  if (isDark) {
-    return {
-      pageGradient:
-        "radial-gradient(960px 540px at 100% 0%, rgba(103,88,138,0.24) 0%, transparent 58%), radial-gradient(920px 520px at 0% 18%, rgba(89,128,122,0.22) 0%, transparent 60%), linear-gradient(180deg, #121a26 0%, #0f1722 100%)",
-      haloA: "radial-gradient(circle, rgba(132,170,163,0.35) 0%, transparent 70%)",
-      haloB: "radial-gradient(circle, rgba(142,119,176,0.32) 0%, transparent 70%)",
-      panel: "rgba(24,34,47,0.9)",
-      card: "rgba(27,38,53,0.9)",
-      cardHover: "rgba(33,45,63,0.95)",
-      border: "#32455d",
-      text: "#e6eef9",
-      textMuted: "#9db0c8",
-      soft: "rgba(146,171,200,0.12)",
-      badge: "rgba(138,162,192,0.22)",
-      action: "linear-gradient(135deg,#95accf 0%,#b491ca 42%,#77a89b 100%)",
-      actionText: "#0f1827",
-    };
-  }
-
+function getPalette(_isDark: boolean): Palette {
   return {
-    pageGradient:
-      "radial-gradient(920px 520px at 100% 0%, #f2dfdc 0%, transparent 57%), radial-gradient(980px 560px at 0% 16%, #dae8de 0%, transparent 62%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)",
-    haloA: "radial-gradient(circle, rgba(132,170,163,0.38) 0%, transparent 70%)",
-    haloB: "radial-gradient(circle, rgba(151,126,187,0.3) 0%, transparent 70%)",
-    panel: "rgba(255,250,243,0.92)",
-    card: "rgba(255,250,243,0.9)",
-    cardHover: "rgba(255,254,249,0.98)",
-    border: "#dfcfbb",
-    text: "#1b2838",
-    textMuted: "#5f7186",
-    soft: "rgba(232,220,205,0.65)",
-    badge: "rgba(206,194,177,0.48)",
-    action: "linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d5e3cf 100%)",
-    actionText: "#2b394a",
+    pageGradient: "var(--talea-page)",
+    haloA: "var(--talea-gradient-primary)",
+    haloB: "var(--talea-gradient-lavender)",
+    panel: "var(--talea-surface-primary)",
+    card: "var(--talea-surface-primary)",
+    cardHover: "var(--talea-surface-elevated)",
+    border: "var(--talea-border-light)",
+    text: "var(--talea-text-primary)",
+    textMuted: "var(--talea-text-secondary)",
+    soft: "var(--talea-surface-inset)",
+    action: "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 72%, white) 100%)",
+    actionText: "var(--primary-foreground)",
   };
 }
 
-const AvatarsBackground: React.FC<{ palette: Palette }> = ({ palette }) => (
-  <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-    <div className="absolute inset-0" style={{ background: palette.pageGradient }} />
-    <div className="absolute -left-20 top-16 h-72 w-72 rounded-full" style={{ background: palette.haloA, filter: "blur(36px)" }} />
-    <div className="absolute -right-16 bottom-10 h-80 w-80 rounded-full" style={{ background: palette.haloB, filter: "blur(40px)" }} />
-  </div>
-);
+const AvatarsBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 const LoadingSkeleton: React.FC<{ palette: Palette }> = ({ palette }) => (
   <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
@@ -153,11 +138,15 @@ const AvatarCard: React.FC<{
             </div>
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+          <div className="absolute inset-0" style={{ background: "var(--talea-media-overlay)" }} />
 
           <span
             className="absolute left-3 top-3 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-            style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
+            style={{
+              borderColor: "var(--talea-media-chrome-border)",
+              background: "var(--talea-media-chrome-bg)",
+              color: "var(--talea-media-foreground)",
+            }}
           >
             {avatar.creationType === "photo-upload" ? "Foto" : "AI"}
           </span>
@@ -165,7 +154,11 @@ const AvatarCard: React.FC<{
           {avatar.avatarRole === "child" ? (
             <span
               className="absolute left-3 top-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
-              style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
+              style={{
+                borderColor: "var(--talea-media-chrome-border)",
+                background: "var(--talea-media-chrome-bg)",
+                color: "var(--talea-media-foreground)",
+              }}
             >
               Kind
             </span>
@@ -176,7 +169,11 @@ const AvatarCard: React.FC<{
               className={`absolute left-3 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${
                 avatar.avatarRole === "child" ? "top-[4.5rem]" : "top-10"
               }`}
-              style={{ borderColor: palette.border, background: palette.badge, color: palette.text }}
+              style={{
+                borderColor: "var(--talea-media-chrome-border)",
+                background: "var(--talea-media-chrome-bg)",
+                color: "var(--talea-media-foreground)",
+              }}
             >
               <Share2 className="h-3 w-3" />
               Geteilt
@@ -203,8 +200,12 @@ const AvatarCard: React.FC<{
                   event.stopPropagation();
                   onDelete();
                 }}
-                className="rounded-xl border p-2 text-[#b35b5b]"
-                style={{ borderColor: "#d8a3a3", background: palette.panel }}
+                className="rounded-xl border p-2"
+                style={{
+                  borderColor: "var(--talea-danger-border)",
+                  background: "var(--talea-danger-soft)",
+                  color: "var(--talea-danger)",
+                }}
                 aria-label={`${avatar.name} loeschen`}
               >
                 <Trash2 className="h-4 w-4" />
@@ -212,10 +213,16 @@ const AvatarCard: React.FC<{
             </div>
           ) : null}
 
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl border px-2.5 py-2" style={{ borderColor: "rgba(255,255,255,0.38)", background: "rgba(10,16,24,0.34)" }}>
+          <div
+            className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-xl border px-2.5 py-2"
+            style={{
+              borderColor: "var(--talea-media-chrome-border)",
+              background: "var(--talea-media-chrome-bg)",
+            }}
+          >
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-white">{avatar.name}</p>
-              <p className="truncate text-xs text-white/70">
+              <p className="truncate text-sm font-semibold text-[var(--talea-media-foreground)]">{avatar.name}</p>
+              <p className="truncate text-xs text-white/72">
                 {(!canManage && avatar.sharedBy?.name) || (!canManage && avatar.sharedBy?.email)
                   ? `Geteilt von ${avatar.sharedBy?.name || avatar.sharedBy?.email}`
                   : avatar.description || "Avatar ohne Beschreibung"}
@@ -315,88 +322,76 @@ const TaleaAvatarsScreen: React.FC = () => {
   const sharedCount = avatars.length - ownedCount;
 
   return (
-    <div className="relative min-h-screen pb-28" style={{ color: palette.text }}>
-      <AvatarsBackground palette={palette} />
+    <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
+      <AvatarsBackground isDark={isDark} />
 
       <SignedOut>
-        <div className="flex min-h-[68vh] items-center justify-center px-5">
-          <div className="w-full max-w-2xl rounded-3xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
+        <div className={cn(taleaPageShellClass, "flex min-h-[68vh] items-center justify-center py-10")}>
+          <div className={cn(taleaSurfaceClass, "w-full max-w-2xl p-8 text-center")}>
             <div className="mx-auto mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: palette.soft }}>
               <User className="h-7 w-7" style={{ color: palette.textMuted }} />
             </div>
             <h2 className="text-3xl" style={{ color: palette.text, fontFamily: headingFont }}>
               {t("errors.unauthorized", "Bitte melde dich an")}
             </h2>
-            <button
-              type="button"
-              onClick={() => navigate("/auth")}
-              className="mt-5 rounded-2xl border px-5 py-3 text-sm font-semibold"
-              style={{ borderColor: palette.border, background: palette.action, color: palette.actionText }}
-            >
+            <TaleaActionButton type="button" onClick={() => navigate("/auth")} className="mt-5">
               {t("auth.signIn", "Anmelden")}
-            </button>
+            </TaleaActionButton>
           </div>
         </div>
       </SignedOut>
 
       <SignedIn>
-        <div className="relative z-10 space-y-6 pt-5">
-          <header className="rounded-3xl border p-5 shadow-[0_18px_34px_rgba(33,44,62,0.12)] md:p-6" style={{ borderColor: palette.border, background: palette.panel }}>
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-xl object-cover" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: palette.textMuted }}>
-                    Character Studio
-                  </p>
-                  <h1 className="text-4xl leading-none" style={{ color: palette.text, fontFamily: headingFont }}>
-                    Avatare
-                  </h1>
+        <div className={cn(taleaPageShellClass, "relative z-10 space-y-6 pt-5")}>
+          <header className={cn(taleaSurfaceClass, "overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7")}>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+              <div className="space-y-5">
+                <span className={taleaChipClass}>Character Atelier</span>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/70 bg-white/80 shadow-[0_12px_28px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
+                    <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-[1rem] object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-[2.6rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3.25rem]" style={{ fontFamily: headingFont }}>
+                      Avatare als kuratierte Charaktergalerie.
+                    </h1>
+                    <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
+                      Mehr Buehne fuer Bilder, mehr Ruhe in der Struktur und klarere Werkzeuge fuer Familienprofile, geteilte Figuren und neue Helden.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
-                className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold shadow-[0_10px_22px_rgba(51,62,79,0.16)]"
-                style={{ borderColor: palette.border, background: palette.action, color: palette.actionText }}
-              >
-                <Plus className="h-4 w-4" />
-                {needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.create", "Neuer Avatar")}
-              </button>
+              <div className="flex flex-wrap gap-3 xl:justify-end">
+                <TaleaActionButton
+                  type="button"
+                  onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
+                  icon={<Plus className="h-4 w-4" />}
+                >
+                  {needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.create", "Neuer Avatar")}
+                </TaleaActionButton>
+              </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto] md:items-center">
-              <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: palette.textMuted }} />
+            <div className={cn(taleaToolbarClass, "mt-6")}>
+              <label className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="Avatare durchsuchen..."
-                  className="h-11 w-full rounded-2xl border py-2 pl-10 pr-3 text-sm outline-none"
-                  style={{
-                    borderColor: palette.border,
-                    background: palette.card,
-                    color: palette.text,
-                  }}
+                  className={cn(taleaInputClass, "pl-10")}
                 />
               </label>
 
-              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
-                {avatars.length} gesamt
-              </div>
-              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
-                {filteredAvatars.length} sichtbar
-              </div>
-              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
-                {sharedCount} geteilt
-              </div>
-              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
-                {ownedCount} eigene
-              </div>
-              <div className="rounded-xl border px-3 py-2 text-sm" style={{ borderColor: palette.border, background: palette.card, color: palette.textMuted }}>
-                Kind-Avatar: {activeProfile?.childAvatarId ? "bereit" : "fehlt"}
+              <div className="grid w-full gap-3 sm:grid-cols-2 xl:w-auto xl:grid-cols-5">
+                <TaleaMetricPill label="Gesamt" value={String(avatars.length)} />
+                <TaleaMetricPill label="Sichtbar" value={String(filteredAvatars.length)} />
+                <TaleaMetricPill label="Geteilt" value={String(sharedCount)} />
+                <TaleaMetricPill label="Eigene" value={String(ownedCount)} />
+                <TaleaMetricPill label="Kind" value={activeProfile?.childAvatarId ? "Bereit" : "Fehlt"} />
               </div>
             </div>
           </header>

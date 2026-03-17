@@ -50,16 +50,15 @@ const ProfileSwitcher: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm backdrop-blur-xl shadow-lg"
+        className="inline-flex items-center gap-2 rounded-[1.35rem] border px-3 py-2 text-sm backdrop-blur-2xl shadow-[var(--talea-shadow-soft)]"
         style={{
-          borderColor: isDark ? "#3d5575" : "var(--primary)",
-          background: isDark ? "rgba(24,36,55,0.9)" : "rgba(255,250,243,0.92)",
-          color: isDark ? "#d8e5f8" : "#3b332d",
-          boxShadow: isDark ? "0 10px 24px rgba(6,12,20,0.5)" : "0 10px 24px rgba(116,95,78,0.2)",
+          borderColor: "var(--talea-border-light)",
+          background: isDark ? "rgba(19,27,37,0.88)" : "rgba(255,251,247,0.88)",
+          color: "var(--talea-text-primary)",
         }}
       >
         <span
-          className="inline-flex h-7 w-7 items-center justify-center rounded-xl text-[11px] font-bold"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-[0.95rem] text-[11px] font-bold shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
           style={{
             background: selected.avatarColor || (isDark ? "#506d91" : "var(--primary)"),
             color: "#fff",
@@ -73,11 +72,11 @@ const ProfileSwitcher: React.FC = () => {
 
       {open && (
         <div
-          className="mt-2 w-[280px] rounded-2xl border p-2 shadow-2xl"
+          className="mt-2 w-[292px] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
           style={{
-            borderColor: isDark ? "#3d5575" : "var(--primary)",
-            background: isDark ? "rgba(20,31,47,0.96)" : "rgba(255,249,240,0.98)",
-            color: isDark ? "#d8e5f8" : "#3b332d",
+            borderColor: "var(--talea-border-light)",
+            background: isDark ? "rgba(19,27,37,0.96)" : "rgba(255,251,247,0.96)",
+            color: "var(--talea-text-primary)",
           }}
         >
           <div className="mb-2 px-2 py-1 text-[11px] uppercase tracking-[0.14em] opacity-70">
@@ -95,17 +94,17 @@ const ProfileSwitcher: React.FC = () => {
                     setActiveProfileId(profile.id);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${
-                    selectedProfile ? "ring-1 ring-[#A989F2]/60" : ""
+                  className={`flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition ${
+                    selectedProfile ? "ring-1 ring-[var(--talea-border-accent)]" : ""
                   }`}
                   style={{
                     background: selectedProfile
                       ? isDark
-                        ? "rgba(105,130,164,0.22)"
-                        : "rgba(111,174,156,0.14)"
+                        ? "rgba(154,199,182,0.12)"
+                        : "rgba(123,168,156,0.12)"
                       : isDark
-                      ? "rgba(34,50,72,0.45)"
-                      : "rgba(255,255,255,0.6)",
+                      ? "rgba(24,32,44,0.64)"
+                      : "rgba(255,255,255,0.64)",
                   }}
                 >
                   <span
@@ -135,10 +134,10 @@ const ProfileSwitcher: React.FC = () => {
                 setOpen(false);
                 navigate("/settings");
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold"
+              className="inline-flex items-center justify-center gap-2 rounded-[1rem] border px-3 py-2 text-xs font-semibold"
               style={{
-                borderColor: isDark ? "#4a5f7f" : "#d8c9bc",
-                background: isDark ? "rgba(37,56,80,0.6)" : "rgba(255,255,255,0.7)",
+                borderColor: "var(--talea-border-light)",
+                background: isDark ? "rgba(24,32,44,0.72)" : "rgba(255,255,255,0.72)",
               }}
             >
               <Users className="h-3.5 w-3.5" />
@@ -150,7 +149,10 @@ const ProfileSwitcher: React.FC = () => {
                 setOpen(false);
                 navigate("/settings");
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#A989F2] to-[#FF6B9D] px-3 py-2 text-xs font-semibold text-white"
+              className="inline-flex items-center justify-center gap-2 rounded-[1rem] px-3 py-2 text-xs font-semibold text-white"
+              style={{
+                background: "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 70%, white) 100%)",
+              }}
             >
               <Plus className="h-3.5 w-3.5" />
               Neu

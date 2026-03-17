@@ -31,23 +31,14 @@ export const GlobalAudioPlayer: React.FC = () => {
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
   const colors = useMemo(
-    () =>
-      isDark
-        ? {
-            bg: 'rgba(23,31,43,0.94)',
-            border: '#33465f',
-            text: '#e7eef9',
-            sub: '#9fb0c7',
-            progressBase: 'rgba(131,152,184,0.26)',
-          }
-        : {
-            bg: 'rgba(255,250,244,0.95)',
-            border: '#e4d8c9',
-            text: '#203047',
-            sub: '#64758a',
-            progressBase: 'rgba(131,118,106,0.24)',
-          },
-    [isDark],
+    () => ({
+      bg: 'var(--talea-glass-bg-alt)',
+      border: 'var(--talea-border-soft)',
+      text: 'var(--talea-text-primary)',
+      sub: 'var(--talea-text-secondary)',
+      progressBase: 'var(--talea-progress-track)',
+    }),
+    [],
   );
 
   return (
@@ -71,9 +62,7 @@ export const GlobalAudioPlayer: React.FC = () => {
             style={{
               borderColor: colors.border,
               background: colors.bg,
-              boxShadow: isDark
-                ? '0 24px 50px rgba(9,14,24,0.45)'
-                : '0 20px 44px rgba(44,57,75,0.16)',
+              boxShadow: 'var(--talea-shadow-strong)',
             }}
           >
             {/* Collapsed strip */}
@@ -91,7 +80,10 @@ export const GlobalAudioPlayer: React.FC = () => {
               aria-label={collapsed ? 'Player ausklappen' : 'Player einklappen'}
             >
               {/* Cover */}
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-slate-200/30 dark:bg-slate-700/25">
+              <div
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border"
+                style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-inset)' }}
+              >
                 {waitingForConversion && !track ? (
                   <Loader2 size={18} className="animate-spin" style={{ color: colors.sub }} />
                 ) : track?.coverImageUrl ? (
@@ -133,9 +125,8 @@ export const GlobalAudioPlayer: React.FC = () => {
                   disabled={waitingForConversion && !track}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-full disabled:opacity-50"
                   style={{
-                    background: isDark
-                      ? 'linear-gradient(135deg, rgba(134,167,219,0.3), rgba(176,132,199,0.3))'
-                      : 'linear-gradient(135deg, rgba(213,189,175,0.5), rgba(177,131,196,0.4))',
+                    background:
+                      'linear-gradient(135deg, color-mix(in srgb, var(--talea-accent-sky) 28%, transparent), color-mix(in srgb, var(--talea-accent-lavender) 26%, transparent))',
                   }}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
@@ -152,7 +143,7 @@ export const GlobalAudioPlayer: React.FC = () => {
                   type="button"
                   onClick={close}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full"
-                  style={{ color: '#b16464' }}
+                  style={{ color: 'var(--talea-danger)' }}
                   aria-label="Schliessen"
                 >
                   <X size={14} />

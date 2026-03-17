@@ -10,6 +10,96 @@ import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import ProfileSwitcher from "./ProfileSwitcher";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { cn } from "@/lib/utils";
+
+type RouteMeta = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+function getRouteMeta(pathname: string): RouteMeta {
+  const matches: Array<{ match: (path: string) => boolean; meta: RouteMeta }> = [
+    {
+      match: (path) => path === "/",
+      meta: {
+        eyebrow: "Talea Home",
+        title: "Atelier",
+        description: "Stories, Figuren und Wissen in einer ruhigen kuratierten Ansicht.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/stories"),
+      meta: {
+        eyebrow: "Story Library",
+        title: "Bibliothek",
+        description: "Kuratiere, filtere und starte neue Geschichten mit klarer Hierarchie.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/story"),
+      meta: {
+        eyebrow: "Story Studio",
+        title: "Story Wizard",
+        description: "Ein gefuehrter Flow fuer neue Abenteuer, nicht nur ein Formular.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/avatar"),
+      meta: {
+        eyebrow: "Character Atelier",
+        title: "Avatare",
+        description: "Pflege Figuren wie hochwertige Charakterkarten statt einfache Eintraege.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/doku"),
+      meta: {
+        eyebrow: "Knowledge Studio",
+        title: "Dokus",
+        description: "Lerninhalte mit derselben Qualitaet und Buehne wie die Geschichten.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/quiz"),
+      meta: {
+        eyebrow: "Quiz Lab",
+        title: "Quiz",
+        description: "Spielerische Wissenspruefung in einer ruhigeren, fokussierten Umgebung.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/map"),
+      meta: {
+        eyebrow: "Learning Journey",
+        title: "Lernpfad",
+        description: "Fortschritt, Empfehlungen und naechste Schritte auf einer gemeinsamen Karte.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/community"),
+      meta: {
+        eyebrow: "Community",
+        title: "Entdecken",
+        description: "Gemeinsame Inhalte und Inspiration in derselben Talea-Sprache.",
+      },
+    },
+    {
+      match: (path) => path.startsWith("/settings"),
+      meta: {
+        eyebrow: "Settings",
+        title: "Einstellungen",
+        description: "Profile, Familienlogik und Oberflaeche mit weniger Reibung verwalten.",
+      },
+    },
+  ];
+
+  return matches.find((entry) => entry.match(pathname))?.meta ?? {
+    eyebrow: "Talea",
+    title: "Workspace",
+    description: "Ein konsistenter Arbeitsraum fuer alle Talea-Bereiche.",
+  };
+}
 
 const AppLayout: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +113,7 @@ const AppLayout: React.FC = () => {
   const isReaderRoute =
     location.pathname.startsWith("/story-reader") ||
     location.pathname.startsWith("/doku-reader");
+  const routeMeta = getRouteMeta(location.pathname);
   const usesImmersiveShell =
     location.pathname === "/" ||
     location.pathname.startsWith("/stories") ||
@@ -40,35 +131,78 @@ const AppLayout: React.FC = () => {
   const shellStyle = isCosmosFullScreenRoute || isReaderRoute
     ? undefined
     : {
-        paddingLeft: "max(env(safe-area-inset-left), 0.7rem)",
-        paddingRight: "max(env(safe-area-inset-right), 0.7rem)",
+        paddingLeft: "max(env(safe-area-inset-left), 0.85rem)",
+        paddingRight: "max(env(safe-area-inset-right), 0.85rem)",
       };
+  const contentClassName =
+    isCosmosFullScreenRoute || isReaderRoute
+      ? "w-full min-h-screen p-0 m-0 max-w-none"
+      : usesImmersiveShell
+        ? "w-full mx-auto max-w-none pb-20 pt-2 md:pb-10 md:pt-3"
+        : `w-full mx-auto pb-20 pt-2 md:pb-10 md:pt-3 ${
+            isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
+          }`;
 
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
       <SignedIn>
         {!isCosmosFullScreenRoute && (
           <>
-            <div className="hidden md:block w-[72px] flex-shrink-0" />
+            <div className="hidden md:block w-[88px] flex-shrink-0" />
             <Sidebar />
           </>
         )}
       </SignedIn>
 
       <main className="flex-1 min-h-screen transition-all duration-300">
-        <div
-          style={shellStyle}
-          className={
-            isCosmosFullScreenRoute || isReaderRoute
-              ? "w-full min-h-screen p-0 m-0 max-w-none"
-              : usesImmersiveShell
-                ? "w-full mx-auto max-w-none pb-20 md:pb-10"
-                : `w-full mx-auto pb-20 md:pb-10 ${
-                    isSettingsRoute ? "md:pt-6 md:px-5 max-w-[1520px]" : "md:pt-8 md:px-8 max-w-[1260px]"
-                  }`
-          }
-        >
-          <Outlet />
+        <div style={shellStyle} className="w-full">
+          {!isCosmosFullScreenRoute && !isReaderRoute ? (
+            <div className="pointer-events-none sticky top-0 z-30 hidden px-1 pt-3 md:block">
+              <div className="pointer-events-auto mx-auto max-w-[1680px]">
+                <div className="relative overflow-hidden rounded-[1.9rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/70 dark:before:bg-white/10">
+                  <div className="flex items-center justify-between gap-6 px-5 py-4 lg:px-6">
+                    <div className="min-w-0">
+                      <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/72 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] shadow-[0_4px_14px_rgba(91,72,59,0.05)] dark:bg-[var(--talea-surface-inset)]">
+                        {routeMeta.eyebrow}
+                      </span>
+                      <div className="mt-3 flex min-w-0 flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
+                        <h2
+                          className="text-[1.7rem] font-semibold leading-none text-[var(--talea-text-primary)]"
+                          style={{ fontFamily: '"Fraunces", "Cormorant Garamond", serif' }}
+                        >
+                          {routeMeta.title}
+                        </h2>
+                        <span className="hidden h-1.5 w-1.5 rounded-full bg-[var(--talea-border-strong)] lg:block" />
+                        <p className="truncate text-sm font-medium text-[var(--talea-text-secondary)]">
+                          {routeMeta.description}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="hidden items-center gap-2 xl:flex">
+                      <div className="rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-2 text-xs font-medium text-[var(--talea-text-secondary)]">
+                        Sanfte Motion, Pastell-Atmosphaere, klarere Hierarchie.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className={cn(contentClassName)}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={location.pathname}
+                initial={isReaderRoute ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={isReaderRoute ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="min-h-full"
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </main>
 
@@ -78,15 +212,12 @@ const AppLayout: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate("/settings")}
-            className="fixed right-3 top-3 z-[95] inline-flex h-9 w-9 items-center justify-center rounded-xl border backdrop-blur-lg md:hidden transition-colors"
+            className="fixed right-3 top-3 z-[95] inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl md:hidden transition-colors"
             aria-label="Einstellungen"
             style={{
-              borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)",
+              borderColor: "var(--talea-border-light)",
               color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-              background: isDark ? "rgba(17,19,23,0.88)" : "rgba(255,255,255,0.88)",
-              boxShadow: isDark
-                ? "0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15)"
-                : "0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)",
+              background: isDark ? "rgba(19,27,37,0.86)" : "rgba(255,251,247,0.86)",
             }}
           >
             <Settings className="h-4 w-4" />
@@ -109,15 +240,12 @@ const AppLayout: React.FC = () => {
                 whileTap={{ scale: 0.94 }}
                 type="button"
                 onClick={togglePlaylistDrawer}
-                className="fixed z-[96] inline-flex h-9 w-9 items-center justify-center rounded-xl border backdrop-blur-lg left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5 transition-colors"
+                className="fixed z-[96] inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5 transition-colors"
                 aria-label="Wiedergabeliste"
                 style={{
-                  borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                  borderColor: 'var(--talea-border-light)',
                   color: isDark ? 'var(--talea-text-primary)' : 'var(--talea-text-secondary)',
-                  background: isDark ? 'rgba(17,19,23,0.88)' : 'rgba(255,255,255,0.88)',
-                  boxShadow: isDark
-                    ? '0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.15)'
-                    : '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)',
+                  background: isDark ? 'rgba(19,27,37,0.86)' : 'rgba(255,251,247,0.86)',
                 }}
               >
                 <Headphones className="h-4 w-4" />

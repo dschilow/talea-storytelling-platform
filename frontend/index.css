@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,700&family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -31,170 +31,218 @@
 }
 
 :root {
-  --radius: 1rem;
-  --talea-parchment: #f8f7f4;
-  --talea-bone: #e8e4de;
-  --talea-linen: #f5f3ef;
-  --talea-almond-cream: #ede9e3;
-  --talea-almond-silk: #ddd7ce;
-  --talea-ink: #1a1a1a;
-  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);
-  --shadow-soft-strong: 0 4px 16px rgba(0, 0, 0, 0.06), 0 12px 32px rgba(0, 0, 0, 0.04);
-  --talea-page-solid: #faf9f7;
-  --talea-page: linear-gradient(180deg, #fdfcfa 0%, #f8f6f2 50%, #f5f2ed 100%);
-  --talea-page-overlay: none;
-  --talea-surface-primary: rgba(255, 255, 255, 0.88);
-  --talea-surface-secondary: rgba(255, 255, 255, 0.6);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 250, 247, 0.92) 100%);
-  --talea-surface-inset: rgba(247, 245, 241, 0.7);
-  --talea-panel: rgba(255, 255, 255, 0.92);
-  --talea-option: rgba(255, 255, 255, 0.8);
-  --talea-item-bg: rgba(255, 255, 255, 0.85);
-  --talea-border-light: rgba(0, 0, 0, 0.06);
-  --talea-border-soft: rgba(0, 0, 0, 0.08);
-  --talea-border-strong: rgba(0, 0, 0, 0.12);
-  --talea-border-accent: rgba(111, 174, 156, 0.3);
-  --talea-text-primary: #1a1a1a;
-  --talea-text-secondary: #6b7280;
-  --talea-text-tertiary: #9ca3af;
-  --talea-text-muted: #b0b7c3;
+  --radius: 1.25rem;
+  --talea-parchment: #fdf8f2;
+  --talea-bone: #efe6db;
+  --talea-linen: #f7f1e8;
+  --talea-almond-cream: #f2e7df;
+  --talea-almond-silk: #e1d6ca;
+  --talea-ink: #243245;
+  --shadow-soft: 0 8px 30px rgba(87, 71, 58, 0.07), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+  --shadow-soft-strong: 0 18px 40px rgba(87, 71, 58, 0.1), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+  --talea-page-solid: #fbf5ef;
+  --talea-page:
+    radial-gradient(circle at 12% 16%, rgba(233, 194, 199, 0.42) 0%, transparent 24%),
+    radial-gradient(circle at 84% 10%, rgba(173, 198, 231, 0.34) 0%, transparent 28%),
+    radial-gradient(circle at 76% 72%, rgba(200, 226, 210, 0.42) 0%, transparent 30%),
+    linear-gradient(180deg, #fffaf4 0%, #faf3eb 48%, #f6efe8 100%);
+  --talea-page-overlay:
+    linear-gradient(rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.42)),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.16) 0%, transparent 56%);
+  --talea-surface-primary: rgba(255, 252, 248, 0.82);
+  --talea-surface-secondary: rgba(255, 248, 242, 0.6);
+  --talea-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(254, 248, 242, 0.84) 100%);
+  --talea-surface-inset: rgba(250, 243, 236, 0.78);
+  --talea-panel: rgba(255, 251, 247, 0.86);
+  --talea-option: rgba(255, 249, 244, 0.84);
+  --talea-item-bg: rgba(255, 255, 255, 0.8);
+  --talea-border-light: rgba(76, 60, 48, 0.08);
+  --talea-border-soft: rgba(76, 60, 48, 0.12);
+  --talea-border-strong: rgba(76, 60, 48, 0.18);
+  --talea-border-accent: rgba(123, 168, 156, 0.34);
+  --talea-text-primary: #233248;
+  --talea-text-secondary: #5f7186;
+  --talea-text-tertiary: #8491a4;
+  --talea-text-muted: #a8b2bf;
   --talea-text-inverse: #ffffff;
-  --talea-accent-rose: #d4917e;
-  --talea-accent-lavender: #7f9dc0;
-  --talea-accent-mint: #6fae9c;
-  --talea-accent-sky: #7f9dc0;
-  --talea-accent-peach: #d79a73;
-  --talea-accent-gold: #c5a46e;
-  --talea-gradient-primary: linear-gradient(135deg, #f0e6df 0%, #e8efe6 45%, #e3eef5 100%);
-  --talea-gradient-secondary: linear-gradient(135deg, #e4f0eb 0%, #e3eef5 100%);
-  --talea-gradient-warm: linear-gradient(135deg, #f5e6de 0%, #f0e0d0 100%);
-  --talea-gradient-cool: linear-gradient(135deg, #e3eef5 0%, #e8f0f5 100%);
-  --talea-gradient-sunset: linear-gradient(135deg, #f5e6de 0%, #f0ddd5 48%, #e8efe6 100%);
-  --talea-gradient-ocean: linear-gradient(135deg, #e4f0eb 0%, #e3eef5 100%);
-  --talea-gradient-lavender: linear-gradient(135deg, #e3eef5 0%, #e8f0f5 100%);
-  --talea-gradient-nature: linear-gradient(135deg, #e8efe6 0%, #e4f0eb 100%);
-  --talea-glass-bg: rgba(255, 255, 255, 0.8);
-  --talea-glass-bg-alt: rgba(255, 255, 255, 0.88);
-  --talea-glass-bg-warm: rgba(255, 252, 248, 0.85);
-  --talea-glass-border: rgba(0, 0, 0, 0.06);
-  --talea-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.03);
-  --talea-shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.04);
-  --talea-shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.06), 0 20px 48px rgba(0, 0, 0, 0.05);
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --talea-accent-rose: #dca5aa;
+  --talea-accent-lavender: #b5b8dc;
+  --talea-accent-mint: #7ba89c;
+  --talea-accent-sky: #a4bedf;
+  --talea-accent-peach: #e0af92;
+  --talea-accent-gold: #d8bf8f;
+  --talea-gradient-primary: linear-gradient(135deg, #f5dfdf 0%, #e7efe8 46%, #e3ebf7 100%);
+  --talea-gradient-secondary: linear-gradient(135deg, #e4f0e8 0%, #e6eff8 100%);
+  --talea-gradient-warm: linear-gradient(135deg, #f7e5de 0%, #f5ede0 100%);
+  --talea-gradient-cool: linear-gradient(135deg, #e7edf9 0%, #edf3fa 100%);
+  --talea-gradient-sunset: linear-gradient(135deg, #f6e1dd 0%, #f3ebde 45%, #e6efe8 100%);
+  --talea-gradient-ocean: linear-gradient(135deg, #e5f1eb 0%, #e5eef9 100%);
+  --talea-gradient-lavender: linear-gradient(135deg, #ece8fb 0%, #e6edf9 100%);
+  --talea-gradient-nature: linear-gradient(135deg, #e8f1e7 0%, #e0f0ea 100%);
+  --talea-glass-bg: rgba(255, 252, 248, 0.8);
+  --talea-glass-bg-alt: rgba(255, 251, 247, 0.88);
+  --talea-glass-bg-warm: rgba(255, 248, 241, 0.84);
+  --talea-glass-border: rgba(80, 64, 52, 0.09);
+  --talea-shadow-soft: 0 12px 36px rgba(78, 60, 48, 0.08), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
+  --talea-shadow-medium: 0 20px 48px rgba(78, 60, 48, 0.12), 0 1px 0 rgba(255, 255, 255, 0.82) inset;
+  --talea-shadow-strong: 0 28px 72px rgba(78, 60, 48, 0.15), 0 1px 0 rgba(255, 255, 255, 0.86) inset;
+  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --talea-media-skeleton: #ece7de;
+  --talea-media-foreground: #ffffff;
+  --talea-media-overlay: linear-gradient(180deg, transparent 0%, rgba(10, 16, 24, 0.14) 46%, rgba(10, 16, 24, 0.52) 100%);
+  --talea-media-overlay-strong: linear-gradient(180deg, transparent 0%, rgba(8, 14, 22, 0.18) 40%, rgba(8, 14, 22, 0.66) 100%);
+  --talea-media-chrome-bg: rgba(10, 16, 24, 0.34);
+  --talea-media-chrome-border: rgba(255, 255, 255, 0.36);
+  --talea-media-control-bg: rgba(10, 16, 24, 0.3);
+  --talea-media-control-border: rgba(255, 255, 255, 0.34);
+  --talea-danger: #b35b5b;
+  --talea-danger-border: #d8a3a3;
+  --talea-danger-soft: rgba(205, 123, 123, 0.14);
+  --talea-success: #6f9c8f;
+  --talea-success-soft: rgba(123, 168, 156, 0.18);
+  --talea-warning: #b98552;
+  --talea-warning-soft: rgba(198, 148, 92, 0.18);
+  --talea-progress-track: rgba(147, 155, 168, 0.25);
+  --talea-slider-thumb: #ffffff;
+  --talea-scrollbar-thumb: rgba(76, 60, 48, 0.16);
 
   /* Light Mode */
-  --background: #faf9f7;
-  --foreground: #1a1a1a;
-  --card: #ffffff;
-  --card-foreground: #1a1a1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
+  --background: #fbf5ef;
+  --foreground: #233248;
+  --card: #fffaf5;
+  --card-foreground: #233248;
+  --popover: #fffaf5;
+  --popover-foreground: #233248;
 
-  --primary: #6fae9c;
+  --primary: #7ba89c;
   --primary-foreground: #ffffff;
-  --secondary: #f0ece7;
-  --secondary-foreground: #374151;
-  --accent: #f5f2ed;
-  --accent-foreground: #374151;
-  --muted: #f3f1ed;
-  --muted-foreground: #6b7280;
+  --secondary: #f4ede5;
+  --secondary-foreground: #3e4c5f;
+  --accent: #f7f0e9;
+  --accent-foreground: #3e4c5f;
+  --muted: #f6f1ea;
+  --muted-foreground: #617183;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: rgba(0, 0, 0, 0.08);
-  --input: rgba(0, 0, 0, 0.06);
-  --ring: #6fae9c;
+  --border: rgba(76, 60, 48, 0.12);
+  --input: rgba(76, 60, 48, 0.08);
+  --ring: #7ba89c;
 
-  --chart-1: #6fae9c;
-  --chart-2: #d79a73;
-  --chart-3: #7f9dc0;
-  --chart-4: #c5a46e;
-  --chart-5: #d4917e;
+  --chart-1: #7ba89c;
+  --chart-2: #e0af92;
+  --chart-3: #a4bedf;
+  --chart-4: #d8bf8f;
+  --chart-5: #dca5aa;
 
-  --sidebar: #ffffff;
-  --sidebar-foreground: #374151;
-  --sidebar-primary: #6fae9c;
+  --sidebar: rgba(255, 251, 247, 0.84);
+  --sidebar-foreground: #3e4c5f;
+  --sidebar-primary: #7ba89c;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f2ed;
-  --sidebar-accent-foreground: #374151;
-  --sidebar-border: rgba(0, 0, 0, 0.06);
-  --sidebar-ring: #6fae9c;
+  --sidebar-accent: rgba(247, 240, 233, 0.8);
+  --sidebar-accent-foreground: #3e4c5f;
+  --sidebar-border: rgba(76, 60, 48, 0.09);
+  --sidebar-ring: #7ba89c;
 }
 
 .dark {
-  --background: #111317;
-  --foreground: #f0f0f0;
-  --card: #1a1d24;
-  --card-foreground: #f0f0f0;
-  --popover: #1a1d24;
-  --popover-foreground: #f0f0f0;
+  --background: #111822;
+  --foreground: #eef3fb;
+  --card: #1a2330;
+  --card-foreground: #eef3fb;
+  --popover: #1a2330;
+  --popover-foreground: #eef3fb;
 
-  --primary: #7fc4b0;
-  --primary-foreground: #111317;
-  --secondary: #1e2129;
-  --secondary-foreground: #e5e7eb;
-  --muted: #1e2129;
-  --muted-foreground: #9ca3af;
-  --accent: #252830;
-  --accent-foreground: #e5e7eb;
+  --primary: #9ac7b6;
+  --primary-foreground: #0f1723;
+  --secondary: #1d2836;
+  --secondary-foreground: #e8edf6;
+  --muted: #1a2431;
+  --muted-foreground: #a1b0c4;
+  --accent: #212d3c;
+  --accent-foreground: #e8edf6;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
   --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.06);
-  --ring: #7fc4b0;
+  --input: rgba(255, 255, 255, 0.07);
+  --ring: #9ac7b6;
 
-  --sidebar: #15171c;
-  --sidebar-foreground: #e5e7eb;
-  --sidebar-primary: #7fc4b0;
-  --sidebar-primary-foreground: #111317;
-  --sidebar-accent: #1e2129;
-  --sidebar-accent-foreground: #e5e7eb;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #7fc4b0;
-  --talea-page-solid: #111317;
-  --talea-page: linear-gradient(180deg, #131519 0%, #111317 50%, #0f1115 100%);
-  --talea-page-overlay: none;
-  --talea-surface-primary: rgba(26, 29, 36, 0.9);
-  --talea-surface-secondary: rgba(22, 25, 31, 0.8);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(30, 33, 41, 0.95) 0%, rgba(22, 25, 31, 0.9) 100%);
-  --talea-surface-inset: rgba(20, 23, 29, 0.7);
-  --talea-panel: rgba(26, 29, 36, 0.92);
-  --talea-option: rgba(30, 34, 42, 0.8);
-  --talea-item-bg: rgba(34, 38, 47, 0.85);
-  --talea-border-light: rgba(255, 255, 255, 0.06);
-  --talea-border-soft: rgba(255, 255, 255, 0.08);
-  --talea-border-strong: rgba(255, 255, 255, 0.12);
-  --talea-border-accent: rgba(127, 196, 176, 0.25);
-  --talea-text-primary: #f0f0f0;
-  --talea-text-secondary: #9ca3af;
-  --talea-text-tertiary: #6b7280;
-  --talea-text-muted: #4b5563;
-  --talea-text-inverse: #111317;
-  --talea-accent-rose: #e0a896;
-  --talea-accent-lavender: #98b4de;
-  --talea-accent-mint: #7fc4b0;
-  --talea-accent-sky: #98b4de;
-  --talea-accent-peach: #e0b396;
-  --talea-accent-gold: #d6ba89;
-  --talea-gradient-primary: linear-gradient(135deg, rgba(111, 174, 156, 0.15) 0%, rgba(127, 157, 192, 0.1) 45%, rgba(215, 154, 115, 0.1) 100%);
-  --talea-gradient-secondary: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
-  --talea-gradient-warm: linear-gradient(135deg, rgba(215, 154, 115, 0.12) 0%, rgba(212, 145, 126, 0.1) 100%);
-  --talea-gradient-cool: linear-gradient(135deg, rgba(127, 157, 192, 0.12) 0%, rgba(152, 180, 222, 0.1) 100%);
-  --talea-gradient-sunset: linear-gradient(135deg, rgba(215, 154, 115, 0.12) 0%, rgba(212, 145, 126, 0.1) 48%, rgba(127, 157, 192, 0.1) 100%);
-  --talea-gradient-ocean: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
-  --talea-gradient-lavender: linear-gradient(135deg, rgba(127, 157, 192, 0.12) 0%, rgba(152, 180, 222, 0.1) 100%);
-  --talea-gradient-nature: linear-gradient(135deg, rgba(111, 174, 156, 0.12) 0%, rgba(127, 157, 192, 0.1) 100%);
-  --talea-glass-bg: rgba(26, 29, 36, 0.85);
-  --talea-glass-bg-alt: rgba(30, 33, 41, 0.88);
-  --talea-glass-bg-warm: rgba(30, 28, 26, 0.85);
-  --talea-glass-border: rgba(255, 255, 255, 0.06);
-  --talea-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.15);
-  --talea-shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.25), 0 12px 32px rgba(0, 0, 0, 0.2);
-  --talea-shadow-strong: 0 4px 12px rgba(0, 0, 0, 0.3), 0 20px 48px rgba(0, 0, 0, 0.25);
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --sidebar: rgba(18, 25, 35, 0.78);
+  --sidebar-foreground: #e8edf6;
+  --sidebar-primary: #9ac7b6;
+  --sidebar-primary-foreground: #111822;
+  --sidebar-accent: rgba(34, 45, 61, 0.8);
+  --sidebar-accent-foreground: #e8edf6;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #9ac7b6;
+  --talea-page-solid: #101722;
+  --talea-page:
+    radial-gradient(circle at 10% 18%, rgba(177, 131, 196, 0.14) 0%, transparent 24%),
+    radial-gradient(circle at 86% 10%, rgba(122, 170, 156, 0.16) 0%, transparent 26%),
+    radial-gradient(circle at 78% 74%, rgba(164, 190, 223, 0.14) 0%, transparent 28%),
+    linear-gradient(180deg, #101722 0%, #0d141d 50%, #0b1119 100%);
+  --talea-page-overlay:
+    linear-gradient(rgba(7, 11, 18, 0.24), rgba(7, 11, 18, 0.24)),
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 56%);
+  --talea-surface-primary: rgba(19, 27, 37, 0.78);
+  --talea-surface-secondary: rgba(19, 27, 37, 0.56);
+  --talea-surface-elevated: linear-gradient(180deg, rgba(26, 36, 48, 0.95) 0%, rgba(17, 24, 33, 0.86) 100%);
+  --talea-surface-inset: rgba(24, 32, 44, 0.74);
+  --talea-panel: rgba(19, 27, 37, 0.84);
+  --talea-option: rgba(24, 32, 44, 0.82);
+  --talea-item-bg: rgba(25, 34, 46, 0.84);
+  --talea-border-light: rgba(255, 255, 255, 0.07);
+  --talea-border-soft: rgba(255, 255, 255, 0.1);
+  --talea-border-strong: rgba(255, 255, 255, 0.14);
+  --talea-border-accent: rgba(154, 199, 182, 0.26);
+  --talea-text-primary: #eef3fb;
+  --talea-text-secondary: #a9b7ca;
+  --talea-text-tertiary: #7f8ea2;
+  --talea-text-muted: #58667a;
+  --talea-text-inverse: #101722;
+  --talea-accent-rose: #e5b0b7;
+  --talea-accent-lavender: #b1bbec;
+  --talea-accent-mint: #9ac7b6;
+  --talea-accent-sky: #b0c8e7;
+  --talea-accent-peach: #e6b89d;
+  --talea-accent-gold: #dfc393;
+  --talea-gradient-primary: linear-gradient(135deg, rgba(229, 176, 183, 0.18) 0%, rgba(154, 199, 182, 0.16) 46%, rgba(176, 200, 231, 0.16) 100%);
+  --talea-gradient-secondary: linear-gradient(135deg, rgba(154, 199, 182, 0.18) 0%, rgba(176, 200, 231, 0.16) 100%);
+  --talea-gradient-warm: linear-gradient(135deg, rgba(230, 184, 157, 0.18) 0%, rgba(223, 195, 147, 0.12) 100%);
+  --talea-gradient-cool: linear-gradient(135deg, rgba(176, 200, 231, 0.18) 0%, rgba(177, 187, 236, 0.14) 100%);
+  --talea-gradient-sunset: linear-gradient(135deg, rgba(229, 176, 183, 0.18) 0%, rgba(230, 184, 157, 0.16) 45%, rgba(154, 199, 182, 0.14) 100%);
+  --talea-gradient-ocean: linear-gradient(135deg, rgba(154, 199, 182, 0.18) 0%, rgba(176, 200, 231, 0.14) 100%);
+  --talea-gradient-lavender: linear-gradient(135deg, rgba(177, 187, 236, 0.18) 0%, rgba(176, 200, 231, 0.14) 100%);
+  --talea-gradient-nature: linear-gradient(135deg, rgba(154, 199, 182, 0.18) 0%, rgba(177, 187, 236, 0.12) 100%);
+  --talea-glass-bg: rgba(19, 27, 37, 0.82);
+  --talea-glass-bg-alt: rgba(22, 30, 41, 0.9);
+  --talea-glass-bg-warm: rgba(29, 28, 34, 0.82);
+  --talea-glass-border: rgba(255, 255, 255, 0.08);
+  --talea-shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --talea-shadow-medium: 0 24px 48px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  --talea-shadow-strong: 0 32px 80px rgba(0, 0, 0, 0.38), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --talea-media-skeleton: #27364b;
+  --talea-media-foreground: #ffffff;
+  --talea-media-overlay: linear-gradient(180deg, transparent 0%, rgba(3, 7, 12, 0.2) 42%, rgba(3, 7, 12, 0.62) 100%);
+  --talea-media-overlay-strong: linear-gradient(180deg, transparent 0%, rgba(3, 7, 12, 0.24) 36%, rgba(3, 7, 12, 0.76) 100%);
+  --talea-media-chrome-bg: rgba(8, 12, 18, 0.42);
+  --talea-media-chrome-border: rgba(255, 255, 255, 0.28);
+  --talea-media-control-bg: rgba(5, 9, 14, 0.46);
+  --talea-media-control-border: rgba(255, 255, 255, 0.26);
+  --talea-danger: #efb2b2;
+  --talea-danger-border: rgba(239, 178, 178, 0.34);
+  --talea-danger-soft: rgba(206, 114, 114, 0.18);
+  --talea-success: #9ac7b6;
+  --talea-success-soft: rgba(154, 199, 182, 0.22);
+  --talea-warning: #dfc393;
+  --talea-warning-soft: rgba(223, 195, 147, 0.18);
+  --talea-progress-track: rgba(137, 156, 184, 0.26);
+  --talea-slider-thumb: #d7e4f9;
+  --talea-scrollbar-thumb: rgba(255, 255, 255, 0.18);
 }
 
 @theme inline {
-  --font-sans: 'Inter', 'Manrope', 'Sora', system-ui, sans-serif;
+  --font-sans: 'Manrope', 'Sora', sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
@@ -245,12 +293,14 @@
     @apply bg-background text-foreground antialiased;
     min-width: 320px;
     background-color: var(--talea-page-solid);
-    background-image: var(--talea-page);
+    background-image: var(--talea-page-overlay), var(--talea-page);
     background-attachment: fixed;
     color: var(--talea-text-primary);
-    font-family: 'Inter', 'Manrope', 'Sora', system-ui, sans-serif;
+    font-family: 'Manrope', 'Sora', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
+    overflow-x: hidden;
   }
 
   .dark body {
@@ -263,15 +313,52 @@
   }
 
   ::selection {
-    background: rgba(111, 174, 156, 0.2);
+    background: rgba(123, 168, 156, 0.24);
     color: var(--talea-text-primary);
   }
 }
 
 @layer utilities {
+  .talea-panel {
+    background: var(--talea-surface-primary);
+    border: 1px solid var(--talea-border-light);
+    box-shadow: var(--talea-shadow-soft);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .talea-panel-strong {
+    background: var(--talea-surface-elevated);
+    border: 1px solid var(--talea-border-soft);
+    box-shadow: var(--talea-shadow-medium);
+    backdrop-filter: blur(28px);
+    -webkit-backdrop-filter: blur(28px);
+  }
+
+  .talea-soft-ring {
+    box-shadow:
+      0 0 0 1px var(--talea-border-light),
+      0 0 0 6px color-mix(in srgb, var(--primary) 12%, transparent);
+  }
+
+  .talea-gradient-text {
+    background-image: linear-gradient(135deg, var(--talea-text-primary) 0%, var(--talea-accent-sky) 62%, var(--talea-accent-mint) 100%);
+    background-clip: text;
+    color: transparent;
+  }
+
+  .talea-grid-lines {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.32) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.32) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 1) 0%, transparent 74%);
+    opacity: 0.22;
+  }
+
   .talea-soft-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+    scrollbar-color: var(--talea-scrollbar-thumb) transparent;
   }
 
   .talea-soft-scrollbar::-webkit-scrollbar {
@@ -281,7 +368,7 @@
 
   .talea-soft-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    background: rgba(0, 0, 0, 0.12);
+    background: var(--talea-scrollbar-thumb);
   }
 
   .talea-soft-scrollbar::-webkit-scrollbar-track {

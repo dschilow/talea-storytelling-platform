@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { FastForward, ListMusic, Loader2, Pause, Play, Rewind, SkipBack, SkipForward, X } from 'lucide-react';
 
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
-import { useTheme } from '../../contexts/ThemeContext';
 
 interface AudioPlaybackControlsProps {
   variant?: 'compact' | 'full';
@@ -40,31 +39,22 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
     playlist,
     waitingForConversion,
   } = useAudioPlayer();
-  const { resolvedTheme } = useTheme();
 
   if (!track && !waitingForConversion) return null;
 
   const isCompact = variant === 'compact';
   const iconSize = isCompact ? 16 : 20;
-  const isDark = resolvedTheme === 'dark';
 
-  const colors = isDark
-    ? {
-        surface: 'rgba(33,42,58,0.75)',
-        border: '#34455d',
-        text: '#d9e5f8',
-        sub: '#95a7bf',
-        accentStart: 'var(--primary)',
-        accentEnd: 'var(--talea-accent-sky)',
-      }
-    : {
-        surface: 'rgba(255,255,255,0.72)',
-        border: '#decfbf',
-        text: '#2a3b52',
-        sub: '#687a91',
-        accentStart: 'var(--primary)',
-        accentEnd: 'var(--talea-accent-sky)',
-      };
+  const colors = {
+    surface: 'var(--talea-glass-bg-alt)',
+    border: 'var(--talea-border-soft)',
+    text: 'var(--talea-text-primary)',
+    sub: 'var(--talea-text-secondary)',
+    accentStart: 'var(--primary)',
+    accentEnd: 'var(--talea-accent-sky)',
+    progressBase: 'var(--talea-progress-track)',
+    thumb: 'var(--talea-slider-thumb)',
+  };
 
   const handleSeekChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     seek(parseFloat(event.target.value));
@@ -184,7 +174,11 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             onClick={close}
             title="Schliessen"
             className={`${isCompact ? 'h-8 w-8' : 'h-10 w-10'} rounded-full border shadow-sm`}
-            style={{ borderColor: '#cd9a9a', background: 'rgba(205,123,123,0.16)', color: '#b16464' }}
+            style={{
+              borderColor: 'var(--talea-danger-border)',
+              background: 'var(--talea-danger-soft)',
+              color: 'var(--talea-danger)',
+            }}
           >
             <X size={iconSize} className="mx-auto" />
           </motion.button>
@@ -197,7 +191,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
         </span>
 
         <div className="group relative flex h-6 flex-1 items-center">
-          <div className="absolute inset-x-0 h-1.5 rounded-full" style={{ background: isDark ? 'rgba(137,156,184,0.26)' : 'rgba(147,155,168,0.25)' }} />
+          <div className="absolute inset-x-0 h-1.5 rounded-full" style={{ background: colors.progressBase }} />
 
           <motion.div
             className="absolute left-0 h-1.5 rounded-full"
@@ -223,7 +217,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             style={{
               left: duration ? `calc(${(currentTime / duration) * 100}% - 7px)` : '0%',
               borderColor: colors.accentStart,
-              background: isDark ? '#d7e4f9' : '#ffffff',
+              background: colors.thumb,
             }}
           />
         </div>

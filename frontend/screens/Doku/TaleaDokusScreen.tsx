@@ -36,6 +36,18 @@ import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 import taleaLogo from '@/img/talea_logo.png';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
+import {
+  TaleaActionButton,
+  TaleaMetricPill,
+  TaleaPageBackground,
+  taleaBodyFont,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaInputClass,
+  taleaPageShellClass,
+  taleaSurfaceClass,
+  taleaToolbarClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 type Palette = {
   pageGradient: string;
@@ -50,7 +62,8 @@ type Palette = {
   primaryText: string;
 };
 
-const headingFont = '"Cormorant Garamond", serif';
+const headingFont = taleaDisplayFont;
+const bodyFont = taleaBodyFont;
 
 type DokuTab = 'mine' | 'discover' | 'audio';
 type DokuSortMode = 'newest' | 'oldest' | 'title';
@@ -92,45 +105,22 @@ function formatTopicLabel(topic: string): string {
     .join(' ');
 }
 
-function getPalette(isDark: boolean): Palette {
-  if (isDark) {
-    return {
-      pageGradient:
-        'radial-gradient(980px 540px at 100% 0%, rgba(117,96,142,0.25) 0%, transparent 57%), radial-gradient(940px 520px at 0% 18%, rgba(94,131,126,0.24) 0%, transparent 62%), linear-gradient(180deg,#121a26 0%, #0f1722 100%)',
-      haloA: 'radial-gradient(circle, rgba(139,116,172,0.36) 0%, transparent 70%)',
-      haloB: 'radial-gradient(circle, rgba(101,148,140,0.32) 0%, transparent 70%)',
-      panel: 'rgba(23,33,47,0.92)',
-      border: '#314258',
-      text: '#e6eef9',
-      muted: '#9db0c8',
-      soft: 'rgba(145,166,194,0.16)',
-      primary: 'linear-gradient(135deg,#95accf 0%,#b491ca 42%,#77a89b 100%)',
-      primaryText: '#121b2a',
-    };
-  }
-
+function getPalette(_isDark: boolean): Palette {
   return {
-    pageGradient:
-      'radial-gradient(980px 560px at 100% 0%, #f2dfdc 0%, transparent 57%), radial-gradient(980px 520px at 0% 18%, #dae8de 0%, transparent 62%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)',
-    haloA: 'radial-gradient(circle, rgba(147,126,186,0.32) 0%, transparent 70%)',
-    haloB: 'radial-gradient(circle, rgba(110,156,148,0.3) 0%, transparent 70%)',
-    panel: 'rgba(255,250,243,0.92)',
-    border: '#dfcfbb',
-    text: '#1b2838',
-    muted: '#607388',
-    soft: 'rgba(232,220,205,0.72)',
-    primary: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d5e3cf 100%)',
-    primaryText: '#2c394a',
+    pageGradient: 'var(--talea-page)',
+    haloA: 'var(--talea-gradient-primary)',
+    haloB: 'var(--talea-gradient-ocean)',
+    panel: 'var(--talea-surface-primary)',
+    border: 'var(--talea-border-light)',
+    text: 'var(--talea-text-primary)',
+    muted: 'var(--talea-text-secondary)',
+    soft: 'var(--talea-surface-inset)',
+    primary: 'linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 72%, white) 100%)',
+    primaryText: 'var(--primary-foreground)',
   };
 }
 
-const DokuBackground: React.FC<{ palette: Palette }> = ({ palette }) => (
-  <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-    <div className="absolute inset-0" style={{ background: palette.pageGradient }} />
-    <div className="absolute -left-24 top-10 h-72 w-72 rounded-full" style={{ background: palette.haloA, filter: 'blur(36px)' }} />
-    <div className="absolute -right-20 bottom-14 h-80 w-80 rounded-full" style={{ background: palette.haloB, filter: 'blur(42px)' }} />
-  </div>
-);
+const DokuBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 const SectionHeader: React.FC<{
   icon: React.ReactNode;
@@ -222,7 +212,7 @@ const AudioDokuCard: React.FC<{
         revealDelayMs={index * 35}
         containerClassName="h-full w-full"
         imageClassName="transition-transform duration-500 group-hover:scale-[1.04]"
-        skeletonClassName="bg-[#ece7de] dark:bg-[#27364b]"
+        skeletonClassName="bg-[var(--talea-media-skeleton)]"
         fallback={
           <div className="flex h-full w-full items-center justify-center">
             <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
@@ -230,9 +220,16 @@ const AudioDokuCard: React.FC<{
         }
       />
 
-      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/12 to-transparent" />
+      <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay)' }} />
 
-      <div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white" style={{ borderColor: 'rgba(255,255,255,0.35)', background: 'rgba(10,16,24,0.35)' }}>
+      <div
+        className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+        style={{
+          borderColor: 'var(--talea-media-chrome-border)',
+          background: 'var(--talea-media-chrome-bg)',
+          color: 'var(--talea-media-foreground)',
+        }}
+      >
         <Mic className="h-3 w-3" />
         Audio
       </div>
@@ -284,7 +281,11 @@ const AudioDokuCard: React.FC<{
               onDelete();
             }}
             className="rounded-xl border p-2"
-            style={{ borderColor: '#d8a3a3', background: palette.panel, color: '#b35b5b' }}
+            style={{
+              borderColor: 'var(--talea-danger-border)',
+              background: 'var(--talea-danger-soft)',
+              color: 'var(--talea-danger)',
+            }}
             aria-label="Audio-Doku loeschen"
             title="Audio-Doku loeschen"
           >
@@ -294,16 +295,28 @@ const AudioDokuCard: React.FC<{
       </div>
 
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
-        <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white">
+        <div
+          className="inline-flex h-14 w-14 items-center justify-center rounded-full border"
+          style={{
+            borderColor: 'var(--talea-media-control-border)',
+            background: 'var(--talea-media-control-bg)',
+            color: 'var(--talea-media-foreground)',
+          }}
+        >
           <Play className="h-5 w-5 ml-0.5" />
         </div>
         {onAddToQueue && (
           <button
             type="button"
-            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/35 bg-black/30 text-white transition-transform hover:scale-110"
+            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border transition-transform hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
               onAddToQueue();
+            }}
+            style={{
+              borderColor: 'var(--talea-media-control-border)',
+              background: 'var(--talea-media-control-bg)',
+              color: 'var(--talea-media-foreground)',
             }}
             title="Zur Warteschlange"
             aria-label="Zur Warteschlange hinzufuegen"
@@ -374,12 +387,16 @@ const AudioModal: React.FC<{
               <Headphones className="h-14 w-14" style={{ color: palette.muted }} />
             </div>
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+          <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay-strong)' }} />
 
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-full border p-2 text-white"
-            style={{ borderColor: 'rgba(255,255,255,0.34)', background: 'rgba(10,16,24,0.35)' }}
+            className="absolute right-3 top-3 rounded-full border p-2"
+            style={{
+              borderColor: 'var(--talea-media-chrome-border)',
+              background: 'var(--talea-media-chrome-bg)',
+              color: 'var(--talea-media-foreground)',
+            }}
             aria-label="Audio Modal schliessen"
           >
             <X className="h-4 w-4" />
@@ -394,7 +411,16 @@ const AudioModal: React.FC<{
           </p>
 
           {audioError && (
-            <div className="rounded-xl border border-rose-400/35 bg-rose-500/10 p-3 text-sm text-rose-300">{audioError}</div>
+            <div
+              className="rounded-xl border p-3 text-sm"
+              style={{
+                borderColor: 'var(--talea-danger-border)',
+                background: 'var(--talea-danger-soft)',
+                color: 'var(--talea-danger)',
+              }}
+            >
+              {audioError}
+            </div>
           )}
 
           <div className="rounded-2xl border p-4" style={{ borderColor: palette.border, background: palette.soft }}>
@@ -458,7 +484,8 @@ const TaleaDokusScreen: React.FC = () => {
   const { canUseOffline, isAudioDokuSaved, isSaving, toggleAudioDoku } = useOffline();
   const { resolvedTheme } = useTheme();
 
-  const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
+  const isDark = resolvedTheme === 'dark';
+  const palette = useMemo(() => getPalette(isDark), [isDark]);
 
   const [myDokus, setMyDokus] = useState<Doku[]>([]);
   const [publicDokus, setPublicDokus] = useState<Doku[]>([]);
@@ -861,57 +888,59 @@ const TaleaDokusScreen: React.FC = () => {
       (activeTab === 'audio' && loadingAudio));
 
   return (
-    <div className="relative min-h-screen pb-28" style={{ color: palette.text }}>
-      <DokuBackground palette={palette} />
+    <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
+      <DokuBackground isDark={isDark} />
 
       <SignedOut>
-        <div className="flex min-h-[68vh] items-center justify-center px-5">
-          <div className="w-full max-w-2xl rounded-3xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
+        <div className={cn(taleaPageShellClass, 'flex min-h-[68vh] items-center justify-center py-10')}>
+          <div className={cn(taleaSurfaceClass, 'w-full max-w-2xl p-8 text-center')}>
             <h2 className="text-3xl" style={{ fontFamily: headingFont, color: palette.text }}>
               {t('errors.unauthorized', 'Bitte melde dich an')}
             </h2>
-            <button
-              type="button"
-              onClick={() => navigate('/auth')}
-              className="mt-5 rounded-2xl border px-5 py-3 text-sm font-semibold"
-              style={{ borderColor: palette.border, background: palette.primary, color: palette.primaryText }}
-            >
+            <TaleaActionButton type="button" onClick={() => navigate('/auth')} className="mt-5">
               {t('auth.signIn', 'Anmelden')}
-            </button>
+            </TaleaActionButton>
           </div>
         </div>
       </SignedOut>
 
       <SignedIn>
-        <div className="relative z-10 space-y-8 pt-5">
-          <header className="rounded-3xl border p-5 shadow-[0_18px_34px_rgba(33,44,62,0.12)] md:p-6" style={{ borderColor: palette.border, background: palette.panel }}>
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-xl object-cover" />
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: palette.muted }}>
-                    Knowledge Studio
-                  </p>
-                  <h1 className="text-4xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-                    Dokus
-                  </h1>
+        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-8 pt-5')}>
+          <header className={cn(taleaSurfaceClass, 'overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7')}>
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+              <div className="space-y-5">
+                <span className={taleaChipClass}>Knowledge Studio</span>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/70 bg-white/80 shadow-[0_12px_28px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
+                    <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-[1rem] object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-[2.6rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3.25rem]" style={{ fontFamily: headingFont }}>
+                      Wissen bekommt dieselbe Buehne wie Geschichten.
+                    </h1>
+                    <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
+                      Dokus, Entdecken und Audio-Welten fuehlen sich jetzt wie ein gemeinsames Studio an: klarer, ruhiger und hochwertiger.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => navigate('/doku/create')}
-                className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold shadow-[0_10px_22px_rgba(51,62,79,0.16)]"
-                style={{ borderColor: palette.border, background: palette.primary, color: palette.primaryText }}
-              >
-                <Wand2 className="h-4 w-4" />
-                {t('doku.createNew', 'Neue Doku')}
-              </button>
+              <div className="flex flex-wrap gap-3 xl:justify-end">
+                <TaleaActionButton type="button" onClick={() => navigate('/doku/create')} icon={<Wand2 className="h-4 w-4" />}>
+                  {t('doku.createNew', 'Neue Doku')}
+                </TaleaActionButton>
+                {isAdmin ? (
+                  <TaleaActionButton type="button" variant="secondary" onClick={() => navigate('/createaudiodoku')} icon={<Headphones className="h-4 w-4" />}>
+                    Audio erstellen
+                  </TaleaActionButton>
+                ) : null}
+              </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-center">
-              <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: palette.muted }} />
+            <div className={cn(taleaToolbarClass, 'mt-6')}>
+              <label className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -921,36 +950,52 @@ const TaleaDokusScreen: React.FC = () => {
                       ? t('doku.searchPlaceholder', 'Audio durchsuchen...')
                       : t('doku.searchPlaceholder', 'Dokus durchsuchen...')
                   }
-                  className="h-11 w-full rounded-2xl border py-2 pl-10 pr-3 text-sm outline-none"
-                  style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                  className={cn(taleaInputClass, 'pl-10')}
                 />
               </label>
 
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => navigate('/createaudiodoku')}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
-                  style={{ borderColor: palette.border, background: palette.soft, color: palette.text }}
-                >
-                  <Headphones className="h-3.5 w-3.5" />
-                  Audio erstellen
-                </button>
-              )}
-
-              <div className="rounded-xl border px-3 py-2 text-xs" style={{ borderColor: palette.border, background: palette.soft, color: palette.muted }}>
-                {totalMy + totalPublic} Artikel / {totalAudio} Audio
+              <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto xl:min-w-[22rem]">
+                <TaleaMetricPill label="Meine" value={String(totalMy)} />
+                <TaleaMetricPill label="Entdecken" value={String(totalPublic)} />
+                <TaleaMetricPill label="Audio" value={String(totalAudio)} />
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+              {([
+                { key: 'mine', label: 'Meine', count: totalMy },
+                { key: 'discover', label: 'Entdecken', count: totalPublic },
+                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
+              ] as const).map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    className={cn(
+                      'inline-flex shrink-0 items-center gap-2 rounded-[1.1rem] border px-3.5 py-2.5 text-xs font-semibold transition-colors',
+                      active
+                        ? 'border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] text-[var(--talea-text-primary)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]'
+                        : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]'
+                    )}
+                  >
+                    <span>{tab.label}</span>
+                    <span className="rounded-full bg-white/65 px-2 py-0.5 text-[10px] dark:bg-white/8">
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {activeTab !== 'audio' ? (
                 <>
                   <select
                     value={topicFilter}
                     onChange={(event) => setTopicFilter(event.target.value)}
-                    className="h-11 rounded-2xl border px-3 text-sm"
-                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
                     aria-label="Thema filtern"
                   >
                     <option value="all">Alle Themen</option>
@@ -964,8 +1009,7 @@ const TaleaDokusScreen: React.FC = () => {
                   <select
                     value={ageGroupFilter}
                     onChange={(event) => setAgeGroupFilter(event.target.value)}
-                    className="h-11 rounded-2xl border px-3 text-sm"
-                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
                     aria-label="Altersgruppe filtern"
                   >
                     <option value="all">Alle Altersgruppen</option>
@@ -979,8 +1023,7 @@ const TaleaDokusScreen: React.FC = () => {
                   <select
                     value={depthFilter}
                     onChange={(event) => setDepthFilter(event.target.value)}
-                    className="h-11 rounded-2xl border px-3 text-sm"
-                    style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
                     aria-label="Tiefe filtern"
                   >
                     <option value="all">Alle Tiefen</option>
@@ -995,8 +1038,7 @@ const TaleaDokusScreen: React.FC = () => {
                 <select
                   value={audioScopeFilter}
                   onChange={(event) => setAudioScopeFilter(event.target.value as AudioScope)}
-                  className="h-11 rounded-2xl border px-3 text-sm"
-                  style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                  className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
                   aria-label="Audio Bereich filtern"
                 >
                   <option value="all">Alle Audio</option>
@@ -1008,8 +1050,7 @@ const TaleaDokusScreen: React.FC = () => {
               <select
                 value={sortMode}
                 onChange={(event) => setSortMode(event.target.value as DokuSortMode)}
-                className="h-11 rounded-2xl border px-3 text-sm"
-                style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
+                className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
                 aria-label="Sortierung"
               >
                 <option value="newest">Neueste zuerst</option>
@@ -1017,8 +1058,9 @@ const TaleaDokusScreen: React.FC = () => {
                 <option value="title">Titel A-Z</option>
               </select>
 
-              <button
+              <TaleaActionButton
                 type="button"
+                variant="secondary"
                 onClick={() => {
                   setSearchQuery('');
                   setSortMode('newest');
@@ -1027,39 +1069,10 @@ const TaleaDokusScreen: React.FC = () => {
                   setDepthFilter('all');
                   setAudioScopeFilter('all');
                 }}
-                className="h-11 rounded-2xl border px-3 text-xs font-semibold uppercase tracking-wide"
-                style={{ borderColor: palette.border, background: palette.soft, color: palette.text }}
+                className="h-11 w-full justify-center"
               >
                 Filter zuruecksetzen
-              </button>
-            </div>
-
-            <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-              {([
-                { key: 'mine', label: 'Meine', count: totalMy },
-                { key: 'discover', label: 'Entdecken', count: totalPublic },
-                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
-              ] as const).map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors"
-                    style={{
-                      borderColor: active ? 'var(--talea-text-tertiary)' : palette.border,
-                      background: active ? palette.primary : palette.soft,
-                      color: active ? palette.primaryText : palette.text,
-                    }}
-                  >
-                    <span>{tab.label}</span>
-                    <span className="rounded-md px-1.5 py-0.5 text-[10px]" style={{ background: active ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.3)' }}>
-                      {tab.count}
-                    </span>
-                  </button>
-                );
-              })}
+              </TaleaActionButton>
             </div>
           </header>
 
@@ -1120,7 +1133,14 @@ const TaleaDokusScreen: React.FC = () => {
                   {loadingPublic ? (
                     <SectionLoading palette={palette} />
                   ) : publicAccessMessage ? (
-                    <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
+                    <div
+                      className="rounded-2xl border p-6 text-center text-sm"
+                      style={{
+                        borderColor: 'var(--talea-danger-border)',
+                        background: 'var(--talea-danger-soft)',
+                        color: 'var(--talea-danger)',
+                      }}
+                    >
                       {publicAccessMessage}
                     </div>
                   ) : filteredPublicDokus.length === 0 ? (
@@ -1160,7 +1180,14 @@ const TaleaDokusScreen: React.FC = () => {
                   {loadingAudio ? (
                     <SectionLoading palette={palette} />
                   ) : audioAccessMessage ? (
-                    <div className="rounded-2xl border border-rose-400/35 bg-rose-500/10 p-6 text-center text-sm text-rose-300">
+                    <div
+                      className="rounded-2xl border p-6 text-center text-sm"
+                      style={{
+                        borderColor: 'var(--talea-danger-border)',
+                        background: 'var(--talea-danger-soft)',
+                        color: 'var(--talea-danger)',
+                      }}
+                    >
                       {audioAccessMessage}
                     </div>
                   ) : filteredAudioDokus.length === 0 ? (

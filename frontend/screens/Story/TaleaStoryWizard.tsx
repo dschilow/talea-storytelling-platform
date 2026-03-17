@@ -25,6 +25,17 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { ageToAgeGroup, getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 import { useStoryAgentFlow, ActiveAgentStack } from '../../agents';
+import { cn } from '@/lib/utils';
+import {
+  TaleaActionButton,
+  TaleaPageBackground,
+  TaleaProgressSteps,
+  taleaBodyFont,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaPageShellClass,
+  taleaSurfaceClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
@@ -83,35 +94,20 @@ type Palette = {
   secondary: string;
 };
 
-const headingFont = '"Cormorant Garamond", serif';
+const headingFont = taleaDisplayFont;
+const bodyFont = taleaBodyFont;
 
-function getPalette(isDark: boolean): Palette {
-  if (isDark) {
-    return {
-      pageGradient:
-        'radial-gradient(980px 540px at 100% 0%, rgba(87,113,160,0.28) 0%, transparent 57%), radial-gradient(940px 520px at 0% 16%, rgba(88,129,121,0.24) 0%, transparent 62%), linear-gradient(180deg,#121b28 0%, #0f1723 100%)',
-      panel: 'rgba(23,33,47,0.92)',
-      panelBorder: '#314258',
-      text: '#e8eef8',
-      muted: '#9db0c8',
-      soft: 'rgba(145,166,194,0.16)',
-      primary: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 46%,var(--talea-border-soft) 100%)',
-      primaryText: '#121b2a',
-      secondary: 'rgba(34,46,63,0.88)',
-    };
-  }
-
+function getPalette(_isDark: boolean): Palette {
   return {
-    pageGradient:
-      'radial-gradient(980px 560px at 100% 0%, #f2dfdc 0%, transparent 58%), radial-gradient(960px 520px at 0% 18%, #dae8de 0%, transparent 62%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)',
-    panel: 'rgba(255,250,243,0.93)',
-    panelBorder: '#dfcfbb',
-    text: '#1b2838',
-    muted: '#617387',
-    soft: 'rgba(230,220,205,0.72)',
-    primary: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 46%,#d5e3cf 100%)',
-    primaryText: '#2c394a',
-    secondary: 'rgba(255,248,238,0.95)',
+    pageGradient: 'var(--talea-page)',
+    panel: 'var(--talea-surface-primary)',
+    panelBorder: 'var(--talea-border-light)',
+    text: 'var(--talea-text-primary)',
+    muted: 'var(--talea-text-secondary)',
+    soft: 'var(--talea-surface-inset)',
+    primary: 'linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 72%, white) 100%)',
+    primaryText: 'var(--primary-foreground)',
+    secondary: 'var(--talea-surface-inset)',
   };
 }
 
@@ -124,45 +120,14 @@ const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: stri
   { key: 'complete', icon: CheckCircle, label: 'Fertig', description: 'Speichern und Avatar-Update' },
 ];
 
-const WizardBackground: React.FC<{ palette: Palette }> = ({ palette }) => (
-  <div className="pointer-events-none fixed inset-0 -z-10" style={{ background: palette.pageGradient }} />
-);
+const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
-const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: Palette }> = ({
-  activeStep,
-  labels,
-  palette,
-}) => (
-  <div className="mb-6 px-1">
-    <div className="flex items-center justify-between gap-1 sm:gap-2">
-      {labels.map((label, i) => (
-        <React.Fragment key={label}>
-          <div className="flex shrink-0 flex-col items-center gap-1.5">
-            <div
-              className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold sm:h-8 sm:w-8 sm:text-xs"
-              style={
-                i < activeStep
-                  ? { background: '#34D399', color: '#0f1828' }
-                  : i === activeStep
-                    ? { background: 'rgba(111,174,156,0.17)', border: '2px solid var(--talea-text-tertiary)', color: 'var(--talea-text-tertiary)' }
-                    : { background: palette.soft, border: `1px solid ${palette.panelBorder}`, color: palette.muted }
-              }
-            >
-              {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
-            </div>
-            <span
-              className="hidden whitespace-nowrap text-[10px] font-medium sm:block"
-              style={{ color: i <= activeStep ? palette.text : palette.muted }}
-            >
-              {label}
-            </span>
-          </div>
-          {i < labels.length - 1 && (
-            <div className="h-px min-w-[8px] flex-1 rounded-full" style={{ background: i < activeStep ? '#34D399' : palette.panelBorder }} />
-          )}
-        </React.Fragment>
-      ))}
-    </div>
+const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: Palette }> = ({ activeStep, labels }) => (
+  <div className={cn(taleaSurfaceClass, 'mb-6 px-4 py-4')}>
+    <TaleaProgressSteps
+      steps={labels.map((label, index) => ({ id: `wizard-step-${index}`, label }))}
+      activeIndex={activeStep}
+    />
   </div>
 );
 
@@ -201,9 +166,12 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palet
                   background: isActive ? palette.soft : palette.secondary,
                 }}
               >
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: isDone ? '#34D39922' : palette.soft }}>
+                <div
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
+                  style={{ background: isDone ? 'var(--talea-success-soft)' : palette.soft }}
+                >
                   {isDone ? (
-                    <Check className="h-4 w-4 text-emerald-500" />
+                    <Check className="h-4 w-4" style={{ color: 'var(--talea-success)' }} />
                   ) : isActive ? (
                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}>
                       <Loader2 className="h-4 w-4" style={{ color: palette.text }} />
@@ -528,9 +496,11 @@ export default function TaleaStoryWizard() {
 
   if (generating) {
     return (
-      <div className="relative min-h-screen pb-10 pt-6">
-        <WizardBackground palette={palette} />
-        <GenerationProgress currentStep={generationStep} palette={palette} />
+      <div className="relative min-h-screen pb-10 pt-6" style={{ fontFamily: bodyFont }}>
+        <WizardBackground isDark={isDark} />
+        <div className={taleaPageShellClass}>
+          <GenerationProgress currentStep={generationStep} palette={palette} />
+        </div>
         <div className="relative z-10 mx-auto mt-4 max-w-xl px-4">
           <ActiveAgentStack />
         </div>
@@ -539,33 +509,33 @@ export default function TaleaStoryWizard() {
   }
 
   return (
-    <div className="relative min-h-screen pb-10 pt-4">
-      <WizardBackground palette={palette} />
+    <div className="relative min-h-screen pb-10 pt-4" style={{ fontFamily: bodyFont }}>
+      <WizardBackground isDark={isDark} />
 
-      <div className="relative z-10">
+      <div className={cn(taleaPageShellClass, 'relative z-10')}>
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-5 flex items-center justify-between gap-3"
+          className={cn(taleaSurfaceClass, 'mb-5 flex flex-wrap items-center justify-between gap-4 px-5 py-5 md:px-6')}
         >
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.16em]" style={{ color: palette.muted }}>
-              Story Wizard
-            </p>
-            <h1 className="text-4xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-              Neue Geschichte
+            <span className={taleaChipClass}>Story Wizard</span>
+            <h1 className="mt-4 text-[2.5rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3rem]" style={{ fontFamily: headingFont }}>
+              Eine neue Geschichte mit mehr Ruhe und mehr Richtung.
             </h1>
+            <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
+              Der Flow fuehrt jetzt staerker durch den Prozess, statt nur Schritte aneinanderzureihen. Fokus, sanfte Motion und eine bessere Story-Hierarchie stehen im Vordergrund.
+            </p>
           </div>
 
-          <button
+          <TaleaActionButton
             type="button"
+            variant="secondary"
             onClick={() => navigate('/stories')}
-            className="inline-flex h-10 items-center rounded-xl border px-3 text-sm font-semibold"
-            style={{ borderColor: palette.panelBorder, background: palette.secondary, color: palette.text }}
+            icon={<ArrowLeft className="h-4 w-4" />}
           >
-            <ArrowLeft className="mr-1 h-4 w-4" />
             Zur Bibliothek
-          </button>
+          </TaleaActionButton>
         </motion.header>
 
         <StepIndicator activeStep={activeStep} labels={labels} palette={palette} />
@@ -573,8 +543,7 @@ export default function TaleaStoryWizard() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border p-5 md:p-7"
-          style={{ borderColor: palette.panelBorder, background: palette.panel }}
+          className={cn(taleaSurfaceClass, 'p-5 md:p-7')}
         >
           <AnimatePresence mode="wait">
             <motion.div
@@ -595,30 +564,19 @@ export default function TaleaStoryWizard() {
           transition={{ delay: 0.15 }}
           className="mt-5 flex items-center justify-between"
         >
-          <button
+          <TaleaActionButton
             type="button"
+            variant="secondary"
             onClick={activeStep === 0 ? () => navigate('/stories') : handleBack}
-            className="inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-semibold"
-            style={{ borderColor: palette.panelBorder, background: palette.secondary, color: palette.text }}
+            icon={<ArrowLeft className="h-4 w-4" />}
           >
-            <ArrowLeft className="h-4 w-4" />
             Zurueck
-          </button>
+          </TaleaActionButton>
 
           {activeStep < labels.length - 1 && (
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={!canProceed()}
-              className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-45"
-              style={{
-                background: canProceed() ? palette.primary : palette.soft,
-                color: canProceed() ? palette.primaryText : palette.muted,
-              }}
-            >
+            <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()}>
               Weiter
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            </TaleaActionButton>
           )}
         </motion.div>
       </div>
