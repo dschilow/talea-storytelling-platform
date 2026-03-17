@@ -960,27 +960,42 @@ NON-NEGOTIABLES (ALLE Regeln — wer sie bricht wird abgelehnt)
 
 STIL (WICHTIGSTE REGELN — bestimmen die Qualitaet!):
 1. ERZAEHLERSTIMME: Du bist KEIN neutraler Erzaehler. Du kommentierst in Klammern, uebertreibst, sprichst den Leser direkt an. Mindestens 3 Erzaehler-Kommentare pro Kapitel. Beispiele: "(Es war nicht der Baum.)" / "Ja, ihr habt richtig gehoert." / "Keine Sorge. Das wird noch schlimmer." / "Was dann passierte — na ja."
-2. DIALOG = 40-50% des Textes. Mindestens 6-8 Dialogzeilen pro Kapitel. Dialog treibt die Handlung. JEDE Dialogzeile hat eine Koerper-Aktion dabei.
+2. DIALOG = 40-50% des Textes. Das ist die WICHTIGSTE Regel. ZAEHLE die Dialogzeilen!
+   FALSCH (zu wenig Dialog — 15%):
+   Er ging zum Brunnen. Das Wasser war kalt. Er schaute hinein. Die Tiefe war dunkel. Er trat zurueck. Alexander kam naeher. Er sah den Stein.
+   RICHTIG (genug Dialog — 45%):
+   "Da runter?" Er starrte ins Wasser. "Vergiss es."
+   "Ich geh vor." Alexander kniete sich hin.
+   "Spinnst du?" Er packte ihn am Aermel. "Da ist nix zu sehen!"
+   "Doch." Alexander zeigte nach unten. "Da. Siehst du das Leuchten?"
+   → Mindestens 10 Dialogzeilen pro Kapitel. Jede mit Koerper-Aktion.
+   → Wenn ein Absatz KEINEN Dialog hat, ist er zu lang. Kuerzen oder Dialog einfuegen.
 3. RHYTHMUS: Mindestens jeder 3. Satz hat UNTER 6 Woerter. Kein Satz ueber 14 Woerter. SO: "Er rannte. Schnell. Die Tuer klemmte, aber er zerrte daran. Nichts passierte." NICHT SO: "Er rannte schnell zur Tuer und zerrte daran, aber sie klemmte und nichts passierte."
 4. KOERPER STATT ETIKETTEN: VERBOTEN: "Er war nervoes/traurig/gluecklich." STATTDESSEN: "Sein Magen drehte sich." / "Seine Finger krallten sich in den Stoff."
 
 PLOT:
 5. KEIN ARTEFAKT-DEUS-EX-MACHINA: Loesung kommt von Figuren-Entscheidung, nie von Artefakt-Magie allein.
-6. MORAL WIRD NIE AUSGESPROCHEN. VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X, um Y zu sein" / "Das war das Wichtigste".
-7. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
+6. MORAL WIRD NIE AUSGESPROCHEN.
+   VERBOTEN: "Er wusste/verstand/merkte, dass..." / "Er brauchte kein X um Y zu sein" / "Das war das Wichtigste" / "Mut ist..." / "Fehler haben Konsequenzen" / "Er hatte gelernt" / "Das fuehlte sich richtig an"
+   STATTDESSEN: Zeige es durch HANDLUNG. Das Kind TUT etwas anders als vorher. Der Leser versteht die Lektion OHNE dass sie ausgesprochen wird.
+7. KAPITEL 4 — DAS KIND ENTSCHEIDET SELBST:
+   FALSCH: Erwachsener sagt was zu tun ist → Kind tut es.
+   RICHTIG: Kind ringt mit sich → erinnert sich an etwas → trifft EIGENE Entscheidung.
+   Erwachsene duerfen FRAGEN stellen ("Was denkst du?"), aber NICHT die Antwort geben.
+8. ENDEN MUESSEN LANDEN: 1 ruhiger Moment + 1 physisches Detail + 1 nachhallender Satz.
 
-LAENGE (KRITISCH — Story wird abgelehnt wenn zu kurz!):
-8. JEDES Kapitel MUSS ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter haben. Gesamt: ${totalWordMin}-${totalWordMax}. Kapitel unter ${wordsPerChapter.min} Woerter = AUTOMATISCH ABGELEHNT. AUCH das letzte Kapitel!
-9. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
+LAENGE:
+9. JEDES Kapitel: ${wordsPerChapter.min}-${wordsPerChapter.max} Woerter. Gesamt: ${totalWordMin}-${totalWordMax}. Zu kurz = ABGELEHNT.
+10. 4-5 Absaetze pro Kapitel, je 2-4 Saetze.
 
 STRUKTUR:
-10. Ch1 Soft Launch: Abs.1 verankert Kind an vertrautem Ort. Abs.2 nennt Mission + konkretes Risiko.
-11. Ch2-5 beginnen mit Anknuepfung ans vorherige Kapitel-Ende.
-12. Ch3: Kinderfehler (aus Charakter, nicht Pech) mit konkreter Konsequenz + KOERPERREAKTION (Magen, Haende, Kehle). Das Kind das den Fehler macht MUSS dasselbe Kind sein das in Ch4-5 die Einsicht hat und waechst.
-13. Ch4: Tiefpunkt + innerer Wendepunkt. Das Kind (nicht Erwachsene, nicht Artefakt) findet die Loesung SELBST. Erwachsene/Helfer duerfen Hinweise geben, aber die ENTSCHEIDUNG trifft das Kind.
-14. Ch5: Loest Mission aus Ch1. Konkreter Gewinn + kleiner Preis + warmes Schlussbild. Callback zu einem Detail aus Kap.1.
-15. Keine neuen Namen. Kein Report-Stil.
-${humorRule ? `16. HUMOR: ${humorRule}` : ""}
+11. Ch1 Soft Launch: Abs.1 vertraut, Abs.2 Mission + Risiko.
+12. Ch2-5: ERSTER Satz greift LETZTEN Moment des vorherigen Kapitels auf. FALSCH: "Am naechsten Tag..." RICHTIG: "Das Knacken hallte noch in seinen Ohren."
+13. Ch3: Kinderfehler (aus Charakter, nicht Pech) + KOERPERREAKTION. DASSELBE Kind waechst in Ch4-5.
+14. Ch4: Tiefpunkt. Das KIND findet die Loesung SELBST (siehe Regel 7).
+15. Ch5: Mission aus Ch1 loesen. Gewinn + Preis + Callback zu Kap.1.
+16. Keine neuen Namen. Kein Report-Stil.
+${humorRule ? `17. HUMOR: ${humorRule}` : ""}
 
 SELF-CHECK (pruefe BEVOR du antwortest):
 - Hat JEDES Kapitel mindestens 3 Erzaehler-Kommentare (Klammern, Leser-Ansprachen)?
@@ -1313,12 +1328,16 @@ RICHTIG: "Adrian oeffnete die Tuer. Was dahinter war? Na ja. Sagen wir so: Es wa
 - Pro Kapitel: 3-4 Erzaehler-Einwuerfe. Klammern, Fragen an den Leser, Uebertreibungen, Spoiler-Witze.
 - Muster: "(Spoiler: Das war gelogen.)" / "Und dann — nein, wartet." / "Was? Ja. Wirklich."
 
-DIALOG — 40-50% des Textes. Dialog IST die Geschichte:
-FALSCH: Adrian ging zur Tuer. Er oeffnete sie. Alexander folgte ihm. Sie gingen den Gang entlang.
-RICHTIG: "Da rein?" Adrian starrte in den Tunnel. "Echt jetzt?"
-"Echt jetzt." Alexander kniete sich hin.
-"Siehst du was?" "Dunkelheit." "Super."
-- Mindestens 8 Dialogzeilen pro Kapitel. Jede Zeile hat Koerper-Aktion.
+DIALOG — 40-50% des Textes. Dialog IST die Geschichte. ZAEHLE: Mindestens 10 Anfuehrungszeichen-Paare pro Kapitel!
+FALSCH (15% Dialog — ABGELEHNT):
+  Er ging zum Brunnen. Er sah hinein. Das Wasser war dunkel. Er trat zurueck. Sie warteten.
+RICHTIG (45% Dialog — SO muss es sein):
+  "Da runter?" Er starrte ins Wasser. "Vergiss es."
+  "Ich geh vor." Alexander kniete sich hin.
+  "Spinnst du?" Adrian packte ihn am Aermel.
+  "Da unten leuchtet was." "Wo?" "Da!" Er zeigte nach unten.
+- Mindestens 10 Dialogzeilen pro Kapitel. Jede Zeile hat Koerper-Aktion.
+- KEIN Absatz ohne mindestens 1 Dialogzeile (ausser reiner Erzaehler-Kommentar).
 - Kinder unterbrechen sich. Reden drumherum. Sagen nicht was sie meinen.
 - SUBTEXT: "Macht mir nichts aus." (Haende in den Taschen, Naehte spannen.) = Es macht ihm ALLES aus.
 
@@ -1347,9 +1366,9 @@ GEFUEHLE — immer KOERPER, nie Etiketten:
 VERBOTEN: "Er war traurig." / "Sie fuehlte sich gluecklich." / "Er war nervoes."
 RICHTIG: "Sein Magen machte dieses Ding. Dieses kalte Drehen." / "Ihre Haende zitterten."
 
-TABUS:
-- KEINE Moral-Saetze: "Er lernte dass..." / "Das Wichtigste war..." / "Er brauchte kein X um Y zu sein."
-- KEIN Berichts-Stil: "Danach gingen sie..." / "Am naechsten Tag..."
+TABUS (jeder Verstoss = Ablehnung):
+- KEINE Moral-Saetze: "Er lernte dass..." / "Das Wichtigste war..." / "Mut ist..." / "Das fuehlte sich richtig an" / "Er wusste dass Fehler..." / "Nie wieder wuerde er..." / "Er brauchte kein X um Y zu sein."
+- KEIN Berichts-Stil: "Danach gingen sie..." / "Am naechsten Tag..." / "Alle waren gluecklich."
 - KEINE Gefuehls-Etiketten: "nervoes", "traurig", "gluecklich", "aengstlich" als Erzaehltext.
 - KEIN Name mehr als 7x pro Kapitel. Pronomen und Kontext nutzen.
 - VERBOTENE WOERTER: "ploetzlich", "auf einmal", "mit einem Mal". Stattdessen: die Handlung einfach passieren lassen.
@@ -1460,17 +1479,24 @@ NARRATOR VOICE (PFLICHT):
   FALSCH: "Adrian oeffnete die Tuer. Er ging hinein."
   RICHTIG: "Adrian oeffnete die Tuer. Was dahinter war? Na ja. (Es war nicht das, was ihr denkt.)"
   → 3+ Erzaehler-Kommentare pro Kapitel. Klammern, Leser-Ansprachen, Uebertreibungen.
-DIALOG = 40-50%:
-  FALSCH: Adrian ging zum Regal. Er nahm die Flasche. Alexander stand daneben.
-  RICHTIG: "Gib her!" Alexander griff danach. Adrian wich aus. "Nee. Meine Entdeckung."
-  → 8+ Dialogzeilen pro Kapitel. Jede mit Koerper-Aktion.
+DIALOG = 40-50% (ZAEHLE: mindestens 10 Anfuehrungszeichen-Paare pro Kapitel!):
+  FALSCH (15% Dialog): Er ging zum Regal. Er nahm die Flasche. Er stellte sie ab. Alexander stand daneben.
+  RICHTIG (45% Dialog): "Gib her!" Alexander griff danach. Adrian wich aus. "Nee. Meine Entdeckung." "Zeig mal!" "Nee." "Adrian!" "Was?"
+  → 10+ Dialogzeilen pro Kapitel. Jede mit Koerper-Aktion.
+  → KEIN Absatz ohne Dialog (ausser reiner Erzaehler-Kommentar).
 RHYTHMUS:
   FALSCH: "Er ging zur Tuer und oeffnete sie vorsichtig, waehrend Alexander hinter ihm wartete."
   RICHTIG: "Er ging zur Tuer. Drueckte die Klinke. Nichts. Na toll."
   → Jeder 3. Satz unter 6 Woerter. Kein Satz ueber 14 Woerter.
+KAPITEL 4 — KEIN EXTERNER RETTER:
+  FALSCH: Erwachsener sagt Alexander was zu tun ist. Alexander tut es.
+  RICHTIG: Kind erinnert sich an etwas. Kind entscheidet SELBST. Erwachsene duerfen FRAGEN stellen, nicht ANTWORTEN geben.
+KEINE MORAL-SAETZE:
+  VERBOTEN: "Mut ist..." / "Er wusste dass..." / "Nie wieder wuerde er..." / "Das fuehlte sich richtig an" / "Fehler haben Konsequenzen"
+  → Zeige die Lektion durch HANDLUNG, nicht durch Worte.
 - Emotions = body, never labels. No "nervoes/traurig/gluecklich".
 - Each character sounds different WITHOUT name tags.
-- Ch2-5 connect to previous chapter ending.
+- Ch2-5: FIRST sentence connects to LAST moment of previous chapter.
 - EVERY chapter: ${wordsPerChapter.min}-${wordsPerChapter.max} words. INCLUDING chapter 5!
 - No name more than 7x per chapter.
 

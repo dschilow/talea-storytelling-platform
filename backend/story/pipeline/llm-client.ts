@@ -151,9 +151,11 @@ export async function callChatCompletion(input: {
     const hasFallback = modelIndex < modelCandidates.length - 1;
     let fallbackTriggered = false;
     const isReasoningModel = activeModel.includes("gpt-5") || activeModel.includes("o4");
+    const isCriticContext = Boolean(input.context) && input.context!.includes("semantic-critic");
     const prefersMinimalJsonReasoning =
       input.responseFormat === "json_object"
-      && (activeModel.includes("gpt-5-mini") || activeModel.includes("gpt-5-nano"));
+      && (activeModel.includes("gpt-5-mini") || activeModel.includes("gpt-5-nano"))
+      && !isCriticContext;
     const prefersConservativeJsonReasoning =
       input.responseFormat === "json_object"
       && Boolean(input.context)
