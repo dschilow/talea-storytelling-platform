@@ -325,6 +325,7 @@ function sanitizeStoryBlueprint(input: {
   const secondName = childNames.find(name => name !== leadName) || avatarNames.find(name => name !== leadName) || leadName;
   const growthChild = resolveGrowthChildName({ blueprint: input.blueprint, childNames, leadName, secondName });
   const companion = childNames.find(name => name !== growthChild) || secondName || growthChild;
+  const knownChildNames = Array.from(new Set([leadName, secondName, growthChild, ...childNames].filter(Boolean)));
   const artifactTerms = buildArtifactTerms(input.cast.artifact?.name);
   const adultHelperNames = input.cast.poolCharacters
     .filter(sheet => !childNames.includes(sheet.displayName))
@@ -343,19 +344,20 @@ function sanitizeStoryBlueprint(input: {
     },
     chapter3: {
       ...input.blueprint.chapter3,
-      mistake: ensureStartsWithChild(input.blueprint.chapter3.mistake, growthChild),
-      mistakeReason: ensureStartsWithChild(input.blueprint.chapter3.mistakeReason, growthChild),
+      mistake: ensureStartsWithChild(input.blueprint.chapter3.mistake, growthChild, knownChildNames),
+      mistakeReason: ensureStartsWithChild(input.blueprint.chapter3.mistakeReason, growthChild, knownChildNames),
       bodyReaction: pickConcreteBlueprintLine(input.blueprint.chapter3.bodyReaction, input.fallback.chapter3.bodyReaction),
       foreground: buildForegroundPair(growthChild, companion),
     },
     chapter4: {
       ...input.blueprint.chapter4,
       worstMoment: pickConcreteBlueprintLine(input.blueprint.chapter4.worstMoment, input.fallback.chapter4.worstMoment),
-      almostGivingUp: ensureStartsWithChild(input.blueprint.chapter4.almostGivingUp, growthChild),
+      almostGivingUp: ensureStartsWithChild(input.blueprint.chapter4.almostGivingUp, growthChild, knownChildNames),
       insightTrigger: containsExternalRescueCue(input.blueprint.chapter4.insightTrigger, artifactTerms, adultHelperNames)
         ? input.fallback.chapter4.insightTrigger
         : pickConcreteBlueprintLine(input.blueprint.chapter4.insightTrigger, input.fallback.chapter4.insightTrigger),
-      newChoice: ensureStartsWithChild(input.blueprint.chapter4.newChoice, growthChild),
+      newChoice: ensureStartsWithChild(input.blueprint.chapter4.newChoice, growthChild, knownChildNames),
+      whoSolves: ensureChildSolves(input.blueprint.chapter4.whoSolves, growthChild, input.fallback.chapter4.whoSolves, knownChildNames),
       foreground: buildForegroundPair(growthChild, companion),
     },
     chapter5: {
@@ -468,11 +470,52 @@ function pickConcreteBlueprintLine(value: string | undefined, fallback: string):
   return cleaned;
 }
 
-function ensureStartsWithChild(text: string | undefined, childName: string): string {
-  const cleaned = String(text || "").trim();
+function ensureStartsWithChild(text: string | undefined, childName: string, knownChildNames: string[] = []): string {
+  const cleaned = stripCompetingChildLead(String(text || "").trim(), childName, knownChildNames);
   if (!cleaned) return childName;
-  if (cleaned.toLowerCase().includes(childName.toLowerCase())) return cleaned;
+  const lowered = cleaned.toLowerCase();
+  if (startsWithName(cleaned, childName)) return cleaned;
+  if (lowered.includes(childName.toLowerCase())) return cleaned;
   return `${childName} ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
+}
+
+function ensureChildSolves(text: string | undefined, childName: string, fallback: string | undefined, knownChildNames: string[] = []): string {
+  const cleaned = stripCompetingChildLead(String(text || "").trim(), childName, knownChildNames);
+  if (!cleaned) return fallback || `${childName} loest es selbst.`;
+  if (containsExternalSolverCue(cleaned)) return fallback || `${childName} loest es selbst.`;
+  if (startsWithName(cleaned, childName) || cleaned.toLowerCase().includes(childName.toLowerCase())) return cleaned;
+  return `${childName} ${cleaned.charAt(0).toLowerCase()}${cleaned.slice(1)}`;
+}
+
+function stripCompetingChildLead(text: string, childName: string, knownChildNames: string[]): string {
+  let cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+
+  const siblings = Array.from(new Set(knownChildNames.filter(name => name && name.toLowerCase() !== childName.toLowerCase())));
+  for (const sibling of siblings) {
+    const leadingSiblingPattern = new RegExp(`^${escapeRegExp(sibling)}\\s+${escapeRegExp(childName)}\\b\\s*`, "i");
+    cleaned = cleaned.replace(leadingSiblingPattern, `${childName} `);
+
+    const duplicateLeadPattern = new RegExp(`^${escapeRegExp(childName)}\\s+${escapeRegExp(sibling)}\\b\\s*`, "i");
+    cleaned = cleaned.replace(duplicateLeadPattern, `${childName} `);
+  }
+
+  const duplicateSelfPattern = new RegExp(`^${escapeRegExp(childName)}\\s+${escapeRegExp(childName)}\\b\\s*`, "i");
+  cleaned = cleaned.replace(duplicateSelfPattern, `${childName} `);
+  return cleaned.trim();
+}
+
+function startsWithName(text: string, name: string): boolean {
+  return new RegExp(`^${escapeRegExp(name)}\\b`, "i").test(text.trim());
+}
+
+function containsExternalSolverCue(text: string): boolean {
+  const lower = text.toLowerCase();
+  return /\b(oma|erwachsen|mentor|fee|zauber|magie|artifact|artefakt|hilft|rettet|loest es fuer|solves it for)\b/i.test(lower);
+}
+
+function escapeRegExp(value: string): string {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export class LlmStoryWriter implements StoryWriter {

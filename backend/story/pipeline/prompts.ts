@@ -923,7 +923,7 @@ export function buildLeanBlueprintDrivenStoryPrompt(input: {
     for (const avatar of cast.avatars) {
       const memories = input.avatarMemories.get(avatar.characterId);
       if (!memories || memories.length === 0) continue;
-      const topTitle = String(memories[0]?.storyTitle || "").trim();
+      const topTitle = prepareMemoryTitleForPrompt(memories[0]?.storyTitle || "");
       if (topTitle) {
         memoryLine = `- One avatar may reference an earlier adventure ONCE: "${topTitle}"`;
         break;
@@ -1097,6 +1097,13 @@ WICHTIGER ALS EFFEKTE:
 - ein Kind verursacht in Kapitel 3 oder 4 durch einen eigenen Fehler echten Schaden und repariert ihn spaeter aktiv
 - Humor verteilt ueber die Geschichte: fruehes Schmunzeln, mittleres Chaos, warmer Callback am Ende
 
+SERIEN-DNA FUER STARKE KINDERBUCHWIRKUNG:
+- kleines bis mittleres Geheimnis mit klarem Sog: Spur, seltsamer Fund, verborgene Regel oder falsche Vermutung
+- vertraute Kinderwelt plus ein schraeger Sondermoment: Tier, Ding, Ort oder Erwachsene bringen Reibung
+- Teamdynamik zaehlt: Freundschaft, Neckerei, Mini-Streit, dann gemeinsames Handeln
+- Kapitelenden ziehen weiter: Frage, neue Spur, peinlicher Zwischenfall oder warmer Rueckprall
+- mindestens ein Moment, den Kinder nachspielen oder nachsprechen wollen
+
 SCHREIBE WIE EIN VERLAGSTEXT:
 - klare, lebendige Abschnitte
 - gemischter Rhythmus: kurze Saetze an Spannungsstellen, sonst natuerlicher Fluss
@@ -1117,6 +1124,13 @@ PRIORITIZE:
 - resolutions driven by the child, not by magic or adults
 - a child causes a real setback through a wrong choice in chapter 3 or 4 and later repairs it actively
 - spread humor across the story: early smile, mid-story chaos beat, warm callback near the end
+
+SERIES DNA FOR COMMERCIAL CHILDREN'S FICTION:
+- a small-to-medium mystery pull: clue, odd object, hidden rule, or wrong assumption
+- a familiar child world plus one quirky special element that creates friction
+- teamwork matters: teasing, mini-conflict, then shared action
+- chapter endings pull forward with a question, clue, comic setback, or warm bounce
+- at least one moment children would replay or quote aloud
 
 WRITE LIKE A PUBLISHED BOOK:
 - clear lively paragraphs
@@ -1203,7 +1217,7 @@ export function buildBlueprintDrivenStoryPrompt(input: {
     for (const avatar of cast.avatars) {
       const memories = input.avatarMemories.get(avatar.characterId);
       if (!memories || memories.length === 0) continue;
-      const topTitle = String(memories[0]?.storyTitle || "").trim();
+      const topTitle = prepareMemoryTitleForPrompt(memories[0]?.storyTitle || "");
       if (topTitle) {
         memoryLine = `- One avatar may reference an earlier adventure ONCE ("That reminds me of..."): "${topTitle}"`;
         break;
@@ -2416,7 +2430,8 @@ ${stylePackText ? `\n${stylePackText}\n` : ""}
 
 RULES:
 1) Only these names: ${allowedNames || "none"}. No new characters.
-2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. Use as much dialogue as the scene truly needs, usually dialogue-rich but never mechanical.
+2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. Stay close to the current chapter length and keep the scene fully played, not compressed.
+2b) Dialogue should sharpen friction, warmth, humor, or clues. Quiet narration is allowed when it carries tension, orientation, or an inner turn. Never add chatter just to hit a quota.
 3) Emotions through body, never labels. Each character sounds different.
 4) No meta-labels, no Goal/Conflict text in prose. No report chains.
 5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
@@ -2674,8 +2689,8 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
     ? /(ausblick|vorschau|kapitelende|kapitel endet|epilog|hook)/i
     : /(outlook|preview|chapter ending|chapter ends|epilogue|hook)/i;
   const overlyRigid = isGerman
-    ? /(jedes kapitel.*schmunzel|humor ist pflicht)/i
-    : /(every chapter needs at least one smile|humor is mandatory)/i;
+    ? /(jedes kapitel.*schmunzel|humor ist pflicht|mindestens\s*40\s*%.*dialog|kein(?:er)?\s+absatz\s+ohne\s+dialog|absaetze?\s+ohne\s+dialog.*verboten)/i
+    : /(every chapter needs at least one smile|humor is mandatory|at least\s*40\s*%.*dialog|no paragraph without dialogue|paragraphs without dialogue.*forbidden)/i;
   const controlLine = buildControlLinePattern(isGerman);
   const lines = base
     .split("\n")
@@ -2698,6 +2713,20 @@ function sanitizeStylePackBlock(block: string | undefined, isGerman: boolean): s
       "TRANSITIONS: Every new place, clue, or plan needs one short bridge sentence.",
     ];
   return [...curatedLines, ...lines].slice(0, 10).join("\n").trim();
+}
+
+function prepareMemoryTitleForPrompt(value?: string): string {
+  const normalized = String(value || "")
+    .replace(/["']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || normalized.length < 6) return "";
+  if (/[:;,/-]$/.test(normalized)) return "";
+  const words = normalized.split(/\s+/);
+  const lastWord = words[words.length - 1] || "";
+  if (lastWord.length <= 1) return "";
+  if (/\b(?:warum|wieso|weshalb|why)\s+[a-z]$/i.test(normalized)) return "";
+  return normalized.length <= 120 ? normalized : `${normalized.slice(0, 117).trimEnd()}...`;
 }
 
 function sanitizeDirectiveNarrativeText(value: string | undefined): string {

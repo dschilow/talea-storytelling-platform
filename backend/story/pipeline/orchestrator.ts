@@ -224,12 +224,19 @@ export class StoryPipelineOrchestrator {
       // ─── Phase 0.5: Fairy Tale Selection (quality/diversity fit) ─────────
       if (normalized.category === "Klassische Märchen" && !normalized.taleId) {
         try {
+          const rawConfig = normalized.rawConfig as any;
           const selectedTale = await selectBestFairyTale({
             userId: normalized.userId,
             ageMin: normalized.ageMin,
             ageMax: normalized.ageMax,
             requestedTone: normalized.requestedTone,
             requestHash: normalized.requestHash,
+            humorLevel: typeof rawConfig?.humorLevel === "number" ? rawConfig.humorLevel : undefined,
+            suspenseLevel: typeof rawConfig?.suspenseLevel === "number" ? rawConfig.suspenseLevel : undefined,
+            pacing: typeof rawConfig?.pacing === "string" ? rawConfig.pacing : undefined,
+            hasTwist: rawConfig?.hasTwist === true,
+            allowRhymes: rawConfig?.allowRhymes === true,
+            avatarCount: normalized.avatarCount,
           });
           if (selectedTale) {
             normalized.taleId = selectedTale.taleId;
@@ -408,8 +415,7 @@ export class StoryPipelineOrchestrator {
         : 2;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
-      // OPTIMIZED: Only 1 memory per avatar, short titles only - keeps prompt small
-      // for reasoning models (gpt-5.4-mini) where extra context → more reasoning tokens
+      // OPTIMIZED: Only 1 memory per avatar - keeps prompt small for reasoning models
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
         for (const avatar of input.avatars) {
@@ -425,12 +431,17 @@ export class StoryPipelineOrchestrator {
             rows.push(row);
           }
           if (rows.length > 0) {
-            avatarMemories.set(avatar.id, rows.map(r => ({
-              storyTitle: (r.story_title || "").substring(0, 32),
-              experience: "",
-              emotionalImpact: (r.emotional_impact as any) || 'neutral',
-            })));
-            console.log(`[pipeline] 🧠 Fetched ${rows.length} memories for avatar ${avatar.name}`);
+            const compactMemories = rows
+              .map(r => ({
+                storyTitle: sanitizeMemoryTitleForPrompt(r.story_title || ""),
+                experience: "",
+                emotionalImpact: (r.emotional_impact as any) || 'neutral',
+              }))
+              .filter(memory => Boolean(memory.storyTitle));
+            if (compactMemories.length > 0) {
+              avatarMemories.set(avatar.id, compactMemories);
+              console.log(`[pipeline] 🧠 Fetched ${compactMemories.length} memories for avatar ${avatar.name}`);
+            }
           }
         }
       } catch (e) {
@@ -1320,6 +1331,12 @@ async function selectBestFairyTale(input: {
   ageMax: number;
   requestedTone?: string;
   requestHash: string;
+  humorLevel?: number;
+  suspenseLevel?: number;
+  pacing?: string;
+  hasTwist?: boolean;
+  allowRhymes?: boolean;
+  avatarCount?: number;
 }): Promise<{ taleId: string; title: string; score: number; method: string; reasoning: string } | null> {
   const rawCandidates = await storyDB.queryAll<{
     tale_id: string;
@@ -1397,6 +1414,7 @@ async function selectBestFairyTale(input: {
       ...(candidate.iconicBeats || []),
       ...(candidate.contentRules || []),
     ].join(" ").toLowerCase();
+    const storyFitScore = scoreCommercialSeriesFit(candidate, input, toneText);
 
     let score = 0;
     if (rangesOverlap(ageMin, ageMax, input.ageMin, input.ageMax)) score += 2.2;
@@ -1414,9 +1432,13 @@ async function selectBestFairyTale(input: {
     if (input.ageMax <= 8 && hasDarkToneMarkers(toneText)) {
       score -= 2.5;
     }
+    if (input.ageMax <= 8 && hasMelancholyToneMarkers(toneText)) {
+      score -= 3.2;
+    }
 
     const childFitScore = input.ageMax <= 8 ? scoreYoungReaderTaleFit(candidate) : 0;
     score += childFitScore;
+    score += storyFitScore;
 
     const repeatCount = recentIds.filter(id => id === candidate.tale_id).length;
     score -= repeatCount * 1.5;
@@ -1435,13 +1457,14 @@ async function selectBestFairyTale(input: {
     `age=${best.candidate.age_min ?? "?"}-${best.candidate.age_max ?? "?"}`,
     `tone=${best.candidate.tone || "n/a"}`,
     input.ageMax <= 8 ? `child-fit=${scoreYoungReaderTaleFit(best.candidate).toFixed(1)}` : "",
+    `story-fit=${scoreCommercialSeriesFit(best.candidate, input).toFixed(1)}`,
     hardAvoid.size > 0 ? `recent-avoid=${hardAvoid.size}` : "recent-avoid=0",
   ].filter(Boolean);
   return {
     taleId: best.candidate.tale_id,
     title: best.candidate.title,
     score: best.score,
-    method: "scored-age-tone-anti-repeat",
+    method: "scored-age-tone-story-fit-anti-repeat",
     reasoning: reasonParts.join(", "),
   };
 }
@@ -1487,15 +1510,7 @@ function extractProtagonistConstraints(rolesJson: any): string[] {
 }
 
 function scoreYoungReaderTaleFit(candidate: TaleSelectionCandidate): number {
-  const corpus = [
-    candidate.title,
-    candidate.tone || "",
-    candidate.coreConflict,
-    ...(candidate.tags || []),
-    ...(candidate.fixedElements || []),
-    ...(candidate.iconicBeats || []),
-    ...(candidate.contentRules || []),
-  ].join(" ").toLowerCase();
+  const corpus = buildTaleSelectionCorpus(candidate);
   const constraints = candidate.protagonistConstraints.map(value => value.toLowerCase());
 
   let score = 0;
@@ -1515,6 +1530,90 @@ function scoreYoungReaderTaleFit(candidate: TaleSelectionCandidate): number {
   if (/\b(?:repeat|repetitive|cumulative|rhythmic)\b/i.test(corpus)) {
     score += 0.6;
   }
+  if (hasMelancholyToneMarkers(corpus)) {
+    score -= 2.8;
+  }
+  if (/\b(?:mystery|mysterious|secret|geheim|rätsel|raetsel|clue|hinweis|detective|detektiv|spur|hidden|versteckt)\b/i.test(corpus)) {
+    score += 0.8;
+  }
+  if (/\b(?:friends|friendship|team|teamwork|together|gemeinsam|duo|pair|helper|companion|companions)\b/i.test(corpus)) {
+    score += 0.7;
+  }
+
+  return score;
+}
+
+function buildTaleSelectionCorpus(candidate: TaleSelectionCandidate): string {
+  return [
+    candidate.title,
+    candidate.tone || "",
+    candidate.coreConflict,
+    ...(candidate.tags || []),
+    ...(candidate.fixedElements || []),
+    ...(candidate.iconicBeats || []),
+    ...(candidate.contentRules || []),
+    ...(candidate.protagonistConstraints || []),
+  ].join(" ").toLowerCase();
+}
+
+function scoreCommercialSeriesFit(
+  candidate: TaleSelectionCandidate,
+  input: {
+    requestedTone?: string;
+    humorLevel?: number;
+    suspenseLevel?: number;
+    pacing?: string;
+    hasTwist?: boolean;
+    allowRhymes?: boolean;
+    avatarCount?: number;
+  },
+  corpusOverride?: string,
+): number {
+  const corpus = corpusOverride || buildTaleSelectionCorpus(candidate);
+  const humorLevel = clampNumber(Number(input.humorLevel ?? 0), 0, 3);
+  const suspenseLevel = clampNumber(Number(input.suspenseLevel ?? 0), 0, 3);
+  const avatarCount = Math.max(0, Number(input.avatarCount ?? 0));
+  const wantsFastPace = String(input.pacing || "").toLowerCase() === "fast";
+  const wantsWittyTone = /\b(witty|witzig|lustig|funny|humorvoll|humorous|quirky|frech)\b/i.test(String(input.requestedTone || ""));
+
+  const humorFriendlyPattern = /\b(?:funny|humorous|lighthearted|playful|chaos|cheeky|quirky|witty|mischief|comic|kicher|schmunzel|animal|pony|friendship|teamwork|helper|companion)\b/i;
+  const mysteryPattern = /\b(?:mystery|mysterious|secret|geheim|rätsel|raetsel|clue|hinweis|detective|detektiv|case|spur|map|message|note|package|paket|hidden|versteckt|locked|mask|disguise|reveal)\b/i;
+  const teamPattern = /\b(?:friends|friendship|team|teamwork|together|gemeinsam|duo|pair|group|crew|helper|companions?)\b/i;
+  const lonelyPattern = /\b(?:alone|lonely|einsam|orphan|ignored|abandoned|solitary|widow|poverty|poor child)\b/i;
+  const fastPattern = /\b(?:chase|run|running|rennen|search|suchen|hunt|rescue|escape|hide|hurry|urgent|quick|fast|wild|adventure|detektiv|spur|raetsel|rätsel|secret|geheim)\b/i;
+  const slowPoeticPattern = /\b(?:poetic|lyrical|meditative|vision|visions|heavenly|mourning|lament|elegiac|dreamlike|bittersweet)\b/i;
+  const rhymePattern = /\b(?:repeat|repetitive|rhythmic|rhyme|chant|cumulative)\b/i;
+
+  let score = 0;
+
+  if (humorLevel >= 2 || wantsWittyTone) {
+    if (humorFriendlyPattern.test(corpus)) score += 1.9;
+    if (hasMelancholyToneMarkers(corpus)) score -= 3.6;
+  } else if (humorLevel >= 1) {
+    if (humorFriendlyPattern.test(corpus)) score += 0.9;
+    if (hasMelancholyToneMarkers(corpus)) score -= 1.4;
+  }
+
+  if (suspenseLevel >= 2 || input.hasTwist) {
+    if (mysteryPattern.test(corpus)) score += 2.1;
+    if (slowPoeticPattern.test(corpus)) score -= 1.2;
+  } else if (suspenseLevel >= 1 && mysteryPattern.test(corpus)) {
+    score += 0.9;
+  }
+
+  if (wantsFastPace) {
+    if (fastPattern.test(corpus)) score += 1.4;
+    if (hasMelancholyToneMarkers(corpus) || slowPoeticPattern.test(corpus)) score -= 1.8;
+  }
+
+  if (avatarCount >= 2) {
+    if (teamPattern.test(corpus)) score += 1.3;
+    if (lonelyPattern.test(corpus)) score -= 1.8;
+  }
+
+  if (input.allowRhymes && rhymePattern.test(corpus)) {
+    score += 0.4;
+  }
 
   return score;
 }
@@ -1533,6 +1632,11 @@ function hasDarkToneMarkers(text: string): boolean {
   return /dark|dunkel|tragic|tragisch|horror|grausam|death|tod|bitter|dread|schrecken|haunted/i.test(text);
 }
 
+function hasMelancholyToneMarkers(text: string): boolean {
+  if (!text) return false;
+  return /\b(?:sad|traurig|sorrow|grief|lonely|einsam|orphan|abandoned|ignored|freezing|frozen|cold street|poverty|weeping|tears|crying|heaven|heavenly|visions?|bittersweet|suffering|sterben|death|tod)\b/i.test(text);
+}
+
 function rangesOverlap(aMin: number, aMax: number, bMin: number, bMax: number): boolean {
   return aMin <= bMax && bMin <= aMax;
 }
@@ -1541,6 +1645,20 @@ function deterministicJitter(seed: string): number {
   const digest = crypto.createHash("sha256").update(seed).digest();
   const value = (digest[0] << 8) | digest[1];
   return value / 65535;
+}
+
+function sanitizeMemoryTitleForPrompt(value?: string): string {
+  const normalized = String(value || "")
+    .replace(/["']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || normalized.length < 6) return "";
+  if (/[:;,/-]$/.test(normalized)) return "";
+  const words = normalized.split(/\s+/);
+  const lastWord = words[words.length - 1] || "";
+  if (lastWord.length <= 1) return "";
+  if (/\b(?:warum|wieso|weshalb|why)\s+[a-z]$/i.test(normalized)) return "";
+  return normalized.length <= 120 ? normalized : `${normalized.slice(0, 117).trimEnd()}...`;
 }
 
 async function logPhase(source: any, request: any, response: any) {
