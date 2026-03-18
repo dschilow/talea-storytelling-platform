@@ -1281,15 +1281,26 @@ function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | unde
   const criticScore = clampNumber(Number(criticSkipped ? qualityScore : (critic?.overallScore ?? qualityScore)), 0, 10);
   const errorCount = Math.max(0, Number(quality?.errorCount ?? 0));
   const warningCount = Math.max(0, Number(quality?.warningCount ?? 0));
+  const criticalIssueCount = countCriticalSelectionIssues(quality);
 
   // Quality-gate score often collapses to 0 for otherwise salvageable prose.
   // In that regime, trust the semantic critic more and soften structural penalties.
   const qualitySignalCollapsed = qualityScore <= 0.05;
-  const effectiveQualityScore = qualitySignalCollapsed ? criticScore : qualityScore;
-  const blend = effectiveQualityScore * 0.28 + criticScore * 0.72;
-  const errorPenaltyWeight = qualitySignalCollapsed ? 0.75 : 1.15;
-  const warningPenaltyCap = qualitySignalCollapsed ? 1.2 : 1.6;
-  const penalties = errorCount * errorPenaltyWeight + Math.min(warningPenaltyCap, warningCount * 0.04);
+  const qualitySignalWeak = qualityScore <= 2.5;
+  const effectiveQualityScore = qualitySignalCollapsed
+    ? criticScore
+    : qualitySignalWeak
+      ? Math.max(qualityScore, criticScore - 1.2)
+      : qualityScore;
+  const blend = qualitySignalWeak
+    ? effectiveQualityScore * 0.18 + criticScore * 0.82
+    : effectiveQualityScore * 0.28 + criticScore * 0.72;
+  const errorPenaltyWeight = qualitySignalWeak ? 0.78 : 1.15;
+  const warningPenaltyCap = qualitySignalWeak ? 1.2 : 1.6;
+  const penalties =
+    errorCount * errorPenaltyWeight
+    + Math.min(warningPenaltyCap, warningCount * 0.04)
+    + criticalIssueCount * (qualitySignalWeak ? 0.18 : 0.24);
   const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.6 : 0;
   return Number((blend - penalties - releasePenalty).toFixed(4));
 }
@@ -1306,14 +1317,47 @@ function pickBestCandidate<T extends { compositeScore: number; quality: any; cri
   return [...candidates].sort((a, b) => {
     const aErrors = Number(a.quality?.errorCount ?? 0);
     const bErrors = Number(b.quality?.errorCount ?? 0);
+    const aCritical = countCriticalSelectionIssues(a.quality);
+    const bCritical = countCriticalSelectionIssues(b.quality);
     const criticGap = Number(b.critic?.overallScore ?? 0) - Number(a.critic?.overallScore ?? 0);
-    if (Math.abs(criticGap) >= 0.5 && Math.abs(aErrors - bErrors) <= 1) {
+    if (Math.abs(criticGap) >= 0.5 && Math.abs(aErrors - bErrors) <= 1 && aCritical === bCritical) {
       return criticGap;
+    }
+    if (Math.abs(criticGap) < 0.35) {
+      if (aCritical !== bCritical) return aCritical - bCritical;
+      if (aErrors !== bErrors) return aErrors - bErrors;
     }
     if (b.compositeScore !== a.compositeScore) return b.compositeScore - a.compositeScore;
     if (aErrors !== bErrors) return aErrors - bErrors;
+    if (aCritical !== bCritical) return aCritical - bCritical;
     return Number(b.critic?.overallScore ?? 0) - Number(a.critic?.overallScore ?? 0);
   })[0];
+}
+
+function countCriticalSelectionIssues(quality: any): number {
+  const issues = Array.isArray(quality?.issues) ? quality.issues : [];
+  const failedGates = new Set(Array.isArray(quality?.failedGates) ? quality.failedGates : []);
+  const criticalCodes = new Set([
+    "UNLOCKED_CHARACTER_ACTOR",
+    "CHILD_MISTAKE_MISSING",
+    "MISTAKE_BODY_REACTION_MISSING",
+    "INTERNAL_TURN_MISSING",
+    "ENDING_PAYOFF_ABSTRACT",
+    "GOAL_THREAD_WEAK_ENDING",
+    "MISSING_CHARACTER",
+  ]);
+
+  let count = 0;
+  for (const issue of issues) {
+    if (!issue || issue.severity !== "ERROR") continue;
+    if (criticalCodes.has(String(issue.code || ""))) count += 1;
+  }
+
+  if (failedGates.has("CAST_LOCK")) count += 2;
+  if (failedGates.has("CHILD_MISTAKE_ARC")) count += 2;
+  if (failedGates.has("ENDING_PAYOFF")) count += 1;
+
+  return count;
 }
 
 function mergeTokenUsage(current: any, next: any): any {

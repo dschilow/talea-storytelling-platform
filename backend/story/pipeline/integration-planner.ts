@@ -1,5 +1,6 @@
 ﻿import type { CastSet, IntegrationPlan, NormalizedRequest, SceneBeat, StoryBlueprintBase } from "./types";
 import { DEFAULT_AVATAR_PRESENCE_RATIO, MAX_ON_STAGE_CHARACTERS } from "./constants";
+import { isLikelyChildCharacter } from "./character-focus";
 
 export function buildIntegrationPlan(input: {
   normalized: NormalizedRequest;
@@ -7,10 +8,11 @@ export function buildIntegrationPlan(input: {
   cast: CastSet;
 }): IntegrationPlan {
   const { normalized, blueprint, cast } = input;
+  const youngReaderFocus = normalized.ageMax <= 8;
   // Budget must be at least avatarCount+1 so avatars always fit alongside at least one supporting character.
   // For young children (≤8): max 3 but never less than avatars + 1.
   const avatarCount = cast.avatars.length;
-  const onStageCharacterBudget = normalized.ageMax <= 8
+  const onStageCharacterBudget = youngReaderFocus
     ? Math.max(avatarCount + 1, Math.min(MAX_ON_STAGE_CHARACTERS, 3))
     : MAX_ON_STAGE_CHARACTERS;
   const avatarSlots = cast.avatars.map(a => a.slotKey);
@@ -54,6 +56,9 @@ export function buildIntegrationPlan(input: {
       avatarSlots,
       maxCharacters: onStageCharacterBudget,
       ensureAvatar,
+      cast,
+      ageMax: normalized.ageMax,
+      beatType: scene.beatType,
     });
 
     if (avatarSlots.some(slot => trimmed.includes(slot))) {
@@ -85,6 +90,7 @@ export function buildIntegrationPlan(input: {
     scenes: blueprint.scenes,
     avatarSlots,
     maxCharacters: onStageCharacterBudget,
+    ageMax: normalized.ageMax,
   });
 
   ensureAvatarsInFinalChapter({
@@ -187,8 +193,11 @@ function trimOnStage(input: {
   avatarSlots: string[];
   maxCharacters: number;
   ensureAvatar: boolean;
+  cast: CastSet;
+  ageMax: number;
+  beatType: SceneBeat["beatType"];
 }): string[] {
-  const { slots, mustInclude, avatarSlots, maxCharacters, ensureAvatar } = input;
+  const { slots, mustInclude, avatarSlots, maxCharacters, ensureAvatar, cast, ageMax, beatType } = input;
   const required = new Set(mustInclude);
   const artifactSlot = "SLOT_ARTIFACT_1";
   const isAvatar = (slot: string) => avatarSlots.includes(slot);
@@ -199,15 +208,30 @@ function trimOnStage(input: {
   const nonArtifact = Array.from(finalSlots).filter(slot => slot !== artifactSlot);
 
   if (nonArtifact.length > maxCharacters) {
-    const optional = nonArtifact.filter(slot => !required.has(slot));
-    const optionalNonAvatar = optional.filter(slot => !isAvatar(slot));
-    // Avatars are protagonists — NEVER remove them to make room for supporting characters.
-    // Only non-avatar slots are removable when over budget.
-    const removalOrder = [...optionalNonAvatar];
+    const avatarFocusThreshold = Math.min(2, Math.max(1, avatarSlots.length));
+    const avatarFocusEstablished = avatarSlots.filter(slot => finalSlots.has(slot)).length >= avatarFocusThreshold;
+    const removalOrder = nonArtifact
+      .filter(slot => !isAvatar(slot))
+      .sort((left, right) => {
+        const leftScore = scoreOnStageKeepPriority({ slot: left, cast, beatType });
+        const rightScore = scoreOnStageKeepPriority({ slot: right, cast, beatType });
+        if (leftScore !== rightScore) return leftScore - rightScore;
+        return left.localeCompare(right);
+      });
 
     for (const slot of removalOrder) {
       if (countNonArtifact(finalSlots) <= maxCharacters) break;
-      if (!required.has(slot)) finalSlots.delete(slot);
+      const protectedRequired =
+        required.has(slot)
+        && !canDemoteRequiredSlot({
+          slot,
+          cast,
+          ageMax,
+          beatType,
+          avatarFocusEstablished,
+        });
+      if (protectedRequired) continue;
+      finalSlots.delete(slot);
     }
   }
 
@@ -225,8 +249,10 @@ function extendSupportingCharactersPresence(input: {
   scenes: StoryBlueprintBase["scenes"];
   avatarSlots: string[];
   maxCharacters: number;
+  ageMax: number;
 }) {
-  const { chapters, scenes, avatarSlots, maxCharacters } = input;
+  const { chapters, scenes, avatarSlots, maxCharacters, ageMax } = input;
+  if (ageMax <= 8) return;
   const artifactSlot = "SLOT_ARTIFACT_1";
   const counts = new Map<string, number>();
   const indexBySlot = new Map<string, number>();
@@ -267,6 +293,61 @@ function isSupportingSlot(slot: string): boolean {
     value.includes("GUARDIAN") ||
     value.includes("TRICKSTER")
   );
+}
+
+function findCharacterBySlot(cast: CastSet, slotKey: string) {
+  return cast.avatars.find(a => a.slotKey === slotKey) || cast.poolCharacters.find(c => c.slotKey === slotKey);
+}
+
+function scoreOnStageKeepPriority(input: {
+  slot: string;
+  cast: CastSet;
+  beatType: SceneBeat["beatType"];
+}): number {
+  const { slot, cast, beatType } = input;
+  const upper = slot.toUpperCase();
+  const sheet = findCharacterBySlot(cast, slot);
+  let score = 0;
+
+  if (upper.includes("ANTAGONIST")) score += beatType === "CLIMAX" ? 90 : 25;
+  if (upper.includes("PROTAGONIST")) score += 45;
+  if (upper.includes("HELPER")) score += 20;
+  if (upper.includes("MENTOR") || upper.includes("GUARDIAN")) score -= 5;
+  if (upper.includes("COMIC_RELIEF") || upper.includes("TRICKSTER")) score -= 10;
+  if (sheet && isLikelyChildCharacter(sheet)) score += 24;
+  if (sheet && !isLikelyChildCharacter(sheet)) score -= 16;
+
+  return score;
+}
+
+function canDemoteRequiredSlot(input: {
+  slot: string;
+  cast: CastSet;
+  ageMax: number;
+  beatType: SceneBeat["beatType"];
+  avatarFocusEstablished: boolean;
+}): boolean {
+  const { slot, cast, ageMax, beatType, avatarFocusEstablished } = input;
+  if (ageMax > 8 || !avatarFocusEstablished) return false;
+
+  const upper = slot.toUpperCase();
+  if (upper.includes("AVATAR") || upper.includes("ARTIFACT")) return false;
+  if (upper.includes("ANTAGONIST") && beatType === "CLIMAX") return false;
+  if (
+    upper.includes("HELPER")
+    || upper.includes("MENTOR")
+    || upper.includes("GUARDIAN")
+    || upper.includes("COMIC_RELIEF")
+    || upper.includes("TRICKSTER")
+  ) {
+    return true;
+  }
+
+  const sheet = findCharacterBySlot(cast, slot);
+  if (!sheet) return true;
+  if (!isLikelyChildCharacter(sheet)) return true;
+
+  return upper.includes("PROTAGONIST") || upper.includes("ANTAGONIST");
 }
 
 function ensureAvatarsInFinalChapter(input: {

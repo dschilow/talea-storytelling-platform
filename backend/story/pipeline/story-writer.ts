@@ -58,6 +58,8 @@ const QUALITY_RECOVERY_WARNING_COUNT = 2;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
+  "SENTENCE_COMPLEXITY_HIGH",
+  "LONG_SENTENCE_OVERUSE",
   "VOICE_INDISTINCT",
   "ROLE_LABEL_OVERUSE",
   "METAPHOR_OVERLOAD",
@@ -105,6 +107,8 @@ const REWRITE_WARNING_CODES = new Set([
   "DIALOGUE_RATIO_EXTREME",
   "RHYTHM_FLAT",
   "RHYTHM_TOO_HEAVY",
+  "SENTENCE_COMPLEXITY_HIGH",
+  "LONG_SENTENCE_OVERUSE",
   "VOICE_INDISTINCT",
   "ROLE_LABEL_OVERUSE",
   "VOICE_TAG_FORMULA_OVERUSE",
@@ -137,6 +141,7 @@ const REWRITE_WARNING_CODES = new Set([
 const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "DIALOGUE_RATIO_CRITICAL",
   "DIALOGUE_RATIO_PERSISTENTLY_LOW",
+  "UNLOCKED_CHARACTER_ACTOR",
   "MISSING_EXPLICIT_STAKES",
   "STAKES_TOO_ABSTRACT",
   "MISSING_LOWPOINT",
@@ -184,6 +189,7 @@ const FLASH_EMERGENCY_POLISH_CODES = new Set([
 
 const FLASH_EMERGENCY_POLISH_MAX_CALLS = 3;
 const FLASH_LOCAL_POLISH_ERROR_CODES = new Set([
+  "UNLOCKED_CHARACTER_ACTOR",
   "COMPARISON_CLUSTER",
   "RULE_EXPOSITION_TELL",
   "VOICE_INDISTINCT",
@@ -196,6 +202,12 @@ const REWRITE_RESCUE_POLISH_CODES = new Set([
   ...WARNING_POLISH_CODES,
   ...CHAPTER_REWRITEABLE_ERROR_CODES,
   "DIALOGUE_RATIO_CRITICAL",
+]);
+
+const LOCAL_RECOVERY_PREFERRED_ERROR_CODES = new Set([
+  ...CHAPTER_REWRITEABLE_ERROR_CODES,
+  "MISSING_CHARACTER",
+  "CHAPTER_TOO_SHORT_HARD",
 ]);
 
 function compactBlueprintText(value: string | undefined, fallback: string, maxLength = 150): string {
@@ -1021,12 +1033,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}, maxWarningPolishCalls=${maxWarningPolishCalls}`
     );
 
-    // V7: Temperature 0.82 for Flash unlocks creative prose without instability.
-    // Research shows commercial 235B+ models stable at 0.7-0.9 range.
-    // Below 0.7 = flat, mechanical prose. Above 0.9 = coherence risk.
+    // For ages 6-8, coherence and clarity matter more than novelty.
+    // Keep the full-draft temperature slightly lower to reduce logic drift,
+    // while leaving enough headroom for humor and vivid phrasing.
+    const childClarityMode = normalizedRequest.ageMax <= 8;
     const storyTemperature = strict
       ? 0.4
-      : (isGeminiFlashModel ? 0.82 : (isGeminiModel ? 0.78 : 0.75));
+      : childClarityMode
+        ? (isGeminiFlashModel ? 0.74 : (isGeminiModel ? 0.72 : 0.7))
+        : (isGeminiFlashModel ? 0.82 : (isGeminiModel ? 0.78 : 0.75));
     let result = await callStoryModel({
       systemPrompt: resolveSystemPrompt(activePromptMode),
       userPrompt: prompt,
@@ -1501,6 +1516,10 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       enableWarningDrivenRewrite &&
       hardErrorIssuesInitial.length === 0 &&
       shouldForceQualityRecovery(qualityReport, qualityReport.issues.filter(issue => issue.severity === "WARNING"));
+    const preferLocalRecovery =
+      canRunPostEdits
+      && !warningRecoveryNeededInitial
+      && shouldPreferLocalRecovery(qualityReport.issues, draft.chapters.length);
     // Gemini Flash rewrites rarely improve quality and cost ~5k tokens.
     // Only trigger rewrite when ≥2 actionable errors exist (1 error is better handled by expand/polish).
     const minErrorsForRewrite = isGeminiFlashModel ? 2 : 1;
@@ -1508,16 +1527,23 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Severely broken drafts (5+ errors) get extra rewrite budget for quality recovery.
     const isSeverelyBroken = hardErrorIssuesInitial.length >= SEVERE_ERROR_THRESHOLD;
     const effectiveRewritePasses = canRunPostEdits
-      ? (isSecondaryCandidate
+      ? (preferLocalRecovery
+        ? 0
+        : (isSecondaryCandidate
         ? maxRewritePasses
-        : (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses))
+        : (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses)))
       : 0;
-    if (emergencyRewriteNeeded && effectiveRewritePasses === 0) {
+    if (preferLocalRecovery) {
+      console.log("[story-writer] Skipping full rewrite; issue mix is chapter-local and cheaper to repair with targeted edits/polish.");
+    }
+    if (emergencyRewriteNeeded && effectiveRewritePasses === 0 && !preferLocalRecovery) {
       console.log("[story-writer] Rewrite needed but disabled by config (maxRewritePasses=0).");
     }
 
     let rewriteAttempt = 0;
-    let rewriteFallbackPolishCalls = 0;
+    let rewriteFallbackPolishCalls = preferLocalRecovery
+      ? resolveRewriteRescuePolishCalls(qualityReport.issues, draft.chapters.length)
+      : 0;
     while (rewriteAttempt < effectiveRewritePasses && !isTokenBudgetExceeded()) {
       const actionableErrors = filterRewriteIssuesForModel(getActionableErrorIssues(qualityReport), isGeminiFlashModel);
       const rewriteWarnings = getRewriteWarningIssues(qualityReport);
@@ -2676,6 +2702,16 @@ function buildChapterPolishHardFixHints(
   }
 
   if (
+    issueCodes.has("SENTENCE_COMPLEXITY_HIGH")
+    || issueCodes.has("LONG_SENTENCE_OVERUSE")
+    || issueCodes.has("RHYTHM_TOO_HEAVY")
+  ) {
+    hints.push(
+      "HARD FIX: Rewrite for ages 6-8. Use shorter sentences, fewer chained clauses, and a bouncy short-medium-short rhythm. Prefer concrete verbs over abstract phrasing.",
+    );
+  }
+
+  if (
     issueCodes.has("CHILD_MISTAKE_MISSING")
     || issueCodes.has("MISTAKE_BODY_REACTION_MISSING")
     || issueCodes.has("INTERNAL_TURN_MISSING")
@@ -2689,6 +2725,12 @@ function buildChapterPolishHardFixHints(
   if (issueCodes.has("COMPARISON_CLUSTER")) {
     hints.push(
       "HARD FIX: Use max one comparison per paragraph. Replace extra comparisons with concrete action and sensory detail.",
+    );
+  }
+
+  if (issueCodes.has("UNLOCKED_CHARACTER_ACTOR")) {
+    hints.push(
+      "HARD FIX: Remove stray proper names or capitalized labels not in the allowed cast. Replace them with an allowed character name or with a plain noun phrase like 'der Spalt' or 'die Richtung'.",
     );
   }
 
@@ -2750,6 +2792,28 @@ function shouldForceQualityRecovery(
   if (hasHardErrors) return true;
   if (warningCandidates.length === 0) return false;
   return report.score < QUALITY_RECOVERY_SCORE_THRESHOLD || warningCandidates.length >= QUALITY_RECOVERY_WARNING_COUNT;
+}
+
+function shouldPreferLocalRecovery(
+  issues: Array<{ chapter: number; code: string; severity: "ERROR" | "WARNING" }>,
+  chapterCount: number,
+): boolean {
+  if (!Array.isArray(issues) || issues.length === 0 || chapterCount <= 0) return false;
+
+  const actionableErrors = issues.filter(issue =>
+    issue?.severity === "ERROR" && LOCAL_RECOVERY_PREFERRED_ERROR_CODES.has(issue.code),
+  );
+  if (actionableErrors.length === 0) return false;
+
+  const allErrorsLocalizable = issues
+    .filter(issue => issue?.severity === "ERROR")
+    .every(issue =>
+      LOCAL_RECOVERY_PREFERRED_ERROR_CODES.has(issue.code)
+      && resolveIssueTargetChapter(issue, chapterCount) > 0,
+    );
+
+  if (!allErrorsLocalizable) return false;
+  return actionableErrors.length <= Math.max(4, Math.ceil(chapterCount * 0.8));
 }
 
 function canAutoTrimLengthErrors(errorIssues: Array<{ code: string }>): boolean {

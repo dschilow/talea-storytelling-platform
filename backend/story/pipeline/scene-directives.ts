@@ -21,10 +21,15 @@ export function buildSceneDirectives(input: {
     const override = variantPlan.sceneOverrides?.find(o => o.chapter === scene.sceneNumber);
 
     const setting = override?.setting ?? scene.setting;
+    const sceneFocus = buildSceneFocus({
+      sceneTitle: scene.sceneTitle,
+      sceneDescription: scene.sceneDescription,
+      setting,
+    });
     const totalChapters = blueprint.scenes.length;
-    const goal = override?.goal ?? buildChapterGoal(scene.sceneNumber, totalChapters, scene.sceneDescription, isGerman);
-    const conflict = override?.conflict ?? buildChapterConflict(scene.sceneNumber, totalChapters, scene.sceneTitle, isGerman);
-    const outcome = override?.outcome ?? buildChapterOutcome(scene.sceneNumber, totalChapters, isGerman);
+    const goal = override?.goal ?? buildChapterGoal(scene.sceneNumber, totalChapters, scene.sceneDescription, sceneFocus, isGerman);
+    const conflict = override?.conflict ?? buildChapterConflict(scene.sceneNumber, totalChapters, sceneFocus, isGerman);
+    const outcome = override?.outcome ?? buildChapterOutcome(scene.sceneNumber, totalChapters, scene.sceneDescription, sceneFocus, isGerman);
     const artifactUsage = scene.artifactPolicy?.requiresArtifact
       ? (override?.artifactUsageHint ?? (isGerman
         ? "Das Artefakt spielt in dieser Szene eine wichtige Rolle."
@@ -52,7 +57,7 @@ export function buildSceneDirectives(input: {
       imageAvoid,
     };
 
-    enforceDirectiveRules(directive, scene);
+    enforceDirectiveRules(directive, scene, normalized);
 
     const validation = validateSceneDirective(directive);
     if (!validation.valid) {
@@ -111,17 +116,19 @@ function buildImageAvoid(scene: SceneBeat, additions?: string[]): string[] {
   return Array.from(items).slice(0, 30);
 }
 
-function enforceDirectiveRules(directive: SceneDirective, scene: SceneBeat) {
+function enforceDirectiveRules(directive: SceneDirective, scene: SceneBeat, normalized: NormalizedRequest) {
   const uniqueSlots = new Set(directive.charactersOnStage);
   if (uniqueSlots.size !== directive.charactersOnStage.length) {
     directive.charactersOnStage = Array.from(uniqueSlots);
   }
 
-  const mustInclude = new Set(scene.mustIncludeSlots || []);
-  for (const slot of mustInclude) {
-    if (!uniqueSlots.has(slot)) {
-      directive.charactersOnStage.push(slot);
-      uniqueSlots.add(slot);
+  if (normalized.ageMax > 8) {
+    const mustInclude = new Set(scene.mustIncludeSlots || []);
+    for (const slot of mustInclude) {
+      if (!uniqueSlots.has(slot)) {
+        directive.charactersOnStage.push(slot);
+        uniqueSlots.add(slot);
+      }
     }
   }
 
@@ -134,6 +141,31 @@ function enforceDirectiveRules(directive: SceneDirective, scene: SceneBeat) {
       directive.imageAvoid.push(token);
     }
   });
+}
+
+function buildSceneFocus(input: {
+  sceneTitle?: string;
+  sceneDescription?: string;
+  setting?: string;
+}): string {
+  const candidates = [input.sceneTitle, input.sceneDescription, input.setting]
+    .map(value => trimDirectiveNarrativeText(value))
+    .filter(Boolean);
+
+  return candidates[0] || "dieser Szene";
+}
+
+function trimDirectiveNarrativeText(value?: string, maxWords = 8, maxChars = 70): string {
+  const cleaned = String(value || "")
+    .replace(/\[[^\]]+\]/g, " ")
+    .replace(/[\"'“”„]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+
+  const firstClause = cleaned.split(/[.!?;:]/)[0]?.trim() || cleaned;
+  const limitedWords = firstClause.split(/\s+/).slice(0, maxWords).join(" ");
+  return limitedWords.slice(0, maxChars).trim();
 }
 
 function findCharacterBySlot(cast: CastSet, slotKey: string) {
@@ -154,7 +186,7 @@ function findCharacterBySlot(cast: CastSet, slotKey: string) {
 function buildChapterConflict(
   chapter: number,
   total: number,
-  sceneTitle: string,
+  sceneFocus: string,
   isGerman: boolean,
 ): string {
   // Map chapter number to bucket 1-5
@@ -163,21 +195,21 @@ function buildChapterConflict(
 
   if (isGerman) {
     switch (bucket) {
-      case 1: return `Ein physisches Hindernis (versperrter Weg, fehlende Brücke, verschlossene Tür) blockiert den Fortschritt direkt.`;
-      case 2: return `Eine verlockende Ablenkung (verführerischer Duft, glänzendes Objekt, ein Abkürzungsversprechen) droht die Gruppe vom eigentlichen Ziel zu trennen.`;
-      case 3: return `Der Plan schlägt fehl: ein wichtiges Hilfsmittel versagt, ein Verbündeter erweist sich als unzuverlässig oder der eingeschlagene Weg endet in einer Sackgasse.`;
-      case 4: return `Eine persönliche Grenze wird erreicht: eine Figur schafft es alleine nicht und muss trotz Stolz oder Scham um Hilfe bitten.`;
-      case 5: return `Zeitdruck und alle früheren Hindernisse kehren gleichzeitig zurück; nur wenn die Gruppe alles Gelernte zusammenbringt, gelingt der entscheidende Durchbruch.`;
-      default: return `Ein unerwartetes Hindernis versperrt den Weg in ${sceneTitle}.`;
+      case 1: return `Rund um ${sceneFocus} blockiert ein echter, sichtbarer Widerstand den Weg: etwas ist versperrt, verrutscht oder zu weit weg.`;
+      case 2: return `Rund um ${sceneFocus} lockt etwas Falsches. Der schnelle, süße oder glänzende Weg wirkt leicht, führt aber vom Auftrag weg.`;
+      case 3: return `Bei ${sceneFocus} kippt der erste Plan. Ein wichtiges Zeichen, Werkzeug oder Versprechen taugt plötzlich nicht mehr.`;
+      case 4: return `Bei ${sceneFocus} reicht Drauflossein nicht mehr. Ein Kind muss zugeben, dass sein erster Impuls falsch war, und Hilfe annehmen.`;
+      case 5: return `Am Ende bei ${sceneFocus} drängen Zeit, Angst und der alte Fehler gleichzeitig. Nur ein klarer gemeinsamer Schritt bringt die Kinder hindurch.`;
+      default: return `Bei ${sceneFocus} stellt sich ein neues Hindernis in den Weg.`;
     }
   } else {
     switch (bucket) {
-      case 1: return `A physical obstacle (blocked path, missing bridge, locked door) directly stops any progress.`;
-      case 2: return `A tempting distraction (enticing smell, shiny object, promise of a shortcut) threatens to pull the group away from their goal.`;
-      case 3: return `The plan falls apart: a key tool breaks, an ally proves unreliable, or the chosen path leads to a dead end.`;
-      case 4: return `A personal limit is reached: one character cannot do it alone and must swallow pride to ask for help.`;
-      case 5: return `Time pressure mounts and every earlier obstacle returns at once; only by combining everything they have learned can the group break through.`;
-      default: return `An unexpected obstacle blocks the way in ${sceneTitle}.`;
+      case 1: return `Around ${sceneFocus}, a real visible obstacle blocks the way: something is shut, shifted, or just out of reach.`;
+      case 2: return `Around ${sceneFocus}, the wrong thing looks easy. A sweet, shiny, or quick shortcut pulls the children away from their mission.`;
+      case 3: return `At ${sceneFocus}, the first plan collapses. A key clue, tool, or promise no longer works the way they expected.`;
+      case 4: return `At ${sceneFocus}, rushing stops working. One child must admit the first impulse was wrong and accept help.`;
+      case 5: return `At the end around ${sceneFocus}, time pressure, fear, and the earlier mistake hit together. Only one clear shared step gets the children through.`;
+      default: return `At ${sceneFocus}, a new obstacle gets in the way.`;
     }
   }
 }
@@ -190,6 +222,7 @@ function buildChapterGoal(
   chapter: number,
   total: number,
   fallbackDescription: string,
+  sceneFocus: string,
   isGerman: boolean,
 ): string {
   const ratio = total <= 1 ? 1 : (chapter - 1) / (total - 1);
@@ -197,20 +230,20 @@ function buildChapterGoal(
 
   if (isGerman) {
     switch (bucket) {
-      case 1: return `Die Gruppe muss das physische Hindernis überwinden und trotzdem vorankommen.`;
-      case 2: return `Die Gruppe muss der Ablenkung widerstehen und den Fokus auf das eigentliche Ziel behalten.`;
-      case 3: return `Die Gruppe muss trotz des gescheiterten Plans einen neuen Weg finden und weitermachen.`;
-      case 4: return `Eine Figur muss ihre Grenzen akzeptieren und aktiv Hilfe annehmen, um voranzukommen.`;
-      case 5: return `Die Gruppe muss alles bisher Gelernte einsetzen, um in letzter Minute das Ziel zu erreichen.`;
+      case 1: return `Die Kinder müssen bei ${sceneFocus} den richtigen Weg erkennen und trotz Hindernis weitergehen.`;
+      case 2: return `Die Kinder müssen bei ${sceneFocus} ihrem Auftrag treu bleiben und der lockenden Abkürzung widerstehen.`;
+      case 3: return `Die Kinder müssen bei ${sceneFocus} nach dem gescheiterten Versuch einen neuen, konkreten Plan finden.`;
+      case 4: return `Ein Kind muss bei ${sceneFocus} den eigenen Fehler zugeben und mit Hilfe reparieren, was schiefging.`;
+      case 5: return `Die Kinder müssen bei ${sceneFocus} die Spur bis zum echten Ziel zu Ende bringen und den Anfangsauftrag sichtbar einlösen.`;
       default: return fallbackDescription;
     }
   } else {
     switch (bucket) {
-      case 1: return `The group must overcome the physical obstacle and still move forward.`;
-      case 2: return `The group must resist the temptation and stay focused on their real goal.`;
-      case 3: return `Despite the failed plan, the group must find a new way and keep going.`;
-      case 4: return `A character must accept their limits and actively accept help to move forward.`;
-      case 5: return `The group must use everything they have learned to reach their goal at the last minute.`;
+      case 1: return `The children must spot the right way at ${sceneFocus} and keep moving despite the obstacle.`;
+      case 2: return `The children must stay loyal to the mission at ${sceneFocus} and resist the tempting shortcut.`;
+      case 3: return `At ${sceneFocus}, the children must replace the failed attempt with a new concrete plan.`;
+      case 4: return `At ${sceneFocus}, one child must admit the mistake and help repair what went wrong.`;
+      case 5: return `At ${sceneFocus}, the children must finish the trail to the real goal and visibly pay off the opening mission.`;
       default: return fallbackDescription;
     }
   }
@@ -223,6 +256,8 @@ function buildChapterGoal(
 function buildChapterOutcome(
   chapter: number,
   total: number,
+  fallbackDescription: string,
+  sceneFocus: string,
   isGerman: boolean,
 ): string {
   const ratio = total <= 1 ? 1 : (chapter - 1) / (total - 1);
@@ -230,21 +265,21 @@ function buildChapterOutcome(
 
   if (isGerman) {
     switch (bucket) {
-      case 1: return `Die Gruppe überwindet das erste Hindernis und bricht auf — das Abenteuer hat begonnen.`;
-      case 2: return `Die Gruppe widersteht der Versuchung, kommt voran, aber ein neues Rätsel taucht auf.`;
-      case 3: return `Mit einem improvisierten neuen Plan rettet die Gruppe den Moment, aber ein Geheimnis macht den alten Plan unbrauchbar.`;
-      case 4: return `Dank gegenseitiger Hilfe löst die Gruppe die Krise, aber es bleibt ein spürbarer Preis oder Kompromiss.`;
-      case 5: return `Das Ziel wird erreicht — ein konkreter Gewinn wird gesichert — aber ein kleiner Preis oder eine offene Frage bleibt, die das Ende ehrlich macht.`;
-      default: return `Die Szene führt zum nächsten Beat.`;
+      case 1: return `Der erste Schritt gelingt bei ${sceneFocus}, aber sofort wird klar: Der Weg ist kniffliger als gedacht.`;
+      case 2: return `Die Kinder kommen bei ${sceneFocus} weiter, doch die falsche Lockung hat schon eine Spur von Ärger hinterlassen.`;
+      case 3: return `Bei ${sceneFocus} ist der alte Plan endgültig weg, dafür taucht ein echter Hinweis auf, der nur mit Ruhe lesbar wird.`;
+      case 4: return `Die Gruppe fängt sich bei ${sceneFocus} wieder, bezahlt aber einen kleinen Preis und geht klarer als zuvor weiter.`;
+      case 5: return `Bei ${sceneFocus} wird das Ziel konkret gesichert: etwas ist wieder da, der Heimweg ist klar, und am Ende gibt es einen warmen Zusammen-Moment.`;
+      default: return fallbackDescription || `Die Szene führt zum nächsten Beat.`;
     }
   } else {
     switch (bucket) {
-      case 1: return `The group overcomes the first obstacle and sets out — the adventure has begun.`;
-      case 2: return `The group resists temptation and moves forward, but a new puzzle appears.`;
-      case 3: return `With an improvised new plan the group saves the moment, but a secret makes the old plan useless.`;
-      case 4: return `Through mutual help the group resolves the crisis, but a tangible price or compromise remains.`;
-      case 5: return `The goal is reached — a concrete win is secured — but a small price or open question remains, making the ending honest.`;
-      default: return `The scene progresses toward the next beat.`;
+      case 1: return `The first step works at ${sceneFocus}, but it becomes clear right away that the path is trickier than expected.`;
+      case 2: return `The children move forward at ${sceneFocus}, but the false temptation leaves behind a fresh complication.`;
+      case 3: return `At ${sceneFocus}, the old plan is gone for good, but a real clue appears that only calm attention can read.`;
+      case 4: return `The group regains balance at ${sceneFocus}, pays a small price, and moves on with a clearer plan.`;
+      case 5: return `At ${sceneFocus}, the goal is secured in a concrete way: something is truly recovered, the way home is clear, and the ending lands in warmth.`;
+      default: return fallbackDescription || `The scene progresses toward the next beat.`;
     }
   }
 }
