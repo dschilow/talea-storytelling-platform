@@ -26,9 +26,9 @@ import {
 } from "../backend/helpers/mcpClient";
 
 // ---- OpenAI Modell & Pricing ----
-const MODEL = "gpt-5-mini";
-const INPUT_COST_PER_1M = 5.0;
-const OUTPUT_COST_PER_1M = 15.0;
+const MODEL = "gpt-5.4-mini";
+const INPUT_COST_PER_1M = 0.75;
+const OUTPUT_COST_PER_1M = 4.50;
 
 const openAIKey = secret("OpenAIKey");
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -763,7 +763,7 @@ Example: [{ "name": "Max", "changedTraits": [{ "trait": "courage", "change": 3 }
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    max_completion_tokens: 16_000,  // Max fuer gpt-5-mini
+    max_completion_tokens: 16_000,  // Max fuer gpt-5.4-mini
     response_format: { type: "json_object" },
   };
 

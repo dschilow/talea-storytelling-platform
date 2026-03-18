@@ -3,7 +3,7 @@ import { secret } from "encore.dev/config";
 const openAIKey = secret("OpenAIKey");
 
 /**
- * Translates text from any language to English using OpenAI GPT-5-mini
+ * Translates text from any language to English using OpenAI GPT-5.4-nano
  * This ensures 100% English output for Runware compatibility
  */
 export async function translateToEnglish(text: string): Promise<string> {
@@ -30,7 +30,7 @@ export async function translateToEnglish(text: string): Promise<string> {
         Authorization: `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
+        model: "gpt-5.4-nano",
         messages: [
           {
             role: "system",

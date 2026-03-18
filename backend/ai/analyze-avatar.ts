@@ -148,7 +148,7 @@ ${req.hints.stylePreference ? `- Stil-Präferenz: ${req.hints.stylePreference}` 
 Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.` : "";
 
     const payload = {
-      model: "gpt-5-mini",
+      model: "gpt-5.4-mini",
       messages: [
         { role: "system", content: system },
         {
@@ -163,7 +163,7 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     	max_completion_tokens: 12000,
     };
 
-    console.log("📤 Sending request to OpenAI with gpt-5-mini...");
+    console.log("📤 Sending request to OpenAI with gpt-5.4-mini...");
 
     let res;
     try {

@@ -4,7 +4,7 @@ import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
 import { resolveSupportTaskModel } from "./model-routing";
 
-const DEFAULT_MODEL = "gpt-5-nano";
+const DEFAULT_MODEL = "gpt-5.4-nano";
 const MAX_CHAPTER_WORDS = 220;
 const LEAD_WORDS = 130;
 const TAIL_WORDS = 80;

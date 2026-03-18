@@ -199,12 +199,12 @@ export class Phase3StoryFinalizer {
         input.matchedArtifact // NEW: Pass matched artifact
       );
     const normalizedPrompt = this.normalizeText(prompt);
-    const modelName = input.config.aiModel || "gpt-5-mini";
+    const modelName = input.config.aiModel || "gpt-5.4-mini";
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
     const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");
 
-    // ?? CRITICAL FIX: GPT-5-mini reasoning tokens are SEPARATE from completion tokens
+    // ?? CRITICAL FIX: GPT-5.4-mini reasoning tokens are SEPARATE from completion tokens
     // When reasoning_effort="medium", the model uses ~8000 reasoning tokens
     // We need to increase max_completion_tokens to allow for BOTH reasoning + actual content
     const completionTokenLimit = selectedFairyTale
@@ -250,8 +250,8 @@ export class Phase3StoryFinalizer {
 
     console.log(`[Phase3] Using variance seed: ${varianceSeed} to prevent duplicate stories`);
 
-    // CRITICAL FIX: Increase timeout for reasoning models (gpt-5-mini can be slow)
-    // Extended timeout for gpt-5-mini which needs time for reasoning tokens
+    // CRITICAL FIX: Increase timeout for reasoning models (gpt-5.4-mini can be slow)
+    // Extended timeout for gpt-5.4-mini which needs time for reasoning tokens
     const baseTimeout = isReasoningModel ? 180000 : 60000; // 3 minutes for reasoning models, 1 minute for others
     const requestTimeoutMs = selectedFairyTale ? baseTimeout * 1.5 : baseTimeout; // 4.5 minutes for fairy tales with reasoning
     const abortController = new AbortController();
@@ -886,6 +886,7 @@ CRITICAL ARTIFACT INTEGRATION RULES:
       ? "Add a gentle twist from chapter 4 and resolve it warmly in chapter 5."
       : "No required twist - still create an emotional high point in chapter 4.";
     const wordTarget = getChapterWordTarget(config.ageGroup || '6-8');
+    const minDialogues = getDialogueMinimum(config.ageGroup || '6-8');
 
     return `
 You are an award-winning children's book author. Write a complete, cinematic story that reads like a prize-winning picture book.

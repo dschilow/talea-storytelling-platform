@@ -11,7 +11,7 @@ export function normalizeTokenUsage(
   const cachedPromptTokens = Math.max(0, Math.min(promptTokens, toNumber((usage as any).cachedPromptTokens)));
   const completionTokens = toNumber(usage.completionTokens);
   const totalTokens = toNumber(usage.totalTokens, promptTokens + completionTokens);
-  const model = String(usage.model || fallbackModel || "gpt-5-mini");
+  const model = String(usage.model || fallbackModel || "gpt-5.4-mini");
   const costs = calculateTokenCosts({ promptTokens, cachedPromptTokens, completionTokens, model });
 
   return {
@@ -42,7 +42,7 @@ export function mergeNormalizedTokenUsage(
   const model =
     current.model && normalizedNext.model && current.model !== normalizedNext.model
       ? "mixed"
-      : (current.model || normalizedNext.model || fallbackModel || "gpt-5-mini");
+      : (current.model || normalizedNext.model || fallbackModel || "gpt-5.4-mini");
 
   return {
     promptTokens: mergedPrompt,

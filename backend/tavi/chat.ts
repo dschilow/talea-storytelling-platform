@@ -704,7 +704,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       console.log(`ðŸ§žâ€â™‚ï¸ Tavi processing message from user ${auth.userID}:`, message);
       
       const payload = {
-        model: "gpt-5-mini",
+        model: "gpt-5.4-mini",
         messages: [
           { role: "system", content: buildTaviSystemPrompt(taviProfilePrompt) },
           { role: "user", content: message },

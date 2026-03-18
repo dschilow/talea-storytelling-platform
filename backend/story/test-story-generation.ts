@@ -48,7 +48,7 @@ export const TEST_CONFIGS: TestConfig[] = [
     length: "medium",
     avatarCount: 2,
     useFairyTaleTemplate: true,
-    aiModel: "gpt-5-mini"
+    aiModel: "gpt-5.4-mini"
   },
   {
     name: "Test 2: Märchenwelten - Teenager",
@@ -60,7 +60,7 @@ export const TEST_CONFIGS: TestConfig[] = [
     length: "long",
     avatarCount: 1,
     useFairyTaleTemplate: true,
-    aiModel: "gpt-5-mini"
+    aiModel: "gpt-5.4-mini"
   },
   {
     name: "Test 3: Abenteuer - Kinder",
@@ -72,7 +72,7 @@ export const TEST_CONFIGS: TestConfig[] = [
     length: "short",
     avatarCount: 2,
     useFairyTaleTemplate: false,
-    aiModel: "gpt-5-mini"
+    aiModel: "gpt-5.4-mini"
   },
   {
     name: "Test 4: Klassische Märchen - Kleinkinder",
@@ -84,7 +84,7 @@ export const TEST_CONFIGS: TestConfig[] = [
     length: "short",
     avatarCount: 1,
     useFairyTaleTemplate: true,
-    aiModel: "gpt-5-nano"
+    aiModel: "gpt-5.4-nano"
   },
   {
     name: "Test 5: Märchenwelten - Erweitert",
@@ -245,7 +245,7 @@ async function runSingleTest(
       length: testConfig.length,
       complexity: testConfig.complexity,
       ageGroup: testConfig.ageGroup,
-      aiModel: (testConfig.aiModel as any) || "gpt-5-mini",
+      aiModel: (testConfig.aiModel as any) || "gpt-5.4-mini",
       useCharacterPool: true,
       preferences: {
         useFairyTaleTemplate: testConfig.useFairyTaleTemplate ?? false

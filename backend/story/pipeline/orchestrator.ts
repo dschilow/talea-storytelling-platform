@@ -409,7 +409,7 @@ export class StoryPipelineOrchestrator {
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
       // OPTIMIZED: Only 1 memory per avatar, short titles only - keeps prompt small
-      // for reasoning models (gpt-5-mini) where extra context → more reasoning tokens
+      // for reasoning models (gpt-5.4-mini) where extra context → more reasoning tokens
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
         for (const avatar of input.avatars) {

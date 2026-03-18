@@ -60,9 +60,8 @@ interface WizardState {
   customWish: string;
   aiModel:
   | 'claude-sonnet-4-6'
-  | 'gpt-5-nano'
-  | 'gpt-5-mini'
   | 'gpt-5.4'
+  | 'gpt-5.4-mini'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';

@@ -295,17 +295,17 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
-  "gpt-5-nano": {
-    name: "gpt-5-nano",
-    inputCostPer1M: 0.050,      // $0.050/1M tokens
-    outputCostPer1M: 0.250,     // $0.250/1M tokens
+  "gpt-5.4-nano": {
+    name: "gpt-5.4-nano",
+    inputCostPer1M: 0.20,       // $0.20/1M tokens
+    outputCostPer1M: 1.25,      // $1.25/1M tokens
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },
-  "gpt-5-mini": {
-    name: "gpt-5-mini",
-    inputCostPer1M: 0.250,      // $0.250/1M tokens
-    outputCostPer1M: 2.000,     // $2.000/1M tokens
+  "gpt-5.4-mini": {
+    name: "gpt-5.4-mini",
+    inputCostPer1M: 0.75,       // $0.75/1M tokens
+    outputCostPer1M: 4.50,      // $4.50/1M tokens
     maxCompletionTokens: 16000,
     supportsReasoningEffort: false,
   },

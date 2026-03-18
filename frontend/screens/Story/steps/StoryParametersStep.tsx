@@ -6,9 +6,8 @@ import FadeInView from '../../../components/animated/FadeInView';
 
 type AIModel =
   | 'claude-sonnet-4-6'
-  | 'gpt-5-nano'
-  | 'gpt-5-mini'
   | 'gpt-5.4'
+  | 'gpt-5.4-mini'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
@@ -141,22 +140,16 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       recommended: true,
     },
     {
-      key: 'gpt-5-nano',
-      label: 'GPT-5 Nano',
-      icon: 'N',
-      description: '$0.05/1M - Schnell & guenstig',
-    },
-    {
-      key: 'gpt-5-mini',
-      label: 'GPT-5 Mini',
-      icon: 'M',
-      description: '$0.25/1M - Bewaehrt',
-    },
-    {
       key: 'gpt-5.4',
       label: 'GPT-5.4',
       icon: 'P',
       description: '$1.25/1M - Beste Qualitaet',
+    },
+    {
+      key: 'gpt-5.4-mini',
+      label: 'GPT-5.4 Mini',
+      icon: 'M',
+      description: '$0.75 in / $4.50 out - Ausgewogen',
     },
   ];
 

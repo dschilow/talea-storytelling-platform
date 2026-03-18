@@ -12,8 +12,8 @@ import type { AvatarVisualProfile } from "./avatar";
 
 const openAIKey = secret("OpenAIKey");
 
-// WICHTIG: gpt-5-mini für optimale Qualität und Konsistenz (wie bei anderen Services)
-const MODEL = "gpt-5-mini";
+// WICHTIG: gpt-5.4-mini für optimale Qualität und Konsistenz (wie bei anderen Services)
+const MODEL = "gpt-5.4-mini";
 
 /**
  * Detects if text contains non-English characters (German, Italian, Russian, etc.)
@@ -51,7 +51,7 @@ async function translateToEnglish(text: string): Promise<string> {
         Authorization: `Bearer ${openAIKey()}`,
       },
       body: JSON.stringify({
-        model: MODEL, // gpt-5-mini for optimal quality and consistency
+        model: MODEL, // gpt-5.4-mini for optimal quality and consistency
         messages: [
           {
             role: "system",

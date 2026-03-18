@@ -12,12 +12,12 @@ const MAX_STATUS_RETRIES = 2;
 const MAX_MODEL_FALLBACKS = 4;
 
 const OPENAI_MODEL_FALLBACKS: Record<string, string[]> = {
-  "gpt-5.4": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
-  "gpt-5.2": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
-  "gpt-5-pro": ["gpt-5", "gpt-5-mini", "gpt-5-nano"],
-  "gpt-5": ["gpt-5-mini", "gpt-5-nano"],
-  "gpt-5-mini": ["gpt-5-nano"],
-  "o4-mini": ["gpt-5-mini", "gpt-5-nano"],
+  "gpt-5.4": ["gpt-5.4-mini", "gpt-5.4-nano"],
+  "gpt-5.4-mini": ["gpt-5.4-nano"],
+  "gpt-5.2": ["gpt-5.4-mini", "gpt-5.4-nano"],
+  "gpt-5-pro": ["gpt-5.4-mini", "gpt-5.4-nano"],
+  "gpt-5": ["gpt-5.4-mini", "gpt-5.4-nano"],
+  "o4-mini": ["gpt-5.4-mini", "gpt-5.4-nano"],
 };
 
 function isTransientNetworkError(error: unknown): boolean {
@@ -73,9 +73,9 @@ function uniqueModels(models: Array<string | undefined>): string[] {
 }
 
 function resolveOpenAiModelCandidates(primaryModel: string, explicitFallbacks?: string[]): string[] {
-  const normalizedPrimary = String(primaryModel || "").trim() || "gpt-5-mini";
+  const normalizedPrimary = String(primaryModel || "").trim() || "gpt-5.4-mini";
   const mappedFallbacks = OPENAI_MODEL_FALLBACKS[normalizedPrimary]
-    ?? (normalizedPrimary.startsWith("gpt-5") ? ["gpt-5-mini", "gpt-5-nano"] : []);
+    ?? (normalizedPrimary.startsWith("gpt-5") ? ["gpt-5.4-mini", "gpt-5.4-nano"] : []);
   return uniqueModels([
     normalizedPrimary,
     ...(explicitFallbacks || []),
@@ -263,7 +263,7 @@ export async function callChatCompletion(input: {
     const isCriticContext = Boolean(input.context) && input.context!.includes("semantic-critic");
     const prefersMinimalJsonReasoning =
       input.responseFormat === "json_object"
-      && (activeModel.includes("gpt-5-mini") || activeModel.includes("gpt-5-nano"))
+      && (activeModel.includes("gpt-5.4-mini") || activeModel.includes("gpt-5.4-nano"))
       && !isCriticContext;
     const prefersConservativeJsonReasoning =
       input.responseFormat === "json_object"
@@ -485,7 +485,7 @@ export function calculateTokenCosts(usage: {
   completionTokens: number;
   model?: string;
 }) {
-  const model = usage.model || "gpt-5-mini";
+  const model = usage.model || "gpt-5.4-mini";
   const cachedPromptTokens = Math.max(0, Number(usage.cachedPromptTokens || 0));
   const uncachedPromptTokens = Math.max(0, usage.promptTokens - cachedPromptTokens);
   const cachedInputCost = (cachedPromptTokens * cachedInputPricePerMillion(model)) / 1_000_000;
@@ -505,17 +505,16 @@ function inputPricePerMillion(model: string): number {
   if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
-  if (model.includes("gpt-5-nano")) return 0.05;
-  if (model.includes("gpt-5-mini")) return 0.25;
+  if (model.includes("gpt-5.4-nano")) return 0.20;
+  if (model.includes("gpt-5.4-mini")) return 0.75;
   if (model.includes("gpt-5-pro")) return 5.0;
   if (model.includes("gpt-5")) return 2.5;
   if (model.includes("o4-mini")) return 1.1;
   if (model.includes("gpt-4")) return 2.5;
-  return 0.25;
+  return 0.75;
 }
 
 function cachedInputPricePerMillion(model: string): number {
-  if (model.includes("gpt-5-mini")) return 0.025;
   return inputPricePerMillion(model);
 }
 
@@ -524,11 +523,11 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
-  if (model.includes("gpt-5-nano")) return 0.25;
-  if (model.includes("gpt-5-mini")) return 2.0;
+  if (model.includes("gpt-5.4-nano")) return 1.25;
+  if (model.includes("gpt-5.4-mini")) return 4.50;
   if (model.includes("gpt-5-pro")) return 20.0;
   if (model.includes("gpt-5")) return 10.0;
   if (model.includes("o4-mini")) return 4.4;
   if (model.includes("gpt-4")) return 10.0;
-  return 2.0;
+  return 4.5;
 }

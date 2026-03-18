@@ -41,8 +41,8 @@ export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   if (!normalized) return GEMINI_SUPPORT_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
-  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5-nano";
-  return "gpt-5-nano";
+  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5.4-nano";
+  return "gpt-5.4-nano";
 }
 
 export function resolveCriticModelForPipeline(input: {
@@ -55,7 +55,7 @@ export function resolveCriticModelForPipeline(input: {
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
   }
-  return String(input.defaultModel || "gpt-5-mini");
+  return String(input.defaultModel || "gpt-5.4-nano");
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
@@ -63,7 +63,8 @@ export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): str
     return GEMINI_SUPPORT_MODEL;
   }
   const model = String(selectedStoryModel || "").trim();
-  if (!model) return "gpt-5-mini";
+  if (!model) return "gpt-5.4-nano";
+  if (model.startsWith("gpt-5.4-mini")) return "gpt-5.4-nano";
   if (model.startsWith("gpt-5.4")) return "gpt-5.4";
-  return "gpt-5-mini";
+  return "gpt-5.4-nano";
 }

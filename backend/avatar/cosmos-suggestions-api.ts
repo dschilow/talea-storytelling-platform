@@ -10,7 +10,7 @@ import { resolveChildIdForCosmos } from "./cosmos-mvp-service";
 const userDB = SQLDatabase.named("user");
 const openAIKey = secret("OpenAIKey");
 
-const SUGGESTION_MODEL = "gpt-5-nano";
+const SUGGESTION_MODEL = "gpt-5.4-nano";
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 const MAX_LIST_CHARS = 1500;
 const MAX_SUGGESTIONS_IN_CACHE = 56;

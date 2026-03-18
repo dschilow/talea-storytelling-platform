@@ -144,7 +144,8 @@ export class Phase1SkeletonGenerator {
     console.log("[Phase1] Generating story skeleton...");
 
     const prompt = this.buildSkeletonPrompt(input, input.selectedFairyTale);
-    const modelName = input.config.aiModel || "gpt-5-mini";
+    const requestedModel = input.config.aiModel || "gpt-5.4-mini";
+    const modelName = requestedModel === "gpt-5.4-mini" ? "gpt-5.4-nano" : requestedModel;
 
     // Check if this is a reasoning model (gpt-5, o4-mini, etc.)
     const isReasoningModel = modelName.includes("gpt-5") || modelName.includes("o4");

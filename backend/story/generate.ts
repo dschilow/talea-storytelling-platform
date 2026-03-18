@@ -99,10 +99,10 @@ export type PlotHookKey =
 
 export type AIModel =
   | "claude-sonnet-4-6"
-  | "gpt-5-nano"
-  | "gpt-5-mini"
   | "gpt-5"
   | "gpt-5.4"
+  | "gpt-5.4-mini"
+  | "gpt-5.4-nano"
   | "gpt-5-pro"
   | "gpt-4.1-nano"
   | "gpt-4.1-mini"

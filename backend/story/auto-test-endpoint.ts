@@ -117,7 +117,7 @@ export const autoTest = api<AutoTestRequest, AutoTestResponse>(
           length: req.length,
           complexity: req.complexity,
           ageGroup: req.ageGroup,
-          aiModel: req.aiModel as any || "gpt-5-mini",
+          aiModel: req.aiModel as any || "gpt-5.4-mini",
           useCharacterPool: true
         }
       });

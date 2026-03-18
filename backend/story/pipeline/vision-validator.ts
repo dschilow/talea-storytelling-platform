@@ -132,7 +132,7 @@ function inferSpeciesLabel(profileLower: string): string {
 
 async function callVisionAPI(imageUrl: string, prompt: string, metadata?: { storyId?: string; chapter?: number }): Promise<any> {
   const payload = {
-    model: "gpt-5-mini",
+    model: "gpt-5.4-nano",
     messages: [
       {
         role: "user",

@@ -9,9 +9,8 @@ type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
 type AIModel =
   | 'claude-sonnet-4-6'
-  | 'gpt-5-nano'
-  | 'gpt-5-mini'
   | 'gpt-5.4'
+  | 'gpt-5.4-mini'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
@@ -75,25 +74,18 @@ const models: ModelOption[] = [
     tone: 'var(--talea-text-tertiary)',
   },
   {
-    id: 'gpt-5-nano',
-    title: 'GPT-5 Nano',
-    subtitle: 'Schnell und guenstig',
-    cost: '$0.05 / 1M',
-    tone: 'var(--talea-text-tertiary)',
-  },
-  {
-    id: 'gpt-5-mini',
-    title: 'GPT-5 Mini',
-    subtitle: 'Ausgewogen',
-    cost: '$0.25 / 1M',
-    tone: '#8e7daf',
-  },
-  {
     id: 'gpt-5.4',
     title: 'GPT-5.4',
     subtitle: 'Beste Qualitaet',
     cost: '$1.25 / 1M',
     tone: '#c5828c',
+  },
+  {
+    id: 'gpt-5.4-mini',
+    title: 'GPT-5.4 Mini',
+    subtitle: 'Stark & guenstiger',
+    cost: '$0.75 in / $4.50 out',
+    tone: '#8e7daf',
   },
 ];
 

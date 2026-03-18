@@ -734,7 +734,13 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       }
 
       const openAiFallbackModels = input.fallbackModels
-        ?? (activeModel === "gpt-5.4" ? ["gpt-5-mini", "gpt-5-nano"] : undefined);
+        ?? (
+          activeModel === "gpt-5.4"
+            ? ["gpt-5.4-mini", "gpt-5.4-nano"]
+            : activeModel === "gpt-5.4-mini"
+              ? ["gpt-5.4-nano"]
+              : undefined
+        );
       return callChatCompletion({
         model: activeModel,
         messages: [
