@@ -31,11 +31,17 @@ export function resolvePromptVersionForRequest(input: {
     return explicit;
   }
 
+  const rolloutEligible =
+    input.language === "de"
+    && input.ageMax <= 8
+    && input.chapterCount === 5;
+
+  if (rolloutEligible) {
+    return "v8";
+  }
+
   if (
     input.defaultPromptVersion === "v8"
-    && input.language === "de"
-    && input.ageMax <= 8
-    && input.chapterCount === 5
   ) {
     return "v8";
   }
@@ -125,7 +131,7 @@ export async function generateValidatedV8Blueprint(input: {
       };
     }
 
-    retryPrompt = `Der Blueprint hat folgende Probleme:\n${formatBlueprintValidationIssues(validation.issues)}\n\nKorrigiere NUR diese Probleme und gib den vollstaendigen Blueprint erneut als JSON zurueck.`;
+    retryPrompt = `The blueprint has these validation problems:\n${formatBlueprintValidationIssues(validation.issues)}\n\nFix ONLY these problems and return the full corrected blueprint as JSON again.`;
   }
 
   const fallback = buildDeterministicV8Blueprint({

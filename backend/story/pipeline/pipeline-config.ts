@@ -24,13 +24,13 @@ const DEFAULT_CONFIG: PipelineConfig = {
   storyRetryMax: 2,
   imageRetryMax: 2,
   maxPropsVisible: 7,
-  releaseCandidateCount: 1,
+  releaseCandidateCount: 2,
   criticModel: "gemini-3.1-flash-lite-preview",
   criticMinScore: 8.2,
-  maxSelectiveSurgeryEdits: 1,
-  defaultPromptVersion: "v7",
+  maxSelectiveSurgeryEdits: 3,
+  defaultPromptVersion: "v8",
   blueprintRetryMax: 2,
-  pass3TargetScore: 8.0,
+  pass3TargetScore: 8.2,
   pass3WarnFloor: 6.5,
 };
 

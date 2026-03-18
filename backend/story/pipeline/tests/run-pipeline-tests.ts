@@ -1615,13 +1615,13 @@ function testPromptVersionResolverV8Rollout() {
 
   assert.strictEqual(
     resolvePromptVersionForRequest({
-      defaultPromptVersion: "v8",
+      defaultPromptVersion: "v7",
       language: "de",
       ageMax: 8,
       chapterCount: 5,
     }),
     "v8",
-    "V8 should auto-enable only for the intended German 5-chapter rollout"
+    "German 5-chapter stories for age 6-8 should auto-enable V8 during rollout"
   );
 
   assert.strictEqual(
@@ -1631,8 +1631,8 @@ function testPromptVersionResolverV8Rollout() {
       ageMax: 8,
       chapterCount: 3,
     }),
-    "v7",
-    "Non-5-chapter stories should remain on V7 during initial rollout"
+    "v8",
+    "When the global default points to V8, non-rollout stories should still follow that default"
   );
 }
 
@@ -1680,6 +1680,8 @@ function testV8WriterPromptRegression() {
   assert.ok(storySystemPrompt.includes("Structural rules:"), "V8 story system prompt should use English structural guidance");
   assert.ok(storySystemPrompt.includes("GERMAN STYLE RULES"), "V8 story system prompt should contain a dedicated German style block");
   assert.ok(storySystemPrompt.includes("Kein Fremdwort"), "German lexical style rules should stay in German");
+  assert.ok(storySystemPrompt.includes("realize the blueprint's key scenes"), "V8 story system prompt should force explicit blueprint realization");
+  assert.ok(storySystemPrompt.includes("Mindestens zwei ehrliche Schmunzelmomente"), "German humor requirement should stay explicit");
 
   const prompt = buildV8StoryPrompt({
     blueprint: buildValidV8Blueprint(),
@@ -1700,6 +1702,8 @@ function testV8WriterPromptRegression() {
   assert.ok(prompt.includes("German example lines are binding"), "Voice contract instructions should clarify that German examples are binding");
   assert.ok(prompt.includes("DEUTSCHE STILREGELN"), "Language-specific style rules should stay in German");
   assert.ok(prompt.includes("Kein Fremdwort"), "German lexical constraints should remain in German");
+  assert.ok(prompt.includes("BLUEPRINT FIDELITY"), "V8 writer prompt should include an explicit blueprint fidelity block");
+  assert.ok(prompt.includes("realize the blueprint's humor_beats"), "V8 writer prompt should force humor beats onto the page");
   assert.ok(!prompt.includes("4-5 Strings"), "V8 writer prompt must not carry the conflicting old paragraph count");
 }
 

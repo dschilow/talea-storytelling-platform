@@ -101,8 +101,8 @@ export async function applySelectiveSurgery(input: {
 
     try {
       const systemMessage = input.normalizedRequest.language === "de"
-        ? "Du bist ein sehr praeziser Kinderbuch-Lektor. Gib nur JSON aus."
-        : "You are a precise children's-book editor. Output JSON only.";
+        ? "You are a precise children's-book editor. Revise only the requested chapter, keep natural German children's-book prose, and output JSON only."
+        : "You are a precise children's-book editor. Revise only the requested chapter and output JSON only.";
 
       const result = isGeminiModel
         ? await (async () => {

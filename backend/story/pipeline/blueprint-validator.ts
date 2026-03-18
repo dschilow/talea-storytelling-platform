@@ -173,7 +173,7 @@ export function validateV8Blueprint(input: {
 
 export function formatBlueprintValidationIssues(issues: BlueprintValidationIssue[]): string {
   return issues
-    .map((issue) => `- ${issue.chapter ? `Kapitel ${issue.chapter}: ` : ""}${issue.message}`)
+    .map((issue) => `- ${issue.chapter ? `Chapter ${issue.chapter}: ` : ""}${issue.message}`)
     .join("\n");
 }
 

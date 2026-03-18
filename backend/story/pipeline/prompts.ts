@@ -1197,6 +1197,9 @@ RULES
 - Chapter 4 contains an inner turning point, not artifact magic.
 - Chapter 5 contains concrete win, small price, and callback.
 - Never use more than 2 active characters per chapter.
+- Encode humor beats as concrete behavior or misunderstanding, not as abstract mood labels.
+- If the user notes imply blame, false suspicion, misunderstanding, or a mini-conflict, place it explicitly into chapter fields and hooks.
+- Make every chapter's key_scene playable and specific enough to stage later in prose.
 - Do not invent unconfirmed appearance markers.
 - Use "preterite" for the tense field.
 - Blueprint field text may be in English. Keep names unchanged.
@@ -1214,6 +1217,9 @@ Structural rules:
 - use a personal third-person narrator
 - write the final story in German, in preterite
 - keep the foreground clear; do not overcrowd scenes
+- realize the blueprint's key scenes, humor beats, chapter hooks, and error/repair beats as explicit on-page moments
+- if the blueprint contains misunderstanding, suspicion, blame, or a mini-conflict, show it in dialogue or visible behavior instead of summary
+- keep each chapter's playable moment or quotable line visible in the scene, not hidden in exposition
 - chapter 3 must contain the active child mistake and visible body reaction
 - chapter 4 must contain the inner low point and turning decision
 - chapter 5 must feel as full and earned as the earlier chapters
@@ -1224,6 +1230,8 @@ GERMAN STYLE RULES (binding for final prose):
 - Kein Fremdwort, das ein Erstklaessler nicht kennt.
 - Keine englischen Woerter im Story-Text. Nutze korrekte Umlaute.
 - Zeige Gefuehle ueber Bauch, Haende, Kehle, Blick, Atem.
+- Humor entsteht aus Verhalten, Missverstaendnissen, Timing oder warmen Rueckgriffen.
+- Mindestens zwei ehrliche Schmunzelmomente muessen auf der Seite landen, nicht nur im Plan.
 - Keine Moral-Saetze. Keine Prompt-Sprache. Kein SELF-CHECK im Output.
 - Vermeide Kruecken wie "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".`;
   }
@@ -1270,6 +1278,8 @@ export function buildV8StoryPrompt(input: {
 - Kein Fremdwort, das ein Erstklaessler nicht kennt.
 - Keine englischen Woerter im Story-Text. Nutze korrekte Umlaute.
 - Zeige Gefuehle ueber Bauch, Haende, Kehle, Blick oder Atem.
+- Humor entsteht aus Verhalten, Missverstaendnissen, Timing oder warmen Rueckgriffen.
+- Mindestens zwei ehrliche Schmunzelmomente muessen auf der Seite landen.
 - Vermeide "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".
 - Keine Moral-Saetze. Keine Prompt-Sprache.
 `
@@ -1300,10 +1310,19 @@ Return valid JSON only.
   ]
 }
 
+BLUEPRINT FIDELITY
+- stage each chapter's key_scene.what_happens on the page
+- make each playable_moment and quotable_line visible in natural scene form
+- realize the blueprint's humor_beats in the named chapters
+- if the blueprint implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
+- keep the same growth child visible across error_and_repair, low point, and repair
+
 HARD RULES
 - exactly ${input.chapterCount} chapter objects
 - each paragraph must be its own string
 - never collapse a full chapter into one string
+- make every humor beat in the blueprint visible on the page
+- if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
 - no markdown, no comments, no extra text.`;
 }
 
@@ -2657,6 +2676,7 @@ RULES:
 1) Only these names: ${allowedNames || "none"}. No new characters.
 2) ${lengthTargets.wordMin}-${lengthTargets.wordMax} words. Paragraphs 2-4 sentences. Stay close to the current chapter length and keep the scene fully played, not compressed.
 2b) Dialogue should sharpen friction, warmth, humor, or clues. Quiet narration is allowed when it carries tension, orientation, or an inner turn. Never add chatter just to hit a quota.
+2c) If an issue mentions humor, misunderstanding, suspicion, blame, or callback, realize it as an explicit beat in action or dialogue on the page.
 3) Emotions through body, never labels. Each character sounds different.
 4) No meta-labels, no Goal/Conflict text in prose. No report chains.
 5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}

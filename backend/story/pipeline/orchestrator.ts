@@ -402,13 +402,26 @@ export class StoryPipelineOrchestrator {
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
       const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
-      // Production default: invest in one strong candidate first.
-      // A second candidate is a fallback tool, not the baseline path.
+      // Quality-first default: keep the baseline at more than one candidate,
+      // then let selection + surgery choose the strongest draft.
       const defaultCandidateCount = Number.isFinite(configuredCandidateCount)
         ? Math.max(1, Math.min(3, Math.round(configuredCandidateCount)))
-        : 1;
+        : 2;
+      const qualityFirstV8Lane =
+        activePromptVersion === "v8"
+        && normalized.language === "de"
+        && normalized.ageMax <= 8
+        && directives.length === 5;
+      const implicitCandidateFloor = Number.isFinite(explicitCandidateCount)
+        ? 1
+        : qualityFirstV8Lane
+          ? 2
+          : 1;
       const releaseCandidateCount = releaseEnabled
-        ? Math.max(1, Math.min(3, Number.isFinite(explicitCandidateCount) ? Math.round(explicitCandidateCount) : defaultCandidateCount))
+        ? Math.max(
+            implicitCandidateFloor,
+            Math.min(3, Number.isFinite(explicitCandidateCount) ? Math.round(explicitCandidateCount) : defaultCandidateCount),
+          )
         : 1;
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
       const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
@@ -427,12 +440,16 @@ export class StoryPipelineOrchestrator {
       const criticMinScore = clampNumber(Number(pipelineConfig.pass3TargetScore ?? 8.0), 5.5, 10);
       const criticWarnFloor = clampNumber(Number(pipelineConfig.pass3WarnFloor ?? 6.5), 5, criticMinScore);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
-      // For 6-8 stories, default to one edit unless explicitly overridden.
+      // Use the configured default unless the request overrides it.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
-      const implicitSurgeryEdits = 1;
+      const configuredSurgeryEdits = Number(pipelineConfig.maxSelectiveSurgeryEdits ?? 2);
+      const implicitSurgeryEdits = Number.isFinite(configuredSurgeryEdits)
+        ? Math.max(0, Math.min(5, Math.round(configuredSurgeryEdits)))
+        : 2;
+      const implicitSurgeryFloor = qualityFirstV8Lane ? 2 : 1;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
-        : implicitSurgeryEdits;
+        : Math.max(implicitSurgeryFloor, implicitSurgeryEdits);
       const surgeryEnabled = releaseEnabled && maxSelectiveSurgeryEdits > 0;
       const humorLevel = typeof (normalized.rawConfig as any)?.humorLevel === "number"
         ? (normalized.rawConfig as any).humorLevel
@@ -683,19 +700,26 @@ export class StoryPipelineOrchestrator {
           let surgeryApplied = false;
           let editedChapters: number[] = [];
           const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
-          const hasPriorityOneLocalTask = candidateCritic.patchTasks.some(task => task.chapter > 0 && task.priority === 1);
+          const hasLocalPatchTask = candidateCritic.patchTasks.some(task => task.chapter > 0);
+          const surgeryEligibleVerdict = candidateCritic.verdict === "publish" || candidateCritic.verdict === "acceptable";
           // Cheap rescue mode: allow surgery for clearly salvageable near-release drafts,
-          // but still block hopeless candidates that would burn tokens without upside.
-          const nearReleaseBand = candidateCritic.overallScore >= Math.max(7.0, criticMinScore - 1.1);
-          const rescueableQualityBand = qualityErrors <= 6 || candidateCritic.overallScore >= Math.max(7.4, criticMinScore - 0.5);
+          // especially when the critic sees a publishable core but asks for local repairs.
+          const nearReleaseBand =
+            surgeryEligibleVerdict
+            || candidateCritic.overallScore >= Math.max(6.3, criticWarnFloor - 0.3);
+          const rescueableQualityBand =
+            qualityErrors <= 6
+            || candidateCritic.overallScore >= Math.max(6.8, criticWarnFloor - 0.1);
           const candidateSurgeryEdits =
-            candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
+            activePromptVersion === "v8" && surgeryEligibleVerdict && hasLocalPatchTask
+              ? Math.max(maxSelectiveSurgeryEdits, 2)
+              : candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
               ? Math.max(maxSelectiveSurgeryEdits, 2)
               : maxSelectiveSurgeryEdits;
           if (
             surgeryEnabled
             && candidateCritic.patchTasks.length > 0
-            && hasPriorityOneLocalTask
+            && hasLocalPatchTask
             && nearReleaseBand
             && rescueableQualityBand
             && (!candidateCritic.releaseReady || qualityErrors > 0)
