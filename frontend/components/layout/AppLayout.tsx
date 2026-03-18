@@ -94,7 +94,7 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { resolvedTheme } = useTheme();
-  const { playlist, togglePlaylistDrawer } = useAudioPlayer();
+  const { playlist, togglePlaylistDrawer, track, waitingForConversion } = useAudioPlayer();
   const isDark = resolvedTheme === "dark";
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const showSettingsButton = location.pathname !== "/settings";
@@ -117,6 +117,7 @@ const AppLayout: React.FC = () => {
     location.pathname.startsWith("/artifacts") ||
     location.pathname.startsWith("/logs");
   const hasPlaylistItems = playlist.length > 0;
+  const playerIsVisible = Boolean(track) || waitingForConversion;
   const shellStyle = isCosmosFullScreenRoute || isReaderRoute
     ? undefined
     : {
@@ -210,7 +211,7 @@ const AppLayout: React.FC = () => {
       {/* Floating playlist button */}
       <SignedIn>
         <AnimatePresence>
-          {hasPlaylistItems && (
+          {hasPlaylistItems && !playerIsVisible && (
             !isCosmosFullScreenRoute && (
               <motion.button
                 initial={{ scale: 0, opacity: 0 }}

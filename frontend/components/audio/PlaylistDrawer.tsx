@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   AlertCircle,
   BookOpen,
@@ -9,26 +9,24 @@ import {
   Headphones,
   Loader2,
   Music,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
 
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
-import { useTheme } from '../../contexts/ThemeContext';
 import type { PlaylistItem } from '../../types/playlist';
 
 interface PlaylistDrawerProps {
   variant: 'desktop' | 'mobile';
 }
 
-/** A chapter is a group of chunks that belong to the same story chapter */
 interface ChapterGroup {
   order: number;
   title: string;
   chunks: Array<{ item: PlaylistItem; globalIndex: number }>;
 }
 
-/** A story is a group of chapters */
 interface StoryGroup {
   storyId: string;
   title: string;
@@ -43,7 +41,22 @@ interface DokuGroup {
   chunks: Array<{ item: PlaylistItem; globalIndex: number }>;
 }
 
+const getStatusIcon = (
+  state: 'ready' | 'converting' | 'error' | 'partial',
+  size = 15,
+) => {
+  if (state === 'ready') return <Check size={size} className="text-emerald-500" />;
+  if (state === 'error') return <AlertCircle size={size} className="text-red-500" />;
+  if (state === 'converting') return <Loader2 size={size} className="animate-spin text-[var(--primary)]" />;
+  return (
+    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-tertiary)]">
+      Mix
+    </span>
+  );
+};
+
 export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
+  const reduceMotion = useReducedMotion();
   const {
     playlist,
     currentIndex,
@@ -55,43 +68,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     clearPlaylist,
     playFromPlaylist,
   } = useAudioPlayer();
-  const { resolvedTheme } = useTheme();
 
-  const isDark = resolvedTheme === 'dark';
-
-  const colors = useMemo(
-    () =>
-      isDark
-        ? {
-            bg: 'rgba(23,31,43,0.96)',
-            border: '#33465f',
-            text: '#e7eef9',
-            sub: '#9fb0c7',
-            muted: '#5a6d84',
-            accentStart: '#86a7db',
-            accentEnd: '#b084c7',
-            hoverBg: 'rgba(134,167,219,0.08)',
-            activeBorder: 'linear-gradient(180deg, #86a7db, #b084c7)',
-            progressBg: 'rgba(134,167,219,0.15)',
-            progressFill: '#86a7db',
-          }
-        : {
-            bg: 'rgba(255,250,244,0.97)',
-            border: '#e4d8c9',
-            text: '#203047',
-            sub: '#64758a',
-            muted: '#a0a8b4',
-            accentStart: 'var(--primary)',
-            accentEnd: 'var(--talea-accent-sky)',
-            hoverBg: 'rgba(111,174,156,0.08)',
-            activeBorder: 'linear-gradient(180deg, var(--primary), var(--talea-accent-sky))',
-            progressBg: 'rgba(111,174,156,0.15)',
-            progressFill: 'var(--primary)',
-          },
-    [isDark],
-  );
-
-  // ── Group playlist items: Stories, text Dokus, and pre-made Audio Dokus ──
   const { storyGroups, dokuGroups, audioDokuItems } = useMemo(() => {
     const storiesMap = new Map<
       string,
@@ -114,11 +91,15 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
           };
           storiesMap.set(item.parentStoryId, story);
         }
-        const chOrder = item.chapterOrder ?? 0;
-        let chapter = story.chaptersMap.get(chOrder);
+        const chapterOrder = item.chapterOrder ?? 0;
+        let chapter = story.chaptersMap.get(chapterOrder);
         if (!chapter) {
-          chapter = { order: chOrder, title: item.chapterTitle || item.title, chunks: [] };
-          story.chaptersMap.set(chOrder, chapter);
+          chapter = {
+            order: chapterOrder,
+            title: item.chapterTitle || item.title,
+            chunks: [],
+          };
+          story.chaptersMap.set(chapterOrder, chapter);
         }
         chapter.chunks.push({ item, globalIndex: idx });
       } else if (item.type === 'doku' && item.parentDokuId) {
@@ -137,24 +118,25 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
       }
     });
 
-    const groups: StoryGroup[] = Array.from(storiesMap.entries()).map(([storyId, s]) => ({
-      storyId,
-      title: s.title,
-      coverImageUrl: s.coverImageUrl,
-      chapters: Array.from(s.chaptersMap.values()).sort((a, b) => a.order - b.order),
-    }));
-    const groupedDokus: DokuGroup[] = Array.from(dokuMap.entries()).map(([dokuId, d]) => ({
-      dokuId,
-      title: d.title,
-      coverImageUrl: d.coverImageUrl,
-      chunks: [...d.chunks].sort(
-        (a, b) =>
-          (a.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER) -
-          (b.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER),
-      ),
-    }));
-
-    return { storyGroups: groups, dokuGroups: groupedDokus, audioDokuItems: audioDokus };
+    return {
+      storyGroups: Array.from(storiesMap.entries()).map(([storyId, story]) => ({
+        storyId,
+        title: story.title,
+        coverImageUrl: story.coverImageUrl,
+        chapters: Array.from(story.chaptersMap.values()).sort((a, b) => a.order - b.order),
+      })),
+      dokuGroups: Array.from(dokuMap.entries()).map(([dokuId, doku]) => ({
+        dokuId,
+        title: doku.title,
+        coverImageUrl: doku.coverImageUrl,
+        chunks: [...doku.chunks].sort(
+          (a, b) =>
+            (a.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER) -
+            (b.item.dokuChunkOrder ?? Number.MAX_SAFE_INTEGER),
+        ),
+      })),
+      audioDokuItems: audioDokus,
+    };
   }, [playlist]);
 
   const [activeTab, setActiveTab] = useState<'stories' | 'dokus' | 'audio-dokus'>(
@@ -194,27 +176,50 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     }
   }, [activeTab, storyGroups.length, dokuGroups.length, audioDokuItems.length]);
 
-  // ── Determine which chapter is currently playing ──
+  const currentItem =
+    currentIndex >= 0 && currentIndex < playlist.length ? playlist[currentIndex] : null;
   const currentChapterKey = useMemo(() => {
-    if (currentIndex < 0 || currentIndex >= playlist.length) return null;
-    const cur = playlist[currentIndex];
-    if (cur.parentStoryId && cur.chapterOrder != null) {
-      return `${cur.parentStoryId}-ch${cur.chapterOrder}`;
+    if (!currentItem) return null;
+    if (currentItem.parentStoryId && currentItem.chapterOrder != null) {
+      return `${currentItem.parentStoryId}-ch${currentItem.chapterOrder}`;
     }
-    return cur.id;
-  }, [currentIndex, playlist]);
+    return currentItem.id;
+  }, [currentItem]);
 
   useEffect(() => {
-    if (!currentChapterKey) return;
-    const storyId = currentChapterKey.split('-ch')[0];
-    if (!storyId) return;
+    if (!currentItem?.parentStoryId) return;
     setExpandedStories((prev) => {
-      if (prev.has(storyId)) return prev;
+      if (prev.has(currentItem.parentStoryId!)) return prev;
       const next = new Set(prev);
-      next.add(storyId);
+      next.add(currentItem.parentStoryId!);
       return next;
     });
-  }, [currentChapterKey]);
+  }, [currentItem?.parentStoryId]);
+
+  if (!isPlaylistDrawerOpen) return null;
+
+  const isDesktop = variant === 'desktop';
+  const readyCount = playlist.filter((item) => item.conversionStatus === 'ready').length;
+  const convertingCount = playlist.filter(
+    (item) => item.conversionStatus === 'pending' || item.conversionStatus === 'converting',
+  ).length;
+  const errorCount = playlist.filter((item) => item.conversionStatus === 'error').length;
+  const nextItem =
+    playlist
+      .slice(currentIndex >= 0 ? currentIndex + 1 : 0)
+      .find((item) => item.conversionStatus !== 'error') || null;
+  const summaryTitle =
+    currentItem?.parentStoryTitle ||
+    currentItem?.parentDokuTitle ||
+    currentItem?.title ||
+    'Warteschlange';
+  const summaryDetail = currentItem?.description || 'Waehle einen Titel oder starte direkt die naechste Folge.';
+
+  const surfaceStyle = {
+    borderColor: 'var(--talea-border-light)',
+    background:
+      'linear-gradient(180deg, color-mix(in srgb, var(--talea-glass-bg-alt) 96%, white) 0%, color-mix(in srgb, var(--talea-glass-bg) 94%, transparent) 100%)',
+  };
 
   const toggleExpanded = (storyId: string) => {
     setExpandedStories((prev) => {
@@ -225,422 +230,507 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     });
   };
 
-  if (!isPlaylistDrawerOpen) return null;
-
-  const isDesktop = variant === 'desktop';
-
-  // ── Render a chapter row (aggregates all chunks) ──
   const renderChapter = (chapter: ChapterGroup, storyId: string) => {
-    const readyCount = chapter.chunks.filter((c) => c.item.conversionStatus === 'ready').length;
-    const totalCount = chapter.chunks.length;
-    const hasError = chapter.chunks.some((c) => c.item.conversionStatus === 'error');
-    const hasConverting = chapter.chunks.some((c) => c.item.conversionStatus === 'converting');
-    const allReady = readyCount === totalCount;
+    const readyParts = chapter.chunks.filter((chunk) => chunk.item.conversionStatus === 'ready').length;
+    const totalParts = chapter.chunks.length;
+    const hasError = chapter.chunks.some((chunk) => chunk.item.conversionStatus === 'error');
+    const hasConverting = chapter.chunks.some(
+      (chunk) =>
+        chunk.item.conversionStatus === 'pending' ||
+        chunk.item.conversionStatus === 'converting',
+    );
+    const state = hasError
+      ? 'error'
+      : readyParts === totalParts
+        ? 'ready'
+        : hasConverting
+          ? 'converting'
+          : 'partial';
     const chapterKey = `${storyId}-ch${chapter.order}`;
     const isCurrent = chapterKey === currentChapterKey;
-
-    // Find the first ready chunk to play when clicked
-    const firstReadyChunk = chapter.chunks.find((c) => c.item.conversionStatus === 'ready');
-    // Or the first chunk overall (to start from beginning)
-    const firstChunk = chapter.chunks[0];
-    const canPlay = !!firstReadyChunk;
+    const firstReady = chapter.chunks.find((chunk) => chunk.item.conversionStatus === 'ready');
 
     return (
-      <motion.div
+      <motion.button
         key={chapterKey}
-        initial={{ opacity: 0, x: -6 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.15 }}
-        onClick={() => canPlay && playFromPlaylist(firstReadyChunk!.globalIndex)}
-        className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors"
+        whileHover={
+          reduceMotion ? undefined : { x: 2, transition: { duration: 0.18, ease: 'easeOut' } }
+        }
+        type="button"
+        onClick={() => firstReady && playFromPlaylist(firstReady.globalIndex)}
+        disabled={!firstReady}
+        className="flex w-full items-center gap-3 rounded-[1.1rem] border px-3 py-3 text-left disabled:cursor-default disabled:opacity-70"
         style={{
-          cursor: canPlay ? 'pointer' : 'default',
-          background: isCurrent ? colors.hoverBg : 'transparent',
-          marginLeft: 20,
-          borderLeft: isCurrent ? '3px solid' : '3px solid transparent',
-          borderImage: isCurrent ? colors.activeBorder + ' 1' : undefined,
+          borderColor: isCurrent ? 'var(--talea-border-accent)' : 'var(--talea-border-light)',
+          background: isCurrent
+            ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, transparent) 0%, color-mix(in srgb, var(--talea-accent-sky) 14%, transparent) 100%)'
+            : 'var(--talea-surface-primary)',
         }}
       >
-        {/* Chapter icon */}
         <div
-          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded"
-          style={{ background: colors.progressBg }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border"
+          style={{
+            borderColor: 'var(--talea-border-light)',
+            background: 'var(--talea-surface-inset)',
+            color: 'var(--talea-text-secondary)',
+          }}
         >
-          <BookOpen size={12} style={{ color: isCurrent ? colors.text : colors.muted }} />
+          <span className="text-xs font-semibold">{chapter.order}</span>
         </div>
 
-        {/* Title + progress */}
         <div className="min-w-0 flex-1">
-          <p
-            className="truncate text-[12px] font-medium leading-tight"
-            style={{ color: isCurrent ? colors.text : colors.sub }}
-          >
+          <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
             Kapitel {chapter.order}: {chapter.title}
           </p>
-
-          {/* Progress bar (only show if multiple chunks and not all ready) */}
-          {totalCount > 1 && !allReady && (
-            <div
-              className="mt-1 h-[3px] w-full overflow-hidden rounded-full"
-              style={{ background: colors.progressBg }}
-            >
+          <p className="mt-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+            {readyParts}/{totalParts} Teile bereit
+          </p>
+          {totalParts > 1 ? (
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--talea-progress-track)]">
               <motion.div
                 className="h-full rounded-full"
-                initial={{ width: 0 }}
-                animate={{ width: `${(readyCount / totalCount) * 100}%` }}
-                transition={{ duration: 0.3 }}
                 style={{
-                  background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})`,
+                  width: `${(readyParts / totalParts) * 100}%`,
+                  background:
+                    'linear-gradient(90deg, var(--primary) 0%, var(--talea-accent-sky) 100%)',
                 }}
+                transition={{ duration: 0.24, ease: 'easeOut' }}
               />
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Status icon */}
-        <div className="flex-shrink-0">
-          {allReady ? (
-            <Check size={14} className="text-emerald-400" />
-          ) : hasError ? (
-            <AlertCircle size={14} className="text-red-400" />
-          ) : hasConverting ? (
-            <Loader2 size={14} className="animate-spin text-blue-400" />
-          ) : (
-            <span className="text-[10px]" style={{ color: colors.muted }}>
-              {readyCount}/{totalCount}
-            </span>
-          )}
-        </div>
-      </motion.div>
+        <div className="shrink-0">{getStatusIcon(state)}</div>
+      </motion.button>
     );
   };
 
-  // ── Render a story group (with expandable chapters) ──
   const renderStoryGroup = (story: StoryGroup) => {
     const isExpanded = expandedStories.has(story.storyId);
-    const allChunks = story.chapters.flatMap((ch) => ch.chunks);
-    const readyChapters = story.chapters.filter((ch) =>
-      ch.chunks.every((c) => c.item.conversionStatus === 'ready'),
+    const allChunks = story.chapters.flatMap((chapter) => chapter.chunks);
+    const readyChapters = story.chapters.filter((chapter) =>
+      chapter.chunks.every((chunk) => chunk.item.conversionStatus === 'ready'),
     ).length;
-    const hasConverting = allChunks.some((c) => c.item.conversionStatus === 'converting');
+    const isCurrentStory = story.chapters.some(
+      (chapter) => `${story.storyId}-ch${chapter.order}` === currentChapterKey,
+    );
 
     return (
-      <div key={story.storyId} className="group/story">
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => toggleExpanded(story.storyId)}
-            className="flex flex-1 items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-white/5"
-          >
-            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
-              {story.coverImageUrl ? (
-                <img src={story.coverImageUrl} alt="" className="h-full w-full object-cover" />
+      <div key={story.storyId} className="space-y-2">
+        <div
+          className="rounded-[1.35rem] border p-2"
+          style={{
+            borderColor: isCurrentStory ? 'var(--talea-border-accent)' : 'var(--talea-border-light)',
+            background: isCurrentStory
+              ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, transparent) 0%, color-mix(in srgb, var(--talea-accent-sky) 14%, transparent) 100%)'
+              : 'var(--talea-surface-primary)',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleExpanded(story.storyId)}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-2 py-1.5 text-left"
+            >
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
+                {story.coverImageUrl ? (
+                  <img src={story.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Headphones className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
+                  {story.title}
+                </p>
+                <p className="mt-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                  {readyChapters}/{story.chapters.length} Kapitel bereit
+                </p>
+              </div>
+
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
               ) : (
-                <Headphones size={15} style={{ color: colors.muted }} />
+                <ChevronRight className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
               )}
-            </div>
-            <div className="min-w-0 flex-1 text-left">
-              <p className="truncate text-[12px] font-semibold" style={{ color: colors.text }}>
-                {story.title}
-              </p>
-              <p className="text-[10px]" style={{ color: colors.muted }}>
-                {readyChapters}/{story.chapters.length} Kapitel bereit
-                {hasConverting && ' — wird konvertiert...'}
-              </p>
-            </div>
-            {hasConverting && <Loader2 size={13} className="animate-spin flex-shrink-0 text-blue-400" />}
-            {isExpanded ? (
-              <ChevronDown size={14} style={{ color: colors.muted }} />
-            ) : (
-              <ChevronRight size={14} style={{ color: colors.muted }} />
-            )}
-          </button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => removeStoryFromPlaylist(story.storyId)}
-            title="Geschichte entfernen"
-            className="flex-shrink-0 rounded-full p-1.5 opacity-0 transition-opacity group-hover/story:opacity-100"
-            style={{ color: colors.muted }}
-          >
-            <Trash2 size={13} />
-          </motion.button>
+            </button>
+
+            <motion.button
+              whileHover={reduceMotion ? undefined : { scale: 1.08 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+              type="button"
+              onClick={() => removeStoryFromPlaylist(story.storyId)}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+              style={{ color: 'var(--talea-text-tertiary)' }}
+              aria-label="Geschichte entfernen"
+            >
+              <Trash2 className="h-4 w-4" />
+            </motion.button>
+          </div>
         </div>
 
-        <AnimatePresence>
-          {isExpanded && (
+        <AnimatePresence initial={false}>
+          {isExpanded ? (
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
               className="overflow-hidden"
             >
-              {story.chapters.map((chapter) => renderChapter(chapter, story.storyId))}
+              <div className="space-y-2 border-l pl-4" style={{ borderColor: 'var(--talea-border-light)' }}>
+                {story.chapters.map((chapter) => renderChapter(chapter, story.storyId))}
+              </div>
             </motion.div>
-          )}
+          ) : null}
         </AnimatePresence>
       </div>
     );
   };
 
-  // ── Render a text-doku group ──
   const renderDokuGroup = (doku: DokuGroup) => {
-    const readyCount = doku.chunks.filter((c) => c.item.conversionStatus === 'ready').length;
-    const totalCount = doku.chunks.length;
-    const hasError = doku.chunks.some((c) => c.item.conversionStatus === 'error');
-    const hasConverting = doku.chunks.some((c) => c.item.conversionStatus === 'converting');
-    const allReady = readyCount === totalCount;
-    const firstReadyChunk = doku.chunks.find((c) => c.item.conversionStatus === 'ready');
-    const canPlay = !!firstReadyChunk;
+    const readyParts = doku.chunks.filter((chunk) => chunk.item.conversionStatus === 'ready').length;
+    const totalParts = doku.chunks.length;
+    const hasError = doku.chunks.some((chunk) => chunk.item.conversionStatus === 'error');
+    const hasConverting = doku.chunks.some(
+      (chunk) =>
+        chunk.item.conversionStatus === 'pending' ||
+        chunk.item.conversionStatus === 'converting',
+    );
+    const state = hasError
+      ? 'error'
+      : readyParts === totalParts
+        ? 'ready'
+        : hasConverting
+          ? 'converting'
+          : 'partial';
     const isCurrent = doku.chunks.some(({ globalIndex }) => globalIndex === currentIndex);
+    const firstReady = doku.chunks.find((chunk) => chunk.item.conversionStatus === 'ready');
 
     return (
       <motion.div
         key={doku.dokuId}
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.2 }}
-        className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors"
+        whileHover={
+          reduceMotion ? undefined : { x: 2, transition: { duration: 0.18, ease: 'easeOut' } }
+        }
+        className="rounded-[1.35rem] border p-2"
         style={{
-          background: isCurrent ? colors.hoverBg : 'transparent',
-          borderLeft: isCurrent ? '3px solid' : '3px solid transparent',
-          borderImage: isCurrent ? colors.activeBorder + ' 1' : undefined,
+          borderColor: isCurrent ? 'var(--talea-border-accent)' : 'var(--talea-border-light)',
+          background: isCurrent
+            ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, transparent) 0%, color-mix(in srgb, var(--talea-accent-sky) 14%, transparent) 100%)'
+            : 'var(--talea-surface-primary)',
         }}
       >
-        <button
-          onClick={() => canPlay && playFromPlaylist(firstReadyChunk!.globalIndex)}
-          className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-          style={{ cursor: canPlay ? 'pointer' : 'default' }}
-        >
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
-            {doku.coverImageUrl ? (
-              <img src={doku.coverImageUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <BookOpen size={14} style={{ color: colors.muted }} />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-medium leading-tight" style={{ color: isCurrent ? colors.text : colors.sub }}>
-              {doku.title}
-            </p>
-            <p className="truncate text-[10px]" style={{ color: colors.muted }}>
-              {readyCount}/{totalCount} Teile bereit
-              {hasConverting ? ' • wird konvertiert...' : ''}
-            </p>
-          </div>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => firstReady && playFromPlaylist(firstReady.globalIndex)}
+            disabled={!firstReady}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-2 py-1.5 text-left disabled:cursor-default"
+          >
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
+              {doku.coverImageUrl ? (
+                <img src={doku.coverImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
+                </div>
+              )}
+            </div>
 
-        <div className="flex-shrink-0">
-          {allReady ? (
-            <Check size={14} className="text-emerald-400" />
-          ) : hasError ? (
-            <AlertCircle size={14} className="text-red-400" />
-          ) : hasConverting ? (
-            <Loader2 size={14} className="animate-spin text-blue-400" />
-          ) : (
-            <span className="text-[10px]" style={{ color: colors.muted }}>
-              {readyCount}/{totalCount}
-            </span>
-          )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
+                {doku.title}
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                {readyParts}/{totalParts} Teile bereit
+              </p>
+            </div>
+          </button>
+
+          <div className="shrink-0">{getStatusIcon(state)}</div>
+
+          <motion.button
+            whileHover={reduceMotion ? undefined : { scale: 1.08 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+            type="button"
+            onClick={() => removeDokuFromPlaylist(doku.dokuId)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+            style={{ color: 'var(--talea-text-tertiary)' }}
+            aria-label="Doku entfernen"
+          >
+            <Trash2 className="h-4 w-4" />
+          </motion.button>
         </div>
-
-        <motion.button
-          initial={{ opacity: 0 }}
-          whileHover={{ scale: 1.1 }}
-          className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            removeDokuFromPlaylist(doku.dokuId);
-          }}
-          title="Doku entfernen"
-        >
-          <Trash2 size={13} style={{ color: colors.muted }} />
-        </motion.button>
       </motion.div>
     );
   };
 
-  // ── Render a pre-made audio-doku item ──
   const renderAudioDokuItem = (item: PlaylistItem, globalIndex: number) => {
     const isCurrent = globalIndex === currentIndex;
-    const isReady = item.conversionStatus === 'ready';
+    const state =
+      item.conversionStatus === 'error'
+        ? 'error'
+        : item.conversionStatus === 'ready'
+          ? 'ready'
+          : item.conversionStatus === 'converting' || item.conversionStatus === 'pending'
+            ? 'converting'
+            : 'partial';
 
     return (
       <motion.div
         key={item.id}
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: 8 }}
-        transition={{ duration: 0.2 }}
-        onClick={() => isReady && playFromPlaylist(globalIndex)}
-        className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors"
+        whileHover={
+          reduceMotion ? undefined : { x: 2, transition: { duration: 0.18, ease: 'easeOut' } }
+        }
+        className="rounded-[1.35rem] border p-2"
         style={{
-          cursor: isReady ? 'pointer' : 'default',
-          background: isCurrent ? colors.hoverBg : 'transparent',
-          borderLeft: isCurrent ? '3px solid' : '3px solid transparent',
-          borderImage: isCurrent ? colors.activeBorder + ' 1' : undefined,
+          borderColor: isCurrent ? 'var(--talea-border-accent)' : 'var(--talea-border-light)',
+          background: isCurrent
+            ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, transparent) 0%, color-mix(in srgb, var(--talea-accent-sky) 14%, transparent) 100%)'
+            : 'var(--talea-surface-primary)',
         }}
       >
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-slate-200/20 dark:bg-slate-700/20">
-          {item.coverImageUrl ? (
-            <img src={item.coverImageUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <Music size={14} style={{ color: colors.muted }} />
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p
-            className="truncate text-[12px] font-medium leading-tight"
-            style={{ color: isCurrent ? colors.text : colors.sub }}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => item.conversionStatus === 'ready' && playFromPlaylist(globalIndex)}
+            disabled={item.conversionStatus !== 'ready'}
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] px-2 py-1.5 text-left disabled:cursor-default"
           >
-            {item.title}
-          </p>
-          {item.description && (
-            <p className="truncate text-[10px]" style={{ color: colors.muted }}>
-              {item.description}
-            </p>
-          )}
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-[1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
+              {item.coverImageUrl ? (
+                <img src={item.coverImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <Music className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
+                {item.title}
+              </p>
+              <p className="mt-1 truncate text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                {item.description || 'Audio Titel'}
+              </p>
+            </div>
+          </button>
+
+          <div className="shrink-0">{getStatusIcon(state)}</div>
+
+          <motion.button
+            whileHover={reduceMotion ? undefined : { scale: 1.08 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+            type="button"
+            onClick={() => removeFromPlaylist(item.id)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+            style={{ color: 'var(--talea-text-tertiary)' }}
+            aria-label="Titel entfernen"
+          >
+            <Trash2 className="h-4 w-4" />
+          </motion.button>
         </div>
-        <div className="flex-shrink-0">
-          {item.conversionStatus === 'ready' ? (
-            <Check size={14} className="text-emerald-400" />
-          ) : item.conversionStatus === 'converting' ? (
-            <Loader2 size={14} className="animate-spin text-blue-400" />
-          ) : item.conversionStatus === 'error' ? (
-            <AlertCircle size={14} className="text-red-400" />
-          ) : null}
-        </div>
-        <motion.button
-          initial={{ opacity: 0 }}
-          whileHover={{ scale: 1.1 }}
-          className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            removeFromPlaylist(item.id);
-          }}
-          title="Entfernen"
-        >
-          <Trash2 size={13} style={{ color: colors.muted }} />
-        </motion.button>
       </motion.div>
     );
   };
 
   const content = (
-    <div className="flex max-h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: colors.border }}>
-        <h3 className="text-sm font-semibold" style={{ color: colors.text, fontFamily: '"Sora", sans-serif' }}>
-          Wiedergabeliste
-        </h3>
-        <div className="flex items-center gap-2">
-          {playlist.length > 0 && (
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={clearPlaylist}
-              title="Alle entfernen"
-              className="rounded-full p-1"
-              style={{ color: colors.muted }}
+    <div className={isDesktop ? 'grid max-h-[72vh] min-h-0 xl:grid-cols-[18rem_minmax(0,1fr)]' : 'flex min-h-0 flex-1 flex-col'}>
+      <div
+        className="border-b p-4 sm:p-5 xl:border-b-0 xl:border-r"
+        style={{ borderColor: 'var(--talea-border-light)' }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)]">
+              Warteschlange
+            </p>
+            <h3
+              className="mt-2 text-[1.6rem] font-semibold text-[var(--talea-text-primary)]"
+              style={{ fontFamily: '"Fraunces", "Cormorant Garamond", serif' }}
             >
-              <Trash2 size={14} />
-            </motion.button>
-          )}
+              {playlist.length} Titel
+            </h3>
+          </div>
+
           <motion.button
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
+            whileHover={reduceMotion ? undefined : { scale: 1.08 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+            type="button"
             onClick={togglePlaylistDrawer}
-            className="rounded-full p-1"
-            style={{ color: colors.muted }}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
+            style={{
+              borderColor: 'var(--talea-border-soft)',
+              background: 'var(--talea-surface-primary)',
+              color: 'var(--talea-text-secondary)',
+            }}
+            aria-label="Warteschlange schliessen"
           >
-            <X size={16} />
+            <X className="h-4 w-4" />
           </motion.button>
         </div>
+
+        <div
+          className="mt-5 rounded-[1.5rem] border p-3"
+          style={{
+            borderColor: 'var(--talea-border-light)',
+            background: 'var(--talea-surface-primary)',
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[1.1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
+              {currentItem?.coverImageUrl ? (
+                <img src={currentItem.coverImageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <Music className="h-5 w-5 text-[var(--talea-text-tertiary)]" />
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
+                Jetzt dran
+              </p>
+              <p className="mt-2 line-clamp-2 text-sm font-semibold text-[var(--talea-text-primary)]">
+                {summaryTitle}
+              </p>
+              <p className="mt-1 line-clamp-2 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                {summaryDetail}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {[
+              { label: 'Bereit', value: readyCount },
+              { label: 'Laden', value: convertingCount },
+              { label: 'Fehler', value: errorCount },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[1rem] px-3 py-2"
+                style={{ background: 'var(--talea-surface-inset)' }}
+              >
+                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-[1rem] border px-3 py-2.5" style={{ borderColor: 'var(--talea-border-light)' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
+              Als naechstes
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">
+              {nextItem?.title || 'Noch nichts geplant'}
+            </p>
+          </div>
+        </div>
+
+        {playlist.length > 0 ? (
+          <div className="mt-4 flex gap-2">
+            <motion.button
+              whileHover={reduceMotion ? undefined : { scale: 1.02 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+              type="button"
+              onClick={clearPlaylist}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-[1rem] border px-3 py-2.5 text-sm font-semibold"
+              style={{
+                borderColor: 'var(--talea-border-soft)',
+                background: 'var(--talea-surface-primary)',
+                color: 'var(--talea-text-secondary)',
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Leeren
+            </motion.button>
+          </div>
+        ) : null}
       </div>
 
-      {/* Tabs */}
-      {(storyGroups.length > 0 || dokuGroups.length > 0 || audioDokuItems.length > 0) && (
-        <div className="flex border-b px-4" style={{ borderColor: colors.border }}>
-          <button
-            onClick={() => setActiveTab('stories')}
-            className="relative px-3 py-2 text-[12px] font-medium transition-colors"
-            style={{ color: activeTab === 'stories' ? colors.text : colors.muted }}
-          >
-            Geschichten ({storyGroups.length})
-            {activeTab === 'stories' && (
-              <motion.div
-                layoutId="playlist-tab-indicator"
-                className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                style={{ background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})` }}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('dokus')}
-            className="relative px-3 py-2 text-[12px] font-medium transition-colors"
-            style={{ color: activeTab === 'dokus' ? colors.text : colors.muted }}
-          >
-            Dokus ({dokuGroups.length})
-            {activeTab === 'dokus' && (
-              <motion.div
-                layoutId="playlist-tab-indicator"
-                className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                style={{ background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})` }}
-              />
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('audio-dokus')}
-            className="relative px-3 py-2 text-[12px] font-medium transition-colors"
-            style={{ color: activeTab === 'audio-dokus' ? colors.text : colors.muted }}
-          >
-            Audio Dokus ({audioDokuItems.length})
-            {activeTab === 'audio-dokus' && (
-              <motion.div
-                layoutId="playlist-tab-indicator"
-                className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full"
-                style={{ background: `linear-gradient(90deg, ${colors.accentStart}, ${colors.accentEnd})` }}
-              />
-            )}
-          </button>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          className="border-b px-4 py-3 sm:px-5"
+          style={{ borderColor: 'var(--talea-border-light)' }}
+        >
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'stories', label: `Stories (${storyGroups.length})`, visible: storyGroups.length > 0 },
+              { id: 'dokus', label: `Dokus (${dokuGroups.length})`, visible: dokuGroups.length > 0 },
+              { id: 'audio-dokus', label: `Audio (${audioDokuItems.length})`, visible: audioDokuItems.length > 0 },
+            ]
+              .filter((item) => item.visible)
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveTab(item.id as typeof activeTab)}
+                  className="relative rounded-full px-4 py-2 text-sm font-semibold"
+                  style={{
+                    color:
+                      activeTab === item.id
+                        ? 'var(--talea-text-primary)'
+                        : 'var(--talea-text-secondary)',
+                  }}
+                >
+                  {activeTab === item.id ? (
+                    <motion.span
+                      layoutId={`playlist-tab-${variant}`}
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, color-mix(in srgb, var(--primary) 16%, transparent) 0%, color-mix(in srgb, var(--talea-accent-sky) 14%, transparent) 100%)',
+                        border: '1px solid var(--talea-border-accent)',
+                      }}
+                    />
+                  ) : null}
+                  <span className="relative z-10">{item.label}</span>
+                </button>
+              ))}
+          </div>
         </div>
-      )}
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto px-2 py-2" style={{ maxHeight: isDesktop ? '50vh' : undefined }}>
-        {playlist.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8" style={{ color: colors.muted }}>
-            <Music size={32} className="mb-2 opacity-40" />
-            <p className="text-[12px]">Noch keine Titel in der Warteschlange</p>
-          </div>
-        ) : activeTab === 'stories' ? (
-          <div className="space-y-1">
-            {storyGroups.map((story) => renderStoryGroup(story))}
-            {storyGroups.length === 0 && (
-              <p className="py-4 text-center text-[12px]" style={{ color: colors.muted }}>
-                Keine Geschichten in der Warteschlange
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          {playlist.length === 0 ? (
+            <div
+              className="flex min-h-[16rem] flex-col items-center justify-center rounded-[1.5rem] border px-6 py-10 text-center"
+              style={{
+                borderColor: 'var(--talea-border-light)',
+                background: 'var(--talea-surface-primary)',
+              }}
+            >
+              <Sparkles className="h-8 w-8 text-[var(--primary)]" />
+              <p className="mt-4 text-lg font-semibold text-[var(--talea-text-primary)]">
+                Noch keine Titel in der Queue
               </p>
-            )}
-          </div>
-        ) : activeTab === 'dokus' ? (
-          <div className="space-y-0.5">
-            {dokuGroups.map((doku) => renderDokuGroup(doku))}
-            {dokuGroups.length === 0 && (
-              <p className="py-4 text-center text-[12px]" style={{ color: colors.muted }}>
-                Keine Dokus in der Warteschlange
+              <p className="mt-2 text-sm font-medium text-[var(--talea-text-secondary)]">
+                Fuege Stories oder Dokus hinzu, damit sie hier direkt weiterlaufen koennen.
               </p>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-0.5">
-            {audioDokuItems.map(({ item, globalIndex }) => renderAudioDokuItem(item, globalIndex))}
-            {audioDokuItems.length === 0 && (
-              <p className="py-4 text-center text-[12px]" style={{ color: colors.muted }}>
-                Keine Audio Dokus in der Warteschlange
-              </p>
-            )}
-          </div>
-        )}
+            </div>
+          ) : activeTab === 'stories' ? (
+            <div className="space-y-3">
+              {storyGroups.map((story) => renderStoryGroup(story))}
+            </div>
+          ) : activeTab === 'dokus' ? (
+            <div className="space-y-3">
+              {dokuGroups.map((doku) => renderDokuGroup(doku))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {audioDokuItems.map(({ item, globalIndex }) => renderAudioDokuItem(item, globalIndex))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -651,33 +741,43 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
         initial={{ y: 12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 12, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="absolute bottom-full left-0 right-0 mb-2 overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-2xl"
-        style={{
-          borderColor: colors.border,
-          background: colors.bg,
-          boxShadow: isDark ? '0 -16px 40px rgba(9,14,24,0.5)' : '0 -12px 36px rgba(44,57,75,0.14)',
-          maxHeight: '60vh',
-        }}
+        transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+        className="absolute bottom-full left-0 right-0 mb-4 overflow-hidden rounded-[2rem] border shadow-[var(--talea-shadow-strong)] backdrop-blur-2xl"
+        style={surfaceStyle}
       >
         {content}
       </motion.div>
     );
   }
 
-  // Mobile: full-screen overlay
   return (
     <motion.div
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', stiffness: 350, damping: 32 }}
-      className="fixed inset-0 z-[1300] flex flex-col overflow-hidden"
-      style={{
-        background: colors.bg,
-      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[1300] flex items-end p-3 sm:p-4"
     >
-      {content}
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        type="button"
+        onClick={togglePlaylistDrawer}
+        className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+        aria-label="Warteschlange schliessen"
+      />
+
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        className="relative flex max-h-full w-full flex-col overflow-hidden rounded-[2rem] border shadow-[var(--talea-shadow-strong)] backdrop-blur-2xl"
+        style={surfaceStyle}
+      >
+        <div className="mx-auto mt-3 h-1.5 w-16 rounded-full bg-[var(--talea-border-strong)]" />
+        {content}
+      </motion.div>
     </motion.div>
   );
 };

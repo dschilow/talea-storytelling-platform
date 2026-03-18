@@ -368,7 +368,7 @@ const StoryCard: React.FC<{
             <div className="space-y-3">
               {isFeatured ? (
                 <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
-                  Titelgeschichte
+                  Im Fokus
                 </span>
               ) : null}
               <h3
@@ -392,10 +392,10 @@ const StoryCard: React.FC<{
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{formatDate(story.createdAt)}</span>
                 <span className="rounded-full border border-white/80 bg-white/86 px-4 py-2 text-[0px] font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-100">
                   <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                    <span>Jetzt lesen</span>
+                    <span>Weiterlesen</span>
                     <ArrowRight className="h-4 w-4" />
                   </span>
-                  Loslesen ✨
+                  Weiterlesen
                 </span>
               </div>
             </div>
@@ -592,12 +592,12 @@ const PremiumSignedOutStart: React.FC = () => {
                 className="mt-6 max-w-3xl text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[4rem]"
                 style={{ fontFamily: headingFont }}
               >
-                Geschichten, Figuren und Wissen fuehlen sich wie aus einem Guss an.
+                Geschichten, Figuren und Wissen an einem Ort.
               </h1>
               <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
                 {t(
                   "home.subtitle",
-                  "Talea fuehlt sich wie eine ruhige Kinderbibliothek an: weich, hochwertig, klar gegliedert und mit sanften Animationen an allen wichtigen Stellen."
+                  "Entdecke neue Geschichten, wechsle zwischen Avataren und starte Dokus oder Audio ohne Umwege."
                 )}
               </p>
             </div>
@@ -615,18 +615,18 @@ const PremiumSignedOutStart: React.FC = () => {
           <div className="grid gap-4">
             {[
               {
-                title: "Neue Struktur",
-                text: "Nicht nur Farben, sondern Hero, Hierarchie und Kartenfluss wurden neu gedacht.",
+                title: "Weiterhoeren",
+                text: "Stories und Audio bleiben griffbereit und koennen direkt fortgesetzt werden.",
                 tone: "from-[#f6dce7] to-[#faebd0]",
               },
               {
-                title: "Sanfte Animationen",
-                text: "Bewegung gibt Feedback, ohne laut zu sein oder die Inhalte zu ueberdecken.",
+                title: "Eigene Welt",
+                text: "Avatare, Geschichten und Dokus stehen in einer gemeinsamen Familienbibliothek.",
                 tone: "from-[#dff0ff] to-[#e2f4ec]",
               },
               {
-                title: "Wertige Karten",
-                text: "Stories, Dokus und Avatare bekommen mehr Buehne und mehr Ruhe.",
+                title: "Fuer Kinder gemacht",
+                text: "Groesse Karten, klare Wege und ruhige Motion machen die App einfacher zu benutzen.",
                 tone: "from-[#f3e4fb] to-[#eee1d2]",
               },
             ].map((item) => (
@@ -751,7 +751,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_15rem]">
               <div className="space-y-6">
                 <p className="max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                  Home fuehlt sich jetzt wie eine kuratierte Kinderbuch-Auslage an: weich geschichtet, klar gefuehrt und deutlich weniger nach Standard-Dashboard.
+                  Entdecke neue Geschichten, starte Audio und springe direkt zu Avataren oder Dokus.
                 </p>
 
                 <div className="flex flex-wrap gap-2.5 sm:gap-3">
@@ -768,20 +768,20 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
                 <div className={cn(taleaInsetSurfaceClass, "grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:p-5")}>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Heute im Fokus</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Schnellstart</p>
                     <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                      Ein leiser Start mit klarer Richtung.
+                      Was moechtest du als Naechstes machen?
                     </h2>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      Statt vieler gleich lauter Kacheln fuehrt Home zuerst durch das Wichtigste und laesst die naechste Aktion wie eine Empfehlung wirken.
+                      Starte direkt eine neue Geschichte, oeffne die Bibliothek oder geh in die Wissenswelt.
                     </p>
                   </div>
 
                   <div className="grid gap-2.5">
                     {[
-                      { label: "Story", text: "Neue Fantasiereise", icon: <WandSparkles className="h-4 w-4" />, path: "/story" },
-                      { label: "Avatar", text: "Helden bereitmachen", icon: <UserPlus className="h-4 w-4" />, path: "/avatar" },
-                      { label: "Doku", text: "Wissen sanft entdecken", icon: <Library className="h-4 w-4" />, path: "/doku" },
+                        { label: "Story", text: "Neue Geschichte starten", icon: <WandSparkles className="h-4 w-4" />, path: "/story" },
+                        { label: "Avatar", text: "Avatare verwalten", icon: <UserPlus className="h-4 w-4" />, path: "/avatar" },
+                        { label: "Doku", text: "Neues Thema entdecken", icon: <Library className="h-4 w-4" />, path: "/doku" },
                     ].map((item) => (
                       <button
                         key={item.label}
@@ -848,20 +848,20 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
           <div className={cn(taleaInsetSurfaceClass, "space-y-4 p-4 sm:p-5")}>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Atelierpfad</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Weiter geht's</p>
               <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Nicht klicken, sondern gefuehrt werden.
+                Spring direkt in den naechsten Bereich.
               </h2>
               <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Jede naechste Aktion wirkt wie ein sanfter Vorschlag, nicht wie ein uebliches Shortcut-Panel.
+                Hier sind die schnellsten Wege fuer neue Stories, Avatare und Dokus.
               </p>
             </div>
 
             <div className="grid gap-3">
               {[
-                { title: "Eine Story beginnen", text: "Direkt in den Generator.", icon: <WandSparkles className="h-5 w-5" />, path: "/story" },
-                { title: "Helden pflegen", text: "Avatare neu anlegen oder ueberarbeiten.", icon: <UserPlus className="h-5 w-5" />, path: "/avatar" },
-                { title: "Wissen sammeln", text: "Neue Dokus fuer neugierige Kinder starten.", icon: <Library className="h-5 w-5" />, path: "/doku" },
+                { title: "Story starten", text: "Direkt in den Generator wechseln.", icon: <WandSparkles className="h-5 w-5" />, path: "/story" },
+                { title: "Avatare oeffnen", text: "Figuren anlegen oder bearbeiten.", icon: <UserPlus className="h-5 w-5" />, path: "/avatar" },
+                { title: "Dokus entdecken", text: "Neue Wissensreise anlegen.", icon: <Library className="h-5 w-5" />, path: "/doku" },
               ].map((item) => (
                 <button key={item.title} type="button" onClick={() => goTo(item.path)} className={cn(taleaInsetSurfaceClass, "flex items-start gap-4 p-4 text-left sm:p-5")}>
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,var(--primary)_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
@@ -888,25 +888,25 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     <section className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}>
       <div className="relative z-10 space-y-6">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
-        <TaleaSectionHeading
-          eyebrow="Start mit Geschichten"
-          title="Eine groessere Buehne fuer die wichtigsten Abenteuer"
-          subtitle="Home zeigt nicht mehr nur Kacheln, sondern fuehrt zuerst zur bedeutendsten Story und ordnet den Rest wie kuratierte Empfehlungen darum herum."
-          actionLabel="Alle Stories"
-          onAction={() => goTo("/stories")}
-        />
+      <TaleaSectionHeading
+        eyebrow="Weiterlesen"
+        title="Deine Geschichten"
+        subtitle="Die wichtigsten Abenteuer stehen sofort bereit und fuehren direkt wieder in den Reader."
+        actionLabel="Alle Geschichten"
+        onAction={() => goTo("/stories")}
+      />
         <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Kuratiert</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Bibliothek</p>
           <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-            {storiesTotal} Geschichten stehen jetzt nicht mehr nebeneinander, sondern wirken wie bewusst ausgewaehlte Titel in einer kleinen Auslage.
+            {storiesTotal} Geschichten bereit zum Weiterlesen, Vorlesen und Entdecken.
           </p>
         </div>
       </div>
 
       {stories.length === 0 ? (
         <EmptyStateContainer
-          title="Das erste Abenteuer bekommt hier seine grosse Karte"
-          description="Sobald eine Geschichte angelegt ist, landet sie als Hero in einer ruhigen Bibliotheksansicht statt in einer normalen Standardliste."
+          title="Hier erscheint eure erste Geschichte"
+          description="Sobald eine Story angelegt ist, kannst du sie hier direkt wieder oeffnen."
           icon={<BookOpen className="h-12 w-12 text-blue-500 dark:text-indigo-300" />}
           colorClass="bg-blue-100 dark:bg-slate-700"
           actionLabel="Erste Story erstellen"
@@ -932,10 +932,10 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <button type="button" onClick={() => goTo("/story")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
               <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>Neue Szene</p>
               <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Eine weitere Geschichte vorbereiten
+                Neue Geschichte starten
               </h3>
               <p className="mt-4 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Die rechte Spalte kombiniert Erstellen und Entdecken statt leerem Fuellmaterial.
+                Der schnellste Weg in ein neues Abenteuer.
               </p>
             </button>
 
@@ -963,9 +963,9 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
     <section className="space-y-6">
       <TaleaSectionHeading
-        eyebrow="Heldenkartei"
-        title="Avatare wirken wie sorgfaeltig ausgelegte Charakterkarten"
-        subtitle="Die Figurenleiste bleibt funktional, fuehlt sich aber weniger nach Standard-Slider und mehr nach kuratierter Galerie an."
+        eyebrow="Deine Figuren"
+        title="Avatare"
+        subtitle="Alle Helden, Begleiter und Kinderprofile an einem Ort."
         actionLabel="Alle Avatare"
         onAction={() => goTo("/avatar")}
       />
@@ -1004,9 +1004,9 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
     <section className="space-y-6">
       <TaleaSectionHeading
-        eyebrow="Wissensgarten"
-        title="Dokus stehen visuell gleichwertig neben den Geschichten"
-        subtitle="Auch die Wissenswelt wird als eigener hochwertiger Bereich inszeniert, mit grosser Themenkarte und flankierenden Eintraegen."
+        eyebrow="Wissenswelt"
+        title="Doku Highlights"
+        subtitle="Neue Themen entdecken, weiterlesen und direkt in Audio wechseln."
         actionLabel="Alle Dokus"
         onAction={() => goTo("/doku")}
       />
@@ -1032,10 +1032,10 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <button type="button" onClick={() => goTo("/doku/create")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
               <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d50] dark:border-white/10 dark:bg-white/5 dark:text-[#f0c989]")}>Neues Thema</p>
               <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Eine neue Entdeckungsreise anlegen
+                Neue Doku starten
               </h3>
               <p className="mt-4 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Dokus sind kein Anhang mehr, sondern Teil derselben sorgfaeltigen Seitendramaturgie.
+                Wissen, Audio und Geschichten liegen im selben Regal.
               </p>
             </button>
 

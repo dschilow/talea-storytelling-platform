@@ -36,6 +36,7 @@ import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
+import { cn } from '@/lib/utils';
 import {
   TaleaActionButton,
   TaleaMetricPill,

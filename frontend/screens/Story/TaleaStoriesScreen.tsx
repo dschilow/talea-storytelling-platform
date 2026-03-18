@@ -321,7 +321,7 @@ const GridStoryCard: React.FC<{
         <div>
           {isFeatured ? (
             <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-              Kuratiert
+              Empfohlen
             </span>
           ) : null}
           <h3 className={cn("line-clamp-2 font-semibold leading-tight text-slate-900 dark:text-white", isFeatured ? "mt-4 text-[1.85rem] sm:text-[2.2rem]" : "text-xl")} style={{ fontFamily: headingFont }}>
@@ -340,7 +340,7 @@ const GridStoryCard: React.FC<{
           {isFeatured ? (
             <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
               <Sparkles className="h-4 w-4 text-[var(--primary)] dark:text-[var(--talea-text-secondary)]" />
-              Leicht animiert, klar fokussiert, direkt lesbar.
+              Direkt weiterlesen
             </div>
           ) : null}
         </div>
@@ -452,13 +452,13 @@ const PremiumStoriesSignedOut: React.FC = () => {
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 rounded-2xl object-cover" />
-                Talea Bibliothek
+                Story Stream
               </span>
               <h1 className="mt-6 text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
-                Die Stories bekommen eine echte Bibliotheksansicht statt Standardraster.
+                Alle Geschichten an einem Ort.
               </h1>
               <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                Sanfte Pastellflaechen, kuratierte Story-Bereiche, klares Filtern und ruhige Bewegungen machen die Seite hochwertiger und entspannter.
+                Weiterlesen, neue Abenteuer starten und alles nach Genre, Alter oder Figuren filtern.
               </p>
             </div>
 
@@ -474,9 +474,9 @@ const PremiumStoriesSignedOut: React.FC = () => {
 
           <div className="grid gap-4">
             {[
-              "Featured Story statt standardmaessiger erster Karte",
-              "Filterleiste mit mehr Ruhe und besserer Hierarchie",
-              "Sanfte Reaktionen fuer Suche, Laden und Layoutwechsel",
+              "Weiterlesen und Reihen fortsetzen",
+              "Eigene Abenteuer schnell wiederfinden",
+              "Stories, Audio und Dokus direkt nebeneinander",
             ].map((item) => (
               <div key={item} className={cn(taleaSurfaceClass, "p-5 sm:p-6")}>
                 <p className="text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">{item}</p>
@@ -592,13 +592,13 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="max-w-3xl">
                 <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-                  Talea Bibliothek
+                  Story Stream
                 </span>
                 <h1 className="mt-5 text-[2.85rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.2rem]" style={{ fontFamily: headingFont }}>
-                  Geschichten brauchen eine Buehne.
+                  Deine Geschichten
                 </h1>
                 <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                  Stories fuehlen sich jetzt wie eine kuratierte Kinderbibliothek an: mehr Ausstellung, weniger Listenverwaltung.
+                  Weiterlesen, filtern und neue Abenteuer starten.
                 </p>
               </div>
 
@@ -660,7 +660,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 <motion.div initial={{ opacity: 0, height: isDesktop ? "auto" : 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                   <div className={cn(taleaSurfaceClass, "mt-3 p-4 sm:p-5 xl:mt-0")}>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Kuratiere deine Ansicht</p>
+                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Filter</p>
                       {hasActiveFilters ? (
                         <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-red-500 dark:text-red-400">
                           Zuruecksetzen
@@ -685,7 +685,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Story suchen..." className={cn(taleaInputClass, "pl-11 pr-4")} />
+                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Titel, Thema oder Figur suchen..." className={cn(taleaInputClass, "pl-11 pr-4")} />
                 </div>
                 <div className="hidden xl:flex gap-1 rounded-full border border-white/80 bg-white/86 p-1 dark:border-white/10 dark:bg-white/5">
                   <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
@@ -697,11 +697,11 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <div className={cn(taleaSurfaceClass, "mt-6 p-4 sm:p-5 md:p-6")} role="status" aria-live="polite">
               {featuredStory ? (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
-                  <TaleaSectionHeading eyebrow="Ausstellungsstueck" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
+                  <TaleaSectionHeading eyebrow="Im Fokus" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
                   <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--talea-text-secondary)]">Leseraum</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--talea-text-secondary)]">Bibliothek</p>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      {filteredStories.length} Titel werden nicht mehr nur angezeigt, sondern wie kleine Exponate praesentiert.
+                      {filteredStories.length} Titel bereit zum Weiterlesen, Entdecken und Vorlesen.
                     </p>
                   </div>
                 </div>
@@ -716,7 +716,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                       {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
                     </h3>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Die erste Geschichte wird hier als grosser Einstieg erscheinen."}
+                      {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Sobald die erste Story da ist, kannst du hier direkt weiterlesen."}
                     </p>
                     <div className="mt-6 flex justify-center">
                       <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
