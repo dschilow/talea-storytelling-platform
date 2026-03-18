@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Edit, Eye, Plus, Search, Share2, Sparkles, Trash2, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { useBackend } from "../../hooks/useBackend";
 import type { Avatar } from "../../types/avatar";
 import { cn } from "@/lib/utils";
-import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import {
@@ -243,6 +242,7 @@ const TaleaAvatarsScreen: React.FC = () => {
   const backend = useBackend();
   const { user, isLoaded, isSignedIn } = useUser();
   const { resolvedTheme } = useTheme();
+  const reduceMotion = useReducedMotion();
   const childProfiles = useOptionalChildProfiles();
   const activeProfileId = childProfiles?.activeProfileId;
   const activeProfile = childProfiles?.activeProfile ?? null;
@@ -253,6 +253,7 @@ const TaleaAvatarsScreen: React.FC = () => {
   const [avatars, setAvatars] = useState<Avatar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeControl, setActiveControl] = useState<string | null>(null);
   const needsChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
 
   const openCreateAvatar = (mode: "child" | "companion" = "companion") => {
@@ -320,6 +321,11 @@ const TaleaAvatarsScreen: React.FC = () => {
   }, [avatars, searchQuery]);
   const ownedCount = avatars.filter((avatar) => avatar.isOwnedByCurrentUser !== false).length;
   const sharedCount = avatars.length - ownedCount;
+  const controlHover = reduceMotion ? undefined : { y: -2, scale: 1.01 };
+  const controlFocusRing = (controlId: string) =>
+    activeControl === controlId
+      ? "0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent)"
+      : "0 0 0 0 transparent";
 
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
@@ -342,57 +348,71 @@ const TaleaAvatarsScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        <div className={cn(taleaPageShellClass, "relative z-10 space-y-6 pt-5")}>
-          <header className={cn(taleaSurfaceClass, "overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7")}>
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-              <div className="space-y-5">
-                <span className={taleaChipClass}>Character Atelier</span>
+        <div className={cn(taleaPageShellClass, "relative z-10 space-y-5 pt-3")}>
+          <header className={cn(taleaSurfaceClass, "overflow-hidden p-3 sm:p-4 md:p-5")}>
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+              <div className="min-w-0">
+                <span className={taleaChipClass}>Avatare</span>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/70 bg-white/80 shadow-[0_12px_28px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
-                    <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-[1rem] object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <h1 className="text-[2.6rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3.25rem]" style={{ fontFamily: headingFont }}>
-                      Avatare als kuratierte Charaktergalerie.
-                    </h1>
-                    <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
-                      Mehr Buehne fuer Bilder, mehr Ruhe in der Struktur und klarere Werkzeuge fuer Familienprofile, geteilte Figuren und neue Helden.
-                    </p>
+                <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <h1
+                    className="text-[1.85rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.15rem]"
+                    style={{ fontFamily: headingFont }}
+                  >
+                    Avatare
+                  </h1>
+
+                  <div className="flex flex-wrap gap-2 xl:justify-end">
+                    <TaleaActionButton
+                      type="button"
+                      onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
+                      icon={<Plus className="h-4 w-4" />}
+                    >
+                      {needsChildAvatar ? "Kind-Avatar" : t("avatar.create", "Neuer Avatar")}
+                    </TaleaActionButton>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 xl:justify-end">
-                <TaleaActionButton
-                  type="button"
-                  onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
-                  icon={<Plus className="h-4 w-4" />}
-                >
-                  {needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.create", "Neuer Avatar")}
-                </TaleaActionButton>
+              <div className="grid gap-2 sm:grid-cols-3 xl:w-[26rem] xl:grid-cols-5">
+                {[
+                  { label: "Gesamt", value: String(avatars.length) },
+                  { label: "Sichtbar", value: String(filteredAvatars.length) },
+                  { label: "Geteilt", value: String(sharedCount) },
+                  { label: "Eigene", value: String(ownedCount) },
+                  { label: "Kind", value: activeProfile?.childAvatarId ? "Bereit" : "Fehlt" },
+                ].map((metric) => (
+                  <motion.div key={metric.label} whileHover={controlHover} transition={{ type: "spring", stiffness: 320, damping: 24 }}>
+                    <TaleaMetricPill label={metric.label} value={metric.value} />
+                  </motion.div>
+                ))}
               </div>
             </div>
 
-            <div className={cn(taleaToolbarClass, "mt-6")}>
-              <label className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+            <div className={cn(taleaToolbarClass, "mt-4")}>
+              <motion.label
+                className="relative min-w-0 flex-1"
+                whileHover={controlHover}
+                animate={{ boxShadow: controlFocusRing("avatar-search") }}
+                transition={{ type: "spring", stiffness: 320, damping: 24 }}
+              >
+                <motion.div
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
+                  animate={activeControl === "avatar-search" && !reduceMotion ? { x: 1.5, scale: 1.06 } : { x: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 340, damping: 24 }}
+                >
+                  <Search className="h-4 w-4" />
+                </motion.div>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
+                  onFocus={() => setActiveControl("avatar-search")}
+                  onBlur={() => setActiveControl((current) => (current === "avatar-search" ? null : current))}
                   placeholder="Avatare durchsuchen..."
                   className={cn(taleaInputClass, "pl-10")}
                 />
-              </label>
-
-              <div className="grid w-full gap-3 sm:grid-cols-2 xl:w-auto xl:grid-cols-5">
-                <TaleaMetricPill label="Gesamt" value={String(avatars.length)} />
-                <TaleaMetricPill label="Sichtbar" value={String(filteredAvatars.length)} />
-                <TaleaMetricPill label="Geteilt" value={String(sharedCount)} />
-                <TaleaMetricPill label="Eigene" value={String(ownedCount)} />
-                <TaleaMetricPill label="Kind" value={activeProfile?.childAvatarId ? "Bereit" : "Fehlt"} />
-              </div>
+              </motion.label>
             </div>
           </header>
 

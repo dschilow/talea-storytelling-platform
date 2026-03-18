@@ -1,9 +1,10 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   ArrowRight,
   Bookmark,
   BookmarkCheck,
+  ChevronDown,
   FlaskConical,
   Globe,
   GraduationCap,
@@ -34,7 +35,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
-import taleaLogo from '@/img/talea_logo.png';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
 import {
   TaleaActionButton,
@@ -46,7 +46,6 @@ import {
   taleaInputClass,
   taleaPageShellClass,
   taleaSurfaceClass,
-  taleaToolbarClass,
 } from '@/components/talea/TaleaPastelPrimitives';
 
 type Palette = {
@@ -483,6 +482,7 @@ const TaleaDokusScreen: React.FC = () => {
   const { isAdmin } = useOptionalUserAccess();
   const { canUseOffline, isAudioDokuSaved, isSaving, toggleAudioDoku } = useOffline();
   const { resolvedTheme } = useTheme();
+  const reduceMotion = useReducedMotion();
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getPalette(isDark), [isDark]);
@@ -511,6 +511,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');
   const [depthFilter, setDepthFilter] = useState('all');
   const [audioScopeFilter, setAudioScopeFilter] = useState<AudioScope>('all');
+  const [activeControl, setActiveControl] = useState<string | null>(null);
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);
@@ -887,6 +888,13 @@ const TaleaDokusScreen: React.FC = () => {
       (activeTab === 'discover' && loadingPublic) ||
       (activeTab === 'audio' && loadingAudio));
 
+  const controlHover = reduceMotion ? undefined : { y: -2, scale: 1.01 };
+  const controlTap = reduceMotion ? undefined : { scale: 0.985 };
+  const controlFocusRing = (controlId: string) =>
+    activeControl === controlId
+      ? '0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent)'
+      : '0 0 0 0 transparent';
+
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
       <DokuBackground isDark={isDark} />
@@ -905,46 +913,66 @@ const TaleaDokusScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-8 pt-5')}>
-          <header className={cn(taleaSurfaceClass, 'overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7')}>
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-              <div className="space-y-5">
-                <span className={taleaChipClass}>Knowledge Studio</span>
+        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-5 pt-3')}>
+          <header className={cn(taleaSurfaceClass, 'overflow-hidden p-3 sm:p-4 md:p-5')}>
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+              <div className="min-w-0">
+                <span className={taleaChipClass}>Dokus</span>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[1.35rem] border border-white/70 bg-white/80 shadow-[0_12px_28px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
-                    <img src={taleaLogo} alt="Talea" className="h-10 w-10 rounded-[1rem] object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <h1 className="text-[2.6rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3.25rem]" style={{ fontFamily: headingFont }}>
-                      Wissen bekommt dieselbe Buehne wie Geschichten.
-                    </h1>
-                    <p className="mt-4 max-w-3xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
-                      Dokus, Entdecken und Audio-Welten fuehlen sich jetzt wie ein gemeinsames Studio an: klarer, ruhiger und hochwertiger.
-                    </p>
+                <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <h1
+                    className="text-[1.85rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.15rem]"
+                    style={{ fontFamily: headingFont }}
+                  >
+                    Dokus
+                  </h1>
+
+                  <div className="flex flex-wrap gap-2 xl:justify-end">
+                    <TaleaActionButton type="button" onClick={() => navigate('/doku/create')} icon={<Wand2 className="h-4 w-4" />}>
+                      {t('doku.createNew', 'Neue Doku')}
+                    </TaleaActionButton>
+                    {isAdmin ? (
+                      <TaleaActionButton type="button" variant="secondary" onClick={() => navigate('/createaudiodoku')} icon={<Headphones className="h-4 w-4" />}>
+                        Audio
+                      </TaleaActionButton>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 xl:justify-end">
-                <TaleaActionButton type="button" onClick={() => navigate('/doku/create')} icon={<Wand2 className="h-4 w-4" />}>
-                  {t('doku.createNew', 'Neue Doku')}
-                </TaleaActionButton>
-                {isAdmin ? (
-                  <TaleaActionButton type="button" variant="secondary" onClick={() => navigate('/createaudiodoku')} icon={<Headphones className="h-4 w-4" />}>
-                    Audio erstellen
-                  </TaleaActionButton>
-                ) : null}
+              <div className="grid gap-2 sm:grid-cols-3 xl:w-[19rem] xl:grid-cols-3">
+                {[
+                  { label: 'Meine', value: String(totalMy) },
+                  { label: 'Entdecken', value: String(totalPublic) },
+                  { label: 'Audio', value: String(totalAudio) },
+                ].map((metric) => (
+                  <motion.div key={metric.label} whileHover={controlHover} transition={{ type: 'spring', stiffness: 320, damping: 24 }}>
+                    <TaleaMetricPill label={metric.label} value={metric.value} />
+                  </motion.div>
+                ))}
               </div>
             </div>
 
-            <div className={cn(taleaToolbarClass, 'mt-6')}>
-              <label className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <motion.label
+                className="relative min-w-0"
+                whileHover={controlHover}
+                animate={{ boxShadow: controlFocusRing('doku-search') }}
+                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+              >
+                <motion.div
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
+                  animate={activeControl === 'doku-search' && !reduceMotion ? { x: 1.5, scale: 1.06 } : { x: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                >
+                  <Search className="h-4 w-4" />
+                </motion.div>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setActiveControl('doku-search')}
+                  onBlur={() => setActiveControl((current) => (current === 'doku-search' ? null : current))}
                   placeholder={
                     activeTab === 'audio'
                       ? t('doku.searchPlaceholder', 'Audio durchsuchen...')
@@ -952,111 +980,162 @@ const TaleaDokusScreen: React.FC = () => {
                   }
                   className={cn(taleaInputClass, 'pl-10')}
                 />
-              </label>
+              </motion.label>
 
-              <div className="grid w-full gap-3 sm:grid-cols-3 xl:w-auto xl:min-w-[22rem]">
-                <TaleaMetricPill label="Meine" value={String(totalMy)} />
-                <TaleaMetricPill label="Entdecken" value={String(totalPublic)} />
-                <TaleaMetricPill label="Audio" value={String(totalAudio)} />
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {([
+                  { key: 'mine', label: 'Meine', count: totalMy },
+                  { key: 'discover', label: 'Entdecken', count: totalPublic },
+                  { key: 'audio', label: 'Hoerwelt', count: totalAudio },
+                ] as const).map((tab) => {
+                  const active = activeTab === tab.key;
+                  return (
+                    <motion.button
+                      whileHover={controlHover}
+                      whileTap={controlTap}
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      className="relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-[1rem] border px-3 py-2 text-xs font-semibold transition-colors border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]"
+                    >
+                      {active ? (
+                        <motion.span
+                          layoutId="doku-active-tab"
+                          className="absolute inset-0 rounded-[1rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
+                          transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                        />
+                      ) : null}
+                      <span className="relative z-10">{tab.label}</span>
+                      <span className="relative z-10 rounded-full bg-white/65 px-2 py-0.5 text-[10px] dark:bg-white/8">
+                        {tab.count}
+                      </span>
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
-              {([
-                { key: 'mine', label: 'Meine', count: totalMy },
-                { key: 'discover', label: 'Entdecken', count: totalPublic },
-                { key: 'audio', label: 'Hoerwelt', count: totalAudio },
-              ] as const).map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => setActiveTab(tab.key)}
-                    className={cn(
-                      'inline-flex shrink-0 items-center gap-2 rounded-[1.1rem] border px-3.5 py-2.5 text-xs font-semibold transition-colors',
-                      active
-                        ? 'border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] text-[var(--talea-text-primary)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]'
-                        : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]'
-                    )}
-                  >
-                    <span>{tab.label}</span>
-                    <span className="rounded-full bg-white/65 px-2 py-0.5 text-[10px] dark:bg-white/8">
-                      {tab.count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {activeTab !== 'audio' ? (
                 <>
-                  <select
-                    value={topicFilter}
-                    onChange={(event) => setTopicFilter(event.target.value)}
-                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
-                    aria-label="Thema filtern"
-                  >
-                    <option value="all">Alle Themen</option>
-                    {topicFilterOptions.map((topic) => (
-                      <option key={topic} value={topic}>
-                        {formatTopicLabel(topic)}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={ageGroupFilter}
-                    onChange={(event) => setAgeGroupFilter(event.target.value)}
-                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
-                    aria-label="Altersgruppe filtern"
-                  >
-                    <option value="all">Alle Altersgruppen</option>
-                    {ageGroupFilterOptions.map((ageGroup) => (
-                      <option key={ageGroup} value={ageGroup}>
-                        {ageGroup}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={depthFilter}
-                    onChange={(event) => setDepthFilter(event.target.value)}
-                    className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
-                    aria-label="Tiefe filtern"
-                  >
-                    <option value="all">Alle Tiefen</option>
-                    {depthFilterOptions.map((depth) => (
-                      <option key={depth} value={depth}>
-                        {formatDokuDepthLabel(depth)}
-                      </option>
-                    ))}
-                  </select>
+                  {[
+                    {
+                      id: 'topic-filter',
+                      value: topicFilter,
+                      onChange: (value: string) => setTopicFilter(value),
+                      ariaLabel: 'Thema filtern',
+                      options: [
+                        { value: 'all', label: 'Alle Themen' },
+                        ...topicFilterOptions.map((topic) => ({ value: topic, label: formatTopicLabel(topic) })),
+                      ],
+                    },
+                    {
+                      id: 'age-filter',
+                      value: ageGroupFilter,
+                      onChange: (value: string) => setAgeGroupFilter(value),
+                      ariaLabel: 'Altersgruppe filtern',
+                      options: [
+                        { value: 'all', label: 'Alle Altersgruppen' },
+                        ...ageGroupFilterOptions.map((ageGroup) => ({ value: ageGroup, label: ageGroup })),
+                      ],
+                    },
+                    {
+                      id: 'depth-filter',
+                      value: depthFilter,
+                      onChange: (value: string) => setDepthFilter(value),
+                      ariaLabel: 'Tiefe filtern',
+                      options: [
+                        { value: 'all', label: 'Alle Tiefen' },
+                        ...depthFilterOptions.map((depth) => ({ value: depth, label: formatDokuDepthLabel(depth) })),
+                      ],
+                    },
+                  ].map((control) => (
+                    <motion.div
+                      key={control.id}
+                      className="relative"
+                      whileHover={controlHover}
+                      animate={{ boxShadow: controlFocusRing(control.id) }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+                    >
+                      <select
+                        value={control.value}
+                        onChange={(event) => control.onChange(event.target.value)}
+                        onFocus={() => setActiveControl(control.id)}
+                        onBlur={() => setActiveControl((current) => (current === control.id ? null : current))}
+                        className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
+                        aria-label={control.ariaLabel}
+                      >
+                        {control.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <motion.div
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
+                        animate={activeControl === control.id && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </motion.div>
+                    </motion.div>
+                  ))}
                 </>
               ) : (
-                <select
-                  value={audioScopeFilter}
-                  onChange={(event) => setAudioScopeFilter(event.target.value as AudioScope)}
-                  className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
-                  aria-label="Audio Bereich filtern"
+                <motion.div
+                  className="relative"
+                  whileHover={controlHover}
+                  animate={{ boxShadow: controlFocusRing('audio-scope-filter') }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 24 }}
                 >
-                  <option value="all">Alle Audio</option>
-                  <option value="mine">Meine Audio</option>
-                  <option value="public">Oeffentliche Audio</option>
-                </select>
+                  <select
+                    value={audioScopeFilter}
+                    onChange={(event) => setAudioScopeFilter(event.target.value as AudioScope)}
+                    onFocus={() => setActiveControl('audio-scope-filter')}
+                    onBlur={() => setActiveControl((current) => (current === 'audio-scope-filter' ? null : current))}
+                    className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
+                    aria-label="Audio Bereich filtern"
+                  >
+                    <option value="all">Alle Audio</option>
+                    <option value="mine">Meine Audio</option>
+                    <option value="public">Oeffentliche Audio</option>
+                  </select>
+                  <motion.div
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
+                    animate={activeControl === 'audio-scope-filter' && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </motion.div>
+                </motion.div>
               )}
 
-              <select
-                value={sortMode}
-                onChange={(event) => setSortMode(event.target.value as DokuSortMode)}
-                className={cn(taleaInputClass, 'cursor-pointer appearance-none')}
-                aria-label="Sortierung"
+              <motion.div
+                className="relative"
+                whileHover={controlHover}
+                animate={{ boxShadow: controlFocusRing('sort-mode') }}
+                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
               >
-                <option value="newest">Neueste zuerst</option>
-                <option value="oldest">Aelteste zuerst</option>
-                <option value="title">Titel A-Z</option>
-              </select>
+                <select
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as DokuSortMode)}
+                  onFocus={() => setActiveControl('sort-mode')}
+                  onBlur={() => setActiveControl((current) => (current === 'sort-mode' ? null : current))}
+                  className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
+                  aria-label="Sortierung"
+                >
+                  <option value="newest">Neueste zuerst</option>
+                  <option value="oldest">Aelteste zuerst</option>
+                  <option value="title">Titel A-Z</option>
+                </select>
+                <motion.div
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
+                  animate={activeControl === 'sort-mode' && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </motion.div>
+              </motion.div>
 
               <TaleaActionButton
                 type="button"

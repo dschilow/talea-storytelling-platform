@@ -361,6 +361,62 @@ const MissingKeyScreen = () => (
   </div>
 );
 
+const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh',
+    background: colors.gradients.background,
+    padding: '2rem',
+    textAlign: 'center',
+    fontFamily: '"Nunito", system-ui, sans-serif',
+  }}>
+    <div style={{
+      maxWidth: '640px',
+      padding: '2.5rem',
+      borderRadius: '24px',
+      background: colors.glass.backgroundAlt,
+      border: `2px solid ${colors.border.light}`,
+      boxShadow: '0 20px 60px rgba(44, 57, 75, 0.12)',
+    }}>
+      <div style={{ fontSize: '56px', marginBottom: '1.25rem' }}>Auth</div>
+      <h1 style={{
+        fontSize: '28px',
+        fontWeight: '700',
+        color: colors.text.primary,
+        marginBottom: '1rem',
+        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
+      }}>
+        Authentifizierung ist gerade nicht erreichbar
+      </h1>
+      <p style={{ color: colors.text.secondary, marginBottom: '1rem', fontSize: '16px', lineHeight: 1.6 }}>
+        Die App ist nicht offline. Der Auth-Dienst konnte nur nicht sauber geladen werden.
+      </p>
+      <p style={{ color: colors.text.secondary, marginBottom: '1.75rem', fontSize: '15px', lineHeight: 1.6 }}>
+        Das passiert oft durch Netzwerkfilter, Privacy-Erweiterungen oder eine veraltete Browser-Session. Statt in einen irrefuehrenden Offline-Modus zu springen, zeigen wir jetzt diesen klaren Retry-Zustand.
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={onRetry ?? (() => window.location.reload())}
+          style={{
+            border: 'none',
+            borderRadius: '999px',
+            padding: '0.9rem 1.35rem',
+            background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-sky))',
+            color: '#fff',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Erneut laden
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // Offline app shell: renders without real Clerk when browser is offline
 // OfflineClerkProvider mocks Clerk's internal contexts (useAuth, useUser etc.)
 // OfflineThemeProvider uses localStorage only (no backend API)
@@ -456,7 +512,7 @@ export default function App() {
   if (!isOnline || clerkFailed) {
     return (
       <Provider store={store}>
-        <OfflineApp />
+        {!isOnline ? <OfflineApp /> : <AuthUnavailableScreen onRetry={() => window.location.reload()} />}
       </Provider>
     );
   }
@@ -465,14 +521,14 @@ export default function App() {
     return <MissingKeyScreen />;
   }
 
-  const offlineFallback = (
+  const clerkFallback = (
     <Provider store={store}>
-      <OfflineApp />
+      <AuthUnavailableScreen onRetry={() => window.location.reload()} />
     </Provider>
   );
 
   return (
-    <ClerkErrorBoundary fallback={offlineFallback}>
+    <ClerkErrorBoundary fallback={clerkFallback}>
       <Provider store={store}>
         <ClerkProvider publishableKey={clerkPublishableKey}>
           <ThemeProvider>

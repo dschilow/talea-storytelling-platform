@@ -122,7 +122,7 @@ const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: stri
 const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: Palette }> = ({ activeStep, labels }) => (
-  <div className={cn(taleaSurfaceClass, 'mb-6 px-4 py-4')}>
+  <div className={cn(taleaSurfaceClass, 'mb-4 px-3 py-3')}>
     <TaleaProgressSteps
       steps={labels.map((label, index) => ({ id: `wizard-step-${index}`, label }))}
       activeIndex={activeStep}
@@ -501,23 +501,25 @@ export default function TaleaStoryWizard() {
   }
 
   return (
-    <div className="relative min-h-screen pb-10 pt-4" style={{ fontFamily: bodyFont }}>
+    <div className="relative min-h-screen pb-10 pt-2" style={{ fontFamily: bodyFont }}>
       <WizardBackground isDark={isDark} />
 
       <div className={cn(taleaPageShellClass, 'relative z-10')}>
         <motion.header
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className={cn(taleaSurfaceClass, 'mb-5 flex flex-wrap items-center justify-between gap-4 px-5 py-5 md:px-6')}
+          className={cn(taleaSurfaceClass, 'mb-4 flex flex-wrap items-end justify-between gap-4 px-4 py-4 md:px-5')}
         >
           <div className="min-w-0">
-            <span className={taleaChipClass}>Story Wizard</span>
-            <h1 className="mt-4 text-[2.5rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[3rem]" style={{ fontFamily: headingFont }}>
-              Eine neue Geschichte mit mehr Ruhe und mehr Richtung.
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={taleaChipClass}>Story Wizard</span>
+              <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                Schritt {activeStep + 1} / {labels.length}
+              </span>
+            </div>
+            <h1 className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]" style={{ fontFamily: headingFont }}>
+              Neue Geschichte
             </h1>
-            <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] sm:text-base">
-              Der Flow fuehrt jetzt staerker durch den Prozess, statt nur Schritte aneinanderzureihen. Fokus, sanfte Motion und eine bessere Story-Hierarchie stehen im Vordergrund.
-            </p>
           </div>
 
           <TaleaActionButton

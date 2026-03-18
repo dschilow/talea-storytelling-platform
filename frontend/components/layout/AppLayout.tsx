@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 type RouteMeta = {
   eyebrow: string;
   title: string;
-  description: string;
 };
 
 function getRouteMeta(pathname: string): RouteMeta {
@@ -25,7 +24,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Talea Home",
         title: "Atelier",
-        description: "Stories, Figuren und Wissen in einer ruhigen kuratierten Ansicht.",
       },
     },
     {
@@ -33,7 +31,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Story Library",
         title: "Bibliothek",
-        description: "Kuratiere, filtere und starte neue Geschichten mit klarer Hierarchie.",
       },
     },
     {
@@ -41,7 +38,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Story Studio",
         title: "Story Wizard",
-        description: "Ein gefuehrter Flow fuer neue Abenteuer, nicht nur ein Formular.",
       },
     },
     {
@@ -49,7 +45,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Character Atelier",
         title: "Avatare",
-        description: "Pflege Figuren wie hochwertige Charakterkarten statt einfache Eintraege.",
       },
     },
     {
@@ -57,7 +52,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Knowledge Studio",
         title: "Dokus",
-        description: "Lerninhalte mit derselben Qualitaet und Buehne wie die Geschichten.",
       },
     },
     {
@@ -65,7 +59,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Quiz Lab",
         title: "Quiz",
-        description: "Spielerische Wissenspruefung in einer ruhigeren, fokussierten Umgebung.",
       },
     },
     {
@@ -73,7 +66,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Learning Journey",
         title: "Lernpfad",
-        description: "Fortschritt, Empfehlungen und naechste Schritte auf einer gemeinsamen Karte.",
       },
     },
     {
@@ -81,7 +73,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Community",
         title: "Entdecken",
-        description: "Gemeinsame Inhalte und Inspiration in derselben Talea-Sprache.",
       },
     },
     {
@@ -89,7 +80,6 @@ function getRouteMeta(pathname: string): RouteMeta {
       meta: {
         eyebrow: "Settings",
         title: "Einstellungen",
-        description: "Profile, Familienlogik und Oberflaeche mit weniger Reibung verwalten.",
       },
     },
   ];
@@ -97,7 +87,6 @@ function getRouteMeta(pathname: string): RouteMeta {
   return matches.find((entry) => entry.match(pathname))?.meta ?? {
     eyebrow: "Talea",
     title: "Workspace",
-    description: "Ein konsistenter Arbeitsraum fuer alle Talea-Bereiche.",
   };
 }
 
@@ -138,7 +127,7 @@ const AppLayout: React.FC = () => {
     isCosmosFullScreenRoute || isReaderRoute
       ? "w-full min-h-screen p-0 m-0 max-w-none"
       : usesImmersiveShell
-        ? "w-full mx-auto max-w-none pb-20 pt-2 md:pb-10 md:pt-3"
+        ? "w-full mx-auto max-w-none pb-20 pt-0 md:pb-10 md:pt-1"
         : `w-full mx-auto pb-20 pt-2 md:pb-10 md:pt-3 ${
             isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
           }`;
@@ -156,7 +145,7 @@ const AppLayout: React.FC = () => {
 
       <main className="flex-1 min-h-screen transition-all duration-300">
         <div style={shellStyle} className="w-full">
-          {!isCosmosFullScreenRoute && !isReaderRoute ? (
+          {!isCosmosFullScreenRoute && !isReaderRoute && !usesImmersiveShell ? (
             <div className="pointer-events-none sticky top-0 z-30 hidden px-1 pt-3 md:block">
               <div className="pointer-events-auto mx-auto max-w-[1680px]">
                 <div className="relative overflow-hidden rounded-[1.9rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/70 dark:before:bg-white/10">
@@ -172,15 +161,6 @@ const AppLayout: React.FC = () => {
                         >
                           {routeMeta.title}
                         </h2>
-                        <span className="hidden h-1.5 w-1.5 rounded-full bg-[var(--talea-border-strong)] lg:block" />
-                        <p className="truncate text-sm font-medium text-[var(--talea-text-secondary)]">
-                          {routeMeta.description}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="hidden items-center gap-2 xl:flex">
-                      <div className="rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-2 text-xs font-medium text-[var(--talea-text-secondary)]">
-                        Sanfte Motion, Pastell-Atmosphaere, klarere Hierarchie.
                       </div>
                     </div>
                   </div>
