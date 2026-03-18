@@ -11,6 +11,10 @@ export interface PipelineConfig {
   criticModel: string;
   criticMinScore: number;
   maxSelectiveSurgeryEdits: number;
+  defaultPromptVersion: "v7" | "v8";
+  blueprintRetryMax: number;
+  pass3TargetScore: number;
+  pass3WarnFloor: number;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -24,6 +28,10 @@ const DEFAULT_CONFIG: PipelineConfig = {
   criticModel: "gemini-3.1-flash-lite-preview",
   criticMinScore: 8.2,
   maxSelectiveSurgeryEdits: 1,
+  defaultPromptVersion: "v7",
+  blueprintRetryMax: 2,
+  pass3TargetScore: 8.0,
+  pass3WarnFloor: 6.5,
 };
 
 let cached: PipelineConfig | null = null;

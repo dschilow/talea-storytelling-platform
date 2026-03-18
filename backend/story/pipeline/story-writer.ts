@@ -1,5 +1,5 @@
-import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint, StoryCostEntry } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt } from "./prompts";
+import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint, StoryBlueprintV8, StoryCostEntry } from "./types";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callAnthropicCompletion, callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
@@ -536,6 +536,8 @@ export class LlmStoryWriter implements StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    promptVersion?: "v6" | "v7" | "v8";
+    blueprintV8?: StoryBlueprintV8;
     strict?: boolean;
     stylePackText?: string;
     fusionSections?: Map<number, string>;
@@ -543,7 +545,7 @@ export class LlmStoryWriter implements StoryWriter {
     generationSeed?: number;
     candidateTag?: string;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
-    const { normalizedRequest, cast, dna, directives, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
+    const { normalizedRequest, cast, dna, directives, promptVersion, blueprintV8, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
     const requestedModel = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
     const model = isClaudeFamilyModel(requestedModel)
@@ -843,7 +845,9 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // ═══════════════════════════════════════════════════════════════════════
     // V7 BLUEPRINT PHASE — Plan emotional arc before writing
     // ═══════════════════════════════════════════════════════════════════════
-    const useV7Blueprint = rawConfig?.promptVersion !== "v6"; // V7 is the new default
+    const activePromptVersion = promptVersion || (rawConfig?.promptVersion === "v6" ? "v6" : "v7");
+    const useV8Blueprint = activePromptVersion === "v8" && Boolean(blueprintV8);
+    const useV7Blueprint = !useV8Blueprint && activePromptVersion !== "v6";
     let storyBlueprint: StoryBlueprint | undefined;
     const deterministicFallbackBlueprint = useV7Blueprint
       ? buildDeterministicFallbackBlueprint({
@@ -944,8 +948,23 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // ─── Phase A: Generate full story in one call ────────────────────────────
     // V7: Use blueprint-driven prompt if blueprint was generated successfully
     const v7SystemPrompt = buildReleaseV7SystemPrompt(normalizedRequest.language, { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax });
+    const v8SystemPrompt = buildV8StorySystemPrompt(normalizedRequest.language);
 
     const buildStoryPrompt = (promptMode: "full" | "compact") => {
+      if (useV8Blueprint && blueprintV8) {
+        return buildV8StoryPrompt({
+          blueprint: blueprintV8,
+          cast,
+          language: normalizedRequest.language,
+          chapterCount: directives.length,
+          totalWordMin: Math.round(totalWordMin),
+          totalWordMax: Math.round(totalWordMax),
+          wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+          stylePackText,
+          userPrompt: normalizedRequest.rawConfig?.customPrompt,
+          avatarMemories,
+        });
+      }
       // Keep the lean V7 prompt path even when the model-generated blueprint fails.
       if (storyBlueprint && useV7Blueprint) {
         return buildLeanBlueprintDrivenStoryPrompt({
@@ -986,6 +1005,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       });
     };
     const resolveSystemPrompt = (mode: "full" | "compact") => {
+      if (useV8Blueprint) return v8SystemPrompt;
       if (storyBlueprint && useV7Blueprint) return v7SystemPrompt;
       return mode === "compact" ? compactSystemPrompt : systemPrompt;
     };

@@ -1,5 +1,6 @@
 ﻿import type { StoryConfig, StoryLanguage } from "../generate";
 import type { Avatar } from "../../avatar/avatar";
+import type { StoryPromptVersion } from "../generate";
 import type { StoryCategory } from "./constants";
 import type { PipelineConfig } from "./pipeline-config";
 
@@ -173,6 +174,105 @@ export interface StoryBlueprint {
     temptation: string;
     price: string;
   };
+}
+
+export type StoryBlueprintV8SettingType =
+  | "fantasy_familiar"
+  | "everyday_magic"
+  | "pure_everyday"
+  | "full_fantasy";
+
+export type StoryBlueprintV8NarrativePerspective =
+  | "personal_third"
+  | "omniscient_limited";
+
+export type StoryBlueprintV8ArcLabel =
+  | "SETUP"
+  | "DISCOVERY"
+  | "TURNING_POINT"
+  | "DARKEST_MOMENT"
+  | "LANDING";
+
+export type StoryBlueprintV8HumorType =
+  | "character_behavior"
+  | "situation_misunderstanding"
+  | "timing_gag"
+  | "warm_callback";
+
+export interface StoryBlueprintV8Chapter {
+  chapter: number;
+  arc_label: StoryBlueprintV8ArcLabel;
+  location: string;
+  goal: string;
+  obstacle: string;
+  active_characters: string[];
+  supporting_characters: string[];
+  key_emotion: string;
+  key_scene: {
+    what_happens: string;
+    playable_moment: string;
+    quotable_line: string;
+  };
+  chapter_hook: string;
+  word_target: number;
+  dialogue_percentage: number;
+}
+
+export interface StoryBlueprintV8 {
+  title: string;
+  teaser: string;
+  setting_type: StoryBlueprintV8SettingType;
+  narrative_perspective: StoryBlueprintV8NarrativePerspective;
+  tense: "preterite";
+  pov_character: string;
+  chapters: StoryBlueprintV8Chapter[];
+  humor_beats: Array<{
+    chapter: number;
+    type: StoryBlueprintV8HumorType;
+    description: string;
+  }>;
+  error_and_repair: {
+    who: string;
+    error_chapter: number;
+    error: string;
+    inner_reason: string;
+    body_signal: string;
+    repair_chapter: number;
+    repair: string;
+  };
+  arc_checkpoints: {
+    ch1_feeling: string;
+    ch2_feeling: string;
+    ch3_feeling: string;
+    ch4_feeling: string;
+    ch5_feeling: string;
+  };
+  iconic_scene: {
+    chapter: number;
+    description: string;
+  };
+}
+
+export interface BlueprintValidationIssue {
+  code: string;
+  message: string;
+  chapter?: number;
+  severity: "ERROR" | "WARNING";
+}
+
+export interface BlueprintValidationResult {
+  valid: boolean;
+  issues: BlueprintValidationIssue[];
+}
+
+export interface BlueprintGenerationResult {
+  blueprint: StoryBlueprintV8;
+  model: string;
+  attempts: number;
+  fallbackUsed: boolean;
+  issues: BlueprintValidationIssue[];
+  usage?: TokenUsage;
+  costEntries?: StoryCostEntry[];
 }
 
 export interface NormalizedRequest {
@@ -386,6 +486,8 @@ export interface StoryWriter {
     cast: CastSet;
     dna: TaleDNA | StoryDNA;
     directives: SceneDirective[];
+    promptVersion?: StoryPromptVersion;
+    blueprintV8?: StoryBlueprintV8;
     strict?: boolean;
     stylePackText?: string;
     fusionSections?: Map<number, string>;

@@ -1,4 +1,4 @@
-import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint } from "./types";
+import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint, StoryBlueprintV8 } from "./types";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 import { isGeminiFlashFamilyModel } from "./model-routing";
 
@@ -1080,6 +1080,231 @@ RETURN JSON ONLY:
   "artifactArc": { "wonder": "...", "temptation": "...", "price": "..." }` : ""}
 }
 Total output under 500 words.`;
+}
+
+export function buildV8BlueprintSystemPrompt(language: string): string {
+  const targetLanguage = language === "de" ? "German" : language;
+  return `You plan the structural skeleton of a children's story for ages 6-8.
+Your job is structure, not prose.
+The blueprint is an internal planning artifact, so you may write blueprint field content in concise English for reliability and token efficiency.
+Keep character names unchanged.
+Do not write story prose.
+
+Hard requirements:
+- follow the requested chapter count exactly
+- never use more than 2 active characters per chapter
+- chapter 3 contains an active child mistake with a visible consequence
+- chapter 4 contains a real inner turning point, not artifact magic or adult rescue
+- chapter 5 contains a concrete win, a small personal price, and a callback
+- if the later story language is ${targetLanguage}, the final prose will be handled separately; this pass is structure only
+- tense must be "preterite"
+
+Return valid JSON only. No markdown. No explanations.`;
+}
+
+function dedupeCharacterSheetsForPrompt(sheets: CharacterSheet[]): CharacterSheet[] {
+  const seen = new Set<string>();
+  const deduped: CharacterSheet[] = [];
+  for (const sheet of sheets) {
+    const key = String(sheet.displayName || "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(sheet);
+  }
+  return deduped;
+}
+
+function buildV8VoiceContractBlock(cast: CastSet, isGerman: boolean): string {
+  const childSheets = getChildFocusSheets(cast) as CharacterSheet[];
+  const childBlock = buildFocusedChildVoiceContract(childSheets, isGerman);
+  const allSlots = dedupeCharacterSheetsForPrompt([...cast.avatars, ...cast.poolCharacters] as CharacterSheet[]);
+  const supportLines = allSlots
+    .filter(sheet => !childSheets.some(child => child.displayName === sheet.displayName))
+    .slice(0, 4)
+    .map((sheet) => {
+      const role = getPromptRoleLabel(sheet, isGerman);
+      const speech = sheet.speechStyleHints?.[0] || (isGerman ? "klar und kurz" : "clear and concise");
+      const quirk = sheet.enhancedPersonality?.quirk ? ` ${isGerman ? "Eigenart" : "Quirk"}: ${sheet.enhancedPersonality.quirk}.` : "";
+      return `  - ${sheet.displayName}${role ? ` (${role})` : ""}: ${isGerman ? "Voice" : "Voice"}: ${speech}.${quirk}`;
+    })
+    .join("\n");
+
+  return [childBlock, supportLines].filter(Boolean).join("\n\n").trim();
+}
+
+export function buildV8BlueprintPrompt(input: {
+  chapterCount: number;
+  genre: string;
+  setting: string;
+  ageGroup: string;
+  cast: CastSet;
+  dna: TaleDNA | StoryDNA;
+  directives: SceneDirective[];
+  learningContext?: string;
+  previousAdventure?: string;
+  customStoryBeats?: string;
+}): string {
+  const { chapterCount, genre, setting, ageGroup, cast, dna, directives } = input;
+  const isGerman = true;
+  const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
+  const promptSheets: CharacterSheet[] = [];
+  const characterLines: string[] = [];
+
+  for (const slot of allSlots) {
+    if (slot.includes("ARTIFACT")) continue;
+    const sheet = findCharacterBySlot(cast, slot) as CharacterSheet | undefined;
+    if (!sheet) continue;
+    promptSheets.push(sheet);
+    const role = getPromptRoleLabel(sheet, isGerman);
+    const speech = sheet.speechStyleHints?.[0] || "normal";
+    characterLines.push(`- ${sheet.displayName}${role ? ` (${role})` : ""}: ${sheet.enhancedPersonality?.dominant || "neugierig"}; Voice: ${speech}`);
+  }
+
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
+  const seedHints = directives
+    .slice(0, chapterCount)
+    .map((directive, idx) => {
+      const settingText = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.setting), 64);
+      const goalText = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.goal), 90);
+      const conflictText = trimDirectiveText(sanitizeDirectiveNarrativeText(directive.conflict), 90);
+      return `- Chapter ${idx + 1}: ${settingText} | Goal: ${goalText} | Conflict: ${conflictText}`;
+    })
+    .join("\n");
+
+  const artifactBlock = cast.artifact
+    ? `\nARTIFACT\n- Name: ${cast.artifact.name}\n- Rule: ${cast.artifact.storyUseRule}\n- Visual: ${cast.artifact.visualRule}`
+    : "";
+  const learningBlock = input.learningContext ? `\nLEARNING CONTEXT\n${input.learningContext}` : "";
+  const previousAdventureBlock = input.previousAdventure ? `\nPREVIOUS ADVENTURE\n${input.previousAdventure}` : "";
+  const storyBeatsBlock = input.customStoryBeats ? `\nSTORY BEATS / USER NOTES\n${sanitizePromptBlock(input.customStoryBeats, 1800)}` : "";
+
+  return `Plan a ${genre} story set in "${setting}" for children ages ${ageGroup}.
+Produce exactly ${chapterCount} chapters.
+
+CHARACTERS
+${characterLines.join("\n")}
+${appearanceLockBlock ? `\nGERMAN APPEARANCE LOCKS\n${appearanceLockBlock}` : ""}
+
+STORY SEED
+- Theme: ${(dna.themeTags || []).slice(0, 4).join(", ") || "adventure"}
+- Core conflict: ${dna.coreConflict || "The children must overcome a real obstacle together."}
+${seedHints}${artifactBlock}${storyBeatsBlock}${learningBlock}${previousAdventureBlock}
+
+RULES
+- Follow the blueprint JSON schema exactly.
+- Chapter 1 sets up orientation clearly.
+- Chapter 3 contains an active child mistake plus body reaction.
+- Chapter 4 contains an inner turning point, not artifact magic.
+- Chapter 5 contains concrete win, small price, and callback.
+- Never use more than 2 active characters per chapter.
+- Do not invent unconfirmed appearance markers.
+- Use "preterite" for the tense field.
+- Blueprint field text may be in English. Keep names unchanged.
+
+Return only the blueprint JSON.`;
+}
+
+export function buildV8StorySystemPrompt(language: string): string {
+  if (language === "de") {
+    return `You are a top-tier children's book author for ages 6-8.
+You receive a structural blueprint and turn it into vivid, read-aloud friendly prose.
+The blueprint is your compass, not your script.
+
+Structural rules:
+- use a personal third-person narrator
+- write the final story in German, in preterite
+- keep the foreground clear; do not overcrowd scenes
+- chapter 3 must contain the active child mistake and visible body reaction
+- chapter 4 must contain the inner low point and turning decision
+- chapter 5 must feel as full and earned as the earlier chapters
+- never solve the inner problem through artifact magic, adult rescue, or coincidence
+- return valid JSON only
+
+GERMAN STYLE RULES (binding for final prose):
+- Kein Fremdwort, das ein Erstklaessler nicht kennt.
+- Keine englischen Woerter im Story-Text. Nutze korrekte Umlaute.
+- Zeige Gefuehle ueber Bauch, Haende, Kehle, Blick, Atem.
+- Keine Moral-Saetze. Keine Prompt-Sprache. Kein SELF-CHECK im Output.
+- Vermeide Kruecken wie "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".`;
+  }
+
+  return `You are a top-tier children's book author. Write vivid, read-aloud friendly prose from the blueprint and return valid JSON only.`;
+}
+
+export function buildV8StoryPrompt(input: {
+  blueprint: StoryBlueprintV8;
+  cast: CastSet;
+  language: string;
+  chapterCount: number;
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  stylePackText?: string;
+  userPrompt?: string;
+  avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+}): string {
+  const isGerman = input.language === "de";
+  const promptSheets = dedupeCharacterSheetsForPrompt([...input.cast.avatars, ...input.cast.poolCharacters] as CharacterSheet[]);
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
+  const voiceContractBlock = buildV8VoiceContractBlock(input.cast, isGerman);
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 4);
+  const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
+
+  let memoryLine = "";
+  if (input.avatarMemories && input.avatarMemories.size > 0) {
+    for (const avatar of input.cast.avatars) {
+      const memories = input.avatarMemories.get(avatar.characterId);
+      if (!memories || memories.length === 0) continue;
+      const topTitle = prepareMemoryTitleForPrompt(memories[0]?.storyTitle || "");
+      if (topTitle) {
+        memoryLine = isGerman
+          ? `Ein Avatar darf EINMAL kurz auf ein frueheres Abenteuer verweisen: "${topTitle}"`
+          : `One avatar may refer to one earlier adventure once: "${topTitle}"`;
+        break;
+      }
+    }
+  }
+
+  const germanStyleBlock = isGerman
+    ? `DEUTSCHE STILREGELN
+- Kein Fremdwort, das ein Erstklaessler nicht kennt.
+- Keine englischen Woerter im Story-Text. Nutze korrekte Umlaute.
+- Zeige Gefuehle ueber Bauch, Haende, Kehle, Blick oder Atem.
+- Vermeide "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".
+- Keine Moral-Saetze. Keine Prompt-Sprache.
+`
+    : "";
+
+  return `Use the following internal blueprint to write the final children's story.
+
+WORD BUDGET
+- ${input.chapterCount} chapters
+- Total: ${input.totalWordMin}-${input.totalWordMax} words
+- Per chapter: ${input.wordsPerChapter.min}-${input.wordsPerChapter.max} words
+- "paragraphs" must be a JSON array with 4-6 strings per chapter
+
+BLUEPRINT
+${JSON.stringify(input.blueprint, null, 2)}
+
+VOICE CONTRACTS
+German example lines are binding for rhythm, sentence length, and tone.
+${voiceContractBlock}
+
+${appearanceLockBlock ? `APPEARANCE LOCKS\n${appearanceLockBlock}\n` : ""}${germanStyleBlock}${stylePackBlock ? `STYLE NOTES\n${stylePackBlock}\n` : ""}${customPromptBlock ? `USER REQUIREMENTS\n${customPromptBlock}\n` : ""}${memoryLine ? `${memoryLine}\n` : ""}OUTPUT CONTRACT
+Return valid JSON only.
+{
+  "title": "title from the blueprint",
+  "description": "teaser from the blueprint",
+  "chapters": [
+    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+  ]
+}
+
+HARD RULES
+- exactly ${input.chapterCount} chapter objects
+- each paragraph must be its own string
+- never collapse a full chapter into one string
+- no markdown, no comments, no extra text.`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {

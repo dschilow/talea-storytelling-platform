@@ -1,4 +1,5 @@
 ﻿import assert from "assert";
+import { readFileSync } from "fs";
 import { createVariantPlan } from "../variant-planner";
 import { scoreCandidate } from "../matching-score";
 import { validateAndFixImageSpecs } from "../image-prompt-validator";
@@ -7,7 +8,11 @@ import { computeWordBudget, buildLengthTargetsFromBudget } from "../word-budget"
 import { validateStoryDraft } from "../story-validator";
 import { splitContinuousStoryIntoChapters } from "../story-segmentation";
 import { runQualityGates } from "../quality-gates";
-import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryDNA } from "../types";
+import { validateV8Blueprint } from "../blueprint-validator";
+import { resolvePromptVersionForRequest } from "../blueprint-generator";
+import { buildV8BlueprintSystemPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "../prompts";
+import { determineCriticVerdict, normalizeCriticReport } from "../semantic-critic";
+import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryBlueprintV8, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
   return {
@@ -41,6 +46,267 @@ function buildBlueprint(): StoryBlueprintBase {
     toneBounds: { targetTone: "warm", contentRules: ["safe"] },
   };
   return { dna, roles: [], scenes: [] };
+}
+
+function buildTestCast(): CastSet {
+  return {
+    avatars: [
+      {
+        characterId: "a1",
+        displayName: "Alexander",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_1",
+        personalityTags: ["beobachtend"],
+        speechStyleHints: ["ruhig und genau"],
+        visualSignature: ["brown hair"],
+        outfitLock: ["simple jacket"],
+        forbidden: ["adult"],
+      },
+      {
+        characterId: "a2",
+        displayName: "Adrian",
+        roleType: "AVATAR",
+        slotKey: "SLOT_AVATAR_2",
+        personalityTags: ["draufgaengerisch"],
+        speechStyleHints: ["kurz und impulsiv"],
+        visualSignature: ["blonde hair"],
+        outfitLock: ["simple shirt"],
+        forbidden: ["adult"],
+      },
+    ],
+    poolCharacters: [
+      {
+        characterId: "p1",
+        displayName: "Zauberer Sternenschweif",
+        roleType: "HELPER",
+        slotKey: "SLOT_HELPER_1",
+        speechStyleHints: ["melodisch"],
+        visualSignature: ["langer Sternenmantel"],
+        outfitLock: ["schweifender Mantel"],
+        forbidden: [],
+      },
+      {
+        characterId: "p2",
+        displayName: "Morbus",
+        roleType: "ANTAGONIST",
+        slotKey: "SLOT_ANTAGONIST_1",
+        speechStyleHints: ["tief und knapp"],
+        visualSignature: ["russdunkler Mantel"],
+        outfitLock: ["violette Runen"],
+        forbidden: [],
+      },
+    ],
+    artifact: {
+      artifactId: "art1",
+      name: "Gluecksmuenze",
+      storyUseRule: "zeigt die Spur, loest sie aber nicht",
+      visualRule: "kleine silberne Muenze",
+    },
+    slotAssignments: {
+      SLOT_AVATAR_1: "a1",
+      SLOT_AVATAR_2: "a2",
+      SLOT_HELPER_1: "p1",
+      SLOT_ANTAGONIST_1: "p2",
+      SLOT_ARTIFACT_1: "art1",
+    },
+  };
+}
+
+function buildFiveDirectives(): SceneDirective[] {
+  return [
+    {
+      chapter: 1,
+      setting: "Thronhalle mit silbernen Wegen",
+      mood: "WONDER",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_AVATAR_2"],
+      goal: "die erste Spur lesen",
+      conflict: "eine falsche Spur fuehrt in den Flammenflur",
+      outcome: "eine Gluecksmuenze blinkt am Ende des Kreises",
+      artifactUsage: "die Muenze glimmt kurz",
+      canonAnchorLine: "Alexander merkt kleine Details, Adrian drueckt nach vorn.",
+      imageMustShow: ["silberne Wege", "Thronhalle"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 2,
+      setting: "Waldrand mit krummen Wurzeln",
+      mood: "MYSTERIOUS",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_AVATAR_2", "SLOT_HELPER_1"],
+      goal: "der naeheren Spur folgen",
+      conflict: "bewegliche Aeste versperren den sicheren Pfad",
+      outcome: "der Raetsel-Baum zieht die Kinder tiefer hinein",
+      artifactUsage: "die Muenze wird warm",
+      canonAnchorLine: "Sternenschweif warnt, loest aber nichts.",
+      imageMustShow: ["Waldrand", "Aeste"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 3,
+      setting: "vor dem Raetsel-Baum",
+      mood: "TENSE",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_AVATAR_2", "SLOT_ANTAGONIST_1"],
+      goal: "durch die Ast-Barriere kommen",
+      conflict: "Alexanders laute Idee aktiviert Morbus' Runen",
+      outcome: "der Rueckweg verschwindet hinter violettem Rauch",
+      artifactUsage: "die Muenze zeigt nur den Schaden",
+      canonAnchorLine: "Der Fehler kommt aus Alexander selbst.",
+      imageMustShow: ["Raetsel-Baum", "Runen"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 4,
+      setting: "enger Waldkreis hinter der Rune",
+      mood: "SAD",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_AVATAR_2"],
+      goal: "den Rueckweg wiederfinden",
+      conflict: "Angst, Stille und falsche Zeichen lassen alles verloren wirken",
+      outcome: "Adrian entdeckt kleine echte Spuren am Boden",
+      artifactUsage: "die Muenze bleibt still",
+      canonAnchorLine: "Die Wende kommt aus Beobachtung und Freundschaft.",
+      imageMustShow: ["enge Baeume", "Bodenzeichen"],
+      imageAvoid: [],
+    },
+    {
+      chapter: 5,
+      setting: "Lichtkreis mitten im Wald",
+      mood: "TRIUMPH",
+      charactersOnStage: ["SLOT_AVATAR_1", "SLOT_AVATAR_2", "SLOT_ANTAGONIST_1"],
+      goal: "den richtigen Pfad befreien",
+      conflict: "Morbus schlaegt noch einmal nach der Muenze",
+      outcome: "der Weg zu Schneewittchen wird frei",
+      artifactUsage: "die Muenze zeigt den Kreis, nicht die Loesung",
+      canonAnchorLine: "Alexander haelt inne, Adrian darf zuerst sprechen.",
+      imageMustShow: ["Lichtkreis", "Waldpfad"],
+      imageAvoid: [],
+    },
+  ];
+}
+
+function buildValidV8Blueprint(): StoryBlueprintV8 {
+  return {
+    title: "Die Muenze im Kreis",
+    teaser: "Warum lacht die Spur, bevor sie den richtigen Weg zeigt?",
+    setting_type: "fantasy_familiar",
+    narrative_perspective: "personal_third",
+    tense: "preterite",
+    pov_character: "Alexander",
+    chapters: [
+      {
+        chapter: 1,
+        arc_label: "SETUP",
+        location: "In der Thronhalle glitzerten silberne Wege, und die Luft roch nach kaltem Stein.",
+        goal: "Alexander und Adrian wollen die erste Spur lesen.",
+        obstacle: "Eine falsche Spur fuehrt genau dorthin, wo Morbus warten koennte.",
+        active_characters: ["Alexander", "Adrian"],
+        supporting_characters: [],
+        key_emotion: "Neugier mit leichtem Ziehen im Bauch",
+        key_scene: {
+          what_happens: "Adrian springt schon auf den ersten Weg, waehrend Alexander auf die Schatten zeigt.",
+          playable_moment: "Adrian drueckt sein Ohr an den Boden und tut so, als hoere er die Muenze klingeln.",
+          quotable_line: "Die Spur grinst. Das ist nie ein gutes Zeichen.",
+        },
+        chapter_hook: "Am Ende des Kreises liegt eine Muenze mit dem Wort Glueck.",
+        word_target: 320,
+        dialogue_percentage: 30,
+      },
+      {
+        chapter: 2,
+        arc_label: "DISCOVERY",
+        location: "Am Waldrand knackten Wurzeln, und feuchtes Moos roch dunkel und weich.",
+        goal: "Die Kinder folgen der scheinbar schnelleren Spur.",
+        obstacle: "Der Raetsel-Baum schiebt bewegliche Aeste in den sicheren Pfad.",
+        active_characters: ["Alexander", "Adrian"],
+        supporting_characters: ["Zauberer Sternenschweif"],
+        key_emotion: "Mut mit wachsender Spannung",
+        key_scene: {
+          what_happens: "Sternenschweif warnt nur kurz, dann muessen die Kinder selbst entscheiden.",
+          playable_moment: "Adrian duckt sich unter einen Ast und macht ein knarzendes Baumgeraeusch nach.",
+          quotable_line: "Der Wald ist bestimmt gegen Orientierung allergisch.",
+        },
+        chapter_hook: "Zwischen den Aesten leuchtet ein violetter Riss auf.",
+        word_target: 324,
+        dialogue_percentage: 31,
+      },
+      {
+        chapter: 3,
+        arc_label: "TURNING_POINT",
+        location: "Vor dem Raetsel-Baum glimmten Runen wie heisse Kohlen im Nebel.",
+        goal: "Alexander will die Ast-Barriere ueberlisten.",
+        obstacle: "Er ruft seine Idee zu frueh heraus und aktiviert Morbus' Runen.",
+        active_characters: ["Alexander", "Adrian"],
+        supporting_characters: ["Morbus"],
+        key_emotion: "Scham und Druck nach dem Fehler",
+        key_scene: {
+          what_happens: "Alexander hebt beide Arme, ruft seinen Plan hinaus und sieht im selben Moment die Runen aufblitzen.",
+          playable_moment: "Er reisst die Arme hoch und friert dann mitten in der Bewegung ein.",
+          quotable_line: "Wartet! Ich weiss es! ... Oh.",
+        },
+        chapter_hook: "Der Rueckweg klappt hinter violettem Rauch zu.",
+        word_target: 328,
+        dialogue_percentage: 28,
+      },
+      {
+        chapter: 4,
+        arc_label: "DARKEST_MOMENT",
+        location: "Im engen Waldkreis standen die Stamme dicht, und nasse Blaetter klebten an den Schuhen.",
+        goal: "Die Kinder wollen den verlorenen Rueckweg wiederfinden.",
+        obstacle: "Angst und falsche Zeichen lassen jede Richtung gleich aussehen.",
+        active_characters: ["Alexander", "Adrian"],
+        supporting_characters: [],
+        key_emotion: "Fast-Aufgeben mit kleinem innerem Funken",
+        key_scene: {
+          what_happens: "Alexander legt die Hand an die kalte Luft, als koenne er die Zeit rueckwaerts schieben, bis Adrian auf winzige Zeichen am Boden zeigt.",
+          playable_moment: "Alexander tastet in die Luft, dann gehen beide gleichzeitig auf die Knie und suchen den Boden ab.",
+          quotable_line: "Nicht schneller. Richtiger.",
+        },
+        chapter_hook: "Die echte Spur fuehrt als kaum sichtbarer Kreis aus dem Dunkel.",
+        word_target: 332,
+        dialogue_percentage: 25,
+      },
+      {
+        chapter: 5,
+        arc_label: "LANDING",
+        location: "Im Lichtkreis roch die Luft ploetzlich nach warmem Harz, und die Baeume standen offen wie ein Tor.",
+        goal: "Die Kinder wollen den richtigen Pfad befreien, bevor Morbus zuschlaegt.",
+        obstacle: "Morbus greift noch einmal nach der Gluecksmuenze.",
+        active_characters: ["Alexander", "Adrian"],
+        supporting_characters: ["Morbus"],
+        key_emotion: "Erleichterung und stille Reife",
+        key_scene: {
+          what_happens: "Alexander haelt diesmal an, laesst Adrian zuerst sprechen und setzt den letzten Schritt erst danach.",
+          playable_moment: "Adrian streckt die Hand vor, Alexander nickt knapp und beide setzen gleichzeitig einen Fuss in den Lichtkreis.",
+          quotable_line: "Diesmal redest du zuerst.",
+        },
+        chapter_hook: "Die Spur endet im richtigen Kreis, und der Pfad bleibt offen.",
+        word_target: 330,
+        dialogue_percentage: 30,
+      },
+    ],
+    humor_beats: [
+      { chapter: 1, type: "character_behavior", description: "Adrian tut so, als knurre die Muenze in seinem Bauch." },
+      { chapter: 5, type: "warm_callback", description: "Die lachende Spur aus Kapitel 1 endet nun wirklich im richtigen Kreis." },
+    ],
+    error_and_repair: {
+      who: "Alexander",
+      error_chapter: 3,
+      error: "Alexander ruft seinen Plan laut heraus, bevor er ihn prueft.",
+      inner_reason: "Er will Kontrolle zurueckgewinnen und klueger wirken als die Falle.",
+      body_signal: "Ein Knoten zieht sich durch seinen Bauch, die Haende werden kalt, die Kehle eng.",
+      repair_chapter: 5,
+      repair: "Alexander haelt inne, laesst Adrian zuerst sprechen und fuehrt dann ruhiger weiter.",
+    },
+    arc_checkpoints: {
+      ch1_feeling: "wissbegierig und leicht uebermuetig",
+      ch2_feeling: "mutig, aber unsicherer als vorher",
+      ch3_feeling: "Scham und Angst nach dem Fehler",
+      ch4_feeling: "Tiefpunkt mit einem kleinen neuen Entschluss",
+      ch5_feeling: "Erleichterung, Waerme und neue Ruhe",
+    },
+    iconic_scene: {
+      chapter: 3,
+      description: "Alexander reisst die Arme hoch, ruft seinen Plan hinaus und friert ein, als die Runen antworten.",
+    },
+  };
 }
 
 function testVariantDeterminism() {
@@ -1334,6 +1600,164 @@ function testEndingStabilityGate() {
   );
 }
 
+function testPromptVersionResolverV8Rollout() {
+  assert.strictEqual(
+    resolvePromptVersionForRequest({
+      requestedPromptVersion: "v8",
+      defaultPromptVersion: "v7",
+      language: "en",
+      ageMax: 10,
+      chapterCount: 7,
+    }),
+    "v8",
+    "Explicit prompt version must win"
+  );
+
+  assert.strictEqual(
+    resolvePromptVersionForRequest({
+      defaultPromptVersion: "v8",
+      language: "de",
+      ageMax: 8,
+      chapterCount: 5,
+    }),
+    "v8",
+    "V8 should auto-enable only for the intended German 5-chapter rollout"
+  );
+
+  assert.strictEqual(
+    resolvePromptVersionForRequest({
+      defaultPromptVersion: "v8",
+      language: "de",
+      ageMax: 8,
+      chapterCount: 3,
+    }),
+    "v7",
+    "Non-5-chapter stories should remain on V7 during initial rollout"
+  );
+}
+
+function testV8BlueprintValidation() {
+  const validBlueprint = buildValidV8Blueprint();
+  const valid = validateV8Blueprint({
+    blueprint: validBlueprint,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(valid.valid, true, "Valid V8 blueprint should pass");
+
+  const invalidBlueprint = JSON.parse(JSON.stringify(validBlueprint)) as StoryBlueprintV8;
+  invalidBlueprint.chapters[2].active_characters = ["Alexander", "Adrian", "Morbus"];
+  invalidBlueprint.chapters[2].key_scene.playable_moment = "Alexander ruft seine Idee verr";
+  invalidBlueprint.chapters[3].arc_label = "LANDING";
+  invalidBlueprint.pov_character = "Morbus";
+
+  const invalid = validateV8Blueprint({
+    blueprint: invalidBlueprint,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  const codes = new Set(invalid.issues.map((issue) => issue.code));
+  assert.strictEqual(invalid.valid, false, "Invalid V8 blueprint should fail");
+  assert.ok(codes.has("ACTIVE_CHARACTERS_OVER_LIMIT"), "Validator should reject overloaded foreground casts");
+  assert.ok(codes.has("FIELD_TRUNCATED"), "Validator should detect truncated chapter fields");
+  assert.ok(codes.has("ARC_LABEL_INVALID"), "Validator should enforce strict V8 arc order");
+  assert.ok(codes.has("POV_PRESENCE_TOO_LOW"), "Validator should require the POV child across the arc");
+}
+
+function testV8WriterPromptRegression() {
+  const legacyPrompt = readFileSync("Logs/logs/extracted-fullstory-prompt-6ea4688e.txt", "utf8");
+  assert.ok(legacyPrompt.includes("Was danach anders ist: Morbus"), "Regression fixture must contain the old truncated beat line");
+  assert.ok(legacyPrompt.includes("entscheidet sich, kur"), "Regression fixture must contain the old Chapter 4 truncation");
+  assert.ok(legacyPrompt.includes("nur diesmal rich"), "Regression fixture must contain the old Chapter 5 truncation");
+
+  const blueprintSystemPrompt = buildV8BlueprintSystemPrompt("de");
+  assert.ok(blueprintSystemPrompt.includes("Return valid JSON only"), "V8 blueprint system prompt should carry structural instructions in English");
+  assert.ok(blueprintSystemPrompt.includes("never use more than 2 active characters per chapter"), "Blueprint system prompt should express hard constraints in English");
+
+  const storySystemPrompt = buildV8StorySystemPrompt("de");
+  assert.ok(storySystemPrompt.includes("Structural rules:"), "V8 story system prompt should use English structural guidance");
+  assert.ok(storySystemPrompt.includes("GERMAN STYLE RULES"), "V8 story system prompt should contain a dedicated German style block");
+  assert.ok(storySystemPrompt.includes("Kein Fremdwort"), "German lexical style rules should stay in German");
+
+  const prompt = buildV8StoryPrompt({
+    blueprint: buildValidV8Blueprint(),
+    cast: buildTestCast(),
+    language: "de",
+    chapterCount: 5,
+    totalWordMin: 1400,
+    totalWordMax: 1960,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+
+  assert.ok(!prompt.includes("SELF-CHECK"), "V8 writer prompt must not include self-check rhetoric");
+  assert.ok(!prompt.includes("Was danach anders ist:"), "V8 writer prompt must not include old beat prose labels");
+  assert.ok(!prompt.includes("entscheidet sich, kur"), "V8 writer prompt must not include truncated Chapter 4 fragments");
+  assert.ok(!prompt.includes("nur diesmal rich"), "V8 writer prompt must not include truncated Chapter 5 fragments");
+  assert.ok(prompt.includes('Return valid JSON only.'), "V8 writer prompt should express output contract in English");
+  assert.ok(prompt.includes('"paragraphs" must be a JSON array with 4-6 strings per chapter'), "V8 writer prompt should expose the paragraph rule in English");
+  assert.ok(prompt.includes("German example lines are binding"), "Voice contract instructions should clarify that German examples are binding");
+  assert.ok(prompt.includes("DEUTSCHE STILREGELN"), "Language-specific style rules should stay in German");
+  assert.ok(prompt.includes("Kein Fremdwort"), "German lexical constraints should remain in German");
+  assert.ok(!prompt.includes("4-5 Strings"), "V8 writer prompt must not carry the conflicting old paragraph count");
+}
+
+function testCriticNormalizationAndBanding() {
+  const raw = {
+    overall_score: 7.2,
+    scores: {
+      character_voice: { score: 7, reasoning: "Voices are mostly distinct.", example: "Alexander stays precise." },
+      scenic_presence: { score: 8, reasoning: "Scenes are visible.", example: "The glowing runes are concrete." },
+      tension_arc: { score: 7, reasoning: "There is escalation.", example: "Chapter 3 breaks the path." },
+      humor: { score: 6, reasoning: "There are a few smile moments.", example: "Adrian overplays a clue." },
+      age_appropriateness: { score: 8, reasoning: "Language suits 6-8.", example: "Sentences stay simple." },
+      chapter_coherence: { score: 7, reasoning: "Callbacks hold.", example: "The circle returns in Chapter 5." },
+      readability: { score: 8, reasoning: "Read-aloud flow works.", example: "Rhythm varies cleanly." },
+      emotional_arc: { score: 7, reasoning: "Alexander's shame and recovery are visible.", example: "Cold hands after the mistake." },
+      iconic_scene: { score: 7, reasoning: "The raised-arm mistake is replayable.", example: "\"Wartet! Ich weiss es! ... Oh.\"" },
+      chapter5_quality: { score: 7, reasoning: "Ending is full enough.", example: "The warm circle lands well." },
+    },
+    strengths: ["Strong concrete midpoint scene"],
+    revision_hints: ["Sharpen one additional humor beat in the middle chapters"],
+    issues: [
+      {
+        chapter: 2,
+        code: "HUMOR_MISSING",
+        severity: "WARNING",
+        message: "Middle chapter could use one warmer comic beat.",
+        patchInstruction: "Add one short behavior-based laugh in chapter 2.",
+      },
+    ],
+  };
+
+  const report = normalizeCriticReport(raw, {
+    model: "test-model",
+    targetMinScore: 8.0,
+    warnFloor: 6.5,
+    directives: buildFiveDirectives(),
+    language: "de",
+  });
+
+  assert.strictEqual(report.verdict, "acceptable", "7.x average with no hard failures should normalize to acceptable");
+  assert.strictEqual(report.releaseReady, false, "Only publish verdict should be release-ready");
+  assert.strictEqual(report.rubricScores.character_voice.score, 7, "Rubric scores should be preserved");
+  assert.ok(report.dimensionScores.craft > 0, "Legacy dimension summary should be derived from rubric scores");
+  assert.strictEqual(report.revisionHints[0], "Sharpen one additional humor beat in the middle chapters", "Revision hints should be preserved");
+  assert.strictEqual(report.patchTasks.length, 1, "Issues with patch instructions should derive local patch tasks when missing");
+
+  assert.strictEqual(
+    determineCriticVerdict({
+      rubricScores: report.rubricScores,
+      criticalFailures: ["Chapter 4 resolves externally."],
+      publishThreshold: 8.0,
+      acceptableThreshold: 6.5,
+    }),
+    "reject",
+    "Critical failures must force reject verdict"
+  );
+}
+
 async function run() {
   testVariantDeterminism();
   testMatchingScore();
@@ -1353,6 +1777,10 @@ async function run() {
   testFilterPlaceholderGate();
   testBannedWordGate();
   testEndingStabilityGate();
+  testPromptVersionResolverV8Rollout();
+  testV8BlueprintValidation();
+  testV8WriterPromptRegression();
+  testCriticNormalizationAndBanding();
   await testIntegrationWithMocks();
   console.log("Pipeline tests passed.");
 }

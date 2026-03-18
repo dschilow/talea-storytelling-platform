@@ -18,6 +18,27 @@ export interface SemanticCriticPatchTask {
   instruction: string;
 }
 
+export type SemanticCriticVerdict = "publish" | "acceptable" | "revision_needed" | "reject";
+
+export interface SemanticCriticRubricScore {
+  score: number;
+  reasoning: string;
+  example?: string;
+}
+
+export interface SemanticCriticRubricScores {
+  character_voice: SemanticCriticRubricScore;
+  scenic_presence: SemanticCriticRubricScore;
+  tension_arc: SemanticCriticRubricScore;
+  humor: SemanticCriticRubricScore;
+  age_appropriateness: SemanticCriticRubricScore;
+  chapter_coherence: SemanticCriticRubricScore;
+  readability: SemanticCriticRubricScore;
+  emotional_arc: SemanticCriticRubricScore;
+  iconic_scene: SemanticCriticRubricScore;
+  chapter5_quality: SemanticCriticRubricScore;
+}
+
 export interface SemanticCriticReport {
   model: string;
   overallScore: number;
@@ -28,42 +49,66 @@ export interface SemanticCriticReport {
     humor: number;
     warmth: number;
   };
+  rubricScores: SemanticCriticRubricScores;
+  verdict: SemanticCriticVerdict;
   releaseReady: boolean;
   summary: string;
   issues: SemanticCriticIssue[];
   patchTasks: SemanticCriticPatchTask[];
+  criticalFailures: string[];
+  strengths: string[];
+  revisionHints: string[];
   usage?: TokenUsage;
 }
+
+const RUBRIC_KEYS = [
+  "character_voice",
+  "scenic_presence",
+  "tension_arc",
+  "humor",
+  "age_appropriateness",
+  "chapter_coherence",
+  "readability",
+  "emotional_arc",
+  "iconic_scene",
+  "chapter5_quality",
+] as const;
+
+type RubricKey = (typeof RUBRIC_KEYS)[number];
 
 export async function runSemanticCritic(input: {
   storyId: string;
   draft: StoryDraft;
   directives: SceneDirective[];
   cast: CastSet;
+  blueprint?: unknown;
   language: string;
   ageRange: { min: number; max: number };
   humorLevel?: number;
   model?: string;
   targetMinScore?: number;
+  warnFloor?: number;
 }): Promise<SemanticCriticReport> {
   const model = input.model || GEMINI_SUPPORT_MODEL;
-  const targetMinScore = clampNumber(input.targetMinScore ?? 8.2, 0, 10);
+  const targetMinScore = clampNumber(input.targetMinScore ?? 8.0, 0, 10);
+  const warnFloor = clampNumber(input.warnFloor ?? 6.5, 0, targetMinScore);
   const humorLevel = clampNumber(input.humorLevel ?? 2, 0, 3);
 
   const fallback = buildFallbackReport({
     model,
     targetMinScore,
+    warnFloor,
     draft: input.draft,
     language: input.language,
   });
 
   try {
     const castNames = [
-      ...input.cast.avatars.map(a => a.displayName),
-      ...input.cast.poolCharacters.map(c => c.displayName),
+      ...input.cast.avatars.map((a) => a.displayName),
+      ...input.cast.poolCharacters.map((c) => c.displayName),
     ].filter(Boolean);
 
-    const directiveSummary = input.directives.map(d => ({
+    const directiveSummary = input.directives.map((d) => ({
       chapter: d.chapter,
       setting: d.setting,
       goal: trimText(d.goal, 96),
@@ -72,130 +117,91 @@ export async function runSemanticCritic(input: {
       charactersOnStage: d.charactersOnStage,
     }));
 
-    const chapters = input.draft.chapters.map(ch => ({
+    const chapters = input.draft.chapters.map((ch) => ({
       chapter: ch.chapter,
       title: ch.title,
       text: compressChapter(ch.text, 120),
     }));
 
-    const isDE = input.language === "de";
-    const systemPrompt = isDE
-      ? `Du bist ein strenger Kinderbuch-Lektor. Bewerte nur die Qualitaet. Schreibe die Geschichte NICHT um.
-Fokussiere dich auf konkrete, kapitel-lokale Fehler und umsetzbare Korrekturen.
-Kein allgemeines Lob. Gib knappes JSON zurueck, exakt wie angefordert.
-Maximal 7 issues und maximal 5 patchTasks.
-
-PRUEFE GEZIELT:
-1. Kapitel 1: Weiss das Kind nach 2 Absaetzen WER, WO, WAS? Wenn nicht -> ERROR.
-2. Kapitel 3: Macht das Kind einen echten Fehler aus seiner Persoenlichkeit heraus? Gibt es eine Koerperreaktion? Wenn nicht -> ERROR.
-3. Kapitel 4: Gibt es einen echten Tiefpunkt? Kommt die Wende von INNEN (nicht von aussen)? Wenn nicht -> ERROR.
-4. Kapitel 5: Konkreter Gewinn UND kleiner Preis? Rueckbezug zu Kapitel 1? Wenn nicht -> WARNING.
-5. Dialog: Klingt jede Figur anders? Traegt Dialog Reibung, Witz, Naehe oder Hinweis? Ruhige Passagen sind erlaubt. Nur wenn ein Kapitel fast nur aus Bericht besteht und kaum direkte Rede hat -> ERROR.
-6. Vorlese-Test: Markiere nur Saetze, die beim Vorlesen wirklich holpern, ueberladen oder unklar klingen. Laenge allein ist kein Fehler.
-7. Fehler-Wachstums-Bogen: Macht das Kind einen Fehler (Ch3), lernt daraus (Ch4), handelt anders (Ch5)?
-8. Humor: Gibt es 2-3 echte Schmunzel-Momente in der ganzen Geschichte? Kapitel 4 darf ernster sein, wenn der Tiefpunkt dadurch staerker wird. Wenn fast gar kein Humor vorkommt -> ERROR.
-9. Figuren-Fokus: Meist 2 Vordergrundfiguren, 3 sind okay wenn die Szene klar bleibt. Erst wenn 4+ gleichzeitig konkurrieren und die Szene unklar wird -> ERROR.
-10. Rhythmus: Gibt es Variation zwischen kurzen Druckstellen und natuerlichem Fluss? Oder nur gleichfoermige Mittellage? -> WARNING.`
-      : `You are a strict senior children's-book editor. Evaluate quality only. Never rewrite the full story.
-Focus on concrete, chapter-local failures and actionable fixes.
-No generic praise. Return concise JSON exactly as requested.
-Return at most 7 issues and at most 5 patchTasks.
-
-TARGETED CHECKS:
-1. Chapter 1: After 2 paragraphs, does the child know WHO, WHERE, WHAT? If not -> ERROR.
-2. Chapter 3: Does the child make a genuine mistake rooted in their personality? Is there a body reaction? If not -> ERROR.
-3. Chapter 4: Is there a real low point? Does the turning point come from INSIDE the child (not external help)? If not -> ERROR.
-4. Chapter 5: Concrete win AND small price? Callback to Chapter 1? If not -> WARNING.
-5. Dialogue: Does each character sound distinct? Does dialogue carry friction, humor, warmth, or clues? Quiet passages are allowed. Only if a chapter is mostly report prose with barely any direct speech -> ERROR.
-6. Read-aloud test: Flag only sentences that would genuinely stumble aloud because they are overloaded, awkward, or unclear. Length alone is not a bug.
-7. Mistake-growth arc: Does the child make a mistake (Ch3), learn from it (Ch4), act differently (Ch5)?
-8. Humor: Are there 2-3 genuine smile moments across the whole story? Chapter 4 may stay more serious if that strengthens the low point. If there is almost no humor at all -> ERROR.
-9. Character focus: Usually keep 2 foreground figures, but 3 can work if the scene stays clear. Only if 4+ active figures compete and muddy the scene -> ERROR.
-10. Rhythm: Is there sentence-length variation between pressure beats and natural flow? Or only uniform medium sentences? -> WARNING.`;
+    const systemPrompt = `You are an experienced children's-book editor for ages 6-8.
+Evaluate quality only. Never rewrite the full story.
+Use a clear 10-point rubric and name concrete strengths, critical failures, and actionable revisions.
+If a blueprint is provided, check structural fidelity and emotional payoff without demanding literal wording.
+If the story language is German, judge the German prose on native German children's-book quality.
+No generic praise. Return compact JSON only.
+Return at most 7 issues and at most 5 patchTasks.`;
 
     const userPayload = {
       language: input.language,
       ageRange: input.ageRange,
       humorLevel,
-      targetMinScore,
+      publishThreshold: targetMinScore,
+      acceptableThreshold: warnFloor,
       castNames,
       artifact: input.cast.artifact?.name || null,
+      blueprint: input.blueprint || null,
       directiveSummary,
       chapters,
-      scoringGuide: {
-        craft: "style rhythm, voice clarity, line quality",
-        narrative: "stakes, low point, payoff, coherence",
-        childFit: "age fit, clarity, emotional safety, readability",
-        humor: "child-friendly playful moments and comic beats",
-        warmth: "emotional warmth, hopeful closure",
+      rubric: {
+        character_voice: "Can each main figure be recognized by tone alone?",
+        scenic_presence: "Does each chapter contain at least one concrete, visible scene?",
+        tension_arc: "Is there escalation, a real low point, and payoff?",
+        humor: "Are there at least 2 genuine smile moments from behavior or situation?",
+        age_appropriateness: "Is the language and emotional framing right for ages 6-8?",
+        chapter_coherence: "Do callbacks, continuity, and locks stay consistent across chapters?",
+        readability: "Does the story read aloud smoothly with varied rhythm?",
+        emotional_arc: "Does the child's inner journey feel earned and visible?",
+        iconic_scene: "Is there a strong playable / quotable scene children would replay?",
+        chapter5_quality: "Is Chapter 5 as full, rich, and earned as the others?",
       },
       focusChecks: [
-        "Ch1 orientation: after 2 paragraphs child must know WHO + WHERE + WHAT. If mid-action start -> ERROR CH1_ORIENTATION_MISSING",
-        "Ch3 child mistake: child must make a genuine error from their personality (not external bad luck). Body reaction required. If missing -> ERROR CHILD_MISTAKE_MISSING",
-        "Ch4 internal turning point: the insight must come from inside the child, not from artifact or adult. If external -> ERROR EXTERNAL_RESOLUTION",
-        "Ch5 concrete payoff: show what was won (concrete) + small tangible price + callback to Ch1. If abstract -> WARNING",
-        "mistake-growth arc: child mistakes in Ch3, learns in Ch4, acts differently in Ch5. If arc is broken -> ERROR GROWTH_ARC_BROKEN",
-        "voice separation: children should sound distinct in sentence rhythm and wording. If all characters sound the same -> ERROR VOICE_BLEND",
-        "read-aloud stumbles: flag only overloaded or awkward sentences that would genuinely stumble when read aloud -> WARNING READ_ALOUD_STUMBLE",
-        "chapter transitions: Ch2-5 first sentence must connect to previous chapter's last moment -> WARNING CHAPTER_TRANSITION_WEAK",
-        "meta-foreshadow leak: reject lines like 'soon they would know' / 'an outlook remained' -> WARNING META_FORESHADOW_PHRASE",
-        "rule-exposition tell: reject textbook statements about how artifacts/rules work -> WARNING RULE_EXPOSITION_TELL",
-        "humor distribution: the story should contain 2-3 playful/funny moments overall. Chapter 4 may stay more serious. If the story has almost no humor -> ERROR HUMOR_MISSING",
-        "character focus: usually 2 foreground figures, 3 is acceptable if staging stays clear. If 4+ actively compete for attention -> ERROR CHARACTER_OVERLOAD",
-        "dialogue balance: chapters should feel scene-led and alive. Use WARNING DIALOGUE_PROSE_IMBALANCE when a chapter would benefit from more live interaction. Use ERROR DIALOGUE_TOO_LOW only when direct speech is nearly absent and the chapter reads mostly like report prose.",
+        "Chapter 1 must orient WHO + WHERE + WHAT by paragraph 2.",
+        "Chapter 3 must contain an active child mistake with visible consequence and body reaction.",
+        "Chapter 4 must contain a real inner low point and an internally earned turn.",
+        "Chapter 5 must deliver concrete win + small price + callback + warm ending image.",
+        "Artifact or adults may not solve the core inner problem.",
+        "Usually keep 2 foreground figures; flag overload only when staging becomes muddy.",
+        "Flag only genuine read-aloud stumbles, not sentence length by itself.",
       ],
       outputBudget: {
         maxIssues: 7,
         maxPatchTasks: 5,
-        maxMessageChars: 120,
+        maxMessageChars: 140,
       },
-      preferredIssueCodes: [
-        "CH1_ORIENTATION_MISSING",
-        "CHILD_MISTAKE_MISSING",
-        "EXTERNAL_RESOLUTION",
-        "GROWTH_ARC_BROKEN",
-        "CHAPTER_TRANSITION_WEAK",
-        "READ_ALOUD_STUMBLE",
-        "VOICE_BLEND",
-        "VOICE_TAG_FORMULA_OVERUSE",
-        "META_FORESHADOW_PHRASE",
-        "META_SUMMARY_SENTENCE",
-        "RULE_EXPOSITION_TELL",
-        "ABRUPT_SCENE_SHIFT",
-        "DIALOGUE_PROSE_IMBALANCE",
-        "DIALOGUE_TOO_LOW",
-        "METAPHOR_DENSITY_HIGH",
-        "GIMMICK_LOOP_OVERUSE",
-        "HUMOR_MISSING",
-        "CHARACTER_OVERLOAD",
-        "RHYTHM_MONOTONE",
-      ],
       outputSchema: {
-        overallScore: "number 0..10",
-        dimensionScores: {
-          craft: "number 0..10",
-          narrative: "number 0..10",
-          childFit: "number 0..10",
-          humor: "number 0..10",
-          warmth: "number 0..10",
+        overall_score: "number 0..10",
+        verdict: "publish | acceptable | revision_needed | reject",
+        scores: {
+          character_voice: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          scenic_presence: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          tension_arc: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          humor: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          age_appropriateness: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          chapter_coherence: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          readability: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          emotional_arc: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          iconic_scene: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          chapter5_quality: { score: "number 0..10", reasoning: "string", example: "string optional" },
         },
-        releaseReady: "boolean",
+        critical_failures: ["string"],
+        strengths: ["string"],
+        revision_hints: ["string"],
         summary: "string max 140 chars",
         issues: [
           {
             chapter: "number (0 for global)",
             code: "string",
-            severity: "ERROR|WARNING",
-            message: "string, concise, max 120 chars, at most 7 issues total",
+            severity: "ERROR | WARNING",
+            message: "string",
             patchInstruction: "string optional",
           },
         ],
         patchTasks: [
           {
             chapter: "number",
-            priority: "1|2|3",
+            priority: "1 | 2 | 3",
             objective: "string",
-            instruction: "string concise, chapter-local, at most 5 tasks total",
+            instruction: "string",
           },
         ],
       },
@@ -207,7 +213,7 @@ TARGETED CHECKS:
             systemPrompt,
             userPrompt: JSON.stringify(userPayload),
             model,
-            maxTokens: 1800,
+            maxTokens: 2200,
             temperature: 0.2,
             thinkingBudget: 96,
             logSource: "phase6-story-critic-llm",
@@ -230,7 +236,7 @@ TARGETED CHECKS:
             { role: "user", content: JSON.stringify(userPayload) },
           ],
           responseFormat: "json_object",
-          maxTokens: 1800,
+          maxTokens: 2200,
           reasoningEffort: "minimal",
           temperature: 0.2,
           context: "story-semantic-critic",
@@ -246,6 +252,7 @@ TARGETED CHECKS:
     const normalized = normalizeCriticReport(parsed, {
       model,
       targetMinScore,
+      warnFloor,
       directives: input.directives,
       language: input.language,
     });
@@ -257,24 +264,53 @@ TARGETED CHECKS:
   }
 }
 
-function normalizeCriticReport(
+export function normalizeCriticReport(
   raw: any,
   ctx: {
     model: string;
     targetMinScore: number;
+    warnFloor: number;
     directives: SceneDirective[];
     language: string;
   },
 ): SemanticCriticReport {
-  const chapterSet = new Set(ctx.directives.map(d => d.chapter));
-  const dimRaw = raw?.dimensionScores || {};
-  const craft = clampNumber(Number(dimRaw.craft ?? 0), 0, 10);
-  const narrative = clampNumber(Number(dimRaw.narrative ?? 0), 0, 10);
-  const childFit = clampNumber(Number(dimRaw.childFit ?? 0), 0, 10);
-  const humor = clampNumber(Number(dimRaw.humor ?? 0), 0, 10);
-  const warmth = clampNumber(Number(dimRaw.warmth ?? 0), 0, 10);
-  const weighted = Number((craft * 0.27 + narrative * 0.27 + childFit * 0.22 + humor * 0.12 + warmth * 0.12).toFixed(2));
-  const overallScore = clampNumber(Number(raw?.overallScore ?? weighted), 0, 10);
+  const chapterSet = new Set(ctx.directives.map((d) => d.chapter));
+
+  const rawRubricScores = normalizeRubricScores(raw?.scores || raw?.rubricScores);
+  const legacyDimensionScores = normalizeLegacyDimensionScores(raw?.dimensionScores || {});
+  const preliminaryOverall = clampNumber(Number(raw?.overall_score ?? raw?.overallScore ?? 0), 0, 10);
+
+  const rubricScores = hasMeaningfulRubricScores(rawRubricScores)
+    ? rawRubricScores
+    : buildFallbackRubricFromLegacy({
+        overallScore: preliminaryOverall,
+        dimensionScores: legacyDimensionScores,
+      });
+
+  const derivedDimensionScores = deriveDimensionScores(rubricScores);
+  const dimensionScores = {
+    craft: clampNumber(legacyDimensionScores.craft || derivedDimensionScores.craft, 0, 10),
+    narrative: clampNumber(legacyDimensionScores.narrative || derivedDimensionScores.narrative, 0, 10),
+    childFit: clampNumber(legacyDimensionScores.childFit || derivedDimensionScores.childFit, 0, 10),
+    humor: clampNumber(legacyDimensionScores.humor || derivedDimensionScores.humor, 0, 10),
+    warmth: clampNumber(legacyDimensionScores.warmth || derivedDimensionScores.warmth, 0, 10),
+  };
+
+  const weighted = Number(
+    (
+      dimensionScores.craft * 0.25
+      + dimensionScores.narrative * 0.25
+      + dimensionScores.childFit * 0.2
+      + dimensionScores.humor * 0.12
+      + dimensionScores.warmth * 0.18
+    ).toFixed(2),
+  );
+  const rubricAverage = Number((averageRubricScores(rubricScores)).toFixed(2));
+  const overallScore = clampNumber(
+    Number(raw?.overall_score ?? raw?.overallScore ?? (rubricAverage > 0 ? rubricAverage : weighted)),
+    0,
+    10,
+  );
 
   const issues = Array.isArray(raw?.issues)
     ? raw.issues
@@ -283,7 +319,7 @@ function normalizeCriticReport(
           const severity = issue?.severity === "ERROR" ? "ERROR" : "WARNING";
           const code = String(issue?.code || "CRITIC_ISSUE").slice(0, 80);
           const message = trimText(String(issue?.message || ""), 160);
-          const patchInstruction = trimText(String(issue?.patchInstruction || ""), 160);
+          const patchInstruction = trimText(String(issue?.patchInstruction || ""), 180);
           if (!message) return null;
           return {
             chapter,
@@ -294,37 +330,88 @@ function normalizeCriticReport(
           } as SemanticCriticIssue;
         })
         .filter((v: SemanticCriticIssue | null): v is SemanticCriticIssue => Boolean(v))
+        .slice(0, 7)
     : [];
+
+  const criticalFailures = normalizeStringList(raw?.critical_failures ?? raw?.criticalFailures, 5, 180);
+  const strengths = normalizeStringList(raw?.strengths, 5, 180);
+  const revisionHints = normalizeStringList(raw?.revision_hints ?? raw?.revisionHints, 6, 180);
 
   const patchTasks = Array.isArray(raw?.patchTasks)
-    ? dedupePatchTasks(
-        raw.patchTasks
-          .map((task: any) => {
-            const chapter = normalizeChapter(task?.chapter, chapterSet);
-            if (chapter <= 0) return null;
-            const objective = trimText(String(task?.objective || ""), 110);
-            const instruction = trimText(String(task?.instruction || ""), 160);
-            if (!objective || !instruction) return null;
-            const priorityRaw = Number(task?.priority);
-            const priority: 1 | 2 | 3 = priorityRaw === 1 ? 1 : priorityRaw === 3 ? 3 : 2;
-            return { chapter, priority, objective, instruction } as SemanticCriticPatchTask;
-          })
-          .filter((v: SemanticCriticPatchTask | null): v is SemanticCriticPatchTask => Boolean(v)),
-      )
-    : [];
+    ? normalizePatchTasks(raw.patchTasks, chapterSet)
+    : derivePatchTasksFromIssues(issues);
 
-  const releaseReady = Boolean(raw?.releaseReady) && overallScore >= ctx.targetMinScore;
-  const summary = trimText(String(raw?.summary || ""), 140) || defaultSummary(ctx.language, overallScore, releaseReady);
+  const verdict = normalizeVerdict(raw?.verdict)
+    ?? determineCriticVerdict({
+      rubricScores,
+      criticalFailures,
+      publishThreshold: ctx.targetMinScore,
+      acceptableThreshold: ctx.warnFloor,
+    });
+  const releaseReady = verdict === "publish";
+  const summary = trimText(String(raw?.summary || ""), 140) || defaultSummary(ctx.language, overallScore, verdict);
 
   return {
     model: ctx.model,
     overallScore,
-    dimensionScores: { craft, narrative, childFit, humor, warmth },
+    dimensionScores,
+    rubricScores,
+    verdict,
     releaseReady,
     summary,
     issues,
     patchTasks,
+    criticalFailures,
+    strengths,
+    revisionHints,
   };
+}
+
+export function determineCriticVerdict(input: {
+  rubricScores: SemanticCriticRubricScores;
+  criticalFailures: string[];
+  publishThreshold: number;
+  acceptableThreshold: number;
+}): SemanticCriticVerdict {
+  const values = RUBRIC_KEYS.map((key) => clampNumber(Number(input.rubricScores[key]?.score ?? 0), 0, 10));
+  const average = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+  const minimum = values.length > 0 ? Math.min(...values) : 0;
+
+  if (input.criticalFailures.length > 0) return "reject";
+  if (minimum < 3) return "reject";
+  if (average >= input.publishThreshold && minimum >= 6) return "publish";
+  if (average >= input.acceptableThreshold && minimum >= 5) return "acceptable";
+  return "revision_needed";
+}
+
+function normalizePatchTasks(rawTasks: any[], chapterSet: Set<number>): SemanticCriticPatchTask[] {
+  return dedupePatchTasks(
+    rawTasks
+      .map((task: any) => {
+        const chapter = normalizeChapter(task?.chapter, chapterSet);
+        if (chapter <= 0) return null;
+        const objective = trimText(String(task?.objective || ""), 110);
+        const instruction = trimText(String(task?.instruction || ""), 180);
+        if (!objective || !instruction) return null;
+        const priorityRaw = Number(task?.priority);
+        const priority: 1 | 2 | 3 = priorityRaw === 1 ? 1 : priorityRaw === 3 ? 3 : 2;
+        return { chapter, priority, objective, instruction } as SemanticCriticPatchTask;
+      })
+      .filter((v: SemanticCriticPatchTask | null): v is SemanticCriticPatchTask => Boolean(v)),
+  );
+}
+
+function derivePatchTasksFromIssues(issues: SemanticCriticIssue[]): SemanticCriticPatchTask[] {
+  return dedupePatchTasks(
+    issues
+      .filter((issue) => issue.chapter > 0 && Boolean(issue.patchInstruction))
+      .map((issue) => ({
+        chapter: issue.chapter,
+        priority: issue.severity === "ERROR" ? 1 : 2,
+        objective: trimText(issue.message, 110),
+        instruction: trimText(issue.patchInstruction || issue.message, 180),
+      })),
+  );
 }
 
 function dedupePatchTasks(tasks: SemanticCriticPatchTask[]): SemanticCriticPatchTask[] {
@@ -341,20 +428,135 @@ function dedupePatchTasks(tasks: SemanticCriticPatchTask[]): SemanticCriticPatch
     .slice(0, 5);
 }
 
+function normalizeRubricScores(raw: any): SemanticCriticRubricScores {
+  const readRubric = (key: RubricKey): SemanticCriticRubricScore => {
+    const source = raw?.[key];
+    if (source && typeof source === "object") {
+      return {
+        score: clampNumber(Number(source.score ?? 0), 0, 10),
+        reasoning: trimText(String(source.reasoning || ""), 220),
+        example: trimText(String(source.example || ""), 180) || undefined,
+      };
+    }
+
+    if (Number.isFinite(Number(source))) {
+      return {
+        score: clampNumber(Number(source), 0, 10),
+        reasoning: "",
+      };
+    }
+
+    return { score: 0, reasoning: "" };
+  };
+
+  return {
+    character_voice: readRubric("character_voice"),
+    scenic_presence: readRubric("scenic_presence"),
+    tension_arc: readRubric("tension_arc"),
+    humor: readRubric("humor"),
+    age_appropriateness: readRubric("age_appropriateness"),
+    chapter_coherence: readRubric("chapter_coherence"),
+    readability: readRubric("readability"),
+    emotional_arc: readRubric("emotional_arc"),
+    iconic_scene: readRubric("iconic_scene"),
+    chapter5_quality: readRubric("chapter5_quality"),
+  };
+}
+
+function normalizeLegacyDimensionScores(raw: any): {
+  craft: number;
+  narrative: number;
+  childFit: number;
+  humor: number;
+  warmth: number;
+} {
+  return {
+    craft: clampNumber(Number(raw?.craft ?? 0), 0, 10),
+    narrative: clampNumber(Number(raw?.narrative ?? 0), 0, 10),
+    childFit: clampNumber(Number(raw?.childFit ?? 0), 0, 10),
+    humor: clampNumber(Number(raw?.humor ?? 0), 0, 10),
+    warmth: clampNumber(Number(raw?.warmth ?? 0), 0, 10),
+  };
+}
+
+function buildFallbackRubricFromLegacy(input: {
+  overallScore: number;
+  dimensionScores: {
+    craft: number;
+    narrative: number;
+    childFit: number;
+    humor: number;
+    warmth: number;
+  };
+}): SemanticCriticRubricScores {
+  const overall = clampNumber(input.overallScore || averageObjectValues(input.dimensionScores) || 7, 0, 10);
+  const craft = input.dimensionScores.craft || overall;
+  const narrative = input.dimensionScores.narrative || overall;
+  const childFit = input.dimensionScores.childFit || overall;
+  const humor = input.dimensionScores.humor || overall;
+  const warmth = input.dimensionScores.warmth || overall;
+
+  return {
+    character_voice: { score: craft, reasoning: "" },
+    scenic_presence: { score: craft, reasoning: "" },
+    tension_arc: { score: narrative, reasoning: "" },
+    humor: { score: humor, reasoning: "" },
+    age_appropriateness: { score: childFit, reasoning: "" },
+    chapter_coherence: { score: narrative, reasoning: "" },
+    readability: { score: childFit, reasoning: "" },
+    emotional_arc: { score: warmth, reasoning: "" },
+    iconic_scene: { score: craft, reasoning: "" },
+    chapter5_quality: { score: warmth, reasoning: "" },
+  };
+}
+
+function deriveDimensionScores(rubricScores: SemanticCriticRubricScores): {
+  craft: number;
+  narrative: number;
+  childFit: number;
+  humor: number;
+  warmth: number;
+} {
+  return {
+    craft: mean([
+      rubricScores.character_voice.score,
+      rubricScores.scenic_presence.score,
+      rubricScores.readability.score,
+      rubricScores.iconic_scene.score,
+    ]),
+    narrative: mean([
+      rubricScores.tension_arc.score,
+      rubricScores.chapter_coherence.score,
+      rubricScores.chapter5_quality.score,
+    ]),
+    childFit: mean([
+      rubricScores.age_appropriateness.score,
+      rubricScores.readability.score,
+      rubricScores.emotional_arc.score,
+    ]),
+    humor: clampNumber(rubricScores.humor.score, 0, 10),
+    warmth: mean([
+      rubricScores.emotional_arc.score,
+      rubricScores.chapter5_quality.score,
+      rubricScores.scenic_presence.score,
+    ]),
+  };
+}
+
 function buildFallbackReport(input: {
   model: string;
   targetMinScore: number;
+  warnFloor: number;
   draft: StoryDraft;
   language: string;
 }): SemanticCriticReport {
-  const text = input.draft.chapters.map(ch => ch.text).join(" ");
+  const text = input.draft.chapters.map((ch) => ch.text).join(" ");
   const words = text.split(/\s+/).filter(Boolean).length;
   const sentenceCount = text.split(/[.!?]+/).filter(Boolean).length;
   const avgWordsPerSentence = sentenceCount > 0 ? words / sentenceCount : 0;
   const baseline = avgWordsPerSentence > 18 ? 6.8 : 7.4;
   const overallScore = clampNumber(Number(baseline.toFixed(2)), 0, 10);
-  return {
-    model: input.model,
+  const rubricScores = buildFallbackRubricFromLegacy({
     overallScore,
     dimensionScores: {
       craft: overallScore,
@@ -363,11 +565,65 @@ function buildFallbackReport(input: {
       humor: clampNumber(overallScore - 0.2, 0, 10),
       warmth: clampNumber(overallScore + 0.1, 0, 10),
     },
-    releaseReady: overallScore >= input.targetMinScore,
-    summary: defaultSummary(input.language, overallScore, overallScore >= input.targetMinScore),
+  });
+  const verdict = determineCriticVerdict({
+    rubricScores,
+    criticalFailures: [],
+    publishThreshold: input.targetMinScore,
+    acceptableThreshold: input.warnFloor,
+  });
+
+  return {
+    model: input.model,
+    overallScore,
+    dimensionScores: deriveDimensionScores(rubricScores),
+    rubricScores,
+    verdict,
+    releaseReady: verdict === "publish",
+    summary: defaultSummary(input.language, overallScore, verdict),
     issues: [],
     patchTasks: [],
+    criticalFailures: [],
+    strengths: [],
+    revisionHints: [],
   };
+}
+
+function hasMeaningfulRubricScores(rubricScores: SemanticCriticRubricScores): boolean {
+  return RUBRIC_KEYS.some((key) => rubricScores[key].score > 0);
+}
+
+function averageRubricScores(rubricScores: SemanticCriticRubricScores): number {
+  return mean(RUBRIC_KEYS.map((key) => rubricScores[key].score));
+}
+
+function normalizeVerdict(value: unknown): SemanticCriticVerdict | null {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (
+    normalized === "publish"
+    || normalized === "acceptable"
+    || normalized === "revision_needed"
+    || normalized === "reject"
+  ) {
+    return normalized;
+  }
+  return null;
+}
+
+function normalizeStringList(value: unknown, maxItems: number, maxChars: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const text = trimText(String(item || ""), maxChars);
+    if (!text) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= maxItems) break;
+  }
+  return out;
 }
 
 function normalizeChapter(raw: unknown, chapterSet: Set<number>): number {
@@ -379,16 +635,18 @@ function normalizeChapter(raw: unknown, chapterSet: Set<number>): number {
   return 0;
 }
 
-function defaultSummary(language: string, score: number, releaseReady: boolean): string {
+function defaultSummary(language: string, score: number, verdict: SemanticCriticVerdict): string {
   const isDE = language === "de";
   if (isDE) {
-    return releaseReady
-      ? `Kritik: release-faehig (${score.toFixed(1)}/10), nur kleine lokale Feinschliffe noetig.`
-      : `Kritik: unter Release-Niveau (${score.toFixed(1)}/10), gezielte lokale Ueberarbeitung empfohlen.`;
+    if (verdict === "publish") return `Kritik: veroeffentlichbar (${score.toFixed(1)}/10), nur kleine Feinschliffe noetig.`;
+    if (verdict === "acceptable") return `Kritik: brauchbar (${score.toFixed(1)}/10), aber mit klaren Verbesserungsfeldern.`;
+    if (verdict === "reject") return `Kritik: deutliche Handwerksprobleme (${score.toFixed(1)}/10), so noch nicht tragfaehig.`;
+    return `Kritik: Ueberarbeitung noetig (${score.toFixed(1)}/10), gezielte lokale Revision empfohlen.`;
   }
-  return releaseReady
-    ? `Critic: release-ready (${score.toFixed(1)}/10), only minor local polish needed.`
-    : `Critic: below release bar (${score.toFixed(1)}/10), targeted local revisions recommended.`;
+  if (verdict === "publish") return `Critic: publish-ready (${score.toFixed(1)}/10), only minor polish needed.`;
+  if (verdict === "acceptable") return `Critic: acceptable (${score.toFixed(1)}/10), but clear improvements remain.`;
+  if (verdict === "reject") return `Critic: major craft problems (${score.toFixed(1)}/10), not viable yet.`;
+  return `Critic: revision needed (${score.toFixed(1)}/10), targeted local fixes recommended.`;
 }
 
 function compressChapter(text: string, maxWords: number): string {
@@ -443,6 +701,16 @@ function trimText(value: string, maxChars: number): string {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
   if (normalized.length <= maxChars) return normalized;
   return normalized.slice(0, Math.max(0, maxChars - 3)).trimEnd() + "...";
+}
+
+function mean(values: number[]): number {
+  const filtered = values.filter((value) => Number.isFinite(value));
+  if (filtered.length === 0) return 0;
+  return Number((filtered.reduce((sum, value) => sum + value, 0) / filtered.length).toFixed(2));
+}
+
+function averageObjectValues(values: Record<string, number>): number {
+  return mean(Object.values(values));
 }
 
 function clampNumber(value: number, min: number, max: number): number {

@@ -1,5 +1,19 @@
 ﻿import crypto from "crypto";
-import type { AvatarDetail, CastSet, ImageSpec, NormalizedRequest, PipelineDependencies, SceneDirective, StoryDraft, StoryVariantPlan, AISceneDescription, StoryCostEntry } from "./types";
+import type {
+  AISceneDescription,
+  AvatarDetail,
+  AvatarMemoryCompressed,
+  BlueprintGenerationResult,
+  CastSet,
+  ImageSpec,
+  NormalizedRequest,
+  PipelineDependencies,
+  SceneDirective,
+  StoryBlueprintV8,
+  StoryCostEntry,
+  StoryDraft,
+  StoryVariantPlan,
+} from "./types";
 import { normalizeRequest } from "./normalizer";
 import { loadStoryBlueprintBase } from "./dna-loader";
 import { createVariantPlan } from "./variant-planner";
@@ -26,11 +40,11 @@ import { generateSceneDescriptions } from "./scene-prompt-generator";
 import { resolveCriticModelForPipeline, resolveSurgeryModelForPipeline } from "./model-routing";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
+import { generateValidatedV8Blueprint, resolvePromptVersionForRequest } from "./blueprint-generator";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import type { AvatarMemoryCompressed } from "./types";
 
 import {
   loadCastSet,
@@ -219,6 +233,9 @@ export class StoryPipelineOrchestrator {
     let validationReport: any | undefined;
     let tokenUsage: any;
     const costEntries: StoryCostEntry[] = [];
+    let qualityReport: any;
+    let criticReport: SemanticCriticReport | undefined;
+    let blueprintResultV8: BlueprintGenerationResult | undefined;
 
     try {
       // ─── Phase 0.5: Fairy Tale Selection (quality/diversity fit) ─────────
@@ -371,10 +388,16 @@ export class StoryPipelineOrchestrator {
         bannedPhraseCount: canonFusionPlan.bannedPhrases.length,
       });
 
+      const activePromptVersion = resolvePromptVersionForRequest({
+        requestedPromptVersion: normalized.rawConfig?.promptVersion,
+        defaultPromptVersion: pipelineConfig.defaultPromptVersion,
+        language: normalized.language,
+        ageMax: normalized.ageMax,
+        chapterCount: directives.length,
+      });
       const phase6Start = Date.now();
       let storyDraft: StoryDraft = { title: "", description: "", chapters: [] };
-      let qualityReport: any;
-      let criticReport: SemanticCriticReport | undefined;
+      let blueprintV8: StoryBlueprintV8 | undefined;
       let releaseReport: PipelineRunResult["releaseReport"] | undefined;
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
       const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
@@ -401,7 +424,8 @@ export class StoryPipelineOrchestrator {
         explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
         defaultModel: String(pipelineConfig.criticModel || "gemini-3.1-flash-lite-preview"),
       });
-      const criticMinScore = clampNumber(Number((normalized.rawConfig as any)?.criticMinScore ?? pipelineConfig.criticMinScore ?? 8.2), 5.5, 10);
+      const criticMinScore = clampNumber(Number(pipelineConfig.pass3TargetScore ?? 8.0), 5.5, 10);
+      const criticWarnFloor = clampNumber(Number(pipelineConfig.pass3WarnFloor ?? 6.5), 5, criticMinScore);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // For 6-8 stories, default to one edit unless explicitly overridden.
       const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
@@ -449,6 +473,61 @@ export class StoryPipelineOrchestrator {
       }
 
       const storedText = await loadStoryText(normalized.storyId);
+      if (activePromptVersion === "v8" && storedText.length !== directives.length) {
+        const phase58Start = Date.now();
+        blueprintResultV8 = await generateValidatedV8Blueprint({
+          normalizedRequest: normalized,
+          cast: castSet,
+          dna: blueprint.dna,
+          directives,
+          blueprintRetryMax: pipelineConfig.blueprintRetryMax,
+          avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
+        });
+        blueprintV8 = blueprintResultV8.blueprint;
+        tokenUsage = mergeTokenUsage(tokenUsage, blueprintResultV8.usage);
+        if (blueprintResultV8.costEntries?.length) {
+          costEntries.push(...blueprintResultV8.costEntries);
+        }
+
+        const blueprintIssues = blueprintResultV8.issues.map((issue) => ({ ...issue }));
+        const blueprintHasErrors = blueprintResultV8.issues.some((issue) => issue.severity === "ERROR");
+        phaseGates.push({
+          phase: "phase5.8-blueprint",
+          success: !blueprintHasErrors,
+          schemaValid: !blueprintHasErrors,
+          attempts: blueprintResultV8.attempts,
+          issues: blueprintIssues,
+          artifactRef: {
+            version: "v8",
+            model: blueprintResultV8.model,
+            fallbackUsed: blueprintResultV8.fallbackUsed,
+          },
+        });
+
+        await logPhase("phase5.8-blueprint", { storyId: normalized.storyId }, {
+          durationMs: Date.now() - phase58Start,
+          promptVersion: activePromptVersion,
+          model: blueprintResultV8.model,
+          attempts: blueprintResultV8.attempts,
+          fallbackUsed: blueprintResultV8.fallbackUsed,
+          issueCount: blueprintResultV8.issues.length,
+          issues: blueprintIssues,
+          povCharacter: blueprintResultV8.blueprint?.pov_character,
+          chapterCount: blueprintResultV8.blueprint?.chapters?.length || 0,
+        });
+
+        if (blueprintHasErrors) {
+          validationReport = buildValidationReportPayload({
+            phaseGates,
+            qualityReport,
+            imageIssues: [],
+            blueprintResult: blueprintResultV8,
+            criticReport,
+          });
+          await saveValidationReport(normalized.storyId, validationReport);
+          throw new Error(`V8 blueprint validation failed: ${blueprintResultV8.issues.map((issue) => issue.code).join(", ")}`);
+        }
+      }
 
       if (storedText.length === directives.length) {
         storyDraft = {
@@ -480,11 +559,17 @@ export class StoryPipelineOrchestrator {
           draft: storyDraft,
           directives,
           cast: castSet,
+          blueprint: blueprintV8,
           language: normalized.language,
           ageRange: { min: normalized.ageMin, max: normalized.ageMax },
           humorLevel,
           model: criticModel,
           targetMinScore: criticMinScore,
+          warnFloor: criticWarnFloor,
+        });
+        await logPass3Phase({
+          storyId: normalized.storyId,
+          criticReport,
         });
         tokenUsage = mergeTokenUsage(tokenUsage, criticReport.usage);
         if (criticReport.usage) {
@@ -527,6 +612,8 @@ export class StoryPipelineOrchestrator {
             cast: castSet,
             dna: blueprint.dna,
             directives,
+            promptVersion: activePromptVersion,
+            blueprintV8,
             stylePackText,
             fusionSections,
             avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
@@ -556,17 +643,29 @@ export class StoryPipelineOrchestrator {
           let candidateCritic: SemanticCriticReport;
           if (shouldSkipSemanticCritic(candidateQuality)) {
             candidateCritic = buildSkippedCriticReport(criticModel);
+            await logPass3Phase({
+              storyId: normalized.storyId,
+              candidate: candidateIdx + 1,
+              criticReport: candidateCritic,
+            });
           } else {
             candidateCritic = await runSemanticCritic({
               storyId: normalized.storyId,
               draft: candidateDraft,
               directives,
               cast: castSet,
+              blueprint: blueprintV8,
               language: normalized.language,
               ageRange: { min: normalized.ageMin, max: normalized.ageMax },
               humorLevel,
               model: criticModel,
               targetMinScore: criticMinScore,
+              warnFloor: criticWarnFloor,
+            });
+            await logPass3Phase({
+              storyId: normalized.storyId,
+              candidate: candidateIdx + 1,
+              criticReport: candidateCritic,
             });
             candidateUsage = mergeTokenUsage(candidateUsage, candidateCritic.usage);
             if (candidateCritic.usage) {
@@ -643,11 +742,19 @@ export class StoryPipelineOrchestrator {
                 draft: candidateDraft,
                 directives,
                 cast: castSet,
+                blueprint: blueprintV8,
                 language: normalized.language,
                 ageRange: { min: normalized.ageMin, max: normalized.ageMax },
                 humorLevel,
                 model: criticModel,
                 targetMinScore: criticMinScore,
+                warnFloor: criticWarnFloor,
+              });
+              await logPass3Phase({
+                storyId: normalized.storyId,
+                candidate: candidateIdx + 1,
+                suffix: "post-surgery",
+                criticReport: postSurgeryCritic,
               });
               candidateUsage = mergeTokenUsage(candidateUsage, postSurgeryCritic.usage);
               if (postSurgeryCritic.usage) {
@@ -692,6 +799,7 @@ export class StoryPipelineOrchestrator {
             seed: candidateSeed,
             qualityScore: candidateQuality?.score,
             criticScore: candidateCritic?.overallScore,
+            criticVerdict: candidateCritic?.verdict,
             criticReleaseReady: candidateCritic?.releaseReady,
             issueCount: candidateQuality?.issueCount,
             errorCount: candidateQuality?.errorCount,
@@ -743,6 +851,7 @@ export class StoryPipelineOrchestrator {
             candidate: c.index,
             qualityScore: c.quality?.score,
             criticScore: c.critic?.overallScore,
+            criticVerdict: c.critic?.verdict,
             compositeScore: c.compositeScore,
             surgeryApplied: c.surgeryApplied,
             editedChapters: c.editedChapters,
@@ -770,6 +879,7 @@ export class StoryPipelineOrchestrator {
           maxSelectiveSurgeryEdits,
           qualityScore: qualityReport?.score,
           criticScore: criticReport?.overallScore,
+          criticVerdict: criticReport?.verdict,
           criticReleaseReady: criticReport?.releaseReady,
           passedGates: qualityReport?.passedGates,
           failedGates: qualityReport?.failedGates,
@@ -785,18 +895,24 @@ export class StoryPipelineOrchestrator {
         qualityReport = { ...qualityReport, critic: criticReport };
       }
 
+      const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
+      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : false;
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
-      if (releaseEnabled && criticReport && !isCriticSkipped(criticReport) && criticReport.overallScore < criticMinScore) {
+      if (
+        releaseEnabled
+        && strictQualityGates
+        && criticReport
+        && !isCriticSkipped(criticReport)
+        && (criticReport.verdict === "revision_needed" || criticReport.verdict === "reject")
+      ) {
         storyErrors.push({
           gate: "SEMANTIC_CRITIC",
           chapter: 0,
-          code: "CRITIC_SCORE_BELOW_RELEASE",
-          message: `Critic score ${criticReport.overallScore.toFixed(2)} below target ${criticMinScore.toFixed(2)}`,
+          code: "CRITIC_VERDICT_BELOW_RELEASE",
+          message: `Critic verdict ${criticReport.verdict} below release bar (${criticReport.overallScore.toFixed(2)}/${criticMinScore.toFixed(2)})`,
           severity: "ERROR",
         });
       }
-      const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
-      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : false;
 
       // Always-blocking errors: instruction leaks/placeholders/language leaks.
       const hardSafetyCodes = new Set([
@@ -830,7 +946,7 @@ export class StoryPipelineOrchestrator {
         "ABRUPT_SCENE_SHIFT",
         "HUMOR_TOO_LOW",
         "GIMMICK_LOOP_OVERUSE",
-        "CRITIC_SCORE_BELOW_RELEASE",
+        "CRITIC_VERDICT_BELOW_RELEASE",
       ]);
       const criticalCodes = new Set([
         ...hardSafetyCodes,
@@ -843,11 +959,17 @@ export class StoryPipelineOrchestrator {
         success: storyErrors.length === 0,
         schemaValid: criticalErrors.length === 0,
         attempts: (qualityReport?.rewriteAttempts ?? 0) + 1,
-        issues: storyErrors.map((issue: any) => ({ severity: "ERROR", ...issue })),
+        issues: storyErrors.map((issue: any) => ({ ...issue })),
       };
       phaseGates.push(storyGate);
       if (criticalErrors.length > 0 || !hasContent) {
-        validationReport = { gates: phaseGates, story: qualityReport, images: [] };
+        validationReport = buildValidationReportPayload({
+          phaseGates,
+          qualityReport,
+          imageIssues: [],
+          blueprintResult: blueprintResultV8,
+          criticReport,
+        });
         await saveValidationReport(normalized.storyId, validationReport);
         throw new Error(`Story quality gates failed: ${(criticalErrors.length > 0 ? criticalErrors : storyErrors).map((i: any) => i.code).join(", ")}`);
       }
@@ -951,7 +1073,13 @@ export class StoryPipelineOrchestrator {
         });
       }
       if (blockingImageIssues.length > 0) {
-        validationReport = { gates: phaseGates, story: qualityReport, images: imageIssues };
+        validationReport = buildValidationReportPayload({
+          phaseGates,
+          qualityReport,
+          imageIssues,
+          blueprintResult: blueprintResultV8,
+          criticReport,
+        });
         await saveValidationReport(normalized.storyId, validationReport);
         throw new Error(`ImageSpec validation failed: ${blockingImageIssues.map(i => i.code).join(", ")}`);
       }
@@ -1089,7 +1217,13 @@ export class StoryPipelineOrchestrator {
         });
       }
 
-      validationReport = { gates: phaseGates, story: qualityReport, images: [] as any[] };
+      validationReport = buildValidationReportPayload({
+        phaseGates,
+        qualityReport,
+        imageIssues: [],
+        blueprintResult: blueprintResultV8,
+        criticReport,
+      });
       if (input.enableVisionValidation) {
         const phase10Start = Date.now();
         const vision = await this.visionValidator.validateImages({
@@ -1194,7 +1328,16 @@ export class StoryPipelineOrchestrator {
       };
     } catch (error: any) {
       const message = error instanceof Error ? error.message : String(error);
-      const report = validationReport ?? { gates: phaseGates, error: { message }, images: [] };
+      const report = validationReport ?? {
+        ...buildValidationReportPayload({
+          phaseGates,
+          qualityReport,
+          imageIssues: [],
+          blueprintResult: blueprintResultV8,
+          criticReport,
+        }),
+        error: { message },
+      };
       try {
         await saveValidationReport(normalized.storyId, report);
       } catch (saveError) {
@@ -1204,6 +1347,63 @@ export class StoryPipelineOrchestrator {
       throw error;
     }
   }
+}
+
+function buildValidationReportPayload(input: {
+  phaseGates: Array<{ phase: string; success: boolean; schemaValid?: boolean; issues?: any[]; attempts?: number; artifactRef?: any }>;
+  qualityReport?: any;
+  imageIssues: any[];
+  blueprintResult?: BlueprintGenerationResult;
+  criticReport?: SemanticCriticReport;
+}): any {
+  return {
+    gates: input.phaseGates,
+    story: input.qualityReport,
+    images: input.imageIssues,
+    blueprint: buildBlueprintValidationPayload(input.blueprintResult),
+    pass3: buildPass3ValidationPayload(input.criticReport),
+  };
+}
+
+function buildBlueprintValidationPayload(result?: BlueprintGenerationResult): any | undefined {
+  if (!result) return undefined;
+  return {
+    version: "v8",
+    model: result.model,
+    attempts: result.attempts,
+    fallbackUsed: result.fallbackUsed,
+    issues: result.issues,
+    blueprint: result.blueprint,
+  };
+}
+
+function buildPass3ValidationPayload(report?: SemanticCriticReport): any | undefined {
+  if (!report || isCriticSkipped(report)) return undefined;
+  return {
+    overallScore: report.overallScore,
+    verdict: report.verdict,
+    rubricScores: report.rubricScores,
+    revisionHints: report.revisionHints,
+  };
+}
+
+async function logPass3Phase(input: {
+  storyId: string;
+  candidate?: number;
+  suffix?: string;
+  criticReport: SemanticCriticReport;
+}): Promise<void> {
+  await logPhase("phase6-pass3", { storyId: input.storyId, candidate: input.candidate }, {
+    suffix: input.suffix,
+    overallScore: input.criticReport.overallScore,
+    verdict: input.criticReport.verdict,
+    releaseReady: input.criticReport.releaseReady,
+    summary: input.criticReport.summary,
+    rubricScores: input.criticReport.rubricScores,
+    criticalFailures: input.criticReport.criticalFailures,
+    revisionHints: input.criticReport.revisionHints,
+    skipped: isCriticSkipped(input.criticReport),
+  });
 }
 
 function toQualitySummary(report: any, rewriteAttempts: number): any {
@@ -1268,10 +1468,26 @@ function buildSkippedCriticReport(model: string): SemanticCriticReport {
       humor: 0,
       warmth: 0,
     },
+    rubricScores: {
+      character_voice: { score: 0, reasoning: "" },
+      scenic_presence: { score: 0, reasoning: "" },
+      tension_arc: { score: 0, reasoning: "" },
+      humor: { score: 0, reasoning: "" },
+      age_appropriateness: { score: 0, reasoning: "" },
+      chapter_coherence: { score: 0, reasoning: "" },
+      readability: { score: 0, reasoning: "" },
+      emotional_arc: { score: 0, reasoning: "" },
+      iconic_scene: { score: 0, reasoning: "" },
+      chapter5_quality: { score: 0, reasoning: "" },
+    },
+    verdict: "reject",
     releaseReady: false,
     summary: "Semantic critic skipped for severely broken draft (cost guard).",
     issues: [],
     patchTasks: [],
+    criticalFailures: [],
+    strengths: [],
+    revisionHints: [],
   };
 }
 

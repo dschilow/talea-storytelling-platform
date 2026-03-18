@@ -87,6 +87,7 @@ export type StoryTone =
 export type StoryLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 export type StoryPacing = "slow" | "balanced" | "fast";
 export type StoryPOV = "ich" | "personale";
+export type StoryPromptVersion = "v6" | "v7" | "v8";
 export type PlotHookKey =
   | "secret_door"
   | "riddle_puzzle"
@@ -179,6 +180,9 @@ export interface StoryConfig {
   maxExpandCalls?: number;
   maxWarningPolishCalls?: number;
   maxStoryTokens?: number;
+
+  // Prompt pipeline version. V8 enables the new two-pass blueprint flow.
+  promptVersion?: StoryPromptVersion;
 }
 
 export interface LearningMode {
