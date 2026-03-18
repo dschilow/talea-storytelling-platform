@@ -238,7 +238,7 @@ export async function callChatCompletion(input: {
   responseFormat?: "json_object" | "text";
   maxTokens?: number;
   temperature?: number;
-  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  reasoningEffort?: "minimal" | "none" | "low" | "medium" | "high" | "xhigh";
   seed?: number;
   context?: string;
   logSource?: string;
@@ -302,9 +302,10 @@ export async function callChatCompletion(input: {
     }
 
     if (isReasoningModel) {
-      let effectiveReasoningEffort: "minimal" | "low" | "medium" | "high" = input.reasoningEffort ?? "low";
+      let effectiveReasoningEffort: "none" | "low" | "medium" | "high" | "xhigh" =
+        normalizeReasoningEffort(input.reasoningEffort);
       if (prefersMinimalJsonReasoning) {
-        effectiveReasoningEffort = "minimal";
+        effectiveReasoningEffort = "none";
       } else if (prefersConservativeJsonReasoning && effectiveReasoningEffort === "high") {
         // gpt-5 story-writer JSON calls can burn completion budget on reasoning and return empty text.
         effectiveReasoningEffort = "low";
@@ -516,6 +517,13 @@ function inputPricePerMillion(model: string): number {
 
 function cachedInputPricePerMillion(model: string): number {
   return inputPricePerMillion(model);
+}
+
+function normalizeReasoningEffort(
+  reasoningEffort?: "minimal" | "none" | "low" | "medium" | "high" | "xhigh"
+): "none" | "low" | "medium" | "high" | "xhigh" {
+  if (!reasoningEffort || reasoningEffort === "minimal") return "none";
+  return reasoningEffort;
 }
 
 function outputPricePerMillion(model: string): number {
