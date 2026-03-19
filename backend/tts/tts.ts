@@ -34,7 +34,7 @@ const QWEN_RUNPOD_RETRY_BASE_DELAY_MS = readPositiveIntEnv(
 const QWEN_RUNPOD_MAX_CONCURRENT_CALLS = readPositiveIntEnv(
   "QWEN_RUNPOD_MAX_CONCURRENT_CALLS",
   "COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS",
-  2
+  4
 );
 const QWEN_RUNPOD_WARMUP_ENABLED = readBooleanEnv(
   "QWEN_RUNPOD_WARMUP_ENABLED",
@@ -54,7 +54,7 @@ const QWEN_RUNPOD_WARMUP_POLL_MS = readPositiveIntEnv(
 const QWEN_RUNPOD_WARMUP_PING_TIMEOUT_MS = readPositiveIntEnv(
   "QWEN_RUNPOD_WARMUP_PING_TIMEOUT_MS",
   "COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS",
-  15_000
+  10_000
 );
 const QWEN_RUNPOD_WARMUP_READY_TTL_MS = readPositiveIntEnv(
   "QWEN_RUNPOD_WARMUP_READY_TTL_MS",
@@ -1084,9 +1084,9 @@ async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
       throw new Error(`RunPod queue job ${status}: ${parseRunpodQueueFailure(payload)}`);
     }
 
-    // Adaptive polling: poll fast (1s) during first 10s, then slow down
+    // Aggressive adaptive polling: 500ms for first 5s, 1s for 5-20s, then 2s
     const elapsed = Date.now() - startedAt;
-    const pollMs = elapsed < 10_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
+    const pollMs = elapsed < 5_000 ? 500 : elapsed < 20_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
     await delay(pollMs);
   }
 
@@ -1260,9 +1260,9 @@ async function runpodQueueTtsBatchRequest(
         if (["FAILED", "CANCELLED", "TIMED_OUT", "ERROR"].includes(status)) {
           throw new Error(`RunPod queue batch job ${status}: ${parseRunpodQueueFailure(payload)}`);
         }
-        // Adaptive polling: poll fast (1s) during first 10s, then slow down
+        // Aggressive adaptive polling: 500ms for first 5s, 1s for 5-30s, then 2s
         const elapsed = Date.now() - startedAt;
-        const pollMs = elapsed < 10_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
+        const pollMs = elapsed < 5_000 ? 500 : elapsed < 30_000 ? 1_000 : COSYVOICE_RUNPOD_QUEUE_POLL_MS;
         await delay(pollMs);
       }
       if (output === undefined) {
@@ -1920,30 +1920,40 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
       throw APIError.invalidArgument(`Missing Qwen voice mapping for speaker(s): ${speakers}`);
     }
 
-    // Use per-turn synthesis for dialogue to guarantee correct per-speaker voice
-    // mapping even on older worker images that may collapse batch speaker routing.
     const instructText = (req.instructText || "").trim() || undefined;
     const languageId = (req.languageId || "").trim() || undefined;
     const fallbackMimeType = "audio/wav";
     const buffers: Buffer[] = [];
     let detectedMimeType = fallbackMimeType;
 
+    // Use batch mode: send all turns in one RunPod job with per-item speaker overrides.
+    // This is ~5-10x faster than sequential per-turn requests.
+    const batchItems: TTSBatchItem[] = resolvedTurns.map((item) => ({
+      id: item.id,
+      text: item.turn.text,
+      speaker: item.mappedSpeaker,
+    }));
+
+    const batchReq: GenerateSpeechBatchRequest = {
+      items: batchItems,
+      provider: "qwen",
+      outputFormat: "wav",
+      instructText,
+      languageId,
+    };
+
+    const batchResponse = await generateSpeechBatchInternal(batchReq);
+
+    // Collect results in original turn order
+    const resultMap = new Map(batchResponse.results.map((r) => [r.id, r]));
     for (const item of resolvedTurns) {
-      const response = await withRunpodSlot(() =>
-        runpodTtsRequest({
-          text: item.turn.text,
-          speaker: item.mappedSpeaker,
-          instructText,
-          outputFormat: "wav",
-          languageId,
-        })
-      );
-
-      if (!response.audioData) {
-        throw APIError.unavailable(`Qwen dialogue item failed (${item.id}): missing audio`);
+      const result = resultMap.get(item.id);
+      if (!result?.audio) {
+        throw APIError.unavailable(
+          `Qwen dialogue item failed (${item.id}): ${result?.error || "missing audio"}`
+        );
       }
-
-      const decoded = decodeAudioResult(response.audioData, response.mimeType || fallbackMimeType);
+      const decoded = decodeAudioResult(result.audio, fallbackMimeType);
       buffers.push(decoded.buffer);
       detectedMimeType = decoded.mimeType || detectedMimeType;
     }

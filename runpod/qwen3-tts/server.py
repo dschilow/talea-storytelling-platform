@@ -2,14 +2,15 @@ import importlib.util
 import io
 import os
 import re
+import subprocess
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import soundfile as sf
 import torch
-from pydub import AudioSegment
 
 try:
     from qwen_tts import Qwen3TTSModel
@@ -29,6 +30,8 @@ REQUIRE_CUDA = os.environ.get("REQUIRE_CUDA", "1").strip() != "0"
 ENABLE_BATCH_WARMUP = os.environ.get("ENABLE_BATCH_WARMUP", "1").strip() != "0"
 MP3_BITRATE = os.environ.get("QWEN_MP3_BITRATE", "96k").strip() or "96k"
 HAS_FLASH_ATTN = importlib.util.find_spec("flash_attn") is not None
+# Thread pool for parallel MP3 encoding (CPU-bound, doesn't block GPU)
+MP3_WORKERS = int(os.environ.get("QWEN_MP3_WORKERS", "4"))
 
 load_path = MODEL_DIR if (os.path.exists(MODEL_DIR) and len(os.listdir(MODEL_DIR)) > 0) else MODEL_ID
 
@@ -54,6 +57,24 @@ EMOTION_STYLE_MAP = {
     "calm": "speak calmly and steadily",
     "serious": "speak in a serious tone",
 }
+
+# Detect ffmpeg once at import time for fast MP3 encoding
+_HAS_FFMPEG = False
+try:
+    subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
+    _HAS_FFMPEG = True
+except Exception:
+    pass
+
+# Lazy-init thread pool (created on first batch)
+_mp3_pool: Optional[ThreadPoolExecutor] = None
+
+
+def _get_mp3_pool() -> ThreadPoolExecutor:
+    global _mp3_pool
+    if _mp3_pool is None:
+        _mp3_pool = ThreadPoolExecutor(max_workers=MP3_WORKERS, thread_name_prefix="mp3enc")
+    return _mp3_pool
 
 
 def _style_from_tag(tag: str) -> str:
@@ -114,7 +135,6 @@ def _configure_torch_runtime() -> None:
     if not torch.cuda.is_available():
         return
     try:
-        # Favor throughput on modern NVIDIA GPUs.
         torch.backends.cuda.matmul.allow_tf32 = True
         torch.backends.cudnn.allow_tf32 = True
         torch.backends.cudnn.benchmark = True
@@ -147,10 +167,7 @@ def _get_gpu_info() -> dict:
         try:
             cc = torch.cuda.get_device_capability(0)
             info["compute_capability"] = cc
-            # bf16 native support: Ampere (8.0) and newer
             info["supports_bf16"] = cc[0] >= 8
-            # flash-attn works on Ampere/Ada/Hopper, but Blackwell (12.x) may
-            # not have compatible wheels yet — detect at runtime
             info["supports_flash_attn"] = HAS_FLASH_ATTN and cc[0] >= 8 and cc[0] < 12
             info["is_blackwell"] = cc[0] >= 12
         except Exception:
@@ -170,17 +187,11 @@ def _ensure_cuda_runtime() -> None:
 
     if REQUIRE_CUDA and not gpu["cuda_available"]:
         raise RuntimeError(
-            "CUDA is required for Qwen3-TTS production inference, but no healthy GPU was detected. "
-            "Failing worker startup to avoid extremely slow CPU generation."
+            "CUDA is required for Qwen3-TTS production inference, but no healthy GPU was detected."
         )
 
 
 def _resolve_model_dtype() -> torch.dtype:
-    """Pick the best dtype for the detected GPU.
-    - Ampere+ (CC 8.0+): bfloat16 (native hw support, best for transformers)
-    - Older GPUs or unknown: float16 (universally supported on all CUDA GPUs)
-    - CPU: float32
-    """
     if not torch.cuda.is_available():
         return torch.float32
     try:
@@ -206,7 +217,6 @@ def _resolve_attn_implementation() -> Optional[str]:
         return None
 
     if requested == "auto":
-        # On Blackwell, flash-attn wheels may not exist yet — use SDPA (built into PyTorch)
         if gpu["is_blackwell"]:
             print(
                 f"Blackwell GPU detected (CC {gpu['compute_capability'][0]}.{gpu['compute_capability'][1]}). "
@@ -231,7 +241,7 @@ def _resolve_attn_implementation() -> Optional[str]:
 
 
 def _try_torch_compile(model: Any) -> Any:
-    """Apply torch.compile() to inner sub-modules for faster inference on PyTorch 2.x+."""
+    """Apply torch.compile() to inner nn.Module sub-modules for faster inference."""
     if not ENABLE_TORCH_COMPILE:
         print("torch.compile() disabled via ENABLE_TORCH_COMPILE=0.")
         return model
@@ -246,15 +256,21 @@ def _try_torch_compile(model: Any) -> Any:
     except Exception:
         return model
 
-    # Qwen3TTSModel is a wrapper — torch.compile on the outer object fails silently.
-    # Instead, compile individual nn.Module sub-modules that are safe to compile.
+    # Dynamically discover all nn.Module sub-modules instead of hardcoded names.
+    # Walk one level deep (direct attributes) to find compilable modules.
     compiled_count = 0
-    compile_targets = ["talker", "vocoder", "speaker_encoder", "code_predictor"]
-    for attr_name in compile_targets:
-        submodule = getattr(model, attr_name, None)
-        if submodule is None:
+    skipped: List[str] = []
+    for attr_name in dir(model):
+        if attr_name.startswith("_"):
             continue
-        if not isinstance(submodule, torch.nn.Module):
+        try:
+            submodule = getattr(model, attr_name, None)
+        except Exception:
+            continue
+        if submodule is None or not isinstance(submodule, torch.nn.Module):
+            continue
+        # Skip the outer model itself (avoid infinite recursion)
+        if submodule is model:
             continue
         try:
             compiled = torch.compile(submodule, mode="reduce-overhead", fullgraph=False)
@@ -262,12 +278,14 @@ def _try_torch_compile(model: Any) -> Any:
             compiled_count += 1
             print(f"torch.compile() applied to model.{attr_name} (mode=reduce-overhead).")
         except Exception as exc:
-            print(f"torch.compile() skipped for model.{attr_name}: {exc}")
+            skipped.append(f"{attr_name}: {exc}")
 
     if compiled_count > 0:
         print(f"torch.compile() done: {compiled_count} sub-module(s) compiled.")
     else:
-        print("torch.compile() skipped: no compatible sub-modules found (non-fatal).")
+        print(f"torch.compile() skipped: no compatible sub-modules found (non-fatal).")
+    if skipped:
+        print(f"torch.compile() skipped modules: {skipped[:5]}")
     return model
 
 
@@ -292,7 +310,6 @@ def _warmup_model() -> None:
                     speaker=[DEFAULT_SPEAKER, DEFAULT_SPEAKER],
                 )
         torch.cuda.synchronize()
-        # Discard warmup output, free VRAM
         torch.cuda.empty_cache()
         elapsed = time.perf_counter() - warmup_start
         print(f"Model warmup completed in {elapsed:.2f}s (single + batch paths primed).")
@@ -307,7 +324,6 @@ def load_qwen_model() -> None:
     model_dtype = _resolve_model_dtype()
     load_kwargs: dict[str, Any] = {
         "device_map": "cuda:0" if torch.cuda.is_available() else "cpu",
-        # NOTE: Qwen3TTSModel uses 'dtype=' (NOT 'torch_dtype=').
         "dtype": model_dtype,
     }
     attn_implementation = _resolve_attn_implementation()
@@ -316,7 +332,6 @@ def load_qwen_model() -> None:
 
     print(f"Model load config: dtype={model_dtype}, attn={attn_implementation}")
 
-    # Try primary config → fallback without attn → fallback with float16
     load_attempts = [
         ("primary", dict(load_kwargs)),
     ]
@@ -343,10 +358,8 @@ def load_qwen_model() -> None:
                 traceback.print_exc()
                 return
 
-    # Apply torch.compile for faster inference
     qwen_model = _try_torch_compile(qwen_model)
 
-    # Log available speakers and languages
     try:
         speakers = qwen_model.get_supported_speakers()
         languages = qwen_model.get_supported_languages()
@@ -359,8 +372,8 @@ def load_qwen_model() -> None:
         SUPPORTED_LANGUAGES = []
         print("Could not query supported speakers/languages (non-fatal).")
 
-    # Warmup: pre-compile CUDA kernels and torch.compile graphs
     _warmup_model()
+    print(f"MP3 encoding: ffmpeg={'yes' if _HAS_FFMPEG else 'no (pydub fallback)'}, workers={MP3_WORKERS}")
 
 
 def save_audio_bytes_to_temp_wav(audio_data: bytes, filename: str) -> str:
@@ -371,7 +384,6 @@ def save_audio_bytes_to_temp_wav(audio_data: bytes, filename: str) -> str:
 
 
 def _resolve_language(language_id: str = "") -> str:
-    """Map short codes or common variants to the full language name Qwen3-TTS expects."""
     lang = (language_id or "").strip().lower()
     mapping = {
         "de": "German", "german": "German", "deutsch": "German",
@@ -399,16 +411,71 @@ def _wav_to_bytes(audio_np: Any, sample_rate: int) -> bytes:
     return out_io.getvalue()
 
 
+def _wav_bytes_to_mp3_ffmpeg(wav_bytes: bytes) -> bytes:
+    """Fast MP3 encoding via ffmpeg subprocess (no Python AudioSegment overhead)."""
+    proc = subprocess.run(
+        [
+            "ffmpeg", "-f", "wav", "-i", "pipe:0",
+            "-codec:a", "libmp3lame", "-b:a", MP3_BITRATE,
+            "-f", "mp3", "pipe:1",
+        ],
+        input=wav_bytes,
+        capture_output=True,
+        timeout=30,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg MP3 encode failed: {proc.stderr[:200]}")
+    return proc.stdout
+
+
+def _wav_bytes_to_mp3_pydub(wav_bytes: bytes) -> bytes:
+    """Fallback MP3 encoding via pydub (slower, used only if ffmpeg missing)."""
+    from pydub import AudioSegment
+    audio_segment = AudioSegment.from_file(io.BytesIO(wav_bytes), format="wav")
+    out_io = io.BytesIO()
+    audio_segment.export(out_io, format="mp3", bitrate=MP3_BITRATE)
+    return out_io.getvalue()
+
+
+def _wav_bytes_to_mp3(wav_bytes: bytes) -> bytes:
+    if _HAS_FFMPEG:
+        return _wav_bytes_to_mp3_ffmpeg(wav_bytes)
+    return _wav_bytes_to_mp3_pydub(wav_bytes)
+
+
 def _audio_to_bytes(audio_np: Any, sample_rate: int, output_format: str) -> Tuple[bytes, str, str]:
     wav_bytes = _wav_to_bytes(audio_np, sample_rate)
     normalized_format = (output_format or "wav").strip().lower()
     if normalized_format != "mp3":
         return wav_bytes, "audio/wav", "wav"
 
-    audio_segment = AudioSegment.from_file(io.BytesIO(wav_bytes), format="wav")
-    out_io = io.BytesIO()
-    audio_segment.export(out_io, format="mp3", bitrate=MP3_BITRATE)
-    return out_io.getvalue(), "audio/mpeg", "mp3"
+    mp3_bytes = _wav_bytes_to_mp3(wav_bytes)
+    return mp3_bytes, "audio/mpeg", "mp3"
+
+
+def _batch_audio_to_bytes(
+    wavs: List[Any], sample_rate: int, output_format: str
+) -> List[Tuple[bytes, str, str]]:
+    """Convert batch of audio arrays to bytes, with parallel MP3 encoding."""
+    normalized_format = (output_format or "wav").strip().lower()
+
+    # Step 1: Convert all GPU tensors → WAV bytes (must be sequential — GPU→CPU copy)
+    wav_bytes_list: List[bytes] = []
+    for wav in wavs:
+        wav_bytes_list.append(_wav_to_bytes(wav, sample_rate))
+
+    if normalized_format != "mp3":
+        return [(wb, "audio/wav", "wav") for wb in wav_bytes_list]
+
+    # Step 2: Parallel MP3 encoding (CPU-bound, doesn't block GPU)
+    if len(wav_bytes_list) >= 2:
+        pool = _get_mp3_pool()
+        mp3_futures = [pool.submit(_wav_bytes_to_mp3, wb) for wb in wav_bytes_list]
+        mp3_list = [f.result() for f in mp3_futures]
+    else:
+        mp3_list = [_wav_bytes_to_mp3(wb) for wb in wav_bytes_list]
+
+    return [(mb, "audio/mpeg", "mp3") for mb in mp3_list]
 
 
 def _run_custom_voice_generation(
@@ -540,6 +607,9 @@ def generate_audio_batch(
             f"Using CustomVoice Batch Mode (items={len(safe_texts)}, speakers={unique_speakers[:6]}, "
             f"lang={language}, instruct={any(bool(i) for i in prepared_instructs)}, chars={total_chars})"
         )
+
+        # GPU inference
+        gen_start = time.perf_counter()
         wavs, sr = _run_custom_voice_generation(
             prepared_texts,
             language,
@@ -547,19 +617,22 @@ def generate_audio_batch(
             prepared_instructs,
             prepared_speakers,
         )
-        outputs: List[Tuple[bytes, str, str]] = []
-        for wav in wavs:
-            outputs.append(_audio_to_bytes(wav, sr, output_format))
+        gen_elapsed = time.perf_counter() - gen_start
+
+        # Audio encoding (parallel MP3 if applicable)
+        enc_start = time.perf_counter()
+        outputs = _batch_audio_to_bytes(wavs, sr, output_format)
+        enc_elapsed = time.perf_counter() - enc_start
+
         elapsed = time.perf_counter() - started_at
         chars_per_sec = total_chars / elapsed if elapsed > 0 else 0
+        gen_chars_per_sec = total_chars / gen_elapsed if gen_elapsed > 0 else 0
         print(
-            f"CustomVoice batch generation completed in {elapsed:.3f}s "
-            f"(items={len(prepared_texts)}, total_chars={total_chars}, "
-            f"chars/s={chars_per_sec:.1f})"
+            f"CustomVoice batch completed in {elapsed:.3f}s "
+            f"(items={len(prepared_texts)}, chars={total_chars}, "
+            f"total={chars_per_sec:.1f}c/s, gpu={gen_chars_per_sec:.1f}c/s, "
+            f"gpu={gen_elapsed:.2f}s, encode={enc_elapsed:.2f}s)"
         )
-        # Free unused VRAM after batch to keep memory lean for next job
-        if torch.cuda.is_available() and total_chars > 2000:
-            torch.cuda.empty_cache()
         return outputs
     except Exception as exc:
         import traceback
