@@ -61,6 +61,7 @@ export async function generateValidatedV8Blueprint(input: {
 }): Promise<BlueprintGenerationResult> {
   const { normalizedRequest, cast, dna, directives } = input;
   const supportModel = resolveSupportTaskModel(String(normalizedRequest.rawConfig?.aiModel || ""));
+  const blueprintModel = resolveBlueprintPrimaryModel(normalizedRequest.rawConfig?.aiModel, supportModel);
   const lengthTargets = normalizedRequest.wordBudget
     ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
     : resolveLengthTargets({
@@ -92,7 +93,7 @@ export async function generateValidatedV8Blueprint(input: {
       .join("\n\n");
 
     const result = await callBlueprintModel({
-      model: supportModel,
+      model: blueprintModel,
       systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
       userPrompt,
       storyId: normalizedRequest.storyId,
@@ -100,12 +101,13 @@ export async function generateValidatedV8Blueprint(input: {
       attempt,
     });
 
-    usage = mergeNormalizedTokenUsage(usage, result.usage, supportModel);
+    const actualModel = result.usage?.model || blueprintModel;
+    usage = mergeNormalizedTokenUsage(usage, result.usage, actualModel);
     const costEntry = buildLlmCostEntry({
       phase: "phase5.8-blueprint",
       step: "blueprint",
       usage: result.usage,
-      fallbackModel: supportModel,
+      fallbackModel: actualModel,
       candidateTag: input.candidateTag,
       attempt,
     });
@@ -123,7 +125,7 @@ export async function generateValidatedV8Blueprint(input: {
     if (validation.valid && blueprint) {
       return {
         blueprint,
-        model: supportModel,
+        model: actualModel,
         attempts: attempt,
         fallbackUsed: false,
         issues: validation.issues,
@@ -135,7 +137,7 @@ export async function generateValidatedV8Blueprint(input: {
     retryPrompt = `The blueprint has these validation problems:\n${formatBlueprintValidationIssues(validation.issues)}\n\nFix ONLY these problems and return the full corrected blueprint as JSON again.`;
   }
 
-  const rescueModel = resolveBlueprintRescueModel(normalizedRequest.rawConfig?.aiModel, supportModel);
+  const rescueModel = resolveBlueprintRescueModel(normalizedRequest.rawConfig?.aiModel, blueprintModel);
   if (rescueModel) {
     const rescueAttempt = Math.max(1, input.blueprintRetryMax + 2);
     const rescuePrompt = [
@@ -165,12 +167,13 @@ export async function generateValidatedV8Blueprint(input: {
       attempt: rescueAttempt,
     });
 
-    usage = mergeNormalizedTokenUsage(usage, rescueResult.usage, rescueModel);
+    const actualRescueModel = rescueResult.usage?.model || rescueModel;
+    usage = mergeNormalizedTokenUsage(usage, rescueResult.usage, actualRescueModel);
     const rescueCostEntry = buildLlmCostEntry({
       phase: "phase5.8-blueprint",
       step: "blueprint-rescue",
       usage: rescueResult.usage,
-      fallbackModel: rescueModel,
+      fallbackModel: actualRescueModel,
       candidateTag: input.candidateTag,
       attempt: rescueAttempt,
     });
@@ -188,7 +191,7 @@ export async function generateValidatedV8Blueprint(input: {
     if (rescueValidation.valid && rescueBlueprint) {
       return {
         blueprint: rescueBlueprint,
-        model: rescueModel,
+        model: actualRescueModel,
         attempts: rescueAttempt,
         fallbackUsed: false,
         issues: rescueValidation.issues,
@@ -213,7 +216,7 @@ export async function generateValidatedV8Blueprint(input: {
 
   return {
     blueprint: fallback,
-    model: supportModel,
+    model: blueprintModel,
     attempts: Math.max(1, input.blueprintRetryMax + 1),
     fallbackUsed: true,
     issues: fallbackValidation.issues,
@@ -230,12 +233,14 @@ async function callBlueprintModel(input: {
   candidateTag?: string;
   attempt: number;
 }): Promise<{ content: string; usage?: Partial<TokenUsage> }> {
+  const maxTokens = resolveBlueprintMaxTokens(input.model);
+
   if (input.model.startsWith("gemini-")) {
     const geminiResult = await generateWithGemini({
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,
       model: input.model,
-      maxTokens: 2200,
+      maxTokens,
       temperature: 0.2,
       thinkingBudget: 96,
       logSource: "phase5.8-blueprint-llm",
@@ -260,7 +265,7 @@ async function callBlueprintModel(input: {
       { role: "user", content: input.userPrompt },
     ],
     responseFormat: "json_object",
-    maxTokens: 2200,
+    maxTokens,
     reasoningEffort: "low",
     temperature: 0.2,
     context: "story-v8-blueprint",
@@ -378,6 +383,23 @@ function resolveBlueprintRescueModel(selectedStoryModel?: string, supportModel?:
     return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
   }
   return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
+}
+
+function resolveBlueprintPrimaryModel(selectedStoryModel?: string, supportModel?: string): string {
+  const current = String(supportModel || "").trim().toLowerCase();
+  if (current.startsWith("gpt-5.4-nano")) {
+    return "gpt-5.4-mini";
+  }
+  const selected = String(selectedStoryModel || "").trim();
+  return selected || supportModel || "gpt-5.4-mini";
+}
+
+function resolveBlueprintMaxTokens(model?: string): number {
+  const normalized = String(model || "").trim().toLowerCase();
+  if (normalized.startsWith("gpt-5.4-mini")) return 3200;
+  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 2800;
+  if (normalized.startsWith("gemini-")) return 2800;
+  return 2600;
 }
 
 function buildConcreteFallbackEngine(input: {
