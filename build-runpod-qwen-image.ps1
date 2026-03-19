@@ -26,6 +26,23 @@ if ($DockerHubUsername -eq "") {
     $DockerHubUsername = "talea"
 }
 
+# Simple preflight: max-perf builds need a lot of temporary disk space
+# for the CUDA devel base image, flash-attn compilation, Docker layers and
+# optional model prefetch. Abort early instead of hanging until ENOSPC.
+$SystemDrive = Get-PSDrive -Name C -ErrorAction SilentlyContinue
+if ($SystemDrive) {
+    $FreeGB = [math]::Round($SystemDrive.Free / 1GB, 1)
+    if ($Prefetch -and $FreeGB -lt 50) {
+        Write-Host "WARNUNG: Auf C: sind nur noch $FreeGB GB frei." -ForegroundColor Red
+        Write-Host "Ein Qwen MAX-PERF Build mit Prefetch braucht oft deutlich mehr temporären Platz." -ForegroundColor Red
+        Write-Host "Abbruch, um einen spaeten ENOSPC-Haenger waehrend docker build zu vermeiden." -ForegroundColor Red
+        Write-Host "Loesung 1: Speicher freimachen und danach erneut starten." -ForegroundColor Yellow
+        Write-Host "Loesung 2: Ohne Modell-Prefetch bauen:" -ForegroundColor Yellow
+        Write-Host "  .\\build-runpod-qwen-image.ps1 -DockerHubUsername $DockerHubUsername -Prefetch:`$false" -ForegroundColor Cyan
+        exit 1
+    }
+}
+
 # Erzeuge einen Zeitstempel-Tag (z.B. 20260228-1335)
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
 $BaseName = "$DockerHubUsername/qwen3-tts-runpod"
@@ -57,7 +74,8 @@ Write-Host "====================================================================
 
 # Schritt 1: Docker Image bauen
 Write-Host "`n[Schritt 1/2] Baue Docker Image..." -ForegroundColor Yellow
-docker build --build-arg PYTORCH_BASE_IMAGE=$BaseImage --build-arg PREFETCH_MODEL=$PrefetchVal --build-arg INSTALL_FLASH_ATTN=$InstallFlashAttnVal --build-arg ENFORCE_FLASH_ATTN=$EnforceFlashAttnVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
+$env:BUILDKIT_PROGRESS = "plain"
+docker build --progress=plain --build-arg PYTORCH_BASE_IMAGE=$BaseImage --build-arg PREFETCH_MODEL=$PrefetchVal --build-arg INSTALL_FLASH_ATTN=$InstallFlashAttnVal --build-arg ENFORCE_FLASH_ATTN=$EnforceFlashAttnVal -t $VersionTag -t $LatestTag -f runpod/qwen3-tts/Dockerfile runpod/qwen3-tts/
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Fehler beim Bauen des Docker Images!" -ForegroundColor Red

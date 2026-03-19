@@ -17,7 +17,7 @@ const MAX_CHARS = 900;
  * Normalize text into a TTS-friendly, language-agnostic format.
  * Runs BEFORE chunking so the splitter only needs to handle ASCII quotes.
  *
- * Mirrors the Python `normalize_tts_input_text()` on the CosyVoice worker,
+ * Mirrors the Python `normalize_tts_input_text()` on the Qwen worker,
  * but applied earlier so chunking decisions match what the model actually sees.
  *
  * Covers: German „..." French «...» English \u201C...\u201D Polish \u201E...\u201D
@@ -38,7 +38,7 @@ export function normalizeTTSText(text: string): string {
   // --- Dashes → simple hyphen-minus surrounded by spaces ---
   t = t.replace(/[\u2013\u2014\u2015]/g, " - ");
 
-  // --- Ellipsis → period + space (CosyVoice handles "." better than "\u2026") ---
+  // --- Ellipsis → period + space (Qwen handles "." better than "\u2026") ---
   t = t.replace(/\u2026/g, ". ");
 
   // Collapse multiple spaces (but preserve newlines for paragraph splitting)
@@ -189,7 +189,7 @@ function splitBySentences(text: string): string[] {
 /**
  * Sentence-aware fallback splitter. Splits at sentence boundaries first,
  * only falling back to word-level splitting for individual sentences that
- * exceed limits. This prevents CosyVoice from receiving incomplete sentences.
+ * exceed limits. This prevents Qwen from receiving incomplete sentences.
  */
 function fallbackSplitBySentences(normalizedText: string): string[] {
   const sentences = splitBySentences(normalizedText);

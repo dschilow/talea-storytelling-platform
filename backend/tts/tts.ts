@@ -5,75 +5,103 @@ import { splitTextIntoChunks } from "../helpers/ttsChunking";
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
 
-const COSYVOICE_RUNPOD_API_URL = (process.env.COSYVOICE_RUNPOD_API_URL || "").trim();
-const COSYVOICE_RUNPOD_API_KEY = (process.env.COSYVOICE_RUNPOD_API_KEY || "").trim();
-const COSYVOICE_RUNPOD_WORKER_API_KEY = (process.env.COSYVOICE_RUNPOD_WORKER_API_KEY || "").trim();
-const COSYVOICE_RUNPOD_TTS_PATH = (process.env.COSYVOICE_RUNPOD_TTS_PATH || "/v1/tts").trim();
-const COSYVOICE_RUNPOD_ENDPOINT_MODE = resolveRunpodEndpointMode(
-  process.env.COSYVOICE_RUNPOD_ENDPOINT_MODE,
-  COSYVOICE_RUNPOD_API_URL
+const QWEN_RUNPOD_API_URL = readStringEnv("QWEN_RUNPOD_API_URL", "COSYVOICE_RUNPOD_API_URL");
+const QWEN_RUNPOD_API_KEY = readStringEnv("QWEN_RUNPOD_API_KEY", "COSYVOICE_RUNPOD_API_KEY");
+const QWEN_RUNPOD_WORKER_API_KEY = readStringEnv(
+  "QWEN_RUNPOD_WORKER_API_KEY",
+  "COSYVOICE_RUNPOD_WORKER_API_KEY"
 );
-const COSYVOICE_RUNPOD_TIMEOUT_MS = parsePositiveInt(process.env.COSYVOICE_RUNPOD_TIMEOUT_MS, 300_000); // 5min per single item
-const COSYVOICE_RUNPOD_MAX_RETRIES = parsePositiveInt(process.env.COSYVOICE_RUNPOD_MAX_RETRIES, 3);
-const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS,
+const QWEN_RUNPOD_TTS_PATH = readStringEnv("QWEN_RUNPOD_TTS_PATH", "COSYVOICE_RUNPOD_TTS_PATH") || "/v1/tts";
+const QWEN_RUNPOD_ENDPOINT_MODE = resolveRunpodEndpointMode(
+  readStringEnv("QWEN_RUNPOD_ENDPOINT_MODE", "COSYVOICE_RUNPOD_ENDPOINT_MODE"),
+  QWEN_RUNPOD_API_URL
+);
+const QWEN_RUNPOD_TIMEOUT_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_TIMEOUT_MS",
+  "COSYVOICE_RUNPOD_TIMEOUT_MS",
+  300_000
+); // 5min per single item
+const QWEN_RUNPOD_MAX_RETRIES = readPositiveIntEnv(
+  "QWEN_RUNPOD_MAX_RETRIES",
+  "COSYVOICE_RUNPOD_MAX_RETRIES",
+  3
+);
+const QWEN_RUNPOD_RETRY_BASE_DELAY_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_RETRY_BASE_DELAY_MS",
+  "COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS",
   1500
 );
-const COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS,
+const QWEN_RUNPOD_MAX_CONCURRENT_CALLS = readPositiveIntEnv(
+  "QWEN_RUNPOD_MAX_CONCURRENT_CALLS",
+  "COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS",
   2
 );
-const COSYVOICE_RUNPOD_WARMUP_ENABLED = parseBoolean(
-  process.env.COSYVOICE_RUNPOD_WARMUP_ENABLED,
+const QWEN_RUNPOD_WARMUP_ENABLED = readBooleanEnv(
+  "QWEN_RUNPOD_WARMUP_ENABLED",
+  "COSYVOICE_RUNPOD_WARMUP_ENABLED",
   true
 );
-const COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS,
+const QWEN_RUNPOD_WARMUP_TIMEOUT_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_WARMUP_TIMEOUT_MS",
+  "COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS",
   240_000
 );
-const COSYVOICE_RUNPOD_WARMUP_POLL_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_WARMUP_POLL_MS,
+const QWEN_RUNPOD_WARMUP_POLL_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_WARMUP_POLL_MS",
+  "COSYVOICE_RUNPOD_WARMUP_POLL_MS",
   2_500
 );
-const COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS,
+const QWEN_RUNPOD_WARMUP_PING_TIMEOUT_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_WARMUP_PING_TIMEOUT_MS",
+  "COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS",
   15_000
 );
-const COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS,
+const QWEN_RUNPOD_WARMUP_READY_TTL_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_WARMUP_READY_TTL_MS",
+  "COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS",
   5_000
 );
-const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = parsePositiveInt(
-  process.env.COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS,
+const QWEN_REFERENCE_FETCH_TIMEOUT_MS = readPositiveIntEnv(
+  "QWEN_REFERENCE_FETCH_TIMEOUT_MS",
+  "COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS",
   30_000
 );
-const COSYVOICE_RUNPOD_QUEUE_POLL_MS = parsePositiveInt(
-  process.env.COSYVOICE_RUNPOD_QUEUE_POLL_MS,
+const QWEN_RUNPOD_QUEUE_POLL_MS = readPositiveIntEnv(
+  "QWEN_RUNPOD_QUEUE_POLL_MS",
+  "COSYVOICE_RUNPOD_QUEUE_POLL_MS",
   2_000
 );
-const COSYVOICE_DEFAULT_PROMPT_TEXT = (process.env.COSYVOICE_DEFAULT_PROMPT_TEXT || "").trim();
-const COSYVOICE_USE_DEFAULT_PROMPT_TEXT = parseBoolean(
-  process.env.COSYVOICE_USE_DEFAULT_PROMPT_TEXT,
+const QWEN_DEFAULT_PROMPT_TEXT = readStringEnv(
+  "QWEN_DEFAULT_PROMPT_TEXT",
+  "COSYVOICE_DEFAULT_PROMPT_TEXT"
+);
+const QWEN_USE_DEFAULT_PROMPT_TEXT = readBooleanEnv(
+  "QWEN_USE_DEFAULT_PROMPT_TEXT",
+  "COSYVOICE_USE_DEFAULT_PROMPT_TEXT",
   false
 );
-const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = (
-  process.env.COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL || ""
-).trim();
-const COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE = parseBoolean(
-  process.env.COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE,
+const QWEN_DEFAULT_REFERENCE_AUDIO_URL = readStringEnv(
+  "QWEN_DEFAULT_REFERENCE_AUDIO_URL",
+  "COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL"
+);
+const QWEN_PREFER_WORKER_DEFAULT_REFERENCE = readBooleanEnv(
+  "QWEN_PREFER_WORKER_DEFAULT_REFERENCE",
+  "COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE",
   true
 );
-const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = parsePositiveInt(
-  process.env.COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS,
+const QWEN_REFERENCE_AUDIO_CACHE_TTL_MS = readPositiveIntEnv(
+  "QWEN_REFERENCE_AUDIO_CACHE_TTL_MS",
+  "COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS",
   3_600_000
 );
-const COSYVOICE_SEND_REFERENCE_AUDIO = parseBoolean(
-  process.env.COSYVOICE_SEND_REFERENCE_AUDIO,
+const QWEN_SEND_REFERENCE_AUDIO = readBooleanEnv(
+  "QWEN_SEND_REFERENCE_AUDIO",
+  "COSYVOICE_SEND_REFERENCE_AUDIO",
   true
 );
-const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").trim();
-const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
-  process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "mp3"
+const QWEN_DEFAULT_EMOTION = readStringEnv("QWEN_DEFAULT_EMOTION", "COSYVOICE_DEFAULT_EMOTION");
+const QWEN_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
+  readStringEnv("QWEN_DEFAULT_OUTPUT_FORMAT", "COSYVOICE_DEFAULT_OUTPUT_FORMAT") || "mp3"
 );
 const DEFAULT_QWEN_STATIC_SPEAKERS = [
   "aiden",
@@ -86,21 +114,51 @@ const DEFAULT_QWEN_STATIC_SPEAKERS = [
   "uncle_fu",
   "vivian",
 ];
-const COSYVOICE_VOICE_LIST_MODE = resolveVoiceListMode(process.env.COSYVOICE_VOICE_LIST_MODE);
-const COSYVOICE_STATIC_SPEAKERS = parseSpeakerList(
-  process.env.COSYVOICE_STATIC_SPEAKERS,
+const QWEN_VOICE_LIST_MODE = resolveVoiceListMode(
+  readStringEnv("QWEN_VOICE_LIST_MODE", "COSYVOICE_VOICE_LIST_MODE")
+);
+const QWEN_STATIC_SPEAKERS = parseSpeakerList(
+  readStringEnv("QWEN_STATIC_SPEAKERS", "COSYVOICE_STATIC_SPEAKERS"),
   DEFAULT_QWEN_STATIC_SPEAKERS
 );
-const COSYVOICE_STATIC_DEFAULT_SPEAKER = (
-  process.env.COSYVOICE_STATIC_DEFAULT_SPEAKER || "vivian"
-).trim();
+const QWEN_STATIC_DEFAULT_SPEAKER =
+  readStringEnv("QWEN_STATIC_DEFAULT_SPEAKER", "COSYVOICE_STATIC_DEFAULT_SPEAKER") || "vivian";
 
-export type TTSProvider = "cosyvoice3" | "piper" | "chatterbox";
+// Internal aliases keep the rest of the module stable while runtime config is Qwen-only.
+const COSYVOICE_RUNPOD_API_URL = QWEN_RUNPOD_API_URL;
+const COSYVOICE_RUNPOD_API_KEY = QWEN_RUNPOD_API_KEY;
+const COSYVOICE_RUNPOD_WORKER_API_KEY = QWEN_RUNPOD_WORKER_API_KEY;
+const COSYVOICE_RUNPOD_TTS_PATH = QWEN_RUNPOD_TTS_PATH;
+const COSYVOICE_RUNPOD_ENDPOINT_MODE = QWEN_RUNPOD_ENDPOINT_MODE;
+const COSYVOICE_RUNPOD_TIMEOUT_MS = QWEN_RUNPOD_TIMEOUT_MS;
+const COSYVOICE_RUNPOD_MAX_RETRIES = QWEN_RUNPOD_MAX_RETRIES;
+const COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS = QWEN_RUNPOD_RETRY_BASE_DELAY_MS;
+const COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS = QWEN_RUNPOD_MAX_CONCURRENT_CALLS;
+const COSYVOICE_RUNPOD_WARMUP_ENABLED = QWEN_RUNPOD_WARMUP_ENABLED;
+const COSYVOICE_RUNPOD_WARMUP_TIMEOUT_MS = QWEN_RUNPOD_WARMUP_TIMEOUT_MS;
+const COSYVOICE_RUNPOD_WARMUP_POLL_MS = QWEN_RUNPOD_WARMUP_POLL_MS;
+const COSYVOICE_RUNPOD_WARMUP_PING_TIMEOUT_MS = QWEN_RUNPOD_WARMUP_PING_TIMEOUT_MS;
+const COSYVOICE_RUNPOD_WARMUP_READY_TTL_MS = QWEN_RUNPOD_WARMUP_READY_TTL_MS;
+const COSYVOICE_REFERENCE_FETCH_TIMEOUT_MS = QWEN_REFERENCE_FETCH_TIMEOUT_MS;
+const COSYVOICE_RUNPOD_QUEUE_POLL_MS = QWEN_RUNPOD_QUEUE_POLL_MS;
+const COSYVOICE_DEFAULT_PROMPT_TEXT = QWEN_DEFAULT_PROMPT_TEXT;
+const COSYVOICE_USE_DEFAULT_PROMPT_TEXT = QWEN_USE_DEFAULT_PROMPT_TEXT;
+const COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL = QWEN_DEFAULT_REFERENCE_AUDIO_URL;
+const COSYVOICE_PREFER_WORKER_DEFAULT_REFERENCE = QWEN_PREFER_WORKER_DEFAULT_REFERENCE;
+const COSYVOICE_REFERENCE_AUDIO_CACHE_TTL_MS = QWEN_REFERENCE_AUDIO_CACHE_TTL_MS;
+const COSYVOICE_SEND_REFERENCE_AUDIO = QWEN_SEND_REFERENCE_AUDIO;
+const COSYVOICE_DEFAULT_EMOTION = QWEN_DEFAULT_EMOTION;
+const COSYVOICE_DEFAULT_OUTPUT_FORMAT = QWEN_DEFAULT_OUTPUT_FORMAT;
+const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
+const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
+const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
+
+export type TTSProvider = "qwen";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
   audioData: string;
-  providerUsed: "cosyvoice3";
+  providerUsed: "qwen";
   mimeType: string;
   outputFormat: AudioFormat;
 }
@@ -121,7 +179,7 @@ export interface TTSBatchResponse {
   results: TTSBatchResultItem[];
 }
 
-export interface CosyVoiceVoicesResponse {
+export interface QwenVoicesResponse {
   availableSpeakers: string[];
   defaultSpeaker: string;
   defaultReferenceAvailable: boolean;
@@ -212,6 +270,22 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function readStringEnv(primaryKey: string, legacyKey?: string): string {
+  const primary = (process.env[primaryKey] || "").trim();
+  if (primary) return primary;
+  return legacyKey ? (process.env[legacyKey] || "").trim() : "";
+}
+
+function readPositiveIntEnv(primaryKey: string, legacyKey: string | undefined, fallback: number): number {
+  const raw = process.env[primaryKey] ?? (legacyKey ? process.env[legacyKey] : undefined);
+  return parsePositiveInt(raw, fallback);
+}
+
+function readBooleanEnv(primaryKey: string, legacyKey: string | undefined, fallback: boolean): boolean {
+  const raw = process.env[primaryKey] ?? (legacyKey ? process.env[legacyKey] : undefined);
+  return parseBoolean(raw, fallback);
 }
 
 function parseSpeakerList(value: string | undefined, fallback: string[]): string[] {
@@ -717,7 +791,7 @@ async function waitForRunpodWorkerReady(reason: string): Promise<void> {
           if (pingState === "healthy" || pingState === "ok" || pingState === "") {
             markRunpodHealthyNow();
             log.info(
-              `CosyVoice RunPod worker ready after ${Date.now() - startedAt}ms (reason=${reason}, ping_attempts=${pingAttempts})`
+              `Qwen RunPod worker ready after ${Date.now() - startedAt}ms (reason=${reason}, ping_attempts=${pingAttempts})`
             );
             return;
           }
@@ -741,7 +815,7 @@ async function waitForRunpodWorkerReady(reason: string): Promise<void> {
           }
           if (response.status === 404) {
             throw new Error(
-              "RunPod warmup ping route not found (404). Check COSYVOICE_RUNPOD_API_URL and worker routes."
+              "RunPod warmup ping route not found (404). Check QWEN_RUNPOD_API_URL and worker routes."
             );
           }
           if (
@@ -819,8 +893,49 @@ function isRetryableQueueError(message: string): boolean {
     normalized.includes("bad gateway") ||
     normalized.includes("gateway") ||
     normalized.includes("timed out") ||
-    normalized.includes("rate limit")
+    normalized.includes("rate limit") ||
+    normalized.includes("throttled") ||
+    normalized.includes("in_queue") ||
+    normalized.includes("no workers available")
   );
+}
+
+function buildRunpodWorkerAvailabilityHint(context: string): string {
+  return (
+    `${context} Check RunPod worker availability: ` +
+    "Qwen requires a queue endpoint (`https://api.runpod.ai/v2/<endpoint-id>`), at least one healthy cached worker, " +
+    "and a registry that is not blocked by anonymous Docker pull limits. " +
+    "If workers are stuck in `Throttled`, `pending` or `IN_QUEUE`, keep `minWorkers >= 1`, reduce `QWEN_RUNPOD_MAX_CONCURRENT_CALLS=1`, " +
+    "and move `dschilow/qwen3-tts-runpod` to an authenticated/private registry or configure authenticated pulls."
+  );
+}
+
+function buildRunpodQueueTimeoutHint(lastStatus: string): string {
+  if (lastStatus === "IN_QUEUE" || lastStatus === "QUEUED") {
+    return buildRunpodWorkerAvailabilityHint(
+      "The job never left the queue."
+    );
+  }
+  if (lastStatus === "IN_PROGRESS") {
+    return (
+      "The job started but never finished. Check worker GPU health, model startup logs, and whether the container crashed during synthesis."
+    );
+  }
+  return buildRunpodWorkerAvailabilityHint("The queue endpoint did not finish the job.");
+}
+
+function ensureQwenRunpodConfigured(): void {
+  if (!QWEN_RUNPOD_API_URL) {
+    throw APIError.failedPrecondition(
+      "QWEN_RUNPOD_API_URL is not configured. Set it to your RunPod queue endpoint, for example `https://api.runpod.ai/v2/<endpoint-id>`."
+    );
+  }
+
+  if (QWEN_RUNPOD_ENDPOINT_MODE !== "queue") {
+    throw APIError.failedPrecondition(
+      "Qwen TTS only supports RunPod queue endpoints. Set QWEN_RUNPOD_API_URL to `https://api.runpod.ai/v2/<endpoint-id>` or QWEN_RUNPOD_ENDPOINT_MODE=queue."
+    );
+  }
 }
 
 function parseRunpodQueueFailure(payload: RunpodQueueJobResponse): string {
@@ -862,7 +977,7 @@ function parseQueueTtsOutput(payload: unknown, outputFormat: AudioFormat): TTSRe
     const asDataUri = audioData.startsWith("data:") ? audioData : dataUriFromBuffer(Buffer.from(audioData, "base64"), mimeType);
     return {
       audioData: asDataUri,
-      providerUsed: "cosyvoice3",
+      providerUsed: "qwen",
       mimeType,
       outputFormat: declaredFormat,
     };
@@ -875,13 +990,15 @@ function parseQueueTtsOutput(payload: unknown, outputFormat: AudioFormat): TTSRe
 
   return {
     audioData: dataUriFromBuffer(Buffer.from(audioBase64, "base64"), mimeType),
-    providerUsed: "cosyvoice3",
+    providerUsed: "qwen",
     mimeType,
     outputFormat: declaredFormat,
   };
 }
 
 async function submitRunpodQueueJob(input: Record<string, unknown>): Promise<string> {
+  ensureQwenRunpodConfigured();
+
   const response = await fetchWithTimeout(
     buildRunpodQueueRunUrl(),
     {
@@ -903,11 +1020,19 @@ async function submitRunpodQueueJob(input: Record<string, unknown>): Promise<str
     const body = rawBody.trim() || "<empty>";
     if (response.status === 401) {
       const authHint =
-        "Check COSYVOICE_RUNPOD_API_KEY (RunPod account API key with endpoint access). " +
+        "Check QWEN_RUNPOD_API_KEY (RunPod account API key with endpoint access). " +
         "Queue endpoint auth is validated at RunPod edge.";
       throw new Error(`RunPod queue submit failed (401): ${body}${detailSuffix}. ${authHint}`);
     }
-    throw new Error(`RunPod queue submit failed (${response.status}): ${body}${detailSuffix}`);
+    const normalizedBody = body.toLowerCase();
+    const throttleHint =
+      normalizedBody.includes("toomanyrequests") ||
+      normalizedBody.includes("rate limit") ||
+      normalizedBody.includes("throttled") ||
+      normalizedBody.includes("no workers available")
+        ? ` ${buildRunpodWorkerAvailabilityHint("RunPod could not start or reach a worker.")}`
+        : "";
+    throw new Error(`RunPod queue submit failed (${response.status}): ${body}${detailSuffix}.${throttleHint}`);
   }
 
   let payload: RunpodQueueJobResponse;
@@ -926,6 +1051,7 @@ async function submitRunpodQueueJob(input: Record<string, unknown>): Promise<str
 
 async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
   const startedAt = Date.now();
+  let lastStatus = "UNKNOWN";
 
   while (Date.now() - startedAt < COSYVOICE_RUNPOD_TIMEOUT_MS) {
     const response = await fetchWithTimeout(
@@ -950,6 +1076,7 @@ async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
     }
 
     const status = parseRunpodQueueStatus(payload.status);
+    lastStatus = status || lastStatus;
     if (status === "COMPLETED") {
       return payload.output;
     }
@@ -964,7 +1091,7 @@ async function waitForRunpodQueueJob(jobId: string): Promise<unknown> {
   }
 
   throw new Error(
-    `RunPod queue job timed out after ${Math.round(COSYVOICE_RUNPOD_TIMEOUT_MS / 1000)}s (job_id=${jobId})`
+    `RunPod queue job timed out after ${Math.round(COSYVOICE_RUNPOD_TIMEOUT_MS / 1000)}s (job_id=${jobId}, last_status=${lastStatus}). ${buildRunpodQueueTimeoutHint(lastStatus)}`
   );
 }
 
@@ -1180,7 +1307,7 @@ async function runpodQueueTtsBatchRequest(
   throw new Error(lastError?.message || "RunPod batch request failed after all retries.");
 }
 
-async function runpodQueueVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
+async function runpodQueueVoicesRequest(): Promise<QwenVoicesResponse> {
   const jobId = await submitRunpodQueueJob({ action: "voices" });
   const output = (await waitForRunpodQueueJob(jobId)) as {
     availableSpeakers?: unknown;
@@ -1207,21 +1334,15 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
     return await runpodQueueTtsRequest(req);
   }
 
-  if (!COSYVOICE_RUNPOD_API_URL) {
-    throw APIError.failedPrecondition(
-      "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
-    );
-  }
+  ensureQwenRunpodConfigured();
 
   const text = (req.text || "").trim();
   if (!text) {
     throw APIError.invalidArgument("Text is required.");
   }
 
-  if (req.provider && req.provider !== "cosyvoice3") {
-    log.warn(
-      `Legacy provider "${req.provider}" requested. Using CosyVoice3 RunPod endpoint instead.`
-    );
+  if (req.provider && req.provider !== "qwen") {
+    log.warn(`Legacy TTS provider "${req.provider}" requested. Using Qwen RunPod endpoint instead.`);
   }
 
   const outputFormat = normalizeOutputFormat(req.outputFormat || COSYVOICE_DEFAULT_OUTPUT_FORMAT);
@@ -1315,12 +1436,12 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           if (!warmed) {
             const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
             log.warn(
-              `CosyVoice RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
+              `Qwen RunPod returned ${response.status} (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}). Retrying in ${backoffMs}ms.`
             );
             await delay(backoffMs);
           } else {
             log.info(
-              `CosyVoice RunPod warmup complete after ${response.status}; retrying request immediately (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}).`
+              `Qwen RunPod warmup complete after ${response.status}; retrying request immediately (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}).`
             );
           }
           continue;
@@ -1333,25 +1454,25 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
         if (response.status === 401) {
           const authHint =
-            "Check COSYVOICE_RUNPOD_API_KEY (must be a RunPod account API key with endpoint access). " +
-            "If your worker enforces COSYVOICE_API_KEY, set COSYVOICE_RUNPOD_WORKER_API_KEY to the same worker secret.";
+            "Check QWEN_RUNPOD_API_KEY (must be a RunPod account API key with endpoint access). " +
+            "If your worker enforces an internal API key, set QWEN_RUNPOD_WORKER_API_KEY to the same worker secret.";
           const keyState = ` bearer_set=${Boolean(COSYVOICE_RUNPOD_API_KEY)} worker_key_set=${Boolean(
             COSYVOICE_RUNPOD_WORKER_API_KEY
           )}`;
           throw new Error(
-            `RunPod CosyVoice API failed (401): ${errText}${detailSuffix}. ${authHint}.${keyState}`
+            `RunPod Qwen API failed (401): ${errText}${detailSuffix}. ${authHint}.${keyState}`
           );
         }
 
         if (isLikelyInfraBusyStatus(response.status, errTextRaw)) {
           throw new Error(
-            "RunPod CosyVoice API failed (400 <empty>). This often means worker cold-start/busy on Load Balancer endpoints. " +
-            "Reduce parallel calls (COSYVOICE_RUNPOD_MAX_CONCURRENT_CALLS=1), keep Max workers >= 1, or use Queue endpoint."
+            "RunPod Qwen API failed (400 <empty>). This often means worker cold-start/busy on Load Balancer endpoints. " +
+            "Use a RunPod queue endpoint, reduce parallel calls (`QWEN_RUNPOD_MAX_CONCURRENT_CALLS=1`), and keep at least one warm worker."
           );
         }
         if (isLikelyGatewayHostError(response.status, errTextRaw)) {
           throw new Error(
-            `RunPod CosyVoice API failed (${response.status} gateway). ` +
+            `RunPod Qwen API failed (${response.status} gateway). ` +
             "Upstream worker was unavailable/crashed during request. " +
             "On slower GPUs this happens more often with LB endpoints. " +
             "Use Queue endpoint, or keep at least one active worker while generating, or increase Max workers."
@@ -1359,19 +1480,19 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         }
 
         if (response.status === 400) {
-          throw APIError.invalidArgument(`CosyVoice request rejected: ${errText}${detailSuffix}`);
+          throw APIError.invalidArgument(`Qwen request rejected: ${errText}${detailSuffix}`);
         }
         if (response.status === 401) {
-          throw APIError.unauthenticated(`CosyVoice auth failed: ${errText}${detailSuffix}`);
+          throw APIError.unauthenticated(`Qwen auth failed: ${errText}${detailSuffix}`);
         }
         if (response.status === 403) {
-          throw APIError.permissionDenied(`CosyVoice access denied: ${errText}${detailSuffix}`);
+          throw APIError.permissionDenied(`Qwen access denied: ${errText}${detailSuffix}`);
         }
         if (response.status === 404) {
-          throw APIError.notFound(`CosyVoice endpoint not found: ${errText}${detailSuffix}`);
+          throw APIError.notFound(`Qwen endpoint not found: ${errText}${detailSuffix}`);
         }
 
-        throw new Error(`RunPod CosyVoice API failed (${response.status}): ${errText}${detailSuffix}`);
+        throw new Error(`RunPod Qwen API failed (${response.status}): ${errText}${detailSuffix}`);
       }
 
       const contentType = response.headers.get("content-type");
@@ -1386,7 +1507,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
           markRunpodHealthyNow();
           return {
             audioData,
-            providerUsed: "cosyvoice3",
+            providerUsed: "qwen",
             mimeType,
             outputFormat,
           };
@@ -1394,14 +1515,14 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
         const base64 = payload?.audioBase64?.trim();
         if (!base64) {
-          throw new Error("RunPod CosyVoice API returned JSON without audio data.");
+          throw new Error("RunPod Qwen API returned JSON without audio data.");
         }
 
         const mimeType = payload?.mimeType?.trim() || resolveMimeType(null, outputFormat);
         markRunpodHealthyNow();
         return {
           audioData: dataUriFromBuffer(Buffer.from(base64, "base64"), mimeType),
-          providerUsed: "cosyvoice3",
+          providerUsed: "qwen",
           mimeType,
           outputFormat,
         };
@@ -1409,14 +1530,14 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
       const audioBuffer = Buffer.from(await response.arrayBuffer());
       if (!audioBuffer.length) {
-        throw new Error("RunPod CosyVoice API returned an empty audio stream.");
+        throw new Error("RunPod Qwen API returned an empty audio stream.");
       }
 
       markRunpodHealthyNow();
       const mimeType = resolveMimeType(contentType, outputFormat);
       return {
         audioData: dataUriFromBuffer(audioBuffer, mimeType),
-        providerUsed: "cosyvoice3",
+        providerUsed: "qwen",
         mimeType,
         outputFormat,
       };
@@ -1433,7 +1554,7 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
         await maybeWarmupRunpodWorker(`network-attempt-${attempt}`);
         const backoffMs = COSYVOICE_RUNPOD_RETRY_BASE_DELAY_MS * attempt;
         log.warn(
-          `CosyVoice RunPod network error (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`
+          `Qwen RunPod network error (attempt ${attempt}/${COSYVOICE_RUNPOD_MAX_RETRIES}): ${message}. Retrying in ${backoffMs}ms.`
         );
         await delay(backoffMs);
         continue;
@@ -1441,9 +1562,9 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
 
       if (isAbortError(error)) {
         throw APIError.unavailable(
-          `CosyVoice RunPod request timed out after ${Math.round(
+          `Qwen RunPod request timed out after ${Math.round(
             COSYVOICE_RUNPOD_TIMEOUT_MS / 1000
-          )}s. Increase COSYVOICE_RUNPOD_TIMEOUT_MS if needed.`
+          )}s. Increase QWEN_RUNPOD_TIMEOUT_MS if needed.`
         );
       }
 
@@ -1451,15 +1572,11 @@ async function runpodTtsRequest(req: GenerateSpeechRequest): Promise<TTSResponse
     }
   }
 
-  throw new Error(lastError?.message || "RunPod CosyVoice request failed after all retries.");
+  throw new Error(lastError?.message || "RunPod Qwen request failed after all retries.");
 }
 
-async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
-  if (!COSYVOICE_RUNPOD_API_URL) {
-    throw APIError.failedPrecondition(
-      "COSYVOICE_RUNPOD_API_URL is not configured. Set it to your RunPod CosyVoice API base URL."
-    );
-  }
+async function runpodListVoicesRequest(): Promise<QwenVoicesResponse> {
+  ensureQwenRunpodConfigured();
 
   if (COSYVOICE_RUNPOD_ENDPOINT_MODE === "queue") {
     return await runpodQueueVoicesRequest();
@@ -1490,7 +1607,7 @@ async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
         await maybeWarmupRunpodWorker(`voice-list-status-${response.status}`);
         continue;
       }
-      throw new Error(`RunPod CosyVoice health request failed (${response.status}): ${errText}`);
+      throw new Error(`RunPod Qwen health request failed (${response.status}): ${errText}`);
     }
 
     const payload = (await response.json()) as
@@ -1517,7 +1634,7 @@ async function runpodListVoicesRequest(): Promise<CosyVoiceVoicesResponse> {
     };
   }
 
-  throw new Error("RunPod CosyVoice health request failed after warmup attempts.");
+  throw new Error("RunPod Qwen health request failed after warmup attempts.");
 }
 
 // API Endpoints
@@ -1533,7 +1650,7 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
       }
       const message = getErrorMessage(error);
       log.error(`TTS generate failed: ${message}`);
-      throw APIError.unavailable(`CosyVoice generation failed: ${message}`);
+      throw APIError.unavailable(`Qwen generation failed: ${message}`);
     }
   }
 );
@@ -1594,7 +1711,7 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       if (isApiError(error)) throw error;
       const message = getErrorMessage(error);
       log.error(`TTS batch failed: ${message}`);
-      throw APIError.unavailable(`CosyVoice batch generation failed: ${message}`);
+      throw APIError.unavailable(`Qwen batch generation failed: ${message}`);
     }
   }
 
@@ -1850,7 +1967,7 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
   }
 );
 
-async function listRunpodVoicesOrThrow(providerLabel: string): Promise<CosyVoiceVoicesResponse> {
+async function listRunpodVoicesOrThrow(providerLabel: string): Promise<QwenVoicesResponse> {
   if (COSYVOICE_VOICE_LIST_MODE === "static") {
     const availableSpeakers = [...COSYVOICE_STATIC_SPEAKERS];
     const defaultSpeaker = availableSpeakers.includes(COSYVOICE_STATIC_DEFAULT_SPEAKER)
@@ -1877,15 +1994,15 @@ async function listRunpodVoicesOrThrow(providerLabel: string): Promise<CosyVoice
   }
 }
 
-export const listQwenVoices = api<void, CosyVoiceVoicesResponse>(
+export const listQwenVoices = api<void, QwenVoicesResponse>(
   { expose: true, method: "GET", path: "/tts/qwen/voices" },
   async () => {
     return await listRunpodVoicesOrThrow("Qwen");
   }
 );
 
-// Backward-compatible alias for older frontend paths.
-export const listCosyVoiceVoices = api<void, CosyVoiceVoicesResponse>(
+// Temporary alias until the generated frontend client is refreshed.
+export const listCosyVoiceVoices = api<void, QwenVoicesResponse>(
   { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
   async () => {
     return await listRunpodVoicesOrThrow("Qwen");
