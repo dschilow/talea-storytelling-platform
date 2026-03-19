@@ -1,5 +1,5 @@
 import type { NormalizedRequest, CastSet, StoryDNA, TaleDNA, SceneDirective, StoryDraft, StoryWriter, TokenUsage, AvatarMemoryCompressed, StoryBlueprint, StoryBlueprintV8, StoryCostEntry } from "./types";
-import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "./prompts";
+import { buildChapterExpansionPrompt, buildFullStoryPrompt, buildFullStoryRewritePrompt, buildStoryChapterRevisionPrompt, buildStoryTitlePrompt, resolveLengthTargets, buildBlueprintSystemPrompt, buildLeanBlueprintDrivenStoryPrompt, buildLeanStoryBlueprintPrompt, buildReleaseV7SystemPrompt, buildV7RevisionPrompt, buildV8RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "./prompts";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { callAnthropicCompletion, callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
@@ -1599,6 +1599,19 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             qualityIssues: rewriteInstructions,
             stylePackText,
           })
+        : (useV8Blueprint && blueprintV8)
+          ? buildV8RevisionPrompt({
+              originalDraft: draft,
+              blueprint: blueprintV8,
+              cast,
+              language: normalizedRequest.language,
+              ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
+              totalWordMin: Math.round(totalWordMin),
+              totalWordMax: Math.round(totalWordMax),
+              wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+              qualityIssues: rewriteInstructions,
+              stylePackText,
+            })
         : buildFullStoryRewritePrompt({
             originalDraft: draft,
             directives,
@@ -1632,8 +1645,9 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         break;
       }
       try {
-        // Use V7 system prompt for rewrites when blueprint path is active
-        const rewriteSystemPrompt = (storyBlueprint && useV7Blueprint) ? v7SystemPrompt : systemPrompt;
+        const rewriteSystemPrompt = useV8Blueprint
+          ? v8SystemPrompt
+          : (storyBlueprint && useV7Blueprint) ? v7SystemPrompt : systemPrompt;
         rewriteResult = await callStoryModel({
           systemPrompt: rewriteSystemPrompt,
           userPrompt: rewritePrompt,

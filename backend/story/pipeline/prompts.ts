@@ -1096,6 +1096,9 @@ Hard requirements:
 - chapter 3 contains an active child mistake with a visible consequence
 - chapter 4 contains a real inner turning point, not artifact magic or adult rescue
 - chapter 5 contains a concrete win, a small personal price, and a callback
+- define any secret, bluff, false lead, trap, or price in concrete child-readable world terms
+- every chapter's obstacle and key_scene must name visible actions, objects, sounds, or misunderstandings
+- never hide the story engine behind abstract labels like "a secret blocks the way" or "a double bluff"
 - if the later story language is ${targetLanguage}, the final prose will be handled separately; this pass is structure only
 - tense must be "preterite"
 
@@ -1197,6 +1200,10 @@ RULES
 - Chapter 4 contains an inner turning point, not artifact magic.
 - Chapter 5 contains concrete win, small price, and callback.
 - Never use more than 2 active characters per chapter.
+- Translate abstract seed language into concrete story physics children can picture.
+- If the seed says secret, false lead, bluff, trap, or price: define exactly what it is in-world.
+- Every obstacle, key_scene.what_happens, and chapter_hook must name a specific visible action, object, sound, or misunderstanding.
+- Do not repeat the same quotable_line or the same playable_moment across chapters, except for one deliberate chapter-5 callback.
 - Encode humor beats as concrete behavior or misunderstanding, not as abstract mood labels.
 - If the user notes imply blame, false suspicion, misunderstanding, or a mini-conflict, place it explicitly into chapter fields and hooks.
 - Make every chapter's key_scene playable and specific enough to stage later in prose.
@@ -1769,6 +1776,83 @@ OUTPUT:
   ]
 }
 "paragraphs" = JSON array of 4-6 strings. Each = one paragraph.`;
+}
+
+export function buildV8RevisionPrompt(input: {
+  originalDraft: { title: string; description: string; chapters: Array<{ chapter: number; text: string }> };
+  blueprint: StoryBlueprintV8;
+  cast: CastSet;
+  language: string;
+  ageRange: { min: number; max: number };
+  totalWordMin: number;
+  totalWordMax: number;
+  wordsPerChapter: { min: number; max: number };
+  qualityIssues: string;
+  stylePackText?: string;
+}): string {
+  const isGerman = input.language === "de";
+  const promptSheets = dedupeCharacterSheetsForPrompt([...input.cast.avatars, ...input.cast.poolCharacters] as CharacterSheet[]);
+  const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
+  const voiceContractBlock = buildV8VoiceContractBlock(input.cast, isGerman);
+  const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 5);
+  const originalText = input.originalDraft.chapters
+    .map(ch => `--- Chapter ${ch.chapter} ---\n${ch.text}`)
+    .join("\n\n");
+
+  const germanStyleBlock = isGerman
+    ? `DEUTSCHE STILREGELN
+- Kein Fremdwort, das ein Erstklaessler nicht kennt.
+- Keine englischen Woerter im Story-Text. Nutze korrekte Umlaute.
+- Zeige Gefuehle ueber Bauch, Haende, Kehle, Blick oder Atem.
+- Humor entsteht aus Verhalten, Missverstaendnissen, Timing oder warmen Rueckgriffen.
+- Keine Moral-Saetze. Keine Prompt-Sprache.
+`
+    : "";
+
+  return `Rewrite the children's story from the blueprint and fix ONLY the listed quality issues.
+Keep the same story spine, chapter order, and ending, but make the prose feel closer to published children's fiction.
+
+QUALITY ISSUES TO FIX
+${input.qualityIssues || "- General prose improvement needed."}
+
+WORD BUDGET
+- Total: ${input.totalWordMin}-${input.totalWordMax} words
+- Per chapter: ${input.wordsPerChapter.min}-${input.wordsPerChapter.max} words
+- "paragraphs" must be a JSON array with 4-6 strings per chapter
+
+BLUEPRINT
+${JSON.stringify(input.blueprint, null, 2)}
+
+VOICE CONTRACTS
+German example lines are binding for rhythm, sentence length, and tone.
+${voiceContractBlock}
+
+${appearanceLockBlock ? `APPEARANCE LOCKS\n${appearanceLockBlock}\n` : ""}${germanStyleBlock}${stylePackBlock ? `STYLE NOTES\n${stylePackBlock}\n` : ""}BLUEPRINT FIDELITY
+- keep the same core obstacle, mistake, low point, repair, and final callback
+- realize humor beats, mini-conflicts, and physical consequences explicitly on the page
+- if the blueprint defines a secret, trap, false lead, or price, show it concretely in the world
+- keep the same growth child visible across chapter 3, chapter 4, and chapter 5
+
+HARD RULES
+- keep a personal third-person narrator
+- if the story language is German, write the final story in German preterite
+- strengthen dialogue only where it adds friction, warmth, clues, or comedy
+- do not invent new plot branches, extra characters, or deus-ex-machina solutions
+- chapter 5 must keep a concrete win, a small price, and a warm landing image
+
+ORIGINAL DRAFT
+${originalText}
+
+OUTPUT CONTRACT
+Return valid JSON only.
+{
+  "title": "Story title",
+  "description": "Teaser sentence",
+  "chapters": [
+    { "chapter": 1, "paragraphs": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."] }
+  ]
+}
+"paragraphs" MUST be a JSON array of 4-6 strings. Each string = one paragraph.`;
 }
 
 // --- Legacy Full Story Prompt (V6 for Gemini 3 Flash) -----------------------------------------

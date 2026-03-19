@@ -14,6 +14,16 @@ const SUSPICIOUS_ENDINGS = new Set([
   "verr",
   "rich",
 ]);
+const GENERIC_BLUEPRINT_PATTERNS = [
+  /muessen auf das reagieren, was in /i,
+  /macht einen deutlichen schritt oder eine geste/i,
+  /\bein belauschtes geheimnis\b/i,
+  /\bdoppelter bluff\b/i,
+  /\bnaechsten hinweis erreichen\b/i,
+  /\bden plan in wenigen minuten neu ordnen\b/i,
+  /sorgt fuer ein erstes schmunzeln/i,
+  /taucht am ende leicht veraendert wieder auf/i,
+];
 
 export function validateV8Blueprint(input: {
   blueprint: any;
@@ -100,6 +110,9 @@ export function validateV8Blueprint(input: {
       if (looksSuspiciouslyTruncated(value)) {
         push("FIELD_TRUNCATED", `Chapter ${chapterNo} field "${field}" looks truncated.`, chapterNo);
       }
+      if (field !== "location" && looksTooAbstract(value)) {
+        push("FIELD_TOO_ABSTRACT", `Chapter ${chapterNo} field "${field}" is too abstract. Define concrete story physics children can picture.`, chapterNo);
+      }
     }
   });
 
@@ -111,6 +124,21 @@ export function validateV8Blueprint(input: {
   );
   if (humorChapters.size < 2) {
     push("HUMOR_DISTRIBUTION_WEAK", "Humor beats must cover at least 2 different chapters.");
+  }
+  for (const beat of humorBeats) {
+    if (looksTooAbstract(beat?.description)) {
+      push("HUMOR_BEAT_TOO_ABSTRACT", `Humor beat for chapter ${String(beat?.chapter || "?")} is too abstract.`, Number(beat?.chapter) || undefined);
+    }
+  }
+
+  const repeatedQuotes = findRepeatedSceneLines(chapters.map(chapter => chapter?.key_scene?.quotable_line), 3);
+  if (repeatedQuotes.length > 0) {
+    push("QUOTABLE_LINE_REPEATED", "Blueprint repeats the same quotable_line too often across chapters.");
+  }
+
+  const repeatedPlayableMoments = findRepeatedSceneLines(chapters.map(chapter => chapter?.key_scene?.playable_moment), 2);
+  if (repeatedPlayableMoments.length > 0) {
+    push("PLAYABLE_MOMENT_REPEATED", "Blueprint repeats the same playable_moment across chapters.");
   }
 
   const errorAndRepair = blueprint.error_and_repair;
@@ -163,6 +191,8 @@ export function validateV8Blueprint(input: {
   const iconicScene = blueprint.iconic_scene;
   if (!iconicScene || !Number.isFinite(Number(iconicScene.chapter)) || !hasMeaningfulText(iconicScene.description)) {
     push("ICONIC_SCENE_MISSING", "iconic_scene is missing or incomplete.");
+  } else if (looksTooAbstract(iconicScene.description)) {
+    push("ICONIC_SCENE_TOO_ABSTRACT", "iconic_scene must describe a concrete physical moment children can replay.");
   }
 
   return {
@@ -196,4 +226,30 @@ function looksSuspiciouslyTruncated(value: unknown): boolean {
   if (lastToken.length <= 3 && tokens.length >= 4) return true;
   if (/[([{'"-]$/.test(text)) return true;
   return false;
+}
+
+function looksTooAbstract(value: unknown): boolean {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length < 10) return false;
+  return GENERIC_BLUEPRINT_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function findRepeatedSceneLines(values: unknown[], minCount: number): string[] {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    const normalized = normalizeSceneLine(value);
+    if (!normalized) continue;
+    counts.set(normalized, (counts.get(normalized) || 0) + 1);
+  }
+  return [...counts.entries()]
+    .filter(([, count]) => count >= minCount)
+    .map(([text]) => text);
+}
+
+function normalizeSceneLine(value: unknown): string {
+  return String(value || "")
+    .replace(/["“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }

@@ -10,7 +10,7 @@ import { splitContinuousStoryIntoChapters } from "../story-segmentation";
 import { runQualityGates } from "../quality-gates";
 import { validateV8Blueprint } from "../blueprint-validator";
 import { resolvePromptVersionForRequest } from "../blueprint-generator";
-import { buildV8BlueprintSystemPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "../prompts";
+import { buildV8BlueprintSystemPrompt, buildV8RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "../prompts";
 import { determineCriticVerdict, normalizeCriticReport } from "../semantic-critic";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryBlueprintV8, StoryDNA } from "../types";
 
@@ -1649,6 +1649,11 @@ function testV8BlueprintValidation() {
   const invalidBlueprint = JSON.parse(JSON.stringify(validBlueprint)) as StoryBlueprintV8;
   invalidBlueprint.chapters[2].active_characters = ["Alexander", "Adrian", "Morbus"];
   invalidBlueprint.chapters[2].key_scene.playable_moment = "Alexander ruft seine Idee verr";
+  invalidBlueprint.chapters[0].goal = "Die Kinder wollen trotz ein belauschtes Geheimnis den naechsten Hinweis erreichen.";
+  invalidBlueprint.chapters[0].key_scene.what_happens = "Adrian und Alexander muessen auf das reagieren, was in deep forest schiefgeht.";
+  invalidBlueprint.chapters.forEach((chapter) => {
+    chapter.key_scene.quotable_line = "\"Nicht weglaufen. Erst hinschauen.\"";
+  });
   invalidBlueprint.chapters[3].arc_label = "LANDING";
   invalidBlueprint.pov_character = "Morbus";
 
@@ -1662,8 +1667,10 @@ function testV8BlueprintValidation() {
   assert.strictEqual(invalid.valid, false, "Invalid V8 blueprint should fail");
   assert.ok(codes.has("ACTIVE_CHARACTERS_OVER_LIMIT"), "Validator should reject overloaded foreground casts");
   assert.ok(codes.has("FIELD_TRUNCATED"), "Validator should detect truncated chapter fields");
+  assert.ok(codes.has("FIELD_TOO_ABSTRACT"), "Validator should reject abstract placeholder blueprint language");
   assert.ok(codes.has("ARC_LABEL_INVALID"), "Validator should enforce strict V8 arc order");
   assert.ok(codes.has("POV_PRESENCE_TOO_LOW"), "Validator should require the POV child across the arc");
+  assert.ok(codes.has("QUOTABLE_LINE_REPEATED"), "Validator should reject repeated placeholder quotable lines");
 }
 
 function testV8WriterPromptRegression() {
@@ -1675,6 +1682,7 @@ function testV8WriterPromptRegression() {
   const blueprintSystemPrompt = buildV8BlueprintSystemPrompt("de");
   assert.ok(blueprintSystemPrompt.includes("Return valid JSON only"), "V8 blueprint system prompt should carry structural instructions in English");
   assert.ok(blueprintSystemPrompt.includes("never use more than 2 active characters per chapter"), "Blueprint system prompt should express hard constraints in English");
+  assert.ok(blueprintSystemPrompt.includes("define any secret, bluff, false lead, trap, or price"), "Blueprint system prompt should force abstract mechanics to become concrete");
 
   const storySystemPrompt = buildV8StorySystemPrompt("de");
   assert.ok(storySystemPrompt.includes("Structural rules:"), "V8 story system prompt should use English structural guidance");
@@ -1705,6 +1713,31 @@ function testV8WriterPromptRegression() {
   assert.ok(prompt.includes("BLUEPRINT FIDELITY"), "V8 writer prompt should include an explicit blueprint fidelity block");
   assert.ok(prompt.includes("realize the blueprint's humor_beats"), "V8 writer prompt should force humor beats onto the page");
   assert.ok(!prompt.includes("4-5 Strings"), "V8 writer prompt must not carry the conflicting old paragraph count");
+
+  const revisionPrompt = buildV8RevisionPrompt({
+    originalDraft: {
+      title: "Die Muenze im Kreis",
+      description: "Warum lacht die Spur?",
+      chapters: [
+        { chapter: 1, text: "Kapitel eins." },
+        { chapter: 2, text: "Kapitel zwei." },
+        { chapter: 3, text: "Kapitel drei." },
+        { chapter: 4, text: "Kapitel vier." },
+        { chapter: 5, text: "Kapitel fuenf." },
+      ],
+    },
+    blueprint: buildValidV8Blueprint(),
+    cast: buildTestCast(),
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+    totalWordMin: 1400,
+    totalWordMax: 1960,
+    wordsPerChapter: { min: 280, max: 392 },
+    qualityIssues: "- Add one stronger humor beat in chapter 2.",
+  });
+  assert.ok(revisionPrompt.includes("BLUEPRINT FIDELITY"), "V8 revision prompt should stay blueprint-aware");
+  assert.ok(revisionPrompt.includes("QUALITY ISSUES TO FIX"), "V8 revision prompt should carry focused fix instructions");
+  assert.ok(revisionPrompt.includes("German example lines are binding"), "V8 revision prompt should preserve voice contracts");
 }
 
 function testCriticNormalizationAndBanding() {

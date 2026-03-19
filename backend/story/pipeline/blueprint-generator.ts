@@ -1,6 +1,6 @@
 import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
-import { resolveSupportTaskModel } from "./model-routing";
+import { GEMINI_MAIN_STORY_MODEL, resolveSupportTaskModel } from "./model-routing";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { buildV8BlueprintPrompt, buildV8BlueprintSystemPrompt, resolveLengthTargets } from "./prompts";
@@ -13,6 +13,7 @@ import type {
   NormalizedRequest,
   SceneDirective,
   StoryBlueprintV8,
+  StoryBlueprintV8Chapter,
   StoryCostEntry,
   StoryDNA,
   TaleDNA,
@@ -134,6 +135,69 @@ export async function generateValidatedV8Blueprint(input: {
     retryPrompt = `The blueprint has these validation problems:\n${formatBlueprintValidationIssues(validation.issues)}\n\nFix ONLY these problems and return the full corrected blueprint as JSON again.`;
   }
 
+  const rescueModel = resolveBlueprintRescueModel(normalizedRequest.rawConfig?.aiModel, supportModel);
+  if (rescueModel) {
+    const rescueAttempt = Math.max(1, input.blueprintRetryMax + 2);
+    const rescuePrompt = [
+      buildV8BlueprintPrompt({
+        chapterCount: normalizedRequest.chapterCount,
+        genre: normalizedRequest.rawConfig?.genre || normalizedRequest.category,
+        setting: normalizedRequest.rawConfig?.setting || normalizedRequest.category,
+        ageGroup: normalizedRequest.rawConfig?.ageGroup || `${normalizedRequest.ageMin}-${normalizedRequest.ageMax}`,
+        cast,
+        dna,
+        directives,
+        customStoryBeats: normalizedRequest.rawConfig?.customPrompt,
+        previousAdventure: buildPreviousAdventureLine(input.avatarMemories),
+      }),
+      retryPrompt,
+      "Use stronger reasoning. Replace any abstract placeholder with concrete, child-readable story physics before returning JSON.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const rescueResult = await callBlueprintModel({
+      model: rescueModel,
+      systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
+      userPrompt: rescuePrompt,
+      storyId: normalizedRequest.storyId,
+      candidateTag: input.candidateTag,
+      attempt: rescueAttempt,
+    });
+
+    usage = mergeNormalizedTokenUsage(usage, rescueResult.usage, rescueModel);
+    const rescueCostEntry = buildLlmCostEntry({
+      phase: "phase5.8-blueprint",
+      step: "blueprint-rescue",
+      usage: rescueResult.usage,
+      fallbackModel: rescueModel,
+      candidateTag: input.candidateTag,
+      attempt: rescueAttempt,
+    });
+    if (rescueCostEntry) costEntries.push(rescueCostEntry);
+
+    const rescueParsed = safeJson(rescueResult.content);
+    const rescueBlueprint = normalizeBlueprintEnvelope(rescueParsed);
+    const rescueValidation = validateV8Blueprint({
+      blueprint: rescueBlueprint,
+      chapterCount: normalizedRequest.chapterCount,
+      ageMax: normalizedRequest.ageMax,
+      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+    });
+
+    if (rescueValidation.valid && rescueBlueprint) {
+      return {
+        blueprint: rescueBlueprint,
+        model: rescueModel,
+        attempts: rescueAttempt,
+        fallbackUsed: false,
+        issues: rescueValidation.issues,
+        usage,
+        costEntries,
+      };
+    }
+  }
+
   const fallback = buildDeterministicV8Blueprint({
     normalizedRequest,
     cast,
@@ -233,6 +297,7 @@ function buildDeterministicV8Blueprint(input: {
   const activeFallback = [lead, companion].filter(Boolean).slice(0, 2);
   const midpointWords = Math.round((input.wordsPerChapter.min + input.wordsPerChapter.max) / 2);
   const chapterArcs = ["SETUP", "DISCOVERY", "TURNING_POINT", "DARKEST_MOMENT", "LANDING"] as const;
+  const engine = buildConcreteFallbackEngine({ directives: input.directives, companion });
 
   const chapters = input.directives.slice(0, 5).map((directive, index) => {
     const activeCharacters = getCoreChapterCharacterNames({
@@ -242,26 +307,27 @@ function buildDeterministicV8Blueprint(input: {
     }).slice(0, 2);
     const chapterNo = index + 1;
     const focusPair = activeCharacters.length > 0 ? activeCharacters : activeFallback;
+    const nextSettingLabel = describeSettingForChildren(input.directives[index + 1]?.setting || "");
+
+    const concreteChapter = buildConcreteFallbackChapter({
+      chapterNo,
+      lead,
+      companion,
+      engine,
+      nextSettingLabel,
+    });
 
     return {
       chapter: chapterNo,
       arc_label: chapterArcs[index],
       location: directive.setting,
-      goal: directive.goal,
-      obstacle: directive.conflict,
+      goal: concreteChapter.goal,
+      obstacle: concreteChapter.obstacle,
       active_characters: focusPair,
       supporting_characters: [],
       key_emotion: buildFallbackEmotion(chapterNo),
-      key_scene: {
-        what_happens: `${focusPair.join(" und ")} muessen auf das reagieren, was in ${directive.setting} schiefgeht.`,
-        playable_moment: chapterNo === 3
-          ? `${lead} ruft seine Idee zu frueh heraus und erschrickt sofort.`
-          : `${focusPair[0] || lead} macht einen deutlichen Schritt oder eine Geste, die Kinder nachspielen koennen.`,
-        quotable_line: chapterNo === 3
-          ? `"Wartet! Ich weiss es!"`
-          : `"Nicht weglaufen. Erst hinschauen."`,
-      },
-      chapter_hook: directive.outcome,
+      key_scene: concreteChapter.key_scene,
+      chapter_hook: concreteChapter.chapter_hook,
       word_target: midpointWords,
       dialogue_percentage: chapterNo === 4 ? 25 : 30,
     } satisfies StoryBlueprintV8["chapters"][number];
@@ -276,17 +342,17 @@ function buildDeterministicV8Blueprint(input: {
     pov_character: lead,
     chapters,
     humor_beats: [
-      { chapter: 1, type: "character_behavior", description: `${companion} interpretiert eine Spur uebertrieben falsch und sorgt fuer ein erstes Schmunzeln.` },
-      { chapter: 5, type: "warm_callback", description: `Ein frueher Satz taucht am Ende leicht veraendert wieder auf.` },
+      { chapter: 1, type: "character_behavior", description: engine.humorBeat },
+      { chapter: 5, type: "warm_callback", description: `Der Stoppsatz aus Kapitel 1 kommt am Ende ruhig und waermer zurueck.` },
     ],
     error_and_repair: {
       who: lead,
       error_chapter: 3,
-      error: `${lead} handelt aktiv zu frueh und macht den Plan kaputt.`,
-      inner_reason: `${lead} will unbedingt beweisen, dass er die richtige Idee zuerst erkennt.`,
-      body_signal: `${lead} spuert einen Knoten im Bauch und kalte Haende.`,
+      error: `${lead} ruft die vermeintlich richtige Antwort laut heraus und loest dadurch ${engine.consequenceShort} aus.`,
+      inner_reason: `${lead} will unbedingt beweisen, dass er die richtige Regel zuerst erkennt.`,
+      body_signal: `${lead} spuert einen Knoten im Bauch, kalte Haende und einen trockenen Hals.`,
       repair_chapter: 5,
-      repair: `${lead} haelt kurz inne, laesst den anderen zuerst sprechen und entscheidet dann bewusster.`,
+      repair: `${lead} haelt kurz inne, laesst ${companion} zuerst sprechen und setzt erst dann ${engine.priceItem} richtig ein.`,
     },
     arc_checkpoints: {
       ch1_feeling: "neugierig und leicht uebermuetig",
@@ -297,9 +363,164 @@ function buildDeterministicV8Blueprint(input: {
     },
     iconic_scene: {
       chapter: 3,
-      description: `${lead} reisst die Arme hoch, ruft seine Idee hinaus und merkt im selben Augenblick, dass genau das falsch war.`,
+      description: `${lead} reisst die Arme hoch, ruft seine Idee hinaus, und im selben Augenblick scheppert die Falle los.`,
     },
   };
+}
+
+function resolveBlueprintRescueModel(selectedStoryModel?: string, supportModel?: string): string | undefined {
+  const selected = String(selectedStoryModel || "").trim().toLowerCase();
+  const current = String(supportModel || "").trim().toLowerCase();
+  if (selected.startsWith("gemini-")) {
+    return current === GEMINI_MAIN_STORY_MODEL ? undefined : GEMINI_MAIN_STORY_MODEL;
+  }
+  if (selected.startsWith("gpt-") || selected.startsWith("o4-")) {
+    return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
+  }
+  return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
+}
+
+function buildConcreteFallbackEngine(input: {
+  directives: SceneDirective[];
+  companion: string;
+}): {
+  secret: string;
+  falseLead: string;
+  priceItem: string;
+  priceLoss: string;
+  chapter2Clue: string;
+  chapter4Clue: string;
+  humorBeat: string;
+  consequenceShort: string;
+} {
+  const combinedSeed = input.directives
+    .map((directive) => `${directive.setting} ${directive.goal} ${directive.conflict} ${directive.outcome}`)
+    .join(" ")
+    .toLowerCase();
+
+  const priceItem = /\bkarte|map\b/.test(combinedSeed)
+    ? "ein Kartenstueck"
+    : "ein Eckchen des Hinweiszettels";
+  const falseLead = combinedSeed.includes("spur")
+    ? "zwei fast gleiche Spuren: die falsche glitzert trocken und sauber, die echte ist krumm und halb mit Moos verschmiert"
+    : "zwei fast gleiche Zeichen: das falsche ist zu ordentlich, das echte hat einen kleinen schiefen Knick";
+  const secret = combinedSeed.includes("geheimnis")
+    ? "Sie haben belauscht, dass ein lauter Ruf sofort die Klapperfalle weckt und nur die stillere Spur echt ist."
+    : "Jemand hat absichtlich fast gleiche Zeichen gelegt, damit ungeduldige Kinder in die falsche Richtung laufen.";
+  const chapter2Clue = /gingerbread|lebkuchen/.test(combinedSeed)
+    ? "am echten Pfeil kleben Ameisen und ein schiefer Zuckerkruemel"
+    : "am echten Zeichen haengt ein nasser Moosfaden";
+  const chapter4Clue = /kitchen|kueche|küche/.test(combinedSeed)
+    ? "auf einer Flasche klebt nur ein schmaler Mehlfinger, genau auf der richtigen Seite"
+    : "unter einem Stein steckt der echte Hinweis halb im nassen Moos";
+  const consequenceShort = /kitchen|kueche|küche|house|haus|lebkuchen/.test(combinedSeed)
+    ? "laut klappernde Deckel und springende Loeffel"
+    : "ein verstecktes Klappern und eine aufspringende falsche Spur";
+
+  return {
+    secret,
+    falseLead,
+    priceItem,
+    priceLoss: `${priceItem} reisst los und bleibt in der Falle stecken.`,
+    chapter2Clue,
+    chapter4Clue,
+    humorBeat: `${input.companion} haelt ein harmloses Waldgeraesch erst fuer etwas Grosses und versucht trotzdem cool zu wirken.`,
+    consequenceShort,
+  };
+}
+
+function buildConcreteFallbackChapter(input: {
+  chapterNo: number;
+  lead: string;
+  companion: string;
+  engine: {
+    secret: string;
+    falseLead: string;
+    priceItem: string;
+    priceLoss: string;
+    chapter2Clue: string;
+    chapter4Clue: string;
+    humorBeat: string;
+    consequenceShort: string;
+  };
+  nextSettingLabel: string;
+}): {
+  goal: string;
+  obstacle: string;
+  key_scene: StoryBlueprintV8Chapter["key_scene"];
+  chapter_hook: string;
+} {
+  const lead = input.lead;
+  const companion = input.companion;
+  const nextSetting = input.nextSettingLabel || "dem naechsten Ort";
+
+  switch (input.chapterNo) {
+    case 1:
+      return {
+        goal: `${lead} und ${companion} wollen den naechsten Hinweis finden, bevor die falsche Spur sie vom Weg zieht.`,
+        obstacle: `Vor ihnen liegen ${input.engine.falseLead}. Wer die saubere Spur nimmt, loest sofort eine Klapperfalle aus.`,
+        key_scene: {
+          what_happens: `${companion} haelt ein Kratzen im Gebuesch erst fuer etwas Gefaehrliches, waehrend ${lead} merkt, dass nur die falsche Spur geschniegelt aussieht.`,
+          playable_moment: `${lead} spreizt die Hand wie ein Stoppschild, waehrend ${companion} schon mit einem Fuss in die falsche Richtung kippt.`,
+          quotable_line: `"Nicht weglaufen. Erst hinschauen."`,
+        },
+        chapter_hook: `Zwischen den falschen Zeichen finden sie ein Zettel-Eck, das sie zu ${nextSetting} fuehrt.`,
+      };
+    case 2:
+      return {
+        goal: `Am naechsten Ort wollen sie den Hinweis holen, ohne auf die falsche Einladung hereinzufallen.`,
+        obstacle: `${input.engine.secret} Ausserdem verraten ${input.engine.chapter2Clue} nur an der echten Spur die richtige Richtung.`,
+        key_scene: {
+          what_happens: `${companion} will die verdachtige Spur sofort pruefen, doch ${lead} entdeckt ${input.engine.chapter2Clue}.`,
+          playable_moment: `${companion} beugt sich zu tief ueber das falsche Zeichen, schnuppert daran und macht dann einen hastigen Ruecksprung.`,
+          quotable_line: `"Zu ordentlich. Das ist nie gut."`,
+        },
+        chapter_hook: `Hinter der naechsten Tuere wartet genau die Klapperfalle, vor der das belauschte Geheimnis gewarnt hat.`,
+      };
+    case 3:
+      return {
+        goal: `Sie muessen den Hinweis retten, bevor die Falle sie verraet.`,
+        obstacle: `Ein falscher lauter Ruf laesst ${input.engine.consequenceShort} ausbrechen.`,
+        key_scene: {
+          what_happens: `${lead} glaubt, die Regel verstanden zu haben, reisst die Arme hoch und ruft die vermeintlich richtige Antwort. Sofort scheppert ${input.engine.consequenceShort}.`,
+          playable_moment: `${lead} reisst die Arme hoch, ruft seine Idee hinaus und beisst sich noch im gleichen Atemzug auf die Lippe.`,
+          quotable_line: `"Wartet! Ich weiss es!"`,
+        },
+        chapter_hook: `${input.engine.priceLoss} Der sichere Weg knickt seitlich in Richtung ${nextSetting}.`,
+      };
+    case 4:
+      return {
+        goal: `Ohne ${input.engine.priceItem} muessen sie den letzten Hinweis fast blind zu Ende bringen.`,
+        obstacle: `Vor ihnen stehen drei fast gleiche Moeglichkeiten; nur ${input.engine.chapter4Clue} verrat die echte Richtung.`,
+        key_scene: {
+          what_happens: `${companion} entdeckt ${input.engine.chapter4Clue}, waehrend ${lead} mit kalten Haenden fast wieder zu schnell wird.`,
+          playable_moment: `${lead} haelt die flache Hand in die Luft, als koennte er die letzten Minuten zurueckschieben, und senkt sie dann langsam wieder.`,
+          quotable_line: `"Noch mal. Langsam diesmal."`,
+        },
+        chapter_hook: `Hinter der richtigen Stelle steckt ${input.engine.priceItem}, aber nur, wenn diesmal der andere zuerst spricht.`,
+      };
+    default:
+      return {
+        goal: `${lead} will den Schluss-Hinweis ruhig lesen und seinen Fehler aus Kapitel 3 aktiv anders machen.`,
+        obstacle: `Auf dem letzten Stein liegen zwei fast gleiche Zeichen; nur wer still bleibt, erkennt welches echt ist.`,
+        key_scene: {
+          what_happens: `${lead} tritt einen halben Schritt zurueck, laesst ${companion} zuerst lesen und merkt erst dann, wo ${input.engine.priceItem} genau hineinpasst.`,
+          playable_moment: `${lead} macht mit flacher Hand einen uebertrieben hoeflichen Vortritt und zwingt sich, nicht dazwischenzuplatzen.`,
+          quotable_line: `"Erst hinschauen. Dann los."`,
+        },
+        chapter_hook: `Am Waldrand klingt der erste Satz vom Anfang noch einmal anders: ruhig statt hektisch.`,
+      };
+  }
+}
+
+function describeSettingForChildren(setting: string): string {
+  const normalized = String(setting || "").trim().toLowerCase();
+  if (normalized.includes("gingerbread") || normalized.includes("lebkuchen")) return "dem Lebkuchenhaus";
+  if (normalized.includes("kitchen") || normalized.includes("kueche") || normalized.includes("küche")) return "der Hexenkueche";
+  if (normalized.includes("forest edge") || normalized.includes("waldrand")) return "dem hellen Waldrand";
+  if (normalized.includes("forest") || normalized.includes("wald")) return "dem dunklen Waldweg";
+  if (normalized.includes("castle") || normalized.includes("schloss")) return "dem Schlossflur";
+  return "dem naechsten Ort";
 }
 
 function buildFallbackEmotion(chapter: number): string {

@@ -702,16 +702,22 @@ export class StoryPipelineOrchestrator {
           const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
           const hasLocalPatchTask = candidateCritic.patchTasks.some(task => task.chapter > 0);
           const surgeryEligibleVerdict = candidateCritic.verdict === "publish" || candidateCritic.verdict === "acceptable";
+          const preciseLocalRescue =
+            hasLocalPatchTask
+            && candidateCritic.patchTasks.length <= 3
+            && candidateCritic.patchTasks.every(task => task.chapter > 0 && task.priority <= 2);
           // Cheap rescue mode: allow surgery for clearly salvageable near-release drafts,
-          // especially when the critic sees a publishable core but asks for local repairs.
+          // especially when the critic sees a publishable core or gives a small set of precise local fixes.
           const nearReleaseBand =
             surgeryEligibleVerdict
-            || candidateCritic.overallScore >= Math.max(6.3, criticWarnFloor - 0.3);
+            || preciseLocalRescue
+            || candidateCritic.overallScore >= Math.max(6.0, criticWarnFloor - 0.5);
           const rescueableQualityBand =
             qualityErrors <= 6
-            || candidateCritic.overallScore >= Math.max(6.8, criticWarnFloor - 0.1);
+            || preciseLocalRescue
+            || candidateCritic.overallScore >= Math.max(6.3, criticWarnFloor - 0.2);
           const candidateSurgeryEdits =
-            activePromptVersion === "v8" && surgeryEligibleVerdict && hasLocalPatchTask
+            activePromptVersion === "v8" && (surgeryEligibleVerdict || preciseLocalRescue) && hasLocalPatchTask
               ? Math.max(maxSelectiveSurgeryEdits, 2)
               : candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
               ? Math.max(maxSelectiveSurgeryEdits, 2)
