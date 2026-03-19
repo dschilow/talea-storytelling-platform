@@ -1923,37 +1923,33 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
     const instructText = (req.instructText || "").trim() || undefined;
     const languageId = (req.languageId || "").trim() || undefined;
     const fallbackMimeType = "audio/wav";
-    const buffers: Buffer[] = [];
     let detectedMimeType = fallbackMimeType;
 
-    // Use batch mode: send all turns in one RunPod job with per-item speaker overrides.
-    // This is ~5-10x faster than sequential per-turn requests.
-    const batchItems: TTSBatchItem[] = resolvedTurns.map((item) => ({
-      id: item.id,
-      text: item.turn.text,
-      speaker: item.mappedSpeaker,
-    }));
+    // Send all turns in parallel via withRunpodSlot — spreads across multiple workers.
+    // Order is preserved via the resolvedTurns index.
+    const turnResults = await Promise.all(
+      resolvedTurns.map((item) =>
+        withRunpodSlot(() =>
+          runpodTtsRequest({
+            text: item.turn.text,
+            speaker: item.mappedSpeaker,
+            instructText,
+            outputFormat: "wav",
+            languageId,
+          })
+        )
+      )
+    );
 
-    const batchReq: GenerateSpeechBatchRequest = {
-      items: batchItems,
-      provider: "qwen",
-      outputFormat: "wav",
-      instructText,
-      languageId,
-    };
-
-    const batchResponse = await generateSpeechBatchInternal(batchReq);
-
-    // Collect results in original turn order
-    const resultMap = new Map(batchResponse.results.map((r) => [r.id, r]));
-    for (const item of resolvedTurns) {
-      const result = resultMap.get(item.id);
-      if (!result?.audio) {
+    const buffers: Buffer[] = [];
+    for (let i = 0; i < turnResults.length; i++) {
+      const response = turnResults[i];
+      if (!response.audioData) {
         throw APIError.unavailable(
-          `Qwen dialogue item failed (${item.id}): ${result?.error || "missing audio"}`
+          `Qwen dialogue item failed (${resolvedTurns[i].id}): missing audio`
         );
       }
-      const decoded = decodeAudioResult(result.audio, fallbackMimeType);
+      const decoded = decodeAudioResult(response.audioData, response.mimeType || fallbackMimeType);
       buffers.push(decoded.buffer);
       detectedMimeType = decoded.mimeType || detectedMimeType;
     }

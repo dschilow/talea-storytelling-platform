@@ -128,117 +128,111 @@ export const preGenerateStoryAudio = api<PreGenerateRequest, PreGenerateResponse
     }
 
     // Chunk each chapter into ~55-word pieces for efficient GPU inference.
-    // Sending whole chapters (1000+ chars) causes 30s+ per item;
-    // chunked items (~380 chars) take ~8-10s each and parallelize on workers.
-    interface ChunkMapping {
-      chapterId: string;
-      chunkId: string;
-      chunkIndex: number;
-      totalChunks: number;
+    // Each chapter is sent as its own batch so RunPod can spread them across
+    // multiple workers in parallel (sending everything in one batch = 1 worker).
+    interface ChapterBatch {
+      chapter: typeof needsGeneration[number];
+      chunks: string[];
+      chunkIds: string[];
     }
 
-    const allBatchItems: { id: string; text: string }[] = [];
-    const chunkMap: ChunkMapping[] = [];
+    const chapterBatches: ChapterBatch[] = [];
+    let totalChunks = 0;
 
     for (const ch of needsGeneration) {
       const chunks = splitTextIntoChunks(ch.content);
       if (chunks.length === 0) continue;
-
-      for (let i = 0; i < chunks.length; i++) {
-        const chunkId = `${ch.id}__chunk${i}`;
-        allBatchItems.push({ id: chunkId, text: chunks[i] });
-        chunkMap.push({
-          chapterId: ch.id,
-          chunkId,
-          chunkIndex: i,
-          totalChunks: chunks.length,
-        });
-      }
+      const chunkIds = chunks.map((_, i) => `${ch.id}__chunk${i}`);
+      chapterBatches.push({ chapter: ch, chunks, chunkIds });
+      totalChunks += chunks.length;
     }
 
     log.info(
-      `[audio-cache] Pre-generating audio for ${needsGeneration.length} chapters ` +
-      `(${allBatchItems.length} chunks) of story ${storyId}`
+      `[audio-cache] Pre-generating audio for ${chapterBatches.length} chapters ` +
+      `(${totalChunks} chunks) of story ${storyId} — parallel per-chapter batches`
     );
 
     let succeeded = 0;
     let failed = 0;
 
-    try {
-      const batchResult = await tts.generateSpeechBatch({
-        items: allBatchItems,
-        outputFormat: "mp3",
-        promptText: promptText || undefined,
-        speaker: speaker || undefined,
-        emotion: emotion || undefined,
-      });
+    // Send all chapters in parallel — each chapter = 1 RunPod batch job.
+    // Multiple workers can process different chapters simultaneously.
+    const chapterResults = await Promise.allSettled(
+      chapterBatches.map(async (batch) => {
+        const items = batch.chunks.map((text, i) => ({
+          id: batch.chunkIds[i],
+          text,
+        }));
 
+        const batchResult = await tts.generateSpeechBatch({
+          items,
+          outputFormat: "mp3",
+          promptText: promptText || undefined,
+          speaker: speaker || undefined,
+          emotion: emotion || undefined,
+        });
+
+        return { batch, batchResult };
+      })
+    );
+
+    for (const result of chapterResults) {
+      if (result.status === "rejected") {
+        const msg = result.reason instanceof Error ? result.reason.message : String(result.reason);
+        log.error(`[audio-cache] Chapter batch failed: ${msg}`);
+        failed++;
+        continue;
+      }
+
+      const { batch, batchResult } = result.value;
       const resultMap = new Map(
         (batchResult.results || []).map((r) => [r.id, r])
       );
 
-      // Reassemble chunks per chapter and concatenate audio buffers
-      for (const ch of needsGeneration) {
-        const chapterChunks = chunkMap
-          .filter((m) => m.chapterId === ch.id)
-          .sort((a, b) => a.chunkIndex - b.chunkIndex);
+      const audioBuffers: Buffer[] = [];
+      let chapterOk = true;
 
-        if (chapterChunks.length === 0) {
-          failed++;
-          continue;
-        }
-
-        const audioBuffers: Buffer[] = [];
-        let chapterOk = true;
-
-        for (const mapping of chapterChunks) {
-          const result = resultMap.get(mapping.chunkId);
-          if (result?.audio && !result.error) {
-            // Extract raw base64 from data URI (e.g. "data:audio/mpeg;base64,XXXX")
-            const base64Match = result.audio.match(/^data:[^;]+;base64,(.+)$/);
-            if (base64Match) {
-              audioBuffers.push(Buffer.from(base64Match[1], "base64"));
-            } else {
-              // Fallback: treat as raw base64
-              audioBuffers.push(Buffer.from(result.audio, "base64"));
-            }
+      for (const chunkId of batch.chunkIds) {
+        const chunkResult = resultMap.get(chunkId);
+        if (chunkResult?.audio && !chunkResult.error) {
+          const base64Match = chunkResult.audio.match(/^data:[^;]+;base64,(.+)$/);
+          if (base64Match) {
+            audioBuffers.push(Buffer.from(base64Match[1], "base64"));
           } else {
-            log.warn(
-              `[audio-cache] TTS failed for chunk ${mapping.chunkId}: ${result?.error || "no audio"}`
-            );
-            chapterOk = false;
-            break;
+            audioBuffers.push(Buffer.from(chunkResult.audio, "base64"));
           }
-        }
-
-        if (!chapterOk || audioBuffers.length === 0) {
-          failed++;
-          continue;
-        }
-
-        // Concatenate MP3 buffers (MP3 frames are independently decodable)
-        const combinedBuffer = Buffer.concat(audioBuffers);
-        const combinedDataUri = `data:audio/mpeg;base64,${combinedBuffer.toString("base64")}`;
-
-        try {
-          await storyDB.exec`
-            UPDATE chapters
-            SET audio_data = ${combinedDataUri},
-                audio_mime_type = 'audio/mpeg',
-                audio_generated_at = CURRENT_TIMESTAMP,
-                audio_voice_hash = ${effectiveVoiceHash}
-            WHERE id = ${ch.id}
-          `;
-          succeeded++;
-        } catch (dbErr) {
-          log.error(`[audio-cache] DB write failed for chapter ${ch.id}: ${dbErr}`);
-          failed++;
+        } else {
+          log.warn(
+            `[audio-cache] TTS failed for chunk ${chunkId}: ${chunkResult?.error || "no audio"}`
+          );
+          chapterOk = false;
+          break;
         }
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.error(`[audio-cache] Batch TTS failed for story ${storyId}: ${msg}`);
-      failed = needsGeneration.length;
+
+      if (!chapterOk || audioBuffers.length === 0) {
+        failed++;
+        continue;
+      }
+
+      // Concatenate MP3 buffers (MP3 frames are independently decodable)
+      const combinedBuffer = Buffer.concat(audioBuffers);
+      const combinedDataUri = `data:audio/mpeg;base64,${combinedBuffer.toString("base64")}`;
+
+      try {
+        await storyDB.exec`
+          UPDATE chapters
+          SET audio_data = ${combinedDataUri},
+              audio_mime_type = 'audio/mpeg',
+              audio_generated_at = CURRENT_TIMESTAMP,
+              audio_voice_hash = ${effectiveVoiceHash}
+          WHERE id = ${batch.chapter.id}
+        `;
+        succeeded++;
+      } catch (dbErr) {
+        log.error(`[audio-cache] DB write failed for chapter ${batch.chapter.id}: ${dbErr}`);
+        failed++;
+      }
     }
 
     const alreadyCached = chapters.length - needsGeneration.length;
