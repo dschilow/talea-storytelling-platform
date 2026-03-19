@@ -1,16 +1,16 @@
 /**
  * Chunk sizing tuned for Qwen3-TTS (12Hz, 0.6B CustomVoice).
- * ~80 words per chunk -> reliable attention span with 12Hz tokenization.
+ * Favor larger, sentence-safe chunks so we pay the model overhead fewer times.
  *
  * Qwen3-TTS handles larger chunks than CosyVoice3 without attention drift.
- * 80 words = 4-5 sentences, good prosody, efficient GPU utilization.
+ * ~120 words / <=900 chars gives better throughput while staying sentence-safe.
  *
  * IMPORTANT: Never split in the middle of a sentence. The TTS model will not
  * speak incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
-const TARGET_WORDS = 80;
-const MAX_CHARS = 600;
+const TARGET_WORDS = 120;
+const MAX_CHARS = 900;
 
 /**
  * Normalize text into a TTS-friendly, language-agnostic format.

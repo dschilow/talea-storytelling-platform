@@ -9,6 +9,7 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 import soundfile as sf
 import torch
+from pydub import AudioSegment
 
 try:
     from qwen_tts import Qwen3TTSModel
@@ -23,7 +24,10 @@ MODEL_DIR = os.environ.get("MODEL_DIR", "/opt/models/Qwen3-TTS-CustomVoice")
 DEFAULT_SPEAKER = os.environ.get("DEFAULT_SPEAKER", "Vivian")
 DEFAULT_LANGUAGE = os.environ.get("DEFAULT_LANGUAGE", "German")
 ATTN_IMPLEMENTATION = os.environ.get("QWEN_ATTN_IMPLEMENTATION", "auto").strip()
-ENABLE_TORCH_COMPILE = os.environ.get("ENABLE_TORCH_COMPILE", "0").strip() == "1"
+ENABLE_TORCH_COMPILE = os.environ.get("ENABLE_TORCH_COMPILE", "1").strip() == "1"
+REQUIRE_CUDA = os.environ.get("REQUIRE_CUDA", "1").strip() != "0"
+ENABLE_BATCH_WARMUP = os.environ.get("ENABLE_BATCH_WARMUP", "1").strip() != "0"
+MP3_BITRATE = os.environ.get("QWEN_MP3_BITRATE", "96k").strip() or "96k"
 HAS_FLASH_ATTN = importlib.util.find_spec("flash_attn") is not None
 
 load_path = MODEL_DIR if (os.path.exists(MODEL_DIR) and len(os.listdir(MODEL_DIR)) > 0) else MODEL_ID
@@ -120,6 +124,28 @@ def _configure_torch_runtime() -> None:
         print(f"Torch runtime tuning skipped: {exc}")
 
 
+def _ensure_cuda_runtime() -> None:
+    cuda_available = torch.cuda.is_available()
+    device_count = torch.cuda.device_count() if cuda_available else 0
+    device_name = ""
+    if cuda_available and device_count > 0:
+        try:
+            device_name = torch.cuda.get_device_name(0)
+        except Exception:
+            device_name = ""
+
+    print(
+        f"CUDA runtime status: available={cuda_available} "
+        f"devices={device_count} device0={device_name or '<none>'}"
+    )
+
+    if REQUIRE_CUDA and not cuda_available:
+        raise RuntimeError(
+            "CUDA is required for Qwen3-TTS production inference, but no healthy GPU was detected. "
+            "Failing worker startup to avoid extremely slow CPU generation."
+        )
+
+
 def _resolve_attn_implementation() -> Optional[str]:
     if not torch.cuda.is_available():
         return None
@@ -196,10 +222,17 @@ def _warmup_model() -> None:
                 language="German",
                 speaker=DEFAULT_SPEAKER,
             )
+            if ENABLE_BATCH_WARMUP:
+                qwen_model.generate_custom_voice(
+                    text=["Warmup one.", "Warmup two."],
+                    language=["German", "German"],
+                    speaker=[DEFAULT_SPEAKER, DEFAULT_SPEAKER],
+                )
+        torch.cuda.synchronize()
         # Discard warmup output, free VRAM
         torch.cuda.empty_cache()
         elapsed = time.perf_counter() - warmup_start
-        print(f"Model warmup completed in {elapsed:.2f}s (CUDA kernels + compile graphs ready).")
+        print(f"Model warmup completed in {elapsed:.2f}s (single + batch paths primed).")
     except Exception as exc:
         print(f"Model warmup failed (non-fatal): {exc}")
 
@@ -298,6 +331,18 @@ def _wav_to_bytes(audio_np: Any, sample_rate: int) -> bytes:
     return out_io.getvalue()
 
 
+def _audio_to_bytes(audio_np: Any, sample_rate: int, output_format: str) -> Tuple[bytes, str, str]:
+    wav_bytes = _wav_to_bytes(audio_np, sample_rate)
+    normalized_format = (output_format or "wav").strip().lower()
+    if normalized_format != "mp3":
+        return wav_bytes, "audio/wav", "wav"
+
+    audio_segment = AudioSegment.from_file(io.BytesIO(wav_bytes), format="wav")
+    out_io = io.BytesIO()
+    audio_segment.export(out_io, format="mp3", bitrate=MP3_BITRATE)
+    return out_io.getvalue(), "audio/mpeg", "mp3"
+
+
 def _run_custom_voice_generation(
     texts: List[str],
     language: str,
@@ -359,9 +404,6 @@ def generate_audio(
     base_instruct = (instruct_text or "").strip()
     prepared_text, prepared_instruct = _prepare_text_and_instruct(text, base_instruct)
 
-    mime_type = f"audio/{output_format}"
-    used_format = output_format
-
     try:
         started_at = time.perf_counter()
         print(
@@ -374,7 +416,7 @@ def generate_audio(
             speaker_name,
             [prepared_instruct],
         )
-        audio_bytes = _wav_to_bytes(wavs[0], sr)
+        audio_bytes, mime_type, used_format = _audio_to_bytes(wavs[0], sr, output_format)
         elapsed = time.perf_counter() - started_at
         print(f"CustomVoice generation completed in {elapsed:.3f}s (chars={len(prepared_text)})")
     except Exception as exc:
@@ -409,9 +451,6 @@ def generate_audio_batch(
     language = _resolve_language(language_id)
     speaker_name = (speaker or DEFAULT_SPEAKER).strip() or DEFAULT_SPEAKER
     base_instruct = (instruct_text or "").strip()
-    mime_type = f"audio/{output_format}"
-    used_format = output_format
-
     try:
         started_at = time.perf_counter()
         prepared_texts: List[str] = []
@@ -442,7 +481,7 @@ def generate_audio_batch(
         )
         outputs: List[Tuple[bytes, str, str]] = []
         for wav in wavs:
-            outputs.append((_wav_to_bytes(wav, sr), mime_type, used_format))
+            outputs.append(_audio_to_bytes(wav, sr, output_format))
         elapsed = time.perf_counter() - started_at
         chars_per_sec = total_chars / elapsed if elapsed > 0 else 0
         print(
@@ -460,5 +499,6 @@ def generate_audio_batch(
         raise RuntimeError(f"Error during Qwen3-TTS batch generation: {exc}")
 
 
+_ensure_cuda_runtime()
 _configure_torch_runtime()
 load_qwen_model()

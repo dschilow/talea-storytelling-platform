@@ -2,16 +2,16 @@
  * Server-side text chunking for TTS.
  * Mirrors frontend/utils/ttsChunking.ts.
  *
- * 80 words / 600 chars = reliable Qwen3-TTS (12Hz, 0.6B) attention span.
- * Qwen3-TTS handles larger chunks than CosyVoice3 without drift.
+ * Favor larger, sentence-safe chunks so we pay the model overhead fewer times.
+ * ~120 words / <=900 chars keeps prosody stable while improving throughput.
  *
  * IMPORTANT: Never split in the middle of a sentence. The TTS model will not
  * speak incomplete sentences properly, causing "missing sentences" in playback.
  * Prefer slightly oversized chunks over mid-sentence splits.
  */
 
-const TARGET_WORDS = 80;
-const MAX_CHARS = 600;
+const TARGET_WORDS = 120;
+const MAX_CHARS = 900;
 
 /**
  * Normalize text into a TTS-friendly, language-agnostic format.

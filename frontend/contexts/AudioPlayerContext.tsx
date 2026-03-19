@@ -875,8 +875,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
       }> = [];
 
+      const storyBatchGroupId = `story-${storyId}`;
+
       for (const chapter of sorted) {
-        const chapterGroupId = `story-${storyId}-ch${chapter.order}`;
         const chapterChunks: Array<{ text: string; speaker?: string }> = [];
 
         if (voiceSettings?.mode === 'dialogue' && dialogueVoicePool.length > 0) {
@@ -939,7 +940,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             text: chunk.text,
             request: chunkRequest,
             cacheKey: buildTTSChunkCacheKey(chunkId, chunk.text, chunkCacheSuffix || cacheSuffix),
-            chapterId: chapterGroupId,
+            chapterId: storyBatchGroupId,
             libraryMeta: {
               sourceType: 'story',
               sourceId: storyId,

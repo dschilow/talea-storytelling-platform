@@ -30,14 +30,15 @@ interface UseTTSConversionQueueOptions {
 }
 
 // How many batch/single requests run concurrently.
-// With batch mode, each "slot" handles an entire chapter (~8 chunks).
-// 2 concurrent = 2 chapters in parallel across RunPod workers.
+// Keep this aligned with healthy RunPod worker count.
 const MAX_CONCURRENT = 2;
-// Send all chapter chunks in one batch request so they go as a single RunPod job.
-// Keeping this high avoids splitting a chapter into multiple sequential jobs.
-const MAX_ITEMS_PER_BATCH_REQUEST = 12;
+// Batch by a shared queue group (story/doku), not by chapter.
+// Limit both by item count and by total characters to keep requests large but bounded.
+const MAX_ITEMS_PER_BATCH_REQUEST = 20;
+const MAX_BATCH_CHARS_PER_REQUEST = 6000;
 const BATCH_RETRY_ATTEMPTS = 3;
 const BATCH_RETRY_BASE_DELAY_MS = 1200;
+const MAX_BATCH_SINGLE_FALLBACK_ITEMS = 1;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -111,6 +112,17 @@ export function useTTSConversionQueue({
       return next;
     });
   }, []);
+
+  const markItemsError = useCallback(
+    (items: QueueItem[], error: string) => {
+      const message = error || 'Konvertierung fehlgeschlagen';
+      setStatusBulk(items.map((item) => [item.id, 'error' as const]));
+      for (const item of items) {
+        onChunkError(item.id, message);
+      }
+    },
+    [onChunkError, setStatusBulk],
+  );
 
   const persistGeneratedAudio = useCallback(
     async (item: QueueItem, cacheId: string, audioData: string) => {
@@ -190,7 +202,7 @@ export function useTTSConversionQueue({
     [setStatus, onChunkReady, persistGeneratedAudio],
   );
 
-  /** Process a batch of items sharing the same chapterId via /tts/batch endpoint. */
+  /** Process a batch of items sharing the same queue group via /tts/batch endpoint. */
   const processBatch = useCallback(
     async (items: QueueItem[]) => {
       if (cancelledRef.current) return;
@@ -295,20 +307,28 @@ export function useTTSConversionQueue({
           }
         }
 
+        if (fallbackToSingle.length > MAX_BATCH_SINGLE_FALLBACK_ITEMS) {
+          markItemsError(
+            fallbackToSingle,
+            'Batch-Generierung war nur teilweise erfolgreich. Bitte erneut starten, statt teure Einzel-Requests auszufuehren.',
+          );
+          return;
+        }
+
         for (const item of fallbackToSingle) {
           if (cancelledRef.current) return;
           await processSingleRef.current(item);
         }
       } catch (err: any) {
         if (cancelledRef.current) return;
-        console.error(`TTS batch conversion failed, fallback to single mode:`, err);
-        for (const item of uncached) {
-          if (cancelledRef.current) return;
-          await processSingleRef.current(item);
-        }
+        console.error(`TTS batch conversion failed:`, err);
+        markItemsError(
+          uncached,
+          err?.message || 'Batch-Konvertierung fehlgeschlagen. Kein automatischer Einzel-Fallback, um unnoetige RunPod-Kosten zu vermeiden.',
+        );
       }
     },
-    [callBackendJson, onChunkReady, onChunkError, setStatus, setStatusBulk, deliverAudio, resolveRemoteCachedAudio],
+    [callBackendJson, onChunkReady, setStatus, setStatusBulk, deliverAudio, resolveRemoteCachedAudio, markItemsError],
   );
 
   /** Process a single item via /tts/generate endpoint (legacy path). */
@@ -392,18 +412,27 @@ export function useTTSConversionQueue({
 
     const first = queueRef.current[0];
 
-    // If the first item has a chapterId, pull at most N items from that chapter.
-    // Keeping batches small avoids long-running HTTP requests that can be reset by proxies.
+    // If the first item has a chapterId, treat it as a shared queue group id and
+    // pull a bounded batch from that group. This keeps RunPod jobs large enough
+    // for throughput without letting one request grow without bound.
     if (first.chapterId) {
       const chapterId = first.chapterId;
       const batch: QueueItem[] = [];
       const remaining: QueueItem[] = [];
       let picked = 0;
+      let batchChars = 0;
 
       for (const item of queueRef.current) {
-        if (item.chapterId === chapterId && picked < MAX_ITEMS_PER_BATCH_REQUEST) {
+        const normalizedText = item.text.trim();
+        const nextChars = normalizedText.length;
+        const canFitIntoBatch =
+          picked < MAX_ITEMS_PER_BATCH_REQUEST &&
+          (batch.length === 0 || batchChars + nextChars <= MAX_BATCH_CHARS_PER_REQUEST);
+
+        if (item.chapterId === chapterId && canFitIntoBatch) {
           batch.push(item);
           picked += 1;
+          batchChars += nextChars;
         } else {
           remaining.push(item);
         }

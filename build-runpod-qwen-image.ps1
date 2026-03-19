@@ -7,6 +7,10 @@ param(
     [switch]$MaxPerf = $false
 )
 
+if (-not $PSBoundParameters.ContainsKey('Prefetch')) {
+    $Prefetch = $true
+}
+
 if ($MaxPerf) {
     $Prefetch = $true
     $InstallFlashAttn = $true

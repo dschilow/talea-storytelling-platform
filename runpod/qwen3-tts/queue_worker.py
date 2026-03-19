@@ -71,6 +71,11 @@ def _health_payload() -> Dict[str, Any]:
         "defaultReferencePath": "",
         "availableSpeakers": _safe_supported_speakers()[:100],
         "availableLanguages": _safe_supported_languages()[:40],
+        "cudaAvailable": bool(qwen_server.torch.cuda.is_available()),
+        "cudaDeviceCount": int(qwen_server.torch.cuda.device_count()) if qwen_server.torch.cuda.is_available() else 0,
+        "flashAttentionAvailable": bool(getattr(qwen_server, "HAS_FLASH_ATTN", False)),
+        "torchCompileEnabled": bool(getattr(qwen_server, "ENABLE_TORCH_COMPILE", False)),
+        "requireCuda": bool(getattr(qwen_server, "REQUIRE_CUDA", False)),
     }
 
 
