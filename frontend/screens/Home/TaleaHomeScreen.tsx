@@ -32,7 +32,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import CosmosHomeCard from '../Cosmos/CosmosHomeCard';
 import { useCosmosState } from '../Cosmos/useCosmosState';
-import { TaviHomeGreeting } from '../../agents';
+// TaviHomeGreeting moved from hero area — can be re-added as floating element
+// import { TaviHomeGreeting } from '../../agents';
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
   Card,
@@ -296,17 +297,17 @@ const StoryCard: React.FC<{
   return (
     <motion.article
       variants={itemVariants}
-      whileHover={reduceMotion ? undefined : { y: -8, scale: 1.02 }}
+      whileHover={reduceMotion ? undefined : { y: -6, scale: 1.015, transition: { type: "spring", stiffness: 300, damping: 22 } }}
       whileTap={reduceMotion ? undefined : { scale: 0.98 }}
       className={cn(
-        "group cursor-pointer relative", 
+        "group cursor-pointer relative",
         isFeatured ? "md:col-span-2 lg:col-span-2" : ""
       )}
       onClick={onRead}
     >
       <StoryStatusTag status={story.status} />
 
-      <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-all group-hover:shadow-[0_28px_64px_-34px_rgba(175,141,166,0.4)] dark:group-hover:shadow-[0_32px_70px_-40px_rgba(2,8,23,0.95)]")}>
+      <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-shadow duration-500 group-hover:shadow-[0_24px_48px_-12px_rgba(var(--talea-accent-rose),0.2),0_12px_24px_-8px_rgba(var(--talea-accent-sky),0.15)] dark:group-hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.7)]")}>
         <div className={cn("flex h-full min-w-0", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
           <div className={cn(
             "relative overflow-hidden p-2 sm:p-3", 
@@ -390,12 +391,9 @@ const StoryCard: React.FC<{
 
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#efe4da] pt-4 dark:border-white/10">
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{formatDate(story.createdAt)}</span>
-                <span className="rounded-full border border-white/80 bg-white/86 px-4 py-2 text-[0px] font-semibold text-slate-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-100">
-                  <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                    <span>Weiterlesen</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--talea-border-light)] bg-white/86 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all group-hover:bg-[var(--primary)] group-hover:text-white group-hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:group-hover:bg-[var(--primary)]">
                   Weiterlesen
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </div>
             </div>
@@ -413,7 +411,7 @@ const AvatarTile: React.FC<{
 }> = ({ avatar, onOpen, onDelete }) => (
   <motion.article
     variants={itemVariants}
-    whileHover={{ y: -4, scale: 1.02 }}
+    whileHover={{ y: -6, scale: 1.03, transition: { type: "spring", stiffness: 300, damping: 20 } }}
     whileTap={{ scale: 0.95 }}
     role="button"
     tabIndex={0}
@@ -424,28 +422,27 @@ const AvatarTile: React.FC<{
         onOpen();
       }
     }}
-    className={cn(taleaSurfaceClass, "group relative flex h-[11rem] w-[8.75rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center sm:h-56 sm:w-44 sm:p-4")}
+    className={cn(taleaSurfaceClass, "group relative flex h-[11rem] w-[8.75rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(var(--talea-accent-rose),0.2)] sm:h-56 sm:w-44 sm:p-4")}
   >
     <div className="relative mx-auto mb-3 inline-block">
-      <div className={cn(taleaInsetSurfaceClass, "h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] sm:h-28 sm:w-28")}>
+      <div className={cn(taleaInsetSurfaceClass, "h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] ring-2 ring-transparent transition-all duration-500 group-hover:ring-[var(--primary)]/30 group-hover:shadow-[0_12px_28px_-6px_rgba(123,168,156,0.3)] sm:h-28 sm:w-28")}>
         <img
           src={
             avatar.imageUrl ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(avatar.name)}`
           }
           alt={avatar.name}
-          className="h-full w-full rounded-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full rounded-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
       </div>
-      <span className="absolute -bottom-1 -right-1 rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-[0px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-lg dark:border-white/10 dark:bg-white/5 dark:text-slate-100">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">{avatar.creationType === "ai-generated" ? "AI Figur" : "Fotofigur"}</span>
-        {avatar.creationType === "ai-generated" ? "AI ✨" : "Foto 📸"}
+      <span className="absolute -bottom-1 -right-1 inline-flex items-center rounded-full border border-white/80 bg-white/86 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600 shadow-lg dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+        {avatar.creationType === "ai-generated" ? "AI" : "Foto"}
       </span>
     </div>
 
     <p className="w-full truncate px-2 text-base font-semibold text-slate-900 dark:text-white sm:text-lg">{avatar.name}</p>
     <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-      {avatar.creationType === "ai-generated" ? "AI-Figur" : "Fotofigur"}
+      {avatar.avatarRole === "child" ? "Kinderprofil" : avatar.creationType === "ai-generated" ? "AI-Figur" : "Fotofigur"}
     </p>
     
     <div className="absolute -top-3 -left-3 opacity-0 transition-all duration-300 scale-50 group-hover:opacity-100 group-hover:scale-100 z-10">
@@ -473,9 +470,9 @@ const DokuBentoTicket: React.FC<{
 }> = ({ doku, onRead, onDelete }) => (
   <motion.article
     variants={itemVariants}
-    whileHover={{ y: -4, scale: 1.02 }}
+    whileHover={{ y: -4, scale: 1.015, transition: { type: "spring", stiffness: 300, damping: 22 } }}
     whileTap={{ scale: 0.98 }}
-    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden border-0 p-4 sm:p-5")}
+    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden border-0 p-4 transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(216,191,143,0.2)] sm:p-5")}
     role="button"
     tabIndex={0}
     onClick={onRead}
@@ -700,208 +697,91 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     variants={containerVariants}
     initial="hidden"
     animate="show"
-    className={cn(taleaPageShellClass, "space-y-8 pt-4 sm:space-y-10 sm:pt-6 md:pt-8")}
+    className={cn(taleaPageShellClass, "space-y-5 pt-2 sm:space-y-6 sm:pt-3")}
   >
-    {/* Tavi — contextual agent greeting */}
-    <motion.div variants={itemVariants}>
-      <TaviHomeGreeting
-        userName={userName}
-        storyCount={storiesTotal}
-        avatarCount={avatars.length}
-      />
-    </motion.div>
-
-    <section className="grid gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1.42fr)_minmax(19rem,0.88fr)]">
-      <motion.div variants={itemVariants}>
-        <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6 lg:p-8")}>
-          <div className="relative z-10 flex flex-col gap-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className={cn(taleaInsetSurfaceClass, "rounded-[24px] p-2")}>
-                  <UserButton
-                    afterSignOutUrl="/"
-                    userProfileMode="navigation"
-                    userProfileUrl="/settings"
-                    appearance={{ elements: { avatarBox: "h-14 w-14 md:h-16 md:w-16" } }}
-                  />
-                </div>
-                <div>
-                  <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
-                    Talea Atelier
-                  </span>
-                  <h1
-                    className="mt-4 text-[2.9rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.35rem]"
-                    style={{ fontFamily: headingFont }}
-                  >
-                    {greeting}, {userName || "Entdecker"}.
-                  </h1>
-                </div>
-              </div>
-
-              <TaleaActionButton
-                variant="secondary"
-                onClick={onRefresh}
-                icon={<RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />}
-                aria-label="Startseite aktualisieren"
-              >
-                Atelier neu ordnen
-              </TaleaActionButton>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_15rem]">
-              <div className="space-y-6">
-                <p className="max-w-3xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                  Entdecke neue Geschichten, starte Audio und springe direkt zu Avataren oder Dokus.
-                </p>
-
-                <div className="flex flex-wrap gap-2.5 sm:gap-3">
-                  <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
-                    Neue Story zaubern
-                  </TaleaActionButton>
-                  <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
-                    Bibliothek oeffnen
-                  </TaleaActionButton>
-                  <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
-                    Wissensreise starten
-                  </TaleaActionButton>
-                </div>
-
-                <div className={cn(taleaInsetSurfaceClass, "grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_12rem] sm:p-5")}>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Schnellstart</p>
-                    <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                      Was moechtest du als Naechstes machen?
-                    </h2>
-                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      Starte direkt eine neue Geschichte, oeffne die Bibliothek oder geh in die Wissenswelt.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-2.5">
-                    {[
-                        { label: "Story", text: "Neue Geschichte starten", icon: <WandSparkles className="h-4 w-4" />, path: "/story" },
-                        { label: "Avatar", text: "Avatare verwalten", icon: <UserPlus className="h-4 w-4" />, path: "/avatar" },
-                        { label: "Doku", text: "Neues Thema entdecken", icon: <Library className="h-4 w-4" />, path: "/doku" },
-                    ].map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => goTo(item.path)}
-                        className="flex min-h-11 items-center justify-between gap-3 rounded-[20px] border border-white/75 bg-white/80 px-4 py-3 text-left shadow-sm transition hover:bg-white/92 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f6dce7_0%,#deefff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.48)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
-                            {item.icon}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{item.label}</p>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.text}</p>
-                          </div>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-3 content-start">
-                {[
-                  {
-                    label: "Geschichten",
-                    value: storiesTotal,
-                    icon: <ScrollText className="h-5 w-5" />,
-                    tone: "bg-[linear-gradient(135deg,#f8dde8_0%,#fbead1_100%)] dark:bg-[linear-gradient(135deg,rgba(109,84,114,0.5)_0%,rgba(92,76,55,0.38)_100%)]",
-                  },
-                  {
-                    label: "Avatare",
-                    value: avatars.length,
-                    icon: <Swords className="h-5 w-5" />,
-                    tone: "bg-[linear-gradient(135deg,#dff0ff_0%,#e2f4ec_100%)] dark:bg-[linear-gradient(135deg,rgba(65,98,130,0.46)_0%,rgba(47,89,79,0.32)_100%)]",
-                  },
-                  {
-                    label: "Dokus",
-                    value: dokusTotal,
-                    icon: <Library className="h-5 w-5" />,
-                    tone: "bg-[linear-gradient(135deg,#fbe9cf_0%,#efe5fb_100%)] dark:bg-[linear-gradient(135deg,rgba(92,77,52,0.46)_0%,rgba(88,69,123,0.34)_100%)]",
-                  },
-                ].map((item) => (
-                  <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className={cn("flex h-12 w-12 items-center justify-center rounded-[18px] text-slate-700 dark:text-white", item.tone)}>
-                        {item.icon}
-                      </div>
-                      <span className="text-[2.2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                        {item.value}
-                      </span>
-                    </div>
-                    <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{item.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+    {/* -- Compact Hero -- */}
+    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn(taleaInsetSurfaceClass, "shrink-0 rounded-full p-1.5")}>
+            <UserButton
+              afterSignOutUrl="/"
+              userProfileMode="navigation"
+              userProfileUrl="/settings"
+              appearance={{ elements: { avatarBox: "h-10 w-10" } }}
+            />
           </div>
+          <h1
+            className="text-lg font-semibold text-[var(--talea-text-primary)] sm:text-xl md:text-2xl"
+            style={{ fontFamily: headingFont }}
+          >
+            {greeting},{" "}
+            <span className="bg-gradient-to-r from-[var(--talea-accent-rose)] via-[var(--primary)] to-[var(--talea-accent-sky)] bg-clip-text text-transparent">
+              {userName || "Entdecker"}
+            </span>
+          </h1>
         </div>
-      </motion.div>
 
-      <div className="grid gap-5 sm:gap-6">
-        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
-          <div className={cn(taleaInsetSurfaceClass, "space-y-4 p-4 sm:p-5")}>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Weiter geht's</p>
-              <h2 className="mt-3 text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Spring direkt in den naechsten Bereich.
-              </h2>
-              <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Hier sind die schnellsten Wege fuer neue Stories, Avatare und Dokus.
-              </p>
-            </div>
-
-            <div className="grid gap-3">
-              {[
-                { title: "Story starten", text: "Direkt in den Generator wechseln.", icon: <WandSparkles className="h-5 w-5" />, path: "/story" },
-                { title: "Avatare oeffnen", text: "Figuren anlegen oder bearbeiten.", icon: <UserPlus className="h-5 w-5" />, path: "/avatar" },
-                { title: "Dokus entdecken", text: "Neue Wissensreise anlegen.", icon: <Library className="h-5 w-5" />, path: "/doku" },
-              ].map((item) => (
-                <button key={item.title} type="button" onClick={() => goTo(item.path)} className={cn(taleaInsetSurfaceClass, "flex items-start gap-4 p-4 text-left sm:p-5")}>
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,var(--primary)_0%,#e5f2ff_100%)] text-slate-700 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.45)_0%,rgba(65,96,131,0.36)_100%)] dark:text-white">
-                    {item.icon}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 dark:text-white">{item.title}</p>
-                    <p className="mt-1 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{item.text}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className={cn(taleaSurfaceClass, "overflow-hidden p-2")}>
-          <div className={cn(taleaInsetSurfaceClass, "overflow-hidden p-0")}>
-            <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
-          </div>
-        </motion.div>
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { label: "Stories", value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" />, tone: "from-[#f8dde8] to-[#fbead1] dark:from-[rgba(109,84,114,0.35)] dark:to-[rgba(92,76,55,0.25)]" },
+            { label: "Avatare", value: avatars.length, icon: <Swords className="h-3.5 w-3.5" />, tone: "from-[#dff0ff] to-[#e2f4ec] dark:from-[rgba(65,98,130,0.32)] dark:to-[rgba(47,89,79,0.22)]" },
+            { label: "Dokus", value: dokusTotal, icon: <Library className="h-3.5 w-3.5" />, tone: "from-[#fbe9cf] to-[#efe5fb] dark:from-[rgba(92,77,52,0.32)] dark:to-[rgba(88,69,123,0.22)]" },
+          ].map((stat) => (
+            <motion.span
+              key={stat.label}
+              whileHover={{ scale: 1.06, y: -1 }}
+              className={cn(
+                "inline-flex cursor-default items-center gap-1.5 rounded-full border border-[var(--talea-border-light)] bg-gradient-to-r px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md",
+                stat.tone
+              )}
+            >
+              <span className="text-[var(--talea-text-secondary)]">{stat.icon}</span>
+              <span className="font-bold text-[var(--talea-text-primary)]">{stat.value}</span>
+              <span className="text-[var(--talea-text-tertiary)]">{stat.label}</span>
+            </motion.span>
+          ))}
+          <motion.button
+            whileHover={{ rotate: 180, scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-secondary)] shadow-sm transition-colors hover:bg-white/90 dark:bg-[var(--talea-surface-inset)]"
+            aria-label="Aktualisieren"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+          </motion.button>
+        </div>
       </div>
-    </section>
 
-    <section className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}>
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--talea-border-light)] pt-3">
+        <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
+          Neue Story
+        </TaleaActionButton>
+        <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
+          Bibliothek
+        </TaleaActionButton>
+        <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
+          Wissensreise
+        </TaleaActionButton>
+      </div>
+    </motion.section>
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}
+    >
       <div className="relative z-10 space-y-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
       <TaleaSectionHeading
         eyebrow="Weiterlesen"
         title="Deine Geschichten"
-        subtitle="Die wichtigsten Abenteuer stehen sofort bereit und fuehren direkt wieder in den Reader."
+        subtitle="Die wichtigsten Abenteuer stehen sofort bereit."
         actionLabel="Alle Geschichten"
         onAction={() => goTo("/stories")}
       />
-        <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Bibliothek</p>
-          <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-            {storiesTotal} Geschichten bereit zum Weiterlesen, Vorlesen und Entdecken.
-          </p>
-        </div>
-      </div>
 
       {stories.length === 0 ? (
         <EmptyStateContainer
@@ -929,16 +809,6 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           />
 
           <div className="grid gap-4">
-            <button type="button" onClick={() => goTo("/story")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
-              <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>Neue Szene</p>
-              <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Neue Geschichte starten
-              </h3>
-              <p className="mt-4 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Der schnellste Weg in ein neues Abenteuer.
-              </p>
-            </button>
-
             {stories.slice(1, 4).map((story, index) => (
               <StoryCard
                 key={story.id}
@@ -959,9 +829,15 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         </div>
       )}
       </div>
-    </section>
+    </motion.section>
 
-    <section className="space-y-6">
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-6"
+    >
       <TaleaSectionHeading
         eyebrow="Deine Figuren"
         title="Avatare"
@@ -1000,9 +876,15 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           </div>
         </div>
       )}
-    </section>
+    </motion.section>
 
-    <section className="space-y-6">
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-6"
+    >
       <TaleaSectionHeading
         eyebrow="Wissenswelt"
         title="Doku Highlights"
@@ -1029,16 +911,6 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           />
 
           <div className="grid gap-4">
-            <button type="button" onClick={() => goTo("/doku/create")} className={cn(taleaSurfaceClass, "overflow-hidden p-5 text-left sm:p-6")}>
-              <p className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[#9d7d50] dark:border-white/10 dark:bg-white/5 dark:text-[#f0c989]")}>Neues Thema</p>
-              <h3 className="mt-4 text-[1.9rem] font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                Neue Doku starten
-              </h3>
-              <p className="mt-4 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                Wissen, Audio und Geschichten liegen im selben Regal.
-              </p>
-            </button>
-
             {dokus.slice(1, 3).map((doku) => (
               <DokuBentoTicket
                 key={doku.id}
@@ -1050,7 +922,14 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           </div>
         </div>
       )}
-    </section>
+    </motion.section>
+
+    {/* -- Cosmos -- */}
+    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "overflow-hidden p-2")}>
+      <div className={cn(taleaInsetSurfaceClass, "overflow-hidden p-0")}>
+        <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
+      </div>
+    </motion.section>
 
   </motion.div>
 );
