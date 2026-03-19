@@ -8,6 +8,18 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { Chapter } from '../../types/story';
 import type { PlaylistItem } from '../../types/playlist';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
+import {
+  getStaticQwenSpeakers,
+  QWEN_STATIC_DEFAULT_SPEAKER,
+} from '../../constants/qwenVoices';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
@@ -67,16 +79,19 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { getToken } = useAuth();
   const { startStoryConversion, removeStoryFromPlaylist, addAndPlay, addToPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
+  const availableSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
 
   const [isAdding, setIsAdding] = useState(false);
-  const [availableSpeakers, setAvailableSpeakers] = useState<string[]>([]);
-  const [selectedSpeaker, setSelectedSpeaker] = useState('');
+  const [selectedSpeaker, setSelectedSpeaker] = useState(QWEN_STATIC_DEFAULT_SPEAKER);
   const [multiVoiceEnabled, setMultiVoiceEnabled] = useState(false);
-  const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>([]);
-  const [loadingSpeakers, setLoadingSpeakers] = useState(false);
-  const [speakerLoadError, setSpeakerLoadError] = useState('');
+  const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>(availableSpeakers.slice(0, 2));
   const [generatedAudioItems, setGeneratedAudioItems] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [checkingGeneratedAudio, setCheckingGeneratedAudio] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{
+    autoplay: boolean;
+    voiceSettings: TTSVoiceSettings;
+  } | null>(null);
 
   const isDark = resolvedTheme === 'dark';
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
@@ -150,79 +165,6 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     return items;
   }, [getToken, storyId]);
 
-  const loadAvailableSpeakers = useCallback(async () => {
-    setLoadingSpeakers(true);
-    setSpeakerLoadError('');
-    try {
-      const token = await getToken();
-      const headers = {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
-      // Prefer the new Qwen route, but stay compatible with older backend deploys.
-      const routes = ['/tts/qwen/voices', '/tts/cosyvoice/voices'];
-      let response: Response | null = null;
-      let lastErrorText = '';
-      for (const route of routes) {
-        const candidate = await fetch(`${getBackendUrl()}${route}`, {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-        if (candidate.ok) {
-          response = candidate;
-          break;
-        }
-        const payload = await candidate.text();
-        lastErrorText = payload || `HTTP ${candidate.status}`;
-        if (candidate.status !== 404) {
-          throw new Error(lastErrorText);
-        }
-      }
-
-      if (!response) {
-        throw new Error(lastErrorText || 'No compatible voices endpoint found.');
-      }
-
-      const payload = (await response.json()) as { availableSpeakers?: string[]; defaultSpeaker?: string };
-      const speakers = Array.isArray(payload.availableSpeakers)
-        ? payload.availableSpeakers
-            .map((speaker) => (typeof speaker === 'string' ? speaker.trim() : ''))
-            .filter(Boolean)
-        : [];
-
-      setAvailableSpeakers(speakers);
-      setDialogueSpeakers((current) => {
-        const filtered = current.filter((speaker) => speakers.includes(speaker));
-        if (filtered.length > 0) return filtered;
-        return speakers.slice(0, 2);
-      });
-      setSelectedSpeaker((current) => {
-        if (current && speakers.includes(current)) return current;
-        const defaultSpeaker = (payload.defaultSpeaker || '').trim();
-        if (defaultSpeaker && speakers.includes(defaultSpeaker)) return defaultSpeaker;
-        return speakers[0] || '';
-      });
-
-      if (speakers.length === 0) {
-        setSpeakerLoadError('Keine Qwen-Stimmen verfuegbar.');
-      }
-    } catch (error) {
-      console.error('Failed to load Qwen speakers:', error);
-      setSpeakerLoadError('Qwen-Stimmen konnten nicht geladen werden.');
-      setAvailableSpeakers([]);
-      setSelectedSpeaker('');
-    } finally {
-      setLoadingSpeakers(false);
-    }
-  }, [getToken]);
-
-  useEffect(() => {
-    if (availableSpeakers.length === 0 && !loadingSpeakers && !speakerLoadError) {
-      void loadAvailableSpeakers();
-    }
-  }, [availableSpeakers.length, loadingSpeakers, speakerLoadError, loadAvailableSpeakers]);
-
   useEffect(() => {
     let cancelled = false;
     setCheckingGeneratedAudio(true);
@@ -251,10 +193,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   }, [multiVoiceEnabled, availableSpeakers]);
 
   const resetToDefaultVoice = useCallback(() => {
-    setSelectedSpeaker((availableSpeakers[0] || '').trim());
+    setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
     setMultiVoiceEnabled(false);
     setDialogueSpeakers(availableSpeakers.slice(0, 2));
-    setSpeakerLoadError('');
   }, [availableSpeakers]);
 
   const toggleDialogueSpeaker = useCallback((speaker: string) => {
@@ -264,6 +205,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       }
       return [...current, speaker];
     });
+  }, []);
+
+  const closeConfirmation = useCallback(() => {
+    setConfirmOpen(false);
+    setPendingAction(null);
   }, []);
 
   const startConversion = useCallback(async (autoplay: boolean) => {
@@ -296,18 +242,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         }
       }
 
-      if (alreadyInPlaylist) {
-        removeStoryFromPlaylist(storyId);
-      }
-
-      startStoryConversion(
-        storyId,
-        storyTitle,
-        chapters,
-        coverImageUrl,
+      setPendingAction({
         autoplay,
-        voiceSettings.mode === 'default' ? DEFAULT_TTS_VOICE_SETTINGS : voiceSettings,
-      );
+        voiceSettings: voiceSettings.mode === 'default' ? DEFAULT_TTS_VOICE_SETTINGS : voiceSettings,
+      });
+      setConfirmOpen(true);
     } finally {
       setIsAdding(false);
     }
@@ -322,9 +261,36 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     removeStoryFromPlaylist,
     addAndPlay,
     addToPlaylist,
-    startStoryConversion,
-    chapters,
     voiceSettings,
+  ]);
+
+  const confirmGeneration = useCallback(() => {
+    if (!pendingAction) return;
+
+    if (alreadyInPlaylist) {
+      removeStoryFromPlaylist(storyId);
+    }
+
+    startStoryConversion(
+      storyId,
+      storyTitle,
+      chapters,
+      coverImageUrl,
+      pendingAction.autoplay,
+      pendingAction.voiceSettings,
+    );
+
+    closeConfirmation();
+  }, [
+    alreadyInPlaylist,
+    chapters,
+    closeConfirmation,
+    coverImageUrl,
+    pendingAction,
+    removeStoryFromPlaylist,
+    startStoryConversion,
+    storyId,
+    storyTitle,
   ]);
 
   const handlePlay = () => void startConversion(true);
@@ -373,10 +339,10 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             onChange={(event) => setSelectedSpeaker(event.target.value)}
             className="w-full rounded-xl border px-3 py-2 text-xs"
             style={selectStyle}
-            disabled={loadingSpeakers || availableSpeakers.length === 0}
+            disabled={availableSpeakers.length === 0}
           >
             {availableSpeakers.length === 0 ? (
-              <option value="">Keine Qwen-Stimmen gefunden</option>
+              <option value="">Keine Qwen-Stimmen verfuegbar</option>
             ) : (
               availableSpeakers.map((speaker) => (
                 <option key={speaker} value={speaker}>
@@ -385,17 +351,13 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
               ))
             )}
           </select>
-          <button
-            type="button"
-            onClick={() => void loadAvailableSpeakers()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border"
-            style={selectStyle}
-            disabled={loadingSpeakers}
-            title="Qwen-Stimmen neu laden"
-          >
-            {loadingSpeakers ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
-          </button>
         </div>
+
+        {!hasLibraryAudio && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+            Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.
+          </p>
+        )}
 
         {selectedSpeaker && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
@@ -452,12 +414,6 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           )}
         </div>
 
-        {speakerLoadError && (
-          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
-            {speakerLoadError}
-          </p>
-        )}
-
         {checkingGeneratedAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             Pruefe bereits generierte Audios...
@@ -467,6 +423,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {!checkingGeneratedAudio && generatedAudioItems.length > 0 && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#86efac' : '#1f7a41' }}>
             Bereits generiert: {generatedAudioItems.length} Audio-Teil(e). Wird direkt aus der Bibliothek abgespielt.
+          </p>
+        )}
+
+        {!checkingGeneratedAudio && generatedAudioItems.length === 0 && (
+          <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
+            Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle {chapters.length} Kapitel ueber RunPod.
           </p>
         )}
       </div>
@@ -489,7 +451,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           {isAdding ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
           {hasLibraryAudio
             ? (alreadyInPlaylist ? 'Gespeicherte Audios neu laden' : 'Gespeicherte Audios abspielen')
-            : (alreadyInPlaylist ? 'Neu generieren & abspielen' : 'Geschichte anhoeren')}
+            : (alreadyInPlaylist ? 'Audio neu erzeugen & abspielen' : 'Audio erzeugen & abspielen')}
         </motion.button>
 
         <motion.button
@@ -503,7 +465,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <ListPlus size={14} />
           {hasLibraryAudio
             ? (alreadyInPlaylist ? 'Gespeichert neu in Queue' : 'Gespeichert zur Queue')
-            : (alreadyInPlaylist ? 'Neu in Warteschlange' : 'Zur Warteschlange')}
+            : (alreadyInPlaylist ? 'Audio neu erzeugen & merken' : 'Audio erzeugen & merken')}
         </motion.button>
 
         {alreadyInPlaylist && (
@@ -519,6 +481,80 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           </span>
         )}
       </div>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeConfirmation();
+            return;
+          }
+          setConfirmOpen(true);
+        }}
+      >
+        <DialogContent
+          className="border"
+          style={{
+            borderColor: isDark ? '#34455d' : '#decfbf',
+            background: isDark ? '#111a25' : '#fffaf3',
+            color: isDark ? '#d9e5f8' : '#2a3b52',
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle style={{ color: isDark ? '#f8fbff' : '#2a3b52' }}>
+              Story-Audio wirklich erzeugen?
+            </DialogTitle>
+            <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+              RunPod wird erst nach deiner Bestaetigung gestartet.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div
+            className="rounded-xl border p-3 text-sm"
+            style={{
+              borderColor: isDark ? '#34455d' : '#decfbf',
+              background: isDark ? 'rgba(20,29,40,0.72)' : 'rgba(255,255,255,0.78)',
+            }}
+          >
+            <p className="font-semibold">{storyTitle}</p>
+            <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+              Es werden Audios fuer {chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.
+            </p>
+            {pendingAction?.voiceSettings?.speakerId && (
+              <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+                Ausgewaehlte Stimme: <span className="font-semibold">{pendingAction.voiceSettings.speakerId}</span>
+              </p>
+            )}
+            {pendingAction?.voiceSettings?.mode === 'dialogue' && (
+              <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+                Dialogmodus: {pendingAction.voiceSettings.dialogueSpeakerIds?.filter(Boolean).length || 0} Stimmen aktiv
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={confirmGeneration}
+              className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold"
+              style={{
+                background: isDark ? '#86a7db' : '#7c5b3d',
+                color: isDark ? '#08111c' : '#fffaf3',
+              }}
+            >
+              Jetzt Audio erzeugen
+            </button>
+            <button
+              type="button"
+              onClick={closeConfirmation}
+              className="inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold"
+              style={selectStyle}
+            >
+              Abbrechen
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

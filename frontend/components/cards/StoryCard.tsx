@@ -93,6 +93,13 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
 
       const fullStory = await backend.story.get({ id: story.id });
       if (!fullStory.chapters || fullStory.chapters.length === 0) return;
+
+      const confirmed = window.confirm(
+        `Audio fuer "${story.title}" wirklich erzeugen?\n\n` +
+        `Dabei werden ${fullStory.chapters.length} Kapitel ueber RunPod verarbeitet und kostenpflichtige TTS-Aufrufe gestartet.`
+      );
+      if (!confirmed) return;
+
       startStoryConversion(story.id, story.title, fullStory.chapters as any, story.coverImageUrl);
     } catch (err) {
       console.error('Failed to add story to playlist:', err);

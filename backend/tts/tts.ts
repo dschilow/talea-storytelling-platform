@@ -3,6 +3,7 @@ import log from "encore.dev/log";
 import { splitTextIntoChunks } from "../helpers/ttsChunking";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
+type VoiceListMode = "static" | "runpod";
 
 const COSYVOICE_RUNPOD_API_URL = (process.env.COSYVOICE_RUNPOD_API_URL || "").trim();
 const COSYVOICE_RUNPOD_API_KEY = (process.env.COSYVOICE_RUNPOD_API_KEY || "").trim();
@@ -74,6 +75,25 @@ const COSYVOICE_DEFAULT_EMOTION = (process.env.COSYVOICE_DEFAULT_EMOTION || "").
 const COSYVOICE_DEFAULT_OUTPUT_FORMAT = normalizeOutputFormat(
   process.env.COSYVOICE_DEFAULT_OUTPUT_FORMAT || "mp3"
 );
+const DEFAULT_QWEN_STATIC_SPEAKERS = [
+  "aiden",
+  "dylan",
+  "eric",
+  "ono_anna",
+  "ryan",
+  "serena",
+  "sohee",
+  "uncle_fu",
+  "vivian",
+];
+const COSYVOICE_VOICE_LIST_MODE = resolveVoiceListMode(process.env.COSYVOICE_VOICE_LIST_MODE);
+const COSYVOICE_STATIC_SPEAKERS = parseSpeakerList(
+  process.env.COSYVOICE_STATIC_SPEAKERS,
+  DEFAULT_QWEN_STATIC_SPEAKERS
+);
+const COSYVOICE_STATIC_DEFAULT_SPEAKER = (
+  process.env.COSYVOICE_STATIC_DEFAULT_SPEAKER || "vivian"
+).trim();
 
 export type TTSProvider = "cosyvoice3" | "piper" | "chatterbox";
 export type AudioFormat = "wav" | "mp3";
@@ -192,6 +212,20 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
     return false;
   }
   return fallback;
+}
+
+function parseSpeakerList(value: string | undefined, fallback: string[]): string[] {
+  const parsed = String(value || "")
+    .split(/[\n,;]/g)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return parsed.length > 0 ? [...new Set(parsed)] : fallback;
+}
+
+function resolveVoiceListMode(value: string | undefined): VoiceListMode {
+  const normalized = (value || "").trim().toLowerCase();
+  return normalized === "runpod" ? "runpod" : "static";
 }
 
 function resolveRunpodEndpointMode(
@@ -1817,6 +1851,20 @@ export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwe
 );
 
 async function listRunpodVoicesOrThrow(providerLabel: string): Promise<CosyVoiceVoicesResponse> {
+  if (COSYVOICE_VOICE_LIST_MODE === "static") {
+    const availableSpeakers = [...COSYVOICE_STATIC_SPEAKERS];
+    const defaultSpeaker = availableSpeakers.includes(COSYVOICE_STATIC_DEFAULT_SPEAKER)
+      ? COSYVOICE_STATIC_DEFAULT_SPEAKER
+      : (availableSpeakers[0] || "");
+
+    return {
+      availableSpeakers,
+      defaultSpeaker,
+      defaultReferenceAvailable: Boolean(COSYVOICE_DEFAULT_REFERENCE_AUDIO_URL),
+      modelLoaded: false,
+    };
+  }
+
   try {
     return await runpodListVoicesRequest();
   } catch (error) {

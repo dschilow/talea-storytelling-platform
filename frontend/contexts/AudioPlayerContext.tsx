@@ -250,9 +250,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { enqueue, cancel: cancelConversion, cancelItems, retryItem, statusMap: conversionStatusMap } =
     useTTSConversionQueue({ backend, onChunkReady, onChunkError });
 
-  // Stable ref for enqueue so the restore effect doesn't re-run when backend/auth changes
-  const enqueueRef = useRef(enqueue);
-  enqueueRef.current = enqueue;
 
   // ── Restore persisted playlist on startup ───────────────────────
   useEffect(() => {
@@ -266,30 +263,50 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const parsed = JSON.parse(raw) as StoredPlaylistState;
       const restoredPlaylist = Array.isArray(parsed.playlist) ? parsed.playlist : [];
 
-      const hydratedPlaylist = restoredPlaylist.map((item) => {
+      const hydratedPlaylist: PlaylistItem[] = [];
+      let restoredCurrentIndex = -1;
+      let droppedPendingCount = 0;
+
+      restoredPlaylist.forEach((item, index) => {
         const audioUrl = item.audioUrl;
         const isBlobUrl = Boolean(audioUrl && audioUrl.startsWith('blob:'));
+        const hydratedItem =
+          item.type === 'story-chapter' || item.type === 'doku'
+            ? ({
+                ...item,
+                audioUrl: !isBlobUrl ? audioUrl : undefined,
+                conversionStatus: !isBlobUrl && audioUrl ? 'ready' : 'pending',
+              } as PlaylistItem)
+            : ({
+                ...item,
+                conversionStatus: audioUrl ? 'ready' : item.conversionStatus || 'pending',
+              } as PlaylistItem);
 
-        if (item.type === 'story-chapter' || item.type === 'doku') {
-          return {
-            ...item,
-            audioUrl: !isBlobUrl ? audioUrl : undefined,
-            conversionStatus: !isBlobUrl && audioUrl ? 'ready' : 'pending',
-          } as PlaylistItem;
+        const shouldDropPendingGeneratedItem =
+          (hydratedItem.type === 'story-chapter' || hydratedItem.type === 'doku') &&
+          !hydratedItem.audioUrl;
+
+        if (shouldDropPendingGeneratedItem) {
+          droppedPendingCount += 1;
+          return;
         }
 
-        return {
-          ...item,
-          conversionStatus: audioUrl ? 'ready' : item.conversionStatus || 'pending',
-        } as PlaylistItem;
+        const nextIndex = hydratedPlaylist.push(hydratedItem) - 1;
+        if (parsed.currentIndex === index) {
+          restoredCurrentIndex = nextIndex;
+        }
       });
 
       const boundedIndex =
-        typeof parsed.currentIndex === 'number' &&
-        parsed.currentIndex >= 0 &&
-        parsed.currentIndex < hydratedPlaylist.length
-          ? parsed.currentIndex
+        restoredCurrentIndex >= 0 && restoredCurrentIndex < hydratedPlaylist.length
+          ? restoredCurrentIndex
           : -1;
+
+      if (droppedPendingCount > 0) {
+        console.info(
+          `[AudioPlayer] Removed ${droppedPendingCount} pending restored TTS item(s) to avoid background RunPod generation.`
+        );
+      }
 
       playlistRef.current = hydratedPlaylist;
       currentIndexRef.current = boundedIndex;
@@ -298,20 +315,6 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPlaylist(hydratedPlaylist);
       setCurrentIndex(boundedIndex);
       setIsPlaylistActive(hydratedPlaylist.length > 0 && Boolean(parsed.isPlaylistActive));
-
-      // Re-enqueue story chunks so cache/tts can restore playable URLs.
-      const restoreCacheSuffix = buildTTSRequestCacheSuffix();
-      const toQueue = hydratedPlaylist
-        .filter((item) => (item.type === 'story-chapter' || item.type === 'doku') && !item.audioUrl && item.sourceText)
-        .map((item) => ({
-          id: item.id,
-          text: item.sourceText as string,
-          cacheKey: buildTTSChunkCacheKey(item.id, item.sourceText as string, restoreCacheSuffix),
-        }));
-
-      if (toQueue.length > 0) {
-        enqueueRef.current(toQueue);
-      }
 
       // If there was an active current item, restore waiting/track state.
       if (boundedIndex >= 0) {
@@ -329,6 +332,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } else {
           setWaitingForConversion(true);
         }
+      } else {
+        setWaitingForConversion(false);
       }
     } catch (error) {
       console.error('Failed to restore audio playlist state:', error);

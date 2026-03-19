@@ -10,6 +10,7 @@ import { AudioUploadCard } from '../../components/ui/audio-upload-card';
 import { getBackendUrl } from '../../config';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getStaticQwenVoiceOptions } from '../../constants/qwenVoices';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import type { AudioDoku } from '../../types/audio-doku';
@@ -138,11 +139,6 @@ type ElevenLabsDialogueResponse = {
   speakers: string[];
 };
 
-type QwenVoicesResponse = {
-  availableSpeakers?: string[];
-  defaultSpeaker?: string;
-};
-
 type QwenDialogueResponse = {
   variants: Array<{
     id: string;
@@ -235,6 +231,8 @@ const readErrorMessage = async (response: Response): Promise<string> => {
 
   return `HTTP ${response.status}`;
 };
+
+const STATIC_QWEN_PROVIDER_VOICES: ProviderVoiceOption[] = getStaticQwenVoiceOptions();
 
 const normalizeSpeakerLabel = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
@@ -556,7 +554,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     { id: 'speaker-tavi', name: 'TAVI', voiceId: '' },
     { id: 'speaker-lumi', name: 'LUMI', voiceId: '' },
   ]);
-  const [providerVoices, setProviderVoices] = useState<ProviderVoiceOption[]>([]);
+  const [providerVoices, setProviderVoices] = useState<ProviderVoiceOption[]>(STATIC_QWEN_PROVIDER_VOICES);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
   const [dialogueStatus, setDialogueStatus] = useState<string | null>(null);
@@ -670,7 +668,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   }, [speakerProfiles, voiceTargetSpeakerId]);
 
   useEffect(() => {
-    setProviderVoices([]);
+    setProviderVoices(ttsProvider === 'qwen' ? STATIC_QWEN_PROVIDER_VOICES : []);
     setVoiceSearchQuery('');
     setGeneratedVariants([]);
     setSelectedVariantId(null);
@@ -690,6 +688,13 @@ const CreateAudioDokuScreen: React.FC = () => {
   };
 
   const fetchProviderVoices = async () => {
+    if (ttsProvider === 'qwen') {
+      setProviderVoices(STATIC_QWEN_PROVIDER_VOICES);
+      setDialogueStatus(`${STATIC_QWEN_PROVIDER_VOICES.length} Qwen-Stimmen lokal verfuegbar.`);
+      setDialogueStatusType('success');
+      return;
+    }
+
     try {
       setVoicesLoading(true);
       setDialogueStatus(null);
@@ -725,44 +730,6 @@ const CreateAudioDokuScreen: React.FC = () => {
         return;
       }
 
-      const routes = ['/tts/qwen/voices', '/tts/cosyvoice/voices'];
-      let response: Response | null = null;
-      let lastErrorMessage = '';
-      for (const route of routes) {
-        const candidate = await fetch(`${getBackendUrl()}${route}`, {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-        if (candidate.ok) {
-          response = candidate;
-          break;
-        }
-        const errorText = await readErrorMessage(candidate);
-        lastErrorMessage = errorText;
-        if (candidate.status !== 404) {
-          throw new Error(errorText);
-        }
-      }
-
-      if (!response) {
-        throw new Error(lastErrorMessage || 'Kein kompatibler Qwen-Endpunkt gefunden.');
-      }
-
-      const payload = (await response.json()) as QwenVoicesResponse;
-      const voices = (payload.availableSpeakers || [])
-        .map((speaker) => String(speaker || '').trim())
-        .filter(Boolean)
-        .map((speaker) => ({ id: speaker, name: speaker } as ProviderVoiceOption))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      setProviderVoices(voices);
-      setDialogueStatus(
-        voices.length > 0
-          ? `${voices.length} Qwen-Stimmen geladen.`
-          : 'Keine Qwen-Stimmen gefunden.'
-      );
-      setDialogueStatusType(voices.length > 0 ? 'success' : 'error');
     } catch (err) {
       console.error('[AudioDoku] Failed to load voices:', err);
       const message =
@@ -1387,22 +1354,34 @@ const CreateAudioDokuScreen: React.FC = () => {
                             ElevenLabs
                           </button>
                         </div>
-                      <button
-                        type="button"
-                        onClick={() => void fetchProviderVoices()}
-                        disabled={voicesLoading}
-                        className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
-                        style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
-                      >
-                        <RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />
-                        {voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
-                      </button>
+                      {ttsProvider === 'elevenlabs' ? (
+                        <button
+                          type="button"
+                          onClick={() => void fetchProviderVoices()}
+                          disabled={voicesLoading}
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                        >
+                          <RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />
+                          {voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
+                        </button>
+                      ) : (
+                        <div
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                        >
+                          {providerVoices.length} lokale Stimmen
+                        </div>
+                      )}
                       </div>
                     </div>
                     <p className="mt-2 text-xs" style={{ color: palette.muted }}>
-                      Nach <strong>Stimmen laden</strong>: Pro Sprecher im Feld <strong>"Stimme aus Liste..."</strong> eine Stimme auswaehlen.
                       {ttsProvider === 'qwen'
-                        ? ' Qwen nutzt keine 5000-Zeichen-Grenze wie ElevenLabs und verarbeitet lange Skripte in Bloecken.'
+                        ? 'Qwen-Stimmen stehen direkt lokal bereit. Pro Sprecher im Feld '
+                        : 'Nach Stimmen laden: Pro Sprecher im Feld '}
+                      <strong>"Stimme aus Liste..."</strong>
+                      {ttsProvider === 'qwen'
+                        ? ' eine Stimme auswaehlen. Qwen nutzt keine 5000-Zeichen-Grenze wie ElevenLabs und verarbeitet lange Skripte in Bloecken.'
                         : ' ElevenLabs ist fuer Dialog-Szenen optimiert, hat aber Provider-Limits pro Request.'}
                     </p>
 
@@ -1542,10 +1521,10 @@ const CreateAudioDokuScreen: React.FC = () => {
 
                     {providerVoices.length > 0 && (
                       <div className="mt-4 rounded-xl border p-3" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
-                            Geladene Stimmen ({providerVoices.length})
-                          </div>
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                            Verfuegbare Stimmen ({providerVoices.length})
+                            </div>
                           <select
                             value={voiceTargetSpeakerId}
                             onChange={(e) => setVoiceTargetSpeakerId(e.target.value)}
