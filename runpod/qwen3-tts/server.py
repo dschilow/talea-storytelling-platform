@@ -124,45 +124,108 @@ def _configure_torch_runtime() -> None:
         print(f"Torch runtime tuning skipped: {exc}")
 
 
-def _ensure_cuda_runtime() -> None:
-    cuda_available = torch.cuda.is_available()
-    device_count = torch.cuda.device_count() if cuda_available else 0
-    device_name = ""
-    if cuda_available and device_count > 0:
-        try:
-            device_name = torch.cuda.get_device_name(0)
-        except Exception:
-            device_name = ""
+def _get_gpu_info() -> dict:
+    """Detect GPU compute capability and features."""
+    info = {
+        "cuda_available": torch.cuda.is_available(),
+        "device_count": 0,
+        "device_name": "",
+        "compute_capability": (0, 0),
+        "supports_bf16": False,
+        "supports_flash_attn": False,
+        "is_blackwell": False,
+    }
+    if not info["cuda_available"]:
+        return info
 
+    info["device_count"] = torch.cuda.device_count()
+    if info["device_count"] > 0:
+        try:
+            info["device_name"] = torch.cuda.get_device_name(0)
+        except Exception:
+            pass
+        try:
+            cc = torch.cuda.get_device_capability(0)
+            info["compute_capability"] = cc
+            # bf16 native support: Ampere (8.0) and newer
+            info["supports_bf16"] = cc[0] >= 8
+            # flash-attn works on Ampere/Ada/Hopper, but Blackwell (12.x) may
+            # not have compatible wheels yet — detect at runtime
+            info["supports_flash_attn"] = HAS_FLASH_ATTN and cc[0] >= 8 and cc[0] < 12
+            info["is_blackwell"] = cc[0] >= 12
+        except Exception:
+            pass
+    return info
+
+
+def _ensure_cuda_runtime() -> None:
+    gpu = _get_gpu_info()
     print(
-        f"CUDA runtime status: available={cuda_available} "
-        f"devices={device_count} device0={device_name or '<none>'}"
+        f"CUDA runtime status: available={gpu['cuda_available']} "
+        f"devices={gpu['device_count']} device0={gpu['device_name'] or '<none>'} "
+        f"compute_capability={gpu['compute_capability'][0]}.{gpu['compute_capability'][1]} "
+        f"bf16={gpu['supports_bf16']} flash_attn={gpu['supports_flash_attn']} "
+        f"blackwell={gpu['is_blackwell']}"
     )
 
-    if REQUIRE_CUDA and not cuda_available:
+    if REQUIRE_CUDA and not gpu["cuda_available"]:
         raise RuntimeError(
             "CUDA is required for Qwen3-TTS production inference, but no healthy GPU was detected. "
             "Failing worker startup to avoid extremely slow CPU generation."
         )
 
 
+def _resolve_model_dtype() -> torch.dtype:
+    """Pick the best dtype for the detected GPU.
+    - Ampere+ (CC 8.0+): bfloat16 (native hw support, best for transformers)
+    - Older GPUs or unknown: float16 (universally supported on all CUDA GPUs)
+    - CPU: float32
+    """
+    if not torch.cuda.is_available():
+        return torch.float32
+    try:
+        cc = torch.cuda.get_device_capability(0)
+        if cc[0] >= 8:
+            print(f"GPU CC {cc[0]}.{cc[1]} supports bfloat16 natively — using bfloat16.")
+            return torch.bfloat16
+        print(f"GPU CC {cc[0]}.{cc[1]} does not support bfloat16 natively — using float16.")
+        return torch.float16
+    except Exception:
+        print("Could not detect GPU capability — defaulting to float16.")
+        return torch.float16
+
+
 def _resolve_attn_implementation() -> Optional[str]:
     if not torch.cuda.is_available():
         return None
 
+    gpu = _get_gpu_info()
     requested = (ATTN_IMPLEMENTATION or "").strip().lower()
+
     if requested in {"", "none", "off", "disabled"}:
         return None
 
     if requested == "auto":
+        # On Blackwell, flash-attn wheels may not exist yet — use SDPA (built into PyTorch)
+        if gpu["is_blackwell"]:
+            print(
+                f"Blackwell GPU detected (CC {gpu['compute_capability'][0]}.{gpu['compute_capability'][1]}). "
+                "Using PyTorch SDPA instead of flash_attention_2 for maximum compatibility."
+            )
+            return "sdpa"
         if HAS_FLASH_ATTN:
             return "flash_attention_2"
-        print("flash_attn is not installed. Using default attention implementation.")
-        return None
+        print("flash_attn is not installed. Using SDPA attention implementation.")
+        return "sdpa"
 
-    if requested == "flash_attention_2" and not HAS_FLASH_ATTN:
-        print("flash_attn is not installed. Skipping flash_attention_2 and using default attention.")
-        return None
+    if requested == "flash_attention_2":
+        if not HAS_FLASH_ATTN:
+            print("flash_attn not installed. Falling back to SDPA.")
+            return "sdpa"
+        if gpu["is_blackwell"]:
+            print("flash_attn may not support Blackwell. Falling back to SDPA.")
+            return "sdpa"
+        return "flash_attention_2"
 
     return ATTN_IMPLEMENTATION
 
@@ -241,39 +304,44 @@ def load_qwen_model() -> None:
     global qwen_model, SUPPORTED_SPEAKERS, SUPPORTED_LANGUAGES
     print(f"Loading Qwen3-TTS from {load_path}...")
 
+    model_dtype = _resolve_model_dtype()
     load_kwargs: dict[str, Any] = {
         "device_map": "cuda:0" if torch.cuda.is_available() else "cpu",
         # NOTE: Qwen3TTSModel uses 'dtype=' (NOT 'torch_dtype=').
-        # Using torch_dtype= triggers a deprecation warning and does NOT apply
-        # bfloat16 correctly, causing flash-attn to run in float32 (2x slower).
-        "dtype": torch.bfloat16 if torch.cuda.is_available() else torch.float32,
+        "dtype": model_dtype,
     }
     attn_implementation = _resolve_attn_implementation()
     if torch.cuda.is_available() and attn_implementation:
-        # Prefer FlashAttention-2 if available in the container.
         load_kwargs["attn_implementation"] = attn_implementation
 
-    try:
-        qwen_model = Qwen3TTSModel.from_pretrained(load_path, **load_kwargs)
-        print("Qwen3-TTS Model loaded successfully.")
-    except Exception as exc:
-        if load_kwargs.get("attn_implementation"):
-            print(f"Model load with attn={load_kwargs['attn_implementation']} failed: {exc}")
-            print("Retrying model load with default attention implementation.")
-            try:
-                load_kwargs.pop("attn_implementation", None)
-                qwen_model = Qwen3TTSModel.from_pretrained(load_path, **load_kwargs)
-                print("Qwen3-TTS Model loaded successfully (fallback attention).")
-            except Exception as fallback_exc:
-                print(f"Fallback model load failed: {fallback_exc}")
+    print(f"Model load config: dtype={model_dtype}, attn={attn_implementation}")
+
+    # Try primary config → fallback without attn → fallback with float16
+    load_attempts = [
+        ("primary", dict(load_kwargs)),
+    ]
+    if load_kwargs.get("attn_implementation"):
+        fallback1 = dict(load_kwargs)
+        fallback1.pop("attn_implementation", None)
+        load_attempts.append(("no-attn-impl", fallback1))
+    if model_dtype == torch.bfloat16:
+        fallback_fp16 = dict(load_kwargs)
+        fallback_fp16.pop("attn_implementation", None)
+        fallback_fp16["dtype"] = torch.float16
+        load_attempts.append(("float16-fallback", fallback_fp16))
+
+    for attempt_name, kwargs in load_attempts:
+        try:
+            qwen_model = Qwen3TTSModel.from_pretrained(load_path, **kwargs)
+            print(f"Qwen3-TTS Model loaded successfully (attempt={attempt_name}, dtype={kwargs.get('dtype')}, attn={kwargs.get('attn_implementation', 'default')}).")
+            break
+        except Exception as exc:
+            print(f"Model load attempt '{attempt_name}' failed: {exc}")
+            if attempt_name == load_attempts[-1][0]:
+                print("All model load attempts exhausted.")
                 import traceback
                 traceback.print_exc()
                 return
-        else:
-            print(f"Failed to load model: {exc}")
-            import traceback
-            traceback.print_exc()
-            return
 
     # Apply torch.compile for faster inference
     qwen_model = _try_torch_compile(qwen_model)

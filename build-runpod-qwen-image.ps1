@@ -2,7 +2,7 @@ param(
     [string]$DockerHubUsername = "",
     [switch]$Prefetch = $false,
     [switch]$InstallFlashAttn = $true,
-    [switch]$EnforceFlashAttn = $true,
+    [switch]$EnforceFlashAttn = $false,
     [switch]$UseDevelBase = $true,
     [switch]$MaxPerf = $false
 )
@@ -14,12 +14,12 @@ if (-not $PSBoundParameters.ContainsKey('Prefetch')) {
 if ($MaxPerf) {
     $Prefetch = $true
     $InstallFlashAttn = $true
-    $EnforceFlashAttn = $true
+    $EnforceFlashAttn = $false  # Blackwell may not have flash-attn wheel
     $UseDevelBase = $true
 }
 
 if ($DockerHubUsername -eq "") {
-    $DockerHubUsername = Read-Host "Bitte gib deinen DockerHub Benutzernamen ein (oder drücke Enter für 'talea')"
+    $DockerHubUsername = Read-Host "Bitte gib deinen DockerHub Benutzernamen ein (oder druecke Enter fuer 'talea')"
 }
 
 if ($DockerHubUsername -eq "") {
@@ -34,7 +34,7 @@ if ($SystemDrive) {
     $FreeGB = [math]::Round($SystemDrive.Free / 1GB, 1)
     if ($Prefetch -and $FreeGB -lt 50) {
         Write-Host "WARNUNG: Auf C: sind nur noch $FreeGB GB frei." -ForegroundColor Red
-        Write-Host "Ein Qwen MAX-PERF Build mit Prefetch braucht oft deutlich mehr temporären Platz." -ForegroundColor Red
+        Write-Host "Ein Qwen MAX-PERF Build mit Prefetch braucht oft deutlich mehr temporaeren Platz." -ForegroundColor Red
         Write-Host "Abbruch, um einen spaeten ENOSPC-Haenger waehrend docker build zu vermeiden." -ForegroundColor Red
         Write-Host "Loesung 1: Speicher freimachen und danach erneut starten." -ForegroundColor Yellow
         Write-Host "Loesung 2: Ohne Modell-Prefetch bauen:" -ForegroundColor Yellow
@@ -52,7 +52,8 @@ $LatestTag = "${BaseName}:latest"
 $PrefetchVal = if ($Prefetch) { 1 } else { 0 }
 $InstallFlashAttnVal = if ($InstallFlashAttn) { 1 } else { 0 }
 $EnforceFlashAttnVal = if ($EnforceFlashAttn) { 1 } else { 0 }
-$BaseImage = if ($UseDevelBase) { "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel" } else { "pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime" }
+# PyTorch 2.7 + CUDA 12.8: supports Ampere, Ada Lovelace, Hopper, and Blackwell GPUs
+$BaseImage = if ($UseDevelBase) { "pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel" } else { "pytorch/pytorch:2.7.0-cuda12.8-cudnn9-runtime" }
 $ModeText = if ($Prefetch) { "PROD (mit Modellen)" } else { "FAST-DEV (ohne Modelle)" }
 if ($InstallFlashAttn) {
     $ModeText = "$ModeText + flash-attn"
@@ -64,12 +65,13 @@ if ($UseDevelBase) {
     $ModeText = "$ModeText + devel-base"
 }
 if ($MaxPerf) {
-    $ModeText = "MAX-PERF (prefetch + flash + enforce + devel)"
+    $ModeText = "MAX-PERF (prefetch + flash + devel, PyTorch 2.7 + CUDA 12.8)"
 }
 
 Write-Host "==========================================================================" -ForegroundColor Cyan
 Write-Host " Baue und pushe Docker Image ($ModeText)" -ForegroundColor Cyan
 Write-Host " Tag: $VersionTag" -ForegroundColor Cyan
+Write-Host " Base: $BaseImage" -ForegroundColor Cyan
 Write-Host "==========================================================================" -ForegroundColor Cyan
 
 # Schritt 1: Docker Image bauen
@@ -96,7 +98,12 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`n==========================================================================" -ForegroundColor Green
 Write-Host " ERFOLG! Das Image wurde hochgeladen." -ForegroundColor Green
-Write-Host " KOPIERE DIESEN TAG FÜR RUNPOD:" -ForegroundColor White
+Write-Host " KOPIERE DIESEN TAG FUER RUNPOD:" -ForegroundColor White
 Write-Host " $VersionTag" -ForegroundColor Cyan -NoNewline
 Write-Host " (Button wird nun aktiv!)" -ForegroundColor Green
+Write-Host "==========================================================================" -ForegroundColor Green
+Write-Host ""
+Write-Host " WICHTIG: Auf RunPod solltest du Docker Hub Credentials konfigurieren" -ForegroundColor Yellow
+Write-Host " um Rate-Limit Throttling zu vermeiden!" -ForegroundColor Yellow
+Write-Host " RunPod > Endpoint > Container Image Auth > Docker Hub Login setzen" -ForegroundColor Yellow
 Write-Host "==========================================================================" -ForegroundColor Green

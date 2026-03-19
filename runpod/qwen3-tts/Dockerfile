@@ -1,10 +1,14 @@
-ARG PYTORCH_BASE_IMAGE=pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
+# ── Qwen3-TTS RunPod Worker ──────────────────────────────────────────
+# Supports Ampere (8.x), Ada Lovelace (8.9), Hopper (9.0), Blackwell (12.0)
+# Default base: PyTorch 2.7 + CUDA 12.8 (Blackwell-ready)
+# ─────────────────────────────────────────────────────────────────────
+ARG PYTORCH_BASE_IMAGE=pytorch/pytorch:2.7.0-cuda12.8-cudnn9-devel
 FROM ${PYTORCH_BASE_IMAGE}
 
 ARG PREFETCH_MODEL=0
 ARG INSTALL_FLASH_ATTN=1
-ARG ENFORCE_FLASH_ATTN=1
-ARG FLASH_ATTN_VERSION=2.8.3
+ARG ENFORCE_FLASH_ATTN=0
+ARG FLASH_ATTN_VERSION=2.9.1
 ARG MAX_JOBS=8
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -13,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PIP_PREFER_BINARY=1 \
     HF_HOME=/opt/hf-cache \
     MAX_JOBS=${MAX_JOBS} \
-    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -44,15 +48,17 @@ RUN pip install --upgrade pip "setuptools<71" wheel && \
     sentencepiece \
     qwen-tts
 
-# Optional: Try to install flash-attn. On runtime images (no nvcc), this may fail.
-# Set ENFORCE_FLASH_ATTN=1 to fail the build when flash-attn is unavailable.
+# Optional: flash-attn for faster attention on supported GPUs.
+# ENFORCE_FLASH_ATTN defaults to 0 because Blackwell may not have
+# a compatible flash-attn wheel yet — the worker gracefully falls
+# back to SDPA which is nearly as fast on Blackwell.
 RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
       echo "Attempting flash-attn install (version=${FLASH_ATTN_VERSION})..."; \
       pip install --no-cache-dir ninja packaging; \
       if pip install --no-cache-dir "flash-attn==${FLASH_ATTN_VERSION}" --no-build-isolation; then \
         echo "flash-attn installed successfully."; \
       else \
-        echo "flash-attn install failed."; \
+        echo "flash-attn install failed (non-fatal, will use SDPA fallback)."; \
         if [ "$ENFORCE_FLASH_ATTN" = "1" ]; then \
           echo "ENFORCE_FLASH_ATTN=1, failing build."; \
           exit 1; \
@@ -66,6 +72,8 @@ RUN if [ "$INSTALL_FLASH_ATTN" = "1" ]; then \
 RUN python -c "\
 import sys; print(f'Python {sys.version}'); \
 import torch; print(f'[check] torch {torch.__version__} cuda={torch.cuda.is_available()}'); \
+cc = torch.cuda.get_device_capability(0) if torch.cuda.is_available() else (0,0); \
+print(f'[check] GPU compute capability: {cc[0]}.{cc[1]}'); \
 import torchaudio; print('[check] torchaudio OK'); \
 import transformers; print(f'[check] transformers {transformers.__version__}'); \
 import importlib.util; print(f'[check] flash_attn_installed={importlib.util.find_spec(\"flash_attn\") is not None}'); \
@@ -75,7 +83,7 @@ RUN if [ "$ENFORCE_FLASH_ATTN" = "1" ]; then \
       python -c "import importlib.util,sys; sys.exit(0 if importlib.util.find_spec('flash_attn') else 1)"; \
     fi
 
-# This will pre-download the model at image build time if PREFETCH_MODEL=1
+# Pre-download model at build time if PREFETCH_MODEL=1
 RUN if [ "$PREFETCH_MODEL" = "1" ]; then \
       python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice', local_dir='/opt/models/Qwen3-TTS-CustomVoice', local_dir_use_symlinks=False, resume_download=True)"; \
       python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='Qwen/Qwen3-TTS-Tokenizer-12Hz', local_dir='/opt/models/Qwen3-TTS-Tokenizer-12Hz', local_dir_use_symlinks=False, resume_download=True)"; \
