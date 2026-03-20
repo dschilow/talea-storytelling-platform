@@ -1,5 +1,6 @@
 // EINDEUTIGE PERSÖNLICHKEITS-MERKMAL-DEFINITIONEN
 // Diese IDs bleiben konstant für Mehrsprachigkeit
+import type { PersonalityTraits } from "../avatar/avatar";
 
 export interface PersonalityTraitDefinition {
   id: string; // Eindeutige ID (unveränderlich)
@@ -114,17 +115,13 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
 ];
 
 // Funktion um Standard-Traits für neue Avatare zu erstellen
-export const getDefaultPersonalityTraits = (): any => {
-  const traits: any = {};
-
-  BASE_PERSONALITY_TRAITS.forEach(trait => {
-    traits[trait.id] = {
-      value: trait.defaultValue,
-      description: trait.description.de
-    };
-  });
-
-  return traits;
+export const getDefaultPersonalityTraits = (): PersonalityTraits => {
+  return Object.fromEntries(
+    BASE_PERSONALITY_TRAITS.map((trait) => [
+      trait.id,
+      { value: trait.defaultValue, subcategories: {} },
+    ])
+  ) as PersonalityTraits;
 };
 
 // WISSENS-HAUPTKATEGORIE

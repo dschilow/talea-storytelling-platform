@@ -1,3 +1,12 @@
+// Single source of truth for AI model identifiers — keep in sync with backend/story/generate.ts AIModel type
+export type AIModel =
+  | 'claude-sonnet-4-6'
+  | 'gpt-5.4'
+  | 'gpt-5.4-mini'
+  | 'gemini-3-flash-preview'
+  | 'gemini-3-pro-preview'
+  | 'gemini-3.1-pro-preview';
+
 export interface StoryConfig {
   genre: string;
   style: string;

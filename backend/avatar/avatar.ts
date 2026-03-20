@@ -5,18 +5,24 @@ export interface PhysicalTraits {
   appearance: string;
 }
 
+// Single trait entry in the hierarchical personality system
+export interface PersonalityTrait {
+  value: number;
+  subcategories?: Record<string, number>;
+}
+
 // Hierarchical personality trait structure
 export interface PersonalityTraits {
   // Base traits - each starts at 0 and can have subcategories
-  knowledge: number | { value: number; subcategories?: Record<string, number> };
-  creativity: number | { value: number; subcategories?: Record<string, number> };
-  vocabulary: number | { value: number; subcategories?: Record<string, number> };
-  courage: number | { value: number; subcategories?: Record<string, number> };
-  curiosity: number | { value: number; subcategories?: Record<string, number> };
-  teamwork: number | { value: number; subcategories?: Record<string, number> };
-  empathy: number | { value: number; subcategories?: Record<string, number> };
-  persistence: number | { value: number; subcategories?: Record<string, number> };
-  logic: number | { value: number; subcategories?: Record<string, number> };
+  knowledge: PersonalityTrait;
+  creativity: PersonalityTrait;
+  vocabulary: PersonalityTrait;
+  courage: PersonalityTrait;
+  curiosity: PersonalityTrait;
+  teamwork: PersonalityTrait;
+  empathy: PersonalityTrait;
+  persistence: PersonalityTrait;
+  logic: PersonalityTrait;
 }
 
 /**

@@ -1,29 +1,36 @@
 import { api } from "encore.dev/api";
-import type { PersonalityTraits } from "./avatar";
-import { BASE_PERSONALITY_TRAITS, KNOWLEDGE_SUBCATEGORIES } from "../constants/personalityTraits";
+import type { PersonalityTraits, PersonalityTrait } from "./avatar";
+import { BASE_PERSONALITY_TRAITS } from "../constants/personalityTraits";
 import { avatarDB } from "./db";
 
+type RawTraitValue =
+  | null
+  | undefined
+  | number
+  | string
+  | { value?: unknown; subcategories?: Record<string, number> };
+
 // Erweitert und normalisiert Persönlichkeits-Traits zu hierarchischem System
-function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
-  const upgraded: any = {};
+function upgradePersonalityTraits(existingTraits: Record<string, RawTraitValue>): PersonalityTraits {
+  const upgraded: Record<string, PersonalityTrait> = {};
 
   // Initialisiere alle 9 Basis-Traits mit 0
-  BASE_PERSONALITY_TRAITS.forEach(trait => {
+  for (const trait of BASE_PERSONALITY_TRAITS) {
     upgraded[trait.id] = { value: 0, subcategories: {} };
-  });
+  }
 
   // Verarbeite existierende Traits
-  Object.entries(existingTraits).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(existingTraits)) {
     let normalizedValue = 0;
-    let subcategories = {};
+    let subcategories: Record<string, number> = {};
 
     // Normalisiere Werte und bewahre Subcategories
     if (value === null || value === undefined) {
       normalizedValue = 0;
-    } else if (typeof value === 'object' && (value as any).value !== undefined) {
-      normalizedValue = Number((value as any).value) || 0;
+    } else if (typeof value === 'object' && value.value !== undefined) {
+      normalizedValue = Number(value.value) || 0;
       // WICHTIG: Bewahre existierende Subcategories!
-      subcategories = (value as any).subcategories || {};
+      subcategories = value.subcategories ?? {};
     } else {
       normalizedValue = Number(value) || 0;
     }
@@ -32,7 +39,8 @@ function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
     if (key.includes('.')) {
       const [baseKey, subcategory] = key.split('.');
       if (upgraded[baseKey]) {
-        upgraded[baseKey].subcategories[subcategory] = normalizedValue;
+        upgraded[baseKey].subcategories ??= {};
+        upgraded[baseKey].subcategories![subcategory] = normalizedValue;
         // Addiere zum Gesamtwert der Basis-Kategorie
         upgraded[baseKey].value += normalizedValue;
       }
@@ -44,7 +52,7 @@ function upgradePersonalityTraits(existingTraits: any): PersonalityTraits {
         upgraded[key].subcategories = { ...upgraded[key].subcategories, ...subcategories };
       }
     }
-  });
+  }
 
   return upgraded as PersonalityTraits;
 }

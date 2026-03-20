@@ -516,85 +516,90 @@ export const generate = api<GenerateStoryRequest, Story>(
         clerkToken,
       });
 
-      for (const participantProfileId of participantProfileIds) {
-        await storyDB.exec`
-          INSERT INTO story_participants (
-            id,
-            story_id,
-            profile_id,
-            avatar_ids,
-            created_at
-          )
-          VALUES (
-            ${crypto.randomUUID()},
-            ${id},
-            ${participantProfileId},
-            ${JSON.stringify(config.avatarIds || [])}::jsonb,
-            ${now}
-          )
-          ON CONFLICT (story_id, profile_id) DO UPDATE
-          SET avatar_ids = EXCLUDED.avatar_ids
-        `;
-
-        await storyDB.exec`
-          INSERT INTO story_profile_state (
-            profile_id,
-            story_id,
-            is_favorite,
-            progress_pct,
-            completion_state,
-            created_at,
-            updated_at
-          )
-          VALUES (
-            ${participantProfileId},
-            ${id},
-            FALSE,
-            0,
-            'not_started',
-            ${now},
-            ${now}
-          )
-          ON CONFLICT (profile_id, story_id) DO NOTHING
-        `;
-      }
+      await Promise.all(
+        participantProfileIds.flatMap((participantProfileId) => [
+          storyDB.exec`
+            INSERT INTO story_participants (
+              id,
+              story_id,
+              profile_id,
+              avatar_ids,
+              created_at
+            )
+            VALUES (
+              ${crypto.randomUUID()},
+              ${id},
+              ${participantProfileId},
+              ${JSON.stringify(config.avatarIds || [])}::jsonb,
+              ${now}
+            )
+            ON CONFLICT (story_id, profile_id) DO UPDATE
+            SET avatar_ids = EXCLUDED.avatar_ids
+          `,
+          storyDB.exec`
+            INSERT INTO story_profile_state (
+              profile_id,
+              story_id,
+              is_favorite,
+              progress_pct,
+              completion_state,
+              created_at,
+              updated_at
+            )
+            VALUES (
+              ${participantProfileId},
+              ${id},
+              FALSE,
+              0,
+              'not_started',
+              ${now},
+              ${now}
+            )
+            ON CONFLICT (profile_id, story_id) DO NOTHING
+          `,
+        ])
+      );
 
       console.log("[story.generate] Loading avatar details...", { count: config.avatarIds.length });
-      // Fetch avatar details directly from the avatar database to avoid cross-service auth issues
-      const avatarDetails: StoryAvatar[] = [];
+      // Fetch all avatars in a single query to avoid N+1 problem
+      type AvatarRow = {
+        id: string;
+        user_id: string;
+        profile_id: string | null;
+        name: string;
+        description: string | null;
+        physical_traits: string;
+        personality_traits: string;
+        image_url: string | null;
+        visual_profile: string | null;
+        creation_type: "ai-generated" | "photo-upload";
+        is_public: boolean;
+        inventory: string | null;
+        skills: string | null;
+      };
+      const avatarRows = await avatarDB.queryAll<AvatarRow>`
+        SELECT id, user_id, profile_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
+        FROM avatars
+        WHERE id = ANY(${config.avatarIds})
+      `;
 
+      // Validate all requested avatars were found and build ordered map
+      const avatarRowMap = new Map(avatarRows.map((r) => [r.id, r]));
       for (const avatarId of config.avatarIds) {
-        const row = await avatarDB.queryRow<{
-          id: string;
-          user_id: string;
-          profile_id: string | null;
-          name: string;
-          description: string | null;
-          physical_traits: string;
-          personality_traits: string;
-          image_url: string | null;
-          visual_profile: string | null;
-          creation_type: "ai-generated" | "photo-upload";
-          is_public: boolean;
-          inventory: string | null;
-          skills: string | null;
-        }>`
-          SELECT id, user_id, profile_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
-          FROM avatars
-          WHERE id = ${avatarId}
-        `;
-
-        if (!row) {
+        if (!avatarRowMap.has(avatarId)) {
           throw APIError.notFound(`Avatar ${avatarId} not found`);
         }
+      }
 
+      // Authorization checks and per-avatar link lookups (sequential: each may need a DB call)
+      for (const row of avatarRows) {
         if (row.user_id !== currentUserId) {
           if (!row.is_public) {
             throw APIError.permissionDenied("Avatar is not available. Copy it into your profile first.");
           }
         } else if (row.profile_id && !participantProfileIds.includes(row.profile_id)) {
           const linkedToAnyParticipant = await hasAvatarProfileLinkForAny({
-            avatarId,
+            avatarId: row.id,
             userId: currentUserId,
             profileIds: participantProfileIds,
           });
@@ -602,52 +607,63 @@ export const generate = api<GenerateStoryRequest, Story>(
             throw APIError.permissionDenied("Avatar belongs to another child profile.");
           }
         }
+      }
 
-        const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};
-        const rawPersonalityTraits = row.personality_traits ? JSON.parse(row.personality_traits) : {};
-        const upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
+      // Parse, upgrade traits and collect trait upgrade promises in parallel
+      const traitUpgradePromises: Promise<void>[] = [];
+      const avatarDetails: StoryAvatar[] = config.avatarIds
+        .map((avatarId) => avatarRowMap.get(avatarId)!)
+        .map((row) => {
+          const physicalTraits = row.physical_traits ? JSON.parse(row.physical_traits) : {};
+          const rawPersonalityTraits = row.personality_traits ? JSON.parse(row.personality_traits) : {};
+          const upgradedPersonalityTraits = upgradePersonalityTraits(rawPersonalityTraits);
 
-        if (Object.keys(upgradedPersonalityTraits).length > Object.keys(rawPersonalityTraits).length) {
-          try {
-            await avatarDB.exec`
-              UPDATE avatars
-              SET personality_traits = ${JSON.stringify(upgradedPersonalityTraits)},
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ${avatarId}
-            `;
-          } catch (upgradeError) {
-            console.warn("[story.generate] Failed to persist upgraded traits", { avatarId, upgradeError });
+          if (Object.keys(upgradedPersonalityTraits).length > Object.keys(rawPersonalityTraits).length) {
+            traitUpgradePromises.push(
+              avatarDB.exec`
+                UPDATE avatars
+                SET personality_traits = ${JSON.stringify(upgradedPersonalityTraits)},
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${row.id}
+              `.catch((upgradeError) => {
+                console.warn("[story.generate] Failed to persist upgraded traits", { avatarId: row.id, upgradeError });
+              })
+            );
           }
-        }
 
-        let inventory: InventoryItem[] = [];
-        let skills: Skill[] = [];
+          let inventory: InventoryItem[] = [];
+          let skills: Skill[] = [];
 
-        try {
-          inventory = row.inventory ? (JSON.parse(row.inventory) as InventoryItem[]) : [];
-        } catch (parseInvErr) {
-          console.warn("[story.generate] Failed to parse inventory JSON; defaulting to []", { avatarId, parseInvErr });
-        }
+          try {
+            inventory = row.inventory ? (JSON.parse(row.inventory) as InventoryItem[]) : [];
+          } catch (parseInvErr) {
+            console.warn("[story.generate] Failed to parse inventory JSON; defaulting to []", { avatarId: row.id, parseInvErr });
+          }
 
-        try {
-          skills = row.skills ? (JSON.parse(row.skills) as Skill[]) : [];
-        } catch (parseSkillsErr) {
-          console.warn("[story.generate] Failed to parse skills JSON; defaulting to []", { avatarId, parseSkillsErr });
-        }
+          try {
+            skills = row.skills ? (JSON.parse(row.skills) as Skill[]) : [];
+          } catch (parseSkillsErr) {
+            console.warn("[story.generate] Failed to parse skills JSON; defaulting to []", { avatarId: row.id, parseSkillsErr });
+          }
 
-        avatarDetails.push({
-          id: row.id,
-          name: row.name,
-          description: row.description || undefined,
-          physicalTraits,
-          personalityTraits: upgradedPersonalityTraits,
-          imageUrl: row.image_url || undefined,
-          visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
-          creationType: row.creation_type,
-          isPublic: row.is_public,
-          inventory,
-          skills,
+          return {
+            id: row.id,
+            name: row.name,
+            description: row.description || undefined,
+            physicalTraits,
+            personalityTraits: upgradedPersonalityTraits,
+            imageUrl: row.image_url || undefined,
+            visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
+            creationType: row.creation_type,
+            isPublic: row.is_public,
+            inventory,
+            skills,
+          };
         });
+
+      // Fire-and-forget trait upgrades in parallel (non-blocking)
+      if (traitUpgradePromises.length > 0) {
+        void Promise.all(traitUpgradePromises);
       }
 
       console.log("[story.generate] Avatar details for story generation:", avatarDetails.map(a => ({

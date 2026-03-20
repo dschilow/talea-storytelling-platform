@@ -4,16 +4,10 @@ import { Baby, Clock3, GraduationCap, Sparkles, UserCheck, Users } from 'lucide-
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import type { AIModel } from '@/types/story';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
-type AIModel =
-  | 'claude-sonnet-4-6'
-  | 'gpt-5.4'
-  | 'gpt-5.4-mini'
-  | 'gemini-3-flash-preview'
-  | 'gemini-3-pro-preview'
-  | 'gemini-3.1-pro-preview';
 
 
 interface Props {
@@ -35,14 +29,16 @@ const lengths = [
   { id: 'long', tone: '#c5828c' },
 ] as const;
 
-const MODEL_CONFIGS = [
+type ModelConfig = { id: AIModel; title: string; subtitleKey: string; cost: string; tone: string; recommended?: boolean };
+
+const MODEL_CONFIGS: ModelConfig[] = [
   { id: 'claude-sonnet-4-6', title: 'Claude Sonnet 4.6', subtitleKey: 'claude_sonnet', cost: '$3 in / $15 out', tone: '#b06f4f' },
   { id: 'gemini-3-pro-preview', title: 'Gemini 3 Pro Preview', subtitleKey: 'gemini3_pro', cost: 'Preview', tone: '#9b8b79' },
   { id: 'gemini-3.1-pro-preview', title: 'Gemini 3.1 Pro', subtitleKey: 'gemini31_pro', cost: 'Preview', tone: '#8d7f6c', recommended: true },
   { id: 'gemini-3-flash-preview', title: 'Gemini 3 Flash', subtitleKey: 'gemini3_flash', cost: 'FREE', tone: 'var(--talea-text-tertiary)' },
   { id: 'gpt-5.4', title: 'GPT-5.4', subtitleKey: 'gpt54', cost: '$1.25 / 1M', tone: '#c5828c' },
   { id: 'gpt-5.4-mini', title: 'GPT-5.4 Mini', subtitleKey: 'gpt54_mini', cost: '$0.75 in / $4.50 out', tone: '#8e7daf' },
-] as const;
+];
 
 function SelectionBadge() {
   return (
