@@ -186,7 +186,7 @@ const AudioDokuCard: React.FC<{
   isSavedOffline,
   isSavingOffline,
   onToggleOffline,
-) => {
+}) => {
   const { t } = useTranslation();
   return (
   <motion.article
