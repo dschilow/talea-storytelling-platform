@@ -10,9 +10,11 @@ type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
 
 
+type Step3State = { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
+
 interface Props {
-  state: { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
-  updateState: (updates: any) => void;
+  state: Step3State;
+  updateState: (updates: Partial<Step3State>) => void;
   showModelSelection?: boolean;
 }
 
@@ -146,7 +148,7 @@ export default function Step3AgeAndLength({
                 <button
                   key={model.id}
                   type="button"
-                  onClick={() => updateState({ aiModel: model.id as AIModel })}
+                  onClick={() => updateState({ aiModel: model.id })}
                   className={cn(
                     'relative rounded-2xl border p-3 text-left transition-colors',
                     selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'

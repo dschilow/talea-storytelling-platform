@@ -500,7 +500,9 @@ export const generate = api<GenerateStoryRequest, Story>(
           INSERT INTO stories (
             id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
           ) VALUES (
-            ${id}, ${currentUserId}, ${primaryProfileId}, 'Wird generiert...', 'Deine Geschichte wird erstellt...',
+            ${id}, ${currentUserId}, ${primaryProfileId},
+            ${config.language === "en" ? "Generating..." : config.language === "fr" ? "En cours de génération..." : config.language === "es" ? "Generando..." : config.language === "it" ? "Generazione in corso..." : config.language === "nl" ? "Wordt gegenereerd..." : config.language === "ru" ? "Генерация..." : "Wird generiert..."},
+            ${config.language === "en" ? "Your story is being created..." : config.language === "fr" ? "Votre histoire est en cours de création..." : config.language === "es" ? "Tu historia está siendo creada..." : config.language === "it" ? "La tua storia è in fase di creazione..." : config.language === "nl" ? "Jouw verhaal wordt aangemaakt..." : config.language === "ru" ? "Ваша история создаётся..." : "Deine Geschichte wird erstellt..."},
             ${JSON.stringify(config)}, 'generating', ${now}, ${now}
           )
         `;

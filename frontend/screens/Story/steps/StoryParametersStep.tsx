@@ -3,14 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
-
-type AIModel =
-  | 'claude-sonnet-4-6'
-  | 'gpt-5.4'
-  | 'gpt-5.4-mini'
-  | 'gemini-3-flash-preview'
-  | 'gemini-3-pro-preview'
-  | 'gemini-3.1-pro-preview';
+import type { AIModel } from '@/types/story';
 
 interface StoryParametersStepProps {
   length: 'short' | 'medium' | 'long';

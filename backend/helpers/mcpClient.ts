@@ -1,8 +1,16 @@
-const DEFAULT_MCP_MAIN_URL = "https://talea-mcp-main-production.up.railway.app";
-const DEFAULT_MCP_VALIDATOR_URL = "https://talea-mcp-validator-production.up.railway.app";
+// MCP URLs must be set via environment variables (MCP_MAIN_URL, MCP_VALIDATOR_URL).
+// Never hardcode production URLs in source code — set them in the Railway environment config.
+function getMcpMainUrl(): string {
+  const url = process.env.MCP_MAIN_URL;
+  if (!url) throw new Error("Missing required environment variable: MCP_MAIN_URL");
+  return url;
+}
 
-const mcpMainUrl = process.env.MCP_MAIN_URL ?? DEFAULT_MCP_MAIN_URL;
-const mcpValidatorUrl = process.env.MCP_VALIDATOR_URL ?? DEFAULT_MCP_VALIDATOR_URL;
+function getMcpValidatorUrl(): string {
+  const url = process.env.MCP_VALIDATOR_URL;
+  if (!url) throw new Error("Missing required environment variable: MCP_VALIDATOR_URL");
+  return url;
+}
 const DEFAULT_MCP_TIMEOUT_MS = 15_000;
 
 function resolveMcpTimeoutMs(): number {
@@ -108,7 +116,7 @@ export async function callMcpMainTool<T>(
     throw new Error("Missing Clerk token for MCP main call");
   }
 
-  return callMcpEndpoint<T>(`${mcpMainUrl}/mcp`, {
+  return callMcpEndpoint<T>(`${getMcpMainUrl()}/mcp`, {
     method: "tools/call",
     params: {
       name: toolName,
@@ -124,7 +132,7 @@ export async function callMcpValidatorTool<T>(
   args: Record<string, unknown>,
   apiKey: string
 ): Promise<T> {
-  return callMcpEndpoint<T>(`${mcpValidatorUrl}/mcp`, {
+  return callMcpEndpoint<T>(`${getMcpValidatorUrl()}/mcp`, {
     method: "tools/call",
     params: {
       name: toolName,
