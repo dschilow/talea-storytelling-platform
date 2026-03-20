@@ -21,10 +21,10 @@ export default function Step1Basics({ formData, updateFormData, childMode = fals
           className="text-2xl font-extrabold text-foreground mb-1"
           style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
-          {childMode ? "Kind-Profil" : "Grundlagen"}
+          {childMode ? "Kind-Profil" : "Wer soll dein Avatar sein?"}
         </h2>
         <p className="text-muted-foreground text-sm">
-          {childMode ? "Das ist der feste Avatar des Kindes." : "Wer soll dein Avatar sein?"}
+          {childMode ? "Das ist der feste Avatar deines Kindes." : "Gib deinem Avatar einen Namen und wähle, was er sein soll!"}
         </p>
       </div>
 
@@ -36,7 +36,7 @@ export default function Step1Basics({ formData, updateFormData, childMode = fals
           type="text"
           value={formData.name}
           onChange={(e) => updateFormData({ name: e.target.value })}
-          placeholder="Wie soll dein Avatar heissen?"
+          placeholder="Wie soll dein Avatar heißen?"
           className="w-full px-4 py-3 text-lg rounded-xl border border-border bg-card/70 text-foreground placeholder:text-muted-foreground/70 focus:border-[#2DD4BF]/50 focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]/30 transition-all"
         />
       </div>
@@ -59,7 +59,7 @@ export default function Step1Basics({ formData, updateFormData, childMode = fals
         />
         {childMode && (
           <p className="text-xs text-muted-foreground">
-            Der Kind-Avatar bleibt immer ein Mensch. Zusatz-Avatare koennen Tiere, Geschwister oder Fantasiefiguren sein.
+            Der Kind-Avatar ist immer ein Mensch. Andere Avatare können auch Tiere oder Fantasiewesen sein!
           </p>
         )}
       </div>

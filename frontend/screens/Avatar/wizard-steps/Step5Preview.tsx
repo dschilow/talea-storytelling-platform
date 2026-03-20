@@ -55,12 +55,12 @@ export default function Step5Preview({
           className="text-2xl font-extrabold text-foreground mb-1"
           style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
-          Vorschau & Erstellen
+          Fast fertig!
         </h2>
         <p className="text-muted-foreground text-sm">
           {childMode
-            ? "Erstelle den festen Kind-Avatar fuer dieses Profil."
-            : "Generiere ein Bild und erwecke deinen Avatar zum Leben"}
+            ? "Erstelle jetzt den Avatar für dein Kind."
+            : "Zaubere ein Bild und erwecke deinen Avatar zum Leben!"}
         </p>
       </div>
 
@@ -191,12 +191,12 @@ export default function Step5Preview({
               >
                 <RefreshCw className="w-5 h-5" />
               </motion.div>
-              <span>Generiere...</span>
+              <span>Wird gezaubert...</span>
             </>
           ) : (
             <>
               <Wand2 className="w-5 h-5" />
-              <span>{previewUrl ? 'Neues Bild generieren' : 'Bild generieren'}</span>
+              <span>{previewUrl ? 'Neues Bild zaubern' : 'Bild zaubern'}</span>
             </>
           )}
         </motion.button>
@@ -205,8 +205,8 @@ export default function Step5Preview({
       {/* Info Box */}
       <div className="rounded-xl p-3 border border-[#2DD4BF]/20 bg-[#2DD4BF]/[0.06]">
         <p className="text-xs text-muted-foreground">
-          <strong className="text-[#2DD4BF]">Info:</strong> Die Persoenlichkeit deines Avatars startet
-          bei 0 und entwickelt sich durch Abenteuer in Geschichten weiter.
+          <strong className="text-[#2DD4BF]">Gut zu wissen:</strong> Dein Avatar fängt ganz
+          frisch an. Mit jedem Abenteuer in Geschichten wird er stärker und schlauer!
         </p>
       </div>
 

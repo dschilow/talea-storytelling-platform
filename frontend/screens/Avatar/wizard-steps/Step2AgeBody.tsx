@@ -22,9 +22,9 @@ export default function Step2AgeBody({ formData, updateFormData }: Step2AgeBodyP
           className="text-2xl font-extrabold text-foreground mb-1"
           style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
-          Alter & Koerper
+          Alter & Körper
         </h2>
-        <p className="text-muted-foreground text-sm">Wie alt und gross ist dein Avatar?</p>
+        <p className="text-muted-foreground text-sm">Wie alt und groß ist dein Avatar?</p>
       </div>
 
       <AgeHeightSliders
@@ -38,7 +38,7 @@ export default function Step2AgeBody({ formData, updateFormData }: Step2AgeBodyP
 
       {isHuman && (
         <div className="space-y-2">
-          <label className="text-sm font-semibold text-foreground/80">Koerperbau</label>
+          <label className="text-sm font-semibold text-foreground/80">Körperbau</label>
           <BodyBuildSelector
             value={formData.bodyBuild}
             onChange={(bodyBuild) => updateFormData({ bodyBuild })}

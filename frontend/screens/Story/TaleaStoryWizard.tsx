@@ -111,12 +111,12 @@ function getPalette(_isDark: boolean): Palette {
 }
 
 const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: string; style?: React.CSSProperties }>; label: string; description: string }[] = [
-  { key: 'profiles', icon: Users, label: 'Avatar-Profile', description: 'Lade visuelle Profile und Eigenschaften' },
-  { key: 'memories', icon: Sparkles, label: 'Erinnerungen', description: 'Sammle Erlebnisse und Entwicklung' },
-  { key: 'text', icon: FileText, label: 'Geschichte', description: 'KI schreibt die Geschichte' },
-  { key: 'validation', icon: CheckCircle, label: 'Validierung', description: 'Pruefe Struktur und Konsistenz' },
-  { key: 'images', icon: Image, label: 'Illustrationen', description: 'Erstelle Cover und Szenenbilder' },
-  { key: 'complete', icon: CheckCircle, label: 'Fertig', description: 'Speichern und Avatar-Update' },
+  { key: 'profiles', icon: Users, label: 'Avatare vorbereiten', description: 'Schaue mir deine Avatare genau an' },
+  { key: 'memories', icon: Sparkles, label: 'Erinnerungen sammeln', description: 'Was haben deine Avatare schon erlebt?' },
+  { key: 'text', icon: FileText, label: 'Geschichte schreiben', description: 'Deine Geschichte wird gerade geschrieben' },
+  { key: 'validation', icon: CheckCircle, label: 'Alles prüfen', description: 'Passt die Geschichte zusammen?' },
+  { key: 'images', icon: Image, label: 'Bilder malen', description: 'Die Bilder für deine Geschichte entstehen' },
+  { key: 'complete', icon: CheckCircle, label: 'Fertig!', description: 'Alles gespeichert - viel Spaß beim Lesen!' },
 ];
 
 const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
@@ -142,10 +142,10 @@ const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palet
           </div>
           <div>
             <h2 className="text-3xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-              Geschichte wird erstellt
+              Deine Geschichte wird gezaubert
             </h2>
             <p className="text-xs mt-1" style={{ color: palette.muted }}>
-              Dieser Schritt dauert in der Regel unter 2 Minuten.
+              Das dauert nur einen kleinen Moment - gleich geht's los!
             </p>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function TaleaStoryWizard() {
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState(
-    'Dein aktueller Plan hat keine freien StoryCredits mehr. Wechsle in den Einstellungen den Plan.'
+    'Du hast gerade keine Geschichten-Münzen mehr. Frag deine Eltern, ob sie den Plan wechseln möchten.'
   );
 
   const [state, setState] = useState<WizardState>({
@@ -351,9 +351,9 @@ export default function TaleaStoryWizard() {
 
     if (storyCredits && storyCredits.remaining !== null && storyCredits.remaining <= 0) {
       if (billingPermissions && !billingPermissions.freeTrialActive) {
-        setUpgradeMessage('Deine Free-Testphase ist abgelaufen. Wechsle auf Starter, Familie oder Premium, um weiter Storys zu generieren.');
+        setUpgradeMessage('Deine Probierzeit ist vorbei. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
       } else {
-        setUpgradeMessage('Keine StoryCredits mehr fuer diesen Monat. Wechsle den Plan in den Einstellungen.');
+        setUpgradeMessage('Deine Geschichten-Münzen für diesen Monat sind aufgebraucht. Frag deine Eltern!');
       }
       setShowUpgradeModal(true);
       return;
@@ -456,8 +456,8 @@ export default function TaleaStoryWizard() {
 
     const blockedMessage = storyGenerationBlocked
       ? billingPermissions && !billingPermissions.freeTrialActive
-        ? 'Free-Testphase abgelaufen. Upgrade im Profil noetig.'
-        : 'StoryCredits fuer diesen Monat aufgebraucht.'
+        ? 'Probierzeit vorbei - frag deine Eltern!'
+        : 'Geschichten-Münzen für diesen Monat aufgebraucht.'
       : undefined;
 
     switch (activeStep) {
@@ -564,7 +564,7 @@ export default function TaleaStoryWizard() {
             onClick={activeStep === 0 ? () => navigate('/stories') : handleBack}
             icon={<ArrowLeft className="h-4 w-4" />}
           >
-            Zurueck
+            Zurück
           </TaleaActionButton>
 
           {activeStep < labels.length - 1 && (

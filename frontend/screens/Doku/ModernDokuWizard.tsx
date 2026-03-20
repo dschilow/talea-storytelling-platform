@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 
@@ -53,7 +53,7 @@ type BillingPermissions = {
 
 type GenerationPhase = 'text' | 'cover' | 'sections' | 'personality' | 'complete';
 
-const steps = ['Thema', 'Alter & Tiefe', 'Perspektive', 'Inhalt', 'Zusammenfassung'] as const;
+const steps = ['Thema', 'Alter & Wie viel?', 'Wie erklärt?', 'Inhalt', 'Fertig!'] as const;
 
 interface DomainDokuPreset {
   id: string;
@@ -68,58 +68,58 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
   {
     id: 'nature',
     label: 'Natur & Tiere',
-    description: 'Tiere, Oekosysteme, Pflanzen und Lebensraeume.',
+    description: 'Tiere, Pflanzen und ihre Lebensräume entdecken.',
     perspective: 'nature',
-    topics: ['Wie sprechen Tiere miteinander?', 'Wie bauen Ameisen ihre Stadt?', 'Warum wechseln Blaetter die Farbe?'],
+    topics: ['Wie sprechen Tiere miteinander?', 'Wie bauen Ameisen ihre Stadt?', 'Warum wechseln Blätter die Farbe?'],
   },
   {
     id: 'space',
     label: 'Weltraum',
-    description: 'Planeten, Sterne, Raumfahrt und kosmische Raetsel.',
+    description: 'Planeten, Sterne und Rätsel im All.',
     perspective: 'science',
     topics: ['Unser Sonnensystem', 'Wie entstehen Sterne?', 'Warum hat der Mars rote Farbe?'],
   },
   {
     id: 'history',
     label: 'Geschichte & Kulturen',
-    description: 'Wie Menschen frueher lebten und Kulturen entstanden.',
+    description: 'Wie Menschen früher lebten und was sie gebaut haben.',
     perspective: 'history',
-    topics: ['Das alte Aegypten', 'Wie lebten Kinder im Mittelalter?', 'Warum wurden Burgen gebaut?'],
+    topics: ['Das alte Ägypten', 'Wie lebten Kinder im Mittelalter?', 'Warum wurden Burgen gebaut?'],
   },
   {
     id: 'tech',
     label: 'Technik & Erfindungen',
-    description: 'Maschinen, Erfinder, Roboter und smarte Technik.',
+    description: 'Maschinen, Roboter und coole Erfindungen.',
     perspective: 'technology',
     topics: ['Wie Roboter lernen', 'Wie funktioniert ein Mikrochip?', 'Wie kommt Strom ins Haus?'],
   },
   {
     id: 'body',
-    label: 'Mensch & Koerper',
-    description: 'Koerper, Gehirn, Gesundheit und Sinne.',
+    label: 'Mensch & Körper',
+    description: 'Dein Körper, dein Gehirn und deine Sinne.',
     perspective: 'science',
     topics: ['Warum brauchen wir Schlaf?', 'Wie arbeitet das Gehirn?', 'Wie heilt eine Wunde?'],
   },
   {
     id: 'earth',
     label: 'Erde & Klima',
-    description: 'Klima, Wetter, Geografie und Naturkraefte.',
+    description: 'Wetter, Vulkane und Naturkräfte.',
     perspective: 'science',
     topics: ['Wie entstehen Wolken?', 'Warum gibt es Jahreszeiten?', 'Wie entsteht ein Vulkan?'],
   },
   {
     id: 'arts',
     label: 'Kunst & Musik',
-    description: 'Musik, Farben, Kreativitaet und Ausdruck.',
+    description: 'Musik, Farben, Kreativität und Ausdruck.',
     perspective: 'culture',
     topics: ['Wie macht Musik Stimmung?', 'Warum harmonieren Farben?', 'Wie entsteht ein Comic?'],
   },
   {
     id: 'logic',
-    label: 'Logik & Raetsel',
-    description: 'Knobeln, Muster erkennen und logisch denken.',
+    label: 'Logik & Rätsel',
+    description: 'Knobeln, Muster erkennen und schlau denken.',
     perspective: 'science',
-    topics: ['Wie plant man mehrere Schritte voraus?', 'Wie funktionieren Wenn-Dann-Regeln?', 'Wie loest man Knobelraetsel?'],
+    topics: ['Wie plant man mehrere Schritte voraus?', 'Wie funktionieren Wenn-Dann-Regeln?', 'Wie löst man Knobelrätsel?'],
   },
 ];
 
@@ -127,7 +127,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
   {
     id: 'dinosaurs',
     label: 'Dinosaurier',
-    description: 'Urzeit, Fossilien und Giganten der Erde.',
+    description: 'Riesige Urzeitechsen und versteinerte Knochen.',
     perspective: 'science',
     topics: ['Warum starben Dinosaurier aus?', 'Wie entstehen Fossilien?', 'Wer war der T-Rex?'],
     isExtra: true,
@@ -135,7 +135,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
   {
     id: 'oceans',
     label: 'Ozeane & Tiefsee',
-    description: 'Meere, Tiefsee und geheimnisvolle Lebewesen.',
+    description: 'Geheimnisvolle Meere und seltsame Tiefsee-Wesen.',
     perspective: 'nature',
     topics: ['Was lebt in der Tiefsee?', 'Warum ist das Meer salzig?', 'Wie entstehen Wellen?'],
     isExtra: true,
@@ -143,33 +143,33 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
   {
     id: 'myths',
     label: 'Mythen & Legenden',
-    description: 'Sagenwelten und spannende Geschichten aus Kulturen.',
+    description: 'Drachen, Götter und spannende Sagen.',
     perspective: 'history',
     topics: ['Warum gibt es Drachen-Mythen?', 'Wer waren die Götter in Griechenland?', 'Wie entstehen Legenden?'],
     isExtra: true,
   },
   {
     id: 'coding',
-    label: 'Coding & KI',
-    description: 'Programmieren, Algorithmen und kuenstliche Intelligenz.',
+    label: 'Coding & Computer',
+    description: 'Wie Computer denken und Programme funktionieren.',
     perspective: 'technology',
-    topics: ['Was ist ein Algorithmus?', 'Wie lernen Maschinen Muster?', 'Wie denkt ein Computer?'],
+    topics: ['Was ist ein Algorithmus?', 'Wie lernen Computer Muster?', 'Wie denkt ein Computer?'],
     isExtra: true,
   },
   {
     id: 'chemistry',
     label: 'Chemie im Alltag',
-    description: 'Stoffe, Reaktionen und Experimente fuer Kinder.',
+    description: 'Coole Experimente und spannende Reaktionen.',
     perspective: 'science',
-    topics: ['Warum rostet Eisen?', 'Wie funktioniert Seife?', 'Warum sprudelt Brausetablette?'],
+    topics: ['Warum rostet Eisen?', 'Wie funktioniert Seife?', 'Warum sprudelt eine Brausetablette?'],
     isExtra: true,
   },
   {
     id: 'sports_science',
     label: 'Sport & Bewegung',
-    description: 'Kraft, Balance, Ausdauer und Bewegung.',
+    description: 'Warum Bewegung so toll ist und wie Muskeln arbeiten.',
     perspective: 'science',
-    topics: ['Warum waermen wir uns auf?', 'Wie trainieren Muskeln?', 'Was macht Ausdauer aus?'],
+    topics: ['Warum wärmen wir uns auf?', 'Wie trainieren Muskeln?', 'Was macht Ausdauer aus?'],
     isExtra: true,
   },
 ];
@@ -214,30 +214,30 @@ function inferPerspectiveForDomain(domainId: string): DokuPerspective {
 }
 
 const ageOptions = [
-  { value: '3-5', label: '3-5 Jahre', desc: 'Sehr einfach' },
-  { value: '6-8', label: '6-8 Jahre', desc: 'Spielerisch' },
-  { value: '9-12', label: '9-12 Jahre', desc: 'Mehr Zusammenhaenge' },
-  { value: '13+', label: '13+ Jahre', desc: 'Komplex' },
+  { value: '3-5', label: '3-5 Jahre', desc: 'Ganz einfach erklärt' },
+  { value: '6-8', label: '6-8 Jahre', desc: 'Spielerisch und spannend' },
+  { value: '9-12', label: '9-12 Jahre', desc: 'Mit mehr Zusammenhängen' },
+  { value: '13+', label: '13+ Jahre', desc: 'Für Wissensprofis' },
 ] as const;
 
 const depthOptions = [
-  { value: 'basic', label: 'Grundlagen', desc: 'Kurz und klar' },
-  { value: 'standard', label: 'Standard', desc: 'Ausgewogen' },
-  { value: 'deep', label: 'Tief', desc: 'Ausfuehrlich' },
+  { value: 'basic', label: 'Kurz erklärt', desc: 'Das Wichtigste auf einen Blick' },
+  { value: 'standard', label: 'Normal', desc: 'Gut erklärt mit Beispielen' },
+  { value: 'deep', label: 'Alles genau wissen', desc: 'Für echte Entdecker' },
 ] as const;
 
 const perspectiveOptions = [
-  { value: 'science', label: 'Naturwissenschaft', desc: 'Wie funktioniert es?' },
-  { value: 'history', label: 'Geschichte', desc: 'Wie war es frueher?' },
-  { value: 'technology', label: 'Technik', desc: 'Wie wird es gebaut?' },
-  { value: 'nature', label: 'Natur', desc: 'Was lebt und waechst?' },
-  { value: 'culture', label: 'Kultur', desc: 'Was bedeutet es?' },
+  { value: 'science', label: 'Wie ein Forscher', desc: 'Wie funktioniert das?' },
+  { value: 'history', label: 'Wie ein Zeitreisender', desc: 'Wie war das früher?' },
+  { value: 'technology', label: 'Wie ein Erfinder', desc: 'Wie wird es gebaut?' },
+  { value: 'nature', label: 'Wie ein Entdecker', desc: 'Was lebt und wächst?' },
+  { value: 'culture', label: 'Wie ein Weltreisender', desc: 'Was bedeutet es?' },
 ] as const;
 
 const toneOptions = [
-  { value: 'fun', label: 'Lustig', desc: 'Mit Humor' },
-  { value: 'curious', label: 'Neugierig', desc: 'Entdeckerstil' },
-  { value: 'neutral', label: 'Sachlich', desc: 'Klar und ruhig' },
+  { value: 'fun', label: 'Lustig', desc: 'Lernen mit Lachen' },
+  { value: 'curious', label: 'Neugierig', desc: 'Wie ein Entdecker' },
+  { value: 'neutral', label: 'Ruhig und klar', desc: 'Einfach gut erklärt' },
 ] as const;
 
 const lengthOptions = [
@@ -247,11 +247,11 @@ const lengthOptions = [
 ] as const;
 
 const phaseLabels: Record<GenerationPhase, string> = {
-  text: 'Text wird erstellt',
-  cover: 'Cover wird erstellt',
-  sections: 'Kapitelbilder werden erstellt',
-  personality: 'Wissen wird verteilt',
-  complete: 'Fertig',
+  text: 'Deine Doku wird geschrieben',
+  cover: 'Das Titelbild wird gemalt',
+  sections: 'Bilder für die Kapitel entstehen',
+  personality: 'Dein Avatar lernt etwas dazu!',
+  complete: 'Fertig!',
 };
 
 const toPerspective = (candidate?: string | null): DokuPerspective | null => {
@@ -294,6 +294,7 @@ function Choice({
 
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId, getToken } = useAuth();
@@ -327,7 +328,7 @@ export default function ModernDokuWizard() {
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState(
-    'Keine DokuCredits verfuegbar. Bitte den Plan in den Einstellungen wechseln.'
+    'Du hast gerade keine Doku-Münzen mehr. Frag deine Eltern, ob sie den Plan wechseln möchten.'
   );
   const [state, setState] = useState<DokuWizardState>({
     topic: initialTopic,
@@ -342,6 +343,29 @@ export default function ModernDokuWizard() {
   });
   const lastAppliedDomainRef = useRef<string>(initialDomainId);
   const lastAppliedProfileRef = useRef<string | null>(null);
+
+  // Tavi prefill: apply wizard data from Tavi chat
+  useEffect(() => {
+    const taviPrefill = (location.state as any)?.taviPrefill;
+    if (!taviPrefill) return;
+
+    const updates: Partial<DokuWizardState> = {};
+    if (taviPrefill.topic) updates.topic = taviPrefill.topic;
+    if (taviPrefill.ageGroup) updates.ageGroup = taviPrefill.ageGroup;
+    if (taviPrefill.depth) updates.depth = taviPrefill.depth;
+    if (taviPrefill.perspective) updates.perspective = taviPrefill.perspective;
+    if (taviPrefill.tone) updates.tone = taviPrefill.tone;
+
+    if (Object.keys(updates).length > 0) {
+      setState((prev) => ({ ...prev, ...updates }));
+    }
+
+    if (taviPrefill.domain) {
+      setSelectedDomainId(taviPrefill.domain);
+    }
+
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   useEffect(() => {
     if (!domainParam) return;
@@ -405,12 +429,12 @@ export default function ModernDokuWizard() {
       .map((domain) => ({
         id: domain.id,
         label: domain.label,
-        description: 'Neue Lernwelt aus dem Lernkosmos.',
+        description: 'Eine neue Welt zum Entdecken!',
         perspective: inferPerspectiveForDomain(domain.id),
         topics: [
           `Wie funktioniert ${domain.label}?`,
           `Welche Geheimnisse stecken in ${domain.label}?`,
-          `Warum ist ${domain.label} spannend fuer Kinder?`,
+          `Warum ist ${domain.label} so spannend?`,
         ],
       }));
 
@@ -519,9 +543,9 @@ export default function ModernDokuWizard() {
     if (!userId || !state.topic.trim()) return;
     if (generationBlocked) {
       if (permissions && !permissions.freeTrialActive) {
-        setUpgradeMessage('Deine Free-Testphase ist abgelaufen. Wechsle auf Starter, Familie oder Premium, um weitere Dokus zu generieren.');
+        setUpgradeMessage('Deine Probierzeit ist vorbei. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
       } else {
-        setUpgradeMessage('Keine DokuCredits mehr fuer diesen Monat. Wechsle den Plan in den Einstellungen.');
+        setUpgradeMessage('Deine Doku-Münzen für diesen Monat sind aufgebraucht. Frag deine Eltern!');
       }
       setShowUpgradeModal(true);
       return;
@@ -588,7 +612,7 @@ export default function ModernDokuWizard() {
         setUpgradeMessage(error.message);
         setShowUpgradeModal(true);
       } else {
-        alert('Doku konnte nicht erstellt werden. Bitte versuche es erneut.');
+        alert('Das hat leider nicht geklappt. Versuch es einfach nochmal!');
       }
     } finally {
       if (timer) clearInterval(timer);
@@ -599,14 +623,14 @@ export default function ModernDokuWizard() {
 
   const summary = [
     { label: 'Thema', value: state.topic },
-    { label: 'Altersgruppe', value: `${state.ageGroup} Jahre` },
-    { label: 'Tiefe', value: depthOptions.find((item) => item.value === state.depth)?.label || '-' },
-    { label: 'Perspektive', value: perspectiveOptions.find((item) => item.value === state.perspective)?.label || '-' },
-    { label: 'Ton', value: toneOptions.find((item) => item.value === state.tone)?.label || '-' },
-    { label: 'Abschnitte', value: lengthOptions.find((item) => item.value === state.length)?.desc || '-' },
+    { label: 'Alter', value: `${state.ageGroup} Jahre` },
+    { label: 'Wie viel?', value: depthOptions.find((item) => item.value === state.depth)?.label || '-' },
+    { label: 'Erklärt wie?', value: perspectiveOptions.find((item) => item.value === state.perspective)?.label || '-' },
+    { label: 'Stimmung', value: toneOptions.find((item) => item.value === state.tone)?.label || '-' },
+    { label: 'Länge', value: lengthOptions.find((item) => item.value === state.length)?.desc || '-' },
     {
-      label: 'Interaktiv',
-      value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aktivitaeten` : 'Ohne',
+      label: 'Mitmachen',
+      value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aufgaben` : 'Ohne',
     },
   ];
 
@@ -673,7 +697,7 @@ export default function ModernDokuWizard() {
                 <motion.div key={activeStep} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>
                   {activeStep === 0 && (
                     <div className="space-y-5">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Thema waehlen</h2>
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Was möchtest du entdecken?</h2>
                       {selectedCategory && (
                         <div className="rounded-xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] px-3 py-2 text-xs font-semibold text-foreground">
                           Kategorie: {selectedCategory.label}
@@ -684,10 +708,10 @@ export default function ModernDokuWizard() {
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
                             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                              Kategorien
+                              Themen-Welten
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Planeten aus dem Lernkosmos + dynamische Welten
+                              Wähle eine Welt aus, die dich interessiert
                             </p>
                           </div>
                           <button
@@ -755,10 +779,10 @@ export default function ModernDokuWizard() {
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
                               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                                AI Vorschlaege
+                                Ideen für dich
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {(topicSuggestions?.items?.length || 0)} Vorschlaege in {selectedCategory?.label || "dieser Kategorie"}
+                                {(topicSuggestions?.items?.length || 0)} Vorschläge in {selectedCategory?.label || "dieser Kategorie"}
                               </p>
                             </div>
                             <button
@@ -769,7 +793,7 @@ export default function ModernDokuWizard() {
                               disabled={isSuggestionsRefreshing}
                               className="rounded-lg border border-border bg-card/80 px-3 py-1.5 text-[11px] font-bold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {isSuggestionsRefreshing ? 'Erstellt...' : 'Neuen Vorschlag'}
+                              {isSuggestionsRefreshing ? 'Denke nach...' : 'Neue Idee'}
                             </button>
                           </div>
 
@@ -794,14 +818,14 @@ export default function ModernDokuWizard() {
                   )}
                   {activeStep === 1 && (
                     <div className="space-y-6">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Alter und Tiefe</h2>
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Wie alt bist du & wie viel möchtest du erfahren?</h2>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{ageOptions.map((item) => <Choice key={item.value} selected={state.ageGroup === item.value} onClick={() => updateState({ ageGroup: item.value })} title={item.label} description={item.desc} />)}</div>
                       <div className="grid grid-cols-3 gap-3">{depthOptions.map((item) => <Choice key={item.value} selected={state.depth === item.value} onClick={() => updateState({ depth: item.value })} title={item.label} description={item.desc} />)}</div>
                     </div>
                   )}
                   {activeStep === 2 && (
                     <div className="space-y-6">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Perspektive und Ton</h2>
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Wie soll es dir erklärt werden?</h2>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">{perspectiveOptions.map((item) => <Choice key={item.value} selected={state.perspective === item.value} onClick={() => updateState({ perspective: item.value })} title={item.label} description={item.desc} />)}</div>
                       <div className="grid grid-cols-3 gap-3">{toneOptions.map((item) => <Choice key={item.value} selected={state.tone === item.value} onClick={() => updateState({ tone: item.value })} title={item.label} description={item.desc} />)}</div>
                     </div>
@@ -812,13 +836,13 @@ export default function ModernDokuWizard() {
                       <div className="grid grid-cols-3 gap-3">{lengthOptions.map((item) => <Choice key={item.value} selected={state.length === item.value} onClick={() => updateState({ length: item.value })} title={item.label} description={item.desc} />)}</div>
                       <div className="rounded-2xl border border-border bg-card/70 p-4">
                         <div className="mb-3 flex items-center justify-between">
-                          <div><p className="text-sm font-semibold text-foreground">Interaktive Elemente</p><p className="text-xs text-muted-foreground">Quizfragen und Aktivitaeten</p></div>
+                          <div><p className="text-sm font-semibold text-foreground">Mitmachen!</p><p className="text-xs text-muted-foreground">Quiz und Mitmach-Aufgaben einbauen?</p></div>
                           <button type="button" onClick={() => updateState({ includeInteractive: !state.includeInteractive })} className={`relative h-7 w-14 rounded-full ${state.includeInteractive ? 'bg-[var(--talea-text-tertiary)]' : 'bg-muted'}`}><motion.span animate={{ x: state.includeInteractive ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" /></button>
                         </div>
                         {state.includeInteractive && (
                           <div className="grid grid-cols-2 gap-4 border-t border-border pt-3">
                             <div>
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quizfragen</p>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quiz-Fragen</p>
                               <div className="flex items-center gap-2">
                                 <button type="button" onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
                                 <span className="w-6 text-center">{state.quizQuestions}</span>
@@ -826,7 +850,7 @@ export default function ModernDokuWizard() {
                               </div>
                             </div>
                             <div>
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Aktivitaeten</p>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mitmach-Aufgaben</p>
                               <div className="flex items-center gap-2">
                                 <button type="button" onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
                                 <span className="w-6 text-center">{state.handsOnActivities}</span>
@@ -840,15 +864,15 @@ export default function ModernDokuWizard() {
                   )}
                   {activeStep === 4 && (
                     <div className="space-y-5">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Zusammenfassung</h2>
+                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Alles bereit!</h2>
                       <div className="rounded-2xl border border-border bg-card/70 p-4">
                         <div className="space-y-2">{summary.map((item) => <div key={item.label} className="flex items-center justify-between gap-4 border-b border-border/70 py-2 text-sm last:border-0"><span className="font-semibold text-muted-foreground">{item.label}</span><span className="text-right font-semibold text-foreground">{item.value}</span></div>)}</div>
                       </div>
                       <button type="button" onClick={createDoku} disabled={generationBlocked} className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-4 text-base font-bold text-[#233347] shadow-[0_12px_24px_rgba(43,57,77,0.16)] ${generationBlocked ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5'}`} style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}>
                         <Sparkles className="h-5 w-5" />
-                        {generationBlocked ? 'Nicht verfuegbar' : 'Doku erstellen (1 DokuCredit)'}
+                        {generationBlocked ? 'Gerade nicht möglich' : 'Doku zaubern! (1 Münze)'}
                       </button>
-                      {credits && <p className="text-xs text-muted-foreground">Credits: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} verbleibend</p>}
+                      {credits && <p className="text-xs text-muted-foreground">Doku-Münzen: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} noch übrig</p>}
                     </div>
                   )}
                 </motion.div>
@@ -858,7 +882,7 @@ export default function ModernDokuWizard() {
             <div className="mt-5 flex items-center justify-between">
               <button type="button" onClick={activeStep === 0 ? () => navigate('/doku') : () => setActiveStep((prev) => prev - 1)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/70 px-4 py-2.5 text-sm font-semibold text-foreground">
                 <ArrowLeft className="h-4 w-4" />
-                Zurueck
+                Zurück
               </button>
               {activeStep < steps.length - 1 && (
                 <button type="button" onClick={() => setActiveStep((prev) => prev + 1)} disabled={!canProceed} className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45" style={{ background: canProceed ? 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' : '#dbe3ef', color: canProceed ? '#233347' : '#7a8799' }}>

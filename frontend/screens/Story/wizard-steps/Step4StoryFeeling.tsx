@@ -90,7 +90,7 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
       <div className="rounded-2xl border border-border bg-card/65 px-4 py-3">
         <p className="text-sm font-semibold text-foreground/85">
           {state.feelings.length === 0 && t('wizard.subtitles.feeling')}
-          {state.feelings.length > 0 && state.feelings.length < 3 && `${state.feelings.length}/3 ${t('wizard.common.selected')} - noch ${remaining} moeglich`}
+          {state.feelings.length > 0 && state.feelings.length < 3 && `${state.feelings.length}/3 ${t('wizard.common.selected')} - du kannst noch ${remaining} wählen`}
           {state.feelings.length >= 3 && `${state.feelings.length}/3 ${t('wizard.common.selected')}`}
         </p>
       </div>

@@ -125,23 +125,23 @@ export default function Step6Summary({
 
       {storyCredits && (
         <div className="rounded-2xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">StoryCredits</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">Geschichten-Münzen</p>
           <div className="mt-2 flex items-end justify-between gap-4">
             <div>
               <p className="text-2xl font-bold text-foreground">
                 {storyCredits.remaining === null ? 'unbegrenzt' : storyCredits.remaining}
               </p>
-              <p className="text-xs text-muted-foreground">verbleibend</p>
+              <p className="text-xs text-muted-foreground">noch übrig</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-foreground">
                 {storyCredits.used} / {storyCredits.limit === null ? 'unbegrenzt' : storyCredits.limit}
               </p>
-              <p className="text-xs text-muted-foreground">verbraucht / limit</p>
+              <p className="text-xs text-muted-foreground">benutzt / gesamt</p>
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Kosten pro Generierung: {storyCredits.costPerGeneration} StoryCredit
+            Jede Geschichte kostet {storyCredits.costPerGeneration} Münze
           </p>
         </div>
       )}
@@ -154,7 +154,7 @@ export default function Step6Summary({
         style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
       >
         <Sparkles className="h-5 w-5" />
-        {generateDisabled ? 'Nicht verfuegbar' : `${t('wizard.buttons.generate')} (1 StoryCredit)`}
+        {generateDisabled ? 'Gerade nicht möglich' : `${t('wizard.buttons.generate')} (1 Münze)`}
       </button>
 
       {generateDisabledMessage && <p className="text-center text-xs text-rose-500">{generateDisabledMessage}</p>}

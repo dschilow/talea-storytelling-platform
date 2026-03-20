@@ -1,7 +1,7 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import {
   AvatarFormData,
@@ -23,11 +23,11 @@ import Step4Details from './wizard-steps/Step4Details';
 import Step5Preview from './wizard-steps/Step5Preview';
 
 const WIZARD_STEPS = [
-  { key: 'basics', label: 'Grundlagen' },
-  { key: 'age-body', label: 'Koerper' },
+  { key: 'basics', label: 'Wer?' },
+  { key: 'age-body', label: 'Körper' },
   { key: 'appearance', label: 'Aussehen' },
-  { key: 'details', label: 'Details' },
-  { key: 'preview', label: 'Fertig' },
+  { key: 'details', label: 'Extras' },
+  { key: 'preview', label: 'Fertig!' },
 ];
 
 const ACCENT = '#2DD4BF';
@@ -114,10 +114,10 @@ const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({
       </motion.div>
       <div className="text-center">
         <h2 className="text-xl font-semibold" style={{ color: palette.text }}>
-          {name} wird erstellt
+          {name} wird gezaubert...
         </h2>
         <p className="text-sm mt-1" style={{ color: palette.muted }}>
-          Einen Moment noch...
+          Gleich ist dein Avatar fertig!
         </p>
       </div>
     </div>
@@ -126,6 +126,7 @@ const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({
 
 const AvatarWizardScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const backend = useBackend();
   const childProfiles = useOptionalChildProfiles();
@@ -182,6 +183,35 @@ const AvatarWizardScreen: React.FC = () => {
     }));
   }, [activeProfile, effectiveChildMode]);
 
+  // Tavi prefill: apply wizard data from Tavi chat
+  React.useEffect(() => {
+    const taviPrefill = (location.state as any)?.taviPrefill;
+    if (!taviPrefill) return;
+
+    const updates: Partial<AvatarFormData> = {};
+    if (taviPrefill.name) updates.name = taviPrefill.name;
+    if (taviPrefill.characterType) {
+      const known = CHARACTER_TYPES.find(
+        (ct) => ct.id === taviPrefill.characterType || ct.labelEn?.toLowerCase() === taviPrefill.characterType?.toLowerCase()
+      );
+      if (known) {
+        updates.characterType = known.id;
+      } else {
+        updates.characterType = 'other';
+        updates.customCharacterType = taviPrefill.characterType;
+      }
+    }
+    if (taviPrefill.gender) updates.gender = taviPrefill.gender;
+    if (taviPrefill.appearance) updates.additionalDescription = taviPrefill.appearance;
+
+    if (Object.keys(updates).length > 0) {
+      updateFormData(updates);
+    }
+
+    // Clear the navigation state to prevent re-applying on re-render
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
+
   const canProceed = useMemo(() => {
     if (activeStep === 0) return formData.name.trim().length > 0;
     return true;
@@ -214,12 +244,12 @@ const AvatarWizardScreen: React.FC = () => {
 
       setPreviewUrl(result.imageUrl);
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('Avatar-Bild wurde generiert!');
+        showSuccessToast('Dein Avatar-Bild ist fertig!');
       });
     } catch (error) {
       console.error('Error generating preview:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Fehler beim Generieren des Bildes.');
+        showErrorToast('Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!');
       });
     } finally {
       setIsGeneratingPreview(false);
@@ -229,7 +259,7 @@ const AvatarWizardScreen: React.FC = () => {
   const handleCreateAvatar = async () => {
     if (!formData.name.trim()) {
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Bitte gib deinem Avatar einen Namen.');
+        showErrorToast('Dein Avatar braucht noch einen Namen!');
       });
       return;
     }
@@ -311,7 +341,7 @@ const AvatarWizardScreen: React.FC = () => {
       }
       import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(formData.name);
-        showSuccessToast(`Avatar "${formData.name}" wurde erfolgreich erstellt!`);
+        showSuccessToast(`${formData.name} ist da! Viel Spaß mit deinem Avatar!`);
       });
       if (childMode) {
         navigate('/settings');
@@ -321,7 +351,7 @@ const AvatarWizardScreen: React.FC = () => {
     } catch (error) {
       console.error('Error creating avatar:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Avatar konnte nicht erstellt werden. Bitte versuche es erneut.');
+        showErrorToast('Das hat leider nicht geklappt. Versuch es nochmal!');
       });
     } finally {
       setIsCreating(false);
@@ -417,7 +447,7 @@ const AvatarWizardScreen: React.FC = () => {
                 style={{ color: palette.text, background: palette.panel, border: `1px solid ${palette.border}` }}
               >
                 <ArrowLeft className="w-4 h-4" />
-                Zurueck
+                Zurück
               </button>
             ) : (
               <div />

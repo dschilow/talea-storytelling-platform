@@ -27,9 +27,9 @@ export default function Step4Details({
           className="text-2xl font-extrabold text-foreground mb-1"
           style={{ fontFamily: '"Cormorant Garamond", serif' }}
         >
-          Details & Bild
+          Besondere Extras
         </h2>
-        <p className="text-muted-foreground text-sm">Besondere Merkmale und Referenzbild</p>
+        <p className="text-muted-foreground text-sm">Hat dein Avatar etwas Besonderes?</p>
       </div>
 
       <SpecialFeaturesSelector
@@ -40,16 +40,16 @@ export default function Step4Details({
 
       <div className="space-y-2">
         <label className="text-sm font-semibold text-foreground/80">
-          Zusaetzliche Beschreibung
-          <span className="text-muted-foreground/70 font-normal ml-1">(optional)</span>
+          Noch etwas Besonderes?
+          <span className="text-muted-foreground/70 font-normal ml-1">(wenn du magst)</span>
         </label>
         <p className="text-xs text-muted-foreground/70">
-          Weitere Details, die nicht durch die Auswahl abgedeckt sind.
+          Beschreib alles, was deinen Avatar besonders macht.
         </p>
         <textarea
           value={formData.additionalDescription || ''}
           onChange={(e) => updateFormData({ additionalDescription: e.target.value })}
-          placeholder="z.B. traegt immer einen roten Schal, hat ein Muttermal auf der Wange..."
+          placeholder="z.B. trägt immer einen roten Schal, hat ein Muttermal auf der Wange..."
           rows={3}
           className="w-full px-4 py-3 rounded-xl border border-border bg-card/70 text-foreground placeholder:text-muted-foreground/70 focus:border-[#2DD4BF]/50 focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]/30 resize-none transition-all"
         />
@@ -57,8 +57,8 @@ export default function Step4Details({
 
       <div className="space-y-2">
         <label className="text-sm font-semibold text-foreground/80">
-          Referenzbild
-          <span className="text-muted-foreground/70 font-normal ml-1">(optional)</span>
+          Foto als Vorlage
+          <span className="text-muted-foreground/70 font-normal ml-1">(wenn du magst)</span>
         </label>
         <ImageUploadCamera
           onImageSelected={(dataUrl) => onReferenceImageChange(dataUrl)}
