@@ -382,8 +382,8 @@ const StoryReaderScreen: React.FC = () => {
           if (mergedChanges.length > 0) {
             setTimeout(() => {
               showPersonalityUpdateToast(mergedChanges, {
-                title: 'Persoenlichkeit entwickelt sich',
-                subtitle: `${result.updatedAvatars} Avatar(e) aktualisiert`,
+                title: t('story.reader.personalityGrowth'),
+                subtitle: t('story.reader.avatarsUpdated', { count: result.updatedAvatars }),
               });
             }, 800);
           }
@@ -641,7 +641,7 @@ const StoryReaderScreen: React.FC = () => {
                             <div className="my-8 overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_22px_48px_-30px_rgba(150,122,99,0.52)] dark:border-white/10 dark:bg-white/5">
                             <img
                               src={primaryChapterImage}
-                              alt={`${currentChapter?.title || 'Kapitel'} - Szene`}
+                              alt={`${currentChapter?.title || t('story.reader.chapter')} - ${t('story.reader.scene')}`}
                               className="w-full h-auto max-h-[40vh] object-contain"
                               loading="lazy"
                               decoding="async"
@@ -652,7 +652,7 @@ const StoryReaderScreen: React.FC = () => {
                             <div className="my-8 overflow-hidden rounded-[28px] border border-white/70 bg-white/70 shadow-[0_22px_48px_-30px_rgba(150,122,99,0.52)] dark:border-white/10 dark:bg-white/5">
                             <img
                               src={scenicChapterImage}
-                              alt={`${currentChapter?.title || 'Kapitel'} - Umgebung`}
+                              alt={`${currentChapter?.title || t('story.reader.chapter')} - ${t('story.reader.environment')}`}
                               className="w-full h-auto max-h-[40vh] object-contain"
                               loading="lazy"
                               decoding="async"

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, User, BookOpen, FlaskConical, Code, Sparkles, Gem, BookMarked } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
@@ -8,16 +9,17 @@ import { spacing, radii, shadows, animations } from '../../utils/constants/spaci
 const Navigation: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const tabs = [
-    { path: '/', label: 'Home', icon: Home, color: colors.primary[500] },
-    { path: '/avatar', label: 'Avatare', icon: User, color: colors.lavender[500] },
-    { path: '/stories', label: 'Stories', icon: BookOpen, color: colors.rose[500] },
-    { path: '/doku', label: 'Doku', icon: FlaskConical, color: colors.mint[500] },
-    { path: '/characters', label: 'Charaktere', icon: Sparkles, color: colors.peach[500] },
-    { path: '/artifacts', label: 'Artefakte', icon: Gem, color: colors.honey[500] },
-    { path: '/fairytales', label: 'Märchen', icon: BookMarked, color: '#f59e0b' },
-    { path: '/logs', label: 'Logs', icon: Code, color: colors.sky[500] },
+    { path: '/', label: t('navigation.home'), icon: Home, color: colors.primary[500] },
+    { path: '/avatar', label: t('navigation.avatars'), icon: User, color: colors.lavender[500] },
+    { path: '/stories', label: t('navigation.stories'), icon: BookOpen, color: colors.rose[500] },
+    { path: '/doku', label: t('navigation.doku'), icon: FlaskConical, color: colors.mint[500] },
+    { path: '/characters', label: t('navigation.characters'), icon: Sparkles, color: colors.peach[500] },
+    { path: '/artifacts', label: t('navigation.artifacts'), icon: Gem, color: colors.honey[500] },
+    { path: '/fairytales', label: t('navigation.fairytales'), icon: BookMarked, color: '#f59e0b' },
+    { path: '/logs', label: t('navigation.logs'), icon: Code, color: colors.sky[500] },
   ];
 
   const activeIdx = Math.max(0, tabs.findIndex(tab => tab.path === location.pathname));

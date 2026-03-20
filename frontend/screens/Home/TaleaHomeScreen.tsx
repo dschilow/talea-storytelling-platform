@@ -72,24 +72,19 @@ interface Doku {
 const headingFont = taleaDisplayFont;
 const bodyFont = taleaBodyFont;
 
-const storyStatusLabel: Record<Story["status"], string> = {
-  complete: "Fertig",
-  generating: "In Arbeit",
-  error: "Fehler",
-};
-
-const dokuStatusLabel: Record<Doku["status"], string> = {
-  complete: "Fertig",
-  generating: "In Arbeit",
-  error: "Fehler",
-};
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("de-DE", {
+function formatDate(value: string, locale?: string) {
+  return new Date(value).toLocaleDateString(locale || "de-DE", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+}
+
+function getDateLocale(i18nLang: string): string {
+  const map: Record<string, string> = {
+    de: "de-DE", en: "en-GB", fr: "fr-FR", es: "es-ES", it: "it-IT", nl: "nl-NL", ru: "ru-RU",
+  };
+  return map[i18nLang] || "de-DE";
 }
 
 function normalizeDate(value: string | Date): string {
@@ -119,21 +114,30 @@ const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <TaleaPageBackground isDark={isDark} />
 );
 
-const LoadingState: React.FC = () => (
-  <TaleaLoadingState
-    title="Talea richtet die Startseite neu ein"
-    subtitle="Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert."
-    icon={<WandSparkles className="h-9 w-9" />}
-  />
-);
+const LoadingState: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <TaleaLoadingState
+      title={t("homeScreen.loadingTitle", "Talea richtet die Startseite neu ein")}
+      subtitle={t("homeScreen.loadingSubtitle", "Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert.")}
+      icon={<WandSparkles className="h-9 w-9" />}
+    />
+  );
+};
 
 const SignedOutStart: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
 
+  const features = [
+    { icon: "📚", textKey: "homeScreen.featureStreams", color: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-100 dark:bg-cyan-900/50" },
+    { icon: "🦸‍♀️", textKey: "homeScreen.featureAvatarAccess", color: "text-pink-600 dark:text-pink-300", bg: "bg-pink-100 dark:bg-pink-900/50" },
+    { icon: "💡", textKey: "homeScreen.featureDokuStyle", color: "text-yellow-600 dark:text-yellow-300", bg: "bg-yellow-100 dark:bg-yellow-900/50" },
+  ];
+
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-5 py-10">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", bounce: 0.5 }}
@@ -142,7 +146,7 @@ const SignedOutStart: React.FC = () => {
         <Card className="overflow-hidden rounded-[3rem] border-[6px] border-white/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 shadow-[0_20px_60px_-15px_rgba(236,72,153,0.3)] dark:shadow-[0_20px_60px_-15px_rgba(99,102,241,0.3)] backdrop-blur-2xl">
           <CardContent className="p-0 grid md:grid-cols-[1.4fr_1fr]">
             <div className="p-10 md:p-14 flex flex-col justify-center">
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", delay: 0.2 }}
@@ -158,22 +162,15 @@ const SignedOutStart: React.FC = () => {
                 className="mt-8 text-5xl font-black leading-tight text-slate-800 dark:text-slate-100 md:text-6xl"
                 style={{ fontFamily: headingFont }}
               >
-                Geschichten gestalten,
-                <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-violet-500 dark:from-pink-400 dark:to-purple-400">
-                  mit Magie erleben ✨
-                </span>
+                {t("homeScreen.signedOutTitle", "Geschichten, Figuren und Wissen an einem Ort.")}
               </motion.h1>
-              <motion.p 
+              <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.4 }}
                 className="mt-6 max-w-xl text-lg font-bold leading-relaxed text-slate-500 dark:text-slate-400"
               >
-                {t(
-                  "home.subtitle",
-                  "Organisiere Avatare, Geschichten und Dokus in einer wunderbaren Umgebung für die besten Leseabenteuer."
-                )}
+                {t("home.subtitle", "Organisiere Avatare, Geschichten und Dokus in einer wunderbaren Umgebung für die besten Leseabenteuer.")}
               </motion.p>
               <motion.button
                 initial={{ opacity: 0, y: 20 }}
@@ -185,36 +182,32 @@ const SignedOutStart: React.FC = () => {
                 className="mt-10 inline-flex w-fit items-center gap-3 rounded-[2rem] bg-gradient-to-br from-pink-500 to-purple-600 px-10 py-5 text-xl font-black text-white shadow-xl shadow-pink-300/50 dark:shadow-purple-900/50 border-4 border-white/20"
               >
                 <LogIn className="h-6 w-6" />
-                Das Abenteuer beginnt
+                {t("homeScreen.adventureBegins", "Das Abenteuer beginnt")}
               </motion.button>
             </div>
 
             <div className="bg-gradient-to-br from-pink-100 to-cyan-100 dark:from-slate-800 dark:to-indigo-950 p-10 flex flex-col justify-center relative overflow-hidden">
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/40 dark:bg-white/5 rounded-full blur-3xl"></div>
               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-300/30 dark:bg-purple-500/20 rounded-full blur-3xl"></div>
-              
+
               <div className="relative z-10">
                 <p className="text-center text-sm font-black tracking-widest text-pink-500 dark:text-indigo-300 mb-8">
-                  ENTDECKE DEINE WELT
+                  {t("homeScreen.discoverWorld", "ENTDECKE DEINE WELT")}
                 </p>
                 <ul className="flex flex-col gap-5 text-base font-extrabold text-slate-700 dark:text-slate-200">
-                  {[
-                    { icon: "📚", text: "Story-Streams mit Teilnehmern", color: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-100 dark:bg-cyan-900/50" },
-                    { icon: "🦸‍♀️", text: "Schneller Zugriff auf Avatare", color: "text-pink-600 dark:text-pink-300", bg: "bg-pink-100 dark:bg-pink-900/50" },
-                    { icon: "💡", text: "Dokus im gleichen Stil", color: "text-yellow-600 dark:text-yellow-300", bg: "bg-yellow-100 dark:bg-yellow-900/50" }
-                  ].map((item, i) => (
-                    <motion.li 
-                      key={i}
+                  {features.map((item, i) => (
+                    <motion.li
+                      key={item.textKey}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 + i * 0.1 }}
-                      whileHover={{ scale: 1.03, x: 8 }} 
+                      whileHover={{ scale: 1.03, x: 8 }}
                       className="flex items-center gap-4 rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-white/70 dark:bg-slate-800 px-5 py-4 shadow-lg backdrop-blur-md cursor-default"
                     >
                       <span className={cn("flex h-12 w-12 items-center justify-center rounded-[1rem] shadow-inner text-xl", item.bg, item.color)}>
                         {item.icon}
                       </span>
-                      {item.text}
+                      {t(item.textKey)}
                     </motion.li>
                   ))}
                 </ul>
@@ -266,20 +259,24 @@ const SectionHeading: React.FC<{
   </div>
 );
 
-const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => (
-  <motion.span
-    initial={{ scale: 0 }}
-    animate={{ scale: 1 }}
-    className={cn(
-      "absolute right-5 top-5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm z-20",
-      status === "complete" && "border-transparent bg-[#dcf4e8] text-slate-900 dark:bg-[#173629] dark:text-white",
-      status === "generating" && "border-transparent bg-[#fde9cf] text-slate-900 dark:bg-[#493419] dark:text-white",
-      status === "error" && "border-transparent bg-[#f9d8dd] text-slate-900 dark:bg-[#4d1f29] dark:text-white"
-    )}
-  >
-    {storyStatusLabel[status]}
-  </motion.span>
-);
+const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => {
+  const { t } = useTranslation();
+  const label = t(`homeScreen.status.${status}`, status);
+  return (
+    <motion.span
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      className={cn(
+        "absolute right-5 top-5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm z-20",
+        status === "complete" && "border-transparent bg-[#dcf4e8] text-slate-900 dark:bg-[#173629] dark:text-white",
+        status === "generating" && "border-transparent bg-[#fde9cf] text-slate-900 dark:bg-[#493419] dark:text-white",
+        status === "error" && "border-transparent bg-[#f9d8dd] text-slate-900 dark:bg-[#4d1f29] dark:text-white"
+      )}
+    >
+      {label}
+    </motion.span>
+  );
+};
 
 const StoryCard: React.FC<{
   story: Story;
@@ -292,6 +289,7 @@ const StoryCard: React.FC<{
   index: number;
 }> = ({ story, onRead, onDelete, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline, index }) => {
   const reduceMotion = useReducedMotion();
+  const { t, i18n } = useTranslation();
   const isFeatured = index === 0;
 
   return (
@@ -338,7 +336,7 @@ const StoryCard: React.FC<{
                   onClick={onToggleOffline}
                   disabled={isSavingOffline}
                   className="rounded-full border border-white/30 bg-black/35 p-3 text-white backdrop-blur-md transition-colors hover:bg-black/55 shadow-lg"
-                  aria-label={isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern"}
+                  aria-label={isSavedOffline ? t("homeScreen.offlineRemove") : t("homeScreen.offlineSave")}
                 >
                   {isSavingOffline ? (
                     <Clock3 className="h-5 w-5 animate-spin" />
@@ -358,7 +356,7 @@ const StoryCard: React.FC<{
                   onDelete();
                 }}
                 className="rounded-full border border-white/20 bg-[#7d434f]/82 p-3 text-white backdrop-blur-md transition-colors hover:bg-[#8f4c5a] shadow-lg"
-                aria-label="Story loeschen"
+                aria-label={t("homeScreen.deleteStory")}
               >
                 <Trash2 className="h-5 w-5" />
               </motion.button>
@@ -369,6 +367,7 @@ const StoryCard: React.FC<{
             <div className="space-y-3">
               {isFeatured ? (
                 <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
+                  {/* Translated in parent via t() — static string here */}
                   Im Fokus
                 </span>
               ) : null}
@@ -382,7 +381,7 @@ const StoryCard: React.FC<{
                 "font-medium leading-7 text-slate-600 dark:text-slate-300",
                 isFeatured ? "text-base line-clamp-4" : "text-sm line-clamp-2"
               )}>
-                {story.summary || story.description || "Noch keine Zusammenfassung verfügbar."}
+                {story.summary || story.description}
               </p>
             </div>
 
@@ -392,7 +391,7 @@ const StoryCard: React.FC<{
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#efe4da] pt-4 dark:border-white/10">
                 <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{formatDate(story.createdAt)}</span>
                 <span className="inline-flex items-center gap-2 rounded-full border border-[var(--talea-border-light)] bg-white/86 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all group-hover:bg-[var(--primary)] group-hover:text-white group-hover:shadow-md dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:group-hover:bg-[var(--primary)]">
-                  Weiterlesen
+                  {t("common.readMore")}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </div>
@@ -403,6 +402,7 @@ const StoryCard: React.FC<{
     </motion.article>
   );
 };
+
 
 const AvatarTile: React.FC<{
   avatar: Avatar;
@@ -455,7 +455,7 @@ const AvatarTile: React.FC<{
           onDelete();
         }}
         className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2.5 text-[#a14b5e] shadow-xl dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]"
-        aria-label={`${avatar.name} loeschen`}
+        aria-label={`${avatar.name} löschen`}
       >
         <Trash2 className="h-4 w-4" />
       </motion.button>
@@ -692,7 +692,9 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
   isSaving,
   toggleStory,
   cosmosState,
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <motion.div
     variants={containerVariants}
     initial="hidden"
@@ -717,16 +719,16 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           >
             {greeting},{" "}
             <span className="bg-gradient-to-r from-[var(--talea-accent-rose)] via-[var(--primary)] to-[var(--talea-accent-sky)] bg-clip-text text-transparent">
-              {userName || "Entdecker"}
+              {userName || t("homeScreen.defaultUser")}
             </span>
           </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { label: "Stories", value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" />, tone: "from-[#f8dde8] to-[#fbead1] dark:from-[rgba(109,84,114,0.35)] dark:to-[rgba(92,76,55,0.25)]" },
-            { label: "Avatare", value: avatars.length, icon: <Swords className="h-3.5 w-3.5" />, tone: "from-[#dff0ff] to-[#e2f4ec] dark:from-[rgba(65,98,130,0.32)] dark:to-[rgba(47,89,79,0.22)]" },
-            { label: "Dokus", value: dokusTotal, icon: <Library className="h-3.5 w-3.5" />, tone: "from-[#fbe9cf] to-[#efe5fb] dark:from-[rgba(92,77,52,0.32)] dark:to-[rgba(88,69,123,0.22)]" },
+            { label: t("homeScreen.statsStories"), value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" />, tone: "from-[#f8dde8] to-[#fbead1] dark:from-[rgba(109,84,114,0.35)] dark:to-[rgba(92,76,55,0.25)]" },
+            { label: t("homeScreen.statsAvatars"), value: avatars.length, icon: <Swords className="h-3.5 w-3.5" />, tone: "from-[#dff0ff] to-[#e2f4ec] dark:from-[rgba(65,98,130,0.32)] dark:to-[rgba(47,89,79,0.22)]" },
+            { label: t("homeScreen.statsDokus"), value: dokusTotal, icon: <Library className="h-3.5 w-3.5" />, tone: "from-[#fbe9cf] to-[#efe5fb] dark:from-[rgba(92,77,52,0.32)] dark:to-[rgba(88,69,123,0.22)]" },
           ].map((stat) => (
             <motion.span
               key={stat.label}
@@ -748,7 +750,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             type="button"
             onClick={onRefresh}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-secondary)] shadow-sm transition-colors hover:bg-white/90 dark:bg-[var(--talea-surface-inset)]"
-            aria-label="Aktualisieren"
+            aria-label={t("common.refresh")}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
           </motion.button>
@@ -757,13 +759,13 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--talea-border-light)] pt-3">
         <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
-          Neue Story
+          {t("homeScreen.newStory")}
         </TaleaActionButton>
         <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
-          Bibliothek
+          {t("homeScreen.library")}
         </TaleaActionButton>
         <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
-          Wissensreise
+          {t("homeScreen.knowledgeJourney")}
         </TaleaActionButton>
       </div>
     </motion.section>
@@ -776,20 +778,20 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     >
       <div className="relative z-10 space-y-6">
       <TaleaSectionHeading
-        eyebrow="Weiterlesen"
-        title="Deine Geschichten"
-        subtitle="Die wichtigsten Abenteuer stehen sofort bereit."
-        actionLabel="Alle Geschichten"
+        eyebrow={t("homeScreen.yourStoriesEyebrow")}
+        title={t("homeScreen.yourStories")}
+        subtitle={t("homeScreen.yourStoriesSubtitle")}
+        actionLabel={t("homeScreen.allStories")}
         onAction={() => goTo("/stories")}
       />
 
       {stories.length === 0 ? (
         <EmptyStateContainer
-          title="Hier erscheint eure erste Geschichte"
-          description="Sobald eine Story angelegt ist, kannst du sie hier direkt wieder oeffnen."
+          title={t("homeScreen.noStoriesTitle")}
+          description={t("homeScreen.noStoriesDesc")}
           icon={<BookOpen className="h-12 w-12 text-blue-500 dark:text-indigo-300" />}
           colorClass="bg-blue-100 dark:bg-slate-700"
-          actionLabel="Erste Story erstellen"
+          actionLabel={t("homeScreen.createFirstStory")}
           onAction={() => goTo("/story")}
         />
       ) : (
@@ -839,20 +841,20 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       className="space-y-6"
     >
       <TaleaSectionHeading
-        eyebrow="Deine Figuren"
-        title="Avatare"
-        subtitle="Alle Helden, Begleiter und Kinderprofile an einem Ort."
-        actionLabel="Alle Avatare"
+        eyebrow={t("homeScreen.yourAvatarsEyebrow")}
+        title={t("homeScreen.yourAvatars")}
+        subtitle={t("homeScreen.yourAvatarsSubtitle")}
+        actionLabel={t("homeScreen.allAvatars")}
         onAction={() => goTo("/avatar")}
       />
 
       {avatars.length === 0 ? (
         <EmptyStateContainer
-          title="Der erste Held darf den neuen Kartenstil eroeffnen"
-          description="Lege einen Avatar an, damit Home zu einer echten Charaktergalerie wird."
+          title={t("homeScreen.noAvatarsTitle")}
+          description={t("homeScreen.noAvatarsDesc")}
           icon={<UserPlus className="h-12 w-12 text-pink-500 dark:text-pink-300" />}
           colorClass="bg-pink-100 dark:bg-slate-700"
-          actionLabel="Avatar erstellen"
+          actionLabel={t("homeScreen.createAvatar")}
           onAction={() => goTo(createAvatarPath)}
         />
       ) : (
@@ -861,7 +863,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <button type="button" onClick={() => goTo(createAvatarPath)} className={cn(taleaSurfaceClass, "w-[8.9rem] shrink-0 p-4 text-left sm:w-44 sm:p-6")}>
               <div className={cn(taleaInsetSurfaceClass, "flex h-full min-h-[170px] flex-col items-center justify-center gap-4 p-5 text-center sm:min-h-[180px] sm:p-6")}>
                 <Plus className="h-10 w-10 text-slate-700 dark:text-white" />
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">Neuer Held</p>
+                <p className="text-lg font-semibold text-slate-900 dark:text-white">{t("homeScreen.newHero")}</p>
               </div>
             </button>
 
@@ -886,20 +888,20 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       className="space-y-6"
     >
       <TaleaSectionHeading
-        eyebrow="Wissenswelt"
-        title="Doku Highlights"
-        subtitle="Neue Themen entdecken, weiterlesen und direkt in Audio wechseln."
-        actionLabel="Alle Dokus"
+        eyebrow={t("homeScreen.yourDokusEyebrow")}
+        title={t("homeScreen.yourDokus")}
+        subtitle={t("homeScreen.yourDokusSubtitle")}
+        actionLabel={t("homeScreen.allDokus")}
         onAction={() => goTo("/doku")}
       />
 
       {dokus.length === 0 ? (
         <EmptyStateContainer
-          title="Hier waechst bald eine kleine Wissensbibliothek"
-          description="Sobald die erste Doku erstellt ist, erscheint sie in derselben wertigen Kartenlogik wie die Stories."
+          title={t("homeScreen.noDokusTitle")}
+          description={t("homeScreen.noDokusDesc")}
           icon={<Library className="h-12 w-12 text-yellow-500 dark:text-yellow-300" />}
           colorClass="bg-yellow-100 dark:bg-slate-700"
-          actionLabel="Erste Doku erstellen"
+          actionLabel={t("homeScreen.createFirstDoku")}
           onAction={() => goTo("/doku/create")}
         />
       ) : (
@@ -932,7 +934,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     </motion.section>
 
   </motion.div>
-);
+  );
+};
 
 const TaleaHomeScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -958,10 +961,10 @@ const TaleaHomeScreen: React.FC = () => {
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "Guten Morgen";
-    if (hour < 18) return "Guten Tag";
-    return "Guten Abend";
-  }, []);
+    if (hour < 12) return t("homeScreen.greeting.morning");
+    if (hour < 18) return t("homeScreen.greeting.day");
+    return t("homeScreen.greeting.evening");
+  }, [t]);
   const createAvatarPath = useMemo(() => {
     if (!activeProfile || activeProfile.childAvatarId) {
       return "/avatar/create";
@@ -1073,7 +1076,7 @@ const TaleaHomeScreen: React.FC = () => {
   };
 
   const handleDeleteAvatar = useCallback(async (avatar: Avatar) => {
-    if (!window.confirm(`"${avatar.name}" wirklich loeschen?`)) return;
+    if (!window.confirm(`"${avatar.name}" ${t("common.deleteConfirm")}`)) return;
 
     try {
       await backend.avatar.deleteAvatar({ id: avatar.id, profileId: activeProfileId || undefined });

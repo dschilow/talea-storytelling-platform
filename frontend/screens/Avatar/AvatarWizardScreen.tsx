@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import {
   AvatarFormData,
@@ -22,13 +23,6 @@ import Step3Appearance from './wizard-steps/Step3Appearance';
 import Step4Details from './wizard-steps/Step4Details';
 import Step5Preview from './wizard-steps/Step5Preview';
 
-const WIZARD_STEPS = [
-  { key: 'basics', label: 'Wer?' },
-  { key: 'age-body', label: 'Körper' },
-  { key: 'appearance', label: 'Aussehen' },
-  { key: 'details', label: 'Extras' },
-  { key: 'preview', label: 'Fertig!' },
-];
 
 const ACCENT = '#2DD4BF';
 const headingFont = '"Cormorant Garamond", serif';
@@ -70,9 +64,9 @@ const WizardBackground: React.FC<{ palette: WizardPalette }> = ({ palette }) => 
   <div className="fixed inset-0 pointer-events-none -z-10" style={{ background: palette.pageGradient }} />
 );
 
-const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette }> = ({ activeStep, palette }) => (
+const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette; steps: { key: string; label: string }[] }> = ({ activeStep, palette, steps }) => (
   <div className="flex items-center justify-center gap-2.5 mb-5 px-2">
-    {WIZARD_STEPS.map((step, i) => (
+    {steps.map((step, i) => (
       <React.Fragment key={step.key}>
         <div className="flex flex-col items-center gap-1.5">
           <div
@@ -94,7 +88,7 @@ const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette }> = 
             {step.label}
           </span>
         </div>
-        {i < WIZARD_STEPS.length - 1 && (
+        {i < steps.length - 1 && (
           <div
             className="w-7 h-px rounded-full -mt-4"
             style={{ background: i < activeStep ? ACCENT : palette.border }}
@@ -105,26 +99,30 @@ const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette }> = 
   </div>
 );
 
-const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({ name, palette }) => (
-  <div className="relative min-h-screen">
-    <WizardBackground palette={palette} />
-    <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 px-6">
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-        <Loader2 className="w-10 h-10" style={{ color: ACCENT }} />
-      </motion.div>
-      <div className="text-center">
-        <h2 className="text-xl font-semibold" style={{ color: palette.text }}>
-          {name} wird gezaubert...
-        </h2>
-        <p className="text-sm mt-1" style={{ color: palette.muted }}>
-          Gleich ist dein Avatar fertig!
-        </p>
+const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({ name, palette }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="relative min-h-screen">
+      <WizardBackground palette={palette} />
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 px-6">
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
+          <Loader2 className="w-10 h-10" style={{ color: ACCENT }} />
+        </motion.div>
+        <div className="text-center">
+          <h2 className="text-xl font-semibold" style={{ color: palette.text }}>
+            {t('avatar.wizard.creating', '{{name}} wird gezaubert...', { name })}
+          </h2>
+          <p className="text-sm mt-1" style={{ color: palette.muted }}>
+            {t('avatar.wizard.creatingSubtitle', 'Gleich ist dein Avatar fertig!')}
+          </p>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AvatarWizardScreen: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -134,6 +132,14 @@ const AvatarWizardScreen: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => paletteFor(isDark), [isDark]);
+
+  const WIZARD_STEPS = useMemo(() => [
+    { key: 'basics', label: t('avatar.wizard.steps.who', 'Wer?') },
+    { key: 'age-body', label: t('avatar.wizard.steps.body', 'Körper') },
+    { key: 'appearance', label: t('avatar.wizard.steps.look', 'Aussehen') },
+    { key: 'details', label: t('avatar.wizard.steps.extras', 'Extras') },
+    { key: 'preview', label: t('avatar.wizard.steps.done', 'Fertig!') },
+  ], [t]);
   const childMode = searchParams.get('mode') === 'child';
   const requiresChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
   const effectiveChildMode = childMode || requiresChildAvatar;
@@ -244,12 +250,12 @@ const AvatarWizardScreen: React.FC = () => {
 
       setPreviewUrl(result.imageUrl);
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-        showSuccessToast('Dein Avatar-Bild ist fertig!');
+        showSuccessToast(t('avatar.wizard.previewSuccess', 'Dein Avatar-Bild ist fertig!'));
       });
     } catch (error) {
       console.error('Error generating preview:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!');
+        showErrorToast(t('avatar.wizard.previewError', 'Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!'));
       });
     } finally {
       setIsGeneratingPreview(false);
@@ -259,7 +265,7 @@ const AvatarWizardScreen: React.FC = () => {
   const handleCreateAvatar = async () => {
     if (!formData.name.trim()) {
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Dein Avatar braucht noch einen Namen!');
+        showErrorToast(t('avatar.wizard.nameRequired', 'Dein Avatar braucht noch einen Namen!'));
       });
       return;
     }
@@ -341,7 +347,7 @@ const AvatarWizardScreen: React.FC = () => {
       }
       import('../../utils/toastUtils').then(({ showAvatarCreatedToast, showSuccessToast }) => {
         showAvatarCreatedToast(formData.name);
-        showSuccessToast(`${formData.name} ist da! Viel Spaß mit deinem Avatar!`);
+        showSuccessToast(t('avatar.wizard.createSuccess', '{{name}} ist da! Viel Spaß mit deinem Avatar!', { name: formData.name }));
       });
       if (childMode) {
         navigate('/settings');
@@ -351,7 +357,7 @@ const AvatarWizardScreen: React.FC = () => {
     } catch (error) {
       console.error('Error creating avatar:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Das hat leider nicht geklappt. Versuch es nochmal!');
+        showErrorToast(t('avatar.wizard.createError', 'Das hat leider nicht geklappt. Versuch es nochmal!'));
       });
     } finally {
       setIsCreating(false);
@@ -411,15 +417,15 @@ const AvatarWizardScreen: React.FC = () => {
           </button>
           <div className="flex-1">
             <h1 className="text-3xl leading-none" style={{ color: palette.text, fontFamily: headingFont }}>
-              {effectiveChildMode ? 'Kind-Avatar erstellen' : 'Avatar erstellen'}
+              {effectiveChildMode ? t('avatar.wizard.createChildTitle', 'Kind-Avatar erstellen') : t('avatar.wizard.createTitle', 'Avatar erstellen')}
             </h1>
             <p className="text-xs mt-1" style={{ color: palette.muted }}>
-              Schritt {activeStep + 1} von {WIZARD_STEPS.length}
+              {t('avatar.wizard.stepOf', 'Schritt {{current}} von {{total}}', { current: activeStep + 1, total: WIZARD_STEPS.length })}
             </p>
           </div>
         </div>
 
-        <StepIndicator activeStep={activeStep} palette={palette} />
+        <StepIndicator activeStep={activeStep} palette={palette} steps={WIZARD_STEPS} />
 
         <div className="mx-3 sm:mx-auto sm:max-w-2xl">
           <div
@@ -447,7 +453,7 @@ const AvatarWizardScreen: React.FC = () => {
                 style={{ color: palette.text, background: palette.panel, border: `1px solid ${palette.border}` }}
               >
                 <ArrowLeft className="w-4 h-4" />
-                Zurück
+                {t('avatar.wizard.back', 'Zurück')}
               </button>
             ) : (
               <div />
@@ -460,7 +466,7 @@ const AvatarWizardScreen: React.FC = () => {
                 className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: canProceed ? ACCENT : palette.stepIdle, color: canProceed ? '#0f1a28' : palette.muted }}
               >
-                Weiter
+                {t('avatar.wizard.next', 'Weiter')}
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}

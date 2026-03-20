@@ -55,32 +55,20 @@ type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
 type ContentTab = "stories" | "studio";
 
-const statusMeta: Record<Story["status"], { label: string; className: string }> = {
+const statusMeta: Record<Story["status"], { className: string }> = {
   complete: {
-    label: "Fertig",
     className: "bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800",
   },
   generating: {
-    label: "In Arbeit",
     className: "bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800",
   },
   error: {
-    label: "Fehler",
     className: "bg-rose-100 text-rose-600 border-rose-200 dark:bg-rose-900/50 dark:text-rose-300 dark:border-rose-800",
   },
 };
 
-const genreLabels: Record<string, string> = {
-  fairy_tales: "Märchen",
-  adventure: "Abenteuer",
-  magic: "Magie",
-  animals: "Tiere",
-  scifi: "Sci-Fi",
-  modern: "Modern",
-};
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("de-DE", {
+function formatDate(value: string, locale = "de-DE") {
+  return new Date(value).toLocaleDateString(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -88,7 +76,7 @@ function formatDate(value: string) {
 }
 
 function getStoryPreviewText(story: Story) {
-  return story.summary || story.description || "Noch keine Zusammenfassung verfügbar.";
+  return story.summary || story.description || null;
 }
 
 function normalizeKey(value: unknown): string {
@@ -117,9 +105,11 @@ function getStoryLengthKey(story: Story): string {
   return "";
 }
 
-function formatGenreLabel(genre: string): string {
-  if (!genre) return "Unbekannt";
-  if (genreLabels[genre]) return genreLabels[genre];
+function formatGenreLabel(genre: string, t: (key: string, fallback?: string) => string): string {
+  if (!genre) return t("storiesScreen.genre.unknown", "Unbekannt");
+  const key = `storiesScreen.genre.${genre}`;
+  const translated = t(key, "");
+  if (translated && translated !== key) return translated;
   return genre
     .replace(/[_-]+/g, " ")
     .split(" ")
@@ -128,16 +118,12 @@ function formatGenreLabel(genre: string): string {
     .join(" ");
 }
 
-function formatAgeLabel(ageGroup: string): string {
-  if (!ageGroup) return "Unbekannt";
-  return ageGroup;
-}
-
-function formatLengthLabel(length: string): string {
-  if (length === "short") return "Kurz";
-  if (length === "medium") return "Mittel";
-  if (length === "long") return "Lang";
-  return length || "Unbekannt";
+function formatLengthLabel(length: string, t: (key: string, fallback?: string) => string): string {
+  if (!length) return t("storiesScreen.length.unknown", "Unbekannt");
+  const key = `storiesScreen.length.${length}`;
+  const translated = t(key, "");
+  if (translated && translated !== key) return translated;
+  return length;
 }
 
 type StoryAvatarFilterOption = {
@@ -206,13 +192,16 @@ const BouncingLoader: React.FC = () => (
   </div>
 );
 
-const LoadingState: React.FC = () => (
-  <TaleaLoadingState
-    title="Die Bibliothek ordnet ihre Geschichten"
-    subtitle="Einen Moment, die Story-Regale werden sortiert und die Filter vorbereitet."
-    icon={<BookOpen className="h-9 w-9" />}
-  />
-);
+const LoadingState: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <TaleaLoadingState
+      title={t("storiesScreen.loadingTitle")}
+      subtitle={t("storiesScreen.loadingSubtitle")}
+      icon={<BookOpen className="h-9 w-9" />}
+    />
+  );
+};
 
 const BentoBox: React.FC<{ children: React.ReactNode; className?: string; delay?: number; }> = ({ children, className, delay = 0 }) => {
   const reduceMotion = useReducedMotion();
@@ -228,14 +217,14 @@ const BentoBox: React.FC<{ children: React.ReactNode; className?: string; delay?
   );
 };
 
-const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; label: string }> = ({ value, onChange, options, label }) => (
+const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; label: string; allLabel?: string }> = ({ value, onChange, options, label, allLabel }) => (
   <select
     value={value}
     onChange={(e) => onChange(e.target.value)}
     className={cn(taleaInputClass, "cursor-pointer appearance-none")}
     aria-label={label}
   >
-    <option value="all">Alle {label}</option>
+    <option value="all">{allLabel || label}</option>
     {options.map((opt) => (
       <option key={opt.value} value={opt.value}>
         {opt.label}
@@ -244,11 +233,14 @@ const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; opt
   </select>
 );
 
-const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => (
-  <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm", statusMeta[status].className)}>
-    {statusMeta[status].label}
-  </span>
-);
+const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
+  const { t } = useTranslation();
+  return (
+    <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm", statusMeta[status].className)}>
+      {t(`storiesScreen.status.${status}`, status)}
+    </span>
+  );
+};
 
 const GridStoryCard: React.FC<{
   story: Story;
@@ -580,6 +572,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   onRefresh,
   goTo,
 }) => {
+  const { t } = useTranslation();
   const featuredStory = filteredStories[0];
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
   const showFilterPanel = isDesktop || showFilters;
@@ -595,38 +588,38 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                   Story Stream
                 </span>
                 <h1 className="mt-5 text-[2.85rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.2rem]" style={{ fontFamily: headingFont }}>
-                  Deine Geschichten
+                  {t("story.myStories")}
                 </h1>
                 <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                  Weiterlesen, filtern und neue Abenteuer starten.
+                  {t("homeScreen.yourStoriesSubtitle")}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2.5 sm:gap-3">
                 <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
-                  Neu laden
+                  {t("common.refresh")}
                 </TaleaActionButton>
                 <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
-                  Neue Story
+                  {t("homeScreen.newStory")}
                 </TaleaActionButton>
               </div>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
               <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-                Meine Stories
+                {t("storiesScreen.storiesTab")}
               </button>
               <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-                Talea Studio
+                {t("storiesScreen.studioTab")}
               </button>
             </div>
           </div>
 
           <div className="grid gap-3">
             {[
-              { label: "Gesamt", value: total, accent: "from-[var(--talea-accent-mint)]/15 to-[var(--talea-accent-sky)]/10" },
-              { label: "Fertig", value: completeCount, accent: "from-[var(--talea-accent-mint)]/20 to-[var(--talea-accent-mint)]/5" },
-              { label: "In Arbeit", value: generatingCount, accent: "from-[var(--talea-accent-peach)]/20 to-[var(--talea-accent-gold)]/10" },
+              { label: t("common.total"), value: total, accent: "from-[var(--talea-accent-mint)]/15 to-[var(--talea-accent-sky)]/10" },
+              { label: t("storiesScreen.status.complete"), value: completeCount, accent: "from-[var(--talea-accent-mint)]/20 to-[var(--talea-accent-mint)]/5" },
+              { label: t("storiesScreen.status.generating"), value: generatingCount, accent: "from-[var(--talea-accent-peach)]/20 to-[var(--talea-accent-gold)]/10" },
             ].map((item) => (
               <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
                 <div className="flex items-start justify-between gap-4">
@@ -663,16 +656,16 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Filter</p>
                       {hasActiveFilters ? (
                         <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-red-500 dark:text-red-400">
-                          Zuruecksetzen
+                          {t("common.cancel", "Zurücksetzen")}
                         </button>
                       ) : null}
                     </div>
                     <div className="mt-4 space-y-3">
-                      <FilterSelect label="Sortierung" value={sortMode} onChange={(value) => setSortMode(value as SortMode)} options={[{ value: "newest", label: "Neueste zuerst" }, { value: "oldest", label: "Aelteste zuerst" }, { value: "title", label: "Titel A-Z" }]} />
-                      <FilterSelect label="Genre" value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} />
-                      <FilterSelect label="Altersgruppe" value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} />
-                      <FilterSelect label="Laenge" value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} />
-                      <FilterSelect label="Teilnehmer" value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} />
+                      <FilterSelect label={t("common.sort", "Sortierung")} value={sortMode} onChange={(value) => setSortMode(value as SortMode)} options={[{ value: "newest", label: t("storiesScreen.sortNewest") }, { value: "oldest", label: t("storiesScreen.sortOldest") }, { value: "title", label: t("storiesScreen.sortTitle") }]} />
+                      <FilterSelect label={t("storiesScreen.filterGenre")} value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterGenre") })} />
+                      <FilterSelect label={t("storiesScreen.filterAge")} value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAge") })} />
+                      <FilterSelect label={t("storiesScreen.filterLength")} value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterLength") })} />
+                      <FilterSelect label={t("storiesScreen.filterAvatar")} value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAvatar") })} />
                     </div>
                   </div>
                 </motion.div>
@@ -685,7 +678,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative flex-1">
                   <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Titel, Thema oder Figur suchen..." className={cn(taleaInputClass, "pl-11 pr-4")} />
+                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t("common.search")} className={cn(taleaInputClass, "pl-11 pr-4")} />
                 </div>
                 <div className="hidden xl:flex gap-1 rounded-full border border-white/80 bg-white/86 p-1 dark:border-white/10 dark:bg-white/5">
                   <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
@@ -697,7 +690,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <div className={cn(taleaSurfaceClass, "mt-6 p-4 sm:p-5 md:p-6")} role="status" aria-live="polite">
               {featuredStory ? (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
-                  <TaleaSectionHeading eyebrow="Im Fokus" title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory)} />
+                  <TaleaSectionHeading eyebrow={t("common.inFocus")} title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory) || t("storiesScreen.noSummary")} />
                   <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--talea-text-secondary)]">Bibliothek</p>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
@@ -713,14 +706,14 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 ) : filteredStories.length === 0 ? (
                   <div className={cn(taleaInsetSurfaceClass, "p-8 text-center sm:p-10")}>
                     <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                      {hasActiveFilters ? "Keine passenden Geschichten" : "Noch keine Geschichten"}
+                      {hasActiveFilters ? t("storiesScreen.noFilterResults") : t("storiesScreen.noStories")}
                     </h3>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      {hasActiveFilters ? "Passe die Filter an oder starte mit einer neuen Story." : "Sobald die erste Story da ist, kannst du hier direkt weiterlesen."}
+                      {hasActiveFilters ? t("storiesScreen.noFilterResultsDesc") : t("storiesScreen.noStoriesDesc")}
                     </p>
                     <div className="mt-6 flex justify-center">
                       <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
-                        {hasActiveFilters ? "Filter zuruecksetzen" : "Erste Story erstellen"}
+                        {hasActiveFilters ? t("common.cancel") : t("storiesScreen.createFirstStory")}
                       </TaleaActionButton>
                     </div>
                   </div>
@@ -946,9 +939,9 @@ const TaleaStoriesScreen: React.FC = () => {
     }
   };
 
-  const genreFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryGenreKey(story)).filter(Boolean))).map(v => ({ value: v, label: formatGenreLabel(v) })).sort((a,b)=>a.label.localeCompare(b.label)), [stories]);
-  const ageGroupFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryAgeGroupKey(story)).filter(Boolean))).map(v => ({ value: v, label: formatAgeLabel(v) })).sort((a,b)=>a.label.localeCompare(b.label)), [stories]);
-  const lengthFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryLengthKey(story)).filter(Boolean))).map(v => ({ value: v, label: formatLengthLabel(v) })), [stories]);
+  const genreFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryGenreKey(story)).filter(Boolean))).map(v => ({ value: v, label: formatGenreLabel(v, t) })).sort((a,b)=>a.label.localeCompare(b.label)), [stories, t]);
+  const ageGroupFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryAgeGroupKey(story)).filter(Boolean))).map(v => ({ value: v, label: v })).sort((a,b)=>a.label.localeCompare(b.label)), [stories]);
+  const lengthFilterOptions = useMemo(() => Array.from(new Set(stories.map((story) => getStoryLengthKey(story)).filter(Boolean))).map(v => ({ value: v, label: formatLengthLabel(v, t) })), [stories, t]);
   const avatarFilterOptions = useMemo(() => {
     const byId = new Map<string, string>();
     for (const story of stories) {

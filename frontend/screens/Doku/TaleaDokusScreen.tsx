@@ -88,15 +88,15 @@ function getDokuDepthValue(doku: Doku): string {
   return normalizeFilterValue(doku.metadata?.configSnapshot?.depth);
 }
 
-function formatDokuDepthLabel(depth: string): string {
-  if (depth === 'basic') return 'Basis';
-  if (depth === 'standard') return 'Standard';
-  if (depth === 'deep') return 'Tief';
-  return depth || 'Unbekannt';
+function formatDokuDepthLabel(depth: string, t: (key: string, fallback?: string) => string): string {
+  if (depth === 'basic') return t('doku.depthBasic', 'Basis');
+  if (depth === 'standard') return t('doku.depthStandard', 'Standard');
+  if (depth === 'deep') return t('doku.depthDeep', 'Tief');
+  return depth || t('doku.depthUnknown', 'Unbekannt');
 }
 
-function formatTopicLabel(topic: string): string {
-  if (!topic) return 'Unbekannt';
+function formatTopicLabel(topic: string, unknownFallback = 'Unbekannt'): string {
+  if (!topic) return unknownFallback;
   return topic
     .replace(/[_-]+/g, ' ')
     .split(' ')
@@ -186,7 +186,9 @@ const AudioDokuCard: React.FC<{
   isSavedOffline,
   isSavingOffline,
   onToggleOffline,
-}) => (
+) => {
+  const { t } = useTranslation();
+  return (
   <motion.article
     initial={{ opacity: 0, y: 16 }}
     animate={{ opacity: 1, y: 0 }}
@@ -201,7 +203,7 @@ const AudioDokuCard: React.FC<{
     }}
     role="button"
     tabIndex={0}
-    aria-label={`Audio-Doku abspielen: ${doku.title}`}
+    aria-label={`Audio-Doku: ${doku.title}`}
     className="group w-full cursor-pointer overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]"
     style={{ borderColor: palette.border, background: palette.panel }}
   >
@@ -245,7 +247,7 @@ const AudioDokuCard: React.FC<{
             disabled={isSavingOffline}
             className="rounded-xl border p-2"
             style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-            aria-label={isSavedOffline ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
+            aria-label={isSavedOffline ? t('doku.removeOffline', 'Offline-Speicherung entfernen') : t('doku.saveOffline', 'Offline speichern')}
           >
             {isSavingOffline ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -266,8 +268,8 @@ const AudioDokuCard: React.FC<{
             }}
             className="rounded-xl border p-2"
             style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-            aria-label="Audio-Doku bearbeiten"
-            title="Audio-Doku bearbeiten"
+            aria-label={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
+            title={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -286,8 +288,8 @@ const AudioDokuCard: React.FC<{
               background: 'var(--talea-danger-soft)',
               color: 'var(--talea-danger)',
             }}
-            aria-label="Audio-Doku loeschen"
-            title="Audio-Doku loeschen"
+            aria-label={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
+            title={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -318,8 +320,8 @@ const AudioDokuCard: React.FC<{
               background: 'var(--talea-media-control-bg)',
               color: 'var(--talea-media-foreground)',
             }}
-            title="Zur Warteschlange"
-            aria-label="Zur Warteschlange hinzufuegen"
+            title={t('doku.addToQueue', 'Zur Warteschlange')}
+            aria-label={t('doku.addToQueue', 'Zur Warteschlange hinzufügen')}
           >
             <ListPlus className="h-4 w-4" />
           </button>
@@ -339,7 +341,7 @@ const AudioDokuCard: React.FC<{
         <div className="mt-3 flex flex-wrap gap-2">
           {doku.ageGroup && (
             <span className="rounded-full border px-2 py-1 text-[11px]" style={{ borderColor: palette.border, color: palette.text, background: palette.soft }}>
-              Alter {doku.ageGroup}
+              {t('doku.ageLabel', 'Alter {{age}}', { age: doku.ageGroup })}
             </span>
           )}
           {doku.category && (
@@ -351,7 +353,8 @@ const AudioDokuCard: React.FC<{
       )}
     </div>
   </motion.article>
-);
+  );
+};
 
 const AudioModal: React.FC<{
   doku: AudioDoku;
@@ -397,7 +400,7 @@ const AudioModal: React.FC<{
               background: 'var(--talea-media-chrome-bg)',
               color: 'var(--talea-media-foreground)',
             }}
-            aria-label="Audio Modal schliessen"
+            aria-label={t('doku.closeModal', 'Audio Modal schließen')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -553,7 +556,7 @@ const TaleaDokusScreen: React.FC = () => {
       setPublicDokus([]);
       setTotalPublic(0);
       setHasMorePublic(false);
-      setPublicAccessMessage(getErrorMessage(error, 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfuegbar.'));
+      setPublicAccessMessage(getErrorMessage(error, t('doku.publicAccessError', 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfügbar.')));
     } finally {
       setLoadingPublic(false);
     }
@@ -574,7 +577,7 @@ const TaleaDokusScreen: React.FC = () => {
       console.error(error);
       setAudioDokus([]);
       setTotalAudio(0);
-      setAudioAccessMessage(getErrorMessage(error, 'Audio-Dokus sind in deinem aktuellen Plan nicht verfuegbar.'));
+      setAudioAccessMessage(getErrorMessage(error, t('doku.audioAccessError', 'Audio-Dokus sind in deinem aktuellen Plan nicht verfügbar.')));
     } finally {
       setLoadingAudio(false);
     }
@@ -701,7 +704,7 @@ const TaleaDokusScreen: React.FC = () => {
   const handlePlayAudio = (doku: AudioDoku) => {
     setAudioError(null);
     if (!doku.audioUrl) {
-      setAudioError('Keine Audio-Datei verfuegbar');
+      setAudioError(t('doku.noAudioFile', 'Keine Audio-Datei verfügbar'));
       return;
     }
     const itemId = `audiodoku-${doku.id}`;
@@ -943,9 +946,9 @@ const TaleaDokusScreen: React.FC = () => {
 
               <div className="grid gap-2 sm:grid-cols-3 xl:w-[19rem] xl:grid-cols-3">
                 {[
-                  { label: 'Meine', value: String(totalMy) },
-                  { label: 'Entdecken', value: String(totalPublic) },
-                  { label: 'Audio', value: String(totalAudio) },
+                  { label: t('doku.myDokusMetric', 'Meine'), value: String(totalMy) },
+                  { label: t('doku.discoverMetric', 'Entdecken'), value: String(totalPublic) },
+                  { label: t('doku.audioMetric', 'Audio'), value: String(totalAudio) },
                 ].map((metric) => (
                   <motion.div key={metric.label} whileHover={controlHover} transition={{ type: 'spring', stiffness: 320, damping: 24 }}>
                     <TaleaMetricPill label={metric.label} value={metric.value} />
@@ -976,8 +979,8 @@ const TaleaDokusScreen: React.FC = () => {
                   onBlur={() => setActiveControl((current) => (current === 'doku-search' ? null : current))}
                   placeholder={
                     activeTab === 'audio'
-                      ? t('doku.searchPlaceholder', 'Audio durchsuchen...')
-                      : t('doku.searchPlaceholder', 'Dokus durchsuchen...')
+                      ? t('doku.searchPlaceholderAudio', 'Audio durchsuchen...')
+                      : t('doku.searchPlaceholderText', 'Dokus durchsuchen...')
                   }
                   className={cn(taleaInputClass, 'pl-10')}
                 />
@@ -985,9 +988,9 @@ const TaleaDokusScreen: React.FC = () => {
 
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
                 {([
-                  { key: 'mine', label: 'Meine', count: totalMy },
-                  { key: 'discover', label: 'Entdecken', count: totalPublic },
-                  { key: 'audio', label: 'Hoerwelt', count: totalAudio },
+                  { key: 'mine', label: t('doku.tabMine', 'Meine'), count: totalMy },
+                  { key: 'discover', label: t('doku.tabDiscover', 'Entdecken'), count: totalPublic },
+                  { key: 'audio', label: t('doku.tabAudio', 'Hörwelt'), count: totalAudio },
                 ] as const).map((tab) => {
                   const active = activeTab === tab.key;
                   return (
@@ -1024,19 +1027,19 @@ const TaleaDokusScreen: React.FC = () => {
                       id: 'topic-filter',
                       value: topicFilter,
                       onChange: (value: string) => setTopicFilter(value),
-                      ariaLabel: 'Thema filtern',
+                      ariaLabel: t('doku.filterTopic', 'Thema filtern'),
                       options: [
-                        { value: 'all', label: 'Alle Themen' },
-                        ...topicFilterOptions.map((topic) => ({ value: topic, label: formatTopicLabel(topic) })),
+                        { value: 'all', label: t('doku.filterAllTopics', 'Alle Themen') },
+                        ...topicFilterOptions.map((topic) => ({ value: topic, label: formatTopicLabel(topic, t('doku.topicUnknown', 'Unbekannt')) })),
                       ],
                     },
                     {
                       id: 'age-filter',
                       value: ageGroupFilter,
                       onChange: (value: string) => setAgeGroupFilter(value),
-                      ariaLabel: 'Altersgruppe filtern',
+                      ariaLabel: t('doku.filterAge', 'Altersgruppe filtern'),
                       options: [
-                        { value: 'all', label: 'Alle Altersgruppen' },
+                        { value: 'all', label: t('doku.filterAllAges', 'Alle Altersgruppen') },
                         ...ageGroupFilterOptions.map((ageGroup) => ({ value: ageGroup, label: ageGroup })),
                       ],
                     },
@@ -1044,10 +1047,10 @@ const TaleaDokusScreen: React.FC = () => {
                       id: 'depth-filter',
                       value: depthFilter,
                       onChange: (value: string) => setDepthFilter(value),
-                      ariaLabel: 'Tiefe filtern',
+                      ariaLabel: t('doku.filterDepth', 'Tiefe filtern'),
                       options: [
-                        { value: 'all', label: 'Alle Tiefen' },
-                        ...depthFilterOptions.map((depth) => ({ value: depth, label: formatDokuDepthLabel(depth) })),
+                        { value: 'all', label: t('doku.filterAllDepths', 'Alle Tiefen') },
+                        ...depthFilterOptions.map((depth) => ({ value: depth, label: formatDokuDepthLabel(depth, t) })),
                       ],
                     },
                   ].map((control) => (
@@ -1095,11 +1098,11 @@ const TaleaDokusScreen: React.FC = () => {
                     onFocus={() => setActiveControl('audio-scope-filter')}
                     onBlur={() => setActiveControl((current) => (current === 'audio-scope-filter' ? null : current))}
                     className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
-                    aria-label="Audio Bereich filtern"
+                    aria-label={t('doku.filterAudioScope', 'Audio Bereich filtern')}
                   >
-                    <option value="all">Alle Audio</option>
-                    <option value="mine">Meine Audio</option>
-                    <option value="public">Oeffentliche Audio</option>
+                    <option value="all">{t('doku.filterAllAudio', 'Alle Audio')}</option>
+                    <option value="mine">{t('doku.filterMyAudio', 'Meine Audio')}</option>
+                    <option value="public">{t('doku.filterPublicAudio', 'Öffentliche Audio')}</option>
                   </select>
                   <motion.div
                     className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
@@ -1123,11 +1126,11 @@ const TaleaDokusScreen: React.FC = () => {
                   onFocus={() => setActiveControl('sort-mode')}
                   onBlur={() => setActiveControl((current) => (current === 'sort-mode' ? null : current))}
                   className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
-                  aria-label="Sortierung"
+                  aria-label={t('common.sort', 'Sortierung')}
                 >
-                  <option value="newest">Neueste zuerst</option>
-                  <option value="oldest">Aelteste zuerst</option>
-                  <option value="title">Titel A-Z</option>
+                  <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
+                  <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
+                  <option value="title">{t('doku.sortTitle', 'Titel A-Z')}</option>
                 </select>
                 <motion.div
                   className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
@@ -1151,7 +1154,7 @@ const TaleaDokusScreen: React.FC = () => {
                 }}
                 className="h-11 w-full justify-center"
               >
-                Filter zuruecksetzen
+                {t('doku.filterReset', 'Filter zurücksetzen')}
               </TaleaActionButton>
             </div>
           </header>
@@ -1165,7 +1168,7 @@ const TaleaDokusScreen: React.FC = () => {
                   <SectionHeader
                     icon={<GraduationCap className="h-4 w-4" />}
                     title={t('doku.myDokus', 'Meine Dokus')}
-                    subtitle={t('doku.myDokusSubtitle', 'Deine persoenlichen Wissensartikel')}
+                    subtitle={t('doku.myDokusSubtitle', 'Von dir erstellte Dokus')}
                     count={totalMy}
                     palette={palette}
                   />
@@ -1175,7 +1178,7 @@ const TaleaDokusScreen: React.FC = () => {
                   ) : filteredMyDokus.length === 0 ? (
                     <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
                       <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? 'Keine Doku passt zum Suchbegriff.' : t('doku.noDokus', 'Noch keine Dokus')}
+                        {query ? t('doku.noDokusQuery', 'Keine Doku passt zum Suchbegriff.') : t('doku.noDokus', 'Noch keine Dokus')}
                       </p>
                     </div>
                   ) : (
@@ -1194,7 +1197,7 @@ const TaleaDokusScreen: React.FC = () => {
 
                   {hasMoreMy && !query && (
                     <div ref={myObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                      {loadingMoreMy ? 'Weitere Dokus werden geladen...' : null}
+                      {loadingMoreMy ? t('doku.loadingMore', 'Weitere Dokus werden geladen...') : null}
                     </div>
                   )}
                 </section>
@@ -1204,8 +1207,8 @@ const TaleaDokusScreen: React.FC = () => {
                 <section>
                   <SectionHeader
                     icon={<Globe className="h-4 w-4" />}
-                    title="Entdecken"
-                    subtitle="Geteilte Dokus aus der Community"
+                    title={t('doku.discoverTitle', 'Entdecken')}
+                    subtitle={t('doku.discoverSubtitle', 'Geteilte Dokus aus der Community')}
                     count={totalPublic}
                     palette={palette}
                   />
@@ -1226,7 +1229,7 @@ const TaleaDokusScreen: React.FC = () => {
                   ) : filteredPublicDokus.length === 0 ? (
                     <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
                       <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? 'Keine Entdecken-Doku passt zum Suchbegriff.' : t('doku.noPublicDokus', 'Keine oeffentlichen Artikel')}
+                        {query ? t('doku.noPublicDokusQuery', 'Keine Entdecken-Doku passt zum Suchbegriff.') : t('doku.noPublicDokus', 'Noch keine öffentlichen Dokus')}
                       </p>
                     </div>
                   ) : (
@@ -1239,7 +1242,7 @@ const TaleaDokusScreen: React.FC = () => {
 
                   {hasMorePublic && !publicAccessMessage && !query && (
                     <div ref={publicObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                      {loadingMorePublic ? 'Weitere Entdecken-Dokus werden geladen...' : null}
+                      {loadingMorePublic ? t('doku.loadingMorePublic', 'Weitere Entdecken-Dokus werden geladen...') : null}
                     </div>
                   )}
                 </section>
@@ -1249,11 +1252,11 @@ const TaleaDokusScreen: React.FC = () => {
                 <section>
                   <SectionHeader
                     icon={<Headphones className="h-4 w-4" />}
-                    title="Hoerwelt"
-                    subtitle="Dokus zum Anhoeren"
+                    title={t('doku.audioWorldTitle', 'Hörwelt')}
+                    subtitle={t('doku.audioWorldSubtitle', 'Dokus zum Anhören')}
                     count={totalAudio}
                     palette={palette}
-                    actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio erstellen') : undefined}
+                    actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio-Doku erstellen') : undefined}
                     onAction={isAdmin ? () => navigate('/createaudiodoku') : undefined}
                   />
 
@@ -1273,7 +1276,7 @@ const TaleaDokusScreen: React.FC = () => {
                   ) : filteredAudioDokus.length === 0 ? (
                     <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
                       <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? 'Keine Audio-Doku passt zum Suchbegriff.' : t('doku.noAudioDokus', 'Noch keine Audio-Dokus')}
+                        {query ? t('doku.noAudioDokusQuery', 'Keine Audio-Doku passt zum Suchbegriff.') : t('doku.noAudioDokus', 'Noch keine Audio-Dokus verfügbar')}
                       </p>
                     </div>
                   ) : (
@@ -1288,7 +1291,7 @@ const TaleaDokusScreen: React.FC = () => {
                             style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
                           >
                             <PlayCircle className="h-4 w-4" />
-                            Alle abspielen
+                            {t('doku.audioPlayAll', 'Alle abspielen')}
                           </motion.button>
                         </div>
                       )}

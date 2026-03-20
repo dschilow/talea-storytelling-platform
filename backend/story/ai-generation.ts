@@ -1911,11 +1911,14 @@ DESCRIPTION: ${stylePresetMeta.description}
 You MUST implement this style consistently in ALL chapters!`
     : "";
 
-  const languageDirective =
-    config.language === "en"
-      ? "Write the entire story in ENGLISH."
-      : "Schreibe die gesamte Geschichte auf DEUTSCH.";
-  const nonImageLanguage = config.language === "en" ? "English" : "Deutsch";
+  const languageNames: Record<string, string> = {
+    de: "Deutsch", en: "English", fr: "Français", es: "Español",
+    it: "Italiano", nl: "Nederlands", ru: "Русский",
+  };
+  const lang = config.language ?? "de";
+  const langName = languageNames[lang] ?? "Deutsch";
+  const languageDirective = `Write the entire story in ${langName}. Use ${langName} for ALL text fields except imageDescription (which must remain in English).`;
+  const nonImageLanguage = langName;
 
   const avatarVisualLines = avatars
     .map((avatar) => {

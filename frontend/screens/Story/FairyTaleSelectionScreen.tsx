@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Users, Sparkles, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FadeInView from '../../components/animated/FadeInView';
@@ -26,6 +27,7 @@ interface FairyTale {
 const FairyTaleSelectionScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
+  const { t } = useTranslation();
   
   const [tales, setTales] = useState<FairyTale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ const FairyTaleSelectionScreen: React.FC = () => {
       setTales(data.tales || []);
     } catch (err) {
       console.error('[FairyTaleSelection] Error loading tales:', err);
-      setError('Fehler beim Laden der Märchen. Bitte versuche es erneut.');
+      setError(t('fairytales.loadError'));
     } finally {
       setLoading(false);
     }
@@ -70,7 +72,7 @@ const FairyTaleSelectionScreen: React.FC = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', padding: spacing.xl }}>
         <div className="spinner" style={{ marginBottom: spacing.md }} />
-        <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>Märchen werden geladen...</p>
+        <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>{t('fairytales.loading')}</p>
       </div>
     );
   }
@@ -80,7 +82,7 @@ const FairyTaleSelectionScreen: React.FC = () => {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', padding: spacing.xl }}>
         <AlertCircle size={48} color={colors.semantic.error} style={{ marginBottom: spacing.md }} />
         <p style={{ ...typography.textStyles.body, color: colors.semantic.error, textAlign: 'center', marginBottom: spacing.lg }}>{error}</p>
-        <Button title="Erneut versuchen" variant="primary" onPress={loadFairyTales} />
+        <Button title={t('common.retry')} variant="primary" onPress={loadFairyTales} />
       </div>
     );
   }
@@ -90,10 +92,10 @@ const FairyTaleSelectionScreen: React.FC = () => {
       <FadeInView>
         <div style={{ marginBottom: spacing.xl }}>
           <h1 style={{ ...typography.textStyles.displayMd, marginBottom: spacing.sm }}>
-            Wähle ein Märchen
+            {t('fairytales.selectionTitle')}
           </h1>
           <p style={{ ...typography.textStyles.body, color: colors.text.secondary }}>
-            Personalisiere klassische Geschichten mit deinen Avataren
+            {t('fairytales.selectionSubtitle')}
           </p>
         </div>
 
@@ -134,13 +136,13 @@ const FairyTaleSelectionScreen: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
                     <Users size={16} color={colors.text.secondary} />
                     <span style={{ ...typography.textStyles.caption, color: colors.text.secondary }}>
-                      {tale.ageRecommendation}+ Jahre
+                      {t('fairytales.ageYears', { age: tale.ageRecommendation })}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: spacing.xs }}>
                     <Clock size={16} color={colors.text.secondary} />
                     <span style={{ ...typography.textStyles.caption, color: colors.text.secondary }}>
-                      ~{tale.durationMinutes} Min
+                      ~{tale.durationMinutes} {t('common.min')}
                     </span>
                   </div>
                 </div>
@@ -174,7 +176,7 @@ const FairyTaleSelectionScreen: React.FC = () => {
                 }}>
                   <Sparkles size={18} />
                   <span style={{ ...typography.textStyles.caption, marginLeft: spacing.xs, fontWeight: 600 }}>
-                    Auswählen
+                    {t('common.select')}
                   </span>
                 </div>
               </Card>

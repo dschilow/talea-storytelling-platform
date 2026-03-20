@@ -155,7 +155,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
             style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
           >
             <Plus className="h-4 w-4" />
-            {needsChildAvatar ? 'Kind-Avatar erstellen' : t('avatar.create')}
+            {needsChildAvatar ? t('wizard.common.createChildAvatar') : t('avatar.create')}
           </button>
         </motion.div>
       ) : (
@@ -191,10 +191,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
                 <p className="truncate text-sm font-semibold text-foreground">{avatar.name}</p>
                 {avatar.avatarRole === 'child' ? (
-                  <p className="mt-0.5 text-xs font-semibold text-[var(--talea-text-tertiary)]">Kind-Avatar</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[var(--talea-text-tertiary)]">{t('wizard.common.childAvatar')}</p>
                 ) : null}
                 {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
-                  <p className="mt-0.5 text-xs text-[#6f8cab]">Geteilt von {avatar.sharedByLabel}</p>
+                  <p className="mt-0.5 text-xs text-[#6f8cab]">{t('wizard.common.sharedBy', { name: avatar.sharedByLabel })}</p>
                 ) : (
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {avatar.age > 0 ? `${avatar.age} ${t('wizard.summary.age')}` : t('wizard.common.notSelected')}

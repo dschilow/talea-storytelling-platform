@@ -85,6 +85,77 @@ export type StoryTone =
   | "wonder";
 
 export type StoryLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
+
+/** Returns a localized phrase for how the avatar engaged with the story. */
+function localizedModeText(lang: StoryLanguage | undefined, participating: boolean): string {
+  const l = lang ?? "de";
+  const modes: Record<StoryLanguage, [string, string]> = {
+    de: ["aktive Teilnahme", "Lesen"],
+    en: ["active participation", "reading"],
+    fr: ["participation active", "lecture"],
+    es: ["participación activa", "lectura"],
+    it: ["partecipazione attiva", "lettura"],
+    nl: ["actieve deelname", "lezen"],
+    ru: ["активное участие", "чтение"],
+  };
+  return modes[l][participating ? 0 : 1];
+}
+
+/** Builds a personality-change description in the story's language. */
+function localizedTraitDescription(
+  lang: StoryLanguage | undefined,
+  trait: string,
+  points: number,
+  modeText: string,
+  genre: string,
+  storyTitle: string,
+): string {
+  const l = lang ?? "de";
+  if (trait.startsWith("knowledge.")) {
+    const subject = trait.split(".")[1];
+    const templates: Record<StoryLanguage, string> = {
+      de: `+${points} ${subject} durch ${modeText} der ${genre}-Geschichte "${storyTitle}"`,
+      en: `+${points} ${subject} through ${modeText} of ${genre} story "${storyTitle}"`,
+      fr: `+${points} ${subject} grâce à ${modeText} de l'histoire ${genre} "${storyTitle}"`,
+      es: `+${points} ${subject} mediante ${modeText} de la historia ${genre} "${storyTitle}"`,
+      it: `+${points} ${subject} attraverso ${modeText} della storia ${genre} "${storyTitle}"`,
+      nl: `+${points} ${subject} via ${modeText} van ${genre}-verhaal "${storyTitle}"`,
+      ru: `+${points} ${subject} через ${modeText} истории ${genre} "${storyTitle}"`,
+    };
+    return templates[l];
+  }
+  const templates: Record<StoryLanguage, string> = {
+    de: `+${points} ${trait} durch ${modeText} in "${storyTitle}" entwickelt`,
+    en: `+${points} ${trait} developed through ${modeText} in "${storyTitle}"`,
+    fr: `+${points} ${trait} développé via ${modeText} dans "${storyTitle}"`,
+    es: `+${points} ${trait} desarrollado mediante ${modeText} en "${storyTitle}"`,
+    it: `+${points} ${trait} sviluppato attraverso ${modeText} in "${storyTitle}"`,
+    nl: `+${points} ${trait} ontwikkeld via ${modeText} in "${storyTitle}"`,
+    ru: `+${points} ${trait} развито через ${modeText} в "${storyTitle}"`,
+  };
+  return templates[l];
+}
+
+/** Builds an experience description in the story's language. */
+function localizedExperienceDescription(
+  lang: StoryLanguage | undefined,
+  participating: boolean,
+  genre: string,
+  storyTitle: string,
+): string {
+  const l = lang ?? "de";
+  const templates: Record<StoryLanguage, [string, string]> = {
+    de: [`Ich war aktiver Teilnehmer in der Geschichte "${storyTitle}". Genre: ${genre}.`, `Ich habe die Geschichte "${storyTitle}" gelesen. Genre: ${genre}.`],
+    en: [`I was an active participant in the story "${storyTitle}". Genre: ${genre}.`, `I read the story "${storyTitle}". Genre: ${genre}.`],
+    fr: [`J'ai participé activement à l'histoire "${storyTitle}". Genre: ${genre}.`, `J'ai lu l'histoire "${storyTitle}". Genre: ${genre}.`],
+    es: [`Participé activamente en la historia "${storyTitle}". Género: ${genre}.`, `Leí la historia "${storyTitle}". Género: ${genre}.`],
+    it: [`Ho partecipato attivamente alla storia "${storyTitle}". Genere: ${genre}.`, `Ho letto la storia "${storyTitle}". Genere: ${genre}.`],
+    nl: [`Ik nam actief deel aan het verhaal "${storyTitle}". Genre: ${genre}.`, `Ik las het verhaal "${storyTitle}". Genre: ${genre}.`],
+    ru: [`Я активно участвовал в истории "${storyTitle}". Жанр: ${genre}.`, `Я прочитал историю "${storyTitle}". Жанр: ${genre}.`],
+  };
+  return templates[l][participating ? 0 : 1];
+}
+
 export type StoryPacing = "slow" | "balanced" | "fast";
 export type StoryPOV = "ich" | "personale";
 export type StoryPromptVersion = "v6" | "v7" | "v8";
@@ -617,7 +688,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
         const chapters = pipelineResult.storyDraft.chapters.map((ch) => ({
           id: crypto.randomUUID(),
-          title: (String(ch.title || "").trim() || (config.language === "en" ? `Chapter ${ch.chapter}` : `Kapitel ${ch.chapter}`)),
+          title: (String(ch.title || "").trim() || (config.language === "en" ? `Chapter ${ch.chapter}` : config.language === "fr" ? `Chapitre ${ch.chapter}` : config.language === "es" ? `Capítulo ${ch.chapter}` : config.language === "it" ? `Capitolo ${ch.chapter}` : config.language === "nl" ? `Hoofdstuk ${ch.chapter}` : config.language === "ru" ? `Глава ${ch.chapter}` : `Kapitel ${ch.chapter}`)),
           content: ch.text,
           imageUrl: imageByChapter.get(ch.chapter),
           scenicImageUrl: scenicImageByChapter.get(ch.chapter),
@@ -654,9 +725,9 @@ export const generate = api<GenerateStoryRequest, Story>(
         const pendingArtifact = pipelineResult.artifactMeta
           ? {
               id: pipelineResult.artifactMeta.id,
-              name: config.language === "en" ? pipelineResult.artifactMeta.name.en : pipelineResult.artifactMeta.name.de,
+              name: config.language === "de" ? pipelineResult.artifactMeta.name.de : pipelineResult.artifactMeta.name.en,
               nameEn: pipelineResult.artifactMeta.name.en,
-              description: config.language === "en" ? pipelineResult.artifactMeta.description.en : pipelineResult.artifactMeta.description.de,
+              description: config.language === "de" ? pipelineResult.artifactMeta.description.de : pipelineResult.artifactMeta.description.en,
               category: pipelineResult.artifactMeta.category,
               rarity: pipelineResult.artifactMeta.rarity,
               storyRole: pipelineResult.artifactMeta.storyRole,
@@ -944,38 +1015,11 @@ export const generate = api<GenerateStoryRequest, Story>(
             // AI-generated specific trait changes for this avatar with detailed descriptions
             changes = aiDevelopment.changedTraits.map((change: any) => {
               const adjustedChange = isParticipating ? change.change : Math.max(1, Math.floor(change.change / 2));
-              const isEnglish = config.language === 'en';
-              const modeText = isParticipating
-                ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
-                : (isEnglish ? 'reading' : 'Lesen');
-
-              // Create detailed description based on trait type
-              let description = '';
-              if (change.trait.startsWith('knowledge.')) {
-                const subject = change.trait.split('.')[1];
-                description = isEnglish
-                  ? `+${adjustedChange} ${subject} through ${modeText} of ${config.genre} story "${generatedStory.title}"`
-                  : `+${adjustedChange} ${subject} durch ${modeText} der ${config.genre}-Geschichte "${generatedStory.title}"`;
-              } else {
-                description = isEnglish
-                  ? `+${adjustedChange} ${change.trait} developed through ${modeText} in "${generatedStory.title}"`
-                  : `+${adjustedChange} ${change.trait} durch ${modeText} in "${generatedStory.title}" entwickelt`;
-              }
-
-              return {
-                trait: change.trait,
-                change: adjustedChange,
-                description: description
-              };
+              const modeText = localizedModeText(config.language, isParticipating);
+              const description = localizedTraitDescription(config.language, change.trait, adjustedChange, modeText, config.genre, generatedStory.title);
+              return { trait: change.trait, change: adjustedChange, description };
             });
-            const isEnglish = config.language === 'en';
-            experienceDescription = isParticipating
-              ? (isEnglish
-                ? `I was an active participant in the story "${generatedStory.title}". Genre: ${config.genre}.`
-                : `Ich war aktiver Teilnehmer in der Geschichte "${generatedStory.title}". Genre: ${config.genre}.`)
-              : (isEnglish
-                ? `I read the story "${generatedStory.title}". Genre: ${config.genre}.`
-                : `Ich habe die Geschichte "${generatedStory.title}" gelesen. Genre: ${config.genre}.`);
+            experienceDescription = localizedExperienceDescription(config.language, isParticipating, config.genre, generatedStory.title);
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
             const baseTraits = config.genre === 'adventure' ? ['courage', 'curiosity'] :
@@ -985,23 +1029,11 @@ export const generate = api<GenerateStoryRequest, Story>(
                     ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {
               const points = isParticipating ? 2 : 1;
-              const isEnglish = config.language === 'en';
-              const modeText = isParticipating
-                ? (isEnglish ? 'active participation' : 'aktive Teilnahme')
-                : (isEnglish ? 'reading' : 'Lesen');
-
-              return {
-                trait,
-                change: points,
-                description: isEnglish
-                  ? `+${points} ${trait} through ${modeText} in ${config.genre} story`
-                  : `+${points} ${trait} durch ${modeText} in ${config.genre}-Geschichte`
-              };
+              const modeText = localizedModeText(config.language, isParticipating);
+              const description = localizedTraitDescription(config.language, trait, points, modeText, config.genre, generatedStory.title);
+              return { trait, change: points, description };
             });
-            const isEnglish = config.language === 'en';
-            experienceDescription = isEnglish
-              ? `Experienced story "${generatedStory.title}" (${config.genre}).`
-              : `Geschichte "${generatedStory.title}" (${config.genre}) erlebt.`;
+            experienceDescription = localizedExperienceDescription(config.language, isParticipating, config.genre, generatedStory.title);
           }
 
           if (changes.length > 0) {

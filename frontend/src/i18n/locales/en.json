@@ -42,7 +42,10 @@
     "childAvatar": "Child avatar",
     "childAvatarMissing": "Child avatar missing",
     "newHero": "New hero",
-    "sort": "Sort"
+    "sort": "Sort",
+    "retry": "Try again",
+    "min": "min",
+    "select": "Select"
   },
   "navigation": {
     "home": "Home",
@@ -151,8 +154,25 @@
         "appearance": "Appearance",
         "style": "Style",
         "background": "Background",
-        "create": "Create"
+        "create": "Create",
+        "who": "Who?",
+        "body": "Body",
+        "look": "Appearance",
+        "extras": "Extras",
+        "done": "Done!"
       },
+      "createTitle": "Create avatar",
+      "createChildTitle": "Create child avatar",
+      "stepOf": "Step {{current}} of {{total}}",
+      "creating": "Creating {{name}}...",
+      "creatingSubtitle": "Your avatar will be ready soon!",
+      "previewSuccess": "Your avatar image is ready!",
+      "previewError": "The image could not be created. Please try again!",
+      "nameRequired": "Your avatar still needs a name!",
+      "createSuccess": "{{name}} is here! Have fun with your avatar!",
+      "createError": "Something went wrong. Please try again!",
+      "back": "Back",
+      "next": "Next",
       "mode": {
         "title": "How would you like to create your avatar?",
         "simple": {
@@ -290,6 +310,23 @@
     "create": "Create Story",
     "myStories": "My Stories",
     "generating": "Generating story...",
+    "reader": {
+      "loading": "Loading story...",
+      "notFound": "Story not found",
+      "chapter": "Chapter",
+      "read": "Read",
+      "finish": "Complete Story",
+      "completed": "Completed",
+      "scene": "Scene",
+      "environment": "Environment",
+      "personalityGrowth": "Personality is growing",
+      "avatarsUpdated": "{{count}} avatar(s) updated",
+      "toast": {
+        "completed": "{{count}} avatar(s) updated",
+        "error": "Error applying personality updates.",
+        "networkError": "Network error while completing the story."
+      }
+    },
     "wizard": {
       "title": "Create Story",
       "subtitle": "Create a magical story with your avatars",
@@ -1140,7 +1177,32 @@
       "notSelected": "Not selected",
       "customWish": "💬 Custom wish (optional):",
       "customWishPlaceholder": "e.g. 'The story should take place in space'",
-      "chars": "chars"
+      "chars": "chars",
+      "createChildAvatar": "Create Child Avatar",
+      "childAvatar": "Child Avatar",
+      "sharedBy": "Shared by {{name}}"
+    },
+    "aiModel": {
+      "title": "AI Model",
+      "subtitle": "Choose the model for story generation.",
+      "recommended": "Recommended",
+      "models": {
+        "claude_sonnet": "Anthropic, strong prose",
+        "gemini3_pro": "Google AI",
+        "gemini31_pro": "Best children's book quality",
+        "gemini3_flash": "Fast & free",
+        "gpt54": "Best quality",
+        "gpt54_mini": "Strong & cheaper"
+      }
+    },
+    "credits": {
+      "title": "Story Coins",
+      "unlimited": "unlimited",
+      "remaining": "remaining",
+      "usedTotal": "used / total",
+      "costPerGen": "Each story costs {{count}} coin",
+      "notAvailable": "Not available right now",
+      "coin": "Coin"
     },
     "categories": {
       "fairy_tales": {
@@ -1278,6 +1340,13 @@
       "title": "Your story is being written...",
       "subtitle": "Please wait a moment"
     }
+  },
+  "fairytales": {
+    "loading": "Loading fairy tales...",
+    "loadError": "Error loading fairy tales. Please try again.",
+    "selectionTitle": "Choose a Fairy Tale",
+    "selectionSubtitle": "Personalize classic stories with your avatars",
+    "ageYears": "{{age}}+ years"
   },
   "homeScreen": {
     "loadingTitle": "Talea is rearranging the home screen",

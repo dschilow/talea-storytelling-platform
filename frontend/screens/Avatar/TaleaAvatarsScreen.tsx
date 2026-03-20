@@ -113,6 +113,7 @@ const AvatarCard: React.FC<{
   onDelete: () => void;
 }> = ({ avatar, index, palette, onView, onEdit, onDelete }) => {
   const canManage = avatar.isOwnedByCurrentUser ?? true;
+  const { t } = useTranslation();
 
   return (
     <motion.article
@@ -147,7 +148,7 @@ const AvatarCard: React.FC<{
               color: "var(--talea-media-foreground)",
             }}
           >
-            {avatar.creationType === "photo-upload" ? "Foto" : "AI"}
+            {avatar.creationType === "photo-upload" ? t("homePage.badgePhoto", "Foto") : t("homePage.badgeAi", "AI")}
           </span>
 
           {avatar.avatarRole === "child" ? (
@@ -159,7 +160,7 @@ const AvatarCard: React.FC<{
                 color: "var(--talea-media-foreground)",
               }}
             >
-              Kind
+              {t("avatarScreen.childLabel")}
             </span>
           ) : null}
 
@@ -175,7 +176,7 @@ const AvatarCard: React.FC<{
               }}
             >
               <Share2 className="h-3 w-3" />
-              Geteilt
+              {t("avatarScreen.sharedLabel")}
             </span>
           ) : null}
 
@@ -189,7 +190,7 @@ const AvatarCard: React.FC<{
                 }}
                 className="rounded-xl border p-2"
                 style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-                aria-label={`${avatar.name} bearbeiten`}
+                aria-label={t("avatarScreen.editLabel", { name: avatar.name })}
               >
                 <Edit className="h-4 w-4" />
               </button>
@@ -205,7 +206,7 @@ const AvatarCard: React.FC<{
                   background: "var(--talea-danger-soft)",
                   color: "var(--talea-danger)",
                 }}
-                aria-label={`${avatar.name} loeschen`}
+                aria-label={t("avatarScreen.deleteLabel", { name: avatar.name })}
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -223,8 +224,8 @@ const AvatarCard: React.FC<{
               <p className="truncate text-sm font-semibold text-[var(--talea-media-foreground)]">{avatar.name}</p>
               <p className="truncate text-xs text-white/72">
                 {(!canManage && avatar.sharedBy?.name) || (!canManage && avatar.sharedBy?.email)
-                  ? `Geteilt von ${avatar.sharedBy?.name || avatar.sharedBy?.email}`
-                  : avatar.description || "Avatar ohne Beschreibung"}
+                  ? t("avatarScreen.sharedByLabel", { name: avatar.sharedBy?.name || avatar.sharedBy?.email })
+                  : avatar.description || t("avatarScreen.noDescriptionLabel")}
               </p>
             </div>
             <Eye className="ml-2 h-4 w-4 text-white/85" />
@@ -297,7 +298,7 @@ const TaleaAvatarsScreen: React.FC = () => {
 
   const handleDeleteAvatar = async (avatar: Avatar) => {
     if (avatar.isOwnedByCurrentUser === false) {
-      toast.error("Geteilte Avatare koennen nicht geloescht werden.");
+      toast.error(t("avatarScreen.cannotDeleteShared"));
       return;
     }
 
@@ -352,14 +353,14 @@ const TaleaAvatarsScreen: React.FC = () => {
           <header className={cn(taleaSurfaceClass, "overflow-hidden p-3 sm:p-4 md:p-5")}>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
               <div className="min-w-0">
-                <span className={taleaChipClass}>Avatare</span>
+                <span className={taleaChipClass}>{t("avatarScreen.chipLabel")}</span>
 
                 <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                   <h1
                     className="text-[1.85rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.15rem]"
                     style={{ fontFamily: headingFont }}
                   >
-                    Avatare
+                    {t("avatarScreen.title")}
                   </h1>
 
                   <div className="flex flex-wrap gap-2 xl:justify-end">
@@ -368,7 +369,7 @@ const TaleaAvatarsScreen: React.FC = () => {
                       onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
                       icon={<Plus className="h-4 w-4" />}
                     >
-                      {needsChildAvatar ? "Kind-Avatar" : t("avatar.create", "Neuer Avatar")}
+                      {needsChildAvatar ? t("avatarScreen.createChildAvatar") : t("avatar.create", "Neuer Avatar")}
                     </TaleaActionButton>
                   </div>
                 </div>
@@ -376,11 +377,11 @@ const TaleaAvatarsScreen: React.FC = () => {
 
               <div className="grid gap-2 sm:grid-cols-3 xl:w-[26rem] xl:grid-cols-5">
                 {[
-                  { label: "Gesamt", value: String(avatars.length) },
-                  { label: "Sichtbar", value: String(filteredAvatars.length) },
-                  { label: "Geteilt", value: String(sharedCount) },
-                  { label: "Eigene", value: String(ownedCount) },
-                  { label: "Kind", value: activeProfile?.childAvatarId ? "Bereit" : "Fehlt" },
+                  { label: t("avatarScreen.metricTotal"), value: String(avatars.length) },
+                  { label: t("avatarScreen.metricVisible"), value: String(filteredAvatars.length) },
+                  { label: t("avatarScreen.metricShared"), value: String(sharedCount) },
+                  { label: t("avatarScreen.metricOwn"), value: String(ownedCount) },
+                  { label: t("avatarScreen.metricChild"), value: activeProfile?.childAvatarId ? t("avatarScreen.childAvatarReady") : t("avatarScreen.childAvatarMissing") },
                 ].map((metric) => (
                   <motion.div key={metric.label} whileHover={controlHover} transition={{ type: "spring", stiffness: 320, damping: 24 }}>
                     <TaleaMetricPill label={metric.label} value={metric.value} />
@@ -409,7 +410,7 @@ const TaleaAvatarsScreen: React.FC = () => {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   onFocus={() => setActiveControl("avatar-search")}
                   onBlur={() => setActiveControl((current) => (current === "avatar-search" ? null : current))}
-                  placeholder="Avatare durchsuchen..."
+                  placeholder={t("avatarScreen.searchPlaceholder")}
                   className={cn(taleaInputClass, "pl-10")}
                 />
               </motion.label>
@@ -422,21 +423,21 @@ const TaleaAvatarsScreen: React.FC = () => {
             <EmptyAvatars
               onCreate={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
               palette={palette}
-              title={needsChildAvatar ? "Kind-Avatar fehlt" : t("homePage.emptyAvatarsTitle", "Noch keine Avatare")}
+              title={needsChildAvatar ? t("avatarScreen.childAvatarMissingTitle") : t("homePage.emptyAvatarsTitle")}
               description={
                 needsChildAvatar
-                  ? "Lege zuerst den festen Kind-Avatar an. Danach kannst du beliebige Zusatz-Avatare fuer Geschichten erstellen."
-                  : t("homePage.emptyAvatarsDesc", "Erstelle deinen ersten Avatar fuer Geschichten und Dokus.")
+                  ? t("avatarScreen.childAvatarMissingDesc")
+                  : t("homePage.emptyAvatarsDesc")
               }
-              cta={needsChildAvatar ? "Kind-Avatar erstellen" : t("avatar.createNew", "Ersten Avatar erstellen")}
+              cta={needsChildAvatar ? t("avatarScreen.createChildAvatarEmpty") : t("avatar.createNew")}
             />
           ) : filteredAvatars.length === 0 ? (
             <div className="rounded-3xl border p-10 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
               <h2 className="text-3xl" style={{ color: palette.text, fontFamily: headingFont }}>
-                Keine Treffer
+                {t("avatarScreen.noResults")}
               </h2>
               <p className="mt-2 text-sm" style={{ color: palette.textMuted }}>
-                Kein Avatar passt zu "{searchQuery}".
+                {t("avatarScreen.noResultsDesc", { query: searchQuery })}
               </p>
             </div>
           ) : (

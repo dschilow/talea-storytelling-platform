@@ -42,7 +42,10 @@
     "childAvatar": "Kind-Avatar",
     "childAvatarMissing": "Kind-Avatar fehlt",
     "newHero": "Neuer Held",
-    "sort": "Sortierung"
+    "sort": "Sortierung",
+    "retry": "Erneut versuchen",
+    "min": "Min",
+    "select": "Auswählen"
   },
   "navigation": {
     "home": "Start",
@@ -151,8 +154,25 @@
         "appearance": "Aussehen",
         "style": "Stil",
         "background": "Herkunft",
-        "create": "Erstellen"
+        "create": "Erstellen",
+        "who": "Wer?",
+        "body": "Körper",
+        "look": "Aussehen",
+        "extras": "Extras",
+        "done": "Fertig!"
       },
+      "createTitle": "Avatar erstellen",
+      "createChildTitle": "Kind-Avatar erstellen",
+      "stepOf": "Schritt {{current}} von {{total}}",
+      "creating": "{{name}} wird gezaubert...",
+      "creatingSubtitle": "Gleich ist dein Avatar fertig!",
+      "previewSuccess": "Dein Avatar-Bild ist fertig!",
+      "previewError": "Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!",
+      "nameRequired": "Dein Avatar braucht noch einen Namen!",
+      "createSuccess": "{{name}} ist da! Viel Spaß mit deinem Avatar!",
+      "createError": "Das hat leider nicht geklappt. Versuch es nochmal!",
+      "back": "Zurück",
+      "next": "Weiter",
       "mode": {
         "title": "Wie möchtest du deinen Avatar erstellen?",
         "simple": {
@@ -290,6 +310,23 @@
     "create": "Geschichte erstellen",
     "myStories": "Meine Geschichten",
     "generating": "Geschichte wird generiert...",
+    "reader": {
+      "loading": "Geschichte wird geladen...",
+      "notFound": "Geschichte nicht gefunden",
+      "chapter": "Kapitel",
+      "read": "Lesen",
+      "finish": "Geschichte abschließen",
+      "completed": "Abgeschlossen",
+      "scene": "Szene",
+      "environment": "Umgebung",
+      "personalityGrowth": "Persönlichkeit entwickelt sich",
+      "avatarsUpdated": "{{count}} Avatar(e) aktualisiert",
+      "toast": {
+        "completed": "{{count}} Avatar(e) aktualisiert",
+        "error": "Fehler beim Anwenden der Persönlichkeits-Updates.",
+        "networkError": "Netzwerkfehler beim Abschließen der Geschichte."
+      }
+    },
     "wizard": {
       "title": "Geschichte erstellen",
       "subtitle": "Erschaffe eine magische Geschichte mit deinen Avataren",
@@ -1140,7 +1177,32 @@
       "notSelected": "Nicht gewählt",
       "customWish": "Eigener Wunsch (wenn du magst):",
       "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
-      "chars": "Zeichen"
+      "chars": "Zeichen",
+      "createChildAvatar": "Kind-Avatar erstellen",
+      "childAvatar": "Kind-Avatar",
+      "sharedBy": "Geteilt von {{name}}"
+    },
+    "aiModel": {
+      "title": "KI-Modell",
+      "subtitle": "Wähle das Modell für die Story-Generierung.",
+      "recommended": "Empfohlen",
+      "models": {
+        "claude_sonnet": "Anthropic, starke Prosa",
+        "gemini3_pro": "Google AI",
+        "gemini31_pro": "Beste Kinderbuch-Qualität",
+        "gemini3_flash": "Schnell & kostenlos",
+        "gpt54": "Beste Qualität",
+        "gpt54_mini": "Stark & günstiger"
+      }
+    },
+    "credits": {
+      "title": "Geschichten-Münzen",
+      "unlimited": "unbegrenzt",
+      "remaining": "noch übrig",
+      "usedTotal": "benutzt / gesamt",
+      "costPerGen": "Jede Geschichte kostet {{count}} Münze",
+      "notAvailable": "Gerade nicht möglich",
+      "coin": "Münze"
     },
     "categories": {
       "fairy_tales": {
@@ -1278,6 +1340,13 @@
       "title": "Deine Geschichte wird geschrieben...",
       "subtitle": "Bitte warte einen Moment"
     }
+  },
+  "fairytales": {
+    "loading": "Märchen werden geladen...",
+    "loadError": "Fehler beim Laden der Märchen. Bitte versuche es erneut.",
+    "selectionTitle": "Wähle ein Märchen",
+    "selectionSubtitle": "Personalisiere klassische Geschichten mit deinen Avataren",
+    "ageYears": "{{age}}+ Jahre"
   },
   "homeScreen": {
     "loadingTitle": "Talea richtet die Startseite neu ein",

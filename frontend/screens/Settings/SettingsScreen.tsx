@@ -485,6 +485,7 @@ function KeywordEditor(props: {
   onRemove: (value: string) => void;
   onApplyPreset?: (keywords: string[]) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fffaf3] p-4 dark:border-[#425874] dark:bg-[#17263a]">
       <div className="mb-3 flex items-start gap-2">
@@ -505,7 +506,7 @@ function KeywordEditor(props: {
 
       <div className="mb-3 flex flex-wrap gap-1.5">
         {props.values.length === 0 ? (
-          <span className="text-xs text-muted-foreground">Noch keine Eintraege.</span>
+          <span className="text-xs text-muted-foreground">{t('settings.parentalNoEntries', 'Noch keine Einträge.')}</span>
         ) : (
           props.values.map((value) => (
             <TagPill key={value} value={value} onRemove={() => props.onRemove(value)} />
@@ -532,7 +533,7 @@ function KeywordEditor(props: {
           className="inline-flex h-9 items-center justify-center rounded-xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-3 text-sm font-semibold text-[#2f4058] hover:bg-[#edede9] dark:border-[#496381] dark:bg-[#243850] dark:text-[#d5e4f8] dark:hover:bg-[#2b425f]"
         >
           <Plus className="mr-1 h-4 w-4" />
-          Add
+          {t('settings.parentalAdd', 'Hinzufügen')}
         </button>
       </div>
     </div>
@@ -540,6 +541,7 @@ function KeywordEditor(props: {
 }
 
 function ParentalDashboardPanel() {
+  const { t } = useTranslation();
   const backend = useBackend();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -590,7 +592,7 @@ function ParentalDashboardPanel() {
       }
     } catch (error) {
       console.error('Failed to load parental controls:', error);
-      toast.error('Eltern-Dashboard konnte nicht geladen werden.');
+      toast.error(t('settings.parentalLoadFailed', 'Eltern-Dashboard konnte nicht geladen werden.'));
     } finally {
       setLoading(false);
     }
@@ -629,28 +631,28 @@ function ParentalDashboardPanel() {
 
     if (controls.hasPin) {
       if (!currentPin) {
-        toast.error('Bitte zuerst Eltern-PIN eingeben.');
+        toast.error(t('settings.parentalPinRequired', 'Bitte zuerst Eltern-PIN eingeben.'));
         return;
       }
       payload.currentPin = currentPin;
       if (nextPin || nextPinConfirm) {
         if (nextPin !== nextPinConfirm) {
-          toast.error('Neuer PIN und Bestaetigung stimmen nicht ueberein.');
+          toast.error(t('settings.parentalPinMismatch', 'Neuer PIN und Bestätigung stimmen nicht überein.'));
           return;
         }
         if (!validatePin(nextPin)) {
-          toast.error('PIN muss 4 bis 8 Ziffern haben.');
+          toast.error(t('settings.parentalPinInvalid', 'PIN muss 4 bis 8 Ziffern haben.'));
           return;
         }
         payload.newPin = nextPin;
       }
     } else {
       if (setupPin !== setupPinConfirm) {
-        toast.error('PIN und Bestaetigung stimmen nicht ueberein.');
+        toast.error(t('settings.parentalPinMismatch2', 'PIN und Bestätigung stimmen nicht überein.'));
         return;
       }
       if (!validatePin(setupPin)) {
-        toast.error('Bitte einen PIN mit 4 bis 8 Ziffern setzen.');
+        toast.error(t('settings.parentalPinInvalid2', 'Bitte einen PIN mit 4 bis 8 Ziffern setzen.'));
         return;
       }
       payload.newPin = setupPin;
@@ -677,10 +679,10 @@ function ParentalDashboardPanel() {
         setNextPin('');
         setNextPinConfirm('');
       }
-      toast.success('Eltern-Dashboard gespeichert.');
+      toast.success(t('settings.saved', 'Einstellungen gespeichert'));
     } catch (error) {
       console.error('Failed to save parental controls:', error);
-      toast.error(error instanceof Error ? error.message : 'Speichern fehlgeschlagen.');
+      toast.error(error instanceof Error ? error.message : t('settings.parentalSaveFailed', 'Speichern fehlgeschlagen.'));
     } finally {
       setSaving(false);
     }
@@ -688,7 +690,7 @@ function ParentalDashboardPanel() {
 
   const unlock = async () => {
     if (!unlockPin.trim()) {
-      toast.error('Bitte PIN eingeben.');
+      toast.error(t('settings.parentalPinEmpty', 'Bitte PIN eingeben.'));
       return;
     }
 
@@ -697,13 +699,13 @@ function ParentalDashboardPanel() {
       if ((response as any).ok) {
         setCurrentPin(unlockPin.trim());
         setUnlockPin('');
-        toast.success('Eltern-Dashboard entsperrt.');
+        toast.success(t('settings.parentalUnlocked', 'Eltern-Dashboard entsperrt.'));
       } else {
-        toast.error('PIN ungueltig.');
+        toast.error(t('settings.parentalPinInvalidVerify', 'PIN ungültig.'));
       }
     } catch (error) {
       console.error('Failed to verify parental pin:', error);
-      toast.error('PIN konnte nicht geprueft werden.');
+      toast.error(t('settings.parentalPinVerifyFailed', 'PIN konnte nicht geprüft werden.'));
     }
   };
 
@@ -711,7 +713,7 @@ function ParentalDashboardPanel() {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Lade Eltern-Dashboard...
+          {t('settings.parentalLoading', 'Lade Eltern-Dashboard...')}
         </div>
       </div>
     );
@@ -721,7 +723,7 @@ function ParentalDashboardPanel() {
     return (
       <div className="p-6">
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Eltern-Dashboard nicht verfuegbar.
+          {t('settings.parentalUnavailable', 'Eltern-Dashboard nicht verfügbar.')}
         </div>
       </div>
     );
@@ -735,10 +737,10 @@ function ParentalDashboardPanel() {
         </div>
         <div>
           <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-            Eltern-Dashboard
+            {t('settings.parentalTitle', 'Eltern-Dashboard')}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Sicherheit, Lernziele und Tageslimits fuer Storys und Dokus.
+            {t('settings.parentalSubtitle', 'Sicherheit, Lernziele und Tageslimits für Storys und Dokus.')}
           </p>
         </div>
       </div>
@@ -747,10 +749,10 @@ function ParentalDashboardPanel() {
         <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
             <Lock className="h-4 w-4" />
-            PIN-Schutz aktiv
+            {t('settings.parentalPinActive', 'PIN-Schutz aktiv')}
           </div>
           <p className="mb-3 text-xs text-muted-foreground">
-            Bitte Eltern-PIN eingeben, um Regeln und Limits zu bearbeiten.
+            {t('settings.parentalPinDescription', 'Bitte Eltern-PIN eingeben, um Regeln und Limits zu bearbeiten.')}
           </p>
           <div className="flex items-center gap-2">
             <input
@@ -766,7 +768,7 @@ function ParentalDashboardPanel() {
               onClick={unlock}
               className="inline-flex h-10 items-center rounded-xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-4 text-sm font-semibold text-[#2f4058] dark:border-[#496381] dark:bg-[#243850] dark:text-[#d5e4f8]"
             >
-              Entsperren
+              {t('settings.parentalUnlock', 'Entsperren')}
             </button>
           </div>
         </div>
@@ -777,9 +779,9 @@ function ParentalDashboardPanel() {
           <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">Kinderschutz aktivieren</p>
+                <p className="text-sm font-bold text-foreground">{t('settings.parentalChildProtection', 'Kinderschutz aktivieren')}</p>
                 <p className="text-xs text-muted-foreground">
-                  Aktiv steuert Tabu-Themen, Lernziele und Tageslimits in Story- und Doku-Prompts.
+                  {t('settings.parentalChildProtectionDesc', 'Aktiv steuert Tabu-Themen, Lernziele und Tageslimits in Story- und Doku-Prompts.')}
                 </p>
               </div>
               <button
@@ -795,13 +797,13 @@ function ParentalDashboardPanel() {
             </div>
             <div className="mt-3 rounded-xl border border-[var(--talea-border-light)] bg-[#f8f1e8] px-3 py-2 text-xs text-[#586b84] dark:border-[#3f546f] dark:bg-[#1b2d43] dark:text-[#a7bdd8]">
               <Info className="mr-1 inline h-3.5 w-3.5" />
-              Regeln greifen bei neuen Generierungen. Bestehende Inhalte bleiben unveraendert.
+              {t('settings.parentalRulesInfo', 'Regeln greifen bei neuen Generierungen. Bestehende Inhalte bleiben unverändert.')}
             </div>
           </div>
 
           <KeywordEditor
-            title="Tabu-Themen"
-            subtitle="Diese Themen sollen in Storys und Dokus vermieden werden."
+            title={t('settings.parentalBlockedThemes', 'Tabu-Themen')}
+            subtitle={t('settings.parentalBlockedThemesDesc', 'Diese Themen sollen in Storys und Dokus vermieden werden.')}
             icon={<Ban className="h-4 w-4" />}
             values={blockedThemes}
             presets={presets.blockedThemePresets}
@@ -817,8 +819,8 @@ function ParentalDashboardPanel() {
           />
 
           <KeywordEditor
-            title="Tabu-Woerter"
-            subtitle="Diese Begriffe werden in neu generierten Texten geblockt."
+            title={t('settings.parentalBlockedWords', 'Tabu-Wörter')}
+            subtitle={t('settings.parentalBlockedWordsDesc', 'Diese Begriffe werden in neu generierten Texten geblockt.')}
             icon={<Ban className="h-4 w-4" />}
             values={blockedWords}
             presets={presets.blockedWordPresets}
@@ -834,8 +836,8 @@ function ParentalDashboardPanel() {
           />
 
           <KeywordEditor
-            title="Lernziele"
-            subtitle="Diese Ziele werden bei neuen Storys und Dokus bevorzugt."
+            title={t('settings.parentalLearningGoals', 'Lernziele')}
+            subtitle={t('settings.parentalLearningGoalsDesc', 'Diese Ziele werden bei neuen Storys und Dokus bevorzugt.')}
             icon={<Target className="h-4 w-4" />}
             values={learningGoals}
             presets={presets.goalPresets}
@@ -851,8 +853,8 @@ function ParentalDashboardPanel() {
           />
 
           <KeywordEditor
-            title="Profil-/Pfad-Schlagwoerter"
-            subtitle="Zusatz-Keywords fuer die inhaltliche Ausrichtung."
+            title={t('settings.parentalProfileKeywords', 'Profil-/Pfad-Schlagwörter')}
+            subtitle={t('settings.parentalProfileKeywordsDesc', 'Zusatz-Keywords für die inhaltliche Ausrichtung.')}
             icon={<Target className="h-4 w-4" />}
             values={profileKeywords}
             inputValue={profileInput}
@@ -866,20 +868,20 @@ function ParentalDashboardPanel() {
           />
 
           <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fffaf3] p-4 dark:border-[#425874] dark:bg-[#17263a]">
-            <p className="text-sm font-bold text-foreground">Tageslimits (unabhaengig vom Abo)</p>
+            <p className="text-sm font-bold text-foreground">{t('settings.parentalDailyLimits', 'Tageslimits (unabhängig vom Abo)')}</p>
             <p className="mb-3 text-xs text-muted-foreground">
-              Schuetzt Credits davor, an einem einzigen Tag komplett verbraucht zu werden.
+              {t('settings.parentalDailyLimitsDesc', 'Schützt Credits davor, an einem einzigen Tag komplett verbraucht zu werden.')}
             </p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-[var(--talea-border-light)] bg-[#f8f1e8] p-3 dark:border-[#3f546f] dark:bg-[#1b2d43]">
-                <p className="text-xs font-semibold text-muted-foreground">Storys pro Tag</p>
+                <p className="text-xs font-semibold text-muted-foreground">{t('settings.parentalStoriesPerDay', 'Storys pro Tag')}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setDailyStoryLimit(null)}
                     className={`rounded-lg px-2 py-1 text-xs font-semibold ${dailyStoryLimit === null ? 'bg-[var(--primary)] text-white' : 'bg-white text-[#49617c] dark:bg-[#20324a] dark:text-[#b5c9e2]'}`}
                   >
-                    Unbegrenzt
+                    {t('settings.parentalUnlimited', 'Unbegrenzt')}
                   </button>
                   <input
                     type="number"
@@ -895,14 +897,14 @@ function ParentalDashboardPanel() {
                 </div>
               </div>
               <div className="rounded-xl border border-[var(--talea-border-light)] bg-[#f8f1e8] p-3 dark:border-[#3f546f] dark:bg-[#1b2d43]">
-                <p className="text-xs font-semibold text-muted-foreground">Dokus pro Tag</p>
+                <p className="text-xs font-semibold text-muted-foreground">{t('settings.parentalDokusPerDay', 'Dokus pro Tag')}</p>
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setDailyDokuLimit(null)}
                     className={`rounded-lg px-2 py-1 text-xs font-semibold ${dailyDokuLimit === null ? 'bg-[var(--primary)] text-white' : 'bg-white text-[#49617c] dark:bg-[#20324a] dark:text-[#b5c9e2]'}`}
                   >
-                    Unbegrenzt
+                    {t('settings.parentalUnlimited', 'Unbegrenzt')}
                   </button>
                   <input
                     type="number"
@@ -923,7 +925,7 @@ function ParentalDashboardPanel() {
           <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
             <div className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
               <KeyRound className="h-4 w-4" />
-              Eltern-PIN
+              {t('settings.parentalPin', 'Eltern-PIN')}
             </div>
             {!controls.hasPin ? (
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -932,7 +934,7 @@ function ParentalDashboardPanel() {
                   inputMode="numeric"
                   value={setupPin}
                   onChange={(event) => setSetupPin(event.target.value)}
-                  placeholder="Neuer PIN (4-8 Ziffern)"
+                  placeholder={t('settings.parentalNewPin', 'Neuer PIN (4-8 Ziffern)')}
                   className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#45607e] dark:bg-[#20324a]"
                 />
                 <input
@@ -940,7 +942,7 @@ function ParentalDashboardPanel() {
                   inputMode="numeric"
                   value={setupPinConfirm}
                   onChange={(event) => setSetupPinConfirm(event.target.value)}
-                  placeholder="PIN bestaetigen"
+                  placeholder={t('settings.parentalConfirmPin', 'PIN bestätigen')}
                   className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#45607e] dark:bg-[#20324a]"
                 />
               </div>
@@ -951,7 +953,7 @@ function ParentalDashboardPanel() {
                   inputMode="numeric"
                   value={nextPin}
                   onChange={(event) => setNextPin(event.target.value)}
-                  placeholder="Neuer PIN (optional)"
+                  placeholder={t('settings.parentalNewPinOptional', 'Neuer PIN (optional)')}
                   className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#45607e] dark:bg-[#20324a]"
                 />
                 <input
@@ -959,7 +961,7 @@ function ParentalDashboardPanel() {
                   inputMode="numeric"
                   value={nextPinConfirm}
                   onChange={(event) => setNextPinConfirm(event.target.value)}
-                  placeholder="Neuer PIN bestaetigen"
+                  placeholder={t('settings.parentalConfirmNewPin', 'Neuer PIN bestätigen')}
                   className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#45607e] dark:bg-[#20324a]"
                 />
               </div>
@@ -969,10 +971,10 @@ function ParentalDashboardPanel() {
           <div className="flex items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={loadParental}>
               <RefreshCcw className="mr-2 h-4 w-4" />
-              Neu laden
+              {t('settings.parentalReload', 'Neu laden')}
             </Button>
             <Button type="button" onClick={saveControls} disabled={saving}>
-              {saving ? 'Speichere...' : 'Speichern'}
+              {saving ? t('settings.parentalSaving', 'Speichere...') : t('settings.parentalSave', 'Speichern')}
             </Button>
           </div>
         </>
@@ -988,8 +990,10 @@ function UsageCard(props: {
   icon: React.ReactNode;
   accentClass: string;
 }) {
-  const limitText = props.usage.limit === null ? 'unbegrenzt' : String(props.usage.limit);
-  const remainingText = props.usage.remaining === null ? 'unbegrenzt' : String(props.usage.remaining);
+  const { t } = useTranslation();
+  const unlimitedLabel = t('settings.parentalUnlimited', 'Unbegrenzt');
+  const limitText = props.usage.limit === null ? unlimitedLabel : String(props.usage.limit);
+  const remainingText = props.usage.remaining === null ? unlimitedLabel : String(props.usage.remaining);
   const progress =
     props.usage.limit === null
       ? 24
@@ -1010,11 +1014,11 @@ function UsageCard(props: {
       <div className="flex items-end justify-between mb-2">
         <div>
           <p className="text-2xl font-bold text-foreground">{remainingText}</p>
-          <p className="text-[11px] text-muted-foreground">verbleibend</p>
+          <p className="text-[11px] text-muted-foreground">{t('settings.billingRemaining', 'verbleibend')}</p>
         </div>
         <div className="text-right">
           <p className="text-sm font-semibold text-foreground">{props.usage.used} / {limitText}</p>
-          <p className="text-[11px] text-muted-foreground">verbraucht / limit</p>
+          <p className="text-[11px] text-muted-foreground">{t('settings.billingUsedLimit', 'verbraucht / limit')}</p>
         </div>
       </div>
 
@@ -1022,12 +1026,13 @@ function UsageCard(props: {
         <div className="h-full rounded-full bg-gradient-to-r from-[#A989F2] to-[#FF6B9D]" style={{ width: `${progress}%` }} />
       </div>
 
-      <p className="text-[11px] text-muted-foreground mt-2">Kosten: {props.usage.costPerGeneration} Credit pro Generierung</p>
+      <p className="text-[11px] text-muted-foreground mt-2">{t('settings.billingCostPerGen', 'Kosten: {{cost}} Credit pro Generierung', { cost: props.usage.costPerGeneration })}</p>
     </div>
   );
 }
 
 function AudioLibraryPanel() {
+  const { t } = useTranslation();
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { getToken } = useAuth();
@@ -1094,7 +1099,7 @@ function AudioLibraryPanel() {
       setItems(Array.isArray(payload.items) ? payload.items : []);
     } catch (error) {
       console.error('Failed to load generated audio library:', error);
-      toast.error('Audio-Bibliothek konnte nicht geladen werden.');
+      toast.error(t('settings.audioLibraryLoadFailed', 'Audio-Bibliothek konnte nicht geladen werden.'));
     } finally {
       setLoading(false);
     }
@@ -1211,10 +1216,10 @@ function AudioLibraryPanel() {
           }
           return next;
         });
-        toast.success('Titel entfernt.');
+        toast.success(t('settings.audioLibraryDeleted', 'Titel entfernt.'));
       } catch (error) {
         console.error('Failed to delete generated audio:', error);
-        toast.error('Titel konnte nicht geloescht werden.');
+        toast.error(t('settings.audioLibraryDeleteFailed', 'Titel konnte nicht gelöscht werden.'));
       } finally {
         setDeletingKey(null);
       }
@@ -1228,7 +1233,7 @@ function AudioLibraryPanel() {
         setPlayBusyKey(group.key);
         const readyItems = buildReadyPlaylistItemsFromLibraryGroup(group).filter((item) => Boolean(item.audioUrl));
         if (readyItems.length === 0) {
-          throw new Error('Keine gespeicherten Audiodateien vorhanden.');
+          throw new Error(t('settings.audioLibraryNoAudio', 'Keine gespeicherten Audiodateien vorhanden.'));
         }
 
         if (group.sourceType === 'story') {
@@ -1241,7 +1246,7 @@ function AudioLibraryPanel() {
         audioPlayer.addAndPlay(readyItems);
       } catch (error) {
         console.error('[AudioLibrary] Failed to play grouped audio item:', error);
-        toast.error('Titel konnte nicht im Player gestartet werden.');
+        toast.error(t('settings.audioLibraryPlayFailed', 'Titel konnte nicht im Player gestartet werden.'));
       } finally {
         setPlayBusyKey(null);
       }
@@ -1264,7 +1269,7 @@ function AudioLibraryPanel() {
             }
             return next;
           });
-          toast.success('Offline-Audio entfernt.');
+          toast.success(t('settings.audioLibraryOfflineRemoved', 'Offline-Audio entfernt.'));
           return;
         }
 
@@ -1293,10 +1298,10 @@ function AudioLibraryPanel() {
           }
           return next;
         });
-        toast.success('Audio + zugehoeriger Inhalt offline gespeichert.');
+        toast.success(t('settings.audioLibraryOfflineSaved', 'Audio + zugehöriger Inhalt offline gespeichert.'));
       } catch (error) {
         console.error('Failed to toggle offline generated audio:', error);
-        toast.error('Offline-Speicherung fehlgeschlagen.');
+        toast.error(t('settings.audioLibraryOfflineFailed', 'Offline-Speicherung fehlgeschlagen.'));
       } finally {
         setOfflineBusyId(null);
       }
@@ -1309,15 +1314,15 @@ function AudioLibraryPanel() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-            Audio-Bibliothek
+            {t('settings.audioLibraryTitle', 'Audio-Bibliothek')}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Persistente Story- und Doku-Audios aus dem Player (geraeteuebergreifend).
+            {t('settings.audioLibrarySubtitle', 'Persistente Story- und Doku-Audios aus dem Player (geräteübergreifend).')}
           </p>
         </div>
         <Button type="button" variant="outline" onClick={loadItems} disabled={loading}>
           <RefreshCcw className="mr-2 h-4 w-4" />
-          Aktualisieren
+          {t('settings.audioLibraryRefresh', 'Aktualisieren')}
         </Button>
       </div>
 
@@ -1325,7 +1330,7 @@ function AudioLibraryPanel() {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Titel suchen..."
+          placeholder={t('settings.audioLibrarySearch', 'Titel suchen...')}
           className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none placeholder:text-[#93a3b8] focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd] dark:placeholder:text-[#8ea3bf]"
         />
         <select
@@ -1333,7 +1338,7 @@ function AudioLibraryPanel() {
           onChange={(event) => setSourceFilter(event.target.value as 'all' | 'story' | 'doku')}
           className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
         >
-          <option value="all">Alle Typen</option>
+          <option value="all">{t('settings.audioLibraryAllTypes', 'Alle Typen')}</option>
           <option value="story">Story</option>
           <option value="doku">Doku</option>
         </select>
@@ -1342,8 +1347,8 @@ function AudioLibraryPanel() {
           onChange={(event) => setSort(event.target.value as 'newest' | 'oldest')}
           className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
         >
-          <option value="newest">Neueste zuerst</option>
-          <option value="oldest">Aelteste zuerst</option>
+          <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
+          <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
         </select>
         <div className="h-9 inline-flex items-center justify-end text-xs text-muted-foreground">
           {visibleGroups.length} Titel
@@ -1352,11 +1357,11 @@ function AudioLibraryPanel() {
 
       {loading ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Lade Audio-Bibliothek...
+          {t('settings.audioLibraryLoading', 'Lade Audio-Bibliothek...')}
         </div>
       ) : visibleGroups.length === 0 ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Keine gespeicherten Audios gefunden.
+          {t('settings.audioLibraryEmpty', 'Keine gespeicherten Audios gefunden.')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -1384,11 +1389,11 @@ function AudioLibraryPanel() {
                         {isStory ? 'Story' : 'Doku'}
                       </span>
                       <span className="text-[11px] text-muted-foreground">{formatDate(group.createdAt)}</span>
-                      <span className="text-[11px] text-muted-foreground">{chapterCount} Kapitel/Teile</span>
+                      <span className="text-[11px] text-muted-foreground">{chapterCount} {t('settings.audioLibraryChapters', 'Kapitel/Teile')}</span>
                     </div>
                     <p className="mt-1 text-sm font-semibold text-foreground truncate">{group.sourceTitle}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Wird im Player kapitelweise abgespielt.
+                      {t('settings.audioLibraryPlayedInPlayer', 'Wird im Player kapitelweise abgespielt.')}
                     </p>
                   </div>
                 </div>
@@ -1396,7 +1401,7 @@ function AudioLibraryPanel() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" variant="outline" onClick={() => void handlePlayGroup(group)} disabled={isPlayBusy}>
                     <Headphones className="mr-2 h-4 w-4" />
-                    {isPlayBusy ? 'Bereite vor...' : 'Im Player abspielen'}
+                    {isPlayBusy ? t('settings.audioLibraryPlayBusy', 'Bereite vor...') : t('settings.audioLibraryPlayBtn', 'Im Player abspielen')}
                   </Button>
                   <Button
                     type="button"
@@ -1407,14 +1412,14 @@ function AudioLibraryPanel() {
                   >
                     {isOfflineSaved ? <Check className="mr-2 h-4 w-4" /> : null}
                     {isBusyOffline
-                      ? 'Speichere...'
+                      ? t('settings.audioLibraryOfflineSaving', 'Speichere...')
                       : isOfflineSaved
-                      ? 'Offline entfernen'
-                      : 'Offline speichern'}
+                      ? t('settings.audioLibraryOfflineRemove', 'Offline entfernen')
+                      : t('settings.audioLibraryOfflineSave', 'Offline speichern')}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => void handleDeleteGroup(group)} disabled={isDeleting}>
                     <Trash2 className="mr-2 h-4 w-4" />
-                    {isDeleting ? 'Loesche...' : 'Loeschen'}
+                    {isDeleting ? t('settings.audioLibraryDeleting', 'Lösche...') : t('settings.audioLibraryDelete', 'Löschen')}
                   </Button>
                 </div>
               </div>
@@ -1427,6 +1432,7 @@ function AudioLibraryPanel() {
 }
 
 function SignOutPanel() {
+  const { t } = useTranslation();
   const { signOut } = useClerk();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -1448,20 +1454,20 @@ function SignOutPanel() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              Abmelden
+              {t('settings.signOut', 'Abmelden')}
             </h2>
-            <p className="text-xs text-muted-foreground">Sichere Abmeldung von deinem Talea Konto.</p>
+            <p className="text-xs text-muted-foreground">{t('settings.signOutDescription', 'Sichere Abmeldung von deinem Talea Konto.')}</p>
           </div>
         </div>
       </div>
 
       <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-5 dark:border-[#4b5f79] dark:bg-[#17263a]">
         <p className="text-sm text-muted-foreground mb-4">
-          Du kannst dich jederzeit abmelden und spaeter mit demselben Konto wieder einloggen.
+          {t('settings.signOutConfirm', 'Du kannst dich jederzeit abmelden und später mit demselben Konto wieder einloggen.')}
         </p>
         <Button type="button" onClick={handleSignOut} disabled={isSigningOut} className="bg-[#c68d8d] hover:bg-[#b87878] text-white">
           <LogOut className="mr-2 h-4 w-4" />
-          {isSigningOut ? 'Abmeldung...' : 'Jetzt abmelden'}
+          {isSigningOut ? t('settings.signingOut', 'Abmeldung...') : t('settings.signOutButton', 'Jetzt abmelden')}
         </Button>
       </div>
     </div>
@@ -1469,6 +1475,7 @@ function SignOutPanel() {
 }
 
 function BillingPanel() {
+  const { t } = useTranslation();
   const backend = useBackend();
   const [profile, setProfile] = useState<ProfileSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1507,23 +1514,23 @@ function BillingPanel() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              Abo & Credits
+              {t('settings.billingTitle', 'Abo & Credits')}
             </h2>
-            <p className="text-xs text-muted-foreground">Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.</p>
+            <p className="text-xs text-muted-foreground">{t('settings.billingSubtitle', 'Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.')}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <Button type="button" variant="outline" onClick={loadBilling}>
             <RefreshCcw className="w-4 h-4 mr-2" />
-            Aktualisieren
+            {t('settings.billingRefresh', 'Aktualisieren')}
           </Button>
         </div>
       </div>
 
       {isLoading ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Lade Billing-Daten...
+          {t('settings.billingLoading', 'Lade Billing-Daten...')}
         </div>
       ) : billing ? (
         <>
@@ -1535,18 +1542,18 @@ function BillingPanel() {
                   <CurrentPlanIcon className="h-5 w-5 text-white" />
                 </span>
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Aktueller Plan</p>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('settings.billingCurrentPlan', 'Aktueller Plan')}</p>
                   <h3 className="text-xl font-bold text-foreground">{currentPlanMeta.title}</h3>
-                  <p className="text-xs text-muted-foreground">Abrechnungsmonat: {periodStartLabel}</p>
+                  <p className="text-xs text-muted-foreground">{t('settings.billingPeriod', 'Abrechnungsmonat')}: {periodStartLabel}</p>
                 </div>
               </div>
 
               <div className="flex gap-2 flex-wrap">
                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-                  Community: {billing.permissions.canReadCommunityDokus ? 'aktiv' : 'gesperrt'}
+                  {billing.permissions.canReadCommunityDokus ? t('settings.billingCommunityActive', 'Community: aktiv') : t('settings.billingCommunityLocked', 'Community: gesperrt')}
                 </span>
                 <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-                  Audio: {billing.permissions.canUseAudioDokus ? 'aktiv' : 'gesperrt'}
+                  {billing.permissions.canUseAudioDokus ? t('settings.billingAudioActive', 'Audio: aktiv') : t('settings.billingAudioLocked', 'Audio: gesperrt')}
                 </span>
               </div>
             </div>
@@ -1564,15 +1571,14 @@ function BillingPanel() {
                 <div className="flex items-center gap-2">
                   <Clock3 className="w-4 h-4" />
                   <span>
-                    Free-Testphase aktiv: noch {billing.permissions.freeTrialDaysRemaining} Tage.
-                    Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.
+                    {t('settings.billingTrialActive', 'Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.', { days: billing.permissions.freeTrialDaysRemaining })}
                   </span>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Clock3 className="w-4 h-4" />
                   <span>
-                    Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.
+                    {t('settings.billingTrialExpired', 'Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.')}
                   </span>
                 </div>
               )}
@@ -1624,7 +1630,7 @@ function BillingPanel() {
                       </span>
                       <p className="text-sm font-bold text-foreground">{meta.title}</p>
                     </div>
-                    {active && <span className="text-[10px] font-bold uppercase tracking-wider text-[#A989F2]">Aktiv</span>}
+                    {active && <span className="text-[10px] font-bold uppercase tracking-wider text-[#A989F2]">{t('settings.billingPlanActive', 'Aktiv')}</span>}
                   </div>
                   <p className="text-xs text-muted-foreground">Story: {meta.storyLimit}</p>
                   <p className="text-xs text-muted-foreground">Doku: {meta.dokuLimit}</p>
@@ -1639,14 +1645,14 @@ function BillingPanel() {
             <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                  Plan in Clerk Billing wechseln
+                  {t('settings.billingPlanSwitchTitle', 'Plan in Clerk Billing wechseln')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Der Checkout oeffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf `Aktualisieren` klicken.
+                  {t('settings.billingPlanSwitchDesc', "Der Checkout öffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf 'Aktualisieren' klicken.")}
                 </p>
               </div>
               <span className="text-[11px] font-semibold text-[#A989F2] bg-[#A989F2]/10 rounded-full px-3 py-1">
-                Monatlich wechselbar
+                {t('settings.billingMonthly', 'Monatlich wechselbar')}
               </span>
             </div>
 
@@ -1672,7 +1678,7 @@ function BillingPanel() {
         </>
       ) : (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
-          Billing-Daten konnten nicht geladen werden.
+          {t('settings.billingLoadFailed', 'Billing-Daten konnten nicht geladen werden.')}
         </div>
       )}
     </div>
@@ -1759,12 +1765,12 @@ export default function SettingsScreen() {
               <ThemeSelector />
             </UserProfile.Page>
 
-            <UserProfile.Page label="Zahlung" labelIcon={<CreditCard className="w-4 h-4" />} url="billing">
+            <UserProfile.Page label={t('settings.billingPanel', 'Zahlung')} labelIcon={<CreditCard className="w-4 h-4" />} url="billing">
               <BillingPanel />
             </UserProfile.Page>
 
             <UserProfile.Page
-              label="Eltern Dashboard"
+              label={t('settings.parentalPanel', 'Eltern Dashboard')}
               labelIcon={<Shield className="w-4 h-4" />}
               url="parental"
             >
@@ -1772,7 +1778,7 @@ export default function SettingsScreen() {
             </UserProfile.Page>
 
             <UserProfile.Page
-              label="Kinderprofile"
+              label={t('settings.profilesPanel', 'Kinderprofile')}
               labelIcon={<Users className="w-4 h-4" />}
               url="profiles"
             >
@@ -1780,7 +1786,7 @@ export default function SettingsScreen() {
             </UserProfile.Page>
 
             <UserProfile.Page
-              label="Audio-Bibliothek"
+              label={t('settings.audioLibraryPanel', 'Audio-Bibliothek')}
               labelIcon={<Headphones className="w-4 h-4" />}
               url="audio-library"
             >

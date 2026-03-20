@@ -15,14 +15,6 @@ type AIModel =
   | 'gemini-3-pro-preview'
   | 'gemini-3.1-pro-preview';
 
-type ModelOption = {
-  id: AIModel;
-  title: string;
-  subtitle: string;
-  cost: string;
-  tone: string;
-  recommended?: boolean;
-};
 
 interface Props {
   state: { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
@@ -43,51 +35,14 @@ const lengths = [
   { id: 'long', tone: '#c5828c' },
 ] as const;
 
-const models: ModelOption[] = [
-  {
-    id: 'claude-sonnet-4-6',
-    title: 'Claude Sonnet 4.6',
-    subtitle: 'Anthropic, starke Prosa',
-    cost: '$3 in / $15 out',
-    tone: '#b06f4f',
-  },
-  {
-    id: 'gemini-3-pro-preview',
-    title: 'Gemini 3 Pro Preview',
-    subtitle: 'Google AI',
-    cost: 'Preview',
-    tone: '#9b8b79',
-  },
-  {
-    id: 'gemini-3.1-pro-preview',
-    title: 'Gemini 3.1 Pro',
-    subtitle: 'Beste Kinderbuch-Qualität',
-    cost: 'Preview',
-    tone: '#8d7f6c',
-    recommended: true,
-  },
-  {
-    id: 'gemini-3-flash-preview',
-    title: 'Gemini 3 Flash',
-    subtitle: 'Schnell & kostenlos',
-    cost: 'FREE',
-    tone: 'var(--talea-text-tertiary)',
-  },
-  {
-    id: 'gpt-5.4',
-    title: 'GPT-5.4',
-    subtitle: 'Beste Qualitaet',
-    cost: '$1.25 / 1M',
-    tone: '#c5828c',
-  },
-  {
-    id: 'gpt-5.4-mini',
-    title: 'GPT-5.4 Mini',
-    subtitle: 'Stark & guenstiger',
-    cost: '$0.75 in / $4.50 out',
-    tone: '#8e7daf',
-  },
-];
+const MODEL_CONFIGS = [
+  { id: 'claude-sonnet-4-6', title: 'Claude Sonnet 4.6', subtitleKey: 'claude_sonnet', cost: '$3 in / $15 out', tone: '#b06f4f' },
+  { id: 'gemini-3-pro-preview', title: 'Gemini 3 Pro Preview', subtitleKey: 'gemini3_pro', cost: 'Preview', tone: '#9b8b79' },
+  { id: 'gemini-3.1-pro-preview', title: 'Gemini 3.1 Pro', subtitleKey: 'gemini31_pro', cost: 'Preview', tone: '#8d7f6c', recommended: true },
+  { id: 'gemini-3-flash-preview', title: 'Gemini 3 Flash', subtitleKey: 'gemini3_flash', cost: 'FREE', tone: 'var(--talea-text-tertiary)' },
+  { id: 'gpt-5.4', title: 'GPT-5.4', subtitleKey: 'gpt54', cost: '$1.25 / 1M', tone: '#c5828c' },
+  { id: 'gpt-5.4-mini', title: 'GPT-5.4 Mini', subtitleKey: 'gpt54_mini', cost: '$0.75 in / $4.50 out', tone: '#8e7daf' },
+] as const;
 
 function SelectionBadge() {
   return (
@@ -185,11 +140,11 @@ export default function Step3AgeAndLength({
         <section>
           <h3 className="mb-1 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            AI Modell
+            {t('wizard.aiModel.title')}
           </h3>
-          <p className="mb-3 text-xs text-muted-foreground">Waehle das Modell fuer die Story-Generierung.</p>
+          <p className="mb-3 text-xs text-muted-foreground">{t('wizard.aiModel.subtitle')}</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {models.map((model) => {
+            {MODEL_CONFIGS.map((model) => {
               const selected = state.aiModel === model.id;
               return (
                 <button
@@ -204,11 +159,11 @@ export default function Step3AgeAndLength({
                 >
                   {model.recommended && (
                     <span className="mb-2 inline-flex rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                      Empfohlen
+                      {t('wizard.aiModel.recommended')}
                     </span>
                   )}
                   <p className="text-sm font-semibold text-foreground">{model.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{model.subtitle}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.aiModel.models.${model.subtitleKey}`)}</p>
                   <p className="mt-1 text-xs font-semibold" style={{ color: model.tone }}>
                     {model.cost}
                   </p>

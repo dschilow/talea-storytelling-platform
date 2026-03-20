@@ -125,23 +125,23 @@ export default function Step6Summary({
 
       {storyCredits && (
         <div className="rounded-2xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">Geschichten-Münzen</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">{t('wizard.credits.title')}</p>
           <div className="mt-2 flex items-end justify-between gap-4">
             <div>
               <p className="text-2xl font-bold text-foreground">
-                {storyCredits.remaining === null ? 'unbegrenzt' : storyCredits.remaining}
+                {storyCredits.remaining === null ? t('wizard.credits.unlimited') : storyCredits.remaining}
               </p>
-              <p className="text-xs text-muted-foreground">noch übrig</p>
+              <p className="text-xs text-muted-foreground">{t('wizard.credits.remaining')}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-foreground">
-                {storyCredits.used} / {storyCredits.limit === null ? 'unbegrenzt' : storyCredits.limit}
+                {storyCredits.used} / {storyCredits.limit === null ? t('wizard.credits.unlimited') : storyCredits.limit}
               </p>
-              <p className="text-xs text-muted-foreground">benutzt / gesamt</p>
+              <p className="text-xs text-muted-foreground">{t('wizard.credits.usedTotal')}</p>
             </div>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">
-            Jede Geschichte kostet {storyCredits.costPerGeneration} Münze
+            {t('wizard.credits.costPerGen', { count: storyCredits.costPerGeneration })}
           </p>
         </div>
       )}
@@ -154,7 +154,7 @@ export default function Step6Summary({
         style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
       >
         <Sparkles className="h-5 w-5" />
-        {generateDisabled ? 'Gerade nicht möglich' : `${t('wizard.buttons.generate')} (1 Münze)`}
+        {generateDisabled ? t('wizard.credits.notAvailable') : `${t('wizard.buttons.generate')} (1 ${t('wizard.credits.coin')})`}
       </button>
 
       {generateDisabledMessage && <p className="text-center text-xs text-rose-500">{generateDisabledMessage}</p>}
