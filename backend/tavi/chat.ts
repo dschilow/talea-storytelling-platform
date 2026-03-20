@@ -1,10 +1,12 @@
-﻿import { api } from "encore.dev/api";
+import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
-import { doku, story } from "~encore/clients";
+import { ai, avatar, doku, story } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
+import { storyDB } from "../story/db";
+import { dokuDB } from "../doku/db";
 import type { DokuConfig } from "../doku/generate";
 import type { StoryConfig } from "../story/generate";
 import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
@@ -15,35 +17,64 @@ import {
   buildTaviProfilePrompt,
 } from "../helpers/child-profile-personalization";
 import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { TAVI_TOOLS } from "./tavi-tools";
 
 const openAIKey = secret("OpenAIKey");
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 type SupportedLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
 type AgeGroup = "3-5" | "6-8" | "9-12" | "13+";
-type StoryLength = "short" | "medium" | "long";
-type DokuDepth = "basic" | "standard" | "deep";
-type DokuTone = "fun" | "neutral" | "curious";
-type DokuPerspective = "science" | "history" | "technology" | "nature" | "culture";
+
+interface HistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 interface TaviChatContext {
   language?: string;
-  intentHint?: TaviActionType;
-  pendingRequest?: string;
   profileId?: string;
 }
 
 interface TaviChatRequest {
   message: string;
+  history?: HistoryMessage[];
   context?: TaviChatContext;
 }
 
-type TaviActionType = "story" | "doku";
+type TaviActionType =
+  | "story"
+  | "doku"
+  | "avatar"
+  | "wizard_prefill"
+  | "image"
+  | "list"
+  | "navigate";
+
+interface TaviListItem {
+  id: string;
+  name: string;
+  route: string;
+  imageUrl?: string;
+  type?: string;
+  description?: string;
+}
 
 interface TaviChatAction {
   type: TaviActionType;
-  id: string;
-  title: string;
-  route: string;
+  id?: string;
+  title?: string;
+  route?: string;
+  // wizard_prefill
+  wizardType?: "story" | "avatar" | "doku";
+  wizardData?: Record<string, any>;
+  // image
+  imageUrl?: string;
+  imagePrompt?: string;
+  // list
+  items?: TaviListItem[];
 }
 
 interface TaviChatResponse {
@@ -53,14 +84,30 @@ interface TaviChatResponse {
     completion: number;
     total: number;
   };
-  action?: TaviChatAction;
-  intentHint?: TaviActionType;
-  awaitingConfirmation?: boolean;
+  actions?: TaviChatAction[];
+}
+
+interface OpenAIMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }>;
+  tool_call_id?: string;
 }
 
 interface OpenAIChatResponse {
   choices?: Array<{
-    message?: { content?: string };
+    message?: {
+      content?: string | null;
+      tool_calls?: Array<{
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }>;
+    };
     finish_reason?: string;
   }>;
   usage?: {
@@ -70,395 +117,98 @@ interface OpenAIChatResponse {
   };
 }
 
-const TAVI_SYSTEM_PROMPT_BASE = `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform! ðŸ§žâ€â™‚ï¸âœ¨
-
-PersÃ¶nlichkeit:
-- Freundlich, hilfsbereit und voller magischer Energie
-- Sprichst auf Deutsch mit einer lebendigen, einladenden Art
-- Liebst Geschichten, KreativitÃ¤t und das Helfen von Familien
-- Verwendest gerne Emojis und magische Metaphern
-- Bist ein Experte fÃ¼r Storytelling, Avatare und kreative Inhalte
-
-Aufgaben:
-- Hilf Benutzern bei Fragen zur Talea-Plattform
-- Gib Tipps fÃ¼r bessere Geschichten und Avatare
-- ErklÃ¤re Features und Funktionen
-- Inspiriere zu kreativen Ideen
-- Beantworte allgemeine Fragen mit magischer Note
-
-Regeln:
-- Halte Antworten unter 500 WÃ¶rtern
-- Sei immer positiv und ermutigend
-- Verwende "du" statt "Sie"
-- Beziehe dich auf deine magische Natur als Geschichten-Genie
-- Falls du etwas nicht weiÃŸt, sage es ehrlich aber bleibe hilfreich
-
-Antworte immer auf Deutsch und mit viel Begeisterung fÃ¼r Geschichten und KreativitÃ¤t! ðŸŒŸ`;
-
-function buildTaviSystemPrompt(profilePrompt?: string): string {
-  if (!profilePrompt) {
-    return TAVI_SYSTEM_PROMPT_BASE;
-  }
-
-  return `${TAVI_SYSTEM_PROMPT_BASE}
-
-AKTIVES KINDERPROFIL:
-${profilePrompt}
-
-Begruesse das Kind direkt mit Namen, wenn es natuerlich passt.`;
-}
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["de", "en", "fr", "es", "it", "nl", "ru"];
+const MAX_HISTORY_MESSAGES = 10;
 
-const STORY_KEYWORDS = /\b(story|stories|storys|geschichte|geschichten|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung|erzaehlungen|erzÃ¤hlungen)\b/i;
-const DOKU_KEYWORDS = /\b(doku|dokus|wissensdoku|wissensdokus|dokumentation|dokumentationen)\b/i;
-const ACTION_VERBS = /\b(mach|mache|machst|erstelle|erstellen|erstellt|generier|generiere|generieren|schreib|schreibe|schreibst|erzaehl|erzaehle|erzaehlst|create|make|generate|bitte|kannst|koenntest)\b/i;
-const STORY_COMMAND = /^(\/?(?:story|geschichte|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung))\b/i;
-const DOKU_COMMAND = /^(\/?(?:doku|wissensdoku|dokumentation))\b/i;
-const TOPIC_STOP_WORDS = [
-  "hallo",
-  "hey",
-  "hi",
-  "bitte",
-  "kannst",
-  "koenntest",
-  "du",
-  "ihr",
-  "mir",
-  "mal",
-  "dann",
-  "thema",
-  "mach",
-  "mache",
-  "machst",
-  "erstelle",
-  "erstellen",
-  "erstellt",
-  "generiere",
-  "generieren",
-  "schreib",
-  "schreibe",
-  "schreibst",
-  "doku",
-  "dokus",
-  "wissensdoku",
-  "dokumentation",
-  "story",
-  "stories",
-  "storys",
-  "geschichte",
-  "geschichten",
-];
+// ---------------------------------------------------------------------------
+// System prompt
+// ---------------------------------------------------------------------------
 
-function normalizeLanguage(value?: string): SupportedLanguage | undefined {
-  if (!value) return undefined;
+function buildSystemPrompt(params: {
+  profilePrompt?: string;
+  avatarNames: string[];
+  language: SupportedLanguage;
+}): string {
+  const { profilePrompt, avatarNames, language } = params;
+
+  const avatarList =
+    avatarNames.length > 0
+      ? `\nVerfuegbare Avatare des Nutzers: ${avatarNames.join(", ")}`
+      : "\nDer Nutzer hat noch keine Avatare erstellt.";
+
+  const languageHint =
+    language !== "de" ? `\nAntworte in der Sprache: ${language}` : "";
+
+  return `Du bist Tavi, das magische Geschichten-Genie der Talea Storytelling Platform!
+
+Persoenlichkeit:
+- Freundlich, hilfsbereit und voller magischer Energie
+- Sprichst lebendig und einladend
+- Liebst Geschichten, Kreativitaet und das Helfen von Familien
+- Verwendest gerne Emojis und magische Metaphern
+- Bist ein Experte fuer Storytelling, Avatare und kreative Inhalte
+
+WICHTIG - Deine Faehigkeiten:
+Du kannst folgende Aktionen ausfuehren. Nutze die passenden Funktionen:
+
+1. GESCHICHTEN ERSTELLEN (create_story): Generiere personalisierte Geschichten mit Avataren.
+   - Frage nach Genre, Stimmung, Laenge wenn der Nutzer es nicht nennt
+   - Nutze die verfuegbaren Avatare automatisch
+
+2. DOKUS ERSTELLEN (create_doku): Erstelle Wissensdokumente zu jedem Thema.
+   - Frage nach dem Thema wenn unklar
+
+3. AVATARE ERSTELLEN (create_avatar): Erstelle neue Avatar-Charaktere.
+   - Braucht mindestens einen Namen und Typ (Mensch, Katze, Drache, etc.)
+   - Frage nach fehlenden Details
+
+4. BILDER GENERIEREN (generate_image): Erstelle Bilder/Illustrationen mit dem Flux-Modell.
+   - Schreibe den Prompt IMMER auf Englisch fuer beste Ergebnisse
+   - Nutze "Axel Scheffler watercolor children's book illustration" als Stil-Basis
+   - Beschreibe Details wie Farben, Komposition, Stimmung
+
+5. WIZARDS OEFFNEN (open_story_wizard, open_avatar_wizard, open_doku_wizard):
+   - Nutze diese um den Nutzer zum Wizard weiterzuleiten mit vorausgefuellten Daten
+   - Wenn der Nutzer mehr Kontrolle haben moechte oder Details anpassen will
+
+6. INHALTE AUFLISTEN (list_content): Zeige Avatare, Geschichten oder Dokus des Nutzers.
+
+7. NAVIGATION (navigate_to): Leite zu bestimmten Seiten weiter.
+
+Regeln:
+- Halte Antworten kurz und praegnant (max 200 Woerter)
+- Sei positiv und ermutigend, verwende "du" statt "Sie"
+- Wenn du eine Aktion ausfuehrst, erklaere kurz was du machst
+- Bei laengeren Aktionen (Story/Doku generieren) informiere den Nutzer ueber die Wartezeit
+- Wenn der Nutzer etwas will das unklar ist, frage nach - rufe NICHT sofort eine Funktion auf
+- Fuer Geschichten: Nutze immer die Avatare des Nutzers wenn verfuegbar
+- Basiere Altersgruppe und Inhalt auf dem aktiven Kinderprofil
+- Bei Bildgenerierung: Erstelle immer einen detaillierten englischen Prompt
+${avatarList}${languageHint}${profilePrompt ? `\n\nAKTIVES KINDERPROFIL:\n${profilePrompt}\nBegruesse das Kind direkt mit Namen, wenn es natuerlich passt.` : ""}`;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function normalizeLanguage(value?: string): SupportedLanguage {
+  if (!value) return "de";
   const normalized = value.toLowerCase().trim();
   if ((SUPPORTED_LANGUAGES as string[]).includes(normalized)) {
     return normalized as SupportedLanguage;
   }
   const base = normalized.split("-")[0];
-  return (SUPPORTED_LANGUAGES as string[]).includes(base) ? (base as SupportedLanguage) : undefined;
-}
-
-function parseAgeGroup(message: string): AgeGroup | undefined {
-  const text = message.toLowerCase();
-  if (/\b3\s*-\s*5\b/.test(text) || /\b3\s*bis\s*5\b/.test(text)) return "3-5";
-  if (/\b6\s*-\s*8\b/.test(text) || /\b6\s*bis\s*8\b/.test(text)) return "6-8";
-  if (/\b9\s*-\s*12\b/.test(text) || /\b9\s*bis\s*12\b/.test(text)) return "9-12";
-  if (/\b13\s*\+?\b/.test(text) || /\bab\s*13\b/.test(text)) return "13+";
-  return undefined;
-}
-
-function parseLength(message: string): StoryLength | undefined {
-  const text = message.toLowerCase();
-  if (/\bkurz\b|\bshort\b/.test(text)) return "short";
-  if (/\blang\b|\blong\b/.test(text)) return "long";
-  if (/\bmittel\b|\bmedium\b/.test(text)) return "medium";
-  return undefined;
-}
-
-function parseDokuDepth(message: string): DokuDepth | undefined {
-  const text = message.toLowerCase();
-  if (/\bgrundlagen\b|\bbasic\b|\beinfach\b/.test(text)) return "basic";
-  if (/\btief\b|\bdeep\b|\bdetailliert\b|\bexperten\b/.test(text)) return "deep";
-  if (/\bstandard\b|\bnormal\b/.test(text)) return "standard";
-  return undefined;
-}
-
-function parseDokuTone(message: string): DokuTone | undefined {
-  const text = message.toLowerCase();
-  if (/\blustig\b|\bwitzig\b|\bfun\b/.test(text)) return "fun";
-  if (/\bsachlich\b|\bneutral\b/.test(text)) return "neutral";
-  if (/\bneugierig\b|\bcurious\b|\bchecker\b/.test(text)) return "curious";
-  return undefined;
-}
-
-function parseDokuPerspective(message: string): DokuPerspective | undefined {
-  const text = message.toLowerCase();
-  if (/\bgeschicht\b|\bhistor\b/.test(text)) return "history";
-  if (/\btechnik\b|\btechnolog\b|\brobot\b/.test(text)) return "technology";
-  if (/\bnatur\b|\btiere\b|\bpflanz\b|\bumwelt\b/.test(text)) return "nature";
-  if (/\bkultur\b|\bgesellschaft\b|\bmenschen\b/.test(text)) return "culture";
-  if (/\bwissenschaft\b|\bscience\b|\bphysik\b|\bchemie\b|\bbiolog\b/.test(text)) return "science";
-  return undefined;
-}
-
-function parseIncludeInteractive(message: string): boolean | undefined {
-  const text = message.toLowerCase();
-  if (/\bohne\b.*\b(quiz|interaktiv|mitmach|fragen)\b/.test(text) || /\bkein\b.*\b(quiz|interaktiv|mitmach|fragen)\b/.test(text)) {
-    return false;
-  }
-  if (/\bmit\b.*\b(quiz|interaktiv|mitmach|fragen)\b/.test(text) || /\bquiz\b/.test(text)) {
-    return true;
-  }
-  return undefined;
-}
-
-function detectStoryGenre(message: string): string {
-  const text = message.toLowerCase();
-  if (/\bmaerchen\b|\bmÃ¤rchen\b|\bfairy\b|\bfee\b|\bprinz\b|\bprinzessin\b/.test(text)) return "fairy_tales";
-  if (/\bsci[- ]?fi\b|\bscience fiction\b|\bweltraum\b|\bspace\b|\balien\b|\broboter\b|\bfuture\b/.test(text)) return "scifi";
-  if (/\btiere\b|\btier\b|\banimals\b|\bdino\b|\bdinosaur\b/.test(text)) return "animals";
-  if (/\bmagie\b|\bzauber\b|\bhex\b|\bdrache\b|\beinhorn\b/.test(text)) return "magic";
-  if (/\bmodern\b|\bschule\b|\balltag\b|\bstadt\b/.test(text)) return "modern";
-  if (/\babenteuer\b|\bquest\b|\breise\b|\bpirat\b/.test(text)) return "adventure";
-  return "adventure";
-}
-
-function deriveStorySetting(message: string, genre: string): string {
-  const text = message.toLowerCase();
-  const settings: Array<{ pattern: RegExp; setting: string }> = [
-    { pattern: /\bweltraum\b|\bspace\b|\bgalax\b/, setting: "space" },
-    { pattern: /\bunterwasser\b|\bmeer\b|\bocean\b|\bsee\b/, setting: "ocean" },
-    { pattern: /\bwald\b|\bforest\b/, setting: "forest" },
-    { pattern: /\bburg\b|\bschloss\b|\bcastle\b/, setting: "castle" },
-    { pattern: /\bschule\b|\bschool\b/, setting: "school" },
-    { pattern: /\bstadt\b|\bcity\b/, setting: "city" },
-    { pattern: /\bwuste\b|\bwÃ¼ste\b|\bdesert\b/, setting: "desert" },
-    { pattern: /\bberg\b|\bberge\b|\bmountain\b/, setting: "mountains" },
-    { pattern: /\binsel\b|\bisland\b/, setting: "island" },
-    { pattern: /\bdschungel\b|\bjungle\b/, setting: "jungle" },
-  ];
-
-  for (const entry of settings) {
-    if (entry.pattern.test(text)) return entry.setting;
-  }
-
-  if (genre === "fairy_tales" || genre === "magic") return "fantasy";
-  return "varied";
-}
-
-function detectStoryTone(message: string): "warm" | "witty" | "epic" | "soothing" | "mischievous" | "wonder" {
-  const text = message.toLowerCase();
-  if (/\blustig\b|\bwitzig\b|\bfun\b/.test(text)) return "witty";
-  if (/\bspannend\b|\bepisch\b|\babenteuer\b|\bdramatisch\b/.test(text)) return "epic";
-  if (/\bberuhigend\b|\bruhe\b|\bsoothing\b|\beinschlaf\b|\bbedtime\b/.test(text)) return "soothing";
-  if (/\bmagisch\b|\bzauber\b|\bwonder\b/.test(text)) return "wonder";
-  if (/\bfrech\b|\bchaotisch\b|\bmischief\b/.test(text)) return "mischievous";
-  return "warm";
-}
-
-function detectStoryPacing(message: string): "slow" | "balanced" | "fast" {
-  const text = message.toLowerCase();
-  if (/\bschnell\b|\brasant\b|\bfast\b/.test(text)) return "fast";
-  if (/\blangsam\b|\bruhe\b|\bslow\b|\bbedtime\b/.test(text)) return "slow";
-  return "balanced";
-}
-
-function parseStorySuspense(message: string): 0 | 1 | 2 | 3 {
-  const text = message.toLowerCase();
-  if (/\bsehr spannend\b|\bmega spannend\b|\bgruselig\b|\bhigh suspense\b/.test(text)) return 3;
-  if (/\bspannend\b|\babenteuer\b|\bgeheimnis\b/.test(text)) return 2;
-  return 1;
-}
-
-function parseStoryHumor(message: string): 0 | 1 | 2 | 3 {
-  const text = message.toLowerCase();
-  if (/\bsehr lustig\b|\bmega lustig\b/.test(text)) return 3;
-  if (/\blustig\b|\bwitzig\b/.test(text)) return 2;
-  return 1;
-}
-
-function stripCommand(message: string, intent: TaviActionType): string {
-  const trimmed = message.trim();
-  if (intent === "doku") {
-    return trimmed.replace(/^(\/?(?:doku|wissensdoku|dokumentation))\s*[:,-]?\s*/i, "").trim();
-  }
-  return trimmed.replace(/^(\/?(?:story|geschichte|maerchen|mÃ¤rchen|erzaehlung|erzÃ¤hlung))\s*[:,-]?\s*/i, "").trim();
-}
-
-function cleanupTopic(raw: string): string {
-  let topic = raw.trim();
-  topic = topic.replace(/\b(fuer|fÃ¼r|for)\s+\d+\s*-\s*\d+\s*(jahre|years)?\b/gi, "");
-  topic = topic.replace(/\b(fuer|fÃ¼r|for)\s+\d+\+?\s*(jahre|years)?\b/gi, "");
-  topic = topic.replace(/\b(kurz|lang|mittel|short|long|medium|basic|standard|deep|grundlagen|tief)\b/gi, "");
-  topic = topic.replace(/\b(doku|dokus|wissensdoku|wissensdokus|dokumentation|dokumentationen)\b/gi, "");
-  topic = topic.replace(/\b(bitte|mach|mache|erstelle|generiere|schreibe|schreib|create|make)\b/gi, "");
-  topic = topic.replace(/^[\s,;:.-]+|[\s,;:.-]+$/g, "");
-  return topic.trim();
-}
-
-function stripStopWords(candidate: string): string {
-  let cleaned = candidate.toLowerCase();
-  for (const word of TOPIC_STOP_WORDS) {
-    cleaned = cleaned.replace(new RegExp(`\\b${escapeRegex(word)}\\b`, "gi"), " ");
-  }
-  return cleaned.replace(/[^a-z0-9Ã¤Ã¶Ã¼ÃŸ-]/gi, " ").replace(/\s+/g, " ").trim();
-}
-
-function extractTopic(message: string): string | undefined {
-  const stripped = stripCommand(message, "doku");
-  const match = stripped.match(/(?:ueber|Ã¼ber|zum thema|zum|zu|about|on)\s+(.+)/i);
-  if (match?.[1]) {
-    const topic = cleanupTopic(match[1]);
-    const cleaned = stripStopWords(topic);
-    return cleaned.length > 1 ? cleaned : undefined;
-  }
-  const fallback = cleanupTopic(stripped);
-  const cleanedFallback = stripStopWords(fallback);
-  return cleanedFallback.length > 1 ? cleanedFallback : undefined;
-}
-
-function detectIntent(message: string): "story" | "doku" | "ambiguous" | null {
-  const wantsStory = STORY_COMMAND.test(message) || (STORY_KEYWORDS.test(message) && ACTION_VERBS.test(message));
-  const wantsDoku = DOKU_COMMAND.test(message) || (DOKU_KEYWORDS.test(message) && ACTION_VERBS.test(message));
-  if (wantsStory && wantsDoku) return "ambiguous";
-  if (wantsStory) return "story";
-  if (wantsDoku) return "doku";
-  return null;
-}
-
-function isConfirmation(message: string): boolean {
-  const trimmed = message.toLowerCase().trim();
-  if (!trimmed) return false;
-  if (/^(ja|jap|jep|jo|klar|ok|okay|yes|yep|bitte|mach|mache|go)$/.test(trimmed)) {
-    return true;
-  }
-  const words = trimmed.split(/\s+/);
-  if (words.length <= 3 && /(ja|klar|ok|okay|yes|bitte)/.test(trimmed)) {
-    return true;
-  }
-  return false;
-}
-
-function isDecline(message: string): boolean {
-  const trimmed = message.toLowerCase().trim();
-  if (!trimmed) return false;
-  if (/^(nein|nee|no|nope|spaeter|später|nicht|abbruch)$/.test(trimmed)) {
-    return true;
-  }
-  if (/(doch nicht|lieber nicht|kein danke)/.test(trimmed)) {
-    return true;
-  }
-  return false;
+  return (SUPPORTED_LANGUAGES as string[]).includes(base)
+    ? (base as SupportedLanguage)
+    : "de";
 }
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function selectAvatarIds(message: string, avatars: Array<{ id: string; name: string }>): { ids: string[]; matched: string[] } {
-  const matches: Array<{ id: string; name: string }> = [];
-  for (const avatar of avatars) {
-    const name = avatar.name.trim();
-    if (!name) continue;
-    const pattern = new RegExp(`\\b${escapeRegex(name.toLowerCase())}\\b`, "i");
-    if (pattern.test(message.toLowerCase())) {
-      matches.push(avatar);
-    }
-  }
-
-  if (matches.length > 0) {
-    return {
-      ids: matches.slice(0, 3).map((m) => m.id),
-      matched: matches.slice(0, 3).map((m) => m.name),
-    };
-  }
-
-  return {
-    ids: avatars.slice(0, 3).map((a) => a.id),
-    matched: [],
-  };
-}
-
-function mergePromptBlocks(...blocks: Array<string | undefined>): string | undefined {
-  const merged = blocks
-    .map((block) => block?.trim())
-    .filter((block): block is string => Boolean(block))
-    .join("\n\n");
-
-  return merged.length > 0 ? merged : undefined;
-}
-
-function buildStoryConfig(params: {
-  message: string;
-  avatarIds: string[];
-  language: SupportedLanguage;
-  fallbackAgeGroup?: AgeGroup;
-  profilePrompt?: string;
-}): StoryConfig {
-  const { message, avatarIds, language, fallbackAgeGroup, profilePrompt } = params;
-  const ageGroup = parseAgeGroup(message) ?? fallbackAgeGroup ?? "6-8";
-  const length = parseLength(message) ?? "medium";
-  const genre = detectStoryGenre(message);
-  const setting = deriveStorySetting(message, genre);
-  const tone = detectStoryTone(message);
-  const pacing = detectStoryPacing(message);
-  const suspenseLevel = parseStorySuspense(message);
-  const humorLevel = parseStoryHumor(message);
-  const allowRhymes = /\breim\b|\bgereimt\b|\brhym(e|es)\b/.test(message.toLowerCase());
-  const hasTwist = /\btwist\b|\bueberraschung\b|\bÃ¼berraschung\b|\bplot twist\b/.test(message.toLowerCase());
-  const customPrompt = stripCommand(message, "story");
-
-  return {
-    avatarIds,
-    genre,
-    setting,
-    length,
-    complexity: "medium",
-    ageGroup,
-    tone,
-    pacing,
-    suspenseLevel,
-    humorLevel,
-    allowRhymes,
-    hasTwist,
-    customPrompt: mergePromptBlocks(customPrompt.length > 0 ? customPrompt : undefined, profilePrompt),
-    language,
-    aiModel: "gemini-3-flash-preview",
-    preferences: {
-      useFairyTaleTemplate: genre === "fairy_tales" || genre === "magic",
-    },
-  };
-}
-
-function buildDokuConfig(params: {
-  message: string;
-  language: SupportedLanguage;
-  fallbackAgeGroup?: AgeGroup;
-  profilePrompt?: string;
-}): DokuConfig {
-  const { message, language, fallbackAgeGroup, profilePrompt } = params;
-  const ageGroup = parseAgeGroup(message) ?? fallbackAgeGroup ?? "6-8";
-  const depth = parseDokuDepth(message) ?? "standard";
-  const perspective = parseDokuPerspective(message) ?? "science";
-  const tone = parseDokuTone(message) ?? "curious";
-  const length = parseLength(message) ?? "medium";
-  const includeInteractive = parseIncludeInteractive(message) ?? true;
-
-  return {
-    topic: extractTopic(message) ?? "",
-    ageGroup,
-    depth,
-    perspective,
-    tone,
-    length,
-    includeInteractive,
-    quizQuestions: includeInteractive ? 3 : 0,
-    handsOnActivities: includeInteractive ? 1 : 0,
-    language,
-    personalizationPrompt: profilePrompt,
-  };
 }
 
 async function loadProfileScopedAvatars(params: {
@@ -466,26 +216,22 @@ async function loadProfileScopedAvatars(params: {
   profileId: string;
   childAvatarId?: string;
   preferredAvatarIds?: string[];
-}): Promise<Array<{ id: string; name: string }>> {
+}): Promise<Array<{ id: string; name: string; imageUrl?: string }>> {
   await ensureAvatarProfileLinksTable();
   const rows = await avatarDB.queryAll<{
     id: string;
     name: string;
     avatar_role: string | null;
+    image_url: string | null;
     created_at: Date;
   }>`
-    SELECT
-      a.id,
-      a.name,
-      a.avatar_role,
-      a.created_at
+    SELECT a.id, a.name, a.avatar_role, a.image_url, a.created_at
     FROM avatars a
     WHERE a.user_id = ${params.userId}
       AND (
         a.profile_id = ${params.profileId}
         OR EXISTS (
-          SELECT 1
-          FROM avatar_profile_links apl
+          SELECT 1 FROM avatar_profile_links apl
           WHERE apl.avatar_id = a.id
             AND apl.user_id = ${params.userId}
             AND apl.profile_id = ${params.profileId}
@@ -494,50 +240,374 @@ async function loadProfileScopedAvatars(params: {
     ORDER BY a.created_at DESC
   `;
 
-  const preferred = new Set((params.preferredAvatarIds || []).map((value) => value.trim()).filter(Boolean));
+  const preferred = new Set(
+    (params.preferredAvatarIds || []).map((v) => v.trim()).filter(Boolean)
+  );
   const childAvatarId = params.childAvatarId?.trim();
 
   return rows
     .slice()
-    .sort((left, right) => {
-      const leftChild = left.id === childAvatarId || left.avatar_role === "child" ? 1 : 0;
-      const rightChild = right.id === childAvatarId || right.avatar_role === "child" ? 1 : 0;
-      if (leftChild !== rightChild) {
-        return rightChild - leftChild;
-      }
-
-      const leftPreferred = preferred.has(left.id) ? 1 : 0;
-      const rightPreferred = preferred.has(right.id) ? 1 : 0;
-      if (leftPreferred !== rightPreferred) {
-        return rightPreferred - leftPreferred;
-      }
-
-      return left.name.localeCompare(right.name, "de");
+    .sort((a, b) => {
+      const aChild = a.id === childAvatarId || a.avatar_role === "child" ? 1 : 0;
+      const bChild = b.id === childAvatarId || b.avatar_role === "child" ? 1 : 0;
+      if (aChild !== bChild) return bChild - aChild;
+      const aPref = preferred.has(a.id) ? 1 : 0;
+      const bPref = preferred.has(b.id) ? 1 : 0;
+      if (aPref !== bPref) return bPref - aPref;
+      return a.name.localeCompare(b.name, "de");
     })
-    .map((row) => ({
-      id: row.id,
-      name: row.name,
-    }));
+    .map((row) => ({ id: row.id, name: row.name, imageUrl: row.image_url ?? undefined }));
 }
+
+function selectAvatarIds(
+  requestedNames: string[] | undefined,
+  avatars: Array<{ id: string; name: string }>
+): string[] {
+  if (requestedNames && requestedNames.length > 0) {
+    const matched: string[] = [];
+    for (const reqName of requestedNames) {
+      const lower = reqName.toLowerCase().trim();
+      const found = avatars.find(
+        (a) => a.name.toLowerCase() === lower
+      );
+      if (found) matched.push(found.id);
+    }
+    if (matched.length > 0) return matched.slice(0, 3);
+  }
+  return avatars.slice(0, 3).map((a) => a.id);
+}
+
+function mergePromptBlocks(...blocks: Array<string | undefined>): string | undefined {
+  const merged = blocks
+    .map((b) => b?.trim())
+    .filter((b): b is string => Boolean(b))
+    .join("\n\n");
+  return merged.length > 0 ? merged : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Tool handlers
+// ---------------------------------------------------------------------------
+
+async function handleCreateStory(params: {
+  args: Record<string, any>;
+  userId: string;
+  profileId: string;
+  avatars: Array<{ id: string; name: string }>;
+  language: SupportedLanguage;
+  fallbackAgeGroup?: AgeGroup;
+  profilePrompt?: string;
+}): Promise<TaviChatAction> {
+  const { args, userId, profileId, avatars, language, fallbackAgeGroup, profilePrompt } = params;
+
+  if (avatars.length === 0) {
+    throw new Error("NO_AVATARS");
+  }
+
+  const avatarIds = selectAvatarIds(args.avatarNames, avatars);
+  const config: StoryConfig = {
+    avatarIds,
+    genre: args.genre || "adventure",
+    setting: args.setting || "varied",
+    length: args.length || "medium",
+    complexity: "medium",
+    ageGroup: args.ageGroup || fallbackAgeGroup || "6-8",
+    tone: args.tone || "warm",
+    pacing: args.pacing || "balanced",
+    suspenseLevel: args.suspenseLevel ?? 1,
+    humorLevel: args.humorLevel ?? 1,
+    allowRhymes: args.allowRhymes ?? false,
+    hasTwist: args.hasTwist ?? false,
+    customPrompt: mergePromptBlocks(args.customPrompt, profilePrompt),
+    language,
+    aiModel: "gemini-3-flash-preview",
+    preferences: {
+      useFairyTaleTemplate:
+        args.genre === "fairy_tales" || args.genre === "magic",
+    },
+  };
+
+  const created = await story.generate({ userId, profileId, config });
+  return {
+    type: "story",
+    id: created.id,
+    title: created.title,
+    route: `/story-reader/${created.id}`,
+  };
+}
+
+async function handleCreateDoku(params: {
+  args: Record<string, any>;
+  userId: string;
+  profileId: string;
+  language: SupportedLanguage;
+  fallbackAgeGroup?: AgeGroup;
+  profilePrompt?: string;
+}): Promise<TaviChatAction> {
+  const { args, userId, profileId, language, fallbackAgeGroup, profilePrompt } = params;
+
+  const includeInteractive = args.includeInteractive ?? true;
+  const config: DokuConfig = {
+    topic: args.topic,
+    ageGroup: args.ageGroup || fallbackAgeGroup || "6-8",
+    depth: args.depth || "standard",
+    perspective: args.perspective || "science",
+    tone: args.tone || "curious",
+    length: args.length || "medium",
+    includeInteractive,
+    quizQuestions: includeInteractive ? 3 : 0,
+    handsOnActivities: includeInteractive ? 1 : 0,
+    language,
+    personalizationPrompt: profilePrompt,
+  };
+
+  const created = await doku.generateDoku({ userId, profileId, config });
+  return {
+    type: "doku",
+    id: created.id,
+    title: created.title,
+    route: `/doku-reader/${created.id}`,
+  };
+}
+
+async function handleCreateAvatar(params: {
+  args: Record<string, any>;
+  userId: string;
+  profileId: string;
+}): Promise<TaviChatAction> {
+  const { args, userId, profileId } = params;
+
+  // Generate avatar image first
+  let imageUrl: string | undefined;
+  try {
+    const imageResult = await ai.generateAvatarImage({
+      characterType: args.characterType || "human",
+      appearance: args.appearance || "",
+      personalityTraits: {},
+      style: "disney",
+    });
+    imageUrl = imageResult.imageUrl;
+  } catch (e) {
+    console.error("Tavi avatar image generation failed:", e);
+  }
+
+  const created = await avatar.create({
+    profileId,
+    name: args.name,
+    description: args.appearance || undefined,
+    physicalTraits: {
+      characterType: args.characterType || "human",
+      appearance: args.appearance || `A ${args.characterType || "human"} named ${args.name}`,
+    },
+    personalityTraits: {
+      knowledge: { value: 0 },
+      creativity: { value: 0 },
+      vocabulary: { value: 0 },
+      courage: { value: 0 },
+      curiosity: { value: 0 },
+      teamwork: { value: 0 },
+      empathy: { value: 0 },
+      persistence: { value: 0 },
+      logic: { value: 0 },
+    },
+    imageUrl,
+    creationType: "ai-generated",
+    avatarRole: "companion",
+    sourceType: "profile",
+  });
+
+  return {
+    type: "avatar",
+    id: created.id,
+    title: created.name,
+    route: `/avatar/${created.id}`,
+  };
+}
+
+async function handleGenerateImage(params: {
+  args: Record<string, any>;
+}): Promise<TaviChatAction> {
+  const { args } = params;
+
+  let prompt = args.prompt || "";
+  const style = args.style || "disney";
+
+  // Add style prefix for consistent quality
+  if (style === "disney") {
+    prompt = `Axel Scheffler watercolor children's book illustration style. ${prompt}. Soft colors, whimsical, warm lighting, detailed, high quality.`;
+  } else if (style === "anime") {
+    prompt = `Anime illustration style. ${prompt}. Vibrant colors, detailed, clean lines, high quality.`;
+  }
+  // realistic: use prompt as-is
+
+  const imageResult = await ai.generateImage({
+    prompt,
+    width: 1024,
+    height: 1024,
+    steps: 4,
+    outputFormat: "WEBP",
+  });
+
+  return {
+    type: "image",
+    imageUrl: imageResult.imageUrl,
+    imagePrompt: args.prompt,
+  };
+}
+
+async function handleListContent(params: {
+  args: Record<string, any>;
+  userId: string;
+  profileId: string;
+}): Promise<TaviChatAction> {
+  const { args, userId, profileId } = params;
+  const contentType = args.contentType as "avatars" | "stories" | "dokus";
+  const limit = Math.min(args.limit || 5, 10);
+
+  const items: TaviListItem[] = [];
+
+  if (contentType === "avatars") {
+    const rows = await avatarDB.queryAll<{
+      id: string;
+      name: string;
+      image_url: string | null;
+      avatar_role: string | null;
+    }>`
+      SELECT id, name, image_url, avatar_role
+      FROM avatars
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    for (const row of rows) {
+      items.push({
+        id: row.id,
+        name: row.name,
+        route: `/avatar/${row.id}`,
+        imageUrl: row.image_url ?? undefined,
+        type: row.avatar_role ?? "companion",
+      });
+    }
+  } else if (contentType === "stories") {
+    const rows = await storyDB.queryAll<{
+      id: string;
+      title: string;
+      cover_image_url: string | null;
+      genre: string | null;
+    }>`
+      SELECT id, title, cover_image_url,
+        config->>'genre' as genre
+      FROM stories
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    for (const row of rows) {
+      items.push({
+        id: row.id,
+        name: row.title,
+        route: `/story-reader/${row.id}`,
+        imageUrl: row.cover_image_url ?? undefined,
+        type: row.genre ?? undefined,
+      });
+    }
+  } else if (contentType === "dokus") {
+    const rows = await dokuDB.queryAll<{
+      id: string;
+      title: string;
+      topic: string;
+      cover_image_url: string | null;
+    }>`
+      SELECT id, title, topic, cover_image_url
+      FROM dokus
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    for (const row of rows) {
+      items.push({
+        id: row.id,
+        name: row.title,
+        route: `/doku-reader/${row.id}`,
+        imageUrl: row.cover_image_url ?? undefined,
+        description: row.topic,
+      });
+    }
+  }
+
+  return { type: "list", items };
+}
+
+function handleWizardPrefill(
+  wizardType: "story" | "avatar" | "doku",
+  args: Record<string, any>,
+  avatars?: Array<{ id: string; name: string }>
+): TaviChatAction {
+  const routeMap = {
+    story: "/story",
+    avatar: "/avatar/create",
+    doku: "/doku/create",
+  };
+
+  const wizardData: Record<string, any> = { ...args };
+
+  // Resolve avatar names to IDs for story wizard
+  if (wizardType === "story" && args.avatarNames && avatars) {
+    const ids = selectAvatarIds(args.avatarNames, avatars);
+    wizardData.avatarIds = ids;
+    delete wizardData.avatarNames;
+  }
+
+  return {
+    type: "wizard_prefill",
+    wizardType,
+    wizardData,
+    route: routeMap[wizardType],
+  };
+}
+
+function handleNavigate(args: Record<string, any>): TaviChatAction {
+  const routeMap: Record<string, string> = {
+    home: "/",
+    avatars: "/avatars",
+    stories: "/stories",
+    dokus: "/dokus",
+    settings: "/settings",
+    avatar_detail: `/avatar/${args.id || ""}`,
+    story_reader: `/story-reader/${args.id || ""}`,
+    doku_reader: `/doku-reader/${args.id || ""}`,
+    avatar_create: "/avatar/create",
+    story_create: "/story",
+    doku_create: "/doku/create",
+    fairy_tales: "/fairytales",
+  };
+
+  return {
+    type: "navigate",
+    route: routeMap[args.destination] || "/",
+    title: args.name,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main endpoint
+// ---------------------------------------------------------------------------
 
 export const taviChat = api<TaviChatRequest, TaviChatResponse>(
   { expose: true, method: "POST", path: "/tavi/chat", auth: true },
-  async ({ message, context }) => {
+  async ({ message, history, context }) => {
     const auth = getAuthData()!;
 
-    // Validate message length (50 words max)
+    // Validate
     const wordCount = message.trim().split(/\s+/).length;
-    if (wordCount > 50) {
-      throw new Error("Nachricht zu lang! Bitte halte deine Frage unter 50 WÃ¶rtern. âœ¨");
+    if (wordCount > 100) {
+      throw new Error("Nachricht zu lang! Bitte halte deine Frage unter 100 Woertern.");
     }
-
     if (!message.trim()) {
-      throw new Error("Bitte stelle eine Frage! Ich bin hier, um dir zu helfen. ðŸ§žâ€â™‚ï¸");
+      throw new Error("Bitte stelle eine Frage!");
     }
 
-    const language = normalizeLanguage(context?.language) ?? "de";
-    const intentHint = context?.intentHint;
-    const pendingRequest = context?.pendingRequest;
+    const language = normalizeLanguage(context?.language);
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: context?.profileId,
@@ -551,296 +621,283 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     const storyProfilePrompt = buildStoryProfilePrompt(activeProfile);
     const dokuProfilePrompt = buildDokuProfilePrompt(activeProfile);
     const taviProfilePrompt = buildTaviProfilePrompt(activeProfile);
-    let intent = detectIntent(message);
 
-    if (intent === "ambiguous") {
-      if (intentHint) {
-        intent = intentHint;
-      } else {
-        return {
-          response: "Meinst du eine Geschichte oder eine Doku? Sag mir kurz, was du erstellen moechtest.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
-      }
-    }
+    // Load avatars for context
+    const avatars = await loadProfileScopedAvatars({
+      userId: auth.userID,
+      profileId: activeProfileId,
+      childAvatarId: activeProfile.childAvatarId,
+      preferredAvatarIds: activeProfile.preferredAvatarIds,
+    });
 
-    if (!intent && intentHint) {
-      intent = intentHint;
-    }
+    // Build messages array with history
+    const messages: OpenAIMessage[] = [
+      {
+        role: "system",
+        content: buildSystemPrompt({
+          profilePrompt: taviProfilePrompt,
+          avatarNames: avatars.map((a) => a.name),
+          language,
+        }),
+      },
+    ];
 
-    if (intent === "story") {
-      if (isDecline(message)) {
-        return {
-          response: "Alles klar! Sag Bescheid, wenn du eine Geschichte generieren moechtest.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
-      }
-
-      const confirmed = isConfirmation(message);
-      const requestText = confirmed
-        ? (pendingRequest && pendingRequest.trim().length > 0 ? pendingRequest : message)
-        : message;
-
-      if (!confirmed) {
-        return {
-          response: "Soll ich dir dazu eine Story generieren? Sag einfach \"ja\" oder gib mir noch Details.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-          intentHint: "story",
-          awaitingConfirmation: true,
-        };
-      }
-
-      const avatars = await loadProfileScopedAvatars({
-        userId: auth.userID,
-        profileId: activeProfileId,
-        childAvatarId: activeProfile.childAvatarId,
-        preferredAvatarIds: activeProfile.preferredAvatarIds,
-      });
-
-      if (avatars.length === 0) {
-        return {
-          response: "Ich kann noch keine Geschichte erstellen, weil du noch keinen Avatar hast. Erstelle zuerst einen Avatar.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
-      }
-
-      const selection = selectAvatarIds(requestText, avatars);
-      const config = buildStoryConfig({
-        message: requestText,
-        avatarIds: selection.ids,
-        language,
-        fallbackAgeGroup: profileAgeGroup,
-        profilePrompt: storyProfilePrompt,
-      });
-
-      try {
-        const created = await story.generate({
-          userId: auth.userID,
-          profileId: activeProfileId,
-          config,
+    // Add conversation history (last N messages)
+    if (history && history.length > 0) {
+      const trimmedHistory = history.slice(-MAX_HISTORY_MESSAGES);
+      for (const msg of trimmedHistory) {
+        messages.push({
+          role: msg.role === "user" ? "user" : "assistant",
+          content: msg.content,
         });
-        const responseText = `Deine Geschichte "${created.title}" ist fertig. Ich kann sie dir oeffnen.`;
-        return {
-          response: responseText,
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-          action: {
-            type: "story",
-            id: created.id,
-            title: created.title,
-            route: `/story-reader/${created.id}`,
-          },
-        };
-      } catch (error) {
-        console.error("Tavi story generation error:", error);
-        return {
-          response: "Uups, die Geschichte konnte gerade nicht erstellt werden. Bitte versuch es gleich nochmal.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
       }
     }
 
-    if (intent === "doku") {
-      if (isDecline(message)) {
-        return {
-          response: "Alles klar! Sag Bescheid, wenn du eine Doku generieren moechtest.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
-      }
+    // Add current message
+    messages.push({ role: "user", content: message });
 
-      const confirmed = isConfirmation(message);
-      const requestText = confirmed
-        ? (pendingRequest && pendingRequest.trim().length > 0 ? pendingRequest : message)
-        : message;
-      const config = buildDokuConfig({
-        message: requestText,
-        language,
-        fallbackAgeGroup: profileAgeGroup,
-        profilePrompt: dokuProfilePrompt,
-      });
+    console.log(
+      `Tavi processing message from user ${auth.userID}:`,
+      message.substring(0, 100)
+    );
 
-      if (!config.topic || config.topic.length < 2) {
-        return {
-          response: "Welches Thema soll die Doku haben? Nenne mir kurz ein Thema.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-          intentHint: "doku",
-        };
-      }
-
-      if (!confirmed) {
-        return {
-          response: `Soll ich dir eine Doku zu "${config.topic}" generieren? Sag einfach "ja".`,
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-          intentHint: "doku",
-          awaitingConfirmation: true,
-        };
-      }
-
-      try {
-        const created = await doku.generateDoku({
-          userId: auth.userID,
-          profileId: activeProfileId,
-          config,
-        });
-        const responseText = `Deine Doku "${created.title}" ist fertig. Ich kann sie dir oeffnen.`;
-        return {
-          response: responseText,
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-          action: {
-            type: "doku",
-            id: created.id,
-            title: created.title,
-            route: `/doku-reader/${created.id}`,
-          },
-        };
-      } catch (error) {
-        console.error("Tavi doku generation error:", error);
-        return {
-          response: "Uups, die Doku konnte gerade nicht erstellt werden. Bitte versuch es gleich nochmal.",
-          tokensUsed: { prompt: 0, completion: 0, total: 0 },
-        };
-      }
-    }
     try {
-      console.log(`ðŸ§žâ€â™‚ï¸ Tavi processing message from user ${auth.userID}:`, message);
-      
+      // Call OpenAI with function calling
       const payload = {
         model: "gpt-5.4-mini",
-        messages: [
-          { role: "system", content: buildTaviSystemPrompt(taviProfilePrompt) },
-          { role: "user", content: message },
-        ],
-        max_completion_tokens: 4000, // Increased for longer responses (riddles, stories, etc.)
-        reasoning_effort: "low" as const, // Minimize reasoning tokens
+        messages,
+        tools: TAVI_TOOLS,
+        tool_choice: "auto",
+        max_completion_tokens: 4000,
+        reasoning_effort: "low" as const,
       };
-
-      console.log("ðŸ“¤ Sending request to OpenAI with payload:", {
-        model: payload.model,
-        messageCount: payload.messages.length,
-        maxTokens: payload.max_completion_tokens,
-        userMessageLength: message.length
-      });
 
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAIKey()}`,
+          Authorization: `Bearer ${openAIKey()}`,
         },
         body: JSON.stringify(payload),
       });
 
-      console.log(`ðŸ“¥ OpenAI response status: ${response.status}`);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`âŒ Tavi OpenAI error ${response.status}:`, errorText);
-        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        console.error(`Tavi OpenAI error ${response.status}:`, errorText);
+        throw new Error(`OpenAI API error: ${response.status}`);
       }
 
-      const data = await response.json() as OpenAIChatResponse;
-      console.log("âœ… OpenAI response received:", {
-        choicesCount: data.choices?.length || 0,
-        tokensUsed: data.usage,
-        finishReason: data.choices?.[0]?.finish_reason
-      });
-
-      // Log the Tavi chat interaction
-      console.log(`ðŸ”¥ TAVI: About to publish log to logTopic...`);
-      await publishWithTimeout(logTopic, {
-        source: "openai-tavi-chat",
-        timestamp: new Date(),
-        request: payload,
-        response: data,
-        metadata: {
-          userId: auth.userID,
-          messageLength: message.length,
-          wordCount: message.trim().split(/\s+/).length
-        }
-      });
-      console.log(`âœ… TAVI: Log published successfully to logTopic!`);
-
-      // Check for incomplete responses
-      const finishReason = data.choices?.[0]?.finish_reason;
-      if (finishReason === 'length') {
-        console.warn("âš ï¸ Response was cut off due to token limit!");
-      }
-      
-      const responseText = data.choices?.[0]?.message?.content || 
-        "Entschuldige, meine magischen KrÃ¤fte sind momentan erschÃ¶pft! ðŸŒŸ Versuche es gleich nochmal.";
-
+      const data = (await response.json()) as OpenAIChatResponse;
+      const choice = data.choices?.[0];
       const tokensUsed = {
         prompt: data.usage?.prompt_tokens || 0,
         completion: data.usage?.completion_tokens || 0,
         total: data.usage?.total_tokens || 0,
       };
 
-      console.log(`ðŸŽ‰ Tavi chat success - User: ${auth.userID}, Tokens: ${tokensUsed.total}, Response length: ${responseText.length} chars`);
-      
-      // Warn if response might be too long
-      if (responseText.length > 500) {
-        console.warn(`âš ï¸ Tavi response is quite long: ${responseText.length} characters`);
-      }
-
-      return {
-        response: responseText,
-        tokensUsed,
-      };
-
-    } catch (error) {
-      console.error("âŒ Tavi chat error occurred:", {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        userId: auth.userID,
-        messageLength: message.length,
-        timestamp: new Date().toISOString()
+      // Log interaction
+      await publishWithTimeout(logTopic, {
+        source: "openai-tavi-chat",
+        timestamp: new Date(),
+        request: { message, historyLength: history?.length || 0 },
+        response: {
+          content: choice?.message?.content?.substring(0, 200),
+          toolCalls: choice?.message?.tool_calls?.map((tc) => tc.function.name),
+        },
+        metadata: {
+          userId: auth.userID,
+          tokens: tokensUsed.total,
+        },
       });
-      
-      // More specific error handling
+
+      // Handle tool calls
+      const toolCalls = choice?.message?.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        const actions: TaviChatAction[] = [];
+        let textResponse = choice?.message?.content || "";
+        const errors: string[] = [];
+
+        for (const toolCall of toolCalls) {
+          const fnName = toolCall.function.name;
+          let args: Record<string, any> = {};
+          try {
+            args = JSON.parse(toolCall.function.arguments);
+          } catch {
+            console.error(`Failed to parse tool args for ${fnName}`);
+            continue;
+          }
+
+          console.log(`Tavi executing tool: ${fnName}`, args);
+
+          try {
+            switch (fnName) {
+              case "create_story": {
+                const action = await handleCreateStory({
+                  args,
+                  userId: auth.userID,
+                  profileId: activeProfileId,
+                  avatars,
+                  language,
+                  fallbackAgeGroup: profileAgeGroup,
+                  profilePrompt: storyProfilePrompt,
+                });
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = `Deine Geschichte "${action.title}" ist fertig!`;
+                }
+                break;
+              }
+              case "create_doku": {
+                const action = await handleCreateDoku({
+                  args,
+                  userId: auth.userID,
+                  profileId: activeProfileId,
+                  language,
+                  fallbackAgeGroup: profileAgeGroup,
+                  profilePrompt: dokuProfilePrompt,
+                });
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = `Deine Doku "${action.title}" ist fertig!`;
+                }
+                break;
+              }
+              case "create_avatar": {
+                const action = await handleCreateAvatar({
+                  args,
+                  userId: auth.userID,
+                  profileId: activeProfileId,
+                });
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = `Dein Avatar "${action.title}" wurde erstellt!`;
+                }
+                break;
+              }
+              case "generate_image": {
+                const action = await handleGenerateImage({ args });
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = "Hier ist dein Bild!";
+                }
+                break;
+              }
+              case "list_content": {
+                const action = await handleListContent({
+                  args,
+                  userId: auth.userID,
+                  profileId: activeProfileId,
+                });
+                actions.push(action);
+                if (!textResponse) {
+                  const count = action.items?.length || 0;
+                  const typeLabel =
+                    args.contentType === "avatars"
+                      ? "Avatare"
+                      : args.contentType === "stories"
+                        ? "Geschichten"
+                        : "Dokus";
+                  textResponse =
+                    count > 0
+                      ? `Hier sind deine ${typeLabel}:`
+                      : `Du hast noch keine ${typeLabel}.`;
+                }
+                break;
+              }
+              case "open_story_wizard": {
+                const action = handleWizardPrefill("story", args, avatars);
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse =
+                    "Ich oeffne den Story-Wizard fuer dich mit den vorausgefuellten Einstellungen!";
+                }
+                break;
+              }
+              case "open_avatar_wizard": {
+                const action = handleWizardPrefill("avatar", args);
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse =
+                    "Ich oeffne den Avatar-Wizard fuer dich!";
+                }
+                break;
+              }
+              case "open_doku_wizard": {
+                const action = handleWizardPrefill("doku", args);
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse =
+                    "Ich oeffne den Doku-Wizard fuer dich mit den vorausgefuellten Einstellungen!";
+                }
+                break;
+              }
+              case "navigate_to": {
+                const action = handleNavigate(args);
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = "Ich leite dich weiter!";
+                }
+                break;
+              }
+              default:
+                console.warn(`Unknown tool call: ${fnName}`);
+            }
+          } catch (err) {
+            console.error(`Tavi tool ${fnName} failed:`, err);
+            if (err instanceof Error && err.message === "NO_AVATARS") {
+              errors.push(
+                "Du hast noch keine Avatare. Erstelle zuerst einen Avatar, dann kann ich dir eine Geschichte generieren!"
+              );
+            } else {
+              errors.push(
+                `Die Aktion konnte leider nicht ausgefuehrt werden. Versuch es gleich nochmal.`
+              );
+            }
+          }
+        }
+
+        if (errors.length > 0) {
+          textResponse = errors.join("\n\n");
+        }
+
+        return {
+          response: textResponse,
+          tokensUsed,
+          actions: actions.length > 0 ? actions : undefined,
+        };
+      }
+
+      // No tool calls - just text response
+      const responseText =
+        choice?.message?.content ||
+        "Entschuldige, meine magischen Kraefte sind momentan erschoepft! Versuche es gleich nochmal.";
+
+      return { response: responseText, tokensUsed };
+    } catch (error) {
+      console.error("Tavi chat error:", error);
+
       if (error instanceof Error) {
-        // Rate limiting
-        if (error.message.includes('rate limit') || error.message.includes('429')) {
-          console.warn("ðŸš¦ Rate limit hit for Tavi chat");
+        if (error.message.includes("rate limit") || error.message.includes("429")) {
           return {
-            response: "Ups! Zu viele magische Anfragen auf einmal! ðŸŒªï¸ Warte einen Moment und versuche es dann nochmal.",
-            tokensUsed: { prompt: 0, completion: 0, total: 0 }
+            response:
+              "Zu viele Anfragen auf einmal! Warte einen Moment und versuche es dann nochmal.",
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
           };
         }
-        
-        // API quota exceeded
-        if (error.message.includes('quota') || error.message.includes('insufficient')) {
-          console.error("ðŸ’³ API quota/billing issue");
+        if (error.message.includes("quota") || error.message.includes("insufficient")) {
           return {
-            response: "Meine magischen Ressourcen sind aufgebraucht! ðŸ’« Der Administrator muss sie wieder auffÃ¼llen.",
-            tokensUsed: { prompt: 0, completion: 0, total: 0 }
-          };
-        }
-        
-        // Token limit issues
-        if (error.message.includes('token') || error.message.includes('length')) {
-          console.warn("ðŸ“ Token limit related issue");
-          return {
-            response: "Deine Frage ist zu komplex fÃ¼r meine magischen KrÃ¤fte! âœ¨ Versuche eine kÃ¼rzere, einfachere Frage.",
-            tokensUsed: { prompt: 0, completion: 0, total: 0 }
-          };
-        }
-        
-        // Model issues
-        if (error.message.includes('model') || error.message.includes('gpt')) {
-          console.error("ðŸ¤– Model-related issue:", error.message);
-          return {
-            response: "Mein magisches Gehirn hat einen Aussetzer! ðŸ§ âœ¨ Versuche es in einem Moment nochmal.",
-            tokensUsed: { prompt: 0, completion: 0, total: 0 }
+            response:
+              "Meine magischen Ressourcen sind aufgebraucht! Der Administrator muss sie wieder auffuellen.",
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
           };
         }
       }
 
-      // Generic fallback
-      console.error("ðŸ”¥ Unexpected Tavi error - falling back to generic response");
       return {
-        response: "Entschuldige, meine magischen Verbindungen sind gestÃ¶rt! âš¡ Versuche es in einem Moment nochmal.",
-        tokensUsed: { prompt: 0, completion: 0, total: 0 }
+        response:
+          "Entschuldige, etwas ist schiefgelaufen. Versuche es in einem Moment nochmal.",
+        tokensUsed: { prompt: 0, completion: 0, total: 0 },
       };
     }
   }
 );
-

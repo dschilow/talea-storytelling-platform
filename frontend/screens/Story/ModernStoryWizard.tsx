@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, WandSparkles } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 
@@ -82,6 +82,7 @@ function getStoryGenerationErrorMessage(error: unknown, fallback: string): strin
 
 export default function ModernStoryWizard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const backend = useBackend();
   const { userId } = useAuth();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
@@ -135,6 +136,52 @@ export default function ModernStoryWizard() {
       setUserLanguage(i18n.language);
     }
   }, [i18n.language]);
+
+  // Tavi prefill: apply wizard data from Tavi chat
+  useEffect(() => {
+    const taviPrefill = (location.state as any)?.taviPrefill;
+    if (!taviPrefill) return;
+
+    const updates: Partial<WizardState> = {};
+    const genreMap: Record<string, WizardState["mainCategory"]> = {
+      fairy_tales: "fairy-tales",
+      adventure: "adventure",
+      magic: "magic",
+      animals: "animals",
+      scifi: "scifi",
+      modern: "modern",
+    };
+    if (taviPrefill.genre && genreMap[taviPrefill.genre]) {
+      updates.mainCategory = genreMap[taviPrefill.genre];
+    }
+    if (taviPrefill.ageGroup) updates.ageGroup = taviPrefill.ageGroup;
+    if (taviPrefill.length) updates.length = taviPrefill.length;
+    if (taviPrefill.customPrompt) updates.customWish = taviPrefill.customPrompt;
+    if (taviPrefill.allowRhymes !== undefined) updates.rhymes = taviPrefill.allowRhymes;
+    if (taviPrefill.hasTwist !== undefined) updates.surpriseEnd = taviPrefill.hasTwist;
+    if (taviPrefill.avatarIds) updates.selectedAvatars = taviPrefill.avatarIds;
+
+    // Map tone to feelings
+    if (taviPrefill.tone) {
+      const toneToFeelings: Record<string, WizardState["feelings"]> = {
+        warm: ["warm"],
+        witty: ["funny"],
+        epic: ["exciting"],
+        mischievous: ["crazy"],
+        wonder: ["meaningful"],
+        soothing: ["warm"],
+      };
+      if (toneToFeelings[taviPrefill.tone]) {
+        updates.feelings = toneToFeelings[taviPrefill.tone];
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setState((prev) => ({ ...prev, ...updates }));
+    }
+
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   const updateState = (updates: Partial<WizardState>) => {
     setState((prev) => ({ ...prev, ...updates }));

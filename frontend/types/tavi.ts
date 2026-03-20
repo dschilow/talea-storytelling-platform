@@ -1,20 +1,48 @@
-// Temporary types for Tavi service until client is regenerated
+export type TaviActionType =
+  | "story"
+  | "doku"
+  | "avatar"
+  | "wizard_prefill"
+  | "image"
+  | "list"
+  | "navigate";
 
-export interface TaviChatRequest {
-  message: string;
-  context?: {
-    language?: string;
-    intentHint?: 'story' | 'doku';
-    pendingRequest?: string;
-    profileId?: string;
-  };
+export interface TaviListItem {
+  id: string;
+  name: string;
+  route: string;
+  imageUrl?: string;
+  type?: string;
+  description?: string;
 }
 
 export interface TaviChatAction {
-  type: 'story' | 'doku';
-  id: string;
-  title: string;
-  route: string;
+  type: TaviActionType;
+  id?: string;
+  title?: string;
+  route?: string;
+  // wizard_prefill
+  wizardType?: "story" | "avatar" | "doku";
+  wizardData?: Record<string, any>;
+  // image
+  imageUrl?: string;
+  imagePrompt?: string;
+  // list
+  items?: TaviListItem[];
+}
+
+export interface TaviHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface TaviChatRequest {
+  message: string;
+  history?: TaviHistoryMessage[];
+  context?: {
+    language?: string;
+    profileId?: string;
+  };
 }
 
 export interface TaviChatResponse {
@@ -24,11 +52,5 @@ export interface TaviChatResponse {
     completion: number;
     total: number;
   };
-  action?: TaviChatAction;
-  intentHint?: 'story' | 'doku';
-  awaitingConfirmation?: boolean;
-}
-
-export interface TaviService {
-  taviChat(request: TaviChatRequest): Promise<TaviChatResponse>;
+  actions?: TaviChatAction[];
 }
