@@ -351,7 +351,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <div className="flex gap-2">
             {([
               { id: 'qwen' as TTSProviderType, label: 'Qwen (RunPod)', hint: 'Eigener Server' },
-              { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Cloud API' },
+              { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Runware' },
             ]).map((p) => {
               const active = ttsProvider === p.id;
               return (
@@ -422,7 +422,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {!hasLibraryAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
-              ? 'xAI Grok TTS nutzt die Cloud-API von x.ai. Kosten pro Anfrage.'
+              ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
               : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
           </p>
         )}
@@ -510,7 +510,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {!checkingGeneratedAudio && generatedAudioItems.length === 0 && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
             {isXai
-              ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS.`
+              ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
               : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
           </p>
         )}
@@ -589,7 +589,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             </DialogTitle>
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
-                ? 'xAI Grok TTS wird erst nach deiner Bestaetigung gestartet.'
+                ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
                 : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
             </DialogDescription>
           </DialogHeader>
@@ -604,7 +604,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <p className="font-semibold">{storyTitle}</p>
             <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
-                ? `Es werden Audios fuer ${chapters.length} Kapitel ueber xAI Grok TTS erzeugt.`
+                ? `Es werden Audios fuer ${chapters.length} Kapitel ueber xAI Grok TTS (Runware) erzeugt.`
                 : `Es werden Audios fuer ${chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.`}
             </p>
             {pendingAction?.voiceSettings?.speakerId && (

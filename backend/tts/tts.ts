@@ -2077,7 +2077,7 @@ export const getAvailableTtsProviders = api<void, { providers: Array<{ id: TTSPr
     return {
       providers: [
         { id: "qwen" as TTSProvider, name: "Qwen (RunPod)", configured: Boolean(QWEN_RUNPOD_API_URL) },
-        { id: "xai" as TTSProvider, name: "xAI Grok", configured: isXaiConfigured() },
+        { id: "xai" as TTSProvider, name: "xAI Grok (Runware)", configured: isXaiConfigured() },
       ],
     };
   }
