@@ -463,6 +463,12 @@ const AvatarTile: React.FC<{
   </motion.article>
 );
 
+const dokuStatusLabel: Record<Doku["status"], string> = {
+  complete: "Fertig",
+  generating: "Wird erstellt",
+  error: "Fehler",
+};
+
 const DokuBentoTicket: React.FC<{
   doku: Doku;
   onRead: () => void;
