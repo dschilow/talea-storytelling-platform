@@ -13,6 +13,10 @@ import {
   QWEN_STATIC_DEFAULT_SPEAKER,
 } from '../../constants/qwenVoices';
 import {
+  getXaiVoiceOptions,
+  XAI_DEFAULT_VOICE,
+} from '../../constants/xaiVoices';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -24,6 +28,7 @@ import { getBackendUrl } from '../../config';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
   type TTSVoiceSettings,
+  type TTSProviderType,
 } from '../../types/ttsVoice';
 
 interface StoryAudioActionsProps {
@@ -79,12 +84,14 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { getToken } = useAuth();
   const { startStoryConversion, removeStoryFromPlaylist, addAndPlay, addToPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
-  const availableSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
+  const qwenSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
+  const xaiVoices = useMemo(() => getXaiVoiceOptions(), []);
 
+  const [ttsProvider, setTtsProvider] = useState<TTSProviderType>('qwen');
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSpeaker, setSelectedSpeaker] = useState(QWEN_STATIC_DEFAULT_SPEAKER);
   const [multiVoiceEnabled, setMultiVoiceEnabled] = useState(false);
-  const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>(availableSpeakers.slice(0, 2));
+  const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>(qwenSpeakers.slice(0, 2));
   const [generatedAudioItems, setGeneratedAudioItems] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [checkingGeneratedAudio, setCheckingGeneratedAudio] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -96,6 +103,18 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const isDark = resolvedTheme === 'dark';
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
   const hasLibraryAudio = generatedAudioItems.length > 0;
+  const isXai = ttsProvider === 'xai';
+  const availableSpeakers = isXai ? xaiVoices.map((v) => v.id) : qwenSpeakers;
+
+  // Switch default voice when provider changes
+  useEffect(() => {
+    if (ttsProvider === 'xai') {
+      setSelectedSpeaker(XAI_DEFAULT_VOICE);
+      setMultiVoiceEnabled(false);
+    } else {
+      setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
+    }
+  }, [ttsProvider]);
 
   const voiceSettings = useMemo<TTSVoiceSettings>(() => {
     const normalizedSpeaker = selectedSpeaker.trim();
@@ -107,11 +126,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       ),
     );
 
-    if (normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
+    if (!isXai && normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
       return {
         mode: 'dialogue',
         speakerId: normalizedSpeaker,
         dialogueSpeakerIds: normalizedDialogueSpeakers,
+        provider: ttsProvider,
       };
     }
 
@@ -119,10 +139,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       return {
         mode: 'speaker',
         speakerId: normalizedSpeaker,
+        provider: ttsProvider,
       };
     }
-    return DEFAULT_TTS_VOICE_SETTINGS;
-  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers]);
+    return { ...DEFAULT_TTS_VOICE_SETTINGS, provider: ttsProvider };
+  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, ttsProvider, isXai]);
 
   const canStartConversion = useMemo(() => {
     if (isAdding) return false;
@@ -193,10 +214,14 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   }, [multiVoiceEnabled, availableSpeakers]);
 
   const resetToDefaultVoice = useCallback(() => {
-    setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
+    if (ttsProvider === 'xai') {
+      setSelectedSpeaker(XAI_DEFAULT_VOICE);
+    } else {
+      setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
+    }
     setMultiVoiceEnabled(false);
     setDialogueSpeakers(availableSpeakers.slice(0, 2));
-  }, [availableSpeakers]);
+  }, [availableSpeakers, ttsProvider]);
 
   const toggleDialogueSpeaker = useCallback((speaker: string) => {
     setDialogueSpeakers((current) => {
@@ -318,9 +343,44 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           background: isDark ? 'rgba(16,24,35,0.6)' : 'rgba(255,250,244,0.85)',
         }}
       >
+        {/* Provider selector */}
+        <div className="mb-3">
+          <p className="mb-1.5 text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
+            TTS-Anbieter
+          </p>
+          <div className="flex gap-2">
+            {([
+              { id: 'qwen' as TTSProviderType, label: 'Qwen (RunPod)', hint: 'Eigener Server' },
+              { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Cloud API' },
+            ]).map((p) => {
+              const active = ttsProvider === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setTtsProvider(p.id)}
+                  className="flex-1 rounded-xl border px-3 py-2 text-left transition-all"
+                  style={{
+                    borderColor: active
+                      ? (isDark ? '#86a7db' : '#7c5b3d')
+                      : (isDark ? '#34455d' : '#decfbf'),
+                    background: active
+                      ? (isDark ? 'rgba(134,167,219,0.15)' : 'rgba(124,91,61,0.1)')
+                      : (isDark ? 'rgba(20,29,40,0.5)' : 'rgba(255,255,255,0.5)'),
+                    color: isDark ? '#d9e5f8' : '#2a3b52',
+                  }}
+                >
+                  <span className="block text-xs font-semibold">{p.label}</span>
+                  <span className="block text-[10px] opacity-60">{p.hint}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
-            Qwen Stimme waehlen
+            {isXai ? 'xAI Stimme waehlen' : 'Qwen Stimme waehlen'}
           </p>
           <button
             type="button"
@@ -342,7 +402,13 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             disabled={availableSpeakers.length === 0}
           >
             {availableSpeakers.length === 0 ? (
-              <option value="">Keine Qwen-Stimmen verfuegbar</option>
+              <option value="">Keine Stimmen verfuegbar</option>
+            ) : isXai ? (
+              xaiVoices.map((voice) => (
+                <option key={voice.id} value={voice.id}>
+                  {voice.name} - {voice.description}
+                </option>
+              ))
             ) : (
               availableSpeakers.map((speaker) => (
                 <option key={speaker} value={speaker}>
@@ -355,64 +421,79 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         {!hasLibraryAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
-            Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.
+            {isXai
+              ? 'xAI Grok TTS nutzt die Cloud-API von x.ai. Kosten pro Anfrage.'
+              : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
           </p>
         )}
 
         {selectedSpeaker && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             Narrator-Stimme: <span className="font-semibold">{selectedSpeaker}</span>
+            {isXai && (
+              <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{
+                  background: isDark ? 'rgba(134,167,219,0.15)' : 'rgba(124,91,61,0.1)',
+                  color: isDark ? '#86a7db' : '#7c5b3d',
+                }}
+              >
+                xAI
+              </span>
+            )}
           </p>
         )}
 
-        <div
-          className="mt-3 rounded-xl border p-2"
-          style={{
-            borderColor: isDark ? '#34455d' : '#decfbf',
-            background: isDark ? 'rgba(15,23,34,0.45)' : 'rgba(255,255,255,0.62)',
-          }}
-        >
-          <label className="flex items-center gap-2 text-[11px]" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
-            <input
-              type="checkbox"
-              checked={multiVoiceEnabled}
-              onChange={(event) => setMultiVoiceEnabled(event.target.checked)}
-              disabled={availableSpeakers.length < 2}
-            />
-            Mehrere Dialogstimmen aktivieren (`NAME: Text` im Kapitel)
-          </label>
+        {/* Dialogue mode — only for Qwen (xAI doesn't support multi-voice in a single request) */}
+        {!isXai && (
+          <div
+            className="mt-3 rounded-xl border p-2"
+            style={{
+              borderColor: isDark ? '#34455d' : '#decfbf',
+              background: isDark ? 'rgba(15,23,34,0.45)' : 'rgba(255,255,255,0.62)',
+            }}
+          >
+            <label className="flex items-center gap-2 text-[11px]" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
+              <input
+                type="checkbox"
+                checked={multiVoiceEnabled}
+                onChange={(event) => setMultiVoiceEnabled(event.target.checked)}
+                disabled={availableSpeakers.length < 2}
+              />
+              Mehrere Dialogstimmen aktivieren (`NAME: Text` im Kapitel)
+            </label>
 
-          {multiVoiceEnabled && (
-            <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
-              {availableSpeakers.map((speaker) => {
-                const active = dialogueSpeakers.includes(speaker);
-                return (
-                  <button
-                    key={speaker}
-                    type="button"
-                    onClick={() => toggleDialogueSpeaker(speaker)}
-                    className="rounded-lg border px-2 py-1 text-left text-[11px]"
-                    style={{
-                      borderColor: active ? (isDark ? '#9eb3d4' : '#7c5b3d') : (isDark ? '#34455d' : '#decfbf'),
-                      background: active
-                        ? (isDark ? 'rgba(158,179,212,0.18)' : 'rgba(124,91,61,0.14)')
-                        : (isDark ? 'rgba(20,29,40,0.75)' : 'rgba(255,255,255,0.7)'),
-                      color: isDark ? '#d9e5f8' : '#2a3b52',
-                    }}
-                  >
-                    {speaker}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            {multiVoiceEnabled && (
+              <div className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                {availableSpeakers.map((speaker) => {
+                  const active = dialogueSpeakers.includes(speaker);
+                  return (
+                    <button
+                      key={speaker}
+                      type="button"
+                      onClick={() => toggleDialogueSpeaker(speaker)}
+                      className="rounded-lg border px-2 py-1 text-left text-[11px]"
+                      style={{
+                        borderColor: active ? (isDark ? '#9eb3d4' : '#7c5b3d') : (isDark ? '#34455d' : '#decfbf'),
+                        background: active
+                          ? (isDark ? 'rgba(158,179,212,0.18)' : 'rgba(124,91,61,0.14)')
+                          : (isDark ? 'rgba(20,29,40,0.75)' : 'rgba(255,255,255,0.7)'),
+                        color: isDark ? '#d9e5f8' : '#2a3b52',
+                      }}
+                    >
+                      {speaker}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-          {multiVoiceEnabled && dialogueSpeakers.length < 2 && (
-            <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
-              Waehle mindestens 2 Stimmen fuer Dialogmodus.
-            </p>
-          )}
-        </div>
+            {multiVoiceEnabled && dialogueSpeakers.length < 2 && (
+              <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
+                Waehle mindestens 2 Stimmen fuer Dialogmodus.
+              </p>
+            )}
+          </div>
+        )}
 
         {checkingGeneratedAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
@@ -428,7 +509,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         {!checkingGeneratedAudio && generatedAudioItems.length === 0 && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
-            Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle {chapters.length} Kapitel ueber RunPod.
+            {isXai
+              ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS.`
+              : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
           </p>
         )}
       </div>
@@ -505,7 +588,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
               Story-Audio wirklich erzeugen?
             </DialogTitle>
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
-              RunPod wird erst nach deiner Bestaetigung gestartet.
+              {pendingAction?.voiceSettings?.provider === 'xai'
+                ? 'xAI Grok TTS wird erst nach deiner Bestaetigung gestartet.'
+                : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -518,7 +603,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           >
             <p className="font-semibold">{storyTitle}</p>
             <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
-              Es werden Audios fuer {chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.
+              {pendingAction?.voiceSettings?.provider === 'xai'
+                ? `Es werden Audios fuer ${chapters.length} Kapitel ueber xAI Grok TTS erzeugt.`
+                : `Es werden Audios fuer ${chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.`}
             </p>
             {pendingAction?.voiceSettings?.speakerId && (
               <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>

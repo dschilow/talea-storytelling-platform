@@ -267,6 +267,7 @@ export function useTTSConversionQueue({
                   ? { referenceAudioDataUrl: firstReq.referenceAudioDataUrl }
                   : {}),
                 ...(firstReq?.speaker ? { speaker: firstReq.speaker } : {}),
+                ...(firstReq?.provider ? { provider: firstReq.provider } : {}),
               }),
             });
             break;
@@ -371,6 +372,7 @@ export function useTTSConversionQueue({
                 ? { referenceAudioDataUrl: item.request.referenceAudioDataUrl }
                 : {}),
               ...(item.request?.speaker ? { speaker: item.request.speaker } : {}),
+              ...(item.request?.provider ? { provider: item.request.provider } : {}),
             });
             break;
           } catch (err) {

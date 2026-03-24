@@ -169,7 +169,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const hasRequestFields =
         Boolean(request.promptText?.trim()) ||
         Boolean(request.referenceAudioDataUrl?.trim()) ||
-        Boolean(request.speaker?.trim());
+        Boolean(request.speaker?.trim()) ||
+        Boolean(request.provider);
 
       const normalizedRequest = hasRequestFields ? request : undefined;
       return {

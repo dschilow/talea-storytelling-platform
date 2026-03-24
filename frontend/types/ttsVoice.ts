@@ -1,15 +1,18 @@
 export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
+export type TTSProviderType = 'qwen' | 'xai';
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;
   speakerId?: string;
   dialogueSpeakerIds?: string[];
+  provider?: TTSProviderType;
 }
 
 export interface TTSRequestOptions {
   promptText?: string;
   referenceAudioDataUrl?: string;
   speaker?: string;
+  provider?: TTSProviderType;
 }
 
 export const DEFAULT_TTS_VOICE_SETTINGS: TTSVoiceSettings = {
@@ -18,22 +21,27 @@ export const DEFAULT_TTS_VOICE_SETTINGS: TTSVoiceSettings = {
 
 export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestOptions {
   if (!settings || settings.mode === 'default') {
-    return {};
+    return settings?.provider ? { provider: settings.provider } : {};
+  }
+
+  const base: TTSRequestOptions = {};
+  if (settings.provider) {
+    base.provider = settings.provider;
   }
 
   const speaker = settings.speakerId?.trim();
   if (speaker) {
-    return { speaker };
+    return { ...base, speaker };
   }
 
   if (settings.mode === 'dialogue') {
     const fallbackDialogueSpeaker = (settings.dialogueSpeakerIds || [])
       .map((entry) => entry.trim())
       .find(Boolean);
-    return fallbackDialogueSpeaker ? { speaker: fallbackDialogueSpeaker } : {};
+    return fallbackDialogueSpeaker ? { ...base, speaker: fallbackDialogueSpeaker } : base;
   }
 
-  return {};
+  return base;
 }
 
 function hashString(input: string): string {
@@ -48,6 +56,7 @@ function hashString(input: string): string {
 export function buildTTSRequestCacheSuffix(request?: TTSRequestOptions): string {
   if (!request) return 'voice-default';
 
+  const providerPart = request.provider || 'qwen';
   const speakerPart = request.speaker?.trim().toLowerCase() || 'default';
   const promptPart = request.promptText?.trim()
     ? `prompt-${hashString(request.promptText.trim())}`
@@ -56,7 +65,7 @@ export function buildTTSRequestCacheSuffix(request?: TTSRequestOptions): string 
     ? `ref-${hashString(request.referenceAudioDataUrl.trim())}`
     : 'ref-none';
 
-  return `voice-${speakerPart}-${promptPart}-${refPart}`;
+  return `${providerPart}-voice-${speakerPart}-${promptPart}-${refPart}`;
 }
 
 function normalizeChunkTextForCache(text: string): string {

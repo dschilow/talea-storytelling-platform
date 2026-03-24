@@ -1,6 +1,13 @@
 ﻿import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 import { splitTextIntoChunks } from "../helpers/ttsChunking";
+import {
+  xaiGenerateSpeech,
+  xaiGenerateSpeechBatch,
+  xaiListVoices,
+  isXaiConfigured,
+  type XaiVoicesResponse,
+} from "./xai-tts";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
@@ -153,12 +160,12 @@ const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
 const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
 const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
 
-export type TTSProvider = "qwen";
+export type TTSProvider = "qwen" | "xai";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
   audioData: string;
-  providerUsed: "qwen";
+  providerUsed: TTSProvider;
   mimeType: string;
   outputFormat: AudioFormat;
 }
@@ -1642,6 +1649,27 @@ async function runpodListVoicesRequest(): Promise<QwenVoicesResponse> {
 export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
   { expose: true, method: "POST", path: "/tts/generate" },
   async (req) => {
+    if (req.provider === "xai") {
+      try {
+        const result = await xaiGenerateSpeech({
+          text: req.text,
+          voice: req.speaker,
+          language: req.languageId,
+          outputFormat: req.outputFormat,
+        });
+        return {
+          audioData: result.audioData,
+          providerUsed: "xai" as TTSProvider,
+          mimeType: result.mimeType,
+          outputFormat: result.outputFormat,
+        };
+      } catch (error) {
+        const message = getErrorMessage(error);
+        log.error(`xAI TTS generate failed: ${message}`);
+        throw APIError.unavailable(`xAI TTS generation failed: ${message}`);
+      }
+    }
+
     try {
       return await withRunpodSlot(() => runpodTtsRequest(req));
     } catch (error) {
@@ -1658,6 +1686,27 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
 async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Promise<TTSBatchResponse> {
   if (!req.items || req.items.length === 0) {
     return { results: [] };
+  }
+
+  // xAI provider: use xAI batch (concurrent individual requests)
+  if (req.provider === "xai") {
+    try {
+      const results = await xaiGenerateSpeechBatch(
+        req.items.map((item) => ({
+          id: item.id,
+          text: item.text,
+          speaker: item.speaker,
+        })),
+        req.speaker,
+        req.languageId,
+        req.outputFormat,
+      );
+      return { results };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`xAI TTS batch failed: ${message}`);
+      throw APIError.unavailable(`xAI TTS batch generation failed: ${message}`);
+    }
   }
 
   // Safety-net: auto-chunk any oversized items so the GPU gets manageable pieces.
@@ -2012,5 +2061,24 @@ export const listCosyVoiceVoices = api<void, QwenVoicesResponse>(
   { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
   async () => {
     return await listRunpodVoicesOrThrow("Qwen");
+  }
+);
+
+export const listXaiVoices = api<void, XaiVoicesResponse>(
+  { expose: true, method: "GET", path: "/tts/xai/voices" },
+  async () => {
+    return xaiListVoices();
+  }
+);
+
+export const getAvailableTtsProviders = api<void, { providers: Array<{ id: TTSProvider; name: string; configured: boolean }> }>(
+  { expose: true, method: "GET", path: "/tts/providers" },
+  async () => {
+    return {
+      providers: [
+        { id: "qwen" as TTSProvider, name: "Qwen (RunPod)", configured: Boolean(QWEN_RUNPOD_API_URL) },
+        { id: "xai" as TTSProvider, name: "xAI Grok", configured: isXaiConfigured() },
+      ],
+    };
   }
 );
