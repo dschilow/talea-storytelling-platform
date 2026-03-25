@@ -33,6 +33,7 @@ export interface Chapter {
   id: string;
   title: string;
   content: string;
+  ttsText?: string;
   imageUrl?: string;
   scenicImageUrl?: string;
   scenicImagePrompt?: string;

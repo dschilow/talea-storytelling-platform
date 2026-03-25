@@ -182,12 +182,13 @@ export const get = api<GetStoryParams, Story>(
       id: string;
       title: string;
       content: string;
+      tts_text: string | null;
       image_url: string | null;
       chapter_order: number;
     }>`
-      SELECT id, title, content, image_url, chapter_order 
-      FROM chapters 
-      WHERE story_id = ${id} 
+      SELECT id, title, content, tts_text, image_url, chapter_order
+      FROM chapters
+      WHERE story_id = ${id}
       ORDER BY chapter_order
     `;
     const profileState = await storyDB.queryRow<{
@@ -221,6 +222,7 @@ export const get = api<GetStoryParams, Story>(
         id: ch.id,
         title: (String(ch.title || "").trim() || `Kapitel ${ch.chapter_order}`),
         content: ch.content,
+        ttsText: ch.tts_text || undefined,
         imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
         scenicImageUrl: scenicResolvedUrl || scenicRawUrl,
         scenicImagePrompt: chapterVisuals[String(ch.chapter_order)]?.scenicImagePrompt || undefined,

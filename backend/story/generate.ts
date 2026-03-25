@@ -47,6 +47,7 @@ import {
   ageToAgeGroup,
   buildStoryProfilePrompt,
 } from "../helpers/child-profile-personalization";
+import { enrichStoryForTTS } from "./tts-enrichment";
 import { reserveStoryGenerationCapacity } from "./generation-capacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
@@ -269,6 +270,7 @@ export interface Chapter {
   id: string;
   title: string;
   content: string;
+  ttsText?: string;
   imageUrl?: string;
   scenicImageUrl?: string;
   scenicImagePrompt?: string;
@@ -979,6 +981,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
       // Insert chapters
       console.log("[story.generate] Inserting chapters...", { count: generatedStory.chapters.length });
+      const insertedChapters: Array<{ id: string; title: string; content: string; order: number }> = [];
       for (const chapter of generatedStory.chapters) {
         const chapterId = crypto.randomUUID();
         console.log("[story.generate] Insert chapter:", {
@@ -993,11 +996,27 @@ export const generate = api<GenerateStoryRequest, Story>(
           INSERT INTO chapters (
             id, story_id, title, content, image_url, chapter_order, created_at
           ) VALUES (
-            ${chapterId}, ${id}, ${chapter.title}, ${chapter.content}, 
+            ${chapterId}, ${id}, ${chapter.title}, ${chapter.content},
             ${chapter.imageUrl}, ${chapter.order}, ${now}
           )
         `;
+        insertedChapters.push({
+          id: chapterId,
+          title: chapter.title,
+          content: chapter.content,
+          order: chapter.order,
+        });
       }
+
+      // TTS Enrichment Phase: Annotate chapter text with xAI TTS expression tags
+      // Runs in background — does not block story completion
+      enrichStoryForTTS({
+        storyId: id,
+        chapters: insertedChapters,
+        aiModel: config.aiModel,
+      }).catch((error) => {
+        console.error(`[story.generate] TTS enrichment failed (non-blocking): ${error instanceof Error ? error.message : String(error)}`);
+      });
 
       // NEW AI-DRIVEN SYSTEM: Apply personality updates only to participating avatars.
       console.log("[AI-DRIVEN SYSTEM] Applying trait updates to selected avatars...");

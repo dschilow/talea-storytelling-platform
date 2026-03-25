@@ -1,0 +1,1 @@
+ALTER TABLE chapters DROP COLUMN IF EXISTS tts_text;

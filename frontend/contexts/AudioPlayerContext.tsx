@@ -878,11 +878,15 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const storyBatchGroupId = `story-${storyId}`;
 
+      // Use ttsText (with xAI expression tags) when available and xAI provider is selected
+      const useEnrichedTTS = voiceSettings?.provider === 'xai';
+
       for (const chapter of sorted) {
         const chapterChunks: Array<{ text: string; speaker?: string }> = [];
+        const chapterText = (useEnrichedTTS && chapter.ttsText) ? chapter.ttsText : chapter.content;
 
         if (voiceSettings?.mode === 'dialogue' && dialogueVoicePool.length > 0) {
-          const dialogueSegments = splitChapterIntoDialogueAwareSegments(chapter.content);
+          const dialogueSegments = splitChapterIntoDialogueAwareSegments(chapterText);
           for (const segment of dialogueSegments) {
             const normalizedText = String(segment.text || '').trim();
             if (!normalizedText) continue;
@@ -899,7 +903,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
           }
         } else {
-          const chunks = splitTextIntoChunks(chapter.content);
+          const chunks = splitTextIntoChunks(chapterText);
           for (const chunk of chunks) {
             chapterChunks.push({
               text: chunk,
