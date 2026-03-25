@@ -49,7 +49,7 @@ const HARD_MIN_CHAPTER_WORDS = 220;
 const REWRITE_ONLY_ON_ERRORS = true;
 
 // Keep expansion budget controlled but sufficient for short-chapter recovery.
-const MAX_EXPAND_CALLS = 4;
+const MAX_EXPAND_CALLS = 5;
 
 // Quality-first default: chapter-local rescue passes repair dialogue, transitions, and child arc
 // after the full draft without paying for multiple full rewrites.
@@ -561,6 +561,8 @@ export class LlmStoryWriter implements StoryWriter {
     // Support jobs (blueprint, expand, warning-polish) run on the cheaper family side-model.
     const supportModel = resolveSupportTaskModel(model);
     const blueprintModel = supportModel;
+    const isMiniMaxStoryModel = isMiniMaxFamilyModel(model);
+    const sideJobModel = isMiniMaxStoryModel ? supportModel : undefined;
     const supportModelFallback = resolveGeminiSupportFallback(model);
     const isSupportModelGemini = supportModel.startsWith("gemini-");
     // Support jobs should fail over faster than the main prose path, but 45s was too aggressive
@@ -586,7 +588,7 @@ export class LlmStoryWriter implements StoryWriter {
     const defaultExpandCalls = isGeminiModel ? 4 : MAX_EXPAND_CALLS;
     // Cost guard: Gemini Flash should avoid generic warning-polish by default.
     // It is expensive, often low-impact, and targeted release surgery on the winner is cheaper.
-    const defaultWarningPolishCalls = isGeminiModel ? 0 : Math.min(2, MAX_WARNING_POLISH_CALLS);
+    const defaultWarningPolishCalls = isGeminiModel ? 0 : Math.min(3, MAX_WARNING_POLISH_CALLS);
     const configuredRewritePasses = Number(rawConfig?.maxRewritePasses ?? defaultRewritePasses);
     const configuredExpandCalls = Number(rawConfig?.maxExpandCalls ?? defaultExpandCalls);
     const configuredWarningPolishCalls = Number(rawConfig?.maxWarningPolishCalls ?? defaultWarningPolishCalls);
@@ -615,7 +617,9 @@ export class LlmStoryWriter implements StoryWriter {
     // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
     const defaultStoryTokenBudget = isGeminiFlashModel
       ? (isSecondaryCandidate ? 12000 : 18000)
-      : (isReasoningModel ? 20000 : 12000);
+      : isMiniMaxStoryModel
+        ? 22000
+        : (isReasoningModel ? 20000 : 12000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
@@ -1080,22 +1084,26 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Without it, 5-chapter stories consistently generate ~900 words instead of 1120+ minimum.
     const baseOutputTokens = isGeminiFlashModel
       ? Math.max(3600, Math.round(totalWordMax * 2.4))
+      : isMiniMaxStoryModel
+        ? Math.max(4200, Math.round(totalWordMax * 2.15))
       : isReasoningModel
         ? Math.max(4200, Math.round(totalWordMax * 2.1))
         : Math.max(2200, Math.round(totalWordMax * 1.5));
 
-    const reasoningMultiplier = isGeminiFlashModel ? 1.0 : (isReasoningModel ? 1.1 : 1);
+    const reasoningMultiplier = isGeminiFlashModel ? 1.0 : ((isReasoningModel || isMiniMaxStoryModel) ? 1.1 : 1);
 
     const maxOutputTokens = isGeminiFlashModel
       ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000)
+      : isMiniMaxStoryModel
+        ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8200)
       : isReasoningModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
 
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
-      isGeminiFlashModel ? 2600 : (isReasoningModel ? 6000 : 1500),
-      isGeminiFlashModel ? 1200 : (isReasoningModel ? 2000 : 550),
+      isGeminiFlashModel ? 2600 : ((isReasoningModel || isMiniMaxStoryModel) ? 6000 : 1500),
+      isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel) ? 2000 : 550),
     );
     console.log(
       `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
@@ -1709,6 +1717,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           context: `story-writer-rewrite-${rewriteAttempt}`,
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "rewrite", attempt: rewriteAttempt, candidateTag },
+          modelOverride: sideJobModel,
         });
       } catch (error) {
         if (isGeminiModel) {
@@ -1930,6 +1939,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           context: "story-title",
           logSource: "phase6-story-llm",
           logMetadata: { storyId: normalizedRequest.storyId, step: "title", candidateTag },
+          modelOverride: sideJobModel,
         });
         const titleParsed = safeJson(titleResult.content);
         if (titleParsed?.title) draft.title = titleParsed.title;

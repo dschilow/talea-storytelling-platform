@@ -3,6 +3,8 @@ export const GEMINI_SUPPORT_MODEL = "gemini-3.1-flash-lite-preview";
 export const CLAUDE_SONNET_46_WIZARD_MODEL = "claude-sonnet-4-6";
 export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 export const MINIMAX_M27_MODEL = "minimax-m2.7";
+export const GPT_54_MINI_MODEL = "gpt-5.4-mini";
+export const GPT_54_NANO_MODEL = "gpt-5.4-nano";
 
 export function isGeminiFamilyModel(model?: string): boolean {
   return String(model || "").trim().toLowerCase().startsWith("gemini-");
@@ -44,11 +46,11 @@ export function resolveGeminiSupportFallback(selectedStoryModel?: string): strin
 export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   const normalized = String(selectedStoryModel || "").trim().toLowerCase();
   if (!normalized) return GEMINI_SUPPORT_MODEL;
-  if (isMiniMaxFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
+  if (isMiniMaxFamilyModel(normalized)) return GPT_54_MINI_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
-  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5.4-nano";
-  return "gpt-5.4-nano";
+  if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return GPT_54_NANO_MODEL;
+  return GPT_54_NANO_MODEL;
 }
 
 export function resolveCriticModelForPipeline(input: {
@@ -58,21 +60,21 @@ export function resolveCriticModelForPipeline(input: {
 }): string {
   const explicit = String(input.explicitCriticModel || "").trim();
   if (explicit) return explicit;
-  if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GEMINI_SUPPORT_MODEL;
+  if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
   }
-  return String(input.defaultModel || "gpt-5.4-nano");
+  return String(input.defaultModel || GPT_54_NANO_MODEL);
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
-  if (isMiniMaxFamilyModel(selectedStoryModel)) return GEMINI_SUPPORT_MODEL;
+  if (isMiniMaxFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
   }
   const model = String(selectedStoryModel || "").trim();
-  if (!model) return "gpt-5.4-nano";
-  if (model.startsWith("gpt-5.4-mini")) return "gpt-5.4-nano";
+  if (!model) return GPT_54_NANO_MODEL;
+  if (model.startsWith("gpt-5.4-mini")) return GPT_54_NANO_MODEL;
   if (model.startsWith("gpt-5.4")) return "gpt-5.4";
-  return "gpt-5.4-nano";
+  return GPT_54_NANO_MODEL;
 }

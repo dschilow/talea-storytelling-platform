@@ -121,7 +121,7 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map((ch) => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 120),
+      text: compressChapter(ch.text, 180),
     }));
 
     const systemPrompt = `You are an experienced children's-book editor for ages 6-8.
@@ -132,6 +132,7 @@ Score calibration:
 - 8.0 means clearly publishable professional quality
 - 9.0 means exceptional and memorable
 - 10.0 is rare
+If the draft clearly misses basic trade-book requirements such as chapter length, dialogue presence, concrete early stakes, or the child mistake/repair arc, it must NOT score above 5.9.
 If a blueprint is provided, treat missing on-page realization of its humor beats, mini-conflicts, callbacks, and emotional turns as real misses.
 Check structural fidelity and emotional payoff without demanding literal wording.
 If the story language is German, judge the German prose on native German children's-book quality.

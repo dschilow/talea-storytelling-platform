@@ -2128,6 +2128,8 @@ ${geminiMicroExamples}
    - Ch1 PARAGRAPH 1: Establish WHO + WHERE through action, voice, and place. Mention appearance only when explicitly locked. Never start mid-action and never start with "Es roch nach...".
    - Ch1 PARAGRAPH 2: State the MISSION clearly (what + why). Must be so simple a 6-year-old can repeat it.
    - Ch1 includes a concrete stakes sentence: what is lost if they fail.
+   - EVERY chapter must contain at least one anchored exchange of 3-6 short dialogue lines between foreground figures. Ch1 may place it after the mission paragraph.
+   - If a chapter reaches the beat too early, keep the scene going with friction, attempts, reactions, and cleanup until the chapter feels fully played and lands inside the target word range.
    - Ch1-4 each end on UNRESOLVED TENSION (never "...and they were relieved" or "...they continued").
    - Each chapter uses a DIFFERENT obstacle type — no plot device repeats within the story.
    - EVERY character listed in a chapter speaks at least one line AND does one physical action.
@@ -2255,6 +2257,8 @@ This rhythm: ACTION → DIALOGUE → REACTION → ACTION is what makes stories f
 15. Chapter 3 or 4 MUST show a child-made wrong choice causing the setback. Bad luck alone is not enough.
 16. Plan 3 humor beats across the story: one by Ch2, one by Ch3 or Ch4, one warm/light callback in Ch5.
 17. Before each chapter, lock the 2 foreground voices: one rhythm cue + one word-choice cue per child.
+18. Decorative comparisons are rationed hard: max one fresh comparison per paragraph, and after a comparison the next 2-3 sentences must stay plain and concrete.
+19. Never end a chapter as soon as the plot point is technically solved. Stay in-scene long enough for reaction, dialogue friction, and one visible consequence.
 
 ::: CHAPTER 1 – CHARACTER INTRODUCTION (MANDATORY) :::
 ${ch1IntroRule}

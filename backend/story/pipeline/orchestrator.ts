@@ -1530,24 +1530,24 @@ function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | unde
   const criticalIssueCount = countCriticalSelectionIssues(quality);
 
   // Quality-gate score often collapses to 0 for otherwise salvageable prose.
-  // In that regime, trust the semantic critic more and soften structural penalties.
+  // But for release selection we still need to punish hard craft failures more than the critic's prose impression.
   const qualitySignalCollapsed = qualityScore <= 0.05;
   const qualitySignalWeak = qualityScore <= 2.5;
   const effectiveQualityScore = qualitySignalCollapsed
-    ? criticScore
+    ? Math.min(criticScore, 4.8)
     : qualitySignalWeak
-      ? Math.max(qualityScore, criticScore - 1.2)
+      ? Math.max(qualityScore, criticScore - 2.0)
       : qualityScore;
   const blend = qualitySignalWeak
-    ? effectiveQualityScore * 0.18 + criticScore * 0.82
-    : effectiveQualityScore * 0.28 + criticScore * 0.72;
-  const errorPenaltyWeight = qualitySignalWeak ? 0.78 : 1.15;
-  const warningPenaltyCap = qualitySignalWeak ? 1.2 : 1.6;
+    ? effectiveQualityScore * 0.42 + criticScore * 0.58
+    : effectiveQualityScore * 0.4 + criticScore * 0.6;
+  const errorPenaltyWeight = qualitySignalWeak ? 1.05 : 1.2;
+  const warningPenaltyCap = qualitySignalWeak ? 1.5 : 1.8;
   const penalties =
     errorCount * errorPenaltyWeight
     + Math.min(warningPenaltyCap, warningCount * 0.04)
-    + criticalIssueCount * (qualitySignalWeak ? 0.18 : 0.24);
-  const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.6 : 0;
+    + criticalIssueCount * (qualitySignalWeak ? 0.34 : 0.3);
+  const releasePenalty = releaseEnabled && critic && !criticSkipped && !critic.releaseReady ? 0.9 : 0;
   return Number((blend - penalties - releasePenalty).toFixed(4));
 }
 
@@ -1585,9 +1585,14 @@ function countCriticalSelectionIssues(quality: any): number {
   const failedGates = new Set(Array.isArray(quality?.failedGates) ? quality.failedGates : []);
   const criticalCodes = new Set([
     "UNLOCKED_CHARACTER_ACTOR",
+    "TOTAL_TOO_SHORT",
+    "CHAPTER_TOO_SHORT_HARD",
+    "DIALOGUE_RATIO_CRITICAL",
+    "MISSING_EXPLICIT_STAKES",
     "CHILD_MISTAKE_MISSING",
     "MISTAKE_BODY_REACTION_MISSING",
     "INTERNAL_TURN_MISSING",
+    "COMPARISON_CLUSTER",
     "ENDING_PAYOFF_ABSTRACT",
     "GOAL_THREAD_WEAK_ENDING",
     "MISSING_CHARACTER",
@@ -1599,6 +1604,10 @@ function countCriticalSelectionIssues(quality: any): number {
     if (criticalCodes.has(String(issue.code || ""))) count += 1;
   }
 
+  if (failedGates.has("LENGTH_PACING")) count += 2;
+  if (failedGates.has("DIALOGUE_QUOTE")) count += 2;
+  if (failedGates.has("STAKES_LOWPOINT")) count += 2;
+  if (failedGates.has("IMAGERY_BALANCE")) count += 1;
   if (failedGates.has("CAST_LOCK")) count += 2;
   if (failedGates.has("CHILD_MISTAKE_ARC")) count += 2;
   if (failedGates.has("ENDING_PAYOFF")) count += 1;

@@ -12,6 +12,8 @@
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { generateWithRunwareText, isRunwareConfigured } from "./runware-text-generation";
 import { storyDB } from "./db";
+import { callChatCompletion } from "./pipeline/llm-client";
+import { GPT_54_MINI_MODEL } from "./pipeline/model-routing";
 
 // ── xAI TTS Expression Tags ──────────────────────────────────────────────
 
@@ -182,9 +184,9 @@ export async function enrichChapterForTTS(input: {
 
   let enrichedText: string;
 
-  // Use cheap/fast model for enrichment (not the main story model)
+  // Side-jobs for MiniMax stories should run on GPT-5.4-mini, not on MiniMax itself.
   const model = input.aiModel?.startsWith("minimax-")
-    ? "minimax-m2.7"
+    ? GPT_54_MINI_MODEL
     : ENRICHMENT_MODEL;
 
   if (model.startsWith("minimax-") && isRunwareConfigured()) {
@@ -194,6 +196,26 @@ export async function enrichChapterForTTS(input: {
       model,
       maxTokens: ENRICHMENT_MAX_TOKENS,
       temperature: ENRICHMENT_TEMPERATURE,
+    });
+    enrichedText = result.content;
+  } else if (model.startsWith("gpt-")) {
+    const result = await callChatCompletion({
+      model,
+      fallbackModels: ["gpt-5.4-nano"],
+      messages: [
+        { role: "system", content: ENRICHMENT_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      responseFormat: "text",
+      maxTokens: ENRICHMENT_MAX_TOKENS,
+      temperature: ENRICHMENT_TEMPERATURE,
+      reasoningEffort: "none",
+      context: "tts-enrichment",
+      logSource: "tts-enrichment-llm",
+      logMetadata: {
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+      },
     });
     enrichedText = result.content;
   } else if (isGeminiConfigured()) {
