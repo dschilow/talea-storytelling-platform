@@ -44,7 +44,7 @@ export function resolveGeminiSupportFallback(selectedStoryModel?: string): strin
 export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   const normalized = String(selectedStoryModel || "").trim().toLowerCase();
   if (!normalized) return GEMINI_SUPPORT_MODEL;
-  if (isMiniMaxFamilyModel(normalized)) return MINIMAX_M27_MODEL;
+  if (isMiniMaxFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
   if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return "gpt-5.4-nano";
@@ -58,7 +58,7 @@ export function resolveCriticModelForPipeline(input: {
 }): string {
   const explicit = String(input.explicitCriticModel || "").trim();
   if (explicit) return explicit;
-  if (isMiniMaxFamilyModel(input.selectedStoryModel)) return MINIMAX_M27_MODEL;
+  if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GEMINI_SUPPORT_MODEL;
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
   }
@@ -66,7 +66,7 @@ export function resolveCriticModelForPipeline(input: {
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
-  if (isMiniMaxFamilyModel(selectedStoryModel)) return MINIMAX_M27_MODEL;
+  if (isMiniMaxFamilyModel(selectedStoryModel)) return GEMINI_SUPPORT_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
   }
