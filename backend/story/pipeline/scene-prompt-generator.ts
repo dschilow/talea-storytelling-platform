@@ -2,7 +2,8 @@ import type { AISceneDescription, AICharacterAction, CastSet, SceneDirective, St
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
-import { resolveSupportTaskModel } from "./model-routing";
+import { resolveSupportTaskModel, isMiniMaxFamilyModel } from "./model-routing";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 
 const DEFAULT_MODEL = "gpt-5.4-nano";
 const MAX_CHAPTER_WORDS = 220;
@@ -257,7 +258,31 @@ Return JSON:
   const maxCompletionTokens = Math.min(isReasoningModel ? 8000 : 2400, baseTokens * (isReasoningModel ? 3 : 1));
 
   const isGeminiModel = model.startsWith("gemini-");
-  const result = isGeminiModel
+  const isMiniMax = isMiniMaxFamilyModel(model);
+  const result = isMiniMax
+    ? await (async () => {
+        if (!isRunwareConfigured()) {
+          throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+        }
+        const runwareResult = await generateWithRunwareText({
+          systemPrompt,
+          userPrompt,
+          model,
+          maxTokens: maxCompletionTokens,
+          temperature: 0.6,
+        });
+        return {
+          content: runwareResult.content,
+          finishReason: runwareResult.finishReason,
+          usage: {
+            promptTokens: runwareResult.usage.promptTokens,
+            completionTokens: runwareResult.usage.completionTokens,
+            totalTokens: runwareResult.usage.totalTokens,
+            model: runwareResult.model,
+          },
+        };
+      })()
+    : isGeminiModel
     ? await (async () => {
         const geminiResult = await generateWithGemini({
           systemPrompt,

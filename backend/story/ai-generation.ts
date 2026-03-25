@@ -52,6 +52,7 @@ import {
   TALEA_DEFAULT_STYLE,
 } from "./image-consistency-system";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
+import { generateWithRunwareText, isRunwareConfigured } from "./runware-text-generation";
 
 /**
  * OPTIMIZED v3.0: Smart prompt clamping that NEVER removes character identity blocks
@@ -384,6 +385,13 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
     inputCostPer1M: 0.00,       // Preview pricing (configure when finalized)
     outputCostPer1M: 0.00,      // Preview pricing (configure when finalized)
     maxCompletionTokens: 65536,
+    supportsReasoningEffort: false,
+  },
+  "minimax-m2.7": {
+    name: "minimax-m2.7",
+    inputCostPer1M: 0.50,       // Runware pricing (configure when finalized)
+    outputCostPer1M: 2.00,      // Runware pricing (configure when finalized)
+    maxCompletionTokens: 32768,
     supportsReasoningEffort: false,
   },
 };
@@ -2269,8 +2277,44 @@ You MUST implement this style consistently in ALL chapters!`
   // Check if using Gemini model
   const isGeminiModel = modelConfig.name.startsWith("gemini-");
   const isClaudeModel = modelConfig.name.startsWith("claude-");
+  const isMiniMaxModel = modelConfig.name.startsWith("minimax-");
 
-  if (isGeminiModel) {
+  if (isMiniMaxModel) {
+    // Use Runware textInference API (MiniMax models)
+    if (!isRunwareConfigured()) {
+      throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+    }
+
+    console.log(`[ai-generation] 🤖 Using MiniMax model via Runware: ${modelConfig.name}`);
+
+    try {
+      const runwareResponse = await generateWithRunwareText({
+        systemPrompt,
+        userPrompt,
+        model: modelConfig.name,
+        maxTokens: modelConfig.maxCompletionTokens,
+        temperature: 0.9,
+      });
+
+      content = runwareResponse.content;
+      usageTotals.prompt = runwareResponse.usage.promptTokens;
+      usageTotals.completion = runwareResponse.usage.completionTokens;
+      usageTotals.total = runwareResponse.usage.totalTokens;
+
+      finalRequest = { model: runwareResponse.model, systemPrompt, userPrompt };
+      finalResponse = {
+        model: runwareResponse.model,
+        content,
+        usage: runwareResponse.usage,
+        finishReason: runwareResponse.finishReason,
+      };
+
+      console.log(`[ai-generation] ✅ MiniMax (Runware) generation successful`);
+    } catch (error) {
+      console.error(`[ai-generation] ❌ MiniMax (Runware) generation failed:`, error);
+      throw new Error(`MiniMax generation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else if (isGeminiModel) {
     // Use Gemini API
     if (!isGeminiConfigured()) {
       throw new Error("Gemini API is not configured. Please set GeminiAPIKey secret.");

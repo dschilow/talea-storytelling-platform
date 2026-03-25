@@ -40,6 +40,7 @@ const MODEL_CONFIGS: ModelConfig[] = [
   { id: 'gemini-3-flash-preview', title: 'Gemini 3 Flash', subtitleKey: 'gemini3_flash', cost: 'FREE', tone: 'var(--talea-text-tertiary)' },
   { id: 'gpt-5.4', title: 'GPT-5.4', subtitleKey: 'gpt54', cost: '$1.25 / 1M', tone: '#c5828c' },
   { id: 'gpt-5.4-mini', title: 'GPT-5.4 Mini', subtitleKey: 'gpt54_mini', cost: '$0.75 in / $4.50 out', tone: '#8e7daf' },
+  { id: 'minimax-m2.7', title: 'MiniMax M2.7', subtitleKey: 'minimax_m27', cost: 'Runware', tone: '#e09145' },
 ];
 
 function SelectionBadge() {

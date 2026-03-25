@@ -12,10 +12,12 @@ import {
   GEMINI_MAIN_STORY_MODEL,
   isClaudeFamilyModel,
   isGeminiFlashFamilyModel,
+  isMiniMaxFamilyModel,
   resolveClaudeStoryModel,
   resolveGeminiSupportFallback,
   resolveSupportTaskModel,
 } from "./model-routing";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 // V2: findTemplatePhraseMatches nicht mehr nötig - Template-Fixes im Rewrite enthalten
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -713,6 +715,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       const activeModel = input.modelOverride ?? model;
       const activeIsClaude = isClaudeFamilyModel(activeModel);
       const activeIsGemini = activeModel.startsWith("gemini-");
+      const activeIsMiniMax = isMiniMaxFamilyModel(activeModel);
       const activeIsGeminiFlash = isGeminiFlashFamilyModel(activeModel);
       const activeGeminiFallback =
         activeModel === supportModel && supportModelFallback && supportModelFallback !== activeModel
@@ -729,6 +732,30 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           || lowered.includes("timeout")
           || lowered.includes("aborted");
       };
+
+      if (activeIsMiniMax) {
+        if (!isRunwareConfigured()) {
+          throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+        }
+        const runwareResponse = await generateWithRunwareText({
+          systemPrompt: input.systemPrompt,
+          userPrompt: input.userPrompt,
+          model: activeModel,
+          maxTokens: input.maxTokens,
+          temperature: input.temperature,
+        });
+        return {
+          content: runwareResponse.content,
+          usage: {
+            promptTokens: runwareResponse.usage.promptTokens,
+            completionTokens: runwareResponse.usage.completionTokens,
+            totalTokens: runwareResponse.usage.totalTokens,
+            model: runwareResponse.model,
+          },
+          finishReason: runwareResponse.finishReason,
+        };
+      }
+
       if (activeIsGemini) {
         try {
           const geminiResponse = await generateWithGemini({

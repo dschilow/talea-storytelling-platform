@@ -1,6 +1,7 @@
 import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
-import { GEMINI_MAIN_STORY_MODEL, resolveSupportTaskModel } from "./model-routing";
+import { GEMINI_MAIN_STORY_MODEL, isMiniMaxFamilyModel, resolveSupportTaskModel } from "./model-routing";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { buildV8BlueprintPrompt, buildV8BlueprintSystemPrompt, resolveLengthTargets } from "./prompts";
@@ -234,6 +235,28 @@ async function callBlueprintModel(input: {
   attempt: number;
 }): Promise<{ content: string; usage?: Partial<TokenUsage> }> {
   const maxTokens = resolveBlueprintMaxTokens(input.model);
+
+  if (isMiniMaxFamilyModel(input.model)) {
+    if (!isRunwareConfigured()) {
+      throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+    }
+    const runwareResult = await generateWithRunwareText({
+      systemPrompt: input.systemPrompt,
+      userPrompt: input.userPrompt,
+      model: input.model,
+      maxTokens,
+      temperature: 0.2,
+    });
+    return {
+      content: runwareResult.content,
+      usage: {
+        promptTokens: runwareResult.usage.promptTokens,
+        completionTokens: runwareResult.usage.completionTokens,
+        totalTokens: runwareResult.usage.totalTokens,
+        model: runwareResult.model,
+      },
+    };
+  }
 
   if (input.model.startsWith("gemini-")) {
     const geminiResult = await generateWithGemini({

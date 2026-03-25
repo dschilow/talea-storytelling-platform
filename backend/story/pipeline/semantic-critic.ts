@@ -1,7 +1,8 @@
 import { callChatCompletion } from "./llm-client";
 import type { CastSet, SceneDirective, StoryDraft, TokenUsage } from "./types";
-import { GEMINI_SUPPORT_MODEL } from "./model-routing";
+import { GEMINI_SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
 import { generateWithGemini } from "../gemini-generation";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 
 export interface SemanticCriticIssue {
   chapter: number;
@@ -213,7 +214,29 @@ Return at most 7 issues and at most 5 patchTasks.`;
       },
     };
 
-    const result = model.startsWith("gemini-")
+    const result = isMiniMaxFamilyModel(model)
+      ? await (async () => {
+          if (!isRunwareConfigured()) {
+            throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+          }
+          const runwareResult = await generateWithRunwareText({
+            systemPrompt,
+            userPrompt: JSON.stringify(userPayload),
+            model,
+            maxTokens: 2200,
+            temperature: 0.2,
+          });
+          return {
+            content: runwareResult.content,
+            usage: {
+              promptTokens: runwareResult.usage.promptTokens,
+              completionTokens: runwareResult.usage.completionTokens,
+              totalTokens: runwareResult.usage.totalTokens,
+              model: runwareResult.model,
+            } as TokenUsage,
+          };
+        })()
+      : model.startsWith("gemini-")
       ? await (async () => {
           const geminiResult = await generateWithGemini({
             systemPrompt,

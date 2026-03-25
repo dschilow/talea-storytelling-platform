@@ -144,6 +144,12 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
       icon: 'M',
       description: '$0.75 in / $4.50 out - Ausgewogen',
     },
+    {
+      key: 'minimax-m2.7',
+      label: 'MiniMax M2.7',
+      icon: 'MM',
+      description: 'Runware - MiniMax Highspeed',
+    },
   ];
 
   const renderParameterSection = (

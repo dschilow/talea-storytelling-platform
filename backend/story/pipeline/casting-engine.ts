@@ -11,7 +11,8 @@ import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
-import { resolveSupportTaskModel } from "./model-routing";
+import { resolveSupportTaskModel, isMiniMaxFamilyModel } from "./model-routing";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 
 interface CharacterPoolRow {
   id: string;
@@ -500,7 +501,30 @@ Return compact JSON only with selectedCandidateId and confidence.`;
       },
     };
 
-    const response = model.startsWith("gemini-")
+    const response = isMiniMaxFamilyModel(model)
+      ? await (async () => {
+          if (!isRunwareConfigured()) {
+            throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+          }
+          const runwareResult = await generateWithRunwareText({
+            systemPrompt,
+            userPrompt: JSON.stringify(userPayload),
+            model,
+            maxTokens: 800,
+            temperature: 0.3,
+          });
+          return {
+            content: runwareResult.content,
+            finishReason: runwareResult.finishReason,
+            usage: {
+              promptTokens: runwareResult.usage.promptTokens,
+              completionTokens: runwareResult.usage.completionTokens,
+              totalTokens: runwareResult.usage.totalTokens,
+              model: runwareResult.model,
+            },
+          };
+        })()
+      : model.startsWith("gemini-")
       ? await (async () => {
           const geminiResult = await generateWithGemini({
             systemPrompt,

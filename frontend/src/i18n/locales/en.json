@@ -1192,7 +1192,8 @@
         "gemini31_pro": "Best children's book quality",
         "gemini3_flash": "Fast & free",
         "gpt54": "Best quality",
-        "gpt54_mini": "Strong & cheaper"
+        "gpt54_mini": "Strong & cheaper",
+        "minimax_m27": "MiniMax via Runware, fast"
       }
     },
     "credits": {

@@ -5,7 +5,8 @@ export type AIModel =
   | 'gpt-5.4-mini'
   | 'gemini-3-flash-preview'
   | 'gemini-3-pro-preview'
-  | 'gemini-3.1-pro-preview';
+  | 'gemini-3.1-pro-preview'
+  | 'minimax-m2.7';
 
 export interface StoryConfig {
   genre: string;

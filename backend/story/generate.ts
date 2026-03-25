@@ -183,7 +183,8 @@ export type AIModel =
   | "gemini-3-flash-preview"
   | "gemini-3.1-flash-lite-preview"
   | "gemini-3-pro-preview"
-  | "gemini-3.1-pro-preview";
+  | "gemini-3.1-pro-preview"
+  | "minimax-m2.7";
 
 export interface StoryConfig {
   avatarIds: string[];

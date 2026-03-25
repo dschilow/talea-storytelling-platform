@@ -2,7 +2,8 @@ import { buildStoryChapterRevisionPrompt, resolveLengthTargets } from "./prompts
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage, normalizeTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
-import { GEMINI_SUPPORT_MODEL } from "./model-routing";
+import { GEMINI_SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
+import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 import type {
   CastSet,
   NormalizedRequest,
@@ -104,7 +105,30 @@ export async function applySelectiveSurgery(input: {
         ? "You are a precise children's-book editor. Revise only the requested chapter, keep natural German children's-book prose, and output JSON only."
         : "You are a precise children's-book editor. Revise only the requested chapter and output JSON only.";
 
-      const result = isGeminiModel
+      const result = isMiniMaxFamilyModel(model)
+        ? await (async () => {
+            if (!isRunwareConfigured()) {
+              throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
+            }
+            const runwareResult = await generateWithRunwareText({
+              systemPrompt: systemMessage,
+              userPrompt: prompt,
+              model,
+              maxTokens,
+              temperature: 0.3,
+            });
+            return {
+              content: runwareResult.content,
+              finishReason: runwareResult.finishReason,
+              usage: normalizeTokenUsage({
+                promptTokens: runwareResult.usage.promptTokens,
+                completionTokens: runwareResult.usage.completionTokens,
+                totalTokens: runwareResult.usage.totalTokens,
+                model: runwareResult.model,
+              }, runwareResult.model) as TokenUsage,
+            };
+          })()
+        : isGeminiModel
         ? await (async () => {
             const geminiResult = await generateWithGemini({
               systemPrompt: systemMessage,
