@@ -238,10 +238,10 @@ function extractRunwareAudio(data: any): string | null {
   const tryExtract = (obj: any): string | null => {
     if (!obj || typeof obj !== "object") return null;
 
-    // Check common audio data field names
+    // Check common audio data field names (audioDataURI is what Runware returns)
     const audioFields = [
-      "audioBase64", "audioBase64Data", "base64Data", "base64",
-      "audioData", "audio", "data", "b64",
+      "audioDataURI", "audioDataUri", "audioBase64", "audioBase64Data",
+      "base64Data", "base64", "audioData", "audio", "b64",
     ];
     for (const field of audioFields) {
       const val = obj[field];
@@ -250,7 +250,7 @@ function extractRunwareAudio(data: any): string | null {
       }
     }
 
-    // Check for audio URL (fallback — we prefer base64 for TTS)
+    // Check for audio URL (fallback)
     const urlFields = ["audioURL", "audioUrl", "audio_url", "url"];
     for (const field of urlFields) {
       const val = obj[field];
