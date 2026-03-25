@@ -12,6 +12,8 @@ const XAI_TTS_TIMEOUT_MS = 120_000; // 2 min per request
 const XAI_TTS_MAX_RETRIES = 3;
 const XAI_TTS_RETRY_BASE_DELAY_MS = 1_000;
 const XAI_MAX_CONCURRENT = 4;
+const XAI_TTS_MAX_SAMPLE_RATE = 48_000;
+const XAI_TTS_MAX_MP3_BITRATE = 320;
 
 export const XAI_VOICES = [
   { id: "eve", name: "Eve", description: "Energetisch, aufgeweckt" },
@@ -85,6 +87,17 @@ function resolveOutputFormat(format?: AudioFormat): { mimeType: string; audioFor
   return { mimeType: "audio/mpeg", audioFormat: "mp3" };
 }
 
+function resolveAudioSettings(format: AudioFormat): { sampleRate: number; bitrate?: number } {
+  if (format === "wav") {
+    return { sampleRate: XAI_TTS_MAX_SAMPLE_RATE };
+  }
+
+  return {
+    sampleRate: XAI_TTS_MAX_SAMPLE_RATE,
+    bitrate: XAI_TTS_MAX_MP3_BITRATE,
+  };
+}
+
 function resolveLanguage(lang?: string): string {
   if (!lang) return "de";
   const normalized = lang.trim().toLowerCase();
@@ -130,6 +143,7 @@ async function callRunwareXaiTts(req: XaiTtsRequest): Promise<XaiTtsResponse> {
   const voice = (req.voice || XAI_DEFAULT_VOICE).trim().toLowerCase();
   const language = resolveLanguage(req.language);
   const { mimeType, audioFormat } = resolveOutputFormat(req.outputFormat);
+  const audioSettings = resolveAudioSettings(audioFormat);
 
   // Runware audioInference request body
   const requestBody = {
@@ -143,6 +157,7 @@ async function callRunwareXaiTts(req: XaiTtsRequest): Promise<XaiTtsResponse> {
     },
     outputType: "dataURI",
     outputFormat: audioFormat === "wav" ? "WAV" : "MP3",
+    audioSettings,
     includeCost: true,
   };
 

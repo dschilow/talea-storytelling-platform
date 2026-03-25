@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { PlaylistItem, ConversionStatus } from '../types/playlist';
 import { MAX_PLAYLIST_ITEMS } from '../types/playlist';
-import { splitTextIntoChunks } from '../utils/ttsChunking';
+import { splitTextIntoChunks, splitTextIntoChunksForXai } from '../utils/ttsChunking';
 import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import type { Chapter } from '../types/story';
@@ -880,6 +880,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Use ttsText (with xAI expression tags) when available and xAI provider is selected
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
+      const splitNarration =
+        voiceSettings?.provider === 'xai' ? splitTextIntoChunksForXai : splitTextIntoChunks;
 
       for (const chapter of sorted) {
         const chapterChunks: Array<{ text: string; speaker?: string }> = [];
@@ -894,7 +896,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const segmentSpeaker = segment.speakerLabel
               ? resolveDialogueVoice(segment.speakerLabel)
               : baseNarratorSpeaker;
-            const segmentedChunks = splitTextIntoChunks(normalizedText);
+            const segmentedChunks = splitNarration(normalizedText);
             for (const chunk of segmentedChunks) {
               chapterChunks.push({
                 text: chunk,
@@ -903,7 +905,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             }
           }
         } else {
-          const chunks = splitTextIntoChunks(chapterText);
+          const chunks = splitNarration(chapterText);
           for (const chunk of chunks) {
             chapterChunks.push({
               text: chunk,
@@ -985,7 +987,10 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const alreadyExists = playlistRef.current.some((item) => item.parentDokuId === dokuId);
       if (alreadyExists) return;
 
-      const chunks = splitTextIntoChunks(normalizedText);
+      const chunks =
+        voiceSettings?.provider === 'xai'
+          ? splitTextIntoChunksForXai(normalizedText)
+          : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
 

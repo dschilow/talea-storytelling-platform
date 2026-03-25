@@ -12,6 +12,8 @@
 
 const TARGET_WORDS = 120;
 const MAX_CHARS = 900;
+const XAI_TARGET_WORDS = 260;
+const XAI_MAX_CHARS = 2200;
 
 /**
  * Normalize text into a TTS-friendly, language-agnostic format.
@@ -129,6 +131,26 @@ export function splitTextIntoChunks(text: string): string[] {
   }
 
   return boundedChunks;
+}
+
+/**
+ * xAI TTS can sound like a different narrator when a chapter is broken into
+ * too many separate requests. Prefer a single larger chunk when it still fits
+ * within a conservative chapter-sized envelope.
+ */
+export function splitTextIntoChunksForXai(text: string): string[] {
+  const trimmed = normalizeTTSText(text);
+  if (!trimmed) return [];
+
+  const paragraphs = toParagraphs(trimmed);
+  const normalized = paragraphs.join(" ");
+  const wordCount = normalized.split(/\s+/).length;
+
+  if (wordCount <= XAI_TARGET_WORDS && normalized.length <= XAI_MAX_CHARS) {
+    return [normalized];
+  }
+
+  return splitTextIntoChunks(normalized);
 }
 
 function toParagraphs(text: string): string[] {

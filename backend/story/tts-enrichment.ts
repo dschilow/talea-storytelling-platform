@@ -71,6 +71,8 @@ export const XAI_WRAPPING_TAGS = {
 const VALID_INLINE_TAGS: Set<string> = new Set(Object.values(XAI_INLINE_TAGS));
 const VALID_OPEN_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.open));
 const VALID_CLOSE_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.close));
+const XAI_UNSTABLE_WRAPPING_TAG_PATTERN =
+  /<\/?(?:higher-pitch|lower-pitch)>/g;
 
 // ── AI Enrichment ────────────────────────────────────────────────────────
 
@@ -222,6 +224,8 @@ export async function enrichChapterForTTS(input: {
     .replace(/\s*```\s*$/i, "")
     .trim();
 
+  enrichedText = stabilizeXaiNarrationText(enrichedText);
+
   // Validate: enriched text should contain original words
   const tagsInserted = countTTSTags(enrichedText);
 
@@ -318,6 +322,15 @@ function countTTSTags(text: string): number {
   const validOpen = openMatches.filter((tag) => VALID_OPEN_TAGS.has(tag));
 
   return validInline.length + validOpen.length;
+}
+
+function stabilizeXaiNarrationText(text: string): string {
+  return String(text || "")
+    // Pitch shifts are the main source of narrator-identity drift in xAI TTS.
+    .replace(XAI_UNSTABLE_WRAPPING_TAG_PATTERN, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .trim();
 }
 
 /**
