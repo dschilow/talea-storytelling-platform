@@ -2311,8 +2311,51 @@ You MUST implement this style consistently in ALL chapters!`
 
       console.log(`[ai-generation] ✅ MiniMax (Runware) generation successful`);
     } catch (error) {
-      console.error(`[ai-generation] ❌ MiniMax (Runware) generation failed:`, error);
-      throw new Error(`MiniMax generation failed: ${error instanceof Error ? error.message : String(error)}`);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.warn(`[ai-generation] ❌ MiniMax (Runware) failed: ${errMsg}. Falling back to Gemini Flash...`);
+
+      if (!isGeminiConfigured()) {
+        throw new Error(`MiniMax generation failed and Gemini fallback unavailable: ${errMsg}`);
+      }
+
+      const fallbackModel = "gpt-5.4-mini";
+      console.log(`[ai-generation] 🔄 Falling back to ${fallbackModel}...`);
+
+      const fallbackPayload = {
+        model: fallbackModel,
+        messages,
+        max_completion_tokens: modelConfig.maxCompletionTokens,
+        response_format: { type: "json_object" },
+      };
+      finalRequest = fallbackPayload;
+
+      const fallbackResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${openAIKey()}`,
+        },
+        body: JSON.stringify(fallbackPayload),
+      });
+
+      if (!fallbackResponse.ok) {
+        const errText = await fallbackResponse.text();
+        throw new Error(`GPT fallback also failed (${fallbackResponse.status}): ${errText}`);
+      }
+
+      const fallbackData = (await fallbackResponse.json()) as OpenAIResponse;
+      finalResponse = fallbackData;
+
+      content = fallbackData.choices?.[0]?.message?.content || "";
+      if (!content) throw new Error("Empty response from GPT fallback");
+
+      if (fallbackData.usage) {
+        usageTotals.prompt = fallbackData.usage.prompt_tokens || 0;
+        usageTotals.completion = fallbackData.usage.completion_tokens || 0;
+        usageTotals.total = fallbackData.usage.total_tokens || 0;
+      }
+
+      console.log(`[ai-generation] ✅ GPT-5.4-mini fallback successful after MiniMax failure`);
     }
   } else if (isGeminiModel) {
     // Use Gemini API

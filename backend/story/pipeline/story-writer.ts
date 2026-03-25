@@ -737,23 +737,45 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         if (!isRunwareConfigured()) {
           throw new Error("RunwareApiKey is not configured. MiniMax models run through the Runware API.");
         }
-        const runwareResponse = await generateWithRunwareText({
-          systemPrompt: input.systemPrompt,
-          userPrompt: input.userPrompt,
-          model: activeModel,
-          maxTokens: input.maxTokens,
-          temperature: input.temperature,
-        });
-        return {
-          content: runwareResponse.content,
-          usage: {
-            promptTokens: runwareResponse.usage.promptTokens,
-            completionTokens: runwareResponse.usage.completionTokens,
-            totalTokens: runwareResponse.usage.totalTokens,
-            model: runwareResponse.model,
-          },
-          finishReason: runwareResponse.finishReason,
-        };
+        try {
+          const runwareResponse = await generateWithRunwareText({
+            systemPrompt: input.systemPrompt,
+            userPrompt: input.userPrompt,
+            model: activeModel,
+            maxTokens: input.maxTokens,
+            temperature: input.temperature,
+          });
+          return {
+            content: runwareResponse.content,
+            usage: {
+              promptTokens: runwareResponse.usage.promptTokens,
+              completionTokens: runwareResponse.usage.completionTokens,
+              totalTokens: runwareResponse.usage.totalTokens,
+              model: runwareResponse.model,
+            },
+            finishReason: runwareResponse.finishReason,
+          };
+        } catch (miniMaxError) {
+          const errMsg = miniMaxError instanceof Error ? miniMaxError.message : String(miniMaxError);
+          console.warn(`[story-writer] MiniMax failed: ${errMsg}. Falling back to GPT-5.4-mini...`);
+          return callChatCompletion({
+            model: "gpt-5.4-mini",
+            messages: [
+              { role: "system", content: input.systemPrompt },
+              { role: "user", content: input.userPrompt },
+            ],
+            fallbackModels: ["gpt-5.4-nano"],
+            responseFormat: input.responseFormat,
+            maxTokens: input.maxTokens,
+            temperature: input.temperature,
+            reasoningEffort: input.reasoningEffort,
+            seed: input.seed,
+            context: input.context,
+            logSource: input.logSource,
+            logMetadata: { ...input.logMetadata, miniMaxFallback: true, miniMaxError: errMsg.slice(0, 200) },
+            preferImmediateFallbackOnTransient: true,
+          });
+        }
       }
 
       if (activeIsGemini) {
