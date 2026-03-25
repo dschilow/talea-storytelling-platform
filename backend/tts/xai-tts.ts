@@ -141,7 +141,7 @@ async function callRunwareXaiTts(req: XaiTtsRequest): Promise<XaiTtsResponse> {
       voice,
       language,
     },
-    outputType: ["BASE64"],
+    outputType: "dataURI",
     outputFormat: audioFormat === "wav" ? "WAV" : "MP3",
     includeCost: true,
   };
@@ -192,7 +192,8 @@ async function callRunwareXaiTts(req: XaiTtsRequest): Promise<XaiTtsResponse> {
       // Extract audio from Runware response
       const audioResult = extractRunwareAudio(data);
       if (!audioResult) {
-        throw new Error(`No audio data found in Runware response: ${JSON.stringify(data).slice(0, 300)}`);
+        log.error(`[Runware xAI TTS] No audio in response: ${JSON.stringify(data).slice(0, 500)}`);
+        throw new Error(`No audio data found in Runware response`);
       }
 
       const dataUri = audioResult.startsWith("data:")
