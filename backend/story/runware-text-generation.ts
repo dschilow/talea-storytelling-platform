@@ -7,9 +7,10 @@ const RUNWARE_TEXT_TIMEOUT_MS = 300_000; // 5 min for story generation
 const RUNWARE_TEXT_MAX_RETRIES = 3;
 const RUNWARE_TEXT_RETRY_BASE_DELAY_MS = 1_000;
 
-// Map internal model IDs to Runware model references
+// Map internal model IDs to Runware model references.
+// Prefer the standard M2.7 variant for long, schema-heavy story jobs.
 const RUNWARE_MODEL_MAP: Record<string, string> = {
-  "minimax-m2.7": "minimax:m2.7@highspeed",
+  "minimax-m2.7": "minimax:m2.7@0",
 };
 
 export interface RunwareTextRequest {

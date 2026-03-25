@@ -10,6 +10,7 @@ import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-fo
 import type {
   AvatarMemoryCompressed,
   BlueprintGenerationResult,
+  BlueprintValidationIssue,
   CastSet,
   NormalizedRequest,
   SceneDirective,
@@ -74,8 +75,11 @@ export async function generateValidatedV8Blueprint(input: {
   let usage: TokenUsage | undefined;
   const costEntries: StoryCostEntry[] = [];
   let retryPrompt = "";
+  let providerFailure: Error | null = null;
+  let attemptsMade = 0;
 
   for (let attempt = 1; attempt <= Math.max(1, input.blueprintRetryMax + 1); attempt += 1) {
+    attemptsMade = attempt;
     const userPrompt = [
       buildV8BlueprintPrompt({
         chapterCount: normalizedRequest.chapterCount,
@@ -93,14 +97,21 @@ export async function generateValidatedV8Blueprint(input: {
       .filter(Boolean)
       .join("\n\n");
 
-    const result = await callBlueprintModel({
-      model: blueprintModel,
-      systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
-      userPrompt,
-      storyId: normalizedRequest.storyId,
-      candidateTag: input.candidateTag,
-      attempt,
-    });
+    let result: { content: string; usage?: Partial<TokenUsage> };
+    try {
+      result = await callBlueprintModel({
+        model: blueprintModel,
+        systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
+        userPrompt,
+        storyId: normalizedRequest.storyId,
+        candidateTag: input.candidateTag,
+        attempt,
+      });
+      providerFailure = null;
+    } catch (error) {
+      providerFailure = toBlueprintProviderError(error);
+      break;
+    }
 
     const actualModel = result.usage?.model || blueprintModel;
     usage = mergeNormalizedTokenUsage(usage, result.usage, actualModel);
@@ -141,6 +152,7 @@ export async function generateValidatedV8Blueprint(input: {
   const rescueModel = resolveBlueprintRescueModel(normalizedRequest.rawConfig?.aiModel, blueprintModel);
   if (rescueModel) {
     const rescueAttempt = Math.max(1, input.blueprintRetryMax + 2);
+    attemptsMade = rescueAttempt;
     const rescuePrompt = [
       buildV8BlueprintPrompt({
         chapterCount: normalizedRequest.chapterCount,
@@ -159,46 +171,51 @@ export async function generateValidatedV8Blueprint(input: {
       .filter(Boolean)
       .join("\n\n");
 
-    const rescueResult = await callBlueprintModel({
-      model: rescueModel,
-      systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
-      userPrompt: rescuePrompt,
-      storyId: normalizedRequest.storyId,
-      candidateTag: input.candidateTag,
-      attempt: rescueAttempt,
-    });
+    try {
+      const rescueResult = await callBlueprintModel({
+        model: rescueModel,
+        systemPrompt: buildV8BlueprintSystemPrompt(normalizedRequest.language),
+        userPrompt: rescuePrompt,
+        storyId: normalizedRequest.storyId,
+        candidateTag: input.candidateTag,
+        attempt: rescueAttempt,
+      });
+      providerFailure = null;
 
-    const actualRescueModel = rescueResult.usage?.model || rescueModel;
-    usage = mergeNormalizedTokenUsage(usage, rescueResult.usage, actualRescueModel);
-    const rescueCostEntry = buildLlmCostEntry({
-      phase: "phase5.8-blueprint",
-      step: "blueprint-rescue",
-      usage: rescueResult.usage,
-      fallbackModel: actualRescueModel,
-      candidateTag: input.candidateTag,
-      attempt: rescueAttempt,
-    });
-    if (rescueCostEntry) costEntries.push(rescueCostEntry);
+      const actualRescueModel = rescueResult.usage?.model || rescueModel;
+      usage = mergeNormalizedTokenUsage(usage, rescueResult.usage, actualRescueModel);
+      const rescueCostEntry = buildLlmCostEntry({
+        phase: "phase5.8-blueprint",
+        step: "blueprint-rescue",
+        usage: rescueResult.usage,
+        fallbackModel: actualRescueModel,
+        candidateTag: input.candidateTag,
+        attempt: rescueAttempt,
+      });
+      if (rescueCostEntry) costEntries.push(rescueCostEntry);
 
-    const rescueParsed = safeJson(rescueResult.content);
-    const rescueBlueprint = normalizeBlueprintEnvelope(rescueParsed);
-    const rescueValidation = validateV8Blueprint({
-      blueprint: rescueBlueprint,
-      chapterCount: normalizedRequest.chapterCount,
-      ageMax: normalizedRequest.ageMax,
-      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-    });
-
-    if (rescueValidation.valid && rescueBlueprint) {
-      return {
+      const rescueParsed = safeJson(rescueResult.content);
+      const rescueBlueprint = normalizeBlueprintEnvelope(rescueParsed);
+      const rescueValidation = validateV8Blueprint({
         blueprint: rescueBlueprint,
-        model: actualRescueModel,
-        attempts: rescueAttempt,
-        fallbackUsed: false,
-        issues: rescueValidation.issues,
-        usage,
-        costEntries,
-      };
+        chapterCount: normalizedRequest.chapterCount,
+        ageMax: normalizedRequest.ageMax,
+        wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+      });
+
+      if (rescueValidation.valid && rescueBlueprint) {
+        return {
+          blueprint: rescueBlueprint,
+          model: actualRescueModel,
+          attempts: rescueAttempt,
+          fallbackUsed: false,
+          issues: rescueValidation.issues,
+          usage,
+          costEntries,
+        };
+      }
+    } catch (error) {
+      providerFailure = toBlueprintProviderError(error);
     }
   }
 
@@ -214,13 +231,16 @@ export async function generateValidatedV8Blueprint(input: {
     ageMax: normalizedRequest.ageMax,
     wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
   });
+  const fallbackIssues = providerFailure
+    ? [...fallbackValidation.issues, buildBlueprintProviderFallbackIssue(providerFailure)]
+    : fallbackValidation.issues;
 
   return {
     blueprint: fallback,
     model: blueprintModel,
-    attempts: Math.max(1, input.blueprintRetryMax + 1),
+    attempts: attemptsMade || Math.max(1, input.blueprintRetryMax + 1),
     fallbackUsed: true,
-    issues: fallbackValidation.issues,
+    issues: fallbackIssues,
     usage,
     costEntries,
   };
@@ -410,10 +430,14 @@ function resolveBlueprintRescueModel(selectedStoryModel?: string, supportModel?:
 
 function resolveBlueprintPrimaryModel(selectedStoryModel?: string, supportModel?: string): string {
   const current = String(supportModel || "").trim().toLowerCase();
+  const selected = String(selectedStoryModel || "").trim();
+  const normalizedSelected = selected.toLowerCase();
+  if (normalizedSelected.startsWith("minimax-")) {
+    return supportModel || "gpt-5.4-mini";
+  }
   if (current.startsWith("gpt-5.4-nano")) {
     return "gpt-5.4-mini";
   }
-  const selected = String(selectedStoryModel || "").trim();
   return selected || supportModel || "gpt-5.4-mini";
 }
 
@@ -585,4 +609,17 @@ function safeJson(value: string): any {
   } catch {
     return null;
   }
+}
+
+function toBlueprintProviderError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function buildBlueprintProviderFallbackIssue(error: Error): BlueprintValidationIssue {
+  const compactMessage = error.message.replace(/\s+/g, " ").trim().slice(0, 280);
+  return {
+    code: "MODEL_PROVIDER_FAILED",
+    message: `Blueprint model failed and deterministic fallback was used: ${compactMessage}`,
+    severity: "WARNING",
+  };
 }
