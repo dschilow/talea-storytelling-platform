@@ -322,15 +322,6 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.readAsDataURL(blob);
   });
 
-const float32ToInt16 = (samples: Float32Array): Int16Array => {
-  const output = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i += 1) {
-    const sample = Math.max(-1, Math.min(1, samples[i]));
-    output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-  }
-  return output;
-};
-
 const createAudioContext = (): AudioContext => {
   const AudioCtxCtor =
     window.AudioContext ||
@@ -426,16 +417,54 @@ const resampleAudioBuffer = async (
   return await offline.startRendering();
 };
 
-const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
-  if (segments.length === 0) {
-    throw new Error('No audio segments to encode.');
+const encodeMergedAudioToWav = (
+  left: Float32Array,
+  right: Float32Array | null,
+  sampleRate: number,
+  channels: number,
+): Blob => {
+  const bytesPerSample = 2;
+  const blockAlign = channels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const frameCount = left.length;
+  const dataSize = frameCount * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeAsciiToView(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeAsciiToView(view, 8, 'WAVE');
+  writeAsciiToView(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bytesPerSample * 8, true);
+  writeAsciiToView(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < frameCount; i += 1) {
+    const leftSample = Math.max(-1, Math.min(1, left[i]));
+    view.setInt16(offset, leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7fff, true);
+    offset += 2;
+
+    if (channels > 1) {
+      const rightSource = right ?? left;
+      const rightSample = Math.max(-1, Math.min(1, rightSource[i]));
+      view.setInt16(offset, rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7fff, true);
+      offset += 2;
+    }
   }
 
-  const lameModule = (await import('lamejs')) as any;
-  const lame = lameModule?.default ?? lameModule;
-  const Mp3Encoder = lame?.Mp3Encoder;
-  if (!Mp3Encoder) {
-    throw new Error('MP3 encoder is not available.');
+  return new Blob([buffer], { type: 'audio/wav' });
+};
+
+const mergeAudioSegmentsToWav = async (segments: Blob[]): Promise<Blob> => {
+  if (segments.length === 0) {
+    throw new Error('No audio segments to merge.');
   }
 
   const context = createAudioContext();
@@ -473,40 +502,7 @@ const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
       writeOffset += leftChunk.length;
     }
 
-    const left = float32ToInt16(mergedLeft);
-    const right = mergedRight ? float32ToInt16(mergedRight) : null;
-
-    const encoder = new Mp3Encoder(targetChannels, targetSampleRate, 160);
-    const blockSize = 1152;
-    const chunks: Uint8Array[] = [];
-
-    for (let offset = 0; offset < left.length; offset += blockSize) {
-      const leftChunk = left.subarray(offset, Math.min(offset + blockSize, left.length));
-      let encoded: Int8Array | Uint8Array | number[] | null = null;
-      if (targetChannels > 1 && right) {
-        const rightChunk = right.subarray(offset, Math.min(offset + blockSize, right.length));
-        encoded = encoder.encodeBuffer(leftChunk, rightChunk);
-      } else {
-        encoded = encoder.encodeBuffer(leftChunk);
-      }
-      if (encoded && encoded.length > 0) {
-        chunks.push(Uint8Array.from(encoded as ArrayLike<number>));
-      }
-    }
-
-    const flushed = encoder.flush();
-    if (flushed && flushed.length > 0) {
-      chunks.push(Uint8Array.from(flushed as ArrayLike<number>));
-    }
-
-    if (chunks.length === 0) {
-      throw new Error('MP3 transcoding produced no data.');
-    }
-
-    const blobParts: BlobPart[] = chunks.map(
-      (chunk) => chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength) as ArrayBuffer,
-    );
-    return new Blob(blobParts, { type: 'audio/mpeg' });
+    return encodeMergedAudioToWav(mergedLeft, mergedRight, targetSampleRate, targetChannels);
   } finally {
     await context.close();
   }
@@ -519,7 +515,7 @@ const addAudioDokuBranding = async (mainAudio: Blob): Promise<Blob> => {
   ]);
   const gapBlob = createSilentWavBlob(AUDIO_DOKU_GAP_SECONDS);
 
-  return await transcodeAudioSegmentsToMp3([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
+  return await mergeAudioSegmentsToWav([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
 };
 
 const generateQwenDialogueViaBatchFallback = async (
@@ -575,8 +571,8 @@ const generateQwenDialogueViaBatchFallback = async (
     throw new Error('Qwen hat keine Audiodaten geliefert.');
   }
 
-  const finalBlob = await transcodeAudioSegmentsToMp3(segmentBlobs);
-  const finalMimeType = 'audio/mpeg';
+  const finalBlob = await mergeAudioSegmentsToWav(segmentBlobs);
+  const finalMimeType = 'audio/wav';
   const combinedAudioData = await blobToDataUrl(finalBlob);
 
   return {
@@ -1035,16 +1031,16 @@ const CreateAudioDokuScreen: React.FC = () => {
 
           if (ttsProvider === 'qwen') {
             try {
-              finalBlob = await transcodeAudioSegmentsToMp3([sourceBlob]);
-              mimeType = 'audio/mpeg';
+              finalBlob = await mergeAudioSegmentsToWav([sourceBlob]);
+              mimeType = 'audio/wav';
             } catch (transcodeError) {
-              console.warn('[AudioDoku] Qwen variant MP3 transcode failed, using source blob:', transcodeError);
+              console.warn('[AudioDoku] Qwen variant WAV merge failed, using source blob:', transcodeError);
             }
           }
 
           try {
             finalBlob = await addAudioDokuBranding(finalBlob);
-            mimeType = 'audio/mpeg';
+            mimeType = 'audio/wav';
           } catch (brandingError) {
             console.error('[AudioDoku] Intro/outro merge failed:', brandingError);
             throw new Error(
