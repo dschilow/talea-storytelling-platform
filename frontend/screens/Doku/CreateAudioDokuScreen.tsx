@@ -26,6 +26,9 @@ const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 5000;
 const AUDIO_DOKU_INTRO_URL = '/audio-doku/Talea_intro.mp3';
 const AUDIO_DOKU_OUTRO_URL = '/audio-doku/talea-end.mp3';
 const AUDIO_DOKU_GAP_SECONDS = 1;
+const AUDIO_DOKU_MP3_BITRATE_KBPS = 160;
+const AUDIO_DOKU_MP3_FRAME_SIZE = 1152;
+const LAMEJS_SCRIPT_URL = '/vendor/lame.all.js';
 const staticAudioBlobCache = new Map<string, Blob>();
 
 type Palette = {
@@ -192,6 +195,34 @@ type ParsedDialogueTurn = {
   text: string;
 };
 
+type DialogueValidationIssue = {
+  line: number;
+  message: string;
+};
+
+type MergedAudioPcm = {
+  left: Float32Array;
+  right: Float32Array | null;
+  sampleRate: number;
+  channels: number;
+};
+
+type LameJsMp3Encoder = {
+  encodeBuffer(left: Int16Array, right?: Int16Array): Int8Array | Uint8Array;
+  flush(): Int8Array | Uint8Array;
+};
+
+type LameJsNamespace = {
+  Mp3Encoder: new (channels: number, sampleRate: number, bitrate: number) => LameJsMp3Encoder;
+};
+
+declare global {
+  interface Window {
+    lamejs?: LameJsNamespace;
+    __taleaLameJsPromise?: Promise<LameJsNamespace>;
+  }
+}
+
 const extractSpeakersFromScript = (script: string): string[] => {
   const speakers: string[] = [];
   const seen = new Set<string>();
@@ -246,10 +277,74 @@ const readErrorMessage = async (response: Response): Promise<string> => {
 const STATIC_QWEN_PROVIDER_VOICES: ProviderVoiceOption[] = getStaticQwenVoiceOptions();
 
 const normalizeSpeakerLabel = (value: string): string => value.replace(/\s+/g, ' ').trim();
+const DIALOGUE_TAG_PATTERN = /\[[^\]\r\n]*\]/g;
+
+const stripDialogueTags = (value: string): string =>
+  value.replace(DIALOGUE_TAG_PATTERN, ' ').replace(/\s+/g, ' ').trim();
+
+const hasSpokenText = (value: string): boolean => stripDialogueTags(value).length > 0;
+
+const validateDialogueScript = (script: string): DialogueValidationIssue[] => {
+  const normalizedScript = script.replace(/\r\n/g, '\n');
+  if (!normalizedScript.trim()) {
+    return [];
+  }
+
+  const issues: DialogueValidationIssue[] = [];
+  let currentSpeaker = '';
+
+  normalizedScript.split('\n').forEach((rawLine, index) => {
+    const lineNumber = index + 1;
+    const line = rawLine.trimEnd();
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      issues.push({
+        line: lineNumber,
+        message: `Zeile ${lineNumber} darf nicht leer sein.`,
+      });
+      return;
+    }
+
+    const match = line.match(/^\s*([^:\n]{1,80}):\s*(.*)$/);
+    if (match) {
+      currentSpeaker = normalizeSpeakerLabel(match[1]);
+      if (!hasSpokenText(match[2].trim())) {
+        issues.push({
+          line: lineNumber,
+          message: `Zeile ${lineNumber} braucht gesprochenen Text nach "${currentSpeaker}:". Reine Tags wie "[clapping]" reichen nicht.`,
+        });
+      }
+      return;
+    }
+
+    if (!currentSpeaker) {
+      issues.push({
+        line: lineNumber,
+        message: `Zeile ${lineNumber} hat kein gueltiges Format. Nutze "SPRECHER: Text".`,
+      });
+      return;
+    }
+
+    if (!hasSpokenText(trimmedLine)) {
+      issues.push({
+        line: lineNumber,
+        message: `Zeile ${lineNumber} enthaelt keinen gesprochenen Text. Reine Tags sind nicht erlaubt.`,
+      });
+    }
+  });
+
+  return issues;
+};
 
 const parseDialogueTurns = (script: string): ParsedDialogueTurn[] => {
-  const normalizedScript = script.replace(/\r\n/g, '\n').trim();
-  if (!normalizedScript) {
+  const validationIssues = validateDialogueScript(script);
+  if (validationIssues.length > 0) {
+    throw new Error(validationIssues[0].message);
+  }
+
+  const normalizedScript = script.replace(/\r\n/g, '\n');
+  if (!normalizedScript.trim()) {
     throw new Error('Script ist leer.');
   }
 
@@ -278,11 +373,6 @@ const parseDialogueTurns = (script: string): ParsedDialogueTurn[] => {
       pushTurn();
       currentSpeaker = normalizeSpeakerLabel(match[1]);
       currentLines = [match[2].trim()];
-      return;
-    }
-
-    if (!line.trim()) {
-      if (currentLines.length > 0) currentLines.push('');
       return;
     }
 
@@ -344,6 +434,52 @@ const createOfflineAudioContext = (
     throw new Error('OfflineAudioContext is not supported in this browser.');
   }
   return new OfflineCtor(channels, length, sampleRate);
+};
+
+const loadLameJs = (): Promise<LameJsNamespace> => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.reject(new Error('MP3-Encoder ist in dieser Umgebung nicht verfuegbar.'));
+  }
+
+  if (window.lamejs?.Mp3Encoder) {
+    return Promise.resolve(window.lamejs);
+  }
+
+  if (window.__taleaLameJsPromise) {
+    return window.__taleaLameJsPromise;
+  }
+
+  window.__taleaLameJsPromise = new Promise<LameJsNamespace>((resolve, reject) => {
+    const finalize = () => {
+      if (window.lamejs?.Mp3Encoder) {
+        resolve(window.lamejs);
+        return;
+      }
+      window.__taleaLameJsPromise = undefined;
+      reject(new Error('MP3-Encoder konnte nicht initialisiert werden.'));
+    };
+
+    const fail = () => {
+      window.__taleaLameJsPromise = undefined;
+      reject(new Error('MP3-Encoder konnte nicht geladen werden.'));
+    };
+
+    const existingScript = document.querySelector(`script[src="${LAMEJS_SCRIPT_URL}"]`) as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener('load', finalize, { once: true });
+      existingScript.addEventListener('error', fail, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = LAMEJS_SCRIPT_URL;
+    script.async = true;
+    script.addEventListener('load', finalize, { once: true });
+    script.addEventListener('error', fail, { once: true });
+    document.head.appendChild(script);
+  });
+
+  return window.__taleaLameJsPromise;
 };
 
 const writeAsciiToView = (view: DataView, offset: number, value: string) => {
@@ -417,6 +553,57 @@ const resampleAudioBuffer = async (
   return await offline.startRendering();
 };
 
+const mergeAudioSegmentsToPcm = async (segments: Blob[]): Promise<MergedAudioPcm> => {
+  if (segments.length === 0) {
+    throw new Error('No audio segments to merge.');
+  }
+
+  const context = createAudioContext();
+  try {
+    const decodedSegments: AudioBuffer[] = [];
+    for (const segment of segments) {
+      const arr = await segment.arrayBuffer();
+      const decoded = await context.decodeAudioData(arr.slice(0));
+      decodedSegments.push(decoded);
+    }
+
+    const targetSampleRate = decodedSegments[0].sampleRate;
+    const targetChannels = decodedSegments.some((buffer) => buffer.numberOfChannels > 1) ? 2 : 1;
+
+    const normalizedSegments: AudioBuffer[] = [];
+    for (const segment of decodedSegments) {
+      normalizedSegments.push(await resampleAudioBuffer(segment, targetSampleRate, targetChannels));
+    }
+
+    const totalSamples = normalizedSegments.reduce((sum, segment) => sum + segment.length, 0);
+    const mergedLeft = new Float32Array(totalSamples);
+    const mergedRight = targetChannels > 1 ? new Float32Array(totalSamples) : null;
+
+    let writeOffset = 0;
+    for (const segment of normalizedSegments) {
+      const leftChunk = segment.getChannelData(0);
+      mergedLeft.set(leftChunk, writeOffset);
+
+      if (mergedRight) {
+        const rightChunk =
+          segment.numberOfChannels > 1 ? segment.getChannelData(1) : segment.getChannelData(0);
+        mergedRight.set(rightChunk, writeOffset);
+      }
+
+      writeOffset += leftChunk.length;
+    }
+
+    return {
+      left: mergedLeft,
+      right: mergedRight,
+      sampleRate: targetSampleRate,
+      channels: targetChannels,
+    };
+  } finally {
+    await context.close();
+  }
+};
+
 const encodeMergedAudioToWav = (
   left: Float32Array,
   right: Float32Array | null,
@@ -462,50 +649,57 @@ const encodeMergedAudioToWav = (
   return new Blob([buffer], { type: 'audio/wav' });
 };
 
+const float32ToInt16 = (input: Float32Array): Int16Array => {
+  const output = new Int16Array(input.length);
+
+  for (let i = 0; i < input.length; i += 1) {
+    const sample = Math.max(-1, Math.min(1, input[i]));
+    output[i] = sample < 0 ? Math.round(sample * 0x8000) : Math.round(sample * 0x7fff);
+  }
+
+  return output;
+};
+
+const encodeMergedAudioToMp3 = async (
+  left: Float32Array,
+  right: Float32Array | null,
+  sampleRate: number,
+  channels: number,
+): Promise<Blob> => {
+  const lamejs = await loadLameJs();
+  const encoder = new lamejs.Mp3Encoder(channels, sampleRate, AUDIO_DOKU_MP3_BITRATE_KBPS);
+  const leftPcm = float32ToInt16(left);
+  const rightPcm = channels > 1 ? float32ToInt16(right ?? left) : null;
+  const mp3Chunks: Uint8Array[] = [];
+
+  for (let offset = 0; offset < leftPcm.length; offset += AUDIO_DOKU_MP3_FRAME_SIZE) {
+    const leftChunk = leftPcm.subarray(offset, offset + AUDIO_DOKU_MP3_FRAME_SIZE);
+    const encodedChunk =
+      channels > 1 && rightPcm
+        ? encoder.encodeBuffer(leftChunk, rightPcm.subarray(offset, offset + AUDIO_DOKU_MP3_FRAME_SIZE))
+        : encoder.encodeBuffer(leftChunk);
+
+    if (encodedChunk.length > 0) {
+      mp3Chunks.push(new Uint8Array(encodedChunk));
+    }
+  }
+
+  const flushChunk = encoder.flush();
+  if (flushChunk.length > 0) {
+    mp3Chunks.push(new Uint8Array(flushChunk));
+  }
+
+  return new Blob(mp3Chunks, { type: 'audio/mpeg' });
+};
+
 const mergeAudioSegmentsToWav = async (segments: Blob[]): Promise<Blob> => {
-  if (segments.length === 0) {
-    throw new Error('No audio segments to merge.');
-  }
+  const merged = await mergeAudioSegmentsToPcm(segments);
+  return encodeMergedAudioToWav(merged.left, merged.right, merged.sampleRate, merged.channels);
+};
 
-  const context = createAudioContext();
-  try {
-    const decodedSegments: AudioBuffer[] = [];
-    for (const segment of segments) {
-      const arr = await segment.arrayBuffer();
-      const decoded = await context.decodeAudioData(arr.slice(0));
-      decodedSegments.push(decoded);
-    }
-
-    const targetSampleRate = decodedSegments[0].sampleRate;
-    const targetChannels = decodedSegments.some((buffer) => buffer.numberOfChannels > 1) ? 2 : 1;
-
-    const normalizedSegments: AudioBuffer[] = [];
-    for (const segment of decodedSegments) {
-      normalizedSegments.push(await resampleAudioBuffer(segment, targetSampleRate, targetChannels));
-    }
-
-    const totalSamples = normalizedSegments.reduce((sum, segment) => sum + segment.length, 0);
-    const mergedLeft = new Float32Array(totalSamples);
-    const mergedRight = targetChannels > 1 ? new Float32Array(totalSamples) : null;
-
-    let writeOffset = 0;
-    for (const segment of normalizedSegments) {
-      const leftChunk = segment.getChannelData(0);
-      mergedLeft.set(leftChunk, writeOffset);
-
-      if (mergedRight) {
-        const rightChunk =
-          segment.numberOfChannels > 1 ? segment.getChannelData(1) : segment.getChannelData(0);
-        mergedRight.set(rightChunk, writeOffset);
-      }
-
-      writeOffset += leftChunk.length;
-    }
-
-    return encodeMergedAudioToWav(mergedLeft, mergedRight, targetSampleRate, targetChannels);
-  } finally {
-    await context.close();
-  }
+const mergeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
+  const merged = await mergeAudioSegmentsToPcm(segments);
+  return await encodeMergedAudioToMp3(merged.left, merged.right, merged.sampleRate, merged.channels);
 };
 
 const addAudioDokuBranding = async (mainAudio: Blob): Promise<Blob> => {
@@ -515,7 +709,7 @@ const addAudioDokuBranding = async (mainAudio: Blob): Promise<Blob> => {
   ]);
   const gapBlob = createSilentWavBlob(AUDIO_DOKU_GAP_SECONDS);
 
-  return await mergeAudioSegmentsToWav([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
+  return await mergeAudioSegmentsToMp3([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
 };
 
 const generateQwenDialogueViaBatchFallback = async (
@@ -713,6 +907,14 @@ const CreateAudioDokuScreen: React.FC = () => {
   const unmappedScriptSpeakers = useMemo(
     () => detectedSpeakers.filter((speaker) => !configuredSpeakerNames.has(speaker.toLowerCase())),
     [configuredSpeakerNames, detectedSpeakers]
+  );
+  const dialogueValidationIssues = useMemo(
+    () => validateDialogueScript(dialogueScript),
+    [dialogueScript]
+  );
+  const dialogueValidationLines = useMemo(
+    () => new Set(dialogueValidationIssues.map((issue) => issue.line)),
+    [dialogueValidationIssues]
   );
   const filteredVoices = useMemo(() => {
     const query = voiceSearchQuery.trim().toLowerCase();
@@ -919,6 +1121,14 @@ const CreateAudioDokuScreen: React.FC = () => {
       return;
     }
 
+    if (dialogueValidationIssues.length > 0) {
+      const message = dialogueValidationIssues[0].message;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      setError(message);
+      return;
+    }
+
     let parsedTurns: ParsedDialogueTurn[];
     try {
       parsedTurns = parseDialogueTurns(dialogueScript);
@@ -1029,18 +1239,9 @@ const CreateAudioDokuScreen: React.FC = () => {
           let finalBlob = sourceBlob;
           let mimeType = variant.mimeType || sourceBlob.type || 'audio/mpeg';
 
-          if (ttsProvider === 'qwen') {
-            try {
-              finalBlob = await mergeAudioSegmentsToWav([sourceBlob]);
-              mimeType = 'audio/wav';
-            } catch (transcodeError) {
-              console.warn('[AudioDoku] Qwen variant WAV merge failed, using source blob:', transcodeError);
-            }
-          }
-
           try {
             finalBlob = await addAudioDokuBranding(finalBlob);
-            mimeType = 'audio/wav';
+            mimeType = 'audio/mpeg';
           } catch (brandingError) {
             console.error('[AudioDoku] Intro/outro merge failed:', brandingError);
             throw new Error(
@@ -1505,7 +1706,13 @@ const CreateAudioDokuScreen: React.FC = () => {
                     <label className="mt-4 block text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
                       Dialog-Editor
                     </label>
-                    <div className="mt-2 overflow-hidden rounded-xl border" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
+                    <div
+                      className="mt-2 overflow-hidden rounded-xl border"
+                      style={{
+                        borderColor: dialogueValidationIssues.length > 0 ? '#f87171' : palette.panelBorder,
+                        background: palette.panel,
+                      }}
+                    >
                       <div className="grid grid-cols-[52px_1fr]">
                         <div
                           ref={dialogueGutterRef}
@@ -1514,7 +1721,11 @@ const CreateAudioDokuScreen: React.FC = () => {
                           aria-hidden
                         >
                           {dialogueLineNumbers.map((lineNumber) => (
-                            <div key={lineNumber} className="pr-3">
+                            <div
+                              key={lineNumber}
+                              className="pr-3"
+                              style={dialogueValidationLines.has(lineNumber) ? { color: '#b91c1c', fontWeight: 700 } : undefined}
+                            >
                               {lineNumber}
                             </div>
                           ))}
@@ -1537,11 +1748,29 @@ const CreateAudioDokuScreen: React.FC = () => {
                     <p className="mt-1 text-[11px]" style={{ color: palette.muted }}>
                       Tab = Einruecken, Ctrl/Cmd + Enter = Audio rendern.
                     </p>
+                    <p className="mt-1 text-[11px]" style={{ color: palette.muted }}>
+                      Keine leeren Zeilen. Jede Zeile braucht gesprochenen Text. Reine Tags wie "TAVI: [clapping]" sind ungueltig.
+                    </p>
                     <p className="mt-2 text-xs" style={{ color: palette.muted }}>
                       {detectedSpeakers.length > 0
                         ? `Sprecher im Script: ${detectedSpeakers.join(', ')}`
                         : 'Fuer jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
                     </p>
+                    {dialogueValidationIssues.length > 0 && (
+                      <div className="mt-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-3 text-xs text-red-700">
+                        <div className="font-semibold">Script korrigieren, bevor Audio erzeugt wird.</div>
+                        <div className="mt-2 space-y-1">
+                          {dialogueValidationIssues.slice(0, 4).map((issue) => (
+                            <div key={`${issue.line}-${issue.message}`}>{issue.message}</div>
+                          ))}
+                        </div>
+                        {dialogueValidationIssues.length > 4 && (
+                          <div className="mt-2 text-[11px] text-red-600">
+                            +{dialogueValidationIssues.length - 4} weitere Problemzeile(n)
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {unmappedScriptSpeakers.length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                         <span>Nicht zugeordnet: {unmappedScriptSpeakers.join(', ')}</span>
@@ -1682,7 +1911,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => void handleGenerateDialogueAudio()}
-                        disabled={dialogueLoading || detectedSpeakers.length === 0}
+                        disabled={dialogueLoading || detectedSpeakers.length === 0 || dialogueValidationIssues.length > 0}
                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                         style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
                       >
