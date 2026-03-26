@@ -23,6 +23,10 @@ const CATEGORY_OPTIONS = ['Abenteuer', 'Wissen', 'Natur', 'Tiere', 'Geschichte',
 const AUDIO_TAG_OPTIONS = ['excited', 'curious', 'mischievously', 'thoughtful', 'giggles', 'inhales deeply', 'woo'];
 const headingFont = '"Cormorant Garamond", serif';
 const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 5000;
+const AUDIO_DOKU_INTRO_URL = '/audio-doku/Talea_intro.mp3';
+const AUDIO_DOKU_OUTRO_URL = '/audio-doku/talea-end.mp3';
+const AUDIO_DOKU_GAP_SECONDS = 1;
+const staticAudioBlobCache = new Map<string, Blob>();
 
 type Palette = {
   pageGradient: string;
@@ -351,6 +355,59 @@ const createOfflineAudioContext = (
   return new OfflineCtor(channels, length, sampleRate);
 };
 
+const writeAsciiToView = (view: DataView, offset: number, value: string) => {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
+};
+
+const createSilentWavBlob = (
+  durationSeconds: number,
+  sampleRate = 44100,
+  channels = 2,
+): Blob => {
+  const safeDuration = Math.max(0, durationSeconds);
+  const bytesPerSample = 2;
+  const frameCount = Math.max(1, Math.round(safeDuration * sampleRate));
+  const blockAlign = channels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = frameCount * blockAlign;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  writeAsciiToView(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeAsciiToView(view, 8, 'WAVE');
+  writeAsciiToView(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bytesPerSample * 8, true);
+  writeAsciiToView(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  return new Blob([buffer], { type: 'audio/wav' });
+};
+
+const fetchStaticAudioBlob = async (url: string): Promise<Blob> => {
+  const cached = staticAudioBlobCache.get(url);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(url, { cache: 'force-cache' });
+  if (!response.ok) {
+    throw new Error(`Statisches Audio konnte nicht geladen werden: ${url}`);
+  }
+
+  const blob = await response.blob();
+  staticAudioBlobCache.set(url, blob);
+  return blob;
+};
+
 const resampleAudioBuffer = async (
   source: AudioBuffer,
   targetSampleRate: number,
@@ -453,6 +510,16 @@ const transcodeAudioSegmentsToMp3 = async (segments: Blob[]): Promise<Blob> => {
   } finally {
     await context.close();
   }
+};
+
+const addAudioDokuBranding = async (mainAudio: Blob): Promise<Blob> => {
+  const [introBlob, outroBlob] = await Promise.all([
+    fetchStaticAudioBlob(AUDIO_DOKU_INTRO_URL),
+    fetchStaticAudioBlob(AUDIO_DOKU_OUTRO_URL),
+  ]);
+  const gapBlob = createSilentWavBlob(AUDIO_DOKU_GAP_SECONDS);
+
+  return await transcodeAudioSegmentsToMp3([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
 };
 
 const generateQwenDialogueViaBatchFallback = async (
@@ -975,6 +1042,13 @@ const CreateAudioDokuScreen: React.FC = () => {
             }
           }
 
+          try {
+            finalBlob = await addAudioDokuBranding(finalBlob);
+            mimeType = 'audio/mpeg';
+          } catch (brandingError) {
+            console.warn('[AudioDoku] Intro/outro merge failed, using generated audio only:', brandingError);
+          }
+
           const extension = mimeType.includes('wav') ? 'wav' : 'mp3';
           const audioData =
             finalBlob === sourceBlob && mimeType === (variant.mimeType || sourceBlob.type || 'audio/mpeg')
@@ -999,7 +1073,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       const speakers =
         Array.isArray(payloadData.speakers) ? payloadData.speakers.length : parsedSpeakerNames.length;
       setDialogueStatus(
-        `${preparedVariants.length} ${providerLabel}-Audio-Variante(n) erzeugt: ${turns} Sprecherbloecke, ${speakers} Stimme(n).`
+        `${preparedVariants.length} ${providerLabel}-Audio-Variante(n) erzeugt: ${turns} Sprecherbloecke, ${speakers} Stimme(n), inkl. Talea Intro und Outro.`
       );
       setDialogueStatusType('success');
     } catch (err) {
