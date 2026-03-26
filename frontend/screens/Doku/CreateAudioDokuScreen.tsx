@@ -1046,7 +1046,10 @@ const CreateAudioDokuScreen: React.FC = () => {
             finalBlob = await addAudioDokuBranding(finalBlob);
             mimeType = 'audio/mpeg';
           } catch (brandingError) {
-            console.warn('[AudioDoku] Intro/outro merge failed, using generated audio only:', brandingError);
+            console.error('[AudioDoku] Intro/outro merge failed:', brandingError);
+            throw new Error(
+              'Talea Intro/Outro konnten nicht mit dem generierten Audio zusammengesetzt werden.'
+            );
           }
 
           const extension = mimeType.includes('wav') ? 'wav' : 'mp3';
