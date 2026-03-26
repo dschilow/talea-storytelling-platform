@@ -22,6 +22,7 @@ const AGE_GROUP_OPTIONS = ['4-6', '6-8', '8-10', '10-12', '12+'];
 const CATEGORY_OPTIONS = ['Abenteuer', 'Wissen', 'Natur', 'Tiere', 'Geschichte', 'Entspannung'];
 const AUDIO_TAG_OPTIONS = ['excited', 'curious', 'mischievously', 'thoughtful', 'giggles', 'inhales deeply', 'woo'];
 const headingFont = '"Cormorant Garamond", serif';
+const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 5000;
 
 type Palette = {
   pageGradient: string;
@@ -215,6 +216,12 @@ const readErrorMessage = async (response: Response): Promise<string> => {
     if (typeof payload?.message === 'string' && payload.message.trim()) {
       return payload.message;
     }
+    if (typeof payload?.detail?.message === 'string' && payload.detail.message.trim()) {
+      return payload.detail.message;
+    }
+    if (typeof payload?.detail === 'string' && payload.detail.trim()) {
+      return payload.detail;
+    }
     if (typeof payload?.error?.message === 'string' && payload.error.message.trim()) {
       return payload.error.message;
     }
@@ -287,6 +294,9 @@ const parseDialogueTurns = (script: string): ParsedDialogueTurn[] => {
   }
   return turns;
 };
+
+const getDialogueTextLength = (turns: ParsedDialogueTurn[]): number =>
+  turns.reduce((sum, turn) => sum + turn.text.length, 0);
 
 const resolveMappedSpeaker = (speaker: string, speakerVoiceMap: Record<string, string>): string | undefined => {
   const direct = speakerVoiceMap[speaker]?.trim();
@@ -733,10 +743,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     } catch (err) {
       console.error('[AudioDoku] Failed to load voices:', err);
       const message =
-        (err as Error).message ||
-        (ttsProvider === 'qwen'
-          ? 'Qwen-Stimmen konnten nicht geladen werden.'
-          : 'ElevenLabs-Stimmen konnten nicht geladen werden.');
+        (err as Error).message || 'ElevenLabs-Stimmen konnten nicht geladen werden.';
       setDialogueStatus(message);
       setDialogueStatusType('error');
     } finally {
@@ -849,7 +856,20 @@ const CreateAudioDokuScreen: React.FC = () => {
       return;
     }
 
-    if (detectedSpeakers.length === 0) {
+    let parsedTurns: ParsedDialogueTurn[];
+    try {
+      parsedTurns = parseDialogueTurns(dialogueScript);
+    } catch (err) {
+      const message = (err as Error).message || 'Dialogskript konnte nicht gelesen werden.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      setError(message);
+      return;
+    }
+
+    const parsedSpeakerNames = Array.from(new Set(parsedTurns.map((turn) => turn.speaker)));
+
+    if (parsedSpeakerNames.length === 0) {
       const message = 'Kein Sprecher erkannt. Nutze das Format "SPRECHER: Text".';
       setDialogueStatus(message);
       setDialogueStatusType('error');
@@ -863,7 +883,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       return;
     }
 
-    const missingVoiceAssignments = detectedSpeakers.filter((speaker) => {
+    const missingVoiceAssignments = parsedSpeakerNames.filter((speaker) => {
       const profile = speakerProfiles.find(
         (item) => item.name.trim().toLowerCase() === speaker.toLowerCase()
       );
@@ -885,6 +905,13 @@ const CreateAudioDokuScreen: React.FC = () => {
             Object.entries(speakerVoiceMap).map(([speaker, voice]) => [speaker, voice.trim().toLowerCase()])
           )
         : speakerVoiceMap;
+
+    if (ttsProvider === 'elevenlabs' && getDialogueTextLength(parsedTurns) > ELEVENLABS_MAX_REQUEST_TEXT_LENGTH) {
+      setDialogueStatus(
+        `Das Skript ist laenger als ${ELEVENLABS_MAX_REQUEST_TEXT_LENGTH} Zeichen. Der Server teilt den ElevenLabs-Request automatisch in mehrere Abschnitte auf.`
+      );
+      setDialogueStatusType('success');
+    }
 
     try {
       setDialogueLoading(true);
@@ -968,18 +995,21 @@ const CreateAudioDokuScreen: React.FC = () => {
       setGeneratedVariants(preparedVariants);
       applyGeneratedVariant(preparedVariants[0]);
       const turns =
-        typeof payloadData.turns === 'number' ? payloadData.turns : detectedSpeakers.length;
+        typeof payloadData.turns === 'number' ? payloadData.turns : parsedTurns.length;
       const speakers =
-        Array.isArray(payloadData.speakers) ? payloadData.speakers.length : detectedSpeakers.length;
+        Array.isArray(payloadData.speakers) ? payloadData.speakers.length : parsedSpeakerNames.length;
       setDialogueStatus(
         `${preparedVariants.length} ${providerLabel}-Audio-Variante(n) erzeugt: ${turns} Sprecherbloecke, ${speakers} Stimme(n).`
       );
       setDialogueStatusType('success');
     } catch (err) {
       console.error('[AudioDoku] dialogue generation failed:', err);
+      const failedToFetch =
+        err instanceof TypeError && /Failed to fetch/i.test(err.message || '');
       const message =
-        (err as Error).message ||
-        'Dialog-Audio konnte nicht erstellt werden.';
+        failedToFetch
+          ? 'Die Audio-Anfrage konnte vom Browser nicht ausgewertet werden. Bitte pruefe Backend-Deployment, CORS und die Railway-Logs.'
+          : (err as Error).message || 'Dialog-Audio konnte nicht erstellt werden.';
       setDialogueStatus(message);
       setDialogueStatusType('error');
       setError(message);
