@@ -21,6 +21,14 @@ export interface PipelineConfig {
   soulRetryMax: number;
   /** Bei `reject_with_fixes`: trotzdem weitermachen (true) oder harter Abbruch (false). */
   soulAllowOnReject: boolean;
+  /** Surgery-Schwelle wenn Soul approved: tiefer als criticMinScore, damit 7.2–8.2 noch repariert wird. */
+  soulAwareCriticMinScore: number;
+  /** Bei Soul verdict=approved nur 1 Kandidat (spart ~25% Kosten). */
+  soulApprovedSingleCandidate: boolean;
+  /** Maximaler Output-Token-Budget für Soul-Generator (kompakter JSON). */
+  soulGeneratorMaxOutputTokens: number;
+  /** Model für Soul-Gate (günstiger als Generator). */
+  soulGateModel: string;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -41,6 +49,10 @@ const DEFAULT_CONFIG: PipelineConfig = {
   soulStageEnabled: false,
   soulRetryMax: 2,
   soulAllowOnReject: true,
+  soulAwareCriticMinScore: 7.8,
+  soulApprovedSingleCandidate: true,
+  soulGeneratorMaxOutputTokens: 2500,
+  soulGateModel: "gemini-3.1-flash-lite-preview",
 };
 
 let cached: PipelineConfig | null = null;

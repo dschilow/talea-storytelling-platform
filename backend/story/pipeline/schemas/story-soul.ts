@@ -109,6 +109,21 @@ export interface StorySoulAntagonism {
   specific: string;
   /** Wie und in welchem Kapitel löst sich das */
   resolvesHow: string;
+  /**
+   * Kapitelnummern (mindestens 2), in denen der Antagonist physisch auftritt
+   * oder seine Wirkung unmittelbar sichtbar ist (Spur, Geräusch, Geruch, Zeuge,
+   * Schaden). Reine Erwähnung reicht NICHT.
+   */
+  appearsInChapters: number[];
+  /**
+   * Die eine Szene, in der die angedrohte Bedrohung einmal tatsächlich eintritt
+   * (kurz, für Altersgruppe passend): Kapitel + konkretes Ereignis.
+   * Ohne dieses Einlösen fühlen sich Stakes unecht an.
+   */
+  threatRealizedOnce: {
+    chapter: number;
+    what: string;
+  };
 }
 
 export interface StorySoulBenchmark {
@@ -125,6 +140,12 @@ export interface StorySoulHumorBeat {
   type: StorySoulHumorType;
   /** Was konkret passiert – szenisch, nicht abstrakt */
   what: string;
+  /**
+   * Wörtliche Zeile (max 140 Zeichen), die der Writer im Kapitel verwenden MUSS.
+   * Entweder ein gesprochener Dialog-Satz oder eine physische Aktion im Präsens.
+   * Beispiel: "Adrian ruft 'Ich rieche Gefahr!' und springt hinter den Brunnen."
+   */
+  exactLine: string;
 }
 
 export interface StorySoulChapterEnding {
@@ -379,6 +400,28 @@ export function validateStorySoul(raw: unknown, input: ValidateStorySoulInput): 
     }
     if (!isNonEmptyString(a.specific, 15)) pushError(issues, "antagonism.specific", "ANTAGONISM_SPECIFIC_SHORT", "specific zu dünn.");
     if (!isNonEmptyString(a.resolvesHow, 15)) pushError(issues, "antagonism.resolvesHow", "ANTAGONISM_RESOLVE_SHORT", "resolvesHow zu dünn.");
+    if (!Array.isArray(a.appearsInChapters) || a.appearsInChapters.length < 2) {
+      pushError(issues, "antagonism.appearsInChapters", "ANTAGONISM_PRESENCE_TOO_THIN", "antagonism.appearsInChapters muss mindestens 2 Kapitel nennen (physische Präsenz, nicht nur Erwähnung).");
+    } else {
+      const invalid = a.appearsInChapters.filter(
+        (c) => !Number.isFinite(Number(c)) || Number(c) < 1 || Number(c) > input.chapterCount,
+      );
+      if (invalid.length > 0) {
+        pushError(issues, "antagonism.appearsInChapters", "ANTAGONISM_CHAPTER_RANGE", `Kapitelnummern müssen 1..${input.chapterCount} sein.`);
+      }
+    }
+    if (!a.threatRealizedOnce || typeof a.threatRealizedOnce !== "object") {
+      pushError(issues, "antagonism.threatRealizedOnce", "THREAT_REALIZATION_MISSING", "threatRealizedOnce fehlt – die angedrohte Bedrohung muss in einer konkreten Szene einmal wirklich eintreten.");
+    } else {
+      const tr = a.threatRealizedOnce;
+      const trChapter = Number(tr.chapter);
+      if (!Number.isFinite(trChapter) || trChapter < 1 || trChapter > input.chapterCount) {
+        pushError(issues, "antagonism.threatRealizedOnce.chapter", "THREAT_CHAPTER_RANGE", `threatRealizedOnce.chapter muss 1..${input.chapterCount} sein.`);
+      }
+      if (!isNonEmptyString(tr.what, 20)) {
+        pushError(issues, "antagonism.threatRealizedOnce.what", "THREAT_WHAT_SHORT", "threatRealizedOnce.what zu dünn – was genau tritt ein?");
+      }
+    }
   }
 
   // Benchmark
@@ -408,6 +451,11 @@ export function validateStorySoul(raw: unknown, input: ValidateStorySoulInput): 
         pushError(issues, `humorBeats[${i}].type`, "BEAT_TYPE_INVALID", `type muss eines von ${[...VALID_HUMOR_TYPES].join(", ")} sein.`);
       }
       if (!isNonEmptyString(hb.what, 15)) pushError(issues, `humorBeats[${i}].what`, "BEAT_WHAT_SHORT", "what zu dünn.");
+      if (!isNonEmptyString(hb.exactLine, 10)) {
+        pushError(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_MISSING", "exactLine fehlt – wörtliche Zeile (Dialog oder physische Aktion), die der Writer im Kapitel verwenden muss.");
+      } else if (hb.exactLine.length > 160) {
+        pushError(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_TOO_LONG", "exactLine zu lang (max 160 Zeichen – das ist eine Zeile, kein Absatz).");
+      }
     });
   }
 

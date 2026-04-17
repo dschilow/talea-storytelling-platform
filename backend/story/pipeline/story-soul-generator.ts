@@ -70,6 +70,7 @@ export interface StorySoulGenerationInput {
   directives?: SceneDirective[];
   soulRetryMax?: number;
   candidateTag?: string;
+  maxOutputTokens?: number;
 }
 
 export async function generateValidatedStorySoul(
@@ -127,6 +128,7 @@ export async function generateValidatedStorySoul(
         storyId: normalizedRequest.storyId,
         candidateTag: input.candidateTag,
         attempt,
+        maxOutputTokensOverride: input.maxOutputTokens,
       });
       providerFailure = null;
     } catch (error) {
@@ -193,6 +195,7 @@ export async function generateValidatedStorySoul(
         storyId: normalizedRequest.storyId,
         candidateTag: input.candidateTag,
         attempt: rescueAttempt,
+        maxOutputTokensOverride: input.maxOutputTokens,
       });
       providerFailure = null;
 
@@ -475,9 +478,9 @@ function buildSchemaHint(isGerman: boolean): string {
       '  "characterFingerprints": [ { name, role, coreMacke, runningGag, favoriteWords[], tabooWords[], bodyTell, wantIneedle, fearInternal, voiceExample } ... ],',
       '  "supportingCast": [ { name, purpose, firstAppearanceChapter, signaturAction, description } ... ],',
       '  "payoffPromise": { emotionalLanding, transformationOfChild, finalImage, callbackFromChapter1 },',
-      '  "antagonism": { type: "internal"|"external"|"social"|"nature", specific, resolvesHow },',
+      '  "antagonism": { type: "internal"|"external"|"social"|"nature", specific, resolvesHow, appearsInChapters: [int,int,...] (>=2 chapters where antagonist is physically present OR its effect is directly visible — footprint, sound, smell, damage; mere mention does NOT count), threatRealizedOnce: { chapter: int, what: string } (one concrete scene where the threatened danger actually happens, age-appropriate) },',
       '  "benchmarkBook": { title, whyMatch, voiceReference },',
-      '  "humorBeats": [ { chapter, type, what } ... ],',
+      '  "humorBeats": [ { chapter, type, what, exactLine } ... ] (exactLine: verbatim line <=140 chars the writer MUST use — dialogue or present-tense physical beat),',
       '  "chapterEndings": [ { chapter, type, what } ... ] (chapters 1..N-1),',
       '  "iconicScenes": [string, string, string]',
       "}",
@@ -494,9 +497,9 @@ function buildSchemaHint(isGerman: boolean): string {
     '  "characterFingerprints": [ { name, role, coreMacke, runningGag, favoriteWords[], tabooWords[], bodyTell, wantIneedle, fearInternal, voiceExample } ... ],',
     '  "supportingCast": [ { name, purpose, firstAppearanceChapter, signaturAction, description } ... ],',
     '  "payoffPromise": { emotionalLanding, transformationOfChild, finalImage, callbackFromChapter1 },',
-    '  "antagonism": { type: "internal"|"external"|"social"|"nature", specific, resolvesHow },',
+    '  "antagonism": { type: "internal"|"external"|"social"|"nature", specific, resolvesHow, appearsInChapters: [int,int,...] (>=2 Kapitel, in denen der Antagonist physisch auftritt ODER seine Wirkung sichtbar ist – Spur, Geräusch, Geruch, Zeuge, Schaden; reine Erwähnung zählt NICHT), threatRealizedOnce: { chapter: int, what: string } (EINE konkrete Szene, in der die angedrohte Bedrohung tatsächlich einmal eintritt – altersgerecht, aber spürbar) },',
     '  "benchmarkBook": { title, whyMatch, voiceReference },',
-    '  "humorBeats": [ { chapter, type, what } ... ],',
+    '  "humorBeats": [ { chapter, type, what, exactLine } ... ] (exactLine: wörtlicher Satz <=140 Zeichen, den der Writer verwenden MUSS – Dialog oder physischer Beat im Präsens),',
     '  "chapterEndings": [ { chapter, type, what } ... ] (Kapitel 1..N-1),',
     '  "iconicScenes": [string, string, string]',
     "}",
@@ -525,8 +528,9 @@ async function callSoulModel(input: {
   storyId: string;
   candidateTag?: string;
   attempt: number;
+  maxOutputTokensOverride?: number;
 }): Promise<{ content: string; usage?: Partial<TokenUsage> }> {
-  const maxTokens = resolveSoulMaxTokens(input.model);
+  const maxTokens = resolveSoulMaxTokens(input.model, input.maxOutputTokensOverride);
 
   if (isMiniMaxFamilyModel(input.model)) {
     if (!isRunwareConfigured()) {
@@ -636,12 +640,15 @@ function resolveSoulRescueModel(
   return current === GEMINI_MAIN_STORY_MODEL ? undefined : GEMINI_MAIN_STORY_MODEL;
 }
 
-function resolveSoulMaxTokens(model?: string): number {
+function resolveSoulMaxTokens(model?: string, override?: number): number {
+  if (Number.isFinite(override) && (override as number) > 800) {
+    return Math.min(6000, Math.round(override as number));
+  }
   const normalized = String(model || "").trim().toLowerCase();
-  if (normalized.startsWith("gpt-5.4-mini")) return 4000;
-  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 3600;
-  if (normalized.startsWith("gemini-")) return 3600;
-  return 3200;
+  if (normalized.startsWith("gpt-5.4-mini")) return 2600;
+  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 2400;
+  if (normalized.startsWith("gemini-")) return 2500;
+  return 2400;
 }
 
 // ────────────────────────── Fallback ──────────────────────────
@@ -730,6 +737,7 @@ function buildDeterministicSoulFallback(input: {
     chapter: i + 1,
     type: "misunderstanding" as const,
     what: `${companion} erklärt etwas mit einem schiefen Vergleich, und ${lead} schweigt zuerst, bevor er leise lacht.`,
+    exactLine: `${companion} sagt: „Das ist wie bei einer Gurke, nur ohne Gurke.\u201C`,
   }));
 
   return {
@@ -765,6 +773,14 @@ function buildDeterministicSoulFallback(input: {
       type: "internal",
       specific: `${lead} vertraut ${companion} nicht mehr ganz, seit letzte Woche etwas kaputtging und ${companion} nicht sofort die Wahrheit sagte.`,
       resolvesHow: `${companion} entschuldigt sich in Kapitel 4 leise und ehrlich. ${lead} reicht ${companion} einen der gesammelten Steine.`,
+      appearsInChapters: Array.from(
+        { length: Math.min(3, Math.max(2, req.chapterCount - 1)) },
+        (_, i) => i + 2,
+      ),
+      threatRealizedOnce: {
+        chapter: Math.min(3, req.chapterCount),
+        what: `Das Ritual fällt tatsächlich einmal kurz aus – jemand sitzt mit enttäuschtem Gesicht am leeren Platz, bevor ${lead} und ${companion} zurück sind.`,
+      },
     },
     benchmarkBook: {
       title: "Schule der magischen Tiere – Endlich Ferien (Margit Auer)",

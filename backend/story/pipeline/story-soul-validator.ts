@@ -85,6 +85,8 @@ export interface SoulGateInput {
   candidateTag?: string;
   /** Skip LLM rubric and only run schema check. Default false. */
   schemaOnly?: boolean;
+  /** Expliziter Model-Override (sonst Auto-Resolve gegen Support-Modell). */
+  modelOverride?: string;
 }
 
 /**
@@ -152,6 +154,7 @@ export async function runSoulGate(input: SoulGateInput): Promise<SoulGateResult>
     normalizedRequest,
     cast,
     candidateTag: input.candidateTag,
+    modelOverride: input.modelOverride,
   });
 
   // Step 3: gate decision
@@ -251,12 +254,15 @@ async function scoreSoulWithRubric(args: {
   normalizedRequest: NormalizedRequest;
   cast: CastSet;
   candidateTag?: string;
+  modelOverride?: string;
 }): Promise<RubricCallResult> {
   const { soul, normalizedRequest } = args;
   const supportModel = resolveSupportTaskModel(
     String(normalizedRequest.rawConfig?.aiModel || ""),
   );
-  const model = resolveRubricModel(supportModel);
+  const model = args.modelOverride && args.modelOverride.trim().length > 0
+    ? args.modelOverride.trim()
+    : resolveRubricModel(supportModel);
 
   const systemPrompt = buildRubricSystemPrompt(normalizedRequest.language);
   const userPrompt = buildRubricUserPrompt({ soul, normalizedRequest });

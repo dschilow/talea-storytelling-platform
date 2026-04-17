@@ -1175,8 +1175,38 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
     : soul.humorBeats
         .slice()
         .sort((a, b) => a.chapter - b.chapter)
-        .map((hb) => `- Ch${hb.chapter} (${hb.type}): ${hb.what}`)
+        .map((hb) => {
+          const verbatim = hb.exactLine && hb.exactLine.trim().length > 0
+            ? `\n    ${isGerman ? "Wörtlich einbauen" : "Use verbatim"}: ${hb.exactLine}`
+            : "";
+          return `- Ch${hb.chapter} (${hb.type}): ${hb.what}${verbatim}`;
+        })
         .join("\n");
+
+  const antagonismLine = (() => {
+    const a: any = soul.antagonism;
+    if (!a) return "";
+    const chapters = Array.isArray(a.appearsInChapters) && a.appearsInChapters.length > 0
+      ? a.appearsInChapters.join(", ")
+      : "";
+    const realized = a.threatRealizedOnce && typeof a.threatRealizedOnce === "object"
+      ? `Ch${a.threatRealizedOnce.chapter}: ${a.threatRealizedOnce.what}`
+      : "";
+    if (isGerman) {
+      return [
+        `\nANTAGONISMUS (${a.type}) — ${a.specific}`,
+        chapters ? `- Muss physisch/sichtbar in: Ch ${chapters}` : "",
+        realized ? `- Bedrohung tritt einmal ein → ${realized}` : "",
+        `- Auflösung: ${a.resolvesHow}`,
+      ].filter(Boolean).join("\n");
+    }
+    return [
+      `\nANTAGONISM (${a.type}) — ${a.specific}`,
+      chapters ? `- Must be physically/visibly present in: Ch ${chapters}` : "",
+      realized ? `- Threat actually happens once → ${realized}` : "",
+      `- Resolution: ${a.resolvesHow}`,
+    ].filter(Boolean).join("\n");
+  })();
 
   const endingLines = soul.chapterEndings.length === 0
     ? ""
@@ -1202,6 +1232,7 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
       "FIGUR-FINGERPRINTS (Stimmen müssen auseinanderhalten werden können):",
       fingerprintLines,
       coverLines ? `\nCOVER-CAST (MUSS szenisch auftauchen, nicht nur erwähnt):\n${coverLines}` : "",
+      antagonismLine,
       humorLines ? `\nHUMOR-BEATS pro Kapitel (szenisch umsetzen, nicht bloß anspielen):\n${humorLines}` : "",
       endingLines ? `\nKAPITEL-ENDEN (emotional, nicht informativ – EIN Beziehungs-Haken):\n${endingLines}` : "",
       `\nPAYOFF (Ch${soul.chapterEndings.length + 1 || 5}):`,
@@ -1227,6 +1258,7 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
     "CHARACTER FINGERPRINTS (voices must be distinguishable):",
     fingerprintLines,
     coverLines ? `\nCOVER CAST (MUST appear scenically, not merely mentioned):\n${coverLines}` : "",
+    antagonismLine,
     humorLines ? `\nHUMOR BEATS per chapter (stage them, don't hint):\n${humorLines}` : "",
     endingLines ? `\nCHAPTER ENDINGS (emotional, not informational – ONE relational hook):\n${endingLines}` : "",
     `\nPAYOFF (Ch${soul.chapterEndings.length + 1 || 5}):`,

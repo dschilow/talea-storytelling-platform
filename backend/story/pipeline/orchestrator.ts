@@ -406,6 +406,7 @@ export class StoryPipelineOrchestrator {
             dna: blueprint.dna,
             directives,
             soulRetryMax: pipelineConfig.soulRetryMax,
+            maxOutputTokens: pipelineConfig.soulGeneratorMaxOutputTokens,
           });
           storySoul = soulGeneration.soul;
           tokenUsage = mergeTokenUsage(tokenUsage, soulGeneration.usage);
@@ -417,6 +418,7 @@ export class StoryPipelineOrchestrator {
             soul: storySoul,
             normalizedRequest: normalized,
             cast: castSet,
+            modelOverride: pipelineConfig.soulGateModel,
           });
           tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
           if (soulGateResult.costEntries?.length) {
@@ -534,12 +536,20 @@ export class StoryPipelineOrchestrator {
         : qualityFirstV8Lane
           ? 2
           : 1;
-      const releaseCandidateCount = releaseEnabled
+      const preliminaryCandidateCount = releaseEnabled
         ? Math.max(
             implicitCandidateFloor,
             Math.min(3, Number.isFinite(explicitCandidateCount) ? Math.round(explicitCandidateCount) : defaultCandidateCount),
           )
         : 1;
+      // Soul-aware: bei approved Soul reicht 1 Kandidat (die Soul fixiert bereits
+      // Premise/Hook/Fingerprints → Varianz zwischen Kandidaten ist kleiner als
+      // der Surgery-Gain auf dem einzelnen Kandidaten).
+      const soulApprovedForSingleCandidate =
+        pipelineConfig.soulApprovedSingleCandidate
+        && soulGateResult?.verdict === "approved"
+        && !Number.isFinite(explicitCandidateCount);
+      const releaseCandidateCount = soulApprovedForSingleCandidate ? 1 : preliminaryCandidateCount;
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
       const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
         ? adaptiveSecondCandidateRaw
@@ -554,7 +564,14 @@ export class StoryPipelineOrchestrator {
         explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
         defaultModel: String(pipelineConfig.criticModel || "gemini-3.1-flash-lite-preview"),
       });
-      const criticMinScore = clampNumber(Number(pipelineConfig.pass3TargetScore ?? 8.0), 5.5, 10);
+      // Soul-aware: wenn Soul approved, senken wir die Surgery-Schwelle, damit
+      // Critic-Ergebnisse im 7.2–8.2-Band noch repariert werden. Ohne Soul
+      // bleibt die bisherige pass3TargetScore-Schwelle aktiv.
+      const baseMinScore = clampNumber(Number(pipelineConfig.pass3TargetScore ?? 8.0), 5.5, 10);
+      const soulAwareMinScore = clampNumber(Number(pipelineConfig.soulAwareCriticMinScore ?? 7.8), 5.5, baseMinScore);
+      const criticMinScore = soulGateResult?.verdict === "approved" || soulGateResult?.verdict === "acceptable_with_warnings"
+        ? soulAwareMinScore
+        : baseMinScore;
       const criticWarnFloor = clampNumber(Number(pipelineConfig.pass3WarnFloor ?? 6.5), 5, criticMinScore);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // Use the configured default unless the request overrides it.
