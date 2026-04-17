@@ -60,6 +60,7 @@ export async function generateValidatedV8Blueprint(input: {
   blueprintRetryMax: number;
   candidateTag?: string;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+  storySoul?: import("./schemas/story-soul").StorySoul;
 }): Promise<BlueprintGenerationResult> {
   const { normalizedRequest, cast, dna, directives } = input;
   const supportModel = resolveSupportTaskModel(String(normalizedRequest.rawConfig?.aiModel || ""));
@@ -91,6 +92,7 @@ export async function generateValidatedV8Blueprint(input: {
         directives,
         customStoryBeats: normalizedRequest.rawConfig?.customPrompt,
         previousAdventure: buildPreviousAdventureLine(input.avatarMemories),
+        storySoul: input.storySoul,
       }),
       retryPrompt,
     ]
@@ -164,6 +166,7 @@ export async function generateValidatedV8Blueprint(input: {
         directives,
         customStoryBeats: normalizedRequest.rawConfig?.customPrompt,
         previousAdventure: buildPreviousAdventureLine(input.avatarMemories),
+        storySoul: input.storySoul,
       }),
       retryPrompt,
       "Use stronger reasoning. Replace any abstract placeholder with concrete, child-readable story physics before returning JSON.",

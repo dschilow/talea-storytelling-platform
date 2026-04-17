@@ -546,8 +546,9 @@ export class LlmStoryWriter implements StoryWriter {
     avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
     generationSeed?: number;
     candidateTag?: string;
+    storySoul?: import("./schemas/story-soul").StorySoul;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
-    const { normalizedRequest, cast, dna, directives, promptVersion, blueprintV8, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag } = input;
+    const { normalizedRequest, cast, dna, directives, promptVersion, blueprintV8, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag, storySoul } = input;
     const rawConfig = normalizedRequest.rawConfig as any;
     const requestedModel = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
     const model = isClaudeFamilyModel(requestedModel)
@@ -1016,6 +1017,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           stylePackText,
           userPrompt: normalizedRequest.rawConfig?.customPrompt,
           avatarMemories,
+          storySoul,
         });
       }
       // Keep the lean V7 prompt path even when the model-generated blueprint fails.

@@ -15,6 +15,12 @@ export interface PipelineConfig {
   blueprintRetryMax: number;
   pass3TargetScore: number;
   pass3WarnFloor: number;
+  /** Stage 0 (Story Soul) ein/aus. Default false, bis Rollout stabil ist. */
+  soulStageEnabled: boolean;
+  /** Wie oft der Soul-Generator bei Schema-/Rubrik-Fehlern nachlegen darf. */
+  soulRetryMax: number;
+  /** Bei `reject_with_fixes`: trotzdem weitermachen (true) oder harter Abbruch (false). */
+  soulAllowOnReject: boolean;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -32,6 +38,9 @@ const DEFAULT_CONFIG: PipelineConfig = {
   blueprintRetryMax: 2,
   pass3TargetScore: 8.2,
   pass3WarnFloor: 6.5,
+  soulStageEnabled: false,
+  soulRetryMax: 2,
+  soulAllowOnReject: true,
 };
 
 let cached: PipelineConfig | null = null;

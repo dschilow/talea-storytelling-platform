@@ -41,6 +41,9 @@ import { resolveCriticModelForPipeline, resolveSurgeryModelForPipeline } from ".
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateValidatedV8Blueprint, resolvePromptVersionForRequest } from "./blueprint-generator";
+import { generateValidatedStorySoul } from "./story-soul-generator";
+import { runSoulGate, type SoulGateResult } from "./story-soul-validator";
+import type { StorySoul } from "./schemas/story-soul";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
 import { storyDB } from "../db";
@@ -236,6 +239,8 @@ export class StoryPipelineOrchestrator {
     let qualityReport: any;
     let criticReport: SemanticCriticReport | undefined;
     let blueprintResultV8: BlueprintGenerationResult | undefined;
+    let storySoul: StorySoul | undefined;
+    let soulGateResult: SoulGateResult | undefined;
 
     try {
       // ─── Phase 0.5: Fairy Tale Selection (quality/diversity fit) ─────────
@@ -388,6 +393,118 @@ export class StoryPipelineOrchestrator {
         bannedPhraseCount: canonFusionPlan.bannedPhrases.length,
       });
 
+      // ─── Phase 5.7: Story Soul (Stage 0 – VOR Blueprint) ─────────────────
+      // Erzeugt Premise, Hook, Stakes, Figur-Fingerprints, Welt-Textur,
+      // Payoff-Versprechen. Wird vom Soul-Gate bewertet, bevor der Blueprint
+      // starten darf. Feature-flagged über `pipelineConfig.soulStageEnabled`.
+      if (pipelineConfig.soulStageEnabled) {
+        const phase57Start = Date.now();
+        try {
+          const soulGeneration = await generateValidatedStorySoul({
+            normalizedRequest: normalized,
+            cast: castSet,
+            dna: blueprint.dna,
+            directives,
+            soulRetryMax: pipelineConfig.soulRetryMax,
+          });
+          storySoul = soulGeneration.soul;
+          tokenUsage = mergeTokenUsage(tokenUsage, soulGeneration.usage);
+          if (soulGeneration.costEntries?.length) {
+            costEntries.push(...soulGeneration.costEntries);
+          }
+
+          soulGateResult = await runSoulGate({
+            soul: storySoul,
+            normalizedRequest: normalized,
+            cast: castSet,
+          });
+          tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
+          if (soulGateResult.costEntries?.length) {
+            costEntries.push(...soulGateResult.costEntries);
+          }
+
+          const gateSuccess =
+            soulGateResult.verdict === "approved"
+            || soulGateResult.verdict === "acceptable_with_warnings";
+          const combinedIssues: any[] = [
+            ...soulGateResult.schemaIssues.map((issue) => ({ ...issue })),
+            ...soulGateResult.rubricScores
+              .filter((s) => s.score < 7)
+              .map((s) => ({
+                severity: s.score < 5 ? "ERROR" : "WARNING",
+                code: `RUBRIC_${s.dimension.toUpperCase()}_LOW`,
+                path: `rubric.${s.dimension}`,
+                message: `${s.score}/10 – ${s.reason}${s.fix ? ` | FIX: ${s.fix}` : ""}`,
+              })),
+          ];
+          phaseGates.push({
+            phase: "phase5.7-soul",
+            success: gateSuccess,
+            schemaValid: soulGateResult.schemaValid,
+            attempts: soulGeneration.attempts,
+            issues: combinedIssues,
+            artifactRef: {
+              verdict: soulGateResult.verdict,
+              overallScore: soulGateResult.overallScore,
+              minDimensionScore: soulGateResult.minDimensionScore,
+              blockingDimensions: soulGateResult.blockingDimensions,
+              generatorModel: soulGeneration.model,
+              generatorFallbackUsed: soulGeneration.fallbackUsed,
+              gateModel: soulGateResult.model,
+            },
+          });
+
+          await logPhase("phase5.7-soul", { storyId: normalized.storyId }, {
+            durationMs: Date.now() - phase57Start,
+            verdict: soulGateResult.verdict,
+            overallScore: soulGateResult.overallScore,
+            minDimensionScore: soulGateResult.minDimensionScore,
+            blockingDimensions: soulGateResult.blockingDimensions,
+            generatorAttempts: soulGeneration.attempts,
+            generatorFallbackUsed: soulGeneration.fallbackUsed,
+            generatorModel: soulGeneration.model,
+            gateModel: soulGateResult.model,
+            rubricScores: soulGateResult.rubricScores.map((s) => ({
+              dimension: s.dimension,
+              score: s.score,
+            })),
+            premise: storySoul.premise,
+            hookQuestion: storySoul.hookQuestion,
+          });
+
+          if (
+            soulGateResult.verdict === "reject_hard"
+            && !pipelineConfig.soulAllowOnReject
+          ) {
+            throw new Error(
+              `Story Soul gate rejected (hard): ${soulGateResult.repairInstruction.slice(0, 240)}`,
+            );
+          }
+        } catch (soulError) {
+          // Soft-fail: die Pipeline läuft ohne Soul weiter, der Blueprint-Pfad
+          // verhält sich identisch zum Pre-Soul-Rollout.
+          console.warn("[pipeline] ⚠️ Soul stage failed, falling back to pre-soul pipeline:", soulError);
+          storySoul = undefined;
+          soulGateResult = undefined;
+          phaseGates.push({
+            phase: "phase5.7-soul",
+            success: false,
+            schemaValid: false,
+            attempts: 0,
+            issues: [{
+              severity: "WARNING",
+              code: "SOUL_STAGE_EXCEPTION",
+              message: soulError instanceof Error ? soulError.message : String(soulError),
+            }],
+          });
+          await logPhase("phase5.7-soul", { storyId: normalized.storyId }, {
+            durationMs: Date.now() - phase57Start,
+            error: soulError instanceof Error ? soulError.message : String(soulError),
+            softFail: true,
+          });
+        }
+      }
+
       const activePromptVersion = resolvePromptVersionForRequest({
         requestedPromptVersion: normalized.rawConfig?.promptVersion,
         defaultPromptVersion: pipelineConfig.defaultPromptVersion,
@@ -499,6 +616,7 @@ export class StoryPipelineOrchestrator {
           directives,
           blueprintRetryMax: pipelineConfig.blueprintRetryMax,
           avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
+          storySoul,
         });
         blueprintV8 = blueprintResultV8.blueprint;
         tokenUsage = mergeTokenUsage(tokenUsage, blueprintResultV8.usage);
@@ -636,6 +754,7 @@ export class StoryPipelineOrchestrator {
             avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
             generationSeed: candidateSeed,
             candidateTag,
+            storySoul,
           });
 
           let candidateDraft = writeResult.draft;

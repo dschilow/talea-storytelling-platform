@@ -1,4 +1,5 @@
 import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed, StoryBlueprint, StoryBlueprintV8 } from "./types";
+import type { StorySoul } from "./schemas/story-soul";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 import { isGeminiFlashFamilyModel } from "./model-routing";
 
@@ -1135,6 +1136,109 @@ function buildV8VoiceContractBlock(cast: CastSet, isGerman: boolean): string {
   return [childBlock, supportLines].filter(Boolean).join("\n\n").trim();
 }
 
+/**
+ * Baut einen verbindlichen SOUL-Block für V8-Prompts (Blueprint + Writer).
+ * Wird nur eingefügt, wenn eine validierte StorySoul vorliegt. Ist sie leer,
+ * verhält sich der Prompt identisch zum Pre-Soul-Rollout.
+ *
+ * Der Block ist bewusst kurz: Premise, HookQuestion, Stakes, Payoff,
+ * Figur-Fingerprints (Name, Macke, Gag, Tabu-Wörter, Body-Tell, voiceExample),
+ * Cover-Cast mit Signatur-Action, Welt-Anker, Humor-Beats pro Kapitel,
+ * Chapter-Endings. Rest der Soul steht NUR als kompakter Kontext (JSON) am Ende.
+ */
+function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): string {
+  if (!soul) return "";
+
+  const fingerprintLines = soul.characterFingerprints.map((fp) => {
+    const taboos = fp.tabooWords && fp.tabooWords.length > 0
+      ? ` | ${isGerman ? "Tabu" : "Taboo"}: ${fp.tabooWords.join(", ")}`
+      : "";
+    const favourites = fp.favoriteWords && fp.favoriteWords.length > 0
+      ? ` | ${isGerman ? "Lieblingsworte" : "Favorites"}: ${fp.favoriteWords.join(", ")}`
+      : "";
+    return [
+      `- ${fp.name} (${fp.role}): ${fp.coreMacke}`,
+      `  Gag: ${fp.runningGag}`,
+      `  ${isGerman ? "Körper-Tell" : "Body tell"}: ${fp.bodyTell}${favourites}${taboos}`,
+      `  ${isGerman ? "Beispielzeile" : "Voice example"}: ${fp.voiceExample}`,
+    ].join("\n");
+  }).join("\n");
+
+  const coverLines = soul.supportingCast.length === 0
+    ? ""
+    : soul.supportingCast.map((sc) =>
+        `- ${sc.name} (${sc.purpose}, ${isGerman ? "ab Ch" : "from Ch"}${sc.firstAppearanceChapter}): ${sc.signaturAction}`,
+      ).join("\n");
+
+  const humorLines = soul.humorBeats.length === 0
+    ? ""
+    : soul.humorBeats
+        .slice()
+        .sort((a, b) => a.chapter - b.chapter)
+        .map((hb) => `- Ch${hb.chapter} (${hb.type}): ${hb.what}`)
+        .join("\n");
+
+  const endingLines = soul.chapterEndings.length === 0
+    ? ""
+    : soul.chapterEndings
+        .slice()
+        .sort((a, b) => a.chapter - b.chapter)
+        .map((ce) => `- Ch${ce.chapter} (${ce.type}): ${ce.what}`)
+        .join("\n");
+
+  const anchorLines = soul.worldTexture.anchors.map((a) => `- ${a}`).join("\n");
+
+  if (isGerman) {
+    return [
+      "STORY SOUL (BINDEND – Kapitel, Dialoge und Ende müssen diese Seele spüren lassen)",
+      `Premise: ${soul.premise}`,
+      `Hook-Frage (offen nach Ch1): ${soul.hookQuestion}`,
+      `Stakes: ${soul.emotionalStakes.what} — warum: ${soul.emotionalStakes.why}`,
+      `Am meisten betroffen: ${soul.emotionalStakes.whoCares}`,
+      `Welt "${soul.worldTexture.placeName}" — ${soul.worldTexture.senseDetails}`,
+      "Welt-Anker:",
+      anchorLines,
+      "",
+      "FIGUR-FINGERPRINTS (Stimmen müssen auseinanderhalten werden können):",
+      fingerprintLines,
+      coverLines ? `\nCOVER-CAST (MUSS szenisch auftauchen, nicht nur erwähnt):\n${coverLines}` : "",
+      humorLines ? `\nHUMOR-BEATS pro Kapitel (szenisch umsetzen, nicht bloß anspielen):\n${humorLines}` : "",
+      endingLines ? `\nKAPITEL-ENDEN (emotional, nicht informativ – EIN Beziehungs-Haken):\n${endingLines}` : "",
+      `\nPAYOFF (Ch${soul.chapterEndings.length + 1 || 5}):`,
+      `- Landung: ${soul.payoffPromise.emotionalLanding}`,
+      `- Wandel des Kindes: ${soul.payoffPromise.transformationOfChild}`,
+      `- Letztes Bild: ${soul.payoffPromise.finalImage}`,
+      `- Callback aus Ch1: ${soul.payoffPromise.callbackFromChapter1}`,
+      `\nBenchmark-Ton: ${soul.benchmarkBook.title} — ${soul.benchmarkBook.whyMatch}`,
+      `Tonprobe: ${soul.benchmarkBook.voiceReference}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  return [
+    "STORY SOUL (BINDING – chapters, dialogue and ending must make this soul felt)",
+    `Premise: ${soul.premise}`,
+    `Hook question (open after Ch1): ${soul.hookQuestion}`,
+    `Stakes: ${soul.emotionalStakes.what} — why: ${soul.emotionalStakes.why}`,
+    `Most affected: ${soul.emotionalStakes.whoCares}`,
+    `World "${soul.worldTexture.placeName}" — ${soul.worldTexture.senseDetails}`,
+    "World anchors:",
+    anchorLines,
+    "",
+    "CHARACTER FINGERPRINTS (voices must be distinguishable):",
+    fingerprintLines,
+    coverLines ? `\nCOVER CAST (MUST appear scenically, not merely mentioned):\n${coverLines}` : "",
+    humorLines ? `\nHUMOR BEATS per chapter (stage them, don't hint):\n${humorLines}` : "",
+    endingLines ? `\nCHAPTER ENDINGS (emotional, not informational – ONE relational hook):\n${endingLines}` : "",
+    `\nPAYOFF (Ch${soul.chapterEndings.length + 1 || 5}):`,
+    `- Landing: ${soul.payoffPromise.emotionalLanding}`,
+    `- Child's transformation: ${soul.payoffPromise.transformationOfChild}`,
+    `- Final image: ${soul.payoffPromise.finalImage}`,
+    `- Callback from Ch1: ${soul.payoffPromise.callbackFromChapter1}`,
+    `\nBenchmark tone: ${soul.benchmarkBook.title} — ${soul.benchmarkBook.whyMatch}`,
+    `Voice sample: ${soul.benchmarkBook.voiceReference}`,
+  ].filter(Boolean).join("\n");
+}
+
 export function buildV8BlueprintPrompt(input: {
   chapterCount: number;
   genre: string;
@@ -1146,9 +1250,11 @@ export function buildV8BlueprintPrompt(input: {
   learningContext?: string;
   previousAdventure?: string;
   customStoryBeats?: string;
+  storySoul?: StorySoul;
 }): string {
   const { chapterCount, genre, setting, ageGroup, cast, dna, directives } = input;
   const isGerman = true;
+  const soulBlock = buildSoulPromptBlock(input.storySoul, isGerman);
   const allSlots = new Set(directives.flatMap(d => d.charactersOnStage));
   const promptSheets: CharacterSheet[] = [];
   const characterLines: string[] = [];
@@ -1181,9 +1287,20 @@ export function buildV8BlueprintPrompt(input: {
   const previousAdventureBlock = input.previousAdventure ? `\nPREVIOUS ADVENTURE\n${input.previousAdventure}` : "";
   const storyBeatsBlock = input.customStoryBeats ? `\nSTORY BEATS / USER NOTES\n${sanitizePromptBlock(input.customStoryBeats, 1800)}` : "";
 
+  const soulRules = soulBlock
+    ? `
+- The blueprint MUST realize the Story Soul above in concrete chapter fields.
+- pov_character MUST be one of the characterFingerprints names.
+- error_and_repair.who MUST be one of the characterFingerprints names.
+- Each chapter_hook MUST be an emotional or relational cliffhanger matching the Soul's chapterEndings (not merely informational).
+- humor_beats MUST mirror the Soul's humorBeats per chapter (not generic "character behavior").
+- The final chapter MUST explicitly echo payoffPromise.callbackFromChapter1.
+- Every supportingCast figure from the Soul MUST appear on stage at or after firstAppearanceChapter.`
+    : "";
+
   return `Plan a ${genre} story set in "${setting}" for children ages ${ageGroup}.
 Produce exactly ${chapterCount} chapters.
-
+${soulBlock ? `\n${soulBlock}\n` : ""}
 CHARACTERS
 ${characterLines.join("\n")}
 ${appearanceLockBlock ? `\nGERMAN APPEARANCE LOCKS\n${appearanceLockBlock}` : ""}
@@ -1209,7 +1326,7 @@ RULES
 - Make every chapter's key_scene playable and specific enough to stage later in prose.
 - Do not invent unconfirmed appearance markers.
 - Use "preterite" for the tense field.
-- Blueprint field text may be in English. Keep names unchanged.
+- Blueprint field text may be in English. Keep names unchanged.${soulRules}
 
 Return only the blueprint JSON.`;
 }
@@ -1257,6 +1374,7 @@ export function buildV8StoryPrompt(input: {
   stylePackText?: string;
   userPrompt?: string;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
+  storySoul?: StorySoul;
 }): string {
   const isGerman = input.language === "de";
   const promptSheets = dedupeCharacterSheetsForPrompt([...input.cast.avatars, ...input.cast.poolCharacters] as CharacterSheet[]);
@@ -1264,6 +1382,7 @@ export function buildV8StoryPrompt(input: {
   const voiceContractBlock = buildV8VoiceContractBlock(input.cast, isGerman);
   const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 4);
   const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
+  const soulBlock = buildSoulPromptBlock(input.storySoul, isGerman);
 
   let memoryLine = "";
   if (input.avatarMemories && input.avatarMemories.size > 0) {
@@ -1292,8 +1411,22 @@ export function buildV8StoryPrompt(input: {
 `
     : "";
 
-  return `Use the following internal blueprint to write the final children's story.
+  const soulFidelityBlock = soulBlock
+    ? `
+SOUL FIDELITY (HARD, checked by critic)
+- Every chapter must feel the Soul's emotional stakes, not just the blueprint's goal.
+- Each character's voice MUST match the fingerprint's voiceExample in rhythm and vocabulary.
+- Tabu words from fingerprints MUST NOT appear in that character's dialogue.
+- Running gags MUST land at least once per character over the full story.
+- The Soul's humorBeats MUST be staged in their named chapters.
+- The Soul's chapterEndings dictate the tone of each chapter's last paragraph.
+- The final chapter MUST visibly realize payoffPromise.finalImage AND callbackFromChapter1.
+- supportingCast figures MUST be on stage from their firstAppearanceChapter, not only name-dropped.
+`
+    : "";
 
+  return `Use the following internal blueprint to write the final children's story.
+${soulBlock ? `\n${soulBlock}\n` : ""}
 WORD BUDGET
 - ${input.chapterCount} chapters
 - Total: ${input.totalWordMin}-${input.totalWordMax} words
@@ -1330,7 +1463,7 @@ HARD RULES
 - never collapse a full chapter into one string
 - make every humor beat in the blueprint visible on the page
 - if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
-- no markdown, no comments, no extra text.`;
+- no markdown, no comments, no extra text.${soulFidelityBlock}`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {
