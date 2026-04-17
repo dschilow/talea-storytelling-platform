@@ -5,7 +5,7 @@ import { ensureAdmin } from "../admin/authz";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 const DEFAULT_MODEL_ID = "eleven_v3";
-const DEFAULT_OUTPUT_FORMAT = "mp3_44100_128";
+const DEFAULT_OUTPUT_FORMAT = "mp3_44100_192";
 const ELEVENLABS_MAX_TEXT_LENGTH = 5000;
 const ELEVENLABS_TARGET_CHUNK_LENGTH = 4800;
 
