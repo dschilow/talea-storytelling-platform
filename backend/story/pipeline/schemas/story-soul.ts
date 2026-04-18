@@ -401,25 +401,25 @@ export function validateStorySoul(raw: unknown, input: ValidateStorySoulInput): 
     if (!isNonEmptyString(a.specific, 15)) pushError(issues, "antagonism.specific", "ANTAGONISM_SPECIFIC_SHORT", "specific zu dünn.");
     if (!isNonEmptyString(a.resolvesHow, 15)) pushError(issues, "antagonism.resolvesHow", "ANTAGONISM_RESOLVE_SHORT", "resolvesHow zu dünn.");
     if (!Array.isArray(a.appearsInChapters) || a.appearsInChapters.length < 2) {
-      pushError(issues, "antagonism.appearsInChapters", "ANTAGONISM_PRESENCE_TOO_THIN", "antagonism.appearsInChapters muss mindestens 2 Kapitel nennen (physische Präsenz, nicht nur Erwähnung).");
+      pushWarning(issues, "antagonism.appearsInChapters", "ANTAGONISM_PRESENCE_TOO_THIN", "antagonism.appearsInChapters sollte mindestens 2 Kapitel nennen (physische Präsenz, nicht nur Erwähnung).");
     } else {
       const invalid = a.appearsInChapters.filter(
         (c) => !Number.isFinite(Number(c)) || Number(c) < 1 || Number(c) > input.chapterCount,
       );
       if (invalid.length > 0) {
-        pushError(issues, "antagonism.appearsInChapters", "ANTAGONISM_CHAPTER_RANGE", `Kapitelnummern müssen 1..${input.chapterCount} sein.`);
+        pushWarning(issues, "antagonism.appearsInChapters", "ANTAGONISM_CHAPTER_RANGE", `Kapitelnummern sollten 1..${input.chapterCount} sein.`);
       }
     }
     if (!a.threatRealizedOnce || typeof a.threatRealizedOnce !== "object") {
-      pushError(issues, "antagonism.threatRealizedOnce", "THREAT_REALIZATION_MISSING", "threatRealizedOnce fehlt – die angedrohte Bedrohung muss in einer konkreten Szene einmal wirklich eintreten.");
+      pushWarning(issues, "antagonism.threatRealizedOnce", "THREAT_REALIZATION_MISSING", "threatRealizedOnce fehlt – die angedrohte Bedrohung sollte in einer konkreten Szene einmal wirklich eintreten.");
     } else {
       const tr = a.threatRealizedOnce;
       const trChapter = Number(tr.chapter);
       if (!Number.isFinite(trChapter) || trChapter < 1 || trChapter > input.chapterCount) {
-        pushError(issues, "antagonism.threatRealizedOnce.chapter", "THREAT_CHAPTER_RANGE", `threatRealizedOnce.chapter muss 1..${input.chapterCount} sein.`);
+        pushWarning(issues, "antagonism.threatRealizedOnce.chapter", "THREAT_CHAPTER_RANGE", `threatRealizedOnce.chapter sollte 1..${input.chapterCount} sein.`);
       }
       if (!isNonEmptyString(tr.what, 20)) {
-        pushError(issues, "antagonism.threatRealizedOnce.what", "THREAT_WHAT_SHORT", "threatRealizedOnce.what zu dünn – was genau tritt ein?");
+        pushWarning(issues, "antagonism.threatRealizedOnce.what", "THREAT_WHAT_SHORT", "threatRealizedOnce.what zu dünn – was genau tritt ein?");
       }
     }
   }
@@ -452,9 +452,9 @@ export function validateStorySoul(raw: unknown, input: ValidateStorySoulInput): 
       }
       if (!isNonEmptyString(hb.what, 15)) pushError(issues, `humorBeats[${i}].what`, "BEAT_WHAT_SHORT", "what zu dünn.");
       if (!isNonEmptyString(hb.exactLine, 10)) {
-        pushError(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_MISSING", "exactLine fehlt – wörtliche Zeile (Dialog oder physische Aktion), die der Writer im Kapitel verwenden muss.");
+        pushWarning(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_MISSING", "exactLine fehlt – wörtliche Zeile (Dialog oder physische Aktion), die der Writer im Kapitel verwenden sollte.");
       } else if (hb.exactLine.length > 160) {
-        pushError(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_TOO_LONG", "exactLine zu lang (max 160 Zeichen – das ist eine Zeile, kein Absatz).");
+        pushWarning(issues, `humorBeats[${i}].exactLine`, "BEAT_EXACTLINE_TOO_LONG", "exactLine zu lang (max 160 Zeichen – das ist eine Zeile, kein Absatz).");
       }
     });
   }

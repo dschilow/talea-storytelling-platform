@@ -547,7 +547,8 @@ export class StoryPipelineOrchestrator {
       // der Surgery-Gain auf dem einzelnen Kandidaten).
       const soulApprovedForSingleCandidate =
         pipelineConfig.soulApprovedSingleCandidate
-        && soulGateResult?.verdict === "approved"
+        && (soulGateResult?.verdict === "approved"
+          || soulGateResult?.verdict === "acceptable_with_warnings")
         && !Number.isFinite(explicitCandidateCount);
       const releaseCandidateCount = soulApprovedForSingleCandidate ? 1 : preliminaryCandidateCount;
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;

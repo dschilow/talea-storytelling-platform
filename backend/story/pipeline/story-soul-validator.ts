@@ -61,7 +61,8 @@ export type SoulRubricDimension =
   | "antagonism_real"
   | "payoff_feels"
   | "benchmark_matches"
-  | "would_child_reread";
+  | "would_child_reread"
+  | "originality";
 
 export interface SoulGateResult {
   verdict: SoulGateVerdict;
@@ -239,6 +240,7 @@ const ALL_DIMENSIONS: SoulRubricDimension[] = [
   "payoff_feels",
   "benchmark_matches",
   "would_child_reread",
+  "originality",
 ];
 
 interface RubricCallResult {
@@ -372,6 +374,7 @@ function buildRubricUserPrompt(args: {
         "8. payoff_feels: Ist payoffPromise.emotionalLanding spezifisch und warm ('stolz mit Kloß im Hals'), nicht 'glücklich'? Ist der callbackFromChapter1 konkret?",
         "9. benchmark_matches: Passt benchmarkBook wirklich oder ist es Lippenbekenntnis?",
         "10. would_child_reread: Würde ein Kind die Geschichte 3× hören wollen?",
+        "11. originality: Ist die Premise FRISCH oder klingt sie wie ein Märchen-Remake? 'Hänsel & Gretel mit Amulett' = 2. 'Verirrt im Wald + Hexe im Zuckerhaus' = 3. 'Magisches Artefakt weist heim' = 3. Echter moderner/überraschender Konflikt = 8-10. Wenn die Geschichte wie eine bekannte Vorlage klingt → harte Penalty.",
       ]
     : [
         "1. premise_restatable: Can a 7-year-old retell the premise after one hearing? Names, concrete goal. (< 7 = FAIL)",
@@ -384,11 +387,12 @@ function buildRubricUserPrompt(args: {
         "8. payoff_feels: Is payoffPromise.emotionalLanding specific and warm ('proud with a lump in the throat'), not 'happy'? Is callbackFromChapter1 concrete?",
         "9. benchmark_matches: Does benchmarkBook actually fit or is it lip service?",
         "10. would_child_reread: Would a child want to hear this 3x?",
+        "11. originality: Is the premise FRESH or does it sound like a fairy-tale remake? 'Hansel & Gretel with amulet' = 2. 'Lost in forest + witch in candy house' = 3. 'Magic artifact points home' = 3. Truly modern/surprising conflict = 8-10. If the story echoes a well-known template → hard penalty.",
     ];
 
   const instruction = isGerman
     ? [
-        "Bewerte jede der 10 Dimensionen mit einer Zahl 0..10.",
+        "Bewerte jede der 11 Dimensionen mit einer Zahl 0..10.",
         "Gib zu JEDER Dimension:",
         "  - score: 0..10 (Integer oder eine Nachkommastelle)",
         "  - reason: 1 Satz, KONKRET, mit Zitat aus der Soul wenn möglich",
@@ -397,12 +401,12 @@ function buildRubricUserPrompt(args: {
         "{",
         '  "scores": [',
         '    { "dimension": "premise_restatable", "score": 8, "reason": "...", "fix": "..." },',
-        "    ... (alle 10 Dimensionen, in der Reihenfolge oben)",
+        "    ... (alle 11 Dimensionen, in der Reihenfolge oben)",
         "  ]",
         "}",
       ].join("\n")
     : [
-        "Rate each of the 10 dimensions 0..10.",
+        "Rate each of the 11 dimensions 0..10.",
         "For EACH dimension provide:",
         "  - score: 0..10 (integer or one decimal)",
         "  - reason: 1 sentence, CONCRETE, with a quote from the soul if possible",
@@ -411,7 +415,7 @@ function buildRubricUserPrompt(args: {
         "{",
         '  "scores": [',
         '    { "dimension": "premise_restatable", "score": 8, "reason": "...", "fix": "..." },',
-        "    ... (all 10 dimensions, in the order above)",
+        "    ... (all 11 dimensions, in the order above)",
         "  ]",
         "}",
     ].join("\n");
