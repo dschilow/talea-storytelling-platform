@@ -2844,6 +2844,213 @@ function gateCh1Orientation(
   return issues;
 }
 
+// ─── Sprint 4.A: Duplicate Chapter Opening Detection ──────────────────────────
+function gateChapterOpeningUniqueness(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  if (draft.chapters.length < 2) return issues;
+
+  // Extract opening sentence (first ~20 words) from each chapter
+  const openings = draft.chapters.map(ch => {
+    const trimmed = ch.text.trim();
+    const words = trimmed.split(/\s+/).slice(0, 20).join(" ").toLowerCase();
+    return { chapter: ch.chapter, opening: words };
+  });
+
+  // Check for near-duplicates (Levenshtein similarity > 0.8)
+  for (let i = 0; i < openings.length - 1; i++) {
+    for (let j = i + 1; j < openings.length; j++) {
+      const sim = levenshteinSimilarity(openings[i].opening, openings[j].opening);
+      if (sim > 0.8) {
+        issues.push({
+          gate: "CHAPTER_OPENING_UNIQUENESS",
+          chapter: openings[j].chapter,
+          code: "DUPLICATE_CHAPTER_OPENING",
+          message: isDE
+            ? `Kapitel ${openings[j].chapter} hat fast identische Eröffnung wie Kapitel ${openings[i].chapter} (Ähnlichkeit ${Math.round(sim * 100)}%). Ändern Sie die Eröffnung.`
+            : `Chapter ${openings[j].chapter} has nearly identical opening to Chapter ${openings[i].chapter} (${Math.round(sim * 100)}% similar). Rewrite the opening.`,
+          severity: "ERROR",
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Sprint 4.B: Element Continuity Gate ──────────────────────────────────────
+function gateElementContinuity(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  // Track introduced elements: "X stones", "Y amulet", "Z glasses", etc.
+  // Pattern: number + noun or adjective + object
+  const elementPattern = /(\d+)\s+([a-zäöüß]+(?:\s+[a-zäöüß]+)?(?:\s+(?:stone|steine|amulet|talisman|glasses|brille|key|schlüssel|map|karte|token|münze|ring|ring|crown|krone|cloak|umhang|sword|schwert))?)/gi;
+
+  const elementsByChapter = new Map<number, string[]>();
+  const introducedElements = new Map<string, number>(); // element -> chapter introduced
+
+  for (const ch of draft.chapters) {
+    const text = ch.text.toLowerCase();
+    const matches = Array.from(text.matchAll(elementPattern));
+    const elements = matches.map(m => m[0].toLowerCase());
+    if (elements.length > 0) {
+      elementsByChapter.set(ch.chapter, elements);
+      elements.forEach(el => {
+        if (!introducedElements.has(el)) {
+          introducedElements.set(el, ch.chapter);
+        }
+      });
+    }
+  }
+
+  // Check: if element introduced in chapter N, it should either:
+  // 1. Appear in chapter N+1 or later, OR
+  // 2. Be explicitly resolved/removed in chapter N (e.g., "he lost the stones")
+  const resolutionPattern = /(lost|dropped|forgot|left|removed|put away|lost the|dropped the|threw away|zerstört|verloren|weggeworfen|vergessen|verlor)/i;
+
+  for (const [element, introducedChapter] of introducedElements) {
+    const chaptersWithElement = Array.from(elementsByChapter.entries())
+      .filter(([, els]) => els.some(e => e.includes(element)))
+      .map(([ch]) => ch)
+      .sort((a, b) => a - b);
+
+    if (chaptersWithElement.length === 1) {
+      // Element only appears once (in introduction)
+      const chapterText = draft.chapters.find(c => c.chapter === introducedChapter)?.text || "";
+      const isResolved = resolutionPattern.test(chapterText);
+
+      if (!isResolved) {
+        issues.push({
+          gate: "ELEMENT_CONTINUITY",
+          chapter: introducedChapter,
+          code: "ELEMENT_INTRODUCED_NOT_RESOLVED",
+          message: isDE
+            ? `Kapitel ${introducedChapter}: Element "${element}" wird eingeführt, aber nicht in nachfolgenden Kapiteln erwähnt oder aufgelöst. Entweder Fortführung in späteren Kapiteln oder explizite Auflösung hinzufügen.`
+            : `Chapter ${introducedChapter}: Element "${element}" is introduced but doesn't appear in later chapters or get resolved. Either continue it in later chapters or explicitly resolve it.`,
+          severity: "WARNING",
+        });
+      }
+    } else if (chaptersWithElement.length > 1) {
+      // Check for large gaps (e.g., element in Ch 2, then missing in Ch 3, reappears in Ch 4)
+      const gaps = [];
+      for (let i = 0; i < chaptersWithElement.length - 1; i++) {
+        const gap = chaptersWithElement[i + 1] - chaptersWithElement[i];
+        if (gap > 1) {
+          gaps.push({ from: chaptersWithElement[i], to: chaptersWithElement[i + 1] });
+        }
+      }
+
+      if (gaps.length > 0) {
+        const gapDesc = gaps.map(g => `Kap. ${g.from} → ${g.to}`).join(", ");
+        issues.push({
+          gate: "ELEMENT_CONTINUITY",
+          chapter: chaptersWithElement[0],
+          code: "ELEMENT_CONTINUITY_GAP",
+          message: isDE
+            ? `Element "${element}" hat Lücken in der Kontinuität: ${gapDesc}. Entweder erwähnen oder explizit auflösen.`
+            : `Element "${element}" has continuity gaps: ${gapDesc}. Either mention it or explicitly resolve it.`,
+          severity: "WARNING",
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Sprint 4.C: German Typo & Spacing Linter ──────────────────────────────────
+function gateGermanProofing(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (language !== "de") return issues;
+
+  const germanWordFusionPattern = /\b([a-zäöüß]+)\s+([n|t|s|r|d|m|h|c|p|b|f|g|l|v|w|z])\s+([a-zäöüß]+)\b/gi;
+  const nonStandardUmlautPattern = /A([Uu]|e)|O([Uu]|e)|U([Uu]|e)|a([Uu]|e)|o([Uu]|e)|u([Uu]|e)/g;
+  const twoSpacePattern = /  +/g;
+
+  let chapterIndex = 0;
+  for (const ch of draft.chapters) {
+    const text = ch.text;
+
+    // Check for word fusions like "Adria ns Schuh" → "Adrians Schuh"
+    const fusionMatches = Array.from(text.matchAll(germanWordFusionPattern));
+    for (const match of fusionMatches) {
+      // Likely fusion if it looks like "word single-letter word"
+      if (match[2].match(/[ntsrdmhcpbfglvwz]/i)) {
+        const startIdx = Math.max(0, match.index - 50);
+        const endIdx = Math.min(text.length, match.index + match[0].length + 50);
+        const context = text.substring(startIdx, endIdx).trim();
+
+        issues.push({
+          gate: "GERMAN_PROOFING",
+          chapter: ch.chapter,
+          code: "GERMAN_WORD_FUSION",
+          message: `Mögliche Worttrennung: "${match[0]}" – möglicherweise sollte es "${match[1]}${match[2]}${match[3]}" sein. Kontext: ...${context}...`,
+          severity: "WARNING",
+        });
+      }
+    }
+
+    // Check for non-standard umlauts (e.g., "Äu" instead of "Ä")
+    const umlautMatches = Array.from(text.matchAll(nonStandardUmlautPattern));
+    if (umlautMatches.length > 2) {
+      issues.push({
+        gate: "GERMAN_PROOFING",
+        chapter: ch.chapter,
+        code: "GERMAN_UMLAUT_SPACING",
+        message: `Kapitel ${ch.chapter}: Mehrere nicht-standardisierte Umlaut-Kombinationen gefunden. Überprüfen Sie Umlaute wie "ä", "ö", "ü" (nicht "A u", "O e", etc.).`,
+        severity: "WARNING",
+      });
+    }
+
+    // Check for double spaces
+    const doubleSpaceMatches = Array.from(text.matchAll(twoSpacePattern));
+    if (doubleSpaceMatches.length > 0) {
+      issues.push({
+        gate: "GERMAN_PROOFING",
+        chapter: ch.chapter,
+        code: "EXTRA_SPACING",
+        message: `Kapitel ${ch.chapter}: ${doubleSpaceMatches.length} Doppelspacefunde. Vereinzeln Sie diese.`,
+        severity: "WARNING",
+      });
+    }
+
+    chapterIndex++;
+  }
+
+  return issues;
+}
+
+// Helper: Levenshtein similarity (0-1, where 1 is identical)
+function levenshteinSimilarity(a: string, b: string): number {
+  const dist = levenshteinDistance(a, b);
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen === 0 ? 1 : 1 - dist / maxLen;
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array(m + 1)
+    .fill(null)
+    .map(() => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+  }
+  return dp[m][n];
+}
+
 export function runQualityGates(input: {
   draft: StoryDraft;
   directives: SceneDirective[];
@@ -2895,6 +3102,10 @@ export function runQualityGates(input: {
     { name: "CHILD_MISTAKE_ARC", fn: () => gateChildMistakeArc(draft, cast, language, ageRange) },
     { name: "CHAPTER_TRANSITION", fn: () => gateChapterTransitions(draft, language, ageRange) },
     { name: "CH1_ORIENTATION", fn: () => gateCh1Orientation(draft, cast, language, ageRange) },
+    // Sprint 4: Writer-level polish gates
+    { name: "CHAPTER_OPENING_UNIQUENESS", fn: () => gateChapterOpeningUniqueness(draft, language) },
+    { name: "ELEMENT_CONTINUITY", fn: () => gateElementContinuity(draft, language) },
+    { name: "GERMAN_PROOFING", fn: () => gateGermanProofing(draft, language) },
   ];
 
   const allIssues: QualityIssue[] = [];
