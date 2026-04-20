@@ -1101,8 +1101,9 @@ export class StoryPipelineOrchestrator {
         });
       }
 
-      // Always-blocking errors: instruction leaks/placeholders/language leaks,
-      // structural copy-paste, and critic hard-floor failures (<warnFloor).
+      // Always-blocking errors: instruction leaks/placeholders/language leaks.
+      // DUPLICATE_SENTENCE and CRITIC_HARD_FLOOR are NOT unconditional blockers —
+      // they move to strictReleaseCodes so default-mode stories still get delivered.
       const hardSafetyCodes = new Set([
         "INSTRUCTION_LEAK",
         "ENGLISH_LEAK",
@@ -1110,13 +1111,15 @@ export class StoryPipelineOrchestrator {
         "CHAPTER_PLACEHOLDER",
         "META_LABEL_PHRASE",
         "META_NARRATION",
-        "DUPLICATE_SENTENCE",
-        "CRITIC_HARD_FLOOR",
       ]);
 
       // Optional strict release gates. Disabled by default to avoid hard generation failures
       // when only narrative quality errors remain after rewrite.
+      // DUPLICATE_SENTENCE + CRITIC_HARD_FLOOR are here (not hardSafetyCodes) so that
+      // default-mode stories get delivered with a warning rather than throwing 500.
       const strictReleaseCodes = new Set([
+        "DUPLICATE_SENTENCE",
+        "CRITIC_HARD_FLOOR",
         "MISSING_CHARACTER",
         "TOTAL_TOO_SHORT",
         "CHAPTER_TOO_SHORT_HARD",
