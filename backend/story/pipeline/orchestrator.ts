@@ -705,6 +705,7 @@ export class StoryPipelineOrchestrator {
           wordBudget: normalized.wordBudget,
           artifactArc: canonFusionPlan.artifactArc,
           humorLevel,
+          storySoul,
         });
         qualityReport = toQualitySummary(cachedQuality, 0);
         criticReport = await runSemanticCritic({
@@ -786,6 +787,7 @@ export class StoryPipelineOrchestrator {
               wordBudget: normalized.wordBudget,
               artifactArc: canonFusionPlan.artifactArc,
               humorLevel,
+              storySoul,
             }),
             0,
           );
@@ -901,6 +903,7 @@ export class StoryPipelineOrchestrator {
                   wordBudget: normalized.wordBudget,
                   artifactArc: canonFusionPlan.artifactArc,
                   humorLevel,
+                  storySoul,
                 }),
                 candidateQuality?.rewriteAttempts ?? 0,
               );
@@ -1065,7 +1068,24 @@ export class StoryPipelineOrchestrator {
       const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
       const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : false;
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
-      if (
+
+      // Hard publish-floor: even with strictQualityGates=false, never release a draft
+      // the critic explicitly rejected or scored below the warn-floor (default 6.5).
+      // This prevents sub-6.5 stories from slipping through as they did previously.
+      const criticActive = releaseEnabled && criticReport && !isCriticSkipped(criticReport);
+      const criticHardBlock = criticActive && (
+        criticReport.verdict === "reject"
+        || (criticReport.verdict === "revision_needed" && criticReport.overallScore < criticWarnFloor)
+      );
+      if (criticHardBlock) {
+        storyErrors.push({
+          gate: "SEMANTIC_CRITIC",
+          chapter: 0,
+          code: "CRITIC_HARD_FLOOR",
+          message: `Critic ${criticReport.verdict} below hard floor (${criticReport.overallScore.toFixed(2)}<${criticWarnFloor.toFixed(2)})`,
+          severity: "ERROR",
+        });
+      } else if (
         releaseEnabled
         && strictQualityGates
         && criticReport
@@ -1081,7 +1101,8 @@ export class StoryPipelineOrchestrator {
         });
       }
 
-      // Always-blocking errors: instruction leaks/placeholders/language leaks.
+      // Always-blocking errors: instruction leaks/placeholders/language leaks,
+      // structural copy-paste, and critic hard-floor failures (<warnFloor).
       const hardSafetyCodes = new Set([
         "INSTRUCTION_LEAK",
         "ENGLISH_LEAK",
@@ -1089,6 +1110,8 @@ export class StoryPipelineOrchestrator {
         "CHAPTER_PLACEHOLDER",
         "META_LABEL_PHRASE",
         "META_NARRATION",
+        "DUPLICATE_SENTENCE",
+        "CRITIC_HARD_FLOOR",
       ]);
 
       // Optional strict release gates. Disabled by default to avoid hard generation failures

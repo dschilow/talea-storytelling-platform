@@ -1,5 +1,6 @@
 import type { CastSet, SceneDirective, StoryDraft, ArtifactArcPlan } from "./types";
 import type { WordBudget } from "./word-budget";
+import type { StorySoul } from "./schemas/story-soul";
 import { ALL_BANNED_PHRASES } from "./canon-fusion";
 import { findTemplatePhraseMatches } from "./template-phrases";
 import { getChildFocusNames, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
@@ -536,7 +537,12 @@ function gateRepetitionLimiter(
     for (let j = i + 1; j < sentences.length; j++) {
       if (sentences[i].chapter === sentences[j].chapter) continue;
       if (sentences[i].text.length < 20) continue;
-      if (similarity(sentences[i].text, sentences[j].text) > 0.85) {
+      const sim = similarity(sentences[i].text, sentences[j].text);
+      if (sim > 0.85) {
+        // Near-identical opening/long sentences across chapters (>=0.92 or length >=45)
+        // are always ERROR — they make chapters feel copy-pasted. Shorter/less similar
+        // duplicates stay WARNING to avoid false-positives on common idioms.
+        const isCopyPaste = sim >= 0.92 || sentences[i].text.length >= 45;
         issues.push({
           gate: "REPETITION_LIMITER",
           chapter: sentences[j].chapter,
@@ -544,7 +550,7 @@ function gateRepetitionLimiter(
           message: isDE
             ? `Kapitel ${sentences[j].chapter}: Fast identischer Satz wie in Kapitel ${sentences[i].chapter}`
             : `Chapter ${sentences[j].chapter}: Near-duplicate sentence from chapter ${sentences[i].chapter}`,
-          severity: "WARNING",
+          severity: isCopyPaste ? "ERROR" : "WARNING",
         });
         break;
       }
@@ -3022,6 +3028,279 @@ function gateGermanProofing(draft: StoryDraft, language: string): QualityIssue[]
   return issues;
 }
 
+// ─── Sprint 5: Soul-Fingerprint Gate ────────────────────────────────────────────
+// Verifies that each protagonist fingerprint (favoriteWords, bodyTell, runningGag)
+// actually lands somewhere in the prose. Writers systematically ignore the Soul's
+// fingerprint contract otherwise — this forces the trait onto the page.
+// Zero token cost: pure string scan of the draft.
+function gateSoulFingerprint(
+  draft: StoryDraft,
+  soul: StorySoul | undefined,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!soul || !Array.isArray(soul.characterFingerprints) || soul.characterFingerprints.length === 0) {
+    return issues;
+  }
+  const isDE = language === "de";
+  const fullText = draft.chapters.map(ch => ch.text || "").join("\n").toLowerCase();
+  if (fullText.length < 200) return issues;
+
+  for (const fp of soul.characterFingerprints) {
+    if (!fp?.name) continue;
+    const nameLower = String(fp.name).toLowerCase();
+    if (!fullText.includes(nameLower)) continue; // skip figures the writer dropped entirely
+
+    const hits = {
+      favoriteWord: 0,
+      bodyTell: false,
+      runningGag: false,
+      tabooViolations: 0,
+    };
+
+    const favoriteWords = Array.isArray(fp.favoriteWords) ? fp.favoriteWords : [];
+    for (const word of favoriteWords) {
+      const wLower = String(word).toLowerCase().trim();
+      if (wLower.length < 3) continue;
+      const re = new RegExp(`\\b${wLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      if (re.test(fullText)) hits.favoriteWord++;
+    }
+
+    const tabooWords = Array.isArray(fp.tabooWords) ? fp.tabooWords : [];
+    for (const word of tabooWords) {
+      const wLower = String(word).toLowerCase().trim();
+      if (wLower.length < 3) continue;
+      const re = new RegExp(`\\b${wLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+      const matches = fullText.match(re);
+      if (matches) hits.tabooViolations += matches.length;
+    }
+
+    if (fp.bodyTell && typeof fp.bodyTell === "string") {
+      const tokens = fp.bodyTell
+        .toLowerCase()
+        .replace(/[^a-zäöüß\s]/g, " ")
+        .split(/\s+/)
+        .filter(t => t.length >= 4 && !["wenn", "einen", "seine", "sein", "wird", "wirst", "dass", "mit", "der", "die", "das", "und", "oder", "beim", "vor", "auf", "aus"].includes(t));
+      const matched = tokens.filter(t => fullText.includes(t)).length;
+      if (tokens.length > 0 && matched / tokens.length >= 0.5) hits.bodyTell = true;
+    }
+
+    if (fp.runningGag && typeof fp.runningGag === "string") {
+      const tokens = fp.runningGag
+        .toLowerCase()
+        .replace(/[^a-zäöüß\s]/g, " ")
+        .split(/\s+/)
+        .filter(t => t.length >= 5);
+      const matched = tokens.filter(t => fullText.includes(t)).length;
+      if (tokens.length >= 2 && matched >= 2) hits.runningGag = true;
+    }
+
+    const score =
+      (hits.favoriteWord > 0 ? 1 : 0) +
+      (hits.bodyTell ? 1 : 0) +
+      (hits.runningGag ? 1 : 0);
+
+    // Primary figures (protagonist/partner) must land at least 2 of 3 signals.
+    const isPrimary = fp.role === "protagonist" || fp.role === "partner";
+    const threshold = isPrimary ? 2 : 1;
+
+    if (score < threshold) {
+      issues.push({
+        gate: "SOUL_FINGERPRINT",
+        chapter: 0,
+        code: "FINGERPRINT_NOT_REALIZED",
+        message: isDE
+          ? `Figur "${fp.name}": Fingerprint nicht auf der Seite (favoriteWord=${hits.favoriteWord}, bodyTell=${hits.bodyTell ? "ja" : "nein"}, gag=${hits.runningGag ? "ja" : "nein"}). Min ${threshold}/3.`
+          : `Character "${fp.name}": fingerprint not realized on page (favoriteWord=${hits.favoriteWord}, bodyTell=${hits.bodyTell ? "yes" : "no"}, gag=${hits.runningGag ? "yes" : "no"}). Min ${threshold}/3.`,
+        severity: isPrimary ? "ERROR" : "WARNING",
+      });
+    }
+
+    if (hits.tabooViolations > 0) {
+      issues.push({
+        gate: "SOUL_FINGERPRINT",
+        chapter: 0,
+        code: "TABOO_WORD_USED",
+        message: isDE
+          ? `Figur "${fp.name}": tabu-Wort ${hits.tabooViolations}× verwendet.`
+          : `Character "${fp.name}": taboo word used ${hits.tabooViolations}×.`,
+        severity: "WARNING",
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ─── Sprint 5: Soul-Humor-Beat Gate ─────────────────────────────────────────────
+// The Soul lists one humorBeat per chapter with a concrete "exactLine" the writer
+// MUST stage. Verify at least 60% of beats land in the prose (fuzzy match on the
+// distinctive tokens of each beat). Zero token cost.
+function gateSoulHumorBeat(
+  draft: StoryDraft,
+  soul: StorySoul | undefined,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!soul || !Array.isArray(soul.humorBeats) || soul.humorBeats.length === 0) {
+    return issues;
+  }
+  const isDE = language === "de";
+
+  let landed = 0;
+  const missing: number[] = [];
+
+  for (const beat of soul.humorBeats) {
+    const chapterNum = Number(beat?.chapter);
+    if (!Number.isFinite(chapterNum) || chapterNum < 1) continue;
+    const chapter = draft.chapters.find(c => c.chapter === chapterNum);
+    if (!chapter?.text) { missing.push(chapterNum); continue; }
+    const chapterLower = chapter.text.toLowerCase();
+
+    // Prefer exactLine (the contract), fall back to `what` description.
+    const source = String(beat.exactLine || beat.what || "").toLowerCase();
+    if (source.length < 8) continue;
+
+    // Extract distinctive content tokens (length >=5) from the beat; a beat
+    // has "landed" if at least 40% of its content tokens appear in the chapter.
+    const stopwords = new Set([
+      "adrian", "alexander", "sagte", "wenn", "aber", "dann", "doch", "nicht",
+      "sich", "sein", "seine", "ihre", "ihnen", "dies", "jenes", "etwas",
+      "und", "oder", "mit", "ohne", "bei", "vor", "auf", "aus", "der", "die", "das",
+    ]);
+    const tokens = source
+      .replace(/[„""«»]/g, " ")
+      .replace(/[^a-zäöüß\s]/g, " ")
+      .split(/\s+/)
+      .filter(t => t.length >= 5 && !stopwords.has(t));
+    if (tokens.length < 2) continue;
+
+    const matched = tokens.filter(t => chapterLower.includes(t)).length;
+    const ratio = matched / tokens.length;
+    if (ratio >= 0.4) {
+      landed++;
+    } else {
+      missing.push(chapterNum);
+    }
+  }
+
+  const total = soul.humorBeats.length;
+  const required = Math.max(2, Math.ceil(total * 0.6));
+  if (landed < required) {
+    issues.push({
+      gate: "SOUL_HUMOR_BEAT",
+      chapter: 0,
+      code: "HUMOR_BEATS_MISSING",
+      message: isDE
+        ? `Nur ${landed}/${total} Soul-humorBeats szenisch realisiert (min ${required}). Fehlend in Kapitel: ${missing.join(", ")}.`
+        : `Only ${landed}/${total} soul humorBeats landed on page (min ${required}). Missing in chapters: ${missing.join(", ")}.`,
+      severity: "ERROR",
+    });
+  }
+
+  return issues;
+}
+
+// ─── Sprint 5: Adult-Rescue Gate ────────────────────────────────────────────────
+// Soul contract: children must resolve the inner problem themselves. If the final
+// chapter has an adult cast member dominating dialogue (>40% of quoted lines),
+// the payoff is adult-driven — reject. Zero token cost.
+function gateAdultRescue(
+  draft: StoryDraft,
+  cast: CastSet,
+  soul: StorySoul | undefined,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!draft.chapters.length) return issues;
+  const isDE = language === "de";
+
+  const finalChapter = draft.chapters[draft.chapters.length - 1];
+  if (!finalChapter?.text || finalChapter.text.length < 100) return issues;
+
+  // Heuristic adult-name set: any cast member whose role is explicitly adult
+  // (mentor/antagonist/wizard/etc.), or supportingCast from soul that isn't
+  // flagged comic-relief. We rely on the cast's adult flag when present.
+  const childNameSet = new Set<string>();
+  if (Array.isArray(soul?.characterFingerprints)) {
+    for (const fp of soul!.characterFingerprints) {
+      if (fp?.name && (fp.role === "protagonist" || fp.role === "partner")) {
+        childNameSet.add(String(fp.name).toLowerCase());
+      }
+    }
+  }
+  // Fallback: use cast child-focus heuristic
+  if (childNameSet.size === 0 && cast) {
+    for (const name of getChildFocusNames(cast)) {
+      childNameSet.add(name.toLowerCase());
+    }
+  }
+  if (childNameSet.size === 0) return issues;
+
+  // Collect cast adult names from soul.supportingCast where role is clearly adult
+  // (mentor/antagonist) or from cast entries outside the child focus.
+  const adultNameSet = new Set<string>();
+  if (Array.isArray(soul?.supportingCast)) {
+    for (const sc of soul!.supportingCast) {
+      if (!sc?.name) continue;
+      const nameLower = String(sc.name).toLowerCase();
+      if (childNameSet.has(nameLower)) continue;
+      if (sc.purpose === "mentor") adultNameSet.add(nameLower);
+    }
+  }
+  if (Array.isArray(soul?.characterFingerprints)) {
+    for (const fp of soul!.characterFingerprints) {
+      if (fp?.name && (fp.role === "mentor" || fp.role === "antagonist")) {
+        adultNameSet.add(String(fp.name).toLowerCase());
+      }
+    }
+  }
+  if (adultNameSet.size === 0) return issues;
+
+  // Count dialogue lines attributed to each party via dialogue-tag heuristic.
+  // Very cheap: split on sentence boundaries, count lines with `NAME sagte/fragte/…`
+  // or `"…" NAME` patterns.
+  const text = finalChapter.text;
+  const dialogueAttributionRegex = /("[^"]+"|„[^""]+"|„[^""]+«|«[^»]+»)\s*,?\s*(sagte|fragte|flüsterte|rief|brummte|murmelte|antwortete|schrie|erwiderte)\s+([A-ZÄÖÜ][a-zäöüß]+)/g;
+  let match: RegExpExecArray | null;
+  const speakerCounts: Record<string, number> = {};
+  while ((match = dialogueAttributionRegex.exec(text)) !== null) {
+    const speaker = match[3].toLowerCase();
+    speakerCounts[speaker] = (speakerCounts[speaker] ?? 0) + 1;
+  }
+  // Reverse pattern: Name + verb + "…"
+  const reverseRegex = /([A-ZÄÖÜ][a-zäöüß]+)\s+(sagte|fragte|flüsterte|rief|brummte|murmelte|antwortete|schrie|erwiderte)[^.!?"„]*[:,]?\s*("[^"]+"|„[^""]+")/g;
+  while ((match = reverseRegex.exec(text)) !== null) {
+    const speaker = match[1].toLowerCase();
+    speakerCounts[speaker] = (speakerCounts[speaker] ?? 0) + 1;
+  }
+
+  let childLines = 0;
+  let adultLines = 0;
+  for (const [speaker, count] of Object.entries(speakerCounts)) {
+    if (childNameSet.has(speaker)) childLines += count;
+    else if (adultNameSet.has(speaker)) adultLines += count;
+  }
+
+  const totalAttributed = childLines + adultLines;
+  if (totalAttributed < 3) return issues; // not enough attributed dialogue to judge
+
+  const adultShare = adultLines / totalAttributed;
+  if (adultShare > 0.4) {
+    issues.push({
+      gate: "ADULT_RESCUE",
+      chapter: finalChapter.chapter,
+      code: "ADULT_DOMINATES_FINALE",
+      message: isDE
+        ? `Kapitel ${finalChapter.chapter}: Erwachsene dominieren den Schluss (${Math.round(adultShare * 100)}% Dialog, max 40%). Kinder müssen die innere Lösung tragen.`
+        : `Chapter ${finalChapter.chapter}: adults dominate the finale (${Math.round(adultShare * 100)}% of attributed dialogue, max 40%). Children must carry the resolution.`,
+      severity: "ERROR",
+    });
+  }
+
+  return issues;
+}
+
 // Helper: Levenshtein similarity (0-1, where 1 is identical)
 function levenshteinSimilarity(a: string, b: string): number {
   const dist = levenshteinDistance(a, b);
@@ -3060,8 +3339,9 @@ export function runQualityGates(input: {
   wordBudget?: WordBudget;
   artifactArc?: ArtifactArcPlan;
   humorLevel?: number;
+  storySoul?: import("./schemas/story-soul").StorySoul;
 }): QualityReport {
-  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -3106,6 +3386,10 @@ export function runQualityGates(input: {
     { name: "CHAPTER_OPENING_UNIQUENESS", fn: () => gateChapterOpeningUniqueness(draft, language) },
     { name: "ELEMENT_CONTINUITY", fn: () => gateElementContinuity(draft, language) },
     { name: "GERMAN_PROOFING", fn: () => gateGermanProofing(draft, language) },
+    // Sprint 5: Soul-fidelity gates (zero additional tokens — pure string matching)
+    { name: "SOUL_FINGERPRINT", fn: () => gateSoulFingerprint(draft, storySoul, language) },
+    { name: "SOUL_HUMOR_BEAT", fn: () => gateSoulHumorBeat(draft, storySoul, language) },
+    { name: "ADULT_RESCUE", fn: () => gateAdultRescue(draft, cast, storySoul, language) },
   ];
 
   const allIssues: QualityIssue[] = [];

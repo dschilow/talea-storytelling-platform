@@ -1229,6 +1229,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       wordBudget: normalizedRequest.wordBudget,
       humorLevel,
+      storySoul,
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1557,6 +1558,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
+          storySoul,
         });
       }
     }
@@ -1584,6 +1586,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
+          storySoul,
         });
         errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
         console.log(`[story-writer] Applied deterministic trim before rewrite. Remaining errors: ${errorIssues.length}`);
@@ -1786,6 +1789,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         wordBudget: normalizedRequest.wordBudget,
         humorLevel,
+        storySoul,
       });
 
       if (isRewriteQualityBetter(qualityReport, revisedReport)) {
@@ -1844,6 +1848,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
             wordBudget: normalizedRequest.wordBudget,
             humorLevel,
+            storySoul,
           });
         }
       }
@@ -1883,6 +1888,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
+          storySoul,
         });
 
         if (isWarningPolishBetter(qualityReport, polishedReport)) {
