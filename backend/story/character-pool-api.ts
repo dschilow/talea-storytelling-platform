@@ -692,6 +692,7 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
 
     try {
       await storyDB.exec`BEGIN`;
+      await storyDB.exec`DELETE FROM story_characters WHERE character_id IN (SELECT id FROM character_pool)`;
       await storyDB.exec`DELETE FROM character_pool`;
 
       for (const character of sanitized) {
