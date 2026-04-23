@@ -6,6 +6,7 @@ import type {
   FairyTaleRole,
   FairyTaleScene,
   GetFairyTaleResponse,
+  RoleType,
 } from "./types";
 
 // =====================================================
@@ -29,7 +30,7 @@ export interface CompleteFairyTaleExport {
 }
 
 export interface ImportFairyTalesRequest {
-  tales: CompleteFairyTaleExport[];
+  tales: any[];
   overwriteExisting?: boolean;
 }
 
@@ -71,6 +72,246 @@ export interface DeleteSceneRequest {
   sceneId: number;
 }
 
+let roleMatchingColumnsEnsured = false;
+
+async function ensureRoleMatchingColumns(): Promise<void> {
+  if (roleMatchingColumnsEnsured) {
+    return;
+  }
+
+  await fairytalesDB.exec`
+    ALTER TABLE fairy_tale_roles
+      ADD COLUMN IF NOT EXISTS species_requirement TEXT CHECK(species_requirement IN ('human', 'humanoid', 'animal', 'magical_creature', 'mythical', 'elemental', 'any')) DEFAULT 'any',
+      ADD COLUMN IF NOT EXISTS gender_requirement TEXT CHECK(gender_requirement IN ('male', 'female', 'neutral', 'any')) DEFAULT 'any',
+      ADD COLUMN IF NOT EXISTS age_requirement TEXT CHECK(age_requirement IN ('child', 'teenager', 'young_adult', 'adult', 'elder', 'ageless', 'any')) DEFAULT 'any',
+      ADD COLUMN IF NOT EXISTS size_requirement TEXT CHECK(size_requirement IN ('tiny', 'small', 'medium', 'large', 'giant', 'any')) DEFAULT 'any',
+      ADD COLUMN IF NOT EXISTS social_class_requirement TEXT CHECK(social_class_requirement IN ('royalty', 'nobility', 'merchant', 'craftsman', 'commoner', 'outcast', 'any')) DEFAULT 'any'
+  `;
+
+  roleMatchingColumnsEnsured = true;
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function toStringOrNull(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+function toStringWithFallback(value: unknown, fallback: string): string {
+  return toStringOrNull(value) ?? fallback;
+}
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toNumberWithFallback(value: unknown, fallback: number): number {
+  return toNumberOrNull(value) ?? fallback;
+}
+
+function toBooleanWithFallback(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map(toStringOrNull)
+      .filter((entry): entry is string => Boolean(entry));
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return toStringArray(parsed);
+      }
+    } catch {
+      // Fall back to comma-separated values below.
+    }
+
+    return trimmed
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function toStringRecord(value: unknown): Record<string, string> {
+  const source = typeof value === "string" ? parseJson(value) : value;
+  if (!isRecord(source)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(source)
+      .map(([key, entry]) => [key, toStringOrNull(entry)])
+      .filter((entry): entry is [string, string] => Boolean(entry[1]))
+  );
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value.toISOString();
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    if (Number.isFinite(date.getTime())) {
+      return date.toISOString();
+    }
+  }
+  return new Date().toISOString();
+}
+
+function normalizeEnum(value: unknown, allowed: readonly string[], fallback: string): string {
+  const normalized = toStringOrNull(value)?.toLowerCase();
+  return normalized && allowed.includes(normalized) ? normalized : fallback;
+}
+
+function normalizeArchetypePreference(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const entries = toStringArray(value);
+    return entries.length > 0 ? entries.join(", ") : null;
+  }
+  return toStringOrNull(value);
+}
+
+function normalizeFairyTaleImportItem(value: unknown, index: number): CompleteFairyTaleExport {
+  if (!isRecord(value)) {
+    throw new Error(`Entry ${index + 1} is not an object`);
+  }
+
+  const taleSource = value.tale;
+  if (!isRecord(taleSource)) {
+    throw new Error(`Entry ${index + 1} is missing tale data`);
+  }
+
+  const taleId = toStringOrNull(taleSource.id);
+  const title = toStringOrNull(taleSource.title);
+  if (!taleId || !title) {
+    throw new Error(`Entry ${index + 1} is missing tale id or title`);
+  }
+
+  const tale: FairyTale = {
+    id: taleId,
+    title,
+    source: toStringWithFallback(taleSource.source, "import"),
+    originalLanguage: toStringOrNull(taleSource.originalLanguage),
+    englishTranslation: toStringOrNull(taleSource.englishTranslation),
+    cultureRegion: toStringWithFallback(taleSource.cultureRegion, "unknown"),
+    ageRecommendation: toNumberWithFallback(taleSource.ageRecommendation, 6),
+    durationMinutes: toNumberWithFallback(taleSource.durationMinutes, 10),
+    genreTags: toStringArray(taleSource.genreTags),
+    moralLesson: toStringOrNull(taleSource.moralLesson),
+    summary: toStringOrNull(taleSource.summary),
+    isActive: toBooleanWithFallback(taleSource.isActive, true),
+    createdAt: toIsoString(taleSource.createdAt),
+    updatedAt: toIsoString(taleSource.updatedAt),
+  };
+
+  const roles: FairyTaleRole[] = (Array.isArray(value.roles) ? value.roles : []).map((rawRole, roleIndex) => {
+    const roleSource = isRecord(rawRole) ? rawRole : {};
+    return {
+      id: toNumberWithFallback(roleSource.id, roleIndex + 1),
+      taleId: toStringWithFallback(roleSource.taleId, taleId),
+      roleType: toStringWithFallback(roleSource.roleType, "supporting") as RoleType,
+      roleName: toStringOrNull(roleSource.roleName),
+      roleCount: toNumberWithFallback(roleSource.roleCount, 1),
+      description: toStringOrNull(roleSource.description),
+      required: toBooleanWithFallback(roleSource.required, true),
+      archetypePreference: normalizeArchetypePreference(roleSource.archetypePreference),
+      ageRangeMin: toNumberOrNull(roleSource.ageRangeMin),
+      ageRangeMax: toNumberOrNull(roleSource.ageRangeMax),
+      professionPreference: toStringArray(roleSource.professionPreference),
+      speciesRequirement: normalizeEnum(
+        roleSource.speciesRequirement,
+        ["human", "humanoid", "animal", "magical_creature", "mythical", "elemental", "any"],
+        "any"
+      ),
+      genderRequirement: normalizeEnum(roleSource.genderRequirement, ["male", "female", "neutral", "any"], "any"),
+      ageRequirement: normalizeEnum(
+        roleSource.ageRequirement,
+        ["child", "teenager", "young_adult", "adult", "elder", "ageless", "any"],
+        "any"
+      ),
+      sizeRequirement: normalizeEnum(roleSource.sizeRequirement, ["tiny", "small", "medium", "large", "giant", "any"], "any"),
+      socialClassRequirement: normalizeEnum(
+        roleSource.socialClassRequirement,
+        ["royalty", "nobility", "merchant", "craftsman", "commoner", "outcast", "any"],
+        "any"
+      ),
+      createdAt: toIsoString(roleSource.createdAt),
+    };
+  });
+
+  const scenes: FairyTaleScene[] = (Array.isArray(value.scenes) ? value.scenes : []).map((rawScene, sceneIndex) => {
+    const sceneSource = isRecord(rawScene) ? rawScene : {};
+    return {
+      id: toNumberWithFallback(sceneSource.id, sceneIndex + 1),
+      taleId: toStringWithFallback(sceneSource.taleId, taleId),
+      sceneNumber: toNumberWithFallback(sceneSource.sceneNumber, sceneIndex + 1),
+      sceneTitle: toStringOrNull(sceneSource.sceneTitle),
+      sceneDescription: toStringWithFallback(sceneSource.sceneDescription, ""),
+      dialogueTemplate: toStringOrNull(sceneSource.dialogueTemplate),
+      characterVariables: toStringRecord(sceneSource.characterVariables),
+      setting: toStringOrNull(sceneSource.setting),
+      mood: toStringOrNull(sceneSource.mood),
+      illustrationPromptTemplate: toStringOrNull(sceneSource.illustrationPromptTemplate),
+      durationSeconds: toNumberWithFallback(sceneSource.durationSeconds, 60),
+      createdAt: toIsoString(sceneSource.createdAt),
+      updatedAt: toIsoString(sceneSource.updatedAt),
+    };
+  });
+
+  return { tale, roles, scenes };
+}
+
+function getImportTaleId(value: unknown, fallbackIndex: number): string {
+  if (isRecord(value) && isRecord(value.tale)) {
+    return toStringOrNull(value.tale.id) ?? `entry-${fallbackIndex + 1}`;
+  }
+  return `entry-${fallbackIndex + 1}`;
+}
+
 /**
  * Export fairy tales with all their roles and scenes in JSON format
  */
@@ -84,6 +325,8 @@ export const exportFairyTales = api<ExportFairyTalesRequest, ExportFairyTalesRes
     if (auth.role !== 'admin') {
       throw APIError.permissionDenied("Only admins can export fairy tales");
     }
+
+    await ensureRoleMatchingColumns();
 
     // Get tales
     let taleRows;
@@ -135,7 +378,9 @@ export const exportFairyTales = api<ExportFairyTalesRequest, ExportFairyTalesRes
         SELECT
           id, tale_id, role_type, role_name, role_count, description,
           required, archetype_preference, age_range_min, age_range_max,
-          profession_preference, created_at
+          profession_preference, species_requirement, gender_requirement,
+          age_requirement, size_requirement, social_class_requirement,
+          created_at
         FROM fairy_tale_roles
         WHERE tale_id = ${taleRow.id}
         ORDER BY
@@ -160,6 +405,11 @@ export const exportFairyTales = api<ExportFairyTalesRequest, ExportFairyTalesRes
         ageRangeMin: row.age_range_min,
         ageRangeMax: row.age_range_max,
         professionPreference: Array.isArray(row.profession_preference) ? row.profession_preference : [],
+        speciesRequirement: row.species_requirement,
+        genderRequirement: row.gender_requirement,
+        ageRequirement: row.age_requirement,
+        sizeRequirement: row.size_requirement,
+        socialClassRequirement: row.social_class_requirement,
         createdAt: row.created_at.toISOString(),
       }));
 
@@ -218,13 +468,23 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
       throw APIError.permissionDenied("Only admins can import fairy tales");
     }
 
+    if (!Array.isArray(req.tales) || req.tales.length === 0) {
+      throw APIError.invalidArgument("Import requires at least one fairy tale");
+    }
+
+    await ensureRoleMatchingColumns();
+
     let imported = 0;
     let updated = 0;
     let skipped = 0;
     const errors: { taleId: string; error: string }[] = [];
 
-    for (const item of req.tales) {
+    for (let index = 0; index < req.tales.length; index++) {
+      const rawItem = req.tales[index];
+      const taleId = getImportTaleId(rawItem, index);
+
       try {
+        const item = normalizeFairyTaleImportItem(rawItem, index);
         // Check if tale exists
         const existingTale = await fairytalesDB.queryRow<any>`
           SELECT id FROM fairy_tales WHERE id = ${item.tale.id}
@@ -241,14 +501,14 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
             UPDATE fairy_tales SET
               title = ${item.tale.title},
               source = ${item.tale.source},
-              original_language = ${item.tale.originalLanguage},
-              english_translation = ${item.tale.englishTranslation},
+              original_language = ${item.tale.originalLanguage ?? null},
+              english_translation = ${item.tale.englishTranslation ?? null},
               culture_region = ${item.tale.cultureRegion},
               age_recommendation = ${item.tale.ageRecommendation},
               duration_minutes = ${item.tale.durationMinutes},
               genre_tags = ${JSON.stringify(item.tale.genreTags)},
-              moral_lesson = ${item.tale.moralLesson},
-              summary = ${item.tale.summary},
+              moral_lesson = ${item.tale.moralLesson ?? null},
+              summary = ${item.tale.summary ?? null},
               is_active = ${item.tale.isActive},
               updated_at = CURRENT_TIMESTAMP
             WHERE id = ${item.tale.id}
@@ -272,10 +532,10 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
               genre_tags, moral_lesson, summary, is_active
             ) VALUES (
               ${item.tale.id}, ${item.tale.title}, ${item.tale.source},
-              ${item.tale.originalLanguage}, ${item.tale.englishTranslation},
+              ${item.tale.originalLanguage ?? null}, ${item.tale.englishTranslation ?? null},
               ${item.tale.cultureRegion}, ${item.tale.ageRecommendation},
               ${item.tale.durationMinutes}, ${JSON.stringify(item.tale.genreTags)},
-              ${item.tale.moralLesson}, ${item.tale.summary}, ${item.tale.isActive}
+              ${item.tale.moralLesson ?? null}, ${item.tale.summary ?? null}, ${item.tale.isActive}
             )
           `;
 
@@ -288,11 +548,15 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
             INSERT INTO fairy_tale_roles (
               tale_id, role_type, role_name, role_count, description,
               required, archetype_preference, age_range_min, age_range_max,
-              profession_preference
+              profession_preference, species_requirement, gender_requirement,
+              age_requirement, size_requirement, social_class_requirement
             ) VALUES (
-              ${item.tale.id}, ${role.roleType}, ${role.roleName}, ${role.roleCount},
-              ${role.description}, ${role.required}, ${role.archetypePreference},
-              ${role.ageRangeMin}, ${role.ageRangeMax}, ${JSON.stringify(role.professionPreference)}
+              ${item.tale.id}, ${role.roleType}, ${role.roleName ?? null}, ${role.roleCount},
+              ${role.description ?? null}, ${role.required}, ${role.archetypePreference ?? null},
+              ${role.ageRangeMin ?? null}, ${role.ageRangeMax ?? null}, ${JSON.stringify(role.professionPreference)},
+              ${role.speciesRequirement ?? 'any'}, ${role.genderRequirement ?? 'any'},
+              ${role.ageRequirement ?? 'any'}, ${role.sizeRequirement ?? 'any'},
+              ${role.socialClassRequirement ?? 'any'}
             )
           `;
         }
@@ -305,10 +569,10 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
               dialogue_template, character_variables, setting, mood,
               illustration_prompt_template, duration_seconds
             ) VALUES (
-              ${item.tale.id}, ${scene.sceneNumber}, ${scene.sceneTitle},
+              ${item.tale.id}, ${scene.sceneNumber}, ${scene.sceneTitle ?? null},
               ${scene.sceneDescription}, ${scene.dialogueTemplate},
-              ${JSON.stringify(scene.characterVariables)}, ${scene.setting},
-              ${scene.mood}, ${scene.illustrationPromptTemplate}, ${scene.durationSeconds}
+              ${JSON.stringify(scene.characterVariables)}, ${scene.setting ?? null},
+              ${scene.mood ?? null}, ${scene.illustrationPromptTemplate ?? null}, ${scene.durationSeconds}
             )
           `;
         }
@@ -326,9 +590,9 @@ export const importFairyTales = api<ImportFairyTalesRequest, ImportFairyTalesRes
         }
 
       } catch (error: any) {
-        console.error(`[FairyTales] Error importing tale ${item.tale.id}:`, error);
+        console.error(`[FairyTales] Error importing tale ${taleId}:`, error);
         errors.push({
-          taleId: item.tale.id,
+          taleId,
           error: error.message || "Unknown error",
         });
       }

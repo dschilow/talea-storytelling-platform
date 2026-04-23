@@ -5,14 +5,14 @@ export interface FairyTale {
   id: string; // e.g., "grimm-015"
   title: string;
   source: string; // grimm, andersen, russian, etc.
-  originalLanguage?: string;
-  englishTranslation?: string;
+  originalLanguage?: string | null;
+  englishTranslation?: string | null;
   cultureRegion: string;
   ageRecommendation: number;
   durationMinutes: number;
   genreTags: string[]; // ["adventure", "dark", "moral"]
-  moralLesson?: string;
-  summary?: string;
+  moralLesson?: string | null;
+  summary?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,20 +22,20 @@ export interface FairyTaleRole {
   id: number;
   taleId: string;
   roleType: RoleType;
-  roleName?: string;
+  roleName?: string | null;
   roleCount: number;
-  description?: string;
+  description?: string | null;
   required: boolean;
-  archetypePreference?: string; // hero, villain, trickster, sage
-  ageRangeMin?: number;
-  ageRangeMax?: number;
+  archetypePreference?: string | null; // hero, villain, trickster, sage
+  ageRangeMin?: number | null;
+  ageRangeMax?: number | null;
   professionPreference: string[]; // ["child", "wizard", "animal"]
   // NEW: Enhanced matching requirements (Migration 14)
-  speciesRequirement?: string; // human, animal, magical_creature, etc.
-  genderRequirement?: string; // male, female, neutral, any
-  ageRequirement?: string; // child, teenager, young_adult, adult, elder, ageless, any
-  sizeRequirement?: string; // tiny, small, medium, large, giant, any
-  socialClassRequirement?: string; // royalty, nobility, merchant, craftsman, commoner, outcast, any
+  speciesRequirement?: string | null; // human, animal, magical_creature, etc.
+  genderRequirement?: string | null; // male, female, neutral, any
+  ageRequirement?: string | null; // child, teenager, young_adult, adult, elder, ageless, any
+  sizeRequirement?: string | null; // tiny, small, medium, large, giant, any
+  socialClassRequirement?: string | null; // royalty, nobility, merchant, craftsman, commoner, outcast, any
   createdAt: string;
 }
 
@@ -43,20 +43,26 @@ export type RoleType =
   | 'protagonist'
   | 'antagonist'
   | 'helper'
+  | 'helper_transformed'
   | 'love_interest'
-  | 'supporting';
+  | 'supporting'
+  | 'authority'
+  | 'catalyst'
+  | 'obstacle'
+  | 'secondary'
+  | 'support';
 
 export interface FairyTaleScene {
   id: number;
   taleId: string;
   sceneNumber: number;
-  sceneTitle?: string;
+  sceneTitle?: string | null;
   sceneDescription: string;
-  dialogueTemplate?: string;
+  dialogueTemplate?: string | null;
   characterVariables: Record<string, string>; // {"PROTAGONIST": "name", "HELPER": "name"}
-  setting?: string; // "forest", "castle", "village"
-  mood?: string; // "mysterious", "happy", "tense"
-  illustrationPromptTemplate?: string;
+  setting?: string | null; // "forest", "castle", "village"
+  mood?: string | null; // "mysterious", "happy", "tense"
+  illustrationPromptTemplate?: string | null;
   durationSeconds: number;
   createdAt: string;
   updatedAt: string;

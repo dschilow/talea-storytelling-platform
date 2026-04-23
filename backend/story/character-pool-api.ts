@@ -12,22 +12,38 @@ import {
   resolveImageUrlForClient,
 } from "../helpers/bucket-storage";
 
-let imageColumnEnsured = false;
+let characterPoolColumnsEnsured = false;
 
 async function ensureImageUrlColumn(): Promise<void> {
-  if (imageColumnEnsured) {
+  if (characterPoolColumnsEnsured) {
     return;
   }
 
   try {
     await storyDB.exec`
       ALTER TABLE character_pool
-      ADD COLUMN IF NOT EXISTS image_url TEXT
+        ADD COLUMN IF NOT EXISTS image_url TEXT,
+        ADD COLUMN IF NOT EXISTS gender TEXT CHECK(gender IN ('male', 'female', 'neutral', 'any')) DEFAULT 'any',
+        ADD COLUMN IF NOT EXISTS age_category TEXT CHECK(age_category IN ('child', 'teenager', 'young_adult', 'adult', 'elder', 'ageless', 'any')) DEFAULT 'any',
+        ADD COLUMN IF NOT EXISTS species_category TEXT CHECK(species_category IN ('human', 'humanoid', 'animal', 'magical_creature', 'mythical', 'elemental', 'any')) DEFAULT 'any',
+        ADD COLUMN IF NOT EXISTS profession_tags TEXT[] DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS size_category TEXT CHECK(size_category IN ('tiny', 'small', 'medium', 'large', 'giant', 'any')) DEFAULT 'medium',
+        ADD COLUMN IF NOT EXISTS social_class TEXT CHECK(social_class IN ('royalty', 'nobility', 'merchant', 'craftsman', 'commoner', 'outcast', 'any')) DEFAULT 'any',
+        ADD COLUMN IF NOT EXISTS personality_keywords TEXT[] DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS physical_description TEXT,
+        ADD COLUMN IF NOT EXISTS backstory TEXT,
+        ADD COLUMN IF NOT EXISTS dominant_personality TEXT,
+        ADD COLUMN IF NOT EXISTS secondary_traits TEXT[] DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS catchphrase TEXT,
+        ADD COLUMN IF NOT EXISTS catchphrase_context TEXT,
+        ADD COLUMN IF NOT EXISTS speech_style TEXT[] DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS emotional_triggers TEXT[] DEFAULT '{}',
+        ADD COLUMN IF NOT EXISTS quirk TEXT
     `;
+    characterPoolColumnsEnsured = true;
   } catch (err) {
-    console.error("[CharacterPool] Failed ensuring image_url column:", err);
-  } finally {
-    imageColumnEnsured = true;
+    console.error("[CharacterPool] Failed ensuring character_pool columns:", err);
+    throw err;
   }
 }
 
@@ -51,6 +67,15 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     created_at: Date;
     updated_at: Date;
     is_active: boolean;
+    gender: string | null;
+    age_category: string | null;
+    species_category: string | null;
+    profession_tags: string[] | null;
+    size_category: string | null;
+    social_class: string | null;
+    personality_keywords: string[] | null;
+    physical_description: string | null;
+    backstory: string | null;
     // V2 personality fields (Migration 19)
     dominant_personality: string | null;
     secondary_traits: string[] | null;
@@ -77,6 +102,15 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     recentUsageCount: row.recent_usage_count,
     totalUsageCount: row.total_usage_count,
     lastUsedAt: row.last_used_at || undefined,
+    gender: row.gender || undefined,
+    age_category: row.age_category || undefined,
+    species_category: row.species_category || undefined,
+    profession_tags: row.profession_tags || undefined,
+    size_category: row.size_category || undefined,
+    social_class: row.social_class || undefined,
+    personality_keywords: row.personality_keywords || undefined,
+    physical_description: row.physical_description || undefined,
+    backstory: row.backstory || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     isActive: row.is_active,
@@ -141,6 +175,15 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       created_at: Date;
       updated_at: Date;
       is_active: boolean;
+      gender: string | null;
+      age_category: string | null;
+      species_category: string | null;
+      profession_tags: string[] | null;
+      size_category: string | null;
+      social_class: string | null;
+      personality_keywords: string[] | null;
+      physical_description: string | null;
+      backstory: string | null;
       // V2 personality fields
       dominant_personality: string | null;
       secondary_traits: string[] | null;
@@ -171,6 +214,15 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       recentUsageCount: row.recent_usage_count,
       totalUsageCount: row.total_usage_count,
       lastUsedAt: row.last_used_at || undefined,
+      gender: row.gender || undefined,
+      age_category: row.age_category || undefined,
+      species_category: row.species_category || undefined,
+      profession_tags: row.profession_tags || undefined,
+      size_category: row.size_category || undefined,
+      social_class: row.social_class || undefined,
+      personality_keywords: row.personality_keywords || undefined,
+      physical_description: row.physical_description || undefined,
+      backstory: row.backstory || undefined,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       isActive: row.is_active,
@@ -673,7 +725,7 @@ export const exportCharacters = api(
 
 // ===== IMPORT CHARACTERS =====
 interface ImportCharactersRequest {
-  characters: CharacterTemplate[];
+  characters: any[];
 }
 
 export const importCharacters = api<ImportCharactersRequest, { success: boolean; imported: number }>(
@@ -691,17 +743,20 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
     const sanitized = req.characters.map((character, index) => sanitizeCharacter(character, index, now));
 
     try {
-      await storyDB.exec`BEGIN`;
-      await storyDB.exec`DELETE FROM story_characters WHERE character_id IN (SELECT id FROM character_pool)`;
-      await storyDB.exec`DELETE FROM character_pool`;
+      await using tx = await storyDB.begin();
+      await tx.exec`DELETE FROM story_characters WHERE character_id IN (SELECT id FROM character_pool)`;
+      await tx.exec`DELETE FROM character_pool`;
 
       for (const character of sanitized) {
-        await storyDB.exec`
+        await tx.exec`
           INSERT INTO character_pool (
             id, name, role, archetype, emotional_nature, visual_profile, image_url,
             max_screen_time, available_chapters, canon_settings,
             recent_usage_count, total_usage_count, last_used_at,
             is_active, created_at, updated_at,
+            gender, age_category, species_category, profession_tags,
+            size_category, social_class, personality_keywords,
+            physical_description, backstory,
             dominant_personality, secondary_traits, catchphrase, catchphrase_context,
             speech_style, emotional_triggers, quirk
           ) VALUES (
@@ -721,6 +776,15 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
             ${character.isActive},
             ${character.createdAt},
             ${character.updatedAt},
+            ${character.gender},
+            ${character.age_category},
+            ${character.species_category},
+            ${character.profession_tags},
+            ${character.size_category},
+            ${character.social_class},
+            ${character.personality_keywords},
+            ${character.physical_description || null},
+            ${character.backstory || null},
             ${character.dominantPersonality || null},
             ${character.secondaryTraits || []},
             ${character.catchphrase || null},
@@ -732,13 +796,12 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
         `;
       }
 
-      await storyDB.exec`COMMIT`;
+      await tx.commit();
       console.log(`[CharacterPool] Import completed. Inserted ${sanitized.length} characters`);
 
       return { success: true, imported: sanitized.length };
     } catch (error) {
       console.error("[CharacterPool] Import failed, rolling back:", error);
-      await storyDB.exec`ROLLBACK`;
       throw APIError.internal(`Character import failed: ${(error as Error).message}`);
     }
   }
@@ -817,6 +880,69 @@ function isValidUuid(value: string | undefined | null): boolean {
   return uuidRegex.test(value);
 }
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function toStringOrUndefined(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return undefined;
+}
+
+function toFiniteNumber(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function toInteger(value: unknown, fallback: number): number {
+  return Math.trunc(toFiniteNumber(value, fallback));
+}
+
+function toBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
+}
+
+function toDate(value: unknown, fallback: Date): Date {
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed;
+    }
+  }
+  return fallback;
+}
+
+function toNullableDate(value: unknown): Date | null {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const parsed = toDate(value, new Date("invalid"));
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
 function toNumberArray(value: unknown, fallback: number[]): number[] {
   if (!value || !Array.isArray(value)) {
     return fallback;
@@ -832,28 +958,78 @@ function toStringArray(value: unknown, fallback: string[] = []): string[] {
     return fallback;
   }
   const strings = value
-    .map((item) => String(item).trim())
+    .map(toStringOrUndefined)
+    .filter((str): str is string => Boolean(str))
+    .map((item) => item.trim())
     .filter((str) => str.length > 0);
   return strings.length > 0 ? strings : fallback;
 }
 
-function sanitizeCharacter(character: CharacterTemplate, index: number, now: Date) {
-  const id = isValidUuid(character.id) ? character.id! : crypto.randomUUID();
-  const name = (character.name || `Character ${index + 1}`).trim();
-  const role = (character.role || "companion").trim();
-  const archetype = (character.archetype || "support").trim();
+function normalizeEnum(value: unknown, allowed: readonly string[], fallback: string): string {
+  const normalized = toStringOrUndefined(value)?.toLowerCase();
+  return normalized && allowed.includes(normalized) ? normalized : fallback;
+}
 
-  const emotionalNature = character.emotionalNature || { dominant: "calm", secondary: [], triggers: [] };
-  const visualProfile = character.visualProfile || {
-    description: "",
-    imagePrompt: "",
-    species: "unknown",
-    colorPalette: [],
+function inferSpeciesCategory(character: Record<string, any>, visualProfile: CharacterTemplate["visualProfile"]): string {
+  const haystack = [
+    visualProfile.species,
+    visualProfile.description,
+    character.archetype,
+    character.role,
+    character.name,
+  ]
+    .map((value) => toStringOrUndefined(value)?.toLowerCase() || "")
+    .join(" ");
+
+  if (/\b(human|child|girl|boy|knight|wizard|astronaut|detective|baker|princess|prince)\b/.test(haystack)) {
+    return "human";
+  }
+  if (/\b(golem|fairy|spirit|phantom|ghost|witch|magical|mage|sorcerer)\b/.test(haystack)) {
+    return "magical_creature";
+  }
+  if (/\b(troll|dragon|giant|unicorn|mythic)\b/.test(haystack)) {
+    return "mythical";
+  }
+  if (/\b(fire|water|wind|earth|elemental)\b/.test(haystack)) {
+    return "elemental";
+  }
+  if (/\b(duck|squirrel|fox|bird|cat|dog|wolf|bear|animal)\b/.test(haystack)) {
+    return "animal";
+  }
+  return "any";
+}
+
+function sanitizeCharacter(character: any, index: number, now: Date) {
+  const source = isRecord(character) ? character : {};
+  const requestedId = toStringOrUndefined(source.id);
+  const id = isValidUuid(requestedId) ? requestedId! : crypto.randomUUID();
+  const name = toStringOrUndefined(source.name) || `Character ${index + 1}`;
+  const role = toStringOrUndefined(source.role) || "companion";
+  const archetype = toStringOrUndefined(source.archetype) || "support";
+
+  const emotionalSource = isRecord(source.emotionalNature) ? source.emotionalNature : {};
+  const emotionalNature = {
+    dominant: toStringOrUndefined(emotionalSource.dominant) || "calm",
+    secondary: toStringArray(emotionalSource.secondary),
+    triggers: toStringArray(emotionalSource.triggers),
   };
 
-  const createdAt = character.createdAt ? new Date(character.createdAt) : now;
-  const updatedAt = character.updatedAt ? new Date(character.updatedAt) : now;
-  const lastUsedAt = character.lastUsedAt ? new Date(character.lastUsedAt) : null;
+  const visualSource = isRecord(source.visualProfile) ? source.visualProfile : {};
+  const visualProfile = {
+    description: toStringOrUndefined(visualSource.description) || "",
+    imagePrompt: toStringOrUndefined(visualSource.imagePrompt),
+    species: toStringOrUndefined(visualSource.species) || "unknown",
+    colorPalette: toStringArray(visualSource.colorPalette),
+  };
+
+  const createdAt = toDate(source.createdAt, now);
+  const updatedAt = toDate(source.updatedAt, now);
+  const lastUsedAt = toNullableDate(source.lastUsedAt);
+  const speciesCategory = normalizeEnum(
+    source.species_category,
+    ["human", "humanoid", "animal", "magical_creature", "mythical", "elemental", "any"],
+    inferSpeciesCategory(source, visualProfile)
+  );
 
   return {
     id,
@@ -862,23 +1038,40 @@ function sanitizeCharacter(character: CharacterTemplate, index: number, now: Dat
     archetype,
     emotionalNature,
     visualProfile,
-    imageUrl: character.imageUrl || null,
-    maxScreenTime: Number.isFinite(character.maxScreenTime) ? character.maxScreenTime : 50,
-    availableChapters: toNumberArray(character.availableChapters, [1, 2, 3, 4, 5]),
-    canonSettings: toStringArray(character.canonSettings),
-    recentUsageCount: character.recentUsageCount ?? 0,
-    totalUsageCount: character.totalUsageCount ?? 0,
+    imageUrl: toStringOrUndefined(source.imageUrl) || null,
+    maxScreenTime: toInteger(source.maxScreenTime, 50),
+    availableChapters: toNumberArray(source.availableChapters, [1, 2, 3, 4, 5]),
+    canonSettings: toStringArray(source.canonSettings),
+    recentUsageCount: toInteger(source.recentUsageCount ?? source.usageCount, 0),
+    totalUsageCount: toInteger(source.totalUsageCount ?? source.usageCount, 0),
     lastUsedAt,
-    isActive: character.isActive ?? true,
+    isActive: toBoolean(source.isActive, true),
     createdAt,
     updatedAt,
+    gender: normalizeEnum(source.gender, ["male", "female", "neutral", "any"], "any"),
+    age_category: normalizeEnum(
+      source.age_category,
+      ["child", "teenager", "young_adult", "adult", "elder", "ageless", "any"],
+      "any"
+    ),
+    species_category: speciesCategory,
+    profession_tags: toStringArray(source.profession_tags),
+    size_category: normalizeEnum(source.size_category, ["tiny", "small", "medium", "large", "giant", "any"], "medium"),
+    social_class: normalizeEnum(
+      source.social_class,
+      ["royalty", "nobility", "merchant", "craftsman", "commoner", "outcast", "any"],
+      "any"
+    ),
+    personality_keywords: toStringArray(source.personality_keywords),
+    physical_description: toStringOrUndefined(source.physical_description) || visualProfile.description || null,
+    backstory: toStringOrUndefined(source.backstory) || null,
     // V2 personality fields
-    dominantPersonality: character.dominantPersonality || undefined,
-    secondaryTraits: character.secondaryTraits || undefined,
-    catchphrase: character.catchphrase || undefined,
-    catchphraseContext: character.catchphraseContext || undefined,
-    speechStyle: character.speechStyle || undefined,
-    emotionalTriggers: character.emotionalTriggers || undefined,
-    quirk: character.quirk || undefined,
+    dominantPersonality: toStringOrUndefined(source.dominantPersonality),
+    secondaryTraits: toStringArray(source.secondaryTraits),
+    catchphrase: toStringOrUndefined(source.catchphrase),
+    catchphraseContext: toStringOrUndefined(source.catchphraseContext),
+    speechStyle: toStringArray(source.speechStyle),
+    emotionalTriggers: toStringArray(source.emotionalTriggers),
+    quirk: toStringOrUndefined(source.quirk),
   };
 }
