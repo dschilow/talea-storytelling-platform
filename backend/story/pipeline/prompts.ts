@@ -3,6 +3,7 @@ import type { StorySoul } from "./schemas/story-soul";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 import { isGeminiFlashFamilyModel } from "./model-routing";
 import { buildEndingPatternPromptBlock, ENDING_PATTERN_MAP } from "./ending-patterns";
+import { buildContentLibraryPromptBlock, type ContentLibraryBinding } from "./content-library/concrete-binding";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -1284,6 +1285,8 @@ export function buildV8BlueprintPrompt(input: {
   previousAdventure?: string;
   customStoryBeats?: string;
   storySoul?: StorySoul;
+  // Greenfield: content-library binding (skeleton + antagonist + artifact + anchors)
+  contentLibraryBinding?: ContentLibraryBinding;
 }): string {
   const { chapterCount, genre, setting, ageGroup, cast, dna, directives } = input;
   const isGerman = true;
@@ -1331,9 +1334,14 @@ export function buildV8BlueprintPrompt(input: {
 - Every supportingCast figure from the Soul MUST appear on stage at or after firstAppearanceChapter.`
     : "";
 
+  // Greenfield: content-library binding block (skeleton + archetype + artifact + anchors)
+  const contentLibraryBlock = input.contentLibraryBinding
+    ? `\n${buildContentLibraryPromptBlock(input.contentLibraryBinding)}\n`
+    : "";
+
   return `Plan a ${genre} story set in "${setting}" for children ages ${ageGroup}.
 Produce exactly ${chapterCount} chapters.
-${soulBlock ? `\n${soulBlock}\n` : ""}
+${soulBlock ? `\n${soulBlock}\n` : ""}${contentLibraryBlock}
 CHARACTERS
 ${characterLines.join("\n")}
 ${appearanceLockBlock ? `\nGERMAN APPEARANCE LOCKS\n${appearanceLockBlock}` : ""}

@@ -7,6 +7,7 @@ import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { buildV8BlueprintPrompt, buildV8BlueprintSystemPrompt, resolveLengthTargets } from "./prompts";
 import { formatBlueprintValidationIssues, validateV8Blueprint } from "./blueprint-validator";
 import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-focus";
+import { buildContentLibraryBinding } from "./content-library/concrete-binding";
 import type {
   AvatarMemoryCompressed,
   BlueprintGenerationResult,
@@ -65,6 +66,15 @@ export async function generateValidatedV8Blueprint(input: {
   const { normalizedRequest, cast, dna, directives } = input;
   const supportModel = resolveSupportTaskModel(String(normalizedRequest.rawConfig?.aiModel || ""));
   const blueprintModel = resolveBlueprintPrimaryModel(normalizedRequest.rawConfig?.aiModel, supportModel);
+  // Greenfield: content-library binding — deterministic skeleton + archetype + anchor selection.
+  // Only matches for the 2 priority genres (classical-fairy-tales, magical-worlds); otherwise undefined
+  // and the blueprint runs without binding (backward-compatible).
+  const contentLibraryBinding = buildContentLibraryBinding({
+    genre: String(normalizedRequest.rawConfig?.genre || normalizedRequest.category || ""),
+    themeTags: dna.themeTags,
+    hasArtifact: Boolean(cast.artifact),
+    settingHint: String(normalizedRequest.rawConfig?.setting || ""),
+  });
   const lengthTargets = normalizedRequest.wordBudget
     ? buildLengthTargetsFromBudget(normalizedRequest.wordBudget)
     : resolveLengthTargets({
@@ -93,6 +103,7 @@ export async function generateValidatedV8Blueprint(input: {
         customStoryBeats: normalizedRequest.rawConfig?.customPrompt,
         previousAdventure: buildPreviousAdventureLine(input.avatarMemories),
         storySoul: input.storySoul,
+        contentLibraryBinding,
       }),
       retryPrompt,
     ]
@@ -167,6 +178,7 @@ export async function generateValidatedV8Blueprint(input: {
         customStoryBeats: normalizedRequest.rawConfig?.customPrompt,
         previousAdventure: buildPreviousAdventureLine(input.avatarMemories),
         storySoul: input.storySoul,
+        contentLibraryBinding,
       }),
       retryPrompt,
       "Use stronger reasoning. Replace any abstract placeholder with concrete, child-readable story physics before returning JSON.",
@@ -228,6 +240,15 @@ export async function generateValidatedV8Blueprint(input: {
     directives,
     wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
   });
+  // Greenfield: when a content-library binding exists, enrich the fallback with
+  // skeleton-sourced concrete anchors + ending pattern so it's not generic.
+  if (contentLibraryBinding) {
+    (fallback as any).concrete_anchors = {
+      ...(fallback as any).concrete_anchors,
+      ...contentLibraryBinding.concreteAnchorDefaults,
+    };
+    (fallback as any).ending_pattern = contentLibraryBinding.recommendedEndingPattern;
+  }
   const fallbackValidation = validateV8Blueprint({
     blueprint: fallback,
     chapterCount: normalizedRequest.chapterCount,
