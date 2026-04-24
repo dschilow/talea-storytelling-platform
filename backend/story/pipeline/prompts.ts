@@ -2,6 +2,7 @@ import type { CastSet, SceneDirective, StoryDNA, TaleDNA, AvatarMemoryCompressed
 import type { StorySoul } from "./schemas/story-soul";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 import { isGeminiFlashFamilyModel } from "./model-routing";
+import { buildEndingPatternPromptBlock, ENDING_PATTERN_MAP } from "./ending-patterns";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
 // Baut ein kompaktes, einzigartiges Charakter-Profil aus den DB-Properties
@@ -1358,7 +1359,31 @@ RULES
 - Make every chapter's key_scene playable and specific enough to stage later in prose.
 - Do not invent unconfirmed appearance markers.
 - Use "preterite" for the tense field.
-- Blueprint field text may be in English. Keep names unchanged.${soulRules}
+- Blueprint field text may be in English. Keep names unchanged.
+
+MANDATORY SPRINT-1 FIELDS (hard-validated):
+
+concrete_anchors (REQUIRED, at least 3 entries):
+- Map abstract themes to concrete, child-visible, touchable story objects or actions.
+- Gruffalo principle: "trust" is not a concept — it's a specific screw, letter, or gesture.
+- Example: { "trust": "a star-shaped screw that Adrian places in Alexander's open palm",
+             "forgiveness": "the chipped blue mug they rebuild from three shards",
+             "memory": "grandma's old dust-covered workbench recipe card" }
+- Each value MUST name a specific physical object or concrete action, not a concept.
+- Writer MUST reference each anchor explicitly at least once in the final prose.
+
+antagonist_dna (REQUIRED when any chapter has an antagonist):
+- No more "appeared out of nowhere" villains. Each antagonist needs:
+  - name: exact character name
+  - motive: specific concrete want (NOT "wants power" — "wants to steal every clock in the workshop before Sunday")
+  - weakness: one visible, child-readable flaw the protagonist can exploit
+  - first_action: the antagonist's very first scene action (what does the reader SEE them do?)
+  - speech_tic: one recurring verbal habit / gesture / catchphrase tied to this character
+- Every chapter featuring the antagonist MUST consistently honor the speech_tic and motive.
+
+${buildEndingPatternPromptBlock(genre)}
+
+${soulRules}
 
 Return only the blueprint JSON.`;
 }
@@ -1457,6 +1482,19 @@ SOUL FIDELITY (HARD, checked by critic)
 `
     : "";
 
+  // Sprint 3 (MT4): ending pattern instruction — writer must realize the pattern
+  // chosen by the blueprint in the LAST paragraph of the final chapter.
+  const endingPatternName = String((input.blueprint as any)?.ending_pattern || "").trim();
+  const endingPattern = ENDING_PATTERN_MAP.get(endingPatternName as any);
+  const endingPatternBlock = endingPattern
+    ? `
+ENDING PATTERN (MANDATORY, checked by gate)
+Pattern: "${endingPattern.name}" — ${endingPattern.label}
+${endingPattern.writerInstruction}
+Realize this in the LAST paragraph of chapter ${input.chapterCount}. Do not explain the moral. Show the moment.
+`
+    : "";
+
   return `Use the following internal blueprint to write the final children's story.
 ${soulBlock ? `\n${soulBlock}\n` : ""}
 WORD BUDGET
@@ -1495,7 +1533,7 @@ HARD RULES
 - never collapse a full chapter into one string
 - make every humor beat in the blueprint visible on the page
 - if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
-- no markdown, no comments, no extra text.${soulFidelityBlock}`;
+- no markdown, no comments, no extra text.${soulFidelityBlock}${endingPatternBlock}`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {

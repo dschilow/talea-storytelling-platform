@@ -1,4 +1,5 @@
 import type { BlueprintValidationIssue, BlueprintValidationResult, StoryBlueprintV8 } from "./types";
+import { ENDING_PATTERN_MAP, type EndingPatternName } from "./ending-patterns";
 
 const EXPECTED_ARCS = ["SETUP", "DISCOVERY", "TURNING_POINT", "DARKEST_MOMENT", "LANDING"] as const;
 const SUSPICIOUS_ENDINGS = new Set([
@@ -195,10 +196,110 @@ export function validateV8Blueprint(input: {
     push("ICONIC_SCENE_TOO_ABSTRACT", "iconic_scene must describe a concrete physical moment children can replay.");
   }
 
+  // Sprint 1 (MT1): Concrete-Anker-Map is mandatory — at least 3 entries mapping
+  // abstract themes to concrete, graspable story-physics (e.g. "trust" → "a star-shaped
+  // screw Adrian places in Alexander's hand"). Rejects responses where this is missing.
+  const concreteAnchors = (blueprint as any).concrete_anchors;
+  if (!concreteAnchors || typeof concreteAnchors !== "object" || Array.isArray(concreteAnchors)) {
+    push(
+      "CONCRETE_ANCHORS_MISSING",
+      "concrete_anchors is missing. Provide an object mapping at least 3 abstract themes (e.g. \"trust\", \"forgiveness\", \"courage\") to concrete story-physics (e.g. \"a star-shaped screw handed over\"). Abstract themes must be grounded.",
+    );
+  } else {
+    const entries = Object.entries(concreteAnchors).filter(
+      ([key, value]) => hasMeaningfulText(key) && hasMeaningfulText(value),
+    );
+    if (entries.length < 3) {
+      push(
+        "CONCRETE_ANCHORS_TOO_FEW",
+        `concrete_anchors must have at least 3 meaningful entries, got ${entries.length}. Each abstract theme needs a concrete story-physics counterpart.`,
+      );
+    }
+    for (const [abstract, anchor] of entries) {
+      if (looksTooAbstract(anchor)) {
+        push(
+          "CONCRETE_ANCHOR_TOO_ABSTRACT",
+          `concrete_anchors["${abstract}"] = "${String(anchor).slice(0, 60)}..." is itself too abstract. It must name a specific, physical, child-visible object or action.`,
+        );
+      }
+    }
+  }
+
+  // Sprint 3 (MT4): Ending-Pattern is mandatory. Blueprint picks one of 8 curated
+  // patterns; writer will realize it in the final chapter, gate verifies it.
+  const endingPattern = (blueprint as any).ending_pattern;
+  if (!hasMeaningfulText(endingPattern)) {
+    push(
+      "ENDING_PATTERN_MISSING",
+      "ending_pattern is missing. Pick exactly one: return_home_changed, shared_moment, object_transformed, revealed_truth, warm_callback, resolved_conflict_quiet, circle_closed, promise_kept.",
+    );
+  } else if (!ENDING_PATTERN_MAP.has(String(endingPattern).trim() as EndingPatternName)) {
+    push(
+      "ENDING_PATTERN_INVALID",
+      `ending_pattern "${endingPattern}" is not one of the 8 curated patterns. Valid: ${[...ENDING_PATTERN_MAP.keys()].join(", ")}.`,
+    );
+  }
+
+  // Sprint 1 (MT2): Antagonist-DNA is mandatory whenever the story has an antagonist.
+  // Detection: any chapter active_characters contains a name not in growth_child / pov_character
+  // and the narrative uses obstacle-phrases suggesting an opponent.
+  const antagonistDna = (blueprint as any).antagonist_dna;
+  const hasPotentialAntagonist = detectPotentialAntagonist(chapters, blueprint);
+  if (hasPotentialAntagonist || antagonistDna) {
+    if (!antagonistDna || typeof antagonistDna !== "object" || Array.isArray(antagonistDna)) {
+      push(
+        "ANTAGONIST_DNA_MISSING",
+        "antagonist_dna is missing. Story has an antagonist — provide { name, motive, weakness, first_action, speech_tic }. No more 'appeared out of nowhere' villains.",
+      );
+    } else {
+      for (const field of ["name", "motive", "weakness", "first_action", "speech_tic"] as const) {
+        if (!hasMeaningfulText(antagonistDna[field])) {
+          push(
+            "ANTAGONIST_DNA_FIELD_MISSING",
+            `antagonist_dna.${field} is missing or too short. Each DNA field must be a concrete, actionable sentence.`,
+          );
+        }
+      }
+      if (hasMeaningfulText(antagonistDna.motive) && looksTooAbstract(antagonistDna.motive)) {
+        push(
+          "ANTAGONIST_MOTIVE_TOO_ABSTRACT",
+          "antagonist_dna.motive is too abstract. Motive must be a specific, concrete want (e.g. \"wants to steal every clock in town before midnight\"), not \"wants power\".",
+        );
+      }
+    }
+  }
+
   return {
     valid: issues.every(issue => issue.severity !== "ERROR"),
     issues,
   };
+}
+
+/**
+ * Best-effort detection whether the story has a narrative antagonist.
+ * Signals: a character appears in multiple chapters as "active" but is not the POV
+ * or growth child, or obstacle phrases contain conflict/opposition language.
+ */
+function detectPotentialAntagonist(chapters: any[], blueprint: any): boolean {
+  const povName = normalizeName(blueprint?.pov_character);
+  const growthName = normalizeName(blueprint?.error_and_repair?.who);
+  const excluded = new Set([povName, growthName].filter(Boolean));
+
+  const recurringActive = new Map<string, number>();
+  for (const chapter of chapters) {
+    const actives = Array.isArray(chapter?.active_characters) ? chapter.active_characters : [];
+    for (const a of actives) {
+      const key = normalizeName(a);
+      if (!key || excluded.has(key)) continue;
+      recurringActive.set(key, (recurringActive.get(key) || 0) + 1);
+    }
+  }
+  for (const count of recurringActive.values()) {
+    if (count >= 2) return true;
+  }
+
+  const obstaclePattern = /\b(feind|gegner|schurke|boes|villain|antagonist|enemy|opponent|fluch|curse)\b/i;
+  return chapters.some(chapter => obstaclePattern.test(String(chapter?.obstacle || "")));
 }
 
 export function formatBlueprintValidationIssues(issues: BlueprintValidationIssue[]): string {

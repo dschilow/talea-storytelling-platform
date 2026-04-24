@@ -706,6 +706,8 @@ export class StoryPipelineOrchestrator {
           artifactArc: canonFusionPlan.artifactArc,
           humorLevel,
           storySoul,
+          concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
+          endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
         });
         qualityReport = toQualitySummary(cachedQuality, 0);
         criticReport = await runSemanticCritic({
@@ -788,6 +790,8 @@ export class StoryPipelineOrchestrator {
               artifactArc: canonFusionPlan.artifactArc,
               humorLevel,
               storySoul,
+              concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
+              endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
             }),
             0,
           );
@@ -861,10 +865,46 @@ export class StoryPipelineOrchestrator {
               : candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
               ? Math.max(maxSelectiveSurgeryEdits, 2)
               : maxSelectiveSurgeryEdits;
+          // Sprint 2 (QW3): determine chapters that need HARD REWRITE rather than
+          // patch-only surgery. Trigger conditions (OR):
+          //   - critic rubric age_appropriateness < 6
+          //   - critic rubric readability < 6
+          //   - quality gate AGE_FIT_SENTENCE_LENGTH fired ERROR on this chapter
+          // When any condition is true, all chapters with AGE_FIT/readability issues
+          // are rewritten with the aggressive-restructure prompt. Root cause (logs
+          // 2026-04-23): surgery patched only the English fragment, left Metaphor-fog.
+          const ageFitLow =
+            (candidateCritic.rubricScores?.age_appropriateness?.score ?? 10) < 6
+            || (candidateCritic.rubricScores?.readability?.score ?? 10) < 6;
+          const hardRewriteChapters = new Set<number>();
+          if (ageFitLow) {
+            const candidateIssues = (candidateQuality as any)?.issues as Array<{ gate: string; chapter: number; severity: string }> | undefined;
+            if (Array.isArray(candidateIssues)) {
+              for (const issue of candidateIssues) {
+                if (
+                  issue.severity === "ERROR"
+                  && (issue.gate === "AGE_FIT_SENTENCE_LENGTH"
+                    || issue.gate === "READABILITY_COMPLEXITY"
+                    || issue.gate === "LAST_SENTENCE_PIPELINE_ARTIFACT")
+                  && issue.chapter > 0
+                ) {
+                  hardRewriteChapters.add(issue.chapter);
+                }
+              }
+            }
+            // Fallback: if rubric is low but no specific chapter issues, rewrite
+            // all chapters that currently have local patch tasks.
+            if (hardRewriteChapters.size === 0) {
+              for (const task of candidateCritic.patchTasks) {
+                if (task.chapter > 0) hardRewriteChapters.add(task.chapter);
+              }
+            }
+          }
+
           if (
             surgeryEnabled
-            && candidateCritic.patchTasks.length > 0
-            && hasLocalPatchTask
+            && (candidateCritic.patchTasks.length > 0 || hardRewriteChapters.size > 0)
+            && (hasLocalPatchTask || hardRewriteChapters.size > 0)
             && nearReleaseBand
             && rescueableQualityBand
             && (!candidateCritic.releaseReady || qualityErrors > 0)
@@ -879,9 +919,10 @@ export class StoryPipelineOrchestrator {
               draft: candidateDraft,
               patchTasks: candidateCritic.patchTasks,
               stylePackText,
-              maxEdits: candidateSurgeryEdits,
+              maxEdits: Math.max(candidateSurgeryEdits, hardRewriteChapters.size),
               model: resolveSurgeryModelForPipeline(normalized.rawConfig?.aiModel),
               candidateTag,
+              hardRewriteChapters,
             });
 
             if (surgery.changed) {
@@ -904,6 +945,8 @@ export class StoryPipelineOrchestrator {
                   artifactArc: canonFusionPlan.artifactArc,
                   humorLevel,
                   storySoul,
+                  concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
+                  endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
                 }),
                 candidateQuality?.rewriteAttempts ?? 0,
               );
@@ -981,23 +1024,33 @@ export class StoryPipelineOrchestrator {
 
           if (adaptiveSecondCandidate && candidateIdx === 0) {
             const candidateErrors = Number(candidateQuality?.errorCount ?? 0);
+            // Sprint 2 (QW5): honest candidate-fallback. Root cause (logs 2026-04-23):
+            // previous gates of "goodEnough at 7.3" accepted mediocre first drafts and
+            // never spawned a second candidate, so Surgery had to carry all the load
+            // alone. Policy now: score < 7.5 ⇒ always try a second candidate, provided
+            // the first is in the rescueable band (≥ 6.0) — otherwise giving up is
+            // cheaper than burning a second run on a hopeless draft.
+            const HONEST_FALLBACK_FLOOR = 7.5;
             const firstCandidateStrong =
               candidateCritic.releaseReady &&
-              candidateCritic.overallScore >= criticMinScore &&
+              candidateCritic.overallScore >= Math.max(HONEST_FALLBACK_FLOOR, criticMinScore) &&
               candidateErrors === 0;
-            const firstCandidateGoodEnough =
-              candidateCritic.overallScore >= Math.max(7.3, criticMinScore - 0.9) &&
-              candidateErrors <= 2;
-            if (firstCandidateStrong || firstCandidateGoodEnough) {
+            if (firstCandidateStrong) {
               break;
             }
+            // Second candidate WORTH IT band: 6.0 ≤ score < 7.5 with ≤ 6 errors.
+            // Below 6.0 the draft is too broken for a second candidate to improve;
+            // above 7.5 it already meets honest-quality threshold.
             const firstCandidateRetryWorthIt =
-              candidateCritic.overallScore >= Math.max(6.4, criticMinScore - 1.8)
-              && candidateCritic.overallScore < Math.max(7.3, criticMinScore - 0.9)
-              && candidateErrors <= 5;
+              candidateCritic.overallScore >= 6.0
+              && candidateCritic.overallScore < HONEST_FALLBACK_FLOOR
+              && candidateErrors <= 6;
             if (!firstCandidateRetryWorthIt) {
               break;
             }
+            console.log(
+              `[orchestrator] QW5 honest-fallback: first candidate score=${candidateCritic.overallScore.toFixed(2)} errors=${candidateErrors} → spawning second candidate.`,
+            );
           }
         }
 
@@ -1672,6 +1725,8 @@ function buildSkippedCriticReport(model: string): SemanticCriticReport {
       emotional_arc: { score: 0, reasoning: "" },
       iconic_scene: { score: 0, reasoning: "" },
       chapter5_quality: { score: 0, reasoning: "" },
+      concrete_anchor_density: { score: 0, reasoning: "" },
+      antagonist_motivation_clarity: { score: 0, reasoning: "" },
     },
     verdict: "reject",
     releaseReady: false,

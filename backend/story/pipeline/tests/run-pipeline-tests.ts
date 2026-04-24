@@ -306,6 +306,12 @@ function buildValidV8Blueprint(): StoryBlueprintV8 {
       chapter: 3,
       description: "Alexander reisst die Arme hoch, ruft seinen Plan hinaus und friert ein, als die Runen antworten.",
     },
+    concrete_anchors: {
+      trust: "die kleine Muenze, die Alexander und Adrian zwischen den Fingern hin- und herreichen",
+      mistake: "der eingefrorene Moment nach Alexanders Ruf im Kreis",
+      repair: "Alexander laesst Adrian zuerst sprechen und legt die Muenze in die Mitte",
+    },
+    ending_pattern: "warm_callback",
   };
 }
 

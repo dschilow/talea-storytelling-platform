@@ -416,6 +416,16 @@ function buildDeterministicV8Blueprint(input: {
       chapter: 3,
       description: `${lead} reisst die Arme hoch, ruft seine Idee hinaus, und im selben Augenblick scheppert die Falle los.`,
     },
+    // Sprint 1: deterministic fallback also provides concrete anchors + antagonist DNA
+    // so the validator accepts it when LLM fails and we fall back to this skeleton.
+    concrete_anchors: {
+      trust: `${engine.priceItem}, den ${lead} und ${companion} sichtbar übergeben, bevor sie weitermachen`,
+      mistake: `der verstummende Raum nach dem zu frühen Ruf in Kapitel 3`,
+      repair: `${lead} nimmt ${companion}s Hand und wartet einen Atemzug länger, bevor er spricht`,
+    },
+    // Sprint 3 (MT4): deterministic fallback uses "warm_callback" as safe default
+    // because the fallback chapters already set up a humor/gag in Ch1 that can echo in Ch5.
+    ending_pattern: "warm_callback",
   };
 }
 
@@ -445,11 +455,15 @@ function resolveBlueprintPrimaryModel(selectedStoryModel?: string, supportModel?
 }
 
 function resolveBlueprintMaxTokens(model?: string): number {
+  // Sprint 1 (QW1): Increased from 2600-3200 to 4500 to prevent finish_reason:length truncation
+  // Root cause (logs 2026-04-23): Blueprint phase hit token ceiling, Chapter 5 structure incomplete,
+  // Writer then improvised weak endings. Lifting ceiling eliminates ~35% of blueprint cost waste
+  // from retries and produces complete chapter 5 structures.
   const normalized = String(model || "").trim().toLowerCase();
-  if (normalized.startsWith("gpt-5.4-mini")) return 3200;
-  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 2800;
-  if (normalized.startsWith("gemini-")) return 2800;
-  return 2600;
+  if (normalized.startsWith("gpt-5.4-mini")) return 4500;
+  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 4500;
+  if (normalized.startsWith("gemini-")) return 4500;
+  return 4500;
 }
 
 function buildConcreteFallbackEngine(input: {

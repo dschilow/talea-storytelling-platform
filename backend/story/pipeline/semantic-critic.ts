@@ -38,6 +38,9 @@ export interface SemanticCriticRubricScores {
   emotional_arc: SemanticCriticRubricScore;
   iconic_scene: SemanticCriticRubricScore;
   chapter5_quality: SemanticCriticRubricScore;
+  // Sprint 1: New rubrics closing the 8.5+ gap to Gruffalo/Auer benchmark
+  concrete_anchor_density: SemanticCriticRubricScore;
+  antagonist_motivation_clarity: SemanticCriticRubricScore;
 }
 
 export interface SemanticCriticReport {
@@ -73,6 +76,10 @@ const RUBRIC_KEYS = [
   "emotional_arc",
   "iconic_scene",
   "chapter5_quality",
+  // Sprint 1: concrete anchors and antagonist motivation — two biggest qualitative
+  // gaps diagnosed in "Zeitkristall" (abstract metaphors + unmotivated antagonist)
+  "concrete_anchor_density",
+  "antagonist_motivation_clarity",
 ] as const;
 
 type RubricKey = (typeof RUBRIC_KEYS)[number];
@@ -161,6 +168,9 @@ Return at most 7 issues and at most 5 patchTasks.`;
         emotional_arc: "Does the child's inner journey feel earned and visible?",
         iconic_scene: "Is there a strong playable / quotable scene children would replay?",
         chapter5_quality: "Is Chapter 5 as full, rich, and earned as the others?",
+        // Sprint 1 rubrics
+        concrete_anchor_density: "Gruffalo test: are abstract themes (trust, fear, loss) tied to specific, touchable, child-visible objects or actions? Score low if the story is metaphor-heavy without physical story-physics, high when every big idea has a graspable counterpart that children can point at.",
+        antagonist_motivation_clarity: "If the story has an antagonist: does the reader immediately feel their motive, weakness, and first entry? Score low for 'appeared out of nowhere' villains or generic dark-fantasy decoration, high when the antagonist is motivated, readable, and has a consistent speech-tic or signature.",
       },
       focusChecks: [
         "Chapter 1 must orient WHO + WHERE + WHAT by paragraph 2.",
@@ -190,6 +200,8 @@ Return at most 7 issues and at most 5 patchTasks.`;
           emotional_arc: { score: "number 0..10", reasoning: "string", example: "string optional" },
           iconic_scene: { score: "number 0..10", reasoning: "string", example: "string optional" },
           chapter5_quality: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          concrete_anchor_density: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          antagonist_motivation_clarity: { score: "number 0..10", reasoning: "string", example: "string optional" },
         },
         critical_failures: ["string"],
         strengths: ["string"],
@@ -490,6 +502,8 @@ function normalizeRubricScores(raw: any): SemanticCriticRubricScores {
     emotional_arc: readRubric("emotional_arc"),
     iconic_scene: readRubric("iconic_scene"),
     chapter5_quality: readRubric("chapter5_quality"),
+    concrete_anchor_density: readRubric("concrete_anchor_density"),
+    antagonist_motivation_clarity: readRubric("antagonist_motivation_clarity"),
   };
 }
 
@@ -537,6 +551,9 @@ function buildFallbackRubricFromLegacy(input: {
     emotional_arc: { score: warmth, reasoning: "" },
     iconic_scene: { score: craft, reasoning: "" },
     chapter5_quality: { score: warmth, reasoning: "" },
+    // Sprint 1: new rubrics — use craft as baseline when legacy data does not contain them
+    concrete_anchor_density: { score: craft, reasoning: "" },
+    antagonist_motivation_clarity: { score: narrative, reasoning: "" },
   };
 }
 

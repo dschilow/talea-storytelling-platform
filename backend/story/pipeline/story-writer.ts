@@ -549,6 +549,11 @@ export class LlmStoryWriter implements StoryWriter {
     storySoul?: import("./schemas/story-soul").StorySoul;
   }): Promise<{ draft: StoryDraft; usage?: TokenUsage; qualityReport?: any; costEntries?: StoryCostEntry[] }> {
     const { normalizedRequest, cast, dna, directives, promptVersion, blueprintV8, strict, stylePackText, fusionSections, avatarMemories, generationSeed, candidateTag, storySoul } = input;
+    // Sprint 1 (MT1): extract concrete_anchors from V8 blueprint for CONCRETE_ANCHOR_PRESENCE gate.
+    // Available only for V8 stories; older versions pass undefined and the gate is a no-op.
+    const concreteAnchors = (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined;
+    // Sprint 3 (MT4): extract ending_pattern from V8 blueprint for ENDING_PATTERN_MATCH gate.
+    const endingPattern = (blueprintV8 as any)?.ending_pattern as string | undefined;
     const rawConfig = normalizedRequest.rawConfig as any;
     const requestedModel = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
     const model = isClaudeFamilyModel(requestedModel)
@@ -1230,6 +1235,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       wordBudget: normalizedRequest.wordBudget,
       humorLevel,
       storySoul,
+      concreteAnchors,
+      endingPattern,
     });
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1559,6 +1566,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
           storySoul,
+          concreteAnchors,
+          endingPattern,
         });
       }
     }
@@ -1587,6 +1596,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
           storySoul,
+          concreteAnchors,
+          endingPattern,
         });
         errorIssues = qualityReport.issues.filter(i => i.severity === "ERROR");
         console.log(`[story-writer] Applied deterministic trim before rewrite. Remaining errors: ${errorIssues.length}`);
@@ -1790,6 +1801,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         wordBudget: normalizedRequest.wordBudget,
         humorLevel,
         storySoul,
+        concreteAnchors,
+        endingPattern,
       });
 
       if (isRewriteQualityBetter(qualityReport, revisedReport)) {
@@ -1849,6 +1862,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             wordBudget: normalizedRequest.wordBudget,
             humorLevel,
             storySoul,
+            concreteAnchors,
+            endingPattern,
           });
         }
       }
@@ -1889,6 +1904,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
           storySoul,
+          concreteAnchors,
+          endingPattern,
         });
 
         if (isWarningPolishBetter(qualityReport, polishedReport)) {
@@ -2130,6 +2147,20 @@ function extractDraftFromChapterArray(
         ? ch.paragraphs.filter(Boolean).join("\n\n")  // new format
         : (ch.text || ""),                             // legacy fallback
     }));
+
+    // Bug-fix: LLM sometimes emits duplicate or non-sequential chapter numbers
+    // (e.g. "Kapitel 5" twice). If the numbers aren't a clean 1..N sequence,
+    // renumber by array position so downstream gates + readers see Kapitel 1..N.
+    const expectedNumbers = chapters.map((_, i) => i + 1);
+    const actualNumbers = chapters.map(ch => ch.chapter);
+    const hasDuplicates = new Set(actualNumbers).size !== actualNumbers.length;
+    const isSequential = actualNumbers.every((n, i) => n === expectedNumbers[i]);
+    if (hasDuplicates || !isSequential) {
+      console.warn(
+        `[story-writer] Chapter numbering anomaly detected (chapters=[${actualNumbers.join(",")}]), renumbering positionally 1..${chapters.length}`,
+      );
+      chapters = chapters.map((ch, idx) => ({ ...ch, chapter: idx + 1 }));
+    }
   }
 
   if (chapters.length < directives.length) {

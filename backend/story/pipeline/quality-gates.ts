@@ -4,6 +4,8 @@ import type { StorySoul } from "./schemas/story-soul";
 import { ALL_BANNED_PHRASES } from "./canon-fusion";
 import { findTemplatePhraseMatches } from "./template-phrases";
 import { getChildFocusNames, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
+import { scoreEndingPatternMatch, type EndingPatternName } from "./ending-patterns";
+import { computeReadabilityReport, REFERENCE_CORPUS_TARGETS, type ReadabilityReport } from "./reference-corpus";
 
 export interface QualityIssue {
   gate: string;
@@ -3330,6 +3332,415 @@ function levenshteinDistance(a: string, b: string): number {
   return dp[m][n];
 }
 
+// ─── Sprint 1 Gate: AGE_FIT_SENTENCE_LENGTH ─────────────────────────────────────
+// Hard floor for age-appropriate sentence length. Stricter than READABILITY_COMPLEXITY
+// (which only WARNs). For ages 6-8: avg sentence ≤ 11 words, <5% clauses with complex
+// subjunctive/embedded syntax. Triggers as ERROR → forces rewrite.
+//
+// Why: Critic-Logs 2026-04-23 diagnosed "sentence structures too complex for ages 6-8"
+// but Surgery did not fix it. Problem: only WARN-level in READABILITY_COMPLEXITY.
+function gateAgeFitSentenceLength(
+  draft: StoryDraft,
+  language: string,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!ageRange) return issues;
+  const isDE = language === "de";
+  const ageMax = ageRange.max;
+
+  // Hard thresholds per age group (strict, Gruffalo-level benchmarks)
+  const maxAvg = ageMax <= 5 ? 8 : ageMax <= 8 ? 11 : 15;
+  const maxClauseRatio = ageMax <= 5 ? 0.03 : ageMax <= 8 ? 0.05 : 0.10;
+  const hardCapSingleSentence = ageMax <= 5 ? 18 : ageMax <= 8 ? 22 : 30;
+
+  // Pattern for subjunctive/embedded clauses (German-centric)
+  const complexClausePattern = isDE
+    ? /\b(als w(?:ä|ae)re|w(?:ä|ae)hrend|obgleich|sofern|nachdem|bevor|w(?:ä|ae)hrenddessen|worauf(?:hin)?|wogegen|wobei)\b/gi
+    : /\b(as if|whereas|although|whilst|whereupon|inasmuch)\b/gi;
+
+  for (const ch of draft.chapters) {
+    const sentences = splitSentences(ch.text);
+    if (sentences.length === 0) continue;
+    const wordCounts = sentences.map(s => countWords(s)).filter(n => n > 0);
+    if (wordCounts.length === 0) continue;
+
+    const avg = wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length;
+    if (avg > maxAvg) {
+      issues.push({
+        gate: "AGE_FIT_SENTENCE_LENGTH",
+        chapter: ch.chapter,
+        code: "AVG_SENTENCE_TOO_LONG_HARD",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: Satzschnitt ${avg.toFixed(1)} Woerter (Alter ${ageMax} max ${maxAvg}). Zu komplex.`
+          : `Chapter ${ch.chapter}: avg sentence ${avg.toFixed(1)} words (age ${ageMax} max ${maxAvg}). Too complex.`,
+        severity: "ERROR",
+      });
+    }
+
+    const veryLong = wordCounts.filter(n => n > hardCapSingleSentence).length;
+    if (veryLong > 0) {
+      issues.push({
+        gate: "AGE_FIT_SENTENCE_LENGTH",
+        chapter: ch.chapter,
+        code: "SENTENCE_HARD_CAP_EXCEEDED",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: ${veryLong} Satz/Saetze > ${hardCapSingleSentence} Woerter (Alter ${ageMax}).`
+          : `Chapter ${ch.chapter}: ${veryLong} sentence(s) > ${hardCapSingleSentence} words (age ${ageMax}).`,
+        severity: "ERROR",
+      });
+    }
+
+    const complexMatches = (ch.text.match(complexClausePattern) || []).length;
+    const clauseRatio = complexMatches / Math.max(1, sentences.length);
+    if (clauseRatio > maxClauseRatio) {
+      issues.push({
+        gate: "AGE_FIT_SENTENCE_LENGTH",
+        chapter: ch.chapter,
+        code: "COMPLEX_CLAUSE_OVERUSE",
+        message: isDE
+          ? `Kapitel ${ch.chapter}: ${Math.round(clauseRatio * 100)}% komplexe Nebensaetze (Alter ${ageMax} max ${Math.round(maxClauseRatio * 100)}%).`
+          : `Chapter ${ch.chapter}: ${Math.round(clauseRatio * 100)}% complex subordinate clauses (age ${ageMax} max ${Math.round(maxClauseRatio * 100)}%).`,
+        severity: "ERROR",
+      });
+    }
+  }
+
+  return issues;
+}
+
+// ─── Sprint 1 Gate: LAST_SENTENCE_PIPELINE_ARTIFACT ─────────────────────────────
+// Hard regex block for pipeline-artifact endings that leaked into finished stories.
+// Examples from "Zeitkristall" (2026-04-23): "ganz nah am Kapitel-1 Ziel", "damit
+// endete die Geschichte", "trotzdem weiter". These are internal planning phrases,
+// not publication-grade book endings.
+function gateLastSentencePipelineArtifact(
+  draft: StoryDraft,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+
+  // Forbidden phrases that signal pipeline leakage or weak endings
+  const bannedEndingPatterns = isDE
+    ? [
+        /ganz nah am\s+(kapitel|ziel)/i,
+        /damit endete (?:die|das|der)\s+(geschichte|kapitel|abschnitt)/i,
+        /trotzdem (?:weiter|mussten)/i,
+        /\bEnde\s+der\s+Geschichte\.?$/i,
+        /\b(?:irgendwie|irgendwo|irgendwann) (?:weiter|ging es weiter)/i,
+        /\bkapitel\s*(\d+)\s*ziel/i,
+        /\bund damit war (?:alles|es) (?:vorbei|zu ende)/i,
+      ]
+    : [
+        /\bthe end of the story\b/i,
+        /\bclose to the chapter\s*\d+\s*goal/i,
+        /\band that was the end\b/i,
+      ];
+
+  const lastChapter = draft.chapters[draft.chapters.length - 1];
+  if (!lastChapter) return issues;
+
+  const sentences = splitSentences(lastChapter.text);
+  if (sentences.length === 0) return issues;
+
+  // Check last 3 sentences (ending zone)
+  const endingZone = sentences.slice(-3).join(" ");
+
+  for (const pattern of bannedEndingPatterns) {
+    const match = endingZone.match(pattern);
+    if (match) {
+      issues.push({
+        gate: "LAST_SENTENCE_PIPELINE_ARTIFACT",
+        chapter: lastChapter.chapter,
+        code: "PIPELINE_PHRASE_IN_ENDING",
+        message: isDE
+          ? `Kapitel ${lastChapter.chapter}: Pipeline-Artefakt-Phrase im Ende erkannt: "${match[0]}". Muss umgeschrieben werden.`
+          : `Chapter ${lastChapter.chapter}: pipeline artifact phrase in ending: "${match[0]}". Must be rewritten.`,
+        severity: "ERROR",
+      });
+    }
+  }
+
+  // Additional check: ending must not be meta-commentary on the story itself
+  const lastSentence = sentences[sentences.length - 1] || "";
+  const metaPattern = isDE
+    ? /\b(diese|die)\s+geschichte\s+(war|ist|hat|zeigte)\b/i
+    : /\bthis\s+story\s+(was|is|has|shows)\b/i;
+  if (metaPattern.test(lastSentence)) {
+    issues.push({
+      gate: "LAST_SENTENCE_PIPELINE_ARTIFACT",
+      chapter: lastChapter.chapter,
+      code: "META_COMMENTARY_IN_ENDING",
+      message: isDE
+        ? `Kapitel ${lastChapter.chapter}: Meta-Kommentar zur Geschichte selbst im letzten Satz. Buchende soll Szene zeigen, nicht beschreiben.`
+        : `Chapter ${lastChapter.chapter}: meta-commentary about the story itself in final sentence. Book ending should show scene, not describe.`,
+      severity: "ERROR",
+    });
+  }
+
+  return issues;
+}
+
+// ─── Sprint 2 Gate: VOICE_FINGERPRINT_PER_CHAPTER ───────────────────────────────
+// Per-chapter voice consistency: each primary character (protagonist/partner)
+// must show at least 2 of 3 voice signals (favoriteWord / bodyTell / runningGag)
+// in EVERY chapter they speak in, not just summed across the story. Without
+// per-chapter enforcement the writer batched all voice markers into ch1–2 and
+// dropped the characters to flat prose in ch3–5 (Adrian fingerprints 0/3 in
+// "Zeitkristall" logs 2026-04-23).
+function gateVoiceFingerprintPerChapter(
+  draft: StoryDraft,
+  soul: StorySoul | undefined,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!soul || !Array.isArray(soul.characterFingerprints) || soul.characterFingerprints.length === 0) {
+    return issues;
+  }
+  const isDE = language === "de";
+
+  for (const fp of soul.characterFingerprints) {
+    if (!fp?.name) continue;
+    const isPrimary = fp.role === "protagonist" || fp.role === "partner";
+    if (!isPrimary) continue; // per-chapter check applies only to primary characters
+
+    const nameLower = String(fp.name).toLowerCase();
+    const favoriteWords = Array.isArray(fp.favoriteWords) ? fp.favoriteWords : [];
+    const bodyTellTokens = (fp.bodyTell && typeof fp.bodyTell === "string")
+      ? fp.bodyTell.toLowerCase().replace(/[^a-zäöüß\s]/g, " ").split(/\s+/)
+          .filter(t => t.length >= 4 && !["wenn", "einen", "seine", "sein", "wird", "wirst", "dass", "mit", "der", "die", "das", "und", "oder", "beim", "vor", "auf", "aus"].includes(t))
+      : [];
+    const runningGagTokens = (fp.runningGag && typeof fp.runningGag === "string")
+      ? fp.runningGag.toLowerCase().replace(/[^a-zäöüß\s]/g, " ").split(/\s+/).filter(t => t.length >= 5)
+      : [];
+
+    for (const ch of draft.chapters) {
+      const chapterText = (ch.text || "").toLowerCase();
+      // Only enforce for chapters where the character is actually on stage
+      if (!chapterText.includes(nameLower)) continue;
+      // Skip very short chapters (placeholder / error fallbacks)
+      if (chapterText.length < 200) continue;
+
+      const hits = {
+        favoriteWord: 0,
+        bodyTell: false,
+        runningGag: false,
+      };
+
+      for (const word of favoriteWords) {
+        const wLower = String(word).toLowerCase().trim();
+        if (wLower.length < 3) continue;
+        const re = new RegExp(`\\b${wLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        if (re.test(chapterText)) hits.favoriteWord++;
+      }
+      if (bodyTellTokens.length > 0) {
+        const matched = bodyTellTokens.filter(t => chapterText.includes(t)).length;
+        if (matched / bodyTellTokens.length >= 0.5) hits.bodyTell = true;
+      }
+      if (runningGagTokens.length >= 2) {
+        const matched = runningGagTokens.filter(t => chapterText.includes(t)).length;
+        if (matched >= 2) hits.runningGag = true;
+      }
+
+      const score =
+        (hits.favoriteWord > 0 ? 1 : 0) +
+        (hits.bodyTell ? 1 : 0) +
+        (hits.runningGag ? 1 : 0);
+
+      if (score < 2) {
+        issues.push({
+          gate: "VOICE_FINGERPRINT_PER_CHAPTER",
+          chapter: ch.chapter,
+          code: "VOICE_MARKERS_TOO_FEW",
+          message: isDE
+            ? `Figur "${fp.name}" in Kapitel ${ch.chapter}: nur ${score}/3 Voice-Marker (favWord=${hits.favoriteWord}, body=${hits.bodyTell ? "ja" : "nein"}, gag=${hits.runningGag ? "ja" : "nein"}). Min 2 pro Kapitel.`
+            : `Character "${fp.name}" in chapter ${ch.chapter}: only ${score}/3 voice markers (favWord=${hits.favoriteWord}, body=${hits.bodyTell ? "yes" : "no"}, gag=${hits.runningGag ? "yes" : "no"}). Min 2 per chapter.`,
+          severity: "WARNING",
+        });
+      }
+    }
+  }
+
+  return issues;
+}
+
+// ─── Sprint 3 Gate: ENDING_PATTERN_MATCH ────────────────────────────────────────
+// Verifies that the ending pattern chosen in the blueprint (one of 8 curated
+// patterns from ending-patterns.ts) is actually realized in the final chapter.
+// Uses signal-weighted regex + callback matching against the last ~30% of the
+// final chapter. Score below 0.5 fires an ERROR.
+function gateEndingPatternMatch(
+  draft: StoryDraft,
+  language: string,
+  endingPatternName?: string,
+  chapter1Text?: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!endingPatternName) return issues;
+  const isDE = language === "de";
+
+  const lastChapter = draft.chapters[draft.chapters.length - 1];
+  if (!lastChapter?.text) return issues;
+
+  // Pre-compute callback signals (which rely on chapter-1 content)
+  const callbackMatches: Record<string, boolean> = {};
+  if (chapter1Text && chapter1Text.length > 100) {
+    // Extract candidate nouns from ch1 (heuristic: capitalized German nouns)
+    const ch1Nouns = Array.from(chapter1Text.matchAll(/\b([A-ZÄÖÜ][a-zäöüß]{3,})\b/g)).map(m => m[1]);
+    const lastText = lastChapter.text;
+    const overlap = ch1Nouns.filter(n => lastText.includes(n));
+    const uniqueOverlap = new Set(overlap).size;
+    if (uniqueOverlap >= 2) {
+      callbackMatches["chapter1_location"] = true;
+      callbackMatches["chapter1_object"] = true;
+      callbackMatches["chapter1_setting_or_time"] = true;
+      callbackMatches["chapter1_gag_or_line"] = true;
+      callbackMatches["chapter1_promise"] = true;
+    } else if (uniqueOverlap === 1) {
+      callbackMatches["chapter1_object"] = true;
+    }
+  }
+
+  const match = scoreEndingPatternMatch({
+    patternName: endingPatternName,
+    lastChapterText: lastChapter.text,
+    callbackMatches,
+  });
+
+  if (!match.pattern) {
+    // Blueprint specified an invalid pattern name — validator should have caught
+    // this but we report it from the gate too as a safety net.
+    issues.push({
+      gate: "ENDING_PATTERN_MATCH",
+      chapter: lastChapter.chapter,
+      code: "PATTERN_NAME_UNKNOWN",
+      message: isDE
+        ? `Unbekanntes ending_pattern "${endingPatternName}" — Blueprint fehlerhaft.`
+        : `Unknown ending_pattern "${endingPatternName}" — blueprint invalid.`,
+      severity: "ERROR",
+    });
+    return issues;
+  }
+
+  if (match.score < 0.5) {
+    issues.push({
+      gate: "ENDING_PATTERN_MATCH",
+      chapter: lastChapter.chapter,
+      code: "ENDING_PATTERN_NOT_REALIZED",
+      message: isDE
+        ? `Ende-Muster "${match.pattern.label}" (${endingPatternName}) nicht im letzten Kapitel realisiert (Score ${match.score.toFixed(2)}). Schluss muss das Muster zeigen: ${match.pattern.writerInstruction}`
+        : `Ending pattern "${match.pattern.label}" (${endingPatternName}) not realized in last chapter (score ${match.score.toFixed(2)}). Writer must: ${match.pattern.writerInstruction}`,
+      severity: "ERROR",
+    });
+  } else if (match.score < 0.7) {
+    issues.push({
+      gate: "ENDING_PATTERN_MATCH",
+      chapter: lastChapter.chapter,
+      code: "ENDING_PATTERN_WEAK",
+      message: isDE
+        ? `Ende-Muster "${match.pattern.label}" nur schwach realisiert (Score ${match.score.toFixed(2)}). ${match.missedSignals.length} Signale fehlen.`
+        : `Ending pattern "${match.pattern.label}" only weakly realized (score ${match.score.toFixed(2)}). ${match.missedSignals.length} signals missing.`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
+// ─── Sprint 3 Gate: REFERENCE_CORPUS_DELTA ──────────────────────────────────────
+// Compares story readability metrics (Flesch-DE, avg sentence length, avg
+// syllables/word) against a curated German children's-book reference corpus
+// (Gruffalo, Schule der magischen Tiere, Findus, Kleine Hexe).
+//
+// ERROR when 2+ metrics fall outside the acceptable range — the story no longer
+// reads like published kid-lit at the target age. WARNING at 1 outlier.
+function gateReferenceCorpusDelta(
+  draft: StoryDraft,
+  language: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (language !== "de") return issues; // corpus is German-specific
+
+  // Combine all chapter texts for a story-level readability reading
+  const fullText = draft.chapters.map(c => c.text || "").join("\n\n");
+  if (fullText.length < 500) return issues; // too short for meaningful metrics
+
+  const report = computeReadabilityReport(fullText);
+  if (report.deltaCount === 0) return issues;
+
+  if (report.deltaCount >= 2) {
+    issues.push({
+      gate: "REFERENCE_CORPUS_DELTA",
+      chapter: 0,
+      code: "READABILITY_OUTSIDE_KID_LIT_CORRIDOR",
+      message:
+        `Lesbarkeit liegt ausserhalb des Korpus (Gruffalo/Auer): ${report.outliers.join(", ")}. ` +
+        `FleschDE=${report.fleschDE.toFixed(1)} (Ziel ${REFERENCE_CORPUS_TARGETS.fleschDEMin}-${REFERENCE_CORPUS_TARGETS.fleschDEMax}), ` +
+        `Satzlaenge=${report.avgSentenceWords.toFixed(1)} (Ziel ${REFERENCE_CORPUS_TARGETS.avgSentenceWordsMin}-${REFERENCE_CORPUS_TARGETS.avgSentenceWordsMax}).`,
+      severity: "ERROR",
+    });
+  } else if (report.deltaCount === 1) {
+    issues.push({
+      gate: "REFERENCE_CORPUS_DELTA",
+      chapter: 0,
+      code: "READABILITY_SLIGHTLY_OFF",
+      message:
+        `Lesbarkeit am Rand des Kinderbuch-Korpus: ${report.outliers.join(", ")}. ` +
+        `FleschDE=${report.fleschDE.toFixed(1)}, Satzlaenge=${report.avgSentenceWords.toFixed(1)}.`,
+      severity: "WARNING",
+    });
+  }
+
+  return issues;
+}
+
+// ─── Sprint 1 Gate: CONCRETE_ANCHOR_PRESENCE ────────────────────────────────────
+// Checks that concrete anchors defined in the blueprint actually appear in the prose.
+// Concrete anchors map abstract themes (trust, power, memory) to graspable story
+// physics (a star-shaped screw, a glowing marble, a folded letter). Gruffalo-principle:
+// every abstract idea must have a visible, touchable counterpart.
+//
+// Blueprint provides storyBlueprint.concreteAnchors: Record<string, string>.
+// Each anchor phrase must appear at least once across the story.
+function gateConcreteAnchorPresence(
+  draft: StoryDraft,
+  language: string,
+  concreteAnchors?: Record<string, string>,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!concreteAnchors || Object.keys(concreteAnchors).length === 0) return issues;
+  const isDE = language === "de";
+
+  const fullText = draft.chapters.map(c => c.text).join("\n").toLowerCase();
+
+  for (const [abstract, anchor] of Object.entries(concreteAnchors)) {
+    if (!anchor || typeof anchor !== "string") continue;
+    const anchorLower = anchor.toLowerCase().trim();
+    if (anchorLower.length < 3) continue;
+
+    // Extract core noun (first 2-3 significant words)
+    const anchorWords = anchorLower.split(/\s+/).filter(w => w.length >= 3).slice(0, 3);
+    if (anchorWords.length === 0) continue;
+
+    // Require at least one significant anchor word to appear
+    const found = anchorWords.some(w => fullText.includes(w));
+    if (!found) {
+      issues.push({
+        gate: "CONCRETE_ANCHOR_PRESENCE",
+        chapter: 0,
+        code: "ANCHOR_MISSING",
+        message: isDE
+          ? `Konkret-Anker "${anchor}" (fuer "${abstract}") fehlt im Text. Abstraktes Konzept nicht geerdet.`
+          : `Concrete anchor "${anchor}" (for "${abstract}") missing in text. Abstract concept not grounded.`,
+        severity: "ERROR",
+      });
+    }
+  }
+
+  return issues;
+}
+
 export function runQualityGates(input: {
   draft: StoryDraft;
   directives: SceneDirective[];
@@ -3340,8 +3751,10 @@ export function runQualityGates(input: {
   artifactArc?: ArtifactArcPlan;
   humorLevel?: number;
   storySoul?: import("./schemas/story-soul").StorySoul;
+  concreteAnchors?: Record<string, string>; // Sprint 1: abstract → concrete map
+  endingPattern?: string; // Sprint 3 (MT4): blueprint.ending_pattern
 }): QualityReport {
-  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul, concreteAnchors, endingPattern } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -3390,6 +3803,15 @@ export function runQualityGates(input: {
     { name: "SOUL_FINGERPRINT", fn: () => gateSoulFingerprint(draft, storySoul, language) },
     { name: "SOUL_HUMOR_BEAT", fn: () => gateSoulHumorBeat(draft, storySoul, language) },
     { name: "ADULT_RESCUE", fn: () => gateAdultRescue(draft, cast, storySoul, language) },
+    // Sprint 1: Hard foundation gates for age-fit + ending quality + concrete anchors
+    { name: "AGE_FIT_SENTENCE_LENGTH", fn: () => gateAgeFitSentenceLength(draft, language, ageRange) },
+    { name: "LAST_SENTENCE_PIPELINE_ARTIFACT", fn: () => gateLastSentencePipelineArtifact(draft, language) },
+    { name: "CONCRETE_ANCHOR_PRESENCE", fn: () => gateConcreteAnchorPresence(draft, language, concreteAnchors) },
+    // Sprint 2: per-chapter voice consistency (complements global SOUL_FINGERPRINT)
+    { name: "VOICE_FINGERPRINT_PER_CHAPTER", fn: () => gateVoiceFingerprintPerChapter(draft, storySoul, language) },
+    // Sprint 3: ending pattern + reference-corpus readability
+    { name: "ENDING_PATTERN_MATCH", fn: () => gateEndingPatternMatch(draft, language, endingPattern, draft.chapters[0]?.text) },
+    { name: "REFERENCE_CORPUS_DELTA", fn: () => gateReferenceCorpusDelta(draft, language) },
   ];
 
   const allIssues: QualityIssue[] = [];

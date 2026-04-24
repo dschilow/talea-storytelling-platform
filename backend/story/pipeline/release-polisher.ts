@@ -36,15 +36,33 @@ export async function applySelectiveSurgery(input: {
   maxEdits?: number;
   model?: string;
   candidateTag?: string;
+  // Sprint 2 (QW3): chapters where surgery's patch-only mode is insufficient.
+  // For these, the prompt switches to a full hard-rewrite instruction — surgery
+  // may restructure sentences aggressively to meet age-fit, not just patch.
+  hardRewriteChapters?: Set<number>;
 }): Promise<SelectiveSurgeryResult> {
   const maxEdits = Math.max(1, Math.min(5, input.maxEdits ?? 3));
   const model = input.model || GEMINI_SUPPORT_MODEL;
   const chapters = input.draft.chapters.map(ch => ({ ...ch }));
   const editedChapters: number[] = [];
+  const hardRewriteSet = input.hardRewriteChapters ?? new Set<number>();
   let usage: TokenUsage | undefined;
   const costEntries: StoryCostEntry[] = [];
 
   const grouped = groupTasksByChapter(input.patchTasks);
+  // Sprint 2 (QW3): if a chapter is marked for hard rewrite but has no patch tasks
+  // (e.g. failed AGE_FIT gate with no matching critic issue), synthesize a task so
+  // the chapter still gets processed.
+  for (const chapterNo of hardRewriteSet) {
+    if (!grouped.has(chapterNo)) {
+      grouped.set(chapterNo, [{
+        chapter: chapterNo,
+        priority: 1,
+        objective: "Age-fit hard rewrite",
+        instruction: "Rewrite the chapter end-to-end so that every sentence is age-appropriate for children 6-8. Preserve plot, characters, and dialogue intent.",
+      }]);
+    }
+  }
   const rankedChapters = [...grouped.entries()]
     .sort((a, b) => compareTaskPriority(a[1], b[1]))
     .slice(0, maxEdits);
@@ -55,7 +73,10 @@ export async function applySelectiveSurgery(input: {
 
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
   const isGeminiModel = model.startsWith("gemini-");
-  const maxTokens = isReasoningModel ? 1200 : 900;
+  // Sprint 2 (QW3): hard-rewrite mode needs more headroom because it may regenerate
+  // the whole chapter prose, not just patch a few sentences.
+  const hasHardRewrite = hardRewriteSet.size > 0;
+  const maxTokens = hasHardRewrite ? (isReasoningModel ? 2200 : 1800) : (isReasoningModel ? 1200 : 900);
   const lengthTargets = input.normalizedRequest.wordBudget
     ? {
         wordMin: input.normalizedRequest.wordBudget.minWordsPerChapter,
@@ -81,9 +102,20 @@ export async function applySelectiveSurgery(input: {
       ? getEdgeContext(chapters[chapterIdx + 1]?.text || "", "start")
       : "";
 
+    const isHardRewrite = hardRewriteSet.has(chapterNo);
     const issues = tasks
       .slice(0, 4)
       .map(task => `[P${task.priority}] ${task.objective}: ${task.instruction}`);
+
+    // Sprint 2 (QW3): hard-rewrite mode replaces surgery's "only patch" contract
+    // with "restructure aggressively for age-fit and readability". Without this,
+    // logs 2026-04-23 showed surgery patched only 20% while leaving metaphor-heavy
+    // sentences intact because its prompt forbids structural changes.
+    if (isHardRewrite) {
+      issues.unshift(
+        "[P1] HARD REWRITE MANDATE: The chapter fails age-appropriateness or readability gates. You MUST aggressively restructure sentences: break long clauses, remove metaphor fog, keep average sentence length at or below 11 words for ages 6-8. Keep plot, characters, dialogue intent identical but rewrite the prose substantially if needed. This is not a patch — it is a targeted rewrite.",
+      );
+    }
 
     const prompt = buildStoryChapterRevisionPrompt({
       chapter: directive,

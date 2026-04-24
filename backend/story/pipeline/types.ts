@@ -251,6 +251,26 @@ export interface StoryBlueprintV8 {
     chapter: number;
     description: string;
   };
+  // Sprint 1 (MT1): Konkret-Anker-Map — every abstract theme must have a concrete,
+  // graspable story-physics counterpart. Gruffalo-principle: "trust" → "a star-shaped
+  // screw handed over", not an abstract declaration. Validator ensures ≥ 3 entries.
+  concrete_anchors: Record<string, string>;
+  // Sprint 1 (MT2): Antagonist-DNA — no more "Morbus appeared out of nowhere".
+  // Every antagonist needs motive (why), weakness (how they can be beaten),
+  // first_action (how they enter the story), and speech_tic (one recurring phrase/habit).
+  // Validator makes this required when any chapter has an antagonist character.
+  antagonist_dna?: {
+    name: string;
+    motive: string;
+    weakness: string;
+    first_action: string;
+    speech_tic: string;
+  };
+  // Sprint 3 (MT4): ending pattern the writer MUST realize in the final chapter.
+  // Must be one of the 8 curated patterns from ending-patterns.ts:
+  // return_home_changed | shared_moment | object_transformed | revealed_truth |
+  // warm_callback | resolved_conflict_quiet | circle_closed | promise_kept
+  ending_pattern: string;
 }
 
 export interface BlueprintValidationIssue {
