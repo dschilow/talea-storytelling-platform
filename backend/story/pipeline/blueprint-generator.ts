@@ -139,7 +139,10 @@ export async function generateValidatedV8Blueprint(input: {
     if (costEntry) costEntries.push(costEntry);
 
     const parsed = safeJson(result.content);
-    const blueprint = normalizeBlueprintEnvelope(parsed);
+    const blueprint = repairV8BlueprintForValidation(normalizeBlueprintEnvelope(parsed), {
+      cast,
+      directives,
+    });
     const validation = validateV8Blueprint({
       blueprint,
       chapterCount: normalizedRequest.chapterCount,
@@ -210,7 +213,10 @@ export async function generateValidatedV8Blueprint(input: {
       if (rescueCostEntry) costEntries.push(rescueCostEntry);
 
       const rescueParsed = safeJson(rescueResult.content);
-      const rescueBlueprint = normalizeBlueprintEnvelope(rescueParsed);
+      const rescueBlueprint = repairV8BlueprintForValidation(normalizeBlueprintEnvelope(rescueParsed), {
+        cast,
+        directives,
+      });
       const rescueValidation = validateV8Blueprint({
         blueprint: rescueBlueprint,
         chapterCount: normalizedRequest.chapterCount,
@@ -234,12 +240,12 @@ export async function generateValidatedV8Blueprint(input: {
     }
   }
 
-  const fallback = buildDeterministicV8Blueprint({
+  const fallback = repairV8BlueprintForValidation(buildDeterministicV8Blueprint({
     normalizedRequest,
     cast,
     directives,
     wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
-  });
+  }), { cast, directives })!;
   // Greenfield: when a content-library binding exists, enrich the fallback with
   // skeleton-sourced concrete anchors + ending pattern so it's not generic.
   if (contentLibraryBinding) {
@@ -345,6 +351,90 @@ function normalizeBlueprintEnvelope(raw: any): StoryBlueprintV8 | null {
   if (!raw || typeof raw !== "object") return null;
   if (raw.blueprint && typeof raw.blueprint === "object") return raw.blueprint as StoryBlueprintV8;
   return raw as StoryBlueprintV8;
+}
+
+export function repairV8BlueprintForValidation(
+  blueprint: StoryBlueprintV8 | null,
+  input: { cast: CastSet; directives: SceneDirective[] },
+): StoryBlueprintV8 | null {
+  if (!blueprint || typeof blueprint !== "object") return blueprint;
+
+  const antagonist = findAntagonistSheet(input.cast, input.directives, blueprint);
+  if (!antagonist) return blueprint;
+
+  const existing = (blueprint as any).antagonist_dna;
+  const defaults = buildFallbackAntagonistDna({
+    name: antagonist.displayName,
+    artifactName: input.cast.artifact?.name,
+    directives: input.directives,
+  });
+
+  (blueprint as any).antagonist_dna = {
+    name: meaningfulOrDefault(existing?.name, defaults.name),
+    motive: meaningfulOrDefault(existing?.motive, defaults.motive),
+    weakness: meaningfulOrDefault(existing?.weakness, defaults.weakness),
+    first_action: meaningfulOrDefault(existing?.first_action, defaults.first_action),
+    speech_tic: meaningfulOrDefault(existing?.speech_tic, defaults.speech_tic),
+  };
+
+  return blueprint;
+}
+
+function findAntagonistSheet(
+  cast: CastSet,
+  directives: SceneDirective[],
+  blueprint: StoryBlueprintV8,
+) {
+  const explicit = cast.poolCharacters.find(character => String(character.roleType || "").toUpperCase() === "ANTAGONIST");
+  if (explicit) return explicit;
+
+  const antagonistSlots = new Set(
+    directives
+      .flatMap(directive => directive.charactersOnStage || [])
+      .filter(slot => /ANTAGONIST|VILLAIN|ENEMY|OPPONENT/i.test(slot)),
+  );
+  if (antagonistSlots.size > 0) {
+    const bySlot = cast.poolCharacters.find(character => antagonistSlots.has(character.slotKey));
+    if (bySlot) return bySlot;
+  }
+
+  const mentionedNames = new Set(
+    (blueprint.chapters || [])
+      .flatMap(chapter => [
+        ...(Array.isArray(chapter.active_characters) ? chapter.active_characters : []),
+        ...(Array.isArray(chapter.supporting_characters) ? chapter.supporting_characters : []),
+      ])
+      .map(name => String(name || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  return cast.poolCharacters.find(character => mentionedNames.has(String(character.displayName || "").trim().toLowerCase()));
+}
+
+function buildFallbackAntagonistDna(input: {
+  name: string;
+  artifactName?: string;
+  directives: SceneDirective[];
+}) {
+  const artifact = input.artifactName || "den wichtigsten Hinweis";
+  const firstConflict = input.directives.find(directive => /antagonist|gegner|feind|schurke|boes|fluch|curse/i.test(directive.conflict || ""))
+    || input.directives.find(directive => (directive.charactersOnStage || []).some(slot => /ANTAGONIST|VILLAIN|ENEMY|OPPONENT/i.test(slot)))
+    || input.directives[0];
+  const firstAction = firstConflict?.conflict
+    ? `${input.name} zeigt sich zuerst, indem er ${firstConflict.conflict.replace(/\s+/g, " ").trim()}.`
+    : `${input.name} stellt sich sichtbar in den Weg und greift nach ${artifact}.`;
+
+  return {
+    name: input.name,
+    motive: `${input.name} will ${artifact} an sich nehmen, damit nur er den sicheren Weg kennt.`,
+    weakness: `${input.name} verliert seinen Vorteil, wenn die Kinder ruhig warten, einander zuhoeren und den sichtbaren Hinweis pruefen.`,
+    first_action: firstAction,
+    speech_tic: `${input.name} wiederholt leise: "Nur ich kenne den Weg", wenn sein Plan wackelt.`,
+  };
+}
+
+function meaningfulOrDefault(value: unknown, fallback: string): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length >= 6 ? text : fallback;
 }
 
 function buildPreviousAdventureLine(memories?: Map<string, AvatarMemoryCompressed[]>): string {

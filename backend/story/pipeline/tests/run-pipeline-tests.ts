@@ -9,7 +9,7 @@ import { validateStoryDraft } from "../story-validator";
 import { splitContinuousStoryIntoChapters } from "../story-segmentation";
 import { runQualityGates } from "../quality-gates";
 import { validateV8Blueprint } from "../blueprint-validator";
-import { resolvePromptVersionForRequest } from "../blueprint-generator";
+import { repairV8BlueprintForValidation, resolvePromptVersionForRequest } from "../blueprint-generator";
 import { buildV8BlueprintSystemPrompt, buildV8RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "../prompts";
 import { determineCriticVerdict, normalizeCriticReport } from "../semantic-critic";
 import { repairCastSet } from "../castset-normalizer";
@@ -1702,6 +1702,25 @@ function testV8BlueprintValidation() {
   assert.ok(codes.has("QUOTABLE_LINE_REPEATED"), "Validator should reject repeated placeholder quotable lines");
 }
 
+function testV8BlueprintRepairAddsAntagonistDna() {
+  const blueprint = buildValidV8Blueprint();
+  delete (blueprint as any).antagonist_dna;
+
+  const repaired = repairV8BlueprintForValidation(blueprint, {
+    cast: buildTestCast(),
+    directives: buildFiveDirectives(),
+  });
+
+  assert.ok((repaired as any)?.antagonist_dna?.motive, "Repair should add antagonist_dna.motive from cast context");
+  const validation = validateV8Blueprint({
+    blueprint: repaired,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(validation.valid, true, `Repaired blueprint should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
+}
+
 function testV8WriterPromptRegression() {
   const legacyPrompt = readFileSync("Logs/logs/extracted-fullstory-prompt-6ea4688e.txt", "utf8");
   assert.ok(legacyPrompt.includes("Was danach anders ist: Morbus"), "Regression fixture must contain the old truncated beat line");
@@ -1846,6 +1865,7 @@ async function run() {
   testEndingStabilityGate();
   testPromptVersionResolverV8Rollout();
   testV8BlueprintValidation();
+  testV8BlueprintRepairAddsAntagonistDna();
   testV8WriterPromptRegression();
   testCriticNormalizationAndBanding();
   await testIntegrationWithMocks();
