@@ -12,6 +12,8 @@ import { validateV8Blueprint } from "../blueprint-validator";
 import { resolvePromptVersionForRequest } from "../blueprint-generator";
 import { buildV8BlueprintSystemPrompt, buildV8RevisionPrompt, buildV8StoryPrompt, buildV8StorySystemPrompt } from "../prompts";
 import { determineCriticVerdict, normalizeCriticReport } from "../semantic-critic";
+import { repairCastSet } from "../castset-normalizer";
+import { validateCastSet } from "../schema-validator";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryBlueprintV8, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
@@ -418,6 +420,27 @@ function testImageSpecValidation() {
   assert.ok(fixed.finalPromptText?.toLowerCase().includes("exactly"), "Prompt should enforce exact count");
   assert.ok(fixed.finalPromptText?.toLowerCase().includes("full body") || fixed.finalPromptText?.toLowerCase().includes("head-to-toe"), "Prompt should enforce full body");
   assert.ok(!(fixed.finalPromptText || "").toLowerCase().includes("negative prompt"), "Prompt should not contain negative section");
+}
+
+function testCastSetRepairTruncatesLongCharacterLocks() {
+  const longVisual = "green eyes ".repeat(20);
+  const longOutfit = "a very detailed weathered forest cloak with stitched silver leaves and tiny pockets ".repeat(3);
+  const cast = buildTestCast();
+  cast.poolCharacters[0].visualSignature = [longVisual];
+  cast.poolCharacters[0].outfitLock = [longOutfit];
+
+  const repaired = repairCastSet(cast);
+  const validation = validateCastSet(repaired);
+
+  assert.strictEqual(validation.valid, true, `Repaired cast set should pass schema: ${validation.errors.join("; ")}`);
+  assert.ok(
+    repaired.poolCharacters[0].visualSignature.every(item => item.length <= 120),
+    "visualSignature entries should be capped at schema maxLength"
+  );
+  assert.ok(
+    repaired.poolCharacters[0].outfitLock.every(item => item.length <= 120),
+    "outfitLock entries should be capped at schema maxLength"
+  );
 }
 
 async function testIntegrationWithMocks() {
@@ -1805,6 +1828,7 @@ async function run() {
   testVariantDeterminism();
   testMatchingScore();
   testImageSpecValidation();
+  testCastSetRepairTruncatesLongCharacterLocks();
   testWordBudget();
   testForbiddenCanonPhrase();
   testContinuousStorySegmentation();
