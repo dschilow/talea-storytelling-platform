@@ -1721,6 +1721,31 @@ function testV8BlueprintRepairAddsAntagonistDna() {
   assert.strictEqual(validation.valid, true, `Repaired blueprint should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
 }
 
+function testV8BlueprintRepairAddsVirtualAntagonistDna() {
+  const blueprint = buildValidV8Blueprint();
+  delete (blueprint as any).antagonist_dna;
+  blueprint.chapters[2].obstacle = "Ein alter Fluch macht jeden richtigen Hinweis schwer und kalt.";
+  blueprint.chapters[2].supporting_characters = [];
+  blueprint.chapters[4].supporting_characters = [];
+
+  const cast = buildTestCast();
+  cast.poolCharacters = [];
+
+  const repaired = repairV8BlueprintForValidation(blueprint, {
+    cast,
+    directives: buildFiveDirectives(),
+  });
+
+  assert.ok((repaired as any)?.antagonist_dna?.name, "Repair should add virtual antagonist_dna when no antagonist cast slot exists");
+  const validation = validateV8Blueprint({
+    blueprint: repaired,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(validation.valid, true, `Virtual antagonist repair should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
+}
+
 function testV8WriterPromptRegression() {
   const legacyPrompt = readFileSync("Logs/logs/extracted-fullstory-prompt-6ea4688e.txt", "utf8");
   assert.ok(legacyPrompt.includes("Was danach anders ist: Morbus"), "Regression fixture must contain the old truncated beat line");
@@ -1866,6 +1891,7 @@ async function run() {
   testPromptVersionResolverV8Rollout();
   testV8BlueprintValidation();
   testV8BlueprintRepairAddsAntagonistDna();
+  testV8BlueprintRepairAddsVirtualAntagonistDna();
   testV8WriterPromptRegression();
   testCriticNormalizationAndBanding();
   await testIntegrationWithMocks();

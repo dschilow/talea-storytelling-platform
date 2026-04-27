@@ -359,14 +359,17 @@ export function repairV8BlueprintForValidation(
 ): StoryBlueprintV8 | null {
   if (!blueprint || typeof blueprint !== "object") return blueprint;
 
-  const antagonist = findAntagonistSheet(input.cast, input.directives, blueprint);
-  if (!antagonist) return blueprint;
-
   const existing = (blueprint as any).antagonist_dna;
+  const antagonistName = findAntagonistNameForBlueprint(input.cast, input.directives, blueprint)
+    || meaningfulOrDefault(existing?.name, "")
+    || (blueprintHasPotentialAntagonist(blueprint) ? "Die Gegenkraft" : "");
+  if (!antagonistName) return blueprint;
+
   const defaults = buildFallbackAntagonistDna({
-    name: antagonist.displayName,
+    name: antagonistName,
     artifactName: input.cast.artifact?.name,
     directives: input.directives,
+    blueprint,
   });
 
   (blueprint as any).antagonist_dna = {
@@ -380,13 +383,13 @@ export function repairV8BlueprintForValidation(
   return blueprint;
 }
 
-function findAntagonistSheet(
+function findAntagonistNameForBlueprint(
   cast: CastSet,
   directives: SceneDirective[],
   blueprint: StoryBlueprintV8,
-) {
+): string | undefined {
   const explicit = cast.poolCharacters.find(character => String(character.roleType || "").toUpperCase() === "ANTAGONIST");
-  if (explicit) return explicit;
+  if (explicit?.displayName) return explicit.displayName;
 
   const antagonistSlots = new Set(
     directives
@@ -395,7 +398,7 @@ function findAntagonistSheet(
   );
   if (antagonistSlots.size > 0) {
     const bySlot = cast.poolCharacters.find(character => antagonistSlots.has(character.slotKey));
-    if (bySlot) return bySlot;
+    if (bySlot?.displayName) return bySlot.displayName;
   }
 
   const mentionedNames = new Set(
@@ -407,20 +410,33 @@ function findAntagonistSheet(
       .map(name => String(name || "").trim().toLowerCase())
       .filter(Boolean),
   );
-  return cast.poolCharacters.find(character => mentionedNames.has(String(character.displayName || "").trim().toLowerCase()));
+  const mentionedPoolCharacter = cast.poolCharacters.find(character => mentionedNames.has(String(character.displayName || "").trim().toLowerCase()));
+  if (mentionedPoolCharacter?.displayName) return mentionedPoolCharacter.displayName;
+
+  const antagonistishName = extractAntagonistNameFromBlueprint(blueprint);
+  if (antagonistishName) return antagonistishName;
+
+  if (blueprintHasPotentialAntagonist(blueprint)) {
+    return "Die Gegenkraft";
+  }
+
+  return undefined;
 }
 
 function buildFallbackAntagonistDna(input: {
   name: string;
   artifactName?: string;
   directives: SceneDirective[];
+  blueprint?: StoryBlueprintV8;
 }) {
   const artifact = input.artifactName || "den wichtigsten Hinweis";
   const firstConflict = input.directives.find(directive => /antagonist|gegner|feind|schurke|boes|fluch|curse/i.test(directive.conflict || ""))
     || input.directives.find(directive => (directive.charactersOnStage || []).some(slot => /ANTAGONIST|VILLAIN|ENEMY|OPPONENT/i.test(slot)))
     || input.directives[0];
-  const firstAction = firstConflict?.conflict
-    ? `${input.name} zeigt sich zuerst, indem er ${firstConflict.conflict.replace(/\s+/g, " ").trim()}.`
+  const blueprintObstacle = input.blueprint?.chapters?.find(chapter => antagonistSignalPattern.test(String(chapter?.obstacle || "")))?.obstacle;
+  const visibleConflict = String(firstConflict?.conflict || blueprintObstacle || "").replace(/\s+/g, " ").trim();
+  const firstAction = visibleConflict
+    ? `${input.name} zeigt sich zuerst, indem ${visibleConflict}.`
     : `${input.name} stellt sich sichtbar in den Weg und greift nach ${artifact}.`;
 
   return {
@@ -435,6 +451,51 @@ function buildFallbackAntagonistDna(input: {
 function meaningfulOrDefault(value: unknown, fallback: string): string {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length >= 6 ? text : fallback;
+}
+
+const antagonistSignalPattern = /\b(feind|gegner|schurke|boes|böse|villain|antagonist|enemy|opponent|fluch|curse)\b/i;
+
+function blueprintHasPotentialAntagonist(blueprint: StoryBlueprintV8): boolean {
+  const chapters = Array.isArray(blueprint.chapters) ? blueprint.chapters : [];
+  if (chapters.some(chapter => antagonistSignalPattern.test(String(chapter?.obstacle || "")))) return true;
+
+  const povName = normalizeBlueprintName(blueprint.pov_character);
+  const growthName = normalizeBlueprintName((blueprint as any).error_and_repair?.who);
+  const excluded = new Set([povName, growthName].filter(Boolean));
+  const recurringActive = new Map<string, number>();
+
+  for (const chapter of chapters) {
+    const activeCharacters = Array.isArray(chapter?.active_characters) ? chapter.active_characters : [];
+    for (const name of activeCharacters) {
+      const key = normalizeBlueprintName(name);
+      if (!key || excluded.has(key)) continue;
+      recurringActive.set(key, (recurringActive.get(key) || 0) + 1);
+    }
+  }
+
+  return [...recurringActive.values()].some(count => count >= 2);
+}
+
+function extractAntagonistNameFromBlueprint(blueprint: StoryBlueprintV8): string | undefined {
+  const chapters = Array.isArray(blueprint.chapters) ? blueprint.chapters : [];
+  for (const chapter of chapters) {
+    const candidates = [
+      ...(Array.isArray(chapter?.supporting_characters) ? chapter.supporting_characters : []),
+      ...(Array.isArray(chapter?.active_characters) ? chapter.active_characters : []),
+    ];
+    const obstacle = String(chapter?.obstacle || "").toLowerCase();
+    for (const candidate of candidates) {
+      const name = String(candidate || "").replace(/\s+/g, " ").trim();
+      if (name.length < 2) continue;
+      if (obstacle.includes(name.toLowerCase())) return name;
+    }
+    if (/\bfluch|curse\b/i.test(obstacle)) return "Der Fluch";
+  }
+  return undefined;
+}
+
+function normalizeBlueprintName(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
 }
 
 function buildPreviousAdventureLine(memories?: Map<string, AvatarMemoryCompressed[]>): string {
