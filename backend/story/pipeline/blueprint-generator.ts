@@ -358,6 +358,7 @@ export function repairV8BlueprintForValidation(
   input: { cast: CastSet; directives: SceneDirective[] },
 ): StoryBlueprintV8 | null {
   if (!blueprint || typeof blueprint !== "object") return blueprint;
+  ensureReaderContract(blueprint, input);
 
   const existing = (blueprint as any).antagonist_dna;
   const antagonistName = findAntagonistNameForBlueprint(input.cast, input.directives, blueprint)
@@ -382,6 +383,76 @@ export function repairV8BlueprintForValidation(
   ensureAntagonistShowdown(blueprint, (blueprint as any).antagonist_dna.name);
 
   return blueprint;
+}
+
+function ensureReaderContract(
+  blueprint: StoryBlueprintV8,
+  input: { cast: CastSet; directives: SceneDirective[] },
+): void {
+  const existing = (blueprint as any).reader_contract || {};
+  const childNames = getChildFocusNames(input.cast);
+  const lead = childNames[0] || input.cast.avatars[0]?.displayName || String(blueprint.pov_character || "Das Kind");
+  const companion = childNames.find(name => name !== lead) || input.cast.avatars[1]?.displayName || lead;
+  const firstChapter = Array.isArray(blueprint.chapters) ? blueprint.chapters[0] : undefined;
+  const firstDirective = input.directives[0];
+  const artifactName = input.cast.artifact?.name || "das wichtige Fundstueck";
+  const setting = meaningfulOrDefault(firstChapter?.location, firstDirective?.setting || "ein vertrauter Ort");
+  const mission = sanitizeReaderContractMission(
+    existing.mission_in_child_words
+    || firstChapter?.goal
+    || firstDirective?.goal,
+    lead,
+    companion,
+    artifactName,
+  );
+  const specialRule = meaningfulOrDefault(
+    existing.special_rule,
+    input.cast.artifact?.storyUseRule
+      ? `${artifactName} ${input.cast.artifact.storyUseRule}; die Entscheidung treffen aber die Kinder.`
+      : `${artifactName} zeigt nur den naechsten Unterschied; loesen muessen ${lead} und ${companion} selbst.`,
+  );
+
+  (blueprint as any).reader_contract = {
+    normal_world: meaningfulOrDefault(
+      existing.normal_world,
+      `${lead} und ${companion} beginnen an ${setting}, bevor das besondere Problem losgeht.`,
+    ),
+    who_we_meet_first: meaningfulOrDefault(
+      existing.who_we_meet_first,
+      `${lead} beobachtet genau; ${companion} will schneller los und bringt Bewegung in die Szene.`,
+    ),
+    mission_in_child_words: mission,
+    why_it_matters: meaningfulOrDefault(
+      existing.why_it_matters,
+      `Wenn sie es nicht schaffen, bleibt heute ein sichtbarer Platz leer und jemand wird enttaeuscht.`,
+    ),
+    special_rule: specialRule,
+    chapter1_question: meaningfulOrDefault(
+      existing.chapter1_question,
+      `Schaffen ${lead} und ${companion} die Aufgabe, ohne auf die falsche Abkuerzung hereinzufallen?`,
+    ),
+  };
+}
+
+function sanitizeReaderContractMission(
+  value: unknown,
+  lead: string,
+  companion: string,
+  artifactName: string,
+): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text || isGenericReaderContractMission(text)) {
+    return `${lead} und ${companion} muessen ${artifactName} rechtzeitig an den richtigen Ort bringen, damit der Weg fuer alle offen bleibt.`;
+  }
+  return text;
+}
+
+function isGenericReaderContractMission(value: string): boolean {
+  const text = value.toLowerCase();
+  const clueOnly = /\b(naechsten|nächsten|ersten|letzten)?\s*(hinweis|spur|zeichen|weg)\s*(finden|folgen|erreichen|lesen|suchen)\b/.test(text)
+    || /\b(der|die|dem|einer)?\s*(spur|hinweis|zeichen)\s*(folgen|finden|suchen)\b/.test(text);
+  const concreteTask = /\b(bringen|retten|reparieren|zurueckbringen|zurückbringen|zurueckgeben|zurückgeben|befreien|beschuetzen|beschützen|oeffnen|öffnen|schliessen|schließen|aufhalten|holen|abgeben|ersetzen|bauen|sammeln)\b/.test(text);
+  return clueOnly && !concreteTask;
 }
 
 function findAntagonistNameForBlueprint(
@@ -610,6 +681,14 @@ function buildDeterministicV8Blueprint(input: {
     narrative_perspective: "personal_third",
     tense: "preterite",
     pov_character: lead,
+    reader_contract: {
+      normal_world: `${lead} und ${companion} starten an einem vertrauten Ort, bevor die falschen Zeichen alles durcheinanderbringen.`,
+      who_we_meet_first: `${lead} prueft die kleinen Unterschiede; ${companion} will mutig schneller los.`,
+      mission_in_child_words: `${lead} und ${companion} muessen ${input.cast.artifact?.name || "den wichtigen Zettel"} rechtzeitig an den richtigen Ort bringen, damit der Weg fuer alle offen bleibt.`,
+      why_it_matters: "Wenn sie scheitern, bleibt der sichere Weg verschwunden und jemand wartet umsonst.",
+      special_rule: `${input.cast.artifact?.name || "Das besondere Fundstueck"} zeigt nur Unterschiede; die Kinder muessen selbst entscheiden und handeln.`,
+      chapter1_question: `Erkennen ${lead} und ${companion} die echte Spur, bevor sie in die falsche Richtung laufen?`,
+    },
     chapters,
     humor_beats: [
       { chapter: 1, type: "character_behavior", description: engine.humorBeat },
@@ -762,7 +841,7 @@ function buildConcreteFallbackChapter(input: {
   switch (input.chapterNo) {
     case 1:
       return {
-        goal: `${lead} und ${companion} wollen den naechsten Hinweis finden, bevor die falsche Spur sie vom Weg zieht.`,
+        goal: `${lead} und ${companion} muessen das Zettel-Eck zum richtigen Kreis bringen, bevor die falsche Spur den Weg schliesst.`,
         obstacle: `Vor ihnen liegen ${input.engine.falseLead}. Wer die saubere Spur nimmt, loest sofort eine Klapperfalle aus.`,
         key_scene: {
           what_happens: `${companion} haelt ein Kratzen im Gebuesch erst fuer etwas Gefaehrliches, waehrend ${lead} merkt, dass nur die falsche Spur geschniegelt aussieht.`,

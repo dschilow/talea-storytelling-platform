@@ -15,19 +15,19 @@ export interface PipelineConfig {
   blueprintRetryMax: number;
   pass3TargetScore: number;
   pass3WarnFloor: number;
-  /** Stage 0 (Story Soul) ein/aus. Default false, bis Rollout stabil ist. */
+  /** Stage 0 (Story Soul) on/off. Quality-first default is enabled. */
   soulStageEnabled: boolean;
-  /** Wie oft der Soul-Generator bei Schema-/Rubrik-Fehlern nachlegen darf. */
+  /** How often the Soul generator may retry after schema/rubric failures. */
   soulRetryMax: number;
-  /** Bei `reject_with_fixes`: trotzdem weitermachen (true) oder harter Abbruch (false). */
+  /** Continue after a failed Soul gate (true) or abort before writing (false). */
   soulAllowOnReject: boolean;
-  /** Surgery-Schwelle wenn Soul approved: tiefer als criticMinScore, damit 7.2–8.2 noch repariert wird. */
+  /** Critic release threshold after an approved Soul. */
   soulAwareCriticMinScore: number;
-  /** Bei Soul verdict=approved nur 1 Kandidat (spart ~25% Kosten). */
+  /** Use a single candidate after approved Soul. Disabled for quality-first mode. */
   soulApprovedSingleCandidate: boolean;
-  /** Maximaler Output-Token-Budget für Soul-Generator (kompakter JSON). */
+  /** Maximum output token budget for Soul generator JSON. */
   soulGeneratorMaxOutputTokens: number;
-  /** Model für Soul-Gate (günstiger als Generator). */
+  /** Model for Soul gate. */
   soulGateModel: string;
 }
 
@@ -38,20 +38,20 @@ const DEFAULT_CONFIG: PipelineConfig = {
   storyRetryMax: 2,
   imageRetryMax: 2,
   maxPropsVisible: 7,
-  releaseCandidateCount: 2,
+  releaseCandidateCount: 3,
   criticModel: "gemini-3.1-flash-lite-preview",
-  criticMinScore: 8.2,
+  criticMinScore: 8.6,
   maxSelectiveSurgeryEdits: 3,
   defaultPromptVersion: "v8",
   blueprintRetryMax: 2,
-  pass3TargetScore: 8.2,
-  pass3WarnFloor: 6.5,
-  soulStageEnabled: false,
+  pass3TargetScore: 8.6,
+  pass3WarnFloor: 7.2,
+  soulStageEnabled: true,
   soulRetryMax: 2,
-  soulAllowOnReject: true,
-  soulAwareCriticMinScore: 7.8,
-  soulApprovedSingleCandidate: true,
-  soulGeneratorMaxOutputTokens: 2500,
+  soulAllowOnReject: false,
+  soulAwareCriticMinScore: 8.6,
+  soulApprovedSingleCandidate: false,
+  soulGeneratorMaxOutputTokens: 3600,
   soulGateModel: "gemini-3.1-flash-lite-preview",
 };
 

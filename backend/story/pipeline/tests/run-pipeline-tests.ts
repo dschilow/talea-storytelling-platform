@@ -192,6 +192,14 @@ function buildValidV8Blueprint(): StoryBlueprintV8 {
     narrative_perspective: "personal_third",
     tense: "preterite",
     pov_character: "Alexander",
+    reader_contract: {
+      normal_world: "Alexander und Adrian stehen in der Thronhalle, bevor die silbernen Wege sich bewegen.",
+      who_we_meet_first: "Alexander prueft ruhig die Schatten, Adrian will schon los und spricht schneller.",
+      mission_in_child_words: "Alexander und Adrian muessen die Gluecksmuenze in den richtigen Kreis bringen, damit der sichere Weg offen bleibt.",
+      why_it_matters: "Wenn sie scheitern, bleibt der Weg zu Schneewittchen zu und Morbus bekommt die Muenze.",
+      special_rule: "Die Gluecksmuenze zeigt nur falsche Spuren; entscheiden und handeln muessen die Kinder selbst.",
+      chapter1_question: "Erkennen Alexander und Adrian den echten Kreis, bevor Morbus die Muenze bemerkt?",
+    },
     chapters: [
       {
         chapter: 1,
@@ -720,6 +728,58 @@ function testReadabilityGateForYoungAudience() {
     report.issues.some(issue => issue.code === "SENTENCE_COMPLEXITY_HIGH" || issue.code === "LONG_SENTENCE_OVERUSE"),
     "Readability gate should flag excessive sentence complexity for age 6-8"
   );
+}
+
+function testCh1ComprehensionOrientationGate() {
+  const cast = buildTestCast();
+  const directives = buildFiveDirectives().slice(0, 1);
+
+  const confusingDraft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Wenn die Kinder den wichtigen Hinweis verloren, wuerde die Gegenkraft das Ritual gewinnen. Alexander und Adrian standen schon am silbernen Kreis. Eine Spur blinkte, ein Zeichen zitterte, und niemand erklaerte, warum die Gluecksmuenze wichtig war. Sie mussten der naechsten Spur folgen und den Hinweis finden. Dann begann der Weg zu knacken.",
+      },
+    ],
+  };
+
+  const confusing = runQualityGates({
+    draft: confusingDraft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+  const confusingCodes = new Set(confusing.issues.map(issue => issue.code));
+  assert.ok(confusingCodes.has("CH1_ABSTRACT_STAKES_BEFORE_CONTEXT"), "Ch1 gate should reject abstract if-stakes before context");
+  assert.ok(confusingCodes.has("CH1_GENERIC_CLUE_ENGINE"), "Ch1 gate should reject clue/trail-only plot engines");
+
+  const clearDraft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Alexander stand im Hof an der alten Tuer und strich mit dem Finger ueber den kalten Stein. Neben ihm wippte Adrian auf den Zehen. \"Die Gluecksmuenze zeigt nur, welche Spur falsch ist\", sagte Alexander. \"Laufen muessen wir selbst.\" Sie mussten die Gluecksmuenze bis Sonnenuntergang in den silbernen Kreis bringen, sonst blieb der Weg zu Schneewittchen zu und Morbus bekam sie zuerst. Adrian schluckte. \"Dann erst hinschauen\", murmelte er, obwohl sein Fuss schon loswollte.",
+      },
+    ],
+  };
+
+  const clear = runQualityGates({
+    draft: clearDraft,
+    directives,
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+  });
+  const clearCodes = new Set(clear.issues.map(issue => issue.code));
+  assert.ok(!clearCodes.has("CH1_ABSTRACT_STAKES_BEFORE_CONTEXT"), "Clear Ch1 orientation must not be flagged as abstract stakes opening");
+  assert.ok(!clearCodes.has("CH1_GENERIC_CLUE_ENGINE"), "Concrete Ch1 mission must not be treated as clue-only engine");
+  assert.ok(!clearCodes.has("CH1_MISSION_UNCLEAR"), "Clear Ch1 mission and consequence must pass comprehension gate");
 }
 
 function testCharacterVoiceGate() {
@@ -1700,6 +1760,19 @@ function testV8BlueprintValidation() {
   assert.ok(codes.has("ARC_LABEL_INVALID"), "Validator should enforce strict V8 arc order");
   assert.ok(codes.has("POV_PRESENCE_TOO_LOW"), "Validator should require the POV child across the arc");
   assert.ok(codes.has("QUOTABLE_LINE_REPEATED"), "Validator should reject repeated placeholder quotable lines");
+
+  const genericReaderContract = JSON.parse(JSON.stringify(validBlueprint)) as StoryBlueprintV8;
+  genericReaderContract.reader_contract.mission_in_child_words = "Alexander und Adrian wollen den naechsten Hinweis finden und der Spur folgen.";
+  const readerContractInvalid = validateV8Blueprint({
+    blueprint: genericReaderContract,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.ok(
+    readerContractInvalid.issues.some(issue => issue.code === "READER_CONTRACT_MISSION_GENERIC"),
+    "Validator should reject reader_contract missions that are only clue/trail mechanics"
+  );
 }
 
 function testV8BlueprintRepairAddsAntagonistDna() {
@@ -1812,6 +1885,7 @@ function testV8WriterPromptRegression() {
   assert.ok(prompt.includes("DEUTSCHE STILREGELN"), "Language-specific style rules should stay in German");
   assert.ok(prompt.includes("Kein Fremdwort"), "German lexical constraints should remain in German");
   assert.ok(prompt.includes("BLUEPRINT FIDELITY"), "V8 writer prompt should include an explicit blueprint fidelity block");
+  assert.ok(prompt.includes("READER CONTRACT"), "V8 writer prompt should carry the child-comprehension reader contract");
   assert.ok(prompt.includes("realize the blueprint's humor_beats"), "V8 writer prompt should force humor beats onto the page");
   assert.ok(!prompt.includes("4-5 Strings"), "V8 writer prompt must not carry the conflicting old paragraph count");
 
@@ -1905,6 +1979,7 @@ async function run() {
   testForbiddenCanonPhrase();
   testContinuousStorySegmentation();
   testReadabilityGateForYoungAudience();
+  testCh1ComprehensionOrientationGate();
   testCharacterVoiceGate();
   testRoleLabelOveruseSeverity();
   testCharacterFocusGate();

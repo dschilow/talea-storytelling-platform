@@ -41,6 +41,8 @@ export interface SemanticCriticRubricScores {
   // Sprint 1: New rubrics closing the 8.5+ gap to Gruffalo/Auer benchmark
   concrete_anchor_density: SemanticCriticRubricScore;
   antagonist_motivation_clarity: SemanticCriticRubricScore;
+  reader_orientation: SemanticCriticRubricScore;
+  artifact_rule_clarity: SemanticCriticRubricScore;
 }
 
 export interface SemanticCriticReport {
@@ -80,6 +82,8 @@ const RUBRIC_KEYS = [
   // gaps diagnosed in "Zeitkristall" (abstract metaphors + unmotivated antagonist)
   "concrete_anchor_density",
   "antagonist_motivation_clarity",
+  "reader_orientation",
+  "artifact_rule_clarity",
 ] as const;
 
 type RubricKey = (typeof RUBRIC_KEYS)[number];
@@ -171,9 +175,13 @@ Return at most 7 issues and at most 5 patchTasks.`;
         // Sprint 1 rubrics
         concrete_anchor_density: "Gruffalo test: are abstract themes (trust, fear, loss) tied to specific, touchable, child-visible objects or actions? Score low if the story is metaphor-heavy without physical story-physics, high when every big idea has a graspable counterpart that children can point at.",
         antagonist_motivation_clarity: "If the story has an antagonist: does the reader immediately feel their motive, weakness, and first entry? Score low for 'appeared out of nowhere' villains or generic dark-fantasy decoration, high when the antagonist is motivated, readable, and has a consistent speech-tic or signature.",
+        reader_orientation: "Chapter 1 comprehension test: by paragraph 2 can a 5-8 year old retell who is here, where they are, what they must do, and what concrete thing is at risk? Score low for abstract in-medias-res openings or clue/trail mechanics before setup.",
+        artifact_rule_clarity: "If an artifact/magic/fairy-tale rule is used: is its one child-readable rule explained before it matters, and does it point/show rather than solve? Score low for unexplained ritual/force/artifact mechanics.",
       },
       focusChecks: [
         "Chapter 1 must orient WHO + WHERE + WHAT by paragraph 2.",
+        "Chapter 1 must not open with abstract if-stakes, unexplained rituals, or clue/trail mechanics before the reader knows the children and task.",
+        "Any artifact/magic rule must be child-readable before it matters on page.",
         "Chapter 3 must contain an active child mistake with visible consequence and body reaction.",
         "Chapter 4 must contain a real inner low point and an internally earned turn.",
         "Chapter 5 must deliver concrete win + small price + callback + warm ending image.",
@@ -202,6 +210,8 @@ Return at most 7 issues and at most 5 patchTasks.`;
           chapter5_quality: { score: "number 0..10", reasoning: "string", example: "string optional" },
           concrete_anchor_density: { score: "number 0..10", reasoning: "string", example: "string optional" },
           antagonist_motivation_clarity: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          reader_orientation: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          artifact_rule_clarity: { score: "number 0..10", reasoning: "string", example: "string optional" },
         },
         critical_failures: ["string"],
         strengths: ["string"],
@@ -318,7 +328,7 @@ export function normalizeCriticReport(
 ): SemanticCriticReport {
   const chapterSet = new Set(ctx.directives.map((d) => d.chapter));
 
-  const rawRubricScores = normalizeRubricScores(raw?.scores || raw?.rubricScores);
+  const rawRubricScores = completeMissingRubricScores(normalizeRubricScores(raw?.scores || raw?.rubricScores));
   const legacyDimensionScores = normalizeLegacyDimensionScores(raw?.dimensionScores || {});
   const preliminaryOverall = clampNumber(Number(raw?.overall_score ?? raw?.overallScore ?? 0), 0, 10);
 
@@ -504,7 +514,46 @@ function normalizeRubricScores(raw: any): SemanticCriticRubricScores {
     chapter5_quality: readRubric("chapter5_quality"),
     concrete_anchor_density: readRubric("concrete_anchor_density"),
     antagonist_motivation_clarity: readRubric("antagonist_motivation_clarity"),
+    reader_orientation: readRubric("reader_orientation"),
+    artifact_rule_clarity: readRubric("artifact_rule_clarity"),
   };
+}
+
+function completeMissingRubricScores(rubricScores: SemanticCriticRubricScores): SemanticCriticRubricScores {
+  const clone: SemanticCriticRubricScores = { ...rubricScores };
+  if (clone.concrete_anchor_density.score === 0 && !clone.concrete_anchor_density.reasoning) {
+    clone.concrete_anchor_density = {
+      score: mean([clone.scenic_presence.score, clone.iconic_scene.score, clone.readability.score]),
+      reasoning: "Backfilled from scenic/iconic/readability because critic omitted concrete_anchor_density.",
+    };
+  }
+  if (clone.antagonist_motivation_clarity.score === 0 && !clone.antagonist_motivation_clarity.reasoning) {
+    clone.antagonist_motivation_clarity = {
+      score: mean([clone.tension_arc.score, clone.chapter_coherence.score, clone.chapter5_quality.score]),
+      reasoning: "Backfilled from tension/coherence/ending because critic omitted antagonist_motivation_clarity.",
+    };
+  }
+  if (clone.reader_orientation.score === 0 && !clone.reader_orientation.reasoning) {
+    clone.reader_orientation = {
+      score: mean([
+        clone.chapter_coherence.score,
+        clone.readability.score,
+        clone.age_appropriateness.score,
+      ]),
+      reasoning: "Backfilled from coherence/readability/age-fit because critic omitted reader_orientation.",
+    };
+  }
+  if (clone.artifact_rule_clarity.score === 0 && !clone.artifact_rule_clarity.reasoning) {
+    clone.artifact_rule_clarity = {
+      score: mean([
+        clone.concrete_anchor_density.score,
+        clone.chapter_coherence.score,
+        clone.scenic_presence.score,
+      ]),
+      reasoning: "Backfilled from anchors/coherence/scenic presence because critic omitted artifact_rule_clarity.",
+    };
+  }
+  return clone;
 }
 
 function normalizeLegacyDimensionScores(raw: any): {
@@ -554,6 +603,8 @@ function buildFallbackRubricFromLegacy(input: {
     // Sprint 1: new rubrics — use craft as baseline when legacy data does not contain them
     concrete_anchor_density: { score: craft, reasoning: "" },
     antagonist_motivation_clarity: { score: narrative, reasoning: "" },
+    reader_orientation: { score: childFit, reasoning: "" },
+    artifact_rule_clarity: { score: narrative, reasoning: "" },
   };
 }
 
@@ -570,16 +621,19 @@ function deriveDimensionScores(rubricScores: SemanticCriticRubricScores): {
       rubricScores.scenic_presence.score,
       rubricScores.readability.score,
       rubricScores.iconic_scene.score,
+      rubricScores.artifact_rule_clarity.score,
     ]),
     narrative: mean([
       rubricScores.tension_arc.score,
       rubricScores.chapter_coherence.score,
       rubricScores.chapter5_quality.score,
+      rubricScores.reader_orientation.score,
     ]),
     childFit: mean([
       rubricScores.age_appropriateness.score,
       rubricScores.readability.score,
       rubricScores.emotional_arc.score,
+      rubricScores.reader_orientation.score,
     ]),
     humor: clampNumber(rubricScores.humor.score, 0, 10),
     warmth: mean([

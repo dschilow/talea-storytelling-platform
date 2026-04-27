@@ -80,7 +80,7 @@ const ARTIFACT_CATEGORY_BY_ABILITY: Record<string, ArtifactCategory[]> = {
 };
 
 const STORY_ARTIFACT_CATEGORY_BIAS: Record<string, ArtifactCategory[]> = {
-  "Abenteuer & Schätze": ["map", "tool", "weapon", "jewelry", "magic"],
+  "Abenteuer & Schätze": ["map", "tool", "jewelry", "book", "magic"],
   "Märchenwelten & Magie": ["magic", "jewelry", "book", "nature", "potion"],
   "Tierwelten": ["nature", "tool", "clothing", "magic", "potion"],
   "Sci-Fi & Zukunft": ["tech", "tool", "map", "magic"],

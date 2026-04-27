@@ -2824,6 +2824,93 @@ function gateCh1Orientation(
     });
   }
 
+  const first180Words = text.split(/\s+/).slice(0, 180).join(" ");
+  const first220Words = text.split(/\s+/).slice(0, 220).join(" ");
+  const first180Lower = first180Words.toLowerCase();
+  const first220Lower = first220Words.toLowerCase();
+  const abstractStakesOpening = isDE
+    ? /^\s*(wenn|falls)\b/i.test(firstSentence)
+      && /\b(kinder|sie|wir)\b/i.test(firstSentence)
+      && /\b(hinweis|spur|zeichen|ritual|kraft|gegenkraft|artefakt|weg|ziel)\b/i.test(firstSentence)
+      && !firstSentenceHasFocusChild
+    : /^\s*(if|when)\b/i.test(firstSentence)
+      && /\b(children|they|we)\b/i.test(firstSentence)
+      && /\b(clue|trail|sign|ritual|force|artifact|path|goal)\b/i.test(firstSentence)
+      && !firstSentenceHasFocusChild;
+
+  if (abstractStakesOpening) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_ABSTRACT_STAKES_BEFORE_CONTEXT",
+      message: isDE
+        ? "Kapitel 1 beginnt mit abstrakten Stakes, bevor Kind, Ort und Aufgabe greifbar sind. Starte mit Normalwelt + Figuren, dann Mission/Folge."
+        : "Chapter 1 opens with abstract stakes before child, place, and task are graspable. Start with normal world + characters, then mission/consequence.",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  const genericClueEngine = isDE
+    ? /\b(naechsten|nächsten|ersten|letzten)?\s*(hinweis|spur|zeichen|weg)\s*(finden|folgen|erreichen|lesen|suchen)\b/i.test(first220Lower)
+      && !/\b(bringen|retten|reparieren|zurueckbringen|zurückbringen|zurueckgeben|zurückgeben|beschuetzen|beschützen|oeffnen|öffnen|schliessen|schließen|aufhalten|abgeben|holen)\b/i.test(first220Lower)
+    : /\b(next|first|last)?\s*(clue|trail|sign|path)\s*(find|follow|reach|read|search)\b/i.test(first220Lower)
+      && !/\b(bring|save|fix|return|protect|open|close|stop|deliver)\b/i.test(first220Lower);
+
+  if (genericClueEngine) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_GENERIC_CLUE_ENGINE",
+      message: isDE
+        ? "Kapitel 1 treibt die Handlung nur ueber Hinweis/Spur/Zeichen. Ersetze das durch eine konkrete Kinder-Aufgabe mit sichtbarer Folge."
+        : "Chapter 1 is driven only by clue/trail/sign mechanics. Replace this with a concrete child task and visible consequence.",
+      severity: ageMax <= 8 ? "ERROR" : "WARNING",
+    });
+  }
+
+  const hasMissionCue = isDE
+    ? /\b(muss|musste|mussten|muessen|müssen|soll|sollen|sollte|sollten|wollen|auftrag|mission|bringt|bringen|rettet|retten|repariert|reparieren|holt|holen|gibt|geben|schuetzt|schützt|oeffnet|öffnet|stoppt|aufhalten)\b/i.test(first180Lower)
+    : /\b(must|need|needs|should|task|mission|bring|save|fix|return|deliver|protect|open|stop)\b/i.test(first180Lower);
+  const hasConsequenceCue = isDE
+    ? /\b(sonst|wenn nicht|falls nicht|bleibt|verschwindet|verliert|geht kaputt|geht verloren|zu spaet|zu spät|wartet|enttaeuscht|enttäuscht)\b/i.test(first180Lower)
+    : /\b(otherwise|if not|or else|will stay|disappear|lose|break|too late|waits|disappointed)\b/i.test(first180Lower);
+  const hasWhoCue = focusNameParts.length === 0 || focusNameParts.some(part => first180Lower.includes(part));
+
+  if (ageMax <= 8 && (!hasWhoCue || !hasMissionCue || !hasConsequenceCue)) {
+    issues.push({
+      gate: "CH1_ORIENTATION",
+      chapter: ch1.chapter,
+      code: "CH1_MISSION_UNCLEAR",
+      message: isDE
+        ? "Kapitel 1 macht in den ersten ca. 180 Woertern nicht klar genug: Wer ist da, was ist die Aufgabe, und was passiert sonst?"
+        : "Chapter 1 does not make WHO, task, and consequence clear enough in the first ~180 words.",
+      severity: "ERROR",
+    });
+  }
+
+  const artifactName = String(cast.artifact?.name || "").trim();
+  if (artifactName.length >= 3) {
+    const artifactLower = artifactName.toLowerCase();
+    const firstArtifactIndex = first220Lower.indexOf(artifactLower);
+    if (firstArtifactIndex >= 0) {
+      const window = first220Lower.slice(Math.max(0, firstArtifactIndex - 90), firstArtifactIndex + artifactLower.length + 130);
+      const explainsArtifact = isDE
+        ? /\b(heisst|heißt|kann|darf|zeigt|hilft|nur|wenn|regel|loest nicht|löst nicht|entscheid)\b/i.test(window)
+        : /\b(called|can|may|shows|helps|only|if|rule|does not solve|decide)\b/i.test(window);
+      if (!explainsArtifact) {
+        issues.push({
+          gate: "CH1_ORIENTATION",
+          chapter: ch1.chapter,
+          code: "CH1_ARTIFACT_RULE_UNCLEAR",
+          message: isDE
+            ? `Kapitel 1 nennt "${artifactName}", erklaert aber die Kinder-Regel nicht sofort. Ein Artefakt darf nicht wie Vorwissen wirken.`
+            : `Chapter 1 names "${artifactName}" but does not explain the child-readable rule immediately. The artifact must not require prior knowledge.`,
+          severity: ageMax <= 8 ? "ERROR" : "WARNING",
+        });
+      }
+    }
+  }
+
   // Check if location/world is established (sensory words in first 5 sentences)
   const first5 = sentences.slice(0, 5).join(" ");
   const sensoryPatterns = isDE
@@ -4104,6 +4191,17 @@ export function buildRewriteInstructions(issues: QualityIssue[], language: strin
     lines.push(isDE
       ? "- Verbotene Fuellwoerter komplett entfernen (z. B. ploetzlich, irgendwie, ein bisschen, ziemlich, wirklich, sehr, Es war einmal)."
       : "- Remove banned filler words completely (e.g., suddenly, really).");
+  }
+  if (
+    issueCodes.has("CH1_ABSTRACT_STAKES_BEFORE_CONTEXT") ||
+    issueCodes.has("CH1_GENERIC_CLUE_ENGINE") ||
+    issueCodes.has("CH1_MISSION_UNCLEAR") ||
+    issueCodes.has("CH1_ARTIFACT_RULE_UNCLEAR") ||
+    issueCodes.has("CH1_IN_MEDIAS_RES")
+  ) {
+    lines.push(isDE
+      ? "- Kapitel 1 neu orientieren: Absatz 1 Normalwelt + erkennbare Figuren, Absatz 2 einfache Mission + konkrete Folge, Absatz 3 erst dann Regel/Artefakt/Spannung. Nicht mit 'Wenn die Kinder...' oder Hinweis-Spur-Mechanik starten."
+      : "- Re-orient Chapter 1: paragraph 1 normal world + recognizable figures, paragraph 2 simple mission + concrete consequence, paragraph 3 only then rule/artifact/tension. Do not open with abstract if-stakes or clue-trail mechanics.");
   }
   if (issueCodes.has("MISSING_INNER_CHILD_MOMENT") || issueCodes.has("NO_CHILD_ERROR_CORRECTION_ARC")) {
     lines.push(isDE

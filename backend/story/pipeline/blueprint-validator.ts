@@ -21,6 +21,9 @@ const GENERIC_BLUEPRINT_PATTERNS = [
   /\bein belauschtes geheimnis\b/i,
   /\bdoppelter bluff\b/i,
   /\bnaechsten hinweis erreichen\b/i,
+  /\bnaechsten hinweis finden\b/i,
+  /\bder spur folgen\b/i,
+  /\bnur die spur finden\b/i,
   /\bden plan in wenigen minuten neu ordnen\b/i,
   /sorgt fuer ein erstes schmunzeln/i,
   /taucht am ende leicht veraendert wieder auf/i,
@@ -54,6 +57,10 @@ export function validateV8Blueprint(input: {
   if (!hasMeaningfulText(blueprint.teaser)) push("TEASER_MISSING", "Blueprint teaser is missing.");
   if (blueprint.tense !== "preterite") push("TENSE_INVALID", `Blueprint tense must be "preterite", got "${String(blueprint.tense || "")}".`);
   if (!hasMeaningfulText(blueprint.pov_character)) push("POV_MISSING", "Blueprint POV character is missing.");
+
+  if (strictChildMode) {
+    validateReaderContract((blueprint as any).reader_contract, push);
+  }
 
   const chapters = Array.isArray(blueprint.chapters) ? blueprint.chapters : [];
   if (chapters.length !== input.chapterCount) {
@@ -351,6 +358,68 @@ export function validateV8Blueprint(input: {
     valid: issues.every(issue => issue.severity !== "ERROR"),
     issues,
   };
+}
+
+function validateReaderContract(
+  contract: any,
+  push: (code: string, message: string, chapter?: number, severity?: "ERROR" | "WARNING") => void,
+): void {
+  if (!contract || typeof contract !== "object" || Array.isArray(contract)) {
+    push(
+      "READER_CONTRACT_MISSING",
+      "reader_contract is required for age 5-8 stories. It must make Chapter 1 child-readable before action starts.",
+    );
+    return;
+  }
+
+  const requiredFields = [
+    "normal_world",
+    "who_we_meet_first",
+    "mission_in_child_words",
+    "why_it_matters",
+    "special_rule",
+    "chapter1_question",
+  ] as const;
+
+  for (const field of requiredFields) {
+    const value = contract[field];
+    if (!hasMeaningfulText(value)) {
+      push(
+        "READER_CONTRACT_FIELD_MISSING",
+        `reader_contract.${field} is missing or too short. Chapter 1 needs this for child comprehension.`,
+      );
+    } else if (looksReaderContractTooAbstract(value)) {
+      push(
+        "READER_CONTRACT_TOO_ABSTRACT",
+        `reader_contract.${field} is too abstract. Use visible objects, actions, and consequences a child can point at.`,
+        undefined,
+        "WARNING",
+      );
+    }
+  }
+
+  if (isGenericReaderMission(contract.mission_in_child_words)) {
+    push(
+      "READER_CONTRACT_MISSION_GENERIC",
+      "reader_contract.mission_in_child_words cannot be only 'find/follow the next clue/trail'. Name a concrete task plus consequence.",
+    );
+  }
+}
+
+function isGenericReaderMission(value: unknown): boolean {
+  const text = String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  const clueOnly = /\b(naechsten|nächsten|ersten|letzten)?\s*(hinweis|spur|zeichen|weg)\s*(finden|folgen|erreichen|lesen|suchen)\b/.test(text)
+    || /\b(der|die|dem|einer)?\s*(spur|hinweis|zeichen)\s*(folgen|finden|suchen)\b/.test(text);
+  const concreteTask = /\b(bringen|retten|reparieren|zurueckbringen|zurückbringen|zurueckgeben|zurückgeben|befreien|beschuetzen|beschützen|oeffnen|öffnen|schliessen|schließen|aufhalten|holen|abgeben|ersetzen|bauen|sammeln)\b/.test(text);
+  return clueOnly && !concreteTask;
+}
+
+function looksReaderContractTooAbstract(value: unknown): boolean {
+  const text = String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (text.length < 12) return false;
+  const abstractHits = text.match(/\b(abenteuer|geheimnisvoll|magisch|kraft|gegenkraft|ritual|fluch|artefakt|hinweis|spur|zeichen|energie|ziel)\b/g)?.length ?? 0;
+  const concreteHits = text.match(/\b(tuer|tür|fenster|tisch|hof|zimmer|garten|brunnen|eimer|zettel|muenze|münze|schluessel|schlüssel|karte|tasche|rucksack|stein|buch|uhr|kiste|schnur|ball|licht|kreis|weg|baum|bank|brot|becher)\b/g)?.length ?? 0;
+  return abstractHits >= 2 && concreteHits === 0;
 }
 
 /**

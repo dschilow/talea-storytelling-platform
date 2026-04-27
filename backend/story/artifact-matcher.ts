@@ -196,7 +196,44 @@ export class ArtifactMatcher {
     };
     score += rarityBonus[artifact.rarity] || 0;
 
+    // Child-book quality adjustment:
+    // Prefer graspable helper objects over combat/power artifacts. The artifact
+    // should create a rule or choice for the child, not solve the plot alone.
+    score += this.calculateChildStoryQualityAdjustment(artifact);
+
     return Math.max(0, score); // Never negative
+  }
+
+  private calculateChildStoryQualityAdjustment(artifact: ArtifactTemplate): number {
+    const text = [
+      artifact.name.de,
+      artifact.name.en,
+      artifact.description.de,
+      artifact.description.en,
+      artifact.storyRole,
+      ...artifact.usageScenarios,
+      ...artifact.visualKeywords,
+    ].join(" ").toLowerCase();
+
+    let adjustment = 0;
+    const childReadableCategories: ArtifactCategory[] = ["map", "book", "tool", "jewelry", "nature"];
+    if (childReadableCategories.includes(artifact.category)) adjustment += 8;
+    if (artifact.category === "weapon") adjustment -= 18;
+
+    if (/\b(sword|dagger|blade|lance|hammer|weapon|fight|battle|attack|monster|schwert|dolch|klinge|lanze|hammer|waffe|kampf|angriff|monster|besiegen|zerstoer|zerstör)\b/i.test(text)) {
+      adjustment -= 12;
+    }
+    if (/\b(any curse|everything|anywhere|future|read minds|revive|jeden fluch|alles|ueberall|überall|zukunft|gedanken liest|wiederbeleb)\b/i.test(text)) {
+      adjustment -= 10;
+    }
+    if (/\b(map|compass|key|book|bell|thread|button|coin|lantern|karte|kompass|schluessel|schlüssel|buch|glocke|faden|knopf|muenze|münze|laterne)\b/i.test(text)) {
+      adjustment += 8;
+    }
+    if (/\b(shows|points|reminds|glows|opens|only|zeigt|weist|erinnert|leuchtet|oeffnet|öffnet|nur)\b/i.test(text)) {
+      adjustment += 6;
+    }
+
+    return Math.max(-24, Math.min(18, adjustment));
   }
 
   private calculateFreshnessAdjustment(artifact: ArtifactTemplate, userRecentUsage: number): number {

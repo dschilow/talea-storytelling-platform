@@ -218,6 +218,15 @@ export interface StoryBlueprintV8Chapter {
   dialogue_percentage: number;
 }
 
+export interface StoryBlueprintV8ReaderContract {
+  normal_world: string;
+  who_we_meet_first: string;
+  mission_in_child_words: string;
+  why_it_matters: string;
+  special_rule: string;
+  chapter1_question: string;
+}
+
 export interface StoryBlueprintV8 {
   title: string;
   teaser: string;
@@ -225,6 +234,11 @@ export interface StoryBlueprintV8 {
   narrative_perspective: StoryBlueprintV8NarrativePerspective;
   tense: "preterite";
   pov_character: string;
+  /**
+   * Child-comprehension contract for chapter 1. The writer must establish this
+   * before the adventure mechanics start, so a 5-8 year old can retell the task.
+   */
+  reader_contract: StoryBlueprintV8ReaderContract;
   chapters: StoryBlueprintV8Chapter[];
   humor_beats: Array<{
     chapter: number;

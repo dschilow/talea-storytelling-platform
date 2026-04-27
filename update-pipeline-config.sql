@@ -1,16 +1,25 @@
--- Update existing pipeline config to use new Flux settings
--- Run this to update the database with the new parameters
+-- Update existing pipeline config to use quality-first story settings plus
+-- current Flux image defaults.
+-- Run this locally or through the Railway run-migration-sql endpoint.
+
+INSERT INTO pipeline_config (key, value)
+VALUES ('default', '{}'::jsonb)
+ON CONFLICT (key) DO NOTHING;
 
 UPDATE pipeline_config
-SET value = jsonb_set(
-    jsonb_set(
-        value,
-        '{runwareSteps}',
-        '4'
-    ),
-    '{runwareCfgScale}',
-    '4'
-),
+SET value = value || '{
+    "runwareSteps": 4,
+    "runwareCfgScale": 4,
+    "releaseCandidateCount": 3,
+    "criticMinScore": 8.6,
+    "pass3TargetScore": 8.6,
+    "pass3WarnFloor": 7.2,
+    "soulStageEnabled": true,
+    "soulAllowOnReject": false,
+    "soulAwareCriticMinScore": 8.6,
+    "soulApprovedSingleCandidate": false,
+    "soulGeneratorMaxOutputTokens": 3600
+}'::jsonb,
 updated_at = CURRENT_TIMESTAMP
 WHERE key = 'default';
 

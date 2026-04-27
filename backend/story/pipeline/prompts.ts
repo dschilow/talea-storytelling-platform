@@ -1100,6 +1100,7 @@ Hard requirements:
 - chapter 3 contains an active child mistake with a visible consequence
 - chapter 4 contains a real inner turning point, not artifact magic or adult rescue
 - chapter 5 contains a concrete win, a small personal price, and a callback
+- include reader_contract so Chapter 1 can orient WHO, WHERE, WHAT, WHY, and the one rule before conflict starts
 - define any secret, bluff, false lead, trap, or price in concrete child-readable world terms
 - every chapter's obstacle and key_scene must name visible actions, objects, sounds, or misunderstandings
 - never hide the story engine behind abstract labels like "a secret blocks the way" or "a double bluff"
@@ -1220,6 +1221,15 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
         .join("\n");
 
   const anchorLines = soul.worldTexture.anchors.map((a) => `- ${a}`).join("\n");
+  const rc = (soul as any).readerContract || {};
+  const readerContractLines = [
+    rc.normalWorld ? `- Normalwelt: ${rc.normalWorld}` : "",
+    rc.whoWeMeetFirst ? `- Wer zuerst: ${rc.whoWeMeetFirst}` : "",
+    rc.missionInChildWords ? `- Mission in Kinderworten: ${rc.missionInChildWords}` : "",
+    rc.whyItMattersNow ? `- Warum jetzt: ${rc.whyItMattersNow}` : "",
+    rc.magicOrArtifactRule ? `- Regel: ${rc.magicOrArtifactRule}` : "",
+    rc.chapter1Question ? `- Ch1-Frage: ${rc.chapter1Question}` : "",
+  ].filter(Boolean).join("\n");
 
   if (isGerman) {
     return [
@@ -1228,6 +1238,7 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
       `Hook-Frage (offen nach Ch1): ${soul.hookQuestion}`,
       `Stakes: ${soul.emotionalStakes.what} — warum: ${soul.emotionalStakes.why}`,
       `Am meisten betroffen: ${soul.emotionalStakes.whoCares}`,
+      readerContractLines ? `\nREADER CONTRACT (Kapitel 1 muss das fuer Kinder klarmachen):\n${readerContractLines}` : "",
       `Welt "${soul.worldTexture.placeName}" — ${soul.worldTexture.senseDetails}`,
       "Welt-Anker:",
       anchorLines,
@@ -1254,6 +1265,7 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
     `Hook question (open after Ch1): ${soul.hookQuestion}`,
     `Stakes: ${soul.emotionalStakes.what} — why: ${soul.emotionalStakes.why}`,
     `Most affected: ${soul.emotionalStakes.whoCares}`,
+    readerContractLines ? `\nREADER CONTRACT (Chapter 1 must make this child-clear):\n${readerContractLines}` : "",
     `World "${soul.worldTexture.placeName}" — ${soul.worldTexture.senseDetails}`,
     "World anchors:",
     anchorLines,
@@ -1272,6 +1284,35 @@ function buildSoulPromptBlock(soul: StorySoul | undefined, isGerman: boolean): s
     `\nBenchmark tone: ${soul.benchmarkBook.title} — ${soul.benchmarkBook.whyMatch}`,
     `Voice sample: ${soul.benchmarkBook.voiceReference}`,
   ].filter(Boolean).join("\n");
+}
+
+function buildReaderContractBlock(
+  blueprint: StoryBlueprintV8,
+  storySoul: StorySoul | undefined,
+  isGerman: boolean,
+): string {
+  const blueprintContract = (blueprint as any)?.reader_contract || {};
+  const soulContract = (storySoul as any)?.readerContract || {};
+  const mission = blueprintContract.mission_in_child_words || soulContract.missionInChildWords || "";
+  const why = blueprintContract.why_it_matters || soulContract.whyItMattersNow || "";
+  const rule = blueprintContract.special_rule || soulContract.magicOrArtifactRule || "";
+  const normalWorld = blueprintContract.normal_world || soulContract.normalWorld || "";
+  const who = blueprintContract.who_we_meet_first || soulContract.whoWeMeetFirst || "";
+  const ch1Question = blueprintContract.chapter1_question || soulContract.chapter1Question || "";
+  const lines = [
+    normalWorld ? `- Normal world: ${normalWorld}` : "",
+    who ? `- Who first: ${who}` : "",
+    mission ? `- Mission in child words: ${mission}` : "",
+    why ? `- Why now: ${why}` : "",
+    rule ? `- One special rule: ${rule}` : "",
+    ch1Question ? `- Ch1 open question: ${ch1Question}` : "",
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+
+  const heading = isGerman
+    ? "READER CONTRACT (HARD: Kapitel 1 muss dies vor Abenteuermechanik klaeren)"
+    : "READER CONTRACT (HARD: Chapter 1 must establish this before adventure mechanics)";
+  return `${heading}\n${lines.join("\n")}\n- Ch1 paragraph 1: familiar place + recognizable child behavior.\n- Ch1 paragraph 2: mission + concrete consequence in simple words.\n- Ch1 paragraph 3: the one artifact/magic/rule in action or dialogue.\n- Ch1 may become tense only after the reader can answer WHO, WHERE, WHAT, WHY.`;
 }
 
 export function buildV8BlueprintPrompt(input: {
@@ -1327,6 +1368,7 @@ export function buildV8BlueprintPrompt(input: {
   const soulRules = soulBlock
     ? `
 - The blueprint MUST realize the Story Soul above in concrete chapter fields.
+- reader_contract MUST copy or faithfully compress StorySoul.readerContract so Chapter 1 has a child-readable setup before action.
 - pov_character MUST be one of the characterFingerprints names.
 - error_and_repair.who MUST be one of the characterFingerprints names.
 - Each chapter_hook MUST be an emotional or relational cliffhanger matching the Soul's chapterEndings (not merely informational).
@@ -1371,6 +1413,13 @@ RULES
 - Blueprint field text may be in English. Keep names unchanged.
 
 MANDATORY SPRINT-1 FIELDS (hard-validated):
+
+reader_contract (REQUIRED for ages 5-8):
+- Purpose: prevent confusing in-medias-res openings.
+- Shape: { "normal_world", "who_we_meet_first", "mission_in_child_words", "why_it_matters", "special_rule", "chapter1_question" }.
+- mission_in_child_words MUST be a concrete task a child can repeat: bring/fix/save/return/open/stop/protect/deliver a visible thing.
+- INVALID: "find the next clue", "follow the trail", "discover the secret", "solve the mystery" unless it also names the concrete object and consequence.
+- Chapter 1 goal MUST match this mission in child words.
 
 concrete_anchors (REQUIRED, at least 3 entries):
 - Map abstract themes to concrete, child-visible, touchable story objects or actions.
@@ -1471,6 +1520,7 @@ export function buildV8StoryPrompt(input: {
   const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 4);
   const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
   const soulBlock = buildSoulPromptBlock(input.storySoul, isGerman);
+  const readerContractBlock = buildReaderContractBlock(input.blueprint, input.storySoul, isGerman);
 
   let memoryLine = "";
   if (input.avatarMemories && input.avatarMemories.size > 0) {
@@ -1559,6 +1609,7 @@ ${(iconicMotif.per_chapter_position || [])
 
   return `Use the following internal blueprint to write the final children's story.
 ${soulBlock ? `\n${soulBlock}\n` : ""}
+${readerContractBlock ? `\n${readerContractBlock}\n` : ""}
 WORD BUDGET
 - ${input.chapterCount} chapters
 - Total: ${input.totalWordMin}-${input.totalWordMax} words
@@ -1593,6 +1644,8 @@ HARD RULES
 - exactly ${input.chapterCount} chapter objects
 - each paragraph must be its own string
 - never collapse a full chapter into one string
+- Chapter 1 must start with reader orientation, not with abstract stakes, a clue, a chase, or unexplained ritual/artifact mechanics.
+- By the end of Chapter 1 paragraph 2, a child must be able to say: who is here, where are they, what must they do, and what concrete thing goes wrong if they fail.
 - make every humor beat in the blueprint visible on the page
 - if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
 - no markdown, no comments, no extra text.${soulFidelityBlock}${endingPatternBlock}${refrainBlock}${iconicMotifBlock}`;
@@ -2060,6 +2113,7 @@ export function buildV8RevisionPrompt(input: {
   const appearanceLockBlock = buildAppearanceLockBlock(promptSheets, isGerman);
   const voiceContractBlock = buildV8VoiceContractBlock(input.cast, isGerman);
   const stylePackBlock = trimPromptLines(sanitizeStylePackBlock(input.stylePackText, isGerman), 5);
+  const readerContractBlock = buildReaderContractBlock(input.blueprint, undefined, isGerman);
   const originalText = input.originalDraft.chapters
     .map(ch => `--- Chapter ${ch.chapter} ---\n${ch.text}`)
     .join("\n\n");
@@ -2088,6 +2142,7 @@ WORD BUDGET
 BLUEPRINT
 ${JSON.stringify(input.blueprint, null, 2)}
 
+${readerContractBlock ? `${readerContractBlock}\n` : ""}
 VOICE CONTRACTS
 German example lines are binding for rhythm, sentence length, and tone.
 ${voiceContractBlock}

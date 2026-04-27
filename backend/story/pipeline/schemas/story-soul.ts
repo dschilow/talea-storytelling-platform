@@ -60,6 +60,21 @@ export interface StorySoulWorldTexture {
   placeName: string;
 }
 
+export interface StorySoulReaderContract {
+  /** Vertrauter Normalzustand, bevor Problem/Magie greift */
+  normalWorld: string;
+  /** Welche Figuren das Kind zuerst wie erkennt */
+  whoWeMeetFirst: string;
+  /** Aufgabe in Kinderworten; nie nur "Spur/Hinweis finden" */
+  missionInChildWords: string;
+  /** Konkreter Verlust oder konkrete Folge, wenn sie scheitern */
+  whyItMattersNow: string;
+  /** Eine klare Regel fuer Artefakt/Magie/Maerchenlogik */
+  magicOrArtifactRule: string;
+  /** Die einfache Frage, die Kapitel 1 offen laesst */
+  chapter1Question: string;
+}
+
 export interface StorySoulCharacterFingerprint {
   name: string;
   role: StorySoulCharacterRole;
@@ -168,6 +183,7 @@ export interface StorySoul {
 
   emotionalStakes: StorySoulEmotionalStakes;
   worldTexture: StorySoulWorldTexture;
+  readerContract: StorySoulReaderContract;
 
   /** Fingerprints für die Hauptfiguren (mind. 2 bei 2 Avataren) */
   characterFingerprints: StorySoulCharacterFingerprint[];
@@ -235,6 +251,23 @@ function pushError(issues: StorySoulValidationIssue[], path: string, code: strin
 
 function pushWarning(issues: StorySoulValidationIssue[], path: string, code: string, message: string): void {
   issues.push({ path, code, severity: "WARNING", message });
+}
+
+function isGenericReaderMission(value: unknown): boolean {
+  const text = String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!text) return false;
+  const clueOnly = /\b(naechsten|nächsten|ersten|letzten)?\s*(hinweis|spur|zeichen|weg)\s*(finden|folgen|erreichen|lesen|suchen)\b/.test(text)
+    || /\b(der|die|dem|einer)?\s*(spur|hinweis|zeichen)\s*(folgen|finden|suchen)\b/.test(text);
+  const concreteTask = /\b(bringen|retten|reparieren|zurueckbringen|zurückbringen|zurueckgeben|zurückgeben|befreien|beschuetzen|beschützen|oeffnen|öffnen|schliessen|schließen|aufhalten|holen|abgeben|ersetzen|bauen|finden, damit|sammeln)\b/.test(text);
+  return clueOnly && !concreteTask;
+}
+
+function looksTooAbstractForReader(value: unknown): boolean {
+  const text = String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+  if (text.length < 12) return false;
+  const abstractHits = text.match(/\b(abenteuer|geheimnisvoll|magisch|magie|kraft|gegenkraft|ritual|fluch|artefakt|hinweis|spur|zeichen|energie|ziel)\b/g)?.length ?? 0;
+  const concreteHits = text.match(/\b(tuer|tür|fenster|tisch|hof|zimmer|garten|brunnen|eimer|zettel|muenze|münze|schluessel|schlüssel|karte|tasche|rucksack|stein|buch|uhr|kiste|schnur|ball|licht|kreis|weg|baum|bank|brot|becher)\b/g)?.length ?? 0;
+  return abstractHits >= 2 && concreteHits === 0;
 }
 
 function validateCharacterFingerprint(
@@ -340,6 +373,44 @@ export function validateStorySoul(raw: unknown, input: ValidateStorySoulInput): 
     }
     if (!isNonEmptyString(wt.senseDetails, 10)) pushError(issues, "worldTexture.senseDetails", "SENSE_SHORT", "senseDetails zu dünn.");
     if (!isNonEmptyString(wt.placeName, 3)) pushError(issues, "worldTexture.placeName", "PLACE_SHORT", "placeName zu kurz.");
+  }
+
+  // Reader Contract: the child must understand the setup before plot mechanics.
+  if (!soul.readerContract || typeof soul.readerContract !== "object") {
+    pushError(issues, "readerContract", "READER_CONTRACT_MISSING", "readerContract fehlt: Kapitel 1 braucht WHO/WHERE/MISSION/WHY/RULE in Kinderworten.");
+  } else {
+    const rc = soul.readerContract;
+    const requiredFields = [
+      ["normalWorld", rc.normalWorld, 15],
+      ["whoWeMeetFirst", rc.whoWeMeetFirst, 15],
+      ["missionInChildWords", rc.missionInChildWords, 15],
+      ["whyItMattersNow", rc.whyItMattersNow, 15],
+      ["magicOrArtifactRule", rc.magicOrArtifactRule, 12],
+      ["chapter1Question", rc.chapter1Question, 10],
+    ] as Array<[keyof StorySoulReaderContract, unknown, number]>;
+    for (const [field, value, minLength] of requiredFields) {
+      if (!isNonEmptyString(value, minLength)) {
+        pushError(issues, `readerContract.${field}`, "READER_CONTRACT_FIELD_SHORT", `${field} ist zu duenn fuer Kinder-Verstaendnis.`);
+      } else if (looksTooAbstractForReader(value)) {
+        pushWarning(issues, `readerContract.${field}`, "READER_CONTRACT_ABSTRACT", `${field} wirkt abstrakt. Formuliere mit sichtbaren Dingen, Handlungen und Folgen.`);
+      }
+    }
+    if (isGenericReaderMission(rc.missionInChildWords)) {
+      pushError(
+        issues,
+        "readerContract.missionInChildWords",
+        "READER_CONTRACT_MISSION_GENERIC",
+        "missionInChildWords darf nicht nur 'Spur/Hinweis finden' sein. Benenne eine konkrete Aufgabe plus Folge.",
+      );
+    }
+    if (isGenericReaderMission(rc.chapter1Question)) {
+      pushWarning(
+        issues,
+        "readerContract.chapter1Question",
+        "READER_CONTRACT_QUESTION_GENERIC",
+        "chapter1Question sollte eine emotionale/konkrete Frage sein, nicht nur ob sie die Spur finden.",
+      );
+    }
   }
 
   // Character Fingerprints

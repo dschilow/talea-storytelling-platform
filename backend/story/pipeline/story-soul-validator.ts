@@ -1,18 +1,14 @@
 /**
- * Story Soul Validator (Stage 1 – Soul-Gate vor Blueprint)
+ * Story Soul Validator (Stage 1 - Soul gate before blueprint).
  *
- * Struktur:
- * 1) Schema-Check (hart) – aus schemas/story-soul.ts
- * 2) LLM-Rubrik (10 Dimensionen à 0–10) – "der Lektor mit rotem Stift"
- * 3) Gate-Policy – approve / reject-with-fixes / reject-hard
- *
- * Der Validator urteilt NICHT, er entscheidet mit einer festen Policy:
- * - Gesamtschnitt >= 8.0 UND jede Dimension >= 6.0 → approved
- * - Gesamtschnitt >= 7.5 → acceptable_with_warnings (kann durchgewinkt werden)
- * - sonst → reject_with_fixes (Generator bekommt konkrete Reparatur-Hinweise)
- * - Schema-Fehler → reject_hard (gar nicht erst LLM-scoren)
- *
- * Siehe STORY_QUALITY_RADICAL_PLAN.md Abschnitt 4.3.
+ * Structure:
+ * 1) Hard schema check from schemas/story-soul.ts.
+ * 2) LLM rubric with child comprehension, premise, stakes, payoff, and voice.
+ * 3) Fixed gate policy:
+ *    - overall >= 8.4 and every dimension >= 7.0 -> approved
+ *    - overall >= 8.0 -> acceptable_with_warnings
+ *    - otherwise -> reject_with_fixes
+ *    - schema errors -> reject_hard
  */
 
 import { callChatCompletion } from "./llm-client";
@@ -53,6 +49,7 @@ export interface SoulRubricScore {
 
 export type SoulRubricDimension =
   | "premise_restatable"
+  | "reader_contract_clear"
   | "emotional_hook"
   | "stakes_feelable"
   | "world_specificity"
@@ -97,9 +94,9 @@ export interface SoulGateInput {
  *  - else → reject_with_fixes (or reject_hard when schema invalid)
  */
 export const SOUL_GATE_THRESHOLDS = {
-  approvedOverall: 8.0,
-  approvedMinDimension: 6.0,
-  acceptableOverall: 7.5,
+  approvedOverall: 8.4,
+  approvedMinDimension: 7.0,
+  acceptableOverall: 8.0,
   rejectOverall: 0, // anything below acceptable is reject_with_fixes
 } as const;
 
@@ -231,6 +228,7 @@ function round1(x: number): number {
 
 const ALL_DIMENSIONS: SoulRubricDimension[] = [
   "premise_restatable",
+  "reader_contract_clear",
   "emotional_hook",
   "stakes_feelable",
   "world_specificity",
@@ -364,6 +362,7 @@ function buildRubricUserPrompt(args: {
 
   const rubricList = isGerman
     ? [
+        "1b. reader_contract_clear: Macht readerContract vorab klar: normale Welt, wer ist da, Mission in Kinderworten, Warum-jetzt, Regel? 'Spur/Hinweis finden' ohne konkrete Aufgabe = 3.",
         "1. premise_restatable: Kann ein 7-Jähriger die Premise nach einmal Hören wiedergeben? Namen, konkretes Ziel. (< 7 = FAIL)",
         "2. emotional_hook: Ist hookQuestion emotional/beziehungsbasiert, nicht nur informativ? ('Trauen sich...' = 9. 'Was ist hinter der Tür?' = 4)",
         "3. stakes_feelable: Verliert das Kind GEFÜHLT etwas (Ritual, Person, Beziehung)? Oder nur 'Rätsel lösen' = niedrig.",
@@ -377,6 +376,7 @@ function buildRubricUserPrompt(args: {
         "11. originality: Ist die Premise FRISCH oder klingt sie wie ein Märchen-Remake? 'Hänsel & Gretel mit Amulett' = 2. 'Verirrt im Wald + Hexe im Zuckerhaus' = 3. 'Magisches Artefakt weist heim' = 3. Echter moderner/überraschender Konflikt = 8-10. Wenn die Geschichte wie eine bekannte Vorlage klingt → harte Penalty.",
       ]
     : [
+        "1b. reader_contract_clear: Does readerContract make the normal world, who we meet, child-word mission, why-now, and one rule clear before conflict? Pure 'find/follow clue/trail' = 3.",
         "1. premise_restatable: Can a 7-year-old retell the premise after one hearing? Names, concrete goal. (< 7 = FAIL)",
         "2. emotional_hook: Is hookQuestion emotional/relational, not merely informational? ('Do they dare...' = 9. 'What is behind the door?' = 4)",
         "3. stakes_feelable: Does the child FEEL losing something (ritual, person, relationship)? Pure 'solve riddle' = low.",
@@ -392,7 +392,7 @@ function buildRubricUserPrompt(args: {
 
   const instruction = isGerman
     ? [
-        "Bewerte jede der 11 Dimensionen mit einer Zahl 0..10.",
+        "Bewerte jede der 12 Dimensionen mit einer Zahl 0..10.",
         "Gib zu JEDER Dimension:",
         "  - score: 0..10 (Integer oder eine Nachkommastelle)",
         "  - reason: 1 Satz, KONKRET, mit Zitat aus der Soul wenn möglich",
@@ -401,12 +401,13 @@ function buildRubricUserPrompt(args: {
         "{",
         '  "scores": [',
         '    { "dimension": "premise_restatable", "score": 8, "reason": "...", "fix": "..." },',
-        "    ... (alle 11 Dimensionen, in der Reihenfolge oben)",
+        '    { "dimension": "reader_contract_clear", "score": 8, "reason": "...", "fix": "..." },',
+        "    ... (alle 12 Dimensionen, in der Reihenfolge oben)",
         "  ]",
         "}",
       ].join("\n")
     : [
-        "Rate each of the 11 dimensions 0..10.",
+        "Rate each of the 12 dimensions 0..10.",
         "For EACH dimension provide:",
         "  - score: 0..10 (integer or one decimal)",
         "  - reason: 1 sentence, CONCRETE, with a quote from the soul if possible",
@@ -415,7 +416,8 @@ function buildRubricUserPrompt(args: {
         "{",
         '  "scores": [',
         '    { "dimension": "premise_restatable", "score": 8, "reason": "...", "fix": "..." },',
-        "    ... (all 11 dimensions, in the order above)",
+        '    { "dimension": "reader_contract_clear", "score": 8, "reason": "...", "fix": "..." },',
+        "    ... (all 12 dimensions, in the order above)",
         "  ]",
         "}",
     ].join("\n");

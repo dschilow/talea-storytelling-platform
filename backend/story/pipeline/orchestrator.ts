@@ -476,17 +476,24 @@ export class StoryPipelineOrchestrator {
           });
 
           if (
-            soulGateResult.verdict === "reject_hard"
+            !gateSuccess
             && !pipelineConfig.soulAllowOnReject
           ) {
             throw new Error(
-              `Story Soul gate rejected (hard): ${soulGateResult.repairInstruction.slice(0, 240)}`,
+              `Story Soul gate rejected (${soulGateResult.verdict}): ${soulGateResult.repairInstruction.slice(0, 240)}`,
             );
           }
+          if (soulGeneration.fallbackUsed && !pipelineConfig.soulAllowOnReject) {
+            throw new Error("Story Soul generator used deterministic fallback; quality-first mode requires a validated Soul.");
+          }
         } catch (soulError) {
-          // Soft-fail: die Pipeline läuft ohne Soul weiter, der Blueprint-Pfad
-          // verhält sich identisch zum Pre-Soul-Rollout.
-          console.warn("[pipeline] ⚠️ Soul stage failed, falling back to pre-soul pipeline:", soulError);
+          const soulSoftFail = pipelineConfig.soulAllowOnReject;
+          console.warn(
+            soulSoftFail
+              ? "[pipeline] ⚠️ Soul stage failed, falling back to pre-soul pipeline:"
+              : "[pipeline] ⚠️ Soul stage failed, aborting in quality-first mode:",
+            soulError,
+          );
           storySoul = undefined;
           soulGateResult = undefined;
           phaseGates.push({
@@ -503,8 +510,11 @@ export class StoryPipelineOrchestrator {
           await logPhase("phase5.7-soul", { storyId: normalized.storyId }, {
             durationMs: Date.now() - phase57Start,
             error: soulError instanceof Error ? soulError.message : String(soulError),
-            softFail: true,
+            softFail: soulSoftFail,
           });
+          if (!soulSoftFail) {
+            throw soulError;
+          }
         }
       }
 
@@ -570,9 +580,9 @@ export class StoryPipelineOrchestrator {
       // Critic-Ergebnisse im 7.2–8.2-Band noch repariert werden. Ohne Soul
       // bleibt die bisherige pass3TargetScore-Schwelle aktiv.
       const baseMinScore = clampNumber(Number(pipelineConfig.pass3TargetScore ?? 8.0), 5.5, 10);
-      const soulAwareMinScore = clampNumber(Number(pipelineConfig.soulAwareCriticMinScore ?? 7.8), 5.5, baseMinScore);
+      const soulAwareMinScore = clampNumber(Number(pipelineConfig.soulAwareCriticMinScore ?? baseMinScore), 5.5, 10);
       const criticMinScore = soulGateResult?.verdict === "approved" || soulGateResult?.verdict === "acceptable_with_warnings"
-        ? soulAwareMinScore
+        ? Math.max(baseMinScore, soulAwareMinScore)
         : baseMinScore;
       const criticWarnFloor = clampNumber(Number(pipelineConfig.pass3WarnFloor ?? 6.5), 5, criticMinScore);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
