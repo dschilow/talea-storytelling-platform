@@ -1300,10 +1300,9 @@ export class StoryPipelineOrchestrator {
         "META_NARRATION",
       ]);
 
-      // Optional strict release gates. Disabled by default to avoid hard generation failures
-      // when only narrative quality errors remain after rewrite.
-      // DUPLICATE_SENTENCE + CRITIC_HARD_FLOOR are here (not hardSafetyCodes) so that
-      // default-mode stories get delivered with a warning rather than throwing 500.
+      // Strict release gates are diagnostic only in the generation endpoint. They
+      // surface quality debt in logs/validation reports, but should not turn a
+      // generated story into a 500 after the writer, polish, and critic already ran.
       const strictReleaseCodes = new Set([
         "DUPLICATE_SENTENCE",
         "CRITIC_HARD_FLOOR",
@@ -1340,21 +1339,29 @@ export class StoryPipelineOrchestrator {
         // Sprint 5 (S5.2): iconic motif must thread through chapters
         "ICONIC_MOTIF_SPARSE",
       ]);
-      const criticalCodes = new Set([
-        ...hardSafetyCodes,
-        ...(strictQualityGates ? [...strictReleaseCodes] : []),
-      ]);
-      const criticalErrors = storyErrors.filter((i: any) => criticalCodes.has(i.code));
+      const blockingCodes = new Set([...hardSafetyCodes]);
+      const blockingErrors = storyErrors.filter((i: any) => blockingCodes.has(i.code));
+      const strictDiagnosticErrors = strictQualityGates
+        ? storyErrors.filter((i: any) => strictReleaseCodes.has(i.code))
+        : [];
       const hasContent = storyDraft.chapters.some(ch => ch.text && ch.text.trim().length > 50);
       const storyGate = {
         phase: "phase6-story",
         success: storyErrors.length === 0,
-        schemaValid: criticalErrors.length === 0,
+        schemaValid: blockingErrors.length === 0,
         attempts: (qualityReport?.rewriteAttempts ?? 0) + 1,
         issues: storyErrors.map((issue: any) => ({ ...issue })),
       };
       phaseGates.push(storyGate);
-      if (criticalErrors.length > 0 || !hasContent) {
+      if (strictDiagnosticErrors.length > 0 && hasContent) {
+        await logPhase("phase6-story-strict-quality-waived", { storyId: normalized.storyId }, {
+          strictQualityGates,
+          waivedCodes: strictDiagnosticErrors.map((issue: any) => issue.code),
+          blockingCodes: blockingErrors.map((issue: any) => issue.code),
+          reason: "generated_story_has_content",
+        });
+      }
+      if (blockingErrors.length > 0 || !hasContent) {
         validationReport = buildValidationReportPayload({
           phaseGates,
           qualityReport,
@@ -1363,7 +1370,7 @@ export class StoryPipelineOrchestrator {
           criticReport,
         });
         await saveValidationReport(normalized.storyId, validationReport);
-        throw new Error(`Story quality gates failed: ${(criticalErrors.length > 0 ? criticalErrors : storyErrors).map((i: any) => i.code).join(", ")}`);
+        throw new Error(`Story quality gates failed: ${(blockingErrors.length > 0 ? blockingErrors : storyErrors).map((i: any) => i.code).join(", ")}`);
       }
       if (storyErrors.length > 0) {
         console.warn(`[pipeline] Story accepted with ${storyErrors.length} non-critical quality issues (strictQualityGates=${strictQualityGates}): ${storyErrors.map((i: any) => i.code).join(", ")}`);
