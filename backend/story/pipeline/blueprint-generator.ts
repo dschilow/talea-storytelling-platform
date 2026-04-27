@@ -379,6 +379,7 @@ export function repairV8BlueprintForValidation(
     first_action: meaningfulOrDefault(existing?.first_action, defaults.first_action),
     speech_tic: meaningfulOrDefault(existing?.speech_tic, defaults.speech_tic),
   };
+  ensureAntagonistShowdown(blueprint, (blueprint as any).antagonist_dna.name);
 
   return blueprint;
 }
@@ -446,6 +447,52 @@ function buildFallbackAntagonistDna(input: {
     first_action: firstAction,
     speech_tic: `${input.name} wiederholt leise: "Nur ich kenne den Weg", wenn sein Plan wackelt.`,
   };
+}
+
+function ensureAntagonistShowdown(blueprint: StoryBlueprintV8, antagonistName: unknown): void {
+  const name = String(antagonistName || "").replace(/\s+/g, " ").trim();
+  if (name.length < 2 || !Array.isArray(blueprint.chapters) || blueprint.chapters.length === 0) return;
+
+  const finalChapter = blueprint.chapters[blueprint.chapters.length - 1] as any;
+  const needle = name.toLowerCase();
+  const finalPieces = [
+    ...(Array.isArray(finalChapter.active_characters) ? finalChapter.active_characters : []),
+    ...(Array.isArray(finalChapter.supporting_characters) ? finalChapter.supporting_characters : []),
+    finalChapter.goal,
+    finalChapter.obstacle,
+    finalChapter.chapter_hook,
+    finalChapter.key_scene?.what_happens,
+    finalChapter.key_scene?.playable_moment,
+    finalChapter.key_scene?.quotable_line,
+  ]
+    .map(value => String(value || "").toLowerCase())
+    .join(" ");
+
+  if (finalPieces.includes(needle)) return;
+
+  const supporting = Array.isArray(finalChapter.supporting_characters)
+    ? finalChapter.supporting_characters
+    : [];
+  if (!supporting.some((value: unknown) => String(value || "").toLowerCase().includes(needle))) {
+    finalChapter.supporting_characters = [...supporting, name].slice(0, 4);
+  }
+
+  finalChapter.obstacle = appendSentence(
+    finalChapter.obstacle,
+    `${name} stellt sich ein letztes Mal sichtbar in den Weg.`
+  );
+  finalChapter.key_scene = finalChapter.key_scene || {};
+  finalChapter.key_scene.what_happens = appendSentence(
+    finalChapter.key_scene.what_happens,
+    `Die Kinder erkennen ${name}s Schwachpunkt und loesen den Streit ruhig auf.`
+  );
+}
+
+function appendSentence(value: unknown, sentence: string): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return sentence;
+  if (text.toLowerCase().includes(sentence.toLowerCase())) return text;
+  return `${text.replace(/[.?!]*$/, "")}. ${sentence}`;
 }
 
 function meaningfulOrDefault(value: unknown, fallback: string): string {

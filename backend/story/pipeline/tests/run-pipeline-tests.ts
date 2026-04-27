@@ -1746,6 +1746,34 @@ function testV8BlueprintRepairAddsVirtualAntagonistDna() {
   assert.strictEqual(validation.valid, true, `Virtual antagonist repair should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
 }
 
+function testV8BlueprintRepairAddsAntagonistShowdown() {
+  const blueprint = buildValidV8Blueprint();
+  (blueprint as any).antagonist_dna = {
+    name: "Eiskrone",
+    motive: "Eiskrone will den warmen Weg einfrieren, damit niemand den sicheren Ausgang findet.",
+    weakness: "Eiskrone verliert Kraft, wenn die Kinder ruhig zusammenbleiben und den echten Hinweis teilen.",
+    first_action: "Eiskrone laesst den Lichtkreis knacken und legt Frost auf die erste Spur.",
+    speech_tic: "Eiskrone fluestert immer: Nur kalt bleibt klar.",
+  };
+  blueprint.chapters[4].supporting_characters = [];
+  blueprint.chapters[4].goal = "Die Kinder wollen den richtigen Pfad befreien.";
+  blueprint.chapters[4].obstacle = "Der letzte Schritt wirkt kaelter als vorher.";
+  blueprint.chapters[4].key_scene.what_happens = "Alexander wartet, Adrian prueft den Kreis, und beide gehen erst dann weiter.";
+
+  const repaired = repairV8BlueprintForValidation(blueprint, {
+    cast: buildTestCast(),
+    directives: buildFiveDirectives(),
+  });
+
+  const validation = validateV8Blueprint({
+    blueprint: repaired,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(validation.valid, true, `Showdown repair should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
+}
+
 function testV8WriterPromptRegression() {
   const legacyPrompt = readFileSync("Logs/logs/extracted-fullstory-prompt-6ea4688e.txt", "utf8");
   assert.ok(legacyPrompt.includes("Was danach anders ist: Morbus"), "Regression fixture must contain the old truncated beat line");
@@ -1892,6 +1920,7 @@ async function run() {
   testV8BlueprintValidation();
   testV8BlueprintRepairAddsAntagonistDna();
   testV8BlueprintRepairAddsVirtualAntagonistDna();
+  testV8BlueprintRepairAddsAntagonistShowdown();
   testV8WriterPromptRegression();
   testCriticNormalizationAndBanding();
   await testIntegrationWithMocks();
