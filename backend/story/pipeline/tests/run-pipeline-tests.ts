@@ -1794,6 +1794,28 @@ function testV8BlueprintRepairAddsAntagonistDna() {
   assert.strictEqual(validation.valid, true, `Repaired blueprint should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
 }
 
+function testV8BlueprintRepairNormalizesObjectChapters() {
+  const blueprint = buildValidV8Blueprint();
+  delete (blueprint as any).antagonist_dna;
+  (blueprint as any).chapters = Object.fromEntries(
+    blueprint.chapters.map((chapter) => [`chapter_${chapter.chapter}`, chapter]),
+  );
+
+  const repaired = repairV8BlueprintForValidation(blueprint, {
+    cast: buildTestCast(),
+    directives: buildFiveDirectives(),
+  });
+
+  assert.ok(Array.isArray((repaired as any)?.chapters), "Repair should normalize object-shaped chapters to an array");
+  const validation = validateV8Blueprint({
+    blueprint: repaired,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(validation.valid, true, `Object-shaped chapter repair should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
+}
+
 function testV8BlueprintRepairAddsVirtualAntagonistDna() {
   const blueprint = buildValidV8Blueprint();
   delete (blueprint as any).antagonist_dna;
@@ -1994,6 +2016,7 @@ async function run() {
   testPromptVersionResolverV8Rollout();
   testV8BlueprintValidation();
   testV8BlueprintRepairAddsAntagonistDna();
+  testV8BlueprintRepairNormalizesObjectChapters();
   testV8BlueprintRepairAddsVirtualAntagonistDna();
   testV8BlueprintRepairAddsAntagonistShowdown();
   testV8WriterPromptRegression();

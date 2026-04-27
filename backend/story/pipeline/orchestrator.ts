@@ -1912,6 +1912,8 @@ function buildSkippedCriticReport(model: string): SemanticCriticReport {
       chapter5_quality: { score: 0, reasoning: "" },
       concrete_anchor_density: { score: 0, reasoning: "" },
       antagonist_motivation_clarity: { score: 0, reasoning: "" },
+      reader_orientation: { score: 0, reasoning: "" },
+      artifact_rule_clarity: { score: 0, reasoning: "" },
     },
     verdict: "reject",
     releaseReady: false,

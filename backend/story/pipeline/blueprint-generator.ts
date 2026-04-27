@@ -358,6 +358,7 @@ export function repairV8BlueprintForValidation(
   input: { cast: CastSet; directives: SceneDirective[] },
 ): StoryBlueprintV8 | null {
   if (!blueprint || typeof blueprint !== "object") return blueprint;
+  (blueprint as any).chapters = normalizeBlueprintChapters((blueprint as any).chapters);
   ensureReaderContract(blueprint, input);
 
   const existing = (blueprint as any).antagonist_dna;
@@ -474,7 +475,7 @@ function findAntagonistNameForBlueprint(
   }
 
   const mentionedNames = new Set(
-    (blueprint.chapters || [])
+    getBlueprintChapters(blueprint)
       .flatMap(chapter => [
         ...(Array.isArray(chapter.active_characters) ? chapter.active_characters : []),
         ...(Array.isArray(chapter.supporting_characters) ? chapter.supporting_characters : []),
@@ -505,7 +506,7 @@ function buildFallbackAntagonistDna(input: {
   const firstConflict = input.directives.find(directive => /antagonist|gegner|feind|schurke|boes|fluch|curse/i.test(directive.conflict || ""))
     || input.directives.find(directive => (directive.charactersOnStage || []).some(slot => /ANTAGONIST|VILLAIN|ENEMY|OPPONENT/i.test(slot)))
     || input.directives[0];
-  const blueprintObstacle = input.blueprint?.chapters?.find(chapter => antagonistSignalPattern.test(String(chapter?.obstacle || "")))?.obstacle;
+  const blueprintObstacle = getBlueprintChapters(input.blueprint).find(chapter => antagonistSignalPattern.test(String(chapter?.obstacle || "")))?.obstacle;
   const visibleConflict = String(firstConflict?.conflict || blueprintObstacle || "").replace(/\s+/g, " ").trim();
   const firstAction = visibleConflict
     ? `${input.name} zeigt sich zuerst, indem ${visibleConflict}.`
@@ -571,10 +572,37 @@ function meaningfulOrDefault(value: unknown, fallback: string): string {
   return text.length >= 6 ? text : fallback;
 }
 
+function getBlueprintChapters(blueprint?: StoryBlueprintV8 | null): any[] {
+  return Array.isArray((blueprint as any)?.chapters) ? (blueprint as any).chapters : [];
+}
+
+function normalizeBlueprintChapters(rawChapters: unknown): any[] {
+  if (Array.isArray(rawChapters)) return rawChapters;
+  if (!rawChapters || typeof rawChapters !== "object") return [];
+
+  const container = rawChapters as Record<string, unknown>;
+  for (const key of ["chapters", "items", "list"] as const) {
+    const nested = container[key];
+    if (Array.isArray(nested)) return nested;
+  }
+
+  return Object.entries(container)
+    .filter(([, value]) => value && typeof value === "object" && !Array.isArray(value))
+    .map(([key, value], index) => {
+      const chapter = { ...(value as Record<string, unknown>) } as Record<string, unknown>;
+      if (chapter.chapter === undefined || chapter.chapter === null || chapter.chapter === "") {
+        const match = key.match(/\d+/);
+        chapter.chapter = match ? Number(match[0]) : index + 1;
+      }
+      return chapter;
+    })
+    .sort((a, b) => Number(a.chapter || 0) - Number(b.chapter || 0));
+}
+
 const antagonistSignalPattern = /\b(feind|gegner|schurke|boes|böse|villain|antagonist|enemy|opponent|fluch|curse)\b/i;
 
 function blueprintHasPotentialAntagonist(blueprint: StoryBlueprintV8): boolean {
-  const chapters = Array.isArray(blueprint.chapters) ? blueprint.chapters : [];
+  const chapters = getBlueprintChapters(blueprint);
   if (chapters.some(chapter => antagonistSignalPattern.test(String(chapter?.obstacle || "")))) return true;
 
   const povName = normalizeBlueprintName(blueprint.pov_character);
@@ -595,7 +623,7 @@ function blueprintHasPotentialAntagonist(blueprint: StoryBlueprintV8): boolean {
 }
 
 function extractAntagonistNameFromBlueprint(blueprint: StoryBlueprintV8): string | undefined {
-  const chapters = Array.isArray(blueprint.chapters) ? blueprint.chapters : [];
+  const chapters = getBlueprintChapters(blueprint);
   for (const chapter of chapters) {
     const candidates = [
       ...(Array.isArray(chapter?.supporting_characters) ? chapter.supporting_characters : []),
