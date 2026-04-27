@@ -53,6 +53,31 @@ export interface StorySkeletonConcreteAnchorHint {
   concreteCandidates: ReadonlyArray<string>;
 }
 
+/**
+ * Sprint 4 (S4.2) — Refrain candidates per skeleton.
+ * Gruffalo-Prinzip: ein wiederkehrender, einprägsamer Satz/Halbsatz schafft Memorability.
+ * Der Blueprint wählt einen Kandidaten oder formuliert einen passenden — der Writer
+ * MUSS ihn ≥3× über Kapitel verteilen + 1× im Schluss.
+ */
+export interface StorySkeletonRefrainHint {
+  /** Wörtlicher Refrain (z.B. "Erst hinschauen, dann los."). Kurz: 2-6 Wörter. */
+  candidate: string;
+  /** Wann passt dieser Refrain? (Tonalität: warnend, beruhigend, fragend, lachend) */
+  tone: "warnend" | "beruhigend" | "fragend" | "lachend" | "entschlossen";
+}
+
+/**
+ * Sprint 5 (S5.2) — Iconic visual motif that threads through all 5 chapters.
+ * Gruffalo: knobbly knees + purple prickles. Ours: ein konkreter Gegenstand, der
+ * pro Kapitel anders auftaucht (Tasche → Hand → Boden → zurück in Tasche).
+ */
+export interface StorySkeletonIconicMotif {
+  /** Der Gegenstand selbst (z.B. "kleiner glatter Stein") */
+  object: string;
+  /** Pro Kapitel: wo/wie taucht das Motiv auf */
+  perChapterPosition: ReadonlyArray<string>;
+}
+
 export interface StorySkeleton {
   id: string;
   genre: StorySkeletonGenre;
@@ -74,6 +99,10 @@ export interface StorySkeleton {
   concreteAnchorHints: ReadonlyArray<StorySkeletonConcreteAnchorHint>;
   /** Typische Settings, die dieses Skelett braucht */
   typicalSettings: ReadonlyArray<string>;
+  /** Sprint 4 (S4.2): 3-5 Refrain-Vorschläge — Blueprint wählt EINEN aus */
+  refrainCandidates: ReadonlyArray<StorySkeletonRefrainHint>;
+  /** Sprint 5 (S5.2): wiederkehrendes Bildmotiv durch alle 5 Kapitel */
+  iconicMotif: StorySkeletonIconicMotif;
 }
 
 // ─── CLASSICAL FAIRY TALES ──────────────────────────────────────────────────────
@@ -154,6 +183,22 @@ const SKEL_CF_QUEST_OF_3_TRIALS: StorySkeleton = {
     },
   ],
   typicalSettings: ["Dorf", "Wald", "Wegkreuzung", "Hütte", "Brunnen"],
+  refrainCandidates: [
+    { candidate: "Erst hinschauen, dann los.", tone: "warnend" },
+    { candidate: "Ein Schritt. Noch einer.", tone: "entschlossen" },
+    { candidate: "Wer teilt, kommt weiter.", tone: "beruhigend" },
+    { candidate: "Klein ist nicht nichts.", tone: "beruhigend" },
+  ],
+  iconicMotif: {
+    object: "der kleine glatte Stein in der Tasche",
+    perChapterPosition: [
+      "Stein steckt tief in der Hosentasche, das Kind tastet danach beim Aufbruch.",
+      "Stein wandert in die Hand, wird dem Wesen kurz gezeigt, dann wieder eingesteckt.",
+      "Stein fällt aus der Tasche bei der falschen Entscheidung, rollt unter etwas.",
+      "Stein wird wiedergefunden und fest in die Faust gedrückt.",
+      "Stein wird am Ende einem anderen geschenkt oder ans Ufer gelegt.",
+    ],
+  },
 };
 
 const SKEL_CF_TRANSFORMATION: StorySkeleton = {
@@ -232,6 +277,22 @@ const SKEL_CF_TRANSFORMATION: StorySkeleton = {
     },
   ],
   typicalSettings: ["Waldrand", "alter Brunnen", "verlassene Mühle", "Uferstein", "Turmkammer"],
+  refrainCandidates: [
+    { candidate: "Nicht weglaufen. Hinhören.", tone: "beruhigend" },
+    { candidate: "Wer schaut, sieht doppelt.", tone: "fragend" },
+    { candidate: "Komm näher, leise.", tone: "beruhigend" },
+    { candidate: "Der Schmerz hat einen Namen.", tone: "warnend" },
+  ],
+  iconicMotif: {
+    object: "die kleine Melodie, die das Wesen summt",
+    perChapterPosition: [
+      "Das Kind hört die Melodie zum ersten Mal aus dem Gebüsch und bleibt stehen.",
+      "Die Melodie kehrt wieder, leiser, wie eine zweite Erinnerung.",
+      "Die Melodie bricht ab, als das Kind die Tür zuschlägt.",
+      "Das Kind summt selbst die Melodie zurück, halb in der Luft.",
+      "Beide summen die Melodie zusammen, das Wesen blinzelt.",
+    ],
+  },
 };
 
 const SKEL_CF_HELPER_RETURNS: StorySkeleton = {
@@ -309,6 +370,22 @@ const SKEL_CF_HELPER_RETURNS: StorySkeleton = {
     },
   ],
   typicalSettings: ["Wegkreuzung", "Brunnen", "Höhle", "Flussufer", "Klosterhof"],
+  refrainCandidates: [
+    { candidate: "Was du gibst, kommt zurück.", tone: "beruhigend" },
+    { candidate: "Klopf, klopf, klopf.", tone: "entschlossen" },
+    { candidate: "Auch leise zählt.", tone: "beruhigend" },
+    { candidate: "Niemand schaut allein.", tone: "warnend" },
+  ],
+  iconicMotif: {
+    object: "die kleine Feder in der Hosentasche",
+    perChapterPosition: [
+      "Das Kind hilft einem Vogel und steckt die kleine Feder ein, die es findet.",
+      "Die Feder kitzelt am Bein, das Kind tastet kurz danach.",
+      "Die Feder wird vom Wind weggeblasen, das Kind greift zu spät.",
+      "Das Kind findet die Feder im Sand wieder, hält sie fest.",
+      "Die Feder fliegt von selbst zurück zum Vogel, der zurückgekehrt ist.",
+    ],
+  },
 };
 
 // ─── MAGICAL WORLDS ─────────────────────────────────────────────────────────────
@@ -389,6 +466,22 @@ const SKEL_MW_ARTIFACT_WITH_PRICE: StorySkeleton = {
     },
   ],
   typicalSettings: ["verborgene Werkstatt", "Speicher", "Dachboden", "alter Brunnen", "geheimes Zimmer"],
+  refrainCandidates: [
+    { candidate: "Jede Kraft hat einen Preis.", tone: "warnend" },
+    { candidate: "Nicht jetzt. Noch nicht.", tone: "entschlossen" },
+    { candidate: "Stillhalten ist auch eine Antwort.", tone: "beruhigend" },
+    { candidate: "Nimm die Hand weg.", tone: "warnend" },
+  ],
+  iconicMotif: {
+    object: "das kühle Artefakt mit dem matten Schimmer",
+    perChapterPosition: [
+      "Das Kind findet das Artefakt unter Staub, es ist überraschend kühl.",
+      "Das Artefakt liegt in der offenen Hand, der Schimmer pulsiert einmal.",
+      "Das Artefakt ist diesmal kälter als sonst, etwas in der Erinnerung kippt.",
+      "Das Kind legt das Artefakt aufs Brett, dreht sich weg.",
+      "Das Artefakt liegt geschlossen in einer Kiste, das rote Band außen.",
+    ],
+  },
 };
 
 const SKEL_MW_GATE_TO_OTHER_WORLD: StorySkeleton = {
@@ -466,6 +559,22 @@ const SKEL_MW_GATE_TO_OTHER_WORLD: StorySkeleton = {
     },
   ],
   typicalSettings: ["alter Spiegel", "Schrankrückwand", "Brunnenschacht", "Türrahmen im Keller", "Baumstumpf"],
+  refrainCandidates: [
+    { candidate: "Dort gilt etwas anderes.", tone: "fragend" },
+    { candidate: "Nicht so wie zu Hause.", tone: "warnend" },
+    { candidate: "Schritt für Schritt zurück.", tone: "beruhigend" },
+    { candidate: "Hier ist hier, dort ist dort.", tone: "entschlossen" },
+  ],
+  iconicMotif: {
+    object: "der schimmernde Türrahmen, der zwischen den Welten flackert",
+    perChapterPosition: [
+      "Das Kind bemerkt das Flackern am Türrahmen, legt die Hand auf die Wand daneben.",
+      "Der Rahmen leuchtet kurz auf, das Kind tritt durch.",
+      "Auf der anderen Seite ist der Rahmen kaum sichtbar, nur ein leises Schimmern.",
+      "Das Kind steht vor dem Rahmen, der wackelt, als wolle er sich schließen.",
+      "Das Kind tritt zurück durch den Rahmen, dahinter wird es ruhig.",
+    ],
+  },
 };
 
 const SKEL_MW_FORGOTTEN_RULE: StorySkeleton = {
@@ -543,6 +652,22 @@ const SKEL_MW_FORGOTTEN_RULE: StorySkeleton = {
     },
   ],
   typicalSettings: ["magische Bibliothek", "Tempel-Innenhof", "Ruine", "Markt", "Baum der Ältesten"],
+  refrainCandidates: [
+    { candidate: "Eine Regel ist eine Regel.", tone: "warnend" },
+    { candidate: "Auch wenn niemand schaut.", tone: "entschlossen" },
+    { candidate: "Man hört sie nur, wenn es still ist.", tone: "beruhigend" },
+    { candidate: "Drei Wörter. Nicht mehr.", tone: "fragend" },
+  ],
+  iconicMotif: {
+    object: "die alte Schriftrolle mit den drei verblassten Worten",
+    perChapterPosition: [
+      "Das Kind entdeckt die Rolle hinter losem Putz, ein Wort darauf glüht kurz.",
+      "Das Kind entrollt sie weiter, das zweite Wort wird sichtbar.",
+      "Das Kind ignoriert das dritte Wort, etwas geht schief.",
+      "Das Kind liest das dritte Wort jetzt laut vor, aber langsam.",
+      "Die Rolle wird wieder zusammengerollt und an einen würdigen Platz gelegt.",
+    ],
+  },
 };
 
 // ─── EXPORTS ────────────────────────────────────────────────────────────────────
@@ -648,6 +773,14 @@ export function buildSkeletonPromptBlock(skeleton: StorySkeleton): string {
     )
     .join("\n");
 
+  const refrainLines = skeleton.refrainCandidates
+    .map((r) => `  - "${r.candidate}" (Tonalität: ${r.tone})`)
+    .join("\n");
+
+  const motifLines = skeleton.iconicMotif.perChapterPosition
+    .map((pos, idx) => `  Ch${idx + 1}: ${pos}`)
+    .join("\n");
+
   return [
     `STORY SKELETON (recommended structural backbone — follow unless plot contradicts):`,
     `Skeleton: "${skeleton.label}" (${skeleton.id})`,
@@ -667,5 +800,12 @@ export function buildSkeletonPromptBlock(skeleton: StorySkeleton): string {
     ``,
     `Concrete-anchor hints (pick one candidate per theme for concrete_anchors field):`,
     anchorLines,
+    ``,
+    `REFRAIN CANDIDATES (Sprint 4 S4.2 — pick exactly ONE for blueprint.refrain_line, or invent a similar 2-6-word phrase that fits this story):`,
+    refrainLines,
+    ``,
+    `ICONIC MOTIF (Sprint 5 S5.2 — must thread through all 5 chapters; use as blueprint.iconic_motif):`,
+    `  Object: ${skeleton.iconicMotif.object}`,
+    motifLines,
   ].join("\n");
 }

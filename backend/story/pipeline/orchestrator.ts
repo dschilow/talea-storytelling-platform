@@ -33,6 +33,7 @@ import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
 import { runSemanticCritic, type SemanticCriticReport } from "./semantic-critic";
 import { applySelectiveSurgery } from "./release-polisher";
+import { applySentenceTightening, pickChaptersNeedingTightening } from "./sentence-tightening-pass";
 import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
@@ -680,6 +681,34 @@ export class StoryPipelineOrchestrator {
           await saveValidationReport(normalized.storyId, validationReport);
           throw new Error(`V8 blueprint validation failed: ${blueprintResultV8.issues.map((issue) => issue.code).join(", ")}`);
         }
+
+        // Sprint 5 (S5.2): inject iconic_motif into per-chapter imageMustShow.
+        // Image-director consumes directive.imageMustShow when assembling
+        // propsVisible — this threads the recurring object through every
+        // chapter image, matching the text's narrative motif.
+        const iconicMotif = (blueprintV8 as any)?.iconic_motif as
+          | { object?: string; per_chapter_position?: string[] }
+          | undefined;
+        if (iconicMotif?.object) {
+          const motifTokenLower = iconicMotif.object.toLowerCase().slice(0, 12);
+          let motifInjected = false;
+          directives = directives.map((directive, idx) => {
+            const positions = iconicMotif.per_chapter_position || [];
+            const positionHint = positions[idx];
+            const motifWithContext = positionHint
+              ? `${iconicMotif.object} (${positionHint})`
+              : (iconicMotif.object as string);
+            const existing = directive.imageMustShow || [];
+            if (existing.some(p => p.toLowerCase().includes(motifTokenLower))) {
+              return directive;
+            }
+            motifInjected = true;
+            return { ...directive, imageMustShow: [...existing, motifWithContext] };
+          });
+          if (motifInjected) {
+            await saveSceneDirectives(normalized.storyId, directives);
+          }
+        }
       }
 
       if (storedText.length === directives.length) {
@@ -708,6 +737,9 @@ export class StoryPipelineOrchestrator {
           storySoul,
           concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
           endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
+          refrainLine: (blueprintV8 as any)?.refrain_line as string | undefined,
+          antagonistName: (blueprintV8 as any)?.antagonist_dna?.name as string | undefined,
+          iconicMotif: (blueprintV8 as any)?.iconic_motif as { object: string; per_chapter_position?: ReadonlyArray<string> } | undefined,
         });
         qualityReport = toQualitySummary(cachedQuality, 0);
         criticReport = await runSemanticCritic({
@@ -792,6 +824,9 @@ export class StoryPipelineOrchestrator {
               storySoul,
               concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
               endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
+              refrainLine: (blueprintV8 as any)?.refrain_line as string | undefined,
+              antagonistName: (blueprintV8 as any)?.antagonist_dna?.name as string | undefined,
+              iconicMotif: (blueprintV8 as any)?.iconic_motif as { object: string; per_chapter_position?: ReadonlyArray<string> } | undefined,
             }),
             0,
           );
@@ -800,6 +835,62 @@ export class StoryPipelineOrchestrator {
           if (writeResult.costEntries?.length) {
             costEntries.push(...writeResult.costEntries);
           }
+
+          // Sprint 4 (S4.5): cheap nano-tier tightening pass. Runs ONLY on chapters
+          // where the AGE_FIT_SENTENCE_LENGTH gate flagged ERROR. Splits long
+          // sentences, removes subjunctives, caps clauses — without touching plot,
+          // dialogue, or refrain/iconic-motif. ~$0.001-0.003 per pass and replaces
+          // a large chunk of more expensive hard-rewrite surgery work.
+          const ageMaxForTightening = normalized.ageMax ?? 99;
+          const candidateIssuesForTightening =
+            ((candidateQuality as any)?.issues as Array<{ gate: string; chapter: number; severity: string; code: string }> | undefined) ?? [];
+          const tighteningTargets = pickChaptersNeedingTightening(candidateIssuesForTightening);
+          if (ageMaxForTightening <= 8 && tighteningTargets.size > 0) {
+            try {
+              const tightening = await applySentenceTightening({
+                storyId: normalized.storyId,
+                language: normalized.language,
+                ageMax: ageMaxForTightening,
+                draft: candidateDraft,
+                chaptersNeedingTightening: tighteningTargets,
+              });
+              if (tightening.changed) {
+                candidateDraft = tightening.draft;
+                if (tightening.usage) {
+                  candidateUsage = mergeTokenUsage(candidateUsage, tightening.usage);
+                }
+                if (tightening.costEntries?.length) {
+                  costEntries.push(...tightening.costEntries);
+                }
+                // Re-run gates so downstream surgery/critic see the tightened state.
+                candidateQuality = toQualitySummary(
+                  runQualityGates({
+                    draft: candidateDraft,
+                    directives,
+                    cast: castSet,
+                    language: normalized.language,
+                    ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+                    wordBudget: normalized.wordBudget,
+                    artifactArc: canonFusionPlan.artifactArc,
+                    humorLevel,
+                    storySoul,
+                    concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
+                    endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
+                    refrainLine: (blueprintV8 as any)?.refrain_line as string | undefined,
+                    antagonistName: (blueprintV8 as any)?.antagonist_dna?.name as string | undefined,
+                    iconicMotif: (blueprintV8 as any)?.iconic_motif as { object: string; per_chapter_position?: ReadonlyArray<string> } | undefined,
+                  }),
+                  candidateQuality?.rewriteAttempts ?? 0,
+                );
+              }
+            } catch (tighteningErr) {
+              console.warn(
+                "[orchestrator] sentence-tightening pass failed, continuing with original draft:",
+                (tighteningErr as Error)?.message || tighteningErr,
+              );
+            }
+          }
+
           let candidateCritic: SemanticCriticReport;
           if (shouldSkipSemanticCritic(candidateQuality)) {
             candidateCritic = buildSkippedCriticReport(criticModel);
@@ -1119,7 +1210,14 @@ export class StoryPipelineOrchestrator {
       }
 
       const strictQualityGatesRaw = (normalized.rawConfig as any)?.strictQualityGates;
-      const strictQualityGates = typeof strictQualityGatesRaw === "boolean" ? strictQualityGatesRaw : false;
+      // Sprint 4 (S4.1): default strict-mode ON for ages ≤ 8. Children-book quality
+      // requires hard enforcement of AGE_FIT/length/dialogue gates — accepting "7
+      // non-critical issues" as we did before drops sub-7 stories into production.
+      // Adults / older readers can still opt out via explicit false.
+      const ageMaxForStrict = normalized.ageMax ?? 99;
+      const strictQualityGates = typeof strictQualityGatesRaw === "boolean"
+        ? strictQualityGatesRaw
+        : ageMaxForStrict <= 8;
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
 
       // Hard publish-floor: even with strictQualityGates=false, never release a draft
@@ -1193,6 +1291,18 @@ export class StoryPipelineOrchestrator {
         "HUMOR_TOO_LOW",
         "GIMMICK_LOOP_OVERUSE",
         "CRITIC_VERDICT_BELOW_RELEASE",
+        // Sprint 4 (S4.1): age-fit hard gates. Logs of "Angstbannstab" 2026-04-27
+        // showed all three firing simultaneously but story was published anyway.
+        "AVG_SENTENCE_TOO_LONG_HARD",
+        "SENTENCE_HARD_CAP_EXCEEDED",
+        "COMPLEX_CLAUSE_OVERUSE",
+        // Sprint 4 (S4.2/S4.3): refrain + antagonist showdown enforcement
+        "REFRAIN_MISSING",
+        "REFRAIN_ENDING_MISSING",
+        "ANTAGONIST_TOO_FEW_APPEARANCES",
+        "ANTAGONIST_NO_SHOWDOWN",
+        // Sprint 5 (S5.2): iconic motif must thread through chapters
+        "ICONIC_MOTIF_SPARSE",
       ]);
       const criticalCodes = new Set([
         ...hardSafetyCodes,

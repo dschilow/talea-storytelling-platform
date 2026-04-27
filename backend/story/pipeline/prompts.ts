@@ -3,6 +3,7 @@ import type { StorySoul } from "./schemas/story-soul";
 import { getChildFocusNames, getChildFocusSheets, getCoreChapterCharacterNames, isLikelyChildCharacter } from "./character-focus";
 import { isGeminiFlashFamilyModel } from "./model-routing";
 import { buildEndingPatternPromptBlock, ENDING_PATTERN_MAP } from "./ending-patterns";
+import { getReferenceFewshotBlock } from "./reference-fewshot";
 import { buildContentLibraryPromptBlock, type ContentLibraryBinding } from "./content-library/concrete-binding";
 
 // ─── Character Profile Builder ────────────────────────────────────────────────
@@ -1388,6 +1389,24 @@ antagonist_dna (REQUIRED when any chapter has an antagonist):
   - first_action: the antagonist's very first scene action (what does the reader SEE them do?)
   - speech_tic: one recurring verbal habit / gesture / catchphrase tied to this character
 - Every chapter featuring the antagonist MUST consistently honor the speech_tic and motive.
+- The antagonist MUST appear in chapter 5 (showdown). They are not optional in the final beat.
+
+MANDATORY SPRINT-4 FIELDS (S4.2 + S4.3):
+
+refrain_line (REQUIRED, 2-6 words, in the story's language):
+- Pick exactly ONE memorable phrase from the skeleton's REFRAIN CANDIDATES list, OR invent a similar 2-6-word phrase that fits this story.
+- Gruffalo principle: "Oh help! Oh no! It's a gruffalo!" — the line is the memory hook.
+- The writer will be required to repeat this line ≥3× across the story, including once in the final chapter.
+- Example: "Erst hinschauen, dann los." / "Niemand schaut allein." / "Drei Wörter. Nicht mehr."
+
+MANDATORY SPRINT-5 FIELDS (S5.2):
+
+iconic_motif (REQUIRED):
+- A single concrete object that THREADS through all 5 chapters in different positions.
+- Use the skeleton's ICONIC MOTIF as default, OR design one that better fits this specific story.
+- Format: { "object": "<concrete item>", "per_chapter_position": ["Ch1 position", "Ch2 position", "Ch3 position", "Ch4 position", "Ch5 position"] }
+- Example: { "object": "kleiner glatter Stein", "per_chapter_position": ["in der Hosentasche beim Aufbruch", "wandert in die Hand und wird gezeigt", "fällt heraus und rollt unter etwas", "wird wiedergefunden und gedrückt", "wird einem anderen geschenkt"] }
+- Both writer (text mention) and image-director (visible prop) consume this — must be visualizable.
 
 ${buildEndingPatternPromptBlock(genre)}
 
@@ -1422,10 +1441,14 @@ GERMAN STYLE RULES (binding for final prose):
 - Humor entsteht aus Verhalten, Missverstaendnissen, Timing oder warmen Rueckgriffen.
 - Mindestens zwei ehrliche Schmunzelmomente muessen auf der Seite landen, nicht nur im Plan.
 - Keine Moral-Saetze. Keine Prompt-Sprache. Kein SELF-CHECK im Output.
-- Vermeide Kruecken wie "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".`;
+- Vermeide Kruecken wie "ploetzlich", "auf einmal", "da bemerkte er", "irgendwie", "eigentlich".
+
+${getReferenceFewshotBlock(language)}`;
   }
 
-  return `You are a top-tier children's book author. Write vivid, read-aloud friendly prose from the blueprint and return valid JSON only.`;
+  return `You are a top-tier children's book author. Write vivid, read-aloud friendly prose from the blueprint and return valid JSON only.
+
+${getReferenceFewshotBlock(language)}`;
 }
 
 export function buildV8StoryPrompt(input: {
@@ -1503,6 +1526,37 @@ Realize this in the LAST paragraph of chapter ${input.chapterCount}. Do not expl
 `
     : "";
 
+  // Sprint 4 (S4.2): refrain instruction — writer must repeat the line ≥3× across
+  // chapters, including once in the final chapter. This is checked by REFRAIN_PRESENCE gate.
+  const refrainLineRaw = String((input.blueprint as any)?.refrain_line || "").trim();
+  const refrainBlock = refrainLineRaw
+    ? `
+REFRAIN LINE (MANDATORY, checked by REFRAIN_PRESENCE gate)
+Refrain: "${refrainLineRaw}"
+- Use this exact phrase verbatim AT LEAST 3 times across the story.
+- At least one occurrence MUST be in chapter ${input.chapterCount}.
+- Place it where it carries weight (decision moments, Cliffhanger-Übergänge, ruhige Pausen). Don't sprinkle randomly.
+- Treat it like Gruffalo's "Oh help! Oh no!" — a memory hook the child will say after the last page.
+`
+    : "";
+
+  // Sprint 5 (S5.2): iconic motif instruction — writer must thread the motif as
+  // visible object across all 5 chapters in the positions the blueprint defined.
+  const iconicMotif = (input.blueprint as any)?.iconic_motif as
+    | { object?: string; per_chapter_position?: string[] }
+    | undefined;
+  const iconicMotifBlock = iconicMotif?.object
+    ? `
+ICONIC MOTIF (MANDATORY, checked by ICONIC_MOTIF_RECURRENCE gate)
+Object: "${iconicMotif.object}"
+${(iconicMotif.per_chapter_position || [])
+        .map((p, i) => `  Ch${i + 1}: ${p}`)
+        .join("\n")}
+- The object must be physically visible in ≥3 chapters as a graspable thing (not just mentioned in passing).
+- Carry it through the chapters with small, concrete actions (it moves between pocket → hand → ground → pocket → gift). Gruffalo's knobbly knees principle, but as a single recurring object.
+`
+    : "";
+
   return `Use the following internal blueprint to write the final children's story.
 ${soulBlock ? `\n${soulBlock}\n` : ""}
 WORD BUDGET
@@ -1541,7 +1595,7 @@ HARD RULES
 - never collapse a full chapter into one string
 - make every humor beat in the blueprint visible on the page
 - if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
-- no markdown, no comments, no extra text.${soulFidelityBlock}${endingPatternBlock}`;
+- no markdown, no comments, no extra text.${soulFidelityBlock}${endingPatternBlock}${refrainBlock}${iconicMotifBlock}`;
 }
 
 export function buildReleaseV7SystemPrompt(language: string, ageRange: { min: number; max: number }): string {

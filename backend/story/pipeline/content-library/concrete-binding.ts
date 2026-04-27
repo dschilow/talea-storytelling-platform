@@ -42,6 +42,13 @@ export interface ContentLibraryBinding {
   concreteAnchorDefaults: Record<string, string>;
   /** Welches ending_pattern das Skelett empfiehlt */
   recommendedEndingPattern: EndingPatternName;
+  /** Sprint 4 (S4.2): Default-Refrain-Vorschlag (Blueprint kann anders wählen). */
+  recommendedRefrain: string;
+  /** Sprint 5 (S5.2): das ikonische Motiv mit Pro-Kapitel-Position */
+  recommendedIconicMotif: {
+    object: string;
+    perChapterPosition: ReadonlyArray<string>;
+  };
 }
 
 /**
@@ -82,12 +89,20 @@ export function buildContentLibraryBinding(input: {
     }
   }
 
+  // Sprint 4 (S4.2): default refrain — first candidate, blueprint may override.
+  const recommendedRefrain = skeleton.refrainCandidates[0]?.candidate ?? "";
+
   return {
     skeleton,
     antagonistArchetype,
     artifactTemplate,
     concreteAnchorDefaults,
     recommendedEndingPattern: skeleton.recommendedEndingPattern,
+    recommendedRefrain,
+    recommendedIconicMotif: {
+      object: skeleton.iconicMotif.object,
+      perChapterPosition: skeleton.iconicMotif.perChapterPosition,
+    },
   };
 }
 
@@ -113,6 +128,9 @@ export function buildContentLibraryPromptBlock(binding: ContentLibraryBinding): 
   const anchorPreview = Object.entries(binding.concreteAnchorDefaults)
     .map(([theme, anchor]) => `  "${theme}": "${anchor}"`)
     .join(",\n");
+  const motifPositionLines = binding.recommendedIconicMotif.perChapterPosition
+    .map((pos, idx) => `    Ch${idx + 1}: ${pos}`)
+    .join("\n");
   parts.push(
     "",
     "CONCRETE ANCHOR DEFAULTS (use as-is or tune, but keep all three + add any story-specific):",
@@ -121,6 +139,13 @@ export function buildContentLibraryPromptBlock(binding: ContentLibraryBinding): 
     "}",
     "",
     `RECOMMENDED ending_pattern: "${binding.recommendedEndingPattern}" (skeleton default — override only if plot clearly needs another)`,
+    "",
+    `RECOMMENDED refrain_line: "${binding.recommendedRefrain}" (must appear ≥3× in story, incl. final chapter — pick this or a similar 2-6-word phrase)`,
+    "",
+    "RECOMMENDED iconic_motif (must thread through all 5 chapters as visible object):",
+    `  object: "${binding.recommendedIconicMotif.object}"`,
+    "  per_chapter_position:",
+    motifPositionLines,
     "",
     "═══ END CONTENT LIBRARY BINDING ═══",
   );

@@ -54,18 +54,36 @@ export function computeWordBudget(input: {
   const maxWords = Math.max(minWords + 200, Math.round(minutes.max * wpm * pacingFactor));
 
   const chapterCount = Math.max(1, input.chapterCount);
-  const minWordsPerChapter = Math.max(80, Math.floor(minWords / chapterCount));
+  // Sprint 4 (S4.4): age-aware per-chapter floor. For ages 6-8 + medium/long
+  // length, chapters need at least 280 words to allow breath, dialogue rhythm,
+  // and Gruffalo-level pacing. Below ~250 words chapters feel rushed/sketchy.
+  // Logs of "Angstbannstab" 2026-04-27 showed Ch1=280, Ch5=270 with rushed
+  // resolution → ageHardFloor pushes Writer to fill the page.
+  const ageHardFloor =
+    ageMax >= 6 && ageMax <= 8 && lengthKey !== "short"
+      ? 280
+      : ageMax <= 5
+        ? 120
+        : ageMax <= 8
+          ? 220
+          : 80;
+  const minWordsPerChapter = Math.max(ageHardFloor, Math.floor(minWords / chapterCount));
   const maxWordsPerChapter = Math.max(minWordsPerChapter + 40, Math.ceil(maxWords / chapterCount));
   const targetWordsPerChapter = Math.max(minWordsPerChapter + 20, Math.round(targetWords / chapterCount));
+
+  // Sprint 4 (S4.4): keep total floor consistent with per-chapter floor so
+  // gateLengthAndPacing TOTAL_TOO_SHORT lines up with the per-chapter target.
+  const adjustedMinWords = Math.max(minWords, minWordsPerChapter * chapterCount);
+  const adjustedMaxWords = Math.max(maxWords, maxWordsPerChapter * chapterCount);
 
   return {
     minMinutes: minutes.min,
     maxMinutes: minutes.max,
     selectedMinutes,
     wpm,
-    targetWords,
-    minWords,
-    maxWords,
+    targetWords: Math.max(targetWords, targetWordsPerChapter * chapterCount),
+    minWords: adjustedMinWords,
+    maxWords: adjustedMaxWords,
     minWordsPerChapter,
     maxWordsPerChapter,
     targetWordsPerChapter,

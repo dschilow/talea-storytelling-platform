@@ -271,6 +271,17 @@ export interface StoryBlueprintV8 {
   // return_home_changed | shared_moment | object_transformed | revealed_truth |
   // warm_callback | resolved_conflict_quiet | circle_closed | promise_kept
   ending_pattern: string;
+  // Sprint 4 (S4.2): refrain — a 2-6-word phrase the writer MUST repeat verbatim
+  // ≥3× across chapters, with at least one occurrence in the final chapter.
+  // Gruffalo-principle: "Oh help! Oh no! It's a gruffalo!" — memorability handle.
+  refrain_line?: string;
+  // Sprint 5 (S5.2): iconic visual motif — a concrete object that recurs across
+  // all 5 chapters in different positions (pocket → hand → ground → pocket → gift).
+  // Both writer (text mention) and image-director (visible prop) consume this.
+  iconic_motif?: {
+    object: string;
+    per_chapter_position: string[];
+  };
 }
 
 export interface BlueprintValidationIssue {

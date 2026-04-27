@@ -3332,6 +3332,151 @@ function levenshteinDistance(a: string, b: string): number {
   return dp[m][n];
 }
 
+// ─── Sprint 4 Gate: REFRAIN_PRESENCE ────────────────────────────────────────────
+// Sprint 4 (S4.2): a refrain (e.g. "Erst hinschauen, dann los.") must repeat ≥3
+// times across chapters and must hit the final chapter.
+// Gruffalo: "Oh help! Oh no! It's a gruffalo!" — memorability handle.
+function gateRefrainPresence(
+  draft: StoryDraft,
+  language: string,
+  refrainLine?: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!refrainLine || refrainLine.trim().length < 4) return issues;
+  const isDE = language === "de";
+  const needle = refrainLine.trim().toLowerCase();
+  // Allow mild variations: strip punctuation
+  const normalize = (s: string) => s.toLowerCase().replace(/[.,!?;:"„""''‚']/g, "").replace(/\s+/g, " ").trim();
+  const needleNorm = normalize(refrainLine);
+
+  let totalHits = 0;
+  let lastChapterHit = false;
+  const lastChapterIdx = draft.chapters.length - 1;
+
+  for (let i = 0; i < draft.chapters.length; i++) {
+    const ch = draft.chapters[i];
+    const haystack = normalize(ch.text);
+    let from = 0;
+    while (true) {
+      const at = haystack.indexOf(needleNorm, from);
+      if (at < 0) break;
+      totalHits++;
+      if (i === lastChapterIdx) lastChapterHit = true;
+      from = at + needleNorm.length;
+    }
+  }
+
+  if (totalHits < 3) {
+    issues.push({
+      gate: "REFRAIN_PRESENCE",
+      chapter: 0,
+      code: "REFRAIN_MISSING",
+      message: isDE
+        ? `Refrain "${refrainLine}" erscheint nur ${totalHits}× (mind. 3× erwartet, davon 1× im letzten Kapitel).`
+        : `Refrain "${refrainLine}" appears only ${totalHits}× (≥3 expected, incl. last chapter).`,
+      severity: "ERROR",
+    });
+  }
+  if (!lastChapterHit) {
+    issues.push({
+      gate: "REFRAIN_PRESENCE",
+      chapter: draft.chapters[lastChapterIdx]?.chapter ?? 5,
+      code: "REFRAIN_ENDING_MISSING",
+      message: isDE
+        ? `Refrain "${refrainLine}" fehlt im letzten Kapitel — Memorability bleibt unter Buchqualität.`
+        : `Refrain "${refrainLine}" missing from final chapter — memorability below book quality.`,
+      severity: "ERROR",
+    });
+  }
+  return issues;
+}
+
+// ─── Sprint 4 Gate: ANTAGONIST_SHOWDOWN ─────────────────────────────────────────
+// Sprint 4 (S4.3): antagonist must appear ≥3× distributed across chapters and
+// must be present in the final chapter (showdown). Logs of "Angstbannstab" 2026-04-27
+// showed Mutlosmacher fading after Ch1 → no showdown → score collapse.
+function gateAntagonistShowdown(
+  draft: StoryDraft,
+  language: string,
+  antagonistName?: string,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!antagonistName || antagonistName.trim().length < 2) return issues;
+  const isDE = language === "de";
+  const lower = antagonistName.toLowerCase();
+  const lastIdx = draft.chapters.length - 1;
+  let chaptersWithAntagonist = 0;
+  let inLast = false;
+  for (let i = 0; i < draft.chapters.length; i++) {
+    const txt = draft.chapters[i].text.toLowerCase();
+    if (txt.includes(lower)) {
+      chaptersWithAntagonist++;
+      if (i === lastIdx) inLast = true;
+    }
+  }
+  if (chaptersWithAntagonist < 3) {
+    issues.push({
+      gate: "ANTAGONIST_SHOWDOWN",
+      chapter: 0,
+      code: "ANTAGONIST_TOO_FEW_APPEARANCES",
+      message: isDE
+        ? `Antagonist "${antagonistName}" nur in ${chaptersWithAntagonist} Kapitel(n) — mind. 3 verteilt nötig.`
+        : `Antagonist "${antagonistName}" appears in only ${chaptersWithAntagonist} chapter(s) — need at least 3 distributed.`,
+      severity: "ERROR",
+    });
+  }
+  if (!inLast) {
+    issues.push({
+      gate: "ANTAGONIST_SHOWDOWN",
+      chapter: draft.chapters[lastIdx]?.chapter ?? 5,
+      code: "ANTAGONIST_NO_SHOWDOWN",
+      message: isDE
+        ? `Antagonist "${antagonistName}" fehlt im letzten Kapitel — kein Showdown.`
+        : `Antagonist "${antagonistName}" missing from final chapter — no showdown.`,
+      severity: "ERROR",
+    });
+  }
+  return issues;
+}
+
+// ─── Sprint 5 Gate: ICONIC_MOTIF_RECURRENCE ─────────────────────────────────────
+// Sprint 5 (S5.2): the iconic visual motif (e.g. "kleiner glatter Stein") must
+// recur in ≥3 chapters as a graspable object.
+function gateIconicMotifRecurrence(
+  draft: StoryDraft,
+  language: string,
+  iconicMotif?: { object: string; per_chapter_position?: ReadonlyArray<string> },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!iconicMotif?.object || iconicMotif.object.trim().length < 3) return issues;
+  const isDE = language === "de";
+  // Extract head-noun-ish words (3 longest substantives) for fuzzy match.
+  const tokens = iconicMotif.object
+    .toLowerCase()
+    .split(/[^a-zäöüß0-9]+/)
+    .filter(w => w.length >= 4)
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 3);
+  if (tokens.length === 0) return issues;
+  let chaptersHit = 0;
+  for (const ch of draft.chapters) {
+    const txt = ch.text.toLowerCase();
+    if (tokens.some(t => txt.includes(t))) chaptersHit++;
+  }
+  if (chaptersHit < 3) {
+    issues.push({
+      gate: "ICONIC_MOTIF_RECURRENCE",
+      chapter: 0,
+      code: "ICONIC_MOTIF_SPARSE",
+      message: isDE
+        ? `Ikonisches Motiv "${iconicMotif.object}" nur in ${chaptersHit} Kapitel(n) sichtbar — mind. 3 erwartet (Gruffalo-Prinzip).`
+        : `Iconic motif "${iconicMotif.object}" visible in only ${chaptersHit} chapter(s) — at least 3 expected (Gruffalo principle).`,
+      severity: "ERROR",
+    });
+  }
+  return issues;
+}
+
 // ─── Sprint 1 Gate: AGE_FIT_SENTENCE_LENGTH ─────────────────────────────────────
 // Hard floor for age-appropriate sentence length. Stricter than READABILITY_COMPLEXITY
 // (which only WARNs). For ages 6-8: avg sentence ≤ 11 words, <5% clauses with complex
@@ -3753,8 +3898,11 @@ export function runQualityGates(input: {
   storySoul?: import("./schemas/story-soul").StorySoul;
   concreteAnchors?: Record<string, string>; // Sprint 1: abstract → concrete map
   endingPattern?: string; // Sprint 3 (MT4): blueprint.ending_pattern
+  refrainLine?: string; // Sprint 4 (S4.2): blueprint.refrain_line
+  antagonistName?: string; // Sprint 4 (S4.3): blueprint.antagonist_dna.name
+  iconicMotif?: { object: string; per_chapter_position?: ReadonlyArray<string> }; // Sprint 5 (S5.2)
 }): QualityReport {
-  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul, concreteAnchors, endingPattern } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul, concreteAnchors, endingPattern, refrainLine, antagonistName, iconicMotif } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -3812,6 +3960,11 @@ export function runQualityGates(input: {
     // Sprint 3: ending pattern + reference-corpus readability
     { name: "ENDING_PATTERN_MATCH", fn: () => gateEndingPatternMatch(draft, language, endingPattern, draft.chapters[0]?.text) },
     { name: "REFERENCE_CORPUS_DELTA", fn: () => gateReferenceCorpusDelta(draft, language) },
+    // Sprint 4: refrain + antagonist showdown
+    { name: "REFRAIN_PRESENCE", fn: () => gateRefrainPresence(draft, language, refrainLine) },
+    { name: "ANTAGONIST_SHOWDOWN", fn: () => gateAntagonistShowdown(draft, language, antagonistName) },
+    // Sprint 5: iconic motif recurrence
+    { name: "ICONIC_MOTIF_RECURRENCE", fn: () => gateIconicMotifRecurrence(draft, language, iconicMotif) },
   ];
 
   const allIssues: QualityIssue[] = [];

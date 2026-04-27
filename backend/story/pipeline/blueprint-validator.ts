@@ -266,6 +266,84 @@ export function validateV8Blueprint(input: {
           "antagonist_dna.motive is too abstract. Motive must be a specific, concrete want (e.g. \"wants to steal every clock in town before midnight\"), not \"wants power\".",
         );
       }
+      // Sprint 4 (S4.3): showdown enforcement — antagonist name must appear in
+      // the final chapter's active_characters list or in the chapter's plot fields.
+      if (hasMeaningfulText(antagonistDna.name)) {
+        const finalChapter = chapters[chapters.length - 1];
+        const antaName = String(antagonistDna.name).toLowerCase();
+        const finalActives: string[] = Array.isArray(finalChapter?.active_characters)
+          ? finalChapter.active_characters.map((a: any) => String(a).toLowerCase())
+          : [];
+        const finalSupporting: string[] = Array.isArray(finalChapter?.supporting_characters)
+          ? finalChapter.supporting_characters.map((a: any) => String(a).toLowerCase())
+          : [];
+        const finalScenePieces = [
+          finalChapter?.goal,
+          finalChapter?.obstacle,
+          finalChapter?.chapter_hook,
+          finalChapter?.key_scene?.what_happens,
+          finalChapter?.key_scene?.playable_moment,
+          finalChapter?.key_scene?.quotable_line,
+        ]
+          .filter((s) => typeof s === "string")
+          .join(" ")
+          .toLowerCase();
+        const inFinalActives = finalActives.some((a) => a.includes(antaName));
+        const inFinalSupporting = finalSupporting.some((a) => a.includes(antaName));
+        const inFinalText = finalScenePieces.includes(antaName);
+        if (!inFinalActives && !inFinalSupporting && !inFinalText) {
+          push(
+            "ANTAGONIST_NO_SHOWDOWN",
+            `antagonist_dna.name "${antagonistDna.name}" missing from final chapter — story has no showdown. Add to active_characters or to the final chapter's goal/obstacle/key_scene.`,
+          );
+        }
+      }
+    }
+  }
+
+  // Sprint 4 (S4.2): refrain_line validation. Optional in schema for backward
+  // compatibility, but if provided, must be 2-6 words and short enough to be memorable.
+  const refrainLine = (blueprint as any).refrain_line;
+  if (refrainLine !== undefined && refrainLine !== null && refrainLine !== "") {
+    const text = String(refrainLine).trim();
+    if (text.length < 4) {
+      push(
+        "REFRAIN_TOO_SHORT",
+        `refrain_line "${text}" is too short. Aim for a 2-6-word phrase that can recur ≥3× memorably.`,
+      );
+    } else {
+      const words = text.split(/\s+/).filter(Boolean);
+      if (words.length > 8) {
+        push(
+          "REFRAIN_TOO_LONG",
+          `refrain_line is ${words.length} words. Refrains should be 2-6 words for memorability (Gruffalo principle).`,
+        );
+      }
+    }
+  }
+
+  // Sprint 5 (S5.2): iconic_motif structural validation if provided.
+  const iconicMotif = (blueprint as any).iconic_motif;
+  if (iconicMotif !== undefined && iconicMotif !== null) {
+    if (typeof iconicMotif !== "object" || Array.isArray(iconicMotif)) {
+      push(
+        "ICONIC_MOTIF_INVALID_TYPE",
+        "iconic_motif must be an object { object: string, per_chapter_position: string[] }.",
+      );
+    } else {
+      if (!hasMeaningfulText(iconicMotif.object)) {
+        push(
+          "ICONIC_MOTIF_OBJECT_MISSING",
+          "iconic_motif.object missing — needs a concrete recurring item (e.g. 'kleiner glatter Stein').",
+        );
+      }
+      const positions = iconicMotif.per_chapter_position;
+      if (!Array.isArray(positions) || positions.length < 3) {
+        push(
+          "ICONIC_MOTIF_POSITIONS_SPARSE",
+          "iconic_motif.per_chapter_position must be an array with ≥3 entries (motif must thread through ≥3 chapters).",
+        );
+      }
     }
   }
 
