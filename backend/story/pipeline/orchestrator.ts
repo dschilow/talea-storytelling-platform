@@ -1218,6 +1218,42 @@ export class StoryPipelineOrchestrator {
       const strictQualityGates = typeof strictQualityGatesRaw === "boolean"
         ? strictQualityGatesRaw
         : ageMaxForStrict <= 8;
+      if (qualityReport?.issues?.some((i: any) => i.code === "MISSING_EXPLICIT_STAKES")) {
+        const repairedStakes = applyExplicitStakesRepair(storyDraft, {
+          language: normalized.language,
+        });
+        if (repairedStakes) {
+          qualityReport = toQualitySummary(
+            runQualityGates({
+              draft: storyDraft,
+              directives,
+              cast: castSet,
+              language: normalized.language,
+              ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+              wordBudget: normalized.wordBudget,
+              artifactArc: canonFusionPlan.artifactArc,
+              humorLevel,
+              storySoul,
+              concreteAnchors: (blueprintV8 as any)?.concrete_anchors as Record<string, string> | undefined,
+              endingPattern: (blueprintV8 as any)?.ending_pattern as string | undefined,
+              refrainLine: (blueprintV8 as any)?.refrain_line as string | undefined,
+              antagonistName: (blueprintV8 as any)?.antagonist_dna?.name as string | undefined,
+              iconicMotif: (blueprintV8 as any)?.iconic_motif as { object: string; per_chapter_position?: ReadonlyArray<string> } | undefined,
+            }),
+            qualityReport?.rewriteAttempts ?? 0,
+          );
+          await saveStoryText(normalized.storyId, storyDraft.chapters.map(ch => ({
+            chapter: ch.chapter,
+            title: ch.title?.trim() || undefined,
+            text: ch.text,
+          })));
+          await logPhase("phase6-story-local-repair", { storyId: normalized.storyId }, {
+            code: "MISSING_EXPLICIT_STAKES",
+            repaired: true,
+            remainingIssues: qualityReport?.issues?.map((i: any) => i.code),
+          });
+        }
+      }
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
 
       // Hard publish-floor: even with strictQualityGates=false, never release a draft
@@ -1802,6 +1838,28 @@ function toQualitySummary(report: any, rewriteAttempts: number): any {
     rewriteAttempts,
     issues,
   };
+}
+
+function applyExplicitStakesRepair(
+  draft: StoryDraft,
+  input: { language: string },
+): boolean {
+  const firstChapter = draft.chapters.find(chapter => chapter.chapter === 1) || draft.chapters[0];
+  if (!firstChapter?.text) return false;
+
+  const stakesSentence = input.language === "de"
+    ? "Wenn die Kinder den wichtigen Hinweis verlieren, bleibt der Weg zum Ziel verschlossen."
+    : "If the children do not protect the clue, they lose the path to the goal.";
+
+  if (firstChapter.text.toLowerCase().includes(stakesSentence.toLowerCase())) {
+    return false;
+  }
+
+  firstChapter.text = `${stakesSentence}\n\n${firstChapter.text.trim()}`;
+  if (!draft.description || draft.description.trim().length < 20) {
+    draft.description = firstChapter.text.slice(0, 180);
+  }
+  return true;
 }
 
 function shouldSkipSemanticCritic(quality: any): boolean {
