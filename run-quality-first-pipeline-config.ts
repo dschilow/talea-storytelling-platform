@@ -15,15 +15,19 @@ SELECT 1 / CASE WHEN EXISTS (
   WHERE key = 'default'
     AND (value->>'runwareSteps')::int = 4
     AND (value->>'runwareCfgScale')::int = 4
-    AND (value->>'releaseCandidateCount')::int = 3
-    AND (value->>'criticMinScore')::numeric = 8.6
-    AND (value->>'pass3TargetScore')::numeric = 8.6
-    AND (value->>'pass3WarnFloor')::numeric = 7.2
+    AND (value->>'releaseCandidateCount')::int = 1
+    AND value->>'criticModel' = 'gpt-5.4-nano'
+    AND (value->>'criticMinScore')::numeric = 7.8
+    AND (value->>'maxSelectiveSurgeryEdits')::int = 0
+    AND (value->>'blueprintRetryMax')::int = 0
+    AND (value->>'pass3TargetScore')::numeric = 7.8
+    AND (value->>'pass3WarnFloor')::numeric = 6.4
     AND (value->>'soulStageEnabled')::boolean = true
-    AND (value->>'soulAllowOnReject')::boolean = false
-    AND (value->>'soulAwareCriticMinScore')::numeric = 8.6
-    AND (value->>'soulApprovedSingleCandidate')::boolean = false
-    AND (value->>'soulGeneratorMaxOutputTokens')::int = 3600
+    AND (value->>'soulRetryMax')::int = 0
+    AND (value->>'soulAllowOnReject')::boolean = true
+    AND (value->>'soulAwareCriticMinScore')::numeric = 7.8
+    AND (value->>'soulApprovedSingleCandidate')::boolean = true
+    AND (value->>'soulGeneratorMaxOutputTokens')::int = 2500
 ) THEN 1 ELSE 0 END AS verified;
 `;
 

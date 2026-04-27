@@ -38,7 +38,7 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
-import { resolveCriticModelForPipeline, resolveSurgeryModelForPipeline } from "./model-routing";
+import { resolveCriticModelForPipeline, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateValidatedV8Blueprint, resolvePromptVersionForRequest } from "./blueprint-generator";
@@ -542,8 +542,13 @@ export class StoryPipelineOrchestrator {
         && normalized.language === "de"
         && normalized.ageMax <= 8
         && directives.length === 5;
+      const configRequestsSingleCandidate =
+        Number.isFinite(configuredCandidateCount)
+        && Math.round(configuredCandidateCount) <= 1;
       const implicitCandidateFloor = Number.isFinite(explicitCandidateCount)
         ? 1
+        : configRequestsSingleCandidate
+          ? 1
         : qualityFirstV8Lane
           ? 2
           : 1;
@@ -565,7 +570,7 @@ export class StoryPipelineOrchestrator {
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
       const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
         ? adaptiveSecondCandidateRaw
-        : releaseCandidateCount === 1;
+        : releaseCandidateCount === 1 && !configRequestsSingleCandidate;
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !Number.isFinite(explicitCandidateCount) &&
@@ -592,7 +597,8 @@ export class StoryPipelineOrchestrator {
       const implicitSurgeryEdits = Number.isFinite(configuredSurgeryEdits)
         ? Math.max(0, Math.min(5, Math.round(configuredSurgeryEdits)))
         : 2;
-      const implicitSurgeryFloor = qualityFirstV8Lane ? 2 : 1;
+      const configDisablesSurgery = Number.isFinite(configuredSurgeryEdits) && configuredSurgeryEdits <= 0;
+      const implicitSurgeryFloor = configDisablesSurgery ? 0 : qualityFirstV8Lane ? 2 : 1;
       const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : Math.max(implicitSurgeryFloor, implicitSurgeryEdits);
@@ -863,6 +869,7 @@ export class StoryPipelineOrchestrator {
                 ageMax: ageMaxForTightening,
                 draft: candidateDraft,
                 chaptersNeedingTightening: tighteningTargets,
+                model: resolveSupportTaskModel(String(normalized.rawConfig?.aiModel || "")),
               });
               if (tightening.changed) {
                 candidateDraft = tightening.draft;
