@@ -415,6 +415,10 @@ export class StoryPipelineOrchestrator {
             costEntries.push(...soulGeneration.costEntries);
           }
 
+          if (soulGeneration.fallbackUsed && !pipelineConfig.soulAllowOnReject) {
+            throw new Error("Story Soul generator used deterministic fallback; quality-first mode requires a validated Soul.");
+          }
+
           soulGateResult = await runSoulGate({
             soul: storySoul,
             normalizedRequest: normalized,
@@ -482,9 +486,6 @@ export class StoryPipelineOrchestrator {
             throw new Error(
               `Story Soul gate rejected (${soulGateResult.verdict}): ${soulGateResult.repairInstruction.slice(0, 240)}`,
             );
-          }
-          if (soulGeneration.fallbackUsed && !pipelineConfig.soulAllowOnReject) {
-            throw new Error("Story Soul generator used deterministic fallback; quality-first mode requires a validated Soul.");
           }
         } catch (soulError) {
           const soulSoftFail = pipelineConfig.soulAllowOnReject;
@@ -1235,9 +1236,20 @@ export class StoryPipelineOrchestrator {
       const strictQualityGates = typeof strictQualityGatesRaw === "boolean"
         ? strictQualityGatesRaw
         : ageMaxForStrict <= 8;
-      if (qualityReport?.issues?.some((i: any) => i.code === "MISSING_EXPLICIT_STAKES")) {
+      if (
+        qualityReport?.issues?.some((i: any) => (
+          i.code === "MISSING_EXPLICIT_STAKES"
+          || i.code === "CH1_ABSTRACT_STAKES_BEFORE_CONTEXT"
+          || i.code === "CH1_MISSION_UNCLEAR"
+          || i.code === "CH1_GENERIC_CLUE_ENGINE"
+          || i.code === "CH1_ARTIFACT_RULE_UNCLEAR"
+        ))
+      ) {
         const repairedStakes = applyExplicitStakesRepair(storyDraft, {
           language: normalized.language,
+          blueprint: blueprintV8,
+          storySoul,
+          cast: castSet,
         });
         if (repairedStakes) {
           qualityReport = toQualitySummary(
@@ -1304,6 +1316,21 @@ export class StoryPipelineOrchestrator {
           severity: "ERROR",
         });
       }
+      if (
+        releaseEnabled
+        && strictQualityGates
+        && criticReport
+        && !isCriticSkipped(criticReport)
+        && criticReport.overallScore < criticMinScore
+      ) {
+        storyErrors.push({
+          gate: "SEMANTIC_CRITIC",
+          chapter: 0,
+          code: "CRITIC_SCORE_BELOW_RELEASE",
+          message: `Critic score below release bar (${criticReport.overallScore.toFixed(2)}<${criticMinScore.toFixed(2)})`,
+          severity: "ERROR",
+        });
+      }
 
       // Always-blocking errors: instruction leaks/placeholders/language leaks.
       // DUPLICATE_SENTENCE and CRITIC_HARD_FLOOR are NOT unconditional blockers —
@@ -1317,9 +1344,9 @@ export class StoryPipelineOrchestrator {
         "META_NARRATION",
       ]);
 
-      // Strict release gates are diagnostic only in the generation endpoint. They
-      // surface quality debt in logs/validation reports, but should not turn a
-      // generated story into a 500 after the writer, polish, and critic already ran.
+      // Strict release gates are publish blockers for ages <= 8. This is cheaper
+      // than generating images/TTS for a draft that already failed child-comprehension
+      // or release-score checks.
       const strictReleaseCodes = new Set([
         "DUPLICATE_SENTENCE",
         "CRITIC_HARD_FLOOR",
@@ -1329,6 +1356,10 @@ export class StoryPipelineOrchestrator {
         "VOICE_INDISTINCT",
         "VOICE_TAG_FORMULA_OVERUSE",
         "MISSING_EXPLICIT_STAKES",
+        "CH1_ABSTRACT_STAKES_BEFORE_CONTEXT",
+        "CH1_GENERIC_CLUE_ENGINE",
+        "CH1_MISSION_UNCLEAR",
+        "CH1_ARTIFACT_RULE_UNCLEAR",
         "MISSING_LOWPOINT",
         "LOWPOINT_TOO_SOFT",
         "ENDING_UNRESOLVED",
@@ -1343,6 +1374,7 @@ export class StoryPipelineOrchestrator {
         "HUMOR_TOO_LOW",
         "GIMMICK_LOOP_OVERUSE",
         "CRITIC_VERDICT_BELOW_RELEASE",
+        "CRITIC_SCORE_BELOW_RELEASE",
         // Sprint 4 (S4.1): age-fit hard gates. Logs of "Angstbannstab" 2026-04-27
         // showed all three firing simultaneously but story was published anyway.
         "AVG_SENTENCE_TOO_LONG_HARD",
@@ -1356,9 +1388,12 @@ export class StoryPipelineOrchestrator {
         // Sprint 5 (S5.2): iconic motif must thread through chapters
         "ICONIC_MOTIF_SPARSE",
       ]);
-      const blockingCodes = new Set([...hardSafetyCodes]);
+      const blockingCodes = new Set([
+        ...hardSafetyCodes,
+        ...(strictQualityGates ? strictReleaseCodes : []),
+      ]);
       const blockingErrors = storyErrors.filter((i: any) => blockingCodes.has(i.code));
-      const strictDiagnosticErrors = strictQualityGates
+      const strictReleaseErrors = strictQualityGates
         ? storyErrors.filter((i: any) => strictReleaseCodes.has(i.code))
         : [];
       const hasContent = storyDraft.chapters.some(ch => ch.text && ch.text.trim().length > 50);
@@ -1370,12 +1405,12 @@ export class StoryPipelineOrchestrator {
         issues: storyErrors.map((issue: any) => ({ ...issue })),
       };
       phaseGates.push(storyGate);
-      if (strictDiagnosticErrors.length > 0 && hasContent) {
-        await logPhase("phase6-story-strict-quality-waived", { storyId: normalized.storyId }, {
+      if (strictReleaseErrors.length > 0 && hasContent) {
+        await logPhase("phase6-story-strict-quality-blocked", { storyId: normalized.storyId }, {
           strictQualityGates,
-          waivedCodes: strictDiagnosticErrors.map((issue: any) => issue.code),
+          releaseCodes: strictReleaseErrors.map((issue: any) => issue.code),
           blockingCodes: blockingErrors.map((issue: any) => issue.code),
-          reason: "generated_story_has_content",
+          reason: "generated_story_below_release_bar",
         });
       }
       if (blockingErrors.length > 0 || !hasContent) {
@@ -1396,19 +1431,26 @@ export class StoryPipelineOrchestrator {
       // ─── Phase 6.5: AI Scene Description Generator ───────────────────
       const phase65Start = Date.now();
       let aiSceneDescriptions: (AISceneDescription | null)[] = [];
+      const aiScenePromptOverride = (normalized.rawConfig as any)?.aiScenePromptEnabled
+        ?? (normalized.rawConfig as any)?.useAiScenePrompts;
+      const aiScenePromptEnabled = typeof aiScenePromptOverride === "boolean"
+        ? aiScenePromptOverride
+        : Boolean(pipelineConfig.aiScenePromptEnabled);
       try {
-        const sceneResult = await generateSceneDescriptions({
-          chapters: storyDraft.chapters,
-          directives,
-          cast: castSet,
-          language: normalized.language,
-          storyId: normalized.storyId,
-          selectedStoryModel: String(normalized.rawConfig?.aiModel || ""),
-        });
-        aiSceneDescriptions = sceneResult.descriptions;
-        tokenUsage = mergeTokenUsage(tokenUsage, sceneResult.usage);
-        if (sceneResult.costEntries?.length) {
-          costEntries.push(...sceneResult.costEntries);
+        if (aiScenePromptEnabled) {
+          const sceneResult = await generateSceneDescriptions({
+            chapters: storyDraft.chapters,
+            directives,
+            cast: castSet,
+            language: normalized.language,
+            storyId: normalized.storyId,
+            selectedStoryModel: String(normalized.rawConfig?.aiModel || ""),
+          });
+          aiSceneDescriptions = sceneResult.descriptions;
+          tokenUsage = mergeTokenUsage(tokenUsage, sceneResult.usage);
+          if (sceneResult.costEntries?.length) {
+            costEntries.push(...sceneResult.costEntries);
+          }
         }
         const successCount = aiSceneDescriptions.filter(Boolean).length;
         await logPhase("phase6.5-scene-prompts", { storyId: normalized.storyId }, {
@@ -1416,6 +1458,7 @@ export class StoryPipelineOrchestrator {
           totalChapters: storyDraft.chapters.length,
           aiGenerated: successCount,
           fallbackToTemplate: storyDraft.chapters.length - successCount,
+          aiScenePromptEnabled,
         });
       } catch (sceneGenError) {
         console.warn("[pipeline] Phase 6.5 failed entirely, all chapters will use default template prompts:", sceneGenError);
@@ -1866,24 +1909,116 @@ function toQualitySummary(report: any, rewriteAttempts: number): any {
 
 function applyExplicitStakesRepair(
   draft: StoryDraft,
-  input: { language: string },
+  input: {
+    language: string;
+    blueprint?: StoryBlueprintV8;
+    storySoul?: StorySoul;
+    cast?: CastSet;
+  },
 ): boolean {
   const firstChapter = draft.chapters.find(chapter => chapter.chapter === 1) || draft.chapters[0];
   if (!firstChapter?.text) return false;
 
-  const stakesSentence = input.language === "de"
-    ? "Wenn die Kinder den wichtigen Hinweis verlieren, bleibt der Weg zum Ziel verschlossen."
-    : "If the children do not protect the clue, they lose the path to the goal.";
+  const orientation = buildConcreteChapter1Orientation(input);
+  if (!orientation) return false;
 
-  if (firstChapter.text.toLowerCase().includes(stakesSentence.toLowerCase())) {
-    return false;
-  }
+  const cleanedOriginal = removeGenericAbstractOpening(firstChapter.text, input.language).trim();
+  if (cleanedOriginal.toLowerCase().startsWith(orientation.toLowerCase().slice(0, 80))) return false;
 
-  firstChapter.text = `${stakesSentence}\n\n${firstChapter.text.trim()}`;
+  firstChapter.text = `${orientation}\n\n${cleanedOriginal}`;
   if (!draft.description || draft.description.trim().length < 20) {
     draft.description = firstChapter.text.slice(0, 180);
   }
   return true;
+}
+
+function buildConcreteChapter1Orientation(input: {
+  language: string;
+  blueprint?: StoryBlueprintV8;
+  storySoul?: StorySoul;
+  cast?: CastSet;
+}): string {
+  const isGerman = input.language === "de";
+  const blueprintContract = (input.blueprint as any)?.reader_contract || {};
+  const soulContract = (input.storySoul as any)?.readerContract || {};
+  const childNames = input.cast
+    ? input.cast.avatars.map(a => a.displayName).filter(Boolean)
+    : [];
+  const lead = childNames[0] || (isGerman ? "das Kind" : "the child");
+  const companion = childNames.find(name => name !== lead) || childNames[1] || (isGerman ? "sein Begleiter" : "their friend");
+  const artifactName = input.cast?.artifact?.name || (isGerman ? "das besondere Fundstück" : "the special object");
+
+  const normalWorld = meaningfulText(
+    blueprintContract.normal_world,
+    soulContract.normalWorld,
+    isGerman
+      ? `${lead} und ${companion} standen an einem vertrauten Ort, bevor das Problem begann.`
+      : `${lead} and ${companion} stood in a familiar place before the problem began.`,
+  );
+  const mission = sanitizeConcreteMission(meaningfulText(
+    blueprintContract.mission_in_child_words,
+    soulContract.missionInChildWords,
+    isGerman
+      ? `${lead} und ${companion} mussten ${artifactName} rechtzeitig an den richtigen Platz bringen.`
+      : `${lead} and ${companion} had to bring ${artifactName} to the right place in time.`,
+  ), { isGerman, lead, companion, artifactName });
+  const why = meaningfulText(
+    blueprintContract.why_it_matters,
+    soulContract.whyItMattersNow,
+    isGerman
+      ? "Sonst blieb heute ein wichtiger Platz leer und jemand wurde enttäuscht."
+      : "Otherwise an important place would stay empty today and someone would be disappointed.",
+  );
+  const rule = meaningfulText(
+    blueprintContract.special_rule,
+    soulContract.magicOrArtifactRule,
+    input.cast?.artifact?.storyUseRule
+      ? `${artifactName} ${input.cast.artifact.storyUseRule}; ${isGerman ? "entscheiden mussten die Kinder selbst." : "the children still had to decide themselves."}`
+      : isGerman
+        ? `${artifactName} zeigte nur, was anders war; lösen mussten ${lead} und ${companion} es selbst.`
+        : `${artifactName} only showed what was different; ${lead} and ${companion} had to solve it themselves.`,
+  );
+
+  return [normalWorld, mission, why, rule]
+    .map(ensureSentence)
+    .filter(Boolean)
+    .join(" ");
+}
+
+function meaningfulText(...values: Array<unknown>): string {
+  for (const value of values) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (text.length >= 8) return text;
+  }
+  return "";
+}
+
+function sanitizeConcreteMission(
+  mission: string,
+  input: { isGerman: boolean; lead: string; companion: string; artifactName: string },
+): string {
+  const lower = mission.toLowerCase();
+  const clueOnly = /\b(naechsten|nächsten|ersten|letzten)?\s*(hinweis|spur|zeichen|weg)\s*(finden|folgen|erreichen|lesen|suchen)\b/.test(lower)
+    || /\b(next|first|last)?\s*(clue|trail|sign|path)\s*(find|follow|reach|read|search)\b/.test(lower);
+  const concreteTask = /\b(bringen|retten|reparieren|zurueckbringen|zurückbringen|zurueckgeben|zurückgeben|befreien|beschuetzen|beschützen|oeffnen|öffnen|schliessen|schließen|aufhalten|holen|abgeben|ersetzen|bauen|bring|save|fix|return|protect|open|close|stop|deliver)\b/.test(lower);
+  if (!clueOnly || concreteTask) return mission;
+  return input.isGerman
+    ? `${input.lead} und ${input.companion} mussten ${input.artifactName} rechtzeitig an den richtigen Platz bringen.`
+    : `${input.lead} and ${input.companion} had to bring ${input.artifactName} to the right place in time.`;
+}
+
+function ensureSentence(text: string): string {
+  const cleaned = String(text || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`;
+}
+
+function removeGenericAbstractOpening(text: string, language: string): string {
+  const isGerman = language === "de";
+  const pattern = isGerman
+    ? /^\s*Wenn die Kinder den wichtigen Hinweis verlieren,\s*bleibt der Weg zum Ziel verschlossen\.\s*/i
+    : /^\s*If the children do not protect the clue,\s*they lose the path to the goal\.\s*/i;
+  return String(text || "").replace(pattern, "");
 }
 
 function shouldSkipSemanticCritic(quality: any): boolean {

@@ -132,13 +132,13 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map((ch) => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 180),
+      text: compressChapter(ch.text, 130),
     }));
 
     const systemPrompt = `You are an experienced children's-book editor for ages 6-8.
 Benchmark against strong published trade children's fiction, not against typical AI output.
 Evaluate quality only. Never rewrite the full story.
-Use a clear 10-point rubric and name concrete strengths, critical failures, and actionable revisions.
+Use a strict 10-point rubric and return compact machine-readable JSON only.
 Score calibration:
 - 8.0 means clearly publishable professional quality
 - 9.0 means exceptional and memorable
@@ -147,8 +147,8 @@ If the draft clearly misses basic trade-book requirements such as chapter length
 If a blueprint is provided, treat missing on-page realization of its humor beats, mini-conflicts, callbacks, and emotional turns as real misses.
 Check structural fidelity and emotional payoff without demanding literal wording.
 If the story language is German, judge the German prose on native German children's-book quality.
-No generic praise. Return compact JSON only.
-Return at most 7 issues and at most 5 patchTasks.`;
+No generic praise. No long reasoning. Scores must be numbers, not nested objects.
+Return at most 5 issues and at most 3 patchTasks.`;
 
     const userPayload = {
       language: input.language,
@@ -190,48 +190,47 @@ Return at most 7 issues and at most 5 patchTasks.`;
         "Flag only genuine read-aloud stumbles, not sentence length by itself.",
       ],
       outputBudget: {
-        maxIssues: 7,
-        maxPatchTasks: 5,
-        maxMessageChars: 140,
+        maxIssues: 5,
+        maxPatchTasks: 3,
+        maxMessageChars: 100,
       },
       outputSchema: {
         overall_score: "number 0..10",
         verdict: "publish | acceptable | revision_needed | reject",
         scores: {
-          character_voice: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          scenic_presence: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          tension_arc: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          humor: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          age_appropriateness: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          chapter_coherence: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          readability: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          emotional_arc: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          iconic_scene: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          chapter5_quality: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          concrete_anchor_density: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          antagonist_motivation_clarity: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          reader_orientation: { score: "number 0..10", reasoning: "string", example: "string optional" },
-          artifact_rule_clarity: { score: "number 0..10", reasoning: "string", example: "string optional" },
+          character_voice: "number 0..10",
+          scenic_presence: "number 0..10",
+          tension_arc: "number 0..10",
+          humor: "number 0..10",
+          age_appropriateness: "number 0..10",
+          chapter_coherence: "number 0..10",
+          readability: "number 0..10",
+          emotional_arc: "number 0..10",
+          iconic_scene: "number 0..10",
+          chapter5_quality: "number 0..10",
+          concrete_anchor_density: "number 0..10",
+          antagonist_motivation_clarity: "number 0..10",
+          reader_orientation: "number 0..10",
+          artifact_rule_clarity: "number 0..10",
         },
-        critical_failures: ["string"],
-        strengths: ["string"],
-        revision_hints: ["string"],
-        summary: "string max 140 chars",
+        critical_failures: ["string max 80 chars"],
+        revision_hints: ["string max 100 chars"],
+        summary: "string max 100 chars",
         issues: [
           {
             chapter: "number (0 for global)",
             code: "string",
             severity: "ERROR | WARNING",
-            message: "string",
-            patchInstruction: "string optional",
+            message: "string max 100 chars",
+            patchInstruction: "string max 120 chars optional",
           },
         ],
         patchTasks: [
           {
             chapter: "number",
             priority: "1 | 2 | 3",
-            objective: "string",
-            instruction: "string",
+            objective: "string max 80 chars",
+            instruction: "string max 120 chars",
           },
         ],
       },
@@ -246,7 +245,7 @@ Return at most 7 issues and at most 5 patchTasks.`;
             systemPrompt,
             userPrompt: JSON.stringify(userPayload),
             model,
-            maxTokens: 2200,
+            maxTokens: 1200,
             temperature: 0.2,
           });
           return {
@@ -265,7 +264,7 @@ Return at most 7 issues and at most 5 patchTasks.`;
             systemPrompt,
             userPrompt: JSON.stringify(userPayload),
             model,
-            maxTokens: 2200,
+            maxTokens: 1200,
             temperature: 0.2,
             thinkingBudget: 96,
             logSource: "phase6-story-critic-llm",
@@ -288,7 +287,7 @@ Return at most 7 issues and at most 5 patchTasks.`;
             { role: "user", content: JSON.stringify(userPayload) },
           ],
           responseFormat: "json_object",
-          maxTokens: 2200,
+          maxTokens: 1200,
           reasoningEffort: "minimal",
           temperature: 0.2,
           context: "story-semantic-critic",
@@ -393,13 +392,13 @@ export function normalizeCriticReport(
     ? normalizePatchTasks(raw.patchTasks, chapterSet)
     : derivePatchTasksFromIssues(issues);
 
-  const verdict = normalizeVerdict(raw?.verdict)
-    ?? determineCriticVerdict({
+  const inferredVerdict = determineCriticVerdict({
       rubricScores,
       criticalFailures,
       publishThreshold: ctx.targetMinScore,
       acceptableThreshold: ctx.warnFloor,
     });
+  const verdict = stricterVerdict(normalizeVerdict(raw?.verdict), inferredVerdict);
   const releaseReady = verdict === "publish";
   const summary = trimText(String(raw?.summary || ""), 140) || defaultSummary(ctx.language, overallScore, verdict);
 
@@ -431,8 +430,8 @@ export function determineCriticVerdict(input: {
 
   if (input.criticalFailures.length > 0) return "reject";
   if (minimum < 3) return "reject";
-  if (average >= input.publishThreshold && minimum >= 6) return "publish";
-  if (average >= input.acceptableThreshold && minimum >= 5) return "acceptable";
+  if (average >= input.publishThreshold && minimum >= 7.2) return "publish";
+  if (average >= input.acceptableThreshold && minimum >= 6.2) return "acceptable";
   return "revision_needed";
 }
 
@@ -709,6 +708,20 @@ function normalizeVerdict(value: unknown): SemanticCriticVerdict | null {
     return normalized;
   }
   return null;
+}
+
+function stricterVerdict(
+  raw: SemanticCriticVerdict | null,
+  inferred: SemanticCriticVerdict,
+): SemanticCriticVerdict {
+  if (!raw) return inferred;
+  const rank: Record<SemanticCriticVerdict, number> = {
+    publish: 0,
+    acceptable: 1,
+    revision_needed: 2,
+    reject: 3,
+  };
+  return rank[inferred] > rank[raw] ? inferred : raw;
 }
 
 function normalizeStringList(value: unknown, maxItems: number, maxChars: number): string[] {

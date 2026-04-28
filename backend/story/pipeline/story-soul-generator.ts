@@ -172,10 +172,12 @@ export async function generateValidatedStorySoul(
   }
 
   // Rescue: ein anderer starker Model-Pfad (Cross-Provider Fallback)
-  const rescueModel = resolveSoulRescueModel(
-    normalizedRequest.rawConfig?.aiModel,
-    soulModel,
-  );
+  const rescueModel = maxRetries > 0
+    ? resolveSoulRescueModel(
+      normalizedRequest.rawConfig?.aiModel,
+      soulModel,
+    )
+    : undefined;
   if (rescueModel) {
     const rescueAttempt = Math.max(1, totalAttempts + 1);
     attemptsMade = rescueAttempt;

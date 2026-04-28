@@ -12,18 +12,19 @@ SET value = value || '{
     "runwareCfgScale": 4,
     "releaseCandidateCount": 1,
     "criticModel": "gpt-5.4-nano",
-    "criticMinScore": 7.8,
-    "maxSelectiveSurgeryEdits": 0,
+    "criticMinScore": 8.6,
+    "maxSelectiveSurgeryEdits": 1,
     "blueprintRetryMax": 0,
-    "pass3TargetScore": 7.8,
-    "pass3WarnFloor": 6.4,
+    "pass3TargetScore": 8.6,
+    "pass3WarnFloor": 7.2,
     "soulStageEnabled": true,
     "soulRetryMax": 0,
-    "soulAllowOnReject": true,
-    "soulAwareCriticMinScore": 7.8,
+    "soulAllowOnReject": false,
+    "soulAwareCriticMinScore": 8.6,
     "soulApprovedSingleCandidate": true,
-    "soulGeneratorMaxOutputTokens": 2500,
-    "imageRetryMax": 1
+    "soulGeneratorMaxOutputTokens": 2200,
+    "imageRetryMax": 1,
+    "aiScenePromptEnabled": false
 }'::jsonb,
 updated_at = CURRENT_TIMESTAMP
 WHERE key = 'default';

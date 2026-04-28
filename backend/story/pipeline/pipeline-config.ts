@@ -29,6 +29,8 @@ export interface PipelineConfig {
   soulGeneratorMaxOutputTokens: number;
   /** Model for Soul gate. */
   soulGateModel: string;
+  /** Generate AI art-director scene descriptions. Off by default to keep story tokens low. */
+  aiScenePromptEnabled: boolean;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -40,19 +42,20 @@ const DEFAULT_CONFIG: PipelineConfig = {
   maxPropsVisible: 7,
   releaseCandidateCount: 1,
   criticModel: "gpt-5.4-nano",
-  criticMinScore: 7.8,
-  maxSelectiveSurgeryEdits: 0,
+  criticMinScore: 8.6,
+  maxSelectiveSurgeryEdits: 1,
   defaultPromptVersion: "v8",
   blueprintRetryMax: 0,
-  pass3TargetScore: 7.8,
-  pass3WarnFloor: 6.4,
+  pass3TargetScore: 8.6,
+  pass3WarnFloor: 7.2,
   soulStageEnabled: true,
   soulRetryMax: 0,
-  soulAllowOnReject: true,
-  soulAwareCriticMinScore: 7.8,
+  soulAllowOnReject: false,
+  soulAwareCriticMinScore: 8.6,
   soulApprovedSingleCandidate: true,
-  soulGeneratorMaxOutputTokens: 2500,
+  soulGeneratorMaxOutputTokens: 2200,
   soulGateModel: "gemini-3.1-flash-lite-preview",
+  aiScenePromptEnabled: false,
 };
 
 let cached: PipelineConfig | null = null;
