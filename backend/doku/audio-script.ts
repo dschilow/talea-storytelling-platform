@@ -219,7 +219,7 @@ DRAMATURGIE:
 2. Klare Hauptfrage / Thema-Einführung.
 3. Spannender Verlauf mit Wow-Fakten, Vergleichen aus dem Kinderalltag, Aha-Momenten.
 4. Mindestens 1 Twist / Überraschung.
-5. Emotional starkes Finale, kein abruptes Ende.
+5. Emotional starkes Finale: Der erste Sprecher fasst in 1-2 Sätzen zusammen was die Expedition/das Abenteuer bedeutet hat — themenspezifisch und emotional. Beispiel: "Mission geschafft. Wir waren dort, wo kein Sonnenlicht hinkommt… und haben trotzdem Licht gefunden." Das Skript endet HIER. Keine Verabschiedung, kein "Bis zum nächsten Mal" — das kommt automatisch danach.
 
 INHALT:
 - Faktisch korrekt, kindgerecht erklärt, niemals belehrend.
@@ -334,7 +334,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
     }
 
     const rawScript = typeof parsed.script === "string" ? parsed.script : "";
-    const sanitizedScript = sanitizeScript(rawScript);
+    const sanitizedScript = sanitizeScript(rawScript, cleanedSpeakers);
     if (!sanitizedScript) {
       throw new Error("OpenAI script was empty after sanitization");
     }
@@ -361,7 +361,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
   },
 );
 
-const sanitizeScript = (raw: string): string => {
+const sanitizeScript = (raw: string, speakers: string[]): string => {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const cleaned: string[] = [];
   for (const line of lines) {
@@ -369,5 +369,32 @@ const sanitizeScript = (raw: string): string => {
     if (!trimmed) continue;
     cleaned.push(trimmed);
   }
+
+  // Remove any AI-generated sign-off lines to avoid duplicates before appending our outro.
+  const signOffPatterns = [
+    /bis zur nächsten/i,
+    /bis zum nächsten/i,
+    /tschüss/i,
+    /auf wiedersehen/i,
+    /see you/i,
+    /bye/i,
+    /\[applause\]/i,
+    /\[clapping\]/i,
+  ];
+  while (cleaned.length > 0) {
+    const last = cleaned[cleaned.length - 1];
+    const afterColon = last.split(":").slice(1).join(":").toLowerCase();
+    if (signOffPatterns.some((p) => p.test(afterColon) || p.test(last))) {
+      cleaned.pop();
+    } else {
+      break;
+    }
+  }
+
+  // Die thematische Abschlusszeile (host1) kommt vom Modell.
+  // Wir hängen nur die feste Verabschiedung des zweiten Sprechers an.
+  const host2 = speakers[1] ?? speakers[0] ?? "LUMI";
+  cleaned.push(`${host2}: [excited] Bis zur nächsten Doku! [applause] Tschüss!`);
+
   return cleaned.join("\n");
 };
