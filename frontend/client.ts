@@ -871,6 +871,10 @@ import {
     listAudioDokus as api_doku_audio_doku_listAudioDokus,
     updateAudioDoku as api_doku_audio_doku_updateAudioDoku
 } from "~backend/doku/audio-doku";
+import {
+    generateAudioDokuScript as api_doku_audio_script_generateAudioDokuScript,
+    generateAudioDokuTopics as api_doku_audio_script_generateAudioDokuTopics
+} from "~backend/doku/audio-script";
 import { deleteDoku as api_doku_delete_deleteDoku } from "~backend/doku/delete";
 import { generateDoku as api_doku_generate_generateDoku } from "~backend/doku/generate";
 import { getDoku as api_doku_get_getDoku } from "~backend/doku/get";
@@ -898,6 +902,8 @@ export namespace doku {
             this.deleteAudioDoku = this.deleteAudioDoku.bind(this)
             this.deleteDoku = this.deleteDoku.bind(this)
             this.generateAudioCover = this.generateAudioCover.bind(this)
+            this.generateAudioDokuScript = this.generateAudioDokuScript.bind(this)
+            this.generateAudioDokuTopics = this.generateAudioDokuTopics.bind(this)
             this.generateDoku = this.generateDoku.bind(this)
             this.getAudioDoku = this.getAudioDoku.bind(this)
             this.getDoku = this.getDoku.bind(this)
@@ -954,6 +960,18 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/audio-dokus/generate-cover`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_doku_generateAudioCover>
+        }
+
+        public async generateAudioDokuScript(params: RequestType<typeof api_doku_audio_script_generateAudioDokuScript>): Promise<ResponseType<typeof api_doku_audio_script_generateAudioDokuScript>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/audio-script/generate`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_script_generateAudioDokuScript>
+        }
+
+        public async generateAudioDokuTopics(params: RequestType<typeof api_doku_audio_script_generateAudioDokuTopics>): Promise<ResponseType<typeof api_doku_audio_script_generateAudioDokuTopics>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/audio-script/topics`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_script_generateAudioDokuTopics>
         }
 
         public async generateDoku(params: RequestType<typeof api_doku_generate_generateDoku>): Promise<ResponseType<typeof api_doku_generate_generateDoku>> {
@@ -2543,8 +2561,10 @@ import {
     generateQwenDialogue as api_tts_tts_generateQwenDialogue,
     generateSpeech as api_tts_tts_generateSpeech,
     generateSpeechBatch as api_tts_tts_generateSpeechBatch,
+    getAvailableTtsProviders as api_tts_tts_getAvailableTtsProviders,
     listCosyVoiceVoices as api_tts_tts_listCosyVoiceVoices,
-    listQwenVoices as api_tts_tts_listQwenVoices
+    listQwenVoices as api_tts_tts_listQwenVoices,
+    listXaiVoices as api_tts_tts_listXaiVoices
 } from "~backend/tts/tts";
 
 export namespace tts {
@@ -2558,9 +2578,11 @@ export namespace tts {
             this.generateQwenDialogue = this.generateQwenDialogue.bind(this)
             this.generateSpeech = this.generateSpeech.bind(this)
             this.generateSpeechBatch = this.generateSpeechBatch.bind(this)
+            this.getAvailableTtsProviders = this.getAvailableTtsProviders.bind(this)
             this.listCosyVoiceVoices = this.listCosyVoiceVoices.bind(this)
             this.listElevenLabsVoices = this.listElevenLabsVoices.bind(this)
             this.listQwenVoices = this.listQwenVoices.bind(this)
+            this.listXaiVoices = this.listXaiVoices.bind(this)
         }
 
         public async generateElevenLabsDialogue(params: RequestType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>> {
@@ -2587,8 +2609,14 @@ export namespace tts {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_generateSpeechBatch>
         }
 
+        public async getAvailableTtsProviders(): Promise<ResponseType<typeof api_tts_tts_getAvailableTtsProviders>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/providers`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_getAvailableTtsProviders>
+        }
+
         /**
-         * Backward-compatible alias for older frontend paths.
+         * Temporary alias until the generated frontend client is refreshed.
          */
         public async listCosyVoiceVoices(): Promise<ResponseType<typeof api_tts_tts_listCosyVoiceVoices>> {
             // Now make the actual call to the API
@@ -2606,6 +2634,12 @@ export namespace tts {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/qwen/voices`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listQwenVoices>
+        }
+
+        public async listXaiVoices(): Promise<ResponseType<typeof api_tts_tts_listXaiVoices>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/xai/voices`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listXaiVoices>
         }
     }
 }

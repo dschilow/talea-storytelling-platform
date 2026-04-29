@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2, Wand2, Lightbulb } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -816,12 +816,27 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [savedAudio, setSavedAudio] = useState<AudioDoku | null>(null);
   const [dialogueScript, setDialogueScript] = useState('');
-  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('qwen');
+  // Qwen wurde deaktiviert - nur ElevenLabs wird aktuell unterstützt.
+  const [ttsProvider, setTtsProvider] = useState<TTSProvider>('elevenlabs');
   const [speakerProfiles, setSpeakerProfiles] = useState<DialogueSpeaker[]>([
-    { id: 'speaker-tavi', name: 'TAVI', voiceId: '' },
-    { id: 'speaker-lumi', name: 'LUMI', voiceId: '' },
+    { id: 'speaker-tavi', name: 'TAVI', voiceId: '8tJgFGd1nr7H5KLTvjjt' },
+    { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
   ]);
-  const [providerVoices, setProviderVoices] = useState<ProviderVoiceOption[]>(STATIC_QWEN_PROVIDER_VOICES);
+  const [providerVoices, setProviderVoices] = useState<ProviderVoiceOption[]>([]);
+
+  // Doku-Parameter (neu)
+  const [paramAgeFrom, setParamAgeFrom] = useState<number>(6);
+  const [paramAgeTo, setParamAgeTo] = useState<number>(8);
+  const [paramDuration, setParamDuration] = useState<number>(5);
+  const [paramSpeakerCount, setParamSpeakerCount] = useState<number>(2);
+
+  // Themen-Generator (neu)
+  const [topicDirection, setTopicDirection] = useState<string>('');
+  const [topicSuggestions, setTopicSuggestions] = useState<string[]>([]);
+  const [selectedTopic, setSelectedTopic] = useState<string>('');
+  const [topicsLoading, setTopicsLoading] = useState<boolean>(false);
+  const [scriptGenerating, setScriptGenerating] = useState<boolean>(false);
+  const [topicError, setTopicError] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
   const [dialogueStatus, setDialogueStatus] = useState<string | null>(null);
@@ -942,15 +957,45 @@ const CreateAudioDokuScreen: React.FC = () => {
     }
   }, [speakerProfiles, voiceTargetSpeakerId]);
 
+  // Qwen wurde deaktiviert. Wir laden ElevenLabs-Stimmen einmalig nach Mount.
   useEffect(() => {
-    setProviderVoices(ttsProvider === 'qwen' ? STATIC_QWEN_PROVIDER_VOICES : []);
-    setVoiceSearchQuery('');
-    setGeneratedVariants([]);
-    setSelectedVariantId(null);
-    setDialogueStatus(null);
-    setDialogueStatusType(null);
-    setSpeakerProfiles((prev) => prev.map((speaker) => ({ ...speaker, voiceId: '' })));
-  }, [ttsProvider]);
+    let cancelled = false;
+    const loadVoicesOnMount = async () => {
+      try {
+        setVoicesLoading(true);
+        const token = await getToken();
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/voices`, {
+          method: 'GET',
+          headers,
+          credentials: 'include',
+        });
+        if (!response.ok) throw new Error(await readErrorMessage(response));
+        const payload = (await response.json()) as ElevenLabsVoicesResponse;
+        if (cancelled) return;
+        const voices = (payload.voices || [])
+          .map((voice) => ({ id: voice.voiceId, name: voice.name } as ProviderVoiceOption))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setProviderVoices(voices);
+      } catch (err) {
+        if (!cancelled) {
+          console.warn('[AudioDoku] Initial voice load failed:', err);
+        }
+      } finally {
+        if (!cancelled) setVoicesLoading(false);
+      }
+    };
+    void loadVoicesOnMount();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sprecher-Anzahl-Parameter mit speakerProfiles synchron halten (Anzeige).
+  useEffect(() => {
+    setParamSpeakerCount(speakerProfiles.length);
+  }, [speakerProfiles.length]);
 
   const handleFileSelected = (file: File | null) => {
     setAudioFile(file);
@@ -1456,6 +1501,63 @@ const CreateAudioDokuScreen: React.FC = () => {
     }
   };
 
+  const handleGenerateTopics = async () => {
+    try {
+      setTopicError(null);
+      setTopicsLoading(true);
+      const response = await backend.doku.generateAudioDokuTopics({
+        ageFrom: paramAgeFrom,
+        ageTo: paramAgeTo,
+        durationMinutes: paramDuration,
+        speakerCount: speakerProfiles.length,
+        direction: topicDirection.trim() || undefined,
+      });
+      setTopicSuggestions(response.topics || []);
+      if (response.topics && response.topics.length > 0) {
+        setSelectedTopic(response.topics[0]);
+      }
+    } catch (err) {
+      console.error('[AudioDoku] Topic generation failed:', err);
+      setTopicError((err as Error).message || 'Themen konnten nicht generiert werden.');
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
+
+  const handleGenerateDokuScript = async () => {
+    if (!selectedTopic.trim()) {
+      setTopicError('Bitte zuerst ein Thema auswählen oder eingeben.');
+      return;
+    }
+    try {
+      setTopicError(null);
+      setScriptGenerating(true);
+      const speakerNames = speakerProfiles
+        .map((s) => s.name.trim())
+        .filter((n) => n.length > 0);
+      const response = await backend.doku.generateAudioDokuScript({
+        topic: selectedTopic.trim(),
+        ageFrom: paramAgeFrom,
+        ageTo: paramAgeTo,
+        durationMinutes: paramDuration,
+        speakerNames,
+      });
+      setDialogueScript(response.script);
+      setTitle(response.title);
+      setAgeGroup(response.ageGroup);
+      setCategory(response.category);
+      setCoverDescription(response.coverPrompt);
+      setDescription(response.description);
+      setDialogueStatus('Doku-Skript erfolgreich generiert. Du kannst es jetzt prüfen und Audio erzeugen.');
+      setDialogueStatusType('success');
+    } catch (err) {
+      console.error('[AudioDoku] Script generation failed:', err);
+      setTopicError((err as Error).message || 'Doku-Skript konnte nicht generiert werden.');
+    } finally {
+      setScriptGenerating(false);
+    }
+  };
+
   const handleReset = () => {
     setTitle('');
     setCoverDescription('');
@@ -1467,18 +1569,21 @@ const CreateAudioDokuScreen: React.FC = () => {
     setExistingAudioUrl(null);
     setSavedAudio(null);
     setDialogueScript('');
-    setTtsProvider('qwen');
+    setTtsProvider('elevenlabs');
     setSpeakerProfiles([
-      { id: 'speaker-tavi', name: 'TAVI', voiceId: '' },
-      { id: 'speaker-lumi', name: 'LUMI', voiceId: '' },
+      { id: 'speaker-tavi', name: 'TAVI', voiceId: '8tJgFGd1nr7H5KLTvjjt' },
+      { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
     ]);
-    setProviderVoices([]);
     setDialogueStatus(null);
     setDialogueStatusType(null);
     setGeneratedVariants([]);
     setSelectedVariantId(null);
     setVoiceSearchQuery('');
     setVoiceTargetSpeakerId('speaker-tavi');
+    setTopicDirection('');
+    setTopicSuggestions([]);
+    setSelectedTopic('');
+    setTopicError(null);
     setError(null);
   };
 
@@ -1502,7 +1607,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const headerStyle: React.CSSProperties = {
     padding: `${spacing.md}px ${spacing.lg}px`,
     marginBottom: `${spacing.lg}px`,
-    maxWidth: '1460px',
+    maxWidth: '1560px',
     marginInline: 'auto',
   };
 
@@ -1537,7 +1642,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     padding: `0 ${spacing.lg}px ${spacing.xxl}px`,
     display: 'grid',
     gap: spacing.xl,
-    maxWidth: '1460px',
+    maxWidth: '1560px',
     marginInline: 'auto',
   };
 
@@ -1618,47 +1723,228 @@ const CreateAudioDokuScreen: React.FC = () => {
                 boxShadow: '0 16px 34px rgba(33,44,62,0.14)',
               }}
             >
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="flex flex-col gap-8">
                 <div className="flex flex-col gap-6">
+                  {/* === STEP 1: Doku-Parameter === */}
+                  <div
+                    className="rounded-2xl border p-5 shadow-sm"
+                    style={{ borderColor: palette.panelBorder, background: palette.soft }}
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <span
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                        style={{ background: palette.primary, color: palette.primaryText }}
+                      >
+                        1
+                      </span>
+                      <div className="text-sm font-semibold" style={{ color: palette.text }}>
+                        Doku-Parameter
+                      </div>
+                    </div>
+                    <p className="mb-4 text-xs" style={{ color: palette.muted }}>
+                      Lege Alter, Dauer und Anzahl der Sprecher fest. Die Sprecher kannst du weiter unten benennen und mit ElevenLabs-Stimmen verknüpfen.
+                    </p>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                          Alter von
+                        </label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={18}
+                          value={paramAgeFrom}
+                          onChange={(e) => {
+                            const v = Math.max(2, Math.min(18, Number.parseInt(e.target.value || '0', 10) || 0));
+                            setParamAgeFrom(v);
+                            if (v > paramAgeTo) setParamAgeTo(v);
+                          }}
+                          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                          Alter bis
+                        </label>
+                        <input
+                          type="number"
+                          min={paramAgeFrom}
+                          max={18}
+                          value={paramAgeTo}
+                          onChange={(e) => {
+                            const v = Math.max(paramAgeFrom, Math.min(18, Number.parseInt(e.target.value || '0', 10) || 0));
+                            setParamAgeTo(v);
+                          }}
+                          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                          Dauer (Min)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={60}
+                          value={paramDuration}
+                          onChange={(e) => {
+                            const v = Math.max(1, Math.min(60, Number.parseInt(e.target.value || '0', 10) || 0));
+                            setParamDuration(v);
+                          }}
+                          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                          Anzahl Sprecher
+                        </label>
+                        <div
+                          className="mt-1 flex h-[38px] items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                        >
+                          <span>{speakerProfiles.length}</span>
+                          <span className="text-[11px]" style={{ color: palette.muted }}>
+                            unten anpassen
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* === STEP 2: Themen-Generator === */}
+                  <div
+                    className="rounded-2xl border p-5 shadow-sm"
+                    style={{ borderColor: palette.panelBorder, background: palette.soft }}
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <span
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                        style={{ background: palette.primary, color: palette.primaryText }}
+                      >
+                        2
+                      </span>
+                      <div className="text-sm font-semibold" style={{ color: palette.text }}>
+                        Thema finden
+                      </div>
+                    </div>
+                    <p className="mb-3 text-xs" style={{ color: palette.muted }}>
+                      Gib eine Themenrichtung ein (z.B. "Antarktis", "Vulkane") oder lass sie leer für freie Themen. Die KI schlägt 10 passende Doku-Themen vor.
+                    </p>
+                    <div className="flex flex-col gap-3 md:flex-row">
+                      <input
+                        value={topicDirection}
+                        onChange={(e) => setTopicDirection(e.target.value)}
+                        placeholder="Themenrichtung (optional, z.B. 'Tiefsee', 'antikes Rom')"
+                        className="flex-1 rounded-lg border px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none"
+                        style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateTopics()}
+                        disabled={topicsLoading}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                      >
+                        {topicsLoading ? <RefreshCw size={14} className="animate-spin" /> : <Lightbulb size={14} />}
+                        {topicsLoading ? 'Generiere...' : '10 Themen vorschlagen'}
+                      </button>
+                    </div>
+
+                    {topicSuggestions.length > 0 && (
+                      <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        {topicSuggestions.map((topic, idx) => {
+                          const isSelected = selectedTopic === topic;
+                          return (
+                            <button
+                              key={`${idx}-${topic}`}
+                              type="button"
+                              onClick={() => setSelectedTopic(topic)}
+                              className="rounded-lg border px-3 py-2.5 text-left text-sm transition"
+                              style={{
+                                borderColor: isSelected ? palette.text : palette.panelBorder,
+                                background: isSelected ? palette.primary : palette.panel,
+                                color: isSelected ? palette.primaryText : palette.text,
+                                fontWeight: isSelected ? 600 : 400,
+                              }}
+                            >
+                              {idx + 1}. {topic}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Manuelle Eingabe / Override */}
+                    <div className="mt-4">
+                      <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
+                        Ausgewähltes Thema
+                      </label>
+                      <input
+                        value={selectedTopic}
+                        onChange={(e) => setSelectedTopic(e.target.value)}
+                        placeholder="Thema auswählen oder eintippen"
+                        className="mt-1 w-full rounded-lg border px-3 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none"
+                        style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                      />
+                    </div>
+
+                    {/* Doku generieren */}
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateDokuScript()}
+                        disabled={scriptGenerating || !selectedTopic.trim()}
+                        className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                      >
+                        {scriptGenerating ? <RefreshCw size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                        {scriptGenerating ? 'Generiere Doku...' : 'Doku generieren'}
+                      </button>
+                      <span className="text-xs" style={{ color: palette.muted }}>
+                        Erzeugt automatisch Skript, Titel, Alter, Kategorie, Cover-Prompt und Beschreibung.
+                      </span>
+                    </div>
+
+                    {topicError && (
+                      <div className="mt-3 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-700">
+                        {topicError}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* === STEP 3: Skript-Editor (existiert weiter unten) === */}
                   <div
                     className="rounded-2xl border p-5 shadow-sm"
                     style={{ borderColor: palette.panelBorder, background: palette.soft }}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-semibold" style={{ color: palette.text }}>
-                          Dialog mit {providerLabel} generieren
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                            style={{ background: palette.primary, color: palette.primaryText }}
+                          >
+                            3
+                          </span>
+                          <div className="text-sm font-semibold" style={{ color: palette.text }}>
+                            Skript &amp; Audio mit {providerLabel}
+                          </div>
                         </div>
                         <p className="mt-1 text-xs" style={{ color: palette.muted }}>
                           Script-Format: <code>SPRECHER: Text</code>, z. B. <code>TAVI: [excited] ...</code>.
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex rounded-lg border p-1" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
-                          <button
-                            type="button"
-                            onClick={() => setTtsProvider('qwen')}
-                            className="rounded-md px-2.5 py-1 text-xs font-semibold"
-                            style={{
-                              background: ttsProvider === 'qwen' ? palette.primary : 'transparent',
-                              color: ttsProvider === 'qwen' ? palette.primaryText : palette.text,
-                            }}
-                          >
-                            Qwen
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setTtsProvider('elevenlabs')}
-                            className="rounded-md px-2.5 py-1 text-xs font-semibold"
-                            style={{
-                              background: ttsProvider === 'elevenlabs' ? palette.primary : 'transparent',
-                              color: ttsProvider === 'elevenlabs' ? palette.primaryText : palette.text,
-                            }}
-                          >
-                            ElevenLabs
-                          </button>
+                        {/* Qwen-Toggle wurde deaktiviert. Nur ElevenLabs ist aktuell aktiv. */}
+                        <div
+                          className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                          style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                        >
+                          ElevenLabs
                         </div>
-                      {ttsProvider === 'elevenlabs' ? (
                         <button
                           type="button"
                           onClick={() => void fetchProviderVoices()}
@@ -1667,26 +1953,12 @@ const CreateAudioDokuScreen: React.FC = () => {
                           style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
                         >
                           <RefreshCw size={14} className={voicesLoading ? 'animate-spin' : ''} />
-                          {voicesLoading ? 'Lade Stimmen...' : 'Stimmen laden'}
+                          {voicesLoading ? 'Lade Stimmen...' : 'Stimmen neu laden'}
                         </button>
-                      ) : (
-                        <div
-                          className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
-                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
-                        >
-                          {providerVoices.length} lokale Stimmen
-                        </div>
-                      )}
                       </div>
                     </div>
                     <p className="mt-2 text-xs" style={{ color: palette.muted }}>
-                      {ttsProvider === 'qwen'
-                        ? 'Qwen-Stimmen stehen direkt lokal bereit. Pro Sprecher im Feld '
-                        : 'Nach Stimmen laden: Pro Sprecher im Feld '}
-                      <strong>"Stimme aus Liste..."</strong>
-                      {ttsProvider === 'qwen'
-                        ? ' eine Stimme auswaehlen. Qwen nutzt keine 5000-Zeichen-Grenze wie ElevenLabs und verarbeitet lange Skripte in Bloecken.'
-                        : ' ElevenLabs ist fuer Dialog-Szenen optimiert, hat aber Provider-Limits pro Request.'}
+                      Pro Sprecher im Feld <strong>"Stimme aus Liste..."</strong> eine Stimme auswählen. ElevenLabs ist für Dialog-Szenen optimiert; lange Skripte werden serverseitig automatisch in Abschnitte geteilt.
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1716,7 +1988,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                       <div className="grid grid-cols-[52px_1fr]">
                         <div
                           ref={dialogueGutterRef}
-                          className="max-h-[320px] overflow-hidden border-r py-3 text-right font-mono text-[11px] leading-6"
+                          className="max-h-[520px] overflow-hidden border-r py-3 text-right font-mono text-[11px] leading-6"
                           style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.muted }}
                           aria-hidden
                         >
@@ -1737,10 +2009,10 @@ const CreateAudioDokuScreen: React.FC = () => {
                           onChange={(e) => setDialogueScript(e.target.value)}
                           onScroll={handleDialogueEditorScroll}
                           onKeyDown={handleDialogueEditorKeyDown}
-                          rows={10}
+                          rows={16}
                           spellCheck={false}
                           placeholder={`TAVI: [excited] Willkommen zur Talea Audio-Doku!\nLUMI: [curious] Unsichtbar? Wie ein Ninja?\nTAVI: [mischievously] Genau!`}
-                          className="max-h-[320px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 placeholder:text-slate-400 focus:outline-none"
+                          className="max-h-[520px] w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-6 placeholder:text-slate-400 focus:outline-none"
                           style={{ color: palette.text }}
                         />
                       </div>
@@ -2002,7 +2274,21 @@ const CreateAudioDokuScreen: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-6">
+                <div
+                  className="flex flex-col gap-6 rounded-2xl border p-5 shadow-sm"
+                  style={{ borderColor: palette.panelBorder, background: palette.soft }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
+                      style={{ background: palette.primary, color: palette.primaryText }}
+                    >
+                      4
+                    </span>
+                    <div className="text-sm font-semibold" style={{ color: palette.text }}>
+                      Metadaten &amp; Cover
+                    </div>
+                  </div>
                   <div>
                     <label className="text-sm font-semibold" style={{ color: palette.text }}>
                       {t('doku.audioCreate.titleLabel')}
