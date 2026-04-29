@@ -228,11 +228,21 @@ INHALT:
 - Natürliche Mischung aller Sprecher: jeder Sprecher kommt regelmäßig zu Wort.
 
 ZUSÄTZLICH erzeugst du Metadaten:
-- title: Titel der Doku (max 10 Wörter, neugierig machend, KEIN "Alles über..."), in der Sprache der Doku.
+
+- title: WICHTIG! Der Titel muss sofort Neugier wecken und Lust aufs Hören machen.
+  VERBOTEN: "Alles über X", "Die Geschichte von X", "X erklärt", reine Substantiv-Ketten, langweilige Beschreibungen.
+  ERLAUBT und erwünscht: "Warum...", "Wie...", "Das geheime Leben von...", "Das verrückte Geheimnis von...", "Was wäre wenn...", rhetorische Fragen, überraschende Formulierungen, Spannung erzeugende Titel.
+  LÄNGE: 5–10 Wörter, in der Sprache der Doku.
+  BEISPIELE für gute Titel: "Warum leuchten Tiere in der Tiefsee?", "Das geheime Leben der Pilze", "Was wäre wenn die Sonne erlischt?", "Wie ein Raketenstart die Welt verändert"
+
 - ageGroup: Altersangabe als Bereich z.B. "6-8".
+
 - category: Eine der Kategorien Abenteuer, Wissen, Natur, Tiere, Geschichte, Entspannung.
-- coverPrompt: ENGLISCH, exakt im folgenden Format als ein zusammenhängender Absatz:
-  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene with hosts/characters, environment, atmosphere, lighting, foreground subjects, animals/details, sound visualized as particles/wind/etc>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
+
+- coverPrompt: ENGLISCH, exakt im folgenden Format als ein zusammenhängender Absatz. PFLICHT: Die beiden Moderatoren-Figuren MÜSSEN im Vordergrund sichtbar sein!
+  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene with environment, atmosphere, lighting, foreground subjects, background details, sound visualized as particles/wind/etc>. Foreground: two cheerful cartoon hosts (<description of host 1: adult male presenter, e.g. warm parka, goggles, scientific equipment> and <description of host 2: curious young girl sidekick, e.g. colorful jacket, backpack>) standing amazed and pointing toward the scene. <Additional wildlife/detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
+  Der Moderator (TAVI) ist ein erwachsener, freundlicher Männer-Presenter. Das Mädchen (LUMI) ist eine neugierige junge Sidekick. Beide MÜSSEN erkennbar im Bild sein.
+
 - description: 2-3 Sätze auf Deutsch, die neben dem Player als Beschreibung erscheinen.
 
 Antworte AUSSCHLIESSLICH als JSON-Objekt:
@@ -245,6 +255,13 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
   "description": "..."
 }`;
 
+    // Build speaker descriptions for cover prompt
+    const hostDesc = cleanedSpeakers.length >= 2
+      ? `${cleanedSpeakers[0]} (adult male science host, friendly explorer style with simple goggles and warm jacket, holding a prop related to the topic) and ${cleanedSpeakers[1]} (curious young girl sidekick in a colorful jacket with a small backpack, wide-eyed and excited)`
+      : cleanedSpeakers.length === 1
+        ? `${cleanedSpeakers[0]} (friendly adult male science host, explorer style with goggles and warm jacket)`
+        : "two cheerful cartoon hosts (adult male explorer/science host with simple goggles and warm jacket, and a curious young girl sidekick in a colorful jacket)";
+
     const user = `THEMA DER AUDIO-DOKU: "${topic}"
 
 Zielgruppe: ${ageFrom}-${ageTo} Jahre
@@ -253,6 +270,9 @@ Anzahl Sprecher: ${speakerCount}
 
 SPRECHER (in dieser Reihenfolge und exakt mit diesen Namen verwenden, alle Großbuchstaben):
 ${speakerListText}
+
+COVER-PROMPT PFLICHT: Beide Sprecher MÜSSEN im Vordergrund sichtbar sein.
+Sprecher-Beschreibung für Cover: ${hostDesc}
 
 Erstelle das vollständige Skript jetzt nach den oben genannten Regeln.
 

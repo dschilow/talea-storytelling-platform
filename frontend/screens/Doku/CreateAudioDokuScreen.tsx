@@ -2216,12 +2216,45 @@ const CreateAudioDokuScreen: React.FC = () => {
 
                     {generatedVariants.length > 0 && (
                       <div className="mt-4 space-y-3">
+                        {/* Direkt-Speichern-Banner */}
+                        {selectedVariantId && (
+                          <div
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3"
+                            style={{
+                              borderColor: '#6ee7b7',
+                              background: 'rgba(52,211,153,0.12)',
+                            }}
+                          >
+                            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                              <Sparkles size={16} />
+                              Audio bereit — du kannst jetzt direkt die Doku erstellen.
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void handleSave()}
+                              disabled={saving}
+                              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+                              style={{ borderColor: '#10b981', background: '#10b981', color: '#fff' }}
+                            >
+                              <Sparkles size={15} />
+                              {saving ? 'Erstelle...' : 'Audio-Doku jetzt erstellen'}
+                            </button>
+                          </div>
+                        )}
+
                         {generatedVariants.map((variant, index) => (
-                          <div key={variant.id} className="rounded-xl border border-indigo-200/70 bg-white/90 p-3">
-                            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-indigo-900">
+                          <div
+                            key={variant.id}
+                            className="rounded-xl border p-3"
+                            style={{
+                              borderColor: selectedVariantId === variant.id ? '#6ee7b7' : 'rgba(99,102,241,0.3)',
+                              background: selectedVariantId === variant.id ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.9)',
+                            }}
+                          >
+                            <div className="mb-2 flex items-center justify-between text-xs font-semibold" style={{ color: selectedVariantId === variant.id ? '#065f46' : '#312e81' }}>
                               <span>Variante {index + 1}</span>
                               {selectedVariantId === variant.id && (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">Aktiv</span>
+                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">✓ Ausgewählt</span>
                               )}
                             </div>
                             <audio controls src={variant.audioData} className="w-full" />
@@ -2229,11 +2262,16 @@ const CreateAudioDokuScreen: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => applyGeneratedVariant(variant)}
-                                className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:border-indigo-300"
+                                className="rounded-lg border px-3 py-2 text-xs font-semibold"
+                                style={{
+                                  borderColor: selectedVariantId === variant.id ? '#6ee7b7' : 'rgba(99,102,241,0.4)',
+                                  background: selectedVariantId === variant.id ? 'rgba(52,211,153,0.15)' : '#fff',
+                                  color: selectedVariantId === variant.id ? '#065f46' : '#4338ca',
+                                }}
                               >
-                                {selectedVariantId === variant.id ? 'Als Doku-Audio gesetzt' : 'Diese Variante verwenden'}
+                                {selectedVariantId === variant.id ? '✓ Aktives Audio' : 'Diese Variante verwenden'}
                               </button>
-                              <span className="text-xs text-slate-600">{formatFileSize(variant.file.size)}</span>
+                              <span className="text-xs" style={{ color: palette.muted }}>{formatFileSize(variant.file.size)}</span>
                             </div>
                           </div>
                         ))}
