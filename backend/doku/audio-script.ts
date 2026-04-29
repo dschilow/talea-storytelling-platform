@@ -125,17 +125,18 @@ ${directionInstruction}
 
 Liefere genau 10 Themenvorschläge.`;
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       model: MODEL,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 1200,
+      max_completion_tokens: 4000,
+      reasoning_effort: "low",
     };
 
-    const data = await callOpenAI(payload, 60_000, "openai-audio-doku-topics");
+    const data = await callOpenAI(payload, 90_000, "openai-audio-doku-topics");
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error("OpenAI returned no content");
@@ -263,21 +264,37 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?
 - Ist der Hook stark, gibt es einen Twist, ist das Finale stark?`;
 
-    const payload = {
+    // gpt-5.4-mini is a reasoning model: reasoning tokens count against max_completion_tokens.
+    // Skript ~150 Wörter/Min → für 60 Min = ~9000 Wörter. Plus Reasoning + JSON-Overhead.
+    // Großzügig dimensionieren, damit der Content-Anteil ausreicht.
+    const completionTokenLimit = Math.min(32000, 8000 + durationMinutes * 600);
+
+    const payload: Record<string, unknown> = {
       model: MODEL,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 12000,
+      max_completion_tokens: completionTokenLimit,
+      reasoning_effort: "low",
     };
 
-    const timeoutMs = durationMinutes >= 10 ? 240_000 : 180_000;
+    const timeoutMs = durationMinutes >= 10 ? 300_000 : 240_000;
     const data = await callOpenAI(payload, timeoutMs, "openai-audio-doku-script");
-    const content = data.choices?.[0]?.message?.content;
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content;
+    const finishReason = choice?.finish_reason;
+    const usage = data.usage || {};
+
+    console.log(
+      `[AudioDokuScript] finish_reason=${finishReason} prompt_tokens=${usage.prompt_tokens} completion_tokens=${usage.completion_tokens} reasoning_tokens=${usage.completion_tokens_details?.reasoning_tokens} content_len=${content?.length ?? 0}`,
+    );
+
     if (!content) {
-      throw new Error("OpenAI returned no content");
+      throw new Error(
+        `OpenAI returned no content (finish_reason=${finishReason}, completion_tokens=${usage.completion_tokens}, reasoning_tokens=${usage.completion_tokens_details?.reasoning_tokens}). Try a shorter duration or increase token budget.`,
+      );
     }
 
     let parsed: {
@@ -291,7 +308,9 @@ WICHTIG: Validiere selbst vor der Ausgabe:
     try {
       parsed = JSON.parse(stripJsonFences(content));
     } catch (err) {
-      throw new Error("OpenAI returned invalid JSON for audio doku script");
+      throw new Error(
+        `OpenAI returned invalid JSON for audio doku script (finish_reason=${finishReason}, content_len=${content.length}). First 200 chars: ${content.slice(0, 200)}`,
+      );
     }
 
     const rawScript = typeof parsed.script === "string" ? parsed.script : "";
