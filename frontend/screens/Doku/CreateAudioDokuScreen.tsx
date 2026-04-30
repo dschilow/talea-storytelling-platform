@@ -32,6 +32,7 @@ const LAMEJS_SCRIPT_URL = '/vendor/lame.all.js';
 const AUDIO_DOKU_AMBIENT_SKIP_VOLUME = 0.01;
 const AUDIO_DOKU_AMBIENT_MAX_MIX_VOLUME = 0.25;
 const AUDIO_DOKU_AMBIENT_DEFAULT_VOLUME = 0.08;
+const AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS = 10;
 const staticAudioBlobCache = new Map<string, Blob>();
 
 type Palette = {
@@ -207,10 +208,24 @@ type AudioDokuScene = {
   ambientVolume: number;
 };
 
-const shouldSkipAmbientScene = (scene: AudioDokuScene): boolean => {
+type GeneratedAmbientSound = {
+  sceneIndex: number;
+  audioData: string;
+  mimeType: string;
+  prompt: string;
+  durationSeconds: number;
+  generatedAt: number;
+  enabled: boolean;
+};
+
+type AmbientSoundJobState = {
+  loading: boolean;
+  error?: string;
+};
+
+const isAmbientPromptSkip = (scene: AudioDokuScene): boolean => {
   const prompt = (scene.ambientPrompt || '').trim().toLowerCase();
   return (
-    (scene.ambientVolume || 0) <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME ||
     !prompt ||
     prompt.includes('skip ambient') ||
     prompt.includes('voice only') ||
@@ -218,6 +233,9 @@ const shouldSkipAmbientScene = (scene: AudioDokuScene): boolean => {
     prompt.startsWith('silent ')
   );
 };
+
+const shouldSkipAmbientScene = (scene: AudioDokuScene): boolean =>
+  (scene.ambientVolume || 0) <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME || isAmbientPromptSkip(scene);
 
 type DialogueValidationIssue = {
   line: number;
@@ -1092,6 +1110,8 @@ const CreateAudioDokuScreen: React.FC = () => {
   // Drehbuch (neu) — Szenen mit Hintergrund-Ambient
   const [screenplay, setScreenplay] = useState<AudioDokuScene[]>([]);
   const [enableAmbient, setEnableAmbient] = useState<boolean>(true);
+  const [generatedAmbientSounds, setGeneratedAmbientSounds] = useState<Record<number, GeneratedAmbientSound>>({});
+  const [ambientSoundJobs, setAmbientSoundJobs] = useState<Record<number, AmbientSoundJobState>>({});
   const [ambientStatus, setAmbientStatus] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
@@ -1408,6 +1428,122 @@ const CreateAudioDokuScreen: React.FC = () => {
     });
   };
 
+  const updateScreenplayScene = (
+    sceneIndex: number,
+    patch: Partial<AudioDokuScene>,
+    options?: { invalidateGeneratedSound?: boolean },
+  ) => {
+    setScreenplay((prev) =>
+      prev.map((scene) => (scene.index === sceneIndex ? { ...scene, ...patch } : scene)),
+    );
+
+    if (options?.invalidateGeneratedSound) {
+      setGeneratedAmbientSounds((prev) => {
+        const next = { ...prev };
+        delete next[sceneIndex];
+        return next;
+      });
+      setAmbientSoundJobs((prev) => {
+        const next = { ...prev };
+        delete next[sceneIndex];
+        return next;
+      });
+    }
+  };
+
+  const setGeneratedAmbientSoundEnabled = (sceneIndex: number, enabled: boolean) => {
+    setGeneratedAmbientSounds((prev) => {
+      const existing = prev[sceneIndex];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        [sceneIndex]: {
+          ...existing,
+          enabled,
+        },
+      };
+    });
+  };
+
+  const handleGenerateAmbientSound = async (scene: AudioDokuScene) => {
+    if (isAmbientPromptSkip(scene)) {
+      setAmbientSoundJobs((prev) => ({
+        ...prev,
+        [scene.index]: {
+          loading: false,
+          error: 'Diese Szene ist auf reine Stimme gesetzt. Prompt ändern, um Sound zu erzeugen.',
+        },
+      }));
+      return;
+    }
+
+    try {
+      setAmbientSoundJobs((prev) => ({
+        ...prev,
+        [scene.index]: { loading: true },
+      }));
+      setAmbientStatus(`Generiere Sound für Szene ${scene.index}...`);
+
+      const token = await getToken();
+      const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/sound-effect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          prompt: scene.ambientPrompt,
+          durationSeconds: AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS,
+          mode: 'loop',
+          promptInfluence: 0.65,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as {
+        audioData?: string;
+        mimeType?: string;
+        durationSeconds?: number;
+      };
+      if (!payload.audioData) {
+        throw new Error('ElevenLabs hat keine Sounddatei zurückgegeben.');
+      }
+
+      setGeneratedAmbientSounds((prev) => ({
+        ...prev,
+        [scene.index]: {
+          sceneIndex: scene.index,
+          audioData: payload.audioData || '',
+          mimeType: payload.mimeType || 'audio/mpeg',
+          prompt: scene.ambientPrompt,
+          durationSeconds: payload.durationSeconds || AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS,
+          generatedAt: Date.now(),
+          enabled: true,
+        },
+      }));
+      setAmbientSoundJobs((prev) => ({
+        ...prev,
+        [scene.index]: { loading: false },
+      }));
+      setAmbientStatus(`Sound für Szene ${scene.index} ist bereit.`);
+    } catch (err) {
+      const message = (err as Error).message || 'Sound konnte nicht generiert werden.';
+      console.warn(`[AudioDoku] Ambient preview scene ${scene.index} failed:`, err);
+      setAmbientSoundJobs((prev) => ({
+        ...prev,
+        [scene.index]: {
+          loading: false,
+          error: message,
+        },
+      }));
+      setAmbientStatus(`Sound für Szene ${scene.index} konnte nicht erzeugt werden.`);
+    }
+  };
+
   const handleGenerateDialogueAudio = async () => {
     setError(null);
     setDialogueStatus(null);
@@ -1544,45 +1680,22 @@ const CreateAudioDokuScreen: React.FC = () => {
           // 1) Optional: Hintergrund-Ambient unter den Dialog mischen
           if (enableAmbient && screenplay.length > 0) {
             try {
-              setAmbientStatus(`Generiere Hintergrund-Atmosphäre für ${screenplay.length} Szene(n)...`);
               const dialogueDuration = await getAudioBlobDurationSec(finalBlob);
               const scriptLines = dialogueScript.replace(/\r\n/g, '\n').split('\n');
               const windows = estimateSceneTimeWindows(scriptLines, screenplay, dialogueDuration);
+              setAmbientStatus('Prüfe aktivierte Hintergrund-Sounds...');
 
-              // Generate ambient blobs in parallel
               const ambientBlobs = await Promise.all(
                 windows.map(async (w) => {
                   if (shouldSkipAmbientScene(w.scene)) return null;
-                  const desiredSec = Math.max(0, w.endSec - w.startSec);
-                  if (desiredSec < 1) return null;
-                  // Keep generated beds short and subtle; long literal loops get distracting fast.
-                  const requestSec = Math.min(12, Math.max(4, Math.ceil(desiredSec)));
+                  const generatedSound = generatedAmbientSounds[w.scene.index];
+                  if (!generatedSound?.enabled || !generatedSound.audioData) return null;
+                  if (generatedSound.prompt.trim() !== w.scene.ambientPrompt.trim()) return null;
+
                   try {
-                    const freshToken = await getToken();
-                    const headers: Record<string, string> = {
-                      'Content-Type': 'application/json',
-                      ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
-                    };
-                    const res = await fetch(`${getBackendUrl()}/tts/elevenlabs/sound-effect`, {
-                      method: 'POST',
-                      headers,
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        prompt: w.scene.ambientPrompt,
-                        durationSeconds: requestSec,
-                        mode: 'loop',
-                        promptInfluence: 0.65,
-                      }),
-                    });
-                    if (!res.ok) {
-                      console.warn(`[AudioDoku] Ambient scene ${w.scene.index} failed (${res.status})`);
-                      return null;
-                    }
-                    const json = (await res.json()) as { audioData?: string };
-                    if (!json.audioData) return null;
-                    return await (await fetch(json.audioData)).blob();
+                    return await (await fetch(generatedSound.audioData)).blob();
                   } catch (err) {
-                    console.warn(`[AudioDoku] Ambient scene ${w.scene.index} error:`, err);
+                    console.warn(`[AudioDoku] Ambient scene ${w.scene.index} preview fetch failed:`, err);
                     return null;
                   }
                 }),
@@ -1590,12 +1703,12 @@ const CreateAudioDokuScreen: React.FC = () => {
 
               const successCount = ambientBlobs.filter(Boolean).length;
               if (successCount > 0) {
-                setAmbientStatus(`Mische Hintergrund-Atmosphäre unter den Dialog...`);
+                setAmbientStatus(`Mische ${successCount} geprüfte Hintergrund-Sound(s) unter den Dialog...`);
                 finalBlob = await mixAmbientIntoDialogue(finalBlob, windows, ambientBlobs);
                 mimeType = 'audio/mpeg';
-                setAmbientStatus(`Hintergrund-Atmosphäre fertig (${successCount}/${ambientBlobs.length} Szenen).`);
+                setAmbientStatus(`Hintergrund-Sounds fertig gemischt (${successCount}/${ambientBlobs.length} Szenen).`);
               } else {
-                setAmbientStatus('Keine passende Hintergrund-Atmosphäre aktiv — nutze nur Dialog.');
+                setAmbientStatus('Keine geprüften Hintergrund-Sounds aktiv — nutze nur Dialog.');
               }
             } catch (ambientError) {
               console.warn('[AudioDoku] Ambient mixing failed, fallback to dialog only:', ambientError);
@@ -1869,6 +1982,9 @@ const CreateAudioDokuScreen: React.FC = () => {
       setCoverDescription(response.coverPrompt);
       setDescription(response.description);
       setScreenplay(Array.isArray(response.screenplay) ? response.screenplay : []);
+      setGeneratedAmbientSounds({});
+      setAmbientSoundJobs({});
+      setAmbientStatus(null);
       setEnableAmbient(true);
       const sceneCount = Array.isArray(response.screenplay) ? response.screenplay.length : 0;
       setDialogueStatus(
@@ -1910,6 +2026,8 @@ const CreateAudioDokuScreen: React.FC = () => {
     setSelectedTopic('');
     setTopicError(null);
     setScreenplay([]);
+    setGeneratedAmbientSounds({});
+    setAmbientSoundJobs({});
     setAmbientStatus(null);
     setError(null);
   };
@@ -2410,7 +2528,17 @@ const CreateAudioDokuScreen: React.FC = () => {
                           Es werden nur aktive Szenen mit passendem Prompt und Lautstärke über 0% erzeugt. Szenen mit „skip ambient“ oder 0% bleiben reine Stimme.
                         </p>
                         <div className="space-y-2">
-                          {screenplay.map((scene, idx) => (
+                          {screenplay.map((scene) => {
+                            const generatedSound = generatedAmbientSounds[scene.index];
+                            const soundJob = ambientSoundJobs[scene.index];
+                            const promptSkip = isAmbientPromptSkip(scene);
+                            const soundStale = Boolean(
+                              generatedSound && generatedSound.prompt.trim() !== scene.ambientPrompt.trim(),
+                            );
+                            const soundReady = Boolean(generatedSound && !soundStale);
+                            const soundCanBeUsed = Boolean(soundReady && !shouldSkipAmbientScene(scene));
+
+                            return (
                             <div
                               key={scene.index}
                               className="rounded-lg border p-3"
@@ -2420,16 +2548,30 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 <div className="font-semibold" style={{ color: palette.text }}>
                                   Szene {scene.index} · Zeilen {scene.startLine}–{scene.endLine}
                                 </div>
-                                <div className="text-[11px]" style={{ color: palette.muted }}>
-                                  {scene.description}
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                  <span className="text-[11px]" style={{ color: palette.muted }}>
+                                    {scene.description}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleGenerateAmbientSound(scene)}
+                                    disabled={Boolean(soundJob?.loading) || promptSkip}
+                                    className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                                    style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
+                                  >
+                                    {soundJob?.loading ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                                    {generatedSound ? 'Regenerieren' : 'Sound erzeugen'}
+                                  </button>
                                 </div>
                               </div>
                               <textarea
                                 value={scene.ambientPrompt}
                                 onChange={(e) => {
-                                  const next = [...screenplay];
-                                  next[idx] = { ...scene, ambientPrompt: e.target.value };
-                                  setScreenplay(next);
+                                  updateScreenplayScene(
+                                    scene.index,
+                                    { ambientPrompt: e.target.value },
+                                    { invalidateGeneratedSound: true },
+                                  );
                                 }}
                                 rows={2}
                                 spellCheck={false}
@@ -2446,9 +2588,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                                   step={0.01}
                                   value={scene.ambientVolume}
                                   onChange={(e) => {
-                                    const next = [...screenplay];
-                                    next[idx] = { ...scene, ambientVolume: Number(e.target.value) };
-                                    setScreenplay(next);
+                                    updateScreenplayScene(scene.index, { ambientVolume: Number(e.target.value) });
                                   }}
                                   className="flex-1"
                                 />
@@ -2458,8 +2598,64 @@ const CreateAudioDokuScreen: React.FC = () => {
                                     : `${(scene.ambientVolume * 100).toFixed(0)}%`}
                                 </span>
                               </div>
+                              <div className="mt-2 flex flex-col gap-2">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <label
+                                    className="inline-flex items-center gap-2 text-[11px] font-semibold"
+                                    style={{ color: soundCanBeUsed ? palette.text : palette.muted }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(generatedSound?.enabled && !soundStale)}
+                                      disabled={!soundCanBeUsed}
+                                      onChange={(e) => setGeneratedAmbientSoundEnabled(scene.index, e.target.checked)}
+                                      className="h-3.5 w-3.5"
+                                    />
+                                    In Audio verwenden
+                                  </label>
+                                  {promptSkip && (
+                                    <span className="text-[11px]" style={{ color: palette.muted }}>
+                                      Reine Stimme für diese Szene.
+                                    </span>
+                                  )}
+                                  {soundReady && (
+                                    <span className="text-[11px]" style={{ color: palette.muted }}>
+                                      Bereit · {Math.round(generatedSound?.durationSeconds || AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS)}s
+                                    </span>
+                                  )}
+                                  {soundReady && !soundCanBeUsed && (
+                                    <span className="text-[11px]" style={{ color: palette.muted }}>
+                                      Zum Mischen Lautstärke über 0% setzen.
+                                    </span>
+                                  )}
+                                  {soundStale && (
+                                    <span className="text-[11px] text-amber-700">
+                                      Prompt geändert. Bitte regenerieren.
+                                    </span>
+                                  )}
+                                  {!generatedSound && !promptSkip && !soundJob?.loading && (
+                                    <span className="text-[11px]" style={{ color: palette.muted }}>
+                                      Sound erzeugen, anhören und dann für die finale Doku aktivieren.
+                                    </span>
+                                  )}
+                                </div>
+                                {soundReady && (
+                                  <audio
+                                    controls
+                                    preload="metadata"
+                                    src={generatedSound?.audioData}
+                                    className="h-9 w-full"
+                                  />
+                                )}
+                                {soundJob?.error && (
+                                  <div className="mt-2 rounded-md border border-amber-300/60 bg-amber-50/70 px-2 py-1.5 text-[11px] text-amber-800">
+                                    {soundJob.error}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          ))}
+                          );
+                          })}
                         </div>
                         {ambientStatus && (
                           <div className="mt-3 rounded-md border border-indigo-200/60 bg-indigo-50/50 px-3 py-2 text-xs text-indigo-700">
