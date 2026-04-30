@@ -32,7 +32,9 @@ const LAMEJS_SCRIPT_URL = '/vendor/lame.all.js';
 const AUDIO_DOKU_AMBIENT_SKIP_VOLUME = 0.01;
 const AUDIO_DOKU_AMBIENT_MAX_MIX_VOLUME = 0.25;
 const AUDIO_DOKU_AMBIENT_DEFAULT_VOLUME = 0.08;
-const AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS = 10;
+const AUDIO_DOKU_AMBIENT_DEFAULT_SECONDS = 10;
+const AUDIO_DOKU_AMBIENT_MIN_SECONDS = 0.5;
+const AUDIO_DOKU_AMBIENT_MAX_SECONDS = 30;
 const staticAudioBlobCache = new Map<string, Blob>();
 
 type Palette = {
@@ -206,6 +208,7 @@ type AudioDokuScene = {
   description: string;
   ambientPrompt: string;
   ambientVolume: number;
+  durationSeconds?: number;
 };
 
 type GeneratedAmbientSound = {
@@ -229,13 +232,31 @@ const isAmbientPromptSkip = (scene: AudioDokuScene): boolean => {
     !prompt ||
     prompt.includes('skip ambient') ||
     prompt.includes('voice only') ||
+    prompt.includes('reine stimme') ||
+    prompt.includes('nur stimme') ||
+    prompt.includes('kein hintergrund') ||
+    prompt.includes('ohne hintergrund') ||
+    prompt.includes('kein sound') ||
     prompt === 'silence' ||
+    prompt === 'stille' ||
     prompt.startsWith('silent ')
   );
 };
 
 const shouldSkipAmbientScene = (scene: AudioDokuScene): boolean =>
   (scene.ambientVolume || 0) <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME || isAmbientPromptSkip(scene);
+
+const clampAmbientDurationSeconds = (value: unknown): number => {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return AUDIO_DOKU_AMBIENT_DEFAULT_SECONDS;
+  return Math.max(
+    AUDIO_DOKU_AMBIENT_MIN_SECONDS,
+    Math.min(AUDIO_DOKU_AMBIENT_MAX_SECONDS, numeric),
+  );
+};
+
+const getAmbientSceneDurationSeconds = (scene: AudioDokuScene): number =>
+  clampAmbientDurationSeconds(scene.durationSeconds);
 
 type DialogueValidationIssue = {
   line: number;
@@ -786,20 +807,13 @@ const estimateSceneTimeWindows = (
   const cumulative: number[] = [0];
   for (const w of lineWeights) cumulative.push(cumulative[cumulative.length - 1] + w);
 
-  const windows: SceneTimeWindow[] = scenes.map((scene) => {
+  return scenes.map((scene) => {
     const sIdx = Math.max(1, Math.min(scriptLines.length, scene.startLine)) - 1;
-    const eIdx = Math.max(1, Math.min(scriptLines.length, scene.endLine));
+    const eIdx = Math.max(sIdx + 1, Math.max(1, Math.min(scriptLines.length, scene.endLine)));
     const startSec = cumulative[sIdx] * secPerWeight;
     const endSec = cumulative[eIdx] * secPerWeight;
     return { scene, startSec, endSec };
   });
-
-  // Ensure first starts at 0 and last ends at totalDurationSec
-  if (windows.length > 0) {
-    windows[0].startSec = 0;
-    windows[windows.length - 1].endSec = totalDurationSec;
-  }
-  return windows;
 };
 
 /**
@@ -1217,10 +1231,14 @@ const CreateAudioDokuScreen: React.FC = () => {
       return nameMatch || idMatch;
     });
   }, [providerVoices, voiceSearchQuery]);
-  const dialogueLineNumbers = useMemo(() => {
+  const dialogueLineCount = useMemo(() => {
     const lineCount = Math.max(1, dialogueScript.replace(/\r\n/g, '\n').split('\n').length);
-    return Array.from({ length: lineCount }, (_, index) => index + 1);
+    return lineCount;
   }, [dialogueScript]);
+  const dialogueLineNumbers = useMemo(
+    () => Array.from({ length: dialogueLineCount }, (_, index) => index + 1),
+    [dialogueLineCount],
+  );
   const providerLabel = ttsProvider === 'qwen' ? 'Qwen TTS' : 'ElevenLabs';
   const voiceInputPlaceholder =
     ttsProvider === 'qwen'
@@ -1465,6 +1483,51 @@ const CreateAudioDokuScreen: React.FC = () => {
     });
   };
 
+  const clampDialogueLineNumber = (value: unknown): number => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.max(1, Math.min(dialogueLineCount, Math.floor(numeric)));
+  };
+
+  const handleAddScreenplayScene = () => {
+    const nextIndex = Math.max(0, ...screenplay.map((scene) => scene.index || 0)) + 1;
+    const lastScene = screenplay[screenplay.length - 1];
+    const startLine = lastScene
+      ? clampDialogueLineNumber(Math.min(dialogueLineCount, lastScene.endLine + 1))
+      : 1;
+    const endLine = Math.min(dialogueLineCount, Math.max(startLine, startLine + 3));
+
+    setScreenplay((prev) => [
+      ...prev,
+      {
+        index: nextIndex,
+        startLine,
+        endLine,
+        description: 'Manueller Sound-Layer',
+        ambientPrompt:
+          'sanftes instrumentales Doku-Musikbett, warme ruhige Textur, keine Percussion, keine Stimmen, kein Gesang',
+        ambientVolume: AUDIO_DOKU_AMBIENT_DEFAULT_VOLUME,
+        durationSeconds: AUDIO_DOKU_AMBIENT_DEFAULT_SECONDS,
+      },
+    ]);
+    setAmbientStatus(`Manueller Sound-Layer ${nextIndex} hinzugefügt.`);
+  };
+
+  const handleDeleteScreenplayScene = (sceneIndex: number) => {
+    setScreenplay((prev) => prev.filter((scene) => scene.index !== sceneIndex));
+    setGeneratedAmbientSounds((prev) => {
+      const next = { ...prev };
+      delete next[sceneIndex];
+      return next;
+    });
+    setAmbientSoundJobs((prev) => {
+      const next = { ...prev };
+      delete next[sceneIndex];
+      return next;
+    });
+    setAmbientStatus(`Sound-Layer ${sceneIndex} entfernt.`);
+  };
+
   const handleGenerateAmbientSound = async (scene: AudioDokuScene) => {
     if (isAmbientPromptSkip(scene)) {
       setAmbientSoundJobs((prev) => ({
@@ -1485,6 +1548,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       setAmbientStatus(`Generiere Sound für Szene ${scene.index}...`);
 
       const token = await getToken();
+      const durationSeconds = getAmbientSceneDurationSeconds(scene);
       const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/sound-effect`, {
         method: 'POST',
         headers: {
@@ -1494,7 +1558,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify({
           prompt: scene.ambientPrompt,
-          durationSeconds: AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS,
+          durationSeconds,
           mode: 'loop',
           promptInfluence: 0.65,
         }),
@@ -1520,7 +1584,7 @@ const CreateAudioDokuScreen: React.FC = () => {
           audioData: payload.audioData || '',
           mimeType: payload.mimeType || 'audio/mpeg',
           prompt: scene.ambientPrompt,
-          durationSeconds: payload.durationSeconds || AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS,
+          durationSeconds: payload.durationSeconds || durationSeconds,
           generatedAt: Date.now(),
           enabled: true,
         },
@@ -1691,6 +1755,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                   const generatedSound = generatedAmbientSounds[w.scene.index];
                   if (!generatedSound?.enabled || !generatedSound.audioData) return null;
                   if (generatedSound.prompt.trim() !== w.scene.ambientPrompt.trim()) return null;
+                  if (Math.abs(generatedSound.durationSeconds - getAmbientSceneDurationSeconds(w.scene)) > 0.1) return null;
 
                   try {
                     return await (await fetch(generatedSound.audioData)).blob();
@@ -2502,7 +2567,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                     )}
 
                     {/* === DREHBUCH (Szenen mit Hintergrund-Ambient) === */}
-                    {screenplay.length > 0 && (
+                    {(screenplay.length > 0 || dialogueScript.trim()) && (
                       <div
                         className="mt-5 rounded-xl border p-4"
                         style={{ borderColor: palette.panelBorder, background: palette.panel }}
@@ -2514,26 +2579,40 @@ const CreateAudioDokuScreen: React.FC = () => {
                               Drehbuch · {screenplay.length} Szene(n) mit optionaler Hintergrund-Atmosphäre
                             </div>
                           </div>
-                          <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: palette.text }}>
-                            <input
-                              type="checkbox"
-                              checked={enableAmbient}
-                              onChange={(e) => setEnableAmbient(e.target.checked)}
-                              className="h-4 w-4"
-                            />
-                            Passende Hintergrund-Sounds automatisch mischen
-                          </label>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={handleAddScreenplayScene}
+                              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                              style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.text }}
+                            >
+                              <Plus size={13} />
+                              Sound-Layer hinzufügen
+                            </button>
+                            <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: palette.text }}>
+                              <input
+                                type="checkbox"
+                                checked={enableAmbient}
+                                onChange={(e) => setEnableAmbient(e.target.checked)}
+                                className="h-4 w-4"
+                              />
+                              Aktive Hintergrund-Sounds final mischen
+                            </label>
+                          </div>
                         </div>
                         <p className="mb-3 text-xs" style={{ color: palette.muted }}>
-                          Es werden nur aktive Szenen mit passendem Prompt und Lautstärke über 0% erzeugt. Szenen mit „skip ambient“ oder 0% bleiben reine Stimme.
+                          Deutsche Prompts sind möglich. Automatisch gemischte Sounds werden vorher hier erzeugt, angehört und pro Layer aktiviert; überlappende Zeilenbereiche werden gemeinsam hörbar.
                         </p>
                         <div className="space-y-2">
                           {screenplay.map((scene) => {
                             const generatedSound = generatedAmbientSounds[scene.index];
                             const soundJob = ambientSoundJobs[scene.index];
                             const promptSkip = isAmbientPromptSkip(scene);
+                            const sceneDurationSeconds = getAmbientSceneDurationSeconds(scene);
                             const soundStale = Boolean(
-                              generatedSound && generatedSound.prompt.trim() !== scene.ambientPrompt.trim(),
+                              generatedSound &&
+                                (generatedSound.prompt.trim() !== scene.ambientPrompt.trim() ||
+                                  Math.abs(generatedSound.durationSeconds - sceneDurationSeconds) > 0.1),
                             );
                             const soundReady = Boolean(generatedSound && !soundStale);
                             const soundCanBeUsed = Boolean(soundReady && !shouldSkipAmbientScene(scene));
@@ -2549,9 +2628,6 @@ const CreateAudioDokuScreen: React.FC = () => {
                                   Szene {scene.index} · Zeilen {scene.startLine}–{scene.endLine}
                                 </div>
                                 <div className="flex flex-wrap items-center justify-end gap-2">
-                                  <span className="text-[11px]" style={{ color: palette.muted }}>
-                                    {scene.description}
-                                  </span>
                                   <button
                                     type="button"
                                     onClick={() => void handleGenerateAmbientSound(scene)}
@@ -2562,7 +2638,89 @@ const CreateAudioDokuScreen: React.FC = () => {
                                     {soundJob?.loading ? <RefreshCw size={12} className="animate-spin" /> : <Wand2 size={12} />}
                                     {generatedSound ? 'Regenerieren' : 'Sound erzeugen'}
                                   </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteScreenplayScene(scene.index)}
+                                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold"
+                                    style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.muted }}
+                                    aria-label={`Szene ${scene.index} entfernen`}
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
                                 </div>
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-12">
+                                <label className="col-span-2 md:col-span-6">
+                                  <span className="text-[10px] font-semibold uppercase" style={{ color: palette.muted }}>
+                                    Beschreibung
+                                  </span>
+                                  <input
+                                    value={scene.description}
+                                    onChange={(e) => updateScreenplayScene(scene.index, { description: e.target.value })}
+                                    className="mt-1 w-full rounded-md border px-2 py-1.5 text-[11px] focus:outline-none"
+                                    style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                                  />
+                                </label>
+                                <label className="md:col-span-2">
+                                  <span className="text-[10px] font-semibold uppercase" style={{ color: palette.muted }}>
+                                    Von Zeile
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={dialogueLineCount}
+                                    value={scene.startLine}
+                                    onChange={(e) => {
+                                      const nextStart = clampDialogueLineNumber(e.target.value);
+                                      updateScreenplayScene(scene.index, {
+                                        startLine: nextStart,
+                                        endLine: Math.max(scene.endLine, nextStart),
+                                      });
+                                    }}
+                                    className="mt-1 w-full rounded-md border px-2 py-1.5 text-[11px] font-mono focus:outline-none"
+                                    style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                                  />
+                                </label>
+                                <label className="md:col-span-2">
+                                  <span className="text-[10px] font-semibold uppercase" style={{ color: palette.muted }}>
+                                    Bis Zeile
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={dialogueLineCount}
+                                    value={scene.endLine}
+                                    onChange={(e) => {
+                                      const nextEnd = clampDialogueLineNumber(e.target.value);
+                                      updateScreenplayScene(scene.index, {
+                                        endLine: Math.max(nextEnd, scene.startLine),
+                                      });
+                                    }}
+                                    className="mt-1 w-full rounded-md border px-2 py-1.5 text-[11px] font-mono focus:outline-none"
+                                    style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                                  />
+                                </label>
+                                <label className="md:col-span-2">
+                                  <span className="text-[10px] font-semibold uppercase" style={{ color: palette.muted }}>
+                                    Sounddauer
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={AUDIO_DOKU_AMBIENT_MIN_SECONDS}
+                                    max={AUDIO_DOKU_AMBIENT_MAX_SECONDS}
+                                    step={0.5}
+                                    value={sceneDurationSeconds}
+                                    onChange={(e) => {
+                                      updateScreenplayScene(
+                                        scene.index,
+                                        { durationSeconds: clampAmbientDurationSeconds(e.target.value) },
+                                        { invalidateGeneratedSound: true },
+                                      );
+                                    }}
+                                    className="mt-1 w-full rounded-md border px-2 py-1.5 text-[11px] font-mono focus:outline-none"
+                                    style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                                  />
+                                </label>
                               </div>
                               <textarea
                                 value={scene.ambientPrompt}
@@ -2575,7 +2733,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 }}
                                 rows={2}
                                 spellCheck={false}
-                                placeholder="English ambient prompt, no music, no voices..."
+                                placeholder="z.B. dunkles Gewitter mit fernem Donner, leichtem Regen, gedämpfter Raumton, keine klaren Stimmen..."
                                 className="mt-2 w-full rounded-md border px-2 py-1.5 text-[11px] font-mono focus:outline-none"
                                 style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                               />
@@ -2620,7 +2778,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                                   )}
                                   {soundReady && (
                                     <span className="text-[11px]" style={{ color: palette.muted }}>
-                                      Bereit · {Math.round(generatedSound?.durationSeconds || AUDIO_DOKU_AMBIENT_PREVIEW_SECONDS)}s
+                                      Bereit · {Math.round(generatedSound?.durationSeconds || sceneDurationSeconds)}s
                                     </span>
                                   )}
                                   {soundReady && !soundCanBeUsed && (
@@ -2630,7 +2788,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                                   )}
                                   {soundStale && (
                                     <span className="text-[11px] text-amber-700">
-                                      Prompt geändert. Bitte regenerieren.
+                                      Prompt oder Dauer geändert. Bitte regenerieren.
                                     </span>
                                   )}
                                   {!generatedSound && !promptSkip && !soundJob?.loading && (

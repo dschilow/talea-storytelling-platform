@@ -506,9 +506,9 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
 // ============================================================
 
 interface GenerateElevenLabsSoundEffectRequest {
-  /** Englischer Beschreibungstext fuer den gewuenschten Sound (z.B. "deep underwater ambience with bubbles, no music, no voices") */
+  /** Beschreibungstext fuer den gewuenschten Sound. Deutsch ist erlaubt; konkrete, kurze Prompts funktionieren am besten. */
   prompt: string;
-  /** Gewuenschte Dauer in Sekunden. ElevenLabs erlaubt 0.5-22s. Wir clampen entsprechend. */
+  /** Gewuenschte Dauer in Sekunden. ElevenLabs erlaubt 0.5-30s. Wir clampen entsprechend. */
   durationSeconds: number;
   /** "loop" fuer nahtlose Wiederholbarkeit, sonst "oneshot". Default: loop. */
   mode?: "loop" | "oneshot";
@@ -525,7 +525,7 @@ interface GenerateElevenLabsSoundEffectResponse {
 }
 
 const ELEVENLABS_SOUND_MIN_DURATION = 0.5;
-const ELEVENLABS_SOUND_MAX_DURATION = 22;
+const ELEVENLABS_SOUND_MAX_DURATION = 30;
 
 export const generateElevenLabsSoundEffect = api<
   GenerateElevenLabsSoundEffectRequest,

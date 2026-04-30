@@ -36,10 +36,12 @@ export interface AudioDokuScene {
   endLine: number;
   /** Kurze deutsche Beschreibung der Szene fuer das UI */
   description: string;
-  /** Englischer Prompt fuer ElevenLabs Sound-Generation, beschreibt den Ambient-Sound */
+  /** Deutscher Prompt fuer ElevenLabs Sound-Generation, beschreibt den Ambient-Sound */
   ambientPrompt: string;
   /** Default-Lautstaerke (0.0-1.0) der Ambient-Spur unter dem Dialog. Empfehlung: 0.0-0.14 */
   ambientVolume: number;
+  /** Gewuenschte Laenge des generierten Sound-Clips in Sekunden. Kurze Clips werden im Mix geloopt. */
+  durationSeconds: number;
 }
 
 export interface AudioDokuScriptResponse {
@@ -257,7 +259,7 @@ Pro Szene:
 - startLine: erste Skript-Zeile dieser Szene (1-basiert, inklusive)
 - endLine: letzte Skript-Zeile dieser Szene (inklusive)
 - description: kurze deutsche Szenen-Beschreibung (z.B. "Briefing an Bord des Forschungsschiffs")
-- ambientPrompt: ENGLISCHER Sound-Prompt für ElevenLabs Sound Generation.
+- ambientPrompt: DEUTSCHER Sound-Prompt fuer ElevenLabs Sound Generation. ElevenLabs versteht natuerliche Sprache; formuliere klar, kurz und konkret.
 
   KRITISCH WICHTIG: Sound wird nur erzeugt, wenn er aus dem Inhalt der Szene logisch folgt.
   - Passend: Meer bei Ozean/Kueste/Tiefsee; Voegel bei Wald/Garten/Morgen; Bienen bei Blumen/Wiese/Insekten; Donner/Regen bei Gewitter/Wetter; Labor-/Maschinenhum bei Technik; sanfte Musik bei abstrakten Erklaer- oder Zusammenfassungsstellen.
@@ -267,14 +269,14 @@ Pro Szene:
   - Erklaerpassagen ohne klare akustische Szene duerfen bewusst keinen Ambient haben: ambientVolume 0.
 
   GUTE Beispiele (passend, atmosphaerisch, nicht ablenkend):
-  * "skip ambient - voice only, no music, no voices"
-  * "calm ocean shore with gentle rolling waves, soft sea breeze, distant gulls, spacious documentary atmosphere, no music, no voices"
-  * "spring meadow with soft bees buzzing around flowers, light grass movement, warm afternoon air, gentle natural ambience, no music, no voices"
-  * "quiet forest morning with distant birds singing, soft leaves rustling, light breeze through trees, peaceful nature documentary ambience, no music, no voices"
-  * "distant thunderstorm with low rolling thunder, soft rainfall outside, muted room tone, tense but safe documentary mood, no music, no voices"
-  * "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals"
-  * "very subtle studio room tone with gentle air, soft warmth, no distinct foley, no music, no voices"
-  * "quiet science documentary bed with low soft texture, slow gentle movement, no percussion, no vocals"
+  * "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen"
+  * "ruhiges Meeresufer mit sanft rollenden Wellen, leichter Seewind, ferne Moewen, weite Doku-Atmosphaere, keine Musik, keine Stimmen"
+  * "Fruehlingswiese mit sanftem Bienensummen zwischen Blumen, leicht bewegtes Gras, warme Nachmittagsluft, keine Musik, keine Stimmen"
+  * "ruhiger Waldmorgen mit fernen singenden Voegeln, leises Blaetterrascheln, leichter Wind in den Baeumen, keine Musik, keine Stimmen"
+  * "entferntes Gewitter mit tiefem rollendem Donner, sanfter Regen draussen, gedaempfter Raumton, spannend aber sicher, keine Musik, keine Stimmen"
+  * "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang"
+  * "sehr dezenter Studio-Raumton mit sanfter Luft, warme ruhige Flaeche, keine auffaelligen Einzelgeraeusche, keine Musik, keine Stimmen"
+  * "ruhiges Wissenschafts-Doku-Bett mit tiefer weicher Textur, langsame sanfte Bewegung, keine Percussion, keine Stimmen"
 
   SCHLECHTE Beispiele (NICHT verwenden - nicht aus der Szene begruendet oder als Dauerteppich stoerend):
   * "busy supermarket with shopping bags and carts"
@@ -282,6 +284,7 @@ Pro Szene:
   * "school cafeteria with chatter and cutlery"
 
 - ambientVolume: 0 fuer weglassen, 0.06 bis 0.14 fuer dezente Natur-/Raum-/Musikbetten, maximal 0.18. Der Dialog muss immer klar vorne bleiben.
+- durationSeconds: Laenge des zu generierenden Sound-Clips in Sekunden. Nutze 8-16 Sekunden fuer ruhige Betten, bis 30 Sekunden fuer komplexere Atmosphaeren. Der Clip kann im finalen Mix geloopt werden.
 
 REGELN für das Drehbuch:
 - Die Szenen müssen lückenlos das gesamte Skript abdecken (von Zeile 1 bis zur letzten Zeile).
@@ -335,12 +338,12 @@ SPRECHER-TEXT:
 - Wenn ein Effekt nur "lustig" oder "dramatisch" waere, schreibe lieber eine natuerliche Reaktion als gesprochenen Text.
 
 HINTERGRUND-AMBIENT:
-- Ambient ist OPTIONAL. Wenn kein wirklich passender, ruhiger Sound existiert, setze ambientVolume auf 0 und ambientPrompt auf "skip ambient - voice only, no music, no voices".
+- Ambient ist OPTIONAL. Wenn kein wirklich passender, ruhiger Sound existiert, setze ambientVolume auf 0 und ambientPrompt auf "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
 - Erzeuge Hintergrund-Sound, wenn die Szene klar danach ruft: Meeresrauschen, Voegel, Bienen, Regen, Donner, Wind, Laborhum, Maschinenhum oder sanfte Musik duerfen und sollen genutzt werden, wenn sie wirklich passen.
 - Erfinde keine Orte nur wegen eines Begriffs. Bei Ernaehrung also KEIN dauerhafter Supermarkt, keine Einkaufstueten, keine Kantine, kein staendiges Schneiden, nur weil Essen vorkommt.
 - Weil der aktuelle Ambient pro Szene durchgehend laeuft, darf er niemals aus auffaelligen Einzelgeraeuschen bestehen. Keine permanenten Tueten, Kassen, Messer, Stimmen, Schritte, Tiere, Maschinen oder Action-Foley unter Erklaertext.
-- Gute automatische Sounds sind leise, neutral und breit: soft ocean waves, distant birds, gentle bees, low rain, distant thunder, soft documentary room tone, gentle warm instrumental documentary bed, very subtle studio air, soft transition texture. Immer ohne Stimmen.
-- Wenn Musik sinnvoller ist als Foley, formuliere den Prompt als "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals".
+- Gute automatische Sounds sind leise, neutral und breit: sanfte Meereswellen, ferne Voegel, sanfte Bienen, leiser Regen, entfernter Donner, dezenter Doku-Raumton, sanftes warmes instrumentales Doku-Bett, sehr dezente Studio-Luft, weiche Uebergangstextur. Immer ohne Stimmen.
+- Wenn Musik sinnvoller ist als Foley, formuliere den Prompt als "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang".
 - Lautstaerke: 0 fuer weglassen, 0.05-0.10 fuer dezente Betten, 0.11-0.14 nur fuer eindeutig passende ruhige Szenen, maximal 0.18.
 - Aufeinanderfolgende Szenen muessen NICHT zwanghaft unterschiedlich klingen. Konsistenz ist besser als stoerende Abwechslung.
 
@@ -358,16 +361,18 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
       "startLine": 1,
       "endLine": 6,
       "description": "Ruhiger Einstieg",
-      "ambientPrompt": "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals",
-      "ambientVolume": 0.08
+      "ambientPrompt": "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang",
+      "ambientVolume": 0.08,
+      "durationSeconds": 10
     },
     {
       "index": 2,
       "startLine": 7,
       "endLine": 14,
       "description": "Sachliche Erklaerpassage",
-      "ambientPrompt": "skip ambient - voice only, no music, no voices",
-      "ambientVolume": 0
+      "ambientPrompt": "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen",
+      "ambientVolume": 0,
+      "durationSeconds": 10
     }
   ]
 }`;
@@ -403,7 +408,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?
 - Ist der Hook stark, gibt es einen Twist, ist das Finale stark?
 - Enthält das Skript Inline-Sound-FX-Tags nur selten und punktgenau passend? -> Wenn nein, reduzieren oder entfernen.
-- Hat jede aktive Szene im screenplay einen englischen ambientPrompt ohne Stimmen? Bei unsicherem Kontext: ambientVolume 0 und "skip ambient - voice only, no music, no voices".
+- Hat jede aktive Szene im screenplay einen deutschen ambientPrompt ohne Stimmen? Bei unsicherem Kontext: ambientVolume 0 und "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
 - Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?
 - Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
 
@@ -501,7 +506,7 @@ const normalizeScreenplay = (
   totalLines: number,
   topic: string,
 ): AudioDokuScene[] => {
-  const fallbackPrompt = `skip ambient - voice only for "${topic}", no music, no voices`;
+  const fallbackPrompt = `reine Stimme fuer "${topic}" - kein Hintergrundsound, keine Musik, keine Stimmen`;
 
   const fallback: AudioDokuScene[] = [
     {
@@ -511,6 +516,7 @@ const normalizeScreenplay = (
       description: "Hauptszene",
       ambientPrompt: fallbackPrompt,
       ambientVolume: 0,
+      durationSeconds: 10,
     },
   ];
 
@@ -531,6 +537,10 @@ const normalizeScreenplay = (
     const ambientVolume = Number.isFinite(volRaw)
       ? Math.max(0, Math.min(0.18, volRaw))
       : 0;
+    const durationRaw = Number(obj.durationSeconds);
+    const durationSeconds = Number.isFinite(durationRaw)
+      ? Math.max(0.5, Math.min(30, durationRaw))
+      : 10;
 
     candidates.push({
       index: candidates.length + 1,
@@ -539,6 +549,7 @@ const normalizeScreenplay = (
       description: description || `Szene ${candidates.length + 1}`,
       ambientPrompt,
       ambientVolume,
+      durationSeconds,
     });
   }
 
@@ -562,6 +573,7 @@ const normalizeScreenplay = (
       description: c.description,
       ambientPrompt: c.ambientPrompt,
       ambientVolume: c.ambientVolume,
+      durationSeconds: c.durationSeconds,
     });
     cursor = end + 1;
     if (cursor > totalLines) break;
