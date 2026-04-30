@@ -2555,6 +2555,7 @@ export namespace tavi {
  */
 import {
     generateElevenLabsDialogue as api_tts_elevenlabs_dialogue_generateElevenLabsDialogue,
+    generateElevenLabsSoundEffect as api_tts_elevenlabs_dialogue_generateElevenLabsSoundEffect,
     listElevenLabsVoices as api_tts_elevenlabs_dialogue_listElevenLabsVoices
 } from "~backend/tts/elevenlabs-dialogue";
 import {
@@ -2575,6 +2576,7 @@ export namespace tts {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.generateElevenLabsDialogue = this.generateElevenLabsDialogue.bind(this)
+            this.generateElevenLabsSoundEffect = this.generateElevenLabsSoundEffect.bind(this)
             this.generateQwenDialogue = this.generateQwenDialogue.bind(this)
             this.generateSpeech = this.generateSpeech.bind(this)
             this.generateSpeechBatch = this.generateSpeechBatch.bind(this)
@@ -2589,6 +2591,12 @@ export namespace tts {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/elevenlabs/dialogue`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsDialogue>
+        }
+
+        public async generateElevenLabsSoundEffect(params: RequestType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsSoundEffect>): Promise<ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsSoundEffect>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/elevenlabs/sound-effect`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_elevenlabs_dialogue_generateElevenLabsSoundEffect>
         }
 
         public async generateQwenDialogue(params: RequestType<typeof api_tts_tts_generateQwenDialogue>): Promise<ResponseType<typeof api_tts_tts_generateQwenDialogue>> {

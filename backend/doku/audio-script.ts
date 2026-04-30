@@ -27,6 +27,21 @@ export interface AudioDokuScriptRequest {
   speakerNames: string[];
 }
 
+export interface AudioDokuScene {
+  /** Aufeinanderfolgende Szenen-Index (1-basiert) */
+  index: number;
+  /** Erste Skript-Zeile dieser Szene (1-basiert, inklusive) */
+  startLine: number;
+  /** Letzte Skript-Zeile dieser Szene (inklusive) */
+  endLine: number;
+  /** Kurze deutsche Beschreibung der Szene fuer das UI */
+  description: string;
+  /** Englischer Prompt fuer ElevenLabs Sound-Generation, beschreibt den Ambient-Sound */
+  ambientPrompt: string;
+  /** Default-Lautstaerke (0.0-1.0) der Ambient-Spur unter dem Dialog. Empfehlung: 0.12-0.25 */
+  ambientVolume: number;
+}
+
 export interface AudioDokuScriptResponse {
   script: string;
   title: string;
@@ -34,6 +49,8 @@ export interface AudioDokuScriptResponse {
   category: string;
   coverPrompt: string;
   description: string;
+  /** Drehbuch: Aufschluesselung des Skripts in Szenen mit jeweils eigenem Hintergrund-Ambient */
+  screenplay: AudioDokuScene[];
 }
 
 const stripJsonFences = (raw: string): string =>
@@ -198,21 +215,67 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
       .map((name, idx) => `${idx + 1}. ${name}`)
       .join("\n");
 
-    const system = `Du bist ein erstklassiger Autor für hochspannende Kinder-Audio-Dokus im Stil von Checker Tobi und Galileo für Kinder.
+    const system = `Du bist ein erstklassiger Autor und Sound-Designer für hochspannende, professionell produzierte Kinder-Audio-Dokus im Stil von Checker Tobi, Galileo, BBC Earth und National Geographic Kids.
 
-Deine Aufgabe: Erstelle ein Dialog-Skript für eine Audio-Doku, die per Text-zu-Sprache (ElevenLabs) vertont wird.
+Deine Aufgabe: Erstelle ein Dialog-Skript MIT Drehbuch (Szenen-Aufteilung mit Hintergrund-Ambient) für eine Audio-Doku, die per Text-zu-Sprache (ElevenLabs Eleven v3) vertont wird.
 
-STRENGES SKRIPT-FORMAT (MUSS EXAKT EINGEHALTEN WERDEN):
+============================================================
+TEIL 1 — STRENGES SKRIPT-FORMAT
+============================================================
 - Jede Zeile: SPRECHERNAME: [emotion] gesprochener Text
-- Beispiel: TAVI: [excited] Heute tauchen wir ab in die Tiefsee!
+- Beispiel: TAVI: [excited] Heute tauchen wir ab in die Tiefsee! [bubbles]
 - KEINE Leerzeilen.
 - KEINE Zeile ohne gesprochenen Text. "TAVI: [clapping]" alleine ist ungültig.
-- Jede Zeile MUSS gesprochenen Text enthalten neben den Emotion-Tags.
-- Sound-Effekte wie [submarine hum] oder [water splash] dürfen am Zeilenende stehen, aber nur wenn auch gesprochener Text in der Zeile vorkommt.
+- Jede Zeile MUSS gesprochenen Text enthalten neben den Tags.
 - Sprechernamen ausschließlich aus der vorgegebenen Liste, GROSSBUCHSTABEN, immer gleich geschrieben.
-- Erlaubte Emotion-Tags: [excited], [curious], [mischievously], [thoughtful], [giggles], [warm], [dramatic], [serious], [awe], [surprised], [laughs], [whispers], [inhales deeply], [woo].
-- Maximal 1 Emotion-Tag am Anfang jeder Zeile (Sound-Effekte sind extra).
+- Maximal 1 Emotion-Tag direkt vor dem Text (am Anfang nach dem Doppelpunkt).
+- Sound-FX-Tags dürfen ZUSÄTZLICH innerhalb oder am Ende der Zeile stehen.
 - Saubere, kurze, lebendige Sätze. Kein Wikipedia-Stil.
+
+EMOTION-TAGS (verändern die Stimme — am Zeilenanfang):
+[excited] [curious] [mischievously] [thoughtful] [giggles] [warm] [dramatic]
+[serious] [awe] [surprised] [laughs] [whispers] [inhales deeply] [shouts]
+[sighs] [calmly] [nervous] [confused] [proudly]
+
+INLINE-SOUND-FX-TAGS (Eleven v3 erzeugt sie als kurze Effekte mitten in der Stimme):
+- Allgemein: [applause] [clapping] [laughter] [gasp] [heartbeat] [explosion]
+- Wasser/Tiefsee: [bubbles] [water splash] [submarine hum] [whale call] [ocean waves]
+- Wetter: [thunder] [rainfall] [wind howling] [storm] [hail]
+- Tiere: [bird chirping] [wolf howl] [lion roar] [dog barking] [horse galloping]
+- Maschinen/Technik: [rocket boost] [radio static] [engine roar] [beeping] [door slam] [door creaks]
+- Natur: [crackling fire] [leaves rustling] [stones falling] [river flowing] [crickets chirping]
+- Action: [footsteps] [glass shatter] [sword clash] [running] [climbing]
+
+WICHTIG bei Sound-Tags:
+- Pro Skript-Zeile MAXIMAL 1-2 Sound-FX-Tags (sonst klingt es überladen).
+- Setze sie nur wenn sie thematisch direkt passen ("Wir tauchen ab! [bubbles]").
+- Eleven v3 versucht alles in eckigen Klammern zu interpretieren — nutze plastische englische Begriffe.
+
+============================================================
+TEIL 2 — DREHBUCH (SZENEN MIT HINTERGRUND-AMBIENT)
+============================================================
+Zusätzlich zum Skript erzeugst du ein Drehbuch (screenplay), das das Skript in 3-7 Szenen aufteilt.
+Jede Szene bekommt einen eigenen, durchgehenden HINTERGRUND-AMBIENT, der UNTER dem Dialog läuft (wie bei echten Naturdokus).
+
+Pro Szene:
+- index: 1, 2, 3, ...
+- startLine: erste Skript-Zeile dieser Szene (1-basiert, inklusive)
+- endLine: letzte Skript-Zeile dieser Szene (inklusive)
+- description: kurze deutsche Szenen-Beschreibung (z.B. "Briefing an Bord des Forschungsschiffs")
+- ambientPrompt: ENGLISCHER Sound-Prompt für ElevenLabs Sound Generation. Beschreibe einen RUHIGEN, LOOPBAREN Hintergrund-Sound (KEINE plötzlichen lauten Effekte, KEIN Voice/Speech, KEINE Musik mit Melodie!). Beispiele:
+  * "deep underwater ocean ambience with soft bubbles, distant whale calls, low submarine engine hum, calm and immersive, no music, no voices"
+  * "antarctic ice landscape ambience with gentle wind, soft snow drift, distant cracking ice, peaceful and atmospheric, no music, no voices"
+  * "dense rainforest ambience with bird chirping, leaves rustling, distant water drops, calm jungle atmosphere, no music, no voices"
+  * "deep space ambience with low rumble, soft cosmic hum, subtle radio static, mysterious atmosphere, no music, no voices"
+  * "volcanic crater ambience with low rumbling lava, distant rock falls, hot steam hisses, dramatic geological atmosphere, no music, no voices"
+- ambientVolume: 0.12 bis 0.25 (Empfehlung: 0.15 für ruhige Szenen, 0.22 für dramatische)
+
+REGELN für das Drehbuch:
+- Die Szenen müssen lückenlos das gesamte Skript abdecken (von Zeile 1 bis zur letzten Zeile).
+- Keine Lücken zwischen Szenen, keine Überlappungen.
+- 3-7 Szenen je nach Skript-Länge.
+- Jede Szene mindestens 4 Skript-Zeilen lang.
+- Die Szenenwechsel sollen sich AUS dem Skript ergeben (Themen-/Orts-Wechsel).
 
 DRAMATURGIE:
 1. Starker Hook in den ersten 2-3 Zeilen.
@@ -247,12 +310,30 @@ ZUSÄTZLICH erzeugst du Metadaten:
 
 Antworte AUSSCHLIESSLICH als JSON-Objekt:
 {
-  "script": "SPRECHER1: [emotion] Text\\nSPRECHER2: [emotion] Text\\n...",
+  "script": "SPRECHER1: [emotion] Text mit eventuellen [sound-fx] Tags\\nSPRECHER2: [emotion] Text\\n...",
   "title": "...",
   "ageGroup": "...",
   "category": "...",
   "coverPrompt": "...",
-  "description": "..."
+  "description": "...",
+  "screenplay": [
+    {
+      "index": 1,
+      "startLine": 1,
+      "endLine": 6,
+      "description": "Briefing an Bord des Forschungsschiffs",
+      "ambientPrompt": "calm research ship deck ambience with gentle ocean waves, distant seabirds, soft wind, peaceful atmosphere, no music, no voices",
+      "ambientVolume": 0.18
+    },
+    {
+      "index": 2,
+      "startLine": 7,
+      "endLine": 14,
+      "description": "Tauchgang in die Tiefsee",
+      "ambientPrompt": "deep underwater submarine ambience with bubbles, low engine hum, distant whale calls, mysterious and immersive, no music, no voices",
+      "ambientVolume": 0.22
+    }
+  ]
 }`;
 
     // Build speaker descriptions for cover prompt
@@ -282,7 +363,11 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Werden ALLE angegebenen Sprecher genutzt? -> Wenn nein, ergänzen.
 - Sprechernamen exakt wie vorgegeben in Großbuchstaben? -> Wenn nein, korrigieren.
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?
-- Ist der Hook stark, gibt es einen Twist, ist das Finale stark?`;
+- Ist der Hook stark, gibt es einen Twist, ist das Finale stark?
+- Hat das Skript thematisch passende inline Sound-FX-Tags (1-2 pro Szene)? -> Wenn nicht, einbauen.
+- Hat jede Szene im screenplay einen englischen ambientPrompt OHNE music/voices und mit "no music, no voices" am Ende?
+- Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?
+- Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
 
     // gpt-5.4-mini is a reasoning model: reasoning tokens count against max_completion_tokens.
     // Skript ~150 Wörter/Min → für 60 Min = ~9000 Wörter. Plus Reasoning + JSON-Overhead.
@@ -324,6 +409,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       category?: unknown;
       coverPrompt?: unknown;
       description?: unknown;
+      screenplay?: unknown;
     };
     try {
       parsed = JSON.parse(stripJsonFences(content));
@@ -350,6 +436,9 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       (typeof parsed.description === "string" && parsed.description.trim()) ||
       `Eine spannende Audio-Doku über ${topic}.`;
 
+    const totalLines = sanitizedScript.split("\n").length;
+    const screenplay = normalizeScreenplay(parsed.screenplay, totalLines, topic);
+
     return {
       script: sanitizedScript,
       title,
@@ -357,9 +446,98 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       category,
       coverPrompt,
       description,
+      screenplay,
     };
   },
 );
+
+/**
+ * Normalisiert das Drehbuch:
+ * - Stellt sicher, dass jede Zeile (1..totalLines) genau EINER Szene zugeordnet ist.
+ * - Lücken werden mit der vorigen oder einer Default-Szene gefüllt.
+ * - Falls kein gültiges screenplay vorhanden, wird ein einzelnes Default-Szenario erzeugt.
+ */
+const normalizeScreenplay = (
+  raw: unknown,
+  totalLines: number,
+  topic: string,
+): AudioDokuScene[] => {
+  const fallbackPrompt = `calm cinematic ambience matching the topic "${topic}", subtle textures, no music, no voices`;
+
+  const fallback: AudioDokuScene[] = [
+    {
+      index: 1,
+      startLine: 1,
+      endLine: Math.max(1, totalLines),
+      description: "Hauptszene",
+      ambientPrompt: fallbackPrompt,
+      ambientVolume: 0.18,
+    },
+  ];
+
+  if (!Array.isArray(raw) || raw.length === 0) return fallback;
+
+  const candidates: AudioDokuScene[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const obj = entry as Record<string, unknown>;
+    const startLine = Number(obj.startLine);
+    const endLine = Number(obj.endLine);
+    if (!Number.isFinite(startLine) || !Number.isFinite(endLine)) continue;
+    if (endLine < startLine) continue;
+    const ambientPrompt = typeof obj.ambientPrompt === "string" ? obj.ambientPrompt.trim() : "";
+    if (!ambientPrompt) continue;
+    const description = typeof obj.description === "string" ? obj.description.trim() : "";
+    const volRaw = Number(obj.ambientVolume);
+    const ambientVolume = Number.isFinite(volRaw)
+      ? Math.max(0.05, Math.min(0.4, volRaw))
+      : 0.18;
+
+    candidates.push({
+      index: candidates.length + 1,
+      startLine: Math.max(1, Math.floor(startLine)),
+      endLine: Math.max(1, Math.floor(endLine)),
+      description: description || `Szene ${candidates.length + 1}`,
+      ambientPrompt,
+      ambientVolume,
+    });
+  }
+
+  if (candidates.length === 0) return fallback;
+
+  // Sort by startLine, then patch overlaps and gaps.
+  candidates.sort((a, b) => a.startLine - b.startLine);
+
+  // Clamp to [1, totalLines] and ensure contiguous coverage.
+  const fixed: AudioDokuScene[] = [];
+  let cursor = 1;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const c = candidates[i];
+    const start = Math.max(cursor, Math.min(c.startLine, totalLines));
+    const end = Math.max(start, Math.min(c.endLine, totalLines));
+    if (start > totalLines) break;
+    fixed.push({
+      index: fixed.length + 1,
+      startLine: start,
+      endLine: end,
+      description: c.description,
+      ambientPrompt: c.ambientPrompt,
+      ambientVolume: c.ambientVolume,
+    });
+    cursor = end + 1;
+    if (cursor > totalLines) break;
+  }
+
+  if (fixed.length === 0) return fallback;
+
+  // If last scene didn't reach totalLines, extend it.
+  const last = fixed[fixed.length - 1];
+  if (last.endLine < totalLines) {
+    last.endLine = totalLines;
+  }
+
+  return fixed;
+};
 
 const sanitizeScript = (raw: string, speakers: string[]): string => {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");

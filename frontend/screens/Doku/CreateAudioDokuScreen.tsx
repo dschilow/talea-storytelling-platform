@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2, Wand2, Lightbulb } from 'lucide-react';
+import { Headphones, Sparkles, ArrowLeft, Mic2, RefreshCw, Plus, Trash2, Wand2, Lightbulb, Layers, Volume2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -193,6 +193,15 @@ type ParsedDialogueTurn = {
   id: string;
   speaker: string;
   text: string;
+};
+
+type AudioDokuScene = {
+  index: number;
+  startLine: number;
+  endLine: number;
+  description: string;
+  ambientPrompt: string;
+  ambientVolume: number;
 };
 
 type DialogueValidationIssue = {
@@ -712,6 +721,178 @@ const addAudioDokuBranding = async (mainAudio: Blob): Promise<Blob> => {
   return await mergeAudioSegmentsToMp3([introBlob, gapBlob, mainAudio, gapBlob, outroBlob]);
 };
 
+// ============================================================
+// AMBIENT BACKGROUND MIXING (Web Audio API)
+// ============================================================
+
+type SceneTimeWindow = {
+  scene: AudioDokuScene;
+  startSec: number;
+  endSec: number;
+};
+
+/**
+ * Estimates a per-scene time window in seconds based on char-count of the lines
+ * each scene covers. This is approximate — TTS speed varies — but is the most
+ * reliable estimate without re-running per-line TTS.
+ */
+const estimateSceneTimeWindows = (
+  scriptLines: string[],
+  scenes: AudioDokuScene[],
+  totalDurationSec: number,
+): SceneTimeWindow[] => {
+  if (scenes.length === 0 || totalDurationSec <= 0) return [];
+
+  const lineWeights = scriptLines.map((line) => {
+    const stripped = line.replace(/\[[^\]]*\]/g, '').replace(/^[A-ZÄÖÜ]+:\s*/, '').trim();
+    return Math.max(1, stripped.length);
+  });
+  const totalWeight = lineWeights.reduce((s, w) => s + w, 0) || 1;
+  const secPerWeight = totalDurationSec / totalWeight;
+
+  const cumulative: number[] = [0];
+  for (const w of lineWeights) cumulative.push(cumulative[cumulative.length - 1] + w);
+
+  const windows: SceneTimeWindow[] = scenes.map((scene) => {
+    const sIdx = Math.max(1, Math.min(scriptLines.length, scene.startLine)) - 1;
+    const eIdx = Math.max(1, Math.min(scriptLines.length, scene.endLine));
+    const startSec = cumulative[sIdx] * secPerWeight;
+    const endSec = cumulative[eIdx] * secPerWeight;
+    return { scene, startSec, endSec };
+  });
+
+  // Ensure first starts at 0 and last ends at totalDurationSec
+  if (windows.length > 0) {
+    windows[0].startSec = 0;
+    windows[windows.length - 1].endSec = totalDurationSec;
+  }
+  return windows;
+};
+
+/**
+ * Loops or trims an ambient AudioBuffer to fit a target duration.
+ * Returns interleaved mono Float32Array (we mix as mono ambient → both stereo channels).
+ */
+const fitAmbientBufferToDuration = (
+  ambient: AudioBuffer,
+  targetSec: number,
+  outputSampleRate: number,
+): Float32Array => {
+  const targetSamples = Math.max(0, Math.round(targetSec * outputSampleRate));
+  const out = new Float32Array(targetSamples);
+  if (targetSamples === 0 || ambient.length === 0) return out;
+
+  // Get mono source (if stereo → mix L+R / 2)
+  const sourceLen = ambient.length;
+  const srcChannels = ambient.numberOfChannels;
+  const srcL = ambient.getChannelData(0);
+  const srcR = srcChannels > 1 ? ambient.getChannelData(1) : null;
+
+  // Resample factor (cheap nearest-neighbor — good enough for ambient atmosphere)
+  const ratio = ambient.sampleRate / outputSampleRate;
+
+  let outIdx = 0;
+  let srcIdx = 0;
+  while (outIdx < targetSamples) {
+    const i = Math.floor(srcIdx) % sourceLen;
+    const sample = srcR ? (srcL[i] + srcR[i]) * 0.5 : srcL[i];
+    out[outIdx] = sample;
+    outIdx += 1;
+    srcIdx += ratio;
+  }
+  return out;
+};
+
+/**
+ * Mixes ambient tracks into a dialogue blob according to scene windows.
+ * - dialogueBlob: TTS output blob (MP3) — the primary spoken audio
+ * - ambientBlobs: aligned with `windows` array; index N maps to windows[N].scene
+ * - Returns a new MP3 blob with ambient layered underneath the dialogue.
+ */
+const mixAmbientIntoDialogue = async (
+  dialogueBlob: Blob,
+  windows: SceneTimeWindow[],
+  ambientBlobs: (Blob | null)[],
+): Promise<Blob> => {
+  const context = createAudioContext();
+  try {
+    const dialogueArr = await dialogueBlob.arrayBuffer();
+    const dialogueBuf = await context.decodeAudioData(dialogueArr.slice(0));
+    const sampleRate = dialogueBuf.sampleRate;
+    const channels = dialogueBuf.numberOfChannels >= 2 ? 2 : 1;
+    const totalSamples = dialogueBuf.length;
+
+    const outLeft = new Float32Array(totalSamples);
+    const outRight = channels === 2 ? new Float32Array(totalSamples) : null;
+    const dialogL = dialogueBuf.getChannelData(0);
+    const dialogR = dialogueBuf.numberOfChannels > 1 ? dialogueBuf.getChannelData(1) : null;
+    outLeft.set(dialogL);
+    if (outRight) outRight.set(dialogR ?? dialogL);
+
+    // Soft fade-in/out for each scene's ambient (300 ms)
+    const fadeSec = 0.3;
+    const fadeSamples = Math.round(fadeSec * sampleRate);
+
+    for (let i = 0; i < windows.length; i += 1) {
+      const blob = ambientBlobs[i];
+      if (!blob) continue;
+      const window = windows[i];
+      const startSample = Math.max(0, Math.round(window.startSec * sampleRate));
+      const endSample = Math.min(totalSamples, Math.round(window.endSec * sampleRate));
+      const sceneSamples = endSample - startSample;
+      if (sceneSamples <= 0) continue;
+
+      try {
+        const ambArr = await blob.arrayBuffer();
+        const ambBuf = await context.decodeAudioData(ambArr.slice(0));
+        const ambient = fitAmbientBufferToDuration(ambBuf, sceneSamples / sampleRate, sampleRate);
+        const vol = Math.max(0, Math.min(0.5, window.scene.ambientVolume || 0.18));
+
+        for (let s = 0; s < ambient.length && startSample + s < endSample; s += 1) {
+          let env = vol;
+          if (s < fadeSamples) env = vol * (s / fadeSamples);
+          else if (s > sceneSamples - fadeSamples) env = vol * Math.max(0, (sceneSamples - s) / fadeSamples);
+          const sample = ambient[s] * env;
+          outLeft[startSample + s] += sample;
+          if (outRight) outRight[startSample + s] += sample;
+        }
+      } catch (err) {
+        console.warn(`[AudioDoku] Ambient mixing for scene ${i + 1} failed, skipping:`, err);
+      }
+    }
+
+    // Soft clipping protection
+    for (let i = 0; i < outLeft.length; i += 1) {
+      if (outLeft[i] > 1) outLeft[i] = 1;
+      else if (outLeft[i] < -1) outLeft[i] = -1;
+    }
+    if (outRight) {
+      for (let i = 0; i < outRight.length; i += 1) {
+        if (outRight[i] > 1) outRight[i] = 1;
+        else if (outRight[i] < -1) outRight[i] = -1;
+      }
+    }
+
+    return await encodeMergedAudioToMp3(outLeft, outRight, sampleRate, channels);
+  } finally {
+    await context.close();
+  }
+};
+
+/**
+ * Returns the duration in seconds of an audio blob by decoding it.
+ */
+const getAudioBlobDurationSec = async (blob: Blob): Promise<number> => {
+  const context = createAudioContext();
+  try {
+    const arr = await blob.arrayBuffer();
+    const buf = await context.decodeAudioData(arr.slice(0));
+    return buf.duration;
+  } finally {
+    await context.close();
+  }
+};
+
 const generateQwenDialogueViaBatchFallback = async (
   script: string,
   speakerVoiceMap: Record<string, string>,
@@ -837,6 +1018,11 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [topicsLoading, setTopicsLoading] = useState<boolean>(false);
   const [scriptGenerating, setScriptGenerating] = useState<boolean>(false);
   const [topicError, setTopicError] = useState<string | null>(null);
+
+  // Drehbuch (neu) — Szenen mit Hintergrund-Ambient
+  const [screenplay, setScreenplay] = useState<AudioDokuScene[]>([]);
+  const [enableAmbient, setEnableAmbient] = useState<boolean>(true);
+  const [ambientStatus, setAmbientStatus] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
   const [dialogueStatus, setDialogueStatus] = useState<string | null>(null);
@@ -1284,6 +1470,63 @@ const CreateAudioDokuScreen: React.FC = () => {
           let finalBlob = sourceBlob;
           let mimeType = variant.mimeType || sourceBlob.type || 'audio/mpeg';
 
+          // 1) Optional: Hintergrund-Ambient unter den Dialog mischen
+          if (enableAmbient && screenplay.length > 0) {
+            try {
+              setAmbientStatus(`Generiere Hintergrund-Atmosphäre für ${screenplay.length} Szene(n)...`);
+              const dialogueDuration = await getAudioBlobDurationSec(finalBlob);
+              const scriptLines = dialogueScript.replace(/\r\n/g, '\n').split('\n');
+              const windows = estimateSceneTimeWindows(scriptLines, screenplay, dialogueDuration);
+
+              // Generate ambient blobs in parallel
+              const ambientBlobs = await Promise.all(
+                windows.map(async (w) => {
+                  const desiredSec = Math.max(0, w.endSec - w.startSec);
+                  if (desiredSec < 1) return null;
+                  // ElevenLabs Sound API limits: ≤ 22s per request — we'll loop in mixAmbient
+                  const requestSec = Math.min(22, Math.max(4, Math.ceil(desiredSec)));
+                  try {
+                    const headers: Record<string, string> = {
+                      'Content-Type': 'application/json',
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    };
+                    const res = await fetch(`${getBackendUrl()}/tts/elevenlabs/sound-effect`, {
+                      method: 'POST',
+                      headers,
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        prompt: w.scene.ambientPrompt,
+                        durationSeconds: requestSec,
+                        mode: 'loop',
+                        promptInfluence: 0.45,
+                      }),
+                    });
+                    if (!res.ok) {
+                      console.warn(`[AudioDoku] Ambient scene ${w.scene.index} failed (${res.status})`);
+                      return null;
+                    }
+                    const json = (await res.json()) as { audioData?: string };
+                    if (!json.audioData) return null;
+                    return await (await fetch(json.audioData)).blob();
+                  } catch (err) {
+                    console.warn(`[AudioDoku] Ambient scene ${w.scene.index} error:`, err);
+                    return null;
+                  }
+                }),
+              );
+
+              setAmbientStatus(`Mische Hintergrund-Atmosphäre unter den Dialog...`);
+              finalBlob = await mixAmbientIntoDialogue(finalBlob, windows, ambientBlobs);
+              mimeType = 'audio/mpeg';
+              const successCount = ambientBlobs.filter(Boolean).length;
+              setAmbientStatus(`Hintergrund-Atmosphäre fertig (${successCount}/${ambientBlobs.length} Szenen).`);
+            } catch (ambientError) {
+              console.warn('[AudioDoku] Ambient mixing failed, fallback to dialog only:', ambientError);
+              setAmbientStatus('Hintergrund-Atmosphäre konnte nicht erzeugt werden — nutze nur Dialog.');
+            }
+          }
+
+          // 2) Talea Intro + Outro
           try {
             finalBlob = await addAudioDokuBranding(finalBlob);
             mimeType = 'audio/mpeg';
@@ -1548,7 +1791,11 @@ const CreateAudioDokuScreen: React.FC = () => {
       setCategory(response.category);
       setCoverDescription(response.coverPrompt);
       setDescription(response.description);
-      setDialogueStatus('Doku-Skript erfolgreich generiert. Du kannst es jetzt prüfen und Audio erzeugen.');
+      setScreenplay(Array.isArray(response.screenplay) ? response.screenplay : []);
+      const sceneCount = Array.isArray(response.screenplay) ? response.screenplay.length : 0;
+      setDialogueStatus(
+        `Doku-Skript erfolgreich generiert${sceneCount > 0 ? ` (${sceneCount} Szenen mit Hintergrund-Ambient)` : ''}. Du kannst es jetzt prüfen und Audio erzeugen.`,
+      );
       setDialogueStatusType('success');
     } catch (err) {
       console.error('[AudioDoku] Script generation failed:', err);
@@ -1584,6 +1831,8 @@ const CreateAudioDokuScreen: React.FC = () => {
     setTopicSuggestions([]);
     setSelectedTopic('');
     setTopicError(null);
+    setScreenplay([]);
+    setAmbientStatus(null);
     setError(null);
   };
 
@@ -2053,6 +2302,90 @@ const CreateAudioDokuScreen: React.FC = () => {
                         >
                           Sprecher aus Script hinzufuegen
                         </button>
+                      </div>
+                    )}
+
+                    {/* === DREHBUCH (Szenen mit Hintergrund-Ambient) === */}
+                    {screenplay.length > 0 && (
+                      <div
+                        className="mt-5 rounded-xl border p-4"
+                        style={{ borderColor: palette.panelBorder, background: palette.panel }}
+                      >
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Layers size={16} style={{ color: palette.text }} />
+                            <div className="text-sm font-semibold" style={{ color: palette.text }}>
+                              Drehbuch · {screenplay.length} Szene(n) mit Hintergrund-Atmosphäre
+                            </div>
+                          </div>
+                          <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: palette.text }}>
+                            <input
+                              type="checkbox"
+                              checked={enableAmbient}
+                              onChange={(e) => setEnableAmbient(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            Hintergrund-Ambient bei Audio-Generierung mischen
+                          </label>
+                        </div>
+                        <p className="mb-3 text-xs" style={{ color: palette.muted }}>
+                          Pro Szene wird ein eigener Ambient-Sound (per ElevenLabs Sound Generation) erzeugt und unter dem Dialog gemischt — wie bei echten Naturdokus. Du kannst die Prompts und Lautstärken hier feintunen.
+                        </p>
+                        <div className="space-y-2">
+                          {screenplay.map((scene, idx) => (
+                            <div
+                              key={scene.index}
+                              className="rounded-lg border p-3"
+                              style={{ borderColor: palette.panelBorder, background: palette.soft }}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="font-semibold" style={{ color: palette.text }}>
+                                  Szene {scene.index} · Zeilen {scene.startLine}–{scene.endLine}
+                                </div>
+                                <div className="text-[11px]" style={{ color: palette.muted }}>
+                                  {scene.description}
+                                </div>
+                              </div>
+                              <textarea
+                                value={scene.ambientPrompt}
+                                onChange={(e) => {
+                                  const next = [...screenplay];
+                                  next[idx] = { ...scene, ambientPrompt: e.target.value };
+                                  setScreenplay(next);
+                                }}
+                                rows={2}
+                                spellCheck={false}
+                                placeholder="English ambient prompt, no music, no voices..."
+                                className="mt-2 w-full rounded-md border px-2 py-1.5 text-[11px] font-mono focus:outline-none"
+                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
+                              />
+                              <div className="mt-2 flex items-center gap-2">
+                                <Volume2 size={13} style={{ color: palette.muted }} />
+                                <input
+                                  type="range"
+                                  min={0.05}
+                                  max={0.4}
+                                  step={0.01}
+                                  value={scene.ambientVolume}
+                                  onChange={(e) => {
+                                    const next = [...screenplay];
+                                    next[idx] = { ...scene, ambientVolume: Number(e.target.value) };
+                                    setScreenplay(next);
+                                  }}
+                                  className="flex-1"
+                                />
+                                <span className="w-12 text-right text-[11px] font-mono" style={{ color: palette.muted }}>
+                                  {(scene.ambientVolume * 100).toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {ambientStatus && (
+                          <div className="mt-3 rounded-md border border-indigo-200/60 bg-indigo-50/50 px-3 py-2 text-xs text-indigo-700">
+                            {ambientStatus}
+                          </div>
+                        )}
                       </div>
                     )}
 

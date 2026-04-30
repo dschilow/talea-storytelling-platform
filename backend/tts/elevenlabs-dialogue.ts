@@ -500,3 +500,103 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
     };
   }
 );
+
+// ============================================================
+// Sound-Effect / Ambient Generation (ElevenLabs Sound API)
+// ============================================================
+
+interface GenerateElevenLabsSoundEffectRequest {
+  /** Englischer Beschreibungstext fuer den gewuenschten Sound (z.B. "deep underwater ambience with bubbles, no music, no voices") */
+  prompt: string;
+  /** Gewuenschte Dauer in Sekunden. ElevenLabs erlaubt 0.5-22s. Wir clampen entsprechend. */
+  durationSeconds: number;
+  /** "loop" fuer nahtlose Wiederholbarkeit, sonst "oneshot". Default: loop. */
+  mode?: "loop" | "oneshot";
+  /** Prompt-Influence (0..1). Hoeher = praeziser am Prompt, niedriger = kreativer. Default 0.4. */
+  promptInfluence?: number;
+}
+
+interface GenerateElevenLabsSoundEffectResponse {
+  /** Base64 dataUrl der erzeugten MP3 */
+  audioData: string;
+  mimeType: string;
+  /** Tatsaechlich angeforderte Dauer */
+  durationSeconds: number;
+}
+
+const ELEVENLABS_SOUND_MIN_DURATION = 0.5;
+const ELEVENLABS_SOUND_MAX_DURATION = 22;
+
+export const generateElevenLabsSoundEffect = api<
+  GenerateElevenLabsSoundEffectRequest,
+  GenerateElevenLabsSoundEffectResponse
+>(
+  { expose: true, method: "POST", path: "/tts/elevenlabs/sound-effect", auth: true },
+  async (req) => {
+    ensureAdmin();
+    const apiKey = getElevenLabsApiKey();
+
+    const promptText = (req.prompt || "").trim();
+    if (!promptText) {
+      throw APIError.invalidArgument("prompt is required");
+    }
+
+    const requestedDuration = Number(req.durationSeconds);
+    if (!Number.isFinite(requestedDuration)) {
+      throw APIError.invalidArgument("durationSeconds must be a number");
+    }
+    const durationSeconds = Math.max(
+      ELEVENLABS_SOUND_MIN_DURATION,
+      Math.min(ELEVENLABS_SOUND_MAX_DURATION, requestedDuration),
+    );
+
+    const promptInfluence = Number.isFinite(Number(req.promptInfluence))
+      ? Math.max(0, Math.min(1, Number(req.promptInfluence)))
+      : 0.4;
+
+    const loop = req.mode !== "oneshot";
+
+    const body = {
+      text: promptText,
+      duration_seconds: durationSeconds,
+      prompt_influence: promptInfluence,
+      loop,
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(`${ELEVENLABS_API_BASE}/sound-generation`, {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error(`[ElevenLabs] sound-effect request failed before response: ${message}`);
+      throw APIError.unavailable("ElevenLabs sound generation failed before a response was received.");
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      log.error(`[ElevenLabs] sound-effect generation failed (${response.status}): ${errText}`);
+      throwElevenLabsApiError(response.status, errText);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+    if (!bytes.length) {
+      throw APIError.unavailable("ElevenLabs returned an empty sound-effect response.");
+    }
+
+    const mimeType = (response.headers.get("content-type") || "audio/mpeg").split(";")[0].trim();
+    return {
+      audioData: `data:${mimeType};base64,${bytes.toString("base64")}`,
+      mimeType,
+      durationSeconds,
+    };
+  },
+);
