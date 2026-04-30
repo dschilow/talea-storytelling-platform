@@ -1091,7 +1091,7 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   // Drehbuch (neu) — Szenen mit Hintergrund-Ambient
   const [screenplay, setScreenplay] = useState<AudioDokuScene[]>([]);
-  const [enableAmbient, setEnableAmbient] = useState<boolean>(false);
+  const [enableAmbient, setEnableAmbient] = useState<boolean>(true);
   const [ambientStatus, setAmbientStatus] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
@@ -1869,7 +1869,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       setCoverDescription(response.coverPrompt);
       setDescription(response.description);
       setScreenplay(Array.isArray(response.screenplay) ? response.screenplay : []);
-      setEnableAmbient(false);
+      setEnableAmbient(true);
       const sceneCount = Array.isArray(response.screenplay) ? response.screenplay.length : 0;
       setDialogueStatus(
         `Doku-Skript erfolgreich generiert${sceneCount > 0 ? ` (${sceneCount} Szenen im Drehbuch)` : ''}. Prüfe optionale Hintergrund-Sounds vor dem Mischen.`,
@@ -2403,11 +2403,11 @@ const CreateAudioDokuScreen: React.FC = () => {
                               onChange={(e) => setEnableAmbient(e.target.checked)}
                               className="h-4 w-4"
                             />
-                            Hintergrund-Ambient nach manueller Prüfung mischen
+                            Passende Hintergrund-Sounds automatisch mischen
                           </label>
                         </div>
                         <p className="mb-3 text-xs" style={{ color: palette.muted }}>
-                          Automatische Soundbetten sind standardmäßig aus. Aktiviere sie nur, wenn Prompt und Lautstärke wirklich zum Moment passen; bei 0% wird die Szene übersprungen.
+                          Es werden nur aktive Szenen mit passendem Prompt und Lautstärke über 0% erzeugt. Szenen mit „skip ambient“ oder 0% bleiben reine Stimme.
                         </p>
                         <div className="space-y-2">
                           {screenplay.map((scene, idx) => (
