@@ -262,13 +262,28 @@ Pro Szene:
 - startLine: erste Skript-Zeile dieser Szene (1-basiert, inklusive)
 - endLine: letzte Skript-Zeile dieser Szene (inklusive)
 - description: kurze deutsche Szenen-Beschreibung (z.B. "Briefing an Bord des Forschungsschiffs")
-- ambientPrompt: ENGLISCHER Sound-Prompt für ElevenLabs Sound Generation. Beschreibe einen RUHIGEN, LOOPBAREN Hintergrund-Sound (KEINE plötzlichen lauten Effekte, KEIN Voice/Speech, KEINE Musik mit Melodie!). Beispiele:
-  * "deep underwater ocean ambience with soft bubbles, distant whale calls, low submarine engine hum, calm and immersive, no music, no voices"
-  * "antarctic ice landscape ambience with gentle wind, soft snow drift, distant cracking ice, peaceful and atmospheric, no music, no voices"
-  * "dense rainforest ambience with bird chirping, leaves rustling, distant water drops, calm jungle atmosphere, no music, no voices"
-  * "deep space ambience with low rumble, soft cosmic hum, subtle radio static, mysterious atmosphere, no music, no voices"
-  * "volcanic crater ambience with low rumbling lava, distant rock falls, hot steam hisses, dramatic geological atmosphere, no music, no voices"
-- ambientVolume: 0.12 bis 0.25 (Empfehlung: 0.15 für ruhige Szenen, 0.22 für dramatische)
+- ambientPrompt: ENGLISCHER Sound-Prompt für ElevenLabs Sound Generation.
+
+  KRITISCH WICHTIG: Jede Szene MUSS einen DEUTLICH UNTERSCHEIDBAREN, KONKRETEN Sound haben.
+  - Verwende 3-5 SPEZIFISCHE, akustisch unterschiedliche Sound-Elemente pro Szene.
+  - Vermeide generische Begriffe wie "ambience" alleine — sei DETAILLIERT und PRÄGNANT.
+  - Aufeinanderfolgende Szenen MÜSSEN sich akustisch klar voneinander unterscheiden (anderer Ort, andere Materialität, andere Lautstärke-Charakteristik).
+  - KEIN Voice/Speech, KEINE Melodien/Songs.
+
+  GUTE Beispiele (jeweils mit klar unterschiedlichen Sound-Signaturen):
+  * "muffled submarine interior with metallic creaks, slow sonar pings every few seconds, deep low engine drone, hissing oxygen valves, claustrophobic and tense, no music, no voices"
+  * "open ocean surface with rhythmic crashing waves, seagulls crying overhead, wooden ship hull creaking, taut rope flapping in the wind, salty maritime atmosphere, no music, no voices"
+  * "dense jungle canopy with hundreds of cicadas chirping, distant macaw calls, leaves crunching underfoot, water dripping from leaves, warm humid atmosphere, no music, no voices"
+  * "active volcanic crater rim with deep magma rumbles, sharp rock cracking, intense steam hissing from vents, embers popping, dangerous geological power, no music, no voices"
+  * "antarctic ice plateau with howling cold wind, sharp ice cracks echoing across the plain, distant penguin calls, snow particles whipping, isolated and vast, no music, no voices"
+  * "international space station interior with continuous low life-support hum, beeping computer panels, faint radio static crackles, occasional metallic ticks, sterile and isolated, no music, no voices"
+
+  SCHLECHTE Beispiele (NICHT verwenden — zu generisch, klingen alle gleich):
+  * "calm ambience with soft sounds" (BAD: nichtssagend)
+  * "underwater sounds, no music, no voices" (BAD: keine Details)
+  * "ocean atmosphere" (BAD: zu kurz)
+
+- ambientVolume: 0.25 bis 0.45 (Empfehlung: 0.30 für ruhige Szenen, 0.40 für dramatische, 0.45 für Action-Szenen). Der Ambient soll DEUTLICH HÖRBAR sein, nicht nur unterschwellig.
 
 REGELN für das Drehbuch:
 - Die Szenen müssen lückenlos das gesamte Skript abdecken (von Zeile 1 bis zur letzten Zeile).
@@ -322,16 +337,16 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
       "startLine": 1,
       "endLine": 6,
       "description": "Briefing an Bord des Forschungsschiffs",
-      "ambientPrompt": "calm research ship deck ambience with gentle ocean waves, distant seabirds, soft wind, peaceful atmosphere, no music, no voices",
-      "ambientVolume": 0.18
+      "ambientPrompt": "research ship deck with rhythmic ocean waves crashing, multiple seagulls crying overhead, taut ropes flapping in steady wind, distant ship horn, salty maritime atmosphere, no music, no voices",
+      "ambientVolume": 0.32
     },
     {
       "index": 2,
       "startLine": 7,
       "endLine": 14,
       "description": "Tauchgang in die Tiefsee",
-      "ambientPrompt": "deep underwater submarine ambience with bubbles, low engine hum, distant whale calls, mysterious and immersive, no music, no voices",
-      "ambientVolume": 0.22
+      "ambientPrompt": "muffled submarine interior with metallic creaks under pressure, slow sonar pings every few seconds, deep low engine drone, hissing oxygen valves, claustrophobic and tense, no music, no voices",
+      "ambientVolume": 0.42
     }
   ]
 }`;
@@ -471,7 +486,7 @@ const normalizeScreenplay = (
       endLine: Math.max(1, totalLines),
       description: "Hauptszene",
       ambientPrompt: fallbackPrompt,
-      ambientVolume: 0.18,
+      ambientVolume: 0.35,
     },
   ];
 
@@ -490,8 +505,8 @@ const normalizeScreenplay = (
     const description = typeof obj.description === "string" ? obj.description.trim() : "";
     const volRaw = Number(obj.ambientVolume);
     const ambientVolume = Number.isFinite(volRaw)
-      ? Math.max(0.05, Math.min(0.4, volRaw))
-      : 0.18;
+      ? Math.max(0.1, Math.min(0.7, volRaw))
+      : 0.35;
 
     candidates.push({
       index: candidates.length + 1,

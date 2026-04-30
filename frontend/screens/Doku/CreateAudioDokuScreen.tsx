@@ -26,7 +26,7 @@ const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 5000;
 const AUDIO_DOKU_INTRO_URL = '/audio-doku/Talea_intro.mp3';
 const AUDIO_DOKU_OUTRO_URL = '/audio-doku/talea-end.mp3';
 const AUDIO_DOKU_GAP_SECONDS = 1;
-const AUDIO_DOKU_MP3_BITRATE_KBPS = 160;
+const AUDIO_DOKU_MP3_BITRATE_KBPS = 320;
 const AUDIO_DOKU_MP3_FRAME_SIZE = 1152;
 const LAMEJS_SCRIPT_URL = '/vendor/lame.all.js';
 const staticAudioBlobCache = new Map<string, Blob>();
@@ -770,37 +770,68 @@ const estimateSceneTimeWindows = (
 };
 
 /**
- * Loops or trims an ambient AudioBuffer to fit a target duration.
- * Returns interleaved mono Float32Array (we mix as mono ambient → both stereo channels).
+ * Resamples + loops an ambient AudioBuffer to the dialog's sample rate using
+ * the browser's high-quality OfflineAudioContext resampler. Returns a stereo
+ * pair of Float32Arrays at the target sampleRate, looped to fit `targetSec`.
+ *
+ * Using the native OfflineAudioContext avoids the harsh aliasing of cheap
+ * nearest-neighbor resampling that would otherwise make the dialog sound tinny.
  */
-const fitAmbientBufferToDuration = (
+const fitAmbientBufferToDurationStereo = async (
   ambient: AudioBuffer,
   targetSec: number,
   outputSampleRate: number,
-): Float32Array => {
+): Promise<{ left: Float32Array; right: Float32Array }> => {
   const targetSamples = Math.max(0, Math.round(targetSec * outputSampleRate));
-  const out = new Float32Array(targetSamples);
-  if (targetSamples === 0 || ambient.length === 0) return out;
+  const empty = {
+    left: new Float32Array(targetSamples),
+    right: new Float32Array(targetSamples),
+  };
+  if (targetSamples === 0 || ambient.length === 0) return empty;
 
-  // Get mono source (if stereo → mix L+R / 2)
-  const sourceLen = ambient.length;
-  const srcChannels = ambient.numberOfChannels;
-  const srcL = ambient.getChannelData(0);
-  const srcR = srcChannels > 1 ? ambient.getChannelData(1) : null;
+  // Step 1: Resample ambient to outputSampleRate (stereo) via OfflineAudioContext.
+  const resampledChannels = 2;
+  const resampledLen = Math.max(
+    1,
+    Math.ceil((ambient.length / ambient.sampleRate) * outputSampleRate),
+  );
+  const offline = createOfflineAudioContext(resampledChannels, resampledLen, outputSampleRate);
+  const src = offline.createBufferSource();
+  src.buffer = ambient;
+  src.connect(offline.destination);
+  src.start(0);
+  const resampled = await offline.startRendering();
 
-  // Resample factor (cheap nearest-neighbor — good enough for ambient atmosphere)
-  const ratio = ambient.sampleRate / outputSampleRate;
+  const rL = resampled.getChannelData(0);
+  const rR = resampled.numberOfChannels > 1 ? resampled.getChannelData(1) : rL;
+  const rLen = resampled.length;
 
-  let outIdx = 0;
-  let srcIdx = 0;
-  while (outIdx < targetSamples) {
-    const i = Math.floor(srcIdx) % sourceLen;
-    const sample = srcR ? (srcL[i] + srcR[i]) * 0.5 : srcL[i];
-    out[outIdx] = sample;
-    outIdx += 1;
-    srcIdx += ratio;
+  // Step 2: Loop the resampled buffer into target.
+  const outL = new Float32Array(targetSamples);
+  const outR = new Float32Array(targetSamples);
+  for (let i = 0; i < targetSamples; i += 1) {
+    const srcIdx = i % rLen;
+    outL[i] = rL[srcIdx];
+    outR[i] = rR[srcIdx];
   }
-  return out;
+  return { left: outL, right: outR };
+};
+
+/**
+ * Soft-knee limiter (tanh-based). Keeps signal natural up to ~0.85, then
+ * smoothly compresses peaks instead of hard clipping. This avoids the harsh
+ * "clipped/tinny" sound that hard clipping introduces — particularly noticeable
+ * on female voices where high frequencies are more sensitive to distortion.
+ */
+const softLimit = (x: number): number => {
+  const threshold = 0.85;
+  if (x > -threshold && x < threshold) return x;
+  // tanh-based soft knee above threshold
+  const sign = x >= 0 ? 1 : -1;
+  const abs = Math.abs(x);
+  const over = abs - threshold;
+  const compressed = threshold + Math.tanh(over * 1.5) * (1 - threshold);
+  return sign * compressed;
 };
 
 /**
@@ -822,15 +853,18 @@ const mixAmbientIntoDialogue = async (
     const channels = dialogueBuf.numberOfChannels >= 2 ? 2 : 1;
     const totalSamples = dialogueBuf.length;
 
+    // Always mix to stereo for richer ambient — even if dialog is mono, we
+    // duplicate it so the ambient can be subtly stereoized if it has stereo info.
     const outLeft = new Float32Array(totalSamples);
-    const outRight = channels === 2 ? new Float32Array(totalSamples) : null;
+    const outRight = new Float32Array(totalSamples);
     const dialogL = dialogueBuf.getChannelData(0);
-    const dialogR = dialogueBuf.numberOfChannels > 1 ? dialogueBuf.getChannelData(1) : null;
+    const dialogR = dialogueBuf.numberOfChannels > 1 ? dialogueBuf.getChannelData(1) : dialogL;
     outLeft.set(dialogL);
-    if (outRight) outRight.set(dialogR ?? dialogL);
+    outRight.set(dialogR);
 
-    // Soft fade-in/out for each scene's ambient (300 ms)
-    const fadeSec = 0.3;
+    // Equal-power crossfade fade-in/out per scene (500 ms) for a smooth,
+    // cinematic transition between ambient layers.
+    const fadeSec = 0.5;
     const fadeSamples = Math.round(fadeSec * sampleRate);
 
     for (let i = 0; i < windows.length; i += 1) {
@@ -845,35 +879,44 @@ const mixAmbientIntoDialogue = async (
       try {
         const ambArr = await blob.arrayBuffer();
         const ambBuf = await context.decodeAudioData(ambArr.slice(0));
-        const ambient = fitAmbientBufferToDuration(ambBuf, sceneSamples / sampleRate, sampleRate);
-        const vol = Math.max(0, Math.min(0.5, window.scene.ambientVolume || 0.18));
+        // High-quality stereo resampling via OfflineAudioContext (no aliasing).
+        const ambient = await fitAmbientBufferToDurationStereo(
+          ambBuf,
+          sceneSamples / sampleRate,
+          sampleRate,
+        );
+        // Allow the volume to go higher (0.05–0.7) so ambient is actually audible
+        // and dominant when desired. Default fallback raised from 0.18 to 0.35.
+        const vol = Math.max(0, Math.min(0.7, window.scene.ambientVolume || 0.35));
+        const ambLen = ambient.left.length;
 
-        for (let s = 0; s < ambient.length && startSample + s < endSample; s += 1) {
-          let env = vol;
-          if (s < fadeSamples) env = vol * (s / fadeSamples);
-          else if (s > sceneSamples - fadeSamples) env = vol * Math.max(0, (sceneSamples - s) / fadeSamples);
-          const sample = ambient[s] * env;
-          outLeft[startSample + s] += sample;
-          if (outRight) outRight[startSample + s] += sample;
+        for (let s = 0; s < ambLen && startSample + s < endSample; s += 1) {
+          let envFactor = 1;
+          // Equal-power fade-in
+          if (s < fadeSamples) {
+            envFactor = Math.sin((s / fadeSamples) * (Math.PI / 2));
+          // Equal-power fade-out
+          } else if (s > sceneSamples - fadeSamples) {
+            const t = Math.max(0, (sceneSamples - s) / fadeSamples);
+            envFactor = Math.sin(t * (Math.PI / 2));
+          }
+          const env = vol * envFactor;
+          outLeft[startSample + s] += ambient.left[s] * env;
+          outRight[startSample + s] += ambient.right[s] * env;
         }
       } catch (err) {
         console.warn(`[AudioDoku] Ambient mixing for scene ${i + 1} failed, skipping:`, err);
       }
     }
 
-    // Soft clipping protection
+    // Soft-knee limiter instead of hard clipping. Hard clipping causes harsh
+    // aliasing in high frequencies — exactly what makes the LUMI voice sound tinny.
     for (let i = 0; i < outLeft.length; i += 1) {
-      if (outLeft[i] > 1) outLeft[i] = 1;
-      else if (outLeft[i] < -1) outLeft[i] = -1;
-    }
-    if (outRight) {
-      for (let i = 0; i < outRight.length; i += 1) {
-        if (outRight[i] > 1) outRight[i] = 1;
-        else if (outRight[i] < -1) outRight[i] = -1;
-      }
+      outLeft[i] = softLimit(outLeft[i]);
+      outRight[i] = softLimit(outRight[i]);
     }
 
-    return await encodeMergedAudioToMp3(outLeft, outRight, sampleRate, channels);
+    return await encodeMergedAudioToMp3(outLeft, outRight, sampleRate, 2);
   } finally {
     await context.close();
   }
@@ -1498,7 +1541,10 @@ const CreateAudioDokuScreen: React.FC = () => {
                         prompt: w.scene.ambientPrompt,
                         durationSeconds: requestSec,
                         mode: 'loop',
-                        promptInfluence: 0.45,
+                        // High prompt-influence (0.85) so ElevenLabs follows the
+                        // specific scene description strictly — otherwise multiple
+                        // scenes end up sounding similar / generic.
+                        promptInfluence: 0.85,
                       }),
                     });
                     if (!res.ok) {
@@ -2364,7 +2410,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 <input
                                   type="range"
                                   min={0.05}
-                                  max={0.4}
+                                  max={0.7}
                                   step={0.01}
                                   value={scene.ambientVolume}
                                   onChange={(e) => {
