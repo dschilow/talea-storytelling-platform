@@ -1462,7 +1462,6 @@ const CreateAudioDokuScreen: React.FC = () => {
 
     try {
       setDialogueLoading(true);
-      const token = await getToken();
       let payload:
         | ElevenLabsDialogueResponse
         | QwenDialogueResponse
@@ -1471,8 +1470,10 @@ const CreateAudioDokuScreen: React.FC = () => {
       if (ttsProvider === 'qwen') {
         // Keep Qwen path backend-compatible and stable across deployments by using
         // /tts/batch as the primary dialogue generator.
+        const token = await getToken();
         payload = await generateQwenDialogueViaBatchFallback(dialogueScript, resolvedSpeakerVoiceMap, token);
       } else {
+        const token = await getToken();
         const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
           method: 'POST',
           headers: {
@@ -1529,9 +1530,10 @@ const CreateAudioDokuScreen: React.FC = () => {
                   // ElevenLabs Sound API limits: ≤ 22s per request — we'll loop in mixAmbient
                   const requestSec = Math.min(22, Math.max(4, Math.ceil(desiredSec)));
                   try {
+                    const freshToken = await getToken();
                     const headers: Record<string, string> = {
                       'Content-Type': 'application/json',
-                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                      ...(freshToken ? { Authorization: `Bearer ${freshToken}` } : {}),
                     };
                     const res = await fetch(`${getBackendUrl()}/tts/elevenlabs/sound-effect`, {
                       method: 'POST',

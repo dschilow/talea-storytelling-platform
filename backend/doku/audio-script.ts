@@ -207,9 +207,11 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
 
     const speakerCount = cleanedSpeakers.length;
 
-    // Roughly: 1 minute audio ≈ 150 words spoken in dialogue (slower pace, kid-friendly)
-    const approxWords = durationMinutes * 150;
-    const approxLines = Math.max(8, Math.round(durationMinutes * 12));
+    // 1 minute audio ≈ 130 words (kid-friendly pace, pauses, emotion tags)
+    // 1 script line ≈ 10-12 words → ~11 lines/min
+    const approxWords = durationMinutes * 130;
+    const minLines = Math.round(durationMinutes * 11);
+    const approxLines = Math.max(10, minLines);
 
     const speakerListText = cleanedSpeakers
       .map((name, idx) => `${idx + 1}. ${name}`)
@@ -361,7 +363,8 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
     const user = `THEMA DER AUDIO-DOKU: "${topic}"
 
 Zielgruppe: ${ageFrom}-${ageTo} Jahre
-Geplante Audio-Dauer: ${durationMinutes} Minuten (≈ ${approxWords} gesprochene Wörter, ≈ ${approxLines} Skript-Zeilen)
+Geplante Audio-Dauer: ${durationMinutes} Minuten (≈ ${approxWords} gesprochene Wörter)
+PFLICHT: Das Skript MUSS MINDESTENS ${approxLines} Zeilen haben. Kürzer ist ein Fehler!
 Anzahl Sprecher: ${speakerCount}
 
 SPRECHER (in dieser Reihenfolge und exakt mit diesen Namen verwenden, alle Großbuchstaben):
@@ -373,6 +376,7 @@ Sprecher-Beschreibung für Cover: ${hostDesc}
 Erstelle das vollständige Skript jetzt nach den oben genannten Regeln.
 
 WICHTIG: Validiere selbst vor der Ausgabe:
+- Hat das Skript MINDESTENS ${approxLines} Zeilen? -> Wenn nein, WEITER SCHREIBEN bis Mindestlänge erreicht!
 - Gibt es Leerzeilen? -> Entfernen.
 - Hat jede Zeile gesprochenen Text neben Tags? -> Wenn nein, korrigieren.
 - Werden ALLE angegebenen Sprecher genutzt? -> Wenn nein, ergänzen.
@@ -385,9 +389,11 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
 
     // gpt-5.4-mini is a reasoning model: reasoning tokens count against max_completion_tokens.
-    // Skript ~150 Wörter/Min → für 60 Min = ~9000 Wörter. Plus Reasoning + JSON-Overhead.
-    // Großzügig dimensionieren, damit der Content-Anteil ausreicht.
-    const completionTokenLimit = Math.min(32000, 8000 + durationMinutes * 600);
+    // 1 script line ≈ 15 tokens JSON-encoded. approxLines lines + screenplay + metadata + reasoning budget.
+    // Use medium reasoning so the model plans the full length properly.
+    const contentTokens = approxLines * 20 + 2000; // lines × 20 tokens + overhead
+    const reasoningBudget = Math.min(8000, durationMinutes * 200); // scale reasoning with duration
+    const completionTokenLimit = Math.min(32000, contentTokens + reasoningBudget);
 
     const payload: Record<string, unknown> = {
       model: MODEL,
@@ -397,7 +403,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: completionTokenLimit,
-      reasoning_effort: "low",
+      reasoning_effort: "medium",
     };
 
     const timeoutMs = durationMinutes >= 10 ? 300_000 : 240_000;
