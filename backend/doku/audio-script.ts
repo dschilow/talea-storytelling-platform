@@ -388,12 +388,11 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?
 - Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
 
-    // gpt-5.4-mini is a reasoning model: reasoning tokens count against max_completion_tokens.
-    // 1 script line ≈ 15 tokens JSON-encoded. approxLines lines + screenplay + metadata + reasoning budget.
-    // Use medium reasoning so the model plans the full length properly.
-    const contentTokens = approxLines * 20 + 2000; // lines × 20 tokens + overhead
-    const reasoningBudget = Math.min(8000, durationMinutes * 200); // scale reasoning with duration
-    const completionTokenLimit = Math.min(32000, contentTokens + reasoningBudget);
+    // gpt-5.4-mini is a reasoning model: reasoning tokens are INCLUDED in max_completion_tokens.
+    // With reasoning_effort "low", the model uses ~2000-4000 reasoning tokens internally.
+    // Content budget: 1 script line ≈ 20 tokens JSON-encoded + screenplay/metadata overhead.
+    // We need: reasoning reserve (4000) + content (approxLines × 20 + 3000 overhead) → cap at 32000.
+    const completionTokenLimit = Math.min(32000, 4000 + approxLines * 20 + 3000);
 
     const payload: Record<string, unknown> = {
       model: MODEL,
@@ -403,7 +402,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: completionTokenLimit,
-      reasoning_effort: "medium",
+      reasoning_effort: "low",
     };
 
     const timeoutMs = durationMinutes >= 10 ? 300_000 : 240_000;
