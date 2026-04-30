@@ -29,6 +29,9 @@ const AUDIO_DOKU_GAP_SECONDS = 1;
 const AUDIO_DOKU_MP3_BITRATE_KBPS = 320;
 const AUDIO_DOKU_MP3_FRAME_SIZE = 1152;
 const LAMEJS_SCRIPT_URL = '/vendor/lame.all.js';
+const AUDIO_DOKU_AMBIENT_SKIP_VOLUME = 0.01;
+const AUDIO_DOKU_AMBIENT_MAX_MIX_VOLUME = 0.25;
+const AUDIO_DOKU_AMBIENT_DEFAULT_VOLUME = 0.08;
 const staticAudioBlobCache = new Map<string, Blob>();
 
 type Palette = {
@@ -202,6 +205,18 @@ type AudioDokuScene = {
   description: string;
   ambientPrompt: string;
   ambientVolume: number;
+};
+
+const shouldSkipAmbientScene = (scene: AudioDokuScene): boolean => {
+  const prompt = (scene.ambientPrompt || '').trim().toLowerCase();
+  return (
+    (scene.ambientVolume || 0) <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME ||
+    !prompt ||
+    prompt.includes('skip ambient') ||
+    prompt.includes('voice only') ||
+    prompt === 'silence' ||
+    prompt.startsWith('silent ')
+  );
 };
 
 type DialogueValidationIssue = {
@@ -862,10 +877,12 @@ const mixAmbientIntoDialogue = async (
     outLeft.set(dialogL);
     outRight.set(dialogR);
 
-    // Equal-power crossfade fade-in/out per scene (500 ms) for a smooth,
+    // Equal-power crossfade fade-in/out per scene for a smooth,
     // cinematic transition between ambient layers.
-    const fadeSec = 0.5;
+    const fadeSec = 1.2;
     const fadeSamples = Math.round(fadeSec * sampleRate);
+    const duckAttack = Math.exp(-1 / (0.01 * sampleRate));
+    const duckRelease = Math.exp(-1 / (0.18 * sampleRate));
 
     for (let i = 0; i < windows.length; i += 1) {
       const blob = ambientBlobs[i];
@@ -885,12 +902,16 @@ const mixAmbientIntoDialogue = async (
           sceneSamples / sampleRate,
           sampleRate,
         );
-        // Allow the volume to go higher (0.05–0.7) so ambient is actually audible
-        // and dominant when desired. Default fallback raised from 0.18 to 0.35.
-        const vol = Math.max(0, Math.min(0.7, window.scene.ambientVolume || 0.35));
+        const rawVolume = Number.isFinite(Number(window.scene.ambientVolume))
+          ? Number(window.scene.ambientVolume)
+          : AUDIO_DOKU_AMBIENT_DEFAULT_VOLUME;
+        const vol = Math.max(0, Math.min(AUDIO_DOKU_AMBIENT_MAX_MIX_VOLUME, rawVolume));
+        if (vol <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME) continue;
         const ambLen = ambient.left.length;
+        let voiceEnvelope = 0;
 
         for (let s = 0; s < ambLen && startSample + s < endSample; s += 1) {
+          const outputIndex = startSample + s;
           let envFactor = 1;
           // Equal-power fade-in
           if (s < fadeSamples) {
@@ -900,9 +921,15 @@ const mixAmbientIntoDialogue = async (
             const t = Math.max(0, (sceneSamples - s) / fadeSamples);
             envFactor = Math.sin(t * (Math.PI / 2));
           }
-          const env = vol * envFactor;
-          outLeft[startSample + s] += ambient.left[s] * env;
-          outRight[startSample + s] += ambient.right[s] * env;
+
+          const voiceLevel = Math.max(Math.abs(dialogL[outputIndex]), Math.abs(dialogR[outputIndex]));
+          const duckCoeff = voiceLevel > voiceEnvelope ? duckAttack : duckRelease;
+          voiceEnvelope = duckCoeff * voiceEnvelope + (1 - duckCoeff) * voiceLevel;
+          const duckFactor = voiceEnvelope > 0.08 ? 0.28 : voiceEnvelope > 0.03 ? 0.45 : 0.8;
+          const env = vol * envFactor * duckFactor;
+
+          outLeft[outputIndex] += ambient.left[s] * env;
+          outRight[outputIndex] += ambient.right[s] * env;
         }
       } catch (err) {
         console.warn(`[AudioDoku] Ambient mixing for scene ${i + 1} failed, skipping:`, err);
@@ -1064,7 +1091,7 @@ const CreateAudioDokuScreen: React.FC = () => {
 
   // Drehbuch (neu) — Szenen mit Hintergrund-Ambient
   const [screenplay, setScreenplay] = useState<AudioDokuScene[]>([]);
-  const [enableAmbient, setEnableAmbient] = useState<boolean>(true);
+  const [enableAmbient, setEnableAmbient] = useState<boolean>(false);
   const [ambientStatus, setAmbientStatus] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
@@ -1525,10 +1552,11 @@ const CreateAudioDokuScreen: React.FC = () => {
               // Generate ambient blobs in parallel
               const ambientBlobs = await Promise.all(
                 windows.map(async (w) => {
+                  if (shouldSkipAmbientScene(w.scene)) return null;
                   const desiredSec = Math.max(0, w.endSec - w.startSec);
                   if (desiredSec < 1) return null;
-                  // ElevenLabs Sound API limits: ≤ 22s per request — we'll loop in mixAmbient
-                  const requestSec = Math.min(22, Math.max(4, Math.ceil(desiredSec)));
+                  // Keep generated beds short and subtle; long literal loops get distracting fast.
+                  const requestSec = Math.min(12, Math.max(4, Math.ceil(desiredSec)));
                   try {
                     const freshToken = await getToken();
                     const headers: Record<string, string> = {
@@ -1543,10 +1571,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                         prompt: w.scene.ambientPrompt,
                         durationSeconds: requestSec,
                         mode: 'loop',
-                        // High prompt-influence (0.85) so ElevenLabs follows the
-                        // specific scene description strictly — otherwise multiple
-                        // scenes end up sounding similar / generic.
-                        promptInfluence: 0.85,
+                        promptInfluence: 0.65,
                       }),
                     });
                     if (!res.ok) {
@@ -1563,11 +1588,15 @@ const CreateAudioDokuScreen: React.FC = () => {
                 }),
               );
 
-              setAmbientStatus(`Mische Hintergrund-Atmosphäre unter den Dialog...`);
-              finalBlob = await mixAmbientIntoDialogue(finalBlob, windows, ambientBlobs);
-              mimeType = 'audio/mpeg';
               const successCount = ambientBlobs.filter(Boolean).length;
-              setAmbientStatus(`Hintergrund-Atmosphäre fertig (${successCount}/${ambientBlobs.length} Szenen).`);
+              if (successCount > 0) {
+                setAmbientStatus(`Mische Hintergrund-Atmosphäre unter den Dialog...`);
+                finalBlob = await mixAmbientIntoDialogue(finalBlob, windows, ambientBlobs);
+                mimeType = 'audio/mpeg';
+                setAmbientStatus(`Hintergrund-Atmosphäre fertig (${successCount}/${ambientBlobs.length} Szenen).`);
+              } else {
+                setAmbientStatus('Keine passende Hintergrund-Atmosphäre aktiv — nutze nur Dialog.');
+              }
             } catch (ambientError) {
               console.warn('[AudioDoku] Ambient mixing failed, fallback to dialog only:', ambientError);
               setAmbientStatus('Hintergrund-Atmosphäre konnte nicht erzeugt werden — nutze nur Dialog.');
@@ -1840,9 +1869,10 @@ const CreateAudioDokuScreen: React.FC = () => {
       setCoverDescription(response.coverPrompt);
       setDescription(response.description);
       setScreenplay(Array.isArray(response.screenplay) ? response.screenplay : []);
+      setEnableAmbient(false);
       const sceneCount = Array.isArray(response.screenplay) ? response.screenplay.length : 0;
       setDialogueStatus(
-        `Doku-Skript erfolgreich generiert${sceneCount > 0 ? ` (${sceneCount} Szenen mit Hintergrund-Ambient)` : ''}. Du kannst es jetzt prüfen und Audio erzeugen.`,
+        `Doku-Skript erfolgreich generiert${sceneCount > 0 ? ` (${sceneCount} Szenen im Drehbuch)` : ''}. Prüfe optionale Hintergrund-Sounds vor dem Mischen.`,
       );
       setDialogueStatusType('success');
     } catch (err) {
@@ -2363,7 +2393,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <Layers size={16} style={{ color: palette.text }} />
                             <div className="text-sm font-semibold" style={{ color: palette.text }}>
-                              Drehbuch · {screenplay.length} Szene(n) mit Hintergrund-Atmosphäre
+                              Drehbuch · {screenplay.length} Szene(n) mit optionaler Hintergrund-Atmosphäre
                             </div>
                           </div>
                           <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer" style={{ color: palette.text }}>
@@ -2373,11 +2403,11 @@ const CreateAudioDokuScreen: React.FC = () => {
                               onChange={(e) => setEnableAmbient(e.target.checked)}
                               className="h-4 w-4"
                             />
-                            Hintergrund-Ambient bei Audio-Generierung mischen
+                            Hintergrund-Ambient nach manueller Prüfung mischen
                           </label>
                         </div>
                         <p className="mb-3 text-xs" style={{ color: palette.muted }}>
-                          Pro Szene wird ein eigener Ambient-Sound (per ElevenLabs Sound Generation) erzeugt und unter dem Dialog gemischt — wie bei echten Naturdokus. Du kannst die Prompts und Lautstärken hier feintunen.
+                          Automatische Soundbetten sind standardmäßig aus. Aktiviere sie nur, wenn Prompt und Lautstärke wirklich zum Moment passen; bei 0% wird die Szene übersprungen.
                         </p>
                         <div className="space-y-2">
                           {screenplay.map((scene, idx) => (
@@ -2411,8 +2441,8 @@ const CreateAudioDokuScreen: React.FC = () => {
                                 <Volume2 size={13} style={{ color: palette.muted }} />
                                 <input
                                   type="range"
-                                  min={0.05}
-                                  max={0.7}
+                                  min={0}
+                                  max={0.25}
                                   step={0.01}
                                   value={scene.ambientVolume}
                                   onChange={(e) => {
@@ -2423,7 +2453,9 @@ const CreateAudioDokuScreen: React.FC = () => {
                                   className="flex-1"
                                 />
                                 <span className="w-12 text-right text-[11px] font-mono" style={{ color: palette.muted }}>
-                                  {(scene.ambientVolume * 100).toFixed(0)}%
+                                  {scene.ambientVolume <= AUDIO_DOKU_AMBIENT_SKIP_VOLUME
+                                    ? 'aus'
+                                    : `${(scene.ambientVolume * 100).toFixed(0)}%`}
                                 </span>
                               </div>
                             </div>

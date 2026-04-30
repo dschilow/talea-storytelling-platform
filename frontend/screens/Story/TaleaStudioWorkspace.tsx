@@ -16,7 +16,7 @@ import StudioLibraryView, { type StudioSeriesOverview } from "./studio/StudioLib
 import StudioSeriesDetailView from "./studio/StudioSeriesDetailView";
 import StudioEpisodeEditor from "./studio/StudioEpisodeEditor";
 import { CreateEpisodeModal, CreateSeriesModal } from "./studio/StudioCreateModals";
-import { buildStudioPalette, headingFont } from "./studio/studioPalette";
+import { buildStudioPalette } from "./studio/studioPalette";
 
 type ApiInit = { method?: "GET" | "POST" | "PUT"; body?: unknown };
 type EpisodeWithScenesResponse = { episode: StudioEpisode; scenes: StudioEpisodeScene[] };
@@ -32,6 +32,7 @@ const TaleaStudioWorkspace: React.FC = () => {
 
   const [view, setView] = useState<WorkspaceView>("library");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [series, setSeries] = useState<StudioSeries[]>([]);
   const [seriesOverview, setSeriesOverview] = useState<Record<string, StudioSeriesOverview>>({});
@@ -160,10 +161,16 @@ const TaleaStudioWorkspace: React.FC = () => {
   const loadSeries = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const result = await apiCall<{ series: StudioSeries[] }>("/story/studio/series");
       const list = result.series || [];
       setSeries(list);
-      await refreshAllOverviews(list);
+      await refreshAllOverviews(list).catch((err) => {
+        console.warn("[Studio] overview refresh failed", err);
+      });
+    } catch (err) {
+      console.error("[Studio] loadSeries failed", err);
+      setLoadError(err instanceof Error ? err.message : "Studio konnte nicht geladen werden.");
     } finally {
       setLoading(false);
     }
@@ -600,16 +607,39 @@ const TaleaStudioWorkspace: React.FC = () => {
 
   if (loading) {
     return (
-      <section className="space-y-4">
-        <div className={cn("rounded-3xl border p-10", palette.card)}>
+      <section className="space-y-4 p-4">
+        <div className={cn("rounded-3xl border p-10 text-center", palette.card)}>
           <p className={cn("text-sm", palette.textMuted)}>Talea Studio wird geladen…</p>
         </div>
       </section>
     );
   }
 
+  if (loadError) {
+    return (
+      <section className="space-y-4 p-4">
+        <div className={cn("rounded-3xl border p-8 text-center", palette.card)}>
+          <h3 className={cn("text-2xl mb-2", palette.text)}>Studio konnte nicht geladen werden</h3>
+          <p className={cn("text-sm mb-4", palette.textMuted)}>{loadError}</p>
+          <button
+            type="button"
+            onClick={() => void loadSeries()}
+            className={cn(
+              "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold",
+              palette.primary,
+              palette.primaryText,
+              palette.primaryBorder
+            )}
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-4 p-3 md:p-5 min-h-[60vh]">
       {view === "library" && (
         <StudioLibraryView
           palette={palette}
@@ -704,6 +734,28 @@ const TaleaStudioWorkspace: React.FC = () => {
           onOpenReader={openReader}
           workflowError={workflowError}
         />
+      )}
+
+      {view === "editor" && (!selectedSeries || !selectedEpisode) && (
+        <div className={cn("rounded-3xl border p-10 text-center", palette.card)}>
+          <p className={cn("text-sm mb-4", palette.textMuted)}>
+            {detailLoading ? "Folge wird geladen…" : "Folge nicht gefunden."}
+          </p>
+          {!detailLoading && (
+            <button
+              type="button"
+              onClick={() => setView(selectedSeries ? "series" : "library")}
+              className={cn(
+                "inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold",
+                palette.primary,
+                palette.primaryText,
+                palette.primaryBorder
+              )}
+            >
+              Zurück
+            </button>
+          )}
+        </div>
       )}
 
       <CreateSeriesModal

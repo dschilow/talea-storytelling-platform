@@ -38,7 +38,7 @@ export interface AudioDokuScene {
   description: string;
   /** Englischer Prompt fuer ElevenLabs Sound-Generation, beschreibt den Ambient-Sound */
   ambientPrompt: string;
-  /** Default-Lautstaerke (0.0-1.0) der Ambient-Spur unter dem Dialog. Empfehlung: 0.12-0.25 */
+  /** Default-Lautstaerke (0.0-1.0) der Ambient-Spur unter dem Dialog. Empfehlung: 0.0-0.14 */
   ambientVolume: number;
 }
 
@@ -224,40 +224,30 @@ Deine Aufgabe: Erstelle ein Dialog-Skript MIT Drehbuch (Szenen-Aufteilung mit Hi
 ============================================================
 TEIL 1 — STRENGES SKRIPT-FORMAT
 ============================================================
-- Jede Zeile: SPRECHERNAME: [emotion] gesprochener Text
-- Beispiel: TAVI: [excited] Heute tauchen wir ab in die Tiefsee! [bubbles]
+- Jede Zeile: SPRECHERNAME: gesprochener Text
+- Optional darf am Zeilenanfang genau 1 sparsames Emotion-Tag stehen.
+- Beispiel: TAVI: [excited] Heute tauchen wir ab in die Tiefsee!
 - KEINE Leerzeilen.
 - KEINE Zeile ohne gesprochenen Text. "TAVI: [clapping]" alleine ist ungültig.
 - Jede Zeile MUSS gesprochenen Text enthalten neben den Tags.
 - Sprechernamen ausschließlich aus der vorgegebenen Liste, GROSSBUCHSTABEN, immer gleich geschrieben.
 - Maximal 1 Emotion-Tag direkt vor dem Text (am Anfang nach dem Doppelpunkt).
-- Sound-FX-Tags dürfen ZUSÄTZLICH innerhalb oder am Ende der Zeile stehen.
+- Keine Inline-Sound-FX-Tags innerhalb oder am Ende der Zeile.
 - Saubere, kurze, lebendige Sätze. Kein Wikipedia-Stil.
 
 EMOTION-TAGS (verändern die Stimme — am Zeilenanfang):
-[excited] [curious] [mischievously] [thoughtful] [giggles] [warm] [dramatic]
-[serious] [awe] [surprised] [laughs] [whispers] [inhales deeply] [shouts]
-[sighs] [calmly] [nervous] [confused] [proudly]
+[excited] [curious] [thoughtful] [warm] [dramatic] [serious] [awe]
+[surprised] [whispers] [calmly] [nervous] [confused] [proudly]
 
-INLINE-SOUND-FX-TAGS (Eleven v3 erzeugt sie als kurze Effekte mitten in der Stimme):
-- Allgemein: [applause] [clapping] [laughter] [gasp] [heartbeat] [explosion]
-- Wasser/Tiefsee: [bubbles] [water splash] [submarine hum] [whale call] [ocean waves]
-- Wetter: [thunder] [rainfall] [wind howling] [storm] [hail]
-- Tiere: [bird chirping] [wolf howl] [lion roar] [dog barking] [horse galloping]
-- Maschinen/Technik: [rocket boost] [radio static] [engine roar] [beeping] [door slam] [door creaks]
-- Natur: [crackling fire] [leaves rustling] [stones falling] [river flowing] [crickets chirping]
-- Action: [footsteps] [glass shatter] [sword clash] [running] [climbing]
-
-WICHTIG bei Sound-Tags:
-- Pro Skript-Zeile MAXIMAL 1-2 Sound-FX-Tags (sonst klingt es überladen).
-- Setze sie nur wenn sie thematisch direkt passen ("Wir tauchen ab! [bubbles]").
-- Eleven v3 versucht alles in eckigen Klammern zu interpretieren — nutze plastische englische Begriffe.
+INLINE-SOUND-FX-TAGS:
+- Nicht verwenden. Eleven v3 interpretiert alles in eckigen Klammern stark; ungenaue Effekte wirken schnell unecht.
+- Sound wird ausschliesslich im optionalen screenplay geplant, nicht im Sprechertext.
 
 ============================================================
 TEIL 2 — DREHBUCH (SZENEN MIT HINTERGRUND-AMBIENT)
 ============================================================
-Zusätzlich zum Skript erzeugst du ein Drehbuch (screenplay), das das Skript in 3-7 Szenen aufteilt.
-Jede Szene bekommt einen eigenen, durchgehenden HINTERGRUND-AMBIENT, der UNTER dem Dialog läuft (wie bei echten Naturdokus).
+Zusätzlich zum Skript erzeugst du ein Drehbuch (screenplay), das das Skript in 3-7 redaktionelle Abschnitte aufteilt.
+Jede Szene kann einen optionalen, sehr leisen HINTERGRUND-AMBIENT bekommen. Bei unsicherem Kontext bleibt sie stumm.
 
 Pro Szene:
 - index: 1, 2, 3, ...
@@ -266,26 +256,24 @@ Pro Szene:
 - description: kurze deutsche Szenen-Beschreibung (z.B. "Briefing an Bord des Forschungsschiffs")
 - ambientPrompt: ENGLISCHER Sound-Prompt für ElevenLabs Sound Generation.
 
-  KRITISCH WICHTIG: Jede Szene MUSS einen DEUTLICH UNTERSCHEIDBAREN, KONKRETEN Sound haben.
-  - Verwende 3-5 SPEZIFISCHE, akustisch unterschiedliche Sound-Elemente pro Szene.
-  - Vermeide generische Begriffe wie "ambience" alleine — sei DETAILLIERT und PRÄGNANT.
-  - Aufeinanderfolgende Szenen MÜSSEN sich akustisch klar voneinander unterscheiden (anderer Ort, andere Materialität, andere Lautstärke-Charakteristik).
-  - KEIN Voice/Speech, KEINE Melodien/Songs.
+  KRITISCH WICHTIG: Jede Szene bekommt nur dann Sound, wenn er ruhig, passend und nicht ablenkend ist.
+  - Erklaerpassagen duerfen bewusst keinen Ambient haben: ambientVolume 0.
+  - Verwende keine lauten oder kleinteiligen Foley-Ketten als Dauerteppich.
+  - Aufeinanderfolgende Szenen muessen nicht zwanghaft anders klingen.
+  - Keine Stimmen. Musik ist nur als sehr sanftes instrumentales Doku-Bett ohne Gesang erlaubt.
 
-  GUTE Beispiele (jeweils mit klar unterschiedlichen Sound-Signaturen):
-  * "muffled submarine interior with metallic creaks, slow sonar pings every few seconds, deep low engine drone, hissing oxygen valves, claustrophobic and tense, no music, no voices"
-  * "open ocean surface with rhythmic crashing waves, seagulls crying overhead, wooden ship hull creaking, taut rope flapping in the wind, salty maritime atmosphere, no music, no voices"
-  * "dense jungle canopy with hundreds of cicadas chirping, distant macaw calls, leaves crunching underfoot, water dripping from leaves, warm humid atmosphere, no music, no voices"
-  * "active volcanic crater rim with deep magma rumbles, sharp rock cracking, intense steam hissing from vents, embers popping, dangerous geological power, no music, no voices"
-  * "antarctic ice plateau with howling cold wind, sharp ice cracks echoing across the plain, distant penguin calls, snow particles whipping, isolated and vast, no music, no voices"
-  * "international space station interior with continuous low life-support hum, beeping computer panels, faint radio static crackles, occasional metallic ticks, sterile and isolated, no music, no voices"
+  GUTE Beispiele (ruhig, breit, nicht ablenkend):
+  * "skip ambient - voice only, no music, no voices"
+  * "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals"
+  * "very subtle studio room tone with gentle air, soft warmth, no distinct foley, no music, no voices"
+  * "quiet science documentary bed with low soft texture, slow gentle movement, no percussion, no vocals"
 
-  SCHLECHTE Beispiele (NICHT verwenden — zu generisch, klingen alle gleich):
-  * "calm ambience with soft sounds" (BAD: nichtssagend)
-  * "underwater sounds, no music, no voices" (BAD: keine Details)
-  * "ocean atmosphere" (BAD: zu kurz)
+  SCHLECHTE Beispiele (NICHT verwenden - zu laut, zu konkret oder als Dauerteppich stoerend):
+  * "busy supermarket with shopping bags and carts"
+  * "kitchen with constant knife chopping and plate clinks"
+  * "school cafeteria with chatter and cutlery"
 
-- ambientVolume: 0.25 bis 0.45 (Empfehlung: 0.30 für ruhige Szenen, 0.40 für dramatische, 0.45 für Action-Szenen). Der Ambient soll DEUTLICH HÖRBAR sein, nicht nur unterschwellig.
+- ambientVolume: 0 fuer weglassen, 0.05 bis 0.14 fuer dezente Betten, maximal 0.18. Der Dialog muss immer klar vorne bleiben.
 
 REGELN für das Drehbuch:
 - Die Szenen müssen lückenlos das gesamte Skript abdecken (von Zeile 1 bis zur letzten Zeile).
@@ -325,9 +313,30 @@ ZUSÄTZLICH erzeugst du Metadaten:
 
 - description: 2-3 Sätze auf Deutsch, die neben dem Player als Beschreibung erscheinen.
 
+============================================================
+TEIL 3 - REALISTISCHER AUDIO-MIX: DIESE REGELN HABEN VORRANG
+============================================================
+Ziel ist eine echte, professionelle Wissens-Doku, nicht ein Hoerspiel mit Dauer-Geraeuschen.
+Die Sprache bleibt immer die Hauptspur. Sound darf nur helfen, wenn er den Inhalt wirklich klarer macht.
+
+SPRECHER-TEXT:
+- Nutze Emotion-Tags sparsam. Nicht jede Zeile braucht ein Tag.
+- Erlaubt sind nur zur Stimme passende Start-Tags wie [excited], [curious], [thoughtful], [warm], [serious], [awe], [calmly], [proudly], [confused], [nervous].
+- Keine Inline-Sound-FX-Tags im gesprochenen Text. Vermeide besonders [heartbeat], [gasp], [applause], [clapping], [laughter], [explosion], [door slam], [beeping].
+- Wenn ein Effekt nur "lustig" oder "dramatisch" waere, schreibe lieber eine natuerliche Reaktion als gesprochenen Text.
+
+HINTERGRUND-AMBIENT:
+- Ambient ist OPTIONAL. Wenn kein wirklich passender, ruhiger Sound existiert, setze ambientVolume auf 0 und ambientPrompt auf "skip ambient - voice only, no music, no voices".
+- Erfinde keine Orte nur wegen eines Begriffs. Bei Ernaehrung also KEIN dauerhafter Supermarkt, keine Einkaufstueten, keine Kantine, kein staendiges Schneiden, nur weil Essen vorkommt.
+- Weil der aktuelle Ambient pro Szene durchgehend laeuft, darf er niemals aus auffaelligen Einzelgeraeuschen bestehen. Keine permanenten Tueten, Kassen, Messer, Stimmen, Schritte, Tiere, Maschinen oder Action-Foley unter Erklaertext.
+- Gute automatische Sounds sind leise, neutral und breit: soft documentary room tone, gentle warm instrumental documentary bed, very subtle studio air, soft transition texture. Immer ohne Stimmen.
+- Wenn Musik sinnvoller ist als Foley, formuliere den Prompt als "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals".
+- Lautstaerke: 0 fuer weglassen, 0.05-0.10 fuer dezente Betten, 0.11-0.14 nur fuer eindeutig passende ruhige Szenen, maximal 0.18.
+- Aufeinanderfolgende Szenen muessen NICHT zwanghaft unterschiedlich klingen. Konsistenz ist besser als stoerende Abwechslung.
+
 Antworte AUSSCHLIESSLICH als JSON-Objekt:
 {
-  "script": "SPRECHER1: [emotion] Text mit eventuellen [sound-fx] Tags\\nSPRECHER2: [emotion] Text\\n...",
+  "script": "SPRECHER1: [warm] Text ohne Inline-Sound-FX\\nSPRECHER2: Text ohne Inline-Sound-FX\\n...",
   "title": "...",
   "ageGroup": "...",
   "category": "...",
@@ -338,17 +347,17 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
       "index": 1,
       "startLine": 1,
       "endLine": 6,
-      "description": "Briefing an Bord des Forschungsschiffs",
-      "ambientPrompt": "research ship deck with rhythmic ocean waves crashing, multiple seagulls crying overhead, taut ropes flapping in steady wind, distant ship horn, salty maritime atmosphere, no music, no voices",
-      "ambientVolume": 0.32
+      "description": "Ruhiger Einstieg",
+      "ambientPrompt": "soft warm instrumental documentary music bed, minimal melody, no percussion, no vocals",
+      "ambientVolume": 0.08
     },
     {
       "index": 2,
       "startLine": 7,
       "endLine": 14,
-      "description": "Tauchgang in die Tiefsee",
-      "ambientPrompt": "muffled submarine interior with metallic creaks under pressure, slow sonar pings every few seconds, deep low engine drone, hissing oxygen valves, claustrophobic and tense, no music, no voices",
-      "ambientVolume": 0.42
+      "description": "Sachliche Erklaerpassage",
+      "ambientPrompt": "skip ambient - voice only, no music, no voices",
+      "ambientVolume": 0
     }
   ]
 }`;
@@ -383,8 +392,8 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Sprechernamen exakt wie vorgegeben in Großbuchstaben? -> Wenn nein, korrigieren.
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?
 - Ist der Hook stark, gibt es einen Twist, ist das Finale stark?
-- Hat das Skript thematisch passende inline Sound-FX-Tags (1-2 pro Szene)? -> Wenn nicht, einbauen.
-- Hat jede Szene im screenplay einen englischen ambientPrompt OHNE music/voices und mit "no music, no voices" am Ende?
+- Enthält das Skript KEINE Inline-Sound-FX-Tags wie [heartbeat], [gasp], [applause], [bubbles]? -> Wenn nein, entfernen.
+- Hat jede aktive Szene im screenplay einen englischen ambientPrompt ohne Stimmen? Bei unsicherem Kontext: ambientVolume 0 und "skip ambient - voice only, no music, no voices".
 - Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?
 - Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
 
@@ -482,7 +491,7 @@ const normalizeScreenplay = (
   totalLines: number,
   topic: string,
 ): AudioDokuScene[] => {
-  const fallbackPrompt = `calm cinematic ambience matching the topic "${topic}", subtle textures, no music, no voices`;
+  const fallbackPrompt = `skip ambient - voice only for "${topic}", no music, no voices`;
 
   const fallback: AudioDokuScene[] = [
     {
@@ -491,7 +500,7 @@ const normalizeScreenplay = (
       endLine: Math.max(1, totalLines),
       description: "Hauptszene",
       ambientPrompt: fallbackPrompt,
-      ambientVolume: 0.35,
+      ambientVolume: 0,
     },
   ];
 
@@ -510,8 +519,8 @@ const normalizeScreenplay = (
     const description = typeof obj.description === "string" ? obj.description.trim() : "";
     const volRaw = Number(obj.ambientVolume);
     const ambientVolume = Number.isFinite(volRaw)
-      ? Math.max(0.1, Math.min(0.7, volRaw))
-      : 0.35;
+      ? Math.max(0, Math.min(0.18, volRaw))
+      : 0;
 
     candidates.push({
       index: candidates.length + 1,
@@ -559,13 +568,57 @@ const normalizeScreenplay = (
   return fixed;
 };
 
+const ALLOWED_AUDIO_DOKU_VOICE_TAGS = new Set([
+  "excited",
+  "curious",
+  "thoughtful",
+  "warm",
+  "dramatic",
+  "serious",
+  "awe",
+  "surprised",
+  "whispers",
+  "calmly",
+  "nervous",
+  "confused",
+  "proudly",
+]);
+
+const spokenTextWithoutTags = (value: string): string =>
+  value.replace(/\[[^\]\r\n]*\]/g, " ").replace(/\s+/g, " ").trim();
+
+const sanitizeDialogueLineTags = (line: string): string => {
+  const match = line.match(/^(\s*[^:\n]{1,80}:\s*)(.*)$/);
+  if (!match) {
+    return spokenTextWithoutTags(line);
+  }
+
+  const prefix = match[1];
+  let text = match[2].trim();
+  const leadingTag = text.match(/^\[([^\]\r\n]{1,40})\]\s*/);
+  let safeLeadingTag = "";
+
+  if (leadingTag) {
+    const tagName = leadingTag[1].trim().toLowerCase();
+    text = text.slice(leadingTag[0].length).trim();
+    if (ALLOWED_AUDIO_DOKU_VOICE_TAGS.has(tagName)) {
+      safeLeadingTag = `[${tagName}] `;
+    }
+  }
+
+  const spoken = spokenTextWithoutTags(text);
+  return `${prefix}${safeLeadingTag}${spoken}`.trim();
+};
+
 const sanitizeScript = (raw: string, speakers: string[]): string => {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const cleaned: string[] = [];
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    cleaned.push(trimmed);
+    const sanitized = sanitizeDialogueLineTags(trimmed);
+    if (!spokenTextWithoutTags(sanitized.split(":").slice(1).join(":"))) continue;
+    cleaned.push(sanitized);
   }
 
   // Remove any AI-generated sign-off lines to avoid duplicates before appending our outro.
@@ -592,7 +645,7 @@ const sanitizeScript = (raw: string, speakers: string[]): string => {
   // Die thematische Abschlusszeile (host1) kommt vom Modell.
   // Wir hängen nur die feste Verabschiedung des zweiten Sprechers an.
   const host2 = speakers[1] ?? speakers[0] ?? "LUMI";
-  cleaned.push(`${host2}: [excited] Bis zur nächsten Doku! [applause] Tschüss!`);
+  cleaned.push(`${host2}: [warm] Bis zur naechsten Doku! Tschuess!`);
 
   return cleaned.join("\n");
 };
