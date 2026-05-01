@@ -533,6 +533,12 @@ export class StoryPipelineOrchestrator {
       const releaseEnabled = (normalized.rawConfig as any)?.releaseMode !== false;
       const configuredCandidateCount = Number(pipelineConfig.releaseCandidateCount ?? 1);
       const explicitCandidateCount = Number((normalized.rawConfig as any)?.releaseCandidateCount);
+      const hasExplicitCandidateCount = Number.isFinite(explicitCandidateCount);
+      const userRequestsSingleCandidate = hasExplicitCandidateCount && Math.round(explicitCandidateCount) <= 1;
+      const configuredDefaultSingleCandidate =
+        !hasExplicitCandidateCount
+        && Number.isFinite(configuredCandidateCount)
+        && Math.round(configuredCandidateCount) <= 1;
       // Quality-first default: keep the baseline at more than one candidate,
       // then let selection + surgery choose the strongest draft.
       const defaultCandidateCount = Number.isFinite(configuredCandidateCount)
@@ -543,20 +549,17 @@ export class StoryPipelineOrchestrator {
         && normalized.language === "de"
         && normalized.ageMax <= 8
         && directives.length === 5;
-      const configRequestsSingleCandidate =
-        Number.isFinite(configuredCandidateCount)
-        && Math.round(configuredCandidateCount) <= 1;
-      const implicitCandidateFloor = Number.isFinite(explicitCandidateCount)
+      const implicitCandidateFloor = hasExplicitCandidateCount
         ? 1
-        : configRequestsSingleCandidate
+        : configuredDefaultSingleCandidate
           ? 1
-        : qualityFirstV8Lane
-          ? 2
-          : 1;
+          : qualityFirstV8Lane
+            ? 2
+            : 1;
       const preliminaryCandidateCount = releaseEnabled
         ? Math.max(
             implicitCandidateFloor,
-            Math.min(3, Number.isFinite(explicitCandidateCount) ? Math.round(explicitCandidateCount) : defaultCandidateCount),
+            Math.min(3, hasExplicitCandidateCount ? Math.round(explicitCandidateCount) : defaultCandidateCount),
           )
         : 1;
       // Soul-aware: bei approved Soul reicht 1 Kandidat (die Soul fixiert bereits
@@ -571,10 +574,10 @@ export class StoryPipelineOrchestrator {
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
       const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
         ? adaptiveSecondCandidateRaw
-        : releaseCandidateCount === 1 && !configRequestsSingleCandidate;
+        : qualityFirstV8Lane && releaseCandidateCount === 1 && !userRequestsSingleCandidate;
       const adaptiveSecondCandidate =
         releaseEnabled &&
-        !Number.isFinite(explicitCandidateCount) &&
+        !hasExplicitCandidateCount &&
         releaseCandidateCount === 1 &&
         enableAdaptiveSecondCandidate;
       const criticModel = resolveCriticModelForPipeline({
@@ -1147,13 +1150,13 @@ export class StoryPipelineOrchestrator {
             if (firstCandidateStrong) {
               break;
             }
-            // Second candidate WORTH IT band: 6.0 ≤ score < 7.5 with ≤ 6 errors.
-            // Below 6.0 the draft is too broken for a second candidate to improve;
-            // above 7.5 it already meets honest-quality threshold.
+            // Second candidate WORTH IT band: weak-but-readable drafts with a real
+            // chance to beat the first attempt. This is cheaper than pushing a
+            // known failing candidate into images/TTS, but avoids endless retries.
             const firstCandidateRetryWorthIt =
-              candidateCritic.overallScore >= 6.0
-              && candidateCritic.overallScore < HONEST_FALLBACK_FLOOR
-              && candidateErrors <= 6;
+              candidateCritic.overallScore >= 5.8
+              && candidateCritic.overallScore < Math.max(HONEST_FALLBACK_FLOOR, criticMinScore)
+              && candidateErrors <= 10;
             if (!firstCandidateRetryWorthIt) {
               break;
             }
@@ -1281,6 +1284,38 @@ export class StoryPipelineOrchestrator {
             repaired: true,
             remainingIssues: qualityReport?.issues?.map((i: any) => i.code),
           });
+
+          if (releaseEnabled && criticReport && !isCriticSkipped(criticReport)) {
+            const repairedCritic = await runSemanticCritic({
+              storyId: normalized.storyId,
+              draft: storyDraft,
+              directives,
+              cast: castSet,
+              blueprint: blueprintV8,
+              language: normalized.language,
+              ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+              humorLevel,
+              model: criticModel,
+              targetMinScore: criticMinScore,
+              warnFloor: criticWarnFloor,
+            });
+            await logPass3Phase({
+              storyId: normalized.storyId,
+              suffix: "post-local-repair",
+              criticReport: repairedCritic,
+            });
+            tokenUsage = mergeTokenUsage(tokenUsage, repairedCritic.usage);
+            if (repairedCritic.usage) {
+              const criticCost = buildLlmCostEntry({
+                phase: "phase6-story",
+                step: "critic-post-local-repair",
+                usage: repairedCritic.usage,
+                fallbackModel: criticModel,
+              });
+              if (criticCost) costEntries.push(criticCost);
+            }
+            criticReport = repairedCritic;
+          }
         }
       }
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];

@@ -1228,6 +1228,12 @@ export const generate = api<GenerateStoryRequest, Story>(
       if (error instanceof APIError) {
         throw error;
       }
+      if (errorMessage.startsWith("Story quality gates failed:")) {
+        const failedCodes = errorMessage.replace("Story quality gates failed:", "").trim();
+        throw APIError.failedPrecondition(
+          `Die Geschichte wurde nicht veroeffentlicht, weil die Qualitaetspruefung fehlgeschlagen ist. Bitte erneut generieren. Codes: ${failedCodes}`
+        );
+      }
       throw APIError.internal(`Story generation failed (storyId=${id}): ${errorMessage}`);
     }
   }
