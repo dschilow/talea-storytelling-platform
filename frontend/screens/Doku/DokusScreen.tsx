@@ -20,6 +20,8 @@ import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackContr
 import type { Doku } from '../../types/doku';
 import type { AudioDoku } from '../../types/audio-doku';
 
+const AUDIO_DOKU_LIST_PAGE_SIZE = 100;
+
 const DokusScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -86,13 +88,27 @@ const DokusScreen: React.FC = () => {
   const loadAudioDokus = async () => {
     try {
       setLoadingAudioDokus(true);
-      const response = await backend.doku.listAudioDokus({
-        limit: 12,
-        offset: 0,
-        profileId: activeProfileId || undefined,
-      });
-      setAudioDokus(response.audioDokus as any[]);
-      setTotalAudio(response.total);
+
+      const allAudioDokus: AudioDoku[] = [];
+      let offset = 0;
+      let total = 0;
+
+      while (true) {
+        const response = await backend.doku.listAudioDokus({
+          limit: AUDIO_DOKU_LIST_PAGE_SIZE,
+          offset,
+          profileId: activeProfileId || undefined,
+        });
+        const page = (response.audioDokus || []) as any[];
+        allAudioDokus.push(...page);
+        total = response.total ?? allAudioDokus.length;
+
+        if (!response.hasMore || page.length === 0) break;
+        offset += page.length;
+      }
+
+      setAudioDokus(allAudioDokus);
+      setTotalAudio(total);
     } catch (error) {
       console.error('Error loading audio dokus:', error);
     } finally {

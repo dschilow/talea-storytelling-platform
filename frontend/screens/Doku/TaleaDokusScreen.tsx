@@ -68,6 +68,7 @@ const bodyFont = taleaBodyFont;
 type DokuTab = 'mine' | 'discover' | 'audio';
 type DokuSortMode = 'newest' | 'oldest' | 'title';
 type AudioScope = 'all' | 'mine' | 'public';
+const AUDIO_DOKU_LIST_PAGE_SIZE = 100;
 
 function normalizeFilterValue(value: unknown): string {
   if (typeof value !== 'string') {
@@ -566,13 +567,27 @@ const TaleaDokusScreen: React.FC = () => {
     try {
       setLoadingAudio(true);
       setAudioAccessMessage(null);
-      const res = await backend.doku.listAudioDokus({
-        limit: 12,
-        offset: 0,
-        profileId: activeProfileId || undefined,
-      });
-      setAudioDokus(res.audioDokus as any[]);
-      setTotalAudio(res.total);
+
+      const allAudioDokus: AudioDoku[] = [];
+      let offset = 0;
+      let total = 0;
+
+      while (true) {
+        const res = await backend.doku.listAudioDokus({
+          limit: AUDIO_DOKU_LIST_PAGE_SIZE,
+          offset,
+          profileId: activeProfileId || undefined,
+        });
+        const page = (res.audioDokus || []) as any[];
+        allAudioDokus.push(...page);
+        total = res.total ?? allAudioDokus.length;
+
+        if (!res.hasMore || page.length === 0) break;
+        offset += page.length;
+      }
+
+      setAudioDokus(allAudioDokus);
+      setTotalAudio(total);
     } catch (error) {
       console.error(error);
       setAudioDokus([]);
