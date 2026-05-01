@@ -1521,6 +1521,17 @@ export function buildV8StoryPrompt(input: {
   const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
   const soulBlock = buildSoulPromptBlock(input.storySoul, isGerman);
   const readerContractBlock = buildReaderContractBlock(input.blueprint, input.storySoul, isGerman);
+  const artifactName = input.cast.artifact?.name?.trim();
+  const artifactContractBlock = artifactName
+    ? `
+ARTIFACT CONTRACT (MANDATORY)
+- The story title, Chapter 1 contract, discovery beat, success beat, and ending payoff must all use: "${artifactName}".
+- Name "${artifactName}" by Chapter 1 paragraph 2 and explain exactly one child-readable rule.
+- Chapter 2 must show the artifact being found, touched, or chosen on page.
+- Chapter 4 or 5 must show the artifact revealing/confirming truth; the child still solves the human problem by choice.
+- Do not replace "${artifactName}" with a generic clue, note, bottle, stone, circle, map, or "piece".
+`
+    : "";
 
   let memoryLine = "";
   if (input.avatarMemories && input.avatarMemories.size > 0) {
@@ -1610,6 +1621,7 @@ ${(iconicMotif.per_chapter_position || [])
   return `Use the following internal blueprint to write the final children's story.
 ${soulBlock ? `\n${soulBlock}\n` : ""}
 ${readerContractBlock ? `\n${readerContractBlock}\n` : ""}
+${artifactContractBlock}
 WORD BUDGET
 - ${input.chapterCount} chapters
 - Total: ${input.totalWordMin}-${input.totalWordMax} words
@@ -2799,6 +2811,7 @@ export function buildChapterExpansionPrompt(input: {
   } = input;
   const isGerman = language === "de";
   const artifactName = cast.artifact?.name?.trim();
+  const artifactRequiredByDirective = Boolean(artifactName && isActiveArtifactUsage(chapter.artifactUsage));
   const artifactAlreadyPresent = hasArtifactReference([originalText, previousContext], artifactName);
 
   const characterNames = chapter.charactersOnStage
@@ -2832,8 +2845,8 @@ Expand the chapter without changing the plot. Add concrete dialogue + action bea
 - Goal: ${sanitizeDirectiveNarrativeText(chapter.goal)}
 - Foreground: ${chapterFocusNames.join(", ") || allowedNames} | All allowed: ${allowedNames}
 ${supportNames.length > 0 ? `- Support: ${supportNames.join(", ")} (brief reaction only)` : ""}
-${artifactName && chapter.artifactUsage && artifactAlreadyPresent ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)})` : ""}
-${artifactName && !artifactAlreadyPresent ? `- Artifact: ${artifactName} NOT on stage. Do not introduce.` : ""}
+${artifactName && artifactRequiredByDirective ? `- Artifact: ${artifactName} (${sanitizeDirectiveNarrativeText(chapter.artifactUsage)}). ${artifactAlreadyPresent ? "Keep it on stage." : "Introduce it naturally because this scene directive requires it."}` : ""}
+${artifactName && !artifactRequiredByDirective && !artifactAlreadyPresent ? `- Artifact: ${artifactName} NOT on stage. Do not introduce.` : ""}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}, Age: ${ageRange.min}-${ageRange.max}
 ${missingLine}
 
@@ -2849,7 +2862,7 @@ ${missingLine}
 7. Max 1 comparison per paragraph. Running gag max 2x.
 8. ${isGerman ? "Korrekte deutsche Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
 9. Double quotes "..." for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
-10. Never introduce artifact if not already in original text.
+10. Introduce or name the artifact only when the SCENE line above requires it; otherwise never introduce it.
 
 ${contextLines ? `# CONTEXT\n${contextLines}\n` : ""}
 # ORIGINAL
@@ -3034,6 +3047,10 @@ export function buildStoryChapterRevisionPrompt(input: {
   const isGerman = language === "de";
   const lengthTargets = overrideTargets ?? resolveLengthTargets({ lengthHint, ageRange, pacing });
   const artifactName = cast.artifact?.name?.trim();
+  const needsArtifactRepair = Boolean(artifactName && issues.some(issue => (
+    /artifact|artefakt|MISSING_DISCOVERY|MISSING_SUCCESS|ARTIFACT_UNDER/i.test(issue)
+  )));
+  const activeArtifactUsage = isActiveArtifactUsage(chapter.artifactUsage);
   const artifactAlreadyPresent = hasArtifactReference([originalText, previousContext], artifactName);
   const characterNames = chapter.charactersOnStage
     .map(slot => findCharacterBySlot(cast, slot)?.displayName)
@@ -3055,6 +3072,7 @@ Target quality: published children's fiction with clear scene work, distinct voi
 CRITICAL PLOT PRESERVATION:
 - Keep the SAME events, characters, dialogue, and ending as the original.
 - You may ADD lines, REPHRASE sentences, or REMOVE weak phrases.
+- If ISSUES TO FIX asks for artifact repair/discovery/payoff, you may ADD the missing artifact beat locally while preserving the scene outcome.
 - You must NOT replace the plot, invent new scenes, or change what happens.
 - The revised chapter must be recognizably the same story as the original.
 - Keep roughly the SAME chapter length. Do not compress the scene or remove whole beats.
@@ -3071,11 +3089,13 @@ SCENE DIRECTIVE (for context only — do NOT rewrite the chapter to match this):
 - Available characters: ${allowedNames || "none"}
 - Foreground characters: ${chapterFocusNames.join(", ") || allowedNames || "none"}
 ${supportNames.length > 0 ? `- Support characters: ${supportNames.join(", ")} (brief reaction only if needed)` : ""}
-${artifactName && chapter.artifactUsage && artifactAlreadyPresent
-  ? `- Artifact: ${sanitizeDirectiveNarrativeText(chapter.artifactUsage)} (Name: ${artifactName} may be named because it is already on stage)`
-  : artifactName
-    ? `- Artifact status: ${artifactName} is not on stage yet. Do not introduce or name it in this revision.`
-    : "- Artifact: none"}
+${artifactName && (activeArtifactUsage || needsArtifactRepair)
+  ? `- Artifact repair: ${artifactName} must be named and staged naturally in this chapter. ${activeArtifactUsage ? sanitizeDirectiveNarrativeText(chapter.artifactUsage) : "Use it only as a visible story object, not as a magic solution."}`
+  : artifactName && artifactAlreadyPresent
+    ? `- Artifact: ${artifactName} is already on stage. Keep continuity.`
+    : artifactName
+      ? `- Artifact status: ${artifactName} is not on stage yet. Do not introduce or name it unless an issue explicitly asks for artifact repair.`
+      : "- Artifact: none"}
 - Tone: ${tone ?? dna.toneBounds?.targetTone ?? "warm"}
 ${continuityContext ? `\nCONTINUITY CONTEXT:\n${continuityContext}` : ""}
 ${stylePackText ? `\n${stylePackText}\n` : ""}
@@ -3090,7 +3110,7 @@ RULES:
 5) ${isGerman ? "Korrekte Umlaute. Keine ae/oe/ue. Keine englischen Woerter." : ""}
 6) Double quotes for dialogue. No possessive name+noun ("Adrians Magen" → "sein Magen").
 7) Running gag max 2x. Max 1 comparison per paragraph.
-8) Never introduce artifact if not in original text.
+8) Never introduce artifact if not in original text, unless ISSUES TO FIX explicitly asks for artifact repair/discovery/payoff.
 
 PROMPT LEAK PREVENTION:
 You are strictly forbidden from copying the exact phrasing of the Goal, Conflict, or Setting into the story text.
@@ -3137,6 +3157,13 @@ function hasArtifactReference(texts: Array<string | undefined>, artifactName?: s
     }
     return false;
   });
+}
+
+function isActiveArtifactUsage(value?: string): boolean {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return false;
+  return !/\b(none|not used|no artifact)\b/.test(text)
+    && !/\b(nicht|kein|keine|ohne)\b/.test(text);
 }
 
 function normalizeArtifactToken(value?: string): string {

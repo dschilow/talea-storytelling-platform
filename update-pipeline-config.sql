@@ -13,7 +13,7 @@ SET value = value || '{
     "releaseCandidateCount": 1,
     "criticModel": "gpt-5.4-nano",
     "criticMinScore": 8.6,
-    "maxSelectiveSurgeryEdits": 1,
+    "maxSelectiveSurgeryEdits": 2,
     "blueprintRetryMax": 0,
     "pass3TargetScore": 8.6,
     "pass3WarnFloor": 7.2,

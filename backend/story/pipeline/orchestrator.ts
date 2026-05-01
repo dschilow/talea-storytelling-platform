@@ -31,7 +31,7 @@ import { buildSupplementalScenicNegatives, buildSupplementalScenicPrompt } from 
 // import { cleanupCollages } from "./sprite-collage"; // TEMPORARILY DISABLED for testing
 import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
-import { runSemanticCritic, type SemanticCriticReport } from "./semantic-critic";
+import { runSemanticCritic, type SemanticCriticPatchTask, type SemanticCriticReport } from "./semantic-critic";
 import { applySelectiveSurgery } from "./release-polisher";
 import { applySentenceTightening, pickChaptersNeedingTightening } from "./sentence-tightening-pass";
 import { computeWordBudget } from "./word-budget";
@@ -596,14 +596,18 @@ export class StoryPipelineOrchestrator {
       const criticWarnFloor = clampNumber(Number(pipelineConfig.pass3WarnFloor ?? 6.5), 5, criticMinScore);
       // Selective surgery is chapter-local and much cheaper than full rewrites.
       // Use the configured default unless the request overrides it.
-      const explicitSurgeryEdits = Number((normalized.rawConfig as any)?.maxSelectiveSurgeryEdits);
+      const rawSurgeryEdits = (normalized.rawConfig as any)?.maxSelectiveSurgeryEdits;
+      const explicitSurgeryEdits = Number(rawSurgeryEdits);
+      const hasExplicitSurgeryOverride = rawSurgeryEdits !== undefined && rawSurgeryEdits !== null && rawSurgeryEdits !== "";
       const configuredSurgeryEdits = Number(pipelineConfig.maxSelectiveSurgeryEdits ?? 2);
       const implicitSurgeryEdits = Number.isFinite(configuredSurgeryEdits)
         ? Math.max(0, Math.min(5, Math.round(configuredSurgeryEdits)))
         : 2;
-      const configDisablesSurgery = Number.isFinite(configuredSurgeryEdits) && configuredSurgeryEdits <= 0;
-      const implicitSurgeryFloor = configDisablesSurgery ? 0 : qualityFirstV8Lane ? 2 : 1;
-      const maxSelectiveSurgeryEdits = Number.isFinite(explicitSurgeryEdits)
+      // Old Railway configs can still contain maxSelectiveSurgeryEdits=0. Treat
+      // that as stale config, not a production kill-switch; only an explicit
+      // request override may disable surgery.
+      const implicitSurgeryFloor = qualityFirstV8Lane ? 2 : 1;
+      const maxSelectiveSurgeryEdits = hasExplicitSurgeryOverride && Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : Math.max(implicitSurgeryFloor, implicitSurgeryEdits);
       const surgeryEnabled = releaseEnabled && maxSelectiveSurgeryEdits > 0;
@@ -955,24 +959,38 @@ export class StoryPipelineOrchestrator {
           let surgeryApplied = false;
           let editedChapters: number[] = [];
           const qualityErrors = Number(candidateQuality?.errorCount ?? 0);
-          const hasLocalPatchTask = candidateCritic.patchTasks.some(task => task.chapter > 0);
+          const qualityPatchTasks = derivePatchTasksFromQualityGates({
+            quality: candidateQuality,
+            cast: castSet,
+            directives,
+            blueprint: blueprintV8,
+            storySoul,
+            chapterCount: normalized.chapterCount,
+          });
+          const patchTasks = mergePatchTasks(candidateCritic.patchTasks, qualityPatchTasks);
+          const hasLocalPatchTask = patchTasks.some(task => task.chapter > 0);
           const surgeryEligibleVerdict = candidateCritic.verdict === "publish" || candidateCritic.verdict === "acceptable";
           const preciseLocalRescue =
             hasLocalPatchTask
-            && candidateCritic.patchTasks.length <= 3
-            && candidateCritic.patchTasks.every(task => task.chapter > 0 && task.priority <= 2);
+            && patchTasks.length <= 3
+            && patchTasks.every(task => task.chapter > 0 && task.priority <= 2);
+          const criticalLocalRepair = qualityPatchTasks.some(task => task.priority === 1);
           // Cheap rescue mode: allow surgery for clearly salvageable near-release drafts,
           // especially when the critic sees a publishable core or gives a small set of precise local fixes.
           const nearReleaseBand =
             surgeryEligibleVerdict
             || preciseLocalRescue
+            || criticalLocalRepair
             || candidateCritic.overallScore >= Math.max(6.0, criticWarnFloor - 0.5);
           const rescueableQualityBand =
             qualityErrors <= 6
             || preciseLocalRescue
+            || criticalLocalRepair
             || candidateCritic.overallScore >= Math.max(6.3, criticWarnFloor - 0.2);
           const candidateSurgeryEdits =
-            activePromptVersion === "v8" && (surgeryEligibleVerdict || preciseLocalRescue) && hasLocalPatchTask
+            criticalLocalRepair
+              ? Math.max(maxSelectiveSurgeryEdits, 3)
+              : activePromptVersion === "v8" && (surgeryEligibleVerdict || preciseLocalRescue) && hasLocalPatchTask
               ? Math.max(maxSelectiveSurgeryEdits, 2)
               : candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
               ? Math.max(maxSelectiveSurgeryEdits, 2)
@@ -1007,7 +1025,7 @@ export class StoryPipelineOrchestrator {
             // Fallback: if rubric is low but no specific chapter issues, rewrite
             // all chapters that currently have local patch tasks.
             if (hardRewriteChapters.size === 0) {
-              for (const task of candidateCritic.patchTasks) {
+              for (const task of patchTasks) {
                 if (task.chapter > 0) hardRewriteChapters.add(task.chapter);
               }
             }
@@ -1015,7 +1033,7 @@ export class StoryPipelineOrchestrator {
 
           if (
             surgeryEnabled
-            && (candidateCritic.patchTasks.length > 0 || hardRewriteChapters.size > 0)
+            && (patchTasks.length > 0 || hardRewriteChapters.size > 0)
             && (hasLocalPatchTask || hardRewriteChapters.size > 0)
             && nearReleaseBand
             && rescueableQualityBand
@@ -1029,7 +1047,7 @@ export class StoryPipelineOrchestrator {
               dna: blueprint.dna,
               directives,
               draft: candidateDraft,
-              patchTasks: candidateCritic.patchTasks,
+              patchTasks,
               stylePackText,
               maxEdits: Math.max(candidateSurgeryEdits, hardRewriteChapters.size),
               model: resolveSurgeryModelForPipeline(normalized.rawConfig?.aiModel),
@@ -2118,6 +2136,189 @@ function buildSkippedCriticReport(model: string): SemanticCriticReport {
     strengths: [],
     revisionHints: [],
   };
+}
+
+function mergePatchTasks(
+  criticTasks: SemanticCriticPatchTask[],
+  qualityTasks: SemanticCriticPatchTask[],
+): SemanticCriticPatchTask[] {
+  const seen = new Set<string>();
+  const merged: SemanticCriticPatchTask[] = [];
+  for (const task of [...qualityTasks, ...criticTasks]) {
+    if (!task || task.chapter <= 0) continue;
+    const key = `${task.chapter}:${task.objective.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(task);
+  }
+  return merged
+    .sort((a, b) => a.priority - b.priority || a.chapter - b.chapter)
+    .slice(0, 5);
+}
+
+function derivePatchTasksFromQualityGates(input: {
+  quality: any;
+  cast: CastSet;
+  directives: SceneDirective[];
+  blueprint?: StoryBlueprintV8;
+  storySoul?: StorySoul;
+  chapterCount: number;
+}): SemanticCriticPatchTask[] {
+  const issues = Array.isArray(input.quality?.issues) ? input.quality.issues : [];
+  const failedGates = new Set((Array.isArray(input.quality?.failedGates) ? input.quality.failedGates : []).map(String));
+  const tasks: SemanticCriticPatchTask[] = [];
+  const artifactName = input.cast.artifact?.name?.trim() || "the artifact";
+  const artifactRule = input.cast.artifact?.storyUseRule?.trim()
+    || input.storySoul?.readerContract?.magicOrArtifactRule
+    || "it points at the truth but never solves the choice for the children";
+  const finalChapter = Math.max(1, input.chapterCount || input.directives.length || 5);
+  const antagonistName = String((input.blueprint as any)?.antagonist_dna?.name || findAntagonistName(input.cast) || "").trim();
+
+  const addTask = (
+    chapter: number,
+    priority: 1 | 2 | 3,
+    objective: string,
+    instruction: string,
+  ) => {
+    const normalizedChapter = Math.max(1, Math.min(finalChapter, Math.round(Number(chapter) || 1)));
+    tasks.push({
+      chapter: normalizedChapter,
+      priority,
+      objective,
+      instruction,
+    });
+  };
+
+  const addArtifactArcTasks = () => {
+    addTask(
+      1,
+      1,
+      "Put artifact rule into Chapter 1",
+      `Name ${artifactName} by paragraph 2, explain one child-readable rule (${artifactRule}), and tie it to the visible mission.`,
+    );
+    addTask(
+      findArtifactChapter(input.directives, "discovery") || 2,
+      1,
+      "Stage artifact discovery",
+      `Show ${artifactName} being discovered or chosen on page. Let a child touch/use it once; no clue-only summary.`,
+    );
+    addTask(
+      findArtifactChapter(input.directives, "success") || Math.min(4, finalChapter),
+      1,
+      "Stage artifact payoff",
+      `Use ${artifactName} in the scene to reveal/confirm truth, but the child must make the brave decision.`,
+    );
+  };
+
+  for (const issue of issues) {
+    const code = String(issue?.code || "").toUpperCase();
+    const gate = String(issue?.gate || "").toUpperCase();
+    const chapter = Number(issue?.chapter || 0);
+    const severity = issue?.severity === "ERROR" ? "ERROR" : "WARNING";
+
+    if (
+      code === "ARTIFACT_UNDERUSED"
+      || code === "ARTIFACT_UNDERMENTIONED"
+      || code === "MISSING_DISCOVERY"
+      || code === "MISSING_SUCCESS"
+    ) {
+      addArtifactArcTasks();
+      continue;
+    }
+
+    if (chapter > 0 && (gate === "DIALOGUE_QUOTE" || code.includes("DIALOGUE_RATIO"))) {
+      addTask(
+        chapter,
+        severity === "ERROR" ? 1 : 2,
+        "Add purposeful dialogue",
+        "Add 2-3 short dialogue lines with friction, warmth, or humor. Each line must reveal character, not explain plot.",
+      );
+      continue;
+    }
+
+    if (chapter > 0 && code === "VOICE_MARKERS_TOO_FEW") {
+      addTask(
+        chapter,
+        2,
+        "Sharpen character voice",
+        "Give the named child one recognizable body tell, one favorite-word rhythm, and one distinct short line.",
+      );
+      continue;
+    }
+
+    if (chapter === 1 && (code.startsWith("CH1_") || gate === "READER_CONTRACT")) {
+      addTask(
+        1,
+        1,
+        "Fix Chapter 1 orientation",
+        "Open with who, where, mission, why now, and one concrete consequence before clues, chase, or abstract stakes.",
+      );
+      continue;
+    }
+
+    if (
+      code === "ENDING_PATTERN_NOT_REALIZED"
+      || code === "ENDING_PAYOFF_ABSTRACT"
+      || code === "ENDING_WARMTH_MISSING"
+      || code === "GOAL_THREAD_WEAK_ENDING"
+    ) {
+      addTask(
+        finalChapter,
+        1,
+        "Make ending concrete",
+        "End with a visible changed action, a small price paid, a Chapter 1 callback, and a warm final image.",
+      );
+      continue;
+    }
+
+    if (code === "ANTAGONIST_TOO_FEW_APPEARANCES" || code === "ANTAGONIST_NO_SHOWDOWN") {
+      addTask(
+        Math.max(1, finalChapter - 1),
+        1,
+        "Put antagonist on stage",
+        antagonistName
+          ? `Put ${antagonistName} or its visible damage on stage and force a child choice; avoid mere mention.`
+          : "Put the opposing force or its visible damage on stage and force a child choice; avoid mere mention.",
+      );
+    }
+  }
+
+  if (failedGates.has("DIALOGUE_QUOTE") && !tasks.some(task => task.objective === "Add purposeful dialogue")) {
+    addTask(2, 2, "Add purposeful dialogue", "Add 2-3 short dialogue lines with friction, warmth, or humor.");
+  }
+
+  const seen = new Set<string>();
+  return tasks
+    .filter(task => task.chapter > 0)
+    .sort((a, b) => a.priority - b.priority || a.chapter - b.chapter)
+    .filter(task => {
+      const key = `${task.chapter}:${task.objective}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 5);
+}
+
+function findArtifactChapter(directives: SceneDirective[], kind: "discovery" | "success"): number | undefined {
+  const pattern = kind === "discovery"
+    ? /\b(discover|find|found|first|entdeck|erst|bekomm|erhalt)\b/i
+    : /\b(use|uses|success|solve|reveal|setz|nutz|benutz|loes|lös|rett|bring)\b/i;
+  const match = directives.find(directive => pattern.test(String(directive.artifactUsage || "")));
+  return match?.chapter;
+}
+
+function findAntagonistName(cast: CastSet): string {
+  const antagonist = cast.poolCharacters.find(character => {
+    const values = [
+      character.roleType,
+      character.role,
+      character.archetype,
+      character.species,
+    ].map(value => String(value || "").toLowerCase());
+    return values.some(value => value.includes("antagonist") || value.includes("villain") || value.includes("boes") || value.includes("böse"));
+  });
+  return antagonist?.displayName || "";
 }
 
 function scoreReleaseCandidate(quality: any, critic: SemanticCriticReport | undefined, releaseEnabled: boolean): number {

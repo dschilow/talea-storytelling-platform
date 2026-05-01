@@ -666,7 +666,8 @@ function buildDeterministicV8Blueprint(input: {
   const activeFallback = [lead, companion].filter(Boolean).slice(0, 2);
   const midpointWords = Math.round((input.wordsPerChapter.min + input.wordsPerChapter.max) / 2);
   const chapterArcs = ["SETUP", "DISCOVERY", "TURNING_POINT", "DARKEST_MOMENT", "LANDING"] as const;
-  const engine = buildConcreteFallbackEngine({ directives: input.directives, companion });
+  const artifactName = input.cast.artifact?.name || "das besondere Fundstueck";
+  const engine = buildConcreteFallbackEngine({ directives: input.directives, companion, artifactName });
 
   const chapters = input.directives.slice(0, 5).map((directive, index) => {
     const activeCharacters = getCoreChapterCharacterNames({
@@ -703,7 +704,7 @@ function buildDeterministicV8Blueprint(input: {
   });
 
   return {
-    title: input.cast.artifact?.name ? `Das Geheimnis von ${input.cast.artifact.name}` : "Die falsche Spur",
+    title: input.cast.artifact?.name ? `Das Geheimnis: ${input.cast.artifact.name}` : "Die falsche Spur",
     teaser: "Warum fuehrt die erste Spur genau dorthin, wo sie nicht hinwollen?",
     setting_type: "fantasy_familiar",
     narrative_perspective: "personal_third",
@@ -795,6 +796,7 @@ function resolveBlueprintMaxTokens(model?: string): number {
 function buildConcreteFallbackEngine(input: {
   directives: SceneDirective[];
   companion: string;
+  artifactName?: string;
 }): {
   secret: string;
   falseLead: string;
@@ -810,9 +812,10 @@ function buildConcreteFallbackEngine(input: {
     .join(" ")
     .toLowerCase();
 
-  const priceItem = /\bkarte|map\b/.test(combinedSeed)
-    ? "ein Kartenstueck"
-    : "ein Eckchen des Hinweiszettels";
+  const priceItem = input.artifactName?.trim()
+    || (/\bkarte|map\b/.test(combinedSeed)
+      ? "ein Kartenstueck"
+      : "ein Eckchen des Hinweiszettels");
   const falseLead = combinedSeed.includes("spur")
     ? "zwei fast gleiche Spuren: die falsche glitzert trocken und sauber, die echte ist krumm und halb mit Moos verschmiert"
     : "zwei fast gleiche Zeichen: das falsche ist zu ordentlich, das echte hat einen kleinen schiefen Knick";

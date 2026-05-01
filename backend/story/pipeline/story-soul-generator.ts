@@ -22,6 +22,7 @@ import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import {
   GEMINI_MAIN_STORY_MODEL,
+  GEMINI_SUPPORT_MODEL,
   isMiniMaxFamilyModel,
   resolveSupportTaskModel,
 } from "./model-routing";
@@ -172,12 +173,10 @@ export async function generateValidatedStorySoul(
   }
 
   // Rescue: ein anderer starker Model-Pfad (Cross-Provider Fallback)
-  const rescueModel = maxRetries > 0
-    ? resolveSoulRescueModel(
-      normalizedRequest.rawConfig?.aiModel,
-      soulModel,
-    )
-    : undefined;
+  const rescueModel = resolveSoulRescueModel(
+    normalizedRequest.rawConfig?.aiModel,
+    soulModel,
+  );
   if (rescueModel) {
     const rescueAttempt = Math.max(1, totalAttempts + 1);
     attemptsMade = rescueAttempt;
@@ -401,10 +400,6 @@ function buildStorySoulUserPrompt(args: {
     })
     .join("\n");
 
-  const artifactLine = cast.artifact?.name
-    ? `Artefakt: ${cast.artifact.name}${cast.artifact.storyUseRule ? ` – ${cast.artifact.storyUseRule}` : ""}`
-    : "";
-
   const dnaBlock = args.dna
     ? buildDnaBlock(args.dna)
     : "";
@@ -420,6 +415,11 @@ function buildStorySoulUserPrompt(args: {
     : "";
 
   const isGerman = lang.startsWith("de");
+  const artifactLine = cast.artifact?.name
+    ? (isGerman
+      ? `Artefakt (MUSS zentral in Mission, Regel, Payoff vorkommen): ${cast.artifact.name}${cast.artifact.storyUseRule ? ` - ${cast.artifact.storyUseRule}` : ""}`
+      : `Artifact (MUST be central to mission, rule, payoff): ${cast.artifact.name}${cast.artifact.storyUseRule ? ` - ${cast.artifact.storyUseRule}` : ""}`)
+    : "";
   const heading = isGerman
     ? [
         "AUFGABE: Schreibe die StorySoul für genau diese Geschichte.",
@@ -691,6 +691,10 @@ function resolveSoulPrimaryModel(
     return supportModel || "gpt-5.4-mini";
   }
 
+  if (normalizedSelected.startsWith("gpt-") || normalizedSelected.startsWith("o4-")) {
+    return GEMINI_SUPPORT_MODEL;
+  }
+
   // gpt-5.4-nano ist zu schwach für Soul → auf mini hochziehen
   if (normalizedSupport.startsWith("gpt-5.4-nano")) {
     return "gpt-5.4-mini";
@@ -709,6 +713,9 @@ function resolveSoulRescueModel(
     return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
   }
   if (selected.startsWith("gpt-") || selected.startsWith("o4-")) {
+    if (current.startsWith("gemini-")) {
+      return selected.includes("nano") ? "gpt-5.4-mini" : (selected || "gpt-5.4-mini");
+    }
     return current === GEMINI_MAIN_STORY_MODEL ? undefined : GEMINI_MAIN_STORY_MODEL;
   }
   return current === GEMINI_MAIN_STORY_MODEL ? undefined : GEMINI_MAIN_STORY_MODEL;
@@ -743,6 +750,12 @@ function buildDeterministicSoulFallback(input: {
   const lead = childNames[0] || cast.avatars[0]?.displayName || "das Kind";
   const companion =
     childNames.find((n) => n !== lead) || cast.avatars[1]?.displayName || lead;
+  const artifactName = cast.artifact?.name?.trim() || "das besondere Fundstueck";
+  const artifactObject = formatArtifactForGermanObject(artifactName);
+  const artifactRule = cast.artifact?.storyUseRule?.trim()
+    || `${artifactName} zeigt nur, was wahr oder falsch liegt; entscheiden muessen die Kinder selbst`;
+  const antagonist = findFallbackAntagonist(cast);
+  const antagonistName = antagonist?.displayName || "";
 
   const fingerprints: StorySoulCharacterFingerprint[] = cast.avatars
     .slice(0, 4)
@@ -815,17 +828,17 @@ function buildDeterministicSoulFallback(input: {
   }));
 
   return {
-    premise: `${lead} und ${companion} müssen vor Sonnenuntergang etwas Verlorenes zurückbringen, bevor ein geliebter Mensch enttäuscht wird – ohne dass er es je merkt.`,
-    hookQuestion: `Trauen sich die beiden, ehrlich zu sein, auch wenn sie zugeben müssen, dass etwas ihre Schuld war?`,
+    premise: `${lead} und ${companion} muessen ${artifactObject} vor Sonnenuntergang so benutzen, dass eine falsche Beschuldigung sichtbar wird, bevor am Abend jemand allein am Tisch sitzt.`,
+    hookQuestion: `Trauen sich die beiden, die Wahrheit zu zeigen, obwohl dann auch ihr eigener Fehler sichtbar wird?`,
     emotionalStakes: {
-      what: "ein kleines Ritual in der Familie, das nur dann funktioniert, wenn alle ihre Rolle spielen",
-      why: "weil das Ritual bedeutet, dass jemand wichtig ist – und wenn es ausfällt, fühlt sich dieser Mensch unsichtbar",
-      whoCares: `${lead}, weil ${lead} gesehen werden will. ${companion}, weil ${companion} den Fehler gemacht hat.`,
+      what: `${artifactName} liegt am falschen Platz und zeigt deshalb auf die falsche Person`,
+      why: "weil ein Kind unfair beschuldigt wuerde und am Abend niemand mehr weiss, wem man glauben kann",
+      whoCares: `${lead}, weil ${lead} ernst genommen werden will. ${companion}, weil ${companion} den Mut zum Zugeben ueben muss.`,
     },
     worldTexture: {
       anchors: [
         "der kleine Hof mit dem Kiesweg, der unter jeder Sohle knirscht",
-        "ein Zettel mit schiefer Schrift, der in der Hosentasche knistert",
+        `${artifactName} mit einer kleinen Schramme am Rand`,
         "der Weg hinter dem Haus, wo es immer etwas feuchter ist als vorne",
       ],
       senseDetails:
@@ -833,12 +846,12 @@ function buildDeterministicSoulFallback(input: {
       placeName: "Der Hof hinter dem Haus",
     },
     readerContract: {
-      normalWorld: `${lead} und ${companion} sind im Hof hinter dem Haus, bevor jemand merkt, dass fuer das Abendritual ein sichtbares Stueck fehlt.`,
+      normalWorld: `${lead} und ${companion} sind im Hof hinter dem Haus, bevor jemand merkt, dass ${artifactName} am falschen Platz liegt.`,
       whoWeMeetFirst: `${lead} prueft erst jedes Detail; ${companion} will schneller handeln und redet sich dabei fast selbst Mut zu.`,
-      missionInChildWords: `${lead} und ${companion} muessen das fehlende Stueck vor Sonnenuntergang zurueckbringen, damit der leere Platz am Tisch nicht leer bleibt.`,
-      whyItMattersNow: `Sonst merkt ein geliebter Mensch heute Abend, dass sein kleines Ritual vergessen wurde.`,
-      magicOrArtifactRule: "Das besondere Stueck zeigt nur, was falsch liegt; entscheiden und ehrlich sein muessen die Kinder selbst.",
-      chapter1Question: `Schaffen ${lead} und ${companion} es, das Stueck rechtzeitig zurueckzubringen, ohne wieder zu schummeln?`,
+      missionInChildWords: `${lead} und ${companion} muessen ${artifactObject} vor Sonnenuntergang an den richtigen Platz bringen und die falsche Beschuldigung stoppen.`,
+      whyItMattersNow: `Sonst wird heute Abend die falsche Person beschuldigt und niemand weiss mehr, wem er glauben soll.`,
+      magicOrArtifactRule: artifactRule,
+      chapter1Question: `Schaffen ${lead} und ${companion} es, ${artifactName} richtig zu benutzen, ohne die Wahrheit wegzuschieben?`,
     },
     characterFingerprints: fingerprints,
     supportingCast,
@@ -847,21 +860,23 @@ function buildDeterministicSoulFallback(input: {
         "warm, still stolz, mit einem Kloß im Hals – als hätten zwei Kinder zum ersten Mal ein echtes Geheimnis geteilt",
       transformationOfChild: `${lead} lernt, dass ${companion} nicht immer alles vermasselt, sondern manchmal genau das Richtige tut.`,
       finalImage:
-        `${lead} und ${companion} sitzen nebeneinander. ${lead} zieht einen kleinen Stein aus der Tasche und drückt ihn einen Moment in die Hand.`,
+        `${lead} und ${companion} sitzen nebeneinander. Zwischen ihnen liegt ${artifactName} ruhig am richtigen Platz.`,
       callbackFromChapter1:
-        "die leise Tür quietscht in Ch5 anders – jemand hat sie geölt, ohne ein Wort zu sagen.",
+        `${artifactName} zeigt am Ende nicht mehr auf Schuld, sondern auf die kleine ehrliche Tat aus Kapitel 1.`,
     },
     antagonism: {
-      type: "internal",
-      specific: `${lead} vertraut ${companion} nicht mehr ganz, seit letzte Woche etwas kaputtging und ${companion} nicht sofort die Wahrheit sagte.`,
-      resolvesHow: `${companion} entschuldigt sich in Kapitel 4 leise und ehrlich. ${lead} reicht ${companion} einen der gesammelten Steine.`,
+      type: antagonistName ? "external" : "internal",
+      specific: antagonistName
+        ? `${antagonistName} will ${artifactName} verstecken, weil das Artefakt zeigt, wer wirklich etwas verschoben hat.`
+        : `${lead} vertraut ${companion} nicht mehr ganz, weil ${artifactName} auf eine Wahrheit zeigt, die beide lieber verschweigen wuerden.`,
+      resolvesHow: `${companion} sagt in Kapitel 4 die Wahrheit in einem kurzen Satz. ${lead} nutzt ${artifactName} erst danach und nicht als Ausrede.`,
       appearsInChapters: Array.from(
         { length: Math.min(3, Math.max(2, req.chapterCount - 1)) },
         (_, i) => i + 2,
       ),
       threatRealizedOnce: {
         chapter: Math.min(3, req.chapterCount),
-        what: `Das Ritual fällt tatsächlich einmal kurz aus – jemand sitzt mit enttäuschtem Gesicht am leeren Platz, bevor ${lead} und ${companion} zurück sind.`,
+        what: `${artifactName} zeigt einmal sichtbar auf die falsche Person, und fuer einen Moment glaubt fast jeder daran.`,
       },
     },
     benchmarkBook: {
@@ -874,14 +889,39 @@ function buildDeterministicSoulFallback(input: {
     humorBeats,
     chapterEndings,
     iconicScenes: [
-      `${lead} hält ${companion} einen kleinen Stein hin – kein Wort – und ${companion} weiß genau, was das heißt.`,
+      `${lead} legt ${artifactName} zwischen sich und ${companion}; keiner redet, aber beide sehen dieselbe Wahrheit.`,
       `${companion} stolpert über etwas Weiches und landet lachend mit Mehl im Gesicht.`,
-      `${lead} und ${companion} stehen vor der quietschenden Tür und hören, dass sie zum ersten Mal anders klingt.`,
+      `${lead} und ${companion} bringen ${artifactName} an den richtigen Platz, und der Raum wird auf einmal still.`,
     ],
   };
 }
 
 // ────────────────────────── Helpers ──────────────────────────
+
+function formatArtifactForGermanObject(name: string): string {
+  const normalized = String(name || "").trim();
+  if (!normalized) return "das besondere Fundstueck";
+  const lower = normalized.toLowerCase();
+  if (lower.includes("schuhe") || lower.endsWith("schuhe")) return `die ${normalized}`;
+  if (lower.includes("krone")) return `die ${normalized}`;
+  if (lower.includes("kugel")) return `die ${normalized}`;
+  if (lower.includes("kristall") || lower.includes("spiegel") || lower.includes("schluessel") || lower.includes("schlüssel")) {
+    return `den ${normalized}`;
+  }
+  return `das Artefakt ${normalized}`;
+}
+
+function findFallbackAntagonist(cast: CastSet): { displayName: string } | undefined {
+  return cast.poolCharacters.find((character) => {
+    const values = [
+      character.roleType,
+      character.role,
+      character.archetype,
+      character.species,
+    ].map(value => String(value || "").toLowerCase());
+    return values.some(value => value.includes("antagonist") || value.includes("villain") || value.includes("boes") || value.includes("böse"));
+  });
+}
 
 function toSoulProviderError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
