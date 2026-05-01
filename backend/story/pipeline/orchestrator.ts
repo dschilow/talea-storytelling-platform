@@ -1239,6 +1239,9 @@ export class StoryPipelineOrchestrator {
       const strictQualityGates = typeof strictQualityGatesRaw === "boolean"
         ? strictQualityGatesRaw
         : ageMaxForStrict <= 8;
+      const strictReleaseGateModeRaw = (normalized.rawConfig as any)?.strictReleaseGateMode
+        ?? pipelineConfig.strictReleaseGateMode;
+      const strictReleaseGateMode = strictReleaseGateModeRaw === "block" ? "block" : "warn";
       if (
         qualityReport?.issues?.some((i: any) => (
           i.code === "MISSING_EXPLICIT_STAKES"
@@ -1320,9 +1323,8 @@ export class StoryPipelineOrchestrator {
       }
       const storyErrors = [...(qualityReport?.issues?.filter((i: any) => i.severity === "ERROR") ?? [])];
 
-      // Hard publish-floor: even with strictQualityGates=false, never release a draft
-      // the critic explicitly rejected or scored below the warn-floor (default 6.5).
-      // This prevents sub-6.5 stories from slipping through as they did previously.
+      // Critic floor: mark weak drafts clearly in validation metadata. The stable
+      // user-facing path still returns a generated story unless safety/content fails.
       const criticActive = releaseEnabled && criticReport && !isCriticSkipped(criticReport);
       const criticHardBlock = criticActive && (
         criticReport.verdict === "reject"
@@ -1379,9 +1381,8 @@ export class StoryPipelineOrchestrator {
         "META_NARRATION",
       ]);
 
-      // Strict release gates are publish blockers for ages <= 8. This is cheaper
-      // than generating images/TTS for a draft that already failed child-comprehension
-      // or release-score checks.
+      // Strict release gates are quality signals for ages <= 8. They must not make
+      // the user-facing generation path flaky; only safety/content failures abort.
       const strictReleaseCodes = new Set([
         "DUPLICATE_SENTENCE",
         "CRITIC_HARD_FLOOR",
@@ -1423,9 +1424,10 @@ export class StoryPipelineOrchestrator {
         // Sprint 5 (S5.2): iconic motif must thread through chapters
         "ICONIC_MOTIF_SPARSE",
       ]);
+      const releaseQualityBlocks = strictQualityGates && strictReleaseGateMode === "block";
       const blockingCodes = new Set([
         ...hardSafetyCodes,
-        ...(strictQualityGates ? strictReleaseCodes : []),
+        ...(releaseQualityBlocks ? strictReleaseCodes : []),
       ]);
       const blockingErrors = storyErrors.filter((i: any) => blockingCodes.has(i.code));
       const strictReleaseErrors = strictQualityGates
@@ -1441,12 +1443,27 @@ export class StoryPipelineOrchestrator {
       };
       phaseGates.push(storyGate);
       if (strictReleaseErrors.length > 0 && hasContent) {
-        await logPhase("phase6-story-strict-quality-blocked", { storyId: normalized.storyId }, {
-          strictQualityGates,
-          releaseCodes: strictReleaseErrors.map((issue: any) => issue.code),
-          blockingCodes: blockingErrors.map((issue: any) => issue.code),
-          reason: "generated_story_below_release_bar",
+        validationReport = buildValidationReportPayload({
+          phaseGates,
+          qualityReport,
+          imageIssues: [],
+          blueprintResult: blueprintResultV8,
+          criticReport,
         });
+        await saveValidationReport(normalized.storyId, validationReport);
+        await logPhase(
+          releaseQualityBlocks ? "phase6-story-strict-quality-blocked" : "phase6-story-strict-quality-warning",
+          { storyId: normalized.storyId },
+          {
+            strictQualityGates,
+            strictReleaseGateMode,
+            releaseCodes: strictReleaseErrors.map((issue: any) => issue.code),
+            safetyBlockingCodes: blockingErrors.map((issue: any) => issue.code),
+            reason: releaseQualityBlocks
+              ? "generated_story_below_release_bar"
+              : "generated_story_below_release_bar_but_content_available",
+          },
+        );
       }
       if (blockingErrors.length > 0 || !hasContent) {
         validationReport = buildValidationReportPayload({

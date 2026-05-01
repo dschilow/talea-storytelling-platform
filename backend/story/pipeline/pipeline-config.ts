@@ -31,6 +31,8 @@ export interface PipelineConfig {
   soulGateModel: string;
   /** Generate AI art-director scene descriptions. Off by default to keep story tokens low. */
   aiScenePromptEnabled: boolean;
+  /** Whether strict quality release gates warn or block the user-facing generation path. */
+  strictReleaseGateMode: "warn" | "block";
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -50,12 +52,13 @@ const DEFAULT_CONFIG: PipelineConfig = {
   pass3WarnFloor: 7.2,
   soulStageEnabled: true,
   soulRetryMax: 0,
-  soulAllowOnReject: false,
+  soulAllowOnReject: true,
   soulAwareCriticMinScore: 8.6,
   soulApprovedSingleCandidate: true,
   soulGeneratorMaxOutputTokens: 2200,
   soulGateModel: "gemini-3.1-flash-lite-preview",
   aiScenePromptEnabled: false,
+  strictReleaseGateMode: "warn",
 };
 
 let cached: PipelineConfig | null = null;

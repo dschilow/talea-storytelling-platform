@@ -1,5 +1,5 @@
--- Update existing pipeline config to use quality-first story settings plus
--- current Flux image defaults.
+-- Update existing pipeline config to use stable quality-warning story settings
+-- plus current Flux image defaults.
 -- Run this locally or through the Railway run-migration-sql endpoint.
 
 INSERT INTO pipeline_config (key, value)
@@ -19,12 +19,13 @@ SET value = value || '{
     "pass3WarnFloor": 7.2,
     "soulStageEnabled": true,
     "soulRetryMax": 0,
-    "soulAllowOnReject": false,
+    "soulAllowOnReject": true,
     "soulAwareCriticMinScore": 8.6,
     "soulApprovedSingleCandidate": true,
     "soulGeneratorMaxOutputTokens": 2200,
     "imageRetryMax": 1,
-    "aiScenePromptEnabled": false
+    "aiScenePromptEnabled": false,
+    "strictReleaseGateMode": "warn"
 }'::jsonb,
 updated_at = CURRENT_TIMESTAMP
 WHERE key = 'default';
