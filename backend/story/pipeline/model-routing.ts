@@ -5,9 +5,19 @@ export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 export const MINIMAX_M27_MODEL = "minimax-m2.7";
 export const GPT_54_MINI_MODEL = "gpt-5.4-mini";
 export const GPT_54_NANO_MODEL = "gpt-5.4-nano";
+export const OPENROUTER_PROVIDER = "openrouter";
 
 export function isGeminiFamilyModel(model?: string): boolean {
   return String(model || "").trim().toLowerCase().startsWith("gemini-");
+}
+
+export function isOpenRouterProvider(provider?: string): boolean {
+  return String(provider || "").trim().toLowerCase() === OPENROUTER_PROVIDER;
+}
+
+export function isOpenRouterFamilyModel(model?: string): boolean {
+  const normalized = String(model || "").trim();
+  return normalized.includes("/") || normalized.startsWith("~");
 }
 
 export function isClaudeFamilyModel(model?: string): boolean {
@@ -46,6 +56,7 @@ export function resolveGeminiSupportFallback(selectedStoryModel?: string): strin
 export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   const normalized = String(selectedStoryModel || "").trim().toLowerCase();
   if (!normalized) return GEMINI_SUPPORT_MODEL;
+  if (isOpenRouterFamilyModel(normalized)) return GPT_54_NANO_MODEL;
   if (isMiniMaxFamilyModel(normalized)) return GPT_54_MINI_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
@@ -60,6 +71,7 @@ export function resolveCriticModelForPipeline(input: {
 }): string {
   const explicit = String(input.explicitCriticModel || "").trim();
   if (explicit) return explicit;
+  if (isOpenRouterFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
@@ -68,6 +80,7 @@ export function resolveCriticModelForPipeline(input: {
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
+  if (isOpenRouterFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isMiniMaxFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
@@ -77,4 +90,17 @@ export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): str
   if (model.startsWith("gpt-5.4-mini")) return GPT_54_NANO_MODEL;
   if (model.startsWith("gpt-5.4")) return "gpt-5.4";
   return GPT_54_NANO_MODEL;
+}
+
+export function resolveConfiguredStoryModel(rawConfig?: {
+  aiProvider?: string;
+  aiModel?: string;
+  openRouterModel?: string;
+}): string {
+  if (isOpenRouterProvider(rawConfig?.aiProvider)) {
+    const openRouterModel = String(rawConfig?.openRouterModel || "").trim();
+    return openRouterModel || "moonshotai/kimi-k2.6";
+  }
+
+  return String(rawConfig?.aiModel || "").trim() || GEMINI_MAIN_STORY_MODEL;
 }

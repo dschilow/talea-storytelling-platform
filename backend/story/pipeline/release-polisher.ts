@@ -205,18 +205,32 @@ export async function applySelectiveSurgery(input: {
       const softLengthFloor = input.normalizedRequest.wordBudget
         ? Math.max(220, input.normalizedRequest.wordBudget.minWordsPerChapter - 20)
         : 220;
-      const minAcceptedWords = Math.max(
-        Math.floor(originalWordCount * 0.9),
-        Math.min(originalWordCount, softLengthFloor),
-      );
+      const hardLengthCeiling = input.normalizedRequest.wordBudget
+        ? input.normalizedRequest.wordBudget.maxWordsPerChapter
+        : lengthTargets.wordMax;
+      const originalWasTooLong = originalWordCount > hardLengthCeiling + 25;
+      const minAcceptedWords = originalWasTooLong
+        ? Math.max(160, Math.min(hardLengthCeiling, Math.floor(originalWordCount * 0.72)))
+        : Math.max(
+            Math.floor(originalWordCount * 0.9),
+            Math.min(originalWordCount, softLengthFloor),
+          );
+      const maxAcceptedWords = originalWasTooLong
+        ? Math.max(hardLengthCeiling + 70, Math.floor(originalWordCount * 1.02))
+        : Number.POSITIVE_INFINITY;
 
-      if (revised.length > 30 && revised !== chapter.text && revisedWordCount >= minAcceptedWords) {
+      if (
+        revised.length > 30
+        && revised !== chapter.text
+        && revisedWordCount >= minAcceptedWords
+        && revisedWordCount <= maxAcceptedWords
+      ) {
         chapter.text = revised;
         changed = true;
         editedChapters.push(chapterNo);
       } else if (revised.length > 30 && revised !== chapter.text) {
         console.warn(
-          `[release-polisher] Rejecting chapter ${chapterNo} surgery because it shrank from ${originalWordCount} to ${revisedWordCount} words (min accepted ${minAcceptedWords}).`,
+          `[release-polisher] Rejecting chapter ${chapterNo} surgery because word count ${originalWordCount}->${revisedWordCount} is outside accepted range ${minAcceptedWords}-${Number.isFinite(maxAcceptedWords) ? maxAcceptedWords : "inf"}.`,
         );
       }
       usage = mergeNormalizedTokenUsage(usage, result.usage as TokenUsage | undefined, result.usage?.model || model);

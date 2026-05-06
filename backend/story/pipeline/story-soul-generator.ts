@@ -94,6 +94,27 @@ export async function generateValidatedStorySoul(
     .map((c) => c.displayName)
     .filter(Boolean);
 
+  const rawConfig = normalizedRequest.rawConfig as any;
+  if (
+    isAnimalWorldSoulRequest(normalizedRequest)
+    && rawConfig?.storySoulMode !== "llm"
+    && !rawConfig?.customPrompt
+  ) {
+    return {
+      soul: buildDeterministicSoulFallback({
+        normalizedRequest,
+        cast,
+        providerFailure: null,
+      }),
+      model: "deterministic-animal-story-soul",
+      attempts: 0,
+      fallbackUsed: false,
+      issues: [],
+      usage: undefined,
+      costEntries: [],
+    };
+  }
+
   const systemPrompt = buildStorySoulSystemPrompt(normalizedRequest.language);
   const baseUserPrompt = buildStorySoulUserPrompt({
     normalizedRequest,
@@ -768,6 +789,19 @@ function buildDeterministicSoulFallback(input: {
   const antagonist = findFallbackAntagonist(cast);
   const antagonistName = antagonist?.displayName || "";
 
+  if (isAnimalWorldSoulRequest(req)) {
+    return buildAnimalWorldSoulFallback({
+      req,
+      cast,
+      lead,
+      companion,
+      artifactName,
+      artifactObject,
+      artifactRule,
+      antagonistName,
+    });
+  }
+
   const fingerprints: StorySoulCharacterFingerprint[] = cast.avatars
     .slice(0, 4)
     .map((a, idx) => ({
@@ -907,6 +941,136 @@ function buildDeterministicSoulFallback(input: {
   };
 }
 
+function buildAnimalWorldSoulFallback(input: {
+  req: NormalizedRequest;
+  cast: CastSet;
+  lead: string;
+  companion: string;
+  artifactName: string;
+  artifactObject: string;
+  artifactRule: string;
+  antagonistName: string;
+}): StorySoul {
+  const { req, cast, lead, companion, artifactName, artifactObject, antagonistName } = input;
+  const helper = findAnimalSoulHelper(cast);
+  const helperName = helper?.displayName || "das kleine Tier";
+  const placeName = resolveAnimalSoulPlace(req);
+  const sickAnimal = helper?.displayName || "das Fuchskind";
+  const rule = `${artifactName} zeigt nur echte Tier-Spuren: Duft, Pfote, Blatt. Entscheiden muessen ${lead} und ${companion}.`;
+  const fingerprints: StorySoulCharacterFingerprint[] = cast.avatars.slice(0, 2).map((a, idx) => ({
+    name: a.displayName,
+    role: (idx === 0 ? "protagonist" : "partner") as any,
+    coreMacke: idx === 0 ? "prüft jedes Blatt erst mit der Nase" : "will mutig los, bevor die Füße gefragt wurden",
+    runningGag: idx === 0 ? "sagt 'Erst schnuppern, dann handeln'" : "nennt jeden Fehltritt eine Messmethode",
+    favoriteWords: idx === 0 ? ["bitter", "Spur", "langsam"] : ["mutig", "zack", "Messmethode"],
+    tabooWords: ["irgendwie", "vielleicht"],
+    bodyTell: idx === 0 ? "drückt die Hände auf die Knie" : "zieht die Schultern hoch und grinst zu früh",
+    wantIneedle: idx === 0 ? "will ernst genommen werden, ohne laut zu werden" : "will beweisen, dass Mut auch hilft",
+    fearInternal: idx === 0 ? "Angst, zu langsam zu sein" : "Angst, nur Quatsch beizutragen",
+    voiceExample: idx === 0
+      ? `"Erst schnuppern, dann handeln", sagt ${a.displayName}.`
+      : `"Das war eine Messmethode", sagt ${a.displayName} und zieht eine Beere aus dem Haar.`,
+  }));
+
+  const supportingCast: StorySoulSupportingCharacter[] = cast.poolCharacters.slice(0, 3).map((p, idx) => ({
+    name: p.displayName,
+    purpose: (String(p.roleType).toUpperCase() === "ANTAGONIST" ? "trickster" : idx === 0 ? "comic-relief" : "emotional-mirror") as any,
+    firstAppearanceChapter: idx === 0 ? 1 : Math.min(2 + idx, req.chapterCount),
+    signaturAction: String(p.roleType).toUpperCase() === "ANTAGONIST"
+      ? "legt zu glänzende Beeren auf den falschen Pfad"
+      : "tippt mit Pfote, Schnabel oder Nase genau auf den falschen Duft",
+    description: p.species || p.archetype || "ein Tier aus der Waldgemeinschaft",
+  }));
+
+  const chapterEndings = Array.from({ length: Math.max(1, req.chapterCount - 1) }, (_, i) => ({
+    chapter: i + 1,
+    type: "emotional-cliffhanger" as const,
+    what: i === 0
+      ? `${lead} riecht die falsche Spur und sagt es nicht sofort.`
+      : i === 2
+        ? `${lead} merkt: Der Fehler am Bach war wirklich seiner.`
+        : `${companion} wartet auf ${lead}s Antwort, aber ${lead} schaut nur auf das Blatt.`,
+  }));
+
+  return {
+    premise: `${lead} und ${companion} müssen ${artifactObject} durch den Mooswald bringen, damit ${sickAnimal} rechtzeitig das echte Heilkraut bekommt.`,
+    hookQuestion: `Traut sich ${lead}, langsam zu sein, obwohl ein Tier jetzt Hilfe braucht?`,
+    emotionalStakes: {
+      what: `${sickAnimal} braucht vor dem Abend das echte Kraut, nicht die glänzende falsche Spur`,
+      why: "weil die Tiergemeinschaft sonst den einzigen sicheren Krautplatz verliert",
+      whoCares: `${lead}, weil er richtig liegen will; ${companion}, weil Mut allein nicht reicht.`,
+    },
+    worldTexture: {
+      anchors: [
+        "der Moosstein, der unter nackten Knien kühl wird",
+        `${artifactName} mit drei gezackten Blättern`,
+        "die feuchte Pfotenspur am Bachrand",
+      ],
+      senseDetails: "Riecht nach Moos, bitterem Kraut und nassem Fell. Klingt nach Bach, Pfoten und leisem Husten.",
+      placeName,
+    },
+    readerContract: {
+      normalWorld: `${lead} und ${companion} kennen den Pfad am ${placeName}; dort helfen Kinder und Tiere einander.`,
+      whoWeMeetFirst: `${lead} prüft still; ${companion} will schneller los und macht daraus fast einen Witz.`,
+      missionInChildWords: `${lead} und ${companion} müssen ${artifactObject} zum kranken Tier bringen und den Krautplatz schützen.`,
+      whyItMattersNow: `Wenn sie zu spät sind, bleibt ${sickAnimal} matt und die Tiere verlieren den Krautplatz.`,
+      magicOrArtifactRule: rule,
+      chapter1Question: `Erkennen sie die echte Krautspur, bevor die falsche alle weglockt?`,
+    },
+    characterFingerprints: fingerprints,
+    supportingCast,
+    payoffPromise: {
+      emotionalLanding: "ruhig, warm, mit kleinem Stolz statt lautem Sieg",
+      transformationOfChild: `${lead} wartet sichtbar, lässt ${companion} prüfen und repariert seinen Fehler.`,
+      finalImage: `${lead}, ${companion} und ${helperName} lassen einen kleinen Krautplatz für morgen stehen.`,
+      callbackFromChapter1: `"Erst schnuppern, dann handeln" klingt am Ende nicht streng, sondern freundlich.`,
+    },
+    antagonism: {
+      type: antagonistName ? "external" : "nature",
+      specific: antagonistName
+        ? `${antagonistName} lenkt die Kinder weg, weil er den Krautplatz allein behalten will.`
+        : `Die falsche Duftspur lockt alle vom echten Heilkraut weg.`,
+      resolvesHow: `${lead} wartet in Kapitel 5, ${companion} prüft zuerst, und alle teilen den Krautplatz.`,
+      appearsInChapters: antagonistName ? [2, 3, 5] : [1, 2, 5],
+      threatRealizedOnce: {
+        chapter: Math.min(3, req.chapterCount),
+        what: `${lead} nimmt fast das falsche Blatt, und der echte Stiel knickt in den Bach.`,
+      },
+    },
+    benchmarkBook: {
+      title: "Der Grüffelo",
+      whyMatch: "klare Waldlogik, wiederholbarer Satz, kleine Gefahr, viel Körperkomik",
+      voiceReference: `"Erst schnuppern, dann handeln", sagte ${lead}. ${companion} schnupperte und nieste ins Moos.`,
+    },
+    humorBeats: [
+      {
+        chapter: 1,
+        type: "misunderstanding",
+        what: `${companion} hält ein Schneckenknacken für ein riesiges Warnsignal.`,
+        exactLine: `${companion} flüstert: "Das war bestimmt ein sehr kleines Donnern."`,
+      },
+      {
+        chapter: 2,
+        type: "slapstick",
+        what: `${companion} findet eine Beere im Haar und nennt sie Beweisstück.`,
+        exactLine: `${companion} sagt: "Das ist eine Messmethode."`,
+      },
+      {
+        chapter: 5,
+        type: "callback",
+        what: `${lead} macht einen übertrieben langsamen Vortritt.`,
+        exactLine: `${lead} sagt: "Erst schnuppern, dann handeln."`,
+      },
+    ],
+    chapterEndings,
+    iconicScenes: [
+      `${lead} hält ${artifactName} flach in der Hand, während ${companion} fast ins Moos fällt.`,
+      `${lead} steht mit nassen Ärmeln auf der Wurzelbrücke und sagt: "Ich war zu schnell."`,
+      `${lead}, ${companion} und ${helperName} lassen am Ende einen Krautplatz stehen.`,
+    ],
+  };
+}
+
 // ────────────────────────── Helpers ──────────────────────────
 
 function formatArtifactForGermanObject(name: string): string {
@@ -920,6 +1084,41 @@ function formatArtifactForGermanObject(name: string): string {
     return `den ${normalized}`;
   }
   return `das Artefakt ${normalized}`;
+}
+
+function isAnimalWorldSoulRequest(req: NormalizedRequest): boolean {
+  const text = [
+    req.category,
+    req.rawConfig?.genre,
+    req.rawConfig?.setting,
+  ].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("tierwelten") || text.includes("animals") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function findAnimalSoulHelper(cast: CastSet) {
+  return cast.poolCharacters.find(character =>
+    String(character.roleType || "").toUpperCase() === "HELPER" && isAnimalSoulCharacter(character),
+  ) || cast.poolCharacters.find(isAnimalSoulCharacter) || cast.poolCharacters[0];
+}
+
+function isAnimalSoulCharacter(character: { species?: string; archetype?: string; role?: string; visualSignature?: string[] }): boolean {
+  const text = [
+    character.species,
+    character.archetype,
+    character.role,
+    ...(character.visualSignature || []),
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(human|mensch|kind|child|person)\b/.test(text)) return false;
+  return /\b(animal|tier|fuchs|fox|maus|mouse|igel|hedgehog|hase|rabbit|eule|owl|vogel|bird|biber|beaver|dachs|badger|frosch|frog|kroete|kröte|squirrel|eichhoernchen|eichhörnchen|otter|reh|deer|katze|cat|hund|dog)\b/.test(text);
+}
+
+function resolveAnimalSoulPlace(req: NormalizedRequest): string {
+  const text = String(req.rawConfig?.setting || "").toLowerCase();
+  if (/\b(ocean|meer|riff|seegras|koralle|coral)\b/.test(text)) return "Seegrasriff hinter der Muschelbank";
+  if (/\b(farm|bauernhof|stall|scheune)\b/.test(text)) return "Apfelgarten hinter dem Stall";
+  if (/\b(pond|teich|lake|see|bach|river|fluss)\b/.test(text)) return "Biberbach unter der Weide";
+  if (/\b(wiese|meadow|field)\b/.test(text)) return "Kleewiese am Mooswald";
+  return "Mooswald am Biberbach";
 }
 
 function findFallbackAntagonist(cast: CastSet): { displayName: string } | undefined {

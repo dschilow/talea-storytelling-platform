@@ -3,18 +3,27 @@ import { useTranslation } from 'react-i18next';
 
 import Card from '../../../components/common/Card';
 import FadeInView from '../../../components/animated/FadeInView';
-import type { AIModel } from '@/types/story';
+import {
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  type AIModel,
+  type AIProvider,
+  type OpenRouterStoryModel,
+} from '@/types/story';
 
 interface StoryParametersStepProps {
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
   ageGroup: '3-5' | '6-8' | '9-12' | '13+';
   aiModel?: AIModel;
+  aiProvider?: AIProvider;
+  openRouterModel?: OpenRouterStoryModel | string;
   showAiModelSelection?: boolean;
   onLengthChange: (length: 'short' | 'medium' | 'long') => void;
   onComplexityChange: (complexity: 'simple' | 'medium' | 'complex') => void;
   onAgeGroupChange: (ageGroup: '3-5' | '6-8' | '9-12' | '13+') => void;
   onAiModelChange: (aiModel: AIModel) => void;
+  onAiProviderChange?: (provider: AIProvider) => void;
+  onOpenRouterModelChange?: (model: OpenRouterStoryModel | string) => void;
 }
 
 type Option = {
@@ -29,11 +38,15 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   complexity,
   ageGroup,
   aiModel,
+  aiProvider = 'native',
+  openRouterModel = DEFAULT_OPENROUTER_STORY_MODEL,
   showAiModelSelection = true,
   onLengthChange,
   onComplexityChange,
   onAgeGroupChange,
   onAiModelChange,
+  onAiProviderChange,
+  onOpenRouterModelChange,
 }) => {
   const { t } = useTranslation();
 
@@ -152,6 +165,19 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     },
   ];
 
+  const openRouterModelOptions = [
+    { key: 'moonshotai/kimi-k2.6', label: 'Kimi K2.6', description: 'Moonshot AI - $0.15 in / $0.45 out' },
+    { key: '~moonshotai/kimi-latest', label: 'Kimi Latest', description: 'Moonshot AI - $0.75 in / $3.50 out' },
+    { key: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Moonshot AI - $0.44 in / $2.00 out' },
+    { key: 'openrouter/owl-alpha', label: 'Owl Alpha', description: 'OpenRouter - Free' },
+    { key: '~google/gemini-pro-latest', label: 'Gemini Pro Latest', description: 'Google - $2 in / $12 out' },
+    { key: '~google/gemini-flash-latest', label: 'Gemini Flash Latest', description: 'Google - $0.50 in / $3 out' },
+    { key: '~anthropic/claude-sonnet-latest', label: 'Claude Sonnet Latest', description: 'Anthropic - $3 in / $15 out' },
+    { key: '~openai/gpt-mini-latest', label: 'GPT Mini Latest', description: 'OpenAI - $0.75 in / $4.50 out' },
+    { key: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', description: 'DeepSeek - $0.44 in / $0.87 out' },
+    { key: 'qwen/qwen3.6-max-preview', label: 'Qwen 3.6 Max', description: 'Qwen - $1.04 in / $6.24 out' },
+  ];
+
   const renderParameterSection = (
     title: string,
     subtitle: string,
@@ -242,9 +268,12 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
               {aiModelOptions.map((option, index) => (
                 <FadeInView key={option.key} delay={450 + index * 30}>
                   <button
-                    onClick={() => onAiModelChange(option.key as AIModel)}
+                    onClick={() => {
+                      onAiProviderChange?.('native');
+                      onAiModelChange(option.key as AIModel);
+                    }}
                     className={`p-3 rounded-lg border-2 transition-colors text-center relative ${
-                      aiModel === option.key
+                      aiProvider === 'native' && aiModel === option.key
                         ? 'border-amber-500 bg-amber-50'
                         : 'border-gray-300 hover:border-amber-300'
                     }`}
@@ -257,14 +286,14 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
                     <span className="text-2xl mb-1 block">{option.icon}</span>
                     <h3
                       className={`font-semibold text-xs mb-1 ${
-                        aiModel === option.key ? 'text-amber-700' : 'text-gray-800'
+                        aiProvider === 'native' && aiModel === option.key ? 'text-amber-700' : 'text-gray-800'
                       }`}
                     >
                       {option.label}
                     </h3>
                     <p
                       className={`text-xs ${
-                        aiModel === option.key ? 'text-amber-600' : 'text-gray-600'
+                        aiProvider === 'native' && aiModel === option.key ? 'text-amber-600' : 'text-gray-600'
                       }`}
                     >
                       {option.description}
@@ -272,7 +301,48 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
                   </button>
                 </FadeInView>
               ))}
+              <FadeInView delay={450 + aiModelOptions.length * 30}>
+                <button
+                  onClick={() => {
+                    onAiProviderChange?.('openrouter');
+                    onOpenRouterModelChange?.(openRouterModel || DEFAULT_OPENROUTER_STORY_MODEL);
+                  }}
+                  className={`p-3 rounded-lg border-2 transition-colors text-center relative ${
+                    aiProvider === 'openrouter'
+                      ? 'border-amber-500 bg-amber-50'
+                      : 'border-gray-300 hover:border-amber-300'
+                  }`}
+                >
+                  <span className="text-2xl mb-1 block">OR</span>
+                  <h3 className={`font-semibold text-xs mb-1 ${aiProvider === 'openrouter' ? 'text-amber-700' : 'text-gray-800'}`}>
+                    OpenRouter
+                  </h3>
+                  <p className={`text-xs ${aiProvider === 'openrouter' ? 'text-amber-600' : 'text-gray-600'}`}>
+                    Viele Modelle ueber einen API-Key
+                  </p>
+                </button>
+              </FadeInView>
             </div>
+
+            {aiProvider === 'openrouter' && (
+              <div className="mt-4 rounded-lg border border-gray-300 bg-white/70 p-3">
+                <label htmlFor="old-openrouter-model" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  OpenRouter Modell
+                </label>
+                <select
+                  id="old-openrouter-model"
+                  value={openRouterModel || DEFAULT_OPENROUTER_STORY_MODEL}
+                  onChange={(event) => onOpenRouterModelChange?.(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-amber-500"
+                >
+                  {openRouterModelOptions.map((option) => (
+                    <option key={option.key} value={option.key}>
+                      {option.label} - {option.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </Card>
         </FadeInView>
       )}

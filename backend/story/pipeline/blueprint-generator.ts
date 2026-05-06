@@ -611,7 +611,10 @@ function findAntagonistNameForBlueprint(
       .map(name => String(name || "").trim().toLowerCase())
       .filter(Boolean),
   );
-  const mentionedPoolCharacter = cast.poolCharacters.find(character => mentionedNames.has(String(character.displayName || "").trim().toLowerCase()));
+  const mentionedPoolCharacter = cast.poolCharacters.find(character =>
+    mentionedNames.has(String(character.displayName || "").trim().toLowerCase())
+    && isAntagonistishCastSheet(character),
+  );
   if (mentionedPoolCharacter?.displayName) return mentionedPoolCharacter.displayName;
 
   const antagonistishName = extractAntagonistNameFromBlueprint(blueprint);
@@ -622,6 +625,16 @@ function findAntagonistNameForBlueprint(
   }
 
   return undefined;
+}
+
+function isAntagonistishCastSheet(character: { roleType?: string; role?: string; archetype?: string; personalityTags?: string[] }): boolean {
+  const text = [
+    character.roleType,
+    character.role,
+    character.archetype,
+    ...(character.personalityTags || []),
+  ].filter(Boolean).join(" ").toLowerCase();
+  return /\b(antagonist|villain|enemy|opponent|gegner|feind|schurke|boes|böse|trickster|mischief|rival)\b/.test(text);
 }
 
 function buildFallbackAntagonistDna(input: {
@@ -795,6 +808,19 @@ function buildDeterministicV8Blueprint(input: {
   const midpointWords = Math.round((input.wordsPerChapter.min + input.wordsPerChapter.max) / 2);
   const chapterArcs = ["SETUP", "DISCOVERY", "TURNING_POINT", "DARKEST_MOMENT", "LANDING"] as const;
   const artifactName = input.cast.artifact?.name || "das besondere Fundstueck";
+
+  if (isAnimalWorldRequest(input.normalizedRequest)) {
+    return buildAnimalWorldV8Blueprint({
+      ...input,
+      lead,
+      companion,
+      activeFallback,
+      midpointWords,
+      chapterArcs,
+      artifactName,
+    });
+  }
+
   const engine = buildConcreteFallbackEngine({ directives: input.directives, companion, artifactName });
 
   const chapters = input.directives.slice(0, 5).map((directive, index) => {
@@ -882,6 +908,277 @@ function buildDeterministicV8Blueprint(input: {
     // because the fallback chapters already set up a humor/gag in Ch1 that can echo in Ch5.
     ending_pattern: "warm_callback",
   };
+}
+
+function buildAnimalWorldV8Blueprint(input: {
+  normalizedRequest: NormalizedRequest;
+  cast: CastSet;
+  directives: SceneDirective[];
+  wordsPerChapter: { min: number; max: number };
+  lead: string;
+  companion: string;
+  activeFallback: string[];
+  midpointWords: number;
+  chapterArcs: ReadonlyArray<StoryBlueprintV8Chapter["arc_label"]>;
+  artifactName: string;
+}): StoryBlueprintV8 {
+  const { lead, companion, artifactName } = input;
+  const helper = findAnimalWorldHelper(input.cast);
+  const antagonist = findAnimalWorldAntagonist(input.cast);
+  const helperSlotName = helper?.displayName;
+  const helperName = helperSlotName || "ein kleines Tier";
+  const antagonistName = antagonist?.displayName || "";
+  const habitat = resolveAnimalWorldHabitat(input.normalizedRequest, input.directives);
+  const sickAnimal = helper?.displayName || "das kleine Fuchskind";
+  const artifactObject = formatGermanArtifactObject(artifactName);
+  const artifactRule = buildAnimalArtifactRule(artifactName, input.cast.artifact?.storyUseRule);
+  const refrainLine = "Erst schnuppern, dann handeln.";
+  const motifObject = buildAnimalIconicMotifObject(artifactName);
+  const supportingWithHelper = (extra?: string) => uniqueNames([helperSlotName, extra]).filter(name => name !== lead && name !== companion);
+  const supportingWithAntagonist = (chapter: number) => uniqueNames([
+    chapter === 1 || chapter === 4 ? helperSlotName : undefined,
+    antagonistName || undefined,
+  ]).filter(name => name !== lead && name !== companion);
+
+  const chapters: StoryBlueprintV8Chapter[] = [
+    {
+      chapter: 1,
+      arc_label: input.chapterArcs[0],
+      location: habitat,
+      goal: `${lead} und ${companion} sollen ${artifactObject} zum kranken Tier am Bau bringen, bevor der Abendtau kommt.`,
+      obstacle: `Die Tiergemeinschaft ist durcheinander: Pfotenabdruecke kreuzen sich, und ein falscher Krautduft fuehrt zum modrigen Ufer.`,
+      active_characters: input.activeFallback,
+      supporting_characters: supportingWithHelper(),
+      key_emotion: "neugierig, aber sofort verantwortlich",
+      key_scene: {
+        what_happens: `${helperName} zeigt den Kindern den leeren Krautplatz. ${companion} will losrennen, doch ${lead} riecht erst am Blattrest.`,
+        playable_moment: `${lead} haelt ${artifactObject} flach in die Hand, waehrend ${companion} mit der Nase fast im Moos landet.`,
+        quotable_line: `"${refrainLine}"`,
+      },
+      chapter_hook: `${helperName} findet eine zweite Spur. Sie riecht zu suess, und genau deshalb wird ${lead} still.`,
+      word_target: input.midpointWords,
+      dialogue_percentage: 30,
+    },
+    {
+      chapter: 2,
+      arc_label: input.chapterArcs[1],
+      location: "der schmale Bachpfad mit Moossteinen",
+      goal: `${lead} und ${companion} muessen die echte Krautspur von der falschen Duftspur unterscheiden.`,
+      obstacle: antagonistName
+        ? `${antagonistName} verteilt glaenzende Beeren auf dem falschen Pfad, weil niemand seinem eigenen Vorrat nahekommen soll.`
+        : `Ein zu glaenzender Beerenpfad lockt sie vom Bach weg; er sieht leicht aus, riecht aber nicht nach Heilkraut.`,
+      active_characters: input.activeFallback,
+      supporting_characters: supportingWithAntagonist(2),
+      key_emotion: "mutig mit erstem Zweifel",
+      key_scene: {
+        what_happens: `${companion} folgt fast den Beeren. ${lead} bemerkt, dass am echten Pfad Schneckenschleim und ein bitterer Krautgeruch haften.`,
+        playable_moment: `${companion} zieht eine Beere aus dem Haar und tut so, als waere das Absicht gewesen.`,
+        quotable_line: `"Zu sauber ist im Wald meistens gelogen."`,
+      },
+      chapter_hook: `Am Ende steckt an ${artifactObject} ein fremdes Haar. Es passt zu keinem Tier, das sie bisher gesehen haben.`,
+      word_target: input.midpointWords,
+      dialogue_percentage: 30,
+    },
+    {
+      chapter: 3,
+      arc_label: input.chapterArcs[2],
+      location: "die Wurzelbruecke ueber dem Bach",
+      goal: `${lead} will das Kraut schnell sichern und beweisen, dass er die Regel verstanden hat.`,
+      obstacle: `${lead} entscheidet zu schnell. Er nimmt das hellste Blatt, obwohl es nicht bitter riecht, und der echte Krautstiel knickt in den Bach.`,
+      active_characters: input.activeFallback,
+      supporting_characters: supportingWithAntagonist(3),
+      key_emotion: "Schreck, Scham und Druck",
+      key_scene: {
+        what_happens: `${lead} ruft seine Antwort heraus, greift nach dem hellen Blatt und merkt zu spaet, dass der bittere Geruch fehlt.`,
+        playable_moment: `${lead} steht mit nassen Aermeln am Bach, waehrend ${companion} das letzte Blatt mit zwei Fingern festhaelt.`,
+        quotable_line: `"Ich war zu schnell."`,
+      },
+      chapter_hook: `Das Kraut ist gerettet, aber nur halb. Fuer das kranke Tier reicht es vielleicht nicht.`,
+      word_target: input.midpointWords,
+      dialogue_percentage: 26,
+    },
+    {
+      chapter: 4,
+      arc_label: input.chapterArcs[3],
+      location: "der stille Bau unter der alten Weide",
+      goal: `${lead} muss seinen Fehler sagen und mit ${companion} einen langsameren Plan bauen.`,
+      obstacle: `${sickAnimal} hustet leise. Niemand schimpft, und gerade das macht ${lead}s Hals eng.`,
+      active_characters: input.activeFallback,
+      supporting_characters: supportingWithHelper(),
+      key_emotion: "fast mutlos, dann ehrlich",
+      key_scene: {
+        what_happens: `${lead} legt ${artifactObject} hin, nimmt die Finger weg und laesst ${companion} zuerst riechen, schauen und sprechen.`,
+        playable_moment: `${lead} drueckt die Haende auf die Knie, damit sie nicht wieder schneller sind als sein Kopf.`,
+        quotable_line: `"Diesmal wartet meine Hand."`,
+      },
+      chapter_hook: `${companion} entdeckt am Stiel drei winzige Kerben. Genau dort muss das fehlende Blatt noch wachsen.`,
+      word_target: input.midpointWords,
+      dialogue_percentage: 28,
+    },
+    {
+      chapter: 5,
+      arc_label: input.chapterArcs[4],
+      location: "die kleine Lichtung am Abendtau",
+      goal: `${lead} und ${companion} bringen ${artifactObject} richtig zurueck und schuetzen den Krautplatz fuer die Tiere.`,
+      obstacle: antagonistName
+        ? `${antagonistName} stellt sich ein letztes Mal vor den Krautplatz, weil sein Vorrat sonst geteilt werden muss.`
+        : `Der Abendtau kommt schnell. Nur wenn alle leise warten, oeffnet sich das bittere Kraut noch einmal.`,
+      active_characters: input.activeFallback,
+      supporting_characters: supportingWithAntagonist(5),
+      key_emotion: "ruhige Spannung und warme Erleichterung",
+      key_scene: {
+        what_happens: `${lead} sagt ${refrainLine} und wartet wirklich. ${companion} gibt das Blatt weiter, und ${helperName} nickt erst, als der Duft stimmt.`,
+        playable_moment: `${lead} macht einen uebertrieben langsamen Vortritt, sodass ${companion} kurz grinsen muss.`,
+        quotable_line: `"${refrainLine}"`,
+      },
+      chapter_hook: `Am Bau raschelt es wieder lebendig, und die Tiere lassen einen kleinen Krautplatz fuer morgen frei.`,
+      word_target: input.midpointWords,
+      dialogue_percentage: 30,
+    },
+  ];
+
+  const blueprint: StoryBlueprintV8 = {
+    title: `Das Geheimnis: ${artifactName}`,
+    teaser: `Wer hat die falsche Krautspur gelegt, und warum riecht sie so suess?`,
+    setting_type: "everyday_magic",
+    narrative_perspective: "personal_third",
+    tense: "preterite",
+    pov_character: lead,
+    reader_contract: {
+      normal_world: `${lead} und ${companion} kennen den Pfad am ${habitat}; dort helfen Kinder und Tiere einander.`,
+      who_we_meet_first: `${lead} prueft leise jedes Blatt; ${companion} redet mutig, bevor die Knie ganz mitmachen.`,
+      mission_in_child_words: `${lead} und ${companion} muessen ${artifactObject} zum kranken Tier bringen und den Krautplatz schuetzen.`,
+      why_it_matters: `Wenn sie zu spaet sind, bleibt ${sickAnimal} matt und die Tiere verlieren ihren sicheren Krautplatz.`,
+      special_rule: artifactRule,
+      chapter1_question: `Schaffen sie es, die echte Krautspur zu erkennen, bevor die falsche Spur alle weglockt?`,
+    },
+    chapters,
+    humor_beats: [
+      { chapter: 1, type: "situation_misunderstanding", description: `${companion} nimmt ein Schneckenknacken fuer ein riesiges Waldzeichen und versucht ernst zu nicken.` },
+      { chapter: 2, type: "character_behavior", description: `${companion} findet eine Beere im Haar und behauptet, das sei eine Messmethode.` },
+      { chapter: 5, type: "warm_callback", description: `Der langsame Vortritt aus Kapitel 4 wird am Ende zum kleinen gemeinsamen Lacher.` },
+    ],
+    error_and_repair: {
+      who: lead,
+      error_chapter: 3,
+      error: `${lead} greift nach dem hellsten Blatt statt nach dem bitter riechenden und knickt den echten Stiel fast ab.`,
+      inner_reason: `${lead} will zeigen, dass er diesmal sofort richtig liegt.`,
+      body_signal: `${lead}s Hals wird trocken, seine Haende sind nass und sein Bauch zieht sich zusammen.`,
+      repair_chapter: 5,
+      repair: `${lead} wartet, laesst ${companion} zuerst pruefen und nutzt ${artifactObject} nur als Hilfe, nicht als Ausrede.`,
+    },
+    arc_checkpoints: {
+      ch1_feeling: "vertraut, dann verantwortlich",
+      ch2_feeling: "mutig, aber unsicherer",
+      ch3_feeling: "beschämt nach echtem Fehler",
+      ch4_feeling: "still, ehrlich, fast mutlos",
+      ch5_feeling: "ruhig stolz und verbunden",
+    },
+    iconic_scene: {
+      chapter: 3,
+      description: `${lead} steht mit nassen Aermeln auf der Wurzelbruecke und sagt zum ersten Mal selbst: "Ich war zu schnell."`,
+    },
+    concrete_anchors: {
+      Fuersorge: `${motifObject}, das bis zum Bau getragen wird`,
+      Vertrauen: `${companion}s Finger, die zuerst an dem Blatt riechen duerfen`,
+      Fehler: `der geknickte Krautstiel am Bachrand`,
+      Gemeinschaft: `der kleine freie Krautplatz, den die Tiere am Ende fuer morgen stehen lassen`,
+    },
+    ending_pattern: "shared_moment",
+    refrain_line: refrainLine,
+    iconic_motif: {
+      object: motifObject,
+      per_chapter_position: [
+        "liegt in Ch1 flach in der offenen Hand",
+        "nimmt in Ch2 den fremden Haarfaden auf",
+        "wird in Ch3 nass, als der Stiel fast in den Bach knickt",
+        "liegt in Ch4 zwischen den Kindern, waehrend sie ehrlich werden",
+        "bleibt in Ch5 am Bau, damit die Tiere morgen wieder nachsehen koennen",
+      ],
+    },
+  };
+
+  if (antagonistName) {
+    blueprint.antagonist_dna = {
+      name: antagonistName,
+      motive: `${antagonistName} will den Krautplatz allein schuetzen, weil er Angst hat, dass fuer ihn nichts uebrig bleibt.`,
+      weakness: `${antagonistName} verliert den Vorteil, wenn die Kinder ruhig riechen, Spuren vergleichen und Teilen sichtbar vormachen.`,
+      first_action: `${antagonistName} legt glaenzende Beeren auf den falschen Pfad, damit alle vom Heilkraut weggehen.`,
+      speech_tic: `${antagonistName} sagt immer wieder: "Meins bleibt meins", wenn jemand teilen will.`,
+    };
+  }
+
+  return blueprint;
+}
+
+function isAnimalWorldRequest(req: NormalizedRequest): boolean {
+  const text = [
+    req.category,
+    req.rawConfig?.genre,
+    req.rawConfig?.setting,
+  ].filter(Boolean).join(" ").toLowerCase();
+  return text.includes("tierwelten") || text.includes("animals") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function findAnimalWorldHelper(cast: CastSet) {
+  return cast.poolCharacters.find(character =>
+    String(character.roleType || "").toUpperCase() === "HELPER" && isAnimalishSheet(character),
+  ) || cast.poolCharacters.find(isAnimalishSheet) || cast.poolCharacters[0];
+}
+
+function findAnimalWorldAntagonist(cast: CastSet) {
+  return cast.poolCharacters.find(character =>
+    String(character.roleType || "").toUpperCase() === "ANTAGONIST",
+  );
+}
+
+function isAnimalishSheet(character: { species?: string; archetype?: string; role?: string; visualSignature?: string[] }): boolean {
+  const text = [
+    character.species,
+    character.archetype,
+    character.role,
+    ...(character.visualSignature || []),
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(human|mensch|kind|child|person)\b/.test(text)) return false;
+  return /\b(animal|tier|fuchs|fox|maus|mouse|igel|hedgehog|hase|rabbit|eule|owl|vogel|bird|biber|beaver|dachs|badger|frosch|frog|kroete|kröte|squirrel|eichhoernchen|eichhörnchen|otter|reh|deer|katze|cat|hund|dog)\b/.test(text);
+}
+
+function resolveAnimalWorldHabitat(req: NormalizedRequest, directives: SceneDirective[]): string {
+  const raw = [
+    req.rawConfig?.setting,
+    ...directives.map(directive => directive.setting),
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(ocean|meer|riff|seegras|koralle|coral)\b/.test(raw)) return "Seegrasriff hinter der Muschelbank";
+  if (/\b(farm|bauernhof|stall|scheune)\b/.test(raw)) return "alten Apfelgarten hinter dem Stall";
+  if (/\b(pond|teich|lake|see|bach|river|fluss)\b/.test(raw)) return "Biberbach unter der Weidenwurzel";
+  if (/\b(wiese|meadow|field)\b/.test(raw)) return "Kleeweise am Rand des Mooswalds";
+  return "Mooswald am Biberbach";
+}
+
+function buildAnimalArtifactRule(artifactName: string, rawRule?: string): string {
+  const rule = String(rawRule || "").replace(/\s+/g, " ").trim();
+  if (rule && rule.length <= 120 && /\b(zeigt|warnt|weist|reveals|shows|warns)\b/i.test(rule)) {
+    return `${artifactName} ${rule}; die Kinder muessen trotzdem riechen, schauen und entscheiden.`;
+  }
+  return `${artifactName} zeigt nur den Unterschied zwischen echter und falscher Spur; handeln muessen die Kinder selbst.`;
+}
+
+function buildAnimalIconicMotifObject(artifactName: string): string {
+  const lower = artifactName.toLowerCase();
+  if (lower.includes("kraut") || lower.includes("blatt") || lower.includes("herb")) {
+    return `${artifactName} mit drei gezackten Blaettern`;
+  }
+  return `${artifactName} mit einem feuchten Moosrand`;
+}
+
+function formatGermanArtifactObject(name: string): string {
+  const clean = String(name || "").trim();
+  if (!clean) return "das besondere Fundstueck";
+  const lower = clean.toLowerCase();
+  if (lower.includes("schuhe") || lower.includes("krone") || lower.includes("kugel")) return `die ${clean}`;
+  if (lower.includes("ring") || lower.includes("kristall") || lower.includes("spiegel") || lower.includes("schluessel") || lower.includes("schlüssel")) return `den ${clean}`;
+  if (lower.includes("kraut") || lower.includes("buch") || lower.includes("blatt")) return `das ${clean}`;
+  return `das Artefakt ${clean}`;
 }
 
 function resolveBlueprintRescueModel(selectedStoryModel?: string, supportModel?: string): string | undefined {

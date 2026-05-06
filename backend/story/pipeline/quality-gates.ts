@@ -3571,6 +3571,104 @@ function gateIconicMotifRecurrence(
 //
 // Why: Critic-Logs 2026-04-23 diagnosed "sentence structures too complex for ages 6-8"
 // but Surgery did not fix it. Problem: only WARN-level in READABILITY_COMPLEXITY.
+function gateCategoryContract(
+  draft: StoryDraft,
+  language: string,
+  category: string | undefined,
+  cast: CastSet,
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  if (!isAnimalWorldCategoryForGate(category)) return issues;
+
+  const isDE = language === "de";
+  const fullText = draft.chapters.map(ch => ch.text || "").join("\n").toLowerCase();
+  const ch1Text = (draft.chapters[0]?.text || "").toLowerCase();
+  if (fullText.length < 120) return issues;
+
+  const animalWorldTokens = [
+    "tier", "tiere", "fuchs", "maus", "igel", "hase", "eule", "vogel", "biber", "dachs",
+    "frosch", "kroete", "kröte", "eichhoernchen", "eichhörnchen", "otter", "pfote",
+    "schnauze", "fell", "feder", "nest", "bau", "spur", "moos", "blatt", "kraut",
+    "wurzel", "bach", "teich", "wiese", "wald", "duft", "riecht", "schnuppert",
+  ];
+  const communityTokens = [
+    "krautplatz", "kranke", "krank", "hustet", "heilen", "heilkraut", "schuetzen",
+    "schützen", "retten", "teilen", "vorrat", "futter", "bau", "nest", "tiergemeinschaft",
+    "pfad", "ufer", "bachrand",
+  ];
+
+  const animalHits = countTokenHits(fullText, animalWorldTokens);
+  const communityHits = countTokenHits(fullText, communityTokens);
+  const ch1AnimalHits = countTokenHits(ch1Text.slice(0, 900), animalWorldTokens);
+  const namedAnimalCastHits = cast.poolCharacters
+    .filter(character => isAnimalishCastSheet(character))
+    .filter(character => fullText.includes(String(character.displayName || "").toLowerCase()))
+    .length;
+
+  if (animalHits < 8 || namedAnimalCastHits < 1) {
+    issues.push({
+      gate: "CATEGORY_CONTRACT",
+      chapter: 0,
+      code: "TIERWELTEN_WORLD_UNDERUSED",
+      message: isDE
+        ? `Tierwelten-Vertrag zu schwach: zu wenig Tier-/Lebensraum-Signale oder kein Tier-Cast sichtbar.`
+        : `Animal-world contract too weak: too few animal/habitat signals or no animal cast on page.`,
+      severity: "ERROR",
+    });
+  }
+
+  if (communityHits < 4) {
+    issues.push({
+      gate: "CATEGORY_CONTRACT",
+      chapter: 0,
+      code: "TIERWELTEN_COMMUNITY_STAKES_WEAK",
+      message: isDE
+        ? `Tierwelten braucht ein konkretes Lebensraum-/Fuersorgeproblem, nicht nur eine generische Suche.`
+        : `Animal-world story needs a concrete habitat/care problem, not just a generic search.`,
+      severity: "ERROR",
+    });
+  }
+
+  if (ch1AnimalHits < 2) {
+    issues.push({
+      gate: "CATEGORY_CONTRACT",
+      chapter: draft.chapters[0]?.chapter ?? 1,
+      code: "TIERWELTEN_CH1_ORIENTATION_MISSING",
+      message: isDE
+        ? `Kapitel 1 zeigt die Tierwelt nicht frueh genug. Kinder muessen sofort Lebensraum, Tierfigur und Aufgabe greifen.`
+        : `Chapter 1 does not establish the animal world early enough.`,
+      severity: "ERROR",
+    });
+  }
+
+  return issues;
+}
+
+function isAnimalWorldCategoryForGate(category?: string): boolean {
+  const text = String(category || "").toLowerCase();
+  return text.includes("tierwelten") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function countTokenHits(text: string, tokens: string[]): number {
+  let hits = 0;
+  for (const token of tokens) {
+    if (text.includes(token)) hits += 1;
+  }
+  return hits;
+}
+
+function isAnimalishCastSheet(character: { species?: string; archetype?: string; role?: string; roleType?: string; visualSignature?: string[] }): boolean {
+  const text = [
+    character.species,
+    character.archetype,
+    character.role,
+    character.roleType,
+    ...(character.visualSignature || []),
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(human|mensch|kind|child|person)\b/.test(text)) return false;
+  return /\b(animal|tier|fuchs|fox|maus|mouse|igel|hedgehog|hase|rabbit|eule|owl|vogel|bird|biber|beaver|dachs|badger|frosch|frog|kroete|kröte|squirrel|eichhoernchen|eichhörnchen|otter|reh|deer|katze|cat|hund|dog)\b/.test(text);
+}
+
 function gateAgeFitSentenceLength(
   draft: StoryDraft,
   language: string,
@@ -3988,8 +4086,9 @@ export function runQualityGates(input: {
   refrainLine?: string; // Sprint 4 (S4.2): blueprint.refrain_line
   antagonistName?: string; // Sprint 4 (S4.3): blueprint.antagonist_dna.name
   iconicMotif?: { object: string; per_chapter_position?: ReadonlyArray<string> }; // Sprint 5 (S5.2)
+  category?: string;
 }): QualityReport {
-  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul, concreteAnchors, endingPattern, refrainLine, antagonistName, iconicMotif } = input;
+  const { draft, directives, cast, language, ageRange, wordBudget, artifactArc, humorLevel, storySoul, concreteAnchors, endingPattern, refrainLine, antagonistName, iconicMotif, category } = input;
 
   const gateRunners: Array<{ name: string; fn: () => QualityIssue[] }> = [
     { name: "LENGTH_PACING", fn: () => gateLengthAndPacing(draft, wordBudget) },
@@ -4052,6 +4151,8 @@ export function runQualityGates(input: {
     { name: "ANTAGONIST_SHOWDOWN", fn: () => gateAntagonistShowdown(draft, language, antagonistName) },
     // Sprint 5: iconic motif recurrence
     { name: "ICONIC_MOTIF_RECURRENCE", fn: () => gateIconicMotifRecurrence(draft, language, iconicMotif) },
+    // Release category fidelity: prevent Tierwelten/animal stories from drifting into generic fantasy.
+    { name: "CATEGORY_CONTRACT", fn: () => gateCategoryContract(draft, language, category, cast) },
   ];
 
   const allIssues: QualityIssue[] = [];

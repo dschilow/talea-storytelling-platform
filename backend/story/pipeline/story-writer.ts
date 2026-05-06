@@ -14,6 +14,7 @@ import {
   isGeminiFlashFamilyModel,
   isMiniMaxFamilyModel,
   resolveClaudeStoryModel,
+  resolveConfiguredStoryModel,
   resolveGeminiSupportFallback,
   resolveSupportTaskModel,
 } from "./model-routing";
@@ -571,7 +572,7 @@ export class LlmStoryWriter implements StoryWriter {
     // Sprint 3 (MT4): extract ending_pattern from V8 blueprint for ENDING_PATTERN_MATCH gate.
     const endingPattern = (blueprintV8 as any)?.ending_pattern as string | undefined;
     const rawConfig = normalizedRequest.rawConfig as any;
-    const requestedModel = rawConfig?.aiModel ?? GEMINI_MAIN_STORY_MODEL;
+    const requestedModel = resolveConfiguredStoryModel(rawConfig);
     const model = isClaudeFamilyModel(requestedModel)
       ? resolveClaudeStoryModel(requestedModel)
       : requestedModel;
@@ -1030,6 +1031,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         return buildV8StoryPrompt({
           blueprint: blueprintV8,
           cast,
+          category: normalizedRequest.category,
           language: normalizedRequest.language,
           chapterCount: directives.length,
           totalWordMin: Math.round(totalWordMin),
@@ -1247,6 +1249,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       directives,
       cast,
       language: normalizedRequest.language,
+      category: normalizedRequest.category,
       ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
       wordBudget: normalizedRequest.wordBudget,
       humorLevel,
@@ -1579,6 +1582,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           directives,
           cast,
           language: normalizedRequest.language,
+          category: normalizedRequest.category,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
@@ -1609,6 +1613,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           directives,
           cast,
           language: normalizedRequest.language,
+          category: normalizedRequest.category,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
@@ -1814,6 +1819,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         directives,
         cast,
         language: normalizedRequest.language,
+        category: normalizedRequest.category,
         ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
         wordBudget: normalizedRequest.wordBudget,
         humorLevel,
@@ -1875,6 +1881,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
             directives,
             cast,
             language: normalizedRequest.language,
+            category: normalizedRequest.category,
             ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
             wordBudget: normalizedRequest.wordBudget,
             humorLevel,
@@ -1917,6 +1924,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           directives,
           cast,
           language: normalizedRequest.language,
+          category: normalizedRequest.category,
           ageRange: { min: normalizedRequest.ageMin, max: normalizedRequest.ageMax },
           wordBudget: normalizedRequest.wordBudget,
           humorLevel,
@@ -2494,10 +2502,28 @@ const ASCII_UMLAUT_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bgegenueber\b/gi, "gegen\u00FCber"],
   [/\bzurueck\b/gi, "zur\u00FCck"],
   [/\bwaehrend\b/gi, "w\u00E4hrend"],
+  [/\bfuehrt\b/gi, "f\u00FChrt"],
+  [/\bfuehrte\b/gi, "f\u00FChrte"],
+  [/\bfuehrten\b/gi, "f\u00FChrten"],
+  [/\bfuehren\b/gi, "f\u00FChren"],
   [/\bwuerde\b/gi, "w\u00FCrde"],
   [/\bwuerden\b/gi, "w\u00FCrden"],
+  [/\bmuessen\b/gi, "m\u00FCssen"],
+  [/\bmuss\b/gi, "muss"],
+  [/\bmusste\b/gi, "musste"],
   [/\bwaere\b/gi, "w\u00E4re"],
   [/\bwaeren\b/gi, "w\u00E4ren"],
+  [/\buebte\b/gi, "\u00FCbte"],
+  [/\bueben\b/gi, "\u00FCben"],
+  [/\buebt\b/gi, "\u00FCbt"],
+  [/\benttaeuscht\b/gi, "entt\u00E4uscht"],
+  [/\benttaeuschen\b/gi, "entt\u00E4uschen"],
+  [/\bwaerme\b/gi, "W\u00E4rme"],
+  [/\bwaermer\b/gi, "w\u00E4rmer"],
+  [/\bhaende\b/gi, "H\u00E4nde"],
+  [/\bhaenden\b/gi, "H\u00E4nden"],
+  [/\baermel\b/gi, "\u00C4rmel"],
+  [/\bknie\b/gi, "Knie"],
   [/\bmoeglich\b/gi, "m\u00F6glich"],
   [/\bmoeglichkeit\b/gi, "M\u00F6glichkeit"],
   [/\bmoeglichkeiten\b/gi, "M\u00F6glichkeiten"],

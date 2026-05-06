@@ -1193,8 +1193,11 @@
         "gemini3_flash": "Fast & free",
         "gpt54": "Best quality",
         "gpt54_mini": "Strong & cheaper",
-        "minimax_m27": "MiniMax via Runware, fast"
-      }
+        "minimax_m27": "MiniMax via Runware, fast",
+        "openrouter": "OpenRouter API key, many model families"
+      },
+      "openrouterModelLabel": "OpenRouter model",
+      "openrouterHint": "The backend uses the OpenRouter key from Railway. Existing models stay unchanged."
     },
     "credits": {
       "title": "Story Coins",

@@ -31,6 +31,7 @@ import {
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import { buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
 import { GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
+import { normalizeOpenRouterModel } from "./openrouter-generation";
 import {
   assertProfilesBelongToUser,
   getProfileForUser,
@@ -187,6 +188,8 @@ export type AIModel =
   | "gemini-3.1-pro-preview"
   | "minimax-m2.7";
 
+export type AIProvider = "native" | "openrouter";
+
 export interface StoryConfig {
   avatarIds: string[];
   genre: string;
@@ -215,6 +218,8 @@ export interface StoryConfig {
 
   // AI Model selection for story generation
   aiModel?: AIModel;
+  aiProvider?: AIProvider;
+  openRouterModel?: string;
 
   // 4-Phase System: Enable character pool system
   useCharacterPool?: boolean;
@@ -420,12 +425,19 @@ export const generate = api<GenerateStoryRequest, Story>(
 
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
     const requestedAiModel = req.config.aiModel;
+    const requestedAiProvider: AIProvider = req.config.aiProvider === "openrouter" ? "openrouter" : "native";
+    const requestedOpenRouterModel =
+      requestedAiProvider === "openrouter"
+        ? normalizeOpenRouterModel(req.config.openRouterModel)
+        : undefined;
     const defaultAiModel: AIModel = "gemini-3-flash-preview";
     const effectiveAiModel: AIModel = requestedAiModel ?? defaultAiModel;
-    if (requestedAiModel && requestedAiModel !== defaultAiModel) {
+    if (requestedAiProvider === "openrouter" || (requestedAiModel && requestedAiModel !== defaultAiModel)) {
       console.log("[story.generate] Model override from wizard applied", {
         userId: currentUserId,
+        requestedAiProvider,
         requestedAiModel,
+        requestedOpenRouterModel,
         defaultAiModel,
       });
     }
@@ -456,6 +468,8 @@ export const generate = api<GenerateStoryRequest, Story>(
       ...req.config,
       ageGroup: req.config.ageGroup || inferredAgeGroup || "6-8",
       aiModel: effectiveAiModel,
+      aiProvider: requestedAiProvider,
+      openRouterModel: requestedOpenRouterModel,
       parentalGuidance: parentalGuidance || undefined,
       // Keep parental guidance separate; it is injected via STYLE PACK block downstream.
       // Merge child-profile context into the user's prompt so generation stays child-specific.
@@ -475,6 +489,8 @@ export const generate = api<GenerateStoryRequest, Story>(
         complexity: config.complexity,
         ageGroup: config.ageGroup,
         aiModel: config.aiModel ?? 'not-set',
+        aiProvider: config.aiProvider ?? 'native',
+        openRouterModel: config.openRouterModel,
         stylePreset: config.stylePreset,
         tone: config.tone,
         language: config.language,

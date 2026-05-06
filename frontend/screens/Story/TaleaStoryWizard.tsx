@@ -43,6 +43,12 @@ import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
 import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
 import Step6Summary from './wizard-steps/Step6Summary';
 import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
+import {
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  type AIModel,
+  type AIProvider,
+  type OpenRouterStoryModel,
+} from '@/types/story';
 
 interface WizardState {
   selectedAvatars: string[];
@@ -58,14 +64,9 @@ interface WizardState {
   happyEnd: boolean;
   surpriseEnd: boolean;
   customWish: string;
-  aiModel:
-  | 'claude-sonnet-4-6'
-  | 'gpt-5.4'
-  | 'gpt-5.4-mini'
-  | 'gemini-3-flash-preview'
-  | 'gemini-3-pro-preview'
-  | 'gemini-3.1-pro-preview'
-  | 'minimax-m2.7';
+  aiModel: AIModel;
+  aiProvider: AIProvider;
+  openRouterModel: OpenRouterStoryModel;
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
@@ -269,6 +270,8 @@ export default function TaleaStoryWizard() {
     surpriseEnd: false,
     customWish: customTags ? `Thema: ${customTags}` : '',
     aiModel: 'gemini-3.1-pro-preview',
+    aiProvider: 'native',
+    openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
   });
   const lastAppliedProfileRef = React.useRef<string | null>(null);
 
@@ -627,6 +630,8 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
     aiModel: state.aiModel,
+    aiProvider: state.aiProvider,
+    openRouterModel: state.aiProvider === 'openrouter' ? state.openRouterModel : undefined,
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },

@@ -1315,6 +1315,55 @@ function buildReaderContractBlock(
   return `${heading}\n${lines.join("\n")}\n- Ch1 paragraph 1: familiar place + recognizable child behavior.\n- Ch1 paragraph 2: mission + concrete consequence in simple words.\n- Ch1 paragraph 3: the one artifact/magic/rule in action or dialogue.\n- Ch1 may become tense only after the reader can answer WHO, WHERE, WHAT, WHY.`;
 }
 
+function buildCategoryContractBlock(category: string | undefined, cast: CastSet, isGerman: boolean): string {
+  if (!isAnimalWorldPromptCategory(category)) return "";
+  const animalNames = cast.poolCharacters
+    .filter(character => isAnimalishPromptSheet(character as any))
+    .map(character => character.displayName)
+    .filter(Boolean)
+    .slice(0, 3);
+  const animalLine = animalNames.length > 0
+    ? `- Sichtbarer Tier-Cast: ${animalNames.join(", ")} muss szenisch handeln.`
+    : "- Mindestens ein Tier muss szenisch handeln; kein reiner Menschen-Fantasy-Plot.";
+
+  if (isGerman) {
+    return [
+      "KATEGORIE-VERTRAG: TIERWELTEN (HARD)",
+      "- Die Geschichte muss sich wie eine Tierwelt anfuehlen: Lebensraum, Gerueche, Spuren, Pfoten/Nest/Bau, Tiergemeinschaft.",
+      "- Das zentrale Problem ist ein konkretes Lebensraum- oder Fuersorgeproblem: krankes Tier, Krautplatz, Nest, Futter, Bau, Wasser oder Schutz.",
+      "- Keine generische Fantasy-Suche. Kein abstraktes Portal-/Zauberproblem ohne Tiergemeinschaft.",
+      "- Kapitel 1 zeigt spaetestens im zweiten Absatz: Ort im Lebensraum, Tierfigur, Aufgabe, konkrete Folge.",
+      "- Das Artefakt darf nur zeigen/warnen/bestaetigen. Es heilt, oeffnet oder loest nie allein.",
+      "- Mindestens zwei Schmunzelmomente kommen aus Tierverhalten, Missverstaendnis oder Koerperkomik.",
+      animalLine,
+    ].join("\n");
+  }
+
+  return [
+    "CATEGORY CONTRACT: ANIMAL WORLDS (HARD)",
+    "- The story must feel like an animal world: habitat, smells, tracks, paws/nest/burrow, animal community.",
+    "- The central problem is concrete care/habitat stakes: sick animal, herb patch, nest, food, burrow, water, or protection.",
+    "- No generic fantasy quest without animal-community stakes.",
+    animalLine,
+  ].join("\n");
+}
+
+function isAnimalWorldPromptCategory(category?: string): boolean {
+  const text = String(category || "").toLowerCase();
+  return text.includes("tierwelten") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function isAnimalishPromptSheet(character: { species?: string; archetype?: string; role?: string; visualSignature?: string[] }): boolean {
+  const text = [
+    character.species,
+    character.archetype,
+    character.role,
+    ...(character.visualSignature || []),
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (/\b(human|mensch|kind|child|person)\b/.test(text)) return false;
+  return /\b(animal|tier|fuchs|fox|maus|mouse|igel|hedgehog|hase|rabbit|eule|owl|vogel|bird|biber|beaver|dachs|badger|frosch|frog|kroete|kröte|squirrel|eichhoernchen|eichhörnchen|otter|reh|deer|katze|cat|hund|dog)\b/.test(text);
+}
+
 export function buildV8BlueprintPrompt(input: {
   chapterCount: number;
   genre: string;
@@ -1503,6 +1552,7 @@ ${getReferenceFewshotBlock(language)}`;
 export function buildV8StoryPrompt(input: {
   blueprint: StoryBlueprintV8;
   cast: CastSet;
+  category?: string;
   language: string;
   chapterCount: number;
   totalWordMin: number;
@@ -1521,6 +1571,7 @@ export function buildV8StoryPrompt(input: {
   const customPromptBlock = trimPromptLines(formatCustomPromptBlock(input.userPrompt, isGerman), 5);
   const soulBlock = buildSoulPromptBlock(input.storySoul, isGerman);
   const readerContractBlock = buildReaderContractBlock(input.blueprint, input.storySoul, isGerman);
+  const categoryContractBlock = buildCategoryContractBlock(input.category, input.cast, isGerman);
   const artifactName = input.cast.artifact?.name?.trim();
   const artifactContractBlock = artifactName
     ? `
@@ -1621,6 +1672,7 @@ ${(iconicMotif.per_chapter_position || [])
   return `Use the following internal blueprint to write the final children's story.
 ${soulBlock ? `\n${soulBlock}\n` : ""}
 ${readerContractBlock ? `\n${readerContractBlock}\n` : ""}
+${categoryContractBlock ? `\n${categoryContractBlock}\n` : ""}
 ${artifactContractBlock}
 WORD BUDGET
 - ${input.chapterCount} chapters

@@ -1,7 +1,12 @@
 ﻿import { secret } from "encore.dev/config";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
-import { resolveClaudeStoryModel } from "./model-routing";
+import { isOpenRouterFamilyModel, resolveClaudeStoryModel } from "./model-routing";
+import {
+  callOpenRouterChatCompletion,
+  getOpenRouterModelPricing,
+  normalizeOpenRouterModel,
+} from "../openrouter-generation";
 
 const openAIKey = secret("OpenAIKey");
 const anthropicApiKey = secret("AnthropicAPIKey");
@@ -74,6 +79,13 @@ function uniqueModels(models: Array<string | undefined>): string[] {
 
 function resolveOpenAiModelCandidates(primaryModel: string, explicitFallbacks?: string[]): string[] {
   const normalizedPrimary = String(primaryModel || "").trim() || "gpt-5.4-mini";
+  if (isOpenRouterFamilyModel(normalizedPrimary)) {
+    return uniqueModels([
+      normalizeOpenRouterModel(normalizedPrimary),
+      ...(explicitFallbacks || []).filter(isOpenRouterFamilyModel),
+    ]).slice(0, MAX_MODEL_FALLBACKS + 1);
+  }
+
   const mappedFallbacks = OPENAI_MODEL_FALLBACKS[normalizedPrimary]
     ?? (normalizedPrimary.startsWith("gpt-5") ? ["gpt-5.4-mini", "gpt-5.4-nano"] : []);
   return uniqueModels([
@@ -259,7 +271,8 @@ export async function callChatCompletion(input: {
     const activeModel = modelCandidates[modelIndex];
     const hasFallback = modelIndex < modelCandidates.length - 1;
     let fallbackTriggered = false;
-    const isReasoningModel = activeModel.includes("gpt-5") || activeModel.includes("o4");
+    const isOpenRouterModel = isOpenRouterFamilyModel(activeModel);
+    const isReasoningModel = !isOpenRouterModel && (activeModel.includes("gpt-5") || activeModel.includes("o4"));
     const isCriticContext = Boolean(input.context) && input.context!.includes("semantic-critic");
     const prefersMinimalJsonReasoning =
       input.responseFormat === "json_object"
@@ -289,13 +302,19 @@ export async function callChatCompletion(input: {
         || input.context!.startsWith("story-release-surgery")
       );
 
+    const effectiveMaxTokens = needsJsonHeadroom
+      ? Math.max(requestedMaxCompletionTokens, jsonHeadroomFloor)
+      : requestedMaxCompletionTokens;
     const payload: any = {
       model: activeModel,
       messages: input.messages,
-      max_completion_tokens: needsJsonHeadroom
-        ? Math.max(requestedMaxCompletionTokens, jsonHeadroomFloor)
-        : requestedMaxCompletionTokens,
     };
+
+    if (isOpenRouterModel) {
+      payload.max_tokens = effectiveMaxTokens;
+    } else {
+      payload.max_completion_tokens = effectiveMaxTokens;
+    }
 
     if (input.responseFormat === "json_object") {
       payload.response_format = { type: "json_object" };
@@ -324,6 +343,61 @@ export async function callChatCompletion(input: {
       const requestPayload = { ...payload };
       let response: Response;
       try {
+        if (isOpenRouterModel) {
+          const openRouterResult = await callOpenRouterChatCompletion({
+            messages: input.messages,
+            model: activeModel,
+            responseFormat: input.responseFormat,
+            maxTokens: effectiveMaxTokens,
+            temperature: input.temperature ?? 0.7,
+            seed: input.seed,
+          });
+          const data: any = openRouterResult.data;
+          await logLlmEvent({
+            source: logSource,
+            request: openRouterResult.request,
+            response: data,
+            metadata: { ...logMetadata, provider: "openrouter" },
+          });
+
+          const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
+          const content = data.choices?.[0]?.message?.content ?? "";
+          const actualModel = data.model || openRouterResult.model || activeModel;
+          const usage = data.usage
+            ? {
+                promptTokens: data.usage.prompt_tokens ?? 0,
+                cachedPromptTokens: data.usage.prompt_tokens_details?.cached_tokens ?? 0,
+                completionTokens: data.usage.completion_tokens ?? 0,
+                totalTokens: data.usage.total_tokens ?? 0,
+                model: actualModel,
+                reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+              }
+            : undefined;
+
+          if (finishReason === "length") {
+            console.warn(
+              `[llm-client] OpenRouter response truncated for context="${input.context ?? "unknown"}", model=${actualModel}.`
+            );
+          }
+
+          const isEmptyTruncated = finishReason === "length" && !String(content || "").trim();
+          if (isEmptyTruncated && hasFallback) {
+            console.warn(
+              `[llm-client] Empty truncated response from ${activeModel}; falling back to ${modelCandidates[modelIndex + 1]}`
+            );
+            fallbackTriggered = true;
+            break;
+          }
+          if (isEmptyTruncated) {
+            lastError = new Error(
+              `OpenRouter returned empty truncated response for context="${input.context ?? "unknown"}" on model ${activeModel}`
+            );
+            break;
+          }
+
+          return { content, usage, finishReason };
+        }
+
         response = await fetchWithRetry(
           "https://api.openai.com/v1/chat/completions",
           {
@@ -401,13 +475,14 @@ export async function callChatCompletion(input: {
       });
       const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
       const content = data.choices?.[0]?.message?.content ?? "";
+      const actualModel = data.model || activeModel;
       const usage = data.usage
         ? {
             promptTokens: data.usage.prompt_tokens ?? 0,
             cachedPromptTokens: data.usage.prompt_tokens_details?.cached_tokens ?? 0,
             completionTokens: data.usage.completion_tokens ?? 0,
             totalTokens: data.usage.total_tokens ?? 0,
-            model: activeModel,
+            model: actualModel,
             reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
           }
         : undefined;
@@ -502,6 +577,7 @@ export function calculateTokenCosts(usage: {
 }
 
 function inputPricePerMillion(model: string): number {
+  if (isOpenRouterFamilyModel(model)) return getOpenRouterModelPricing(model).inputCostPer1M;
   if (model.includes("claude-sonnet-4-6")) return 3.0;
   if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
@@ -527,6 +603,7 @@ function normalizeReasoningEffort(
 }
 
 function outputPricePerMillion(model: string): number {
+  if (isOpenRouterFamilyModel(model)) return getOpenRouterModelPricing(model).outputCostPer1M;
   if (model.includes("claude-sonnet-4-6")) return 15.0;
   if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;

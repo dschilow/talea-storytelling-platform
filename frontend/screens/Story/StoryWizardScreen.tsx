@@ -23,6 +23,12 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 import { useTheme } from '../../contexts/ThemeContext';
 import { TaleaPageBackground, taleaDisplayFont, taleaPageShellClass } from '@/components/talea/TaleaPastelPrimitives';
+import {
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  type AIModel,
+  type AIProvider,
+  type OpenRouterStoryModel,
+} from '@/types/story';
 
 type StepType = 'avatar' | 'genre' | 'soul' | 'experience' | 'parameters' | 'learning' | 'generation';
 
@@ -40,14 +46,9 @@ interface StoryConfig {
   customPrompt?: string;
   language?: 'de' | 'en';
 
-  aiModel?:
-    | 'claude-sonnet-4-6'
-    | 'gpt-5.4'
-    | 'gpt-5.4-mini'
-    | 'gemini-3-flash-preview'
-    | 'gemini-3-pro-preview'
-    | 'gemini-3.1-pro-preview'
-    | 'minimax-m2.7';
+  aiModel?: AIModel;
+  aiProvider?: AIProvider;
+  openRouterModel?: OpenRouterStoryModel | string;
 
   length: 'short' | 'medium' | 'long';
   complexity: 'simple' | 'medium' | 'complex';
@@ -111,6 +112,8 @@ const StoryWizardScreen: React.FC = () => {
     customPrompt: '',
     language: i18n.language as 'de' | 'en',
     aiModel: 'gemini-3-flash-preview',
+    aiProvider: 'native',
+    openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
     length: 'medium',
     complexity: 'medium',
     ageGroup: '6-8',
@@ -304,11 +307,15 @@ const StoryWizardScreen: React.FC = () => {
             complexity={storyConfig.complexity}
             ageGroup={storyConfig.ageGroup}
             aiModel={storyConfig.aiModel}
+            aiProvider={storyConfig.aiProvider}
+            openRouterModel={storyConfig.openRouterModel}
             showAiModelSelection
             onLengthChange={(length) => updateStoryConfig({ length })}
             onComplexityChange={(complexity) => updateStoryConfig({ complexity })}
             onAgeGroupChange={(ageGroup) => updateStoryConfig({ ageGroup })}
             onAiModelChange={(aiModel) => updateStoryConfig({ aiModel })}
+            onAiProviderChange={(aiProvider) => updateStoryConfig({ aiProvider })}
+            onOpenRouterModelChange={(openRouterModel) => updateStoryConfig({ openRouterModel })}
           />
         );
       case 'learning':
@@ -419,4 +426,3 @@ const StoryWizardScreen: React.FC = () => {
 };
 
 export default StoryWizardScreen;
-

@@ -8,6 +8,22 @@ export type AIModel =
   | 'gemini-3.1-pro-preview'
   | 'minimax-m2.7';
 
+export type AIProvider = 'native' | 'openrouter';
+
+export type OpenRouterStoryModel =
+  | 'moonshotai/kimi-k2.6'
+  | '~moonshotai/kimi-latest'
+  | 'moonshotai/kimi-k2.5'
+  | 'openrouter/owl-alpha'
+  | '~google/gemini-pro-latest'
+  | '~google/gemini-flash-latest'
+  | '~anthropic/claude-sonnet-latest'
+  | '~openai/gpt-mini-latest'
+  | 'deepseek/deepseek-v4-pro'
+  | 'qwen/qwen3.6-max-preview';
+
+export const DEFAULT_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'moonshotai/kimi-k2.6';
+
 export interface StoryConfig {
   genre: string;
   style: string;
@@ -15,6 +31,8 @@ export interface StoryConfig {
   moral?: string;
   avatars?: Avatar[];
   characters?: Character[];
+  aiProvider?: AIProvider;
+  openRouterModel?: string;
 }
 
 export interface Avatar {

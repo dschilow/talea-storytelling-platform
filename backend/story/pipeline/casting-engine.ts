@@ -82,7 +82,7 @@ const ARTIFACT_CATEGORY_BY_ABILITY: Record<string, ArtifactCategory[]> = {
 const STORY_ARTIFACT_CATEGORY_BIAS: Record<string, ArtifactCategory[]> = {
   "Abenteuer & Schätze": ["map", "tool", "jewelry", "book", "magic"],
   "Märchenwelten & Magie": ["magic", "jewelry", "book", "nature", "potion"],
-  "Tierwelten": ["nature", "tool", "clothing", "magic", "potion"],
+  "Tierwelten": ["nature", "potion", "tool"],
   "Sci-Fi & Zukunft": ["tech", "tool", "map", "magic"],
   "Modern & Realität": ["tool", "book", "clothing", "jewelry", "map"],
   "Klassische Märchen": ["magic", "jewelry", "book", "clothing", "tool"],
@@ -376,20 +376,38 @@ async function selectCandidateForSlot(input: {
 
   const scored: ScoredCandidate[] = eligibleCandidates.map(candidate => {
     const scoreDetails = scoreCandidate(slot, candidate as any);
+    const adjustedScore = adjustScoreForCategory({
+      slot,
+      candidate,
+      score: scoreDetails.finalScore,
+      normalized,
+    });
     matchScores.push({
       slotKey: slot.slotKey,
       candidateId: candidate.id,
       scores: scoreDetails.scores,
-      finalScore: scoreDetails.finalScore,
-      notes: scoreDetails.notes,
+      finalScore: adjustedScore,
+      notes: [
+        scoreDetails.notes,
+        adjustedScore !== scoreDetails.finalScore ? `category adjusted ${scoreDetails.finalScore.toFixed(2)}->${adjustedScore.toFixed(2)}` : "",
+      ].filter(Boolean).join(", "),
     });
-    return { candidate, score: scoreDetails.finalScore };
+    return { candidate, score: adjustedScore };
   });
 
   scored.sort((a, b) => b.score - a.score);
   const topScore = scored[0]?.score ?? 0;
   const topTier = scored.filter(item => item.score >= topScore - 0.15);
   const fallbackPick = topTier[Math.floor(rng.next() * Math.max(1, topTier.length))]?.candidate;
+
+  if (shouldSkipAiCasting(normalized)) {
+    if (!fallbackPick) return { sheet: null, usage: undefined, costEntries: [] };
+    return {
+      sheet: await buildPoolCharacterSheet(fallbackPick, slot.slotKey, slot.roleType),
+      usage: undefined,
+      costEntries: [],
+    };
+  }
 
   const aiResult = await selectCandidateForSlotWithAI({
     slot,
@@ -419,6 +437,77 @@ async function selectCandidateForSlot(input: {
     usage: aiResult.usage,
     costEntries: aiResult.costEntry ? [aiResult.costEntry] : [],
   };
+}
+
+function shouldSkipAiCasting(normalized: NormalizedRequest): boolean {
+  const raw = normalized.rawConfig as any;
+  if (raw?.enableCastingAiMatch === true) return false;
+  return true;
+}
+
+function adjustScoreForCategory(input: {
+  slot: RoleSlot;
+  candidate: CharacterPoolRow;
+  score: number;
+  normalized: NormalizedRequest;
+}): number {
+  let score = input.score;
+  if (!isAnimalWorldCategory(input.normalized.category)) return score;
+
+  const animalish = isAnimalishCandidate(input.candidate);
+  const humanish = isHumanishCandidate(input.candidate);
+  const natureish = isNatureishCandidate(input.candidate);
+
+  if (input.slot.roleType === "HELPER") {
+    if (animalish) score += 0.32;
+    if (natureish) score += 0.12;
+    if (humanish) score -= 0.28;
+  } else if (input.slot.roleType === "ANTAGONIST" || input.slot.roleType === "TRICKSTER") {
+    if (animalish || natureish) score += 0.22;
+    if (humanish) score -= 0.22;
+  } else {
+    if (animalish) score += 0.08;
+  }
+
+  return Math.max(0, Math.min(1, score));
+}
+
+function isAnimalWorldCategory(value?: string): boolean {
+  const text = String(value || "").toLowerCase();
+  return text.includes("tierwelten") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function isAnimalishCandidate(candidate: CharacterPoolRow): boolean {
+  const text = candidateProfileText(candidate);
+  if (/\b(human|mensch|person|kind|child|kid|junge|maedchen|mädchen|adult|erwachsen)\b/.test(text)) {
+    return false;
+  }
+  return /\b(animal|tier|fuchs|fox|eule|owl|igel|hedgehog|hase|rabbit|maus|mouse|vogel|bird|biber|beaver|dachs|badger|frosch|frog|kroete|kröte|squirrel|eichhoernchen|eichhörnchen|otter|deer|reh|wolf|bear|baer|bär|cat|katze|dog|hund)\b/.test(text);
+}
+
+function isHumanishCandidate(candidate: CharacterPoolRow): boolean {
+  const text = candidateProfileText(candidate);
+  return /\b(human|mensch|person|kind|child|kid|junge|maedchen|mädchen|adult|erwachsen|pilot|doctor|scientist|teacher|lehrer|police)\b/.test(text);
+}
+
+function isNatureishCandidate(candidate: CharacterPoolRow): boolean {
+  const text = candidateProfileText(candidate);
+  return /\b(nature|natur|forest|wald|wiese|bach|river|fluss|pond|teich|nest|bau|wurzel|moos|leaf|blatt|herb|kraut|healing|heil)\b/.test(text);
+}
+
+function candidateProfileText(candidate: CharacterPoolRow): string {
+  const values = [
+    candidate.role,
+    candidate.archetype,
+    candidate.species_category,
+    candidate.visual_profile?.species,
+    candidate.visual_profile?.description,
+    candidate.physical_description,
+    candidate.backstory,
+    ...(candidate.personality_keywords || []),
+    ...(candidate.profession_tags || []),
+  ];
+  return values.filter(Boolean).join(" ").toLowerCase();
 }
 
 async function selectCandidateForSlotWithAI(input: {
@@ -781,6 +870,10 @@ function pickArtifactCategory(input: {
 }): ArtifactCategory {
   const abilityBias = ARTIFACT_CATEGORY_BY_ABILITY[input.ability] || ["magic", "tool", "book", "jewelry"];
   const storyBias = STORY_ARTIFACT_CATEGORY_BIAS[input.storyCategory || ""] || [];
+  if (isAnimalWorldCategory(input.storyCategory) && storyBias.length > 0) {
+    const offset = Math.abs(Number(input.variantSeed) || 0) % Math.min(2, storyBias.length);
+    return storyBias[offset];
+  }
   const intersection = storyBias.filter(category => abilityBias.includes(category));
   const ranked = Array.from(new Set([
     ...intersection,

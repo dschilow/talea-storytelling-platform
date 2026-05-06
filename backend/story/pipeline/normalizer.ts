@@ -54,6 +54,8 @@ export function normalizeRequest(input: {
     lengthHint: config.length,
     chapterCount,
     pacing: config.pacing ?? "balanced",
+    ageMax: ageRange.max,
+    releaseMode: (config as any).releaseMode !== false,
   });
 
   if (avatarCount < 1 || avatarCount > 2) {

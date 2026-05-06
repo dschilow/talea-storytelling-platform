@@ -4,13 +4,24 @@ import { Baby, Clock3, GraduationCap, Sparkles, UserCheck, Users } from 'lucide-
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
-import type { AIModel } from '@/types/story';
+import {
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  type AIModel,
+  type AIProvider,
+  type OpenRouterStoryModel,
+} from '@/types/story';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
 
 
-type Step3State = { ageGroup: AgeGroup; length: Length; aiModel: AIModel };
+type Step3State = {
+  ageGroup: AgeGroup;
+  length: Length;
+  aiModel: AIModel;
+  aiProvider?: AIProvider;
+  openRouterModel?: OpenRouterStoryModel;
+};
 
 interface Props {
   state: Step3State;
@@ -32,6 +43,7 @@ const lengths = [
 ] as const;
 
 type ModelConfig = { id: AIModel; title: string; subtitleKey: string; cost: string; tone: string; recommended?: boolean };
+type OpenRouterModelConfig = { id: OpenRouterStoryModel; title: string; provider: string; cost: string };
 
 const MODEL_CONFIGS: ModelConfig[] = [
   { id: 'claude-sonnet-4-6', title: 'Claude Sonnet 4.6', subtitleKey: 'claude_sonnet', cost: '$3 in / $15 out', tone: '#b06f4f' },
@@ -41,6 +53,19 @@ const MODEL_CONFIGS: ModelConfig[] = [
   { id: 'gpt-5.4', title: 'GPT-5.4', subtitleKey: 'gpt54', cost: '$1.25 / 1M', tone: '#c5828c' },
   { id: 'gpt-5.4-mini', title: 'GPT-5.4 Mini', subtitleKey: 'gpt54_mini', cost: '$0.75 in / $4.50 out', tone: '#8e7daf' },
   { id: 'minimax-m2.7', title: 'MiniMax M2.7', subtitleKey: 'minimax_m27', cost: 'Runware', tone: '#e09145' },
+];
+
+const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
+  { id: 'moonshotai/kimi-k2.6', title: 'Kimi K2.6', provider: 'Moonshot AI', cost: '$0.15 in / $0.45 out' },
+  { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.75 in / $3.50 out' },
+  { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.44 in / $2.00 out' },
+  { id: 'openrouter/owl-alpha', title: 'Owl Alpha', provider: 'OpenRouter', cost: 'FREE' },
+  { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },
+  { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$0.50 in / $3 out' },
+  { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest', provider: 'Anthropic', cost: '$3 in / $15 out' },
+  { id: '~openai/gpt-mini-latest', title: 'GPT Mini Latest', provider: 'OpenAI', cost: '$0.75 in / $4.50 out' },
+  { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
+  { id: 'qwen/qwen3.6-max-preview', title: 'Qwen 3.6 Max', provider: 'Qwen', cost: '$1.04 in / $6.24 out' },
 ];
 
 function SelectionBadge() {
@@ -62,6 +87,8 @@ export default function Step3AgeAndLength({
   showModelSelection = true,
 }: Props) {
   const { t } = useTranslation();
+  const activeProvider = state.aiProvider ?? 'native';
+  const activeOpenRouterModel = state.openRouterModel || DEFAULT_OPENROUTER_STORY_MODEL;
 
   return (
     <div className="space-y-7">
@@ -144,12 +171,12 @@ export default function Step3AgeAndLength({
           <p className="mb-3 text-xs text-muted-foreground">{t('wizard.aiModel.subtitle')}</p>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {MODEL_CONFIGS.map((model) => {
-              const selected = state.aiModel === model.id;
+              const selected = activeProvider === 'native' && state.aiModel === model.id;
               return (
                 <button
                   key={model.id}
                   type="button"
-                  onClick={() => updateState({ aiModel: model.id })}
+                  onClick={() => updateState({ aiProvider: 'native', aiModel: model.id })}
                   className={cn(
                     'relative rounded-2xl border p-3 text-left transition-colors',
                     selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
@@ -170,7 +197,54 @@ export default function Step3AgeAndLength({
                 </button>
               );
             })}
+            <button
+              type="button"
+              onClick={() =>
+                updateState({
+                  aiProvider: 'openrouter',
+                  openRouterModel: activeOpenRouterModel,
+                })
+              }
+              className={cn(
+                'relative rounded-2xl border p-3 text-left transition-colors',
+                activeProvider === 'openrouter' ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+              )}
+              style={{ borderColor: activeProvider === 'openrouter' ? '#4f9a9a60' : 'var(--color-border)' }}
+            >
+              <span className="mb-2 inline-flex rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                Test
+              </span>
+              <p className="text-sm font-semibold text-foreground">OpenRouter</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('wizard.aiModel.models.openrouter')}</p>
+              <p className="mt-1 text-xs font-semibold text-[var(--talea-text-tertiary)]">
+                Multi-Model
+              </p>
+              <AnimatePresence>{activeProvider === 'openrouter' && <SelectionBadge />}</AnimatePresence>
+            </button>
           </div>
+
+          {activeProvider === 'openrouter' && (
+            <div className="mt-4 rounded-2xl border border-[var(--color-border)] bg-card/70 p-3">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="openrouter-model">
+                {t('wizard.aiModel.openrouterModelLabel')}
+              </label>
+              <select
+                id="openrouter-model"
+                value={activeOpenRouterModel}
+                onChange={(event) => updateState({ openRouterModel: event.target.value as OpenRouterStoryModel })}
+                className="w-full rounded-xl border border-[var(--color-border)] bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-[var(--talea-text-tertiary)]"
+              >
+                {OPENROUTER_MODEL_CONFIGS.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.title} - {model.provider} - {model.cost}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('wizard.aiModel.openrouterHint')}
+              </p>
+            </div>
+          )}
         </section>
       )}
     </div>

@@ -439,6 +439,7 @@ function resolveSelectedCandidateTag(
 
 function inferProviderFromModel(model?: string): string {
   const normalized = String(model || "").toLowerCase();
+  if (normalized.includes("/") || normalized.startsWith("~")) return "openrouter";
   if (normalized.startsWith("gemini")) return "gemini";
   if (normalized.startsWith("gpt") || normalized.startsWith("o4")) return "openai";
   if (normalized.startsWith("runware")) return "runware";

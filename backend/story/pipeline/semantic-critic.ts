@@ -94,6 +94,7 @@ export async function runSemanticCritic(input: {
   directives: SceneDirective[];
   cast: CastSet;
   blueprint?: unknown;
+  category?: string;
   language: string;
   ageRange: { min: number; max: number };
   humorLevel?: number;
@@ -152,6 +153,7 @@ Return at most 5 issues and at most 3 patchTasks.`;
 
     const userPayload = {
       language: input.language,
+      category: input.category,
       ageRange: input.ageRange,
       humorLevel,
       publishThreshold: targetMinScore,
@@ -186,9 +188,12 @@ Return at most 5 issues and at most 3 patchTasks.`;
         "Chapter 4 must contain a real inner low point and an internally earned turn.",
         "Chapter 5 must deliver concrete win + small price + callback + warm ending image.",
         "Artifact or adults may not solve the core inner problem.",
+        input.category === "Tierwelten"
+          ? "Tierwelten category: if the story does not clearly center animal habitat/community/care stakes by chapter 1, cap score at 5.9."
+          : "",
         "Usually keep 2 foreground figures; flag overload only when staging becomes muddy.",
         "Flag only genuine read-aloud stumbles, not sentence length by itself.",
-      ],
+      ].filter(Boolean),
       outputBudget: {
         maxIssues: 5,
         maxPatchTasks: 3,

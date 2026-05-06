@@ -53,6 +53,11 @@ import {
 } from "./image-consistency-system";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { generateWithRunwareText, isRunwareConfigured } from "./runware-text-generation";
+import {
+  callOpenRouterChatCompletion,
+  getOpenRouterModelPricing,
+  normalizeOpenRouterModel,
+} from "./openrouter-generation";
 
 /**
  * OPTIMIZED v3.0: Smart prompt clamping that NEVER removes character identity blocks
@@ -286,6 +291,7 @@ interface ModelConfig {
   outputCostPer1M: number;
   maxCompletionTokens: number;
   supportsReasoningEffort?: boolean;
+  provider?: "openai" | "gemini" | "anthropic" | "runware" | "openrouter";
 }
 
 const MODEL_CONFIGS: Record<string, ModelConfig> = {
@@ -400,6 +406,24 @@ const MODEL_CONFIGS: Record<string, ModelConfig> = {
 const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 const openAIKey = secret("OpenAIKey");
+
+function resolveModelConfig(config: StoryConfig): ModelConfig {
+  if ((config as any).aiProvider === "openrouter") {
+    const modelName = normalizeOpenRouterModel((config as any).openRouterModel);
+    const pricing = getOpenRouterModelPricing(modelName);
+    return {
+      name: modelName,
+      inputCostPer1M: pricing.inputCostPer1M,
+      outputCostPer1M: pricing.outputCostPer1M,
+      maxCompletionTokens: config.length === "long" ? 20000 : 16000,
+      supportsReasoningEffort: false,
+      provider: "openrouter",
+    };
+  }
+
+  const modelKey = config.aiModel || DEFAULT_MODEL;
+  return MODEL_CONFIGS[modelKey] || MODEL_CONFIGS[DEFAULT_MODEL];
+}
 
 interface McpAvatarProfile {
   id: string;
@@ -908,8 +932,7 @@ export const generateStoryContent = api<
     const startTime = Date.now();
 
     // Select model configuration
-    const modelKey = req.config.aiModel || DEFAULT_MODEL;
-    const selectedModel = MODEL_CONFIGS[modelKey] || MODEL_CONFIGS[DEFAULT_MODEL];
+    const selectedModel = resolveModelConfig(req.config);
 
     const metadata: GenerateStoryContentResponse["metadata"] = {
       tokensUsed: { prompt: 0, completion: 0, total: 0 },
@@ -1887,8 +1910,7 @@ async function generateStoryWithOpenAITools(args: {
   const { config, avatars } = args;
 
   // Select model configuration
-  const modelKey = config.aiModel || DEFAULT_MODEL;
-  const modelConfig = MODEL_CONFIGS[modelKey] || MODEL_CONFIGS[DEFAULT_MODEL];
+  const modelConfig = resolveModelConfig(config);
   console.log(`[ai-generation] 🤖 Using model: ${modelConfig.name} (Input: $${modelConfig.inputCostPer1M}/1M, Output: $${modelConfig.outputCostPer1M}/1M)`);
 
   const chapterCount =
@@ -2278,6 +2300,7 @@ You MUST implement this style consistently in ALL chapters!`
   const isGeminiModel = modelConfig.name.startsWith("gemini-");
   const isClaudeModel = modelConfig.name.startsWith("claude-");
   const isMiniMaxModel = modelConfig.name.startsWith("minimax-");
+  const isOpenRouterModel = modelConfig.provider === "openrouter";
 
   if (isMiniMaxModel) {
     // Use Runware textInference API (MiniMax models)
@@ -2422,6 +2445,56 @@ You MUST implement this style consistently in ALL chapters!`
       max_tokens: modelConfig.maxCompletionTokens,
     };
     finalResponse = anthropicResponse;
+  } else if (isOpenRouterModel) {
+    const openRouterTimeoutMs =
+      config.length === "long"
+        ? 360_000
+        : config.length === "medium"
+        ? 240_000
+        : 180_000;
+    const abortController = new AbortController();
+    const timeoutHandle = setTimeout(() => abortController.abort(), openRouterTimeoutMs);
+
+    try {
+      console.log(`[ai-generation] 🤖 Calling OpenRouter model: ${modelConfig.name}`);
+      const openRouterResponse = await callOpenRouterChatCompletion({
+        model: modelConfig.name,
+        messages,
+        maxTokens: modelConfig.maxCompletionTokens,
+        responseFormat: "json_object",
+        temperature: 0.9,
+        signal: abortController.signal,
+      });
+
+      finalRequest = openRouterResponse.request;
+      finalResponse = openRouterResponse.data;
+
+      const choice = openRouterResponse.data.choices?.[0];
+      if (!choice?.message) {
+        throw new Error("Invalid response from OpenRouter (no message in complete result).");
+      }
+      if (choice.finish_reason === "length") {
+        throw new Error("Story generation was cut off due to token limit. Please try with shorter settings.");
+      }
+
+      content = choice.message.content || "";
+      if (!content) {
+        throw new Error("Empty response received from OpenRouter.");
+      }
+
+      if (openRouterResponse.data.usage) {
+        usageTotals.prompt = openRouterResponse.data.usage.prompt_tokens ?? 0;
+        usageTotals.completion = openRouterResponse.data.usage.completion_tokens ?? 0;
+        usageTotals.total = openRouterResponse.data.usage.total_tokens ?? 0;
+      }
+    } catch (error) {
+      if ((error as any)?.name === "AbortError") {
+        throw new Error(`OpenRouter request timed out after ${openRouterTimeoutMs / 1000}s`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
   } else {
     // Use OpenAI API
     const payload = {

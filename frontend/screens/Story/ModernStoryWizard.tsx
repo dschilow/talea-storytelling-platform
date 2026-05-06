@@ -28,6 +28,12 @@ import {
   taleaDisplayFont,
   taleaPageShellClass,
 } from "@/components/talea/TaleaPastelPrimitives";
+import {
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  type AIModel,
+  type AIProvider,
+  type OpenRouterStoryModel,
+} from "@/types/story";
 
 interface WizardState {
   selectedAvatars: string[];
@@ -43,14 +49,9 @@ interface WizardState {
   happyEnd: boolean;
   surpriseEnd: boolean;
   customWish: string;
-  aiModel:
-    | "claude-sonnet-4-6"
-    | "gpt-5.4"
-    | "gpt-5.4-mini"
-    | "gemini-3-flash-preview"
-    | "gemini-3-pro-preview"
-    | "gemini-3.1-pro-preview"
-    | "minimax-m2.7";
+  aiModel: AIModel;
+  aiProvider: AIProvider;
+  openRouterModel: OpenRouterStoryModel;
 }
 
 function getStoryGenerationErrorMessage(error: unknown, fallback: string): string {
@@ -123,6 +124,8 @@ export default function ModernStoryWizard() {
     surpriseEnd: false,
     customWish: "",
     aiModel: "gemini-3-flash-preview",
+    aiProvider: "native",
+    openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
   });
 
   // Sync agent flow with generation phases
@@ -589,6 +592,8 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     customPrompt: state.customWish || undefined,
     language: userLanguage as "de" | "en" | "fr" | "es" | "it" | "nl" | "ru",
     aiModel: state.aiModel || "gemini-3-flash-preview",
+    aiProvider: state.aiProvider,
+    openRouterModel: state.aiProvider === "openrouter" ? state.openRouterModel : undefined,
     preferences: {
       useFairyTaleTemplate: state.mainCategory === "fairy-tales" || state.mainCategory === "magic",
     },
