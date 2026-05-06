@@ -29,6 +29,28 @@ export interface PipelineConfig {
   soulGeneratorMaxOutputTokens: number;
   /** Model for Soul gate. */
   soulGateModel: string;
+  /** Run the LLM Soul gate. Off in low-cost production because schema validation already runs. */
+  soulGateEnabled: boolean;
+  /** Allow cross-provider Soul rescue after invalid JSON/schema. Off by default to avoid double Soul cost. */
+  soulRescueEnabled: boolean;
+  /** Blueprint strategy. "deterministic" uses the local V8 skeleton builder with zero LLM tokens. */
+  blueprintMode: "llm" | "deterministic";
+  /** Default max full-story rewrite passes unless the request overrides it. */
+  maxRewritePasses: 0 | 1 | 2;
+  /** Default chapter expansion calls unless the request overrides it. */
+  maxExpandCalls: number;
+  /** Default warning polish calls unless the request overrides it. */
+  maxWarningPolishCalls: number;
+  /** Story-writer token ceiling for the selected candidate path. */
+  maxStoryTokens: number;
+  /** Spawn a second candidate only when explicitly enabled. */
+  enableAdaptiveSecondCandidate: boolean;
+  /** Cap the nano sentence-tightening pass by chapter count. */
+  maxSentenceTighteningChapters: number;
+  /** Re-run semantic critic after selective surgery. Expensive; default false. */
+  enablePostSurgeryCritic: boolean;
+  /** Re-run semantic critic after deterministic local repairs. Expensive; default false. */
+  enablePostLocalRepairCritic: boolean;
   /** Generate AI art-director scene descriptions. Off by default to keep story tokens low. */
   aiScenePromptEnabled: boolean;
   /** Whether strict quality release gates warn or block the user-facing generation path. */
@@ -55,8 +77,19 @@ const DEFAULT_CONFIG: PipelineConfig = {
   soulAllowOnReject: true,
   soulAwareCriticMinScore: 8.6,
   soulApprovedSingleCandidate: true,
-  soulGeneratorMaxOutputTokens: 2200,
+  soulGeneratorMaxOutputTokens: 1600,
   soulGateModel: "gemini-3.1-flash-lite-preview",
+  soulGateEnabled: false,
+  soulRescueEnabled: false,
+  blueprintMode: "deterministic",
+  maxRewritePasses: 0,
+  maxExpandCalls: 1,
+  maxWarningPolishCalls: 0,
+  maxStoryTokens: 12000,
+  enableAdaptiveSecondCandidate: false,
+  maxSentenceTighteningChapters: 1,
+  enablePostSurgeryCritic: false,
+  enablePostLocalRepairCritic: false,
   aiScenePromptEnabled: false,
   strictReleaseGateMode: "warn",
 };

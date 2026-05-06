@@ -72,6 +72,7 @@ export interface StorySoulGenerationInput {
   soulRetryMax?: number;
   candidateTag?: string;
   maxOutputTokens?: number;
+  rescueEnabled?: boolean;
 }
 
 export async function generateValidatedStorySoul(
@@ -173,17 +174,19 @@ export async function generateValidatedStorySoul(
   }
 
   // Rescue: ein anderer starker Model-Pfad (Cross-Provider Fallback)
-  const rescueModel = resolveSoulRescueModel(
-    normalizedRequest.rawConfig?.aiModel,
-    soulModel,
-  );
+  const rescueModel = input.rescueEnabled
+    ? resolveSoulRescueModel(
+        normalizedRequest.rawConfig?.aiModel,
+        soulModel,
+      )
+    : undefined;
   if (rescueModel) {
     const rescueAttempt = Math.max(1, totalAttempts + 1);
     attemptsMade = rescueAttempt;
     const rescuePrompt = [
       baseUserPrompt,
       retryInstruction,
-      "Denke strukturiert. Liefere konkrete, riechbare Details statt abstrakter Begriffe ('Abenteuer', 'geheimnisvoll', 'magisch' sind verboten). Gib nur das StorySoul-JSON zurück.",
+      "Denke strukturiert. Liefere konkrete, riechbare Details statt abstrakter Begriffe ('Abenteuer', 'geheimnisvoll', 'magisch' sind verboten). Gib nur ein KOMPAKTES StorySoul-JSON zurück.",
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -309,6 +312,8 @@ function buildStorySoulSystemPrompt(language: string): string {
       "- World must have smell, sound, and a real place name.",
       "- Payoff must echo chapter 1 concretely, not just thematically.",
       "- Cliffhangers are EMOTIONAL (relational tension), not informational.",
+      "- Keep the JSON compact: short fields, no long prose, no rationale text.",
+      "- Do not output the internal brainstorm.",
       "",
       "Return a single StorySoul JSON object. No prose, no markdown fences, no comments.",
     ].join("\n");
@@ -353,6 +358,8 @@ function buildStorySoulSystemPrompt(language: string): string {
     "- Der Payoff muss ein KONKRETES Element aus Kapitel 1 in Kapitel 5 anders wiederholen (callbackFromChapter1).",
     "- Cliffhanger sind EMOTIONAL (Beziehungsspannung), nicht informativ ('sie fanden einen Hinweis').",
     "",
+    "- Halte das JSON kompakt: kurze Felder, keine lange Prosa, keine Begruendungstexte.",
+    "- Gib das interne Brainstorming nicht aus.",
     "Gib genau ein StorySoul-JSON zurück. Keine Prosa, keine Markdown-Fences, keine Kommentare.",
   ].join("\n");
 }
@@ -557,6 +564,8 @@ function buildSchemaHint(isGerman: boolean): string {
       '  "chapterEndings": [ { chapter, type, what } ... ] (chapters 1..N-1),',
       '  "iconicScenes": [string, string, string]',
       "}",
+      "Compactness rules: max 2 characterFingerprints, max 3 supportingCast, max 3 humorBeats, max 2 iconicScenes.",
+      "Every string <=90 chars unless the schema says otherwise. No synonyms, no explanations.",
       "Return JSON only. No prose around it.",
     ].join("\n");
   }
@@ -577,6 +586,8 @@ function buildSchemaHint(isGerman: boolean): string {
     '  "chapterEndings": [ { chapter, type, what } ... ] (Kapitel 1..N-1),',
     '  "iconicScenes": [string, string, string]',
     "}",
+    "Kompakt-Regeln: max. 2 characterFingerprints, max. 3 supportingCast, max. 3 humorBeats, max. 2 iconicScenes.",
+    "Jeder String <=90 Zeichen, ausser das Schema verlangt mehr. Keine Synonyme, keine Erklaerungen.",
     "Antwort: nur JSON, keine Prosa drumherum.",
   ].join("\n");
 }
@@ -722,14 +733,14 @@ function resolveSoulRescueModel(
 }
 
 function resolveSoulMaxTokens(model?: string, override?: number): number {
-  if (Number.isFinite(override) && (override as number) > 800) {
-    return Math.min(6000, Math.round(override as number));
+  if (Number.isFinite(override) && (override as number) > 600) {
+    return Math.min(2400, Math.round(override as number));
   }
   const normalized = String(model || "").trim().toLowerCase();
-  if (normalized.startsWith("gpt-5.4-mini")) return 2600;
-  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 2400;
-  if (normalized.startsWith("gemini-")) return 2500;
-  return 2400;
+  if (normalized.startsWith("gpt-5.4-mini")) return 1600;
+  if (normalized.startsWith("gpt-5") || normalized.startsWith("o4-")) return 1500;
+  if (normalized.startsWith("gemini-")) return 1600;
+  return 1500;
 }
 
 // ────────────────────────── Fallback ──────────────────────────

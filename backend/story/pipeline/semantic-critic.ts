@@ -132,7 +132,7 @@ export async function runSemanticCritic(input: {
     const chapters = input.draft.chapters.map((ch) => ({
       chapter: ch.chapter,
       title: ch.title,
-      text: compressChapter(ch.text, 130),
+      text: compressChapter(ch.text, 95),
     }));
 
     const systemPrompt = `You are an experienced children's-book editor for ages 6-8.
@@ -158,7 +158,7 @@ Return at most 5 issues and at most 3 patchTasks.`;
       acceptableThreshold: warnFloor,
       castNames,
       artifact: input.cast.artifact?.name || null,
-      blueprint: input.blueprint || null,
+      blueprint: compactBlueprintForCritic(input.blueprint),
       directiveSummary,
       chapters,
       rubric: {
@@ -801,6 +801,61 @@ function compressChapter(text: string, maxWords: number): string {
   return tail.length > 0
     ? `${lead.join(" ")} [... gekuerzt ...] ${tail.join(" ")}`
     : lead.join(" ");
+}
+
+function compactBlueprintForCritic(blueprint: unknown): unknown {
+  if (!blueprint || typeof blueprint !== "object") return null;
+  const bp: any = blueprint as any;
+  const chapters = Array.isArray(bp.chapters)
+    ? bp.chapters.map((ch: any) => ({
+        chapter: ch?.chapter,
+        goal: trimText(String(ch?.goal || ""), 80),
+        obstacle: trimText(String(ch?.obstacle || ""), 80),
+        key_scene: {
+          what_happens: trimText(String(ch?.key_scene?.what_happens || ""), 90),
+          playable_moment: trimText(String(ch?.key_scene?.playable_moment || ""), 80),
+          quotable_line: trimText(String(ch?.key_scene?.quotable_line || ""), 70),
+        },
+        chapter_hook: trimText(String(ch?.chapter_hook || ""), 80),
+      }))
+    : [];
+
+  return {
+    title: trimText(String(bp.title || ""), 80),
+    reader_contract: bp.reader_contract
+      ? {
+          mission_in_child_words: trimText(String(bp.reader_contract.mission_in_child_words || ""), 90),
+          why_it_matters: trimText(String(bp.reader_contract.why_it_matters || ""), 90),
+          special_rule: trimText(String(bp.reader_contract.special_rule || ""), 90),
+        }
+      : undefined,
+    error_and_repair: bp.error_and_repair
+      ? {
+          who: trimText(String(bp.error_and_repair.who || ""), 40),
+          error: trimText(String(bp.error_and_repair.error || ""), 90),
+          repair: trimText(String(bp.error_and_repair.repair || ""), 90),
+        }
+      : undefined,
+    antagonist_dna: bp.antagonist_dna
+      ? {
+          name: trimText(String(bp.antagonist_dna.name || ""), 50),
+          motive: trimText(String(bp.antagonist_dna.motive || ""), 90),
+          first_action: trimText(String(bp.antagonist_dna.first_action || ""), 90),
+          speech_tic: trimText(String(bp.antagonist_dna.speech_tic || ""), 50),
+        }
+      : undefined,
+    refrain_line: trimText(String(bp.refrain_line || ""), 50),
+    iconic_motif: bp.iconic_motif
+      ? {
+          object: trimText(String(bp.iconic_motif.object || ""), 60),
+          per_chapter_position: Array.isArray(bp.iconic_motif.per_chapter_position)
+            ? bp.iconic_motif.per_chapter_position.map((v: unknown) => trimText(String(v || ""), 50)).slice(0, 5)
+            : undefined,
+        }
+      : undefined,
+    ending_pattern: trimText(String(bp.ending_pattern || ""), 50),
+    chapters,
+  };
 }
 
 function safeJson(value: string): any {

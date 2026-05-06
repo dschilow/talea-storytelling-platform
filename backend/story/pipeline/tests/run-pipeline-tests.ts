@@ -1794,6 +1794,41 @@ function testV8BlueprintRepairAddsAntagonistDna() {
   assert.strictEqual(validation.valid, true, `Repaired blueprint should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
 }
 
+function testV8BlueprintRepairRestoresPovAndGrowthPresence() {
+  const blueprint = buildValidV8Blueprint();
+  blueprint.pov_character = "Alexander";
+  blueprint.error_and_repair.who = "Alexander";
+  blueprint.chapters[0].active_characters = ["Adrian"];
+  blueprint.chapters[2].active_characters = ["Morbus"];
+  blueprint.chapters[3].active_characters = ["Zauberer Sternenschweif"];
+  blueprint.chapters[4].active_characters = ["Adrian", "Morbus"];
+
+  const unrepaired = validateV8Blueprint({
+    blueprint,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  const unrepairedCodes = new Set(unrepaired.issues.map(issue => issue.code));
+  assert.ok(unrepairedCodes.has("POV_PRESENCE_TOO_LOW"), "Fixture should reproduce low POV presence before repair");
+  assert.ok(unrepairedCodes.has("GROWTH_CHILD_MISSING"), "Fixture should reproduce missing growth child before repair");
+
+  const repaired = repairV8BlueprintForValidation(blueprint, {
+    cast: buildTestCast(),
+    directives: buildFiveDirectives(),
+  });
+
+  const validation = validateV8Blueprint({
+    blueprint: repaired,
+    chapterCount: 5,
+    ageMax: 8,
+    wordsPerChapter: { min: 280, max: 392 },
+  });
+  assert.strictEqual(validation.valid, true, `POV/growth repair should pass validation: ${validation.issues.map(issue => issue.code).join(", ")}`);
+  assert.deepStrictEqual(repaired?.chapters[2].active_characters, ["Alexander", "Adrian"], "Chapter 3 should restore the child arc foreground");
+  assert.ok(repaired?.chapters[2].supporting_characters.includes("Morbus"), "Demoted active non-child should stay available as supporting cast");
+}
+
 function testV8BlueprintRepairNormalizesObjectChapters() {
   const blueprint = buildValidV8Blueprint();
   delete (blueprint as any).antagonist_dna;
@@ -2016,6 +2051,7 @@ async function run() {
   testPromptVersionResolverV8Rollout();
   testV8BlueprintValidation();
   testV8BlueprintRepairAddsAntagonistDna();
+  testV8BlueprintRepairRestoresPovAndGrowthPresence();
   testV8BlueprintRepairNormalizesObjectChapters();
   testV8BlueprintRepairAddsVirtualAntagonistDna();
   testV8BlueprintRepairAddsAntagonistShowdown();

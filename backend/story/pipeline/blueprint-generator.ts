@@ -59,6 +59,7 @@ export async function generateValidatedV8Blueprint(input: {
   dna: TaleDNA | StoryDNA;
   directives: SceneDirective[];
   blueprintRetryMax: number;
+  blueprintMode?: "llm" | "deterministic";
   candidateTag?: string;
   avatarMemories?: Map<string, AvatarMemoryCompressed[]>;
   storySoul?: import("./schemas/story-soul").StorySoul;
@@ -88,6 +89,37 @@ export async function generateValidatedV8Blueprint(input: {
   let retryPrompt = "";
   let providerFailure: Error | null = null;
   let attemptsMade = 0;
+
+  if (input.blueprintMode === "deterministic") {
+    const fallback = repairV8BlueprintForValidation(buildDeterministicV8Blueprint({
+      normalizedRequest,
+      cast,
+      directives,
+      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+    }), { cast, directives })!;
+    if (contentLibraryBinding) {
+      (fallback as any).concrete_anchors = {
+        ...(fallback as any).concrete_anchors,
+        ...contentLibraryBinding.concreteAnchorDefaults,
+      };
+      (fallback as any).ending_pattern = contentLibraryBinding.recommendedEndingPattern;
+    }
+    const validation = validateV8Blueprint({
+      blueprint: fallback,
+      chapterCount: normalizedRequest.chapterCount,
+      ageMax: normalizedRequest.ageMax,
+      wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
+    });
+    return {
+      blueprint: fallback,
+      model: "deterministic-v8-blueprint",
+      attempts: 0,
+      fallbackUsed: true,
+      issues: validation.issues,
+      usage,
+      costEntries,
+    };
+  }
 
   for (let attempt = 1; attempt <= Math.max(1, input.blueprintRetryMax + 1); attempt += 1) {
     attemptsMade = attempt;
@@ -360,6 +392,7 @@ export function repairV8BlueprintForValidation(
   if (!blueprint || typeof blueprint !== "object") return blueprint;
   (blueprint as any).chapters = normalizeBlueprintChapters((blueprint as any).chapters);
   ensureReaderContract(blueprint, input);
+  ensureCoreChildPresence(blueprint, input);
 
   const existing = (blueprint as any).antagonist_dna;
   const antagonistName = findAntagonistNameForBlueprint(input.cast, input.directives, blueprint)
@@ -433,6 +466,101 @@ function ensureReaderContract(
       `Schaffen ${lead} und ${companion} die Aufgabe, ohne auf die falsche Abkuerzung hereinzufallen?`,
     ),
   };
+}
+
+function ensureCoreChildPresence(
+  blueprint: StoryBlueprintV8,
+  input: { cast: CastSet; directives: SceneDirective[] },
+): void {
+  const chapters = getBlueprintChapters(blueprint);
+  if (chapters.length === 0) return;
+
+  const childNames = getChildFocusNames(input.cast);
+  const lead = canonicalChildName(
+    blueprint.pov_character,
+    childNames,
+    childNames[0] || input.cast.avatars[0]?.displayName || "Das Kind",
+  );
+  const companion = childNames.find(name => normalizeBlueprintName(name) !== normalizeBlueprintName(lead))
+    || input.cast.avatars.find(avatar => normalizeBlueprintName(avatar.displayName) !== normalizeBlueprintName(lead))?.displayName
+    || lead;
+  const knownChildKeys = new Set(
+    [lead, companion, ...childNames, ...input.cast.avatars.map(avatar => avatar.displayName)]
+      .map(normalizeBlueprintName)
+      .filter(Boolean),
+  );
+
+  (blueprint as any).pov_character = knownChildKeys.has(normalizeBlueprintName(lead))
+    ? lead
+    : (childNames[0] || lead);
+
+  const errorAndRepair = (blueprint as any).error_and_repair;
+  let growthChild = lead;
+  if (errorAndRepair && typeof errorAndRepair === "object" && !Array.isArray(errorAndRepair)) {
+    growthChild = canonicalChildName(errorAndRepair.who, childNames, lead);
+    if (!knownChildKeys.has(normalizeBlueprintName(growthChild))) {
+      growthChild = lead;
+    }
+    errorAndRepair.who = growthChild;
+  }
+
+  const finalChapterNo = Number(chapters[chapters.length - 1]?.chapter || chapters.length);
+  const growthChapterNumbers = new Set([3, 4, finalChapterNo].filter(Number.isFinite));
+
+  chapters.forEach((chapter, index) => {
+    if (!chapter || typeof chapter !== "object") return;
+    const chapterNo = Number(chapter.chapter || index + 1);
+    const shouldCarryGrowth = growthChapterNumbers.has(chapterNo);
+    const desiredActive = uniqueNames([
+      lead,
+      shouldCarryGrowth ? growthChild : companion,
+    ]).slice(0, 2);
+
+    const currentActive: string[] = Array.isArray(chapter.active_characters)
+      ? chapter.active_characters.map((name: unknown) => canonicalChildName(name, childNames, String(name || ""))).filter(Boolean)
+      : [];
+    const currentSupporting: string[] = Array.isArray(chapter.supporting_characters)
+      ? chapter.supporting_characters.map((name: unknown) => String(name || "").trim()).filter(Boolean)
+      : [];
+
+    const nextActive = uniqueNames([
+      ...desiredActive,
+      ...currentActive.filter(name => knownChildKeys.has(normalizeBlueprintName(name))),
+    ]).slice(0, 2);
+    const demoted = currentActive.filter(name => !nextActive.some(active => sameBlueprintName(active, name)));
+
+    chapter.active_characters = nextActive;
+    chapter.supporting_characters = uniqueNames(
+      [...currentSupporting, ...demoted]
+        .filter(name => !nextActive.some(active => sameBlueprintName(active, name))),
+    ).slice(0, 4);
+  });
+}
+
+function canonicalChildName(value: unknown, childNames: string[], fallback: string): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text) {
+    const match = childNames.find(name => sameBlueprintName(name, text));
+    if (match) return match;
+  }
+  return fallback;
+}
+
+function uniqueNames(names: unknown[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const rawName of names) {
+    const name = String(rawName || "").replace(/\s+/g, " ").trim();
+    const key = normalizeBlueprintName(name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+
+function sameBlueprintName(left: unknown, right: unknown): boolean {
+  return normalizeBlueprintName(left) === normalizeBlueprintName(right);
 }
 
 function sanitizeReaderContractMission(

@@ -35,7 +35,7 @@ import { runSemanticCritic, type SemanticCriticPatchTask, type SemanticCriticRep
 import { applySelectiveSurgery } from "./release-polisher";
 import { applySentenceTightening, pickChaptersNeedingTightening } from "./sentence-tightening-pass";
 import { computeWordBudget } from "./word-budget";
-import { loadPipelineConfig } from "./pipeline-config";
+import { loadPipelineConfig, type PipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
 import { resolveCriticModelForPipeline, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
@@ -408,6 +408,7 @@ export class StoryPipelineOrchestrator {
             directives,
             soulRetryMax: pipelineConfig.soulRetryMax,
             maxOutputTokens: pipelineConfig.soulGeneratorMaxOutputTokens,
+            rescueEnabled: pipelineConfig.soulRescueEnabled,
           });
           storySoul = soulGeneration.soul;
           tokenUsage = mergeTokenUsage(tokenUsage, soulGeneration.usage);
@@ -419,23 +420,26 @@ export class StoryPipelineOrchestrator {
             throw new Error("Story Soul generator used deterministic fallback; quality-first mode requires a validated Soul.");
           }
 
-          soulGateResult = await runSoulGate({
-            soul: storySoul,
-            normalizedRequest: normalized,
-            cast: castSet,
-            modelOverride: pipelineConfig.soulGateModel,
-          });
-          tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
-          if (soulGateResult.costEntries?.length) {
-            costEntries.push(...soulGateResult.costEntries);
+          if (pipelineConfig.soulGateEnabled) {
+            soulGateResult = await runSoulGate({
+              soul: storySoul,
+              normalizedRequest: normalized,
+              cast: castSet,
+              modelOverride: pipelineConfig.soulGateModel,
+            });
+            tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
+            if (soulGateResult.costEntries?.length) {
+              costEntries.push(...soulGateResult.costEntries);
+            }
           }
 
           const gateSuccess =
-            soulGateResult.verdict === "approved"
-            || soulGateResult.verdict === "acceptable_with_warnings";
+            !pipelineConfig.soulGateEnabled
+            || soulGateResult?.verdict === "approved"
+            || soulGateResult?.verdict === "acceptable_with_warnings";
           const combinedIssues: any[] = [
-            ...soulGateResult.schemaIssues.map((issue) => ({ ...issue })),
-            ...soulGateResult.rubricScores
+            ...(soulGateResult?.schemaIssues ?? soulGeneration.issues).map((issue) => ({ ...issue })),
+            ...(soulGateResult?.rubricScores ?? [])
               .filter((s) => s.score < 7)
               .map((s) => ({
                 severity: s.score < 5 ? "ERROR" : "WARNING",
@@ -447,31 +451,31 @@ export class StoryPipelineOrchestrator {
           phaseGates.push({
             phase: "phase5.7-soul",
             success: gateSuccess,
-            schemaValid: soulGateResult.schemaValid,
+            schemaValid: soulGateResult?.schemaValid ?? !soulGeneration.fallbackUsed,
             attempts: soulGeneration.attempts,
             issues: combinedIssues,
             artifactRef: {
-              verdict: soulGateResult.verdict,
-              overallScore: soulGateResult.overallScore,
-              minDimensionScore: soulGateResult.minDimensionScore,
-              blockingDimensions: soulGateResult.blockingDimensions,
+              verdict: soulGateResult?.verdict ?? "schema_only",
+              overallScore: soulGateResult?.overallScore,
+              minDimensionScore: soulGateResult?.minDimensionScore,
+              blockingDimensions: soulGateResult?.blockingDimensions ?? [],
               generatorModel: soulGeneration.model,
               generatorFallbackUsed: soulGeneration.fallbackUsed,
-              gateModel: soulGateResult.model,
+              gateModel: pipelineConfig.soulGateEnabled ? soulGateResult?.model : "disabled",
             },
           });
 
           await logPhase("phase5.7-soul", { storyId: normalized.storyId }, {
             durationMs: Date.now() - phase57Start,
-            verdict: soulGateResult.verdict,
-            overallScore: soulGateResult.overallScore,
-            minDimensionScore: soulGateResult.minDimensionScore,
-            blockingDimensions: soulGateResult.blockingDimensions,
+            verdict: soulGateResult?.verdict ?? "schema_only",
+            overallScore: soulGateResult?.overallScore,
+            minDimensionScore: soulGateResult?.minDimensionScore,
+            blockingDimensions: soulGateResult?.blockingDimensions ?? [],
             generatorAttempts: soulGeneration.attempts,
             generatorFallbackUsed: soulGeneration.fallbackUsed,
             generatorModel: soulGeneration.model,
-            gateModel: soulGateResult.model,
-            rubricScores: soulGateResult.rubricScores.map((s) => ({
+            gateModel: pipelineConfig.soulGateEnabled ? soulGateResult?.model : "disabled",
+            rubricScores: (soulGateResult?.rubricScores ?? []).map((s) => ({
               dimension: s.dimension,
               score: s.score,
             })),
@@ -484,7 +488,7 @@ export class StoryPipelineOrchestrator {
             && !pipelineConfig.soulAllowOnReject
           ) {
             throw new Error(
-              `Story Soul gate rejected (${soulGateResult.verdict}): ${soulGateResult.repairInstruction.slice(0, 240)}`,
+              `Story Soul gate rejected (${soulGateResult?.verdict ?? "schema_only"}): ${(soulGateResult?.repairInstruction ?? "Soul schema/rubric failed").slice(0, 240)}`,
             );
           }
         } catch (soulError) {
@@ -567,14 +571,18 @@ export class StoryPipelineOrchestrator {
       // der Surgery-Gain auf dem einzelnen Kandidaten).
       const soulApprovedForSingleCandidate =
         pipelineConfig.soulApprovedSingleCandidate
-        && (soulGateResult?.verdict === "approved"
+        && ((storySoul && !pipelineConfig.soulGateEnabled)
+          || soulGateResult?.verdict === "approved"
           || soulGateResult?.verdict === "acceptable_with_warnings")
         && !Number.isFinite(explicitCandidateCount);
       const releaseCandidateCount = soulApprovedForSingleCandidate ? 1 : preliminaryCandidateCount;
       const adaptiveSecondCandidateRaw = (normalized.rawConfig as any)?.enableAdaptiveSecondCandidate;
       const enableAdaptiveSecondCandidate = typeof adaptiveSecondCandidateRaw === "boolean"
         ? adaptiveSecondCandidateRaw
-        : qualityFirstV8Lane && releaseCandidateCount === 1 && !userRequestsSingleCandidate;
+        : Boolean(pipelineConfig.enableAdaptiveSecondCandidate)
+          && qualityFirstV8Lane
+          && releaseCandidateCount === 1
+          && !userRequestsSingleCandidate;
       const adaptiveSecondCandidate =
         releaseEnabled &&
         !hasExplicitCandidateCount &&
@@ -606,7 +614,7 @@ export class StoryPipelineOrchestrator {
       // Old Railway configs can still contain maxSelectiveSurgeryEdits=0. Treat
       // that as stale config, not a production kill-switch; only an explicit
       // request override may disable surgery.
-      const implicitSurgeryFloor = qualityFirstV8Lane ? 2 : 1;
+      const implicitSurgeryFloor = 1;
       const maxSelectiveSurgeryEdits = hasExplicitSurgeryOverride && Number.isFinite(explicitSurgeryEdits)
         ? Math.max(0, Math.min(5, explicitSurgeryEdits))
         : Math.max(implicitSurgeryFloor, implicitSurgeryEdits);
@@ -658,6 +666,7 @@ export class StoryPipelineOrchestrator {
           dna: blueprint.dna,
           directives,
           blueprintRetryMax: pipelineConfig.blueprintRetryMax,
+          blueprintMode: pipelineConfig.blueprintMode,
           avatarMemories: avatarMemories.size > 0 ? avatarMemories : undefined,
           storySoul,
         });
@@ -816,11 +825,12 @@ export class StoryPipelineOrchestrator {
 
         const candidateBundles: CandidateBundle[] = [];
         const targetCandidateCount = adaptiveSecondCandidate ? 2 : releaseCandidateCount;
+        const storyWriterRequest = withPipelineStoryCostControls(normalized, pipelineConfig);
         for (let candidateIdx = 0; candidateIdx < targetCandidateCount; candidateIdx += 1) {
           const candidateSeed = (variantSeed + candidateIdx * 7919) >>> 0;
           const candidateTag = `cand-${candidateIdx + 1}`;
           const writeResult = await this.storyWriter.writeStory({
-            normalizedRequest: normalized,
+            normalizedRequest: storyWriterRequest,
             cast: castSet,
             dna: blueprint.dna,
             directives,
@@ -868,7 +878,10 @@ export class StoryPipelineOrchestrator {
           const ageMaxForTightening = normalized.ageMax ?? 99;
           const candidateIssuesForTightening =
             ((candidateQuality as any)?.issues as Array<{ gate: string; chapter: number; severity: string; code: string }> | undefined) ?? [];
-          const tighteningTargets = pickChaptersNeedingTightening(candidateIssuesForTightening);
+          const tighteningTargets = limitChapterSet(
+            pickChaptersNeedingTightening(candidateIssuesForTightening),
+            pipelineConfig.maxSentenceTighteningChapters,
+          );
           if (ageMaxForTightening <= 8 && tighteningTargets.size > 0) {
             try {
               const tightening = await applySentenceTightening({
@@ -987,14 +1000,7 @@ export class StoryPipelineOrchestrator {
             || preciseLocalRescue
             || criticalLocalRepair
             || candidateCritic.overallScore >= Math.max(6.3, criticWarnFloor - 0.2);
-          const candidateSurgeryEdits =
-            criticalLocalRepair
-              ? Math.max(maxSelectiveSurgeryEdits, 3)
-              : activePromptVersion === "v8" && (surgeryEligibleVerdict || preciseLocalRescue) && hasLocalPatchTask
-              ? Math.max(maxSelectiveSurgeryEdits, 2)
-              : candidateCritic.overallScore >= 7.0 && qualityErrors <= 4
-              ? Math.max(maxSelectiveSurgeryEdits, 2)
-              : maxSelectiveSurgeryEdits;
+          const candidateSurgeryEdits = maxSelectiveSurgeryEdits;
           // Sprint 2 (QW3): determine chapters that need HARD REWRITE rather than
           // patch-only surgery. Trigger conditions (OR):
           //   - critic rubric age_appropriateness < 6
@@ -1049,7 +1055,7 @@ export class StoryPipelineOrchestrator {
               draft: candidateDraft,
               patchTasks,
               stylePackText,
-              maxEdits: Math.max(candidateSurgeryEdits, hardRewriteChapters.size),
+              maxEdits: candidateSurgeryEdits,
               model: resolveSurgeryModelForPipeline(normalized.rawConfig?.aiModel),
               candidateTag,
               hardRewriteChapters,
@@ -1080,39 +1086,44 @@ export class StoryPipelineOrchestrator {
                 }),
                 candidateQuality?.rewriteAttempts ?? 0,
               );
-              const postSurgeryCritic = await runSemanticCritic({
-                storyId: normalized.storyId,
-                draft: candidateDraft,
-                directives,
-                cast: castSet,
-                blueprint: blueprintV8,
-                language: normalized.language,
-                ageRange: { min: normalized.ageMin, max: normalized.ageMax },
-                humorLevel,
-                model: criticModel,
-                targetMinScore: criticMinScore,
-                warnFloor: criticWarnFloor,
-              });
-              await logPass3Phase({
-                storyId: normalized.storyId,
-                candidate: candidateIdx + 1,
-                suffix: "post-surgery",
-                criticReport: postSurgeryCritic,
-              });
-              candidateUsage = mergeTokenUsage(candidateUsage, postSurgeryCritic.usage);
-              if (postSurgeryCritic.usage) {
-                const criticCost = buildLlmCostEntry({
-                  phase: "phase6-story",
-                  step: "critic-post-surgery",
-                  usage: postSurgeryCritic.usage,
-                  fallbackModel: criticModel,
-                  candidateTag,
+              const preScore = scoreReleaseCandidate(candidateQuality, candidateCritic, releaseEnabled);
+              let postScore = scoreReleaseCandidate(postSurgeryQuality, candidateCritic, releaseEnabled);
+              let postSurgeryCritic = candidateCritic;
+
+              if (pipelineConfig.enablePostSurgeryCritic) {
+                postSurgeryCritic = await runSemanticCritic({
+                  storyId: normalized.storyId,
+                  draft: candidateDraft,
+                  directives,
+                  cast: castSet,
+                  blueprint: blueprintV8,
+                  language: normalized.language,
+                  ageRange: { min: normalized.ageMin, max: normalized.ageMax },
+                  humorLevel,
+                  model: criticModel,
+                  targetMinScore: criticMinScore,
+                  warnFloor: criticWarnFloor,
                 });
-                if (criticCost) costEntries.push(criticCost);
+                await logPass3Phase({
+                  storyId: normalized.storyId,
+                  candidate: candidateIdx + 1,
+                  suffix: "post-surgery",
+                  criticReport: postSurgeryCritic,
+                });
+                candidateUsage = mergeTokenUsage(candidateUsage, postSurgeryCritic.usage);
+                if (postSurgeryCritic.usage) {
+                  const criticCost = buildLlmCostEntry({
+                    phase: "phase6-story",
+                    step: "critic-post-surgery",
+                    usage: postSurgeryCritic.usage,
+                    fallbackModel: criticModel,
+                    candidateTag,
+                  });
+                  if (criticCost) costEntries.push(criticCost);
+                }
+                postScore = scoreReleaseCandidate(postSurgeryQuality, postSurgeryCritic, releaseEnabled);
               }
 
-              const preScore = scoreReleaseCandidate(candidateQuality, candidateCritic, releaseEnabled);
-              const postScore = scoreReleaseCandidate(postSurgeryQuality, postSurgeryCritic, releaseEnabled);
               if (postScore >= preScore) {
                 candidateQuality = postSurgeryQuality;
                 candidateCritic = postSurgeryCritic;
@@ -1306,7 +1317,7 @@ export class StoryPipelineOrchestrator {
             remainingIssues: qualityReport?.issues?.map((i: any) => i.code),
           });
 
-          if (releaseEnabled && criticReport && !isCriticSkipped(criticReport)) {
+          if (pipelineConfig.enablePostLocalRepairCritic && releaseEnabled && criticReport && !isCriticSkipped(criticReport)) {
             const repairedCritic = await runSemanticCritic({
               storyId: normalized.storyId,
               draft: storyDraft,
@@ -2758,6 +2769,29 @@ function sanitizeMemoryTitleForPrompt(value?: string): string {
   if (lastWord.length <= 1) return "";
   if (/\b(?:warum|wieso|weshalb|why)\s+[a-z]$/i.test(normalized)) return "";
   return normalized.length <= 120 ? normalized : `${normalized.slice(0, 117).trimEnd()}...`;
+}
+
+function withPipelineStoryCostControls(
+  normalized: NormalizedRequest,
+  pipelineConfig: PipelineConfig,
+): NormalizedRequest {
+  const raw = normalized.rawConfig as any;
+  return {
+    ...normalized,
+    rawConfig: {
+      ...raw,
+      maxRewritePasses: raw?.maxRewritePasses ?? pipelineConfig.maxRewritePasses,
+      maxExpandCalls: raw?.maxExpandCalls ?? pipelineConfig.maxExpandCalls,
+      maxWarningPolishCalls: raw?.maxWarningPolishCalls ?? pipelineConfig.maxWarningPolishCalls,
+      maxStoryTokens: raw?.maxStoryTokens ?? pipelineConfig.maxStoryTokens,
+    },
+  };
+}
+
+function limitChapterSet(chapters: ReadonlySet<number>, maxChapters: number): Set<number> {
+  const max = Math.max(0, Math.floor(Number(maxChapters) || 0));
+  if (max === 0 || chapters.size === 0) return new Set<number>();
+  return new Set([...chapters].sort((a, b) => a - b).slice(0, max));
 }
 
 async function logPhase(source: any, request: any, response: any) {

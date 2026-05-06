@@ -76,7 +76,7 @@ export async function applySelectiveSurgery(input: {
   // Sprint 2 (QW3): hard-rewrite mode needs more headroom because it may regenerate
   // the whole chapter prose, not just patch a few sentences.
   const hasHardRewrite = hardRewriteSet.size > 0;
-  const maxTokens = hasHardRewrite ? (isReasoningModel ? 2200 : 1800) : (isReasoningModel ? 1200 : 900);
+  const maxTokens = hasHardRewrite ? (isReasoningModel ? 1500 : 1200) : (isReasoningModel ? 900 : 700);
   const lengthTargets = input.normalizedRequest.wordBudget
     ? {
         wordMin: input.normalizedRequest.wordBudget.minWordsPerChapter,

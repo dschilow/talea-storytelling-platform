@@ -1629,7 +1629,7 @@ WORD BUDGET
 - "paragraphs" must be a JSON array with 4-6 strings per chapter
 
 BLUEPRINT
-${JSON.stringify(input.blueprint, null, 2)}
+${JSON.stringify(input.blueprint)}
 
 VOICE CONTRACTS
 German example lines are binding for rhythm, sentence length, and tone.
@@ -2152,7 +2152,7 @@ WORD BUDGET
 - "paragraphs" must be a JSON array with 4-6 strings per chapter
 
 BLUEPRINT
-${JSON.stringify(input.blueprint, null, 2)}
+${JSON.stringify(input.blueprint)}
 
 ${readerContractBlock ? `${readerContractBlock}\n` : ""}
 VOICE CONTRACTS

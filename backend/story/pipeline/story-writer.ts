@@ -605,9 +605,9 @@ export class LlmStoryWriter implements StoryWriter {
     const isSecondaryCandidate = Boolean(candidateTag && candidateTag !== "cand-1");
     // Gemini Flash: allow 1 rewrite pass (quality recovery outweighs cost).
     // Severely broken drafts (5+ errors) get 2 passes for all models.
-    const defaultRewritePasses = isGeminiModel ? MAX_REWRITE_PASSES : MAX_REWRITE_PASSES;
+    const defaultRewritePasses = 0;
     // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
-    const defaultExpandCalls = isGeminiModel ? 4 : MAX_EXPAND_CALLS;
+    const defaultExpandCalls = 1;
     // Cost guard: Gemini Flash should avoid generic warning-polish by default.
     // It is expensive, often low-impact, and targeted release surgery on the winner is cheaper.
     const defaultWarningPolishCalls = isGeminiModel ? 0 : Math.min(3, MAX_WARNING_POLISH_CALLS);
@@ -638,10 +638,10 @@ export class LlmStoryWriter implements StoryWriter {
     // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
     // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
     const defaultStoryTokenBudget = isGeminiFlashModel
-      ? (isSecondaryCandidate ? 12000 : 18000)
+      ? (isSecondaryCandidate ? 9000 : 12000)
       : isMiniMaxStoryModel
-        ? 22000
-        : (isReasoningModel ? 20000 : 12000);
+        ? 14000
+        : (isReasoningModel ? 12000 : 9000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
@@ -1261,7 +1261,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // - Begrenzt auf MAX_EXPAND_CALLS um API-Kosten zu reduzieren
     // - Template-Fixes werden NICHT mehr separat gemacht (im Rewrite enthalten)
     // ════════════════════════════════════════════════════════════════════════
-    const softExpandMinChapterWords = !isSecondaryCandidate && normalizedRequest.wordBudget
+    const enableSoftExpansion = rawConfig?.enableSoftExpansion === true;
+    const softExpandMinChapterWords = enableSoftExpansion && !isSecondaryCandidate && normalizedRequest.wordBudget
       ? Math.max(HARD_MIN_CHAPTER_WORDS, normalizedRequest.wordBudget.minWordsPerChapter - 12)
       : HARD_MIN_CHAPTER_WORDS;
 
@@ -1640,7 +1641,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         ? 0
         : (isSecondaryCandidate
         ? maxRewritePasses
-        : (isSeverelyBroken ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses)))
+        : (isSeverelyBroken && maxRewritePasses > 0 ? Math.max(maxRewritePasses, MAX_REWRITE_PASSES_SEVERE) : maxRewritePasses)))
       : 0;
     if (preferLocalRecovery) {
       console.log("[story-writer] Skipping full rewrite; issue mix is chapter-local and cheaper to repair with targeted edits/polish.");
