@@ -42,6 +42,32 @@ function isTransientNetworkError(error: unknown): boolean {
   return false;
 }
 
+function isAbortLikeError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const name = String((error as any).name || "").toLowerCase();
+  const message = String(error.message || "").toLowerCase();
+  const code = String((error as any).code || (error as any).cause?.code || "").toLowerCase();
+  return name === "aborterror"
+    || code === "abort_err"
+    || message.includes("aborted")
+    || message.includes("aborterror")
+    || message.includes("the operation was aborted");
+}
+
+function resolveOpenRouterTimeoutMs(context?: string, maxTokens?: number): number {
+  const normalized = String(context || "").toLowerCase();
+  if (normalized.startsWith("story-writer-full-recovery")) return 120_000;
+  if (normalized.startsWith("story-writer-full")) return 120_000;
+  if (normalized.startsWith("story-writer-expand")) return 90_000;
+  if (normalized.startsWith("story-writer-warning-polish")) return 75_000;
+  if (normalized.startsWith("story-title")) return 45_000;
+  if (normalized.includes("story-soul") || normalized.includes("blueprint")) return 120_000;
+  if (normalized.includes("semantic-critic") || normalized.includes("release-surgery")) return 90_000;
+
+  const tokenBasedTimeout = Math.round(Math.max(60_000, Math.min(180_000, Number(maxTokens || 0) * 20)));
+  return Number.isFinite(tokenBasedTimeout) ? tokenBasedTimeout : 120_000;
+}
+
 async function fetchWithRetry(url: string, options: RequestInit, context: string): Promise<Response> {
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
@@ -344,14 +370,63 @@ export async function callChatCompletion(input: {
       let response: Response;
       try {
         if (isOpenRouterModel) {
-          const openRouterResult = await callOpenRouterChatCompletion({
-            messages: input.messages,
-            model: activeModel,
-            responseFormat: input.responseFormat,
-            maxTokens: effectiveMaxTokens,
-            temperature: input.temperature ?? 0.7,
-            seed: input.seed,
-          });
+          const timeoutMs = resolveOpenRouterTimeoutMs(input.context, effectiveMaxTokens);
+          const abortController = new AbortController();
+          const timeoutHandle = setTimeout(() => abortController.abort(), timeoutMs);
+          const startedAt = Date.now();
+          const heartbeatHandle = timeoutMs > 45_000
+            ? setInterval(() => {
+                const elapsedMs = Date.now() - startedAt;
+                console.info(
+                  `[llm-client] OpenRouter still running context="${input.context ?? "unknown"}" model=${activeModel} elapsedMs=${elapsedMs} timeoutMs=${timeoutMs} maxTokens=${effectiveMaxTokens}`
+                );
+              }, 30_000)
+            : undefined;
+          if (heartbeatHandle && typeof (heartbeatHandle as any).unref === "function") {
+            (heartbeatHandle as any).unref();
+          }
+          if (typeof (timeoutHandle as any).unref === "function") {
+            (timeoutHandle as any).unref();
+          }
+
+          let openRouterResult: Awaited<ReturnType<typeof callOpenRouterChatCompletion>>;
+          try {
+            console.info(
+              `[llm-client] Calling OpenRouter context="${input.context ?? "unknown"}" model=${activeModel} maxTokens=${effectiveMaxTokens} timeoutMs=${timeoutMs}`
+            );
+            openRouterResult = await callOpenRouterChatCompletion({
+              messages: input.messages,
+              model: activeModel,
+              responseFormat: input.responseFormat,
+              maxTokens: effectiveMaxTokens,
+              temperature: input.temperature ?? 0.7,
+              seed: input.seed,
+              signal: abortController.signal,
+            });
+          } catch (error) {
+            if (isAbortLikeError(error)) {
+              const timeoutResponse = {
+                error: `OpenRouter request timed out after ${timeoutMs}ms`,
+                finishReason: "timeout",
+              };
+              await logLlmEvent({
+                source: logSource,
+                request: requestPayload,
+                response: timeoutResponse,
+                metadata: { ...logMetadata, provider: "openrouter", timeoutMs },
+              });
+              console.warn(
+                `[llm-client] OpenRouter request timed out for context="${input.context ?? "unknown"}" model=${activeModel} after ${timeoutMs}ms.`
+              );
+              if (input.context?.startsWith("story-writer")) {
+                return { content: "", finishReason: "timeout" };
+              }
+            }
+            throw error;
+          } finally {
+            clearTimeout(timeoutHandle);
+            if (heartbeatHandle) clearInterval(heartbeatHandle);
+          }
           const data: any = openRouterResult.data;
           await logLlmEvent({
             source: logSource,

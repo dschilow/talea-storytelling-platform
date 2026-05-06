@@ -1189,15 +1189,22 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       return usableChapters < Math.max(2, Math.ceil(directives.length * 0.6))
         || totalWords < Math.max(240, Math.round(totalWordMin * 0.55));
     };
-    const recoveryReason = isTruncatedFinishReason(result.finishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))
-      ? "empty-truncated"
+    const initialFinishReason = String(result.finishReason || "").toLowerCase();
+    const recoveryReason = isTimeoutFinishReason(initialFinishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))
+      ? "timeout"
+      : isTruncatedFinishReason(result.finishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))
+        ? "empty-truncated"
       : (isOpenRouterStoryModel && hasStructurallySparseDraftContent(parsedResult.draft))
         ? "structurally-sparse"
         : "";
     const needsFullRecovery =
       Boolean(recoveryReason);
 
-    if (needsFullRecovery && !isTokenBudgetExceeded()) {
+    if (needsFullRecovery && recoveryReason === "timeout") {
+      console.warn("[story-writer] OpenRouter full story call timed out; skipping monolithic recovery and using chapter-local rescue edits.");
+    }
+
+    if (needsFullRecovery && recoveryReason !== "timeout" && !isTokenBudgetExceeded()) {
       const recoveryPromptMode: "compact" = "compact";
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
@@ -2702,8 +2709,18 @@ function isTruncatedFinishReason(reason?: string): boolean {
   return normalized === "length"
     || normalized === "max_tokens"
     || normalized === "max-tokens"
+    || normalized === "timeout"
+    || normalized === "aborted"
     || normalized.includes("max_tokens")
-    || normalized.includes("length");
+    || normalized.includes("length")
+    || normalized.includes("timeout")
+    || normalized.includes("aborted");
+}
+
+function isTimeoutFinishReason(reason?: string): boolean {
+  if (!reason) return false;
+  const normalized = reason.toLowerCase();
+  return normalized === "timeout" || normalized === "aborted" || normalized.includes("timeout") || normalized.includes("aborted");
 }
 
 function findMissingCharacters(
