@@ -2798,7 +2798,7 @@ function withPipelineStoryCostControls(
       )
     : pipelineConfig.maxExpandCalls;
   const providerAwareMaxStoryTokens = openRouterSelected
-    ? Math.max(Number(pipelineConfig.maxStoryTokens || 0), 14000)
+    ? Math.max(Number(pipelineConfig.maxStoryTokens || 0), 22000)
     : pipelineConfig.maxStoryTokens;
   return {
     ...normalized,

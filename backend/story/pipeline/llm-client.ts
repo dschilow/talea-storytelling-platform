@@ -389,6 +389,12 @@ export async function callChatCompletion(input: {
             break;
           }
           if (isEmptyTruncated) {
+            if (input.context?.startsWith("story-writer")) {
+              console.warn(
+                `[llm-client] Returning empty truncated OpenRouter response to story-writer recovery for context="${input.context}" on model ${activeModel}`
+              );
+              return { content, usage, finishReason };
+            }
             lastError = new Error(
               `OpenRouter returned empty truncated response for context="${input.context ?? "unknown"}" on model ${activeModel}`
             );

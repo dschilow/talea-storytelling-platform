@@ -602,7 +602,7 @@ export class LlmStoryWriter implements StoryWriter {
         ? "full"
         : requestedPromptMode === "compact"
           ? "compact"
-          : (isReasoningModel ? "compact" : "full");
+          : ((isReasoningModel || isOpenRouterStoryModel) ? "compact" : "full");
     const allowPostEdits = !isGeminiModel || isGemini3;
     let canRunPostEdits = allowPostEdits;
     const isSecondaryCandidate = Boolean(candidateTag && candidateTag !== "cand-1");
@@ -647,10 +647,10 @@ export class LlmStoryWriter implements StoryWriter {
       : isMiniMaxStoryModel
         ? 14000
         : isOpenRouterStoryModel
-          ? 14000
+          ? 22000
           : (isReasoningModel ? 12000 : 9000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : ((isReasoningModel || isOpenRouterStoryModel) ? 10000 : 5000);
+    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isOpenRouterStoryModel ? 16000 : (isReasoningModel ? 10000 : 5000));
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -1118,7 +1118,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       : isMiniMaxStoryModel
         ? Math.max(4200, Math.round(totalWordMax * 2.15))
       : isOpenRouterStoryModel
-        ? Math.max(3800, Math.round(totalWordMax * 2.05))
+        ? Math.max(7200, Math.round(totalWordMax * 2.8))
       : isReasoningModel
         ? Math.max(4200, Math.round(totalWordMax * 2.1))
         : Math.max(2200, Math.round(totalWordMax * 1.5));
@@ -1130,7 +1130,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       : isMiniMaxStoryModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8200)
       : isOpenRouterStoryModel
-        ? Math.min(Math.max(3800, Math.round(baseOutputTokens * reasoningMultiplier)), 7600)
+        ? Math.min(Math.max(7200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
       : isReasoningModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
@@ -1204,7 +1204,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       const recoveryMaxTokens = isGeminiFlashModel
         ? Math.min(Math.max(maxOutputTokens + 600, 3000), 6000)
         : isOpenRouterStoryModel
-          ? Math.min(Math.max(maxOutputTokens + 900, 4200), 7600)
+          ? Math.min(Math.max(maxOutputTokens + 900, 7200), 9000)
         : isReasoningModel
           ? Math.min(Math.max(maxOutputTokens + 900, 4200), 8000)
           : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
@@ -1260,8 +1260,12 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       }
     }
     if (isTruncatedFinishReason(result.finishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))) {
-      console.warn("[story-writer] Full story response remained truncated or structurally unusable; skipping expensive post-edits for this candidate.");
-      canRunPostEdits = false;
+      if (isOpenRouterStoryModel) {
+        console.warn("[story-writer] OpenRouter full story response remained truncated/sparse; keeping chapter-local rescue edits enabled.");
+      } else {
+        console.warn("[story-writer] Full story response remained truncated or structurally unusable; skipping expensive post-edits for this candidate.");
+        canRunPostEdits = false;
+      }
     }
 
     let parsed = parsedResult.parsed;
@@ -1396,9 +1400,9 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
 
         const baseMaxTokens = Math.round(Math.max(420, lengthTargets.wordMax * 1.4));
         // Expand runs on the cheaper side-model, so use support-model token sizes.
-        const expandReasoningMultiplier = isSupportModelGemini ? 1.05 : (isReasoningModel ? 1.2 : 1);
-        const expandMinTokens = isSupportModelGemini ? 680 : 550;
-        const expandMaxTokensCap = isSupportModelGemini ? 2100 : 1800;
+        const expandReasoningMultiplier = isSupportModelGemini ? 1.05 : ((isReasoningModel || isOpenRouterStoryModel) ? 1.2 : 1);
+        const expandMinTokens = isSupportModelGemini ? 680 : (isOpenRouterStoryModel ? 1200 : 550);
+        const expandMaxTokensCap = isSupportModelGemini ? 2100 : (isOpenRouterStoryModel ? 2800 : 1800);
         const maxTokens = Math.min(expandMaxTokensCap, Math.max(expandMinTokens, Math.round(baseMaxTokens * expandReasoningMultiplier)));
 
         console.log(`[story-writer] Expand call with maxTokens: ${maxTokens} (base: ${baseMaxTokens})`);
