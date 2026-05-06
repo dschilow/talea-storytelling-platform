@@ -1,6 +1,6 @@
 import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
-import { GEMINI_MAIN_STORY_MODEL, isMiniMaxFamilyModel, resolveConfiguredStoryModel, resolveSupportTaskModel } from "./model-routing";
+import { GEMINI_MAIN_STORY_MODEL, isMiniMaxFamilyModel, isOpenRouterFamilyModel, resolveConfiguredStoryModel, resolveSupportTaskModel } from "./model-routing";
 import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
@@ -1185,6 +1185,9 @@ function formatGermanArtifactObject(name: string): string {
 function resolveBlueprintRescueModel(selectedStoryModel?: string, supportModel?: string): string | undefined {
   const selected = String(selectedStoryModel || "").trim().toLowerCase();
   const current = String(supportModel || "").trim().toLowerCase();
+  if (isOpenRouterFamilyModel(selectedStoryModel)) {
+    return undefined;
+  }
   if (selected.startsWith("gemini-")) {
     return current === GEMINI_MAIN_STORY_MODEL ? undefined : GEMINI_MAIN_STORY_MODEL;
   }
@@ -1198,6 +1201,12 @@ function resolveBlueprintPrimaryModel(selectedStoryModel?: string, supportModel?
   const current = String(supportModel || "").trim().toLowerCase();
   const selected = String(selectedStoryModel || "").trim();
   const normalizedSelected = selected.toLowerCase();
+  if (isOpenRouterFamilyModel(selected)) {
+    return selected;
+  }
+  if (isOpenRouterFamilyModel(supportModel)) {
+    return supportModel || selected;
+  }
   if (normalizedSelected.startsWith("minimax-")) {
     return supportModel || "gpt-5.4-mini";
   }

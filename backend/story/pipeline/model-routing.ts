@@ -54,9 +54,10 @@ export function resolveGeminiSupportFallback(selectedStoryModel?: string): strin
 }
 
 export function resolveSupportTaskModel(selectedStoryModel?: string): string {
-  const normalized = String(selectedStoryModel || "").trim().toLowerCase();
+  const selected = String(selectedStoryModel || "").trim();
+  const normalized = selected.toLowerCase();
   if (!normalized) return GEMINI_SUPPORT_MODEL;
-  if (isOpenRouterFamilyModel(normalized)) return GPT_54_NANO_MODEL;
+  if (isOpenRouterFamilyModel(selected)) return selected;
   if (isMiniMaxFamilyModel(normalized)) return GPT_54_MINI_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
@@ -70,8 +71,11 @@ export function resolveCriticModelForPipeline(input: {
   defaultModel?: string;
 }): string {
   const explicit = String(input.explicitCriticModel || "").trim();
+  const selected = String(input.selectedStoryModel || "").trim();
+  if (isOpenRouterFamilyModel(selected)) {
+    return isOpenRouterFamilyModel(explicit) ? explicit : selected;
+  }
   if (explicit) return explicit;
-  if (isOpenRouterFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;
@@ -80,7 +84,8 @@ export function resolveCriticModelForPipeline(input: {
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
-  if (isOpenRouterFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
+  const selected = String(selectedStoryModel || "").trim();
+  if (isOpenRouterFamilyModel(selected)) return selected;
   if (isMiniMaxFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;

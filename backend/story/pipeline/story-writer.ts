@@ -13,6 +13,7 @@ import {
   isClaudeFamilyModel,
   isGeminiFlashFamilyModel,
   isMiniMaxFamilyModel,
+  isOpenRouterFamilyModel,
   resolveClaudeStoryModel,
   resolveConfiguredStoryModel,
   resolveGeminiSupportFallback,
@@ -580,8 +581,9 @@ export class LlmStoryWriter implements StoryWriter {
     const isGeminiModel = model.startsWith("gemini-");
     const isGemini3 = model.startsWith("gemini-3");
     const isGeminiFlashModel = isGeminiFlashFamilyModel(model);
+    const isOpenRouterStoryModel = isOpenRouterFamilyModel(model);
     // Main prose path stays on the selected story model.
-    // Support jobs (blueprint, expand, warning-polish) run on the cheaper family side-model.
+    // Native providers may use cheaper side-models; OpenRouter keeps the selected OpenRouter model.
     const supportModel = resolveSupportTaskModel(model);
     const blueprintModel = supportModel;
     const isMiniMaxStoryModel = isMiniMaxFamilyModel(model);
@@ -608,7 +610,9 @@ export class LlmStoryWriter implements StoryWriter {
     // Severely broken drafts (5+ errors) get 2 passes for all models.
     const defaultRewritePasses = 0;
     // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
-    const defaultExpandCalls = 1;
+    const defaultExpandCalls = isOpenRouterStoryModel
+      ? Math.min(5, Math.max(2, directives.length))
+      : 1;
     // Cost guard: Gemini Flash should avoid generic warning-polish by default.
     // It is expensive, often low-impact, and targeted release surgery on the winner is cheaper.
     const defaultWarningPolishCalls = isGeminiModel ? 0 : Math.min(3, MAX_WARNING_POLISH_CALLS);
@@ -642,9 +646,11 @@ export class LlmStoryWriter implements StoryWriter {
       ? (isSecondaryCandidate ? 9000 : 12000)
       : isMiniMaxStoryModel
         ? 14000
-        : (isReasoningModel ? 12000 : 9000);
+        : isOpenRouterStoryModel
+          ? 14000
+          : (isReasoningModel ? 12000 : 9000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isReasoningModel ? 10000 : 5000);
+    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : ((isReasoningModel || isOpenRouterStoryModel) ? 10000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -1111,6 +1117,8 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       ? Math.max(3600, Math.round(totalWordMax * 2.4))
       : isMiniMaxStoryModel
         ? Math.max(4200, Math.round(totalWordMax * 2.15))
+      : isOpenRouterStoryModel
+        ? Math.max(3800, Math.round(totalWordMax * 2.05))
       : isReasoningModel
         ? Math.max(4200, Math.round(totalWordMax * 2.1))
         : Math.max(2200, Math.round(totalWordMax * 1.5));
@@ -1121,14 +1129,16 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       ? Math.min(Math.max(3600, Math.round(baseOutputTokens * reasoningMultiplier)), 7000)
       : isMiniMaxStoryModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8200)
+      : isOpenRouterStoryModel
+        ? Math.min(Math.max(3800, Math.round(baseOutputTokens * reasoningMultiplier)), 7600)
       : isReasoningModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
 
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
-      isGeminiFlashModel ? 2600 : ((isReasoningModel || isMiniMaxStoryModel) ? 6000 : 1500),
-      isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel) ? 2000 : 550),
+      isGeminiFlashModel ? 2600 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel) ? 6000 : 1500),
+      isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel) ? 2000 : 550),
     );
     console.log(
       `[story-writer] Token budget config: provider=${String(rawConfig?.aiProvider || "native")}, aiModel=${String(rawConfig?.aiModel || "")}, openRouterModel=${String(rawConfig?.openRouterModel || "")}, requestedModel=${requestedModel}, model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
@@ -1171,9 +1181,21 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       if (costEntry) costEntries.push(costEntry);
     }
     let parsedResult = parseDraftResult(result.content);
+    const hasStructurallySparseDraftContent = (draftInput: StoryDraft) => {
+      const usableChapters = draftInput.chapters.filter(ch =>
+        countWords(ch.text) >= 60 || String(ch.text || "").trim().length >= 260,
+      ).length;
+      const totalWords = draftInput.chapters.reduce((sum, ch) => sum + countWords(ch.text), 0);
+      return usableChapters < Math.max(2, Math.ceil(directives.length * 0.6))
+        || totalWords < Math.max(240, Math.round(totalWordMin * 0.55));
+    };
+    const recoveryReason = isTruncatedFinishReason(result.finishReason) && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft))
+      ? "empty-truncated"
+      : (isOpenRouterStoryModel && hasStructurallySparseDraftContent(parsedResult.draft))
+        ? "structurally-sparse"
+        : "";
     const needsFullRecovery =
-      isTruncatedFinishReason(result.finishReason)
-      && (!parsedResult.parsed || !hasMeaningfulDraftContent(parsedResult.draft));
+      Boolean(recoveryReason);
 
     if (needsFullRecovery && !isTokenBudgetExceeded()) {
       const recoveryPromptMode: "compact" = "compact";
@@ -1181,13 +1203,15 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       prompt = buildStoryPrompt(recoveryPromptMode);
       const recoveryMaxTokens = isGeminiFlashModel
         ? Math.min(Math.max(maxOutputTokens + 600, 3000), 6000)
+        : isOpenRouterStoryModel
+          ? Math.min(Math.max(maxOutputTokens + 900, 4200), 7600)
         : isReasoningModel
           ? Math.min(Math.max(maxOutputTokens + 900, 4200), 8000)
           : Math.min(Math.max(maxOutputTokens + 700, 3200), 5200);
       const recoveryBudgetedMaxTokens = fitTokensToBudget(
         recoveryMaxTokens,
-        isReasoningModel ? 2000 : 1300,
-        isReasoningModel ? 900 : 550,
+        (isReasoningModel || isOpenRouterStoryModel) ? 2000 : 1300,
+        (isReasoningModel || isOpenRouterStoryModel) ? 900 : 550,
       );
       if (recoveryBudgetedMaxTokens < 600) {
         console.warn(
@@ -1195,7 +1219,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         );
       } else {
         console.warn(
-          `[story-writer] Full story response was truncated or structurally unusable; running one compact recovery attempt (maxTokens=${recoveryBudgetedMaxTokens}).`,
+          `[story-writer] Full story response was truncated/sparse (${recoveryReason}); running one compact recovery attempt (maxTokens=${recoveryBudgetedMaxTokens}).`,
         );
         try {
           const recoveryResult = await callStoryModel({
@@ -1214,7 +1238,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
               step: "full-recovery",
               candidateTag,
               promptMode: recoveryPromptMode,
-              recoveryReason: "empty-truncated",
+              recoveryReason,
             },
           });
           if (recoveryResult.usage) {
@@ -1297,13 +1321,21 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
           );
           const needsMissingFix = missingCharacters.length > 0;
           const hasUsableBaseText = wordCount >= 40 || String(chapter.text || "").trim().length >= 200;
-          const needsExpand = hasUsableBaseText && Boolean(wordCount < softExpandMinChapterWords || sentenceCount < 3 || needsMissingFix);
+          const issueCodes = chapterIssueCodes.get(chapter.chapter) ?? new Set<string>();
+          const hasCriticalRepairIssue =
+            issueCodes.has("CHAPTER_PLACEHOLDER")
+            || issueCodes.has("CHAPTER_TOO_SHORT_HARD")
+            || issueCodes.has("CHAPTER_TOO_SHORT")
+            || issueCodes.has("MISSING_CHARACTER");
+          const needsExpand = (hasUsableBaseText || hasCriticalRepairIssue)
+            && Boolean(wordCount < softExpandMinChapterWords || sentenceCount < 3 || needsMissingFix || hasCriticalRepairIssue);
           if (!needsExpand) return null;
 
-          const issueCodes = chapterIssueCodes.get(chapter.chapter) ?? new Set<string>();
           const shortfall = Math.max(0, softExpandMinChapterWords - wordCount);
           const priority =
             shortfall * 4
+            + (issueCodes.has("CHAPTER_PLACEHOLDER") ? 520 : 0)
+            + (issueCodes.has("CHAPTER_TOO_SHORT_HARD") ? 360 : 0)
             + (needsMissingFix ? 260 : 0)
             + (sentenceCount < 3 ? 180 : 0)
             + (issueCodes.has("CHILD_MISTAKE_MISSING") ? 140 : 0)

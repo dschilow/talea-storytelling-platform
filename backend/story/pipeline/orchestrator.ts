@@ -38,7 +38,7 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig, type PipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
-import { resolveCriticModelForPipeline, resolveConfiguredStoryModel, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
+import { isOpenRouterFamilyModel, resolveCriticModelForPipeline, resolveConfiguredStoryModel, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateValidatedV8Blueprint, resolvePromptVersionForRequest } from "./blueprint-generator";
@@ -426,7 +426,7 @@ export class StoryPipelineOrchestrator {
               soul: storySoul,
               normalizedRequest: normalized,
               cast: castSet,
-              modelOverride: pipelineConfig.soulGateModel,
+              modelOverride: isOpenRouterFamilyModel(selectedStoryModel) ? selectedStoryModel : pipelineConfig.soulGateModel,
             });
             tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
             if (soulGateResult.costEntries?.length) {
@@ -2789,14 +2789,25 @@ function withPipelineStoryCostControls(
   pipelineConfig: PipelineConfig,
 ): NormalizedRequest {
   const raw = normalized.rawConfig as any;
+  const selectedStoryModel = resolveConfiguredStoryModel(raw);
+  const openRouterSelected = isOpenRouterFamilyModel(selectedStoryModel);
+  const providerAwareMaxExpandCalls = openRouterSelected
+    ? Math.max(
+        Number(pipelineConfig.maxExpandCalls || 0),
+        Math.min(5, Math.max(2, Number(normalized.chapterCount || 0))),
+      )
+    : pipelineConfig.maxExpandCalls;
+  const providerAwareMaxStoryTokens = openRouterSelected
+    ? Math.max(Number(pipelineConfig.maxStoryTokens || 0), 14000)
+    : pipelineConfig.maxStoryTokens;
   return {
     ...normalized,
     rawConfig: {
       ...raw,
       maxRewritePasses: raw?.maxRewritePasses ?? pipelineConfig.maxRewritePasses,
-      maxExpandCalls: raw?.maxExpandCalls ?? pipelineConfig.maxExpandCalls,
+      maxExpandCalls: raw?.maxExpandCalls ?? providerAwareMaxExpandCalls,
       maxWarningPolishCalls: raw?.maxWarningPolishCalls ?? pipelineConfig.maxWarningPolishCalls,
-      maxStoryTokens: raw?.maxStoryTokens ?? pipelineConfig.maxStoryTokens,
+      maxStoryTokens: raw?.maxStoryTokens ?? providerAwareMaxStoryTokens,
     },
   };
 }

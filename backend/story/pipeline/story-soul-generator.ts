@@ -24,6 +24,7 @@ import {
   GEMINI_MAIN_STORY_MODEL,
   GEMINI_SUPPORT_MODEL,
   isMiniMaxFamilyModel,
+  isOpenRouterFamilyModel,
   resolveConfiguredStoryModel,
   resolveSupportTaskModel,
 } from "./model-routing";
@@ -718,6 +719,14 @@ function resolveSoulPrimaryModel(
   const normalizedSelected = selected.toLowerCase();
   const normalizedSupport = String(supportModel || "").trim().toLowerCase();
 
+  if (isOpenRouterFamilyModel(selected)) {
+    return selected;
+  }
+
+  if (isOpenRouterFamilyModel(supportModel)) {
+    return supportModel || selected;
+  }
+
   // MiniMax ist kein guter Soul-Generator (zu schwach in struktur. JSON) → Support-Model nutzen
   if (normalizedSelected.startsWith("minimax-")) {
     return supportModel || "gpt-5.4-mini";
@@ -741,6 +750,9 @@ function resolveSoulRescueModel(
 ): string | undefined {
   const selected = String(selectedStoryModel || "").trim().toLowerCase();
   const current = String(primaryModel || "").trim().toLowerCase();
+  if (isOpenRouterFamilyModel(selectedStoryModel) || isOpenRouterFamilyModel(primaryModel)) {
+    return undefined;
+  }
   if (selected.startsWith("gemini-") || current.startsWith("gemini-")) {
     return current === "gpt-5.4-mini" ? undefined : "gpt-5.4-mini";
   }

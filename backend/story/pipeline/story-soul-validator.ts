@@ -15,6 +15,7 @@ import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import {
   GEMINI_MAIN_STORY_MODEL,
+  isOpenRouterFamilyModel,
   resolveConfiguredStoryModel,
   resolveSupportTaskModel,
 } from "./model-routing";
@@ -260,9 +261,12 @@ async function scoreSoulWithRubric(args: {
   const { soul, normalizedRequest } = args;
   const selectedStoryModel = resolveConfiguredStoryModel(normalizedRequest.rawConfig as any);
   const supportModel = resolveSupportTaskModel(selectedStoryModel);
-  const model = args.modelOverride && args.modelOverride.trim().length > 0
+  const explicitOverride = args.modelOverride && args.modelOverride.trim().length > 0
     ? args.modelOverride.trim()
-    : resolveRubricModel(supportModel);
+    : "";
+  const model = isOpenRouterFamilyModel(selectedStoryModel)
+    ? (isOpenRouterFamilyModel(explicitOverride) ? explicitOverride : selectedStoryModel)
+    : explicitOverride || resolveRubricModel(supportModel);
 
   const systemPrompt = buildRubricSystemPrompt(normalizedRequest.language);
   const userPrompt = buildRubricUserPrompt({ soul, normalizedRequest });
