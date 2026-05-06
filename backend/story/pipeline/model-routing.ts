@@ -99,7 +99,10 @@ export function resolveConfiguredStoryModel(rawConfig?: {
 }): string {
   if (isOpenRouterProvider(rawConfig?.aiProvider)) {
     const openRouterModel = String(rawConfig?.openRouterModel || "").trim();
-    return openRouterModel || "moonshotai/kimi-k2.6";
+    const aiModel = String(rawConfig?.aiModel || "").trim();
+    return (isOpenRouterFamilyModel(openRouterModel) ? openRouterModel : "")
+      || (isOpenRouterFamilyModel(aiModel) ? aiModel : "")
+      || "moonshotai/kimi-k2.6";
   }
 
   return String(rawConfig?.aiModel || "").trim() || GEMINI_MAIN_STORY_MODEL;

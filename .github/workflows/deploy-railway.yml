@@ -103,6 +103,7 @@ jobs:
         env:
           MCP_SERVER_API_KEY: "mcp_sk_build_placeholder"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           cd backend
           set +e

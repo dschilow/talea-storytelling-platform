@@ -38,7 +38,7 @@ import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig, type PipelineConfig } from "./pipeline-config";
 import { loadStylePack, formatStylePackPrompt } from "./style-pack";
 import { generateSceneDescriptions } from "./scene-prompt-generator";
-import { resolveCriticModelForPipeline, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
+import { resolveCriticModelForPipeline, resolveConfiguredStoryModel, resolveSupportTaskModel, resolveSurgeryModelForPipeline } from "./model-routing";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
 import { buildImageCostEntry, buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateValidatedV8Blueprint, resolvePromptVersionForRequest } from "./blueprint-generator";
@@ -211,6 +211,7 @@ export class StoryPipelineOrchestrator {
       config: input.config,
       avatarIds: input.avatars.map(a => a.id),
     });
+    const selectedStoryModel = resolveConfiguredStoryModel(normalized.rawConfig as any);
     const pipelineConfig = await loadPipelineConfig();
     normalized.wordBudget = computeWordBudget({
       lengthHint: normalized.lengthHint,
@@ -307,7 +308,7 @@ export class StoryPipelineOrchestrator {
         error: null,
       });
 
-      await logPhase("phase0-normalization", { storyId: normalized.storyId, category: normalized.category, language: normalized.language, chapterCount: normalized.chapterCount }, { ok: true, durationMs: Date.now() - phase0Start, avatarCount: normalized.avatarCount, ageMin: normalized.ageMin, ageMax: normalized.ageMax });
+      await logPhase("phase0-normalization", { storyId: normalized.storyId, category: normalized.category, language: normalized.language, chapterCount: normalized.chapterCount }, { ok: true, durationMs: Date.now() - phase0Start, avatarCount: normalized.avatarCount, ageMin: normalized.ageMin, ageMax: normalized.ageMax, aiProvider: (normalized.rawConfig as any)?.aiProvider, aiModel: (normalized.rawConfig as any)?.aiModel, openRouterModel: (normalized.rawConfig as any)?.openRouterModel, selectedStoryModel });
 
       const phase3Start = Date.now();
       let castSet = await loadCastSet(normalized.storyId);
@@ -589,7 +590,7 @@ export class StoryPipelineOrchestrator {
         releaseCandidateCount === 1 &&
         enableAdaptiveSecondCandidate;
       const criticModel = resolveCriticModelForPipeline({
-        selectedStoryModel: String((normalized.rawConfig as any)?.aiModel || ""),
+        selectedStoryModel,
         explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
         defaultModel: String(pipelineConfig.criticModel || "gemini-3.1-flash-lite-preview"),
       });
@@ -893,7 +894,7 @@ export class StoryPipelineOrchestrator {
                 ageMax: ageMaxForTightening,
                 draft: candidateDraft,
                 chaptersNeedingTightening: tighteningTargets,
-                model: resolveSupportTaskModel(String(normalized.rawConfig?.aiModel || "")),
+                model: resolveSupportTaskModel(selectedStoryModel),
               });
               if (tightening.changed) {
                 candidateDraft = tightening.draft;
@@ -1061,7 +1062,7 @@ export class StoryPipelineOrchestrator {
               patchTasks,
               stylePackText,
               maxEdits: candidateSurgeryEdits,
-              model: resolveSurgeryModelForPipeline(normalized.rawConfig?.aiModel),
+              model: resolveSurgeryModelForPipeline(selectedStoryModel),
               candidateTag,
               hardRewriteChapters,
             });
@@ -1537,7 +1538,7 @@ export class StoryPipelineOrchestrator {
             cast: castSet,
             language: normalized.language,
             storyId: normalized.storyId,
-            selectedStoryModel: String(normalized.rawConfig?.aiModel || ""),
+            selectedStoryModel,
           });
           aiSceneDescriptions = sceneResult.descriptions;
           tokenUsage = mergeTokenUsage(tokenUsage, sceneResult.usage);

@@ -15,6 +15,7 @@ import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import {
   GEMINI_MAIN_STORY_MODEL,
+  resolveConfiguredStoryModel,
   resolveSupportTaskModel,
 } from "./model-routing";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
@@ -257,9 +258,8 @@ async function scoreSoulWithRubric(args: {
   modelOverride?: string;
 }): Promise<RubricCallResult> {
   const { soul, normalizedRequest } = args;
-  const supportModel = resolveSupportTaskModel(
-    String(normalizedRequest.rawConfig?.aiModel || ""),
-  );
+  const selectedStoryModel = resolveConfiguredStoryModel(normalizedRequest.rawConfig as any);
+  const supportModel = resolveSupportTaskModel(selectedStoryModel);
   const model = args.modelOverride && args.modelOverride.trim().length > 0
     ? args.modelOverride.trim()
     : resolveRubricModel(supportModel);

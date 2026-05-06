@@ -24,6 +24,7 @@ import {
   GEMINI_MAIN_STORY_MODEL,
   GEMINI_SUPPORT_MODEL,
   isMiniMaxFamilyModel,
+  resolveConfiguredStoryModel,
   resolveSupportTaskModel,
 } from "./model-routing";
 import {
@@ -79,11 +80,10 @@ export async function generateValidatedStorySoul(
   input: StorySoulGenerationInput,
 ): Promise<StorySoulGenerationResult> {
   const { normalizedRequest, cast } = input;
-  const supportModel = resolveSupportTaskModel(
-    String(normalizedRequest.rawConfig?.aiModel || ""),
-  );
+  const selectedStoryModel = resolveConfiguredStoryModel(normalizedRequest.rawConfig as any);
+  const supportModel = resolveSupportTaskModel(selectedStoryModel);
   const soulModel = resolveSoulPrimaryModel(
-    normalizedRequest.rawConfig?.aiModel,
+    selectedStoryModel,
     supportModel,
   );
 
@@ -197,7 +197,7 @@ export async function generateValidatedStorySoul(
   // Rescue: ein anderer starker Model-Pfad (Cross-Provider Fallback)
   const rescueModel = input.rescueEnabled
     ? resolveSoulRescueModel(
-        normalizedRequest.rawConfig?.aiModel,
+        selectedStoryModel,
         soulModel,
       )
     : undefined;

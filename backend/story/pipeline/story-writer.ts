@@ -1131,7 +1131,7 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel) ? 2000 : 550),
     );
     console.log(
-      `[story-writer] Token budget config: model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
+      `[story-writer] Token budget config: provider=${String(rawConfig?.aiProvider || "native")}, aiModel=${String(rawConfig?.aiModel || "")}, openRouterModel=${String(rawConfig?.openRouterModel || "")}, requestedModel=${requestedModel}, model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
       `maxRewritePasses=${maxRewritePasses}, maxExpandCalls=${maxExpandCalls}, maxWarningPolishCalls=${maxWarningPolishCalls}`
     );
 

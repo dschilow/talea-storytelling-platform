@@ -11,7 +11,7 @@ import { suggestSpeechStyles } from "./pool-schemas/character-pool.schema";
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
-import { resolveSupportTaskModel, isMiniMaxFamilyModel } from "./model-routing";
+import { resolveConfiguredStoryModel, resolveSupportTaskModel, isMiniMaxFamilyModel } from "./model-routing";
 import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 
 interface CharacterPoolRow {
@@ -367,7 +367,8 @@ async function selectCandidateForSlot(input: {
   blueprint?: StoryBlueprintBase;
 }): Promise<{ sheet: CharacterSheet | null; usage?: any; costEntries?: any[] }> {
   const { slot, pool, used, rng, matchScores, normalized, variantPlan, blueprint } = input;
-  const aiMatchModel = resolveSimpleTaskModel((normalized.rawConfig as any)?.aiModel);
+  const selectedStoryModel = resolveConfiguredStoryModel(normalized.rawConfig as any);
+  const aiMatchModel = resolveSimpleTaskModel(selectedStoryModel);
   const allAvailable = pool.filter(candidate => !used.has(candidate.id));
   const eligibleCandidates = allAvailable.filter(candidate => passesHardConstraints(slot, candidate));
   if (eligibleCandidates.length === 0) {

@@ -1,6 +1,6 @@
 import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
-import { GEMINI_MAIN_STORY_MODEL, isMiniMaxFamilyModel, resolveSupportTaskModel } from "./model-routing";
+import { GEMINI_MAIN_STORY_MODEL, isMiniMaxFamilyModel, resolveConfiguredStoryModel, resolveSupportTaskModel } from "./model-routing";
 import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 import { buildLengthTargetsFromBudget } from "./word-budget";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage } from "./cost-ledger";
@@ -65,8 +65,9 @@ export async function generateValidatedV8Blueprint(input: {
   storySoul?: import("./schemas/story-soul").StorySoul;
 }): Promise<BlueprintGenerationResult> {
   const { normalizedRequest, cast, dna, directives } = input;
-  const supportModel = resolveSupportTaskModel(String(normalizedRequest.rawConfig?.aiModel || ""));
-  const blueprintModel = resolveBlueprintPrimaryModel(normalizedRequest.rawConfig?.aiModel, supportModel);
+  const selectedStoryModel = resolveConfiguredStoryModel(normalizedRequest.rawConfig as any);
+  const supportModel = resolveSupportTaskModel(selectedStoryModel);
+  const blueprintModel = resolveBlueprintPrimaryModel(selectedStoryModel, supportModel);
   // Greenfield: content-library binding — deterministic skeleton + archetype + anchor selection.
   // Only matches for the 2 priority genres (classical-fairy-tales, magical-worlds); otherwise undefined
   // and the blueprint runs without binding (backward-compatible).
@@ -197,7 +198,7 @@ export async function generateValidatedV8Blueprint(input: {
     retryPrompt = `The blueprint has these validation problems:\n${formatBlueprintValidationIssues(validation.issues)}\n\nFix ONLY these problems and return the full corrected blueprint as JSON again.`;
   }
 
-  const rescueModel = resolveBlueprintRescueModel(normalizedRequest.rawConfig?.aiModel, blueprintModel);
+  const rescueModel = resolveBlueprintRescueModel(selectedStoryModel, blueprintModel);
   if (rescueModel) {
     const rescueAttempt = Math.max(1, input.blueprintRetryMax + 2);
     attemptsMade = rescueAttempt;
