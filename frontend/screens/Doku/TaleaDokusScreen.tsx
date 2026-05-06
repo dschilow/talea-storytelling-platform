@@ -1,11 +1,11 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  ArrowRight,
   Bookmark,
   BookmarkCheck,
+  BookOpen,
   ChevronDown,
-  FlaskConical,
+  Filter,
   Globe,
   GraduationCap,
   Headphones,
@@ -17,6 +17,7 @@ import {
   PlayCircle,
   Plus,
   Search,
+  SlidersHorizontal,
   Trash2,
   Wand2,
   X,
@@ -39,20 +40,15 @@ import ProgressiveImage from '@/components/common/ProgressiveImage';
 import { cn } from '@/lib/utils';
 import {
   TaleaActionButton,
-  TaleaMetricPill,
   TaleaPageBackground,
   taleaBodyFont,
-  taleaChipClass,
   taleaDisplayFont,
   taleaInputClass,
   taleaPageShellClass,
-  taleaSurfaceClass,
 } from '@/components/talea/TaleaPastelPrimitives';
 
 type Palette = {
   pageGradient: string;
-  haloA: string;
-  haloB: string;
   panel: string;
   border: string;
   text: string;
@@ -70,21 +66,27 @@ type DokuSortMode = 'newest' | 'oldest' | 'title';
 type AudioScope = 'all' | 'mine' | 'public';
 const AUDIO_DOKU_LIST_PAGE_SIZE = 100;
 
+// Tab-Theme: jeder Tab hat einen eigenen Akzentcolor für klare visuelle Trennung
+type TabTheme = {
+  key: DokuTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accent: string; // CSS color expression
+  accentSoft: string;
+  emoji: string;
+};
+
 function normalizeFilterValue(value: unknown): string {
-  if (typeof value !== 'string') {
-    return '';
-  }
+  if (typeof value !== 'string') return '';
   return value.trim().toLowerCase();
 }
 
 function getDokuTopicValue(doku: Doku): string {
   return normalizeFilterValue(doku.topic || doku.metadata?.configSnapshot?.topic);
 }
-
 function getDokuAgeGroupValue(doku: Doku): string {
   return normalizeFilterValue(doku.metadata?.configSnapshot?.ageGroup);
 }
-
 function getDokuDepthValue(doku: Doku): string {
   return normalizeFilterValue(doku.metadata?.configSnapshot?.depth);
 }
@@ -109,8 +111,6 @@ function formatTopicLabel(topic: string, unknownFallback = 'Unbekannt'): string 
 function getPalette(_isDark: boolean): Palette {
   return {
     pageGradient: 'var(--talea-page)',
-    haloA: 'var(--talea-gradient-primary)',
-    haloB: 'var(--talea-gradient-ocean)',
     panel: 'var(--talea-surface-primary)',
     border: 'var(--talea-border-light)',
     text: 'var(--talea-text-primary)',
@@ -123,43 +123,11 @@ function getPalette(_isDark: boolean): Palette {
 
 const DokuBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
-const SectionHeader: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  count: number;
-  palette: Palette;
-  actionLabel?: string;
-  onAction?: () => void;
-}> = ({ icon, title, subtitle, count, palette, actionLabel, onAction }) => (
-  <div className="mb-4 flex items-center justify-between gap-3">
-    <div className="flex items-center gap-2.5">
-      <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: palette.soft, color: palette.text }}>
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-          {title}
-        </h3>
-        <p className="text-xs mt-1" style={{ color: palette.muted }}>
-          {subtitle} ({count})
-        </p>
-      </div>
-    </div>
-
-    {onAction && actionLabel && (
-      <button
-        type="button"
-        onClick={onAction}
-        className="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold"
-        style={{ borderColor: palette.border, background: palette.primary, color: palette.primaryText }}
-      >
-        <Plus className="h-3.5 w-3.5" />
-        {actionLabel}
-      </button>
-    )}
-  </div>
-);
+// ────────────────────────────────────────────────────────────────────────────────
+// Audio Doku Card (aspect-square, klar als Audio erkennbar)
+// ────────────────────────────────────────────────────────────────────────────────
+const ICON_BTN =
+  'inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-all hover:scale-105 active:scale-95';
 
 const AudioDokuCard: React.FC<{
   doku: AudioDoku;
@@ -189,174 +157,254 @@ const AudioDokuCard: React.FC<{
   onToggleOffline,
 }) => {
   const { t } = useTranslation();
+
   return (
-  <motion.article
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: index * 0.03, duration: 0.24 }}
-    whileHover={{ y: -4 }}
-    onClick={onPlay}
-    onKeyDown={(event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        onPlay();
-      }
-    }}
-    role="button"
-    tabIndex={0}
-    aria-label={`Audio-Doku: ${doku.title}`}
-    className="group w-full cursor-pointer overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]"
-    style={{ borderColor: palette.border, background: palette.panel }}
-  >
-    <div className="relative h-44 overflow-hidden" style={{ background: palette.soft }}>
-      <ProgressiveImage
-        src={doku.coverImageUrl}
-        alt={doku.title}
-        revealDelayMs={index * 35}
-        containerClassName="h-full w-full"
-        imageClassName="transition-transform duration-500 group-hover:scale-[1.04]"
-        skeletonClassName="bg-[var(--talea-media-skeleton)]"
-        fallback={
-          <div className="flex h-full w-full items-center justify-center">
-            <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
-          </div>
+    <motion.article
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.025, 0.4), duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -6 }}
+      onClick={onPlay}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onPlay();
         }
-      />
-
-      <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay)' }} />
-
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Audio-Doku: ${doku.title}`}
+      className="group w-full cursor-pointer overflow-hidden rounded-[1.75rem] border text-left outline-none transition-all duration-300 hover:shadow-[0_24px_48px_rgba(33,44,62,0.18)] focus-visible:ring-4 focus-visible:ring-[var(--talea-accent-lavender)]/30"
+      style={{
+        borderColor: palette.border,
+        background: palette.panel,
+        boxShadow: '0 10px 24px rgba(33,44,62,0.10)',
+      }}
+    >
+      {/* Square cover, kein Crop */}
       <div
-        className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]"
+        className="relative aspect-square w-full overflow-hidden"
         style={{
-          borderColor: 'var(--talea-media-chrome-border)',
-          background: 'var(--talea-media-chrome-bg)',
-          color: 'var(--talea-media-foreground)',
+          background:
+            'linear-gradient(135deg, color-mix(in srgb, var(--talea-accent-lavender) 26%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 55%, color-mix(in srgb, var(--talea-accent-rose) 18%, var(--talea-surface-inset)) 100%)',
         }}
       >
-        <Mic className="h-3 w-3" />
-        Audio
-      </div>
-
-      <div className="absolute right-3 top-3 flex items-center gap-2">
-        {canSaveOffline && onToggleOffline && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleOffline();
-            }}
-            disabled={isSavingOffline}
-            className="rounded-xl border p-2"
-            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-            aria-label={isSavedOffline ? t('doku.removeOffline', 'Offline-Speicherung entfernen') : t('doku.saveOffline', 'Offline speichern')}
-          >
-            {isSavingOffline ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : isSavedOffline ? (
-              <BookmarkCheck className="h-4 w-4" />
-            ) : (
-              <Bookmark className="h-4 w-4" />
-            )}
-          </button>
-        )}
-
-        {isAdmin && onEdit && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onEdit();
-            }}
-            className="rounded-xl border p-2"
-            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-            aria-label={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
-            title={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-        )}
-
-        {isAdmin && onDelete && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-            className="rounded-xl border p-2"
+        {/* Blurred background fill */}
+        {doku.coverImageUrl && (
+          <div
+            className="absolute inset-0 scale-110 opacity-65 blur-2xl"
             style={{
-              borderColor: 'var(--talea-danger-border)',
-              background: 'var(--talea-danger-soft)',
-              color: 'var(--talea-danger)',
+              backgroundImage: `url(${doku.coverImageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
             }}
-            aria-label={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
-            title={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+            aria-hidden
+          />
         )}
+
+        {/* Foreground cover - voll sichtbar */}
+        <div className="absolute inset-0 flex items-center justify-center p-3">
+          <div className="relative h-full w-full overflow-hidden rounded-[1.25rem] shadow-[0_14px_30px_rgba(0,0,0,0.18)]">
+            <ProgressiveImage
+              src={doku.coverImageUrl}
+              alt={doku.title}
+              revealDelayMs={index * 30}
+              containerClassName="h-full w-full"
+              imageClassName="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+              skeletonClassName="bg-[var(--talea-media-skeleton)]"
+              fallback={
+                <div className="flex h-full w-full items-center justify-center bg-white/40">
+                  <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
+                </div>
+              }
+            />
+
+            {/* Waveform-Andeutung am unteren Rand des Bildes */}
+            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-center gap-0.5 opacity-80">
+              {[3, 5, 7, 4, 8, 6, 9, 5, 7, 4, 6, 8, 5, 4, 6].map((h, i) => (
+                <motion.span
+                  key={i}
+                  initial={{ scaleY: 0.4 }}
+                  animate={{ scaleY: [0.4, 1, 0.5, 0.8, 0.4] }}
+                  transition={{
+                    duration: 1.4,
+                    repeat: Infinity,
+                    delay: i * 0.06,
+                    ease: 'easeInOut',
+                  }}
+                  className="block w-[2px] origin-bottom rounded-full bg-white/85"
+                  style={{ height: `${h * 2}px` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* AUDIO-Badge mit Lavender-Akzent */}
+        <div className="absolute left-3 top-3 z-10">
+          <span
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
+            style={{
+              borderColor: 'color-mix(in srgb, var(--talea-accent-lavender) 60%, white)',
+              background: 'color-mix(in srgb, var(--talea-accent-lavender) 88%, transparent)',
+              color: 'white',
+            }}
+          >
+            <Mic className="h-3 w-3" />
+            Audio
+          </span>
+        </div>
+
+        {/* Action icons */}
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
+          {canSaveOffline && onToggleOffline && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleOffline();
+              }}
+              disabled={isSavingOffline}
+              className={ICON_BTN}
+              style={{
+                borderColor: 'var(--talea-media-chrome-border)',
+                background: 'var(--talea-media-chrome-bg)',
+                color: 'var(--talea-media-foreground)',
+              }}
+              aria-label={
+                isSavedOffline
+                  ? t('doku.removeOffline', 'Offline-Speicherung entfernen')
+                  : t('doku.saveOffline', 'Offline speichern')
+              }
+            >
+              {isSavingOffline ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isSavedOffline ? (
+                <BookmarkCheck className="h-4 w-4" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </button>
+          )}
+
+          {isAdmin && onEdit && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit();
+              }}
+              className={ICON_BTN}
+              style={{
+                borderColor: 'var(--talea-media-chrome-border)',
+                background: 'var(--talea-media-chrome-bg)',
+                color: 'var(--talea-media-foreground)',
+              }}
+              aria-label={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+
+          {isAdmin && onDelete && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+              className={ICON_BTN}
+              style={{
+                borderColor: 'var(--talea-danger-border)',
+                background: 'color-mix(in srgb, var(--talea-danger-soft) 90%, transparent)',
+                color: 'var(--talea-danger)',
+              }}
+              aria-label={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Big Play button on hover */}
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <motion.div
+            initial={{ scale: 0.85 }}
+            whileHover={{ scale: 1 }}
+            className="inline-flex h-16 w-16 items-center justify-center rounded-full border-2 shadow-[0_18px_40px_rgba(0,0,0,0.3)]"
+            style={{
+              borderColor: 'rgba(255,255,255,0.6)',
+              background: 'color-mix(in srgb, var(--talea-accent-lavender) 90%, transparent)',
+              color: 'white',
+            }}
+          >
+            <Play className="h-6 w-6 translate-x-[2px]" fill="currentColor" />
+          </motion.div>
+
+          {onAddToQueue && (
+            <button
+              type="button"
+              className="pointer-events-auto absolute bottom-4 right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-transform hover:scale-110"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToQueue();
+              }}
+              style={{
+                borderColor: 'var(--talea-media-control-border)',
+                background: 'var(--talea-media-control-bg)',
+                color: 'var(--talea-media-foreground)',
+              }}
+              title={t('doku.addToQueue', 'Zur Warteschlange')}
+              aria-label={t('doku.addToQueue', 'Zur Warteschlange hinzufügen')}
+            >
+              <ListPlus className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-3 opacity-0 transition-opacity group-hover:opacity-100">
-        <div
-          className="inline-flex h-14 w-14 items-center justify-center rounded-full border"
-          style={{
-            borderColor: 'var(--talea-media-control-border)',
-            background: 'var(--talea-media-control-bg)',
-            color: 'var(--talea-media-foreground)',
-          }}
+      {/* Body */}
+      <div className="space-y-2.5 p-4">
+        <h4
+          className="line-clamp-2 text-base font-semibold leading-snug"
+          style={{ color: palette.text, fontFamily: headingFont }}
         >
-          <Play className="h-5 w-5 ml-0.5" />
-        </div>
-        {onAddToQueue && (
-          <button
-            type="button"
-            className="pointer-events-auto inline-flex h-10 w-10 items-center justify-center rounded-full border transition-transform hover:scale-110"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToQueue();
-            }}
-            style={{
-              borderColor: 'var(--talea-media-control-border)',
-              background: 'var(--talea-media-control-bg)',
-              color: 'var(--talea-media-foreground)',
-            }}
-            title={t('doku.addToQueue', 'Zur Warteschlange')}
-            aria-label={t('doku.addToQueue', 'Zur Warteschlange hinzufügen')}
-          >
-            <ListPlus className="h-4 w-4" />
-          </button>
+          {doku.title}
+        </h4>
+        <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: palette.muted }}>
+          {doku.description}
+        </p>
+        {(doku.ageGroup || doku.category) && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {doku.ageGroup && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                style={{
+                  background: 'color-mix(in srgb, var(--talea-accent-lavender) 14%, var(--talea-surface-inset))',
+                  color: palette.text,
+                }}
+              >
+                Alter {doku.ageGroup}
+              </span>
+            )}
+            {doku.category && (
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                style={{ background: palette.soft, color: palette.muted }}
+              >
+                {doku.category}
+              </span>
+            )}
+          </div>
         )}
       </div>
-
-      <h4 className="absolute bottom-3 left-3 right-3 line-clamp-2 text-lg font-semibold text-white">
-        {doku.title}
-      </h4>
-    </div>
-
-    <div className="p-4">
-      <p className="line-clamp-2 text-sm" style={{ color: palette.muted }}>
-        {doku.description}
-      </p>
-      {(doku.ageGroup || doku.category) && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {doku.ageGroup && (
-            <span className="rounded-full border px-2 py-1 text-[11px]" style={{ borderColor: palette.border, color: palette.text, background: palette.soft }}>
-              {t('doku.ageLabel', 'Alter {{age}}', { age: doku.ageGroup })}
-            </span>
-          )}
-          {doku.category && (
-            <span className="rounded-full border px-2 py-1 text-[11px]" style={{ borderColor: palette.border, color: palette.text, background: palette.soft }}>
-              {doku.category}
-            </span>
-          )}
-        </div>
-      )}
-    </div>
-  </motion.article>
+    </motion.article>
   );
 };
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Audio Modal
+// ────────────────────────────────────────────────────────────────────────────────
 const AudioModal: React.FC<{
   doku: AudioDoku;
   onClose: () => void;
@@ -383,19 +431,41 @@ const AudioModal: React.FC<{
         className="w-full max-w-lg overflow-hidden rounded-3xl border"
         style={{ borderColor: palette.border, background: palette.panel }}
       >
-        <div className="relative h-48 overflow-hidden" style={{ background: palette.soft }}>
-          {doku.coverImageUrl ? (
-            <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Headphones className="h-14 w-14" style={{ color: palette.muted }} />
-            </div>
+        <div
+          className="relative aspect-square w-full overflow-hidden"
+          style={{
+            background:
+              'linear-gradient(135deg, color-mix(in srgb, var(--talea-accent-lavender) 32%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 70%)',
+          }}
+        >
+          {doku.coverImageUrl && (
+            <div
+              className="absolute inset-0 scale-110 opacity-60 blur-2xl"
+              style={{
+                backgroundImage: `url(${doku.coverImageUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+              aria-hidden
+            />
           )}
-          <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay-strong)' }} />
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            {doku.coverImageUrl ? (
+              <img
+                src={doku.coverImageUrl}
+                alt={doku.title}
+                className="h-full w-full rounded-2xl object-cover shadow-2xl"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Headphones className="h-16 w-16" style={{ color: palette.muted }} />
+              </div>
+            )}
+          </div>
 
           <button
             onClick={onClose}
-            className="absolute right-3 top-3 rounded-full border p-2"
+            className="absolute right-3 top-3 z-10 rounded-full border p-2 backdrop-blur-md"
             style={{
               borderColor: 'var(--talea-media-chrome-border)',
               background: 'var(--talea-media-chrome-bg)',
@@ -406,11 +476,26 @@ const AudioModal: React.FC<{
             <X className="h-4 w-4" />
           </button>
 
-          <h3 className="absolute bottom-4 left-4 right-4 text-xl font-semibold text-white">{doku.title}</h3>
+          <div className="absolute left-3 top-3 z-10">
+            <span
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--talea-accent-lavender) 60%, white)',
+                background: 'color-mix(in srgb, var(--talea-accent-lavender) 88%, transparent)',
+                color: 'white',
+              }}
+            >
+              <Mic className="h-3 w-3" />
+              Audio
+            </span>
+          </div>
         </div>
 
         <div className="space-y-4 p-5">
-          <p className="text-sm" style={{ color: palette.muted }}>
+          <h3 className="text-xl font-semibold" style={{ color: palette.text, fontFamily: headingFont }}>
+            {doku.title}
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: palette.muted }}>
             {doku.description}
           </p>
 
@@ -434,10 +519,15 @@ const AudioModal: React.FC<{
               <button
                 type="button"
                 onClick={onPlay}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold"
-                style={{ borderColor: palette.border, background: palette.primary, color: palette.primaryText }}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-md transition-transform hover:scale-[1.02]"
+                style={{
+                  borderColor: 'transparent',
+                  background:
+                    'linear-gradient(135deg, var(--talea-accent-lavender) 0%, color-mix(in srgb, var(--talea-accent-rose) 70%, white) 100%)',
+                  color: 'white',
+                }}
               >
-                <Play className="h-4 w-4" />
+                <Play className="h-4 w-4" fill="currentColor" />
                 {t('doku.audioPlay', 'Abspielen')}
               </button>
             )}
@@ -448,18 +538,21 @@ const AudioModal: React.FC<{
   );
 };
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Skeleton
+// ────────────────────────────────────────────────────────────────────────────────
 const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => (
-  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-    {Array.from({ length: 6 }).map((_, i) => (
+  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {Array.from({ length: 8 }).map((_, i) => (
       <motion.div
         key={i}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: i * 0.04 }}
-        className="overflow-hidden rounded-3xl border"
+        className="overflow-hidden rounded-[1.75rem] border"
         style={{ borderColor: palette.border, background: palette.panel }}
       >
-        <div className="relative h-44 animate-pulse" style={{ background: palette.soft }}>
+        <div className="relative aspect-square w-full animate-pulse overflow-hidden" style={{ background: palette.soft }}>
           <motion.div
             className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
             animate={{ x: ['0%', '420%'] }}
@@ -476,6 +569,9 @@ const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => (
   </div>
 );
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Main Screen
+// ────────────────────────────────────────────────────────────────────────────────
 const TaleaDokusScreen: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -510,13 +606,15 @@ const TaleaDokusScreen: React.FC = () => {
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
-  const [activeTab, setActiveTab] = useState<DokuTab>(searchParams.get('mode') === 'audio' ? 'audio' : 'mine');
+  const [activeTab, setActiveTab] = useState<DokuTab>(
+    searchParams.get('mode') === 'audio' ? 'audio' : 'mine'
+  );
   const [sortMode, setSortMode] = useState<DokuSortMode>('newest');
   const [topicFilter, setTopicFilter] = useState('all');
   const [ageGroupFilter, setAgeGroupFilter] = useState('all');
   const [depthFilter, setDepthFilter] = useState('all');
   const [audioScopeFilter, setAudioScopeFilter] = useState<AudioScope>('all');
-  const [activeControl, setActiveControl] = useState<string | null>(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);
@@ -530,7 +628,7 @@ const TaleaDokusScreen: React.FC = () => {
     try {
       setLoadingMy(true);
       const res = await backend.doku.listDokus({
-        limit: 10,
+        limit: 12,
         offset: 0,
         profileId: activeProfileId || undefined,
       });
@@ -557,7 +655,9 @@ const TaleaDokusScreen: React.FC = () => {
       setPublicDokus([]);
       setTotalPublic(0);
       setHasMorePublic(false);
-      setPublicAccessMessage(getErrorMessage(error, t('doku.publicAccessError', 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfügbar.')));
+      setPublicAccessMessage(
+        getErrorMessage(error, t('doku.publicAccessError', 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfügbar.'))
+      );
     } finally {
       setLoadingPublic(false);
     }
@@ -581,7 +681,6 @@ const TaleaDokusScreen: React.FC = () => {
         const page = (res.audioDokus || []) as any[];
         allAudioDokus.push(...page);
         total = res.total ?? allAudioDokus.length;
-
         if (!res.hasMore || page.length === 0) break;
         offset += page.length;
       }
@@ -592,7 +691,9 @@ const TaleaDokusScreen: React.FC = () => {
       console.error(error);
       setAudioDokus([]);
       setTotalAudio(0);
-      setAudioAccessMessage(getErrorMessage(error, t('doku.audioAccessError', 'Audio-Dokus sind in deinem aktuellen Plan nicht verfügbar.')));
+      setAudioAccessMessage(
+        getErrorMessage(error, t('doku.audioAccessError', 'Audio-Dokus sind in deinem aktuellen Plan nicht verfügbar.'))
+      );
     } finally {
       setLoadingAudio(false);
     }
@@ -603,7 +704,7 @@ const TaleaDokusScreen: React.FC = () => {
     try {
       setLoadingMoreMy(true);
       const res = await backend.doku.listDokus({
-        limit: 10,
+        limit: 12,
         offset: myDokus.length,
         profileId: activeProfileId || undefined,
       });
@@ -632,7 +733,6 @@ const TaleaDokusScreen: React.FC = () => {
 
   useEffect(() => {
     if (!isLoaded) return;
-
     if (!isSignedIn) {
       setMyDokus([]);
       setPublicDokus([]);
@@ -647,7 +747,6 @@ const TaleaDokusScreen: React.FC = () => {
       setLoadingAudio(false);
       return;
     }
-
     void loadMyDokus();
     void loadPublicDokus();
     void loadAudioDokus();
@@ -663,7 +762,6 @@ const TaleaDokusScreen: React.FC = () => {
       },
       { threshold: 0.1 }
     );
-
     const target = myObserverRef.current;
     if (target) observer.observe(target);
     return () => {
@@ -681,7 +779,6 @@ const TaleaDokusScreen: React.FC = () => {
       },
       { threshold: 0.1 }
     );
-
     const target = publicObserverRef.current;
     if (target) observer.observe(target);
     return () => {
@@ -690,8 +787,7 @@ const TaleaDokusScreen: React.FC = () => {
   }, [hasMorePublic, loadingMorePublic, loadingPublic, loadMorePublic, isSignedIn, publicAccessMessage, activeTab]);
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
-    if (!window.confirm(`${t('common.delete', 'Loeschen')} "${dokuTitle}"?`)) return;
-
+    if (!window.confirm(`${t('common.delete', 'Löschen')} "${dokuTitle}"?`)) return;
     try {
       await backend.doku.deleteDoku({ id: dokuId, profileId: activeProfileId || undefined });
       setMyDokus((prev) => prev.filter((d) => d.id !== dokuId));
@@ -727,8 +823,26 @@ const TaleaDokusScreen: React.FC = () => {
     if (existingIdx >= 0) {
       audioPlayer.playFromPlaylist(existingIdx);
     } else {
-      audioPlayer.addAndPlay([{
-        id: itemId,
+      audioPlayer.addAndPlay([
+        {
+          id: itemId,
+          trackId: doku.id,
+          title: doku.title,
+          description: doku.description,
+          coverImageUrl: doku.coverImageUrl,
+          type: 'audio-doku',
+          audioUrl: doku.audioUrl,
+          conversionStatus: 'ready',
+        },
+      ]);
+    }
+  };
+
+  const handleAddAudioToQueue = (doku: AudioDoku) => {
+    if (!doku.audioUrl) return;
+    audioPlayer.addToPlaylist([
+      {
+        id: `audiodoku-${doku.id}`,
         trackId: doku.id,
         title: doku.title,
         description: doku.description,
@@ -736,22 +850,8 @@ const TaleaDokusScreen: React.FC = () => {
         type: 'audio-doku',
         audioUrl: doku.audioUrl,
         conversionStatus: 'ready',
-      }]);
-    }
-  };
-
-  const handleAddAudioToQueue = (doku: AudioDoku) => {
-    if (!doku.audioUrl) return;
-    audioPlayer.addToPlaylist([{
-      id: `audiodoku-${doku.id}`,
-      trackId: doku.id,
-      title: doku.title,
-      description: doku.description,
-      coverImageUrl: doku.coverImageUrl,
-      type: 'audio-doku',
-      audioUrl: doku.audioUrl,
-      conversionStatus: 'ready',
-    }]);
+      },
+    ]);
   };
 
   const handlePlayAllAudioDokus = () => {
@@ -779,20 +879,15 @@ const TaleaDokusScreen: React.FC = () => {
 
   const handleDeleteAudioDoku = async (doku: AudioDoku) => {
     if (!isAdmin) return;
-    if (!window.confirm(`${t('common.delete', 'Loeschen')} "${doku.title}"?`)) {
-      return;
-    }
-
+    if (!window.confirm(`${t('common.delete', 'Löschen')} "${doku.title}"?`)) return;
     try {
       await backend.doku.deleteAudioDoku({ id: doku.id });
       setAudioDokus((prev) => prev.filter((item) => item.id !== doku.id));
       setTotalAudio((prev) => Math.max(0, prev - 1));
-      if (audioModal?.id === doku.id) {
-        setAudioModal(null);
-      }
+      if (audioModal?.id === doku.id) setAudioModal(null);
     } catch (error) {
       console.error(error);
-      alert(t('errors.generic', 'Fehler beim Loeschen.'));
+      alert(t('errors.generic', 'Fehler beim Löschen.'));
     }
   };
 
@@ -801,16 +896,10 @@ const TaleaDokusScreen: React.FC = () => {
   const sortDokus = useCallback(
     (items: Doku[]) => {
       const sorted = [...items];
-      if (sortMode === 'title') {
-        sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
-        return sorted;
-      }
-      if (sortMode === 'oldest') {
-        sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        return sorted;
-      }
-      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      return sorted;
+      if (sortMode === 'title') return sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+      if (sortMode === 'oldest')
+        return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
     [sortMode]
   );
@@ -818,16 +907,10 @@ const TaleaDokusScreen: React.FC = () => {
   const sortAudioDokus = useCallback(
     (items: AudioDoku[]) => {
       const sorted = [...items];
-      if (sortMode === 'title') {
-        sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
-        return sorted;
-      }
-      if (sortMode === 'oldest') {
-        sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        return sorted;
-      }
-      sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      return sorted;
+      if (sortMode === 'title') return sorted.sort((a, b) => a.title.localeCompare(b.title, 'de'));
+      if (sortMode === 'oldest')
+        return sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     },
     [sortMode]
   );
@@ -907,12 +990,45 @@ const TaleaDokusScreen: React.FC = () => {
       (activeTab === 'discover' && loadingPublic) ||
       (activeTab === 'audio' && loadingAudio));
 
-  const controlHover = reduceMotion ? undefined : { y: -2, scale: 1.01 };
-  const controlTap = reduceMotion ? undefined : { scale: 0.985 };
-  const controlFocusRing = (controlId: string) =>
-    activeControl === controlId
-      ? '0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent)'
-      : '0 0 0 0 transparent';
+  const hasActiveFilters =
+    topicFilter !== 'all' ||
+    ageGroupFilter !== 'all' ||
+    depthFilter !== 'all' ||
+    audioScopeFilter !== 'all' ||
+    sortMode !== 'newest';
+
+  const tabThemes: TabTheme[] = [
+    {
+      key: 'mine',
+      label: t('doku.tabMine', 'Meine'),
+      icon: GraduationCap,
+      accent: 'var(--primary)',
+      accentSoft: 'color-mix(in srgb, var(--primary) 20%, transparent)',
+      emoji: '✨',
+    },
+    {
+      key: 'discover',
+      label: t('doku.tabDiscover', 'Entdecken'),
+      icon: Globe,
+      accent: 'var(--talea-accent-sky)',
+      accentSoft: 'color-mix(in srgb, var(--talea-accent-sky) 20%, transparent)',
+      emoji: '🌍',
+    },
+    {
+      key: 'audio',
+      label: t('doku.tabAudio', 'Hörwelt'),
+      icon: Headphones,
+      accent: 'var(--talea-accent-lavender)',
+      accentSoft: 'color-mix(in srgb, var(--talea-accent-lavender) 20%, transparent)',
+      emoji: '🎧',
+    },
+  ];
+
+  const counts: Record<DokuTab, number> = {
+    mine: totalMy,
+    discover: totalPublic,
+    audio: totalAudio,
+  };
 
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
@@ -920,7 +1036,7 @@ const TaleaDokusScreen: React.FC = () => {
 
       <SignedOut>
         <div className={cn(taleaPageShellClass, 'flex min-h-[68vh] items-center justify-center py-10')}>
-          <div className={cn(taleaSurfaceClass, 'w-full max-w-2xl p-8 text-center')}>
+          <div className="w-full max-w-2xl rounded-3xl border bg-[var(--talea-surface-primary)] p-8 text-center shadow-lg" style={{ borderColor: palette.border }}>
             <h2 className="text-3xl" style={{ fontFamily: headingFont, color: palette.text }}>
               {t('errors.unauthorized', 'Bitte melde dich an')}
             </h2>
@@ -932,409 +1048,440 @@ const TaleaDokusScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-5 pt-3')}>
-          <header className={cn(taleaSurfaceClass, 'overflow-hidden p-3 sm:p-4 md:p-5')}>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-              <div className="min-w-0">
-                <span className={taleaChipClass}>Dokus</span>
-
-                <div className="mt-3 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                  <h1
-                    className="text-[1.85rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.15rem]"
-                    style={{ fontFamily: headingFont }}
-                  >
-                    Dokus
-                  </h1>
-
-                  <div className="flex flex-wrap gap-2 xl:justify-end">
-                    <TaleaActionButton type="button" onClick={() => navigate('/doku/create')} icon={<Wand2 className="h-4 w-4" />}>
-                      {t('doku.createNew', 'Neue Doku')}
-                    </TaleaActionButton>
-                    {isAdmin ? (
-                      <TaleaActionButton type="button" variant="secondary" onClick={() => navigate('/createaudiodoku')} icon={<Headphones className="h-4 w-4" />}>
-                        Audio
-                      </TaleaActionButton>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3 xl:w-[19rem] xl:grid-cols-3">
-                {[
-                  { label: t('doku.myDokusMetric', 'Meine'), value: String(totalMy) },
-                  { label: t('doku.discoverMetric', 'Entdecken'), value: String(totalPublic) },
-                  { label: t('doku.audioMetric', 'Audio'), value: String(totalAudio) },
-                ].map((metric) => (
-                  <motion.div key={metric.label} whileHover={controlHover} transition={{ type: 'spring', stiffness: 320, damping: 24 }}>
-                    <TaleaMetricPill label={metric.label} value={metric.value} />
-                  </motion.div>
-                ))}
-              </div>
+        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-6 pt-4')}>
+          {/* Header */}
+          <motion.header
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+          >
+            <div className="min-w-0">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
+                style={{
+                  borderColor: palette.border,
+                  background: 'var(--talea-surface-inset)',
+                  color: palette.muted,
+                }}
+              >
+                <BookOpen className="h-3 w-3" />
+                Wissen entdecken
+              </span>
+              <h1
+                className="mt-2 text-[2.4rem] font-semibold leading-[0.98] sm:text-[2.8rem]"
+                style={{ fontFamily: headingFont, color: palette.text }}
+              >
+                Dokus
+              </h1>
+              <p className="mt-1 text-sm" style={{ color: palette.muted }}>
+                {t('doku.subtitle', 'Entdecke spannende Wissensartikel und Audio-Geschichten')}
+              </p>
             </div>
 
-            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              <motion.label
-                className="relative min-w-0"
-                whileHover={controlHover}
-                animate={{ boxShadow: controlFocusRing('doku-search') }}
-                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+            <div className="flex flex-wrap items-center gap-2">
+              <TaleaActionButton
+                type="button"
+                onClick={() => navigate('/doku/create')}
+                icon={<Wand2 className="h-4 w-4" />}
               >
-                <motion.div
-                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
-                  animate={activeControl === 'doku-search' && !reduceMotion ? { x: 1.5, scale: 1.06 } : { x: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
+                {t('doku.createNew', 'Neue Doku')}
+              </TaleaActionButton>
+              {isAdmin ? (
+                <TaleaActionButton
+                  type="button"
+                  variant="secondary"
+                  onClick={() => navigate('/createaudiodoku')}
+                  icon={<Headphones className="h-4 w-4" />}
                 >
-                  <Search className="h-4 w-4" />
-                </motion.div>
+                  Audio-Doku
+                </TaleaActionButton>
+              ) : null}
+            </div>
+          </motion.header>
+
+          {/* Segmented Tab Control */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-[1.5rem] border p-1.5 shadow-[0_8px_24px_rgba(33,44,62,0.08)]"
+            style={{
+              borderColor: palette.border,
+              background: 'var(--talea-surface-primary)',
+            }}
+          >
+            <div className="grid grid-cols-3 gap-1">
+              {tabThemes.map((tab) => {
+                const active = activeTab === tab.key;
+                const Icon = tab.icon;
+                return (
+                  <motion.button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActiveTab(tab.key)}
+                    whileHover={reduceMotion ? undefined : { scale: 1.01 }}
+                    whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                    className="relative flex items-center justify-center gap-2 rounded-[1.1rem] px-3 py-3 text-sm font-semibold transition-colors sm:gap-2.5 sm:px-4"
+                    style={{ color: active ? 'white' : palette.muted }}
+                    aria-pressed={active}
+                  >
+                    {active && (
+                      <motion.div
+                        layoutId="doku-active-tab-pill"
+                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        className="absolute inset-0 rounded-[1.1rem] shadow-[0_8px_20px_rgba(33,44,62,0.18)]"
+                        style={{
+                          background: `linear-gradient(135deg, ${tab.accent} 0%, color-mix(in srgb, ${tab.accent} 70%, white) 100%)`,
+                        }}
+                      />
+                    )}
+                    <Icon className="relative z-10 h-4 w-4 shrink-0" />
+                    <span className="relative z-10 hidden truncate sm:inline">{tab.label}</span>
+                    <span className="relative z-10 inline truncate sm:hidden">{tab.label}</span>
+                    <span
+                      className={cn(
+                        'relative z-10 inline-flex h-5 min-w-[1.4rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold',
+                        active ? 'bg-white/25 text-white' : ''
+                      )}
+                      style={
+                        !active
+                          ? {
+                              background: 'var(--talea-surface-inset)',
+                              color: palette.muted,
+                            }
+                          : undefined
+                      }
+                    >
+                      {counts[tab.key]}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+
+          {/* Filter Bar - kompakt */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+            className="space-y-3"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              {/* Search */}
+              <label className="relative flex-1 min-w-0">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setActiveControl('doku-search')}
-                  onBlur={() => setActiveControl((current) => (current === 'doku-search' ? null : current))}
                   placeholder={
                     activeTab === 'audio'
                       ? t('doku.searchPlaceholderAudio', 'Audio durchsuchen...')
                       : t('doku.searchPlaceholderText', 'Dokus durchsuchen...')
                   }
-                  className={cn(taleaInputClass, 'pl-10')}
+                  className={cn(taleaInputClass, 'pl-10 pr-10')}
                 />
-              </motion.label>
-
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                {([
-                  { key: 'mine', label: t('doku.tabMine', 'Meine'), count: totalMy },
-                  { key: 'discover', label: t('doku.tabDiscover', 'Entdecken'), count: totalPublic },
-                  { key: 'audio', label: t('doku.tabAudio', 'Hörwelt'), count: totalAudio },
-                ] as const).map((tab) => {
-                  const active = activeTab === tab.key;
-                  return (
-                    <motion.button
-                      whileHover={controlHover}
-                      whileTap={controlTap}
-                      key={tab.key}
-                      type="button"
-                      onClick={() => setActiveTab(tab.key)}
-                      className="relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-[1rem] border px-3 py-2 text-xs font-semibold transition-colors border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]"
-                    >
-                      {active ? (
-                        <motion.span
-                          layoutId="doku-active-tab"
-                          className="absolute inset-0 rounded-[1rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
-                          transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-                        />
-                      ) : null}
-                      <span className="relative z-10">{tab.label}</span>
-                      <span className="relative z-10 rounded-full bg-white/65 px-2 py-0.5 text-[10px] dark:bg-white/8">
-                        {tab.count}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {activeTab !== 'audio' ? (
-                <>
-                  {[
-                    {
-                      id: 'topic-filter',
-                      value: topicFilter,
-                      onChange: (value: string) => setTopicFilter(value),
-                      ariaLabel: t('doku.filterTopic', 'Thema filtern'),
-                      options: [
-                        { value: 'all', label: t('doku.filterAllTopics', 'Alle Themen') },
-                        ...topicFilterOptions.map((topic) => ({ value: topic, label: formatTopicLabel(topic, t('doku.topicUnknown', 'Unbekannt')) })),
-                      ],
-                    },
-                    {
-                      id: 'age-filter',
-                      value: ageGroupFilter,
-                      onChange: (value: string) => setAgeGroupFilter(value),
-                      ariaLabel: t('doku.filterAge', 'Altersgruppe filtern'),
-                      options: [
-                        { value: 'all', label: t('doku.filterAllAges', 'Alle Altersgruppen') },
-                        ...ageGroupFilterOptions.map((ageGroup) => ({ value: ageGroup, label: ageGroup })),
-                      ],
-                    },
-                    {
-                      id: 'depth-filter',
-                      value: depthFilter,
-                      onChange: (value: string) => setDepthFilter(value),
-                      ariaLabel: t('doku.filterDepth', 'Tiefe filtern'),
-                      options: [
-                        { value: 'all', label: t('doku.filterAllDepths', 'Alle Tiefen') },
-                        ...depthFilterOptions.map((depth) => ({ value: depth, label: formatDokuDepthLabel(depth, t) })),
-                      ],
-                    },
-                  ].map((control) => (
-                    <motion.div
-                      key={control.id}
-                      className="relative"
-                      whileHover={controlHover}
-                      animate={{ boxShadow: controlFocusRing(control.id) }}
-                      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-                    >
-                      <select
-                        value={control.value}
-                        onChange={(event) => control.onChange(event.target.value)}
-                        onFocus={() => setActiveControl(control.id)}
-                        onBlur={() => setActiveControl((current) => (current === control.id ? null : current))}
-                        className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
-                        aria-label={control.ariaLabel}
-                      >
-                        {control.options.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                      <motion.div
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
-                        animate={activeControl === control.id && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </motion.div>
-                    </motion.div>
-                  ))}
-                </>
-              ) : (
-                <motion.div
-                  className="relative"
-                  whileHover={controlHover}
-                  animate={{ boxShadow: controlFocusRing('audio-scope-filter') }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-                >
-                  <select
-                    value={audioScopeFilter}
-                    onChange={(event) => setAudioScopeFilter(event.target.value as AudioScope)}
-                    onFocus={() => setActiveControl('audio-scope-filter')}
-                    onBlur={() => setActiveControl((current) => (current === 'audio-scope-filter' ? null : current))}
-                    className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
-                    aria-label={t('doku.filterAudioScope', 'Audio Bereich filtern')}
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--talea-text-muted)] hover:bg-[var(--talea-surface-inset)]"
+                    aria-label="Suche löschen"
                   >
-                    <option value="all">{t('doku.filterAllAudio', 'Alle Audio')}</option>
-                    <option value="mine">{t('doku.filterMyAudio', 'Meine Audio')}</option>
-                    <option value="public">{t('doku.filterPublicAudio', 'Öffentliche Audio')}</option>
-                  </select>
-                  <motion.div
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
-                    animate={activeControl === 'audio-scope-filter' && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </motion.div>
-                </motion.div>
-              )}
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </label>
 
-              <motion.div
-                className="relative"
-                whileHover={controlHover}
-                animate={{ boxShadow: controlFocusRing('sort-mode') }}
-                transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-              >
+              {/* Sort dropdown */}
+              <div className="relative">
                 <select
                   value={sortMode}
-                  onChange={(event) => setSortMode(event.target.value as DokuSortMode)}
-                  onFocus={() => setActiveControl('sort-mode')}
-                  onBlur={() => setActiveControl((current) => (current === 'sort-mode' ? null : current))}
-                  className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
+                  onChange={(e) => setSortMode(e.target.value as DokuSortMode)}
+                  className={cn(taleaInputClass, 'cursor-pointer appearance-none pl-10 pr-10 sm:w-52')}
                   aria-label={t('common.sort', 'Sortierung')}
                 >
                   <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
                   <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
                   <option value="title">{t('doku.sortTitle', 'Titel A-Z')}</option>
                 </select>
-                <motion.div
-                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--talea-text-muted)]"
-                  animate={activeControl === 'sort-mode' && !reduceMotion ? { y: 1, scale: 1.08 } : { y: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 24 }}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </motion.div>
-              </motion.div>
+                <SlidersHorizontal className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+              </div>
 
-              <TaleaActionButton
+              {/* Filter toggle button */}
+              <motion.button
                 type="button"
-                variant="secondary"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSortMode('newest');
-                  setTopicFilter('all');
-                  setAgeGroupFilter('all');
-                  setDepthFilter('all');
-                  setAudioScopeFilter('all');
-                }}
-                className="h-11 w-full justify-center"
+                onClick={() => setShowAdvancedFilters((v) => !v)}
+                whileHover={reduceMotion ? undefined : { y: -1 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                className={cn(
+                  'inline-flex h-11 items-center justify-center gap-2 rounded-[1.1rem] border px-4 text-sm font-semibold transition-all',
+                  showAdvancedFilters || hasActiveFilters
+                    ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
+                    : 'border-[var(--talea-border-soft)] bg-white/80 text-[var(--talea-text-primary)] dark:bg-[var(--talea-surface-inset)]'
+                )}
               >
-                {t('doku.filterReset', 'Filter zurücksetzen')}
-              </TaleaActionButton>
+                <Filter className="h-4 w-4" />
+                Filter
+                {hasActiveFilters && (
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-bold text-white">
+                    !
+                  </span>
+                )}
+              </motion.button>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSortMode('newest');
+                    setTopicFilter('all');
+                    setAgeGroupFilter('all');
+                    setDepthFilter('all');
+                    setAudioScopeFilter('all');
+                  }}
+                  className="inline-flex h-11 items-center justify-center gap-1 rounded-[1.1rem] px-3 text-xs font-semibold text-[var(--talea-text-muted)] hover:text-[var(--talea-text-primary)]"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Zurücksetzen
+                </button>
+              )}
             </div>
-          </header>
 
-          {isInitialLoading ? (
-            <SectionLoading palette={palette} />
-          ) : (
-            <>
-              {activeTab === 'mine' && (
-                <section>
-                  <SectionHeader
-                    icon={<GraduationCap className="h-4 w-4" />}
-                    title={t('doku.myDokus', 'Meine Dokus')}
-                    subtitle={t('doku.myDokusSubtitle', 'Von dir erstellte Dokus')}
-                    count={totalMy}
-                    palette={palette}
-                  />
-
-                  {loadingMy ? (
-                    <SectionLoading palette={palette} />
-                  ) : filteredMyDokus.length === 0 ? (
-                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                      <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? t('doku.noDokusQuery', 'Keine Doku passt zum Suchbegriff.') : t('doku.noDokus', 'Noch keine Dokus')}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredMyDokus.map((doku) => (
-                        <DokuCard
-                          key={doku.id}
-                          doku={doku}
-                          onRead={(item) => navigate(`/doku-reader/${item.id}`)}
-                          onDelete={handleDeleteDoku}
-                          onTogglePublic={handleTogglePublic}
+            {/* Advanced filters panel */}
+            <AnimatePresence initial={false}>
+              {showAdvancedFilters && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div
+                    className="rounded-[1.4rem] border p-4"
+                    style={{ borderColor: palette.border, background: 'var(--talea-surface-inset)' }}
+                  >
+                    {activeTab !== 'audio' ? (
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <FilterSelect
+                          label={t('doku.filterTopic', 'Thema')}
+                          value={topicFilter}
+                          onChange={setTopicFilter}
+                          options={[
+                            { value: 'all', label: t('doku.filterAllTopics', 'Alle Themen') },
+                            ...topicFilterOptions.map((topic) => ({
+                              value: topic,
+                              label: formatTopicLabel(topic, t('doku.topicUnknown', 'Unbekannt')),
+                            })),
+                          ]}
                         />
-                      ))}
-                    </div>
-                  )}
-
-                  {hasMoreMy && !query && (
-                    <div ref={myObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                      {loadingMoreMy ? t('doku.loadingMore', 'Weitere Dokus werden geladen...') : null}
-                    </div>
-                  )}
-                </section>
+                        <FilterSelect
+                          label={t('doku.filterAge', 'Alter')}
+                          value={ageGroupFilter}
+                          onChange={setAgeGroupFilter}
+                          options={[
+                            { value: 'all', label: t('doku.filterAllAges', 'Alle Altersgruppen') },
+                            ...ageGroupFilterOptions.map((ageGroup) => ({ value: ageGroup, label: ageGroup })),
+                          ]}
+                        />
+                        <FilterSelect
+                          label={t('doku.filterDepth', 'Tiefe')}
+                          value={depthFilter}
+                          onChange={setDepthFilter}
+                          options={[
+                            { value: 'all', label: t('doku.filterAllDepths', 'Alle Tiefen') },
+                            ...depthFilterOptions.map((depth) => ({
+                              value: depth,
+                              label: formatDokuDepthLabel(depth, t),
+                            })),
+                          ]}
+                        />
+                      </div>
+                    ) : (
+                      <FilterSelect
+                        label={t('doku.filterAudioScope', 'Bereich')}
+                        value={audioScopeFilter}
+                        onChange={(v) => setAudioScopeFilter(v as AudioScope)}
+                        options={[
+                          { value: 'all', label: t('doku.filterAllAudio', 'Alle Audio') },
+                          { value: 'mine', label: t('doku.filterMyAudio', 'Meine Audio') },
+                          { value: 'public', label: t('doku.filterPublicAudio', 'Öffentliche Audio') },
+                        ]}
+                      />
+                    )}
+                  </div>
+                </motion.div>
               )}
+            </AnimatePresence>
+          </motion.div>
 
-              {activeTab === 'discover' && (
-                <section>
-                  <SectionHeader
-                    icon={<Globe className="h-4 w-4" />}
-                    title={t('doku.discoverTitle', 'Entdecken')}
-                    subtitle={t('doku.discoverSubtitle', 'Geteilte Dokus aus der Community')}
-                    count={totalPublic}
-                    palette={palette}
-                  />
-
-                  {loadingPublic ? (
-                    <SectionLoading palette={palette} />
-                  ) : publicAccessMessage ? (
-                    <div
-                      className="rounded-2xl border p-6 text-center text-sm"
-                      style={{
-                        borderColor: 'var(--talea-danger-border)',
-                        background: 'var(--talea-danger-soft)',
-                        color: 'var(--talea-danger)',
-                      }}
-                    >
-                      {publicAccessMessage}
-                    </div>
-                  ) : filteredPublicDokus.length === 0 ? (
-                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                      <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? t('doku.noPublicDokusQuery', 'Keine Entdecken-Doku passt zum Suchbegriff.') : t('doku.noPublicDokus', 'Noch keine öffentlichen Dokus')}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredPublicDokus.map((doku) => (
-                        <DokuCard key={doku.id} doku={doku} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
-                      ))}
-                    </div>
-                  )}
-
-                  {hasMorePublic && !publicAccessMessage && !query && (
-                    <div ref={publicObserverRef} className="mt-4 h-4 text-center text-xs" style={{ color: palette.muted }}>
-                      {loadingMorePublic ? t('doku.loadingMorePublic', 'Weitere Entdecken-Dokus werden geladen...') : null}
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {activeTab === 'audio' && (
-                <section>
-                  <SectionHeader
-                    icon={<Headphones className="h-4 w-4" />}
-                    title={t('doku.audioWorldTitle', 'Hörwelt')}
-                    subtitle={t('doku.audioWorldSubtitle', 'Dokus zum Anhören')}
-                    count={totalAudio}
-                    palette={palette}
-                    actionLabel={isAdmin ? t('doku.audioCreateButton', 'Audio-Doku erstellen') : undefined}
-                    onAction={isAdmin ? () => navigate('/createaudiodoku') : undefined}
-                  />
-
-                  {loadingAudio ? (
-                    <SectionLoading palette={palette} />
-                  ) : audioAccessMessage ? (
-                    <div
-                      className="rounded-2xl border p-6 text-center text-sm"
-                      style={{
-                        borderColor: 'var(--talea-danger-border)',
-                        background: 'var(--talea-danger-soft)',
-                        color: 'var(--talea-danger)',
-                      }}
-                    >
-                      {audioAccessMessage}
-                    </div>
-                  ) : filteredAudioDokus.length === 0 ? (
-                    <div className="rounded-2xl border p-8 text-center" style={{ borderColor: palette.border, background: palette.panel }}>
-                      <p className="text-sm" style={{ color: palette.muted }}>
-                        {query ? t('doku.noAudioDokusQuery', 'Keine Audio-Doku passt zum Suchbegriff.') : t('doku.noAudioDokus', 'Noch keine Audio-Dokus verfügbar')}
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {filteredAudioDokus.length > 1 && (
-                        <div className="mb-4 flex justify-end">
-                          <motion.button
-                            whileHover={{ scale: 1.03 }}
-                            whileTap={{ scale: 0.97 }}
-                            onClick={handlePlayAllAudioDokus}
-                            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-sm transition-colors"
-                            style={{ borderColor: palette.border, background: palette.panel, color: palette.text }}
-                          >
-                            <PlayCircle className="h-4 w-4" />
-                            {t('doku.audioPlayAll', 'Alle abspielen')}
-                          </motion.button>
+          {/* Content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {isInitialLoading ? (
+                <SectionLoading palette={palette} />
+              ) : (
+                <>
+                  {activeTab === 'mine' && (
+                    <section>
+                      {filteredMyDokus.length === 0 ? (
+                        <EmptyState
+                          palette={palette}
+                          message={
+                            query
+                              ? t('doku.noDokusQuery', 'Keine Doku passt zum Suchbegriff.')
+                              : t('doku.noDokus', 'Noch keine Dokus')
+                          }
+                          actionLabel={!query ? t('doku.createNew', 'Neue Doku') : undefined}
+                          onAction={!query ? () => navigate('/doku/create') : undefined}
+                        />
+                      ) : (
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {filteredMyDokus.map((doku) => (
+                            <DokuCard
+                              key={doku.id}
+                              doku={doku}
+                              onRead={(item) => navigate(`/doku-reader/${item.id}`)}
+                              onDelete={handleDeleteDoku}
+                              onTogglePublic={handleTogglePublic}
+                            />
+                          ))}
                         </div>
                       )}
-                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {filteredAudioDokus.map((doku, i) => (
-                          <AudioDokuCard
-                            key={doku.id}
-                            doku={doku}
-                            index={i}
-                            onPlay={() => setAudioModal(doku)}
-                            onAddToQueue={() => handleAddAudioToQueue(doku)}
-                            palette={palette}
-                            isAdmin={isAdmin}
-                            onEdit={() => handleEditAudioDoku(doku)}
-                            onDelete={() => handleDeleteAudioDoku(doku)}
-                            canSaveOffline={canUseOffline}
-                            isSavedOffline={isAudioDokuSaved(doku.id)}
-                            isSavingOffline={isSaving(doku.id)}
-                            onToggleOffline={() => toggleAudioDoku(doku)}
-                          />
-                        ))}
-                      </div>
-                    </>
+
+                      {hasMoreMy && !query && (
+                        <div ref={myObserverRef} className="mt-6 h-4 text-center text-xs" style={{ color: palette.muted }}>
+                          {loadingMoreMy ? t('doku.loadingMore', 'Weitere Dokus werden geladen...') : null}
+                        </div>
+                      )}
+                    </section>
                   )}
-                </section>
+
+                  {activeTab === 'discover' && (
+                    <section>
+                      {publicAccessMessage ? (
+                        <div
+                          className="rounded-2xl border p-6 text-center text-sm"
+                          style={{
+                            borderColor: 'var(--talea-danger-border)',
+                            background: 'var(--talea-danger-soft)',
+                            color: 'var(--talea-danger)',
+                          }}
+                        >
+                          {publicAccessMessage}
+                        </div>
+                      ) : filteredPublicDokus.length === 0 ? (
+                        <EmptyState
+                          palette={palette}
+                          message={
+                            query
+                              ? t('doku.noPublicDokusQuery', 'Keine Entdecken-Doku passt zum Suchbegriff.')
+                              : t('doku.noPublicDokus', 'Noch keine öffentlichen Dokus')
+                          }
+                        />
+                      ) : (
+                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          {filteredPublicDokus.map((doku) => (
+                            <DokuCard key={doku.id} doku={doku} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
+                          ))}
+                        </div>
+                      )}
+
+                      {hasMorePublic && !publicAccessMessage && !query && (
+                        <div
+                          ref={publicObserverRef}
+                          className="mt-6 h-4 text-center text-xs"
+                          style={{ color: palette.muted }}
+                        >
+                          {loadingMorePublic
+                            ? t('doku.loadingMorePublic', 'Weitere Entdecken-Dokus werden geladen...')
+                            : null}
+                        </div>
+                      )}
+                    </section>
+                  )}
+
+                  {activeTab === 'audio' && (
+                    <section>
+                      {audioAccessMessage ? (
+                        <div
+                          className="rounded-2xl border p-6 text-center text-sm"
+                          style={{
+                            borderColor: 'var(--talea-danger-border)',
+                            background: 'var(--talea-danger-soft)',
+                            color: 'var(--talea-danger)',
+                          }}
+                        >
+                          {audioAccessMessage}
+                        </div>
+                      ) : filteredAudioDokus.length === 0 ? (
+                        <EmptyState
+                          palette={palette}
+                          message={
+                            query
+                              ? t('doku.noAudioDokusQuery', 'Keine Audio-Doku passt zum Suchbegriff.')
+                              : t('doku.noAudioDokus', 'Noch keine Audio-Dokus verfügbar')
+                          }
+                          actionLabel={isAdmin && !query ? t('doku.audioCreateButton', 'Audio-Doku erstellen') : undefined}
+                          onAction={isAdmin && !query ? () => navigate('/createaudiodoku') : undefined}
+                        />
+                      ) : (
+                        <>
+                          {filteredAudioDokus.length > 1 && (
+                            <div className="mb-4 flex justify-end">
+                              <motion.button
+                                whileHover={reduceMotion ? undefined : { scale: 1.02, y: -1 }}
+                                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                                onClick={handlePlayAllAudioDokus}
+                                className="inline-flex items-center gap-2 rounded-full border-0 px-4 py-2 text-xs font-semibold text-white shadow-md"
+                                style={{
+                                  background:
+                                    'linear-gradient(135deg, var(--talea-accent-lavender) 0%, color-mix(in srgb, var(--talea-accent-rose) 70%, white) 100%)',
+                                }}
+                              >
+                                <PlayCircle className="h-4 w-4" fill="currentColor" />
+                                {t('doku.audioPlayAll', 'Alle abspielen')}
+                              </motion.button>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {filteredAudioDokus.map((doku, i) => (
+                              <AudioDokuCard
+                                key={doku.id}
+                                doku={doku}
+                                index={i}
+                                onPlay={() => setAudioModal(doku)}
+                                onAddToQueue={() => handleAddAudioToQueue(doku)}
+                                palette={palette}
+                                isAdmin={isAdmin}
+                                onEdit={() => handleEditAudioDoku(doku)}
+                                onDelete={() => handleDeleteAudioDoku(doku)}
+                                canSaveOffline={canUseOffline}
+                                isSavedOffline={isAudioDokuSaved(doku.id)}
+                                isSavingOffline={isSaving(doku.id)}
+                                onToggleOffline={() => toggleAudioDoku(doku)}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </section>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         <AnimatePresence>
@@ -1353,5 +1500,66 @@ const TaleaDokusScreen: React.FC = () => {
     </div>
   );
 };
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────────────────
+const FilterSelect: React.FC<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}> = ({ label, value, onChange, options }) => (
+  <div className="space-y-1.5">
+    <label className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--talea-text-muted)]">
+      {label}
+    </label>
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(taleaInputClass, 'cursor-pointer appearance-none pr-10')}
+        aria-label={label}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+    </div>
+  </div>
+);
+
+const EmptyState: React.FC<{
+  palette: Palette;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}> = ({ palette, message, actionLabel, onAction }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.96 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.3 }}
+    className="flex flex-col items-center justify-center gap-4 rounded-[1.75rem] border p-12 text-center"
+    style={{ borderColor: palette.border, background: palette.panel }}
+  >
+    <div
+      className="flex h-16 w-16 items-center justify-center rounded-2xl"
+      style={{ background: 'color-mix(in srgb, var(--primary) 14%, var(--talea-surface-inset))' }}
+    >
+      <BookOpen className="h-7 w-7" style={{ color: 'var(--primary)' }} />
+    </div>
+    <p className="max-w-md text-sm" style={{ color: palette.muted }}>
+      {message}
+    </p>
+    {actionLabel && onAction && (
+      <TaleaActionButton type="button" onClick={onAction} icon={<Plus className="h-4 w-4" />}>
+        {actionLabel}
+      </TaleaActionButton>
+    )}
+  </motion.div>
+);
 
 export default TaleaDokusScreen;

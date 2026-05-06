@@ -1,8 +1,9 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bookmark,
   BookmarkCheck,
+  BookOpen,
   Download,
   FlaskConical,
   Globe,
@@ -10,7 +11,6 @@ import {
   Lightbulb,
   Lock,
   Loader2,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 import type { Doku } from '../../types/doku';
@@ -34,9 +34,6 @@ type Palette = {
   text: string;
   muted: string;
   soft: string;
-  statusDone: string;
-  statusProgress: string;
-  statusError: string;
 };
 
 function getPalette(_: boolean): Palette {
@@ -46,9 +43,6 @@ function getPalette(_: boolean): Palette {
     text: 'var(--talea-text-primary)',
     muted: 'var(--talea-text-secondary)',
     soft: 'var(--talea-surface-inset)',
-    statusDone: 'var(--talea-success-soft)',
-    statusProgress: 'var(--talea-warning-soft)',
-    statusError: 'var(--talea-danger-soft)',
   };
 }
 
@@ -83,6 +77,9 @@ function buildDokuNarrationText(doku: DokuNarrationInput): string {
   }
   return blocks.join('\n\n').trim();
 }
+
+const ICON_BTN =
+  'inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-all hover:scale-105 active:scale-95';
 
 export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
   const [hovered, setHovered] = useState(false);
@@ -150,12 +147,19 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
     }
   };
 
+  const statusColor =
+    doku.status === 'complete'
+      ? 'var(--talea-success)'
+      : doku.status === 'generating'
+      ? 'var(--talea-warning)'
+      : 'var(--talea-danger)';
+
   return (
     <motion.article
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.26 }}
-      whileHover={{ y: -4 }}
+      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -6 }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
       onClick={() => onRead(doku)}
@@ -168,44 +172,85 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
       role="button"
       tabIndex={0}
       aria-label={`Doku lesen: ${doku.title}`}
-      className="group cursor-pointer"
+      className="group cursor-pointer outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 rounded-[1.75rem]"
     >
-      <div className="w-full overflow-hidden rounded-3xl border text-left shadow-[0_12px_28px_rgba(33,44,62,0.12)]" style={{ borderColor: palette.border, background: palette.card }}>
-        <div className="relative h-[220px] overflow-hidden" style={{ background: palette.soft }}>
-          <ProgressiveImage
-            src={doku.coverImageUrl}
-            alt={doku.title}
-            containerClassName="h-full w-full"
-            imageClassName="transition-transform duration-500 group-hover:scale-[1.05]"
-            skeletonClassName="bg-[var(--talea-media-skeleton)]"
-            fallback={
-              <div className="flex h-full w-full items-center justify-center">
-                <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
-              </div>
-            }
-          />
+      <div
+        className="w-full overflow-hidden rounded-[1.75rem] border bg-[var(--talea-surface-primary)] transition-all duration-300 group-hover:shadow-[0_24px_48px_rgba(33,44,62,0.18)]"
+        style={{
+          borderColor: palette.border,
+          boxShadow: '0 10px 24px rgba(33,44,62,0.10)',
+        }}
+      >
+        {/* Cover: aspect-square, kein Crop dank object-contain + farbiger Hintergrund */}
+        <div
+          className="relative aspect-square w-full overflow-hidden"
+          style={{
+            background:
+              'linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 60%, color-mix(in srgb, var(--talea-accent-sky) 14%, var(--talea-surface-inset)) 100%)',
+          }}
+        >
+          {/* Verschwommenes Bild als organischer Hintergrund (füllt die Card-Form) */}
+          {doku.coverImageUrl && (
+            <div
+              className="absolute inset-0 scale-110 opacity-60 blur-2xl"
+              style={{
+                backgroundImage: `url(${doku.coverImageUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+              aria-hidden
+            />
+          )}
 
-          <div className="absolute inset-0" style={{ background: 'var(--talea-media-overlay)' }} />
+          {/* Eigentliches Cover, vollständig sichtbar */}
+          <div className="absolute inset-0 flex items-center justify-center p-3">
+            <ProgressiveImage
+              src={doku.coverImageUrl}
+              alt={doku.title}
+              containerClassName="h-full w-full overflow-hidden rounded-[1.25rem] shadow-[0_14px_30px_rgba(0,0,0,0.18)]"
+              imageClassName="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+              skeletonClassName="bg-[var(--talea-media-skeleton)]"
+              fallback={
+                <div className="flex h-full w-full items-center justify-center rounded-[1.25rem] bg-white/40 backdrop-blur-sm">
+                  <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
+                </div>
+              }
+            />
+          </div>
 
-          <div className="absolute left-3 top-3">
+          {/* Type-Badge: TEXT */}
+          <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
             <span
-              className="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
               style={{
                 borderColor: 'var(--talea-media-chrome-border)',
+                background: 'var(--talea-media-chrome-bg)',
                 color: 'var(--talea-media-foreground)',
-                background:
-                  doku.status === 'complete'
-                    ? 'color-mix(in srgb, var(--talea-success-soft) 60%, var(--talea-media-chrome-bg))'
-                    : doku.status === 'generating'
-                    ? 'color-mix(in srgb, var(--talea-warning-soft) 62%, var(--talea-media-chrome-bg))'
-                    : 'color-mix(in srgb, var(--talea-danger-soft) 60%, var(--talea-media-chrome-bg))',
               }}
             >
+              <BookOpen className="h-3 w-3" />
+              Text
+            </span>
+
+            {/* Status-Dot */}
+            <span
+              className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur-md"
+              style={{
+                borderColor: 'var(--talea-media-chrome-border)',
+                background: 'var(--talea-media-chrome-bg)',
+                color: 'var(--talea-media-foreground)',
+              }}
+            >
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: statusColor }}
+              />
               {statusLabel(doku.status)}
             </span>
           </div>
 
-          <div className="absolute right-3 top-3 flex gap-2">
+          {/* Action Icons rechts */}
+          <div className="absolute right-3 top-3 z-10 flex gap-1.5">
             {canUseOffline && doku.status === 'complete' && (
               <button
                 type="button"
@@ -214,14 +259,16 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                   toggleDoku(doku.id);
                 }}
                 disabled={isSaving(doku.id)}
-                className="rounded-xl border p-2"
-                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                className={ICON_BTN}
+                style={{
+                  borderColor: 'var(--talea-media-chrome-border)',
+                  background: 'var(--talea-media-chrome-bg)',
+                  color: 'var(--talea-media-foreground)',
+                }}
                 aria-label={isDokuSaved(doku.id) ? 'Offline-Speicherung entfernen' : 'Offline speichern'}
               >
                 {isSaving(doku.id) ? (
-                  <motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }} className="inline-flex">
-                    <Loader2 className="h-4 w-4" />
-                  </motion.span>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : isDokuSaved(doku.id) ? (
                   <BookmarkCheck className="h-4 w-4" />
                 ) : (
@@ -235,15 +282,17 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                 type="button"
                 onClick={handleAddToPlaylist}
                 disabled={isAddingToPlaylist || isInPlaylist}
-                className="rounded-xl border p-2"
-                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                className={ICON_BTN}
+                style={{
+                  borderColor: 'var(--talea-media-chrome-border)',
+                  background: 'var(--talea-media-chrome-bg)',
+                  color: 'var(--talea-media-foreground)',
+                }}
                 aria-label={isInPlaylist ? 'Bereits in der Warteschlange' : 'Doku zur Warteschlange hinzufuegen'}
                 title={isInPlaylist ? 'Bereits in der Warteschlange' : 'Zur Warteschlange hinzufuegen'}
               >
                 {isAddingToPlaylist ? (
-                  <motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }} className="inline-flex">
-                    <Loader2 className="h-4 w-4" />
-                  </motion.span>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Headphones className="h-4 w-4" />
                 )}
@@ -255,14 +304,16 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
                 type="button"
                 onClick={handleDownloadPDF}
                 disabled={isExportingPDF}
-                className="rounded-xl border p-2"
-                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                className={ICON_BTN}
+                style={{
+                  borderColor: 'var(--talea-media-chrome-border)',
+                  background: 'var(--talea-media-chrome-bg)',
+                  color: 'var(--talea-media-foreground)',
+                }}
                 aria-label="Doku als PDF exportieren"
               >
                 {isExportingPDF ? (
-                  <motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }} className="inline-flex">
-                    <Loader2 className="h-4 w-4" />
-                  </motion.span>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
@@ -273,8 +324,12 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
               <button
                 type="button"
                 onClick={handleTogglePublic}
-                className="rounded-xl border p-2"
-                style={{ borderColor: palette.border, background: palette.card, color: palette.text }}
+                className={ICON_BTN}
+                style={{
+                  borderColor: 'var(--talea-media-chrome-border)',
+                  background: 'var(--talea-media-chrome-bg)',
+                  color: 'var(--talea-media-foreground)',
+                }}
                 aria-label={doku.isPublic ? 'Doku privat setzen' : 'Doku oeffentlich machen'}
               >
                 {doku.isPublic ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
@@ -285,10 +340,10 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
               <button
                 type="button"
                 onClick={handleDelete}
-                className="rounded-xl border p-2"
+                className={ICON_BTN}
                 style={{
                   borderColor: 'var(--talea-danger-border)',
-                  background: 'var(--talea-danger-soft)',
+                  background: 'color-mix(in srgb, var(--talea-danger-soft) 90%, transparent)',
                   color: 'var(--talea-danger)',
                 }}
                 aria-label="Doku loeschen"
@@ -298,43 +353,62 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             )}
           </div>
 
+          {/* Hover CTA */}
           <AnimatePresence>
             {hovered && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.18 }}
+                className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex items-center justify-center"
               >
                 <div
-                  className="inline-flex h-14 w-14 items-center justify-center rounded-full border"
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur-md"
                   style={{
                     borderColor: 'var(--talea-media-control-border)',
                     background: 'var(--talea-media-control-bg)',
                     color: 'var(--talea-media-foreground)',
                   }}
                 >
-                  <Sparkles className="h-5 w-5" />
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Lesen
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-
-          <div className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="line-clamp-2 text-lg font-semibold text-white">{doku.title}</h3>
-          </div>
         </div>
 
-        <div className="space-y-3 p-4">
-          <p className="line-clamp-2 text-sm" style={{ color: palette.muted }}>
+        {/* Body */}
+        <div className="space-y-2.5 p-4">
+          <h3
+            className="line-clamp-2 text-base font-semibold leading-snug"
+            style={{ color: palette.text, fontFamily: 'var(--font-display, "Fraunces", serif)' }}
+          >
+            {doku.title}
+          </h3>
+
+          <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: palette.muted }}>
             {doku.topic || 'Ein spannender Wissensartikel zum Entdecken und Lernen.'}
           </p>
 
-          <div className="flex items-center justify-between text-xs" style={{ color: palette.muted }}>
-            <span>{new Date(doku.createdAt).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-            <span className="inline-flex items-center gap-1 rounded-full px-2 py-1" style={{ background: palette.soft }}>
+          <div className="flex items-center justify-between pt-1 text-[11px]" style={{ color: palette.muted }}>
+            <span>
+              {new Date(doku.createdAt).toLocaleDateString('de-DE', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+              style={{
+                background: 'color-mix(in srgb, var(--primary) 14%, var(--talea-surface-inset))',
+                color: 'var(--talea-text-primary)',
+              }}
+            >
               <Lightbulb className="h-3 w-3" />
-              Lernformat
+              Lernen
             </span>
           </div>
         </div>

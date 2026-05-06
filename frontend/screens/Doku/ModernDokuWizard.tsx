@@ -1,6 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Check, Loader2, Sparkles } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Compass,
+  Loader2,
+  Minus,
+  Plus,
+  Sparkles,
+  Wand2,
+} from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +24,16 @@ import { useTopicSuggestions } from '../Cosmos/useTopicSuggestions';
 import { fetchCosmosState, type TopicSuggestionItemDTO } from '../Cosmos/apiCosmosClient';
 import { resolveCosmosDomains } from '../Cosmos/CosmosAssetsRegistry';
 import { ageToAgeGroup } from '@/lib/child-profile-defaults';
+import { cn } from '@/lib/utils';
+import {
+  TaleaActionButton,
+  TaleaPageBackground,
+  TaleaProgressSteps,
+  taleaBodyFont,
+  taleaDisplayFont,
+  taleaInputClass,
+  taleaPageShellClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 type DokuApiLanguage = 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl';
 type DokuPerspective = 'science' | 'history' | 'technology' | 'nature' | 'culture';
@@ -53,7 +73,13 @@ type BillingPermissions = {
 
 type GenerationPhase = 'text' | 'cover' | 'sections' | 'personality' | 'complete';
 
-const steps = ['Thema', 'Alter & Wie viel?', 'Wie erklärt?', 'Inhalt', 'Fertig!'] as const;
+const wizardSteps = [
+  { id: 'topic', label: 'Thema' },
+  { id: 'audience', label: 'Alter' },
+  { id: 'voice', label: 'Stil' },
+  { id: 'content', label: 'Inhalt' },
+  { id: 'summary', label: 'Fertig' },
+];
 
 interface DomainDokuPreset {
   id: string;
@@ -61,6 +87,7 @@ interface DomainDokuPreset {
   description: string;
   perspective: DokuPerspective;
   topics: string[];
+  emoji: string;
   isExtra?: boolean;
 }
 
@@ -71,6 +98,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Tiere, Pflanzen und ihre Lebensräume entdecken.',
     perspective: 'nature',
     topics: ['Wie sprechen Tiere miteinander?', 'Wie bauen Ameisen ihre Stadt?', 'Warum wechseln Blätter die Farbe?'],
+    emoji: '🌿',
   },
   {
     id: 'space',
@@ -78,6 +106,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Planeten, Sterne und Rätsel im All.',
     perspective: 'science',
     topics: ['Unser Sonnensystem', 'Wie entstehen Sterne?', 'Warum hat der Mars rote Farbe?'],
+    emoji: '🚀',
   },
   {
     id: 'history',
@@ -85,6 +114,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Wie Menschen früher lebten und was sie gebaut haben.',
     perspective: 'history',
     topics: ['Das alte Ägypten', 'Wie lebten Kinder im Mittelalter?', 'Warum wurden Burgen gebaut?'],
+    emoji: '🏛️',
   },
   {
     id: 'tech',
@@ -92,6 +122,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Maschinen, Roboter und coole Erfindungen.',
     perspective: 'technology',
     topics: ['Wie Roboter lernen', 'Wie funktioniert ein Mikrochip?', 'Wie kommt Strom ins Haus?'],
+    emoji: '🤖',
   },
   {
     id: 'body',
@@ -99,6 +130,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Dein Körper, dein Gehirn und deine Sinne.',
     perspective: 'science',
     topics: ['Warum brauchen wir Schlaf?', 'Wie arbeitet das Gehirn?', 'Wie heilt eine Wunde?'],
+    emoji: '🧠',
   },
   {
     id: 'earth',
@@ -106,6 +138,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Wetter, Vulkane und Naturkräfte.',
     perspective: 'science',
     topics: ['Wie entstehen Wolken?', 'Warum gibt es Jahreszeiten?', 'Wie entsteht ein Vulkan?'],
+    emoji: '🌍',
   },
   {
     id: 'arts',
@@ -113,6 +146,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Musik, Farben, Kreativität und Ausdruck.',
     perspective: 'culture',
     topics: ['Wie macht Musik Stimmung?', 'Warum harmonieren Farben?', 'Wie entsteht ein Comic?'],
+    emoji: '🎨',
   },
   {
     id: 'logic',
@@ -120,6 +154,7 @@ const CORE_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Knobeln, Muster erkennen und schlau denken.',
     perspective: 'science',
     topics: ['Wie plant man mehrere Schritte voraus?', 'Wie funktionieren Wenn-Dann-Regeln?', 'Wie löst man Knobelrätsel?'],
+    emoji: '🧩',
   },
 ];
 
@@ -130,6 +165,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Riesige Urzeitechsen und versteinerte Knochen.',
     perspective: 'science',
     topics: ['Warum starben Dinosaurier aus?', 'Wie entstehen Fossilien?', 'Wer war der T-Rex?'],
+    emoji: '🦕',
     isExtra: true,
   },
   {
@@ -138,6 +174,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Geheimnisvolle Meere und seltsame Tiefsee-Wesen.',
     perspective: 'nature',
     topics: ['Was lebt in der Tiefsee?', 'Warum ist das Meer salzig?', 'Wie entstehen Wellen?'],
+    emoji: '🌊',
     isExtra: true,
   },
   {
@@ -146,6 +183,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Drachen, Götter und spannende Sagen.',
     perspective: 'history',
     topics: ['Warum gibt es Drachen-Mythen?', 'Wer waren die Götter in Griechenland?', 'Wie entstehen Legenden?'],
+    emoji: '🐉',
     isExtra: true,
   },
   {
@@ -154,6 +192,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Wie Computer denken und Programme funktionieren.',
     perspective: 'technology',
     topics: ['Was ist ein Algorithmus?', 'Wie lernen Computer Muster?', 'Wie denkt ein Computer?'],
+    emoji: '💻',
     isExtra: true,
   },
   {
@@ -162,6 +201,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Coole Experimente und spannende Reaktionen.',
     perspective: 'science',
     topics: ['Warum rostet Eisen?', 'Wie funktioniert Seife?', 'Warum sprudelt eine Brausetablette?'],
+    emoji: '🧪',
     isExtra: true,
   },
   {
@@ -170,6 +210,7 @@ const EXTRA_DOMAIN_PRESETS: DomainDokuPreset[] = [
     description: 'Warum Bewegung so toll ist und wie Muskeln arbeiten.',
     perspective: 'science',
     topics: ['Warum wärmen wir uns auf?', 'Wie trainieren Muskeln?', 'Was macht Ausdauer aus?'],
+    emoji: '⚽',
     isExtra: true,
   },
 ];
@@ -203,9 +244,7 @@ function toDomainFromPerspective(perspective: DokuPerspective): string {
 }
 
 function inferPerspectiveForDomain(domainId: string): DokuPerspective {
-  if (DOMAIN_DOKU_PRESETS[domainId]?.perspective) {
-    return DOMAIN_DOKU_PRESETS[domainId].perspective;
-  }
+  if (DOMAIN_DOKU_PRESETS[domainId]?.perspective) return DOMAIN_DOKU_PRESETS[domainId].perspective;
   if (/history|myth|culture|roman|mittelalter|ancient/i.test(domainId)) return 'history';
   if (/nature|animal|ocean|forest|earth|climate/i.test(domainId)) return 'nature';
   if (/tech|robot|coding|ai|invent|machine/i.test(domainId)) return 'technology';
@@ -214,36 +253,36 @@ function inferPerspectiveForDomain(domainId: string): DokuPerspective {
 }
 
 const ageOptions = [
-  { value: '3-5', label: '3-5 Jahre', desc: 'Ganz einfach erklärt' },
-  { value: '6-8', label: '6-8 Jahre', desc: 'Spielerisch und spannend' },
-  { value: '9-12', label: '9-12 Jahre', desc: 'Mit mehr Zusammenhängen' },
-  { value: '13+', label: '13+ Jahre', desc: 'Für Wissensprofis' },
+  { value: '3-5', label: '3-5 Jahre', desc: 'Ganz einfach erklärt', emoji: '🐣' },
+  { value: '6-8', label: '6-8 Jahre', desc: 'Spielerisch und spannend', emoji: '🌱' },
+  { value: '9-12', label: '9-12 Jahre', desc: 'Mit mehr Zusammenhängen', emoji: '🚀' },
+  { value: '13+', label: '13+ Jahre', desc: 'Für Wissensprofis', emoji: '🎓' },
 ] as const;
 
 const depthOptions = [
-  { value: 'basic', label: 'Kurz erklärt', desc: 'Das Wichtigste auf einen Blick' },
-  { value: 'standard', label: 'Normal', desc: 'Gut erklärt mit Beispielen' },
-  { value: 'deep', label: 'Alles genau wissen', desc: 'Für echte Entdecker' },
+  { value: 'basic', label: 'Kurz erklärt', desc: 'Das Wichtigste auf einen Blick', emoji: '⚡' },
+  { value: 'standard', label: 'Normal', desc: 'Gut erklärt mit Beispielen', emoji: '📖' },
+  { value: 'deep', label: 'Alles genau wissen', desc: 'Für echte Entdecker', emoji: '🔬' },
 ] as const;
 
 const perspectiveOptions = [
-  { value: 'science', label: 'Wie ein Forscher', desc: 'Wie funktioniert das?' },
-  { value: 'history', label: 'Wie ein Zeitreisender', desc: 'Wie war das früher?' },
-  { value: 'technology', label: 'Wie ein Erfinder', desc: 'Wie wird es gebaut?' },
-  { value: 'nature', label: 'Wie ein Entdecker', desc: 'Was lebt und wächst?' },
-  { value: 'culture', label: 'Wie ein Weltreisender', desc: 'Was bedeutet es?' },
+  { value: 'science', label: 'Wie ein Forscher', desc: 'Wie funktioniert das?', emoji: '🔬' },
+  { value: 'history', label: 'Wie ein Zeitreisender', desc: 'Wie war das früher?', emoji: '⏳' },
+  { value: 'technology', label: 'Wie ein Erfinder', desc: 'Wie wird es gebaut?', emoji: '⚙️' },
+  { value: 'nature', label: 'Wie ein Entdecker', desc: 'Was lebt und wächst?', emoji: '🌿' },
+  { value: 'culture', label: 'Wie ein Weltreisender', desc: 'Was bedeutet es?', emoji: '🌍' },
 ] as const;
 
 const toneOptions = [
-  { value: 'fun', label: 'Lustig', desc: 'Lernen mit Lachen' },
-  { value: 'curious', label: 'Neugierig', desc: 'Wie ein Entdecker' },
-  { value: 'neutral', label: 'Ruhig und klar', desc: 'Einfach gut erklärt' },
+  { value: 'fun', label: 'Lustig', desc: 'Lernen mit Lachen', emoji: '😄' },
+  { value: 'curious', label: 'Neugierig', desc: 'Wie ein Entdecker', emoji: '🔍' },
+  { value: 'neutral', label: 'Ruhig und klar', desc: 'Einfach gut erklärt', emoji: '✨' },
 ] as const;
 
 const lengthOptions = [
-  { value: 'short', label: 'Kurz', desc: '3 Abschnitte' },
-  { value: 'medium', label: 'Mittel', desc: '5 Abschnitte' },
-  { value: 'long', label: 'Lang', desc: '7 Abschnitte' },
+  { value: 'short', label: 'Kurz', desc: '3 Abschnitte', emoji: '📄' },
+  { value: 'medium', label: 'Mittel', desc: '5 Abschnitte', emoji: '📰' },
+  { value: 'long', label: 'Lang', desc: '7 Abschnitte', emoji: '📚' },
 ] as const;
 
 const phaseLabels: Record<GenerationPhase, string> = {
@@ -256,42 +295,128 @@ const phaseLabels: Record<GenerationPhase, string> = {
 
 const toPerspective = (candidate?: string | null): DokuPerspective | null => {
   const value = String(candidate || '').trim().toLowerCase();
-  if (value === 'science' || value === 'history' || value === 'technology' || value === 'nature' || value === 'culture') {
+  if (
+    value === 'science' ||
+    value === 'history' ||
+    value === 'technology' ||
+    value === 'nature' ||
+    value === 'culture'
+  ) {
     return value;
   }
   return null;
 };
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Choice Card — schöne, einheitliche Auswahlkachel mit Animation
+// ────────────────────────────────────────────────────────────────────────────────
 function Choice({
   selected,
   onClick,
   title,
   description,
+  emoji,
 }: {
   selected: boolean;
   onClick: () => void;
   title: string;
   description: string;
+  emoji?: string;
 }) {
+  const reduceMotion = useReducedMotion();
+
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onClick}
-      className={`relative rounded-2xl border p-3 text-left transition-colors ${selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
-        }`}
-      style={{ borderColor: selected ? 'var(--talea-border-light)' : 'var(--color-border)' }}
-    >
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      {selected && (
-        <span className="absolute right-2 top-2 rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[10px] font-bold text-white">
-          OK
-        </span>
+      whileHover={reduceMotion ? undefined : { y: -2 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      className={cn(
+        'group relative flex flex-col gap-1.5 rounded-2xl border p-4 text-left transition-colors',
+        selected
+          ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,var(--talea-surface-primary))] shadow-[0_8px_22px_rgba(123,168,156,0.18)]'
+          : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-soft)] hover:bg-[var(--talea-surface-inset)]'
       )}
-    </button>
+    >
+      {emoji && <span className="text-2xl leading-none">{emoji}</span>}
+      <p
+        className="text-sm font-semibold leading-tight"
+        style={{ color: 'var(--talea-text-primary)' }}
+      >
+        {title}
+      </p>
+      <p className="text-xs leading-snug" style={{ color: 'var(--talea-text-muted)' }}>
+        {description}
+      </p>
+
+      {selected && (
+        <motion.span
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+          className="absolute right-2.5 top-2.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow"
+        >
+          <Check className="h-3 w-3" strokeWidth={3} />
+        </motion.span>
+      )}
+    </motion.button>
   );
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// Counter
+// ────────────────────────────────────────────────────────────────────────────────
+function Counter({
+  value,
+  onChange,
+  min,
+  max,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  label: string;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--talea-text-muted)]">
+        {label}
+      </p>
+      <div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)] disabled:opacity-30"
+          aria-label="Weniger"
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <span
+          className="w-8 text-center text-base font-bold tabular-nums"
+          style={{ color: 'var(--talea-text-primary)' }}
+        >
+          {value}
+        </span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)] disabled:opacity-30"
+          aria-label="Mehr"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Main Wizard
+// ────────────────────────────────────────────────────────────────────────────────
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -304,11 +429,15 @@ export default function ModernDokuWizard() {
   const { user } = useUser();
   const { i18n } = useTranslation();
   const { resolvedTheme } = useTheme();
+  const reduceMotion = useReducedMotion();
+
+  const isDark = resolvedTheme === 'dark';
 
   const domainParam = normalizeSuggestionDomain(searchParams.get('domain'));
   const legacyTopicParam = searchParams.get('topicTags');
   const topicParam = searchParams.get('topic') || legacyTopicParam;
-  const initialDomainId = domainParam || toDomainFromPerspective(toPerspective(searchParams.get('perspective')) ?? 'science');
+  const initialDomainId =
+    domainParam || toDomainFromPerspective(toPerspective(searchParams.get('perspective')) ?? 'science');
   const selectedDomainPreset = DOMAIN_DOKU_PRESETS[initialDomainId];
   const initialTopic = topicParam ?? selectedDomainPreset?.topics[0] ?? '';
   const initialPerspective =
@@ -344,26 +473,20 @@ export default function ModernDokuWizard() {
   const lastAppliedDomainRef = useRef<string>(initialDomainId);
   const lastAppliedProfileRef = useRef<string | null>(null);
 
-  // Tavi prefill: apply wizard data from Tavi chat
+  // Tavi prefill
   useEffect(() => {
     const taviPrefill = (location.state as any)?.taviPrefill;
     if (!taviPrefill) return;
-
     const updates: Partial<DokuWizardState> = {};
     if (taviPrefill.topic) updates.topic = taviPrefill.topic;
     if (taviPrefill.ageGroup) updates.ageGroup = taviPrefill.ageGroup;
     if (taviPrefill.depth) updates.depth = taviPrefill.depth;
     if (taviPrefill.perspective) updates.perspective = taviPrefill.perspective;
     if (taviPrefill.tone) updates.tone = taviPrefill.tone;
-
     if (Object.keys(updates).length > 0) {
       setState((prev) => ({ ...prev, ...updates }));
     }
-
-    if (taviPrefill.domain) {
-      setSelectedDomainId(taviPrefill.domain);
-    }
-
+    if (taviPrefill.domain) setSelectedDomainId(taviPrefill.domain);
     window.history.replaceState({}, document.title);
   }, [location.state]);
 
@@ -373,20 +496,11 @@ export default function ModernDokuWizard() {
   }, [domainParam]);
 
   useEffect(() => {
-    if (!activeProfile || lastAppliedProfileRef.current === activeProfile.id) {
-      return;
-    }
-
+    if (!activeProfile || lastAppliedProfileRef.current === activeProfile.id) return;
     lastAppliedProfileRef.current = activeProfile.id;
     const defaultAgeGroup = ageToAgeGroup(activeProfile.age);
-    if (!defaultAgeGroup) {
-      return;
-    }
-
-    setState((prev) => ({
-      ...prev,
-      ageGroup: defaultAgeGroup,
-    }));
+    if (!defaultAgeGroup) return;
+    setState((prev) => ({ ...prev, ageGroup: defaultAgeGroup }));
   }, [activeProfile]);
 
   useEffect(() => {
@@ -412,9 +526,7 @@ export default function ModernDokuWizard() {
         );
         setDynamicDomainIds(ids);
       } catch (error) {
-        if (active) {
-          console.warn('[ModernDokuWizard] could not load dynamic categories', error);
-        }
+        if (active) console.warn('[ModernDokuWizard] could not load dynamic categories', error);
       }
     }
     void loadDomainCandidates();
@@ -436,17 +548,13 @@ export default function ModernDokuWizard() {
           `Welche Geheimnisse stecken in ${domain.label}?`,
           `Warum ist ${domain.label} so spannend?`,
         ],
+        emoji: '✨',
       }));
 
     const merged = [...CORE_DOMAIN_PRESETS, ...dynamicPresets];
-    if (showMoreCategories) {
-      merged.push(...EXTRA_DOMAIN_PRESETS);
-    }
-
+    if (showMoreCategories) merged.push(...EXTRA_DOMAIN_PRESETS);
     const dedup = new Map<string, DomainDokuPreset>();
-    for (const preset of merged) {
-      dedup.set(preset.id, preset);
-    }
+    for (const preset of merged) dedup.set(preset.id, preset);
     return Array.from(dedup.values());
   }, [dynamicDomainIds, showMoreCategories]);
 
@@ -475,8 +583,6 @@ export default function ModernDokuWizard() {
     enabled: activeStep === 0 && Boolean(suggestionDomainId),
   });
 
-  const headingColor = useMemo(() => (resolvedTheme === 'dark' ? '#e7eef9' : '#1b2838'), [resolvedTheme]);
-  const mutedColor = useMemo(() => (resolvedTheme === 'dark' ? '#9db0c8' : '#617387'), [resolvedTheme]);
   const quickStartTopics = useMemo(
     () => Array.from(new Set(selectedCategory?.topics || [])).slice(0, 4),
     [selectedCategory]
@@ -491,9 +597,7 @@ export default function ModernDokuWizard() {
       if (!backend || !user) return;
       try {
         const profile = await backend.user.me();
-        if (profile.preferredLanguage) {
-          setLanguage(toDokuLanguage(profile.preferredLanguage));
-        }
+        if (profile.preferredLanguage) setLanguage(toDokuLanguage(profile.preferredLanguage));
         setCredits((profile as any).billing?.dokuCredits ?? null);
         setPermissions((profile as any).billing?.permissions ?? null);
       } catch (error) {
@@ -514,17 +618,13 @@ export default function ModernDokuWizard() {
       const domainChanged = lastAppliedDomainRef.current !== selectedCategory.id;
       lastAppliedDomainRef.current = selectedCategory.id;
       const nextTopic = domainChanged
-        ? (selectedCategory.topics[0] || prev.topic)
-        : (prev.topic.trim().length > 0 ? prev.topic : (selectedCategory.topics[0] || prev.topic));
+        ? selectedCategory.topics[0] || prev.topic
+        : prev.topic.trim().length > 0
+        ? prev.topic
+        : selectedCategory.topics[0] || prev.topic;
       const nextPerspective = selectedCategory.perspective;
-      if (prev.topic === nextTopic && prev.perspective === nextPerspective) {
-        return prev;
-      }
-      return {
-        ...prev,
-        perspective: nextPerspective,
-        topic: nextTopic,
-      };
+      if (prev.topic === nextTopic && prev.perspective === nextPerspective) return prev;
+      return { ...prev, perspective: nextPerspective, topic: nextTopic };
     });
   }, [selectedCategory]);
 
@@ -552,7 +652,6 @@ export default function ModernDokuWizard() {
     }
 
     let timer: ReturnType<typeof setInterval> | null = null;
-
     try {
       setGenerating(true);
       setPhase('text');
@@ -592,10 +691,10 @@ export default function ModernDokuWizard() {
       setCredits((prev) =>
         prev
           ? {
-            ...prev,
-            used: prev.used + 1,
-            remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
-          }
+              ...prev,
+              used: prev.used + 1,
+              remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
+            }
           : prev
       );
 
@@ -622,177 +721,250 @@ export default function ModernDokuWizard() {
   };
 
   const summary = [
-    { label: 'Thema', value: state.topic },
-    { label: 'Alter', value: `${state.ageGroup} Jahre` },
-    { label: 'Wie viel?', value: depthOptions.find((item) => item.value === state.depth)?.label || '-' },
-    { label: 'Erklärt wie?', value: perspectiveOptions.find((item) => item.value === state.perspective)?.label || '-' },
-    { label: 'Stimmung', value: toneOptions.find((item) => item.value === state.tone)?.label || '-' },
-    { label: 'Länge', value: lengthOptions.find((item) => item.value === state.length)?.desc || '-' },
+    { label: 'Thema', value: state.topic, icon: '💡' },
+    { label: 'Alter', value: `${state.ageGroup} Jahre`, icon: '🎂' },
+    {
+      label: 'Wie viel?',
+      value: depthOptions.find((item) => item.value === state.depth)?.label || '-',
+      icon: '📖',
+    },
+    {
+      label: 'Erklärt wie?',
+      value: perspectiveOptions.find((item) => item.value === state.perspective)?.label || '-',
+      icon: '🔭',
+    },
+    { label: 'Stimmung', value: toneOptions.find((item) => item.value === state.tone)?.label || '-', icon: '✨' },
+    { label: 'Länge', value: lengthOptions.find((item) => item.value === state.length)?.desc || '-', icon: '📏' },
     {
       label: 'Mitmachen',
-      value: state.includeInteractive ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aufgaben` : 'Ohne',
+      value: state.includeInteractive
+        ? `${state.quizQuestions} Quiz + ${state.handsOnActivities} Aufgaben`
+        : 'Ohne',
+      icon: '🎯',
     },
   ];
 
   return (
-    <div className="relative min-h-screen pb-24">
-      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(980px_560px_at_100%_0%,#f2dfdc_0%,transparent_58%),radial-gradient(980px_520px_at_0%_18%,#dae8de_0%,transparent_62%),linear-gradient(180deg,#f8f1e8_0%,#f6efe4_100%)] dark:bg-[radial-gradient(980px_520px_at_100%_0%,rgba(108,94,145,0.28)_0%,transparent_58%),radial-gradient(920px_520px_at_0%_18%,rgba(84,128,121,0.25)_0%,transparent_62%),linear-gradient(180deg,#121a26_0%,#0f1723_100%)]" />
+    <div
+      className="relative min-h-screen pb-24"
+      style={{ color: 'var(--talea-text-primary)', fontFamily: taleaBodyFont }}
+    >
+      <TaleaPageBackground isDark={isDark} />
 
-      <div className="pt-4">
-        <header className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: mutedColor }}>
+      <div className={cn(taleaPageShellClass, 'relative z-10 pt-4')}>
+        {/* Header */}
+        <header className="mb-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
+              style={{
+                borderColor: 'var(--talea-border-light)',
+                background: 'var(--talea-surface-inset)',
+                color: 'var(--talea-text-muted)',
+              }}
+            >
+              <Wand2 className="h-3 w-3" />
               Doku Wizard
-            </p>
-            <h1 className="text-4xl leading-none" style={{ color: headingColor, fontFamily: '"Cormorant Garamond", serif' }}>
-              Neue Doku
+            </span>
+            <h1
+              className="mt-2 text-[2.2rem] font-semibold leading-[0.98] sm:text-[2.6rem]"
+              style={{
+                color: 'var(--talea-text-primary)',
+                fontFamily: taleaDisplayFont,
+              }}
+            >
+              Neue Doku zaubern
             </h1>
           </div>
+
           <button
             type="button"
             onClick={() => navigate('/doku')}
-            className="inline-flex h-10 items-center rounded-xl border border-border bg-card/70 px-3 text-sm font-semibold text-foreground"
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[1.1rem] border bg-[var(--talea-surface-primary)] px-4 text-sm font-semibold text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)]"
+            style={{ borderColor: 'var(--talea-border-light)' }}
           >
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Zur Doku-Ansicht
+            <ArrowLeft className="h-4 w-4" />
+            Zurück
           </button>
         </header>
 
         {generating ? (
-          <div className="mx-auto max-w-xl rounded-3xl border border-border bg-card/70 p-6">
-            <div className="mb-6 text-center">
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }} className="mx-auto mb-3 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-[rgba(111,174,156,0.12)]">
-                <Loader2 className="h-7 w-7 text-[var(--talea-text-tertiary)]" />
-              </motion.div>
-              <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
-                {phaseLabels[phase]}
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {(Object.keys(phaseLabels) as GenerationPhase[]).map((item, index) => (
-                <div key={item} className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${item === phase ? 'border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)]' : 'border-border bg-card/60'}`}>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    {index < (Object.keys(phaseLabels) as GenerationPhase[]).indexOf(phase) ? <Check className="h-4 w-4 text-[var(--talea-text-tertiary)]" /> : <Sparkles className="h-4 w-4" />}
-                  </span>
-                  <span className="text-sm font-semibold text-foreground">{phaseLabels[item]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <GenerationView phase={phase} reduceMotion={!!reduceMotion} />
         ) : (
           <>
-            <div className="mb-7 flex items-center justify-center gap-2">
-              {steps.map((label, index) => (
-                <React.Fragment key={label}>
-                  <span className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${index < activeStep ? 'bg-[var(--talea-text-tertiary)] text-white' : index === activeStep ? 'bg-[var(--talea-text-tertiary)] text-white' : 'bg-muted text-muted-foreground'}`}>
-                    {index < activeStep ? <Check className="h-4 w-4" /> : index + 1}
-                  </span>
-                  {index < steps.length - 1 && <span className={`h-px w-6 rounded-full ${index < activeStep ? 'bg-[var(--talea-text-tertiary)]' : 'bg-border'}`} />}
-                </React.Fragment>
-              ))}
+            {/* Progress steps */}
+            <div className="mb-6 flex justify-center">
+              <TaleaProgressSteps steps={wizardSteps} activeIndex={activeStep} />
             </div>
 
-            <div className="rounded-3xl border border-border bg-card/70 p-5 md:p-7">
+            {/* Wizard panel */}
+            <div
+              className="rounded-[1.8rem] border p-5 shadow-[0_12px_30px_rgba(33,44,62,0.08)] md:p-7"
+              style={{
+                borderColor: 'var(--talea-border-light)',
+                background: 'var(--talea-surface-primary)',
+              }}
+            >
               <AnimatePresence mode="wait">
-                <motion.div key={activeStep} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}>
+                <motion.div
+                  key={activeStep}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  {/* STEP 0: Topic */}
                   {activeStep === 0 && (
-                    <div className="space-y-5">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Was möchtest du entdecken?</h2>
-                      {selectedCategory && (
-                        <div className="rounded-xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] px-3 py-2 text-xs font-semibold text-foreground">
-                          Kategorie: {selectedCategory.label}
-                        </div>
-                      )}
+                    <div className="space-y-6">
+                      <StepTitle
+                        eyebrow="Schritt 1"
+                        title="Was möchtest du entdecken?"
+                        subtitle="Wähle eine Themen-Welt und finde dein perfektes Doku-Thema."
+                      />
 
-                      <div className="rounded-2xl border border-border bg-card/65 p-3 md:p-4">
+                      {/* Domain picker */}
+                      <div
+                        className="rounded-2xl border p-4"
+                        style={{
+                          borderColor: 'var(--talea-border-light)',
+                          background: 'var(--talea-surface-inset)',
+                        }}
+                      >
                         <div className="mb-3 flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
                               Themen-Welten
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              Wähle eine Welt aus, die dich interessiert
+                            <p className="text-xs text-[var(--talea-text-muted)]">
+                              Welche Welt fasziniert dich gerade?
                             </p>
                           </div>
                           <button
                             type="button"
                             onClick={() => setShowMoreCategories((current) => !current)}
-                            className="rounded-lg border border-border bg-card/80 px-3 py-1.5 text-[11px] font-bold text-foreground"
+                            className="inline-flex items-center gap-1 rounded-full border bg-[var(--talea-surface-primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)]"
+                            style={{ borderColor: 'var(--talea-border-light)' }}
                           >
                             {showMoreCategories ? 'Weniger' : 'Mehr'}
                           </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                          {categoryPresets.map((preset) => (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedDomainId(preset.id);
-                                updateState({
-                                  perspective: preset.perspective,
-                                  topic: preset.topics[0] || state.topic,
-                                });
-                              }}
-                              className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-                                selectedDomainId === preset.id ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
-                              }`}
-                              style={{ borderColor: selectedDomainId === preset.id ? 'var(--talea-border-light)' : 'var(--color-border)' }}
-                            >
-                              <p className="text-xs font-semibold text-foreground">{preset.label}</p>
-                              <p className="mt-0.5 text-[10px] text-muted-foreground">{preset.description}</p>
-                            </button>
-                          ))}
+
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                          {categoryPresets.map((preset) => {
+                            const active = selectedDomainId === preset.id;
+                            return (
+                              <motion.button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDomainId(preset.id);
+                                  updateState({
+                                    perspective: preset.perspective,
+                                    topic: preset.topics[0] || state.topic,
+                                  });
+                                }}
+                                whileHover={reduceMotion ? undefined : { y: -2 }}
+                                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+                                className={cn(
+                                  'group flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors',
+                                  active
+                                    ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_14%,var(--talea-surface-primary))] shadow-[0_6px_18px_rgba(123,168,156,0.18)]'
+                                    : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-soft)]'
+                                )}
+                              >
+                                <span className="text-xl leading-none">{preset.emoji}</span>
+                                <p
+                                  className="text-xs font-semibold leading-tight"
+                                  style={{ color: 'var(--talea-text-primary)' }}
+                                >
+                                  {preset.label}
+                                </p>
+                                <p className="text-[10px] leading-tight" style={{ color: 'var(--talea-text-muted)' }}>
+                                  {preset.description}
+                                </p>
+                              </motion.button>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      <input
-                        type="text"
-                        value={state.topic}
-                        onChange={(e) => updateState({ topic: e.target.value })}
-                        placeholder={selectedCategory?.topics?.[0] || 'z.B. Vulkane oder Sonnensystem'}
-                        className="h-12 w-full rounded-2xl border border-border bg-card/70 px-4 text-sm text-foreground outline-none focus:border-[var(--talea-border-soft)]"
-                      />
+                      {/* Topic input */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Dein Thema
+                        </label>
+                        <input
+                          type="text"
+                          value={state.topic}
+                          onChange={(e) => updateState({ topic: e.target.value })}
+                          placeholder={selectedCategory?.topics?.[0] || 'z.B. Vulkane oder Sonnensystem'}
+                          className={cn(taleaInputClass, 'h-12 text-base')}
+                        />
+                      </div>
+
+                      {/* Quick start */}
                       {quickStartTopics.length > 0 && (
-                        <div className="rounded-2xl border border-border bg-card/65 p-3">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                            Schnellstart-Themen
+                        <div
+                          className="rounded-2xl border p-4"
+                          style={{
+                            borderColor: 'var(--talea-border-light)',
+                            background: 'var(--talea-surface-inset)',
+                          }}
+                        >
+                          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                            Schnellstart
                           </p>
-                          <div className="mt-2 grid grid-cols-2 gap-2 md:grid-cols-4">
-                            {quickStartTopics.map((topic) => (
-                              <button
-                                key={topic}
-                                type="button"
-                                onClick={() => updateState({ topic })}
-                                className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold ${state.topic === topic ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'}`}
-                                style={{ borderColor: state.topic === topic ? 'var(--talea-border-light)' : 'var(--color-border)' }}
-                              >
-                                {topic}
-                              </button>
-                            ))}
+                          <div className="flex flex-wrap gap-2">
+                            {quickStartTopics.map((topic) => {
+                              const active = state.topic === topic;
+                              return (
+                                <motion.button
+                                  key={topic}
+                                  type="button"
+                                  onClick={() => updateState({ topic })}
+                                  whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+                                  className={cn(
+                                    'rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                                    active
+                                      ? 'border-[var(--primary)] bg-[var(--primary)] text-white'
+                                      : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] hover:bg-[var(--talea-surface-inset)]'
+                                  )}
+                                >
+                                  {topic}
+                                </motion.button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
 
+                      {/* AI suggestions */}
                       {suggestionDomainId && (
-                        <div className="rounded-2xl border border-border bg-card/65 p-3 md:p-4">
+                        <div
+                          className="rounded-2xl border p-4"
+                          style={{
+                            borderColor: 'var(--talea-border-light)',
+                            background: 'var(--talea-surface-inset)',
+                          }}
+                        >
                           <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
                                 Ideen für dich
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                {(topicSuggestions?.items?.length || 0)} Vorschläge in {selectedCategory?.label || "dieser Kategorie"}
+                              <p className="text-xs text-[var(--talea-text-muted)]">
+                                {topicSuggestions?.items?.length || 0} Vorschläge in{' '}
+                                {selectedCategory?.label || 'dieser Kategorie'}
                               </p>
                             </div>
                             <button
                               type="button"
-                              onClick={() => {
-                                void refreshOneSuggestion();
-                              }}
+                              onClick={() => void refreshOneSuggestion()}
                               disabled={isSuggestionsRefreshing}
-                              className="rounded-lg border border-border bg-card/80 px-3 py-1.5 text-[11px] font-bold text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-1 rounded-full border bg-[var(--talea-surface-primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--talea-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                              style={{ borderColor: 'var(--talea-border-light)' }}
                             >
+                              <Compass className="h-3 w-3" />
                               {isSuggestionsRefreshing ? 'Denke nach...' : 'Neue Idee'}
                             </button>
                           </div>
@@ -816,84 +988,298 @@ export default function ModernDokuWizard() {
                       )}
                     </div>
                   )}
+
+                  {/* STEP 1: Audience */}
                   {activeStep === 1 && (
-                    <div className="space-y-6">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Wie alt bist du & wie viel möchtest du erfahren?</h2>
-                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{ageOptions.map((item) => <Choice key={item.value} selected={state.ageGroup === item.value} onClick={() => updateState({ ageGroup: item.value })} title={item.label} description={item.desc} />)}</div>
-                      <div className="grid grid-cols-3 gap-3">{depthOptions.map((item) => <Choice key={item.value} selected={state.depth === item.value} onClick={() => updateState({ depth: item.value })} title={item.label} description={item.desc} />)}</div>
-                    </div>
-                  )}
-                  {activeStep === 2 && (
-                    <div className="space-y-6">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Wie soll es dir erklärt werden?</h2>
-                      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">{perspectiveOptions.map((item) => <Choice key={item.value} selected={state.perspective === item.value} onClick={() => updateState({ perspective: item.value })} title={item.label} description={item.desc} />)}</div>
-                      <div className="grid grid-cols-3 gap-3">{toneOptions.map((item) => <Choice key={item.value} selected={state.tone === item.value} onClick={() => updateState({ tone: item.value })} title={item.label} description={item.desc} />)}</div>
-                    </div>
-                  )}
-                  {activeStep === 3 && (
-                    <div className="space-y-6">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Inhalt</h2>
-                      <div className="grid grid-cols-3 gap-3">{lengthOptions.map((item) => <Choice key={item.value} selected={state.length === item.value} onClick={() => updateState({ length: item.value })} title={item.label} description={item.desc} />)}</div>
-                      <div className="rounded-2xl border border-border bg-card/70 p-4">
-                        <div className="mb-3 flex items-center justify-between">
-                          <div><p className="text-sm font-semibold text-foreground">Mitmachen!</p><p className="text-xs text-muted-foreground">Quiz und Mitmach-Aufgaben einbauen?</p></div>
-                          <button type="button" onClick={() => updateState({ includeInteractive: !state.includeInteractive })} className={`relative h-7 w-14 rounded-full ${state.includeInteractive ? 'bg-[var(--talea-text-tertiary)]' : 'bg-muted'}`}><motion.span animate={{ x: state.includeInteractive ? 28 : 2 }} className="absolute top-0.5 h-6 w-6 rounded-full bg-white" /></button>
+                    <div className="space-y-7">
+                      <StepTitle
+                        eyebrow="Schritt 2"
+                        title="Für wen ist die Doku?"
+                        subtitle="Wähle Alter und gewünschte Tiefe."
+                      />
+
+                      <div>
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Alter
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                          {ageOptions.map((item) => (
+                            <Choice
+                              key={item.value}
+                              selected={state.ageGroup === item.value}
+                              onClick={() => updateState({ ageGroup: item.value })}
+                              title={item.label}
+                              description={item.desc}
+                              emoji={item.emoji}
+                            />
+                          ))}
                         </div>
-                        {state.includeInteractive && (
-                          <div className="grid grid-cols-2 gap-4 border-t border-border pt-3">
-                            <div>
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quiz-Fragen</p>
-                              <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => updateState({ quizQuestions: Math.max(0, state.quizQuestions - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
-                                <span className="w-6 text-center">{state.quizQuestions}</span>
-                                <button type="button" onClick={() => updateState({ quizQuestions: Math.min(10, state.quizQuestions + 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">+</button>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mitmach-Aufgaben</p>
-                              <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => updateState({ handsOnActivities: Math.max(0, state.handsOnActivities - 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">-</button>
-                                <span className="w-6 text-center">{state.handsOnActivities}</span>
-                                <button type="button" onClick={() => updateState({ handsOnActivities: Math.min(5, state.handsOnActivities + 1) })} className="h-8 w-8 rounded-lg border border-border bg-card/70">+</button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                      </div>
+
+                      <div>
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Wie viel möchtest du erfahren?
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          {depthOptions.map((item) => (
+                            <Choice
+                              key={item.value}
+                              selected={state.depth === item.value}
+                              onClick={() => updateState({ depth: item.value })}
+                              title={item.label}
+                              description={item.desc}
+                              emoji={item.emoji}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
-                  {activeStep === 4 && (
-                    <div className="space-y-5">
-                      <h2 className="text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>Alles bereit!</h2>
-                      <div className="rounded-2xl border border-border bg-card/70 p-4">
-                        <div className="space-y-2">{summary.map((item) => <div key={item.label} className="flex items-center justify-between gap-4 border-b border-border/70 py-2 text-sm last:border-0"><span className="font-semibold text-muted-foreground">{item.label}</span><span className="text-right font-semibold text-foreground">{item.value}</span></div>)}</div>
+
+                  {/* STEP 2: Voice / Perspective */}
+                  {activeStep === 2 && (
+                    <div className="space-y-7">
+                      <StepTitle
+                        eyebrow="Schritt 3"
+                        title="Wie soll es dir erklärt werden?"
+                        subtitle="Stil und Ton bestimmen, wie sich deine Doku liest."
+                      />
+
+                      <div>
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Erklärweise
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                          {perspectiveOptions.map((item) => (
+                            <Choice
+                              key={item.value}
+                              selected={state.perspective === item.value}
+                              onClick={() => updateState({ perspective: item.value })}
+                              title={item.label}
+                              description={item.desc}
+                              emoji={item.emoji}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <button type="button" onClick={createDoku} disabled={generationBlocked} className={`flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-4 text-base font-bold text-[#233347] shadow-[0_12px_24px_rgba(43,57,77,0.16)] ${generationBlocked ? 'cursor-not-allowed opacity-60' : 'hover:-translate-y-0.5'}`} style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}>
+
+                      <div>
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Stimmung
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          {toneOptions.map((item) => (
+                            <Choice
+                              key={item.value}
+                              selected={state.tone === item.value}
+                              onClick={() => updateState({ tone: item.value })}
+                              title={item.label}
+                              description={item.desc}
+                              emoji={item.emoji}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Content */}
+                  {activeStep === 3 && (
+                    <div className="space-y-7">
+                      <StepTitle
+                        eyebrow="Schritt 4"
+                        title="Wie viel Inhalt darf es sein?"
+                        subtitle="Länge und interaktive Mitmach-Elemente."
+                      />
+
+                      <div>
+                        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                          Länge
+                        </p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          {lengthOptions.map((item) => (
+                            <Choice
+                              key={item.value}
+                              selected={state.length === item.value}
+                              onClick={() => updateState({ length: item.value })}
+                              title={item.label}
+                              description={item.desc}
+                              emoji={item.emoji}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div
+                        className="rounded-2xl border p-4"
+                        style={{
+                          borderColor: 'var(--talea-border-light)',
+                          background: 'var(--talea-surface-inset)',
+                        }}
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
+                              <span>🎯</span> Mitmach-Elemente
+                            </p>
+                            <p className="text-xs text-[var(--talea-text-muted)]">
+                              Quiz und Aufgaben einbauen?
+                            </p>
+                          </div>
+                          <motion.button
+                            type="button"
+                            onClick={() => updateState({ includeInteractive: !state.includeInteractive })}
+                            whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+                            className="relative h-7 w-14 rounded-full transition-colors"
+                            style={{
+                              background: state.includeInteractive
+                                ? 'var(--primary)'
+                                : 'var(--talea-border-soft)',
+                            }}
+                            aria-pressed={state.includeInteractive}
+                          >
+                            <motion.span
+                              animate={{ x: state.includeInteractive ? 28 : 2 }}
+                              transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                              className="absolute top-0.5 h-6 w-6 rounded-full bg-white shadow"
+                            />
+                          </motion.button>
+                        </div>
+
+                        <AnimatePresence>
+                          {state.includeInteractive && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.25 }}
+                              className="overflow-hidden border-t pt-4"
+                              style={{ borderColor: 'var(--talea-border-light)' }}
+                            >
+                              <div className="grid grid-cols-2 gap-4">
+                                <Counter
+                                  label="Quiz-Fragen"
+                                  value={state.quizQuestions}
+                                  onChange={(v) => updateState({ quizQuestions: v })}
+                                  min={0}
+                                  max={10}
+                                />
+                                <Counter
+                                  label="Aufgaben"
+                                  value={state.handsOnActivities}
+                                  onChange={(v) => updateState({ handsOnActivities: v })}
+                                  min={0}
+                                  max={5}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 4: Summary */}
+                  {activeStep === 4 && (
+                    <div className="space-y-6">
+                      <StepTitle
+                        eyebrow="Letzter Schritt"
+                        title="Alles bereit!"
+                        subtitle="Hier ist deine Auswahl. Wenn alles passt, geht's los."
+                      />
+
+                      <div
+                        className="rounded-2xl border"
+                        style={{
+                          borderColor: 'var(--talea-border-light)',
+                          background: 'var(--talea-surface-inset)',
+                        }}
+                      >
+                        <div className="divide-y" style={{ borderColor: 'var(--talea-border-light)' }}>
+                          {summary.map((item) => (
+                            <div
+                              key={item.label}
+                              className="flex items-start justify-between gap-4 px-4 py-3"
+                              style={{ borderColor: 'var(--talea-border-light)' }}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span className="text-base">{item.icon}</span>
+                                <span className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--talea-text-muted)]">
+                                  {item.label}
+                                </span>
+                              </div>
+                              <span
+                                className="max-w-[60%] text-right text-sm font-semibold"
+                                style={{ color: 'var(--talea-text-primary)' }}
+                              >
+                                {item.value}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <motion.button
+                        type="button"
+                        onClick={createDoku}
+                        disabled={generationBlocked}
+                        whileHover={generationBlocked || reduceMotion ? undefined : { y: -2, scale: 1.005 }}
+                        whileTap={generationBlocked || reduceMotion ? undefined : { scale: 0.98 }}
+                        className={cn(
+                          'flex w-full items-center justify-center gap-3 rounded-2xl px-6 py-4 text-base font-bold transition-all',
+                          generationBlocked
+                            ? 'cursor-not-allowed opacity-60'
+                            : 'shadow-[0_18px_38px_rgba(123,168,156,0.28)]'
+                        )}
+                        style={{
+                          background:
+                            'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 65%, white) 100%)',
+                          color: 'white',
+                        }}
+                      >
                         <Sparkles className="h-5 w-5" />
                         {generationBlocked ? 'Gerade nicht möglich' : 'Doku zaubern! (1 Münze)'}
-                      </button>
-                      {credits && <p className="text-xs text-muted-foreground">Doku-Münzen: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} noch übrig</p>}
+                      </motion.button>
+
+                      {credits && (
+                        <p className="text-center text-xs" style={{ color: 'var(--talea-text-muted)' }}>
+                          Doku-Münzen: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} noch übrig
+                        </p>
+                      )}
                     </div>
                   )}
                 </motion.div>
               </AnimatePresence>
             </div>
 
+            {/* Footer navigation */}
             <div className="mt-5 flex items-center justify-between">
-              <button type="button" onClick={activeStep === 0 ? () => navigate('/doku') : () => setActiveStep((prev) => prev - 1)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card/70 px-4 py-2.5 text-sm font-semibold text-foreground">
+              <button
+                type="button"
+                onClick={activeStep === 0 ? () => navigate('/doku') : () => setActiveStep((prev) => prev - 1)}
+                className="inline-flex items-center gap-1.5 rounded-[1.1rem] border bg-[var(--talea-surface-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)]"
+                style={{ borderColor: 'var(--talea-border-light)' }}
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Zurück
               </button>
-              {activeStep < steps.length - 1 && (
-                <button type="button" onClick={() => setActiveStep((prev) => prev + 1)} disabled={!canProceed} className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45" style={{ background: canProceed ? 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' : '#dbe3ef', color: canProceed ? '#233347' : '#7a8799' }}>
+
+              {activeStep < wizardSteps.length - 1 && (
+                <TaleaActionButton
+                  type="button"
+                  onClick={() => setActiveStep((prev) => prev + 1)}
+                  disabled={!canProceed}
+                  icon={undefined}
+                >
                   Weiter
                   <ArrowRight className="h-4 w-4" />
-                </button>
+                </TaleaActionButton>
               )}
             </div>
           </>
         )}
       </div>
+
       <UpgradePlanModal
         open={showUpgradeModal}
         message={upgradeMessage}
@@ -902,3 +1288,140 @@ export default function ModernDokuWizard() {
     </div>
   );
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Subcomponents
+// ────────────────────────────────────────────────────────────────────────────────
+const StepTitle: React.FC<{ eyebrow: string; title: string; subtitle: string }> = ({
+  eyebrow,
+  title,
+  subtitle,
+}) => (
+  <div className="space-y-1.5">
+    <span
+      className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em]"
+      style={{
+        borderColor: 'var(--talea-border-light)',
+        background: 'var(--talea-surface-inset)',
+        color: 'var(--talea-text-muted)',
+      }}
+    >
+      {eyebrow}
+    </span>
+    <h2
+      className="text-2xl font-semibold leading-tight sm:text-[1.75rem]"
+      style={{ color: 'var(--talea-text-primary)', fontFamily: taleaDisplayFont }}
+    >
+      {title}
+    </h2>
+    <p className="text-sm" style={{ color: 'var(--talea-text-muted)' }}>
+      {subtitle}
+    </p>
+  </div>
+);
+
+const GenerationView: React.FC<{ phase: GenerationPhase; reduceMotion: boolean }> = ({
+  phase,
+  reduceMotion,
+}) => {
+  const phases: GenerationPhase[] = ['text', 'cover', 'sections', 'personality', 'complete'];
+  const currentIdx = phases.indexOf(phase);
+
+  return (
+    <div className="mx-auto max-w-xl">
+      <div
+        className="rounded-[1.8rem] border p-6 shadow-[0_18px_42px_rgba(33,44,62,0.10)]"
+        style={{
+          borderColor: 'var(--talea-border-light)',
+          background: 'var(--talea-surface-primary)',
+        }}
+      >
+        <div className="mb-7 flex flex-col items-center text-center">
+          <motion.div
+            animate={
+              reduceMotion
+                ? undefined
+                : { rotate: 360, scale: [1, 1.06, 1] }
+            }
+            transition={{
+              rotate: { duration: 6, repeat: Infinity, ease: 'linear' },
+              scale: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
+            }}
+            className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, transparent) 0%, color-mix(in srgb, var(--talea-accent-lavender) 16%, transparent) 100%)',
+            }}
+          >
+            <Sparkles className="h-9 w-9" style={{ color: 'var(--primary)' }} />
+          </motion.div>
+
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: 'var(--talea-text-primary)', fontFamily: taleaDisplayFont }}
+          >
+            {phaseLabels[phase]}
+          </h2>
+
+          {/* Loading dots */}
+          <div className="mt-3 flex items-center gap-1.5" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <motion.span
+                key={i}
+                animate={reduceMotion ? undefined : { opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                className="h-1.5 w-1.5 rounded-full bg-[var(--primary)]"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {phases.map((item, index) => {
+            const isDone = index < currentIdx;
+            const isActive = index === currentIdx;
+            return (
+              <motion.div
+                key={item}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={cn(
+                  'flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+                  isActive
+                    ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_10%,var(--talea-surface-primary))]'
+                    : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                    isDone || isActive
+                      ? 'bg-[var(--primary)] text-white'
+                      : 'bg-[var(--talea-surface-primary)] text-[var(--talea-text-muted)]'
+                  )}
+                >
+                  {isDone ? (
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  ) : isActive ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    'text-sm font-semibold',
+                    isActive ? 'text-[var(--talea-text-primary)]' : 'text-[var(--talea-text-muted)]'
+                  )}
+                >
+                  {phaseLabels[item]}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
