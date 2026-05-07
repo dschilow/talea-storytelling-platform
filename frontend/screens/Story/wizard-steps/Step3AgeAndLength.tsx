@@ -59,6 +59,8 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'moonshotai/kimi-k2.6', title: 'Kimi K2.6', provider: 'Moonshot AI', cost: '$0.15 in / $0.45 out' },
   { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.75 in / $3.50 out' },
   { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.44 in / $2.00 out' },
+  { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
+  { id: 'x-ai/grok-4.3', title: 'Grok 4.3', provider: 'xAI', cost: '$1.25 in / $2.50 out' },
   { id: 'openrouter/owl-alpha', title: 'Owl Alpha', provider: 'OpenRouter', cost: 'FREE' },
   { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },
   { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$0.50 in / $3 out' },

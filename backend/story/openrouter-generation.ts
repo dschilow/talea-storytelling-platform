@@ -14,6 +14,8 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "moonshotai/kimi-k2.6": { inputCostPer1M: 0.15, outputCostPer1M: 0.45 },
   "~moonshotai/kimi-latest": { inputCostPer1M: 0.75, outputCostPer1M: 3.5 },
   "moonshotai/kimi-k2.5": { inputCostPer1M: 0.44, outputCostPer1M: 2.0 },
+  "minimax/minimax-m2.7": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
+  "x-ai/grok-4.3": { inputCostPer1M: 1.25, outputCostPer1M: 2.5 },
   "openrouter/owl-alpha": { inputCostPer1M: 0, outputCostPer1M: 0 },
   "~google/gemini-pro-latest": { inputCostPer1M: 2.0, outputCostPer1M: 12.0 },
   "~google/gemini-flash-latest": { inputCostPer1M: 0.5, outputCostPer1M: 3.0 },

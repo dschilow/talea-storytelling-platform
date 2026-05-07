@@ -14,6 +14,8 @@ export type OpenRouterStoryModel =
   | 'moonshotai/kimi-k2.6'
   | '~moonshotai/kimi-latest'
   | 'moonshotai/kimi-k2.5'
+  | 'minimax/minimax-m2.7'
+  | 'x-ai/grok-4.3'
   | 'openrouter/owl-alpha'
   | '~google/gemini-pro-latest'
   | '~google/gemini-flash-latest'
