@@ -6,6 +6,12 @@ export const MINIMAX_M27_MODEL = "minimax-m2.7";
 export const GPT_54_MINI_MODEL = "gpt-5.4-mini";
 export const GPT_54_NANO_MODEL = "gpt-5.4-nano";
 export const OPENROUTER_PROVIDER = "openrouter";
+export const OPENROUTER_STORY_FALLBACK_MODELS = [
+  "~google/gemini-flash-latest",
+  "~openai/gpt-mini-latest",
+  "qwen/qwen3.6-max-preview",
+  "~anthropic/claude-sonnet-latest",
+];
 
 export function isGeminiFamilyModel(model?: string): boolean {
   return String(model || "").trim().toLowerCase().startsWith("gemini-");
@@ -18,6 +24,26 @@ export function isOpenRouterProvider(provider?: string): boolean {
 export function isOpenRouterFamilyModel(model?: string): boolean {
   const normalized = String(model || "").trim();
   return normalized.includes("/") || normalized.startsWith("~");
+}
+
+export function resolveOpenRouterFallbackModels(
+  selectedModel?: string,
+  explicitFallbacks?: string[],
+): string[] {
+  const selected = String(selectedModel || "").trim();
+  const selectedKey = selected.toLowerCase();
+  const out: string[] = [];
+  const seen = new Set<string>(selectedKey ? [selectedKey] : []);
+
+  for (const raw of [...(explicitFallbacks || []), ...OPENROUTER_STORY_FALLBACK_MODELS]) {
+    const model = String(raw || "").trim();
+    const key = model.toLowerCase();
+    if (!model || seen.has(key) || !isOpenRouterFamilyModel(model)) continue;
+    seen.add(key);
+    out.push(model);
+  }
+
+  return out;
 }
 
 export function isClaudeFamilyModel(model?: string): boolean {

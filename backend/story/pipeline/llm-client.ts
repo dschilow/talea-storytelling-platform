@@ -1,7 +1,7 @@
 ﻿import { secret } from "encore.dev/config";
 import { publishWithTimeout } from "../../helpers/pubsubTimeout";
 import { logTopic } from "../../log/logger";
-import { isOpenRouterFamilyModel, resolveClaudeStoryModel } from "./model-routing";
+import { isOpenRouterFamilyModel, resolveClaudeStoryModel, resolveOpenRouterFallbackModels } from "./model-routing";
 import {
   callOpenRouterChatCompletion,
   getOpenRouterModelPricing,
@@ -108,7 +108,7 @@ function resolveOpenAiModelCandidates(primaryModel: string, explicitFallbacks?: 
   if (isOpenRouterFamilyModel(normalizedPrimary)) {
     return uniqueModels([
       normalizeOpenRouterModel(normalizedPrimary),
-      ...(explicitFallbacks || []).filter(isOpenRouterFamilyModel),
+      ...resolveOpenRouterFallbackModels(normalizedPrimary, explicitFallbacks),
     ]).slice(0, MAX_MODEL_FALLBACKS + 1);
   }
 
@@ -418,6 +418,14 @@ export async function callChatCompletion(input: {
               console.warn(
                 `[llm-client] OpenRouter request timed out for context="${input.context ?? "unknown"}" model=${activeModel} after ${timeoutMs}ms.`
               );
+              lastError = new Error(timeoutResponse.error);
+              if (hasFallback) {
+                console.warn(
+                  `[llm-client] OpenRouter timeout on ${activeModel}; falling back to ${modelCandidates[modelIndex + 1]}`
+                );
+                fallbackTriggered = true;
+                break;
+              }
               if (input.context?.startsWith("story-writer")) {
                 return { content: "", finishReason: "timeout" };
               }

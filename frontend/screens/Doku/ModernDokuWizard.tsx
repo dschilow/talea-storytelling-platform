@@ -1265,15 +1265,30 @@ export default function ModernDokuWizard() {
               </button>
 
               {activeStep < wizardSteps.length - 1 && (
-                <TaleaActionButton
+                <motion.button
                   type="button"
                   onClick={() => setActiveStep((prev) => prev + 1)}
                   disabled={!canProceed}
-                  icon={undefined}
+                  whileHover={canProceed && !reduceMotion ? { y: -1, scale: 1.01 } : undefined}
+                  whileTap={canProceed && !reduceMotion ? { scale: 0.98 } : undefined}
+                  className={cn(
+                    'inline-flex min-h-10 items-center justify-center gap-2 rounded-[1.1rem] border px-5 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/14 disabled:cursor-not-allowed disabled:opacity-50',
+                    canProceed
+                      ? 'border-transparent text-white shadow-[0_14px_34px_rgba(123,168,156,0.24)]'
+                      : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-muted)]'
+                  )}
+                  style={
+                    canProceed
+                      ? {
+                          background:
+                            'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 68%, white) 100%)',
+                        }
+                      : undefined
+                  }
                 >
                   Weiter
                   <ArrowRight className="h-4 w-4" />
-                </TaleaActionButton>
+                </motion.button>
               )}
             </div>
           </>
