@@ -55,6 +55,20 @@ export interface PipelineConfig {
   aiScenePromptEnabled: boolean;
   /** Whether strict quality release gates warn or block the user-facing generation path. */
   strictReleaseGateMode: "warn" | "block";
+  /**
+   * When true, the polish step sends the whole story (all chapters together)
+   * to a single LLM call with all critic patch tasks. The model sees the full
+   * narrative context and can keep voice and continuity coherent. When false
+   * (legacy default), the per-chapter `applySelectiveSurgery` runs instead,
+   * editing each chapter in isolation.
+   */
+  wholeStoryEditMode: boolean;
+  /**
+   * When true, skip the Story Soul stage entirely and let the writer work
+   * directly from cast/blueprint inputs. Use to test whether Soul is helping
+   * or hurting quality on a given catalog of inputs.
+   */
+  soulStageDisabled: boolean;
 }
 
 const DEFAULT_CONFIG: PipelineConfig = {
@@ -92,6 +106,8 @@ const DEFAULT_CONFIG: PipelineConfig = {
   enablePostLocalRepairCritic: false,
   aiScenePromptEnabled: false,
   strictReleaseGateMode: "warn",
+  wholeStoryEditMode: false,
+  soulStageDisabled: false,
 };
 
 let cached: PipelineConfig | null = null;

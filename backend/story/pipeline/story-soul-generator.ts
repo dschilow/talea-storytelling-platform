@@ -814,6 +814,36 @@ function buildDeterministicSoulFallback(input: {
     });
   }
 
+  // Varied body-tells, want-needles and fear-internals to avoid every
+  // generated story sharing the same gestures and emotional defaults.
+  const BODY_TELLS = [
+    (n: string) => `kratzt sich am Hinterkopf, wenn ${n} unsicher ist`,
+    (n: string) => `ballt heimlich die Faust in der Hosentasche, wenn ${n} sich anstrengt`,
+    (n: string) => `kaut auf der Unterlippe, wenn ${n} nachdenkt`,
+    (n: string) => `tippt mit dem Schuh leise auf den Boden, wenn ${n} wartet`,
+    (n: string) => `schiebt das Kinn vor und atmet einmal tief, wenn ${n} Angst hat`,
+    (n: string) => `dreht einen Knopf am Ärmel, wenn ${n} aufgeregt ist`,
+  ];
+  const WANTS = [
+    (n: string) => `will, dass jemand ${n} wirklich zuhört`,
+    (n: string) => `will einmal etwas ohne Hilfe zu Ende bringen`,
+    (n: string) => `will von ${n} selbst stolz sein dürfen`,
+    (n: string) => `will, dass die anderen ${n} nicht mehr für klein halten`,
+  ];
+  const FEARS = [
+    "hat Angst, dass alle merken, dass etwas nicht stimmt",
+    "hat Angst, etwas Wichtiges falsch zu machen",
+    "hat Angst, im entscheidenden Moment leise zu werden",
+    "hat Angst, später zu denken: hätte ich nur",
+  ];
+
+  const VOICE_EXAMPLES = [
+    (n: string) => `${n} sagt: "Moment, ich muss das einmal kurz nachdenken."`,
+    (n: string) => `${n} sagt: "Das ist nicht so gemeint, wie es klingt, ehrlich."`,
+    (n: string) => `${n} murmelt: "Wenn das jetzt schiefgeht, war ich nie hier."`,
+    (n: string) => `${n} fragt leise: "Hast du das auch gerade gehört?"`,
+  ];
+
   const fingerprints: StorySoulCharacterFingerprint[] = cast.avatars
     .slice(0, 4)
     .map((a, idx) => ({
@@ -829,31 +859,26 @@ function buildDeterministicSoulFallback(input: {
         .slice(0, 3)
         .map((t) => String(t))
         .filter((s) => s.length > 0)
-        .concat(["eigentlich"])
         .slice(0, 3),
       tabooWords: ["irgendwie", "vielleicht"],
-      bodyTell:
-        `zupft am Ohrläppchen, wenn ${a.displayName} nachdenkt`,
-      wantIneedle:
-        `will, dass die Familie ${a.displayName} ernst nimmt`,
-      fearInternal:
-        `hat Angst, jemanden zu enttäuschen`,
-      voiceExample:
-        `„Das ist eigentlich gar nicht so schlimm", sagte ${a.displayName} und drehte einen kleinen Stein in der Hand.`,
+      bodyTell: BODY_TELLS[idx % BODY_TELLS.length](a.displayName),
+      wantIneedle: WANTS[idx % WANTS.length](a.displayName),
+      fearInternal: FEARS[idx % FEARS.length],
+      voiceExample: VOICE_EXAMPLES[idx % VOICE_EXAMPLES.length](a.displayName),
     }));
 
   if (fingerprints.length === 0) {
     fingerprints.push({
       name: lead,
       role: "protagonist",
-      coreMacke: "sammelt schiefe Steine und gibt ihnen Namen",
-      runningGag: "sagt 'eigentlich gar nicht so schlimm' – und meint das Gegenteil",
-      favoriteWords: ["eigentlich", "ordentlich", "genau"],
+      coreMacke: "merkt sich kleine Geräusche, die andere überhören",
+      runningGag: "wiederholt für sich, was gerade gesagt wurde, um es zu sortieren",
+      favoriteWords: [],
       tabooWords: ["irgendwie", "vielleicht"],
-      bodyTell: "zupft am rechten Ohrläppchen",
-      wantIneedle: "ernst genommen werden wie ein Großer",
-      fearInternal: "die Familie zu enttäuschen",
-      voiceExample: `„Das ist Bummel", sagte ${lead} und hielt einen runden Stein hoch.`,
+      bodyTell: BODY_TELLS[0](lead),
+      wantIneedle: WANTS[0](lead),
+      fearInternal: FEARS[0],
+      voiceExample: VOICE_EXAMPLES[0](lead),
     });
   }
 
@@ -877,38 +902,116 @@ function buildDeterministicSoulFallback(input: {
         : `${lead} schaut ${companion} an. Keiner sagt etwas. Die Sonne steht schon tief.`,
   }));
 
-  const humorBeats = Array.from({ length: Math.max(1, req.chapterCount) }, (_, i) => ({
-    chapter: i + 1,
-    type: "misunderstanding" as const,
-    what: `${companion} erklärt etwas mit einem schiefen Vergleich, und ${lead} schweigt zuerst, bevor er leise lacht.`,
-    exactLine: `${companion} sagt: „Das ist wie bei einer Gurke, nur ohne Gurke.\u201C`,
-  }));
+  // Varied humor beats per chapter so that the soul does not enforce a
+  // single recurring punchline across the whole book.
+  const HUMOR_BEAT_TEMPLATES: Array<{
+    type: "misunderstanding" | "slapstick" | "dry-observation" | "callback" | "absurd-literal";
+    what: (l: string, c: string) => string;
+  }> = [
+    { type: "slapstick", what: (l, c) => `${c} stolpert über etwas, das eigentlich gar nicht im Weg lag, und tut so, als wäre das Absicht gewesen.` },
+    { type: "misunderstanding", what: (l, c) => `${c} versteht eine einfache Anweisung absichtlich falsch, und ${l} merkt erst nach drei Sätzen, dass es ein Witz war.` },
+    { type: "dry-observation", what: (l, c) => `${l} denkt etwas Verbotenes laut zu Ende, hält dann erschrocken die Hand vor den Mund — ${c} grinst.` },
+    { type: "slapstick", what: (l, c) => `${c} versucht, lässig auszusehen, und macht dabei genau das Geräusch, das ${c} vermeiden wollte.` },
+    { type: "misunderstanding", what: (l, c) => `${l} erklärt etwas Ernstes; ${c} nickt, fragt dann doch nach, weil ${c} an etwas ganz anderes gedacht hat.` },
+  ];
+  const humorBeats = Array.from({ length: Math.max(1, req.chapterCount) }, (_, i) => {
+    const template = HUMOR_BEAT_TEMPLATES[i % HUMOR_BEAT_TEMPLATES.length];
+    return {
+      chapter: i + 1,
+      type: template.type,
+      what: template.what(lead, companion),
+      exactLine: "",
+    };
+  });
+
+  // Fallback premise is derived from the cast/artifact so that the deterministic
+  // path does not always force the same "wrong-accusation-at-the-dinner-table"
+  // plot. Choose a varied premise template based on stable inputs.
+  const PREMISE_TEMPLATES: Array<(l: string, c: string, an: string, ao: string) => {
+    premise: string;
+    hookQuestion: string;
+    stakesWhat: string;
+    stakesWhy: string;
+    placeName: string;
+    senseDetails: string;
+    anchors: [string, string, string];
+    missionInChildWords: string;
+    whyItMattersNow: string;
+    chapter1Question: string;
+  }> = [
+    (l, c, an, ao) => ({
+      premise: `${l} und ${c} müssen ${ao} bis zum Abend wieder an seinen Platz bringen, bevor jemand merkt, dass es überhaupt weg war.`,
+      hookQuestion: `Schaffen sie es zurück, ohne dass jemand die richtige Frage stellt — oder müssen sie am Ende selbst antworten?`,
+      stakesWhat: `${an} ist nicht dort, wo es hingehört, und ein anderer wartet jetzt umsonst.`,
+      stakesWhy: "weil das Vertrauen einer Person hängt davon ab, ob sie morgen wieder kommt — oder nicht",
+      placeName: "Die Werkstatt am Ende der Straße",
+      senseDetails: "Riecht nach Sägespänen und kaltem Eisen. Klingt nach einem Wasserhahn, der zwei Räume weiter tropft.",
+      anchors: [
+        "die schiefe Werkbank, auf der nichts liegen bleibt",
+        `${an} zwischen einer Schraube und einem leeren Becher`,
+        "das Fenster, durch das man die Straßenlaterne flackern hört",
+      ],
+      missionInChildWords: `${l} und ${c} müssen ${ao} zurückbringen, bevor der, dem es gehört, von der Arbeit kommt.`,
+      whyItMattersNow: "Sonst denkt er, dass er es selbst verlegt hat, und das ist heute genau das, was er nicht braucht.",
+      chapter1Question: `Wissen ${l} und ${c}, wo es hingehört — oder müssen sie das erst herausfinden?`,
+    }),
+    (l, c, an, ao) => ({
+      premise: `${l} und ${c} entdecken in ${ao} eine kleine Spur, die nicht von ihnen ist — und müssen herausfinden, wer sie hinterlassen hat, bevor diese Person verschwindet.`,
+      hookQuestion: `Trauen sie sich zu fragen, oder rätseln sie lieber so lange, bis es zu spät ist?`,
+      stakesWhat: `Jemand war hier — und wenn ${l} und ${c} jetzt nichts sagen, denkt diese Person morgen, niemand habe sie bemerkt.`,
+      stakesWhy: "weil unsichtbar zu sein das Schlimmste ist, was einem an einem ohnehin schweren Tag passieren kann",
+      placeName: "Der Innenhof zwischen den drei Häusern",
+      senseDetails: "Riecht nach Linde und feuchtem Stein. Klingt nach einem Fahrrad, das jemand schiebt, ohne aufzusteigen.",
+      anchors: [
+        "die Bank mit dem abgesplitterten Lack",
+        `${an}, das halb unter der Bank liegt`,
+        "der Mülleimer, an dem ein Zettel im Wind klappert",
+      ],
+      missionInChildWords: `${l} und ${c} müssen herausfinden, wer ${an} verloren hat, und es ihm zurückgeben — heute noch.`,
+      whyItMattersNow: "Sonst zieht die Person morgen weg, und die Chance ist vorbei.",
+      chapter1Question: `Folgen sie der Spur — oder warten sie, bis sich jemand anderes kümmert?`,
+    }),
+    (l, c, an, ao) => ({
+      premise: `${l} und ${c} wollen ${ao} ein einziges Mal richtig benutzen — aber sie haben die Regel nur halb verstanden, und Halb-Verstehen ist hier gefährlicher als gar nichts wissen.`,
+      hookQuestion: `Geben sie zu, dass sie etwas nicht wissen — oder probieren sie weiter, bis es kaputt ist?`,
+      stakesWhat: `${an} verträgt nur einen einzigen Versuch, und der erste lief schon nicht ganz richtig.`,
+      stakesWhy: "weil danach jemand anders die Schuld bekommt, der gerade nicht da ist und sich nicht wehren kann",
+      placeName: "Die Dachkammer hinter Opas Bäckerei",
+      senseDetails: "Riecht nach altem Mehl, Holz und warmer Sonne durchs schräge Fenster. Klingt nach Tauben auf dem Dach.",
+      anchors: [
+        "die Kiste mit dem losen Henkel, in der alles Wichtige immer landet",
+        `${an} im Stoffbeutel, schon einmal benutzt`,
+        "die Treppe, die genau in der Mitte ein Stück nachgibt",
+      ],
+      missionInChildWords: `${l} und ${c} müssen ${ao} ein zweites Mal benutzen, ohne dass jemand merkt, dass das erste Mal nicht geklappt hat.`,
+      whyItMattersNow: "Sonst muss heute Abend ein anderer die Erklärung geben, und es war nicht sein Fehler.",
+      chapter1Question: `Lesen sie die Regel noch einmal nach — oder erinnern sie sich nur daran, was sie davon im Kopf haben?`,
+    }),
+  ];
+
+  const templateIndex = (lead.length + companion.length + artifactName.length) % PREMISE_TEMPLATES.length;
+  const tpl = PREMISE_TEMPLATES[templateIndex](lead, companion, artifactName, artifactObject);
 
   return {
-    premise: `${lead} und ${companion} muessen ${artifactObject} vor Sonnenuntergang so benutzen, dass eine falsche Beschuldigung sichtbar wird, bevor am Abend jemand allein am Tisch sitzt.`,
-    hookQuestion: `Trauen sich die beiden, die Wahrheit zu zeigen, obwohl dann auch ihr eigener Fehler sichtbar wird?`,
+    premise: tpl.premise,
+    hookQuestion: tpl.hookQuestion,
     emotionalStakes: {
-      what: `${artifactName} liegt am falschen Platz und zeigt deshalb auf die falsche Person`,
-      why: "weil ein Kind unfair beschuldigt wuerde und am Abend niemand mehr weiss, wem man glauben kann",
-      whoCares: `${lead}, weil ${lead} ernst genommen werden will. ${companion}, weil ${companion} den Mut zum Zugeben ueben muss.`,
+      what: tpl.stakesWhat,
+      why: tpl.stakesWhy,
+      whoCares: `${lead}, weil ${lead} merkt, dass das eigene Wort hier wirklich zählt. ${companion}, weil ${companion} sonst denkt, immer der Nebenmann zu sein.`,
     },
     worldTexture: {
-      anchors: [
-        "der kleine Hof mit dem Kiesweg, der unter jeder Sohle knirscht",
-        `${artifactName} mit einer kleinen Schramme am Rand`,
-        "der Weg hinter dem Haus, wo es immer etwas feuchter ist als vorne",
-      ],
-      senseDetails:
-        "Riecht nach warmem Holz, nassem Laub und manchmal nach Brot. Klingt nach knackenden Zweigen und der leisen Tür, die immer ein bisschen quietscht.",
-      placeName: "Der Hof hinter dem Haus",
+      anchors: tpl.anchors,
+      senseDetails: tpl.senseDetails,
+      placeName: tpl.placeName,
     },
     readerContract: {
-      normalWorld: `${lead} und ${companion} sind im Hof hinter dem Haus, bevor jemand merkt, dass ${artifactName} am falschen Platz liegt.`,
-      whoWeMeetFirst: `${lead} prueft erst jedes Detail; ${companion} will schneller handeln und redet sich dabei fast selbst Mut zu.`,
-      missionInChildWords: `${lead} und ${companion} muessen ${artifactObject} vor Sonnenuntergang an den richtigen Platz bringen und die falsche Beschuldigung stoppen.`,
-      whyItMattersNow: `Sonst wird heute Abend die falsche Person beschuldigt und niemand weiss mehr, wem er glauben soll.`,
+      normalWorld: `${lead} und ${companion} sind in ${tpl.placeName.toLowerCase()}, bevor sie merken, dass ${artifactName} eine Rolle spielt, die sie noch nicht ganz verstanden haben.`,
+      whoWeMeetFirst: `${lead} prüft langsam, ${companion} will schon los — beide haben recht, aber nicht zur selben Zeit.`,
+      missionInChildWords: tpl.missionInChildWords,
+      whyItMattersNow: tpl.whyItMattersNow,
       magicOrArtifactRule: artifactRule,
-      chapter1Question: `Schaffen ${lead} und ${companion} es, ${artifactName} richtig zu benutzen, ohne die Wahrheit wegzuschieben?`,
+      chapter1Question: tpl.chapter1Question,
     },
     characterFingerprints: fingerprints,
     supportingCast,
@@ -917,38 +1020,37 @@ function buildDeterministicSoulFallback(input: {
         "warm, still stolz, mit einem Kloß im Hals – als hätten zwei Kinder zum ersten Mal ein echtes Geheimnis geteilt",
       transformationOfChild: `${lead} lernt, dass ${companion} nicht immer alles vermasselt, sondern manchmal genau das Richtige tut.`,
       finalImage:
-        `${lead} und ${companion} sitzen nebeneinander. Zwischen ihnen liegt ${artifactName} ruhig am richtigen Platz.`,
+        `${lead} und ${companion} stehen zusammen vor ${artifactName} und atmen einmal tief — das Schwere ist nicht weg, aber es liegt jetzt offen da.`,
       callbackFromChapter1:
-        `${artifactName} zeigt am Ende nicht mehr auf Schuld, sondern auf die kleine ehrliche Tat aus Kapitel 1.`,
+        `Eine kleine Geste aus Kapitel 1 bekommt am Ende eine neue Bedeutung — kein großes Wort, ein Detail.`,
     },
     antagonism: {
       type: antagonistName ? "external" : "internal",
       specific: antagonistName
-        ? `${antagonistName} will ${artifactName} verstecken, weil das Artefakt zeigt, wer wirklich etwas verschoben hat.`
-        : `${lead} vertraut ${companion} nicht mehr ganz, weil ${artifactName} auf eine Wahrheit zeigt, die beide lieber verschweigen wuerden.`,
-      resolvesHow: `${companion} sagt in Kapitel 4 die Wahrheit in einem kurzen Satz. ${lead} nutzt ${artifactName} erst danach und nicht als Ausrede.`,
+        ? `${antagonistName} hat ein eigenes Ziel und steht ${lead} und ${companion} im Weg, ohne offen feindlich zu sein.`
+        : `${lead} und ${companion} sind sich uneinig — beide haben recht, aber nicht gleichzeitig, und keiner mag das laut sagen.`,
+      resolvesHow: `Eine ehrliche Geste in Kapitel 4 löst die Spannung; nicht ein Sieg, sondern ein Eingeständnis.`,
       appearsInChapters: Array.from(
         { length: Math.min(3, Math.max(2, req.chapterCount - 1)) },
         (_, i) => i + 2,
       ),
       threatRealizedOnce: {
         chapter: Math.min(3, req.chapterCount),
-        what: `${artifactName} zeigt einmal sichtbar auf die falsche Person, und fuer einen Moment glaubt fast jeder daran.`,
+        what: `Eine Entscheidung läuft falsch, und für einen Moment glaubt einer der beiden, alles selbst kaputt gemacht zu haben.`,
       },
     },
     benchmarkBook: {
       title: "Schule der magischen Tiere – Endlich Ferien (Margit Auer)",
       whyMatch:
         "warmer Tonfall, zwei gegensätzliche Kinder-Charaktere, konkrete Welt, tierischer Nebencast, emotionale Geheimnisse statt abstrakter Rätsel",
-      voiceReference:
-        "„Ida fand, dass der erste Ferientag wie ein frisch gepellter Orangenschnitz schmeckte: süß und klebrig. Aber auf ihrem Kopfkissen saß eine Schildkröte.\u201C",
+      voiceReference: "",
     },
     humorBeats,
     chapterEndings,
     iconicScenes: [
-      `${lead} legt ${artifactName} zwischen sich und ${companion}; keiner redet, aber beide sehen dieselbe Wahrheit.`,
-      `${companion} stolpert über etwas Weiches und landet lachend mit Mehl im Gesicht.`,
-      `${lead} und ${companion} bringen ${artifactName} an den richtigen Platz, und der Raum wird auf einmal still.`,
+      `Eine Szene, in der ${lead} und ${companion} schweigen und beide das Gleiche denken, ohne es zu sagen.`,
+      `Eine Szene, in der ${companion} versucht, lässig zu wirken, und genau das Gegenteil passiert.`,
+      `Eine Szene, in der ${lead} eine kleine, mutige Sache tut, von der niemand außer ${companion} etwas mitbekommt.`,
     ],
   };
 }

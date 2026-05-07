@@ -32,7 +32,7 @@ import { buildSupplementalScenicNegatives, buildSupplementalScenicPrompt } from 
 import { validateCastSet } from "./schema-validator";
 import { runQualityGates } from "./quality-gates";
 import { runSemanticCritic, type SemanticCriticPatchTask, type SemanticCriticReport } from "./semantic-critic";
-import { applySelectiveSurgery } from "./release-polisher";
+import { applySelectiveSurgery, applyWholeStoryEdit } from "./release-polisher";
 import { applySentenceTightening, pickChaptersNeedingTightening } from "./sentence-tightening-pass";
 import { computeWordBudget } from "./word-budget";
 import { loadPipelineConfig, type PipelineConfig } from "./pipeline-config";
@@ -399,7 +399,10 @@ export class StoryPipelineOrchestrator {
       // Erzeugt Premise, Hook, Stakes, Figur-Fingerprints, Welt-Textur,
       // Payoff-Versprechen. Wird vom Soul-Gate bewertet, bevor der Blueprint
       // starten darf. Feature-flagged über `pipelineConfig.soulStageEnabled`.
-      if (pipelineConfig.soulStageEnabled) {
+      // Hard-disable: when soulStageDisabled is true, the soul stage is skipped
+      // unconditionally regardless of soulStageEnabled. Used to A/B-test whether
+      // the soul stage is helping or hurting on a given catalog of inputs.
+      if (pipelineConfig.soulStageEnabled && !pipelineConfig.soulStageDisabled) {
         const phase57Start = Date.now();
         try {
           const soulGeneration = await generateValidatedStorySoul({
@@ -1052,20 +1055,36 @@ export class StoryPipelineOrchestrator {
             && (!candidateCritic.releaseReady || qualityErrors > 0)
           ) {
             const preSurgeryDraft = candidateDraft;
-            const surgery = await applySelectiveSurgery({
-              storyId: normalized.storyId,
-              normalizedRequest: normalized,
-              cast: castSet,
-              dna: blueprint.dna,
-              directives,
-              draft: candidateDraft,
-              patchTasks,
-              stylePackText,
-              maxEdits: candidateSurgeryEdits,
-              model: resolveSurgeryModelForPipeline(selectedStoryModel),
-              candidateTag,
-              hardRewriteChapters,
-            });
+            // wholeStoryEditMode: send the entire draft + all critic findings
+            // in a single LLM call so voice and continuity stay coherent across
+            // chapters. Falls back to per-chapter surgery when the flag is off.
+            const surgery = pipelineConfig.wholeStoryEditMode
+              ? await applyWholeStoryEdit({
+                  storyId: normalized.storyId,
+                  normalizedRequest: normalized,
+                  cast: castSet,
+                  dna: blueprint.dna,
+                  directives,
+                  draft: candidateDraft,
+                  patchTasks,
+                  stylePackText,
+                  model: resolveSurgeryModelForPipeline(selectedStoryModel),
+                  candidateTag,
+                })
+              : await applySelectiveSurgery({
+                  storyId: normalized.storyId,
+                  normalizedRequest: normalized,
+                  cast: castSet,
+                  dna: blueprint.dna,
+                  directives,
+                  draft: candidateDraft,
+                  patchTasks,
+                  stylePackText,
+                  maxEdits: candidateSurgeryEdits,
+                  model: resolveSurgeryModelForPipeline(selectedStoryModel),
+                  candidateTag,
+                  hardRewriteChapters,
+                });
 
             if (surgery.changed) {
               surgeryApplied = true;

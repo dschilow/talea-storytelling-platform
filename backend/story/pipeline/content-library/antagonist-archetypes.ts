@@ -119,7 +119,9 @@ const CONTROLLER: AntagonistArchetypeTemplate = {
   poolCharacterIds: [
     "b1a2c001-1111-4b01-8001-000000000004", // Der Zu-Ordentliche
     "b1a2c001-1111-4b01-8001-000000000013", // Der Leiser-Mann
-    "b1a2c001-1111-4b01-8001-000000000014", // Noch-Einmal-Nick
+    // Noch-Einmal-Nick removed: he was being cast without an active scene
+    // role, leaving him as a ghost-character in many stories. Add him back
+    // only once the scene-directive layer guarantees an active beat for him.
   ],
   suitableFor: ["magical-worlds"],
 };
