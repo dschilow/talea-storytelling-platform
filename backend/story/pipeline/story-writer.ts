@@ -2458,6 +2458,13 @@ function sanitizeMetaStructureFromText(text: string): string {
   result = repairGermanAsciiTranscriptions(result);
   result = repairCommonMojibakeSequences(result);
 
+  // 2026-05-09: strip directive-style preamble that surgery/expand LLMs
+  // sometimes inject as the FIRST 1-3 sentences of a chapter. Pattern:
+  // a high density of "müssen X finden, bevor Y" / "sonst bleibt Z" /
+  // "wer es heute nicht..." in the very first paragraph indicates the LLM
+  // echoed the abstract goal/conflict instead of starting in scene.
+  result = stripDirectivePreamble(result);
+
   return result
     .replace(/\.\s*\.\s*/g, ". ")
     .replace(/^\.\s*/, "")
@@ -2465,6 +2472,65 @@ function sanitizeMetaStructureFromText(text: string): string {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/  +/g, " ")
     .trim();
+}
+
+// Strip up to the first 3 sentences of a chapter when they read like a
+// directive recap rather than scene prose. The function operates only on the
+// FIRST paragraph and only removes sentences that visibly match the "abstract
+// goal/contract" shape; in-scene narration is never touched.
+function stripDirectivePreamble(text: string): string {
+  if (!text) return text;
+  const paragraphs = text.split(/\n\s*\n/);
+  if (paragraphs.length === 0) return text;
+  const firstParagraph = paragraphs[0];
+  if (!firstParagraph) return text;
+
+  // Patterns marking a sentence as directive-style summary (not scene prose).
+  // Each pattern matches an ENTIRE sentence; a hit means the sentence is meta.
+  const directiveSentencePatterns: RegExp[] = [
+    // "Sie/Die Kinder müssen X finden, bevor Y kommt"
+    /^[^.!?]*\b(?:m(?:ü|u)ssen|muss)\s+\w[\w\säöüÄÖÜß-]*\s+(?:finden|bringen|zur(?:ü|u)ckgeben|abliefern|reparieren|sehen|holen)[^.!?]*\bbevor\s+\w[\w\säöüÄÖÜß-]+[^.!?]*[.!?]/i,
+    // "Wenn sie scheitern / sonst bleibt X für immer"
+    /^[^.!?]*\b(?:wenn\s+sie\s+scheitern|sonst\s+bleibt|sonst\s+w(?:ä|a)re|sonst\s+wird\s+\w+\s+f(?:ü|u)r\s+immer)[^.!?]*[.!?]/i,
+    // "X arbeitet/funktioniert/hilft nur, wenn..."
+    /^[^.!?]*\b\w+\s+(?:arbeitet|funktioniert|hilft|wirkt)\s+nur,\s+wenn[^.!?]*[.!?]/i,
+    // "Wer es heute nicht..."
+    /^[^.!?]*\bwer\s+es\s+heute\s+nicht\s+(?:sieht|tut|schafft|merkt)[^.!?]*[.!?]/i,
+    // Rare: "X zeigt nur Y; die Kinder müssen Z" recap line
+    /^[^.!?]*\bzeigt\s+nur\s+\w[\w\säöüÄÖÜß-]+;\s+die\s+Kinder\s+m(?:ü|u)ssen[^.!?]*[.!?]/i,
+    // "Sie mussten X finden, bevor Y" surgery-style summary
+    /^[^.!?]*\bSie\s+mussten\s+\w[\w\säöüÄÖÜß-]+\s+finden,\s+bevor\s+\w[^.!?]*[.!?]/i,
+    // "X und Y sind/standen am Z, weil dort etwas..."
+    /^[^.!?]*\bsind\s+(?:am|an\s+der|im|in\s+der)\s+\w[\w\säöüÄÖÜß-]+,\s+weil\s+dort\s+etwas\s+\w[\w\säöüÄÖÜß-]+\s+(?:nur|sichtbar|wichtig)[^.!?]*[.!?]/i,
+  ];
+
+  // Split first paragraph into sentences. Keep delimiters with each sentence.
+  const sentenceMatches = firstParagraph.match(/[^.!?]+[.!?]+["»“”‚„'’]?/g);
+  if (!sentenceMatches || sentenceMatches.length === 0) return text;
+
+  // Walk from the start, dropping leading sentences as long as they match a
+  // directive pattern. Stop on the first non-directive sentence (real prose).
+  let firstKeptIdx = 0;
+  for (let i = 0; i < Math.min(sentenceMatches.length, 5); i++) {
+    const sentence = sentenceMatches[i].trim();
+    const matched = directiveSentencePatterns.some(p => p.test(sentence));
+    if (matched) {
+      firstKeptIdx = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  if (firstKeptIdx === 0) return text;
+
+  // Reconstruct without the directive sentences.
+  const keptSentences = sentenceMatches.slice(firstKeptIdx);
+  const rebuiltFirstParagraph = keptSentences.join(" ").trim();
+  const remainingParagraphs = paragraphs.slice(1);
+  const rebuilt = [rebuiltFirstParagraph, ...remainingParagraphs]
+    .filter(p => p && p.trim().length > 0)
+    .join("\n\n");
+  return rebuilt || text;
 }
 
 function collapseSpacedLetterTokens(input: string): string {

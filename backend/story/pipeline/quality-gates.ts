@@ -1300,6 +1300,13 @@ function gateClassicTropeBan(draft: StoryDraft, language: string): QualityIssue[
     { code: "TROPE_WOLF_GRANDMA", pattern: /\b(?:Wolf|Großmutter|Stiefmutter)\b.{0,40}\b(?:verkleid|schl(?:u|ü)pf)/i, label: "Wolf als Großmutter" },
     { code: "TROPE_CHOSEN_ONE", pattern: /\bder\s+Auserwählte\b/i, label: "Auserwählter" },
     { code: "TROPE_MAGIC_COMPASS_HOME", pattern: /(?:Kompass|Amulett|Kristall)[^.]{0,80}\bnach\s+Hause\s+(?:weist|zeigt|f(?:ü|u)hrt)/i, label: "Magischer Wegweiser nach Hause" },
+    // Medieval-castle drift — common LLM default that ignores reader_contract.
+    { code: "TROPE_THRONE_ROOM", pattern: /\bThronsaal\b/i, label: "Thronsaal" },
+    { code: "TROPE_KNIGHTS_ARMOR", pattern: /\bRitterr(?:ü|u)stungen\b/i, label: "Ritterrüstungen" },
+    { code: "TROPE_CASTLE_TOWER_CLOCK", pattern: /\bTurmuhr\b.{0,80}\bzw(?:ö|oe)lf\s+schlug\b/i, label: "Turmuhr schlug zwölf" },
+    { code: "TROPE_OLD_CASTLE", pattern: /\b(?:in|im)\s+(?:der\s+)?alten\s+Burg\b/i, label: "alte Burg" },
+    { code: "TROPE_ROYAL_LOCK", pattern: /\bSchlosstor\s+f(?:ü|u)r\s+immer\s+verriegelt\b/i, label: "Schlosstor für immer verriegelt" },
+    { code: "TROPE_DWARF_HUT", pattern: /\bZwergenh(?:ü|u)tte\b/i, label: "Zwergenhütte" },
   ];
   const TROPE_PATTERNS_EN: Array<{ code: string; pattern: RegExp; label: string }> = [
     { code: "TROPE_GINGERBREAD_HOUSE", pattern: /\bgingerbread\s+(?:house|cottage|walls)\b/i, label: "gingerbread house" },
@@ -1340,8 +1347,8 @@ function gateTruncatedSentences(draft: StoryDraft, language: string): QualityIss
   // Common German declarative-finite verbs that indicate truncation when they
   // appear as the FIRST word of a paragraph or sentence. Conservative list.
   const truncationVerbs = isDE
-    ? /^(?:drang|ruckte|begann|sauste|knirschte|schepperte|tanzte|fl(?:o|oh)g|st(?:ie|ü)rzte|schoss|riss|rauschte|klirrte|kratzte|raschelte|donnerte)\b/
-    : /^(?:burst|broke|jolted|crashed|whisked|tumbled|smashed)\b/;
+    ? /^(?:drang|ruckte|begann|sauste|knirschte|schepperte|tanzte|fl(?:o|oh)g|st(?:ie|ü)rzte|schoss|riss|rauschte|klirrte|kratzte|raschelte|donnerte|zuckte|blitzte|platzte|huschte|flackerte|krachte|polterte|prasselte|wirbelte|funkelte|gluehte|gl(?:ü|u)hte|brodelte|leuchtete|knallte|surrte|brummte|pochte|zitterte|wackelte|schwirrte|sprang|sauste|schlug|schrillte|h(?:a|ä)mmerte|toste)\b/
+    : /^(?:burst|broke|jolted|crashed|whisked|tumbled|smashed|sparked|flashed|flickered|rattled|hummed|buzzed|clattered|pulsed|jolted)\b/;
   for (const ch of draft.chapters) {
     // Find all occurrences of a sentence boundary followed by a lowercase verb
     // (paragraph start = beginning, or after newline, or after sentence terminator).
@@ -1376,24 +1383,52 @@ function gatePreambleLeak(draft: StoryDraft, language: string): QualityIssue[] {
   if (!isDE) return issues;
   const ch1 = draft.chapters.find(c => c.chapter === 1);
   if (!ch1) return issues;
-  const opener = ch1.text.slice(0, 600);
-  const preambleHits = [
+  const opener = ch1.text.slice(0, 800);
+  // Pattern set covers BOTH the legacy fixed preamble AND the new
+  // reader_contract-style abstract directives. The shared signature is:
+  // "Sie/Die Kinder müssen X (artifact) ... bevor/sonst/damit Y", or
+  // "Wer Z nicht tut, wird W passieren". This is meta-narration that
+  // always appears at the top of a chapter when an LLM echoes the
+  // directive instead of starting in scene.
+  const preambleHits: RegExp[] = [
+    // Legacy preamble patterns
     /muessen\s+\w+\s+rechtzeitig\s+an\s+den\s+richtigen\s+Ort\s+bringen/i,
     /Wenn\s+sie\s+scheitern,\s+bleibt\s+der\s+sichere\s+Weg\s+verschwunden/i,
     /zeigt\s+nur\s+Unterschiede/i,
     /muessen\s+selbst\s+entscheiden\s+und\s+handeln/i,
+    // New abstract goal-as-prose patterns
+    /\b(?:m(?:ü|u)ssen|muss)\s+\w[\w\säöüÄÖÜß-]*\s+(?:bringen|finden|zur(?:ü|u)ckgeben|abliefern|reparieren)[^.]{0,80}\bbevor\s+\w[\w\säöüÄÖÜß-]*\s+(?:kommt|merkt|entdeckt|erfährt|sieht)/i,
+    /\bsonst\s+(?:bleibt|wird|denkt|w(?:ä|a)re)\s+\w[\w\säöüÄÖÜß-]*\s+(?:f(?:ü|u)r\s+immer|allein|zur(?:ü|u)ck|verriegelt|verschwunden|verloren)\b/i,
+    /\bwer\s+es\s+heute\s+nicht\s+(?:sieht|tut|schafft|merkt),\s+wird\s+\w[\w\säöüÄÖÜß-]*\s+warten\s+m(?:ü|u)ssen\b/i,
+    /\b(?:arbeitet|funktioniert|hilft)\s+nur,\s+wenn\s+(?:beide|sie|alle)\s+\w[\w\säöüÄÖÜß-]*\s+(?:gleichzeitig|zusammen|ehrlich)\b/i,
+    /\bm(?:ü|u)ssen\s+\w+\s+und\s+\w+\s+(?:mithilfe\s+von|durch|mit)\s+\w[\w\säöüÄÖÜß-]*\s+sehen,\s+was/i,
+    // Surgery-style "Sie mussten X finden, bevor Y" leak
+    /^[A-ZÄÖÜ]\w+\s+und\s+\w+\s+standen[^.]{0,60}\.\s*Sie\s+mussten\s+\w[\w\säöüÄÖÜß-]+\s+finden,\s+bevor\s+\w/i,
   ];
   let hits = 0;
+  const matched: string[] = [];
   for (const p of preambleHits) {
-    if (p.test(opener)) hits++;
+    const m = p.exec(opener);
+    if (m) {
+      hits++;
+      matched.push(m[0].slice(0, 60));
+    }
   }
   if (hits >= 2) {
     issues.push({
       gate: "PREAMBLE_LEAK",
       chapter: 1,
       code: "PREAMBLE_LEAKED_INTO_BODY",
-      message: `Kapitel 1 beginnt mit der Story-Zusammenfassung statt mit Prosa (${hits} Preämbel-Marker erkannt).`,
+      message: `Kapitel 1 beginnt mit der Story-Zusammenfassung statt mit Prosa (${hits} Preämbel-Marker: ${matched.join(" | ")}).`,
       severity: "ERROR",
+    });
+  } else if (hits === 1) {
+    issues.push({
+      gate: "PREAMBLE_LEAK",
+      chapter: 1,
+      code: "PREAMBLE_PARTIAL_LEAK",
+      message: `Kapitel 1 enthält Preämbel-Floskel: ${matched[0]}`,
+      severity: "WARNING",
     });
   }
   return issues;

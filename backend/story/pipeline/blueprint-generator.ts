@@ -873,8 +873,10 @@ function buildDeterministicV8Blueprint(input: {
 
   // Title format pool: artifact-name + frame. Every option produces a
   // distinctive title shape that does NOT begin with "Das Geheimnis:".
+  // "Das Geheimnis: X" intentionally removed: it was the legacy default and
+  // the seed-mod-pool-size collision kept dropping every story onto it. Title
+  // shapes now ALL avoid the "Geheimnis:" frame so the user sees real variety.
   const TITLE_FORMATS_DE: Array<(artifact: string, lead: string, companion: string) => string> = [
-    (a) => `Das Geheimnis: ${a}`,
     (a, l, c) => `Wie ${a} verloren ging`,
     (a, l) => `${l} und ${a}`,
     (a) => `Der Tag mit ${a}`,
@@ -883,6 +885,10 @@ function buildDeterministicV8Blueprint(input: {
     (a, l, c) => `${l}, ${c} und ${a}`,
     (a) => `Die Sache mit ${a}`,
     (a) => `${a} und das, was niemand sagte`,
+    (a, l, c) => `${a} zwischen ${l} und ${c}`,
+    (a) => `Eine Stunde mit ${a}`,
+    (a, l) => `${l} bringt ${a} zurück`,
+    (a) => `Das Versteck von ${a}`,
   ];
   const title = pickFrom(TITLE_FORMATS_DE)(artifactName, lead, companion);
 
