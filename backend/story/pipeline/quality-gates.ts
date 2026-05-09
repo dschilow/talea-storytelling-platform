@@ -1279,6 +1279,126 @@ function gateTextArtifacts(
   return issues;
 }
 
+/**
+ * Bans cliché public-domain fairy-tale setups that the soul-system prompt also
+ * forbids. The LLM occasionally falls back to Hänsel & Gretel, witch in
+ * gingerbread house, magic compass home, etc. — even when the system prompt
+ * tells it not to. This gate fails the candidate so the user sees a release
+ * warning instead of a derivative story.
+ */
+function gateClassicTropeBan(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  // Public-domain trope phrases. We deliberately match generously — these
+  // wordings appearing in a 6-8 fairy-tale story almost always indicate the
+  // LLM defaulted to a famous tale rather than inventing a new one.
+  const TROPE_PATTERNS_DE: Array<{ code: string; pattern: RegExp; label: string }> = [
+    { code: "TROPE_GINGERBREAD_HOUSE", pattern: /\bLebkuchen(?:haus|hauses|wand|wänden|dach)\b/i, label: "Lebkuchenhaus" },
+    { code: "TROPE_WITCH_COOKS_HERE", pattern: /\b(?:HIER\s+KOCHT\s+DIE\s+HEXE|hier\s+wohnt\s+die\s+hexe)\b/i, label: "Hänsel-und-Gretel-Schild" },
+    { code: "TROPE_WITCHS_KITCHEN", pattern: /\bHexen(?:küche|haus|hütte)\b/i, label: "Hexenküche" },
+    { code: "TROPE_HANSEL_GRETEL", pattern: /\b(?:Hänsel|Gretel)\b/i, label: "Hänsel/Gretel" },
+    { code: "TROPE_WOLF_GRANDMA", pattern: /\b(?:Wolf|Großmutter|Stiefmutter)\b.{0,40}\b(?:verkleid|schl(?:u|ü)pf)/i, label: "Wolf als Großmutter" },
+    { code: "TROPE_CHOSEN_ONE", pattern: /\bder\s+Auserwählte\b/i, label: "Auserwählter" },
+    { code: "TROPE_MAGIC_COMPASS_HOME", pattern: /(?:Kompass|Amulett|Kristall)[^.]{0,80}\bnach\s+Hause\s+(?:weist|zeigt|f(?:ü|u)hrt)/i, label: "Magischer Wegweiser nach Hause" },
+  ];
+  const TROPE_PATTERNS_EN: Array<{ code: string; pattern: RegExp; label: string }> = [
+    { code: "TROPE_GINGERBREAD_HOUSE", pattern: /\bgingerbread\s+(?:house|cottage|walls)\b/i, label: "gingerbread house" },
+    { code: "TROPE_WITCH_KITCHEN", pattern: /\bwitch'?s?\s+(?:kitchen|cottage|hut)\b/i, label: "witch's kitchen" },
+    { code: "TROPE_HANSEL_GRETEL", pattern: /\b(?:Hansel|Gretel)\b/i, label: "Hansel/Gretel" },
+    { code: "TROPE_CHOSEN_ONE", pattern: /\bthe\s+chosen\s+one\b/i, label: "the chosen one" },
+  ];
+  const patterns = isDE ? TROPE_PATTERNS_DE : TROPE_PATTERNS_EN;
+  for (const ch of draft.chapters) {
+    for (const trope of patterns) {
+      if (trope.pattern.test(ch.text)) {
+        issues.push({
+          gate: "CLASSIC_TROPE_BAN",
+          chapter: ch.chapter,
+          code: trope.code,
+          message: isDE
+            ? `Kapitel ${ch.chapter}: klassisches Märchen-Klischee erkannt ("${trope.label}"). Story muss eine eigenständige Welt sein.`
+            : `Chapter ${ch.chapter}: classic fairy-tale trope detected ("${trope.label}"). Story must build its own world.`,
+          severity: "ERROR",
+        });
+        break;
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * Catches sentences that begin with a verb and no preceding subject —
+ * the classic LLM-truncation signature ("drang eine Stimme...",
+ * "ruckte eine Kette..."). German finite-verb-first sentences DO exist
+ * (questions, imperatives), but a declarative paragraph starting with a
+ * lowercase finite verb is almost always a truncation artefact.
+ */
+function gateTruncatedSentences(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  // Common German declarative-finite verbs that indicate truncation when they
+  // appear as the FIRST word of a paragraph or sentence. Conservative list.
+  const truncationVerbs = isDE
+    ? /^(?:drang|ruckte|begann|sauste|knirschte|schepperte|tanzte|fl(?:o|oh)g|st(?:ie|ü)rzte|schoss|riss|rauschte|klirrte|kratzte|raschelte|donnerte)\b/
+    : /^(?:burst|broke|jolted|crashed|whisked|tumbled|smashed)\b/;
+  for (const ch of draft.chapters) {
+    // Find all occurrences of a sentence boundary followed by a lowercase verb
+    // (paragraph start = beginning, or after newline, or after sentence terminator).
+    const segments = ch.text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(Boolean);
+    for (const seg of segments) {
+      if (truncationVerbs.test(seg)) {
+        issues.push({
+          gate: "TRUNCATED_SENTENCE",
+          chapter: ch.chapter,
+          code: "TRUNCATED_SENTENCE_START",
+          message: isDE
+            ? `Kapitel ${ch.chapter}: Satz beginnt mit Verb ohne Subjekt ("${seg.slice(0, 40)}…"). Vermutlich abgeschnittener Satz.`
+            : `Chapter ${ch.chapter}: sentence begins with verb without subject ("${seg.slice(0, 40)}…"). Likely a truncation artefact.`,
+          severity: "ERROR",
+        });
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * Detects hardcoded preamble-style summaries that occasionally leak into the
+ * first chapter body. Pattern: the chapter starts with multiple full sentences
+ * that all carry the same "muessen Artefakt rechtzeitig an den richtigen Ort
+ * bringen" / "wenn sie scheitern" / "zeigt nur Unterschiede" structure that
+ * comes from the directive summary, not real prose.
+ */
+function gatePreambleLeak(draft: StoryDraft, language: string): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  if (!isDE) return issues;
+  const ch1 = draft.chapters.find(c => c.chapter === 1);
+  if (!ch1) return issues;
+  const opener = ch1.text.slice(0, 600);
+  const preambleHits = [
+    /muessen\s+\w+\s+rechtzeitig\s+an\s+den\s+richtigen\s+Ort\s+bringen/i,
+    /Wenn\s+sie\s+scheitern,\s+bleibt\s+der\s+sichere\s+Weg\s+verschwunden/i,
+    /zeigt\s+nur\s+Unterschiede/i,
+    /muessen\s+selbst\s+entscheiden\s+und\s+handeln/i,
+  ];
+  let hits = 0;
+  for (const p of preambleHits) {
+    if (p.test(opener)) hits++;
+  }
+  if (hits >= 2) {
+    issues.push({
+      gate: "PREAMBLE_LEAK",
+      chapter: 1,
+      code: "PREAMBLE_LEAKED_INTO_BODY",
+      message: `Kapitel 1 beginnt mit der Story-Zusammenfassung statt mit Prosa (${hits} Preämbel-Marker erkannt).`,
+      severity: "ERROR",
+    });
+  }
+  return issues;
+}
+
 function gateInstructionLeak(draft: StoryDraft, language: string): QualityIssue[] {
   const issues: QualityIssue[] = [];
   const isDE = language === "de";
@@ -4112,6 +4232,10 @@ export function runQualityGates(input: {
     { name: "ARTIFACT_ARC", fn: () => gateArtifactArc(draft, directives, cast, language) },
     { name: "ENDING_PAYOFF", fn: () => gateEndingPayoff(draft, directives, language, ageRange) },
     { name: "TEXT_ARTIFACTS", fn: () => gateTextArtifacts(draft, language, ageRange) },
+    // New 2026-05-08 gates: catch tropes/truncations/preamble-leaks BEFORE release.
+    { name: "CLASSIC_TROPE_BAN", fn: () => gateClassicTropeBan(draft, language) },
+    { name: "TRUNCATED_SENTENCE", fn: () => gateTruncatedSentences(draft, language) },
+    { name: "PREAMBLE_LEAK", fn: () => gatePreambleLeak(draft, language) },
     { name: "INSTRUCTION_LEAK", fn: () => gateInstructionLeak(draft, language) },
     { name: "META_FORESHADOW", fn: () => gateMetaForeshadowPhrases(draft, language, ageRange) },
     { name: "SHOW_DONT_TELL_EXPOSITION", fn: () => gateRuleExpositionTell(draft, language, ageRange) },

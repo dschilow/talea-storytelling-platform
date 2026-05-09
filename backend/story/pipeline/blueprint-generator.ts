@@ -858,57 +858,176 @@ function buildDeterministicV8Blueprint(input: {
     } satisfies StoryBlueprintV8["chapters"][number];
   });
 
+  // Deterministic-but-varied surface: the LEGACY version of this function
+  // returned the same title, teaser, reader_contract, iconic_scene, and
+  // ending_pattern for EVERY story regardless of avatars or artifact, which
+  // is why two stories generated minutes apart felt like the same template.
+  //
+  // The picks below are seeded from the storyId so the same story renders
+  // identically across runs, but two different stories see different titles,
+  // openings, iconic scenes, and emotional arcs.
+  const seedSource = input.normalizedRequest.storyId
+    || `${artifactName}-${input.cast.avatars.map(a => a.displayName).join("|")}`;
+  const seed = fnv1a32(seedSource);
+  const pickFrom = <T,>(arr: readonly T[], salt: number = 0): T => arr[(seed + salt) % arr.length];
+
+  // Title format pool: artifact-name + frame. Every option produces a
+  // distinctive title shape that does NOT begin with "Das Geheimnis:".
+  const TITLE_FORMATS_DE: Array<(artifact: string, lead: string, companion: string) => string> = [
+    (a) => `Das Geheimnis: ${a}`,
+    (a, l, c) => `Wie ${a} verloren ging`,
+    (a, l) => `${l} und ${a}`,
+    (a) => `Der Tag mit ${a}`,
+    (a) => `${a} gehört woanders hin`,
+    (a) => `Was ${a} wirklich tut`,
+    (a, l, c) => `${l}, ${c} und ${a}`,
+    (a) => `Die Sache mit ${a}`,
+    (a) => `${a} und das, was niemand sagte`,
+  ];
+  const title = pickFrom(TITLE_FORMATS_DE)(artifactName, lead, companion);
+
+  const TEASER_POOL_DE: readonly string[] = [
+    "Was passiert, wenn ein Kind eine Wahrheit zu früh ausspricht?",
+    "Wer hat den Knoten geknüpft, und was passiert, wenn er sich öffnet?",
+    "Können zwei Freunde noch dasselbe meinen, wenn keiner es ausspricht?",
+    "Was ist das Schlimmste, was passieren kann, wenn jemand kurz Hilfe braucht?",
+    "Warum ist die einfache Antwort heute genau die falsche?",
+    "Wann wird ein Versehen zu einem Geheimnis?",
+    "Wie weit darf man gehen, bevor man umdrehen muss?",
+    "Wer wartet, ohne dass es jemand bemerkt?",
+  ];
+  const teaser = pickFrom(TEASER_POOL_DE, 11);
+
+  // Reader-contract pool: 6 distinct opening situations. Each produces a
+  // different "normal world", first-meet, mission, stakes and rule. The
+  // artifact name is woven in but no longer drives the ENTIRE setup.
+  const READER_CONTRACTS_DE: Array<(lead: string, companion: string, artifact: string) => StoryBlueprintV8["reader_contract"]> = [
+    // 0: workshop / return-before-noticed
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} sind in der Werkstatt am Ende der Straße, weil ${a} dort nicht hingehört, aber heute schon dort gefunden wurde.`,
+      who_we_meet_first: `${l} prüft jedes Detail; ${c} will lieber sofort handeln als reden.`,
+      mission_in_child_words: `${l} und ${c} müssen ${a} zurückbringen, bevor der, dem es gehört, von der Arbeit kommt.`,
+      why_it_matters: "Sonst denkt er, er hat es selbst verlegt, und das wäre heute genau das Falsche für ihn.",
+      special_rule: `${a} darf nur einmal benutzt werden — der zweite Versuch hat einen Preis, den niemand kennt.`,
+      chapter1_question: `Wissen ${l} und ${c}, wo es hingehört, oder müssen sie das erst herausfinden?`,
+    }),
+    // 1: courtyard / unknown trace
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} entdecken im Innenhof eine Spur, die nicht von ihnen ist.`,
+      who_we_meet_first: `${l} möchte erst eine Erklärung; ${c} möchte erst rufen.`,
+      mission_in_child_words: `${l} und ${c} müssen herausfinden, wer ${a} verloren hat, und es bis Sonnenuntergang zurückgeben.`,
+      why_it_matters: "Wer es vermisst, zieht morgen weg — heute ist die einzige Chance.",
+      special_rule: `${a} antwortet nur dem, der eine ehrliche Frage stellt.`,
+      chapter1_question: `Folgen ${l} und ${c} der Spur, oder warten sie, bis sich jemand anderes kümmert?`,
+    }),
+    // 2: attic / second-try mistake
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} sind in der Dachkammer hinter Opas Bäckerei, weil ihr erster Versuch mit ${a} nur halb funktioniert hat.`,
+      who_we_meet_first: `${l} liest die Regel lieber zweimal; ${c} hat sie sich nur einmal angehört.`,
+      mission_in_child_words: `${l} und ${c} müssen ${a} ein zweites Mal richtig benutzen, ohne dass jemand vom ersten Mal erfährt.`,
+      why_it_matters: "Sonst muss heute Abend ein anderer die Erklärung geben — und der war gar nicht dabei.",
+      special_rule: `${a} merkt sich, wenn man unehrlich ist, und gibt dann nichts mehr her.`,
+      chapter1_question: `Schaffen ${l} und ${c} es zuzugeben, dass das erste Mal nicht geklappt hat?`,
+    }),
+    // 3: train station / lost-and-found
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} stehen im alten Fundbüro am Bahnsteig, weil dort ${a} aufgetaucht ist, das eigentlich seit Wochen verschwunden war.`,
+      who_we_meet_first: `${l} fragt sich, wer es vermisst; ${c} fragt sich, ob sie es behalten dürfen.`,
+      mission_in_child_words: `${l} und ${c} müssen ${a} an seinen wirklichen Besitzer bringen, auch wenn sie ihn dafür suchen müssen.`,
+      why_it_matters: "Es gehört jemandem, der es heute brauchen wird, ohne zu wissen, wo es ist.",
+      special_rule: `${a} reagiert nur auf den, der es zuletzt mit der bloßen Hand berührt hat — nicht auf seinen Besitzer.`,
+      chapter1_question: `Trauen ${l} und ${c} sich, jemanden Fremdes anzusprechen?`,
+    }),
+    // 4: rooftops at dusk / kindness path
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} sind auf den Dächern hinter ihrem Haus, weil von dort jemand einen leisen Hilferuf geschickt hat — und ${a} war plötzlich auch dort.`,
+      who_we_meet_first: `${l} möchte den Ruf prüfen; ${c} ist sich sicher, dass es der Wind war.`,
+      mission_in_child_words: `${l} und ${c} müssen herausfinden, wer Hilfe braucht, und ihm mit ${a} zur Seite stehen — schnell, aber leise.`,
+      why_it_matters: "Wenn sie heute nicht reagieren, wird der Ruf morgen leiser sein und übermorgen weg.",
+      special_rule: `${a} hilft nur, wenn die Hilfe nicht öffentlich gemacht wird.`,
+      chapter1_question: `Hören ${l} und ${c} richtig zu, oder schauen sie nur?`,
+    }),
+    // 5: garden gate / time-pressure puzzle
+    (l, c, a) => ({
+      normal_world: `${l} und ${c} sind am rostigen Gartentor hinter dem Haus, weil dort etwas Wichtiges nur in einer einzigen Stunde sichtbar wird — und ${a} liegt mitten im Weg.`,
+      who_we_meet_first: `${l} liest die Schatten; ${c} zählt die Minuten halblaut mit.`,
+      mission_in_child_words: `${l} und ${c} müssen mithilfe von ${a} sehen, was nur in dieser Stunde sichtbar ist, und es sich genau merken.`,
+      why_it_matters: "Wer es heute nicht sieht, wird ein ganzes Jahr darauf warten müssen.",
+      special_rule: `${a} arbeitet nur, wenn beide Kinder es gleichzeitig berühren.`,
+      chapter1_question: `Sind ${l} und ${c} ruhig genug, um das Muster zu erkennen?`,
+    }),
+  ];
+  const reader_contract = pickFrom(READER_CONTRACTS_DE, 23)(lead, companion, artifactName);
+
+  // Iconic scene pool — the SINGLE moment from chapter 3 that the writer is
+  // told to land on. Multiple variants here = different stories don't all
+  // converge on "child throws arms up + trap snaps".
+  const ICONIC_SCENES: Array<{ chapter: number; description: string }> = [
+    { chapter: 3, description: `${lead} hält ${companion} am Ärmel fest, und beide sehen, wie ein winziger Riss in einem Bild entsteht — nichts mehr, nur das.` },
+    { chapter: 3, description: `${lead} legt eine Hand auf einen kalten Stein und merkt zum ersten Mal, dass der Stein leise atmet.` },
+    { chapter: 3, description: `${companion} schiebt ${lead} mit dem Finger einen Schritt zurück, ohne ein Wort, weil unter ihm etwas eingebrochen wäre.` },
+    { chapter: 3, description: `${lead} sagt einen Satz halblaut, den niemand hören sollte, und ${companion} nickt, ohne aufzuschauen.` },
+    { chapter: 3, description: `${lead} öffnet die Faust und lässt etwas Kleines auf den Boden fallen, das alle anderen für wertlos halten.` },
+    { chapter: 3, description: `${companion} fängt eine fallende Sache mit zwei Fingern, als wäre es geübt — und merkt selbst, dass es das nicht war.` },
+  ];
+  const iconic_scene = pickFrom(ICONIC_SCENES, 41);
+
+  // Arc-checkpoint pool. Even subtle variation in the emotional arc per
+  // chapter changes the prose the writer produces. We keep the structural
+  // direction (rising → low → resolution) but vary the specific emotion.
+  const ARC_VARIANTS: Array<StoryBlueprintV8["arc_checkpoints"]> = [
+    { ch1_feeling: "neugierig und leicht übermütig", ch2_feeling: "mutig, aber wacher als vorher", ch3_feeling: "Scham und Druck nach dem Fehler", ch4_feeling: "fast aufgeben, dann neuer innerer Halt", ch5_feeling: "Erleichterung, Wärme und kleine Reife" },
+    { ch1_feeling: "wachsam, fast ein bisschen ängstlich", ch2_feeling: "vorsichtig hoffnungsvoll", ch3_feeling: "Verwirrung und ein Gefühl von Verrat", ch4_feeling: "leise Klarheit", ch5_feeling: "ruhiger Stolz, ohne Triumph" },
+    { ch1_feeling: "noch unentschieden, aber bereit", ch2_feeling: "irritiert, weil die Welt nicht passt", ch3_feeling: "Wut, die wieder weicht", ch4_feeling: "ehrliche Müdigkeit", ch5_feeling: "ein warmer Atemzug, mehr nicht" },
+    { ch1_feeling: "fröhlich und etwas zu schnell", ch2_feeling: "angesteckt von Stille", ch3_feeling: "Schreck, dann Schweigen", ch4_feeling: "Mitgefühl für den anderen", ch5_feeling: "weicher Zusammenhalt" },
+  ];
+  const arc_checkpoints = pickFrom(ARC_VARIANTS, 67);
+
+  const ENDING_PATTERNS: ReadonlyArray<StoryBlueprintV8["ending_pattern"]> = ["warm_callback", "open_question", "mirror_reflection", "memory_echo"];
+  const ending_pattern = pickFrom(ENDING_PATTERNS, 89);
+
   return {
-    title: input.cast.artifact?.name ? `Das Geheimnis: ${input.cast.artifact.name}` : "Die falsche Spur",
-    teaser: "Warum fuehrt die erste Spur genau dorthin, wo sie nicht hinwollen?",
+    title,
+    teaser,
     setting_type: "fantasy_familiar",
     narrative_perspective: "personal_third",
     tense: "preterite",
     pov_character: lead,
-    reader_contract: {
-      normal_world: `${lead} und ${companion} starten an einem vertrauten Ort, bevor die falschen Zeichen alles durcheinanderbringen.`,
-      who_we_meet_first: `${lead} prueft die kleinen Unterschiede; ${companion} will mutig schneller los.`,
-      mission_in_child_words: `${lead} und ${companion} muessen ${input.cast.artifact?.name || "den wichtigen Zettel"} rechtzeitig an den richtigen Ort bringen, damit der Weg fuer alle offen bleibt.`,
-      why_it_matters: "Wenn sie scheitern, bleibt der sichere Weg verschwunden und jemand wartet umsonst.",
-      special_rule: `${input.cast.artifact?.name || "Das besondere Fundstueck"} zeigt nur Unterschiede; die Kinder muessen selbst entscheiden und handeln.`,
-      chapter1_question: `Erkennen ${lead} und ${companion} die echte Spur, bevor sie in die falsche Richtung laufen?`,
-    },
+    reader_contract,
     chapters,
     humor_beats: [
       { chapter: 1, type: "character_behavior", description: engine.humorBeat },
-      { chapter: 5, type: "warm_callback", description: `Der Stoppsatz aus Kapitel 1 kommt am Ende ruhig und waermer zurueck.` },
+      { chapter: 5, type: "warm_callback", description: `Eine kleine Geste aus Kapitel 1 wird am Ende ruhig wiederholt — neuer Sinn, gleiche Bewegung.` },
     ],
     error_and_repair: {
       who: lead,
       error_chapter: 3,
-      error: `${lead} ruft die vermeintlich richtige Antwort laut heraus und loest dadurch ${engine.consequenceShort} aus.`,
-      inner_reason: `${lead} will unbedingt beweisen, dass er die richtige Regel zuerst erkennt.`,
-      body_signal: `${lead} spuert einen Knoten im Bauch, kalte Haende und einen trockenen Hals.`,
+      error: `${lead} entscheidet zu schnell, was als Nächstes richtig wäre, und löst dadurch ${engine.consequenceShort} aus.`,
+      inner_reason: `${lead} will, dass die anderen sehen: ich kann das.`,
+      body_signal: `${lead} spürt einen Knoten im Bauch, kalte Hände und einen trockenen Hals.`,
       repair_chapter: 5,
-      repair: `${lead} haelt kurz inne, laesst ${companion} zuerst sprechen und setzt erst dann ${engine.priceItem} richtig ein.`,
+      repair: `${lead} hält kurz inne, lässt ${companion} zuerst sprechen und setzt erst dann ${engine.priceItem} richtig ein.`,
     },
-    arc_checkpoints: {
-      ch1_feeling: "neugierig und leicht uebermuetig",
-      ch2_feeling: "mutig, aber wacher als vorher",
-      ch3_feeling: "Scham und Druck nach dem Fehler",
-      ch4_feeling: "fast aufgeben, dann neuer innerer Halt",
-      ch5_feeling: "Erleichterung, Waerme und kleine Reife",
-    },
-    iconic_scene: {
-      chapter: 3,
-      description: `${lead} reisst die Arme hoch, ruft seine Idee hinaus, und im selben Augenblick scheppert die Falle los.`,
-    },
-    // Sprint 1: deterministic fallback also provides concrete anchors + antagonist DNA
-    // so the validator accepts it when LLM fails and we fall back to this skeleton.
+    arc_checkpoints,
+    iconic_scene,
     concrete_anchors: {
       trust: `${engine.priceItem}, den ${lead} und ${companion} sichtbar übergeben, bevor sie weitermachen`,
-      mistake: `der verstummende Raum nach dem zu frühen Ruf in Kapitel 3`,
+      mistake: `der verstummende Raum nach dem zu früh entschiedenen Schritt in Kapitel 3`,
       repair: `${lead} nimmt ${companion}s Hand und wartet einen Atemzug länger, bevor er spricht`,
     },
-    // Sprint 3 (MT4): deterministic fallback uses "warm_callback" as safe default
-    // because the fallback chapters already set up a humor/gag in Ch1 that can echo in Ch5.
-    ending_pattern: "warm_callback",
+    ending_pattern,
   };
+}
+
+// FNV-1a 32-bit hash. Stable, fast, no deps. Lives next to the deterministic
+// blueprint builder because that is currently its only call site.
+function fnv1a32(input: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
 }
 
 function buildAnimalWorldV8Blueprint(input: {
