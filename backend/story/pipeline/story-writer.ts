@@ -651,22 +651,25 @@ export class LlmStoryWriter implements StoryWriter {
     // 2026-05-10: Native Claude Sonnet was capped at 12000 total story tokens, which
     // covers the initial call but leaves nothing for the 4-5 expand calls a sparse
     // initial response needs. Bumped to OpenRouter-tier 22000 so Claude can recover.
+    // 2026-05-10 (later): bumped OpenRouter from 22k to 32k after logs showed Sonnet
+    // via OpenRouter consumes ~14k on the initial call (extended-thinking overhead)
+    // and then has no headroom for the 5 per-chapter expand calls (~12k needed).
     const defaultStoryTokenBudget = isGeminiFlashModel
       ? (isSecondaryCandidate ? 9000 : 12000)
       : isMiniMaxStoryModel
         ? 14000
         : isOpenRouterStoryModel
-          ? 22000
+          ? 32000
           : isClaudeModel
-            ? 22000
+            ? 28000
             : (isReasoningModel ? 14000 : 9000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
     const minStoryTokenBudget = isGeminiFlashModel
       ? 10000
       : isOpenRouterStoryModel
-        ? 16000
+        ? 24000
         : isClaudeModel
-          ? 16000
+          ? 22000
           : (isReasoningModel ? 12000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
@@ -1228,7 +1231,23 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
       console.warn("[story-writer] OpenRouter full story call timed out; skipping monolithic recovery and using chapter-local rescue edits.");
     }
 
-    if (needsFullRecovery && recoveryReason !== "timeout" && !isTokenBudgetExceeded()) {
+    // 2026-05-10: For OpenRouter Claude (Sonnet) and structurally-sparse output,
+    // skip the monolithic recovery call. Sonnet via OpenRouter eats ~14k tokens
+    // per attempt due to extended-thinking overhead, and a second monolithic
+    // attempt typically returns the same partial content while exhausting the
+    // story-token budget. Going DIRECTLY to per-chapter expand uses ~1.5-2k
+    // tokens per chapter and reliably fills the empty placeholders within budget.
+    const skipMonolithicRecoveryForSparseOpenRouter =
+      needsFullRecovery
+      && recoveryReason === "structurally-sparse"
+      && isOpenRouterStoryModel;
+    if (skipMonolithicRecoveryForSparseOpenRouter) {
+      console.warn(
+        `[story-writer] OpenRouter sparse output detected (${recoveryReason}); skipping monolithic recovery and going directly to per-chapter expand to preserve token budget.`,
+      );
+    }
+
+    if (needsFullRecovery && recoveryReason !== "timeout" && !skipMonolithicRecoveryForSparseOpenRouter && !isTokenBudgetExceeded()) {
       const recoveryPromptMode: "compact" = "compact";
       activePromptMode = recoveryPromptMode;
       prompt = buildStoryPrompt(recoveryPromptMode);
