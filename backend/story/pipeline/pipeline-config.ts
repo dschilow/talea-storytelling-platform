@@ -86,7 +86,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   blueprintRetryMax: 0,
   pass3TargetScore: 8.6,
   pass3WarnFloor: 7.2,
-  soulStageEnabled: true,
+  soulStageEnabled: false,
   soulRetryMax: 1,
   soulAllowOnReject: true,
   soulAwareCriticMinScore: 8.6,
@@ -107,7 +107,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   aiScenePromptEnabled: false,
   strictReleaseGateMode: "block",
   wholeStoryEditMode: true,
-  soulStageDisabled: false,
+  soulStageDisabled: true,
 };
 
 let cached: PipelineConfig | null = null;
