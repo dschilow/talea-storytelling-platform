@@ -1316,6 +1316,26 @@ function buildReaderContractBlock(
 }
 
 function buildCategoryContractBlock(category: string | undefined, cast: CastSet, isGerman: boolean): string {
+  if (isFairyTalePromptCategory(category)) {
+    return isGerman
+      ? [
+        "KATEGORIE-VERTRAG: MAERCHEN (HARD)",
+        "- Nutze die Referenz-DNA als Funktionsbogen, nicht nur als Kulisse.",
+        "- Mindestens 3 ikonische Funktionen muessen modernisiert auf der Seite landen: Verlust/Versprechen/Probe/Helferhandel/Verwandlung/Heimkehr.",
+        "- Kein reiner Hinweis-Spur-Plot. Jede Station muss durch eine Entscheidung der Kinder verursacht oder verschlimmert werden.",
+        "- Ein maerchenhaftes Element braucht eine klare Regel, eine Grenze und einen sichtbaren Preis.",
+        "- Das Ende zahlt das Anfangsversprechen konkret aus: eine Person, ein Ort oder ein Ritual ist sichtbar gerettet oder veraendert.",
+      ].join("\n")
+      : [
+        "CATEGORY CONTRACT: FAIRY TALE (HARD)",
+        "- Use the reference DNA as story function, not scenery only.",
+        "- Modernize at least 3 iconic functions on page: loss/promise/test/helper bargain/transformation/homecoming.",
+        "- No pure clue-trail plot. Each station must be caused or worsened by a child's choice.",
+        "- One fairy-tale element needs a clear rule, limit, and visible price.",
+        "- The ending concretely pays off the opening promise: a person, place, or ritual is visibly saved or changed.",
+      ].join("\n");
+  }
+
   if (!isAnimalWorldPromptCategory(category)) return "";
   const animalNames = cast.poolCharacters
     .filter(character => isAnimalishPromptSheet(character as any))
@@ -1351,6 +1371,11 @@ function buildCategoryContractBlock(category: string | undefined, cast: CastSet,
 function isAnimalWorldPromptCategory(category?: string): boolean {
   const text = String(category || "").toLowerCase();
   return text.includes("tierwelten") || text.includes("animal") || /\btiere?\b/.test(text);
+}
+
+function isFairyTalePromptCategory(category?: string): boolean {
+  const text = String(category || "").toLowerCase();
+  return text.includes("fairy_tales") || text.includes("fairytale") || text.includes("fairy tale") || text.includes("maerchen") || text.includes("märchen");
 }
 
 function isAnimalishPromptSheet(character: { species?: string; archetype?: string; role?: string; visualSignature?: string[] }): boolean {
@@ -1578,8 +1603,10 @@ export function buildV8StoryPrompt(input: {
 ARTIFACT CONTRACT (MANDATORY)
 - The story title, Chapter 1 contract, discovery beat, success beat, and ending payoff must all use: "${artifactName}".
 - Name "${artifactName}" by Chapter 1 paragraph 2 and explain exactly one child-readable rule.
+- Before the physical discovery, "${artifactName}" may be named as the mission only. It must not be worn, held, glow, warm up, answer, or act before it is actually found on page.
 - Chapter 2 must show the artifact being found, touched, or chosen on page.
 - Chapter 4 or 5 must show the artifact revealing/confirming truth; the child still solves the human problem by choice.
+- If Chapter 1 gives an artifact rule, the final win must pay off that exact rule in action or dialogue.
 - Do not replace "${artifactName}" with a generic clue, note, bottle, stone, circle, map, or "piece".
 `
     : "";
@@ -1703,6 +1730,7 @@ BLUEPRINT FIDELITY
 - realize the blueprint's humor_beats in the named chapters
 - if the blueprint implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
 - keep the same growth child visible across error_and_repair, low point, and repair
+- causality over sequence: every chapter must happen BECAUSE of the previous child choice, mistake, promise, or discovery, not merely after it
 
 HARD RULES
 - exactly ${input.chapterCount} chapter objects
@@ -1712,6 +1740,7 @@ HARD RULES
 - By the end of Chapter 1 paragraph 2, a child must be able to say: who is here, where are they, what must they do, and what concrete thing goes wrong if they fail.
 - make every humor beat in the blueprint visible on the page
 - if a chapter hook implies blame, suspicion, misunderstanding, or a callback, show it explicitly in action or dialogue
+- if a pool character is cast as antagonist, they must pressure the heroes through their stated motive; they may not become a neutral hint-giver
 - no markdown, no comments, no extra text.${soulFidelityBlock}${endingPatternBlock}${refrainBlock}${iconicMotifBlock}`;
 }
 

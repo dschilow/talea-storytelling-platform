@@ -583,7 +583,7 @@ export class LlmStoryWriter implements StoryWriter {
     const isGeminiFlashModel = isGeminiFlashFamilyModel(model);
     const isOpenRouterStoryModel = isOpenRouterFamilyModel(model);
     // Main prose path stays on the selected story model.
-    // Native providers may use cheaper side-models; OpenRouter keeps the selected OpenRouter model.
+    // Support jobs use cheaper side-models, including OpenRouter-selected stories.
     const supportModel = resolveSupportTaskModel(model);
     const blueprintModel = supportModel;
     const isMiniMaxStoryModel = isMiniMaxFamilyModel(model);
@@ -609,15 +609,9 @@ export class LlmStoryWriter implements StoryWriter {
     // Gemini Flash: allow 1 rewrite pass (quality recovery outweighs cost).
     // Severely broken drafts (5+ errors) get 2 passes for all models.
     const defaultRewritePasses = 0;
-    // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
-    // 2026-05-10: Premium models (Claude Sonnet, OpenRouter, GPT-5/o4) routinely return
-    // structurally-sparse content on the first pass — see logs 2026-05-09 where native
-    // claude-sonnet-4-6 produced 5 placeholder chapters and only 1 could be expanded
-    // because maxExpandCalls was 1. Allow up to 5 expand calls for ALL premium models so
-    // each empty chapter can be recovered. Cheap models (Gemini Flash, GPT-mini-direct)
-    // still get 1 — they rarely return sparse content.
+    // Bounded expansion: avoid buying one premium repair call per chapter.
     const defaultExpandCalls = (isOpenRouterStoryModel || isClaudeModel || isReasoningModel)
-      ? Math.min(5, Math.max(2, directives.length))
+      ? Math.min(2, Math.max(1, directives.length))
       : 1;
     // Cost guard: Gemini Flash should avoid generic warning-polish by default.
     // It is expensive, often low-impact, and targeted release surgery on the winner is cheaper.
@@ -646,14 +640,7 @@ export class LlmStoryWriter implements StoryWriter {
     const maxWarningPolishCalls = allowPostEdits && Number.isFinite(configuredWarningPolishCalls)
       ? Math.max(0, Math.min(5, configuredWarningPolishCalls))
       : 0;
-    // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
-    // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
-    // 2026-05-10: Native Claude Sonnet was capped at 12000 total story tokens, which
-    // covers the initial call but leaves nothing for the 4-5 expand calls a sparse
-    // initial response needs. Bumped to OpenRouter-tier 22000 so Claude can recover.
-    // 2026-05-10 (later): bumped OpenRouter from 22k to 32k after logs showed Sonnet
-    // via OpenRouter consumes ~14k on the initial call (extended-thinking overhead)
-    // and then has no headroom for the 5 per-chapter expand calls (~12k needed).
+    // Budget: spend on one strong first draft, not many expansion calls.
     const defaultStoryTokenBudget = isGeminiFlashModel
       ? (isSecondaryCandidate ? 9000 : 12000)
       : isMiniMaxStoryModel

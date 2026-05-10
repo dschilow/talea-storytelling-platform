@@ -2710,6 +2710,55 @@ function gateArtifactMiniArc(
   return issues;
 }
 
+function gateArtifactPrematureActivation(
+  draft: StoryDraft,
+  cast: CastSet,
+  language: string,
+  artifactArc?: ArtifactArcPlan,
+  ageRange?: { min: number; max: number },
+): QualityIssue[] {
+  const issues: QualityIssue[] = [];
+  const isDE = language === "de";
+  const artifactName = String(cast.artifact?.name || artifactArc?.artifactName || "").trim();
+  if (artifactName.length < 3) return issues;
+
+  const discoveryChapter = Math.max(2, Number(artifactArc?.discoveryChapter || 2));
+  const needles = buildArtifactMentionNeedles(artifactName);
+  const severity: QualityIssue["severity"] = (ageRange?.max ?? 12) <= 8 ? "ERROR" : "WARNING";
+  const ruleLanguage = isDE
+    ? /\b(?:wenn|sobald|falls|regel|heisst|heißt|kann|darf|wird.*wenn|zeigt.*wenn)\b/i
+    : /\b(?:if|when|whenever|rule|called|can|may|will.*when|shows.*when)\b/i;
+  const activeLanguage = isDE
+    ? /\b(?:glueht|glüht|gluehte|glühte|leuchtet|leuchtete|funkelt|funkelte|wird warm|wurde warm|wird.{0,40}warm|wurde.{0,40}warm|warm wurde|zittert|zitterte|antwortet|antwortete|spricht|sprach|zeigt|zeigte|fuehrt|führt|fuehrte|führte|hilft|half|oeffnet|öffnet|oeffnete|öffnete|heilt|heilte|rettet|rettete|singt|sang|fluestert|flüstert|flüsterte|ruft|rief|zieht|zog|schwebt|schwebte|brennt|brannte|pulsiert|pulsierte)\b/i
+    : /\b(?:glows?|glowed|shines?|shone|sparkles?|sparkled|gets warm|got warm|gets?.{0,40}warm|got.{0,40}warm|warmed|trembles?|trembled|answers?|answered|speaks?|spoke|shows?|showed|leads?|led|helps?|helped|opens?|opened|heals?|healed|rescues?|rescued|sings?|sang|whispers?|whispered|calls?|called|pulls?|pulled|floats?|floated|burns?|burned|pulses?|pulsed)\b/i;
+  const possessionLanguage = isDE
+    ? /\b(?:traegt|trägt|trug|haelt|hält|hielt|nimmt|nahm|steckt|steckte|legt|legte|band|bindet|griff|greift|beruehrt|berührt|beruehrte|berührte)\b/i
+    : /\b(?:wears?|wore|holds?|held|takes?|took|puts?|put|pockets?|pocketed|lays?|laid|ties?|tied|grabs?|grabbed|touches?|touched)\b/i;
+
+  for (const ch of draft.chapters) {
+    if (ch.chapter >= discoveryChapter) continue;
+    const sentences = splitSentences(ch.text);
+    for (const sentence of sentences) {
+      const lower = sentence.toLowerCase();
+      if (!needles.some(needle => lower.includes(needle))) continue;
+      if (ruleLanguage.test(sentence)) continue;
+      if (!activeLanguage.test(sentence) && !possessionLanguage.test(sentence)) continue;
+      issues.push({
+        gate: "ARTIFACT_CONTINUITY",
+        chapter: ch.chapter,
+        code: "ARTIFACT_PREMATURE_ACTIVE",
+        message: isDE
+          ? `Artefakt "${artifactName}" wirkt in Kapitel ${ch.chapter}, bevor es in Kapitel ${discoveryChapter} entdeckt wurde. Vor der Entdeckung darf es nur als Auftrag/Ziel genannt werden.`
+          : `Artifact "${artifactName}" acts in chapter ${ch.chapter} before discovery in chapter ${discoveryChapter}. Before discovery it may only be named as mission/goal.`,
+        severity,
+      });
+      break;
+    }
+  }
+
+  return issues;
+}
+
 // ─── Main Runner ────────────────────────────────────────────────────────────────
 // ─── Gate V7a: Child Mistake Arc ──────────────────────────────────────────────
 // Checks that Chapter 3 contains a genuine child mistake + body reaction
@@ -4284,6 +4333,7 @@ export function runQualityGates(input: {
     { name: "HUMOR_PRESENCE", fn: () => gateHumorPresence(draft, language, ageRange, humorLevel) },
     { name: "GIMMICK_LOOP", fn: () => gateGimmickLoopOveruse(draft, cast, language, ageRange) },
     { name: "ARTIFACT_MINI_ARC", fn: () => gateArtifactMiniArc(draft, cast, language, artifactArc) },
+    { name: "ARTIFACT_CONTINUITY", fn: () => gateArtifactPrematureActivation(draft, cast, language, artifactArc, ageRange) },
     // V7 Quality Gates — narrative structure
     { name: "CHILD_MISTAKE_ARC", fn: () => gateChildMistakeArc(draft, cast, language, ageRange) },
     { name: "CHAPTER_TRANSITION", fn: () => gateChapterTransitions(draft, language, ageRange) },
@@ -4699,6 +4749,23 @@ function countOccurrences(text: string, search: string): number {
     pos += search.length;
   }
   return count;
+}
+
+function buildArtifactMentionNeedles(artifactName: string): string[] {
+  const normalized = artifactName
+    .toLowerCase()
+    .replace(/[„“"']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const withoutArticle = normalized
+    .replace(/^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer)\s+/i, "")
+    .trim();
+  const compact = withoutArticle.replace(/[-_]/g, " ").replace(/\s+/g, " ").trim();
+  const words = compact.split(/\s+/).filter(word => word.length >= 4);
+  const candidates = [normalized, withoutArticle, compact, words[words.length - 1] || ""]
+    .map(value => value.trim())
+    .filter(value => value.length >= 3);
+  return Array.from(new Set(candidates));
 }
 
 function extractGoalKeywords(text: string, language: string): string[] {

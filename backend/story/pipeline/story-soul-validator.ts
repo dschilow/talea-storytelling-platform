@@ -264,9 +264,11 @@ async function scoreSoulWithRubric(args: {
   const explicitOverride = args.modelOverride && args.modelOverride.trim().length > 0
     ? args.modelOverride.trim()
     : "";
-  const model = isOpenRouterFamilyModel(selectedStoryModel)
-    ? (isOpenRouterFamilyModel(explicitOverride) ? explicitOverride : selectedStoryModel)
-    : explicitOverride || resolveRubricModel(supportModel);
+  const model = explicitOverride || (
+    isOpenRouterFamilyModel(selectedStoryModel)
+      ? supportModel
+      : resolveRubricModel(supportModel)
+  );
 
   const systemPrompt = buildRubricSystemPrompt(normalizedRequest.language);
   const userPrompt = buildRubricUserPrompt({ soul, normalizedRequest });

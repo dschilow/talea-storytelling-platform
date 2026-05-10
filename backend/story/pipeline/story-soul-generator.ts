@@ -720,11 +720,11 @@ function resolveSoulPrimaryModel(
   const normalizedSupport = String(supportModel || "").trim().toLowerCase();
 
   if (isOpenRouterFamilyModel(selected)) {
-    return selected;
+    return GEMINI_SUPPORT_MODEL;
   }
 
   if (isOpenRouterFamilyModel(supportModel)) {
-    return supportModel || selected;
+    return GEMINI_SUPPORT_MODEL;
   }
 
   // MiniMax ist kein guter Soul-Generator (zu schwach in struktur. JSON) → Support-Model nutzen

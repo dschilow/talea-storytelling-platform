@@ -429,7 +429,7 @@ export class StoryPipelineOrchestrator {
               soul: storySoul,
               normalizedRequest: normalized,
               cast: castSet,
-              modelOverride: isOpenRouterFamilyModel(selectedStoryModel) ? selectedStoryModel : pipelineConfig.soulGateModel,
+              modelOverride: pipelineConfig.soulGateModel,
             });
             tokenUsage = mergeTokenUsage(tokenUsage, soulGateResult.usage);
             if (soulGateResult.costEntries?.length) {
@@ -1196,12 +1196,11 @@ export class StoryPipelineOrchestrator {
           if (adaptiveSecondCandidate && candidateIdx === 0) {
             const candidateErrors = Number(candidateQuality?.errorCount ?? 0);
             // Sprint 2 (QW5): honest candidate-fallback. Root cause (logs 2026-04-23):
-            // previous gates of "goodEnough at 7.3" accepted mediocre first drafts and
-            // never spawned a second candidate, so Surgery had to carry all the load
-            // alone. Policy now: score < 7.5 ⇒ always try a second candidate, provided
-            // the first is in the rescueable band (≥ 6.0) — otherwise giving up is
-            // cheaper than burning a second run on a hopeless draft.
-            const HONEST_FALLBACK_FLOOR = 7.5;
+            // previous gates accepted mediocre first drafts and never spawned a
+            // second candidate, so Surgery had to carry all the load alone.
+            // Policy now: try one second candidate when the first is weak but
+            // rescueable. This buys quality only where the critic says it is needed.
+            const HONEST_FALLBACK_FLOOR = Math.min(8.2, Math.max(7.5, criticMinScore - 0.4));
             const firstCandidateStrong =
               candidateCritic.releaseReady &&
               candidateCritic.overallScore >= Math.max(HONEST_FALLBACK_FLOOR, criticMinScore) &&
@@ -1459,6 +1458,7 @@ export class StoryPipelineOrchestrator {
         "CH1_ARTIFACT_RULE_UNCLEAR",
         "MISSING_LOWPOINT",
         "LOWPOINT_TOO_SOFT",
+        "ARTIFACT_PREMATURE_ACTIVE",
         "ENDING_UNRESOLVED",
         "CLIFFHANGER_ENDING",
         "MISSING_INNER_CHILD_MOMENT",
@@ -2811,10 +2811,7 @@ function withPipelineStoryCostControls(
   const selectedStoryModel = resolveConfiguredStoryModel(raw);
   const openRouterSelected = isOpenRouterFamilyModel(selectedStoryModel);
   const providerAwareMaxExpandCalls = openRouterSelected
-    ? Math.max(
-        Number(pipelineConfig.maxExpandCalls || 0),
-        Math.min(5, Math.max(2, Number(normalized.chapterCount || 0))),
-      )
+    ? Math.max(1, Number(pipelineConfig.maxExpandCalls || 0))
     : pipelineConfig.maxExpandCalls;
   const providerAwareMaxStoryTokens = openRouterSelected
     ? Math.max(Number(pipelineConfig.maxStoryTokens || 0), 22000)

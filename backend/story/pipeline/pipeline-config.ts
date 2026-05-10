@@ -23,13 +23,13 @@ export interface PipelineConfig {
   soulAllowOnReject: boolean;
   /** Critic release threshold after an approved Soul. */
   soulAwareCriticMinScore: number;
-  /** Use a single candidate after approved Soul. Disabled for quality-first mode. */
+  /** Use one candidate after approved Soul; adaptive fallback can still buy a second weak-draft candidate. */
   soulApprovedSingleCandidate: boolean;
   /** Maximum output token budget for Soul generator JSON. */
   soulGeneratorMaxOutputTokens: number;
   /** Model for Soul gate. */
   soulGateModel: string;
-  /** Run the LLM Soul gate. Off in low-cost production because schema validation already runs. */
+  /** Run a cheap structured Soul gate before spending on full prose. */
   soulGateEnabled: boolean;
   /** Allow cross-provider Soul rescue after invalid JSON/schema. Off by default to avoid double Soul cost. */
   soulRescueEnabled: boolean;
@@ -43,7 +43,7 @@ export interface PipelineConfig {
   maxWarningPolishCalls: number;
   /** Story-writer token ceiling for the selected candidate path. */
   maxStoryTokens: number;
-  /** Spawn a second candidate only when explicitly enabled. */
+  /** Spawn one second candidate only when the first draft is weak but salvageable. */
   enableAdaptiveSecondCandidate: boolean;
   /** Cap the nano sentence-tightening pass by chapter count. */
   maxSentenceTighteningChapters: number;
@@ -81,32 +81,32 @@ const DEFAULT_CONFIG: PipelineConfig = {
   releaseCandidateCount: 1,
   criticModel: "gpt-5.4-nano",
   criticMinScore: 8.6,
-  maxSelectiveSurgeryEdits: 1,
+  maxSelectiveSurgeryEdits: 3,
   defaultPromptVersion: "v8",
   blueprintRetryMax: 0,
   pass3TargetScore: 8.6,
   pass3WarnFloor: 7.2,
   soulStageEnabled: true,
   soulRetryMax: 0,
-  soulAllowOnReject: true,
+  soulAllowOnReject: false,
   soulAwareCriticMinScore: 8.6,
   soulApprovedSingleCandidate: true,
   soulGeneratorMaxOutputTokens: 1600,
   soulGateModel: "gemini-3.1-flash-lite-preview",
-  soulGateEnabled: false,
+  soulGateEnabled: true,
   soulRescueEnabled: false,
   blueprintMode: "deterministic",
-  maxRewritePasses: 0,
+  maxRewritePasses: 1,
   maxExpandCalls: 1,
-  maxWarningPolishCalls: 0,
-  maxStoryTokens: 12000,
-  enableAdaptiveSecondCandidate: false,
+  maxWarningPolishCalls: 1,
+  maxStoryTokens: 14000,
+  enableAdaptiveSecondCandidate: true,
   maxSentenceTighteningChapters: 1,
-  enablePostSurgeryCritic: false,
-  enablePostLocalRepairCritic: false,
+  enablePostSurgeryCritic: true,
+  enablePostLocalRepairCritic: true,
   aiScenePromptEnabled: false,
-  strictReleaseGateMode: "warn",
-  wholeStoryEditMode: false,
+  strictReleaseGateMode: "block",
+  wholeStoryEditMode: true,
   soulStageDisabled: false,
 };
 

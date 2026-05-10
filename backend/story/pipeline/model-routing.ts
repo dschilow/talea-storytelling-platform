@@ -83,7 +83,10 @@ export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   const selected = String(selectedStoryModel || "").trim();
   const normalized = selected.toLowerCase();
   if (!normalized) return GEMINI_SUPPORT_MODEL;
-  if (isOpenRouterFamilyModel(selected)) return selected;
+  // Keep planning / critique / repair work on cheap, predictable support models.
+  // OpenRouter story models are often premium prose models; using them for every
+  // support task multiplies cost and has caused truncated JSON in production logs.
+  if (isOpenRouterFamilyModel(selected)) return GEMINI_SUPPORT_MODEL;
   if (isMiniMaxFamilyModel(normalized)) return GPT_54_MINI_MODEL;
   if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
   if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
@@ -99,7 +102,7 @@ export function resolveCriticModelForPipeline(input: {
   const explicit = String(input.explicitCriticModel || "").trim();
   const selected = String(input.selectedStoryModel || "").trim();
   if (isOpenRouterFamilyModel(selected)) {
-    return isOpenRouterFamilyModel(explicit) ? explicit : selected;
+    return explicit || GEMINI_SUPPORT_MODEL;
   }
   if (explicit) return explicit;
   if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
@@ -111,7 +114,7 @@ export function resolveCriticModelForPipeline(input: {
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
   const selected = String(selectedStoryModel || "").trim();
-  if (isOpenRouterFamilyModel(selected)) return selected;
+  if (isOpenRouterFamilyModel(selected)) return GEMINI_SUPPORT_MODEL;
   if (isMiniMaxFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
     return GEMINI_SUPPORT_MODEL;

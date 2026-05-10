@@ -1387,6 +1387,50 @@ function testStakesAndLowpointGate() {
   );
 }
 
+function testArtifactPrematureActivationGate() {
+  const cast = buildTestCast();
+  const draft = {
+    title: "Test",
+    description: "Test",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Alexander stand mit Adrian in der Kueche. Die Gluecksmuenze wurde in seiner Tasche warm, obwohl sie erst gesucht werden sollte.",
+      },
+      {
+        chapter: 2,
+        title: "",
+        text: "Unter der Bank fanden sie die Gluecksmuenze. Erst jetzt durfte sie zeigen, welcher Weg stimmte.",
+      },
+    ],
+  };
+
+  const report = runQualityGates({
+    draft,
+    directives: [],
+    cast,
+    language: "de",
+    ageRange: { min: 6, max: 8 },
+    artifactArc: {
+      artifactId: "art1",
+      artifactName: "Gluecksmuenze",
+      discoveryChapter: 2,
+      discoveryMethod: "wird gefunden",
+      failureChapter: 3,
+      failureReason: "zu frueh benutzt",
+      successChapter: 5,
+      successMethod: "zeigt nur die Wahrheit",
+      activeChapters: [2, 5],
+    },
+  });
+
+  assert.ok(
+    report.issues.some(issue => issue.code === "ARTIFACT_PREMATURE_ACTIVE"),
+    "Artifact gate should reject physical activation before discovery"
+  );
+}
+
 function testLowpointTooSoftGate() {
   const directives: SceneDirective[] = [
     {
@@ -2042,6 +2086,7 @@ async function run() {
   testCharacterFocusGate();
   testGlobalCharacterLoadGate();
   testStakesAndLowpointGate();
+  testArtifactPrematureActivationGate();
   testLowpointTooSoftGate();
   testChildEmotionArcSeverity();
   testImageryDensitySeverity();
