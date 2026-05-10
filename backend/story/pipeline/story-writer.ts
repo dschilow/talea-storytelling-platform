@@ -610,7 +610,13 @@ export class LlmStoryWriter implements StoryWriter {
     // Severely broken drafts (5+ errors) get 2 passes for all models.
     const defaultRewritePasses = 0;
     // Allow enough expand calls to cover all short chapters (5-chapter story may need 4+).
-    const defaultExpandCalls = isOpenRouterStoryModel
+    // 2026-05-10: Premium models (Claude Sonnet, OpenRouter, GPT-5/o4) routinely return
+    // structurally-sparse content on the first pass — see logs 2026-05-09 where native
+    // claude-sonnet-4-6 produced 5 placeholder chapters and only 1 could be expanded
+    // because maxExpandCalls was 1. Allow up to 5 expand calls for ALL premium models so
+    // each empty chapter can be recovered. Cheap models (Gemini Flash, GPT-mini-direct)
+    // still get 1 — they rarely return sparse content.
+    const defaultExpandCalls = (isOpenRouterStoryModel || isClaudeModel || isReasoningModel)
       ? Math.min(5, Math.max(2, directives.length))
       : 1;
     // Cost guard: Gemini Flash should avoid generic warning-polish by default.
@@ -642,15 +648,26 @@ export class LlmStoryWriter implements StoryWriter {
       : 0;
     // Budget: blueprint (~2.2k) + initial story (~5k) + expand ×4 (~5k) + optional rewrite (~5.5k) = ~17.7k.
     // Rewrite only triggers for ≥2 actionable errors (Flash), so most stories stay at ~12-14k.
+    // 2026-05-10: Native Claude Sonnet was capped at 12000 total story tokens, which
+    // covers the initial call but leaves nothing for the 4-5 expand calls a sparse
+    // initial response needs. Bumped to OpenRouter-tier 22000 so Claude can recover.
     const defaultStoryTokenBudget = isGeminiFlashModel
       ? (isSecondaryCandidate ? 9000 : 12000)
       : isMiniMaxStoryModel
         ? 14000
         : isOpenRouterStoryModel
           ? 22000
-          : (isReasoningModel ? 12000 : 9000);
+          : isClaudeModel
+            ? 22000
+            : (isReasoningModel ? 14000 : 9000);
     const configuredMaxStoryTokens = Number(rawConfig?.maxStoryTokens ?? defaultStoryTokenBudget);
-    const minStoryTokenBudget = isGeminiFlashModel ? 10000 : (isOpenRouterStoryModel ? 16000 : (isReasoningModel ? 10000 : 5000));
+    const minStoryTokenBudget = isGeminiFlashModel
+      ? 10000
+      : isOpenRouterStoryModel
+        ? 16000
+        : isClaudeModel
+          ? 16000
+          : (isReasoningModel ? 12000 : 5000);
     const maxStoryTokens = Number.isFinite(configuredMaxStoryTokens)
       ? Math.max(minStoryTokenBudget, configuredMaxStoryTokens)
       : defaultStoryTokenBudget;
@@ -1113,11 +1130,16 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
     // Cost/latency tuned per model family.
     // 2.4x multiplier accounts for German wordiness + JSON wrapper overhead (~20%).
     // Without it, 5-chapter stories consistently generate ~900 words instead of 1120+ minimum.
+    // 2026-05-10: Native Claude was getting baseOutputTokens=4620 (the floor) which
+    // is too small for 5 German chapters (~2200 words). Bump Claude to the same tier
+    // as OpenRouter so Sonnet has room to write proper prose, not placeholders.
     const baseOutputTokens = isGeminiFlashModel
       ? Math.max(3600, Math.round(totalWordMax * 2.4))
       : isMiniMaxStoryModel
         ? Math.max(4200, Math.round(totalWordMax * 2.15))
       : isOpenRouterStoryModel
+        ? Math.max(7200, Math.round(totalWordMax * 2.8))
+      : isClaudeModel
         ? Math.max(7200, Math.round(totalWordMax * 2.8))
       : isReasoningModel
         ? Math.max(4200, Math.round(totalWordMax * 2.1))
@@ -1131,14 +1153,16 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8200)
       : isOpenRouterStoryModel
         ? Math.min(Math.max(7200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
+      : isClaudeModel
+        ? Math.min(Math.max(7200, Math.round(baseOutputTokens * reasoningMultiplier)), 9000)
       : isReasoningModel
         ? Math.min(Math.max(4200, Math.round(baseOutputTokens * reasoningMultiplier)), 8000)
         : Math.min(Math.max(2200, Math.round(baseOutputTokens * reasoningMultiplier)), 6200);
 
     const initialCallMaxTokens = fitTokensToBudget(
       maxOutputTokens,
-      isGeminiFlashModel ? 2600 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel) ? 6000 : 1500),
-      isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel) ? 2000 : 550),
+      isGeminiFlashModel ? 2600 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel || isClaudeModel) ? 6000 : 1500),
+      isGeminiFlashModel ? 1200 : ((isReasoningModel || isMiniMaxStoryModel || isOpenRouterStoryModel || isClaudeModel) ? 2000 : 550),
     );
     console.log(
       `[story-writer] Token budget config: provider=${String(rawConfig?.aiProvider || "native")}, aiModel=${String(rawConfig?.aiModel || "")}, openRouterModel=${String(rawConfig?.openRouterModel || "")}, requestedModel=${requestedModel}, model=${model}, maxStoryTokens=${maxStoryTokens}, maxOutputTokens=${maxOutputTokens}, initialCallMaxTokens=${initialCallMaxTokens}, ` +
