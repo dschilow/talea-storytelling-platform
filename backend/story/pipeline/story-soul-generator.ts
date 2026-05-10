@@ -767,7 +767,7 @@ function resolveSoulRescueModel(
 
 function resolveSoulMaxTokens(model?: string, override?: number): number {
   if (Number.isFinite(override) && (override as number) > 600) {
-    return Math.min(2400, Math.round(override as number));
+    return Math.min(3200, Math.round(override as number));
   }
   const normalized = String(model || "").trim().toLowerCase();
   if (normalized.startsWith("gpt-5.4-mini")) return 1600;
