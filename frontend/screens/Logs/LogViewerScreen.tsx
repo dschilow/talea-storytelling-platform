@@ -163,6 +163,8 @@ const LogViewerScreen: React.FC = () => {
         return '2. Dramaturgie-Check';
       case 'story-draft':
         return '3. Story-Draft';
+      case 'story-polish':
+        return '3b. Story-Polish';
       case 'final-validation':
         return '4. Validierung';
       default:
@@ -175,6 +177,10 @@ const LogViewerScreen: React.FC = () => {
     if (role === 'support') return 'Support-Modell';
     return role || 'Modell';
   };
+
+  const isQualityScoreStage = (stage?: string) => (
+    stage === 'dramaturgy-check' || stage === 'final-validation'
+  );
 
   const formatTokens = (value?: number) => {
     const numeric = Number(value || 0);
@@ -235,6 +241,8 @@ const LogViewerScreen: React.FC = () => {
         {stages.map((stage, index) => {
           const isStoryModel = stage.modelRole === 'selected-story';
           const hasIssue = Boolean(stage.error || stage.parseError);
+          const numericScore = Number(stage.score);
+          const showScore = isQualityScoreStage(stage.stage) && stage.score != null && Number.isFinite(numericScore);
           return (
             <div
               key={`${stage.stage || 'stage'}-${index}`}
@@ -259,9 +267,9 @@ const LogViewerScreen: React.FC = () => {
                 marginBottom: `${spacing.xs}px`,
               }}>
                 <span>{getStageLabel(stage.stage)}</span>
-                {stage.score != null && (
-                  <span style={{ color: Number(stage.score) >= 9.5 ? colors.semantic.success : colors.semantic.warning }}>
-                    {Number(stage.score).toFixed(1)}
+                {showScore && (
+                  <span style={{ color: numericScore >= 9.5 ? colors.semantic.success : colors.semantic.warning }}>
+                    Score {numericScore.toFixed(1)}
                   </span>
                 )}
               </div>

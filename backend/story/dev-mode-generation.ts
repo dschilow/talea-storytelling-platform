@@ -19,6 +19,7 @@
  *   1. support model: emotional engine + story blueprint
  *   2. support model: dramaturgy / quality check
  *   3. selected wizard model: final story draft
+ *   3b. selected wizard model: targeted story polish when local gates fail
  *   4. support model: hard market-quality validation (no prose rewrite)
  *
  * No images are generated in this mode (chapters render text-only in the reader).
@@ -39,7 +40,9 @@ import { storyDB } from "./db";
 const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
-const DEV_MODE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
+const DEV_MODE_NATIVE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
+const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
+const DEV_MODE_PIPELINE_ID = "adaptive-polish-cost-optimized";
 
 interface DevModeChapter {
   title: string;
@@ -57,6 +60,7 @@ type DevModePipelineStage =
   | "blueprint"
   | "dramaturgy-check"
   | "story-draft"
+  | "story-polish"
   | "final-validation";
 
 interface DevModeStageLog {
@@ -102,7 +106,7 @@ export interface DevModeGeneratedStory {
     storyModel?: string;
     imagesGenerated: number;
     developerMode: true;
-    devModePipeline?: "four-stage-cost-optimized";
+    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
       usage?: { prompt: number; completion: number; total: number };
@@ -111,6 +115,8 @@ export interface DevModeGeneratedStory {
       durationMs?: number;
       score?: number;
     }>;
+    localQualityDiagnostics?: DevModeStoryDiagnostics;
+    storyPolishApplied?: boolean;
     qualityScore?: number;
   };
 }
@@ -541,6 +547,9 @@ function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapte
     "QUALITAETSZIEL:",
     "- Nicht nur ein Abenteuer loesen, sondern ein kindlich wiedererkennbares Gefuehl verwandeln.",
     "- Die Geschichte soll nach dem Lesen als Ort, Figur und Schlussbild im Kopf bleiben.",
+    "- Die Geschichte braucht Lesesog: Kinder sollen wissen wollen, was hinter der naechsten Ecke, im naechsten Kapitel oder beim naechsten Vorlesen passiert.",
+    "- Baue Wiedererkennung ein: ein kurzer Refrain, ein komischer Spruch, eine wiederkehrende Geste oder ein sichtbares Ding, das jedes Mal neue Bedeutung bekommt.",
+    "- Jedes Kapitel endet nach einem Turn, nicht nach einer Erklaerung. Der letzte Absatz muss Vorfreude, Sorge, Staunen oder ein leises Kichern ausloesen.",
     "- Jeder Hauptfigur muss ein kleiner Fehler passieren, der aus ihrem Charakter kommt und spaeter zu einer besseren Handlung fuehrt.",
     "- Der Gegenspieler darf nicht nur Mechanik sein. Er braucht Wunde, falschen Glaubenssatz, komisch-unheimliches Verhalten und einen neuen Platz am Ende.",
   ].join("\n");
@@ -615,6 +624,13 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
     "- Dialog muss mehrfach arbeiten: Handlung vorantreiben, Beziehung zeigen, Stimme unterscheiden und Subtext tragen.",
     "- Der Schluss muss ein Bild hinterlassen, nicht nur ein Problem beenden.",
     "",
+    "LESESOG:",
+    "- Schreibe so, dass Kinder nach jedem Kapitel noch eine konkrete Frage im Kopf haben.",
+    "- Nutze eine wiedererkennbare Mini-Geste, ein Requisit, einen Spruch oder ein Klang-/Bildmotiv, das wiederkehrt und sich veraendert.",
+    "- Kapitelenden sollen eine kleine Tuer aufmachen: neue Gefahr, neue Frage, neue Entscheidung oder komischer Nachhall.",
+    "- Die Hauptspannung muss geloest werden, aber am Ende darf ein winziger, freundlicher Weiterlese-Funken bleiben.",
+    "- Kein kuenstlicher Cliffhanger, keine Werbung fuer eine Fortsetzung, kein abgebrochener Hauptkonflikt.",
+    "",
     "VERBOTENE MUSTER:",
     "- Sie lernten, dass ...",
     "- Das groesste Geschenk war Freundschaft.",
@@ -651,12 +667,19 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       '    "antagonistHumanity": string,',
       '    "endingImage": string',
       "  },",
+      '  "readerMagnet": {',
+      '    "refrainLine": string,',
+      '    "iconicMotif": string,',
+      '    "callbackLadder": string[],',
+      '    "rereadRewards": string[],',
+      '    "nextStorySpark": string',
+      "  },",
       '  "coreMagicRule": string,',
       '  "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
       '  "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
       '  "plantsAndPayoffs": [ { "plant": string, "payoff": string } ],',
       '  "sceneOwnership": [ { "order": number, "driver": string, "changedState": string } ],',
-      '  "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string } ],',
+      '  "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string, "chapterEndHook": string, "kidQuestion": string, "callbackToUse": string } ],',
       '  "forbiddenShortcuts": string[]',
       "}",
     ].join("\n")
@@ -669,6 +692,9 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     "",
     `Plane genau ${chapterCount} Kapitel.`,
     "Jedes Kapitel braucht Ownership: Eine konkrete Figur treibt es aktiv, und am Ende hat sich etwas irreversibel veraendert.",
+    "Plane explizit den Weiterlese-Sog: Refrain/Leitmotiv, Kapitel-Endhaken, Callback-Leiter und kleine Wiederlese-Details.",
+    "Der Lesesog soll aus echter Neugier kommen: Kinder wollen wissen, was das Ding bedeutet, warum die Figur so reagiert oder welche Regel als Naechstes sichtbar wird.",
+    "Der letzte Satz der ganzen Geschichte soll geschlossen UND neugierig machen: Hauptproblem geloest, aber die Welt fuehlt sich groesser an.",
     "Achte besonders darauf, dass Antagonisten-Hinweise nicht als Spoiler-Loesung uebernommen werden.",
     "Die Emotional Engine muss so konkret sein, dass der finale Story-Writer sie direkt in Szene, Dialog und Schlussbild uebersetzen kann.",
   ].join("\n");
@@ -692,6 +718,8 @@ function buildCritiquePrompts(
       '  "mustFix": string[],',
       '  "missingEmotionalPayoff": string[],',
       '  "voiceRisks": string[],',
+      '  "readOnRisks": string[],',
+      '  "addictiveReadingFixes": string[],',
       '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
       '  "revisedBlueprint": object',
       "}",
@@ -700,6 +728,8 @@ function buildCritiquePrompts(
   const userPrompt = [
     "CALL 2: Pruefe den Blueprint wie ein strenger Kinderbuch-Dramaturg und Lektor.",
     "Finde alles, was die Geschichte unter 9.5/10 gegen echte Kinderbuecher druecken wuerde: schwache Spannung, fehlender emotionaler Kern, Figuren ohne aktive Rolle, gleiche Stimmen, Telling, generische Motive, fehlende Sinnlichkeit, unverdiente Wendung.",
+    "Pruefe besonders den Lesesog: Gibt es ein wiedererkennbares Motiv? Endet jedes Kapitel mit einer echten Frage/Entscheidung? Gibt es genuegend komische oder raetselhafte Details, die Kinder wiederhoeren wollen?",
+    "Eine Story ohne klaren Kapitel-Endhaken, Refrain/Callback oder kindliche Neugier-Maschine darf im Blueprint maximal 8.4 bekommen.",
     "Gib danach einen verbesserten revisedBlueprint zurueck. Der revisedBlueprint darf die Struktur schaerfen, aber keine neue unpassende Pipeline-Komplexitaet einfuehren.",
     "Bewerte hart. Ein technisch sauberer Blueprint ist nicht automatisch Marktqualitaet.",
     "",
@@ -751,6 +781,14 @@ function buildStoryDraftPrompts(
     "- Jede Hauptfigur muss mindestens eine eigene Mini-Entscheidung treffen, die ohne sie nicht passieren koennte.",
     "- Der Antagonist muss in mindestens drei Kapiteln ein wiedererkennbares Verhalten zeigen und am Ende einen neuen Platz bekommen.",
     "",
+    "LESESOG-/WEITERLESEREGELN:",
+    "- Kapitel 1 muss in den ersten 2 Saetzen ein konkretes, merkbares Problem zeigen.",
+    "- Jedes Kapitel endet mit einem Pull: offene Frage, drohende Folge, neue Regel, unerwartete Geste oder ein komischer Moment, der nachhallt.",
+    "- Nutze den readerMagnet aus dem Blueprint sichtbar: Refrain/Leitmotiv/Callback darf nicht nur geplant sein, sondern muss auf der Seite passieren.",
+    "- Baue mindestens 3 kleine Setups ein, die spaeter payoff bekommen. Kinder sollen rueckblickend sagen koennen: Ah, deshalb war das wichtig.",
+    "- Das Finale muss geschlossen sein, aber ein freundlicher letzter Funken darf zeigen, dass diese Welt noch mehr Geschichten haette.",
+    "- Keine billigen Cliffhanger und kein 'Fortsetzung folgt'.",
+    "",
     "VOICE-/READ-ALOUD-REGELN:",
     "- Stimmen unterscheidbar machen: Alexander knapper/beobachtender; Adrian beweglicher/neugieriger; Nebenfiguren mit eigenem Rhythmus.",
     "- Dialoge sollen mindestens zwei Dinge gleichzeitig tun: Handlung, Beziehung, Subtext oder Humor.",
@@ -768,6 +806,8 @@ function buildStoryDraftPrompts(
       {
         score: critique?.score,
         mustFix: critique?.mustFix || [],
+        readOnRisks: critique?.readOnRisks || [],
+        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
         chapterRisks: critique?.chapterRisks || [],
       },
       null,
@@ -777,10 +817,75 @@ function buildStoryDraftPrompts(
   return { systemPrompt, userPrompt };
 }
 
+function buildStoryPolishPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  story: DevModeRawStory,
+  diagnostics: DevModeStoryDiagnostics,
+  blueprint: any,
+  critique: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Finales Story-Schema:",
+      "{",
+      '  "title": string,',
+      '  "description": string,',
+      '  "chapters": [',
+      '    { "order": number, "title": string, "content": string }',
+      "  ]",
+      "}",
+    ].join("\n")
+  );
+
+  const userPrompt = [
+    "CALL 3B: Fuehre einen gezielten Kinderbuch-Polish der vorhandenen Geschichte aus.",
+    "Dieser Call laeuft nur, wenn lokale Qualitaets-Gates Probleme gefunden haben. Schreibe die Story nicht neu als andere Handlung, sondern repariere und verdichte sie.",
+    "Die finale Prosa muss weiterhin vom ausgewaehlten Wizard-Modell stammen. Erhalte deshalb Ton, Figuren, Plot, Titelidee und Schlussbild, aber behebe die gelisteten Maengel konsequent.",
+    "",
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "POLISH-ZIELE:",
+    "- Kinder sollen nach jedem Kapitel weiterhoeren oder weiterlesen wollen.",
+    "- Verdichte statt aufblasen: streiche erklaerende Saetze, ersetze sie durch Handlung, Dialog, Geste oder konkretes Detail.",
+    "- Baue mehr Dialog ein, aber jeder Dialog muss Handlung, Beziehung, Figur oder Humor leisten.",
+    "- Kapitelenden brauchen Sog. Kein Kapitel darf wie eine abgeschlossene Inhaltsangabe enden.",
+    "- Wiederkehrende Motive, Refrains oder kleine Dinge muessen sichtbar wiederkommen und sich im Finale auszahlen.",
+    "- Fixe alle Tipp-, Namens- und Grammatikfehler. Namen muessen exakt stimmen.",
+    "- Behalte genau die Kapitelanzahl und JSON-Struktur.",
+    "",
+    "HARTE LOKALE DIAGNOSE:",
+    JSON.stringify(diagnostics, null, 2),
+    "",
+    "BLUEPRINT / READER MAGNET:",
+    JSON.stringify(critique?.revisedBlueprint || blueprint, null, 2),
+    "",
+    "KRITIK AUS DEM DRAMATURGIE-CHECK:",
+    JSON.stringify(
+      {
+        score: critique?.score,
+        mustFix: critique?.mustFix || [],
+        readOnRisks: critique?.readOnRisks || [],
+        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
+        chapterRisks: critique?.chapterRisks || [],
+      },
+      null,
+      2
+    ),
+    "",
+    "AKTUELLE STORY, DIE DU POLISHEN MUSST:",
+    JSON.stringify(story, null, 2),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
 function buildValidationPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
-  story: DevModeRawStory
+  story: DevModeRawStory,
+  diagnostics?: DevModeStoryDiagnostics
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
@@ -799,6 +904,9 @@ function buildValidationPrompts(
       '    "originality": number,',
       '    "ageFit": number,',
       '    "endingPayoff": number,',
+      '    "pageTurnDrive": number,',
+      '    "rereadValue": number,',
+      '    "chapterEndPull": number,',
       '    "jsonValidity": number',
       '  },',
       '  "errors": string[],',
@@ -811,12 +919,16 @@ function buildValidationPrompts(
   const userPrompt = [
     "CALL 4: Validiere JSON, Stil, Marktqualitaet und Logik der finalen Geschichte.",
     "WICHTIG: Schreibe die Story nicht um und gib keine Story-Kopie zurueck. Dieser Support-Call bewertet nur. Die finale Prosa muss vom ausgewaehlten Wizard-Modell stammen.",
-    "Bewerte hart gegen echte Kinderbuecher, nicht gegen typische KI-Ausgaben. 9.5 darf nur vergeben werden, wenn emotionaler Kern, Figurenstimmen, Spannung, Humor, Originalitaet und Schlussbild stark sind.",
-    "Eine reine Checklisten-Erfuellung darf maximal 8.5 sein. Wenn der Antagonist nur Mechanik ist, maximal 8.4. Wenn die Hauptfiguren nicht ikonisch unterscheidbar sind, maximal 8.7. Wenn der Schluss keinen emotionalen neuen Zustand zeigt, maximal 8.8.",
+    "Bewerte hart gegen echte Kinderbuecher, nicht gegen typische KI-Ausgaben. 9.5 darf nur vergeben werden, wenn emotionaler Kern, Figurenstimmen, Spannung, Humor, Originalitaet, Schlussbild UND Lesesog stark sind.",
+    "Eine reine Checklisten-Erfuellung darf maximal 8.5 sein. Wenn der Antagonist nur Mechanik ist, maximal 8.4. Wenn die Hauptfiguren nicht ikonisch unterscheidbar sind, maximal 8.7. Wenn der Schluss keinen emotionalen neuen Zustand zeigt, maximal 8.8. Wenn Kapitelenden keinen Weiterlese-Sog haben, maximal 8.6. Wenn Dialogquote/Form-Gates laut lokaler Diagnose verfehlt sind, maximal 8.7.",
     "Pruefe: genau richtige Kapitelanzahl, gueltiges JSON, keine [object Object], klare Figurenrollen, keine erklaerte Moral, vorbereitete Loesung, keine gespoilerte/billige Antagonisten-Niederlage, altersgerechte Sprache, Dialog mit typografischen Anfuehrungszeichen.",
+    "Pruefe zusaetzlich: Wuerde ein Kind das naechste Kapitel hoeren wollen? Gibt es ein wiederkehrendes Motiv? Gibt es Rueckbezug/Payoff? Gibt es Wiederlese-Belohnungen und Figuren, die man wiedersehen moechte?",
     "",
     "KONTEXT:",
     buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "LOKALE DIAGNOSE DER FINALEN STORY:",
+    JSON.stringify(diagnostics || null, null, 2),
     "",
     "STORY:",
     JSON.stringify(story, null, 2),
@@ -1114,6 +1226,200 @@ function parseAndValidate(content: string, chapterCount: number): DevModeRawStor
   return { title, description, chapters };
 }
 
+interface DevModeChapterDiagnostic {
+  order: number;
+  title: string;
+  chars: number;
+  paragraphs: number;
+  dialogPct: number;
+  issues: string[];
+}
+
+interface DevModeStoryDiagnostics {
+  needsPolish: boolean;
+  hardIssueCount: number;
+  softIssueCount: number;
+  totalChars: number;
+  dialogPct: number;
+  chapterDiagnostics: DevModeChapterDiagnostic[];
+  hardIssues: string[];
+  softIssues: string[];
+  polishInstructions: string[];
+}
+
+function getChapterLengthBounds(config: StoryConfig): { min: number; max: number } {
+  if (config.length === "short") return { min: 1200, max: 1800 };
+  if (config.length === "long") return { min: 2000, max: 2700 };
+  return { min: 1800, max: 2400 };
+}
+
+function countDialogChars(text: string): number {
+  return Array.from(text.matchAll(/„[^“]+“/g)).reduce((sum, match) => sum + match[0].length, 0);
+}
+
+function countParagraphs(text: string): number {
+  return text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).length;
+}
+
+function hasForwardPull(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (/[?!…]$/.test(trimmed)) return true;
+  return /\b(plötzlich|doch|aber|hinter|unter|wartete|hörte|klang|leuchtete|bewegte|flüsterte|flusterte|morgen|nächste|naechste|noch|geheim|warum|wer|was)\b/i.test(trimmed);
+}
+
+function buildNameVariants(name: string): string[] {
+  const clean = name.trim();
+  if (clean.length < 5) return [];
+  const variants = new Set<string>();
+  for (let i = 0; i < clean.length; i += 1) {
+    const variant = clean.slice(0, i) + clean.slice(i + 1);
+    if (variant.length >= 4) variants.add(variant);
+  }
+  return [...variants];
+}
+
+function analyzeDevModeStoryQuality(
+  story: DevModeRawStory,
+  input: DevModeGenerationInput,
+  chapterCount: number
+): DevModeStoryDiagnostics {
+  const hardIssues: string[] = [];
+  const softIssues: string[] = [];
+  const polishInstructions: string[] = [];
+  const bounds = getChapterLengthBounds(input.config);
+  const chapterDiagnostics: DevModeChapterDiagnostic[] = [];
+  const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
+  const totalChars = story.chapters.reduce((sum, chapter) => sum + chapter.content.length, 0);
+  const dialogPct = totalChars > 0 ? Math.round((countDialogChars(allContent) / totalChars) * 1000) / 10 : 0;
+
+  if (story.chapters.length !== chapterCount) {
+    hardIssues.push(`Erwartet ${chapterCount} Kapitel, erhalten ${story.chapters.length}.`);
+  }
+
+  if (/\[object Object\]/i.test(allContent)) {
+    hardIssues.push("Kaputte Platzhalter gefunden: [object Object].");
+  }
+
+  if (/"[^"]+"/.test(allContent)) {
+    hardIssues.push("ASCII-Anfuehrungszeichen in Storytext gefunden; Dialog muss typografische Zeichen nutzen.");
+  }
+
+  if (/\b(Fortsetzung folgt|to be continued)\b/i.test(allContent)) {
+    hardIssues.push("Unzulaessiger Fortsetzungs-Hinweis gefunden; Schluss muss geschlossen wirken.");
+  }
+
+  const bannedPatterns = [
+    /Sie lernten, dass/i,
+    /Das groesste Geschenk war/i,
+    /Das größte Geschenk war/i,
+    /Mit Mut und Zusammenhalt/i,
+    /wahre Magie liegt im Herzen/i,
+    /alles nur ein Traum/i,
+  ];
+  for (const pattern of bannedPatterns) {
+    if (pattern.test(allContent)) {
+      hardIssues.push(`Verbotenes KI-/Moral-Muster gefunden: ${pattern.source}.`);
+    }
+  }
+
+  const avatarNames = (input.avatars || []).map((avatar) => avatar.name).filter((name): name is string => Boolean(name));
+  for (const name of avatarNames) {
+    for (const variant of buildNameVariants(name)) {
+      const regex = new RegExp(`\\b${variant}s?\\b`, "g");
+      const hits = Array.from(allContent.matchAll(regex)).map((hit) => hit[0]);
+      if (hits.length > 0 && variant !== name) {
+        hardIssues.push(`Moeglicher Namensfehler bei "${name}": ${[...new Set(hits)].slice(0, 4).join(", ")}.`);
+        break;
+      }
+    }
+  }
+
+  if (dialogPct < 26) {
+    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Ziel sind mindestens 30%.`);
+  } else if (dialogPct < 30) {
+    softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Zielwert 30%.`);
+  }
+
+  story.chapters.forEach((chapter, index) => {
+    const issues: string[] = [];
+    const chars = chapter.content.length;
+    const paragraphs = countParagraphs(chapter.content);
+    const chapterDialogPct = chars > 0 ? Math.round((countDialogChars(chapter.content) / chars) * 1000) / 10 : 0;
+    const chapterPrefix = `Kapitel ${chapter.order || index + 1}`;
+
+    if (chars < bounds.min * 0.8) {
+      issues.push(`zu kurz (${chars} Zeichen)`);
+      hardIssues.push(`${chapterPrefix} ist deutlich zu kurz (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+    } else if (chars > bounds.max * 1.25) {
+      issues.push(`deutlich zu lang (${chars} Zeichen)`);
+      hardIssues.push(`${chapterPrefix} ist deutlich zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+    } else if (chars < bounds.min || chars > bounds.max * 1.1) {
+      issues.push(`ausserhalb Ziel-Laenge (${chars} Zeichen)`);
+      softIssues.push(`${chapterPrefix} liegt ausserhalb der idealen Laenge (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+    }
+
+    if (paragraphs < 6) {
+      issues.push(`zu wenige Absaetze (${paragraphs})`);
+      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel 6-12).`);
+    } else if (paragraphs > 16) {
+      issues.push(`zu viele Absaetze (${paragraphs})`);
+      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel 6-12).`);
+    } else if (paragraphs > 12) {
+      issues.push(`etwas viele Absaetze (${paragraphs})`);
+      softIssues.push(`${chapterPrefix} hat mehr als 12 Absaetze (${paragraphs}).`);
+    }
+
+    const lastParagraph = chapter.content.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).slice(-1)[0] || "";
+    if (index < story.chapters.length - 1 && !hasForwardPull(lastParagraph)) {
+      issues.push("Kapitelende hat wenig Weiterlese-Sog");
+      softIssues.push(`${chapterPrefix} endet ohne klaren Pull zur naechsten Szene.`);
+    }
+
+    if (chapterDialogPct < 18) {
+      issues.push(`wenig Dialog (${chapterDialogPct}%)`);
+      softIssues.push(`${chapterPrefix} hat wenig Dialog (${chapterDialogPct}%).`);
+    }
+
+    chapterDiagnostics.push({
+      order: chapter.order || index + 1,
+      title: chapter.title,
+      chars,
+      paragraphs,
+      dialogPct: chapterDialogPct,
+      issues,
+    });
+  });
+
+  if (hardIssues.some((issue) => /Dialoganteil|ASCII|Namensfehler|\[object Object\]|deutlich zu lang|zu wenige Absaetze|zu viele Absaetze/i.test(issue))) {
+    polishInstructions.push("Behebe alle harten Form- und Oberflaechenfehler vollstaendig.");
+  }
+  if (dialogPct < 30) {
+    polishInstructions.push("Erhoehe den Dialoganteil auf mindestens 30%, indem Erklaerungen in charakterstarke Dialoge mit Handlung/Subtext umgebaut werden. Nicht durch Fuellsaetze aufblaehen.");
+  }
+  if (hardIssues.concat(softIssues).some((issue) => /Laenge|lang|kurz|Absaetze/i.test(issue))) {
+    polishInstructions.push(`Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und 6-12 Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
+  }
+  if (softIssues.some((issue) => /Pull|Weiterlese/i.test(issue))) {
+    polishInstructions.push("Schaerfe jedes Nicht-Final-Kapitelende: letzter Absatz mit Frage, Gefahr, Entscheidung, komischem Nachhall oder neuem konkretem Detail.");
+  }
+  polishInstructions.push("Staerke Lesesog und Wiedererkennung: ein Leitmotiv/Refrain/Objekt soll in mehreren Kapiteln wiederkommen und im Finale emotional oder plotrelevant auszahlen.");
+  polishInstructions.push("Fixe Namens-, Tipp- und Grammatikfehler. Keine neuen Figuren, keine neue Nebenhandlung, keine Meta-Erklaerung.");
+
+  const needsPolish = hardIssues.length > 0 || softIssues.length >= 3;
+  return {
+    needsPolish,
+    hardIssueCount: hardIssues.length,
+    softIssueCount: softIssues.length,
+    totalChars,
+    dialogPct,
+    chapterDiagnostics,
+    hardIssues,
+    softIssues,
+    polishInstructions: [...new Set(polishInstructions)],
+  };
+}
+
 function parseStageObject(content: string): { parsed?: any; parseError?: string } {
   try {
     return { parsed: tryParseJson(content) };
@@ -1142,6 +1448,7 @@ function extractQualityScore(parsed: any): number | null {
     parsed?.score ??
     parsed?.qualityScore ??
     null;
+  if (raw == null || raw === "") return null;
   const score = Number(raw);
   if (!Number.isFinite(score)) return null;
   if (score > 10 && score <= 100) return score / 10;
@@ -1163,6 +1470,26 @@ interface ProviderCallOptions {
   providerOverride?: AIProvider;
   openRouterModelOverride?: string;
   modelRole?: "support" | "selected-story";
+}
+
+function resolveDevModeSupportProvider(config: StoryConfig): AIProvider {
+  return config.aiProvider === "openrouter" ? "openrouter" : "native";
+}
+
+function resolveDevModeSupportModel(config: StoryConfig): string {
+  return resolveDevModeSupportProvider(config) === "openrouter"
+    ? DEV_MODE_OPENROUTER_SUPPORT_MODEL
+    : DEV_MODE_NATIVE_SUPPORT_MODEL;
+}
+
+function buildDevModeSupportCallOptions(config: StoryConfig): Pick<ProviderCallOptions, "modelOverride" | "providerOverride" | "openRouterModelOverride"> {
+  const supportProvider = resolveDevModeSupportProvider(config);
+  const supportModel = resolveDevModeSupportModel(config);
+  return {
+    modelOverride: supportModel,
+    providerOverride: supportProvider,
+    openRouterModelOverride: supportProvider === "openrouter" ? supportModel : undefined,
+  };
 }
 
 async function callProvider(
@@ -1338,6 +1665,9 @@ export async function generateStoryDevMode(
   const stageLogs: DevModeStageLog[] = [];
   const providerResults: ProviderResult[] = [];
   const startedAt = Date.now();
+  const supportProvider = resolveDevModeSupportProvider(input.config);
+  const supportModel = resolveDevModeSupportModel(input.config);
+  const supportCallOptions = buildDevModeSupportCallOptions(input.config);
 
   const runStage = async (
     stage: DevModePipelineStage,
@@ -1359,11 +1689,12 @@ export async function generateStoryDevMode(
         timestamp: new Date(),
         request: {
           mode: "developer",
-          pipeline: "four-stage-cost-optimized",
+          pipeline: DEV_MODE_PIPELINE_ID,
           stage,
           modelRole: options.modelRole,
           requestedModel: options.modelOverride || input.config.aiModel,
-          supportModel: DEV_MODE_SUPPORT_MODEL,
+          supportModel,
+          supportProvider,
           aiProvider: options.providerOverride || input.config.aiProvider,
           openRouterModel: options.openRouterModelOverride || input.config.openRouterModel,
           systemPrompt: prompts.systemPrompt,
@@ -1384,7 +1715,7 @@ export async function generateStoryDevMode(
         },
         metadata: {
           devMode: true,
-          pipeline: "four-stage-cost-optimized",
+          pipeline: DEV_MODE_PIPELINE_ID,
           stage,
           modelRole: options.modelRole,
           individualStage: true,
@@ -1423,7 +1754,7 @@ export async function generateStoryDevMode(
     }
   };
 
-  console.log("[dev-mode-generation] Dev mode four-stage cost-optimized quality pipeline", {
+  console.log("[dev-mode-generation] Dev mode adaptive polish cost-optimized quality pipeline", {
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
@@ -1434,12 +1765,15 @@ export async function generateStoryDevMode(
     poolCharacterNames: poolNames,
     aiModel: input.config.aiModel,
     aiProvider: input.config.aiProvider,
-    supportModel: DEV_MODE_SUPPORT_MODEL,
+    supportProvider,
+    supportModel,
   });
 
   let finalParsed: DevModeRawStory | null = null;
   let finalModelUsed: string = input.config.aiModel || DEFAULT_GEMINI_MODEL;
   let finalQualityScore: number | undefined;
+  let finalDiagnostics: DevModeStoryDiagnostics | undefined;
+  let polishApplied = false;
 
   try {
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
@@ -1447,8 +1781,7 @@ export async function generateStoryDevMode(
       maxTokens: 9500,
       temperature: 0.45,
       timeoutMs: 120_000,
-      modelOverride: DEV_MODE_SUPPORT_MODEL,
-      providerOverride: "native",
+      ...supportCallOptions,
       modelRole: "support",
     });
     const blueprint = blueprintStage.parsed || {
@@ -1461,8 +1794,7 @@ export async function generateStoryDevMode(
       maxTokens: 7500,
       temperature: 0.35,
       timeoutMs: 120_000,
-      modelOverride: DEV_MODE_SUPPORT_MODEL,
-      providerOverride: "native",
+      ...supportCallOptions,
       modelRole: "support",
     });
     const critique = critiqueStage.parsed || {
@@ -1479,14 +1811,33 @@ export async function generateStoryDevMode(
     });
     finalParsed = parseAndValidate(storyStage.provider.content, chapterCount);
     finalModelUsed = storyStage.provider.modelUsed;
+    finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
-    const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed);
+    if (finalDiagnostics.needsPolish) {
+      polishApplied = true;
+      console.log("[dev-mode-generation] Local quality gates triggered story polish", {
+        hardIssueCount: finalDiagnostics.hardIssueCount,
+        softIssueCount: finalDiagnostics.softIssueCount,
+        dialogPct: finalDiagnostics.dialogPct,
+      });
+      const polishPrompts = buildStoryPolishPrompts(input, chapterCount, finalParsed, finalDiagnostics, blueprint, critique);
+      const polishStage = await runStage("story-polish", polishPrompts, {
+        maxTokens: input.config.length === "long" ? 32000 : 22000,
+        temperature: 0.62,
+        timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
+        modelRole: "selected-story",
+      });
+      finalParsed = parseAndValidate(polishStage.provider.content, chapterCount);
+      finalModelUsed = polishStage.provider.modelUsed;
+      finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+    }
+
+    const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
     const validationStage = await runStage("final-validation", validationPrompts, {
       maxTokens: 6500,
       temperature: 0.15,
       timeoutMs: 120_000,
-      modelOverride: DEV_MODE_SUPPORT_MODEL,
-      providerOverride: "native",
+      ...supportCallOptions,
       modelRole: "support",
     });
     finalQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
@@ -1496,10 +1847,11 @@ export async function generateStoryDevMode(
       timestamp: new Date(),
       request: {
         mode: "developer",
-        pipeline: "four-stage-cost-optimized",
+        pipeline: DEV_MODE_PIPELINE_ID,
         provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
         model: input.config.aiModel,
-        supportModel: DEV_MODE_SUPPORT_MODEL,
+        supportProvider,
+        supportModel,
         openRouterModel: input.config.openRouterModel,
         wizardConfig: {
           chapterCount,
@@ -1520,7 +1872,7 @@ export async function generateStoryDevMode(
         stages: stageLogs,
         durationMs: Date.now() - startedAt,
       },
-      metadata: { devMode: true, pipeline: "four-stage-cost-optimized", stage: "failed", failed: true },
+      metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "failed", failed: true },
     }).catch((logErr) => {
       console.warn("[dev-mode-generation] Failed to publish failure log:", logErr);
     });
@@ -1529,7 +1881,7 @@ export async function generateStoryDevMode(
 
   const parsed = finalParsed;
   if (!parsed) {
-    throw new Error("Developer-mode four-stage cost-optimized pipeline did not produce a story.");
+    throw new Error("Developer-mode adaptive polish cost-optimized pipeline did not produce a story.");
   }
 
   const totalUsage = usageSum(providerResults);
@@ -1539,10 +1891,11 @@ export async function generateStoryDevMode(
     timestamp: new Date(),
     request: {
       mode: "developer",
-      pipeline: "four-stage-cost-optimized",
+      pipeline: DEV_MODE_PIPELINE_ID,
       provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
       model: finalModelUsed,
-      supportModel: DEV_MODE_SUPPORT_MODEL,
+      supportProvider,
+      supportModel,
       openRouterModel: input.config.openRouterModel,
       wizardConfig: {
         chapterCount,
@@ -1586,10 +1939,12 @@ export async function generateStoryDevMode(
           contentChars: c.content.length,
         })),
       },
+      localQualityDiagnostics: finalDiagnostics,
+      storyPolishApplied: polishApplied,
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },
-    metadata: { devMode: true, pipeline: "four-stage-cost-optimized", stage: "complete" },
+    metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "complete" },
   }).catch((logErr) => {
     console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
   });
@@ -1621,11 +1976,13 @@ export async function generateStoryDevMode(
         modelUsed: finalModelUsed,
       },
       model: finalModelUsed,
-      supportModel: DEV_MODE_SUPPORT_MODEL,
+      supportModel,
       storyModel: finalModelUsed,
       imagesGenerated: 0,
       developerMode: true,
-      devModePipeline: "four-stage-cost-optimized",
+      devModePipeline: DEV_MODE_PIPELINE_ID,
+      storyPolishApplied: polishApplied,
+      localQualityDiagnostics: finalDiagnostics,
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,
