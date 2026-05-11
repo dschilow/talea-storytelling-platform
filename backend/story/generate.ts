@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
+import { generateStoryDevMode } from "./dev-mode-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -261,6 +262,13 @@ export interface StoryConfig {
 
   // Prompt pipeline version. V8 enables the new two-pass blueprint flow.
   promptVersion?: StoryPromptVersion;
+
+  // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
+  // character pool, artifacts, style packs) and generate from a minimal prompt
+  // for A/B prompt-quality testing. No images, no personality updates, no
+  // memory inserts. Output is still persisted as a normal story so it can be
+  // read in the reader.
+  developerMode?: boolean;
 }
 
 export interface LearningMode {
@@ -473,7 +481,10 @@ export const generate = api<GenerateStoryRequest, Story>(
       parentalGuidance: parentalGuidance || undefined,
       // Keep parental guidance separate; it is injected via STYLE PACK block downstream.
       // Merge child-profile context into the user's prompt so generation stays child-specific.
-      customPrompt: mergePromptBlocks(req.config.customPrompt, profilePrompt),
+      // In developer mode we keep the prompt minimal: no profile context injection.
+      customPrompt: req.config.developerMode
+        ? req.config.customPrompt
+        : mergePromptBlocks(req.config.customPrompt, profilePrompt),
     };
     await ensureAvatarProfileLinksTable();
     const mcpApiKey = mcpServerApiKey();
@@ -698,7 +709,16 @@ export const generate = api<GenerateStoryRequest, Story>(
       let generatedStory: any;
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
-      if (useCharacterPool) {
+      if (config.developerMode === true) {
+        console.log("[story.generate] 🧪 DEVELOPER MODE — minimal prompt path (no enrichment, no images, no personality updates)");
+        const devResult = await generateStoryDevMode({
+          config,
+          avatarNames: avatarDetails.map((a) => a.name),
+          primaryProfileAge: primaryProfile.age,
+        });
+        // Persist chapter shape with order field consumed downstream.
+        generatedStory = devResult;
+      } else if (useCharacterPool) {
         console.log("[story.generate] Using Story Pipeline v2...");
         const orchestrator = new StoryPipelineOrchestrator();
 
@@ -839,19 +859,21 @@ export const generate = api<GenerateStoryRequest, Story>(
       });
 
       let validatedDevelopments = generatedStory.avatarDevelopments ?? [];
-      try {
-        const validation = await validateAvatarDevelopments(
-          validatedDevelopments,
-          mcpApiKey
-        ) as AvatarDevelopmentValidationResult;
-        if (validation?.isValid === false) {
-          throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
+      if (!config.developerMode) {
+        try {
+          const validation = await validateAvatarDevelopments(
+            validatedDevelopments,
+            mcpApiKey
+          ) as AvatarDevelopmentValidationResult;
+          if (validation?.isValid === false) {
+            throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
+          }
+          if (Array.isArray(validation?.normalized)) {
+            validatedDevelopments = validation.normalized as typeof validatedDevelopments;
+          }
+        } catch (validationError) {
+          console.warn("[story.generate] Avatar development validation warning:", validationError);
         }
-        if (Array.isArray(validation?.normalized)) {
-          validatedDevelopments = validation.normalized as typeof validatedDevelopments;
-        }
-      } catch (validationError) {
-        console.warn("[story.generate] Avatar development validation warning:", validationError);
       }
 
       let parentalFilterReplacements = 0;
@@ -1035,8 +1057,12 @@ export const generate = api<GenerateStoryRequest, Story>(
       });
 
       // NEW AI-DRIVEN SYSTEM: Apply personality updates only to participating avatars.
+      // Developer mode does NOT mutate avatar state (no personality, no memory, no read marker).
+      if (config.developerMode) {
+        console.log("[story.generate] 🧪 Developer mode — skipping personality/memory updates.");
+      }
       console.log("[AI-DRIVEN SYSTEM] Applying trait updates to selected avatars...");
-      const selectedAvatarIds = uniqueTrimmed(config.avatarIds || []);
+      const selectedAvatarIds = config.developerMode ? [] : uniqueTrimmed(config.avatarIds || []);
       const selectedAvatarRows = selectedAvatarIds.length > 0
         ? await avatarDB.queryAll<{ id: string; name: string }>`
             SELECT id, name

@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle,
   FileText,
+  FlaskConical,
   Image,
   Loader2,
   Sparkles,
@@ -67,6 +68,7 @@ interface WizardState {
   aiModel: AIModel;
   aiProvider: AIProvider;
   openRouterModel: OpenRouterStoryModel;
+  developerMode: boolean;
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
@@ -223,6 +225,7 @@ export default function TaleaStoryWizard() {
   const palette = useMemo(() => getPalette(isDark), [isDark]);
 
   const labels = [
+    'Modus',
     t('wizard.steps.avatars'),
     t('wizard.steps.category'),
     t('wizard.steps.ageLength'),
@@ -240,7 +243,7 @@ export default function TaleaStoryWizard() {
   const isMapAutoFill = Boolean(mapAvatarId && tagParam);
   const customTags = tagList.filter(t => !VALID_CATEGORIES.includes(t as any)).join(', ');
 
-  const [activeStep, setActiveStep] = useState(isMapAutoFill ? 5 : 0);
+  const [activeStep, setActiveStep] = useState(isMapAutoFill ? 6 : 0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
   const { onPhaseChange, onStoryReady } = useStoryAgentFlow();
@@ -272,6 +275,7 @@ export default function TaleaStoryWizard() {
     aiModel: 'gemini-3.1-pro-preview',
     aiProvider: 'native',
     openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
+    developerMode: false,
   });
   const lastAppliedProfileRef = React.useRef<string | null>(null);
 
@@ -332,15 +336,17 @@ export default function TaleaStoryWizard() {
   const canProceed = () => {
     switch (activeStep) {
       case 0:
-        return state.selectedAvatars.length > 0;
+        return true; // Mode step: developerMode defaults to false (Normal Mode)
       case 1:
-        return state.mainCategory !== null;
+        return state.selectedAvatars.length > 0;
       case 2:
-        return state.ageGroup !== null && state.length !== null;
+        return state.mainCategory !== null;
       case 3:
-        return state.feelings.length > 0;
+        return state.ageGroup !== null && state.length !== null;
       case 4:
+        return state.feelings.length > 0;
       case 5:
+      case 6:
         return true;
       default:
         return false;
@@ -466,16 +472,18 @@ export default function TaleaStoryWizard() {
 
     switch (activeStep) {
       case 0:
-        return <Step1AvatarSelection state={state} updateState={updateState} />;
+        return <Step0ModeSelection state={state} updateState={updateState} />;
       case 1:
-        return <Step2CategorySelection state={state} updateState={updateState} />;
+        return <Step1AvatarSelection state={state} updateState={updateState} />;
       case 2:
-        return <Step3AgeAndLength state={state} updateState={updateState} showModelSelection />;
+        return <Step2CategorySelection state={state} updateState={updateState} />;
       case 3:
-        return <Step4StoryFeeling state={state} updateState={updateState} />;
+        return <Step3AgeAndLength state={state} updateState={updateState} showModelSelection />;
       case 4:
-        return <Step5SpecialWishes state={state} updateState={updateState} />;
+        return <Step4StoryFeeling state={state} updateState={updateState} />;
       case 5:
+        return <Step5SpecialWishes state={state} updateState={updateState} />;
+      case 6:
         return (
           <Step6Summary
             state={state}
@@ -520,6 +528,11 @@ export default function TaleaStoryWizard() {
               <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
                 Schritt {activeStep + 1} / {labels.length}
               </span>
+              {state.developerMode && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                  <FlaskConical className="h-3 w-3" /> Dev Mode
+                </span>
+              )}
             </div>
             <h1 className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]" style={{ fontFamily: headingFont }}>
               Neue Geschichte
@@ -594,6 +607,91 @@ export default function TaleaStoryWizard() {
   );
 }
 
+interface Step0ModeSelectionProps {
+  state: WizardState;
+  updateState: (updates: Partial<WizardState>) => void;
+}
+
+function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
+  const select = (developerMode: boolean) => updateState({ developerMode });
+  const cardBase =
+    'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
+  const cardSelected =
+    'border-[var(--primary)] bg-[var(--talea-surface-elevated)] shadow-md ring-2 ring-[var(--primary)]/30';
+  const cardIdle =
+    'border-[var(--talea-border-light)] bg-[var(--talea-surface)] hover:border-[var(--talea-border-strong)]';
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <h2
+          className="text-2xl leading-tight text-[var(--talea-text-primary)]"
+          style={{ fontFamily: headingFont }}
+        >
+          Wie soll die Geschichte generiert werden?
+        </h2>
+        <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
+          Wähle den Modus. Im Normalmodus läuft die volle Talea-Pipeline mit allen Avataren,
+          Erinnerungen, Stilbausteinen und Bildern. Der Developer Mode testet einen extrem
+          minimalen Prompt zum Qualitätsvergleich.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => select(false)}
+        className={cn(cardBase, !state.developerMode ? cardSelected : cardIdle)}
+      >
+        <div className="flex items-center gap-3">
+          <Sparkles className="h-6 w-6 text-[var(--primary)]" />
+          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
+            Normaler Modus
+          </span>
+          {!state.developerMode && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+              <Check className="h-3 w-3" /> Aktiv
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[var(--talea-text-secondary)]">
+          Volle Pipeline: Avatare mit Persönlichkeit & Erinnerungen, Charakter-Pool, Story-DNA,
+          Stilpaket, Bilder pro Kapitel, Personality-Updates nach dem Lesen.
+        </p>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => select(true)}
+        className={cn(cardBase, state.developerMode ? cardSelected : cardIdle)}
+      >
+        <div className="flex items-center gap-3">
+          <FlaskConical className="h-6 w-6 text-[var(--primary)]" />
+          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
+            Developer Mode
+          </span>
+          <span className="inline-flex items-center rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+            Test
+          </span>
+          {state.developerMode && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+              <Check className="h-3 w-3" /> Aktiv
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[var(--talea-text-secondary)]">
+          Minimaler Prompt — nur Wizard-Eingaben (Länge, Alter, Genre, Setting, Avatar-Namen).
+          Keine Persönlichkeiten, keine Erinnerungen, keine Visual Profiles, keine Story-DNA,
+          keine Artefakte. <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
+        </p>
+        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
+          Nutze diesen Modus, um zu testen wie die KI ohne den großen Context-Overhead schreibt.
+          Das ausgewählte KI-Modell aus Schritt „Alter & Länge" wird verwendet.
+        </p>
+      </button>
+    </div>
+  );
+}
+
 function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   const genreMap: Record<string, string> = {
     'fairy-tales': 'fairy_tales',
@@ -635,5 +733,6 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     preferences: {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
+    developerMode: state.developerMode || undefined,
   } as any;
 }
