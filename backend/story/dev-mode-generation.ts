@@ -26,6 +26,7 @@ import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openro
 import type { StoryConfig, AIProvider } from "./generate";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
+import { storyDB } from "./db";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -73,9 +74,50 @@ export interface DevModeGeneratedStory {
   };
 }
 
+/**
+ * Subset of avatar fields the dev mode injects into the prompt. We deliberately
+ * keep the shape minimal — only what the model can actually use as character
+ * grounding (appearance + personality). No memories, no inventory, no skills.
+ */
+export interface DevModeAvatar {
+  id?: string;
+  name: string;
+  age?: number | null;
+  description?: string;
+  /** Avatar visual profile (canonical appearance). Free-form JSON. */
+  visualProfile?: any;
+  /** Avatar personality traits (9 base values, optionally with subcategories). Free-form JSON. */
+  personalityTraits?: any;
+}
+
+/**
+ * Slim pool character info for prompt injection. Mirrors what the standard
+ * pipeline's casting-engine produces (auto-cast), but stripped to what a
+ * single-shot prompt actually needs.
+ */
+export interface DevModePoolCharacter {
+  id: string;
+  name: string;
+  role?: string;
+  archetype?: string;
+  species?: string | null;
+  ageCategory?: string | null;
+  /** One-line visual hook. */
+  physicalDescription?: string | null;
+  /** Up to ~3 personality words. */
+  personalityKeywords?: string[];
+  catchphrase?: string | null;
+  speechStyle?: string[];
+  quirk?: string | null;
+  backstory?: string | null;
+}
+
 export interface DevModeGenerationInput {
   config: StoryConfig;
-  avatarNames: string[];
+  /** Full hero avatars (the user's chosen avatars). */
+  avatars: DevModeAvatar[];
+  /** Auto-cast supporting characters picked from character_pool. */
+  poolCharacters?: DevModePoolCharacter[];
   primaryProfileAge?: number | null;
 }
 
@@ -111,8 +153,154 @@ function localizedLanguageName(language?: string): string {
   }
 }
 
+/**
+ * Compact, human-readable summary of an avatar's visualProfile. The full
+ * visualProfile JSON is too verbose and noisy for a single-shot prompt —
+ * we extract the most useful canonical traits.
+ */
+function summarizeVisualProfile(vp: any): string {
+  if (!vp || typeof vp !== "object") return "";
+  const parts: string[] = [];
+
+  const pick = (label: string, ...keys: string[]) => {
+    for (const key of keys) {
+      const value = vp[key];
+      if (value === undefined || value === null) continue;
+      const text = typeof value === "string" ? value.trim() : String(value);
+      if (text.length === 0) continue;
+      parts.push(`${label}: ${text}`);
+      return;
+    }
+  };
+
+  pick("Alter", "ageDescription", "age");
+  pick("Geschlecht", "gender");
+  pick("Spezies", "species");
+  pick("Haut", "skinTone", "skin");
+  pick("Haare", "hair", "hairDescription", "hairColor");
+  pick("Augen", "eyes", "eyeColor", "eyeDescription");
+  pick("Statur", "build", "body", "physicalBuild", "height");
+  pick("Kleidung", "outfit", "clothing", "clothingDescription");
+  pick("Besondere Merkmale", "distinctiveFeatures", "uniqueFeatures", "marks");
+
+  // Generic fallback: short top-level free text fields the model can use.
+  if (parts.length === 0) {
+    const desc = vp.description || vp.summary || vp.text;
+    if (typeof desc === "string" && desc.trim().length > 0) {
+      parts.push(desc.trim());
+    }
+  }
+
+  return parts.join("; ");
+}
+
+/**
+ * Render the 9 base personality traits as a compact line.
+ * Subcategories (knowledge.history etc.) get a separate sublist if present.
+ * Traits with value 0 are omitted to keep the prompt focused.
+ */
+function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: string[] } {
+  if (!pt || typeof pt !== "object") return { baseLine: "", subLines: [] };
+
+  const BASE_KEYS = ["knowledge", "creativity", "vocabulary", "courage", "curiosity", "teamwork", "empathy", "persistence", "logic"];
+  const LABEL_DE: Record<string, string> = {
+    knowledge: "Wissen",
+    creativity: "Kreativität",
+    vocabulary: "Wortschatz",
+    courage: "Mut",
+    curiosity: "Neugier",
+    teamwork: "Teamgeist",
+    empathy: "Empathie",
+    persistence: "Ausdauer",
+    logic: "Logik",
+  };
+
+  const baseParts: string[] = [];
+  const subLines: string[] = [];
+
+  for (const key of BASE_KEYS) {
+    const node = pt[key];
+    if (!node) continue;
+    const value = typeof node === "number" ? node : (typeof node === "object" ? Number(node.value ?? 0) : 0);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    baseParts.push(`${LABEL_DE[key]} ${Math.round(value)}`);
+
+    const subs = node && typeof node === "object" ? node.subcategories : undefined;
+    if (subs && typeof subs === "object") {
+      const subParts: string[] = [];
+      for (const [subKey, subVal] of Object.entries(subs)) {
+        const v = typeof subVal === "number" ? subVal : Number((subVal as any)?.value ?? subVal ?? 0);
+        if (Number.isFinite(v) && v > 0) {
+          subParts.push(`${subKey} ${Math.round(v)}`);
+        }
+      }
+      if (subParts.length > 0) {
+        subLines.push(`  ${LABEL_DE[key]} im Detail: ${subParts.join(", ")}`);
+      }
+    }
+  }
+
+  return { baseLine: baseParts.join(", "), subLines };
+}
+
+function buildAvatarBlock(avatars: DevModeAvatar[]): string {
+  if (!avatars || avatars.length === 0) return "";
+  const lines: string[] = ["HAUPTFIGUREN (verwende sie wie beschrieben — Aussehen und Charakter konsistent durch die ganze Geschichte):"];
+
+  avatars.forEach((avatar, idx) => {
+    const heading = avatar.age != null
+      ? `${idx + 1}. ${avatar.name} (${avatar.age} Jahre)`
+      : `${idx + 1}. ${avatar.name}`;
+    lines.push(heading);
+
+    if (avatar.description && avatar.description.trim().length > 0) {
+      lines.push(`   Kurzbeschreibung: ${avatar.description.trim()}`);
+    }
+
+    const visual = summarizeVisualProfile(avatar.visualProfile);
+    if (visual.length > 0) {
+      lines.push(`   Aussehen: ${visual}`);
+    }
+
+    const { baseLine, subLines } = summarizePersonalityTraits(avatar.personalityTraits);
+    if (baseLine.length > 0) {
+      lines.push(`   Persönlichkeit (Werte je 0–100, höher = ausgeprägter): ${baseLine}`);
+      lines.push("   → Lass diese Persönlichkeitswerte konkret in den Handlungen, Entscheidungen und Reaktionen der Figur spürbar werden. Stärkere Werte sollen stärker durchscheinen.");
+      for (const sub of subLines) lines.push(sub);
+    }
+  });
+
+  return lines.join("\n");
+}
+
+function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
+  if (!pool || pool.length === 0) return "";
+  const lines: string[] = [
+    "NEBENFIGUREN-POOL (wähle natürlich passende Figuren aus dieser Liste in die Geschichte ein; nicht alle müssen vorkommen, aber nutze sie bevorzugt vor frei erfundenen Nebenfiguren — sie haben einprägsamen Charakter):",
+  ];
+  pool.forEach((c, idx) => {
+    const heading = `${idx + 1}. ${c.name}${c.role ? ` (${c.role})` : ""}${c.archetype ? ` — ${c.archetype}` : ""}`;
+    lines.push(heading);
+    const meta: string[] = [];
+    if (c.species) meta.push(`Spezies: ${c.species}`);
+    if (c.ageCategory) meta.push(`Altersgruppe: ${c.ageCategory}`);
+    if (meta.length > 0) lines.push(`   ${meta.join(" · ")}`);
+    if (c.physicalDescription) lines.push(`   Aussehen: ${c.physicalDescription}`);
+    if (c.personalityKeywords && c.personalityKeywords.length > 0) {
+      lines.push(`   Charakter: ${c.personalityKeywords.join(", ")}`);
+    }
+    if (c.catchphrase) lines.push(`   Sprichwort: „${c.catchphrase}“`);
+    if (c.speechStyle && c.speechStyle.length > 0) {
+      lines.push(`   Sprechstil: ${c.speechStyle.join(", ")}`);
+    }
+    if (c.quirk) lines.push(`   Eigenheit: ${c.quirk}`);
+    if (c.backstory) lines.push(`   Hintergrund: ${c.backstory}`);
+  });
+  return lines.join("\n");
+}
+
 function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; userPrompt: string; chapterCount: number } {
-  const { config, avatarNames, primaryProfileAge } = input;
+  const { config, avatars, poolCharacters, primaryProfileAge } = input;
   const chapterCount = deriveChapterCount(config.length);
   const languageName = localizedLanguageName(config.language);
 
@@ -136,10 +324,22 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     `Die Geschichte muss in ${languageName} verfasst sein.`,
   ].join("\n");
 
-  const avatarLine =
-    avatarNames.length > 0
-      ? `Hauptfiguren: ${avatarNames.map((n, i) => (i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} Jahre)` : n)).join(", ")}`
-      : "Hauptfiguren: frei wählbar.";
+  // Build avatar block with full visual profile + personality traits.
+  // If the caller didn't supply enriched avatars, fall back to a minimal name list.
+  let avatarBlock = buildAvatarBlock(avatars || []);
+  if (!avatarBlock) {
+    const names = (avatars || []).map((a) => a.name).filter(Boolean);
+    avatarBlock =
+      names.length > 0
+        ? `HAUPTFIGUREN: ${names
+            .map((n, i) =>
+              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} Jahre)` : n
+            )
+            .join(", ")}`
+        : "HAUPTFIGUREN: frei wählbar.";
+  }
+
+  const poolBlock = buildPoolBlock(poolCharacters);
 
   const learningLine =
     config.learningMode?.enabled && config.learningMode.subjects?.length
@@ -155,14 +355,17 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     `Altersgruppe: ${config.ageGroup}.`,
     `Genre: ${config.genre}.`,
     `Schauplatz / Setting: ${config.setting}.`,
-    avatarLine,
+    "",
+    avatarBlock,
+    poolBlock || null,
+    "",
     learningLine,
     customLine,
     `Jedes Kapitel soll einen klaren Bogen haben (Anfang, Mitte, Wendung/Höhepunkt) und in sich rund sein.`,
     `"order" beginnt bei 1 und zählt aufwärts. Genau ${chapterCount} Kapitel.`,
     `"description" ist ein kurzer 1-2 Satz Klappentext.`,
   ]
-    .filter((line): line is string => Boolean(line))
+    .filter((line): line is string => line !== null && line !== undefined)
     .join("\n");
 
   return { systemPrompt, userPrompt, chapterCount };
@@ -620,12 +823,18 @@ export async function generateStoryDevMode(
 ): Promise<DevModeGeneratedStory> {
   const { systemPrompt, userPrompt, chapterCount } = buildPrompts(input);
 
-  console.log("[dev-mode-generation] 🧪 Minimal prompt path", {
+  const avatarNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  const poolNames = (input.poolCharacters || []).map((c) => c.name);
+
+  console.log("[dev-mode-generation] 🧪 Dev mode prompt", {
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
     setting: input.config.setting,
-    avatarCount: input.avatarNames.length,
+    avatarCount: avatarNames.length,
+    avatarNames,
+    poolCharacterCount: poolNames.length,
+    poolCharacterNames: poolNames,
     aiModel: input.config.aiModel,
     aiProvider: input.config.aiProvider,
     systemPromptChars: systemPrompt.length,
@@ -654,7 +863,8 @@ export async function generateStoryDevMode(
           genre: input.config.genre,
           setting: input.config.setting,
           language: input.config.language,
-          avatarNames: input.avatarNames,
+          avatarNames,
+          poolCharacterNames: poolNames,
           primaryProfileAge: input.primaryProfileAge,
           learningModeEnabled: !!input.config.learningMode?.enabled,
           learningModeSubjects: input.config.learningMode?.subjects,
@@ -720,7 +930,8 @@ export async function generateStoryDevMode(
         genre: input.config.genre,
         setting: input.config.setting,
         language: input.config.language,
-        avatarNames: input.avatarNames,
+        avatarNames,
+        poolCharacterNames: poolNames,
         primaryProfileAge: input.primaryProfileAge,
         learningModeEnabled: !!input.config.learningMode?.enabled,
         learningModeSubjects: input.config.learningMode?.subjects,
@@ -779,4 +990,155 @@ export async function generateStoryDevMode(
       developerMode: true,
     },
   };
+}
+
+// ─── Auto-cast supporting characters from character_pool ───────────────────
+// Mirrors the *outcome* of the standard pipeline's casting-engine but stays
+// fully synchronous and self-contained — no variant plan, no RNG seed, no
+// artifact matching, no LLM calls. Just: filter by setting/age, prefer
+// less-recently-used, return 2–4 candidates.
+
+interface CharacterPoolRow {
+  id: string;
+  name: string;
+  role: string | null;
+  archetype: string | null;
+  emotional_nature: any;
+  visual_profile: any;
+  age_category: string | null;
+  species_category: string | null;
+  personality_keywords: string[] | null;
+  physical_description: string | null;
+  backstory: string | null;
+  catchphrase: string | null;
+  speech_style: string[] | null;
+  quirk: string | null;
+  canon_settings: string[] | null;
+  recent_usage_count: number | null;
+  total_usage_count: number | null;
+}
+
+function ageGroupMaxAge(ageGroup?: string): number {
+  switch (ageGroup) {
+    case "3-5":
+      return 5;
+    case "6-8":
+      return 8;
+    case "9-12":
+      return 12;
+    case "13+":
+      return 16;
+    default:
+      return 12;
+  }
+}
+
+/**
+ * Pick supporting characters for dev mode. Caller passes the wizard's
+ * setting/genre/age and the set of hero avatar names to exclude.
+ *
+ * Selection strategy:
+ *  1. Load all active pool characters.
+ *  2. Score each by setting match (canon_settings overlap) + freshness
+ *     (lower recent_usage_count is better) + diversity (try not to pick
+ *     duplicate archetypes).
+ *  3. Return top N, where N = 4 for ages ≤ 8, 6 for older, minus the
+ *     hero count, clamped to [2, 5].
+ */
+export async function pickDevModePoolCharacters(input: {
+  setting?: string;
+  genre?: string;
+  ageGroup?: string;
+  excludeNames: Set<string>;
+  heroCount: number;
+}): Promise<DevModePoolCharacter[]> {
+  let rows: CharacterPoolRow[] = [];
+  try {
+    rows = await storyDB.queryAll<CharacterPoolRow>`
+      SELECT id, name, role, archetype, emotional_nature, visual_profile,
+             age_category, species_category, personality_keywords,
+             physical_description, backstory, catchphrase, speech_style,
+             quirk, canon_settings, recent_usage_count, total_usage_count
+      FROM character_pool
+      WHERE is_active = TRUE
+    `;
+  } catch (err) {
+    console.warn("[dev-mode-generation] Failed to load character_pool, continuing without supporting cast:", err);
+    return [];
+  }
+
+  if (rows.length === 0) return [];
+
+  const setting = (input.setting || "").trim().toLowerCase();
+  const ageMax = ageGroupMaxAge(input.ageGroup);
+  const maxGlobalChars = ageMax <= 5 ? 3 : ageMax <= 8 ? 4 : 6;
+  const targetCount = Math.max(2, Math.min(5, maxGlobalChars - Math.max(1, input.heroCount)));
+
+  const scored = rows
+    .filter((r) => !input.excludeNames.has((r.name || "").toLowerCase()))
+    .map((r) => {
+      let score = 0;
+
+      // Setting match — strong signal. canon_settings is text[].
+      const canon = (r.canon_settings || []).map((s) => s.toLowerCase());
+      if (setting.length > 0 && canon.length > 0) {
+        if (canon.includes(setting)) score += 50;
+        else if (canon.some((c) => c.includes(setting) || setting.includes(c))) score += 25;
+      } else if (canon.length === 0) {
+        // No canon_settings = universal character, small neutral score.
+        score += 10;
+      }
+
+      // Freshness — prefer less-recently-used to rotate cast across stories.
+      const recent = Number(r.recent_usage_count) || 0;
+      score += Math.max(0, 20 - recent * 4);
+
+      // Small noise so identical scores rotate naturally between generations.
+      score += Math.random() * 5;
+
+      return { row: r, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  // Diversity: when picking the top N, skip duplicates of an archetype we
+  // already chose (unless we'd have to drop below targetCount).
+  const picked: CharacterPoolRow[] = [];
+  const seenArchetypes = new Set<string>();
+  for (const candidate of scored) {
+    if (picked.length >= targetCount) break;
+    const arch = (candidate.row.archetype || "").toLowerCase();
+    if (arch && seenArchetypes.has(arch)) continue;
+    picked.push(candidate.row);
+    if (arch) seenArchetypes.add(arch);
+  }
+  // If diversity filter left us short, top up from the rest.
+  if (picked.length < targetCount) {
+    for (const candidate of scored) {
+      if (picked.length >= targetCount) break;
+      if (picked.includes(candidate.row)) continue;
+      picked.push(candidate.row);
+    }
+  }
+
+  return picked.map((r) => {
+    const vp = r.visual_profile;
+    const physicalDescription =
+      r.physical_description ||
+      (vp && typeof vp === "object" ? (vp.description || vp.appearance || null) : null);
+
+    return {
+      id: r.id,
+      name: r.name,
+      role: r.role || undefined,
+      archetype: r.archetype || undefined,
+      species: r.species_category,
+      ageCategory: r.age_category,
+      physicalDescription,
+      personalityKeywords: r.personality_keywords || [],
+      catchphrase: r.catchphrase,
+      speechStyle: r.speech_style || [],
+      quirk: r.quirk,
+      backstory: r.backstory,
+    };
+  });
 }

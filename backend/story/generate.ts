@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
-import { generateStoryDevMode } from "./dev-mode-generation";
+import { generateStoryDevMode, pickDevModePoolCharacters } from "./dev-mode-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -710,10 +710,35 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.developerMode === true) {
-        console.log("[story.generate] 🧪 DEVELOPER MODE — minimal prompt path (no enrichment, no images, no personality updates)");
+        console.log("[story.generate] 🧪 DEVELOPER MODE — enriched-prompt path (avatars + personality + pool, NO images, NO personality updates)");
+
+        // Auto-cast: load the active character pool and pick supporting cast
+        // matching this story's setting. We deliberately don't run the full
+        // casting-engine (variant plan / blueprint / artifact matcher / RNG)
+        // — just enough scoring to bring useful candidates into the prompt.
+        const poolCharacters = await pickDevModePoolCharacters({
+          setting: config.setting,
+          genre: config.genre,
+          ageGroup: config.ageGroup,
+          excludeNames: new Set(avatarDetails.map((a) => a.name.toLowerCase())),
+          heroCount: avatarDetails.length,
+        });
+
+        console.log("[story.generate] 🧪 Dev mode auto-cast:", {
+          poolCount: poolCharacters.length,
+          names: poolCharacters.map((c) => c.name),
+        });
+
         const devResult = await generateStoryDevMode({
           config,
-          avatarNames: avatarDetails.map((a) => a.name),
+          avatars: avatarDetails.map((a) => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            visualProfile: a.visualProfile,
+            personalityTraits: a.personalityTraits,
+          })),
+          poolCharacters,
           primaryProfileAge: primaryProfile.age,
         });
         // Persist chapter shape with order field consumed downstream.
