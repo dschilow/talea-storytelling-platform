@@ -679,13 +679,14 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           )}
         </div>
         <p className="text-sm text-[var(--talea-text-secondary)]">
-          Vierstufige Text-Pipeline: Blueprint, Dramaturgie-Check, finale Geschichte und
-          JSON-/Stil-/Logik-Validierung. Nutzt Avatar-Aussehen, Persönlichkeiten und einen
-          schlanken Charakter-Pool. <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
+          Mehrstufige Text-Pipeline: Emotional Engine, Blueprint, Dramaturgie-Check,
+          Story-Draft, Voice-Polish, harte Validierung und optionaler Quality-Rescue.
+          Nutzt Avatar-Aussehen, Persönlichkeiten und einen schlanken Charakter-Pool.
+          <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
         </p>
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
           Nutze diesen Modus, um Storyqualität mit kontrolliertem Kontext zu testen. Das
-          ausgewählte KI-Modell aus Schritt „Alter & Länge" wird für alle vier Calls verwendet.
+          ausgewählte KI-Modell aus Schritt „Alter & Länge" wird für alle Qualitätsstufen verwendet.
         </p>
       </button>
     </div>

@@ -710,7 +710,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.developerMode === true) {
-        console.log("[story.generate] 🧪 DEVELOPER MODE — four-stage quality path (avatars + personality + pool, NO images, NO personality updates)");
+        console.log("[story.generate] 🧪 DEVELOPER MODE — six-stage quality path (avatars + personality + pool, NO images, NO personality updates)");
 
         // Auto-cast: load the active character pool and pick supporting cast
         // matching this story's setting. We deliberately don't run the full
@@ -926,8 +926,38 @@ export const generate = api<GenerateStoryRequest, Story>(
         };
       }
 
-      // Extract cost data from metadata (now properly calculated in four-phase-orchestrator)
+      // Extract cost data from pipeline metadata. Developer Mode exposes one
+      // token/cost row per quality stage; the default pipeline keeps its own ledger.
       const metadataUsage = generatedStory.metadata?.tokensUsed;
+      const devModeStages = Array.isArray(generatedStory.metadata?.devModeStages)
+        ? generatedStory.metadata.devModeStages
+        : [];
+      const devModeCostEntries = config.developerMode === true && devModeStages.length > 0
+        ? devModeStages
+            .map((stage: any) => {
+              const usage = stage?.usage;
+              if (!usage) return null;
+              const model = stage?.modelUsed || metadataUsage?.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL;
+              return buildLlmCostEntry({
+                phase: "dev-mode-generation",
+                step: String(stage?.stage || "unknown-stage"),
+                usage: {
+                  promptTokens: Number(usage.prompt || 0),
+                  completionTokens: Number(usage.completion || 0),
+                  totalTokens: Number(usage.total || 0),
+                  model,
+                },
+                fallbackModel: model,
+                success: true,
+                metadata: {
+                  durationMs: stage?.durationMs,
+                  score: stage?.score,
+                  pipeline: generatedStory.metadata?.devModePipeline || "six-stage-quality",
+                },
+              });
+            })
+            .filter(Boolean)
+        : [];
       const fallbackUsage = pipelineResult?.tokenUsage
         ? pipelineResult.tokenUsage
         : metadataUsage
@@ -938,7 +968,9 @@ export const generate = api<GenerateStoryRequest, Story>(
               model: metadataUsage.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL,
             }
           : undefined;
-      const fallbackCostEntries = fallbackUsage
+      const fallbackCostEntries = devModeCostEntries.length > 0
+        ? devModeCostEntries
+        : fallbackUsage
         ? [
             buildLlmCostEntry({
               phase: "story-generation",

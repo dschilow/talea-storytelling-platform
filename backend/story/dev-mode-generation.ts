@@ -16,10 +16,13 @@
  *   - customPrompt (the raw user wish text, no profile context merged in)
  *
  * Generation is intentionally multi-call:
- *   1. story blueprint
- *   2. dramaturgy / quality check
- *   3. final story draft
- *   4. JSON + style + logic validation / light repair
+ *   1. emotional engine
+ *   2. story blueprint
+ *   3. dramaturgy / quality check
+ *   4. final story draft
+ *   5. voice / read-aloud polish
+ *   6. hard market-quality validation
+ *   7. optional quality rescue when score stays below 9.5, then re-validation
  *
  * No images are generated in this mode (chapters render text-only in the reader).
  * No personality / memory mutation happens after generation — the caller
@@ -52,10 +55,14 @@ interface DevModeRawStory {
 }
 
 type DevModePipelineStage =
+  | "emotional-engine"
   | "blueprint"
   | "dramaturgy-check"
   | "story-draft"
-  | "final-validation";
+  | "voice-polish"
+  | "final-validation"
+  | "quality-rescue"
+  | "post-rescue-validation";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -97,6 +104,15 @@ export interface DevModeGeneratedStory {
     model: string;
     imagesGenerated: number;
     developerMode: true;
+    devModePipeline?: "six-stage-quality";
+    devModeStages?: Array<{
+      stage: DevModePipelineStage;
+      usage?: { prompt: number; completion: number; total: number };
+      modelUsed?: string;
+      durationMs?: number;
+      score?: number;
+    }>;
+    qualityScore?: number;
   };
 }
 
@@ -519,6 +535,18 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     .join("\n");
 }
 
+function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapterCount: number): string {
+  return [
+    buildDevStoryContext(input, chapterCount),
+    "",
+    "QUALITAETSZIEL:",
+    "- Nicht nur ein Abenteuer loesen, sondern ein kindlich wiedererkennbares Gefuehl verwandeln.",
+    "- Die Geschichte soll nach dem Lesen als Ort, Figur und Schlussbild im Kopf bleiben.",
+    "- Jeder Hauptfigur muss ein kleiner Fehler passieren, der aus ihrem Charakter kommt und spaeter zu einer besseren Handlung fuehrt.",
+    "- Der Gegenspieler darf nicht nur Mechanik sein. Er braucht Wunde, falschen Glaubenssatz, komisch-unheimliches Verhalten und einen neuen Platz am Ende.",
+  ].join("\n");
+}
+
 function genreCraftGuidance(genre?: string): string {
   const normalized = String(genre || "").toLowerCase();
   if (normalized.includes("fairy") || normalized.includes("maerchen") || normalized.includes("märchen")) {
@@ -585,6 +613,8 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
     "- Mindestens 30 Prozent Dialog in der finalen Geschichte.",
     "- Pro Kapitel mindestens zwei konkrete Sinneseindruecke.",
     "- Pro Kapitel ein kleiner humorvoller Moment aus Situation oder Figur.",
+    "- Dialog muss mehrfach arbeiten: Handlung vorantreiben, Beziehung zeigen, Stimme unterscheiden und Subtext tragen.",
+    "- Der Schluss muss ein Bild hinterlassen, nicht nur ein Problem beenden.",
     "",
     "VERBOTENE MUSTER:",
     "- Sie lernten, dass ...",
@@ -607,7 +637,55 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
   ].join("\n");
 }
 
-function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+function buildEmotionalEnginePrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "storyPromise": string,',
+      '  "emotionalEngine": string,',
+      '  "childRelatableNeed": string,',
+      '  "mainCharacters": [',
+      '    {',
+      '      "name": string,',
+      '      "wantToday": string,',
+      '      "fearOrAvoidance": string,',
+      '      "traitBehavior": string,',
+      '      "mistakeUnderPressure": string,',
+      '      "growthSignal": string,',
+      '      "voiceRules": string[],',
+      '      "neverSay": string[]',
+      '    }',
+      "  ],",
+      '  "relationshipDynamic": { "friction": string, "affection": string, "finalShift": string },',
+      '  "antagonistHumanity": { "wound": string, "wrongBelief": string, "funnyThreateningBehavior": string, "empathyDoor": string, "noInstantRedemptionRule": string, "newPlaceAtEnd": string },',
+      '  "iconicHooks": string[],',
+      '  "stakesLadder": [ { "chapter": number, "whatCanBeLost": string, "whyAChildCares": string } ],',
+      '  "endingImage": string,',
+      '  "antiGenericRules": string[]',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 1: Baue zuerst die emotionale Maschine der Geschichte. Schreibe noch keinen Plot und keine Kapitel.",
+    "Uebersetze Avatar-Traits in spielbares Verhalten statt Zahlen. Finde den emotionalen Grund, warum Kinder die Geschichte noch einmal hoeren wollen.",
+    "",
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "KALIBRIERUNG:",
+    "- Denke an Marktqualitaet wie moderne deutschsprachige Kinderbuecher und starke Vorleseklassiker: klare Wiedererkennbarkeit, kindliche Spannung, Humor, emotionaler Kern.",
+    "- Kein Abklatsch konkreter Werke. Nur das Qualitaetsniveau ist der Massstab.",
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildBlueprintPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  emotionalEngine: any
+): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -615,22 +693,28 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       "Schema:",
       "{",
       '  "premise": string,',
+      '  "emotionalEngineUse": string,',
       '  "coreMagicRule": string,',
       '  "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
       '  "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
       '  "plantsAndPayoffs": [ { "plant": string, "payoff": string } ],',
+      '  "sceneOwnership": [ { "order": number, "driver": string, "changedState": string } ],',
       '  "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string } ],',
       '  "forbiddenShortcuts": string[]',
       "}",
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 1: Erzeuge nur einen Story-Blueprint, noch keine ausformulierte Geschichte.",
+    "CALL 2: Erzeuge einen Story-Blueprint, noch keine ausformulierte Geschichte.",
     "Der Blueprint muss die spaetere Geschichte vorbereiten: Figurenrollen, klare magische Regel, Versuch-Irrtum-Folge, Finale aus vorbereiteten Details.",
     "",
-    buildDevStoryContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
     "",
     `Plane genau ${chapterCount} Kapitel.`,
+    "Jedes Kapitel braucht Ownership: Eine konkrete Figur treibt es aktiv, und am Ende hat sich etwas irreversibel veraendert.",
     "Achte besonders darauf, dass Antagonisten-Hinweise nicht als Spoiler-Loesung uebernommen werden.",
   ].join("\n");
   return { systemPrompt, userPrompt };
@@ -639,6 +723,7 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
 function buildCritiquePrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
+  emotionalEngine: any,
   blueprint: any
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
@@ -648,20 +733,27 @@ function buildCritiquePrompts(
       "Schema:",
       "{",
       '  "score": number,',
+      '  "marketGap": string,',
       '  "strengths": string[],',
       '  "mustFix": string[],',
+      '  "missingEmotionalPayoff": string[],',
+      '  "voiceRisks": string[],',
       '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
       '  "revisedBlueprint": object',
       "}",
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 2: Pruefe den Blueprint wie ein strenger Kinderbuch-Dramaturg.",
-    "Finde alles, was die Geschichte unter 9.5/10 druecken wuerde: schwache Spannung, Spoiler-Loesung, Figuren ohne aktive Rolle, Telling, generische Motive, fehlende Sinnlichkeit, unverdiente Wendung.",
+    "CALL 3: Pruefe den Blueprint wie ein strenger Kinderbuch-Dramaturg und Lektor.",
+    "Finde alles, was die Geschichte unter 9.5/10 gegen echte Kinderbuecher druecken wuerde: schwache Spannung, fehlender emotionaler Kern, Figuren ohne aktive Rolle, gleiche Stimmen, Telling, generische Motive, fehlende Sinnlichkeit, unverdiente Wendung.",
     "Gib danach einen verbesserten revisedBlueprint zurueck. Der revisedBlueprint darf die Struktur schaerfen, aber keine neue unpassende Pipeline-Komplexitaet einfuehren.",
+    "Bewerte hart. Ein technisch sauberer Blueprint ist nicht automatisch Marktqualitaet.",
     "",
     "KONTEXT:",
-    buildDevStoryContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
     "",
     "BLUEPRINT:",
     JSON.stringify(blueprint, null, 2),
@@ -672,6 +764,7 @@ function buildCritiquePrompts(
 function buildStoryDraftPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
+  emotionalEngine: any,
   blueprint: any,
   critique: any
 ): { systemPrompt: string; userPrompt: string } {
@@ -691,9 +784,9 @@ function buildStoryDraftPrompts(
   );
   const revisedBlueprint = critique?.revisedBlueprint || blueprint;
   const userPrompt = [
-    "CALL 3: Schreibe jetzt die finale Geschichte als echte Szene, nicht als Zusammenfassung.",
+    "CALL 4: Schreibe jetzt die Geschichte als echte Szene, nicht als Zusammenfassung.",
     "",
-    buildDevStoryContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
     "DRAMATURGIE-VORGABEN:",
     `- Genau ${chapterCount} Kapitel.`,
@@ -704,6 +797,11 @@ function buildStoryDraftPrompts(
     "- Kapitel 3: falscher Versuch oder Fehlentscheidung aus Charakter heraus, echte Konsequenz, kein Zufall rettet.",
     "- Kapitel 4: tiefere Regel verstehen, unterschiedliche Staerken verbinden, emotionaler Moment, Finale vorbereiten.",
     "- Kapitel 5: konkrete Handlung, vorbereitete Loesung, emotionaler Nachhall, starkes Schlussbild, keine erklaerte Moral.",
+    "- Jede Hauptfigur muss mindestens eine eigene Mini-Entscheidung treffen, die ohne sie nicht passieren koennte.",
+    "- Der Antagonist muss in mindestens drei Kapiteln ein wiedererkennbares Verhalten zeigen und am Ende einen neuen Platz bekommen.",
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
     "",
     "GEPRUEFTER BLUEPRINT:",
     JSON.stringify(revisedBlueprint, null, 2),
@@ -722,9 +820,68 @@ function buildStoryDraftPrompts(
   return { systemPrompt, userPrompt };
 }
 
+function buildVoicePolishPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  emotionalEngine: any,
+  story: DevModeRawStory,
+  critique: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "title": string,',
+      '  "description": string,',
+      '  "chapters": [ { "order": number, "title": string, "content": string } ],',
+      '  "polishNotes": string[]',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 5: Mache einen Voice-, Dialog- und Read-Aloud-Polish.",
+    "Bewahre Plot, Kapitelanzahl und Setups/Payoffs. Veraendere nur, was Qualitaet erhoeht.",
+    "",
+    "POLISH-ZIELE:",
+    "- Stimmen unterscheidbarer machen: Alexander knapper/beobachtender; Adrian beweglicher/neugieriger; Nebenfiguren mit eigenem Rhythmus.",
+    "- Dialoge sollen mindestens zwei Dinge gleichzeitig tun: Handlung, Beziehung, Subtext oder Humor.",
+    "- Emotionen staerker zeigen, weniger erklaeren.",
+    "- Wiederholbare, kindlich zitierbare Details staerken.",
+    "- Antagonist menschlicher und komisch-unheimlicher machen, ohne ihn sofort zu bekehren.",
+    "- Schluss emotionaler nachhallen lassen und dem Antagonisten einen neuen Platz geben.",
+    "- KI-Muster glaetten: zu viele 'Nicht X. Nicht Y. Nur Z.'-Ketten vermeiden.",
+    "- Nicht kuerzen, ausser wenn ein Satz wirklich ballast ist.",
+    "",
+    "KONTEXT:",
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
+    "",
+    "KRITIK:",
+    JSON.stringify(
+      {
+        mustFix: critique?.mustFix || [],
+        missingEmotionalPayoff: critique?.missingEmotionalPayoff || [],
+        voiceRisks: critique?.voiceRisks || [],
+        chapterRisks: critique?.chapterRisks || [],
+      },
+      null,
+      2
+    ),
+    "",
+    "STORY:",
+    JSON.stringify(story, null, 2),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
 function buildValidationPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
+  emotionalEngine: any,
   story: DevModeRawStory
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
@@ -734,9 +891,22 @@ function buildValidationPrompts(
       "Schema:",
       "{",
       '  "isValid": boolean,',
-      '  "score": number,',
+      '  "marketQualityScore": number,',
+      '  "dimensionScores": {',
+      '    "emotionalEngine": number,',
+      '    "iconicCharacters": number,',
+      '    "tensionEscalation": number,',
+      '    "voiceDistinctiveness": number,',
+      '    "readAloudRhythm": number,',
+      '    "originality": number,',
+      '    "ageFit": number,',
+      '    "endingPayoff": number,',
+      '    "jsonValidity": number',
+      '  },',
       '  "errors": string[],',
       '  "warnings": string[],',
+      '  "publishabilityBlockers": string[],',
+      '  "mustFixBefore95": string[],',
       '  "story": {',
       '    "title": string,',
       '    "description": string,',
@@ -746,12 +916,63 @@ function buildValidationPrompts(
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 4: Validiere JSON, Stil und Logik der finalen Geschichte.",
+    "CALL 6: Validiere JSON, Stil, Marktqualitaet und Logik der finalen Geschichte.",
     "Wenn nur kleine Probleme vorhanden sind, repariere sie direkt in story. Wenn alles passt, gib story unveraendert zurueck.",
+    "Bewerte hart gegen echte Kinderbuecher, nicht gegen typische KI-Ausgaben. 9.5 darf nur vergeben werden, wenn emotionaler Kern, Figurenstimmen, Spannung, Humor, Originalitaet und Schlussbild stark sind.",
+    "Eine reine Checklisten-Erfuellung darf maximal 8.5 sein. Wenn der Antagonist nur Mechanik ist, maximal 8.4. Wenn die Hauptfiguren nicht ikonisch unterscheidbar sind, maximal 8.7. Wenn der Schluss keinen emotionalen neuen Zustand zeigt, maximal 8.8.",
     "Pruefe: genau richtige Kapitelanzahl, gueltiges JSON, keine [object Object], klare Figurenrollen, keine erklaerte Moral, vorbereitete Loesung, keine gespoilerte/billige Antagonisten-Niederlage, altersgerechte Sprache, Dialog mit typografischen Anfuehrungszeichen.",
     "",
     "KONTEXT:",
-    buildDevStoryContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
+    "",
+    "STORY:",
+    JSON.stringify(story, null, 2),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildQualityRescuePrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  emotionalEngine: any,
+  story: DevModeRawStory,
+  validation: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "title": string,',
+      '  "description": string,',
+      '  "chapters": [ { "order": number, "title": string, "content": string } ],',
+      '  "rescueNotes": string[]',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 7: Quality Rescue. Die Geschichte hat die 9.5-Marktqualitaet noch nicht sicher erreicht.",
+    "Repariere gezielt die Blocker, ohne die funktionierenden Setups/Payoffs zu zerstoeren.",
+    "",
+    "RESCUE-REGELN:",
+    "- Keine neue Plotmaschine einfuehren.",
+    "- Emotionale Stakes, Figurenstimmen, Antagonisten-Menschlichkeit und Schlusszustand priorisieren.",
+    "- Mache den finalen Zustand sichtbar: Was hat sich in Alexander, Adrian, dem Gegenspieler und dem Ort veraendert?",
+    "- Staerke Humor und Wiedererkennung, ohne albern zu werden.",
+    "- Erhalte genau die Kapitelanzahl.",
+    "",
+    "KONTEXT:",
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "EMOTIONAL ENGINE:",
+    JSON.stringify(emotionalEngine, null, 2),
+    "",
+    "VALIDIERUNG / BLOCKER:",
+    JSON.stringify(validation, null, 2),
     "",
     "STORY:",
     JSON.stringify(story, null, 2),
@@ -1080,6 +1301,33 @@ function validationStoryCandidate(parsedValidation: any): any {
   return null;
 }
 
+function extractQualityScore(parsed: any): number | null {
+  const raw =
+    parsed?.marketQualityScore ??
+    parsed?.score10 ??
+    parsed?.score ??
+    parsed?.qualityScore ??
+    null;
+  const score = Number(raw);
+  if (!Number.isFinite(score)) return null;
+  if (score > 10 && score <= 100) return score / 10;
+  return score;
+}
+
+function hasBlockingList(value: any): boolean {
+  return Array.isArray(value) && value.some((item) => String(item || "").trim().length > 0);
+}
+
+function validationNeedsRescue(parsedValidation: any): boolean {
+  if (!parsedValidation || typeof parsedValidation !== "object") return true;
+  const score = extractQualityScore(parsedValidation);
+  if (parsedValidation.isValid === false) return true;
+  if (score !== null && score < 9.5) return true;
+  return hasBlockingList(parsedValidation.errors)
+    || hasBlockingList(parsedValidation.publishabilityBlockers)
+    || hasBlockingList(parsedValidation.mustFixBefore95);
+}
+
 interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
@@ -1297,7 +1545,7 @@ export async function generateStoryDevMode(
     }
   };
 
-  console.log("[dev-mode-generation] Dev mode four-stage pipeline", {
+  console.log("[dev-mode-generation] Dev mode six-stage quality pipeline", {
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
@@ -1312,13 +1560,26 @@ export async function generateStoryDevMode(
 
   let finalParsed: DevModeRawStory | null = null;
   let finalModelUsed: string = input.config.aiModel || DEFAULT_GEMINI_MODEL;
+  let finalQualityScore: number | undefined;
 
   try {
-    const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
-    const blueprintStage = await runStage("blueprint", blueprintPrompts, {
-      maxTokens: 7000,
-      temperature: 0.55,
+    const emotionalPrompts = buildEmotionalEnginePrompts(input, chapterCount);
+    const emotionalStage = await runStage("emotional-engine", emotionalPrompts, {
+      maxTokens: 6500,
+      temperature: 0.45,
       timeoutMs: 90_000,
+    });
+    const emotionalEngine = emotionalStage.parsed || {
+      rawEmotionalEngine: emotionalStage.provider.content,
+      parseWarning: emotionalStage.parseError,
+    };
+    finalModelUsed = emotionalStage.provider.modelUsed;
+
+    const blueprintPrompts = buildBlueprintPrompts(input, chapterCount, emotionalEngine);
+    const blueprintStage = await runStage("blueprint", blueprintPrompts, {
+      maxTokens: 8500,
+      temperature: 0.55,
+      timeoutMs: 120_000,
     });
     const blueprint = blueprintStage.parsed || {
       rawBlueprint: blueprintStage.provider.content,
@@ -1326,11 +1587,11 @@ export async function generateStoryDevMode(
     };
     finalModelUsed = blueprintStage.provider.modelUsed;
 
-    const critiquePrompts = buildCritiquePrompts(input, chapterCount, blueprint);
+    const critiquePrompts = buildCritiquePrompts(input, chapterCount, emotionalEngine, blueprint);
     const critiqueStage = await runStage("dramaturgy-check", critiquePrompts, {
-      maxTokens: 7000,
+      maxTokens: 9000,
       temperature: 0.35,
-      timeoutMs: 90_000,
+      timeoutMs: 120_000,
     });
     const critique = critiqueStage.parsed || {
       rawCritique: critiqueStage.provider.content,
@@ -1338,30 +1599,43 @@ export async function generateStoryDevMode(
     };
     finalModelUsed = critiqueStage.provider.modelUsed;
 
-    const storyPrompts = buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
+    const storyPrompts = buildStoryDraftPrompts(input, chapterCount, emotionalEngine, blueprint, critique);
     const storyStage = await runStage("story-draft", storyPrompts, {
-      maxTokens: input.config.length === "long" ? 28000 : 18000,
+      maxTokens: input.config.length === "long" ? 32000 : 22000,
       temperature: 0.82,
       timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
     });
     const draftParsed = parseAndValidate(storyStage.provider.content, chapterCount);
     finalModelUsed = storyStage.provider.modelUsed;
 
-    const validationPrompts = buildValidationPrompts(input, chapterCount, draftParsed);
+    const voicePrompts = buildVoicePolishPrompts(input, chapterCount, emotionalEngine, draftParsed, critique);
+    const voiceStage = await runStage("voice-polish", voicePrompts, {
+      maxTokens: input.config.length === "long" ? 32000 : 22000,
+      temperature: 0.55,
+      timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
+    });
+    const polishedCandidate = validationStoryCandidate(voiceStage.parsed) || voiceStage.parsed;
+    const polishedParsed = polishedCandidate
+      ? parseAndValidate(JSON.stringify(polishedCandidate), chapterCount)
+      : parseAndValidate(voiceStage.provider.content, chapterCount);
+    finalModelUsed = voiceStage.provider.modelUsed;
+
+    const validationPrompts = buildValidationPrompts(input, chapterCount, emotionalEngine, polishedParsed);
     const validationStage = await runStage("final-validation", validationPrompts, {
       maxTokens: input.config.length === "long" ? 30000 : 20000,
       temperature: 0.2,
       timeoutMs: input.config.length === "long" ? 240_000 : 150_000,
     });
     finalModelUsed = validationStage.provider.modelUsed;
+    finalQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
 
     const candidate = validationStoryCandidate(validationStage.parsed);
     if (candidate) {
       try {
         finalParsed = parseAndValidate(JSON.stringify(candidate), chapterCount);
       } catch (validationParseError) {
-        console.warn("[dev-mode-generation] Final validation story failed schema parse; using story draft.", validationParseError);
-        finalParsed = draftParsed;
+        console.warn("[dev-mode-generation] Final validation story failed schema parse; using polished story.", validationParseError);
+        finalParsed = polishedParsed;
         const finalLog = stageLogs.find((stage) => stage.stage === "final-validation");
         if (finalLog) {
           finalLog.parseError = `Validated story rejected: ${
@@ -1370,11 +1644,51 @@ export async function generateStoryDevMode(
         }
       }
     } else {
-      finalParsed = draftParsed;
+      finalParsed = polishedParsed;
       const finalLog = stageLogs.find((stage) => stage.stage === "final-validation");
       if (finalLog && !finalLog.parseError) {
-        finalLog.parseError = "Validation response did not include a story object; using story draft.";
+        finalLog.parseError = "Validation response did not include a story object; using polished story.";
       }
+    }
+
+    if (validationNeedsRescue(validationStage.parsed) && finalParsed) {
+      const rescuePrompts = buildQualityRescuePrompts(
+        input,
+        chapterCount,
+        emotionalEngine,
+        finalParsed,
+        validationStage.parsed || {}
+      );
+      const rescueStage = await runStage("quality-rescue", rescuePrompts, {
+        maxTokens: input.config.length === "long" ? 32000 : 22000,
+        temperature: 0.5,
+        timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
+      });
+      const rescueCandidate = validationStoryCandidate(rescueStage.parsed) || rescueStage.parsed;
+      if (rescueCandidate) {
+        finalParsed = parseAndValidate(JSON.stringify(rescueCandidate), chapterCount);
+      } else {
+        finalParsed = parseAndValidate(rescueStage.provider.content, chapterCount);
+      }
+      finalModelUsed = rescueStage.provider.modelUsed;
+
+      const postRescueValidationPrompts = buildValidationPrompts(
+        input,
+        chapterCount,
+        emotionalEngine,
+        finalParsed
+      );
+      const postRescueValidationStage = await runStage("post-rescue-validation", postRescueValidationPrompts, {
+        maxTokens: input.config.length === "long" ? 30000 : 20000,
+        temperature: 0.2,
+        timeoutMs: input.config.length === "long" ? 240_000 : 150_000,
+      });
+      finalQualityScore = extractQualityScore(postRescueValidationStage.parsed) ?? finalQualityScore;
+      const postRescueCandidate = validationStoryCandidate(postRescueValidationStage.parsed);
+      if (postRescueCandidate) {
+        finalParsed = parseAndValidate(JSON.stringify(postRescueCandidate), chapterCount);
+      }
+      finalModelUsed = postRescueValidationStage.provider.modelUsed;
     }
   } catch (pipelineError) {
     await publishWithTimeout(logTopic, {
@@ -1382,7 +1696,7 @@ export async function generateStoryDevMode(
       timestamp: new Date(),
       request: {
         mode: "developer",
-        pipeline: "four-stage-quality",
+        pipeline: "six-stage-quality",
         provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
         model: input.config.aiModel,
         openRouterModel: input.config.openRouterModel,
@@ -1405,7 +1719,7 @@ export async function generateStoryDevMode(
         stages: stageLogs,
         durationMs: Date.now() - startedAt,
       },
-      metadata: { devMode: true, pipeline: "four-stage-quality", stage: "failed", failed: true },
+      metadata: { devMode: true, pipeline: "six-stage-quality", stage: "failed", failed: true },
     }).catch((logErr) => {
       console.warn("[dev-mode-generation] Failed to publish failure log:", logErr);
     });
@@ -1414,7 +1728,7 @@ export async function generateStoryDevMode(
 
   const parsed = finalParsed;
   if (!parsed) {
-    throw new Error("Developer-mode four-stage pipeline did not produce a story.");
+    throw new Error("Developer-mode six-stage pipeline did not produce a story.");
   }
 
   const totalUsage = usageSum(providerResults);
@@ -1424,7 +1738,7 @@ export async function generateStoryDevMode(
     timestamp: new Date(),
     request: {
       mode: "developer",
-      pipeline: "four-stage-quality",
+      pipeline: "six-stage-quality",
       provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
       model: finalModelUsed,
       openRouterModel: input.config.openRouterModel,
@@ -1457,6 +1771,7 @@ export async function generateStoryDevMode(
         usage: stage.usage,
         modelUsed: stage.modelUsed,
         durationMs: stage.durationMs,
+        score: extractQualityScore(stage.parsed),
       })),
       parsed: {
         title: parsed.title,
@@ -1471,7 +1786,7 @@ export async function generateStoryDevMode(
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },
-    metadata: { devMode: true, pipeline: "four-stage-quality", stage: "complete" },
+    metadata: { devMode: true, pipeline: "six-stage-quality", stage: "complete" },
   }).catch((logErr) => {
     console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
   });
@@ -1505,6 +1820,15 @@ export async function generateStoryDevMode(
       model: finalModelUsed,
       imagesGenerated: 0,
       developerMode: true,
+      devModePipeline: "six-stage-quality",
+      devModeStages: stageLogs.map((stage) => ({
+        stage: stage.stage,
+        usage: stage.usage,
+        modelUsed: stage.modelUsed,
+        durationMs: stage.durationMs,
+        score: extractQualityScore(stage.parsed) ?? undefined,
+      })),
+      qualityScore: finalQualityScore,
     },
   };
 }
