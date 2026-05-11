@@ -127,7 +127,8 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     "- KEIN Markdown, KEINE Code-Fences (``` ... ```), KEINE Erklärungen vor oder nach dem JSON.",
     "- KEINE Kommentare (// ...) und KEINE trailing commas.",
     '- Alle Property-Namen MÜSSEN in doppelten Anführungszeichen stehen.',
-    "- Innerhalb von String-Werten dürfen Anführungszeichen NUR als \\\" escaped vorkommen.",
+    `- Für wörtliche Rede / Dialog in den Kapiteltexten verwende AUSSCHLIESSLICH die typografischen Anführungszeichen „…“ (deutsch: U+201E öffnend, U+201C schließend) bzw. die landesüblichen Varianten. KEIN normales " innerhalb der Story-Texte.`,
+    `- Das Zeichen " darf in String-Werten NUR auftauchen wenn es als \\" escaped ist. Bevorzuge die typografischen Varianten oben.`,
     "- Zeilenumbrüche innerhalb der Kapitel-Texte müssen als \\n escaped werden, nicht als echter Zeilenumbruch.",
     "- Das JSON muss als Ganzes parsbar sein (JSON.parse muss ohne Fehler durchlaufen).",
     `Die Geschichte muss in ${languageName} verfasst sein.`,
@@ -186,8 +187,10 @@ function sliceToOuterObject(content: string): string {
  * Best-effort JSON repair. Models sometimes emit:
  *   - // line comments or /* block *\/ comments
  *   - trailing commas before } or ]
- *   - unescaped real newlines inside string values
- *   - single quotes instead of doubles
+ *   - unescaped " inside string values (typical when the story uses German
+ *     typographic dialog like „Ja" — model writes regular " inside the value
+ *     and doesn't escape it).
+ *   - single quotes instead of doubles (rarer; we don't auto-fix this).
  * We fix what we safely can without breaking valid JSON.
  */
 function repairLooseJson(input: string): string {
@@ -199,6 +202,152 @@ function repairLooseJson(input: string): string {
   // Remove trailing commas before } or ]
   s = s.replace(/,(\s*[}\]])/g, "$1");
   return s;
+}
+
+/**
+ * Heuristic recovery for the most common dev-mode failure: a model emits
+ * a JSON object whose string values contain unescaped " characters from
+ * dialog. We walk the input, treat every `"key":` token as a property
+ * boundary, then re-quote the value by detecting where the value ends
+ * (next `,\n  "key":` or `\n]` or `\n}` at a reasonable indent).
+ *
+ * This is a fallback for when JSON.parse keeps throwing "Expected
+ * double-quoted property name" — meaning the parser has miscounted
+ * quotes inside a value. Only attempt this when normal repair already
+ * failed; the cost is correctness loss in edge cases vs. the alternative
+ * of "story generation failed entirely".
+ */
+function escapeInnerQuotesInStringValues(raw: string): string {
+  // Find the top-level object body.
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (first < 0 || last <= first) return raw;
+  const before = raw.slice(0, first);
+  const body = raw.slice(first, last + 1);
+  const after = raw.slice(last + 1);
+
+  // Property-name pattern: a key followed by colon. We use a state machine.
+  // For each string-value start (after `":` or `: `), scan forward and
+  // collect characters; whenever we see a `"` decide whether it terminates
+  // the value (next non-space is `,`, `}`, `]`, or newline+key) or is an
+  // inner quote that must be escaped.
+  let out = "";
+  let i = 0;
+  let depth = 0;
+  while (i < body.length) {
+    const ch = body[i];
+    out += ch;
+    if (ch === "{" || ch === "[") depth++;
+    else if (ch === "}" || ch === "]") depth--;
+
+    // Detect a property `"key":` or array-element string start.
+    // Approach: when we hit `"`, scan the string. If the string is a
+    // "value" string (preceded by `:` ignoring whitespace), parse with
+    // tolerant rules.
+    if (ch === '"') {
+      // Check whether this " opens a VALUE string (preceded by `:` after ws)
+      // or a KEY string (preceded by `{` or `,` after ws).
+      let look = out.length - 2;
+      while (look >= 0 && /\s/.test(out[look])) look--;
+      const prevNonWs = look >= 0 ? out[look] : "";
+      const isValueString = prevNonWs === ":";
+      const isKeyOrSimple = prevNonWs === "{" || prevNonWs === "," || prevNonWs === "[";
+
+      // Scan forward, copying characters, handling escapes.
+      let j = i + 1;
+      let valueAcc = "";
+      while (j < body.length) {
+        const c = body[j];
+        if (c === "\\") {
+          // Pass through escape sequence verbatim.
+          valueAcc += c;
+          if (j + 1 < body.length) {
+            valueAcc += body[j + 1];
+            j += 2;
+            continue;
+          }
+          j++;
+          continue;
+        }
+        if (c === '"') {
+          // Decide: terminator or inner quote?
+          // Peek ahead skipping whitespace.
+          let k = j + 1;
+          while (k < body.length && /[ \t]/.test(body[k])) k++;
+          const peek = body[k];
+          // Terminator if followed by , } ] : or end-of-line that leads to one of these.
+          // For a KEY string the next non-ws must be `:`. For a VALUE string the next
+          // non-ws should be `,` `}` `]` or newline+`"key":` pattern.
+          let isTerminator = false;
+          if (isKeyOrSimple && !isValueString) {
+            // It's a key string — terminator must be `:`.
+            isTerminator = peek === ":";
+          } else if (isValueString) {
+            if (peek === "," || peek === "}" || peek === "]") {
+              isTerminator = true;
+            } else if (peek === "\n" || peek === "\r") {
+              // Look further: skip whitespace then expect `,` `}` `]` or `"key":` shape.
+              let m = k;
+              while (m < body.length && /\s/.test(body[m])) m++;
+              const nextChar = body[m];
+              if (nextChar === "," || nextChar === "}" || nextChar === "]") {
+                isTerminator = true;
+              } else if (nextChar === '"') {
+                // Possible key — look for `":` after a non-quote run.
+                let n = m + 1;
+                while (n < body.length && body[n] !== '"') {
+                  if (body[n] === "\\") n += 2;
+                  else n++;
+                }
+                let o = n + 1;
+                while (o < body.length && /[ \t]/.test(body[o])) o++;
+                if (body[o] === ":") isTerminator = true;
+              }
+            } else {
+              // Inner quote inside a value — escape it.
+              isTerminator = false;
+            }
+          } else {
+            // Bare string somewhere (e.g., inside an array of strings).
+            isTerminator = peek === "," || peek === "}" || peek === "]" || peek === "\n" || peek === "\r";
+          }
+
+          if (isTerminator) {
+            valueAcc += c;
+            j++;
+            break;
+          } else {
+            valueAcc += "\\\"";
+            j++;
+            continue;
+          }
+        }
+        // Escape raw control characters that JSON doesn't allow inside strings.
+        if (c === "\n") {
+          valueAcc += "\\n";
+          j++;
+          continue;
+        }
+        if (c === "\r") {
+          valueAcc += "\\r";
+          j++;
+          continue;
+        }
+        if (c === "\t") {
+          valueAcc += "\\t";
+          j++;
+          continue;
+        }
+        valueAcc += c;
+        j++;
+      }
+      out += valueAcc;
+      i = j;
+      continue;
+    }
+    i++;
+  }
+  return before + out + after;
 }
 
 function stripLineCommentsOutsideStrings(s: string): string {
@@ -235,18 +384,28 @@ function stripLineCommentsOutsideStrings(s: string): string {
 }
 
 function tryParseJson(raw: string): any {
-  const attempts: string[] = [];
   const trimmed = raw.trim();
-  attempts.push(trimmed);
-  attempts.push(stripJsonFence(trimmed));
-  const sliced = sliceToOuterObject(stripJsonFence(trimmed));
-  attempts.push(sliced);
-  attempts.push(repairLooseJson(sliced));
+  const fenced = stripJsonFence(trimmed);
+  const sliced = sliceToOuterObject(fenced);
+  const looseRepaired = repairLooseJson(sliced);
+  const aggressiveRepaired = escapeInnerQuotesInStringValues(looseRepaired);
+
+  const attempts: Array<{ label: string; text: string }> = [
+    { label: "raw", text: trimmed },
+    { label: "fence-stripped", text: fenced },
+    { label: "outer-sliced", text: sliced },
+    { label: "loose-repaired", text: looseRepaired },
+    { label: "aggressive-quote-repair", text: aggressiveRepaired },
+  ];
 
   let lastError: unknown = null;
-  for (const candidate of attempts) {
+  for (const attempt of attempts) {
     try {
-      return JSON.parse(candidate);
+      const parsed = JSON.parse(attempt.text);
+      if (attempt.label !== "raw") {
+        console.log(`[dev-mode-generation] JSON parsed via "${attempt.label}" repair stage.`);
+      }
+      return parsed;
     } catch (err) {
       lastError = err;
     }
