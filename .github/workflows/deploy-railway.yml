@@ -73,17 +73,23 @@ jobs:
       - name: Install Encore CLI
         run: |
           # Install Encore CLI using official script with retry logic
-          set +e
+          set -euo pipefail
+          INSTALL_OK=0
           for i in 1 2 3; do
             echo "Attempt $i to install Encore CLI..."
             if curl -L https://encore.dev/install.sh | bash; then
               echo "Installation successful!"
+              INSTALL_OK=1
               break
             fi
             echo "Installation failed, retrying in 5 seconds..."
             sleep 5
           done
-          set -e
+
+          if [ "$INSTALL_OK" -ne 1 ]; then
+            echo "❌ Encore CLI installation failed after 3 attempts."
+            exit 1
+          fi
 
           # Add Encore to PATH for subsequent steps
           echo "$HOME/.encore/bin" >> $GITHUB_PATH
@@ -99,6 +105,27 @@ jobs:
       - name: Verify Encore CLI
         run: encore version || true
 
+      - name: Warm Encore daemon
+        run: |
+          set -euo pipefail
+          encore telemetry disable || true
+          encore daemon || true
+
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            echo "Checking Encore daemon readiness (attempt $i/10)..."
+            if encore daemon env >/tmp/encore-daemon-env.txt 2>&1; then
+              cat /tmp/encore-daemon-env.txt
+              echo "✅ Encore daemon is ready."
+              exit 0
+            fi
+            cat /tmp/encore-daemon-env.txt || true
+            encore daemon || true
+            sleep 3
+          done
+
+          echo "❌ Encore daemon did not become ready."
+          exit 1
+
       - name: Build Encore Docker image
         env:
           MCP_SERVER_API_KEY: "mcp_sk_build_placeholder"
@@ -106,11 +133,23 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           cd backend
-          set +e
-          OUTPUT=$(encore build --config infra.config.railway.json docker myapp --verbose 2>&1)
-          STATUS=$?
-          echo "$OUTPUT"
-          if [ $STATUS -ne 0 ]; then
+          set -u
+
+          for attempt in 1 2; do
+            echo "Encore Docker build attempt $attempt/2..."
+            encore daemon || true
+
+            set +e
+            OUTPUT=$(encore build --config infra.config.railway.json docker myapp --verbose 2>&1)
+            STATUS=$?
+            set -e
+
+            echo "$OUTPUT"
+
+            if [ $STATUS -eq 0 ]; then
+              exit 0
+            fi
+
             if echo "$OUTPUT" | grep -q "could not check for update"; then
               echo "⚠️  Ignoring Encore update-check failure (build may still be valid)."
               if docker image inspect myapp >/dev/null 2>&1; then
@@ -119,8 +158,18 @@ jobs:
               fi
               echo "❌ Docker image not found; failing build."
             fi
-          fi
-          exit $STATUS
+
+            if echo "$OUTPUT" | grep -Eq "dialing daemon|context deadline exceeded"; then
+              if [ "$attempt" -lt 2 ]; then
+                echo "⚠️  Encore daemon timed out. Restarting daemon and retrying once..."
+                encore daemon || true
+                sleep 8
+                continue
+              fi
+            fi
+
+            exit $STATUS
+          done
 
       - name: Tag Docker image for GitHub Container Registry
         run: |
