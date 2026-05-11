@@ -266,15 +266,15 @@ function summarizeVisualProfile(vp: any): string {
     }
   };
 
-  pick("Alter", "ageDescription", "age", "ageApprox", "ageNumeric");
-  pick("Geschlecht", "gender");
-  pick("Spezies", "species", "speciesCategory", "characterType");
-  pick("Haut", "skinTone", "skin");
-  pick("Haare", "hair", "hairDescription", "hairColor");
-  pick("Augen", "eyes", "eyeColor", "eyeDescription");
-  pick("Statur", "build", "body", "physicalBuild", "height", "heightCm");
-  pick("Kleidung", "outfit", "clothing", "clothingDescription", "clothingCanonical");
-  pick("Besondere Merkmale", "distinctiveFeatures", "uniqueFeatures", "marks", "face");
+  pick("Age", "ageDescription", "age", "ageApprox", "ageNumeric");
+  pick("Gender", "gender");
+  pick("Species", "species", "speciesCategory", "characterType");
+  pick("Skin", "skinTone", "skin");
+  pick("Hair", "hair", "hairDescription", "hairColor");
+  pick("Eyes", "eyes", "eyeColor", "eyeDescription");
+  pick("Build", "build", "body", "physicalBuild", "height", "heightCm");
+  pick("Clothing", "outfit", "clothing", "clothingDescription", "clothingCanonical");
+  pick("Notable features", "distinctiveFeatures", "uniqueFeatures", "marks", "face");
 
   if (parts.length === 0) {
     const fallback = compactText(vp);
@@ -297,28 +297,28 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 function traitBand(value: number): string {
-  if (value <= 5) return "kaum ausgepraegt";
-  if (value < 20) return "niedrig";
-  if (value < 45) return "zurueckhaltend";
-  if (value < 70) return "mittel";
-  if (value < 90) return "stark";
-  return "sehr stark";
+  if (value <= 5) return "barely developed";
+  if (value < 20) return "low";
+  if (value < 45) return "reserved";
+  if (value < 70) return "medium";
+  if (value < 90) return "strong";
+  return "very strong";
 }
 
 function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: string[] } {
   if (!pt || typeof pt !== "object") return { baseLine: "", subLines: [] };
 
   const BASE_KEYS = ["knowledge", "creativity", "vocabulary", "courage", "curiosity", "teamwork", "empathy", "persistence", "logic"];
-  const LABEL_DE: Record<string, string> = {
-    knowledge: "Wissen",
-    creativity: "Kreativität",
-    vocabulary: "Wortschatz",
-    courage: "Mut",
-    curiosity: "Neugier",
-    teamwork: "Teamgeist",
-    empathy: "Empathie",
-    persistence: "Ausdauer",
-    logic: "Logik",
+  const LABEL_EN: Record<string, string> = {
+    knowledge: "Knowledge",
+    creativity: "Creativity",
+    vocabulary: "Vocabulary",
+    courage: "Courage",
+    curiosity: "Curiosity",
+    teamwork: "Teamwork",
+    empathy: "Empathy",
+    persistence: "Persistence",
+    logic: "Logic",
   };
 
   const baseParts: string[] = [];
@@ -328,7 +328,7 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
     const node = pt[key];
     const rawValue = typeof node === "number" ? node : (node && typeof node === "object" ? Number(node.value ?? 0) : 0);
     const value = clampNumber(rawValue, 0, 100);
-    baseParts.push(`${LABEL_DE[key]} ${Math.round(value)} (${traitBand(value)})`);
+    baseParts.push(`${LABEL_EN[key]} ${Math.round(value)} (${traitBand(value)})`);
 
     const subs = node && typeof node === "object" ? node.subcategories : undefined;
     if (subs && typeof subs === "object") {
@@ -340,7 +340,7 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
         }
       }
       if (subParts.length > 0) {
-        subLines.push(`  ${LABEL_DE[key]} im Detail: ${subParts.join(", ")}`);
+        subLines.push(`  ${LABEL_EN[key]} (detail): ${subParts.join(", ")}`);
       }
     }
   }
@@ -350,27 +350,27 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
 
 function buildAvatarBlock(avatars: DevModeAvatar[]): string {
   if (!avatars || avatars.length === 0) return "";
-  const lines: string[] = ["HAUPTFIGUREN (verwende sie wie beschrieben — Aussehen und Charakter konsistent durch die ganze Geschichte):"];
+  const lines: string[] = ["MAIN CHARACTERS (use them as described — appearance and character must stay consistent throughout the whole story):"];
 
   avatars.forEach((avatar, idx) => {
     const heading = avatar.age != null
-      ? `${idx + 1}. ${avatar.name} (${avatar.age} Jahre)`
+      ? `${idx + 1}. ${avatar.name} (${avatar.age} years old)`
       : `${idx + 1}. ${avatar.name}`;
     lines.push(heading);
 
     if (avatar.description && avatar.description.trim().length > 0) {
-      lines.push(`   Kurzbeschreibung: ${avatar.description.trim()}`);
+      lines.push(`   Short description: ${avatar.description.trim()}`);
     }
 
     const visual = summarizeVisualProfile(avatar.visualProfile);
     if (visual.length > 0) {
-      lines.push(`   Aussehen: ${visual}`);
+      lines.push(`   Appearance: ${visual}`);
     }
 
     const { baseLine, subLines } = summarizePersonalityTraits(avatar.personalityTraits);
     if (baseLine.length > 0) {
-      lines.push(`   Persoenlichkeit (Prompt-Skala 0-100; Werte ueber 100 wurden nur fuer den Prompt gekappt): ${baseLine}`);
-      lines.push("   Dramaturgie: Niedrige Werte sind Reibung und Wachstumsflaeche, hohe Werte sind aktive Staerken. Die Figur soll nie gegen diese Werte handeln, nur daran wachsen.");
+      lines.push(`   Personality (prompt scale 0-100; values above 100 were clamped only for this prompt): ${baseLine}`);
+      lines.push("   Dramaturgy note: low values are friction and room to grow; high values are active strengths. The character must never act against these values — only grow from them.");
       for (const sub of subLines) lines.push(sub);
     }
   });
@@ -385,7 +385,7 @@ function sanitizePoolPromptText(text?: string | null): string | null {
   return raw
     .replace(
       /(?:^|[\s;,.])Besiegt\s+durch\s*:[^.;\n]*(?:[.;]|$)/gi,
-      " Schwaechen-Hinweis: Die Figur reagiert empfindlich auf gemeinsam gehaltene, ruhige Aufmerksamkeit. "
+      " Weakness hint: the character reacts to shared, calm attention. "
     )
     .replace(
       /(?:^|[\s;,.])Defeated\s+by\s*:[^.;\n]*(?:[.;]|$)/gi,
@@ -398,27 +398,27 @@ function sanitizePoolPromptText(text?: string | null): string | null {
 function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
   if (!pool || pool.length === 0) return "";
   const lines: string[] = [
-    "NEBENFIGUREN-POOL (wähle natürlich passende Figuren aus dieser Liste in die Geschichte ein; nicht alle müssen vorkommen, aber nutze sie bevorzugt vor frei erfundenen Nebenfiguren — sie haben einprägsamen Charakter):",
+    "SUPPORTING-CHARACTER POOL (pick naturally fitting figures from this list; not all must appear, but prefer them over freely invented side characters — they have memorable personalities). When the story uses them, translate their data into the target output language while keeping their identity and quirks intact:",
   ];
   pool.forEach((c, idx) => {
     const heading = `${idx + 1}. ${c.name}${c.role ? ` (${c.role})` : ""}${c.archetype ? ` — ${c.archetype}` : ""}`;
     lines.push(heading);
     const meta: string[] = [];
-    if (c.species) meta.push(`Spezies: ${c.species}`);
-    if (c.ageCategory) meta.push(`Altersgruppe: ${c.ageCategory}`);
+    if (c.species) meta.push(`Species: ${c.species}`);
+    if (c.ageCategory) meta.push(`Age category: ${c.ageCategory}`);
     if (meta.length > 0) lines.push(`   ${meta.join(" · ")}`);
     const physicalDescription = sanitizePoolPromptText(c.physicalDescription);
-    if (physicalDescription) lines.push(`   Aussehen: ${physicalDescription}`);
+    if (physicalDescription) lines.push(`   Appearance: ${physicalDescription}`);
     if (c.personalityKeywords && c.personalityKeywords.length > 0) {
-      lines.push(`   Charakter: ${c.personalityKeywords.join(", ")}`);
+      lines.push(`   Character: ${c.personalityKeywords.join(", ")}`);
     }
-    if (c.catchphrase) lines.push(`   Sprichwort: „${c.catchphrase}“`);
+    if (c.catchphrase) lines.push(`   Catchphrase (translate into the target language while preserving meaning): "${c.catchphrase}"`);
     if (c.speechStyle && c.speechStyle.length > 0) {
-      lines.push(`   Sprechstil: ${c.speechStyle.join(", ")}`);
+      lines.push(`   Speech style: ${c.speechStyle.join(", ")}`);
     }
-    if (c.quirk) lines.push(`   Eigenheit: ${c.quirk}`);
+    if (c.quirk) lines.push(`   Quirk: ${c.quirk}`);
     const backstory = sanitizePoolPromptText(c.backstory);
-    if (backstory) lines.push(`   Hintergrund: ${backstory}`);
+    if (backstory) lines.push(`   Backstory: ${backstory}`);
   });
   return lines.join("\n");
 }
@@ -427,25 +427,27 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
   const { config, avatars, poolCharacters, primaryProfileAge } = input;
   const chapterCount = deriveChapterCount(config.length);
   const languageName = localizedLanguageName(config.language);
+  const code = languageCodeFromName(languageName);
 
   const systemPrompt = [
-    "Du bist ein erfahrener Kinderbuchautor.",
-    "Schreibe eine sehr gute, fesselnde, altersgerechte Kindergeschichte.",
-    "Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt nach diesem Schema:",
+    "You are an experienced children's-book author.",
+    "Write a very good, gripping, age-appropriate children's story.",
+    `OUTPUT LANGUAGE: the title, description, and chapter content must be in ${languageName}. The instructions are in English; do NOT translate the instructions into your output.`,
+    targetLanguageStyleAnchor(code),
+    "Respond with a valid JSON object ONLY, matching this schema:",
     "{",
     '  "title": string,',
     '  "description": string,',
     '  "chapters": [ { "title": string, "content": string, "order": number } ]',
     "}",
-    "Regeln für die JSON-Ausgabe:",
-    "- KEIN Markdown, KEINE Code-Fences (``` ... ```), KEINE Erklärungen vor oder nach dem JSON.",
-    "- KEINE Kommentare (// ...) und KEINE trailing commas.",
-    '- Alle Property-Namen MÜSSEN in doppelten Anführungszeichen stehen.',
-    `- Für wörtliche Rede / Dialog in den Kapiteltexten verwende AUSSCHLIESSLICH die typografischen Anführungszeichen „…“ (deutsch: U+201E öffnend, U+201C schließend) bzw. die landesüblichen Varianten. KEIN normales " innerhalb der Story-Texte.`,
-    `- Das Zeichen " darf in String-Werten NUR auftauchen wenn es als \\" escaped ist. Bevorzuge die typografischen Varianten oben.`,
-    "- Zeilenumbrüche innerhalb der Kapitel-Texte müssen als \\n escaped werden, nicht als echter Zeilenumbruch.",
-    "- Das JSON muss als Ganzes parsbar sein (JSON.parse muss ohne Fehler durchlaufen).",
-    `Die Geschichte muss in ${languageName} verfasst sein.`,
+    "JSON output rules:",
+    "- No Markdown, no code fences (``` ... ```), no explanations before or after the JSON.",
+    "- No comments (// ...), no trailing commas.",
+    '- All property names in double quotes.',
+    `- For dialogue inside the story content use ONLY the target-language typographic quotation marks (German „…", French «…», English "…"). No bare ASCII " inside story strings.`,
+    `- The character " may appear in string values ONLY as \\" (escaped). Prefer the typographic variants above.`,
+    "- Line breaks inside chapter content must be escaped as \\n, never real newlines.",
+    "- The JSON must parse cleanly with JSON.parse.",
   ].join("\n");
 
   // Build avatar block with full visual profile + personality traits.
@@ -455,39 +457,40 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     const names = (avatars || []).map((a) => a.name).filter(Boolean);
     avatarBlock =
       names.length > 0
-        ? `HAUPTFIGUREN: ${names
+        ? `MAIN CHARACTERS: ${names
             .map((n, i) =>
-              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} Jahre)` : n
+              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} years old)` : n
             )
             .join(", ")}`
-        : "HAUPTFIGUREN: frei wählbar.";
+        : "MAIN CHARACTERS: free choice.";
   }
 
   const poolBlock = buildPoolBlock(poolCharacters);
 
   const learningLine =
     config.learningMode?.enabled && config.learningMode.subjects?.length
-      ? `Lernziel (dezent einbauen, nicht aufdrängen): ${config.learningMode.subjects.join(", ")}.`
+      ? `Learning goal (weave in gently, never preach): ${config.learningMode.subjects.join(", ")}.`
       : null;
 
   const customLine = config.customPrompt?.trim()
-    ? `Zusätzlicher Wunsch des Lesers: ${config.customPrompt.trim()}`
+    ? `Reader's extra wish: ${config.customPrompt.trim()}`
     : null;
 
   const userPrompt = [
-    `Schreibe eine Kindergeschichte mit ${chapterCount} Kapiteln.`,
-    `Altersgruppe: ${config.ageGroup}.`,
+    `Write a children's story with ${chapterCount} chapters.`,
+    `Age group: ${config.ageGroup}.`,
     `Genre: ${config.genre}.`,
-    `Schauplatz / Setting: ${config.setting}.`,
+    `Setting: ${config.setting}.`,
     "",
     avatarBlock,
     poolBlock || null,
     "",
     learningLine,
     customLine,
-    `Jedes Kapitel soll einen klaren Bogen haben (Anfang, Mitte, Wendung/Höhepunkt) und in sich rund sein.`,
-    `"order" beginnt bei 1 und zählt aufwärts. Genau ${chapterCount} Kapitel.`,
-    `"description" ist ein kurzer 1-2 Satz Klappentext.`,
+    "Each chapter needs a clear arc (beginning, middle, turn/climax) and must feel complete on its own.",
+    `"order" starts at 1 and counts up. Exactly ${chapterCount} chapters.`,
+    `"description" is a 1–2 sentence blurb.`,
+    `FINAL REMINDER: title, description and all chapter content MUST be in ${languageName}.`,
   ]
     .filter((line): line is string => line !== null && line !== undefined)
     .join("\n");
@@ -504,27 +507,27 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     const names = (avatars || []).map((a) => a.name).filter(Boolean);
     avatarBlock =
       names.length > 0
-        ? `HAUPTFIGUREN: ${names
+        ? `MAIN CHARACTERS: ${names
             .map((n, i) =>
-              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} Jahre)` : n
+              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} years old)` : n
             )
             .join(", ")}`
-        : "HAUPTFIGUREN: frei waehlbar.";
+        : "MAIN CHARACTERS: free choice.";
   }
 
   const poolBlock = buildPoolBlock(poolCharacters);
   const learningLine =
     config.learningMode?.enabled && config.learningMode.subjects?.length
-      ? `Lernziel (dezent einbauen, nicht aufdraengen): ${config.learningMode.subjects.join(", ")}.`
+      ? `Learning goal (weave in gently, never preach): ${config.learningMode.subjects.join(", ")}.`
       : null;
   const customLine = config.customPrompt?.trim()
-    ? `Zusatzwunsch des Lesers: ${config.customPrompt.trim()}`
+    ? `Reader's extra wish (keep their phrasing's intent; output stays in target language): ${config.customPrompt.trim()}`
     : null;
 
   return [
-    `Sprache: ${languageName}.`,
-    `Altersgruppe: ${config.ageGroup}.`,
-    `Kapitelanzahl: genau ${chapterCount}.`,
+    `Output language: ${languageName}.`,
+    `Age group: ${config.ageGroup}.`,
+    `Chapter count: exactly ${chapterCount}.`,
     `Genre: ${config.genre}.`,
     `Setting: ${config.setting}.`,
     "",
@@ -544,14 +547,14 @@ function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapte
   return [
     buildDevStoryContext(input, chapterCount),
     "",
-    "QUALITAETSZIEL:",
-    "- Nicht nur ein Abenteuer loesen, sondern ein kindlich wiedererkennbares Gefuehl verwandeln.",
-    "- Die Geschichte soll nach dem Lesen als Ort, Figur und Schlussbild im Kopf bleiben.",
-    "- Die Geschichte braucht Lesesog: Kinder sollen wissen wollen, was hinter der naechsten Ecke, im naechsten Kapitel oder beim naechsten Vorlesen passiert.",
-    "- Baue Wiedererkennung ein: ein kurzer Refrain, ein komischer Spruch, eine wiederkehrende Geste oder ein sichtbares Ding, das jedes Mal neue Bedeutung bekommt.",
-    "- Jedes Kapitel endet nach einem Turn, nicht nach einer Erklaerung. Der letzte Absatz muss Vorfreude, Sorge, Staunen oder ein leises Kichern ausloesen.",
-    "- Jeder Hauptfigur muss ein kleiner Fehler passieren, der aus ihrem Charakter kommt und spaeter zu einer besseren Handlung fuehrt.",
-    "- Der Gegenspieler darf nicht nur Mechanik sein. Er braucht Wunde, falschen Glaubenssatz, komisch-unheimliches Verhalten und einen neuen Platz am Ende.",
+    "QUALITY GOAL:",
+    "- Don't just resolve an adventure — transform a feeling a child recognizes.",
+    "- After reading, the story should stay in mind as a place, a character, and a final image.",
+    "- The story needs reading pull: kids should want to know what's around the next corner, in the next chapter, or on the next re-read.",
+    "- Build recognizability in: a short refrain, a funny saying, a recurring gesture, or a visible object that gains new meaning each time.",
+    "- Each chapter ends on a turn, not an explanation. The last paragraph must trigger anticipation, worry, wonder, or a quiet giggle.",
+    "- Every main character must make one small mistake that comes from their character and later leads to a better action.",
+    "- The antagonist must not be pure mechanic. They need a wound, a wrong belief, funny-unsettling behavior, and a new place at the end.",
   ].join("\n");
 }
 
@@ -559,23 +562,23 @@ function genreCraftGuidance(genre?: string): string {
   const normalized = String(genre || "").toLowerCase();
   if (normalized.includes("fairy") || normalized.includes("maerchen") || normalized.includes("märchen")) {
     return [
-      "GENRE-HANDWERK MAERCHEN:",
-      "- Nutze Maerchen-Konventionen bewusst: Schwelle, klare magische Regel, symbolische Gegenstaende, einfache aber tiefe Wahrheit.",
-      "- Keine generische Fantasy-Quest. Das Wunder muss kindlich konkret und in Szenen sichtbar sein.",
-      "- Die Loesung darf nicht als Moral erklaert werden; sie muss aus Handlung, Figuren und zuvor gesetzten Details entstehen.",
+      "GENRE CRAFT — FAIRY TALE:",
+      "- Use fairy-tale conventions deliberately: a threshold, a clear magic rule, symbolic objects, a simple but deep truth.",
+      "- No generic fantasy quest. The wonder must be child-concrete and visible in scenes.",
+      "- The solution must NOT be explained as moral; it must emerge from action, characters, and details planted earlier.",
     ].join("\n");
   }
   if (normalized.includes("adventure") || normalized.includes("abenteuer")) {
     return [
-      "GENRE-HANDWERK ABENTEUER:",
-      "- Jedes Kapitel braucht ein sichtbares Ziel, ein Hindernis und eine kleine Konsequenz.",
-      "- Gefahr bleibt kindgerecht, aber Entscheidungen muessen spuerbare Folgen haben.",
+      "GENRE CRAFT — ADVENTURE:",
+      "- Each chapter needs a visible goal, an obstacle, and a small consequence.",
+      "- Danger stays age-appropriate, but decisions must have felt consequences.",
     ].join("\n");
   }
   return [
-    "GENRE-HANDWERK:",
-    "- Uebersetze das Genre in konkrete Szenen, Regeln, Requisiten und Wendungen.",
-    "- Vermeide leere Genre-Etiketten und austauschbare Standardmotive.",
+    "GENRE CRAFT:",
+    "- Translate the genre into concrete scenes, rules, props, and turns.",
+    "- Avoid empty genre labels and interchangeable stock motifs.",
   ].join("\n");
 }
 
@@ -583,70 +586,111 @@ function settingCraftGuidance(setting?: string): string {
   const normalized = String(setting || "").toLowerCase();
   if (!normalized || normalized === "fantasy") {
     return [
-      "SETTING-HANDWERK:",
-      "- Wenn das Setting allgemein ist, erfinde einen spezifischen Ort mit wiedererkennbaren Details.",
-      "- Der Ort muss die Handlung beeinflussen, nicht nur Kulisse sein.",
+      "SETTING CRAFT:",
+      "- If the setting is generic, invent a specific place with recognizable details.",
+      "- The place must influence the plot, not just decorate it.",
     ].join("\n");
   }
   return [
-    "SETTING-HANDWERK:",
-    "- Mache den Ort sinnlich konkret: Licht, Geraeusche, Geruch, Textur, Wege, Regeln.",
-    "- Nutze den Ort im Finale aktiv.",
+    "SETTING CRAFT:",
+    "- Make the place sensory and concrete: light, sounds, smell, texture, paths, rules.",
+    "- Use the place actively in the finale.",
   ].join("\n");
 }
 
 function chapterLengthGuidance(config: StoryConfig): string {
-  if (config.length === "short") return "Jedes Kapitel ca. 1.200-1.800 Zeichen.";
-  if (config.length === "long") return "Jedes Kapitel ca. 2.000-2.700 Zeichen.";
-  return "Jedes Kapitel ca. 1.800-2.400 Zeichen.";
+  if (config.length === "short") return "Each chapter approx. 1,200–1,800 characters of target-language prose.";
+  if (config.length === "long") return "Each chapter approx. 2,000–2,700 characters of target-language prose.";
+  return "Each chapter approx. 1,800–2,400 characters of target-language prose.";
+}
+
+function languageCodeFromName(languageName: string): string {
+  const lower = languageName.toLowerCase();
+  if (lower.includes("german") || lower.includes("deutsch")) return "de";
+  if (lower.includes("french") || lower.includes("français")) return "fr";
+  if (lower.includes("spanish") || lower.includes("español")) return "es";
+  if (lower.includes("italian") || lower.includes("italiano")) return "it";
+  if (lower.includes("dutch") || lower.includes("nederlands")) return "nl";
+  if (lower.includes("russian") || lower.includes("русский")) return "ru";
+  return "en";
+}
+
+/**
+ * A 1-2 line micro-anchor in the target output language so the model has a
+ * concrete stylistic seed. Keeps the output authentic to the target locale
+ * without leaking instructions in that language.
+ */
+function targetLanguageStyleAnchor(languageCode: string): string {
+  switch (languageCode) {
+    case "de":
+      return 'Output-language micro-anchor (German): „Die Stadt klingt wie ein müdes Kissen", murmelte Alexander und hielt das Glöckchen fester. — Use this register: warm, concrete, sensory, light humor; typographic quotation marks „…".';
+    case "fr":
+      return 'Output-language micro-anchor (French): « La ville sonne comme un coussin fatigué », murmura Alexandre en serrant la clochette. — Use this register: warm, concrete, sensory; French guillemets « ».';
+    case "es":
+      return 'Output-language micro-anchor (Spanish): «La ciudad suena como un cojín cansado», murmuró Alejandro apretando la campanita. — Use this register: warm, concrete, sensory; angle quotes «».';
+    case "it":
+      return 'Output-language micro-anchor (Italian): «La città suona come un cuscino stanco», mormorò Alessandro stringendo il campanello. — Use this register: warm, concrete, sensory; angle quotes «».';
+    case "nl":
+      return 'Output-language micro-anchor (Dutch): „De stad klinkt als een moe kussentje", mompelde Alexander en hield het belletje vaster. — Use this register: warm, concrete, sensory.';
+    case "ru":
+      return 'Output-language micro-anchor (Russian): «Город звучит как уставшая подушка», прошептал Александр, крепче сжимая колокольчик. — Use this register: warm, concrete, sensory; guillemets «».';
+    default:
+      return 'Output-language micro-anchor (English): "The town sounds like a tired cushion," Alexander whispered, holding the bell tighter. — Use this register: warm, concrete, sensory, light humor; standard double quotes "".';
+  }
 }
 
 function qualitySystemPrompt(languageName: string, outputSchema: string): string {
+  const code = languageCodeFromName(languageName);
   return [
-    "Du bist ein preisgekroenter Kinderbuchautor und Dramaturg fuer altersgerechte Vorlese- und Lesegeschichten.",
-    "Dein Ziel ist echte Kinderbuchqualitaet: warm, spannend, klar, bildhaft, emotional, humorvoll und mit Figuren, die Kinder wiedererkennen und moegen.",
+    "You are an award-winning children's-book author and dramaturg, writing age-appropriate read-aloud and read-yourself stories.",
+    "Your goal is true children's-book quality: warm, gripping, clear, visual, emotional, humorous, with characters children recognize and love.",
     "",
-    "SCHREIBSTANDARD:",
-    "- Schreibe szenisch, nicht zusammenfassend.",
-    "- Beginne konkrete Szenen mit Handlung, Dialog, kleinen Gesten, Sinneseindruecken und Entscheidungen.",
-    "- Jede Hauptfigur handelt sichtbar und hat eine eigene Rolle.",
-    "- Gefuehle werden durch Verhalten, Koerper, Blick, Stimme und Entscheidung gezeigt; selten direkt benannt.",
-    "- Keine Moralpredigt, keine Standard-Fantasy, keine Loesung durch blosses Glauben.",
-    "- Niedrige Persoenlichkeitswerte bedeuten Reibung/Wachstum, nicht Unsympathie.",
-    "- Hohe Persoenlichkeitswerte muessen als aktive Staerke in Handlung sichtbar werden.",
+    `OUTPUT LANGUAGE (CRITICAL):`,
+    `- The final prose, all dialogue, all titles, all descriptions MUST be in ${languageName}.`,
+    `- These instructions are written in English for clarity; do NOT translate the instructions into your output. Only the story content goes into ${languageName}.`,
+    `- If you accidentally produce any sentence in English instead of ${languageName}, that is a failure of the task.`,
+    targetLanguageStyleAnchor(code),
     "",
-    "SPRACHE:",
-    `- Die Ausgabe muss in ${languageName} sein.`,
-    "- Fuer die Zielgruppe verstaendlich: klare Saetze, klare Bilder, keine verschachtelten Erwachsenensaetze.",
-    "- Mindestens 30 Prozent Dialog in der finalen Geschichte.",
-    "- Pro Kapitel mindestens zwei konkrete Sinneseindruecke.",
-    "- Pro Kapitel ein kleiner humorvoller Moment aus Situation oder Figur.",
-    "- Dialog muss mehrfach arbeiten: Handlung vorantreiben, Beziehung zeigen, Stimme unterscheiden und Subtext tragen.",
-    "- Der Schluss muss ein Bild hinterlassen, nicht nur ein Problem beenden.",
+    "WRITING STANDARD:",
+    "- Write scenes, not summaries.",
+    "- Open scenes with action, dialogue, small gestures, sensory detail, and decisions.",
+    "- Every main character acts visibly and owns a role.",
+    "- Show feelings through behavior, body, gaze, voice, decisions — rarely name them directly.",
+    "- No moralizing, no stock fantasy, no resolution through mere belief.",
+    "- Low personality values mean friction / room to grow, not unlikability.",
+    "- High personality values must surface as active strengths in the action.",
     "",
-    "LESESOG:",
-    "- Schreibe so, dass Kinder nach jedem Kapitel noch eine konkrete Frage im Kopf haben.",
-    "- Nutze eine wiedererkennbare Mini-Geste, ein Requisit, einen Spruch oder ein Klang-/Bildmotiv, das wiederkehrt und sich veraendert.",
-    "- Kapitelenden sollen eine kleine Tuer aufmachen: neue Gefahr, neue Frage, neue Entscheidung oder komischer Nachhall.",
-    "- Die Hauptspannung muss geloest werden, aber am Ende darf ein winziger, freundlicher Weiterlese-Funken bleiben.",
-    "- Kein kuenstlicher Cliffhanger, keine Werbung fuer eine Fortsetzung, kein abgebrochener Hauptkonflikt.",
+    "LANGUAGE & FORM (in the target output language):",
+    "- Age-appropriate: clear sentences, clear images, no nested adult phrasing.",
+    "- At least 30 percent dialogue in the final story.",
+    "- At least two concrete sensory impressions per chapter.",
+    "- At least one humorous moment per chapter from situation or character (mandatory, not optional).",
+    "- Dialogue must do multiple jobs: drive action, show relationship, distinguish voice, carry subtext.",
+    "- The ending must leave an image, not just close a problem.",
     "",
-    "VERBOTENE MUSTER:",
-    "- Sie lernten, dass ...",
-    "- Das groesste Geschenk war Freundschaft.",
-    "- Mit Mut und Zusammenhalt schafften sie es.",
-    "- wahre Magie liegt im Herzen",
-    "- Es war alles nur ein Traum.",
-    "- Gegner wird in einem Satz bekehrt.",
-    "- Nebenfigur erklaert nur die Loesung.",
-    "- kaputte Platzhalter wie [object Object].",
+    "READING PULL:",
+    "- Write so children still hold a concrete question in their head after each chapter.",
+    "- Use a recognizable mini-gesture, a prop, a refrain, or a sound/visual motif that recurs and changes.",
+    "- Chapter endings must crack a small door open: new danger, new question, new decision, or a funny aftershock.",
+    "- Main tension must resolve, but a small friendly spark may show this world holds more stories.",
+    "- No cheap cliffhangers, no 'to be continued' marketing, no abandoned main conflict.",
     "",
-    "JSON-AUSGABE:",
-    "Antworte AUSSCHLIESSLICH mit einem gueltigen JSON-Objekt.",
-    "Kein Markdown. Keine Code-Fences. Keine Kommentare. Keine trailing commas.",
-    "Alle Property-Namen in doppelten Anfuehrungszeichen.",
-    "Dialog innerhalb von Storytexten mit typografischen Anfuehrungszeichen „...“, nicht mit normalen ASCII-Anfuehrungszeichen.",
-    "Zeilenumbrueche in JSON-Strings als \\n escapen.",
+    "FORBIDDEN PATTERNS (in any language — do not paraphrase these either):",
+    "- 'They learned that …' / 'Sie lernten, dass …'",
+    "- 'The greatest gift was friendship.' / 'Das größte Geschenk war Freundschaft.'",
+    "- 'With courage and togetherness they made it.' / 'Mit Mut und Zusammenhalt schafften sie es.'",
+    "- 'True magic lies in the heart.' / 'Wahre Magie liegt im Herzen.'",
+    "- 'It was all just a dream.' / 'Es war alles nur ein Traum.'",
+    "- Antagonist converted in one sentence.",
+    "- Side character merely explains the solution.",
+    "- Broken placeholders like [object Object].",
+    "",
+    "JSON OUTPUT:",
+    "Respond with a valid JSON object ONLY.",
+    "No Markdown, no code fences, no comments, no trailing commas.",
+    "All property names in double quotes.",
+    "Dialogue inside story text uses the target language's typographic quotation marks (German „…\", French «…», English \"…\") — NOT plain ASCII quotes inside story values.",
+    "Escape line breaks inside JSON string values as \\n.",
     "",
     outputSchema,
   ].join("\n");
@@ -685,18 +729,19 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 1: Erzeuge einen Story-Blueprint mit integrierter Emotional Engine. Schreibe noch keine ausformulierte Geschichte.",
-    "Dieser Support-Call muss die spaetere Geschichte vorbereiten: emotionaler Kern, Figurenrollen, klare magische Regel, Versuch-Irrtum-Folge, Finale aus vorbereiteten Details.",
+    "CALL 1: Produce a story blueprint with an integrated emotional engine. Do NOT write the actual story prose yet.",
+    "This support call must prepare the later story: emotional core, character roles, a clear magic rule, a try-fail-try chain, finale built from earlier-planted details.",
+    "Blueprint values may stay in English — only the final story prose (Call 3) must be in the target output language.",
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
-    `Plane genau ${chapterCount} Kapitel.`,
-    "Jedes Kapitel braucht Ownership: Eine konkrete Figur treibt es aktiv, und am Ende hat sich etwas irreversibel veraendert.",
-    "Plane explizit den Weiterlese-Sog: Refrain/Leitmotiv, Kapitel-Endhaken, Callback-Leiter und kleine Wiederlese-Details.",
-    "Der Lesesog soll aus echter Neugier kommen: Kinder wollen wissen, was das Ding bedeutet, warum die Figur so reagiert oder welche Regel als Naechstes sichtbar wird.",
-    "Der letzte Satz der ganzen Geschichte soll geschlossen UND neugierig machen: Hauptproblem geloest, aber die Welt fuehlt sich groesser an.",
-    "Achte besonders darauf, dass Antagonisten-Hinweise nicht als Spoiler-Loesung uebernommen werden.",
-    "Die Emotional Engine muss so konkret sein, dass der finale Story-Writer sie direkt in Szene, Dialog und Schlussbild uebersetzen kann.",
+    `Plan exactly ${chapterCount} chapters.`,
+    "Every chapter needs ownership: one concrete character actively drives it, and at the end something has irreversibly changed.",
+    "Plan the read-on pull explicitly: refrain / leitmotif, chapter-end hooks, a callback ladder, small reread details.",
+    "The pull must come from real curiosity: kids want to know what the thing means, why the character reacts this way, or which rule shows up next.",
+    "The final sentence of the whole story must be closed AND curiosity-inducing: main problem resolved, but the world feels bigger.",
+    "Make sure antagonist hints aren't smuggled into the solution as a spoiler shortcut.",
+    "The emotional engine must be concrete enough that the final story writer can translate it directly into scene, dialogue, and closing image.",
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -726,14 +771,15 @@ function buildCritiquePrompts(
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 2: Pruefe den Blueprint wie ein strenger Kinderbuch-Dramaturg und Lektor.",
-    "Finde alles, was die Geschichte unter 9.5/10 gegen echte Kinderbuecher druecken wuerde: schwache Spannung, fehlender emotionaler Kern, Figuren ohne aktive Rolle, gleiche Stimmen, Telling, generische Motive, fehlende Sinnlichkeit, unverdiente Wendung.",
-    "Pruefe besonders den Lesesog: Gibt es ein wiedererkennbares Motiv? Endet jedes Kapitel mit einer echten Frage/Entscheidung? Gibt es genuegend komische oder raetselhafte Details, die Kinder wiederhoeren wollen?",
-    "Eine Story ohne klaren Kapitel-Endhaken, Refrain/Callback oder kindliche Neugier-Maschine darf im Blueprint maximal 8.4 bekommen.",
-    "Gib danach einen verbesserten revisedBlueprint zurueck. Der revisedBlueprint darf die Struktur schaerfen, aber keine neue unpassende Pipeline-Komplexitaet einfuehren.",
-    "Bewerte hart. Ein technisch sauberer Blueprint ist nicht automatisch Marktqualitaet.",
+    "CALL 2: Critique this blueprint like a strict children's-book dramaturg and editor.",
+    "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn.",
+    "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
+    "A blueprint without clear chapter-end hooks, refrain/callback, or a child-curiosity engine may score at most 8.4.",
+    "Then return an improved revisedBlueprint. The revisedBlueprint may sharpen structure but must not introduce new unfitting pipeline complexity.",
+    "Score harshly. A technically clean blueprint is not automatically market-quality.",
+    "Critique values stay in English; only the final story prose (Call 3) is in the target output language.",
     "",
-    "KONTEXT:",
+    "CONTEXT:",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
     "BLUEPRINT:",
@@ -752,7 +798,7 @@ function buildStoryDraftPrompts(
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
-      "Finales Story-Schema:",
+      "Final story schema:",
       "{",
       '  "title": string,',
       '  "description": string,',
@@ -763,45 +809,72 @@ function buildStoryDraftPrompts(
     ].join("\n")
   );
   const revisedBlueprint = critique?.revisedBlueprint || blueprint;
+  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  const heroA = heroNames[0] || "Main character A";
+  const heroB = heroNames[1] || "Main character B";
   const userPrompt = [
-    "CALL 3: Schreibe jetzt die finale Geschichte als echte Szene, nicht als Zusammenfassung.",
-    "Dies ist der einzige Call, der die Story-Prosa schreiben darf. Nutze deshalb den Blueprint, die Kritik und die Voice-Regeln direkt im ersten Entwurf.",
+    `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
+    "This is the ONLY call allowed to write the actual story prose. Use the blueprint, the critique, and the voice rules directly in the first draft.",
+    "",
+    "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
+    "Before you write the story, answer the following three questions for yourself, in detail and concretely.",
+    "Do NOT include the answers in your output. Only start writing the story AFTER you have answered each question concretely.",
+    "If you cannot answer a question concretely, your answer is too generic — revise it before you start writing.",
+    "(You may answer the reflection in English to think faster; this does NOT affect output language — the story itself must be in the target language.)",
+    "",
+    `Question 1 (Character differentiation): What specifically distinguishes ${heroA} and ${heroB} in EVERY scene?`,
+    `   a) Which physical mini-gesture does ${heroA} have that recurs at least 3 times in the story? Which one does ${heroB} have?`,
+    "   b) In what concrete sentence-length / rhythm pattern do the two speak differently? Give one typical dialogue example for each.",
+    "   c) How do they react DIFFERENTLY to the SAME stimulus (e.g. a danger)? If I strip the dialogue tags, a reader must be able to guess who said what.",
+    "",
+    "Question 2 (Setups & payoffs): How do I plant prepared resolutions instead of deus-ex-machina solutions?",
+    "   a) Name three concrete small details, objects, or habits that appear casually in chapters 1–2.",
+    "   b) Where exactly in chapters 4–5 does each of those three details pay off? The resolution of the main crisis MUST draw from at least one of these setups.",
+    "   c) If the antagonist's defeat were NOT tied to one of these setups — what would I change?",
+    "",
+    "Question 3 (Humor — MANDATORY, not optional): Where is the humor in this story?",
+    "   a) Give me at least one concrete humorous moment per chapter. What exactly is funny — a gesture, a wordplay, an absurd comparison, a misunderstanding?",
+    "   b) The humor must come from the characters, not from the narrator. Which character quirk triggers humor?",
+    "   c) Age-appropriate humor: would a 6-year-old actually giggle when read aloud? If not, the humor is too adult or too abstract — revise.",
+    "",
+    "This self-reflection is NOT a formality. If the answers stay thin, the story will be interchangeable.",
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
-    "DRAMATURGIE-VORGABEN:",
-    `- Genau ${chapterCount} Kapitel.`,
+    "DRAMATURGY RULES:",
+    `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
-    "- Jedes Kapitel 6-12 Absaetze.",
-    "- Kapitel 1: starker Hook in den ersten 2 Saetzen, konkretes Problem, unterschiedliche Reaktion der Hauptfiguren, offenes Ende.",
-    "- Kapitel 2: Welt konkreter, Spur/Begegnung, Nebenfigur/Gegenspieler zeigt Eigenart, Problem wird groesser.",
-    "- Kapitel 3: falscher Versuch oder Fehlentscheidung aus Charakter heraus, echte Konsequenz, kein Zufall rettet.",
-    "- Kapitel 4: tiefere Regel verstehen, unterschiedliche Staerken verbinden, emotionaler Moment, Finale vorbereiten.",
-    "- Kapitel 5: konkrete Handlung, vorbereitete Loesung, emotionaler Nachhall, starkes Schlussbild, keine erklaerte Moral.",
-    "- Jede Hauptfigur muss mindestens eine eigene Mini-Entscheidung treffen, die ohne sie nicht passieren koennte.",
-    "- Der Antagonist muss in mindestens drei Kapiteln ein wiedererkennbares Verhalten zeigen und am Ende einen neuen Platz bekommen.",
+    "- 6–12 paragraphs per chapter.",
+    "- Chapter 1: strong hook in the first 2 sentences, concrete problem, different reactions from the main characters, open ending.",
+    "- Chapter 2: world becomes concrete, trail/encounter, side or antagonist character shows a quirk, problem grows.",
+    "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
+    "- Chapter 4: understand the deeper rule, combine different strengths, an emotional moment, prepare the finale.",
+    "- Chapter 5: concrete action, prepared solution, emotional aftertaste, strong closing image, no explained moral.",
+    "- Every main character must make at least one mini-decision that wouldn't happen without them.",
+    "- The antagonist must show a recognizable behavior across at least three chapters and gain a new place at the end.",
+    "- HUMOR (MANDATORY): EVERY chapter needs at least one humorous moment coming from character or situation — no narrator jokes. Good kinds: absurd comparisons, small mishaps, a dry remark from a side character, a wordplay, a loving teasing moment between the main characters. No 'explained joke', no adult irony.",
     "",
-    "LESESOG-/WEITERLESEREGELN:",
-    "- Kapitel 1 muss in den ersten 2 Saetzen ein konkretes, merkbares Problem zeigen.",
-    "- Jedes Kapitel endet mit einem Pull: offene Frage, drohende Folge, neue Regel, unerwartete Geste oder ein komischer Moment, der nachhallt.",
-    "- Nutze den readerMagnet aus dem Blueprint sichtbar: Refrain/Leitmotiv/Callback darf nicht nur geplant sein, sondern muss auf der Seite passieren.",
-    "- Baue mindestens 3 kleine Setups ein, die spaeter payoff bekommen. Kinder sollen rueckblickend sagen koennen: Ah, deshalb war das wichtig.",
-    "- Das Finale muss geschlossen sein, aber ein freundlicher letzter Funken darf zeigen, dass diese Welt noch mehr Geschichten haette.",
-    "- Keine billigen Cliffhanger und kein 'Fortsetzung folgt'.",
+    "READ-ON / PULL RULES:",
+    "- Chapter 1 must show a concrete, memorable problem in the first 2 sentences.",
+    "- Every chapter ends on a pull: open question, looming consequence, new rule, unexpected gesture, or a funny moment that lingers.",
+    "- Make the blueprint's readerMagnet visible on the page: refrain/leitmotif/callback must not stay theoretical — it must happen in the prose.",
+    "- Plant at least 3 small setups that get a payoff later. Kids should be able to say in retrospect: ah, that's why that mattered.",
+    "- The finale must be closed, but a small friendly spark may show this world holds more stories.",
+    "- No cheap cliffhangers, no 'to be continued'.",
     "",
-    "VOICE-/READ-ALOUD-REGELN:",
-    "- Stimmen unterscheidbar machen: Alexander knapper/beobachtender; Adrian beweglicher/neugieriger; Nebenfiguren mit eigenem Rhythmus.",
-    "- Dialoge sollen mindestens zwei Dinge gleichzeitig tun: Handlung, Beziehung, Subtext oder Humor.",
-    "- Emotionen zeigen, nicht erklaeren.",
-    "- Wiederholbare, kindlich zitierbare Details staerken.",
-    "- Antagonist menschlich und komisch-unheimlich machen, ohne ihn sofort zu bekehren.",
-    "- Schluss emotional nachhallen lassen und dem Antagonisten einen neuen Platz geben.",
-    "- KI-Muster vermeiden: keine 'Nicht X. Nicht Y. Nur Z.'-Ketten.",
+    "VOICE / READ-ALOUD RULES:",
+    "- Make voices distinguishable. Use each main character's personality values from the context block to decide their pace, lexicon, and risk tolerance.",
+    "- Dialogue must do at least two things at once: action, relationship, subtext, or humor.",
+    "- Show emotion, don't name it.",
+    "- Strengthen repeatable, child-quotable details.",
+    "- Make the antagonist human and funny-uncanny, do not convert them quickly.",
+    "- Let the ending resonate emotionally and give the antagonist a new place.",
+    "- Avoid AI patterns: no 'Not X. Not Y. Just Z.' chains.",
     "",
-    "GEPRUEFTER BLUEPRINT INKLUSIVE EMOTIONAL ENGINE:",
+    "REVIEWED BLUEPRINT INCLUDING EMOTIONAL ENGINE:",
     JSON.stringify(revisedBlueprint, null, 2),
     "",
-    "KRITIK, DIE DU BEHEBEN MUSST:",
+    "CRITIQUE YOU MUST RESOLVE:",
     JSON.stringify(
       {
         score: critique?.score,
@@ -813,6 +886,8 @@ function buildStoryDraftPrompts(
       null,
       2
     ),
+    "",
+    `FINAL REMINDER: title, description and ALL chapter content must be written in ${languageName}. The instructions above were in English for clarity; do NOT echo any English into the story.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -829,7 +904,7 @@ function buildStoryPolishPrompts(
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
-      "Finales Story-Schema:",
+      "Final story schema:",
       "{",
       '  "title": string,',
       '  "description": string,',
@@ -841,28 +916,29 @@ function buildStoryPolishPrompts(
   );
 
   const userPrompt = [
-    "CALL 3B: Fuehre einen gezielten Kinderbuch-Polish der vorhandenen Geschichte aus.",
-    "Dieser Call laeuft nur, wenn lokale Qualitaets-Gates Probleme gefunden haben. Schreibe die Story nicht neu als andere Handlung, sondern repariere und verdichte sie.",
-    "Die finale Prosa muss weiterhin vom ausgewaehlten Wizard-Modell stammen. Erhalte deshalb Ton, Figuren, Plot, Titelidee und Schlussbild, aber behebe die gelisteten Maengel konsequent.",
+    `CALL 3B: Run a targeted children's-book polish on the existing story. The polished prose must stay in ${languageName}.`,
+    "This call only runs when local quality gates OR the validator flagged issues. Don't rewrite a different plot — repair and tighten what's there.",
+    "Preserve tone, characters, plot, title idea, and closing image, but consistently fix the listed flaws.",
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
-    "POLISH-ZIELE:",
-    "- Kinder sollen nach jedem Kapitel weiterhoeren oder weiterlesen wollen.",
-    "- Verdichte statt aufblasen: streiche erklaerende Saetze, ersetze sie durch Handlung, Dialog, Geste oder konkretes Detail.",
-    "- Baue mehr Dialog ein, aber jeder Dialog muss Handlung, Beziehung, Figur oder Humor leisten.",
-    "- Kapitelenden brauchen Sog. Kein Kapitel darf wie eine abgeschlossene Inhaltsangabe enden.",
-    "- Wiederkehrende Motive, Refrains oder kleine Dinge muessen sichtbar wiederkommen und sich im Finale auszahlen.",
-    "- Fixe alle Tipp-, Namens- und Grammatikfehler. Namen muessen exakt stimmen.",
-    "- Behalte genau die Kapitelanzahl und JSON-Struktur.",
+    "POLISH GOALS:",
+    "- Kids must want to keep listening or reading after every chapter.",
+    "- Tighten, don't inflate: cut explanatory sentences, replace them with action, dialogue, gesture, or concrete detail.",
+    "- Add more dialogue, but every dialogue line must do action, relationship, character, or humor.",
+    "- Chapter endings need pull. No chapter may end like a finished summary.",
+    "- Recurring motifs, refrains, or small objects must visibly return and pay off in the finale.",
+    "- Fix all typos, name errors, and grammar issues. Names must match exactly.",
+    "- Keep the exact chapter count and JSON structure.",
+    "- If the validator findings list 'mustFixBefore95' items, address each one explicitly.",
     "",
-    "HARTE LOKALE DIAGNOSE:",
+    "LOCAL DIAGNOSTICS:",
     JSON.stringify(diagnostics, null, 2),
     "",
     "BLUEPRINT / READER MAGNET:",
     JSON.stringify(critique?.revisedBlueprint || blueprint, null, 2),
     "",
-    "KRITIK AUS DEM DRAMATURGIE-CHECK:",
+    "CRITIQUE FROM DRAMATURGY CHECK:",
     JSON.stringify(
       {
         score: critique?.score,
@@ -870,13 +946,16 @@ function buildStoryPolishPrompts(
         readOnRisks: critique?.readOnRisks || [],
         addictiveReadingFixes: critique?.addictiveReadingFixes || [],
         chapterRisks: critique?.chapterRisks || [],
+        validatorFindings: critique?.validatorFindings || null,
       },
       null,
       2
     ),
     "",
-    "AKTUELLE STORY, DIE DU POLISHEN MUSST:",
+    "CURRENT STORY TO POLISH:",
     JSON.stringify(story, null, 2),
+    "",
+    `FINAL REMINDER: title, description and ALL chapter content must remain in ${languageName}.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -916,24 +995,116 @@ function buildValidationPrompts(
       "}",
     ].join("\n")
   );
+  const code = languageCodeFromName(languageName);
+  const anchorBlock = validatorAnchorBlock(code);
   const userPrompt = [
-    "CALL 4: Validiere JSON, Stil, Marktqualitaet und Logik der finalen Geschichte.",
-    "WICHTIG: Schreibe die Story nicht um und gib keine Story-Kopie zurueck. Dieser Support-Call bewertet nur. Die finale Prosa muss vom ausgewaehlten Wizard-Modell stammen.",
-    "Bewerte hart gegen echte Kinderbuecher, nicht gegen typische KI-Ausgaben. 9.5 darf nur vergeben werden, wenn emotionaler Kern, Figurenstimmen, Spannung, Humor, Originalitaet, Schlussbild UND Lesesog stark sind.",
-    "Eine reine Checklisten-Erfuellung darf maximal 8.5 sein. Wenn der Antagonist nur Mechanik ist, maximal 8.4. Wenn die Hauptfiguren nicht ikonisch unterscheidbar sind, maximal 8.7. Wenn der Schluss keinen emotionalen neuen Zustand zeigt, maximal 8.8. Wenn Kapitelenden keinen Weiterlese-Sog haben, maximal 8.6. Wenn Dialogquote/Form-Gates laut lokaler Diagnose verfehlt sind, maximal 8.7.",
-    "Pruefe: genau richtige Kapitelanzahl, gueltiges JSON, keine [object Object], klare Figurenrollen, keine erklaerte Moral, vorbereitete Loesung, keine gespoilerte/billige Antagonisten-Niederlage, altersgerechte Sprache, Dialog mit typografischen Anfuehrungszeichen.",
-    "Pruefe zusaetzlich: Wuerde ein Kind das naechste Kapitel hoeren wollen? Gibt es ein wiederkehrendes Motiv? Gibt es Rueckbezug/Payoff? Gibt es Wiederlese-Belohnungen und Figuren, die man wiedersehen moechte?",
+    "CALL 4: Validate JSON, style, market quality, and logic of the final story.",
+    "IMPORTANT: Do NOT rewrite the story or return a story copy. This support call only evaluates. The final prose must come from the selected writer model.",
+    "Your JSON output (the validation verdict) is fine in English. Only the story you are evaluating is in the target language.",
     "",
-    "KONTEXT:",
+    "CALIBRATION (binding — compare the story to these anchors, written in the story's target language):",
+    "",
+    anchorBlock,
+    "",
+    "SCORING RULES:",
+    "- 9.5+ ONLY if the story sits in the same league as Donaldson/Nordqvist (rhyme/beat OR unmistakable character voices + humor + setup-payoff + emotional aftertaste).",
+    "- 9.0–9.4 if clearly better than the elevated standard anchor (7.5), but rhyme/beat missing OR humor weak.",
+    "- 8.5–8.9 if clearly above anchor 7.5, but at least one weakness (e.g. character voices present but not iconic; humor present but quiet; setup/payoff present but not surprising).",
+    "- 7.0–8.4 if at or slightly above anchor 7.5 (standard children's book).",
+    "- 5.0–6.9 if at anchor-6 level (forbidden phrases, generic).",
+    "- < 5.0 if at anchor-4 level or worse.",
+    "",
+    "MANDATORY CAPS (whichever is lower wins):",
+    "- Antagonist is only mechanic (no wound / no new place at the end): max 8.4.",
+    "- Main characters not iconically distinguishable (dialogue interchangeable): max 8.7.",
+    "- Ending explains moral instead of showing ('they learned...' / 'Sie lernten...'): max 7.5.",
+    "- Chapter endings without read-on pull: max 8.6.",
+    "- Dialogue quota / form gates failed per local diagnostics: max 8.7.",
+    "- NO humor in the 'kid giggles' sense in at least 4 of 5 chapters: max 8.2.",
+    "- No setup-payoff (resolution doesn't come from prepared details): max 8.0.",
+    "- More than 2 forbidden phrases in any language ('they learned...', 'true magic in the heart...', 'with courage and togetherness...'): max 6.5.",
+    "",
+    "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
+    "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
+    "Be honest. A truthful 7.8 beats a flattering 9.2. Self-inflating the score would be a pipeline error.",
+    "",
+    "CONTEXT:",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
-    "LOKALE DIAGNOSE DER FINALEN STORY:",
+    "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     JSON.stringify(diagnostics || null, null, 2),
     "",
     "STORY:",
     JSON.stringify(story, null, 2),
   ].join("\n");
   return { systemPrompt, userPrompt };
+}
+
+/**
+ * Validator anchors are written in the same target language as the story.
+ * Otherwise the validator compares German prose against English benchmarks
+ * which trips models toward over-scoring. We keep the meta-explanation
+ * ("why this score") in English so the validator's reasoning works in the
+ * model's strongest language.
+ */
+function validatorAnchorBlock(languageCode: string): string {
+  if (languageCode === "de") {
+    return [
+      "ANCHOR 10.0 — Julia Donaldson 'Der Grüffelo' (German):",
+      '  „Eine Maus ging durch den dunklen Wald, / Da kam ein Fuchs, der sah sie bald. / \'Komm doch mit mir, kleine Maus, / komm zum Mittagessen mit zu mir nach Haus!\'"',
+      "  Why 10: rhyme/beat make it memorizable; no wasted word; the mouse's mini-gesture (list-telling) carries the entire plot; punchline is set up.",
+      "",
+      "ANCHOR 9.0 — Sven Nordqvist 'Pettersson und Findus' (German):",
+      '  Findus hängt kopfüber im Apfelbaum: „Wenn man so hängt, ist der Himmel unten und die Äpfel oben. Das ist sehr praktisch." Pettersson murmelt: „Sehr praktisch, ja." und schenkt sich noch Kaffee ein.',
+      "  Why 9: two clearly separated voices (Findus naive-philosophical, Pettersson dry); concrete situational comedy; no explained joke; subtext (Pettersson loves Findus without saying so).",
+      "",
+      "ANCHOR 7.5 — elevated standard children's book (German):",
+      "  „Anna nahm den goldenen Schlüssel und sagte: 'Damit öffnen wir das geheimnisvolle Tor!' Ben nickte tapfer. Gemeinsam stürmten sie los, denn sie wussten: Freundschaft ist stärker als jede Angst.\"",
+      "  Why only 7.5: readable, clear plot, BUT characters interchangeable (both talk the same); moral spoken aloud; stereotypes (golden key, off they ran together); no humor; no setup/payoff.",
+      "",
+      "ANCHOR 6.0 — generic AI children's story (German):",
+      '  „Lena und Tom betraten den verzauberten Wald. Die Bäume schimmerten in allen Farben. \'Wir müssen mutig sein!\', rief Lena. Sie hatten gelernt, dass wahre Magie im Herzen liegt."',
+      "  Why only 6: everything is a label, nothing is shown; forbidden phrases ('hatten gelernt', 'wahre Magie im Herzen liegt'); no sensory detail; no character voice.",
+      "",
+      "ANCHOR 4.0 — weak AI output (German):",
+      '  „Sie gingen weiter und weiter. Plötzlich sahen sie einen Drachen. Sie hatten Angst. Aber dann waren sie mutig und freundeten sich mit dem Drachen an. Alle waren glücklich."',
+      "  Why only 4: claims without scenes; the turn explained in one sentence; no detail; no voice.",
+    ].join("\n");
+  }
+  if (languageCode === "en") {
+    return [
+      "ANCHOR 10.0 — Julia Donaldson 'The Gruffalo' (English):",
+      '  "A mouse took a stroll through the deep dark wood. / A fox saw the mouse and the mouse looked good. / \'Where are you going to, little brown mouse? / Come and have lunch in my underground house.\'"',
+      "  Why 10: rhyme/beat make it memorizable; no wasted word; the mouse's mini-gesture (list-telling) carries the entire plot; punchline is set up.",
+      "",
+      "ANCHOR 9.0 — Sven Nordqvist 'Findus and Pettson' (English):",
+      '  Findus hangs upside down in the apple tree: "When you hang like this, the sky is below and the apples are above. That is very practical." Pettson mumbles: "Very practical, yes," and pours himself more coffee.',
+      "  Why 9: two clearly separated voices; concrete situational comedy; no explained joke; subtext.",
+      "",
+      "ANCHOR 7.5 — elevated standard children's book (English):",
+      "  \"Anna took the golden key and said: 'This will open the mysterious gate!' Ben nodded bravely. Together they rushed off, because they knew: friendship is stronger than fear.\"",
+      "  Why only 7.5: readable, clear plot, BUT characters interchangeable; moral spoken aloud; stereotypes; no humor; no setup/payoff.",
+      "",
+      "ANCHOR 6.0 — generic AI children's story (English):",
+      "  \"Lena and Tom entered the enchanted forest. The trees shimmered in every color. 'We must be brave!' Lena cried. They had learned that true magic lies in the heart.\"",
+      "  Why only 6: labels not scenes; forbidden phrases ('they had learned', 'true magic lies in the heart'); no sensory detail; no voice.",
+      "",
+      "ANCHOR 4.0 — weak AI output (English):",
+      '  "They walked on and on. Suddenly they saw a dragon. They were afraid. But then they were brave and made friends with the dragon. Everyone was happy."',
+      "  Why only 4: claims without scenes; turn explained in one sentence; no detail; no voice.",
+    ].join("\n");
+  }
+  // Fallback for languages we don't have hand-curated anchors for: ask the
+  // validator to evaluate against equivalent local benchmarks.
+  return [
+    "ANCHOR-FREE FALLBACK:",
+    `The validator anchors are not available in the story's target language. Mentally compare against the best contemporary picture/early-reader books in the target language (in the spirit of Donaldson/Nordqvist quality for the 10/9 anchors, and a generic age-appropriate book for 7.5).`,
+    "Anchor 10: rhyme/beat OR unmistakable voices + humor + setup-payoff.",
+    "Anchor 9: two clearly separated voices, situational comedy, subtext.",
+    "Anchor 7.5: readable but characters interchangeable, moral spoken aloud, no humor, no setup/payoff.",
+    "Anchor 6.0: labels not scenes, forbidden moral-summary phrases.",
+    "Anchor 4.0: claims without scenes, turn explained in one sentence.",
+  ].join("\n");
 }
 
 function stripJsonFence(content: string): string {
@@ -1813,25 +1984,10 @@ export async function generateStoryDevMode(
     finalModelUsed = storyStage.provider.modelUsed;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
-    if (finalDiagnostics.needsPolish) {
-      polishApplied = true;
-      console.log("[dev-mode-generation] Local quality gates triggered story polish", {
-        hardIssueCount: finalDiagnostics.hardIssueCount,
-        softIssueCount: finalDiagnostics.softIssueCount,
-        dialogPct: finalDiagnostics.dialogPct,
-      });
-      const polishPrompts = buildStoryPolishPrompts(input, chapterCount, finalParsed, finalDiagnostics, blueprint, critique);
-      const polishStage = await runStage("story-polish", polishPrompts, {
-        maxTokens: input.config.length === "long" ? 32000 : 22000,
-        temperature: 0.62,
-        timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
-        modelRole: "selected-story",
-      });
-      finalParsed = parseAndValidate(polishStage.provider.content, chapterCount);
-      finalModelUsed = polishStage.provider.modelUsed;
-      finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
-    }
-
+    // NEW FLOW: Validator runs FIRST. Polish only triggers when the draft is
+    // actually below quality threshold (validator score < 8.5) OR local
+    // diagnostics flag hard issues. This skips the expensive polish call when
+    // the draft is already good (saves ~$0.02 on roughly 1/3 of stories).
     const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
     const validationStage = await runStage("final-validation", validationPrompts, {
       maxTokens: 6500,
@@ -1841,6 +1997,64 @@ export async function generateStoryDevMode(
       modelRole: "support",
     });
     finalQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+
+    const POLISH_SCORE_THRESHOLD = 8.5;
+    const needsPolishByScore =
+      typeof finalQualityScore === "number" && finalQualityScore < POLISH_SCORE_THRESHOLD;
+    const needsPolishByDiagnostics = Boolean(finalDiagnostics?.needsPolish);
+
+    if (needsPolishByScore || needsPolishByDiagnostics) {
+      polishApplied = true;
+      console.log("[dev-mode-generation] Triggering story polish", {
+        reason: needsPolishByScore ? "validator-score-below-threshold" : "local-hard-issues",
+        validatorScore: finalQualityScore,
+        threshold: POLISH_SCORE_THRESHOLD,
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        softIssueCount: finalDiagnostics?.softIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
+      });
+      // Pass the validator output to the polish so the model fixes the
+      // exact things the validator flagged (mustFixBefore95, warnings,
+      // publishabilityBlockers).
+      const polishCritique = {
+        ...(critique || {}),
+        validatorFindings: validationStage.parsed || null,
+      };
+      const polishPrompts = buildStoryPolishPrompts(
+        input,
+        chapterCount,
+        finalParsed,
+        finalDiagnostics!,
+        blueprint,
+        polishCritique
+      );
+      const polishStage = await runStage("story-polish", polishPrompts, {
+        maxTokens: input.config.length === "long" ? 32000 : 22000,
+        temperature: 0.62,
+        timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
+        modelRole: "selected-story",
+      });
+      finalParsed = parseAndValidate(polishStage.provider.content, chapterCount);
+      finalModelUsed = polishStage.provider.modelUsed;
+      finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+
+      // Re-validate after polish so the score in metadata reflects the
+      // actual final story shipped to the user.
+      const revalidationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+      const revalidationStage = await runStage("final-validation", revalidationPrompts, {
+        maxTokens: 6500,
+        temperature: 0.15,
+        timeoutMs: 120_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      finalQualityScore = extractQualityScore(revalidationStage.parsed) ?? finalQualityScore;
+    } else {
+      console.log("[dev-mode-generation] Skipping polish — draft already above quality threshold", {
+        validatorScore: finalQualityScore,
+        threshold: POLISH_SCORE_THRESHOLD,
+      });
+    }
   } catch (pipelineError) {
     await publishWithTimeout(logTopic, {
       source: "dev-mode-generation",
