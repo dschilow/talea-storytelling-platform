@@ -24,6 +24,8 @@ import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
 import type { StoryConfig, AIProvider } from "./generate";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -630,8 +632,121 @@ export async function generateStoryDevMode(
     userPromptChars: userPrompt.length,
   });
 
-  const provider = await callProvider(input.config, systemPrompt, userPrompt);
-  const parsed = parseAndValidate(provider.content, chapterCount);
+  const startedAt = Date.now();
+  let provider: ProviderResult;
+  try {
+    provider = await callProvider(input.config, systemPrompt, userPrompt);
+  } catch (callError) {
+    // Persist the failed attempt so it shows up in /logs for debugging.
+    await publishWithTimeout(logTopic, {
+      source: "dev-mode-generation",
+      timestamp: new Date(),
+      request: {
+        mode: "developer",
+        provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
+        model: input.config.aiModel,
+        openRouterModel: input.config.openRouterModel,
+        systemPrompt,
+        userPrompt,
+        wizardConfig: {
+          chapterCount,
+          ageGroup: input.config.ageGroup,
+          genre: input.config.genre,
+          setting: input.config.setting,
+          language: input.config.language,
+          avatarNames: input.avatarNames,
+          primaryProfileAge: input.primaryProfileAge,
+          learningModeEnabled: !!input.config.learningMode?.enabled,
+          learningModeSubjects: input.config.learningMode?.subjects,
+          customPrompt: input.config.customPrompt,
+        },
+      },
+      response: {
+        error: callError instanceof Error ? callError.message : String(callError),
+        durationMs: Date.now() - startedAt,
+      },
+      metadata: { devMode: true, stage: "provider-call", failed: true },
+    }).catch((logErr) => {
+      console.warn("[dev-mode-generation] Failed to publish failure log:", logErr);
+    });
+    throw callError;
+  }
+
+  let parsed: DevModeRawStory;
+  try {
+    parsed = parseAndValidate(provider.content, chapterCount);
+  } catch (parseError) {
+    // Log the raw model output even when parsing fails — this is exactly
+    // what we need on /logs to diagnose JSON breakage.
+    await publishWithTimeout(logTopic, {
+      source: "dev-mode-generation",
+      timestamp: new Date(),
+      request: {
+        mode: "developer",
+        provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
+        model: provider.modelUsed,
+        openRouterModel: input.config.openRouterModel,
+        systemPrompt,
+        userPrompt,
+      },
+      response: {
+        rawContent: provider.content,
+        contentLength: provider.content.length,
+        usage: provider.usage,
+        parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        durationMs: Date.now() - startedAt,
+      },
+      metadata: { devMode: true, stage: "parse", failed: true },
+    }).catch((logErr) => {
+      console.warn("[dev-mode-generation] Failed to publish parse-failure log:", logErr);
+    });
+    throw parseError;
+  }
+
+  // Successful run — log input prompts + raw model output + parsed story.
+  await publishWithTimeout(logTopic, {
+    source: "dev-mode-generation",
+    timestamp: new Date(),
+    request: {
+      mode: "developer",
+      provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
+      model: provider.modelUsed,
+      openRouterModel: input.config.openRouterModel,
+      systemPrompt,
+      userPrompt,
+      wizardConfig: {
+        chapterCount,
+        ageGroup: input.config.ageGroup,
+        genre: input.config.genre,
+        setting: input.config.setting,
+        language: input.config.language,
+        avatarNames: input.avatarNames,
+        primaryProfileAge: input.primaryProfileAge,
+        learningModeEnabled: !!input.config.learningMode?.enabled,
+        learningModeSubjects: input.config.learningMode?.subjects,
+        customPrompt: input.config.customPrompt,
+      },
+    },
+    response: {
+      rawContent: provider.content,
+      contentLength: provider.content.length,
+      parsed: {
+        title: parsed.title,
+        description: parsed.description,
+        chapterCount: parsed.chapters.length,
+        chapters: parsed.chapters.map((c) => ({
+          order: c.order,
+          title: c.title,
+          contentChars: c.content.length,
+        })),
+      },
+      usage: provider.usage,
+      durationMs: Date.now() - startedAt,
+    },
+    metadata: { devMode: true, stage: "complete" },
+  }).catch((logErr) => {
+    console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
+  });
 
   const chapters = parsed.chapters
     .slice()

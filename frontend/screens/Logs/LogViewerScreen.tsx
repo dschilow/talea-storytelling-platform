@@ -81,6 +81,8 @@ const LogViewerScreen: React.FC = () => {
     switch (source) {
       case 'openai-story-generation':
         return '📖';
+      case 'dev-mode-generation':
+        return '🧪';
       case 'runware-single-image':
         return '🖼️';
       case 'runware-batch-image':
@@ -101,6 +103,8 @@ const LogViewerScreen: React.FC = () => {
     switch (source) {
       case 'openai-story-generation':
         return 'Geschichte Generierung';
+      case 'dev-mode-generation':
+        return 'Dev Mode — Story Generation';
       case 'runware-single-image':
         return 'Einzelbild Generierung';
       case 'runware-batch-image':

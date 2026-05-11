@@ -40,7 +40,8 @@ export interface LogEvent {
     | "phase3-story-finalization"
     | "phase4-image-generation"
     | "4phase-cover-generation"
-    | "4phase-summary";
+    | "4phase-summary"
+    | "dev-mode-generation";
   timestamp: Date;
   request: any;
   response: any;

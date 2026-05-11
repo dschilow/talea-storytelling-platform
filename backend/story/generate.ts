@@ -1046,15 +1046,20 @@ export const generate = api<GenerateStoryRequest, Story>(
         });
       }
 
-      // TTS Enrichment Phase: Annotate chapter text with xAI TTS expression tags
-      // Runs in background — does not block story completion
-      enrichStoryForTTS({
-        storyId: id,
-        chapters: insertedChapters,
-        aiModel: config.aiModel,
-      }).catch((error) => {
-        console.error(`[story.generate] TTS enrichment failed (non-blocking): ${error instanceof Error ? error.message : String(error)}`);
-      });
+      // TTS Enrichment Phase: Annotate chapter text with xAI TTS expression tags.
+      // Skipped in developer mode (we want a clean A/B without extra LLM calls).
+      if (!config.developerMode) {
+        // Runs in background — does not block story completion
+        enrichStoryForTTS({
+          storyId: id,
+          chapters: insertedChapters,
+          aiModel: config.aiModel,
+        }).catch((error) => {
+          console.error(`[story.generate] TTS enrichment failed (non-blocking): ${error instanceof Error ? error.message : String(error)}`);
+        });
+      } else {
+        console.log("[story.generate] 🧪 Developer mode — skipping TTS enrichment.");
+      }
 
       // NEW AI-DRIVEN SYSTEM: Apply personality updates only to participating avatars.
       // Developer mode does NOT mutate avatar state (no personality, no memory, no read marker).
