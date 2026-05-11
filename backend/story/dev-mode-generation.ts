@@ -127,6 +127,8 @@ export interface DevModeGeneratedStory {
     rawQualityScore?: number;
     localGateScore?: number;
     qualityGatePassed?: boolean;
+    qualityGateFailureReason?: string;
+    returnedWithQualityGateWarnings?: boolean;
   };
 }
 
@@ -1857,6 +1859,35 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
   return Math.max(0, Math.round(score * 10) / 10);
 }
 
+function diagnosticsSeverityScore(diagnostics: DevModeStoryDiagnostics, expectedChapterCount: number): number {
+  const chapterCountPenalty = Math.abs(diagnostics.chapterDiagnostics.length - expectedChapterCount) * 1000;
+  const dialogPenalty = Math.max(0, DEV_MODE_MIN_DIALOG_PCT - diagnostics.dialogPct) * 8;
+  return chapterCountPenalty
+    + diagnostics.hardIssueCount * 100
+    + diagnostics.softIssueCount * 10
+    + dialogPenalty;
+}
+
+function isDiagnosticsBetter(
+  candidate: DevModeStoryDiagnostics,
+  currentBest: DevModeStoryDiagnostics | undefined,
+  expectedChapterCount: number
+): boolean {
+  if (!currentBest) return true;
+  return diagnosticsSeverityScore(candidate, expectedChapterCount) < diagnosticsSeverityScore(currentBest, expectedChapterCount);
+}
+
+function formatQualityGateFailureReason(diagnostics?: DevModeStoryDiagnostics): string | undefined {
+  if (!diagnostics || diagnostics.hardIssueCount === 0) return undefined;
+  const visibleIssues = diagnostics.hardIssues.slice(0, 12);
+  const hiddenCount = diagnostics.hardIssues.length - visibleIssues.length;
+  return [
+    `Developer-mode story still has ${diagnostics.hardIssueCount} hard local gate issue(s) after repair.`,
+    visibleIssues.join(" | "),
+    hiddenCount > 0 ? `… plus ${hiddenCount} more.` : "",
+  ].filter(Boolean).join(" ");
+}
+
 interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
@@ -2180,6 +2211,7 @@ export async function generateStoryDevMode(
   let localGateScore: number | undefined;
   let finalDiagnostics: DevModeStoryDiagnostics | undefined;
   let polishApplied = false;
+  let qualityGateFailureReason: string | undefined;
 
   try {
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
@@ -2219,6 +2251,10 @@ export async function generateStoryDevMode(
     finalModelUsed = storyStage.provider.modelUsed;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
+    let bestParsed = finalParsed;
+    let bestModelUsed = finalModelUsed;
+    let bestDiagnostics = finalDiagnostics;
+
     let repairAttempt = 0;
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       polishApplied = true;
@@ -2243,9 +2279,18 @@ export async function generateStoryDevMode(
         timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
         modelRole: "selected-story",
       });
-      finalParsed = parseAndValidate(polishStage.provider.content, chapterCount);
-      finalModelUsed = polishStage.provider.modelUsed;
-      finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+
+      const repairedParsed = parseAndValidate(polishStage.provider.content, chapterCount);
+      const repairedDiagnostics = analyzeDevModeStoryQuality(repairedParsed, input, chapterCount);
+      if (isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount)) {
+        bestParsed = repairedParsed;
+        bestModelUsed = polishStage.provider.modelUsed;
+        bestDiagnostics = repairedDiagnostics;
+      }
+
+      finalParsed = bestParsed;
+      finalModelUsed = bestModelUsed;
+      finalDiagnostics = bestDiagnostics;
 
       // One successful local repair is enough for soft issues; keep looping
       // only while hard gates still fail.
@@ -2253,9 +2298,13 @@ export async function generateStoryDevMode(
     }
 
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
-      throw new Error(
-        `Developer-mode story failed hard local gates after ${DEV_MODE_MAX_REPAIR_ATTEMPTS} repair attempt(s): ${finalDiagnostics.hardIssues.join(" | ")}`
-      );
+      qualityGateFailureReason = formatQualityGateFailureReason(finalDiagnostics);
+      console.warn("[dev-mode-generation] Returning GPT Mini story with capped quality score after local gate warnings", {
+        hardIssueCount: finalDiagnostics.hardIssueCount,
+        softIssueCount: finalDiagnostics.softIssueCount,
+        dialogPct: finalDiagnostics.dialogPct,
+        qualityGateFailureReason,
+      });
     }
 
     if (!polishApplied) {
@@ -2390,6 +2439,8 @@ export async function generateStoryDevMode(
       rawQualityScore,
       localGateScore,
       finalQualityScore,
+      qualityGateFailureReason,
+      returnedWithQualityGateWarnings: Boolean(qualityGateFailureReason),
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },
@@ -2435,6 +2486,8 @@ export async function generateStoryDevMode(
       rawQualityScore,
       localGateScore,
       qualityGatePassed: (finalDiagnostics?.hardIssueCount ?? 0) === 0,
+      qualityGateFailureReason,
+      returnedWithQualityGateWarnings: Boolean(qualityGateFailureReason),
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,
