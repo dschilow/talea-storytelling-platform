@@ -31,7 +31,7 @@ import { secret } from "encore.dev/config";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
-import { GEMINI_SUPPORT_MODEL } from "./pipeline/model-routing";
+import { GEMINI_SUPPORT_MODEL, isOpenRouterFamilyModel, resolveConfiguredStoryModel } from "./pipeline/model-routing";
 import type { StoryConfig, AIProvider } from "./generate";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
@@ -43,6 +43,12 @@ const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_NATIVE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
 const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 const DEV_MODE_PIPELINE_ID = "adaptive-polish-cost-optimized";
+const DEV_MODE_MIN_DIALOG_PCT = 25;
+const DEV_MODE_TARGET_DIALOG_PCT = 30;
+const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
+const DEV_MODE_MIN_PARAGRAPHS = 6;
+const DEV_MODE_MAX_PARAGRAPHS = 12;
+const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
 
 interface DevModeChapter {
   title: string;
@@ -118,6 +124,9 @@ export interface DevModeGeneratedStory {
     localQualityDiagnostics?: DevModeStoryDiagnostics;
     storyPolishApplied?: boolean;
     qualityScore?: number;
+    rawQualityScore?: number;
+    localGateScore?: number;
+    qualityGatePassed?: boolean;
   };
 }
 
@@ -305,10 +314,91 @@ function traitBand(value: number): string {
   return "very strong";
 }
 
+const STORY_TRAIT_KEYS = ["knowledge", "creativity", "vocabulary", "courage", "curiosity", "teamwork", "empathy", "persistence", "logic"] as const;
+type StoryTraitKey = typeof STORY_TRAIT_KEYS[number];
+
+const STORY_TRAIT_LABEL_EN: Record<StoryTraitKey, string> = {
+  knowledge: "knowledge",
+  creativity: "creativity",
+  vocabulary: "vocabulary",
+  courage: "courage",
+  curiosity: "curiosity",
+  teamwork: "teamwork",
+  empathy: "empathy",
+  persistence: "persistence",
+  logic: "logic",
+};
+
+function readTraitValue(pt: any, key: StoryTraitKey): number {
+  const node = pt && typeof pt === "object" ? pt[key] : undefined;
+  const rawValue = typeof node === "number" ? node : (node && typeof node === "object" ? Number(node.value ?? 0) : 0);
+  return clampNumber(rawValue, 0, 100);
+}
+
+function summarizeDramaturgicTraitProfile(name: string, pt: any): string[] {
+  if (!pt || typeof pt !== "object") return [];
+
+  const values = Object.fromEntries(
+    STORY_TRAIT_KEYS.map((key) => [key, readTraitValue(pt, key)])
+  ) as Record<StoryTraitKey, number>;
+
+  const topTraits = STORY_TRAIT_KEYS
+    .slice()
+    .sort((a, b) => values[b] - values[a])
+    .filter((key) => values[key] >= 20)
+    .slice(0, 3)
+    .map((key) => STORY_TRAIT_LABEL_EN[key]);
+
+  const strengths: string[] = [];
+  const friction: string[] = [];
+
+  if (values.knowledge >= 70) strengths.push("uses concrete facts and memory in action");
+  else if (values.knowledge >= 20) strengths.push("knows a few useful concrete things");
+  else friction.push("does not solve problems by knowing lots of facts");
+
+  if (values.curiosity >= 70) strengths.push("asks many questions and follows clues quickly");
+  else if (values.curiosity < 20) friction.push("needs a visible reason before investigating");
+
+  if (values.empathy >= 70) strengths.push("notices when someone feels left out or hurt");
+  else if (values.empathy < 20) friction.push("may need to see feelings through actions before understanding them");
+
+  if (values.courage < 20) friction.push("hesitates before danger; bravery must be small and earned");
+  else if (values.courage >= 70) strengths.push("can step forward when others freeze");
+
+  if (values.teamwork < 20) friction.push("may act alone or forget to coordinate at first");
+  else if (values.teamwork >= 70) strengths.push("naturally coordinates with others");
+
+  if (values.persistence < 20) friction.push("may want to stop after a failed attempt");
+  else if (values.persistence >= 70) strengths.push("keeps trying after setbacks");
+
+  if (values.logic < 20) friction.push("should not suddenly solve everything with adult logic");
+  else if (values.logic >= 70) strengths.push("spots cause-and-effect patterns");
+
+  if (values.creativity >= 70) strengths.push("finds playful unconventional uses for objects");
+  else if (values.creativity < 20) friction.push("creative solutions should come from concrete help, not sudden genius");
+
+  if (values.vocabulary >= 70) strengths.push("has expressive language and precise words");
+  else if (values.vocabulary < 20) friction.push("speaks simply; voice should be concrete, not literary");
+
+  const fallbackStrength =
+    strengths.length > 0
+      ? strengths.slice(0, 4)
+      : ["can still grow through one small, visible, believable choice"];
+  const role = topTraits.length > 0
+    ? `${name} is driven most by ${topTraits.join(", ")}.`
+    : `${name} starts with very little developed confidence; make the arc small, concrete, and earned.`;
+
+  return [
+    `Story role from traits: ${role}`,
+    `Active strengths to show: ${fallbackStrength.slice(0, 4).join("; ")}.`,
+    `Starting friction to dramatize: ${friction.slice(0, 5).join("; ") || "needs one concrete mistake before growth"}.`,
+    "Growth permission: low values are starting friction, not a ban. The character may make one small improved choice if the scene earns it.",
+  ];
+}
+
 function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: string[] } {
   if (!pt || typeof pt !== "object") return { baseLine: "", subLines: [] };
 
-  const BASE_KEYS = ["knowledge", "creativity", "vocabulary", "courage", "curiosity", "teamwork", "empathy", "persistence", "logic"];
   const LABEL_EN: Record<string, string> = {
     knowledge: "Knowledge",
     creativity: "Creativity",
@@ -324,11 +414,11 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
   const baseParts: string[] = [];
   const subLines: string[] = [];
 
-  for (const key of BASE_KEYS) {
+  for (const key of STORY_TRAIT_KEYS) {
     const node = pt[key];
     const rawValue = typeof node === "number" ? node : (node && typeof node === "object" ? Number(node.value ?? 0) : 0);
     const value = clampNumber(rawValue, 0, 100);
-    baseParts.push(`${LABEL_EN[key]} ${Math.round(value)} (${traitBand(value)})`);
+    baseParts.push(`${LABEL_EN[key]}: ${traitBand(value)}`);
 
     const subs = node && typeof node === "object" ? node.subcategories : undefined;
     if (subs && typeof subs === "object") {
@@ -340,7 +430,7 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
         }
       }
       if (subParts.length > 0) {
-        subLines.push(`  ${LABEL_EN[key]} (detail): ${subParts.join(", ")}`);
+        subLines.push(`  ${LABEL_EN[key]} detail: ${subParts.join(", ")}`);
       }
     }
   }
@@ -369,8 +459,11 @@ function buildAvatarBlock(avatars: DevModeAvatar[]): string {
 
     const { baseLine, subLines } = summarizePersonalityTraits(avatar.personalityTraits);
     if (baseLine.length > 0) {
-      lines.push(`   Personality (prompt scale 0-100; values above 100 were clamped only for this prompt): ${baseLine}`);
-      lines.push("   Dramaturgy note: low values are friction and room to grow; high values are active strengths. The character must never act against these values — only grow from them.");
+      lines.push(`   Trait signals (interpreted for drama, not raw score limits): ${baseLine}`);
+      const dramaturgicProfile = summarizeDramaturgicTraitProfile(avatar.name, avatar.personalityTraits);
+      for (const profileLine of dramaturgicProfile) {
+        lines.push(`   ${profileLine}`);
+      }
       for (const sub of subLines) lines.push(sub);
     }
   });
@@ -641,6 +734,9 @@ function targetLanguageStyleAnchor(languageCode: string): string {
 
 function qualitySystemPrompt(languageName: string, outputSchema: string): string {
   const code = languageCodeFromName(languageName);
+  const dialogueQuoteRule = code === "en"
+    ? 'Dialogue inside English story text may use standard double quotes ("…") and must be escaped correctly inside JSON values.'
+    : 'Dialogue inside story text uses the target language\'s typographic quotation marks (German „…“, French «…», Spanish/Italian/Russian «…») — NOT plain ASCII double quotes inside story values.';
   return [
     "You are an award-winning children's-book author and dramaturg, writing age-appropriate read-aloud and read-yourself stories.",
     "Your goal is true children's-book quality: warm, gripping, clear, visual, emotional, humorous, with characters children recognize and love.",
@@ -689,7 +785,7 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
     "Respond with a valid JSON object ONLY.",
     "No Markdown, no code fences, no comments, no trailing commas.",
     "All property names in double quotes.",
-    "Dialogue inside story text uses the target language's typographic quotation marks (German „…\", French «…», English \"…\") — NOT plain ASCII quotes inside story values.",
+    dialogueQuoteRule,
     "Escape line breaks inside JSON string values as \\n.",
     "",
     outputSchema,
@@ -766,7 +862,18 @@ function buildCritiquePrompts(
       '  "readOnRisks": string[],',
       '  "addictiveReadingFixes": string[],',
       '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
-      '  "revisedBlueprint": object',
+      '  "revisedBlueprint": {',
+      '    "premise": string,',
+      '    "emotionalEngine": object,',
+      '    "readerMagnet": object,',
+      '    "coreMagicRule": string,',
+      '    "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
+      '    "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
+      '    "plantsAndPayoffs": [ { "plant": string, "payoff": string } ],',
+      '    "sceneOwnership": [ { "order": number, "driver": string, "changedState": string } ],',
+      '    "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string, "chapterEndHook": string, "kidQuestion": string, "callbackToUse": string } ],',
+      '    "forbiddenShortcuts": string[]',
+      '  }',
       "}",
     ].join("\n")
   );
@@ -775,7 +882,7 @@ function buildCritiquePrompts(
     "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn.",
     "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
     "A blueprint without clear chapter-end hooks, refrain/callback, or a child-curiosity engine may score at most 8.4.",
-    "Then return an improved revisedBlueprint. The revisedBlueprint may sharpen structure but must not introduce new unfitting pipeline complexity.",
+    "Then return an improved revisedBlueprint. IMPORTANT: revisedBlueprint MUST be complete, not a reduced summary. Preserve and improve characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, full chapterPlan fields, and readerMagnet.",
     "Score harshly. A technically clean blueprint is not automatically market-quality.",
     "Critique values stay in English; only the final story prose (Call 3) is in the target output language.",
     "",
@@ -786,6 +893,49 @@ function buildCritiquePrompts(
     JSON.stringify(blueprint, null, 2),
   ].join("\n");
   return { systemPrompt, userPrompt };
+}
+
+function mergeArrayByOrderOrName(base: any[], revision: any[]): any[] {
+  if (!Array.isArray(base)) return Array.isArray(revision) ? revision : [];
+  if (!Array.isArray(revision) || revision.length === 0) return base;
+
+  return base.map((baseItem, index) => {
+    if (!baseItem || typeof baseItem !== "object") return revision[index] ?? baseItem;
+    const match = revision.find((candidate) => {
+      if (!candidate || typeof candidate !== "object") return false;
+      if (baseItem.order != null && candidate.order != null) return Number(baseItem.order) === Number(candidate.order);
+      if (baseItem.name && candidate.name) return String(baseItem.name).toLowerCase() === String(candidate.name).toLowerCase();
+      return false;
+    }) || revision[index];
+    if (!match || typeof match !== "object") return baseItem;
+    return mergeBlueprintObjects(baseItem, match);
+  });
+}
+
+function mergeBlueprintObjects(base: any, revision: any): any {
+  if (!revision || typeof revision !== "object") return base;
+  if (!base || typeof base !== "object") return revision;
+  if (Array.isArray(base) || Array.isArray(revision)) {
+    return mergeArrayByOrderOrName(Array.isArray(base) ? base : [], Array.isArray(revision) ? revision : []);
+  }
+
+  const merged: Record<string, any> = { ...base };
+  for (const [key, value] of Object.entries(revision)) {
+    if (value === undefined || value === null || value === "") continue;
+    const baseValue = merged[key];
+    if (Array.isArray(baseValue) || Array.isArray(value)) {
+      merged[key] = mergeArrayByOrderOrName(Array.isArray(baseValue) ? baseValue : [], Array.isArray(value) ? value : []);
+    } else if (baseValue && typeof baseValue === "object" && value && typeof value === "object") {
+      merged[key] = mergeBlueprintObjects(baseValue, value);
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+function getReviewedBlueprint(blueprint: any, critique: any): any {
+  return mergeBlueprintObjects(blueprint || {}, critique?.revisedBlueprint || {});
 }
 
 function buildStoryDraftPrompts(
@@ -808,13 +958,14 @@ function buildStoryDraftPrompts(
       "}",
     ].join("\n")
   );
-  const revisedBlueprint = critique?.revisedBlueprint || blueprint;
+  const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const heroA = heroNames[0] || "Main character A";
   const heroB = heroNames[1] || "Main character B";
   const userPrompt = [
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
-    "This is the ONLY call allowed to write the actual story prose. Use the blueprint, the critique, and the voice rules directly in the first draft.",
+    "This is the ONLY call allowed to write the actual story prose. Use the COMPLETE reviewedBlueprint, the critique, and the voice rules directly in the first draft.",
+    "Do not reduce the blueprint to hooks. You MUST actively use emotionalEngine, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
     "",
     "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
     "Before you write the story, answer the following three questions for yourself, in detail and concretely.",
@@ -844,7 +995,8 @@ function buildStoryDraftPrompts(
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
-    "- 6–12 paragraphs per chapter.",
+    `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. This is a hard gate, not a suggestion.`,
+    `- Overall dialogue share at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     "- Chapter 1: strong hook in the first 2 sentences, concrete problem, different reactions from the main characters, open ending.",
     "- Chapter 2: world becomes concrete, trail/encounter, side or antagonist character shows a quirk, problem grows.",
     "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
@@ -863,7 +1015,7 @@ function buildStoryDraftPrompts(
     "- No cheap cliffhangers, no 'to be continued'.",
     "",
     "VOICE / READ-ALOUD RULES:",
-    "- Make voices distinguishable. Use each main character's personality values from the context block to decide their pace, lexicon, and risk tolerance.",
+    "- Make voices distinguishable. Use each main character's interpreted Story trait profile from the context block to decide pace, lexicon, risk tolerance, mistakes, and growth.",
     "- Dialogue must do at least two things at once: action, relationship, subtext, or humor.",
     "- Show emotion, don't name it.",
     "- Strengthen repeatable, child-quotable details.",
@@ -914,29 +1066,48 @@ function buildStoryPolishPrompts(
       "}",
     ].join("\n")
   );
+  const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
 
   const userPrompt = [
-    `CALL 3B: Run a targeted children's-book polish on the existing story. The polished prose must stay in ${languageName}.`,
-    "This call only runs when local quality gates OR the validator flagged issues. Don't rewrite a different plot — repair and tighten what's there.",
-    "Preserve tone, characters, plot, title idea, and closing image, but consistently fix the listed flaws.",
+    `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
+    "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
+    "If local diagnostics and your literary preference conflict, local diagnostics win. This is a mechanical repair pass first, a style polish second.",
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
-    "POLISH GOALS:",
-    "- Kids must want to keep listening or reading after every chapter.",
-    "- Tighten, don't inflate: cut explanatory sentences, replace them with action, dialogue, gesture, or concrete detail.",
-    "- Add more dialogue, but every dialogue line must do action, relationship, character, or humor.",
-    "- Chapter endings need pull. No chapter may end like a finished summary.",
-    "- Recurring motifs, refrains, or small objects must visibly return and pay off in the finale.",
-    "- Fix all typos, name errors, and grammar issues. Names must match exactly.",
-    "- Keep the exact chapter count and JSON structure.",
-    "- If the validator findings list 'mustFixBefore95' items, address each one explicitly.",
+    "HARD GATES:",
+    `- Exactly ${chapterCount} chapters.`,
+    `- Each chapter must stay within ${getChapterLengthBounds(input.config).min}-${getChapterLengthBounds(input.config).max} characters of target-language prose.`,
+    `- Each chapter must have ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs. If there are too many paragraphs, merge them.`,
+    `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%.`,
+    `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
+    "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
+    "- JSON must be valid and match the schema exactly.",
+    "",
+    "REPAIR METHOD:",
+    "- If a chapter is too long: cut explanatory narration first, not the core scene.",
+    "- If a chapter has too many paragraphs: combine adjacent beats into fewer paragraphs.",
+    "- If dialogue is low: convert explanation into short character-specific dialogue that carries action, relationship, humor, or tension.",
+    "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
+    "- Keep the same title idea, central conflict, recurring motif, and closing image.",
+    "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
+    "",
+    "DIALOGUE VOICE CONTRACT:",
+    "- Main careful observer: short, concrete, braking lines; points at details; rarely speaks in long explanations.",
+    "- Main lively feeler: quicker, warmer, more physical; asks questions; uses small funny comparisons.",
+    "- Trickster/helper: fast, frech, tool/prop humor; helps through action, never by simply explaining the solution.",
+    "- Antagonist: slow, whispering, uncanny/funny; keeps wavering between wanting to possess and learning to listen.",
+    "",
+    "PAYOFF CONTRACT:",
+    "- Preserve prepared payoffs from the blueprint. The finale must come from planted details, not a new solution.",
+    "- If a personal object is used in the solution, make the character choose to give it up consciously, not by accident.",
+    "- The antagonist gets a new way to exist or a task, not instant friendship as a moral shortcut.",
     "",
     "LOCAL DIAGNOSTICS:",
     JSON.stringify(diagnostics, null, 2),
     "",
-    "BLUEPRINT / READER MAGNET:",
-    JSON.stringify(critique?.revisedBlueprint || blueprint, null, 2),
+    "COMPLETE REVIEWED BLUEPRINT TO PRESERVE:",
+    JSON.stringify(reviewedBlueprint, null, 2),
     "",
     "CRITIQUE FROM DRAMATURGY CHECK:",
     JSON.stringify(
@@ -967,36 +1138,47 @@ function buildValidationPrompts(
   diagnostics?: DevModeStoryDiagnostics
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
-  const systemPrompt = qualitySystemPrompt(
-    languageName,
-    [
-      "Schema:",
-      "{",
-      '  "isValid": boolean,',
-      '  "marketQualityScore": number,',
-      '  "dimensionScores": {',
-      '    "emotionalEngine": number,',
-      '    "iconicCharacters": number,',
-      '    "tensionEscalation": number,',
-      '    "voiceDistinctiveness": number,',
-      '    "readAloudRhythm": number,',
-      '    "originality": number,',
-      '    "ageFit": number,',
-      '    "endingPayoff": number,',
-      '    "pageTurnDrive": number,',
-      '    "rereadValue": number,',
-      '    "chapterEndPull": number,',
-      '    "jsonValidity": number',
-      '  },',
-      '  "errors": string[],',
-      '  "warnings": string[],',
-      '  "publishabilityBlockers": string[],',
-      '  "mustFixBefore95": string[]',
-      "}",
-    ].join("\n")
-  );
+  const systemPrompt = [
+    "You are a strict children's-book market-quality validator, not a story writer.",
+    "Evaluate honestly against real published children's books. Never rewrite the story.",
+    `The story prose is in ${languageName}; your validation JSON may be in English.`,
+    "Hard local diagnostics are binding: if they report failed form gates, you must reflect that in score, warnings, and mustFixBefore95.",
+    "Respond with valid JSON only, no Markdown, no comments, no trailing commas.",
+    "Schema:",
+    "{",
+    '  "isValid": boolean,',
+    '  "marketQualityScore": number,',
+    '  "dimensionScores": {',
+    '    "emotionalEngine": number,',
+    '    "iconicCharacters": number,',
+    '    "tensionEscalation": number,',
+    '    "voiceDistinctiveness": number,',
+    '    "readAloudRhythm": number,',
+    '    "originality": number,',
+    '    "ageFit": number,',
+    '    "endingPayoff": number,',
+    '    "pageTurnDrive": number,',
+    '    "rereadValue": number,',
+    '    "chapterEndPull": number,',
+    '    "jsonValidity": number',
+    '  },',
+    '  "errors": string[],',
+    '  "warnings": string[],',
+    '  "publishabilityBlockers": string[],',
+    '  "mustFixBefore95": string[]',
+    "}",
+  ].join("\n");
   const code = languageCodeFromName(languageName);
   const anchorBlock = validatorAnchorBlock(code);
+  const contextSummary = [
+    `Output language: ${languageName}`,
+    `Age group: ${input.config.ageGroup}`,
+    `Chapter count: exactly ${chapterCount}`,
+    `Genre: ${input.config.genre}`,
+    `Setting: ${input.config.setting}`,
+    `Main characters: ${(input.avatars || []).map((avatar) => avatar.name).filter(Boolean).join(", ") || "unspecified"}`,
+    `Supporting pool used: ${(input.poolCharacters || []).map((character) => character.name).filter(Boolean).join(", ") || "none"}`,
+  ].join("\n");
   const userPrompt = [
     "CALL 4: Validate JSON, style, market quality, and logic of the final story.",
     "IMPORTANT: Do NOT rewrite the story or return a story copy. This support call only evaluates. The final prose must come from the selected writer model.",
@@ -1028,8 +1210,8 @@ function buildValidationPrompts(
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
     "Be honest. A truthful 7.8 beats a flattering 9.2. Self-inflating the score would be a pipeline error.",
     "",
-    "CONTEXT:",
-    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "VALIDATION TARGET:",
+    contextSummary,
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     JSON.stringify(diagnostics || null, null, 2),
@@ -1425,7 +1607,7 @@ function getChapterLengthBounds(config: StoryConfig): { min: number; max: number
 }
 
 function countDialogChars(text: string): number {
-  return Array.from(text.matchAll(/„[^“]+“/g)).reduce((sum, match) => sum + match[0].length, 0);
+  return Array.from(text.matchAll(/„[^“]+“|«[^»]+»|"[^"]+"/g)).reduce((sum, match) => sum + match[0].length, 0);
 }
 
 function countParagraphs(text: string): number {
@@ -1459,6 +1641,7 @@ function analyzeDevModeStoryQuality(
   const softIssues: string[] = [];
   const polishInstructions: string[] = [];
   const bounds = getChapterLengthBounds(input.config);
+  const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
   const chapterDiagnostics: DevModeChapterDiagnostic[] = [];
   const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
   const totalChars = story.chapters.reduce((sum, chapter) => sum + chapter.content.length, 0);
@@ -1472,7 +1655,7 @@ function analyzeDevModeStoryQuality(
     hardIssues.push("Kaputte Platzhalter gefunden: [object Object].");
   }
 
-  if (/"[^"]+"/.test(allContent)) {
+  if (languageCode !== "en" && /"[^"]+"/.test(allContent)) {
     hardIssues.push("ASCII-Anfuehrungszeichen in Storytext gefunden; Dialog muss typografische Zeichen nutzen.");
   }
 
@@ -1506,10 +1689,10 @@ function analyzeDevModeStoryQuality(
     }
   }
 
-  if (dialogPct < 26) {
-    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Ziel sind mindestens 30%.`);
-  } else if (dialogPct < 30) {
-    softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Zielwert 30%.`);
+  if (dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
+    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${DEV_MODE_MIN_DIALOG_PCT}%, Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%.`);
+  } else if (dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
+    softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}%.`);
   }
 
   story.chapters.forEach((chapter, index) => {
@@ -1519,26 +1702,20 @@ function analyzeDevModeStoryQuality(
     const chapterDialogPct = chars > 0 ? Math.round((countDialogChars(chapter.content) / chars) * 1000) / 10 : 0;
     const chapterPrefix = `Kapitel ${chapter.order || index + 1}`;
 
-    if (chars < bounds.min * 0.8) {
+    if (chars < bounds.min) {
       issues.push(`zu kurz (${chars} Zeichen)`);
       hardIssues.push(`${chapterPrefix} ist deutlich zu kurz (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
-    } else if (chars > bounds.max * 1.25) {
+    } else if (chars > bounds.max) {
       issues.push(`deutlich zu lang (${chars} Zeichen)`);
       hardIssues.push(`${chapterPrefix} ist deutlich zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
-    } else if (chars < bounds.min || chars > bounds.max * 1.1) {
-      issues.push(`ausserhalb Ziel-Laenge (${chars} Zeichen)`);
-      softIssues.push(`${chapterPrefix} liegt ausserhalb der idealen Laenge (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
     }
 
-    if (paragraphs < 6) {
+    if (paragraphs < DEV_MODE_MIN_PARAGRAPHS) {
       issues.push(`zu wenige Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel 6-12).`);
-    } else if (paragraphs > 16) {
+      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS}).`);
+    } else if (paragraphs > DEV_MODE_MAX_PARAGRAPHS) {
       issues.push(`zu viele Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel 6-12).`);
-    } else if (paragraphs > 12) {
-      issues.push(`etwas viele Absaetze (${paragraphs})`);
-      softIssues.push(`${chapterPrefix} hat mehr als 12 Absaetze (${paragraphs}).`);
+      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS}).`);
     }
 
     const lastParagraph = chapter.content.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).slice(-1)[0] || "";
@@ -1547,9 +1724,9 @@ function analyzeDevModeStoryQuality(
       softIssues.push(`${chapterPrefix} endet ohne klaren Pull zur naechsten Szene.`);
     }
 
-    if (chapterDialogPct < 18) {
+    if (chapterDialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) {
       issues.push(`wenig Dialog (${chapterDialogPct}%)`);
-      softIssues.push(`${chapterPrefix} hat wenig Dialog (${chapterDialogPct}%).`);
+      hardIssues.push(`${chapterPrefix} hat zu wenig Dialog (${chapterDialogPct}%; Minimum ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%).`);
     }
 
     chapterDiagnostics.push({
@@ -1626,6 +1803,60 @@ function extractQualityScore(parsed: any): number | null {
   return score;
 }
 
+function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number | undefined {
+  if (!diagnostics) return undefined;
+
+  let score = 9.5;
+  if (diagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) score -= 0.3;
+  if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) score -= 0.4;
+  if (diagnostics.dialogPct < 18) score -= 0.5;
+
+  for (const chapter of diagnostics.chapterDiagnostics) {
+    if (chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) score -= 0.2;
+    if (chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS) score -= 0.2;
+    if (chapter.issues.some((issue) => /kurz|lang|Laenge|Länge/i.test(issue))) score -= 0.15;
+  }
+
+  if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
+  if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
+  if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|\[object Object\]/i.test(issue))) {
+    score = Math.min(score, 7.8);
+  }
+
+  return Math.max(0, Math.round(score * 10) / 10);
+}
+
+function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryDiagnostics): number | undefined {
+  const localGateScore = calculateLocalGateScore(diagnostics);
+  let score = typeof llmScore === "number" && Number.isFinite(llmScore) ? llmScore : localGateScore;
+  if (score === undefined) return undefined;
+
+  if (diagnostics) {
+    if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) score = Math.min(score, 8.4);
+    if (diagnostics.dialogPct < 18) score = Math.min(score, 7.9);
+    if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
+    if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
+    if (diagnostics.chapterDiagnostics.some((chapter) => chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS)) {
+      score = Math.min(score, 8.6);
+    }
+    if (diagnostics.chapterDiagnostics.some((chapter) => chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT)) {
+      score = Math.min(score, 8.5);
+    }
+    if (diagnostics.hardIssues.some((issue) => /deutlich zu lang|deutlich zu kurz/i.test(issue))) {
+      score = Math.min(score, 8.7);
+    }
+    if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|\[object Object\]/i.test(issue))) {
+      score = Math.min(score, 7.8);
+    }
+  }
+
+  if (typeof localGateScore === "number") {
+    score = Math.min(score, localGateScore);
+  }
+
+  return Math.max(0, Math.round(score * 10) / 10);
+}
+
 interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
@@ -1669,16 +1900,18 @@ async function callProvider(
   userPrompt: string,
   options: ProviderCallOptions = {}
 ): Promise<ProviderResult> {
-  const hasModelOverride = typeof options.modelOverride === "string" && options.modelOverride.trim().length > 0;
-  const requestedModel = (options.modelOverride || config.aiModel || DEFAULT_GEMINI_MODEL).trim();
+  const configuredStoryModel = resolveConfiguredStoryModel(config);
+  const requestedModel = (options.modelOverride || configuredStoryModel || config.aiModel || DEFAULT_GEMINI_MODEL).trim();
   const aiProvider: AIProvider =
     options.providerOverride ||
-    (hasModelOverride && requestedModel.startsWith("gemini-")
-      ? "native"
-      : config.aiProvider === "openrouter"
-        ? "openrouter"
-        : "native");
-  const openRouterModel = options.openRouterModelOverride || config.openRouterModel;
+    (isOpenRouterFamilyModel(requestedModel) || config.aiProvider === "openrouter"
+      ? "openrouter"
+      : "native");
+  const openRouterModel =
+    options.openRouterModelOverride ||
+    (isOpenRouterFamilyModel(config.openRouterModel) ? config.openRouterModel : undefined) ||
+    (isOpenRouterFamilyModel(requestedModel) ? requestedModel : undefined) ||
+    (isOpenRouterFamilyModel(configuredStoryModel) ? configuredStoryModel : undefined);
   const maxTokens = options.maxTokens ?? 16000;
   const temperature = options.temperature ?? 0.9;
 
@@ -1943,6 +2176,8 @@ export async function generateStoryDevMode(
   let finalParsed: DevModeRawStory | null = null;
   let finalModelUsed: string = input.config.aiModel || DEFAULT_GEMINI_MODEL;
   let finalQualityScore: number | undefined;
+  let rawQualityScore: number | undefined;
+  let localGateScore: number | undefined;
   let finalDiagnostics: DevModeStoryDiagnostics | undefined;
   let polishApplied = false;
 
@@ -1984,53 +2219,27 @@ export async function generateStoryDevMode(
     finalModelUsed = storyStage.provider.modelUsed;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
-    // NEW FLOW: Validator runs FIRST. Polish only triggers when the draft is
-    // actually below quality threshold (validator score < 8.5) OR local
-    // diagnostics flag hard issues. This skips the expensive polish call when
-    // the draft is already good (saves ~$0.02 on roughly 1/3 of stories).
-    const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
-    const validationStage = await runStage("final-validation", validationPrompts, {
-      maxTokens: 6500,
-      temperature: 0.15,
-      timeoutMs: 120_000,
-      ...supportCallOptions,
-      modelRole: "support",
-    });
-    finalQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
-
-    const POLISH_SCORE_THRESHOLD = 8.5;
-    const needsPolishByScore =
-      typeof finalQualityScore === "number" && finalQualityScore < POLISH_SCORE_THRESHOLD;
-    const needsPolishByDiagnostics = Boolean(finalDiagnostics?.needsPolish);
-
-    if (needsPolishByScore || needsPolishByDiagnostics) {
+    let repairAttempt = 0;
+    while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       polishApplied = true;
-      console.log("[dev-mode-generation] Triggering story polish", {
-        reason: needsPolishByScore ? "validator-score-below-threshold" : "local-hard-issues",
-        validatorScore: finalQualityScore,
-        threshold: POLISH_SCORE_THRESHOLD,
+      repairAttempt += 1;
+      console.log("[dev-mode-generation] Triggering strict gate repair", {
+        attempt: repairAttempt,
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
       });
-      // Pass the validator output to the polish so the model fixes the
-      // exact things the validator flagged (mustFixBefore95, warnings,
-      // publishabilityBlockers).
-      const polishCritique = {
-        ...(critique || {}),
-        validatorFindings: validationStage.parsed || null,
-      };
       const polishPrompts = buildStoryPolishPrompts(
         input,
         chapterCount,
         finalParsed,
         finalDiagnostics!,
         blueprint,
-        polishCritique
+        critique
       );
       const polishStage = await runStage("story-polish", polishPrompts, {
         maxTokens: input.config.length === "long" ? 32000 : 22000,
-        temperature: 0.62,
+        temperature: repairAttempt === 1 ? 0.48 : 0.32,
         timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
         modelRole: "selected-story",
       });
@@ -2038,21 +2247,44 @@ export async function generateStoryDevMode(
       finalModelUsed = polishStage.provider.modelUsed;
       finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
-      // Re-validate after polish so the score in metadata reflects the
-      // actual final story shipped to the user.
-      const revalidationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
-      const revalidationStage = await runStage("final-validation", revalidationPrompts, {
-        maxTokens: 6500,
-        temperature: 0.15,
-        timeoutMs: 120_000,
-        ...supportCallOptions,
-        modelRole: "support",
+      // One successful local repair is enough for soft issues; keep looping
+      // only while hard gates still fail.
+      if (finalDiagnostics.hardIssueCount === 0) break;
+    }
+
+    if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
+      throw new Error(
+        `Developer-mode story failed hard local gates after ${DEV_MODE_MAX_REPAIR_ATTEMPTS} repair attempt(s): ${finalDiagnostics.hardIssues.join(" | ")}`
+      );
+    }
+
+    if (!polishApplied) {
+      console.log("[dev-mode-generation] Skipping strict gate repair — draft passed local gates", {
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        softIssueCount: finalDiagnostics?.softIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
       });
-      finalQualityScore = extractQualityScore(revalidationStage.parsed) ?? finalQualityScore;
-    } else {
-      console.log("[dev-mode-generation] Skipping polish — draft already above quality threshold", {
-        validatorScore: finalQualityScore,
-        threshold: POLISH_SCORE_THRESHOLD,
+    }
+
+    const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+    const validationStage = await runStage("final-validation", validationPrompts, {
+      maxTokens: 4500,
+      temperature: 0.1,
+      timeoutMs: 120_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+    localGateScore = calculateLocalGateScore(finalDiagnostics);
+    finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+
+    if (typeof rawQualityScore === "number" && typeof finalQualityScore === "number" && finalQualityScore < rawQualityScore) {
+      console.warn("[dev-mode-generation] Validator score capped by local gates", {
+        rawQualityScore,
+        localGateScore,
+        finalQualityScore,
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
       });
     }
   } catch (pipelineError) {
@@ -2155,6 +2387,9 @@ export async function generateStoryDevMode(
       },
       localQualityDiagnostics: finalDiagnostics,
       storyPolishApplied: polishApplied,
+      rawQualityScore,
+      localGateScore,
+      finalQualityScore,
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },
@@ -2197,6 +2432,9 @@ export async function generateStoryDevMode(
       devModePipeline: DEV_MODE_PIPELINE_ID,
       storyPolishApplied: polishApplied,
       localQualityDiagnostics: finalDiagnostics,
+      rawQualityScore,
+      localGateScore,
+      qualityGatePassed: (finalDiagnostics?.hardIssueCount ?? 0) === 0,
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,
