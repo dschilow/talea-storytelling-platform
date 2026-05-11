@@ -710,7 +710,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.developerMode === true) {
-        console.log("[story.generate] 🧪 DEVELOPER MODE — six-stage quality path (avatars + personality + pool, NO images, NO personality updates)");
+        console.log("[story.generate] 🧪 DEVELOPER MODE — four-stage cost-optimized quality path (support model for planning/judging, selected model for prose, NO images, NO personality updates)");
 
         // Auto-cast: load the active character pool and pick supporting cast
         // matching this story's setting. We deliberately don't run the full
@@ -952,7 +952,8 @@ export const generate = api<GenerateStoryRequest, Story>(
                 metadata: {
                   durationMs: stage?.durationMs,
                   score: stage?.score,
-                  pipeline: generatedStory.metadata?.devModePipeline || "six-stage-quality",
+                  pipeline: generatedStory.metadata?.devModePipeline || "four-stage-cost-optimized",
+                  modelRole: stage?.modelRole,
                 },
               });
             })
