@@ -117,13 +117,19 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
   const systemPrompt = [
     "Du bist ein erfahrener Kinderbuchautor.",
     "Schreibe eine sehr gute, fesselnde, altersgerechte Kindergeschichte.",
-    `Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt nach diesem Schema:`,
-    `{`,
-    `  "title": string,`,
-    `  "description": string,`,
-    `  "chapters": [ { "title": string, "content": string, "order": number } ]`,
-    `}`,
-    "Keine Erklärungen, kein Markdown, kein Code-Fence — nur das reine JSON.",
+    "Antworte AUSSCHLIESSLICH mit einem gültigen JSON-Objekt nach diesem Schema:",
+    "{",
+    '  "title": string,',
+    '  "description": string,',
+    '  "chapters": [ { "title": string, "content": string, "order": number } ]',
+    "}",
+    "Regeln für die JSON-Ausgabe:",
+    "- KEIN Markdown, KEINE Code-Fences (``` ... ```), KEINE Erklärungen vor oder nach dem JSON.",
+    "- KEINE Kommentare (// ...) und KEINE trailing commas.",
+    '- Alle Property-Namen MÜSSEN in doppelten Anführungszeichen stehen.',
+    "- Innerhalb von String-Werten dürfen Anführungszeichen NUR als \\\" escaped vorkommen.",
+    "- Zeilenumbrüche innerhalb der Kapitel-Texte müssen als \\n escaped werden, nicht als echter Zeilenumbruch.",
+    "- Das JSON muss als Ganzes parsbar sein (JSON.parse muss ohne Fehler durchlaufen).",
     `Die Geschichte muss in ${languageName} verfasst sein.`,
   ].join("\n");
 
@@ -167,19 +173,98 @@ function stripJsonFence(content: string): string {
   return trimmed;
 }
 
+function sliceToOuterObject(content: string): string {
+  const firstBrace = content.indexOf("{");
+  const lastBrace = content.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return content.slice(firstBrace, lastBrace + 1);
+  }
+  return content;
+}
+
+/**
+ * Best-effort JSON repair. Models sometimes emit:
+ *   - // line comments or /* block *\/ comments
+ *   - trailing commas before } or ]
+ *   - unescaped real newlines inside string values
+ *   - single quotes instead of doubles
+ * We fix what we safely can without breaking valid JSON.
+ */
+function repairLooseJson(input: string): string {
+  let s = input;
+  // Strip /* ... */ block comments
+  s = s.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Strip // line comments (but not inside strings — best-effort: only outside quotes via simple state machine)
+  s = stripLineCommentsOutsideStrings(s);
+  // Remove trailing commas before } or ]
+  s = s.replace(/,(\s*[}\]])/g, "$1");
+  return s;
+}
+
+function stripLineCommentsOutsideStrings(s: string): string {
+  let out = "";
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inString) {
+      out += ch;
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === "/" && s[i + 1] === "/") {
+      // Skip until end-of-line
+      while (i < s.length && s[i] !== "\n") i++;
+      if (i < s.length) out += s[i]; // preserve the newline
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+function tryParseJson(raw: string): any {
+  const attempts: string[] = [];
+  const trimmed = raw.trim();
+  attempts.push(trimmed);
+  attempts.push(stripJsonFence(trimmed));
+  const sliced = sliceToOuterObject(stripJsonFence(trimmed));
+  attempts.push(sliced);
+  attempts.push(repairLooseJson(sliced));
+
+  let lastError: unknown = null;
+  for (const candidate of attempts) {
+    try {
+      return JSON.parse(candidate);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "unknown JSON parse failure"));
+}
+
 function parseAndValidate(content: string, chapterCount: number): DevModeRawStory {
-  const cleaned = stripJsonFence(content);
   let parsed: any;
   try {
-    parsed = JSON.parse(cleaned);
-  } catch {
-    const firstBrace = cleaned.indexOf("{");
-    const lastBrace = cleaned.lastIndexOf("}");
-    if (firstBrace >= 0 && lastBrace > firstBrace) {
-      parsed = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
-    } else {
-      throw new Error("Developer-mode generation returned non-JSON content.");
-    }
+    parsed = tryParseJson(content);
+  } catch (err) {
+    const preview = content.slice(0, 400);
+    const tail = content.length > 800 ? `…${content.slice(-300)}` : "";
+    console.error("[dev-mode-generation] Failed to parse model JSON. Preview:", { preview, tail, length: content.length });
+    throw new Error(
+      `Developer-mode generation returned unparseable JSON: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
 
   if (!parsed || typeof parsed !== "object") {
@@ -228,7 +313,15 @@ async function callProvider(
 
   if (aiProvider === "openrouter") {
     const orModel = normalizeOpenRouterModel(config.openRouterModel);
-    console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`);
+    // Some OpenRouter-routed providers (e.g. Anthropic Claude) don't honor
+    // OpenAI's response_format=json_object and may return slightly malformed
+    // JSON when it's forced. For Claude via OpenRouter we skip the flag and
+    // rely on the strict JSON instructions in the system prompt + our
+    // tolerant parser.
+    const isClaudeViaOpenRouter = /claude/i.test(orModel) || /anthropic/i.test(orModel);
+    console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`, {
+      forceJsonObjectFormat: !isClaudeViaOpenRouter,
+    });
     const res = await callOpenRouterChatCompletion({
       model: orModel,
       messages: [
@@ -236,7 +329,7 @@ async function callProvider(
         { role: "user", content: userPrompt },
       ],
       maxTokens: 16000,
-      responseFormat: "json_object",
+      responseFormat: isClaudeViaOpenRouter ? "text" : "json_object",
       temperature: 0.9,
     });
     const choice = res.data.choices?.[0];
