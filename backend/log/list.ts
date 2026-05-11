@@ -13,7 +13,9 @@ export interface LogEntry {
     | "openai-avatar-analysis-stable"
     | "openai-doku-generation"
     | "openai-tavi-chat"
-    | "openai-story-generation-mcp";
+    | "openai-story-generation-mcp"
+    | "dev-mode-generation"
+    | "dev-mode-generation-stage";
   timestamp: Date;
   request: any;
   response: any;

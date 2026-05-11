@@ -13,11 +13,37 @@ import { getBackendUrl } from '../../config';
 
 interface LogEntry {
   id: string;
-  source: 'openai-story-generation' | 'runware-single-image' | 'runware-batch-image' | 'openai-avatar-analysis' | 'openai-avatar-analysis-stable' | 'openai-doku-generation' | 'openai-tavi-chat';
+  source:
+    | 'openai-story-generation'
+    | 'runware-single-image'
+    | 'runware-batch-image'
+    | 'openai-avatar-analysis'
+    | 'openai-avatar-analysis-stable'
+    | 'openai-doku-generation'
+    | 'openai-tavi-chat'
+    | 'dev-mode-generation'
+    | 'dev-mode-generation-stage'
+    | string;
   timestamp: string;
   request: any;
   response: any;
   metadata?: any;
+}
+
+interface DevModeStageSummary {
+  stage?: string;
+  modelRole?: string;
+  modelUsed?: string;
+  usage?: {
+    prompt?: number;
+    completion?: number;
+    total?: number;
+  };
+  durationMs?: number;
+  score?: number | null;
+  contentLength?: number;
+  parseError?: string;
+  error?: string;
 }
 
 interface LogSource {
@@ -83,6 +109,8 @@ const LogViewerScreen: React.FC = () => {
         return '📖';
       case 'dev-mode-generation':
         return '🧪';
+      case 'dev-mode-generation-stage':
+        return '⚙️';
       case 'runware-single-image':
         return '🖼️';
       case 'runware-batch-image':
@@ -105,6 +133,8 @@ const LogViewerScreen: React.FC = () => {
         return 'Geschichte Generierung';
       case 'dev-mode-generation':
         return 'Dev Mode — Story Generation';
+      case 'dev-mode-generation-stage':
+        return 'Dev Mode — Stage Call';
       case 'runware-single-image':
         return 'Einzelbild Generierung';
       case 'runware-batch-image':
@@ -123,6 +153,133 @@ const LogViewerScreen: React.FC = () => {
 
   const formatJson = (obj: any, _maxDepth: number = 3) => {
     return JSON.stringify(obj, null, 2);
+  };
+
+  const getStageLabel = (stage?: string) => {
+    switch (stage) {
+      case 'blueprint':
+        return '1. Blueprint';
+      case 'dramaturgy-check':
+        return '2. Dramaturgie-Check';
+      case 'story-draft':
+        return '3. Story-Draft';
+      case 'final-validation':
+        return '4. Validierung';
+      default:
+        return stage || 'Stage';
+    }
+  };
+
+  const getModelRoleLabel = (role?: string) => {
+    if (role === 'selected-story') return 'Wizard-Modell';
+    if (role === 'support') return 'Support-Modell';
+    return role || 'Modell';
+  };
+
+  const formatTokens = (value?: number) => {
+    const numeric = Number(value || 0);
+    return Number.isFinite(numeric) ? numeric.toLocaleString('de-DE') : '0';
+  };
+
+  const formatDuration = (value?: number) => {
+    const numeric = Number(value || 0);
+    if (!Number.isFinite(numeric) || numeric <= 0) return 'n/a';
+    if (numeric >= 1000) return `${(numeric / 1000).toFixed(1)}s`;
+    return `${Math.round(numeric)}ms`;
+  };
+
+  const getDevModeStages = (log: LogEntry): DevModeStageSummary[] => {
+    const responseStages = Array.isArray(log.response?.stages) ? log.response.stages : [];
+    if (responseStages.length > 0) {
+      return responseStages.map((stage: any) => ({
+        stage: stage?.stage,
+        modelRole: stage?.modelRole,
+        modelUsed: stage?.modelUsed,
+        usage: stage?.usage,
+        durationMs: stage?.durationMs,
+        score: stage?.score,
+        contentLength: stage?.contentLength ?? stage?.rawContent?.length,
+        parseError: stage?.parseError,
+        error: stage?.error,
+      }));
+    }
+
+    if (log.source === 'dev-mode-generation-stage' || log.metadata?.individualStage) {
+      return [{
+        stage: log.response?.stage || log.request?.stage || log.metadata?.stage,
+        modelRole: log.response?.modelRole || log.request?.modelRole || log.metadata?.modelRole,
+        modelUsed: log.response?.modelUsed,
+        usage: log.response?.usage,
+        durationMs: log.response?.durationMs,
+        score: log.response?.score,
+        contentLength: log.response?.contentLength ?? log.response?.rawContent?.length,
+        parseError: log.response?.parseError,
+        error: log.response?.error,
+      }];
+    }
+
+    return [];
+  };
+
+  const renderDevModeStages = (log: LogEntry, compact = false) => {
+    const stages = getDevModeStages(log);
+    if (stages.length === 0) return null;
+
+    return (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: compact ? 'repeat(auto-fit, minmax(150px, 1fr))' : 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: `${spacing.sm}px`,
+        marginTop: `${spacing.md}px`,
+      }}>
+        {stages.map((stage, index) => {
+          const isStoryModel = stage.modelRole === 'selected-story';
+          const hasIssue = Boolean(stage.error || stage.parseError);
+          return (
+            <div
+              key={`${stage.stage || 'stage'}-${index}`}
+              style={{
+                padding: compact ? `${spacing.sm}px` : `${spacing.md}px`,
+                borderRadius: `${radii.md}px`,
+                border: `1px solid ${hasIssue ? 'rgba(239, 68, 68, 0.35)' : isStoryModel ? 'rgba(99, 102, 241, 0.35)' : 'rgba(34, 197, 94, 0.28)'}`,
+                background: hasIssue
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : isStoryModel
+                    ? 'rgba(99, 102, 241, 0.1)'
+                    : 'rgba(34, 197, 94, 0.08)',
+              }}
+            >
+              <div style={{
+                ...typography.textStyles.label,
+                color: colors.text.primary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: `${spacing.sm}px`,
+                marginBottom: `${spacing.xs}px`,
+              }}>
+                <span>{getStageLabel(stage.stage)}</span>
+                {stage.score != null && (
+                  <span style={{ color: Number(stage.score) >= 9.5 ? colors.semantic.success : colors.semantic.warning }}>
+                    {Number(stage.score).toFixed(1)}
+                  </span>
+                )}
+              </div>
+              <div style={{ ...typography.textStyles.caption, color: colors.text.secondary, lineHeight: 1.5 }}>
+                <div>{getModelRoleLabel(stage.modelRole)}: {stage.modelUsed || 'n/a'}</div>
+                <div>Tokens: {formatTokens(stage.usage?.total)} ({formatTokens(stage.usage?.prompt)} in / {formatTokens(stage.usage?.completion)} out)</div>
+                <div>Dauer: {formatDuration(stage.durationMs)} · Output: {formatTokens(stage.contentLength)} chars</div>
+                {(stage.error || stage.parseError) && (
+                  <div style={{ color: colors.semantic.error, marginTop: `${spacing.xs}px` }}>
+                    {stage.error || stage.parseError}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const downloadLog = (log: LogEntry) => {
@@ -486,6 +643,8 @@ const LogViewerScreen: React.FC = () => {
                             📥 Response: {JSON.stringify(log.response).length} chars
                           </div>
                         </div>
+
+                        {renderDevModeStages(log, true)}
                       </Card>
                     </FadeInView>
                   ))}
@@ -549,6 +708,16 @@ const LogViewerScreen: React.FC = () => {
             </div>
 
             <div style={{ display: 'grid', gap: `${spacing.lg}px` }}>
+              {getDevModeStages(selectedLog).length > 0 && (
+                <div>
+                  <h3 style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.sm}px`, display: 'flex', alignItems: 'center', gap: `${spacing.xs}px` }}>
+                    <Zap size={16} style={{ color: colors.primary[500] }} />
+                    Dev Mode Calls:
+                  </h3>
+                  {renderDevModeStages(selectedLog)}
+                </div>
+              )}
+
               <div>
                 <h3 style={{ ...typography.textStyles.label, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
                   📤 Request:

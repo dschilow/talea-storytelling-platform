@@ -41,7 +41,8 @@ export interface LogEvent {
     | "phase4-image-generation"
     | "4phase-cover-generation"
     | "4phase-summary"
-    | "dev-mode-generation";
+    | "dev-mode-generation"
+    | "dev-mode-generation-stage";
   timestamp: Date;
   request: any;
   response: any;

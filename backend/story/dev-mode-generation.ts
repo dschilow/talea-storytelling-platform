@@ -1353,6 +1353,48 @@ export async function generateStoryDevMode(
     };
     stageLogs.push(logEntry);
 
+    const publishStageLog = async (extra?: { error?: string }) => {
+      await publishWithTimeout(logTopic, {
+        source: "dev-mode-generation-stage",
+        timestamp: new Date(),
+        request: {
+          mode: "developer",
+          pipeline: "four-stage-cost-optimized",
+          stage,
+          modelRole: options.modelRole,
+          requestedModel: options.modelOverride || input.config.aiModel,
+          supportModel: DEV_MODE_SUPPORT_MODEL,
+          aiProvider: options.providerOverride || input.config.aiProvider,
+          openRouterModel: options.openRouterModelOverride || input.config.openRouterModel,
+          systemPrompt: prompts.systemPrompt,
+          userPrompt: prompts.userPrompt,
+        },
+        response: {
+          stage,
+          rawContent: logEntry.rawContent,
+          contentLength: logEntry.rawContent?.length ?? 0,
+          parsed: logEntry.parsed,
+          parseError: logEntry.parseError,
+          usage: logEntry.usage,
+          modelUsed: logEntry.modelUsed,
+          modelRole: logEntry.modelRole,
+          durationMs: logEntry.durationMs,
+          score: extractQualityScore(logEntry.parsed),
+          error: extra?.error,
+        },
+        metadata: {
+          devMode: true,
+          pipeline: "four-stage-cost-optimized",
+          stage,
+          modelRole: options.modelRole,
+          individualStage: true,
+          failed: Boolean(extra?.error),
+        },
+      }).catch((logErr) => {
+        console.warn(`[dev-mode-generation] Failed to publish stage log for ${stage}:`, logErr);
+      });
+    };
+
     try {
       const provider = await callProvider(
         input.config,
@@ -1371,10 +1413,12 @@ export async function generateStoryDevMode(
       logEntry.modelRole = options.modelRole;
       logEntry.durationMs = Date.now() - stageStartedAt;
 
+      await publishStageLog();
       return { provider, ...parsedStage };
     } catch (err) {
       logEntry.error = err instanceof Error ? err.message : String(err);
       logEntry.durationMs = Date.now() - stageStartedAt;
+      await publishStageLog({ error: logEntry.error });
       throw err;
     }
   };
