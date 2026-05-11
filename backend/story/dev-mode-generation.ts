@@ -1,18 +1,25 @@
 /**
  * Developer Mode Story Generation
  *
- * Minimal-prompt path used for A/B testing prompt quality. Bypasses the full
- * Story Pipeline v2: no avatar visual profiles, no personality traits, no
- * memories, no Story DNA, no artifacts, no character pool, no style packs,
- * no professional storytelling rules, no parental-guidance prompt injection.
+ * Developer quality lane used for A/B testing prompt quality. Bypasses the
+ * full Story Pipeline v2 (no memories, Story DNA, artifacts, images, TTS,
+ * or personality mutation) but keeps a focused, inspectable prompt surface:
+ * selected avatars, their visual/personality grounding, and a slim pool cast.
  *
- * Only fields fed into the prompt:
+ * Fields fed into the prompt:
  *   - length (chapter count derived) + ageGroup
  *   - genre + setting
- *   - avatar names (+ primary age) — names only, no traits
+ *   - selected avatar appearance + personality traits
+ *   - a small supporting character pool
  *   - learningMode subjects (if enabled)
  *   - language
  *   - customPrompt (the raw user wish text, no profile context merged in)
+ *
+ * Generation is intentionally multi-call:
+ *   1. story blueprint
+ *   2. dramaturgy / quality check
+ *   3. final story draft
+ *   4. JSON + style + logic validation / light repair
  *
  * No images are generated in this mode (chapters render text-only in the reader).
  * No personality / memory mutation happens after generation — the caller
@@ -42,6 +49,25 @@ interface DevModeRawStory {
   title: string;
   description: string;
   chapters: DevModeChapter[];
+}
+
+type DevModePipelineStage =
+  | "blueprint"
+  | "dramaturgy-check"
+  | "story-draft"
+  | "final-validation";
+
+interface DevModeStageLog {
+  stage: DevModePipelineStage;
+  systemPrompt: string;
+  userPrompt: string;
+  rawContent?: string;
+  parsed?: any;
+  parseError?: string;
+  usage?: { prompt: number; completion: number; total: number };
+  modelUsed?: string;
+  durationMs?: number;
+  error?: string;
 }
 
 export interface DevModeGeneratedStory {
@@ -158,36 +184,81 @@ function localizedLanguageName(language?: string): string {
  * visualProfile JSON is too verbose and noisy for a single-shot prompt —
  * we extract the most useful canonical traits.
  */
+function compactText(value: any, depth = 0): string {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => compactText(item, depth + 1))
+      .filter(Boolean)
+      .slice(0, 8)
+      .join(", ");
+  }
+  if (typeof value !== "object" || depth > 2) return "";
+
+  const preferredKeys = [
+    "description",
+    "summary",
+    "text",
+    "tone",
+    "color",
+    "style",
+    "type",
+    "length",
+    "texture",
+    "shape",
+    "outfit",
+    "top",
+    "bottom",
+    "shoes",
+    "features",
+    "distinctiveFeatures",
+    "otherFeatures",
+  ];
+
+  const preferred = preferredKeys
+    .map((key) => compactText(value[key], depth + 1))
+    .filter(Boolean);
+  if (preferred.length > 0) return preferred.slice(0, 5).join(", ");
+
+  return Object.entries(value)
+    .map(([key, nested]) => {
+      const nestedText = compactText(nested, depth + 1);
+      return nestedText ? `${key}: ${nestedText}` : "";
+    })
+    .filter(Boolean)
+    .slice(0, 5)
+    .join(", ");
+}
+
 function summarizeVisualProfile(vp: any): string {
   if (!vp || typeof vp !== "object") return "";
   const parts: string[] = [];
 
   const pick = (label: string, ...keys: string[]) => {
     for (const key of keys) {
-      const value = vp[key];
-      if (value === undefined || value === null) continue;
-      const text = typeof value === "string" ? value.trim() : String(value);
-      if (text.length === 0) continue;
+      const text = compactText(vp[key]);
+      if (text.length === 0 || text === "[object Object]") continue;
       parts.push(`${label}: ${text}`);
       return;
     }
   };
 
-  pick("Alter", "ageDescription", "age");
+  pick("Alter", "ageDescription", "age", "ageApprox", "ageNumeric");
   pick("Geschlecht", "gender");
-  pick("Spezies", "species");
+  pick("Spezies", "species", "speciesCategory", "characterType");
   pick("Haut", "skinTone", "skin");
   pick("Haare", "hair", "hairDescription", "hairColor");
   pick("Augen", "eyes", "eyeColor", "eyeDescription");
-  pick("Statur", "build", "body", "physicalBuild", "height");
-  pick("Kleidung", "outfit", "clothing", "clothingDescription");
-  pick("Besondere Merkmale", "distinctiveFeatures", "uniqueFeatures", "marks");
+  pick("Statur", "build", "body", "physicalBuild", "height", "heightCm");
+  pick("Kleidung", "outfit", "clothing", "clothingDescription", "clothingCanonical");
+  pick("Besondere Merkmale", "distinctiveFeatures", "uniqueFeatures", "marks", "face");
 
-  // Generic fallback: short top-level free text fields the model can use.
   if (parts.length === 0) {
-    const desc = vp.description || vp.summary || vp.text;
-    if (typeof desc === "string" && desc.trim().length > 0) {
-      parts.push(desc.trim());
+    const fallback = compactText(vp);
+    if (fallback.length > 0 && fallback !== "[object Object]") {
+      parts.push(fallback);
     }
   }
 
@@ -199,6 +270,20 @@ function summarizeVisualProfile(vp: any): string {
  * Subcategories (knowledge.history etc.) get a separate sublist if present.
  * Traits with value 0 are omitted to keep the prompt focused.
  */
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function traitBand(value: number): string {
+  if (value <= 5) return "kaum ausgepraegt";
+  if (value < 20) return "niedrig";
+  if (value < 45) return "zurueckhaltend";
+  if (value < 70) return "mittel";
+  if (value < 90) return "stark";
+  return "sehr stark";
+}
+
 function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: string[] } {
   if (!pt || typeof pt !== "object") return { baseLine: "", subLines: [] };
 
@@ -220,10 +305,9 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
 
   for (const key of BASE_KEYS) {
     const node = pt[key];
-    if (!node) continue;
-    const value = typeof node === "number" ? node : (typeof node === "object" ? Number(node.value ?? 0) : 0);
-    if (!Number.isFinite(value) || value <= 0) continue;
-    baseParts.push(`${LABEL_DE[key]} ${Math.round(value)}`);
+    const rawValue = typeof node === "number" ? node : (node && typeof node === "object" ? Number(node.value ?? 0) : 0);
+    const value = clampNumber(rawValue, 0, 100);
+    baseParts.push(`${LABEL_DE[key]} ${Math.round(value)} (${traitBand(value)})`);
 
     const subs = node && typeof node === "object" ? node.subcategories : undefined;
     if (subs && typeof subs === "object") {
@@ -231,7 +315,7 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
       for (const [subKey, subVal] of Object.entries(subs)) {
         const v = typeof subVal === "number" ? subVal : Number((subVal as any)?.value ?? subVal ?? 0);
         if (Number.isFinite(v) && v > 0) {
-          subParts.push(`${subKey} ${Math.round(v)}`);
+          subParts.push(`${subKey} ${Math.round(clampNumber(v, 0, 1000))}`);
         }
       }
       if (subParts.length > 0) {
@@ -264,13 +348,30 @@ function buildAvatarBlock(avatars: DevModeAvatar[]): string {
 
     const { baseLine, subLines } = summarizePersonalityTraits(avatar.personalityTraits);
     if (baseLine.length > 0) {
-      lines.push(`   Persönlichkeit (Werte je 0–100, höher = ausgeprägter): ${baseLine}`);
-      lines.push("   → Lass diese Persönlichkeitswerte konkret in den Handlungen, Entscheidungen und Reaktionen der Figur spürbar werden. Stärkere Werte sollen stärker durchscheinen.");
+      lines.push(`   Persoenlichkeit (Prompt-Skala 0-100; Werte ueber 100 wurden nur fuer den Prompt gekappt): ${baseLine}`);
+      lines.push("   Dramaturgie: Niedrige Werte sind Reibung und Wachstumsflaeche, hohe Werte sind aktive Staerken. Die Figur soll nie gegen diese Werte handeln, nur daran wachsen.");
       for (const sub of subLines) lines.push(sub);
     }
   });
 
   return lines.join("\n");
+}
+
+function sanitizePoolPromptText(text?: string | null): string | null {
+  const raw = String(text || "").trim();
+  if (!raw) return null;
+
+  return raw
+    .replace(
+      /(?:^|[\s;,.])Besiegt\s+durch\s*:[^.;\n]*(?:[.;]|$)/gi,
+      " Schwaechen-Hinweis: Die Figur reagiert empfindlich auf gemeinsam gehaltene, ruhige Aufmerksamkeit. "
+    )
+    .replace(
+      /(?:^|[\s;,.])Defeated\s+by\s*:[^.;\n]*(?:[.;]|$)/gi,
+      " Weakness hint: the character reacts to shared, calm attention. "
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
@@ -285,7 +386,8 @@ function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
     if (c.species) meta.push(`Spezies: ${c.species}`);
     if (c.ageCategory) meta.push(`Altersgruppe: ${c.ageCategory}`);
     if (meta.length > 0) lines.push(`   ${meta.join(" · ")}`);
-    if (c.physicalDescription) lines.push(`   Aussehen: ${c.physicalDescription}`);
+    const physicalDescription = sanitizePoolPromptText(c.physicalDescription);
+    if (physicalDescription) lines.push(`   Aussehen: ${physicalDescription}`);
     if (c.personalityKeywords && c.personalityKeywords.length > 0) {
       lines.push(`   Charakter: ${c.personalityKeywords.join(", ")}`);
     }
@@ -294,7 +396,8 @@ function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
       lines.push(`   Sprechstil: ${c.speechStyle.join(", ")}`);
     }
     if (c.quirk) lines.push(`   Eigenheit: ${c.quirk}`);
-    if (c.backstory) lines.push(`   Hintergrund: ${c.backstory}`);
+    const backstory = sanitizePoolPromptText(c.backstory);
+    if (backstory) lines.push(`   Hintergrund: ${backstory}`);
   });
   return lines.join("\n");
 }
@@ -369,6 +472,291 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     .join("\n");
 
   return { systemPrompt, userPrompt, chapterCount };
+}
+
+function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: number): string {
+  const { config, avatars, poolCharacters, primaryProfileAge } = input;
+  const languageName = localizedLanguageName(config.language);
+
+  let avatarBlock = buildAvatarBlock(avatars || []);
+  if (!avatarBlock) {
+    const names = (avatars || []).map((a) => a.name).filter(Boolean);
+    avatarBlock =
+      names.length > 0
+        ? `HAUPTFIGUREN: ${names
+            .map((n, i) =>
+              i === 0 && typeof primaryProfileAge === "number" ? `${n} (${primaryProfileAge} Jahre)` : n
+            )
+            .join(", ")}`
+        : "HAUPTFIGUREN: frei waehlbar.";
+  }
+
+  const poolBlock = buildPoolBlock(poolCharacters);
+  const learningLine =
+    config.learningMode?.enabled && config.learningMode.subjects?.length
+      ? `Lernziel (dezent einbauen, nicht aufdraengen): ${config.learningMode.subjects.join(", ")}.`
+      : null;
+  const customLine = config.customPrompt?.trim()
+    ? `Zusatzwunsch des Lesers: ${config.customPrompt.trim()}`
+    : null;
+
+  return [
+    `Sprache: ${languageName}.`,
+    `Altersgruppe: ${config.ageGroup}.`,
+    `Kapitelanzahl: genau ${chapterCount}.`,
+    `Genre: ${config.genre}.`,
+    `Setting: ${config.setting}.`,
+    "",
+    genreCraftGuidance(config.genre),
+    settingCraftGuidance(config.setting),
+    "",
+    avatarBlock,
+    poolBlock || null,
+    learningLine,
+    customLine,
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+}
+
+function genreCraftGuidance(genre?: string): string {
+  const normalized = String(genre || "").toLowerCase();
+  if (normalized.includes("fairy") || normalized.includes("maerchen") || normalized.includes("märchen")) {
+    return [
+      "GENRE-HANDWERK MAERCHEN:",
+      "- Nutze Maerchen-Konventionen bewusst: Schwelle, klare magische Regel, symbolische Gegenstaende, einfache aber tiefe Wahrheit.",
+      "- Keine generische Fantasy-Quest. Das Wunder muss kindlich konkret und in Szenen sichtbar sein.",
+      "- Die Loesung darf nicht als Moral erklaert werden; sie muss aus Handlung, Figuren und zuvor gesetzten Details entstehen.",
+    ].join("\n");
+  }
+  if (normalized.includes("adventure") || normalized.includes("abenteuer")) {
+    return [
+      "GENRE-HANDWERK ABENTEUER:",
+      "- Jedes Kapitel braucht ein sichtbares Ziel, ein Hindernis und eine kleine Konsequenz.",
+      "- Gefahr bleibt kindgerecht, aber Entscheidungen muessen spuerbare Folgen haben.",
+    ].join("\n");
+  }
+  return [
+    "GENRE-HANDWERK:",
+    "- Uebersetze das Genre in konkrete Szenen, Regeln, Requisiten und Wendungen.",
+    "- Vermeide leere Genre-Etiketten und austauschbare Standardmotive.",
+  ].join("\n");
+}
+
+function settingCraftGuidance(setting?: string): string {
+  const normalized = String(setting || "").toLowerCase();
+  if (!normalized || normalized === "fantasy") {
+    return [
+      "SETTING-HANDWERK:",
+      "- Wenn das Setting allgemein ist, erfinde einen spezifischen Ort mit wiedererkennbaren Details.",
+      "- Der Ort muss die Handlung beeinflussen, nicht nur Kulisse sein.",
+    ].join("\n");
+  }
+  return [
+    "SETTING-HANDWERK:",
+    "- Mache den Ort sinnlich konkret: Licht, Geraeusche, Geruch, Textur, Wege, Regeln.",
+    "- Nutze den Ort im Finale aktiv.",
+  ].join("\n");
+}
+
+function chapterLengthGuidance(config: StoryConfig): string {
+  if (config.length === "short") return "Jedes Kapitel ca. 1.200-1.800 Zeichen.";
+  if (config.length === "long") return "Jedes Kapitel ca. 2.000-2.700 Zeichen.";
+  return "Jedes Kapitel ca. 1.800-2.400 Zeichen.";
+}
+
+function qualitySystemPrompt(languageName: string, outputSchema: string): string {
+  return [
+    "Du bist ein preisgekroenter Kinderbuchautor und Dramaturg fuer altersgerechte Vorlese- und Lesegeschichten.",
+    "Dein Ziel ist echte Kinderbuchqualitaet: warm, spannend, klar, bildhaft, emotional, humorvoll und mit Figuren, die Kinder wiedererkennen und moegen.",
+    "",
+    "SCHREIBSTANDARD:",
+    "- Schreibe szenisch, nicht zusammenfassend.",
+    "- Beginne konkrete Szenen mit Handlung, Dialog, kleinen Gesten, Sinneseindruecken und Entscheidungen.",
+    "- Jede Hauptfigur handelt sichtbar und hat eine eigene Rolle.",
+    "- Gefuehle werden durch Verhalten, Koerper, Blick, Stimme und Entscheidung gezeigt; selten direkt benannt.",
+    "- Keine Moralpredigt, keine Standard-Fantasy, keine Loesung durch blosses Glauben.",
+    "- Niedrige Persoenlichkeitswerte bedeuten Reibung/Wachstum, nicht Unsympathie.",
+    "- Hohe Persoenlichkeitswerte muessen als aktive Staerke in Handlung sichtbar werden.",
+    "",
+    "SPRACHE:",
+    `- Die Ausgabe muss in ${languageName} sein.`,
+    "- Fuer die Zielgruppe verstaendlich: klare Saetze, klare Bilder, keine verschachtelten Erwachsenensaetze.",
+    "- Mindestens 30 Prozent Dialog in der finalen Geschichte.",
+    "- Pro Kapitel mindestens zwei konkrete Sinneseindruecke.",
+    "- Pro Kapitel ein kleiner humorvoller Moment aus Situation oder Figur.",
+    "",
+    "VERBOTENE MUSTER:",
+    "- Sie lernten, dass ...",
+    "- Das groesste Geschenk war Freundschaft.",
+    "- Mit Mut und Zusammenhalt schafften sie es.",
+    "- wahre Magie liegt im Herzen",
+    "- Es war alles nur ein Traum.",
+    "- Gegner wird in einem Satz bekehrt.",
+    "- Nebenfigur erklaert nur die Loesung.",
+    "- kaputte Platzhalter wie [object Object].",
+    "",
+    "JSON-AUSGABE:",
+    "Antworte AUSSCHLIESSLICH mit einem gueltigen JSON-Objekt.",
+    "Kein Markdown. Keine Code-Fences. Keine Kommentare. Keine trailing commas.",
+    "Alle Property-Namen in doppelten Anfuehrungszeichen.",
+    "Dialog innerhalb von Storytexten mit typografischen Anfuehrungszeichen „...“, nicht mit normalen ASCII-Anfuehrungszeichen.",
+    "Zeilenumbrueche in JSON-Strings als \\n escapen.",
+    "",
+    outputSchema,
+  ].join("\n");
+}
+
+function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "premise": string,',
+      '  "coreMagicRule": string,',
+      '  "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
+      '  "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
+      '  "plantsAndPayoffs": [ { "plant": string, "payoff": string } ],',
+      '  "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string } ],',
+      '  "forbiddenShortcuts": string[]',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 1: Erzeuge nur einen Story-Blueprint, noch keine ausformulierte Geschichte.",
+    "Der Blueprint muss die spaetere Geschichte vorbereiten: Figurenrollen, klare magische Regel, Versuch-Irrtum-Folge, Finale aus vorbereiteten Details.",
+    "",
+    buildDevStoryContext(input, chapterCount),
+    "",
+    `Plane genau ${chapterCount} Kapitel.`,
+    "Achte besonders darauf, dass Antagonisten-Hinweise nicht als Spoiler-Loesung uebernommen werden.",
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildCritiquePrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  blueprint: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "score": number,',
+      '  "strengths": string[],',
+      '  "mustFix": string[],',
+      '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
+      '  "revisedBlueprint": object',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 2: Pruefe den Blueprint wie ein strenger Kinderbuch-Dramaturg.",
+    "Finde alles, was die Geschichte unter 9.5/10 druecken wuerde: schwache Spannung, Spoiler-Loesung, Figuren ohne aktive Rolle, Telling, generische Motive, fehlende Sinnlichkeit, unverdiente Wendung.",
+    "Gib danach einen verbesserten revisedBlueprint zurueck. Der revisedBlueprint darf die Struktur schaerfen, aber keine neue unpassende Pipeline-Komplexitaet einfuehren.",
+    "",
+    "KONTEXT:",
+    buildDevStoryContext(input, chapterCount),
+    "",
+    "BLUEPRINT:",
+    JSON.stringify(blueprint, null, 2),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildStoryDraftPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  blueprint: any,
+  critique: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Finales Story-Schema:",
+      "{",
+      '  "title": string,',
+      '  "description": string,',
+      '  "chapters": [',
+      '    { "order": number, "title": string, "content": string }',
+      "  ]",
+      "}",
+    ].join("\n")
+  );
+  const revisedBlueprint = critique?.revisedBlueprint || blueprint;
+  const userPrompt = [
+    "CALL 3: Schreibe jetzt die finale Geschichte als echte Szene, nicht als Zusammenfassung.",
+    "",
+    buildDevStoryContext(input, chapterCount),
+    "",
+    "DRAMATURGIE-VORGABEN:",
+    `- Genau ${chapterCount} Kapitel.`,
+    `- ${chapterLengthGuidance(input.config)}`,
+    "- Jedes Kapitel 6-12 Absaetze.",
+    "- Kapitel 1: starker Hook in den ersten 2 Saetzen, konkretes Problem, unterschiedliche Reaktion der Hauptfiguren, offenes Ende.",
+    "- Kapitel 2: Welt konkreter, Spur/Begegnung, Nebenfigur/Gegenspieler zeigt Eigenart, Problem wird groesser.",
+    "- Kapitel 3: falscher Versuch oder Fehlentscheidung aus Charakter heraus, echte Konsequenz, kein Zufall rettet.",
+    "- Kapitel 4: tiefere Regel verstehen, unterschiedliche Staerken verbinden, emotionaler Moment, Finale vorbereiten.",
+    "- Kapitel 5: konkrete Handlung, vorbereitete Loesung, emotionaler Nachhall, starkes Schlussbild, keine erklaerte Moral.",
+    "",
+    "GEPRUEFTER BLUEPRINT:",
+    JSON.stringify(revisedBlueprint, null, 2),
+    "",
+    "KRITIK, DIE DU BEHEBEN MUSST:",
+    JSON.stringify(
+      {
+        score: critique?.score,
+        mustFix: critique?.mustFix || [],
+        chapterRisks: critique?.chapterRisks || [],
+      },
+      null,
+      2
+    ),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildValidationPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  story: DevModeRawStory
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "isValid": boolean,',
+      '  "score": number,',
+      '  "errors": string[],',
+      '  "warnings": string[],',
+      '  "story": {',
+      '    "title": string,',
+      '    "description": string,',
+      '    "chapters": [ { "order": number, "title": string, "content": string } ]',
+      "  }",
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 4: Validiere JSON, Stil und Logik der finalen Geschichte.",
+    "Wenn nur kleine Probleme vorhanden sind, repariere sie direkt in story. Wenn alles passt, gib story unveraendert zurueck.",
+    "Pruefe: genau richtige Kapitelanzahl, gueltiges JSON, keine [object Object], klare Figurenrollen, keine erklaerte Moral, vorbereitete Loesung, keine gespoilerte/billige Antagonisten-Niederlage, altersgerechte Sprache, Dialog mit typografischen Anfuehrungszeichen.",
+    "",
+    "KONTEXT:",
+    buildDevStoryContext(input, chapterCount),
+    "",
+    "STORY:",
+    JSON.stringify(story, null, 2),
+  ].join("\n");
+  return { systemPrompt, userPrompt };
 }
 
 function stripJsonFence(content: string): string {
@@ -661,19 +1049,60 @@ function parseAndValidate(content: string, chapterCount: number): DevModeRawStor
   return { title, description, chapters };
 }
 
+function parseStageObject(content: string): { parsed?: any; parseError?: string } {
+  try {
+    return { parsed: tryParseJson(content) };
+  } catch (err) {
+    return {
+      parseError: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+function usageSum(results: ProviderResult[]): { prompt: number; completion: number; total: number } {
+  return results.reduce(
+    (acc, result) => ({
+      prompt: acc.prompt + result.usage.prompt,
+      completion: acc.completion + result.usage.completion,
+      total: acc.total + result.usage.total,
+    }),
+    { prompt: 0, completion: 0, total: 0 }
+  );
+}
+
+function validationStoryCandidate(parsedValidation: any): any {
+  if (parsedValidation?.story && typeof parsedValidation.story === "object") {
+    return parsedValidation.story;
+  }
+  if (parsedValidation?.title && Array.isArray(parsedValidation?.chapters)) {
+    return parsedValidation;
+  }
+  return null;
+}
+
 interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
   modelUsed: string;
 }
 
+interface ProviderCallOptions {
+  stage?: DevModePipelineStage;
+  maxTokens?: number;
+  temperature?: number;
+  timeoutMs?: number;
+}
+
 async function callProvider(
   config: StoryConfig,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  options: ProviderCallOptions = {}
 ): Promise<ProviderResult> {
   const aiProvider: AIProvider = config.aiProvider === "openrouter" ? "openrouter" : "native";
   const requestedModel = (config.aiModel || DEFAULT_GEMINI_MODEL).trim();
+  const maxTokens = options.maxTokens ?? 16000;
+  const temperature = options.temperature ?? 0.9;
 
   if (aiProvider === "openrouter") {
     const orModel = normalizeOpenRouterModel(config.openRouterModel);
@@ -692,9 +1121,9 @@ async function callProvider(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      maxTokens: 16000,
+      maxTokens,
       responseFormat: isClaudeViaOpenRouter ? "text" : "json_object",
-      temperature: 0.9,
+      temperature,
     });
     const choice = res.data.choices?.[0];
     const content = choice?.message?.content || "";
@@ -720,10 +1149,11 @@ async function callProvider(
       systemPrompt,
       userPrompt,
       model: requestedModel,
-      maxTokens: 32768,
-      temperature: 0.9,
+      maxTokens: Math.max(maxTokens, 1024),
+      temperature,
+      fetchTimeoutMs: options.timeoutMs,
       logSource: "dev-mode-generation",
-      logMetadata: { devMode: true },
+      logMetadata: { devMode: true, stage: options.stage },
     });
     return {
       content: res.content,
@@ -744,11 +1174,11 @@ async function callProvider(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      maxTokens: 16000,
-      temperature: 0.9,
+      maxTokens,
+      temperature,
       context: "dev-mode-generation",
       logSource: "dev-mode-generation",
-      logMetadata: { devMode: true },
+      logMetadata: { devMode: true, stage: options.stage },
     });
     return {
       content: res.content,
@@ -769,12 +1199,13 @@ async function callProvider(
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    max_completion_tokens: 16000,
+    max_completion_tokens: maxTokens,
     response_format: { type: "json_object" },
   };
 
   const timeoutMs =
-    config.length === "long" ? 360_000 : config.length === "medium" ? 240_000 : 180_000;
+    options.timeoutMs ??
+    (config.length === "long" ? 360_000 : config.length === "medium" ? 240_000 : 180_000);
   const controller = new AbortController();
   const handle = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -819,6 +1250,266 @@ async function callProvider(
 }
 
 export async function generateStoryDevMode(
+  input: DevModeGenerationInput
+): Promise<DevModeGeneratedStory> {
+  const chapterCount = deriveChapterCount(input.config.length);
+  const avatarNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  const poolNames = (input.poolCharacters || []).map((c) => c.name);
+  const stageLogs: DevModeStageLog[] = [];
+  const providerResults: ProviderResult[] = [];
+  const startedAt = Date.now();
+
+  const runStage = async (
+    stage: DevModePipelineStage,
+    prompts: { systemPrompt: string; userPrompt: string },
+    options: ProviderCallOptions
+  ): Promise<{ provider: ProviderResult; parsed?: any; parseError?: string }> => {
+    const stageStartedAt = Date.now();
+    const logEntry: DevModeStageLog = {
+      stage,
+      systemPrompt: prompts.systemPrompt,
+      userPrompt: prompts.userPrompt,
+    };
+    stageLogs.push(logEntry);
+
+    try {
+      const provider = await callProvider(
+        input.config,
+        prompts.systemPrompt,
+        prompts.userPrompt,
+        { ...options, stage }
+      );
+      providerResults.push(provider);
+      const parsedStage = parseStageObject(provider.content);
+
+      logEntry.rawContent = provider.content;
+      logEntry.parsed = parsedStage.parsed;
+      logEntry.parseError = parsedStage.parseError;
+      logEntry.usage = provider.usage;
+      logEntry.modelUsed = provider.modelUsed;
+      logEntry.durationMs = Date.now() - stageStartedAt;
+
+      return { provider, ...parsedStage };
+    } catch (err) {
+      logEntry.error = err instanceof Error ? err.message : String(err);
+      logEntry.durationMs = Date.now() - stageStartedAt;
+      throw err;
+    }
+  };
+
+  console.log("[dev-mode-generation] Dev mode four-stage pipeline", {
+    chapterCount,
+    ageGroup: input.config.ageGroup,
+    genre: input.config.genre,
+    setting: input.config.setting,
+    avatarCount: avatarNames.length,
+    avatarNames,
+    poolCharacterCount: poolNames.length,
+    poolCharacterNames: poolNames,
+    aiModel: input.config.aiModel,
+    aiProvider: input.config.aiProvider,
+  });
+
+  let finalParsed: DevModeRawStory | null = null;
+  let finalModelUsed: string = input.config.aiModel || DEFAULT_GEMINI_MODEL;
+
+  try {
+    const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
+    const blueprintStage = await runStage("blueprint", blueprintPrompts, {
+      maxTokens: 7000,
+      temperature: 0.55,
+      timeoutMs: 90_000,
+    });
+    const blueprint = blueprintStage.parsed || {
+      rawBlueprint: blueprintStage.provider.content,
+      parseWarning: blueprintStage.parseError,
+    };
+    finalModelUsed = blueprintStage.provider.modelUsed;
+
+    const critiquePrompts = buildCritiquePrompts(input, chapterCount, blueprint);
+    const critiqueStage = await runStage("dramaturgy-check", critiquePrompts, {
+      maxTokens: 7000,
+      temperature: 0.35,
+      timeoutMs: 90_000,
+    });
+    const critique = critiqueStage.parsed || {
+      rawCritique: critiqueStage.provider.content,
+      parseWarning: critiqueStage.parseError,
+    };
+    finalModelUsed = critiqueStage.provider.modelUsed;
+
+    const storyPrompts = buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
+    const storyStage = await runStage("story-draft", storyPrompts, {
+      maxTokens: input.config.length === "long" ? 28000 : 18000,
+      temperature: 0.82,
+      timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
+    });
+    const draftParsed = parseAndValidate(storyStage.provider.content, chapterCount);
+    finalModelUsed = storyStage.provider.modelUsed;
+
+    const validationPrompts = buildValidationPrompts(input, chapterCount, draftParsed);
+    const validationStage = await runStage("final-validation", validationPrompts, {
+      maxTokens: input.config.length === "long" ? 30000 : 20000,
+      temperature: 0.2,
+      timeoutMs: input.config.length === "long" ? 240_000 : 150_000,
+    });
+    finalModelUsed = validationStage.provider.modelUsed;
+
+    const candidate = validationStoryCandidate(validationStage.parsed);
+    if (candidate) {
+      try {
+        finalParsed = parseAndValidate(JSON.stringify(candidate), chapterCount);
+      } catch (validationParseError) {
+        console.warn("[dev-mode-generation] Final validation story failed schema parse; using story draft.", validationParseError);
+        finalParsed = draftParsed;
+        const finalLog = stageLogs.find((stage) => stage.stage === "final-validation");
+        if (finalLog) {
+          finalLog.parseError = `Validated story rejected: ${
+            validationParseError instanceof Error ? validationParseError.message : String(validationParseError)
+          }`;
+        }
+      }
+    } else {
+      finalParsed = draftParsed;
+      const finalLog = stageLogs.find((stage) => stage.stage === "final-validation");
+      if (finalLog && !finalLog.parseError) {
+        finalLog.parseError = "Validation response did not include a story object; using story draft.";
+      }
+    }
+  } catch (pipelineError) {
+    await publishWithTimeout(logTopic, {
+      source: "dev-mode-generation",
+      timestamp: new Date(),
+      request: {
+        mode: "developer",
+        pipeline: "four-stage-quality",
+        provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
+        model: input.config.aiModel,
+        openRouterModel: input.config.openRouterModel,
+        wizardConfig: {
+          chapterCount,
+          ageGroup: input.config.ageGroup,
+          genre: input.config.genre,
+          setting: input.config.setting,
+          language: input.config.language,
+          avatarNames,
+          poolCharacterNames: poolNames,
+          primaryProfileAge: input.primaryProfileAge,
+          learningModeEnabled: !!input.config.learningMode?.enabled,
+          learningModeSubjects: input.config.learningMode?.subjects,
+          customPrompt: input.config.customPrompt,
+        },
+      },
+      response: {
+        error: pipelineError instanceof Error ? pipelineError.message : String(pipelineError),
+        stages: stageLogs,
+        durationMs: Date.now() - startedAt,
+      },
+      metadata: { devMode: true, pipeline: "four-stage-quality", stage: "failed", failed: true },
+    }).catch((logErr) => {
+      console.warn("[dev-mode-generation] Failed to publish failure log:", logErr);
+    });
+    throw pipelineError;
+  }
+
+  const parsed = finalParsed;
+  if (!parsed) {
+    throw new Error("Developer-mode four-stage pipeline did not produce a story.");
+  }
+
+  const totalUsage = usageSum(providerResults);
+
+  await publishWithTimeout(logTopic, {
+    source: "dev-mode-generation",
+    timestamp: new Date(),
+    request: {
+      mode: "developer",
+      pipeline: "four-stage-quality",
+      provider: input.config.aiProvider === "openrouter" ? "openrouter" : "native",
+      model: finalModelUsed,
+      openRouterModel: input.config.openRouterModel,
+      wizardConfig: {
+        chapterCount,
+        ageGroup: input.config.ageGroup,
+        genre: input.config.genre,
+        setting: input.config.setting,
+        language: input.config.language,
+        avatarNames,
+        poolCharacterNames: poolNames,
+        primaryProfileAge: input.primaryProfileAge,
+        learningModeEnabled: !!input.config.learningMode?.enabled,
+        learningModeSubjects: input.config.learningMode?.subjects,
+        customPrompt: input.config.customPrompt,
+      },
+      stages: stageLogs.map((stage) => ({
+        stage: stage.stage,
+        systemPrompt: stage.systemPrompt,
+        userPrompt: stage.userPrompt,
+      })),
+    },
+    response: {
+      stages: stageLogs.map((stage) => ({
+        stage: stage.stage,
+        rawContent: stage.rawContent,
+        contentLength: stage.rawContent?.length ?? 0,
+        parsed: stage.parsed,
+        parseError: stage.parseError,
+        usage: stage.usage,
+        modelUsed: stage.modelUsed,
+        durationMs: stage.durationMs,
+      })),
+      parsed: {
+        title: parsed.title,
+        description: parsed.description,
+        chapterCount: parsed.chapters.length,
+        chapters: parsed.chapters.map((c) => ({
+          order: c.order,
+          title: c.title,
+          contentChars: c.content.length,
+        })),
+      },
+      usage: totalUsage,
+      durationMs: Date.now() - startedAt,
+    },
+    metadata: { devMode: true, pipeline: "four-stage-quality", stage: "complete" },
+  }).catch((logErr) => {
+    console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
+  });
+
+  const chapters = parsed.chapters
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((ch, idx) => ({
+      id: crypto.randomUUID(),
+      title: ch.title,
+      content: ch.content,
+      order: idx + 1,
+      imageUrl: undefined,
+      imagePrompt: undefined,
+      imageModel: undefined,
+    }));
+
+  return {
+    title: parsed.title,
+    description: parsed.description || parsed.title,
+    coverImageUrl: undefined,
+    chapters,
+    avatarDevelopments: [],
+    metadata: {
+      tokensUsed: {
+        prompt: totalUsage.prompt,
+        completion: totalUsage.completion,
+        total: totalUsage.total,
+        modelUsed: finalModelUsed,
+      },
+      model: finalModelUsed,
+      imagesGenerated: 0,
+      developerMode: true,
+    },
+  };
+}
+
+async function generateStoryDevModeLegacy(
   input: DevModeGenerationInput
 ): Promise<DevModeGeneratedStory> {
   const { systemPrompt, userPrompt, chapterCount } = buildPrompts(input);

@@ -710,7 +710,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.developerMode === true) {
-        console.log("[story.generate] 🧪 DEVELOPER MODE — enriched-prompt path (avatars + personality + pool, NO images, NO personality updates)");
+        console.log("[story.generate] 🧪 DEVELOPER MODE — four-stage quality path (avatars + personality + pool, NO images, NO personality updates)");
 
         // Auto-cast: load the active character pool and pick supporting cast
         // matching this story's setting. We deliberately don't run the full

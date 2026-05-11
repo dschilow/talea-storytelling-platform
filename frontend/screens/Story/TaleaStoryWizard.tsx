@@ -632,8 +632,8 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
         </h2>
         <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
           Wähle den Modus. Im Normalmodus läuft die volle Talea-Pipeline mit allen Avataren,
-          Erinnerungen, Stilbausteinen und Bildern. Der Developer Mode testet einen extrem
-          minimalen Prompt zum Qualitätsvergleich.
+          Erinnerungen, Stilbausteinen und Bildern. Der Developer Mode testet die fokussierte
+          Qualitäts-Pipeline ohne Story-DNA, Artefakte, Bilder oder Avatar-Mutationen.
         </p>
       </div>
 
@@ -679,13 +679,13 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           )}
         </div>
         <p className="text-sm text-[var(--talea-text-secondary)]">
-          Minimaler Prompt — nur Wizard-Eingaben (Länge, Alter, Genre, Setting, Avatar-Namen).
-          Keine Persönlichkeiten, keine Erinnerungen, keine Visual Profiles, keine Story-DNA,
-          keine Artefakte. <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
+          Vierstufige Text-Pipeline: Blueprint, Dramaturgie-Check, finale Geschichte und
+          JSON-/Stil-/Logik-Validierung. Nutzt Avatar-Aussehen, Persönlichkeiten und einen
+          schlanken Charakter-Pool. <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
         </p>
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          Nutze diesen Modus, um zu testen wie die KI ohne den großen Context-Overhead schreibt.
-          Das ausgewählte KI-Modell aus Schritt „Alter & Länge" wird verwendet.
+          Nutze diesen Modus, um Storyqualität mit kontrolliertem Kontext zu testen. Das
+          ausgewählte KI-Modell aus Schritt „Alter & Länge" wird für alle vier Calls verwendet.
         </p>
       </button>
     </div>
