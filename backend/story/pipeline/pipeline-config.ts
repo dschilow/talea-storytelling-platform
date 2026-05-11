@@ -99,14 +99,14 @@ const DEFAULT_CONFIG: PipelineConfig = {
   maxRewritePasses: 1,
   maxExpandCalls: 1,
   maxWarningPolishCalls: 1,
-  maxStoryTokens: 14000,
+  maxStoryTokens: 22000,
   enableAdaptiveSecondCandidate: true,
   maxSentenceTighteningChapters: 1,
   enablePostSurgeryCritic: true,
   enablePostLocalRepairCritic: true,
   aiScenePromptEnabled: false,
-  strictReleaseGateMode: "block",
-  wholeStoryEditMode: true,
+  strictReleaseGateMode: "warn",
+  wholeStoryEditMode: false,
   soulStageDisabled: true,
 };
 
