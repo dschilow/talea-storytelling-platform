@@ -14,6 +14,7 @@ import { buildV8BlueprintSystemPrompt, buildV8RevisionPrompt, buildV8StoryPrompt
 import { determineCriticVerdict, normalizeCriticReport } from "../semantic-critic";
 import { repairCastSet } from "../castset-normalizer";
 import { validateCastSet } from "../schema-validator";
+import { getFullRewriteStructuralProblems } from "../story-structure-guards";
 import type { CastSet, ImageSpec, NormalizedRequest, RoleSlot, SceneDirective, StoryBlueprintBase, StoryBlueprintV8, StoryDNA } from "../types";
 
 function buildNormalized(seed: number): NormalizedRequest {
@@ -1769,6 +1770,54 @@ function testPromptVersionResolverV8Rollout() {
   );
 }
 
+function testRewriteStructuralGuardRejectsPartialChapterArray() {
+  const previousDraft = {
+    title: "Vorher",
+    description: "",
+    chapters: [1, 2, 3, 4, 5].map(chapter => ({
+      chapter,
+      title: "",
+      text: Array.from({ length: 180 }, (_, index) => `Wort${chapter}_${index}`).join(" "),
+    })),
+  };
+  const partialRewrite = {
+    title: "Nachher",
+    description: "",
+    chapters: [
+      {
+        chapter: 1,
+        title: "",
+        text: "Nur ein kurzer Rest aus einem einzigen Kapitel.",
+      },
+      { chapter: 2, title: "", text: "" },
+      { chapter: 3, title: "", text: "" },
+      { chapter: 4, title: "", text: "" },
+      { chapter: 5, title: "", text: "" },
+    ],
+  };
+
+  const problems = getFullRewriteStructuralProblems({
+    draft: partialRewrite,
+    previousDraft,
+    expectedChapterCount: 5,
+    minChapterWords: 280,
+    minTotalWords: 1400,
+  });
+
+  assert.ok(
+    problems.some(problem => problem.includes("chapter 2 too short")),
+    "Rewrite guard should reject empty chapters after partial rewrite output",
+  );
+  assert.ok(
+    problems.some(problem => problem.includes("total too short")),
+    "Rewrite guard should reject full rewrites that collapse the story length",
+  );
+  assert.ok(
+    problems.some(problem => problem.includes("dropped usable chapters")),
+    "Rewrite guard should detect when a rewrite drops previously usable chapters",
+  );
+}
+
 function testV8BlueprintValidation() {
   const validBlueprint = buildValidV8Blueprint();
   const valid = validateV8Blueprint({
@@ -2094,6 +2143,7 @@ async function run() {
   testBannedWordGate();
   testEndingStabilityGate();
   testPromptVersionResolverV8Rollout();
+  testRewriteStructuralGuardRejectsPartialChapterArray();
   testV8BlueprintValidation();
   testV8BlueprintRepairAddsAntagonistDna();
   testV8BlueprintRepairRestoresPovAndGrowthPresence();

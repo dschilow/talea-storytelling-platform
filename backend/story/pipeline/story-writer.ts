@@ -7,6 +7,7 @@ import { generateWithGemini } from "../gemini-generation";
 import { runQualityGates, buildRewriteInstructions, type QualityIssue } from "./quality-gates";
 import { splitContinuousStoryIntoChapters } from "./story-segmentation";
 import { getChildFocusNames, getCoreChapterCharacterNames } from "./character-focus";
+import { getFullRewriteStructuralProblems } from "./story-structure-guards";
 import {
   CLAUDE_SONNET_46_MODEL,
   GEMINI_MAIN_STORY_MODEL,
@@ -57,7 +58,7 @@ const MAX_EXPAND_CALLS = 5;
 // after the full draft without paying for multiple full rewrites.
 const MAX_WARNING_POLISH_CALLS = 3;
 const ENABLE_WARNING_DRIVEN_REWRITE_DEFAULT = false;
-const QUALITY_RECOVERY_SCORE_THRESHOLD = 9.0;
+const QUALITY_RECOVERY_SCORE_THRESHOLD = 9.5;
 const QUALITY_RECOVERY_WARNING_COUNT = 2;
 const WARNING_POLISH_CODES = new Set([
   "RHYTHM_FLAT",
@@ -177,12 +178,16 @@ const CHAPTER_REWRITEABLE_ERROR_CODES = new Set([
   "ENDING_PRICE_MISSING",
   "ENDING_WARMTH_MISSING",
   "GOAL_THREAD_WEAK_ENDING",
+  "ENDING_PATTERN_NOT_REALIZED",
   "VOICE_INDISTINCT",
   "VOICE_TAG_FORMULA_OVERUSE",
   "RULE_EXPOSITION_TELL",
   "PROTOCOL_STYLE_META",
   "REPORT_STYLE_OVERUSE",
   "PARAGRAPH_CHOPPY",
+  "ARTIFACT_PREMATURE_ACTIVE",
+  "ANTAGONIST_TOO_FEW_APPEARANCES",
+  "ANTAGONIST_NO_SHOWDOWN",
 ]);
 
 const FLASH_EMERGENCY_POLISH_CODES = new Set([
@@ -1886,6 +1891,23 @@ Prose rules: read-aloud friendly rhythm, distinct character voices, emotions thr
         language: normalizedRequest.language,
         wordsPerChapter: { min: lengthTargets.wordMin, max: lengthTargets.wordMax },
       }), normalizedRequest.language);
+      const rewriteStructureProblems = getFullRewriteStructuralProblems({
+        draft: revisedDraft,
+        previousDraft: draft,
+        expectedChapterCount: directives.length,
+        minChapterWords: lengthTargets.wordMin,
+        minTotalWords: totalWordMin,
+      });
+      if (rewriteStructureProblems.length > 0) {
+        console.warn(
+          `[story-writer] Rewrite pass ${rewriteAttempt} rejected because it returned a structurally unsafe draft: ${rewriteStructureProblems.join("; ")}`
+        );
+        rewriteFallbackPolishCalls = Math.max(
+          rewriteFallbackPolishCalls,
+          resolveRewriteRescuePolishCalls(qualityReport.issues, draft.chapters.length),
+        );
+        continue;
+      }
 
       const revisedReport = runQualityGates({
         draft: revisedDraft,
@@ -2253,7 +2275,7 @@ function extractDraftFromChapterArray(
     const actualNumbers = chapters.map(ch => ch.chapter);
     const hasDuplicates = new Set(actualNumbers).size !== actualNumbers.length;
     const isSequential = actualNumbers.every((n, i) => n === expectedNumbers[i]);
-    if (hasDuplicates || !isSequential) {
+    if (chapters.length === directives.length && (hasDuplicates || !isSequential)) {
       console.warn(
         `[story-writer] Chapter numbering anomaly detected (chapters=[${actualNumbers.join(",")}]), renumbering positionally 1..${chapters.length}`,
       );
@@ -2917,7 +2939,18 @@ function resolveIssueTargetChapter(
     || issue.code === "ENDING_PAYOFF_ABSTRACT"
     || issue.code === "ENDING_PRICE_MISSING"
     || issue.code === "ENDING_WARMTH_MISSING"
+    || issue.code === "ENDING_PATTERN_NOT_REALIZED"
+    || issue.code === "ANTAGONIST_NO_SHOWDOWN"
   ) {
+    return chapterCount;
+  }
+
+  if (issue.code === "ARTIFACT_PREMATURE_ACTIVE") {
+    return issue.chapter > 0 ? Math.min(chapterCount, issue.chapter) : Math.max(1, Math.min(chapterCount, 2));
+  }
+
+  if (issue.code === "ANTAGONIST_TOO_FEW_APPEARANCES") {
+    if (chapterCount >= 4) return chapterCount - 1;
     return chapterCount;
   }
 
@@ -3043,6 +3076,24 @@ function buildChapterPolishHardFixHints(
   ) {
     hints.push(
       "HARD FIX: Make the child own the mistake, feel it in the body, then choose a different concrete repair action in this chapter. No adult may solve that inner turn.",
+    );
+  }
+
+  if (issueCodes.has("ARTIFACT_PREMATURE_ACTIVE")) {
+    hints.push(
+      "HARD FIX: Repair artifact continuity. Before the discovery beat, the artifact may be seen, named, stolen, or missed, but it must NOT glow, warm, jump, answer, protect, or solve anything. Replace premature magic with ordinary physical action.",
+    );
+  }
+
+  if (issueCodes.has("ANTAGONIST_TOO_FEW_APPEARANCES") || issueCodes.has("ANTAGONIST_NO_SHOWDOWN")) {
+    hints.push(
+      "HARD FIX: Put the antagonist or opposing force visibly on stage. It must actively block the child, speak or act once, and lose because the child chooses a different action, not because the artifact solves it alone.",
+    );
+  }
+
+  if (issueCodes.has("ENDING_PATTERN_NOT_REALIZED")) {
+    hints.push(
+      "HARD FIX: Realize the ending pattern on the page with a concrete shared action, not summary. End with a warm physical image and a callback to chapter 1.",
     );
   }
 

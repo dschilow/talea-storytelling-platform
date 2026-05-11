@@ -1211,10 +1211,20 @@ export class StoryPipelineOrchestrator {
             // Second candidate WORTH IT band: weak-but-readable drafts with a real
             // chance to beat the first attempt. This is cheaper than pushing a
             // known failing candidate into images/TTS, but avoids endless retries.
+            const criticalIssueCount = countCriticalSelectionIssues(candidateQuality);
             const firstCandidateRetryWorthIt =
-              candidateCritic.overallScore >= 5.8
-              && candidateCritic.overallScore < Math.max(HONEST_FALLBACK_FLOOR, criticMinScore)
-              && candidateErrors <= 10;
+              (
+                candidateCritic.overallScore >= 5.8
+                && candidateCritic.overallScore < Math.max(HONEST_FALLBACK_FLOOR, criticMinScore)
+                && candidateErrors <= 10
+              )
+              || (
+                // A draft with hard structural damage should buy one fresh candidate
+                // instead of spending image/TTS money on a story we already know is broken.
+                criticalIssueCount > 0
+                && candidateErrors <= 16
+                && candidateCritic.overallScore >= 4.2
+              );
             if (!firstCandidateRetryWorthIt) {
               break;
             }
@@ -2266,6 +2276,16 @@ function derivePatchTasksFromQualityGates(input: {
       || code === "MISSING_SUCCESS"
     ) {
       addArtifactArcTasks();
+      continue;
+    }
+
+    if (code === "ARTIFACT_PREMATURE_ACTIVE") {
+      addTask(
+        chapter > 0 ? chapter : (findArtifactChapter(input.directives, "discovery") || 2),
+        1,
+        "Repair artifact continuity",
+        `Before ${artifactName} is physically discovered or recovered, it may not glow, warm, jump, protect, answer, or solve anything. Replace premature magic with visible clue-work, then stage the proper discovery/payoff in order.`,
+      );
       continue;
     }
 
