@@ -41,14 +41,15 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_NATIVE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
-const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v2";
+const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "openai/gpt-5.4-nano";
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v3";
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 const DEV_MODE_TARGET_DIALOG_PCT = 30;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
 const DEV_MODE_MIN_PARAGRAPHS = 6;
 const DEV_MODE_MAX_PARAGRAPHS = 12;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 8;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 3;
 
@@ -115,7 +116,7 @@ export interface DevModeGeneratedStory {
     storyModel?: string;
     imagesGenerated: number;
     developerMode: true;
-    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "four-stage-cost-optimized";
+    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
       usage?: { prompt: number; completion: number; total: number };
@@ -658,6 +659,22 @@ function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapte
   ].join("\n");
 }
 
+function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCount: number): string {
+  const languageName = localizedLanguageName(input.config.language);
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const poolNames = (input.poolCharacters || []).map((character) => character.name).filter(Boolean);
+  return [
+    `Output language: ${languageName}.`,
+    `Age group: ${input.config.ageGroup}. Chapter count: exactly ${chapterCount}.`,
+    `Genre: ${input.config.genre}. Setting: ${input.config.setting}.`,
+    heroNames.length > 0 ? `Main characters: ${heroNames.join(", ")}.` : "Main characters: preserve the existing story's main characters.",
+    poolNames.length > 0 ? `Supporting cast already available: ${poolNames.join(", ")}.` : null,
+    "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
+    "Voice contract: one careful observer, one lively feeler, helper acts instead of explaining, antagonist stays funny-uncanny and conflicted.",
+    "Quality goal: shorter, cleaner scenes with more action-bearing dialogue; no new subplot, no rewritten story world.",
+  ].filter((line): line is string => Boolean(line)).join("\n");
+}
+
 function genreCraftGuidance(genre?: string): string {
   const normalized = String(genre || "").toLowerCase();
   if (normalized.includes("fairy") || normalized.includes("maerchen") || normalized.includes("märchen")) {
@@ -962,6 +979,8 @@ function buildStoryDraftPrompts(
   critique: any
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
+  const bounds = getChapterLengthBounds(input.config);
+  const draftTargetMaxChars = Math.max(bounds.min, bounds.max - 150);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -1017,6 +1036,8 @@ function buildStoryDraftPrompts(
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
+    `- Aim each chapter for ${bounds.min}-${draftTargetMaxChars} characters. Do not write to the upper edge; the repair gate fails over ${bounds.max}.`,
+    "- Prefer 8 compact paragraphs over 10 long paragraphs. One paragraph should rarely exceed 350 characters in medium mode.",
     `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
     `- Overall dialogue share at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Every chapter should include at least ${DEV_MODE_CHAPTER_DIALOG_LINE_TARGET} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns unless the chapter is intentionally very short (${input.config.length === "short" ? "short mode" : "not short mode"}).`,
@@ -1025,6 +1046,8 @@ function buildStoryDraftPrompts(
     "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
     "- Chapter 4: understand the deeper rule, combine different strengths, an emotional moment, prepare the finale.",
     "- Chapter 5: concrete action, prepared solution, emotional aftertaste, strong closing image, no explained moral.",
+    "- Do not duplicate the finale across chapters 4 and 5: chapter 4 reaches the crisis/realization; chapter 5 performs the final choice and payoff once.",
+    "- A side/helper character may reveal a clue, but the children must perform the decisive action themselves.",
     "- Every main character must make at least one mini-decision that wouldn't happen without them.",
     "- The antagonist must show a recognizable behavior across at least three chapters and gain a new place at the end.",
     "- HUMOR (MANDATORY): EVERY chapter needs at least one humorous moment coming from character or situation — no narrator jokes. Good kinds: absurd comparisons, small mishaps, a dry remark from a side character, a wordplay, a loving teasing moment between the main characters. No 'explained joke', no adult irony.",
@@ -1174,6 +1197,13 @@ function selectChapterDiagnosticsForRepair(
   config: StoryConfig
 ): DevModeChapterDiagnostic[] {
   const bounds = getChapterLengthBounds(config);
+  const priority = (chapter: DevModeChapterDiagnostic): number => {
+    const overBy = Math.max(0, chapter.chars - bounds.max);
+    const underBy = Math.max(0, bounds.min - chapter.chars);
+    const dialogGap = Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - chapter.dialogPct);
+    const targetDialogGap = Math.max(0, DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) * 0.2;
+    return chapter.issues.length * 1000 + overBy + underBy + dialogGap * 80 + targetDialogGap * 20;
+  };
   const failing = diagnostics.chapterDiagnostics.filter((chapter) => {
     if (chapter.issues.length > 0) return true;
     if (chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) return true;
@@ -1182,7 +1212,7 @@ function selectChapterDiagnosticsForRepair(
     return false;
   });
 
-  if (failing.length > 0) return failing;
+  if (failing.length > 0) return failing.slice().sort((a, b) => priority(b) - priority(a));
   if (diagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
     return diagnostics.chapterDiagnostics
       .slice()
@@ -1199,6 +1229,75 @@ function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeCha
   return {
     ...story,
     chapters,
+  };
+}
+
+function compactExcerpt(text: string, maxChars = 360): string {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+  const head = normalized.slice(0, Math.floor(maxChars * 0.58)).trim();
+  const tail = normalized.slice(-Math.floor(maxChars * 0.34)).trim();
+  return `${head} … ${tail}`;
+}
+
+function firstParagraph(text: string): string {
+  return splitParagraphs(text)[0] || "";
+}
+
+function lastParagraph(text: string): string {
+  const paragraphs = splitParagraphs(text);
+  return paragraphs[paragraphs.length - 1] || "";
+}
+
+function buildCompactRepairStoryContext(story: DevModeRawStory, targetOrder: number): any {
+  return {
+    title: story.title,
+    description: story.description,
+    targetOrder,
+    chapters: story.chapters
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((chapter) => {
+        const distance = Number(chapter.order) - Number(targetOrder);
+        const nearTarget = Math.abs(distance) <= 1;
+        return {
+          order: chapter.order,
+          title: chapter.title,
+          contentChars: chapter.content.length,
+          relation: distance === 0 ? "target" : distance < 0 ? "before" : "after",
+          opening: nearTarget && distance !== 0 ? compactExcerpt(firstParagraph(chapter.content), 240) : undefined,
+          ending: nearTarget && distance !== 0 ? compactExcerpt(lastParagraph(chapter.content), 280) : undefined,
+        };
+      }),
+  };
+}
+
+function buildChapterRepairBlueprintContext(reviewedBlueprint: any, order: number): any {
+  const chapterPlan = Array.isArray(reviewedBlueprint?.chapterPlan)
+    ? reviewedBlueprint.chapterPlan.find((plan: any) => Number(plan?.order) === Number(order))
+    : null;
+  return {
+    premise: compactExcerpt(reviewedBlueprint?.premise || "", 260),
+    coreMagicRule: compactExcerpt(reviewedBlueprint?.coreMagicRule || "", 260),
+    readerMagnet: reviewedBlueprint?.readerMagnet
+      ? {
+          refrainLine: reviewedBlueprint.readerMagnet.refrainLine,
+          iconicMotif: reviewedBlueprint.readerMagnet.iconicMotif,
+          nextStorySpark: reviewedBlueprint.readerMagnet.nextStorySpark,
+        }
+      : undefined,
+    payoffEngine: reviewedBlueprint?.payoffEngine,
+    antagonistChangeLadder: reviewedBlueprint?.antagonistChangeLadder,
+    humorCallbackPlan: reviewedBlueprint?.humorCallbackPlan,
+    characterArcs: Array.isArray(reviewedBlueprint?.characterArcs)
+      ? reviewedBlueprint.characterArcs.map((arc: any) => ({
+          name: arc?.name,
+          startingFriction: arc?.startingFriction,
+          strength: arc?.strength,
+          finalContribution: arc?.finalContribution,
+        }))
+      : undefined,
+    chapterPlan,
   };
 }
 
@@ -1231,12 +1330,11 @@ function buildChapterRepairPrompts(
   const languageName = localizedLanguageName(input.config.language);
   const bounds = getChapterLengthBounds(input.config);
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
-  const chapterPlan = Array.isArray(reviewedBlueprint?.chapterPlan)
-    ? reviewedBlueprint.chapterPlan.find((plan: any) => Number(plan?.order) === Number(chapter.order))
-    : null;
   const chapterTargetDialogPct = storyDiagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT
     ? DEV_MODE_TARGET_DIALOG_PCT
     : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
+  const targetMaxChars = Math.max(bounds.min, bounds.max - 150);
+  const targetParagraphMaxChars = input.config.length === "short" ? 280 : input.config.length === "long" ? 420 : 360;
   const dialogueLineTarget = input.config.length === "short"
     ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
     : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
@@ -1274,7 +1372,7 @@ function buildChapterRepairPrompts(
     "The selected story model must fix the chapter itself; do not ask for another model or a fallback.",
     "Return ONLY the repaired chapter plus the required selfReflection JSON. The final story will be assembled by the server.",
     "",
-    buildEmotionAndVoicePromptContext(input, chapterCount),
+    buildLeanRepairPromptContext(input, chapterCount),
     "",
     "GLOBAL STORY DIAGNOSTICS BEFORE THIS CHAPTER REPAIR:",
     JSON.stringify(storyDiagnostics, null, 2),
@@ -1285,7 +1383,8 @@ function buildChapterRepairPrompts(
     "TARGET GATES FOR THE REPAIRED CHAPTER:",
     `- Keep order exactly ${chapter.order}.`,
     `- Keep title unless a tiny grammar fix is needed: ${chapter.title}.`,
-    `- ${bounds.min}-${bounds.max} characters of target-language prose.`,
+    `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
+    `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
     `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for 8-10 paragraphs.`,
     `- At least ${chapterTargetDialogPct}% dialogue in this chapter; never below ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- At least ${dialogueLineTarget} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns.`,
@@ -1294,8 +1393,8 @@ function buildChapterRepairPrompts(
     "",
     "SELF-REFLECTION AFTER REPAIR (MANDATORY AND VISIBLE IN JSON):",
     "1. First repair the chapter.",
-    "2. Then inspect your own repairedChapter.paragraphs before answering: count paragraphs, estimate characters, estimate dialogue percent, count dialogue lines, count speaker turns.",
-    "3. If your own check finds a failed target, revise the chapter again before final output.",
+    "2. Then inspect your own repairedChapter.paragraphs before answering: count paragraphs, count approximate characters by paragraph length, estimate dialogue percent, count dialogue lines, count speaker turns.",
+    `3. If your own check finds more than ${bounds.max} characters, revise again by cutting explanation/repeated description until it is safely below ${targetMaxChars}.`,
     "4. Set selfReflection.afterRepairCheck.hardGatesPassed=true ONLY if your own repaired chapter satisfies all listed target gates. If not, remainingIssues must list every remaining issue honestly.",
     "5. The server will run deterministic diagnostics after you answer; false self-certification is a failure.",
     "",
@@ -1308,7 +1407,8 @@ function buildChapterRepairPrompts(
     "",
     "STRUCTURE / PAYOFF REPAIR METHOD:",
     "- Preserve the chapter's goal, conflict, turn, and chapter-end hook from the blueprint.",
-    "- If a chapter is too long: cut explanation and repeated sensory description first, not decision beats.",
+    "- If a chapter is too long: cut explanation, repeated sensory description, repeated warnings, and repeated moral phrasing first; keep decision beats.",
+    "- Do not solve length by adding filler dialogue. Dialogue must replace narration, not sit on top of it.",
     "- If dialogue is low: add conflict-bearing speaker turns, not narrator explanation.",
     "- If paragraphs are too many: combine adjacent action and reaction into stronger paragraphs.",
     "- If the antagonist changes too quickly, add a small visible hesitation or pull toward old behavior.",
@@ -1316,19 +1416,7 @@ function buildChapterRepairPrompts(
     "- Preserve the recurring humor callback; make it slightly evolve instead of repeating the exact same joke.",
     "",
     "RELEVANT BLUEPRINT FOR THIS CHAPTER:",
-    JSON.stringify({
-      premise: reviewedBlueprint?.premise,
-      emotionalEngine: reviewedBlueprint?.emotionalEngine,
-      payoffEngine: reviewedBlueprint?.payoffEngine,
-      antagonistChangeLadder: reviewedBlueprint?.antagonistChangeLadder,
-      humorCallbackPlan: reviewedBlueprint?.humorCallbackPlan,
-      readerMagnet: reviewedBlueprint?.readerMagnet,
-      coreMagicRule: reviewedBlueprint?.coreMagicRule,
-      characterArcs: reviewedBlueprint?.characterArcs,
-      plantsAndPayoffs: reviewedBlueprint?.plantsAndPayoffs,
-      sceneOwnership: reviewedBlueprint?.sceneOwnership,
-      chapterPlan,
-    }, null, 2),
+    JSON.stringify(buildChapterRepairBlueprintContext(reviewedBlueprint, chapter.order), null, 2),
     "",
     "CRITIQUE TO RESPECT:",
     JSON.stringify(
@@ -1342,8 +1430,8 @@ function buildChapterRepairPrompts(
       2
     ),
     "",
-    "FULL CURRENT STORY CONTEXT (do not rewrite other chapters):",
-    JSON.stringify(story, null, 2),
+    "COMPACT CURRENT STORY CONTEXT (do not rewrite other chapters; use only for continuity):",
+    JSON.stringify(buildCompactRepairStoryContext(story, chapter.order), null, 2),
     "",
     "CURRENT TARGET CHAPTER TO REPAIR:",
     JSON.stringify(chapter, null, 2),
@@ -2486,7 +2574,7 @@ export async function generateStoryDevMode(
   try {
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
     const blueprintStage = await runStage("blueprint", blueprintPrompts, {
-      maxTokens: 9500,
+      maxTokens: 4200,
       temperature: 0.45,
       timeoutMs: 120_000,
       ...supportCallOptions,
@@ -2499,7 +2587,7 @@ export async function generateStoryDevMode(
 
     const critiquePrompts = buildCritiquePrompts(input, chapterCount, blueprint);
     const critiqueStage = await runStage("dramaturgy-check", critiquePrompts, {
-      maxTokens: 7500,
+      maxTokens: 3600,
       temperature: 0.35,
       timeoutMs: 120_000,
       ...supportCallOptions,
@@ -2512,7 +2600,7 @@ export async function generateStoryDevMode(
 
     const storyPrompts = buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
     const storyStage = await runStage("story-draft", storyPrompts, {
-      maxTokens: input.config.length === "long" ? 32000 : 22000,
+      maxTokens: input.config.length === "long" ? 18000 : 11000,
       temperature: 0.82,
       timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
       modelRole: "selected-story",
@@ -2529,7 +2617,10 @@ export async function generateStoryDevMode(
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       polishApplied = true;
       repairAttempt += 1;
-      const chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
+      let chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
+      if (repairAttempt > 1 && chaptersToRepair.length > DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT) {
+        chaptersToRepair = chaptersToRepair.slice(0, DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT);
+      }
       if (chaptersToRepair.length === 0) break;
 
       console.log("[dev-mode-generation] Triggering chapter-level strict gate repair", {
@@ -2566,7 +2657,7 @@ export async function generateStoryDevMode(
           repairAttempt
         );
         const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
-          maxTokens: input.config.length === "long" ? 12000 : 9000,
+          maxTokens: input.config.length === "long" ? 5200 : 3400,
           temperature: repairAttempt === 1 ? 0.38 : 0.24,
           timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
           modelRole: "selected-story",
@@ -2596,6 +2687,15 @@ export async function generateStoryDevMode(
             order: repairResult.chapter.order,
             title: repairResult.chapter.title,
             remainingIssues: selfCheck.remainingIssues,
+          });
+        }
+        if (selfCheck?.hardGatesPassed === true && repairedChapterDiagnostics?.issues?.length) {
+          console.warn("[dev-mode-generation] Model self-reflection claimed pass, deterministic diagnostics disagree", {
+            attempt: repairAttempt,
+            order: repairResult.chapter.order,
+            title: repairResult.chapter.title,
+            modelSelfCheck: selfCheck,
+            deterministicIssues: repairedChapterDiagnostics.issues,
           });
         }
         repairSelfReflections.push({
@@ -2656,7 +2756,7 @@ export async function generateStoryDevMode(
 
     const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
     const validationStage = await runStage("final-validation", validationPrompts, {
-      maxTokens: 4500,
+      maxTokens: 2200,
       temperature: 0.1,
       timeoutMs: 120_000,
       ...supportCallOptions,
@@ -2703,7 +2803,16 @@ export async function generateStoryDevMode(
       },
       response: {
         error: pipelineError instanceof Error ? pipelineError.message : String(pipelineError),
-        stages: stageLogs,
+        stages: stageLogs.map((stage) => ({
+          stage: stage.stage,
+          systemPromptChars: stage.systemPrompt.length,
+          userPromptChars: stage.userPrompt.length,
+          usage: stage.usage,
+          modelUsed: stage.modelUsed,
+          modelRole: stage.modelRole,
+          durationMs: stage.durationMs,
+          error: stage.error,
+        })),
         durationMs: Date.now() - startedAt,
       },
       metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "failed", failed: true },
@@ -2746,8 +2855,8 @@ export async function generateStoryDevMode(
       },
       stages: stageLogs.map((stage) => ({
         stage: stage.stage,
-        systemPrompt: stage.systemPrompt,
-        userPrompt: stage.userPrompt,
+        systemPromptChars: stage.systemPrompt.length,
+        userPromptChars: stage.userPrompt.length,
       })),
     },
     response: {

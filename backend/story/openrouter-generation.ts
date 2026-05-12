@@ -23,6 +23,8 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "~google/gemini-flash-latest": { inputCostPer1M: 0.5, outputCostPer1M: 3.0 },
   "~anthropic/claude-sonnet-latest": { inputCostPer1M: 3.0, outputCostPer1M: 15.0 },
   "~openai/gpt-mini-latest": { inputCostPer1M: 0.75, outputCostPer1M: 4.5 },
+  "openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
+  "~openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
   "deepseek/deepseek-v4-pro": { inputCostPer1M: 0.435, outputCostPer1M: 0.87 },
   "qwen/qwen3.6-max-preview": { inputCostPer1M: 1.04, outputCostPer1M: 6.24 },
 };
