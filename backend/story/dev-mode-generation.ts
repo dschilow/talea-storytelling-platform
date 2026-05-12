@@ -1104,6 +1104,131 @@ function buildStoryDraftPrompts(
   return { systemPrompt, userPrompt };
 }
 
+function compactReviewedBlueprintForDraft(reviewedBlueprint: any, chapterCount: number): any {
+  const chapterPlan = Array.isArray(reviewedBlueprint?.chapterPlan)
+    ? reviewedBlueprint.chapterPlan
+        .slice(0, chapterCount)
+        .map((plan: any, index: number) => ({
+          order: Number(plan?.order || index + 1),
+          title: plan?.title,
+          hook: compactExcerpt(plan?.hook || "", 180),
+          sceneBeats: Array.isArray(plan?.sceneBeats)
+            ? plan.sceneBeats.slice(0, 5).map((beat: any) => compactExcerpt(beat, 140))
+            : [],
+          conflict: compactExcerpt(plan?.conflict || "", 180),
+          turn: compactExcerpt(plan?.turn || "", 180),
+          chapterEndHook: compactExcerpt(plan?.chapterEndHook || plan?.endingTension || "", 180),
+          callbackToUse: compactExcerpt(plan?.callbackToUse || "", 140),
+        }))
+    : [];
+
+  return {
+    premise: compactExcerpt(reviewedBlueprint?.premise || "", 320),
+    coreMagicRule: compactExcerpt(reviewedBlueprint?.coreMagicRule || "", 260),
+    emotionalEngine: reviewedBlueprint?.emotionalEngine,
+    readerMagnet: reviewedBlueprint?.readerMagnet,
+    payoffEngine: reviewedBlueprint?.payoffEngine,
+    antagonistChangeLadder: reviewedBlueprint?.antagonistChangeLadder,
+    humorCallbackPlan: reviewedBlueprint?.humorCallbackPlan,
+    characterArcs: Array.isArray(reviewedBlueprint?.characterArcs)
+      ? reviewedBlueprint.characterArcs.map((arc: any) => ({
+          name: arc?.name,
+          startingFriction: compactExcerpt(arc?.startingFriction || "", 160),
+          strength: compactExcerpt(arc?.strength || "", 160),
+          finalContribution: compactExcerpt(arc?.finalContribution || "", 160),
+        }))
+      : [],
+    supportingCastUse: Array.isArray(reviewedBlueprint?.supportingCastUse)
+      ? reviewedBlueprint.supportingCastUse.map((cast: any) => ({
+          name: cast?.name,
+          storyFunction: compactExcerpt(cast?.storyFunction || "", 160),
+          mustDo: compactExcerpt(cast?.mustDo || "", 160),
+        }))
+      : [],
+    plantsAndPayoffs: Array.isArray(reviewedBlueprint?.plantsAndPayoffs)
+      ? reviewedBlueprint.plantsAndPayoffs.slice(0, 8).map((item: any) => ({
+          plant: compactExcerpt(item?.plant || "", 150),
+          payoff: compactExcerpt(item?.payoff || "", 150),
+        }))
+      : [],
+    chapterPlan,
+  };
+}
+
+function buildCompactStoryDraftPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  blueprint: any,
+  critique: any,
+  reason?: string
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const code = languageCodeFromName(languageName);
+  const bounds = getChapterLengthBounds(input.config);
+  const targetMaxChars = Math.max(bounds.min, bounds.max - 250);
+  const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
+
+  const systemPrompt = [
+    "You are a children's-book author. Return compact, valid JSON only.",
+    `OUTPUT LANGUAGE: title, description, chapter titles and all chapter paragraphs must be in ${languageName}.`,
+    targetLanguageStyleAnchor(code),
+    "OpenRouter compatibility rules:",
+    "- Do NOT output analysis, self-reflection, markdown, code fences, or any text before/after JSON.",
+    "- Do NOT think step-by-step in the visible answer. Spend the visible output budget on the JSON story.",
+    "- Start with { and end with }. Keep keys exactly as requested.",
+    "- Use paragraphs[] arrays; each item is one paragraph.",
+    code === "en"
+      ? 'Dialogue may use standard English quotation marks, escaped correctly inside JSON.'
+      : "Dialogue inside story text must use typographic quotation marks like „…“ or «…», not bare ASCII quotes.",
+    "Schema:",
+    "{",
+    '  "title": string,',
+    '  "description": string,',
+    '  "chapters": [ { "order": number, "title": string, "paragraphs": string[] } ]',
+    "}",
+  ].join("\n");
+
+  const userPrompt = [
+    reason
+      ? `RECOVERY / COMPATIBILITY DRAFT: The previous full story-draft failed or was truncated (${reason}). Write the complete story now with a smaller, stricter output.`
+      : "COMPATIBILITY DRAFT: This OpenRouter model is sensitive to long JSON/story prompts. Write the complete story with a smaller, stricter output.",
+    `Exactly ${chapterCount} chapters. Output ONLY JSON.`,
+    "No visible planning. No preface. No apology. No validator comments.",
+    "",
+    buildDevStoryContext(input, chapterCount),
+    "",
+    "HARD OUTPUT SHAPE:",
+    `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
+    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter; aim for 8 compact paragraphs.`,
+    `- Overall dialogue at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
+    `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
+    "- Keep sentences child-readable for ages 6-8: concrete, warm, funny, sensory.",
+    "- Every chapter must have a goal, obstacle, turn, and pull at the end.",
+    "- Every chapter needs at least one child-giggle moment from action, misunderstanding, prop, or character voice.",
+    "- Finale must use planted details; no moral-summary ending like 'Sie lernten...'.",
+    "",
+    "COMPACT REVIEWED BLUEPRINT TO FOLLOW:",
+    JSON.stringify(compactBlueprint, null, 2),
+    "",
+    "CRITIQUE POINTS TO RESOLVE:",
+    JSON.stringify(
+      {
+        mustFix: critique?.mustFix || [],
+        readOnRisks: critique?.readOnRisks || [],
+        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
+        chapterRisks: critique?.chapterRisks || [],
+      },
+      null,
+      2
+    ),
+    "",
+    `FINAL REMINDER: all story text must be in ${languageName}; return one JSON object only.`,
+  ].join("\n");
+
+  return { systemPrompt, userPrompt };
+}
+
 function buildStoryPolishPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -2281,12 +2406,61 @@ function extractChatChoiceContent(choice: any): string {
 
 function shouldForceOpenRouterJsonObject(model: string): boolean {
   const normalized = String(model || "").toLowerCase();
-  // Some OpenRouter-routed providers, especially Gemini/Claude families, can
-  // return empty or malformed content when OpenAI's json_object response_format
-  // is forced. Keep strict JSON instructions in the prompt, but do not force
-  // provider-level JSON mode for those families.
-  if (/claude|anthropic|google\/gemini|gemini-pro|gemini-flash/.test(normalized)) return false;
+  // Some OpenRouter-routed providers don't honor OpenAI's
+  // response_format=json_object consistently. In production we saw Gemini Pro
+  // return malformed repairs and Kimi return an empty story draft with
+  // finish_reason=length when JSON mode was forced. Keep strict JSON
+  // instructions in the prompt, but do not force provider-level JSON mode for
+  // these families.
+  if (isOpenRouterTextCompatibilityModel(normalized)) return false;
   return true;
+}
+
+function isOpenRouterTextCompatibilityModel(model: string): boolean {
+  const normalized = String(model || "").toLowerCase();
+  return /claude|anthropic|google\/gemini|gemini-pro|gemini-flash|moonshot|kimi|mini.?max|minimax|qwen|deepseek|zhipu|glm|baidu|ernie|alibaba|dashscope|tencent|hunyuan|stepfun|01-ai|yi-|bytedance|doubao/.test(normalized);
+}
+
+function isOpenRouterCompactDraftModel(model: string): boolean {
+  const normalized = String(model || "").toLowerCase();
+  return /moonshot|kimi|mini.?max|minimax|qwen|deepseek|zhipu|glm|baidu|ernie|alibaba|dashscope|tencent|hunyuan|stepfun|01-ai|yi-|bytedance|doubao/.test(normalized);
+}
+
+function resolveSelectedOpenRouterStoryModel(config: StoryConfig): string {
+  return normalizeOpenRouterModel(
+    (isOpenRouterFamilyModel(config.openRouterModel) ? config.openRouterModel : undefined)
+    || (isOpenRouterFamilyModel(resolveConfiguredStoryModel(config)) ? resolveConfiguredStoryModel(config) : undefined)
+    || config.openRouterModel
+    || resolveConfiguredStoryModel(config)
+  );
+}
+
+function shouldUseCompactOpenRouterDraft(config: StoryConfig): boolean {
+  if (config.aiProvider !== "openrouter") return false;
+  return isOpenRouterCompactDraftModel(resolveSelectedOpenRouterStoryModel(config));
+}
+
+function isRecoverableStoryDraftFailure(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  return message.includes("empty response from openrouter")
+    || message.includes("finish_reason=length")
+    || message.includes("finish_reason=max_tokens")
+    || message.includes("developer-mode generation returned unparseable json")
+    || message.includes("unterminated string")
+    || message.includes("unexpected token")
+    || message.includes("timed out")
+    || message.includes("timeout");
+}
+
+function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, retry: boolean): number {
+  if (config.length === "long") return retry ? 24000 : compactMode ? 20000 : 18000;
+  if (config.length === "short") return retry ? 12000 : compactMode ? 9500 : 9000;
+  return retry ? 18000 : compactMode ? 14000 : 11000;
+}
+
+function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
+  if (config.length === "long") return retry ? 420_000 : 300_000;
+  return retry ? 330_000 : 240_000;
 }
 
 function resolveDevModeSupportProvider(config: StoryConfig): AIProvider {
@@ -2336,16 +2510,33 @@ async function callProvider(
     console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`, {
       forceJsonObjectFormat,
     });
-    const res = await callOpenRouterChatCompletion({
-      model: orModel,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      maxTokens,
-      responseFormat: forceJsonObjectFormat ? "json_object" : "text",
-      temperature,
-    });
+    const timeoutMs =
+      options.timeoutMs ??
+      (config.length === "long" ? 360_000 : config.length === "medium" ? 240_000 : 180_000);
+    const controller = new AbortController();
+    const handle = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res: Awaited<ReturnType<typeof callOpenRouterChatCompletion>>;
+    try {
+      res = await callOpenRouterChatCompletion({
+        model: orModel,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        maxTokens,
+        responseFormat: forceJsonObjectFormat ? "json_object" : "text",
+        temperature,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as any)?.name === "AbortError") {
+        throw new Error(`OpenRouter request timed out after ${timeoutMs / 1000}s (dev mode, model=${orModel}, stage=${options.stage || "unknown"}).`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(handle);
+    }
     const choice = res.data.choices?.[0];
     const content = extractChatChoiceContent(choice);
     if (!content) {
@@ -2623,14 +2814,48 @@ export async function generateStoryDevMode(
       parseWarning: critiqueStage.parseError,
     };
 
-    const storyPrompts = buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
-    const storyStage = await runStage("story-draft", storyPrompts, {
-      maxTokens: input.config.length === "long" ? 18000 : 11000,
-      temperature: 0.82,
-      timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
-      modelRole: "selected-story",
-    });
-    finalParsed = parseAndValidate(storyStage.provider.content, chapterCount);
+    const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
+    const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
+    const storyPrompts = compactDraftMode
+      ? buildCompactStoryDraftPrompts(input, chapterCount, blueprint, critique)
+      : buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
+    let storyStage: Awaited<ReturnType<typeof runStage>>;
+    let parsedStoryDraft: DevModeRawStory;
+    try {
+      storyStage = await runStage("story-draft", storyPrompts, {
+        maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, false),
+        temperature: compactDraftMode ? 0.64 : 0.82,
+        timeoutMs: devModeStoryDraftTimeoutMs(input.config, false),
+        modelRole: "selected-story",
+      });
+      parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
+    } catch (storyDraftError) {
+      if (input.config.aiProvider !== "openrouter" || !isRecoverableStoryDraftFailure(storyDraftError)) {
+        throw storyDraftError;
+      }
+
+      const reason = storyDraftError instanceof Error ? storyDraftError.message : String(storyDraftError);
+      console.warn("[dev-mode-generation] Story draft failed on selected OpenRouter model; retrying with compact compatibility prompt", {
+        model: selectedOpenRouterStoryModel,
+        compactDraftMode,
+        error: reason,
+      });
+      const retryPrompts = buildCompactStoryDraftPrompts(input, chapterCount, blueprint, critique, reason);
+      try {
+        storyStage = await runStage("story-draft", retryPrompts, {
+          maxTokens: devModeStoryDraftMaxTokens(input.config, true, true),
+          temperature: 0.52,
+          timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
+          modelRole: "selected-story",
+        });
+        parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
+      } catch (retryError) {
+        throw new Error(
+          `Selected OpenRouter story model could not produce a usable story draft after compact retry (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
+        );
+      }
+    }
+    finalParsed = parsedStoryDraft;
     finalModelUsed = storyStage.provider.modelUsed;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
