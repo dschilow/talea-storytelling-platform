@@ -2262,6 +2262,33 @@ interface ProviderCallOptions {
   modelRole?: "support" | "selected-story";
 }
 
+function extractChatChoiceContent(choice: any): string {
+  const content = choice?.message?.content ?? choice?.text ?? "";
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (typeof part?.text === "string") return part.text;
+        if (typeof part?.content === "string") return part.content;
+        return "";
+      })
+      .join("\n")
+      .trim();
+  }
+  return "";
+}
+
+function shouldForceOpenRouterJsonObject(model: string): boolean {
+  const normalized = String(model || "").toLowerCase();
+  // Some OpenRouter-routed providers, especially Gemini/Claude families, can
+  // return empty or malformed content when OpenAI's json_object response_format
+  // is forced. Keep strict JSON instructions in the prompt, but do not force
+  // provider-level JSON mode for those families.
+  if (/claude|anthropic|google\/gemini|gemini-pro|gemini-flash/.test(normalized)) return false;
+  return true;
+}
+
 function resolveDevModeSupportProvider(config: StoryConfig): AIProvider {
   return config.aiProvider === "openrouter" ? "openrouter" : "native";
 }
@@ -2305,14 +2332,9 @@ async function callProvider(
 
   if (aiProvider === "openrouter") {
     const orModel = normalizeOpenRouterModel(openRouterModel);
-    // Some OpenRouter-routed providers (e.g. Anthropic Claude) don't honor
-    // OpenAI's response_format=json_object and may return slightly malformed
-    // JSON when it's forced. For Claude via OpenRouter we skip the flag and
-    // rely on the strict JSON instructions in the system prompt + our
-    // tolerant parser.
-    const isClaudeViaOpenRouter = /claude/i.test(orModel) || /anthropic/i.test(orModel);
+    const forceJsonObjectFormat = shouldForceOpenRouterJsonObject(orModel);
     console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`, {
-      forceJsonObjectFormat: !isClaudeViaOpenRouter,
+      forceJsonObjectFormat,
     });
     const res = await callOpenRouterChatCompletion({
       model: orModel,
@@ -2321,12 +2343,15 @@ async function callProvider(
         { role: "user", content: userPrompt },
       ],
       maxTokens,
-      responseFormat: isClaudeViaOpenRouter ? "text" : "json_object",
+      responseFormat: forceJsonObjectFormat ? "json_object" : "text",
       temperature,
     });
     const choice = res.data.choices?.[0];
-    const content = choice?.message?.content || "";
-    if (!content) throw new Error("Empty response from OpenRouter (dev mode).");
+    const content = extractChatChoiceContent(choice);
+    if (!content) {
+      const finishReason = choice?.finish_reason ?? "unknown";
+      throw new Error(`Empty response from OpenRouter (dev mode, model=${orModel}, stage=${options.stage || "unknown"}, finish_reason=${finishReason}).`);
+    }
     const usage = res.data.usage || {};
     return {
       content,
@@ -2656,12 +2681,34 @@ export async function generateStoryDevMode(
           critique,
           repairAttempt
         );
-        const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
-          maxTokens: input.config.length === "long" ? 5200 : 3400,
-          temperature: repairAttempt === 1 ? 0.38 : 0.24,
-          timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
-          modelRole: "selected-story",
-        });
+        let chapterRepairStage: Awaited<ReturnType<typeof runStage>>;
+        try {
+          chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+            maxTokens: input.config.length === "long" ? 5200 : 3400,
+            temperature: repairAttempt === 1 ? 0.38 : 0.24,
+            timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
+            modelRole: "selected-story",
+          });
+        } catch (repairCallError) {
+          const error = repairCallError instanceof Error ? repairCallError.message : String(repairCallError);
+          console.warn("[dev-mode-generation] Chapter repair call failed; keeping previous chapter", {
+            attempt: repairAttempt,
+            order: currentChapter.order,
+            title: currentChapter.title,
+            error,
+          });
+          repairSelfReflections.push({
+            attempt: repairAttempt,
+            order: currentChapter.order,
+            title: currentChapter.title,
+            modelUsed: finalModelUsed,
+            error,
+            deterministicChapterDiagnostics: chapterDiagnostic,
+            deterministicStoryHardIssueCount: finalDiagnostics?.hardIssueCount,
+            deterministicStoryDialogPct: finalDiagnostics?.dialogPct,
+          });
+          continue;
+        }
 
         let repairResult: { chapter: DevModeChapter; selfReflection?: any; parsed: any } | null = null;
         try {
@@ -2738,7 +2785,7 @@ export async function generateStoryDevMode(
 
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
       qualityGateFailureReason = formatQualityGateFailureReason(finalDiagnostics);
-      console.warn("[dev-mode-generation] Returning GPT Mini story with capped quality score after local gate warnings", {
+      console.warn("[dev-mode-generation] Returning selected-model story with capped quality score after local gate warnings", {
         hardIssueCount: finalDiagnostics.hardIssueCount,
         softIssueCount: finalDiagnostics.softIssueCount,
         dialogPct: finalDiagnostics.dialogPct,
@@ -2755,14 +2802,23 @@ export async function generateStoryDevMode(
     }
 
     const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
-    const validationStage = await runStage("final-validation", validationPrompts, {
-      maxTokens: 2200,
-      temperature: 0.1,
-      timeoutMs: 120_000,
-      ...supportCallOptions,
-      modelRole: "support",
-    });
-    rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+    try {
+      const validationStage = await runStage("final-validation", validationPrompts, {
+        maxTokens: 2200,
+        temperature: 0.1,
+        timeoutMs: 120_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+    } catch (validationError) {
+      console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
+        error: validationError instanceof Error ? validationError.message : String(validationError),
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
+      });
+      rawQualityScore = undefined;
+    }
     localGateScore = calculateLocalGateScore(finalDiagnostics);
     finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
 
