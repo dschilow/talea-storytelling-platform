@@ -19,7 +19,7 @@
  *   1. support model: emotional engine + story blueprint
  *   2. support model: dramaturgy / quality check
  *   3. selected wizard model: final story draft
- *   3b. selected wizard model: targeted story polish when local gates fail
+ *   3b. selected wizard model: targeted chapter-level repair when local gates fail
  *   4. support model: hard market-quality validation (no prose rewrite)
  *
  * No images are generated in this mode (chapters render text-only in the reader).
@@ -42,13 +42,15 @@ const openAIKey = secret("OpenAIKey");
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_NATIVE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
 const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-polish-cost-optimized";
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v2";
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 const DEV_MODE_TARGET_DIALOG_PCT = 30;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
 const DEV_MODE_MIN_PARAGRAPHS = 6;
 const DEV_MODE_MAX_PARAGRAPHS = 12;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 8;
+const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 3;
 
 interface DevModeChapter {
   title: string;
@@ -66,6 +68,7 @@ type DevModePipelineStage =
   | "blueprint"
   | "dramaturgy-check"
   | "story-draft"
+  | "chapter-repair"
   | "story-polish"
   | "final-validation";
 
@@ -123,12 +126,14 @@ export interface DevModeGeneratedStory {
     }>;
     localQualityDiagnostics?: DevModeStoryDiagnostics;
     storyPolishApplied?: boolean;
+    chapterRepairApplied?: boolean;
     qualityScore?: number;
     rawQualityScore?: number;
     localGateScore?: number;
     qualityGatePassed?: boolean;
     qualityGateFailureReason?: string;
     returnedWithQualityGateWarnings?: boolean;
+    repairSelfReflections?: any[];
   };
 }
 
@@ -816,6 +821,9 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       '    "rereadRewards": string[],',
       '    "nextStorySpark": string',
       "  },",
+      '  "payoffEngine": { "personalObject": string, "whyItMatters": string, "whatItCostsToShare": string, "wrongAttempt": string, "finalChoice": string },',
+      '  "antagonistChangeLadder": { "wantsToPossess": string, "confusion": string, "relapse": string, "decision": string, "newRole": string },',
+      '  "humorCallbackPlan": { "recurringGag": string, "escalationByChapter": string[] },',
       '  "coreMagicRule": string,',
       '  "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
       '  "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
@@ -836,6 +844,9 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     `Plan exactly ${chapterCount} chapters.`,
     "Every chapter needs ownership: one concrete character actively drives it, and at the end something has irreversibly changed.",
     "Plan the read-on pull explicitly: refrain / leitmotif, chapter-end hooks, a callback ladder, small reread details.",
+    "Plan the emotional price explicitly: which concrete object, habit, sound, promise, or comfort must a child choose to risk or share in the finale, why it matters, and what choice makes the payoff earned.",
+    "Plan the antagonist's change as a ladder, not a switch: wants to possess -> confusion -> small relapse -> active decision -> new role/task.",
+    "Plan one recurring humor callback that escalates across chapters and pays off in the finale; it must come from character behavior or a prop, not narrator commentary.",
     "The pull must come from real curiosity: kids want to know what the thing means, why the character reacts this way, or which rule shows up next.",
     "The final sentence of the whole story must be closed AND curiosity-inducing: main problem resolved, but the world feels bigger.",
     "Make sure antagonist hints aren't smuggled into the solution as a spoiler shortcut.",
@@ -868,6 +879,9 @@ function buildCritiquePrompts(
       '    "premise": string,',
       '    "emotionalEngine": object,',
       '    "readerMagnet": object,',
+      '    "payoffEngine": object,',
+      '    "antagonistChangeLadder": object,',
+      '    "humorCallbackPlan": object,',
       '    "coreMagicRule": string,',
       '    "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
       '    "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
@@ -885,6 +899,7 @@ function buildCritiquePrompts(
     "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
     "A blueprint without clear chapter-end hooks, refrain/callback, or a child-curiosity engine may score at most 8.4.",
     "Then return an improved revisedBlueprint. IMPORTANT: revisedBlueprint MUST be complete, not a reduced summary. Preserve and improve characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, full chapterPlan fields, and readerMagnet.",
+    "Also preserve/improve payoffEngine, antagonistChangeLadder, and humorCallbackPlan. If they are weak or missing, create them concretely.",
     "Score harshly. A technically clean blueprint is not automatically market-quality.",
     "Critique values stay in English; only the final story prose (Call 3) is in the target output language.",
     "",
@@ -955,9 +970,10 @@ function buildStoryDraftPrompts(
       '  "title": string,',
       '  "description": string,',
       '  "chapters": [',
-      '    { "order": number, "title": string, "content": string }',
+      '    { "order": number, "title": string, "paragraphs": string[] }',
       "  ]",
       "}",
+      "IMPORTANT: Use paragraphs[] for chapter prose. Each array item is exactly one paragraph. Do not output content unless you cannot represent paragraphs[]; the server prefers paragraphs[].",
     ].join("\n")
   );
   const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
@@ -967,7 +983,7 @@ function buildStoryDraftPrompts(
   const userPrompt = [
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
     "This is the ONLY call allowed to write the actual story prose. Use the COMPLETE reviewedBlueprint, the critique, and the voice rules directly in the first draft.",
-    "Do not reduce the blueprint to hooks. You MUST actively use emotionalEngine, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
+    "Do not reduce the blueprint to hooks. You MUST actively use emotionalEngine, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
     "",
     "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
     "Before you write the story, answer the following three questions for yourself, in detail and concretely.",
@@ -994,11 +1010,16 @@ function buildStoryDraftPrompts(
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
+    "DIALOGUE-FIRST SCENE PLANNING (MANDATORY, SILENT):",
+    "Before writing each chapter, silently plan the chapter's goal, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the scene instead of decorating narration.",
+    "Every chapter needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
+    "",
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
-    `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. This is a hard gate, not a suggestion.`,
+    `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
     `- Overall dialogue share at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
+    `- Every chapter should include at least ${DEV_MODE_CHAPTER_DIALOG_LINE_TARGET} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns unless the chapter is intentionally very short (${input.config.length === "short" ? "short mode" : "not short mode"}).`,
     "- Chapter 1: strong hook in the first 2 sentences, concrete problem, different reactions from the main characters, open ending.",
     "- Chapter 2: world becomes concrete, trail/encounter, side or antagonist character shows a quirk, problem grows.",
     "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
@@ -1016,9 +1037,23 @@ function buildStoryDraftPrompts(
     "- The finale must be closed, but a small friendly spark may show this world holds more stories.",
     "- No cheap cliffhangers, no 'to be continued'.",
     "",
+    "EMOTIONAL PAYOFF CONTRACT:",
+    "- Use payoffEngine. If a personal object, comfort, habit, or sound matters, make its value visible before the finale.",
+    "- The final solution must cost a character something small but concrete: giving up control, sharing a cherished sound/object, waiting instead of rushing, or opening something they wanted to keep safe.",
+    "- The payoff must come from a planted detail, not a new solution introduced in the final chapter.",
+    "",
+    "ANTAGONIST CHANGE LADDER:",
+    "- Use antagonistChangeLadder. The antagonist must not flip from threat to friend in one beat.",
+    "- Show at least: wanting to possess, confusion when sharing works, one small pull toward old behavior, active decision, and new role/task.",
+    "",
+    "HUMOR CALLBACK CONTRACT:",
+    "- Use humorCallbackPlan. Build one child-friendly recurring gag/prop/action that changes slightly each chapter and pays off near the end.",
+    "- Humor must be playable aloud for ages 6-8: concrete, quick, character-driven.",
+    "",
     "VOICE / READ-ALOUD RULES:",
     "- Make voices distinguishable. Use each main character's interpreted Story trait profile from the context block to decide pace, lexicon, risk tolerance, mistakes, and growth.",
     "- Dialogue must do at least two things at once: action, relationship, subtext, or humor.",
+    "- Do not treat dialogue as decoration. Use dialogue for decisions, reversals, jokes, danger, and relationship shifts.",
     "- Show emotion, don't name it.",
     "- Strengthen repeatable, child-quotable details.",
     "- Make the antagonist human and funny-uncanny, do not convert them quickly.",
@@ -1129,6 +1164,191 @@ function buildStoryPolishPrompts(
     JSON.stringify(story, null, 2),
     "",
     `FINAL REMINDER: title, description and ALL chapter content must remain in ${languageName}.`,
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function selectChapterDiagnosticsForRepair(
+  diagnostics: DevModeStoryDiagnostics,
+  story: DevModeRawStory,
+  config: StoryConfig
+): DevModeChapterDiagnostic[] {
+  const bounds = getChapterLengthBounds(config);
+  const failing = diagnostics.chapterDiagnostics.filter((chapter) => {
+    if (chapter.issues.length > 0) return true;
+    if (chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) return true;
+    if (chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS) return true;
+    if (chapter.chars < bounds.min || chapter.chars > bounds.max) return true;
+    return false;
+  });
+
+  if (failing.length > 0) return failing;
+  if (diagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
+    return diagnostics.chapterDiagnostics
+      .slice()
+      .sort((a, b) => a.dialogPct - b.dialogPct)
+      .slice(0, Math.min(2, story.chapters.length));
+  }
+  return [];
+}
+
+function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeChapter): DevModeRawStory {
+  const chapters = story.chapters
+    .map((chapter) => (Number(chapter.order) === Number(repairedChapter.order) ? repairedChapter : chapter))
+    .sort((a, b) => a.order - b.order);
+  return {
+    ...story,
+    chapters,
+  };
+}
+
+function parseChapterRepairResult(content: string, fallbackChapter: DevModeChapter): { chapter: DevModeChapter; selfReflection?: any; parsed: any } {
+  const parsed = tryParseJson(content);
+  const rawChapter = parsed?.repairedChapter || parsed?.chapter || parsed?.chapters?.[0] || parsed;
+  const chapter = parseChapterFromModel(rawChapter, Math.max(0, fallbackChapter.order - 1), fallbackChapter.title);
+  return {
+    chapter: {
+      ...chapter,
+      order: fallbackChapter.order,
+      title: chapter.title || fallbackChapter.title,
+    },
+    selfReflection: parsed?.selfReflection || parsed?.selfCheck || parsed?.afterRepairCheck || null,
+    parsed,
+  };
+}
+
+function buildChapterRepairPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  story: DevModeRawStory,
+  chapter: DevModeChapter,
+  chapterDiagnostics: DevModeChapterDiagnostic,
+  storyDiagnostics: DevModeStoryDiagnostics,
+  blueprint: any,
+  critique: any,
+  repairAttempt: number
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const bounds = getChapterLengthBounds(input.config);
+  const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const chapterPlan = Array.isArray(reviewedBlueprint?.chapterPlan)
+    ? reviewedBlueprint.chapterPlan.find((plan: any) => Number(plan?.order) === Number(chapter.order))
+    : null;
+  const chapterTargetDialogPct = storyDiagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT
+    ? DEV_MODE_TARGET_DIALOG_PCT
+    : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
+  const dialogueLineTarget = input.config.length === "short"
+    ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
+    : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Chapter repair schema:",
+      "{",
+      '  "selfReflection": {',
+      '    "targetedIssues": string[],',
+      '    "repairPlan": string[],',
+      '    "afterRepairCheck": {',
+      '      "paragraphCount": number,',
+      '      "estimatedChars": number,',
+      '      "estimatedDialoguePct": number,',
+      '      "dialogueLineCount": number,',
+      '      "speakerTurnCount": number,',
+      '      "hardGatesPassed": boolean,',
+      '      "remainingIssues": string[]',
+      "    }",
+      "  },",
+      '  "repairedChapter": {',
+      '    "order": number,',
+      '    "title": string,',
+      '    "paragraphs": string[]',
+      "  }",
+      "}",
+      "IMPORTANT: repairedChapter.paragraphs is mandatory. Each array item is exactly one paragraph. Do not output the full story.",
+    ].join("\n")
+  );
+
+  const userPrompt = [
+    `CALL 3B.${repairAttempt}: TARGETED CHAPTER GATE REPAIR. Repair only chapter ${chapter.order} and keep prose in ${languageName}.`,
+    "This is a mechanical gate repair first and a children's-book polish second. Do not invent a new plot, a new main character, or a new subplot.",
+    "The selected story model must fix the chapter itself; do not ask for another model or a fallback.",
+    "Return ONLY the repaired chapter plus the required selfReflection JSON. The final story will be assembled by the server.",
+    "",
+    buildEmotionAndVoicePromptContext(input, chapterCount),
+    "",
+    "GLOBAL STORY DIAGNOSTICS BEFORE THIS CHAPTER REPAIR:",
+    JSON.stringify(storyDiagnostics, null, 2),
+    "",
+    "TARGET CHAPTER DIAGNOSTICS:",
+    JSON.stringify(chapterDiagnostics, null, 2),
+    "",
+    "TARGET GATES FOR THE REPAIRED CHAPTER:",
+    `- Keep order exactly ${chapter.order}.`,
+    `- Keep title unless a tiny grammar fix is needed: ${chapter.title}.`,
+    `- ${bounds.min}-${bounds.max} characters of target-language prose.`,
+    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for 8-10 paragraphs.`,
+    `- At least ${chapterTargetDialogPct}% dialogue in this chapter; never below ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
+    `- At least ${dialogueLineTarget} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns.`,
+    "- Dialogue must change action, relationship, tension, subtext, or comic timing. No filler chatter.",
+    "- End the chapter with a concrete pull: danger, decision, question, new rule, or funny aftershock.",
+    "",
+    "SELF-REFLECTION AFTER REPAIR (MANDATORY AND VISIBLE IN JSON):",
+    "1. First repair the chapter.",
+    "2. Then inspect your own repairedChapter.paragraphs before answering: count paragraphs, estimate characters, estimate dialogue percent, count dialogue lines, count speaker turns.",
+    "3. If your own check finds a failed target, revise the chapter again before final output.",
+    "4. Set selfReflection.afterRepairCheck.hardGatesPassed=true ONLY if your own repaired chapter satisfies all listed target gates. If not, remainingIssues must list every remaining issue honestly.",
+    "5. The server will run deterministic diagnostics after you answer; false self-certification is a failure.",
+    "",
+    "DIALOGUE / VOICE REPAIR METHOD:",
+    "- Convert explanatory narration into short character-specific exchanges.",
+    "- Main careful observer: short, concrete, braking lines; points at details; rarely explains.",
+    "- Main lively feeler: quicker, warmer, physical; asks questions; uses small funny comparisons.",
+    "- Trickster/helper: fast, frech, prop humor; acts, never simply explains the solution.",
+    "- Antagonist: slow, whispering, uncanny/funny; wavers between possessing and listening.",
+    "",
+    "STRUCTURE / PAYOFF REPAIR METHOD:",
+    "- Preserve the chapter's goal, conflict, turn, and chapter-end hook from the blueprint.",
+    "- If a chapter is too long: cut explanation and repeated sensory description first, not decision beats.",
+    "- If dialogue is low: add conflict-bearing speaker turns, not narrator explanation.",
+    "- If paragraphs are too many: combine adjacent action and reaction into stronger paragraphs.",
+    "- If the antagonist changes too quickly, add a small visible hesitation or pull toward old behavior.",
+    "- If this chapter participates in the finale/payoff, make the cost of sharing or letting go visible as an action, not a moral sentence.",
+    "- Preserve the recurring humor callback; make it slightly evolve instead of repeating the exact same joke.",
+    "",
+    "RELEVANT BLUEPRINT FOR THIS CHAPTER:",
+    JSON.stringify({
+      premise: reviewedBlueprint?.premise,
+      emotionalEngine: reviewedBlueprint?.emotionalEngine,
+      payoffEngine: reviewedBlueprint?.payoffEngine,
+      antagonistChangeLadder: reviewedBlueprint?.antagonistChangeLadder,
+      humorCallbackPlan: reviewedBlueprint?.humorCallbackPlan,
+      readerMagnet: reviewedBlueprint?.readerMagnet,
+      coreMagicRule: reviewedBlueprint?.coreMagicRule,
+      characterArcs: reviewedBlueprint?.characterArcs,
+      plantsAndPayoffs: reviewedBlueprint?.plantsAndPayoffs,
+      sceneOwnership: reviewedBlueprint?.sceneOwnership,
+      chapterPlan,
+    }, null, 2),
+    "",
+    "CRITIQUE TO RESPECT:",
+    JSON.stringify(
+      {
+        mustFix: critique?.mustFix || [],
+        readOnRisks: critique?.readOnRisks || [],
+        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
+        chapterRisks: (critique?.chapterRisks || []).filter((risk: any) => Number(risk?.order) === Number(chapter.order)),
+      },
+      null,
+      2
+    ),
+    "",
+    "FULL CURRENT STORY CONTEXT (do not rewrite other chapters):",
+    JSON.stringify(story, null, 2),
+    "",
+    "CURRENT TARGET CHAPTER TO REPAIR:",
+    JSON.stringify(chapter, null, 2),
+    "",
+    `FINAL REMINDER: repairedChapter.paragraphs and all dialogue must be in ${languageName}. No Markdown. No full-story copy.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -1538,6 +1758,63 @@ function tryParseJson(raw: string): any {
   throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "unknown JSON parse failure"));
 }
 
+function splitParagraphs(text: string): string[] {
+  return String(text || "")
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function normalizeParagraphsToMax(paragraphs: string[], maxParagraphs = DEV_MODE_MAX_PARAGRAPHS): string[] {
+  const normalized = paragraphs.map((part) => String(part || "").trim()).filter(Boolean);
+  if (normalized.length <= maxParagraphs) return normalized;
+
+  const merged = [...normalized];
+  while (merged.length > maxParagraphs) {
+    let mergeIndex = 0;
+    let shortestCombinedLength = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < merged.length - 1; i += 1) {
+      const combinedLength = merged[i].length + merged[i + 1].length;
+      if (combinedLength < shortestCombinedLength) {
+        shortestCombinedLength = combinedLength;
+        mergeIndex = i;
+      }
+    }
+    merged.splice(mergeIndex, 2, `${merged[mergeIndex]} ${merged[mergeIndex + 1]}`.trim());
+  }
+  return merged;
+}
+
+function paragraphsToContent(paragraphs: string[]): string {
+  return normalizeParagraphsToMax(paragraphs).join("\n\n").trim();
+}
+
+function normalizeChapterContentFromModel(ch: any): string {
+  const paragraphArray = Array.isArray(ch?.paragraphs)
+    ? ch.paragraphs.map((part: any) => String(part || "").trim()).filter(Boolean)
+    : [];
+  if (paragraphArray.length > 0) {
+    return paragraphsToContent(paragraphArray);
+  }
+
+  const content = String(ch?.content || "").trim();
+  const paragraphs = splitParagraphs(content);
+  if (paragraphs.length > DEV_MODE_MAX_PARAGRAPHS) {
+    return paragraphsToContent(paragraphs);
+  }
+  return content;
+}
+
+function parseChapterFromModel(ch: any, idx: number, fallbackTitle?: string): DevModeChapter {
+  const chTitle = String(ch?.title || fallbackTitle || `Kapitel ${idx + 1}`).trim();
+  const chContent = normalizeChapterContentFromModel(ch);
+  if (!chContent) {
+    throw new Error(`Developer-mode chapter ${idx + 1} is empty.`);
+  }
+  const order = Number.isInteger(ch?.order) && ch.order > 0 ? Number(ch.order) : idx + 1;
+  return { title: chTitle, content: chContent, order };
+}
+
 function parseAndValidate(content: string, chapterCount: number): DevModeRawStory {
   let parsed: any;
   try {
@@ -1562,15 +1839,7 @@ function parseAndValidate(content: string, chapterCount: number): DevModeRawStor
   if (!title) throw new Error("Developer-mode story missing title.");
   if (rawChapters.length === 0) throw new Error("Developer-mode story has no chapters.");
 
-  const chapters: DevModeChapter[] = rawChapters.map((ch: any, idx: number) => {
-    const chTitle = String(ch?.title || "").trim() || `Kapitel ${idx + 1}`;
-    const chContent = String(ch?.content || "").trim();
-    if (!chContent) {
-      throw new Error(`Developer-mode chapter ${idx + 1} is empty.`);
-    }
-    const order = Number.isInteger(ch?.order) && ch.order > 0 ? Number(ch.order) : idx + 1;
-    return { title: chTitle, content: chContent, order };
-  });
+  const chapters: DevModeChapter[] = rawChapters.map((ch: any, idx: number) => parseChapterFromModel(ch, idx));
 
   if (chapters.length !== chapterCount) {
     console.warn(
@@ -1613,7 +1882,7 @@ function countDialogChars(text: string): number {
 }
 
 function countParagraphs(text: string): number {
-  return text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).length;
+  return splitParagraphs(text).length;
 }
 
 function hasForwardPull(text: string): boolean {
@@ -2189,7 +2458,7 @@ export async function generateStoryDevMode(
     }
   };
 
-  console.log("[dev-mode-generation] Dev mode adaptive polish cost-optimized quality pipeline", {
+  console.log("[dev-mode-generation] Dev mode adaptive chapter-repair quality pipeline", {
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
@@ -2212,6 +2481,7 @@ export async function generateStoryDevMode(
   let finalDiagnostics: DevModeStoryDiagnostics | undefined;
   let polishApplied = false;
   let qualityGateFailureReason: string | undefined;
+  const repairSelfReflections: any[] = [];
 
   try {
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
@@ -2259,33 +2529,101 @@ export async function generateStoryDevMode(
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       polishApplied = true;
       repairAttempt += 1;
-      console.log("[dev-mode-generation] Triggering strict gate repair", {
+      const chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
+      if (chaptersToRepair.length === 0) break;
+
+      console.log("[dev-mode-generation] Triggering chapter-level strict gate repair", {
         attempt: repairAttempt,
+        chapters: chaptersToRepair.map((chapter) => ({
+          order: chapter.order,
+          title: chapter.title,
+          chars: chapter.chars,
+          paragraphs: chapter.paragraphs,
+          dialogPct: chapter.dialogPct,
+          issues: chapter.issues,
+        })),
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
       });
-      const polishPrompts = buildStoryPolishPrompts(
-        input,
-        chapterCount,
-        finalParsed,
-        finalDiagnostics!,
-        blueprint,
-        critique
-      );
-      const polishStage = await runStage("story-polish", polishPrompts, {
-        maxTokens: input.config.length === "long" ? 32000 : 22000,
-        temperature: repairAttempt === 1 ? 0.48 : 0.32,
-        timeoutMs: input.config.length === "long" ? 300_000 : 210_000,
-        modelRole: "selected-story",
-      });
 
-      const repairedParsed = parseAndValidate(polishStage.provider.content, chapterCount);
+      let repairedParsed = finalParsed;
+      let repairedModelUsed = finalModelUsed;
+
+      for (const chapterDiagnostic of chaptersToRepair) {
+        const currentChapter = repairedParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
+        if (!currentChapter) continue;
+
+        const chapterRepairPrompts = buildChapterRepairPrompts(
+          input,
+          chapterCount,
+          repairedParsed,
+          currentChapter,
+          chapterDiagnostic,
+          finalDiagnostics!,
+          blueprint,
+          critique,
+          repairAttempt
+        );
+        const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+          maxTokens: input.config.length === "long" ? 12000 : 9000,
+          temperature: repairAttempt === 1 ? 0.38 : 0.24,
+          timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
+          modelRole: "selected-story",
+        });
+
+        let repairResult: { chapter: DevModeChapter; selfReflection?: any; parsed: any } | null = null;
+        try {
+          repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
+        } catch (repairParseError) {
+          console.warn("[dev-mode-generation] Chapter repair returned unusable JSON; keeping previous chapter", {
+            attempt: repairAttempt,
+            order: currentChapter.order,
+            title: currentChapter.title,
+            error: repairParseError instanceof Error ? repairParseError.message : String(repairParseError),
+          });
+          continue;
+        }
+
+        repairedParsed = replaceStoryChapter(repairedParsed, repairResult.chapter);
+        repairedModelUsed = chapterRepairStage.provider.modelUsed;
+        const interimDiagnostics = analyzeDevModeStoryQuality(repairedParsed, input, chapterCount);
+        const repairedChapterDiagnostics = interimDiagnostics.chapterDiagnostics.find((chapter) => Number(chapter.order) === Number(repairResult?.chapter.order));
+        const selfCheck = repairResult.selfReflection?.afterRepairCheck || repairResult.selfReflection;
+        if (selfCheck && selfCheck.hardGatesPassed === false) {
+          console.warn("[dev-mode-generation] Model self-reflection reports remaining repair issues", {
+            attempt: repairAttempt,
+            order: repairResult.chapter.order,
+            title: repairResult.chapter.title,
+            remainingIssues: selfCheck.remainingIssues,
+          });
+        }
+        repairSelfReflections.push({
+          attempt: repairAttempt,
+          order: repairResult.chapter.order,
+          title: repairResult.chapter.title,
+          modelUsed: chapterRepairStage.provider.modelUsed,
+          selfReflection: repairResult.selfReflection,
+          deterministicChapterDiagnostics: repairedChapterDiagnostics,
+          deterministicStoryHardIssueCount: interimDiagnostics.hardIssueCount,
+          deterministicStoryDialogPct: interimDiagnostics.dialogPct,
+        });
+      }
+
       const repairedDiagnostics = analyzeDevModeStoryQuality(repairedParsed, input, chapterCount);
+      const improved = isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount);
       if (isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount)) {
         bestParsed = repairedParsed;
-        bestModelUsed = polishStage.provider.modelUsed;
+        bestModelUsed = repairedModelUsed;
         bestDiagnostics = repairedDiagnostics;
+      } else {
+        console.warn("[dev-mode-generation] Chapter repair pass did not improve deterministic diagnostics", {
+          attempt: repairAttempt,
+          hardIssueCountBefore: finalDiagnostics?.hardIssueCount,
+          hardIssueCountAfter: repairedDiagnostics.hardIssueCount,
+          dialogPctBefore: finalDiagnostics?.dialogPct,
+          dialogPctAfter: repairedDiagnostics.dialogPct,
+        });
       }
 
       finalParsed = bestParsed;
@@ -2295,6 +2633,7 @@ export async function generateStoryDevMode(
       // One successful local repair is enough for soft issues; keep looping
       // only while hard gates still fail.
       if (finalDiagnostics.hardIssueCount === 0) break;
+      if (!improved) break;
     }
 
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
@@ -2308,7 +2647,7 @@ export async function generateStoryDevMode(
     }
 
     if (!polishApplied) {
-      console.log("[dev-mode-generation] Skipping strict gate repair — draft passed local gates", {
+      console.log("[dev-mode-generation] Skipping chapter repair — draft passed local gates", {
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
@@ -2376,7 +2715,7 @@ export async function generateStoryDevMode(
 
   const parsed = finalParsed;
   if (!parsed) {
-    throw new Error("Developer-mode adaptive polish cost-optimized pipeline did not produce a story.");
+    throw new Error("Developer-mode adaptive chapter-repair pipeline did not produce a story.");
   }
 
   const totalUsage = usageSum(providerResults);
@@ -2436,6 +2775,8 @@ export async function generateStoryDevMode(
       },
       localQualityDiagnostics: finalDiagnostics,
       storyPolishApplied: polishApplied,
+      chapterRepairApplied: polishApplied,
+      repairSelfReflections,
       rawQualityScore,
       localGateScore,
       finalQualityScore,
@@ -2482,7 +2823,9 @@ export async function generateStoryDevMode(
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,
       storyPolishApplied: polishApplied,
+      chapterRepairApplied: polishApplied,
       localQualityDiagnostics: finalDiagnostics,
+      repairSelfReflections,
       rawQualityScore,
       localGateScore,
       qualityGatePassed: (finalDiagnostics?.hardIssueCount ?? 0) === 0,
