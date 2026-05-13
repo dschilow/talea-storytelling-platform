@@ -246,10 +246,21 @@ interface DevModeSelectedIdea extends DevModeIdeaCandidate {
   };
 }
 
+interface DevModeIdeaNoveltyAudit {
+  id: string;
+  closestRecentTitle: string;
+  closestRecentOverlap: number;
+  hardAvoidMatches: string[];
+  recommendation: "prefer" | "acceptable" | "penalize" | "reject";
+}
+
 const NOVELTY_STOPWORDS = new Set([
   "aber", "alle", "alles", "auch", "auf", "aus", "beim", "deine", "deiner", "dem", "den", "der", "des",
   "die", "dies", "diese", "dieser", "ein", "eine", "einer", "eines", "fuer", "für", "hat", "ihre", "ihrer",
   "mit", "nicht", "oder", "sein", "seine", "seiner", "und", "vom", "von", "war", "wenn", "wie", "zur",
+  "dann", "doch", "dort", "durch", "gegen", "grosse", "große", "grossen", "großen", "hatte", "haben", "hinter",
+  "immer", "jetzt", "kleine", "kleinen", "kommt", "machen", "nach", "neben", "noch", "sagte", "schon", "unter",
+  "ueber", "über", "wieder", "weiter", "wurde", "wurden", "zwischen",
   "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
   "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen",
 ]);
@@ -931,6 +942,64 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
     .filter((candidate: DevModeIdeaCandidate | null): candidate is DevModeIdeaCandidate => Boolean(candidate));
 }
 
+function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevModeGenerationInput): DevModeIdeaNoveltyAudit {
+  const brief = input.noveltyBrief;
+  const candidateText = [
+    candidate.title,
+    candidate.oneLineHook,
+    candidate.centralObjectOrPlace,
+    candidate.wonderRule,
+    candidate.emotionalEngine,
+    candidate.coreConflict,
+  ].filter(Boolean).join(" ");
+  const candidateKeywords = extractMotifKeywords(candidateText, 14);
+  const normalizedCandidateText = normalizeNoveltyText(candidateText);
+  const explicitSoundRequest = promptExplicitlyRequestsRepeatedSoundPremise(input.config);
+
+  let closestRecentTitle = "";
+  let closestRecentOverlap = 0;
+  for (const recent of brief?.recentStories || []) {
+    const recentKeywords = recent.motifKeywords.length > 0
+      ? recent.motifKeywords
+      : extractMotifKeywords(`${recent.title} ${recent.description}`, 12);
+    const score = noveltyJaccard(candidateKeywords, recentKeywords);
+    if (score > closestRecentOverlap) {
+      closestRecentOverlap = score;
+      closestRecentTitle = recent.title;
+    }
+  }
+
+  const hardAvoidMatches: string[] = [];
+  for (const motif of brief?.hardAvoidMotifs || []) {
+    const normalizedMotif = normalizeNoveltyText(motif);
+    if (normalizedMotif.length < 6 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) continue;
+    const phraseRegex = new RegExp(`\\b${normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    if (phraseRegex.test(normalizedCandidateText)) hardAvoidMatches.push(motif);
+  }
+
+  const recommendation: DevModeIdeaNoveltyAudit["recommendation"] =
+    hardAvoidMatches.length > 0 || closestRecentOverlap >= 0.45
+      ? "reject"
+      : closestRecentOverlap >= 0.34
+        ? "penalize"
+        : closestRecentOverlap <= 0.12
+          ? "prefer"
+          : "acceptable";
+
+  return {
+    id: candidate.id,
+    closestRecentTitle,
+    closestRecentOverlap: Math.round(closestRecentOverlap * 100) / 100,
+    hardAvoidMatches: hardAvoidMatches.slice(0, 4),
+    recommendation,
+  };
+}
+
+function auditIdeaCandidatesNovelty(candidates: DevModeIdeaCandidate[], input: DevModeGenerationInput): DevModeIdeaNoveltyAudit[] {
+  return candidates.map((candidate) => auditIdeaCandidateNovelty(candidate, input));
+}
+
 function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevModePoolCharacter[]): DevModeSelectedIdea | undefined {
   if (candidates.length === 0) return undefined;
   const ranked = candidates
@@ -958,6 +1027,62 @@ function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevMode
       poolCastFit: selectedSupportingCast.length > 0 ? 8.4 : 7.5,
     },
   };
+}
+
+function fallbackNoveltySafeSelectedIdea(
+  candidates: DevModeIdeaCandidate[],
+  input: DevModeGenerationInput,
+  pool?: DevModePoolCharacter[]
+): DevModeSelectedIdea | undefined {
+  if (candidates.length === 0) return undefined;
+  const auditById = new Map(auditIdeaCandidatesNovelty(candidates, input).map((audit) => [audit.id, audit]));
+  const ranked = candidates
+    .map((candidate) => {
+      const audit = auditById.get(candidate.id);
+      let score = 0;
+      score += candidate.whyKidWantsThis.length > 0 ? 4 : 0;
+      score += candidate.whyDifferentFromRecent.length > 0 ? 3 : 0;
+      score += candidate.recommendedSupportingCast.length * 1.5;
+      score += candidate.centralObjectOrPlace.length > 16 ? 1 : 0;
+      if (audit?.recommendation === "prefer") score += 2.5;
+      if (audit?.recommendation === "acceptable") score += 1;
+      if (audit?.recommendation === "penalize") score -= 3;
+      if (audit?.recommendation === "reject") score -= 100;
+      score -= (audit?.closestRecentOverlap || 0) * 8;
+      return { candidate, audit, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const winner = ranked[0]?.candidate;
+  if (!winner) return fallbackSelectedIdea(candidates, pool);
+  const winnerAudit = auditById.get(winner.id);
+  const selectedSupportingCast = resolvePoolNames(winner.recommendedSupportingCast, pool);
+  return {
+    ...winner,
+    chosenReason: [
+      "Server novelty fallback: strongest candidate after penalizing recent-story overlap and hard-avoid motifs.",
+      winnerAudit?.closestRecentTitle ? `Closest recent story: ${winnerAudit.closestRecentTitle} (${Math.round(winnerAudit.closestRecentOverlap * 100)}% motif overlap).` : "No close recent-story overlap detected.",
+    ].join(" "),
+    selectedSupportingCast,
+    selectionScores: {
+      shelfAppeal: 8.2,
+      novelty: winnerAudit?.recommendation === "prefer" ? 9 : winnerAudit?.recommendation === "acceptable" ? 8.4 : 7.4,
+      emotionalPotential: 8.2,
+      childCuriosity: 8.2,
+      poolCastFit: selectedSupportingCast.length > 0 ? 8.3 : 7.5,
+    },
+  };
+}
+
+function enforceSelectedIdeaNovelty(
+  selectedIdea: DevModeSelectedIdea | undefined,
+  candidates: DevModeIdeaCandidate[],
+  input: DevModeGenerationInput,
+  pool?: DevModePoolCharacter[]
+): DevModeSelectedIdea | undefined {
+  if (!selectedIdea) return fallbackNoveltySafeSelectedIdea(candidates, input, pool);
+  const audit = auditIdeaCandidateNovelty(selectedIdea, input);
+  if (audit.recommendation !== "reject") return selectedIdea;
+  return fallbackNoveltySafeSelectedIdea(candidates, input, pool) || selectedIdea;
 }
 
 function normalizeIdeaSelection(
@@ -1118,9 +1243,16 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
   return { systemPrompt, userPrompt, chapterCount };
 }
 
-function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: number): string {
+interface DevModeStoryContextOptions {
+  includeNoveltyBrief?: boolean;
+  includeSelectedIdea?: boolean;
+}
+
+function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: number, options: DevModeStoryContextOptions = {}): string {
   const { config, avatars, poolCharacters, primaryProfileAge } = input;
   const languageName = localizedLanguageName(config.language);
+  const includeNoveltyBrief = options.includeNoveltyBrief !== false;
+  const includeSelectedIdea = options.includeSelectedIdea !== false;
 
   let avatarBlock = buildAvatarBlock(avatars || []);
   if (!avatarBlock) {
@@ -1153,8 +1285,8 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     "",
     genreCraftGuidance(config.genre),
     settingCraftGuidance(config.setting),
-    buildNoveltyPromptBlock(input),
-    buildSelectedIdeaPromptBlock(input),
+    includeNoveltyBrief ? buildNoveltyPromptBlock(input) : null,
+    includeSelectedIdea ? buildSelectedIdeaPromptBlock(input) : null,
     "",
     avatarBlock,
     poolBlock || null,
@@ -1165,9 +1297,13 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     .join("\n");
 }
 
-function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapterCount: number): string {
+function buildEmotionAndVoicePromptContext(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  options: DevModeStoryContextOptions = {}
+): string {
   return [
-    buildDevStoryContext(input, chapterCount),
+    buildDevStoryContext(input, chapterCount, options),
     "",
     "QUALITY GOAL:",
     "- Don't just resolve an adventure — transform a feeling a child recognizes.",
@@ -1239,6 +1375,7 @@ function buildIdeaSelectionPrompts(
   candidates: DevModeIdeaCandidate[]
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
+  const noveltyAudits = auditIdeaCandidatesNovelty(candidates, input);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -1276,14 +1413,18 @@ function buildIdeaSelectionPrompts(
     "Do not reward generic safety. A merely clean candidate should lose to a memorable one.",
     "If a candidate recommends supporting cast, keep only the names that truly improve this story. Decorative or mismatched pool characters should be dropped.",
     "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
+    "Use the server novelty precheck as a hard tie-breaker: reject candidates marked reject unless all candidates are rejected; penalize candidates marked penalize unless their shelf appeal is clearly superior.",
     "",
     `Target output language later: ${languageName}.`,
     `Future chapter count: exactly ${chapterCount}.`,
     "",
     buildNoveltyPromptBlock(input) || null,
     "",
+    "SERVER NOVELTY PRECHECK:",
+    promptJson(noveltyAudits),
+    "",
     "CANDIDATES:",
-    JSON.stringify(candidates, null, 2),
+    promptJson(candidates),
   ].filter((line): line is string => Boolean(line)).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -1532,47 +1673,32 @@ function buildCritiquePrompts(
       '  "voiceRisks": string[],',
       '  "readOnRisks": string[],',
       '  "addictiveReadingFixes": string[],',
+      '  "draftInstructions": string[],',
       '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
-      '  "revisedBlueprint": {',
-      '    "premise": string,',
-      '    "noveltySignature": object,',
-      '    "keyMoments": array,',
-      '    "causalChain": array,',
-      '    "emotionalEngine": object,',
-      '    "readerMagnet": object,',
-      '    "payoffEngine": object,',
-      '    "antagonistChangeLadder": object,',
-      '    "humorCallbackPlan": object,',
-      '    "coreMagicRule": string,',
-      '    "characterArcs": [ { "name": string, "startingFriction": string, "strength": string, "finalContribution": string } ],',
-      '    "supportingCastUse": [ { "name": string, "storyFunction": string, "mustDo": string } ],',
-      '    "plantsAndPayoffs": [ { "plant": string, "payoff": string } ],',
-      '    "sceneOwnership": [ { "order": number, "driver": string, "changedState": string } ],',
-      '    "chapterPlan": [ { "order": number, "title": string, "hook": string, "sceneBeats": string[], "conflict": string, "turn": string, "endingTension": string, "chapterEndHook": string, "kidQuestion": string, "callbackToUse": string } ],',
-      '    "forbiddenShortcuts": string[]',
-      '  }',
+      '  "revisedBlueprintPatch": object',
       "}",
     ].join("\n")
   );
   const userPrompt = [
     "CALL 2: Critique this blueprint like a strict children's-book dramaturg and editor.",
     "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn, no irreversible key moment, or weak causality.",
-    "Treat repetition as a major market failure. If the blueprint resembles the recent stories or repeats hard-avoid motifs, cap score at 7.0 and replace the premise in revisedBlueprint.",
+    "Treat repetition as a major market failure. If the blueprint resembles recent stories or repeats hard-avoid motifs available in context, cap score at 7.0 and patch the premise direction.",
     input.selectedIdea?.selectedSupportingCast?.length
-      ? `If the revisedBlueprint drops any locked pool-cast figure (${input.selectedIdea.selectedSupportingCast.join(", ")}), restore them with a real story function.`
+      ? `If the patch would drop any locked pool-cast figure (${input.selectedIdea.selectedSupportingCast.join(", ")}), restore them with a real story function.`
       : null,
     "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
     "A blueprint without clear chapter-end hooks, refrain/callback, irreversible key moment, or a child-curiosity engine may score at most 8.4.",
-    "Then return an improved revisedBlueprint. IMPORTANT: revisedBlueprint MUST be complete, not a reduced summary. Preserve and improve characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, full chapterPlan fields, and readerMagnet.",
-    "Also preserve/improve noveltySignature, keyMoments, causalChain, payoffEngine, antagonistChangeLadder, and humorCallbackPlan. If they are weak or missing, create them concretely.",
+    "Then return revisedBlueprintPatch with ONLY fields that must change. Do NOT copy the whole blueprint back. The server will merge your patch into the original blueprint.",
+    "Patch the highest-impact fields only: readerMagnet, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, plantsAndPayoffs, sceneOwnership, and specific chapterPlan entries.",
+    "Use draftInstructions for concrete writer-facing fixes: dialogue shape, read-on pull, voice contrast, setup/payoff, chapter-end hooks. Keep them short and actionable.",
     "Score harshly. A technically clean blueprint is not automatically market-quality.",
     "Critique values stay in English; only the final story prose (Call 3) is in the target output language.",
     "",
     "CONTEXT:",
-    buildEmotionAndVoicePromptContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
     "BLUEPRINT:",
-    JSON.stringify(blueprint, null, 2),
+    promptJson(blueprint),
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -1617,7 +1743,7 @@ function mergeBlueprintObjects(base: any, revision: any): any {
 }
 
 function getReviewedBlueprint(blueprint: any, critique: any): any {
-  return mergeBlueprintObjects(blueprint || {}, critique?.revisedBlueprint || {});
+  return mergeBlueprintObjects(blueprint || {}, critique?.revisedBlueprintPatch || critique?.revisedBlueprint || {});
 }
 
 function buildStoryDraftPrompts(
@@ -1645,50 +1771,31 @@ function buildStoryDraftPrompts(
     ].join("\n")
   );
   const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const compactBlueprint = compactReviewedBlueprintForDraft(revisedBlueprint, chapterCount);
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const heroA = heroNames[0] || "Main character A";
   const heroB = heroNames[1] || "Main character B";
   const userPrompt = [
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
-    "This is the ONLY call allowed to write the actual story prose. Use the COMPLETE reviewedBlueprint, the critique, and the voice rules directly in the first draft.",
-    "Do not reduce the blueprint to hooks. You MUST actively use noveltySignature, keyMoments, causalChain, emotionalEngine, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
+    "This is the ONLY call allowed to write the actual story prose. Use the compact reviewed blueprint, critique, and voice rules directly in the first draft.",
+    "Actively use the blueprint's central rule, emotional engine, payoff object, antagonist ladder, humor callback, plants/payoffs, scene ownership, reader magnet, and every chapter plan. Do not replace the selected premise.",
     input.selectedIdea?.selectedSupportingCast?.length
       ? `Selected pool-cast figures ${input.selectedIdea.selectedSupportingCast.join(", ")} must appear on-page with meaningful action. Do not demote them to decorative cameos.`
       : null,
     "",
-    "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
-    "Before you write the story, answer the following four questions for yourself, in detail and concretely.",
-    "Do NOT include the answers in your output. Only start writing the story AFTER you have answered each question concretely.",
-    "If you cannot answer a question concretely, your answer is too generic — revise it before you start writing.",
-    "(You may answer the reflection in English to think faster; this does NOT affect output language — the story itself must be in the target language.)",
+    "SILENT PRE-DRAFT CHECKLIST (do not output):",
+    `- Give ${heroA} and ${heroB} different speaking rhythms, gestures, and first reactions in every scene; a reader should often identify the speaker without tags.`,
+    "- Plant 3 small concrete details in chapters 1-2; the finale must use at least one of them.",
+    "- Each chapter follows goal -> conflict -> turn/yes-but -> pull. No loose 'and then' sequence.",
+    "- Every chapter has a child-giggle moment from character action, misunderstanding, prop, or wordplay.",
+    "- Keep dialogue double-duty: every quoted line must move action, relationship, tension, subtext, or humor.",
     "",
-    `Question 1 (Character differentiation): What specifically distinguishes ${heroA} and ${heroB} in EVERY scene?`,
-    `   a) Which physical mini-gesture does ${heroA} have that recurs at least 3 times in the story? Which one does ${heroB} have?`,
-    "   b) In what concrete sentence-length / rhythm pattern do the two speak differently? Give one typical dialogue example for each.",
-    "   c) How do they react DIFFERENTLY to the SAME stimulus (e.g. a danger)? If I strip the dialogue tags, a reader must be able to guess who said what.",
-    "",
-    "Question 2 (Setups & payoffs): How do I plant prepared resolutions instead of deus-ex-machina solutions?",
-    "   a) Name three concrete small details, objects, or habits that appear casually in chapters 1–2.",
-    "   b) Where exactly in chapters 4–5 does each of those three details pay off? The resolution of the main crisis MUST draw from at least one of these setups.",
-    "   c) If the antagonist's defeat were NOT tied to one of these setups — what would I change?",
-    "",
-    "Question 3 (Key moments & causality): What are the 5-8 emotional key moments, and how does each moment cause or complicate the next one?",
-    "   a) Which moment is irreversible: after it, what can no longer be the same?",
-    "   b) Which moment would a child remember as a picture from the book?",
-    "   c) Replace any 'and then' transition with 'therefore' or 'but' logic before drafting.",
-    "",
-    "Question 4 (Humor — MANDATORY, not optional): Where is the humor in this story?",
-    "   a) Give me at least one concrete humorous moment per chapter. What exactly is funny — a gesture, a wordplay, an absurd comparison, a misunderstanding?",
-    "   b) The humor must come from the characters, not from the narrator. Which character quirk triggers humor?",
-    "   c) Age-appropriate humor: would a 6-year-old actually giggle when read aloud? If not, the humor is too adult or too abstract — revise.",
-    "",
-    "This self-reflection is NOT a formality. If the answers stay thin, the story will be interchangeable.",
-    "",
-    buildEmotionAndVoicePromptContext(input, chapterCount),
+    buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
     "DIALOGUE-FIRST SCENE PLANNING (MANDATORY, SILENT):",
     "Before writing each chapter, silently plan the chapter's goal, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the scene instead of decorating narration.",
     "Every chapter needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
+    "Chapter shape contract: 7-8 compact paragraphs; at least 4 paragraphs contain direct speech; at least 3 short speaker exchanges; no paragraph may become an explanation block.",
     "",
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
@@ -1743,21 +1850,11 @@ function buildStoryDraftPrompts(
     "- Let the ending resonate emotionally and give the antagonist a new place.",
     "- Avoid AI patterns: no 'Not X. Not Y. Just Z.' chains.",
     "",
-    "REVIEWED BLUEPRINT INCLUDING EMOTIONAL ENGINE:",
-    JSON.stringify(revisedBlueprint, null, 2),
+    "COMPACT REVIEWED BLUEPRINT INCLUDING EMOTIONAL ENGINE:",
+    promptJson(compactBlueprint),
     "",
     "CRITIQUE YOU MUST RESOLVE:",
-    JSON.stringify(
-      {
-        score: critique?.score,
-        mustFix: critique?.mustFix || [],
-        readOnRisks: critique?.readOnRisks || [],
-        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
-        chapterRisks: critique?.chapterRisks || [],
-      },
-      null,
-      2
-    ),
+    promptJson(compactCritiqueForDraft(critique)),
     "",
     `FINAL REMINDER: title, description and ALL chapter content must be written in ${languageName}. The instructions above were in English for clarity; do NOT echo any English into the story.`,
   ].join("\n");
@@ -1864,7 +1961,7 @@ function buildCompactStoryDraftPrompts(
     `Exactly ${chapterCount} chapters. Output ONLY JSON.`,
     "No visible planning. No preface. No apology. No validator comments.",
     "",
-    buildDevStoryContext(input, chapterCount),
+    buildDevStoryContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
     "HARD OUTPUT SHAPE:",
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
@@ -1878,19 +1975,10 @@ function buildCompactStoryDraftPrompts(
     "- Finale must use planted details; no moral-summary ending like 'Sie lernten...'.",
     "",
     "COMPACT REVIEWED BLUEPRINT TO FOLLOW:",
-    JSON.stringify(compactBlueprint, null, 2),
+    promptJson(compactBlueprint),
     "",
     "CRITIQUE POINTS TO RESOLVE:",
-    JSON.stringify(
-      {
-        mustFix: critique?.mustFix || [],
-        readOnRisks: critique?.readOnRisks || [],
-        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
-        chapterRisks: critique?.chapterRisks || [],
-      },
-      null,
-      2
-    ),
+    promptJson(compactCritiqueForDraft(critique)),
     "",
     `FINAL REMINDER: all story text must be in ${languageName}; return one JSON object only.`,
   ].join("\n");
@@ -1925,13 +2013,14 @@ function buildStoryPolishPrompts(
     ].join("\n")
   );
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
 
   const userPrompt = [
     `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
     "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
     "If local diagnostics and your literary preference conflict, local diagnostics win. This is a mechanical repair pass first, a style polish second.",
     "",
-    buildEmotionAndVoicePromptContext(input, chapterCount),
+    buildLeanRepairPromptContext(input, chapterCount),
     "",
     "HARD GATES:",
     `- Exactly ${chapterCount} chapters.`,
@@ -1965,28 +2054,16 @@ function buildStoryPolishPrompts(
     "- The antagonist gets a new way to exist or a task, not instant friendship as a moral shortcut.",
     "",
     "LOCAL DIAGNOSTICS:",
-    JSON.stringify(diagnostics, null, 2),
+    promptJson(compactDiagnosticsForPrompt(diagnostics)),
     "",
-    "COMPLETE REVIEWED BLUEPRINT TO PRESERVE:",
-    JSON.stringify(reviewedBlueprint, null, 2),
+    "COMPACT REVIEWED BLUEPRINT TO PRESERVE:",
+    promptJson(compactBlueprint),
     "",
     "CRITIQUE FROM DRAMATURGY CHECK:",
-    JSON.stringify(
-      {
-        score: critique?.score,
-        mustFix: critique?.mustFix || [],
-        readOnRisks: critique?.readOnRisks || [],
-        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
-        chapterRisks: critique?.chapterRisks || [],
-        validatorFindings: critique?.validatorFindings || null,
-        polishReason: critique?.polishReason || null,
-      },
-      null,
-      2
-    ),
+    promptJson(compactCritiqueForDraft(critique)),
     "",
     "CURRENT STORY TO POLISH:",
-    JSON.stringify(story, null, 2),
+    promptJson(story),
     "",
     `FINAL REMINDER: title, description and ALL chapter content must remain in ${languageName}.`,
   ].join("\n");
@@ -2031,6 +2108,55 @@ function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeCha
   return {
     ...story,
     chapters,
+  };
+}
+
+function promptJson(value: any): string {
+  return JSON.stringify(value);
+}
+
+function compactDiagnosticsForPrompt(diagnostics?: DevModeStoryDiagnostics | null): any {
+  if (!diagnostics) return null;
+  return {
+    needsPolish: diagnostics.needsPolish,
+    hardIssueCount: diagnostics.hardIssueCount,
+    softIssueCount: diagnostics.softIssueCount,
+    totalChars: diagnostics.totalChars,
+    dialogPct: diagnostics.dialogPct,
+    hardIssues: diagnostics.hardIssues.slice(0, 12),
+    softIssues: diagnostics.softIssues.slice(0, 8),
+    polishInstructions: diagnostics.polishInstructions.slice(0, 8),
+    chapters: diagnostics.chapterDiagnostics.map((chapter) => ({
+      order: chapter.order,
+      title: chapter.title,
+      chars: chapter.chars,
+      dialogPct: chapter.dialogPct,
+      paragraphs: chapter.paragraphs,
+      issues: chapter.issues,
+    })),
+  };
+}
+
+function compactCritiqueForDraft(critique: any): any {
+  return {
+    score: critique?.score,
+    marketGap: compactExcerpt(critique?.marketGap || "", 220) || undefined,
+    mustFix: Array.isArray(critique?.mustFix) ? critique.mustFix.slice(0, 8) : [],
+    missingEmotionalPayoff: Array.isArray(critique?.missingEmotionalPayoff) ? critique.missingEmotionalPayoff.slice(0, 5) : [],
+    voiceRisks: Array.isArray(critique?.voiceRisks) ? critique.voiceRisks.slice(0, 5) : [],
+    readOnRisks: Array.isArray(critique?.readOnRisks) ? critique.readOnRisks.slice(0, 5) : [],
+    addictiveReadingFixes: Array.isArray(critique?.addictiveReadingFixes) ? critique.addictiveReadingFixes.slice(0, 5) : [],
+    draftInstructions: Array.isArray(critique?.draftInstructions) ? critique.draftInstructions.slice(0, 10) : [],
+    chapterRisks: Array.isArray(critique?.chapterRisks) ? critique.chapterRisks.slice(0, 8) : [],
+    validatorFindings: critique?.validatorFindings
+      ? {
+          marketQualityScore: critique.validatorFindings.marketQualityScore,
+          errors: Array.isArray(critique.validatorFindings.errors) ? critique.validatorFindings.errors.slice(0, 8) : [],
+          warnings: Array.isArray(critique.validatorFindings.warnings) ? critique.validatorFindings.warnings.slice(0, 6) : [],
+          mustFixBefore95: Array.isArray(critique.validatorFindings.mustFixBefore95) ? critique.validatorFindings.mustFixBefore95.slice(0, 8) : [],
+        }
+      : undefined,
+    polishReason: critique?.polishReason || undefined,
   };
 }
 
@@ -2188,10 +2314,10 @@ function buildChapterRepairPrompts(
     buildLeanRepairPromptContext(input, chapterCount),
     "",
     "GLOBAL STORY DIAGNOSTICS BEFORE THIS CHAPTER REPAIR:",
-    JSON.stringify(storyDiagnostics, null, 2),
+    promptJson(compactDiagnosticsForPrompt(storyDiagnostics)),
     "",
     "TARGET CHAPTER DIAGNOSTICS:",
-    JSON.stringify(chapterDiagnostics, null, 2),
+    promptJson(chapterDiagnostics),
     "",
     "TARGET GATES FOR THE REPAIRED CHAPTER:",
     `- Keep order exactly ${chapter.order}.`,
@@ -2230,25 +2356,19 @@ function buildChapterRepairPrompts(
     "- Preserve the recurring humor callback; make it slightly evolve instead of repeating the exact same joke.",
     "",
     "RELEVANT BLUEPRINT FOR THIS CHAPTER:",
-    JSON.stringify(buildChapterRepairBlueprintContext(reviewedBlueprint, chapter.order), null, 2),
+    promptJson(buildChapterRepairBlueprintContext(reviewedBlueprint, chapter.order)),
     "",
     "CRITIQUE TO RESPECT:",
-    JSON.stringify(
-      {
-        mustFix: critique?.mustFix || [],
-        readOnRisks: critique?.readOnRisks || [],
-        addictiveReadingFixes: critique?.addictiveReadingFixes || [],
-        chapterRisks: (critique?.chapterRisks || []).filter((risk: any) => Number(risk?.order) === Number(chapter.order)),
-      },
-      null,
-      2
-    ),
+    promptJson({
+      ...compactCritiqueForDraft(critique),
+      chapterRisks: (critique?.chapterRisks || []).filter((risk: any) => Number(risk?.order) === Number(chapter.order)),
+    }),
     "",
     "COMPACT CURRENT STORY CONTEXT (do not rewrite other chapters; use only for continuity):",
-    JSON.stringify(buildCompactRepairStoryContext(story, chapter.order), null, 2),
+    promptJson(buildCompactRepairStoryContext(story, chapter.order)),
     "",
     "CURRENT TARGET CHAPTER TO REPAIR:",
-    JSON.stringify(chapter, null, 2),
+    promptJson(chapter),
     "",
     `FINAL REMINDER: repairedChapter.paragraphs and all dialogue must be in ${languageName}. No Markdown. No full-story copy.`,
   ].join("\n");
@@ -2355,10 +2475,10 @@ function buildValidationPrompts(
     buildSelectedIdeaPromptBlock(input) || "No explicit winning-idea block available.",
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
-    JSON.stringify(diagnostics || null, null, 2),
+    promptJson(compactDiagnosticsForPrompt(diagnostics || null)),
     "",
     "STORY:",
-    JSON.stringify(story, null, 2),
+    promptJson(story),
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -3273,9 +3393,9 @@ function isRecoverableStoryDraftFailure(error: unknown): boolean {
 }
 
 function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, retry: boolean): number {
-  if (config.length === "long") return retry ? 24000 : compactMode ? 20000 : 18000;
-  if (config.length === "short") return retry ? 12000 : compactMode ? 9500 : 9000;
-  return retry ? 18000 : compactMode ? 14000 : 11000;
+  if (config.length === "long") return retry ? 16000 : compactMode ? 13000 : 12000;
+  if (config.length === "short") return retry ? 6500 : compactMode ? 5200 : 5000;
+  return retry ? 9500 : compactMode ? 7800 : 7600;
 }
 
 function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
@@ -3640,9 +3760,13 @@ export async function generateStoryDevMode(
         ...supportCallOptions,
         modelRole: "support",
       });
-      selectedIdea =
+      selectedIdea = enforceSelectedIdeaNovelty(
         normalizeIdeaSelection(ideaSelectionStage.parsed, ideaCandidates, input.poolCharacters) ||
-        fallbackSelectedIdea(ideaCandidates, input.poolCharacters);
+        fallbackSelectedIdea(ideaCandidates, input.poolCharacters),
+        ideaCandidates,
+        input,
+        input.poolCharacters
+      );
     } else {
       console.warn("[dev-mode-generation] Idea lab returned no usable candidates; continuing without locked winning idea.");
     }
@@ -3900,26 +4024,40 @@ export async function generateStoryDevMode(
       });
     }
 
+    const skipInitialValidationForLocalGates = Boolean(
+      finalDiagnostics
+      && ((finalDiagnostics.hardIssueCount ?? 0) > 0 || (finalDiagnostics.dialogPct ?? 0) < DEV_MODE_MIN_DIALOG_PCT)
+    );
+
     for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS; validationAttempt += 1) {
       let validatorFindings: any | undefined;
-      const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
-      try {
-        const validationStage = await runStage("final-validation", validationPrompts, {
-          maxTokens: 2600,
-          temperature: 0.1,
-          timeoutMs: 120_000,
-          ...supportCallOptions,
-          modelRole: "support",
-        });
-        validatorFindings = validationStage.parsed;
-        rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
-      } catch (validationError) {
-        console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
-          error: validationError instanceof Error ? validationError.message : String(validationError),
+      const shouldSkipValidation = validationAttempt === 0 && skipInitialValidationForLocalGates;
+      if (shouldSkipValidation) {
+        console.log("[dev-mode-generation] Skipping initial LLM validation because deterministic local gates already fail", {
           hardIssueCount: finalDiagnostics?.hardIssueCount,
           dialogPct: finalDiagnostics?.dialogPct,
         });
         rawQualityScore = undefined;
+      } else {
+        const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+        try {
+          const validationStage = await runStage("final-validation", validationPrompts, {
+            maxTokens: 2600,
+            temperature: 0.1,
+            timeoutMs: 120_000,
+            ...supportCallOptions,
+            modelRole: "support",
+          });
+          validatorFindings = validationStage.parsed;
+          rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+        } catch (validationError) {
+          console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
+            error: validationError instanceof Error ? validationError.message : String(validationError),
+            hardIssueCount: finalDiagnostics?.hardIssueCount,
+            dialogPct: finalDiagnostics?.dialogPct,
+          });
+          rawQualityScore = undefined;
+        }
       }
       localGateScore = calculateLocalGateScore(finalDiagnostics);
       finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
