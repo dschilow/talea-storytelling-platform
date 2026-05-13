@@ -70,6 +70,8 @@ interface DevModeRawStory {
 }
 
 type DevModePipelineStage =
+  | "idea-candidates"
+  | "idea-selection"
   | "blueprint"
   | "dramaturgy-check"
   | "story-draft"
@@ -143,6 +145,9 @@ export interface DevModeGeneratedStory {
     noveltyRecentStoryCount?: number;
     noveltyHardAvoidMotifCount?: number;
     noveltyKeyMomentLens?: string;
+    ideaCandidateCount?: number;
+    selectedIdeaTitle?: string;
+    selectedSupportingCast?: string[];
   };
 }
 
@@ -194,6 +199,7 @@ export interface DevModeGenerationInput {
   poolCharacters?: DevModePoolCharacter[];
   primaryProfileAge?: number | null;
   noveltyBrief?: DevModeNoveltyBrief;
+  selectedIdea?: DevModeSelectedIdea;
 }
 
 interface DevModeRecentStoryFingerprint {
@@ -213,6 +219,31 @@ interface DevModeNoveltyBrief {
   titleEnergy: string;
   hardAvoidMotifs: string[];
   recentStories: DevModeRecentStoryFingerprint[];
+}
+
+interface DevModeIdeaCandidate {
+  id: string;
+  title: string;
+  oneLineHook: string;
+  centralObjectOrPlace: string;
+  wonderRule: string;
+  emotionalEngine: string;
+  coreConflict: string;
+  whyKidWantsThis: string;
+  whyDifferentFromRecent: string;
+  recommendedSupportingCast: string[];
+}
+
+interface DevModeSelectedIdea extends DevModeIdeaCandidate {
+  chosenReason: string;
+  selectedSupportingCast: string[];
+  selectionScores?: {
+    shelfAppeal?: number;
+    novelty?: number;
+    emotionalPotential?: number;
+    childCuriosity?: number;
+    poolCastFit?: number;
+  };
 }
 
 const NOVELTY_STOPWORDS = new Set([
@@ -792,6 +823,223 @@ function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
   return lines.join("\n");
 }
 
+function normalizePoolName(name: string): string {
+  return String(name || "").trim().toLowerCase();
+}
+
+function buildIdeaAvatarBlock(avatars: DevModeAvatar[]): string {
+  if (!avatars || avatars.length === 0) return "MAIN CHARACTERS: free choice.";
+  const lines: string[] = ["MAIN CHARACTERS FOR IDEA LAB:"];
+  avatars.forEach((avatar, index) => {
+    const heading = avatar.age != null
+      ? `${index + 1}. ${avatar.name} (${avatar.age} years old)`
+      : `${index + 1}. ${avatar.name}`;
+    lines.push(heading);
+    const dramaturgicProfile = summarizeDramaturgicTraitProfile(avatar.name, avatar.personalityTraits).slice(0, 3);
+    for (const profileLine of dramaturgicProfile) {
+      lines.push(`   ${profileLine}`);
+    }
+    if (avatar.description && avatar.description.trim()) {
+      lines.push(`   Short description: ${compactExcerpt(avatar.description.trim(), 180)}`);
+    }
+  });
+  return lines.join("\n");
+}
+
+function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
+  if (!pool || pool.length === 0) {
+    return "AVAILABLE SUPPORTING CAST: none preselected. Do not force extra characters into every idea.";
+  }
+  const lines: string[] = [
+    "AVAILABLE SUPPORTING CAST FOR IDEA LAB (choose only if the fit is real; each selected name must matter in the story):",
+  ];
+  pool.forEach((character, index) => {
+    const parts = [
+      character.role || null,
+      character.archetype || null,
+      character.species || null,
+      character.ageCategory || null,
+    ].filter((part): part is string => Boolean(part));
+    lines.push(`${index + 1}. ${character.name}${parts.length > 0 ? ` - ${parts.join(", ")}` : ""}`);
+    const traits = (character.personalityKeywords || []).slice(0, 4);
+    if (traits.length > 0) {
+      lines.push(`   Traits: ${traits.join(", ")}`);
+    }
+    if (character.quirk) {
+      lines.push(`   Quirk: ${compactExcerpt(character.quirk, 120)}`);
+    }
+    if (character.catchphrase) {
+      lines.push(`   Catchphrase: ${compactExcerpt(character.catchphrase, 100)}`);
+    }
+  });
+  return lines.join("\n");
+}
+
+function countIdeaCandidates(config: StoryConfig): number {
+  if (config.length === "long") return 12;
+  if (config.length === "medium") return 10;
+  return 8;
+}
+
+function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string[] {
+  if (!Array.isArray(names) || !pool || pool.length === 0) return [];
+  const byName = new Map(pool.map((character) => [normalizePoolName(character.name), character.name]));
+  const resolved: string[] = [];
+  for (const raw of names) {
+    const key = normalizePoolName(String(raw || ""));
+    const match = byName.get(key);
+    if (!match || resolved.includes(match)) continue;
+    resolved.push(match);
+  }
+  return resolved.slice(0, 3);
+}
+
+function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): DevModeIdeaCandidate[] {
+  const rawCandidates = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.candidates)
+      ? parsed.candidates
+      : [];
+
+  return rawCandidates
+    .map((candidate: any, index: number): DevModeIdeaCandidate | null => {
+      const title = compactExcerpt(String(candidate?.title || "").trim(), 120);
+      const oneLineHook = compactExcerpt(String(candidate?.oneLineHook || candidate?.hook || "").trim(), 220);
+      const centralObjectOrPlace = compactExcerpt(String(candidate?.centralObjectOrPlace || "").trim(), 120);
+      const wonderRule = compactExcerpt(String(candidate?.wonderRule || "").trim(), 180);
+      const emotionalEngine = compactExcerpt(String(candidate?.emotionalEngine || "").trim(), 180);
+      const coreConflict = compactExcerpt(String(candidate?.coreConflict || candidate?.conflict || "").trim(), 180);
+      const whyKidWantsThis = compactExcerpt(String(candidate?.whyKidWantsThis || "").trim(), 180);
+      const whyDifferentFromRecent = compactExcerpt(String(candidate?.whyDifferentFromRecent || "").trim(), 180);
+      if (!title || !oneLineHook || !centralObjectOrPlace || !wonderRule || !coreConflict) return null;
+      return {
+        id: String(candidate?.id || `idea_${index + 1}`),
+        title,
+        oneLineHook,
+        centralObjectOrPlace,
+        wonderRule,
+        emotionalEngine,
+        coreConflict,
+        whyKidWantsThis,
+        whyDifferentFromRecent,
+        recommendedSupportingCast: resolvePoolNames(
+          candidate?.recommendedSupportingCast || candidate?.selectedSupportingCast || [],
+          pool
+        ),
+      };
+    })
+    .filter((candidate): candidate is DevModeIdeaCandidate => Boolean(candidate));
+}
+
+function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevModePoolCharacter[]): DevModeSelectedIdea | undefined {
+  if (candidates.length === 0) return undefined;
+  const ranked = candidates
+    .map((candidate) => {
+      let score = 0;
+      score += candidate.whyKidWantsThis.length > 0 ? 4 : 0;
+      score += candidate.whyDifferentFromRecent.length > 0 ? 3 : 0;
+      score += candidate.recommendedSupportingCast.length * 1.5;
+      score += candidate.centralObjectOrPlace.length > 16 ? 1 : 0;
+      return { candidate, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  const winner = ranked[0]?.candidate;
+  if (!winner) return undefined;
+  const selectedSupportingCast = resolvePoolNames(winner.recommendedSupportingCast, pool);
+  return {
+    ...winner,
+    chosenReason: "Fallback selection: strongest shelf signal, freshness, and usable supporting cast from available pool.",
+    selectedSupportingCast,
+    selectionScores: {
+      shelfAppeal: 8.4,
+      novelty: 8.4,
+      emotionalPotential: 8.2,
+      childCuriosity: 8.3,
+      poolCastFit: selectedSupportingCast.length > 0 ? 8.4 : 7.5,
+    },
+  };
+}
+
+function normalizeIdeaSelection(
+  parsed: any,
+  candidates: DevModeIdeaCandidate[],
+  pool?: DevModePoolCharacter[]
+): DevModeSelectedIdea | undefined {
+  if (candidates.length === 0) return undefined;
+
+  const candidateById = new Map(candidates.map((candidate) => [String(candidate.id), candidate]));
+  const candidateByTitle = new Map(candidates.map((candidate) => [normalizePoolName(candidate.title), candidate]));
+  const selectedIdeaRaw = parsed?.selectedIdea;
+  const selectedId = String(
+    parsed?.chosenIdeaId ||
+    parsed?.selectedIdeaId ||
+    selectedIdeaRaw?.id ||
+    ""
+  ).trim();
+  const selectedTitle = normalizePoolName(String(parsed?.chosenTitle || selectedIdeaRaw?.title || ""));
+  const baseIdea =
+    candidateById.get(selectedId) ||
+    candidateByTitle.get(selectedTitle) ||
+    fallbackSelectedIdea(candidates, pool);
+
+  if (!baseIdea) return undefined;
+
+  const selectedSupportingCast = resolvePoolNames(
+    parsed?.selectedSupportingCast ||
+    selectedIdeaRaw?.recommendedSupportingCast ||
+    (baseIdea as DevModeIdeaCandidate).recommendedSupportingCast ||
+    [],
+    pool
+  );
+
+  return {
+    ...(baseIdea as DevModeIdeaCandidate),
+    chosenReason: compactExcerpt(
+      String(parsed?.chosenReason || parsed?.whyThisWins || selectedIdeaRaw?.whyThisWins || "").trim() ||
+      "Chosen for the strongest shelf appeal, child curiosity, emotional payoff, and story-fit with the available supporting cast.",
+      220
+    ),
+    selectedSupportingCast,
+    selectionScores: parsed?.selectionScores && typeof parsed.selectionScores === "object"
+      ? {
+          shelfAppeal: Number(parsed.selectionScores.shelfAppeal) || undefined,
+          novelty: Number(parsed.selectionScores.novelty) || undefined,
+          emotionalPotential: Number(parsed.selectionScores.emotionalPotential) || undefined,
+          childCuriosity: Number(parsed.selectionScores.childCuriosity) || undefined,
+          poolCastFit: Number(parsed.selectionScores.poolCastFit) || undefined,
+        }
+      : undefined,
+  };
+}
+
+function selectIdeaPoolCharacters(pool: DevModePoolCharacter[] | undefined, selectedIdea?: DevModeSelectedIdea): DevModePoolCharacter[] | undefined {
+  if (!pool || pool.length === 0 || !selectedIdea) return pool;
+  if (!selectedIdea.selectedSupportingCast || selectedIdea.selectedSupportingCast.length === 0) return pool;
+  const selectedNames = new Set(selectedIdea.selectedSupportingCast.map(normalizePoolName));
+  const filtered = pool.filter((character) => selectedNames.has(normalizePoolName(character.name)));
+  return filtered.length > 0 ? filtered : pool;
+}
+
+function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
+  const selectedIdea = input.selectedIdea;
+  if (!selectedIdea) return "";
+  return [
+    "LOCKED WINNING IDEA (expand this idea; do not replace it with a different premise):",
+    `- Title direction: ${selectedIdea.title}`,
+    `- One-line hook: ${selectedIdea.oneLineHook}`,
+    `- Central object/place: ${selectedIdea.centralObjectOrPlace}`,
+    `- Wonder rule: ${selectedIdea.wonderRule}`,
+    `- Emotional engine: ${selectedIdea.emotionalEngine}`,
+    `- Core conflict: ${selectedIdea.coreConflict}`,
+    `- Why a child wants this book: ${selectedIdea.whyKidWantsThis}`,
+    `- Why different from recent stories: ${selectedIdea.whyDifferentFromRecent}`,
+    selectedIdea.selectedSupportingCast.length > 0
+      ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with real function, not cameo decoration.`
+      : "- No pool character is mandatory for this idea; keep extra cast lean.",
+    `- Selection reason: ${selectedIdea.chosenReason}`,
+  ].join("\n");
+}
+
 function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; userPrompt: string; chapterCount: number } {
   const { config, avatars, poolCharacters, primaryProfileAge } = input;
   const chapterCount = deriveChapterCount(config.length);
@@ -852,6 +1100,7 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     `Setting: ${config.setting}.`,
     "",
     buildNoveltyPromptBlock(input) || null,
+    buildSelectedIdeaPromptBlock(input) || null,
     "",
     avatarBlock,
     poolBlock || null,
@@ -905,6 +1154,7 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     genreCraftGuidance(config.genre),
     settingCraftGuidance(config.setting),
     buildNoveltyPromptBlock(input),
+    buildSelectedIdeaPromptBlock(input),
     "",
     avatarBlock,
     poolBlock || null,
@@ -928,6 +1178,115 @@ function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapte
     "- Every main character must make one small mistake that comes from their character and later leads to a better action.",
     "- The antagonist must not be pure mechanic. They need a wound, a wrong belief, funny-unsettling behavior, and a new place at the end.",
   ].join("\n");
+}
+
+function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+  const candidateCount = countIdeaCandidates(input.config);
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "candidates": [',
+      '    {',
+      '      "id": string,',
+      '      "title": string,',
+      '      "oneLineHook": string,',
+      '      "centralObjectOrPlace": string,',
+      '      "wonderRule": string,',
+      '      "emotionalEngine": string,',
+      '      "coreConflict": string,',
+      '      "whyKidWantsThis": string,',
+      '      "whyDifferentFromRecent": string,',
+      '      "recommendedSupportingCast": string[]',
+      "    }",
+      "  ]",
+      "}",
+    ].join("\n")
+  );
+
+  const userPrompt = [
+    `IDEA LAB CALL: Generate exactly ${candidateCount} short children's-book premises before any blueprint writing.`,
+    "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
+    "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
+    "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
+    "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
+    "Recommended supporting cast names must come ONLY from the provided pool list and must be characters you expect to matter on-page.",
+    "At least half the candidates should differ strongly in object/place/problem structure, not just surface wording.",
+    "",
+    `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
+    `Plan for exactly ${chapterCount} later chapters, but do not outline them here.`,
+    "",
+    buildNoveltyPromptBlock(input) || null,
+    "",
+    buildIdeaAvatarBlock(input.avatars || []),
+    "",
+    buildPoolIdeaCastingBlock(input.poolCharacters),
+    "",
+    `Genre: ${input.config.genre}.`,
+    `Setting: ${input.config.setting}.`,
+    `Age group: ${input.config.ageGroup}.`,
+    input.config.customPrompt?.trim() ? `Reader's extra wish: ${input.config.customPrompt.trim()}` : null,
+  ].filter((line): line is string => Boolean(line)).join("\n");
+
+  return { systemPrompt, userPrompt };
+}
+
+function buildIdeaSelectionPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  candidates: DevModeIdeaCandidate[]
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "chosenIdeaId": string,',
+      '  "chosenReason": string,',
+      '  "selectedSupportingCast": string[],',
+      '  "selectionScores": {',
+      '    "shelfAppeal": number,',
+      '    "novelty": number,',
+      '    "emotionalPotential": number,',
+      '    "childCuriosity": number,',
+      '    "poolCastFit": number',
+      "  },",
+      '  "selectedIdea": {',
+      '    "id": string,',
+      '    "title": string,',
+      '    "oneLineHook": string,',
+      '    "centralObjectOrPlace": string,',
+      '    "wonderRule": string,',
+      '    "emotionalEngine": string,',
+      '    "coreConflict": string,',
+      '    "whyKidWantsThis": string,',
+      '    "whyDifferentFromRecent": string,',
+      '    "recommendedSupportingCast": string[]',
+      "  }",
+      "}",
+    ].join("\n")
+  );
+
+  const userPrompt = [
+    "IDEA LAB SELECTION CALL: Choose the single best premise candidate for a real children's book.",
+    "Pick the candidate with the strongest combination of shelf appeal, child curiosity, emotional payoff, novelty, and usable supporting cast fit.",
+    "Do not reward generic safety. A merely clean candidate should lose to a memorable one.",
+    "If a candidate recommends supporting cast, keep only the names that truly improve this story. Decorative or mismatched pool characters should be dropped.",
+    "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
+    "",
+    `Target output language later: ${languageName}.`,
+    `Future chapter count: exactly ${chapterCount}.`,
+    "",
+    buildNoveltyPromptBlock(input) || null,
+    "",
+    "CANDIDATES:",
+    JSON.stringify(candidates, null, 2),
+  ].filter((line): line is string => Boolean(line)).join("\n");
+
+  return { systemPrompt, userPrompt };
 }
 
 function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCount: number): string {
@@ -1130,6 +1489,7 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     "This support call must prepare the later story: emotional core, character roles, a clear magic rule, a try-fail-try chain, finale built from earlier-planted details.",
     "Blueprint values may stay in English — only the final story prose (Call 3) must be in the target output language.",
     "Novelty is a hard requirement: the blueprint must feel like a different book from the user's recent stories, with a new central object/place/problem and a title a child would want to pull from a shelf.",
+    "Treat the locked winning idea as binding. Expand it; do not invent a replacement premise.",
     "Populate noveltySignature honestly: include the shelf pitch, why this is different from recent stories, and the familiar premise candidates you rejected.",
     "Plan from key moments before logistics: create 5-8 vivid emotional moments that define the story, with at least one irreversible turn where a choice changes the child/world/relationship.",
     "Write causalChain as therefore/but links: each chapter result must cause or complicate the next chapter. Avoid a loose 'and then they went somewhere else' sequence.",
@@ -1138,6 +1498,9 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     "",
     `Plan exactly ${chapterCount} chapters.`,
     "Every chapter needs ownership: one concrete character actively drives it, and at the end something has irreversibly changed.",
+    input.selectedIdea?.selectedSupportingCast?.length
+      ? `Selected pool cast that MUST appear in supportingCastUse with real jobs: ${input.selectedIdea.selectedSupportingCast.join(", ")}.`
+      : null,
     "Plan the read-on pull explicitly: refrain / leitmotif, chapter-end hooks, a callback ladder, small reread details.",
     "Plan the emotional price explicitly: which concrete object, habit, sound, promise, or comfort must a child choose to risk or share in the finale, why it matters, and what choice makes the payoff earned.",
     "Plan the antagonist's change as a ladder, not a switch: wants to possess -> confusion -> small relapse -> active decision -> new role/task.",
@@ -1195,6 +1558,9 @@ function buildCritiquePrompts(
     "CALL 2: Critique this blueprint like a strict children's-book dramaturg and editor.",
     "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn, no irreversible key moment, or weak causality.",
     "Treat repetition as a major market failure. If the blueprint resembles the recent stories or repeats hard-avoid motifs, cap score at 7.0 and replace the premise in revisedBlueprint.",
+    input.selectedIdea?.selectedSupportingCast?.length
+      ? `If the revisedBlueprint drops any locked pool-cast figure (${input.selectedIdea.selectedSupportingCast.join(", ")}), restore them with a real story function.`
+      : null,
     "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
     "A blueprint without clear chapter-end hooks, refrain/callback, irreversible key moment, or a child-curiosity engine may score at most 8.4.",
     "Then return an improved revisedBlueprint. IMPORTANT: revisedBlueprint MUST be complete, not a reduced summary. Preserve and improve characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, full chapterPlan fields, and readerMagnet.",
@@ -1286,6 +1652,9 @@ function buildStoryDraftPrompts(
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
     "This is the ONLY call allowed to write the actual story prose. Use the COMPLETE reviewedBlueprint, the critique, and the voice rules directly in the first draft.",
     "Do not reduce the blueprint to hooks. You MUST actively use noveltySignature, keyMoments, causalChain, emotionalEngine, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
+    input.selectedIdea?.selectedSupportingCast?.length
+      ? `Selected pool-cast figures ${input.selectedIdea.selectedSupportingCast.join(", ")} must appear on-page with meaningful action. Do not demote them to decorative cameos.`
+      : null,
     "",
     "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
     "Before you write the story, answer the following four questions for yourself, in detail and concretely.",
@@ -1969,6 +2338,7 @@ function buildValidationPrompts(
     "- No setup-payoff (resolution doesn't come from prepared details): max 8.0.",
     "- Too similar to a recent story title/premise/motif from the novelty brief: max 7.0.",
     "- Uses hard-avoid motifs without explicit user request: max 7.0.",
+    "- Selected pool cast is missing from the story or reduced to decorative cameo: max 8.4.",
     "- More than 2 forbidden phrases in any language ('they learned...', 'true magic in the heart...', 'with courage and togetherness...'): max 6.5.",
     "",
     "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
@@ -1980,6 +2350,9 @@ function buildValidationPrompts(
     "",
     "NOVELTY BRIEF USED FOR THIS GENERATION:",
     buildNoveltyPromptBlock(input) || "No novelty brief available.",
+    "",
+    "LOCKED WINNING IDEA FOR THIS GENERATION:",
+    buildSelectedIdeaPromptBlock(input) || "No explicit winning-idea block available.",
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     JSON.stringify(diagnostics || null, null, 2),
@@ -2510,6 +2883,31 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
   return issues;
 }
 
+function collectSelectedCastIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+  const selectedIdea = input.selectedIdea;
+  if (!selectedIdea || !selectedIdea.selectedSupportingCast || selectedIdea.selectedSupportingCast.length === 0) {
+    return [];
+  }
+
+  const storyText = normalizeNoveltyText([
+    story.title,
+    story.description,
+    ...story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`),
+  ].join("\n"));
+
+  const missing = selectedIdea.selectedSupportingCast.filter((name) => {
+    const normalized = normalizeNoveltyText(name);
+    if (!normalized) return false;
+    const pattern = new RegExp(`\\b${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    return !pattern.test(storyText);
+  });
+
+  if (missing.length === 0) return [];
+  return [
+    `Pool-Cast-Gate: Ausgewaehlte Nebenfiguren fehlen im Storytext oder bleiben ungenutzt: ${missing.join(", ")}.`,
+  ];
+}
+
 function analyzeDevModeStoryQuality(
   story: DevModeRawStory,
   input: DevModeGenerationInput,
@@ -2557,6 +2955,9 @@ function analyzeDevModeStoryQuality(
 
   for (const noveltyIssue of collectNoveltyGateIssues(story, input)) {
     hardIssues.push(noveltyIssue);
+  }
+  for (const castIssue of collectSelectedCastIssues(story, input)) {
+    hardIssues.push(castIssue);
   }
 
   const avatarNames = (input.avatars || []).map((avatar) => avatar.name).filter((name): name is string => Boolean(name));
@@ -3202,6 +3603,8 @@ export async function generateStoryDevMode(
     recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
     hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
     noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
+    selectedIdeaTitle: input.selectedIdea?.title,
+    selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
   });
 
   let finalParsed: DevModeRawStory | null = null;
@@ -3214,8 +3617,44 @@ export async function generateStoryDevMode(
   let chapterRepairApplied = false;
   let qualityGateFailureReason: string | undefined;
   const repairSelfReflections: any[] = [];
+  let ideaCandidates: DevModeIdeaCandidate[] = [];
+  let selectedIdea: DevModeSelectedIdea | undefined;
 
   try {
+    const ideaCandidatePrompts = buildIdeaCandidatePrompts(input, chapterCount);
+    const ideaCandidatesStage = await runStage("idea-candidates", ideaCandidatePrompts, {
+      maxTokens: 3200,
+      temperature: 0.92,
+      timeoutMs: 90_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    ideaCandidates = normalizeIdeaCandidates(ideaCandidatesStage.parsed, input.poolCharacters);
+
+    if (ideaCandidates.length > 0) {
+      const ideaSelectionPrompts = buildIdeaSelectionPrompts(input, chapterCount, ideaCandidates);
+      const ideaSelectionStage = await runStage("idea-selection", ideaSelectionPrompts, {
+        maxTokens: 1800,
+        temperature: 0.22,
+        timeoutMs: 90_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      selectedIdea =
+        normalizeIdeaSelection(ideaSelectionStage.parsed, ideaCandidates, input.poolCharacters) ||
+        fallbackSelectedIdea(ideaCandidates, input.poolCharacters);
+    } else {
+      console.warn("[dev-mode-generation] Idea lab returned no usable candidates; continuing without locked winning idea.");
+    }
+
+    if (selectedIdea) {
+      input = {
+        ...input,
+        selectedIdea,
+        poolCharacters: selectIdeaPoolCharacters(input.poolCharacters, selectedIdea),
+      };
+    }
+
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
     const blueprintStage = await runStage("blueprint", blueprintPrompts, {
       maxTokens: 4200,
@@ -3621,6 +4060,9 @@ export async function generateStoryDevMode(
           recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
           hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
           noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
+          ideaCandidateCount: ideaCandidates.length,
+          selectedIdeaTitle: input.selectedIdea?.title,
+          selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
         },
       },
       response: {
@@ -3678,6 +4120,9 @@ export async function generateStoryDevMode(
         recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
         hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
         noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
+        ideaCandidateCount: ideaCandidates.length,
+        selectedIdeaTitle: input.selectedIdea?.title,
+        selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
       },
       stages: stageLogs.map((stage) => ({
         stage: stage.stage,
@@ -3770,6 +4215,9 @@ export async function generateStoryDevMode(
       noveltyRecentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
       noveltyHardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
       noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
+      ideaCandidateCount: ideaCandidates.length,
+      selectedIdeaTitle: input.selectedIdea?.title,
+      selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,
@@ -4035,6 +4483,7 @@ export async function pickDevModePoolCharacters(input: {
   if (rows.length === 0) return [];
 
   const setting = (input.setting || "").trim().toLowerCase();
+  const genre = (input.genre || "").trim().toLowerCase();
   const ageMax = ageGroupMaxAge(input.ageGroup);
   const maxGlobalChars = ageMax <= 5 ? 3 : ageMax <= 8 ? 4 : 6;
   const targetCount = Math.max(2, Math.min(5, maxGlobalChars - Math.max(1, input.heroCount)));
@@ -4043,6 +4492,9 @@ export async function pickDevModePoolCharacters(input: {
     .filter((r) => !input.excludeNames.has((r.name || "").toLowerCase()))
     .map((r) => {
       let score = 0;
+      const role = String(r.role || "").toLowerCase();
+      const archetype = String(r.archetype || "").toLowerCase();
+      const species = String(r.species_category || "").toLowerCase();
 
       // Setting match — strong signal. canon_settings is text[].
       const canon = (r.canon_settings || []).map((s) => s.toLowerCase());
@@ -4058,6 +4510,29 @@ export async function pickDevModePoolCharacters(input: {
       const recent = Number(r.recent_usage_count) || 0;
       score += Math.max(0, 20 - recent * 4);
 
+      // Genre fit — light approximation of the standard pipeline's requirement-based matcher.
+      if (genre.includes("fairy") || genre.includes("maerchen") || genre.includes("märchen")) {
+        if (species === "animal" || species === "magical_creature") score += 14;
+        if (/helper|guide|witch|trickster|villain|guardian/.test(`${role} ${archetype}`)) score += 10;
+      } else if (genre.includes("adventure") || genre.includes("abenteuer")) {
+        if (/helper|guide|scout|messenger|trickster/.test(`${role} ${archetype}`)) score += 10;
+        if (species === "animal" || species === "magical_creature") score += 6;
+      } else {
+        if (/helper|guide|friend|guardian/.test(`${role} ${archetype}`)) score += 6;
+      }
+
+      // Age fit — younger stories benefit from vivid, readable support cast.
+      if (ageMax <= 8) {
+        if (species === "animal" || species === "magical_creature") score += 8;
+        if ((r.catchphrase || "").trim()) score += 4;
+        if ((r.quirk || "").trim()) score += 4;
+        if ((r.speech_style || []).length > 0) score += 3;
+      }
+
+      // Richness — prefer characters with usable on-page behavior, not empty shells.
+      if ((r.personality_keywords || []).length >= 2) score += 3;
+      if ((r.backstory || "").trim()) score += 2;
+
       // Small noise so identical scores rotate naturally between generations.
       score += Math.random() * 5;
 
@@ -4069,12 +4544,16 @@ export async function pickDevModePoolCharacters(input: {
   // already chose (unless we'd have to drop below targetCount).
   const picked: CharacterPoolRow[] = [];
   const seenArchetypes = new Set<string>();
+  const seenSpecies = new Set<string>();
   for (const candidate of scored) {
     if (picked.length >= targetCount) break;
     const arch = (candidate.row.archetype || "").toLowerCase();
+    const species = (candidate.row.species_category || "").toLowerCase();
     if (arch && seenArchetypes.has(arch)) continue;
+    if (species && seenSpecies.has(species) && scored.length > targetCount + 1) continue;
     picked.push(candidate.row);
     if (arch) seenArchetypes.add(arch);
+    if (species) seenSpecies.add(species);
   }
   // If diversity filter left us short, top up from the rest.
   if (picked.length < targetCount) {
