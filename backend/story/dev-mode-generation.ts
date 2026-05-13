@@ -31,7 +31,7 @@ import { secret } from "encore.dev/config";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
-import { GEMINI_SUPPORT_MODEL, isOpenRouterFamilyModel, resolveConfiguredStoryModel } from "./pipeline/model-routing";
+import { isOpenRouterFamilyModel, resolveConfiguredStoryModel } from "./pipeline/model-routing";
 import type { StoryConfig, AIProvider } from "./generate";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
@@ -40,8 +40,7 @@ import { storyDB } from "./db";
 const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
-const DEV_MODE_NATIVE_SUPPORT_MODEL = GEMINI_SUPPORT_MODEL;
-const DEV_MODE_OPENROUTER_SUPPORT_MODEL = "openai/gpt-5.4-nano";
+const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v3";
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 const DEV_MODE_TARGET_DIALOG_PCT = 30;
@@ -2463,14 +2462,12 @@ function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number
   return retry ? 330_000 : 240_000;
 }
 
-function resolveDevModeSupportProvider(config: StoryConfig): AIProvider {
-  return config.aiProvider === "openrouter" ? "openrouter" : "native";
+function resolveDevModeSupportProvider(_config: StoryConfig): AIProvider {
+  return "openrouter";
 }
 
-function resolveDevModeSupportModel(config: StoryConfig): string {
-  return resolveDevModeSupportProvider(config) === "openrouter"
-    ? DEV_MODE_OPENROUTER_SUPPORT_MODEL
-    : DEV_MODE_NATIVE_SUPPORT_MODEL;
+function resolveDevModeSupportModel(_config: StoryConfig): string {
+  return DEV_MODE_SUPPORT_MODEL;
 }
 
 function buildDevModeSupportCallOptions(config: StoryConfig): Pick<ProviderCallOptions, "modelOverride" | "providerOverride" | "openRouterModelOverride"> {
@@ -2775,6 +2772,7 @@ export async function generateStoryDevMode(
     aiProvider: input.config.aiProvider,
     supportProvider,
     supportModel,
+    storyModel: resolveConfiguredStoryModel(input.config),
   });
 
   let finalParsed: DevModeRawStory | null = null;
@@ -2830,12 +2828,12 @@ export async function generateStoryDevMode(
       });
       parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
     } catch (storyDraftError) {
-      if (input.config.aiProvider !== "openrouter" || !isRecoverableStoryDraftFailure(storyDraftError)) {
+      if (!isRecoverableStoryDraftFailure(storyDraftError)) {
         throw storyDraftError;
       }
 
       const reason = storyDraftError instanceof Error ? storyDraftError.message : String(storyDraftError);
-      console.warn("[dev-mode-generation] Story draft failed on selected OpenRouter model; retrying with compact compatibility prompt", {
+      console.warn("[dev-mode-generation] Story draft failed on selected story model; retrying with compact compatibility prompt", {
         model: selectedOpenRouterStoryModel,
         compactDraftMode,
         error: reason,
@@ -2851,7 +2849,7 @@ export async function generateStoryDevMode(
         parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
       } catch (retryError) {
         throw new Error(
-          `Selected OpenRouter story model could not produce a usable story draft after compact retry (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
+          `Selected story model could not produce a usable story draft after compact retry (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
         );
       }
     }
