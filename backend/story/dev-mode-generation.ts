@@ -33,6 +33,7 @@ import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel } from "./pipeline/model-routing";
 import type { StoryConfig, AIProvider } from "./generate";
+import { buildStoryExperienceContext, describeEmotionalFlavors, describeSpecialIngredients } from "./story-experience";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { storyDB } from "./db";
@@ -44,6 +45,7 @@ const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v4";
 const DEV_MODE_MIN_DIALOG_PCT = 30;
 const DEV_MODE_TARGET_DIALOG_PCT = 34;
+const DEV_MODE_PROMPT_DIALOG_PCT = 40;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 22;
 const DEV_MODE_MIN_PARAGRAPHS = 6;
 const DEV_MODE_MAX_PARAGRAPHS = 12;
@@ -1165,6 +1167,133 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
   ].join("\n");
 }
 
+function wizardLevelLabel(value: number | undefined, kind: "suspense" | "humor"): string {
+  const level = Math.max(0, Math.min(3, Number(value ?? 1)));
+  if (kind === "suspense") {
+    return ["very gentle", "light", "clear", "strong but age-safe"][level] || "light";
+  }
+  return ["minimal", "light", "playful", "high but story-driven"][level] || "light";
+}
+
+function ageComprehensionGuidance(ageGroup: StoryConfig["ageGroup"]): string {
+  switch (ageGroup) {
+    case "3-5":
+      return "very clear cause/effect, one visible problem at a time, concrete feelings, short sentences, safe tension, strong repetition";
+    case "6-8":
+      return "clear chapter logic, playful dialogue, mild suspense, concrete clues, no adult abstractions, emotions shown through action";
+    case "9-12":
+      return "richer motives, sharper choices, layered clues, stronger causality, still age-clear and not cynical";
+    case "13+":
+      return "more nuance and interior tension allowed, but still accessible and emotionally concrete";
+    default:
+      return "age-clear, concrete, emotionally readable";
+  }
+}
+
+function complexityGuidance(complexity: StoryConfig["complexity"]): string {
+  switch (complexity) {
+    case "simple":
+      return "simple: one central problem, few roles, visible choices, no nested subplot";
+    case "complex":
+      return "complex: layered but still child-readable; every subplot beat must pay off clearly";
+    case "medium":
+    default:
+      return "medium: one main plot with a small emotional counter-thread";
+  }
+}
+
+function stylePresetGuidance(stylePreset?: StoryConfig["stylePreset"]): string {
+  switch (stylePreset) {
+    case "rhymed_playful": return "rhymed/playful: rhythmic read-aloud language, small rhymes or refrain, bouncy comic timing";
+    case "gentle_minimal": return "gentle/minimal: quiet, precise, warm, no overloaded spectacle";
+    case "wild_imaginative": return "wild/imaginative: surprising images, lively motion, playful impossibility with clear rules";
+    case "philosophical_warm": return "philosophical/warm: simple wonder and meaning through concrete action, never abstract lecture";
+    case "mischief_empowering": return "mischief/empowering: cheeky initiative, funny mistakes, children solve through agency";
+    case "adventure_epic": return "adventure/epic: brave choices, bigger stakes, triumphant but age-safe turns";
+    case "quirky_dark_sweet": return "quirky dark-sweet: funny-uncanny edges, warmth underneath, no real horror";
+    case "cozy_friendly": return "cozy/friendly: safe warmth, gentle conflict, comfort and togetherness";
+    case "classic_fantasy": return "classic fantasy: timeless wonder, symbolic objects, clear magic rules";
+    case "whimsical_logic": return "whimsical logic: absurd premise obeys a clear playful rule";
+    case "mythic_allegory": return "mythic allegory: symbolic but concrete, no explained moral";
+    case "road_fantasy": return "road fantasy: journey structure, each place changes the problem";
+    case "imaginative_meta": return "imaginative/meta: playful self-aware wonder without breaking emotional immersion";
+    case "pastoral_heart": return "pastoral heart: nature, home, care, quiet courage";
+    case "bedtime_soothing": return "bedtime soothing: low threat, soft rhythm, calming closure";
+    default: return "use a fitting children's-book style derived from genre, age, tone, and wishes";
+  }
+}
+
+function hookGuidance(hooks?: StoryConfig["hooks"]): string | null {
+  if (!hooks || hooks.length === 0) return null;
+  const labels: Record<string, string> = {
+    secret_door: "secret door / threshold discovery",
+    riddle_puzzle: "riddle or puzzle clue",
+    lost_map: "lost map / missing guide structure",
+    mysterious_guide: "mysterious guide with a clear story function",
+    time_glitch: "time glitch or surprising rule change",
+    friend_turns_foe: "friend seems opposed, with an earned reason",
+    foe_turns_friend: "foe can change, but gradually through action",
+    moral_choice: "concrete moral choice shown through action, not sermon",
+  };
+  return hooks.map((hook) => labels[hook] || hook).join("; ");
+}
+
+function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, compact = false): string {
+  const experience = buildStoryExperienceContext(config);
+  const lines: string[] = [
+    compact ? "WIZARD BRIEF:" : "WIZARD CREATIVE BRIEF (binding; use for premise, blueprint, and prose):",
+    `- Genre promise: ${config.genre}; setting promise: ${config.setting}. Translate both into concrete scenes, rules, props, and payoffs.`,
+    `- Length: ${config.length}, exactly ${chapterCount} chapters. ${chapterLengthGuidance(config)}`,
+    `- Age comprehension (${config.ageGroup}): ${ageComprehensionGuidance(config.ageGroup)}.`,
+    `- Complexity: ${complexityGuidance(config.complexity)}.`,
+  ];
+
+  if (experience.soul) {
+    lines.push(`- Story soul: ${experience.soul.label} — ${experience.soul.storyPromise}`);
+  }
+  if (experience.emotionalFlavors.length > 0) {
+    lines.push(`- Desired feeling(s): ${describeEmotionalFlavors(experience).replace(/\n/g, " | ")}`);
+  }
+  if (experience.tempo) {
+    lines.push(`- Story tempo: ${experience.tempo.label} — ${experience.tempo.description}`);
+  } else if (config.pacing) {
+    lines.push(`- Pacing: ${config.pacing}.`);
+  }
+  if (experience.specialIngredients.length > 0) {
+    lines.push(`- Special ingredient(s): ${describeSpecialIngredients(experience).replace(/\n/g, " | ")}`);
+  }
+
+  lines.push(`- Tone/style: tone=${config.tone || "warm"}; style=${stylePresetGuidance(config.stylePreset)}.`);
+  lines.push(`- Suspense: ${wizardLevelLabel(config.suspenseLevel, "suspense")}; humor: ${wizardLevelLabel(config.humorLevel, "humor")}. Keep both appropriate for ${config.ageGroup}.`);
+  lines.push(
+    config.allowRhymes
+      ? "- Rhyme wish: include rhythmic read-aloud language and a recurring rhyme/refrain or short rhyming couplets. Do not force clumsy rhyme in every sentence; story clarity wins."
+      : "- Rhyme wish: no forced rhyming; rhythmic repetition is allowed only if it improves read-aloud pull."
+  );
+  if (config.pov) {
+    lines.push(config.pov === "ich" ? "- POV: first-person voice if it does not break the requested story shape." : "- POV: close third-person/personale narration.");
+  }
+  const hooks = hookGuidance(config.hooks);
+  if (hooks) lines.push(`- Requested hook(s): ${hooks}.`);
+  if (config.hasTwist) {
+    lines.push("- Surprise wish: include an earned surprise/twist. Plant it early; do not make it random or confusing.");
+  }
+  if (config.learningMode?.enabled && config.learningMode.subjects?.length) {
+    const objectives = config.learningMode.learningObjectives?.length
+      ? ` Objectives: ${config.learningMode.learningObjectives.join(", ")}.`
+      : "";
+    lines.push(`- Learning mode: ${config.learningMode.subjects.join(", ")} (${config.learningMode.difficulty}). Weave in gently through action/dialogue, never as a lesson block.${objectives}`);
+  }
+  if (config.parentalGuidance?.trim()) {
+    lines.push(`- Parent/safety guidance: ${compactExcerpt(config.parentalGuidance, compact ? 260 : 520)}`);
+  }
+  if (config.customPrompt?.trim()) {
+    lines.push(`- Reader's explicit wish: ${compactExcerpt(config.customPrompt, compact ? 260 : 520)}. Treat this as binding unless it conflicts with safety, age, or quality.`);
+  }
+
+  return lines.join("\n");
+}
+
 function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; userPrompt: string; chapterCount: number } {
   const { config, avatars, poolCharacters, primaryProfileAge } = input;
   const chapterCount = deriveChapterCount(config.length);
@@ -1223,6 +1352,7 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     `Age group: ${config.ageGroup}.`,
     `Genre: ${config.genre}.`,
     `Setting: ${config.setting}.`,
+    buildWizardCreativeBrief(config, chapterCount),
     "",
     buildNoveltyPromptBlock(input) || null,
     buildSelectedIdeaPromptBlock(input) || null,
@@ -1282,6 +1412,7 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     `Chapter count: exactly ${chapterCount}.`,
     `Genre: ${config.genre}.`,
     `Setting: ${config.setting}.`,
+    buildWizardCreativeBrief(config, chapterCount),
     "",
     genreCraftGuidance(config.genre),
     settingCraftGuidance(config.setting),
@@ -1353,6 +1484,9 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "",
     `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
     `Plan for exactly ${chapterCount} later chapters, but do not outline them here.`,
+    "Every premise candidate must satisfy the wizard creative brief; do not propose ideas that ignore age, length, genre, feeling, rhyme, twist, or explicit wishes.",
+    "",
+    buildWizardCreativeBrief(input.config, chapterCount),
     "",
     buildNoveltyPromptBlock(input) || null,
     "",
@@ -1363,7 +1497,6 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     `Genre: ${input.config.genre}.`,
     `Setting: ${input.config.setting}.`,
     `Age group: ${input.config.ageGroup}.`,
-    input.config.customPrompt?.trim() ? `Reader's extra wish: ${input.config.customPrompt.trim()}` : null,
   ].filter((line): line is string => Boolean(line)).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -1417,6 +1550,9 @@ function buildIdeaSelectionPrompts(
     "",
     `Target output language later: ${languageName}.`,
     `Future chapter count: exactly ${chapterCount}.`,
+    "The chosen premise must best satisfy the wizard creative brief, not just novelty or cuteness.",
+    "",
+    buildWizardCreativeBrief(input.config, chapterCount),
     "",
     buildNoveltyPromptBlock(input) || null,
     "",
@@ -1438,6 +1574,7 @@ function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCoun
     `Output language: ${languageName}.`,
     `Age group: ${input.config.ageGroup}. Chapter count: exactly ${chapterCount}.`,
     `Genre: ${input.config.genre}. Setting: ${input.config.setting}.`,
+    buildWizardCreativeBrief(input.config, chapterCount, true),
     heroNames.length > 0 ? `Main characters: ${heroNames.join(", ")}.` : "Main characters: preserve the existing story's main characters.",
     poolNames.length > 0 ? `Supporting cast already available: ${poolNames.join(", ")}.` : null,
     "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
@@ -1553,7 +1690,7 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
     "",
     "LANGUAGE & FORM (in the target output language):",
     "- Age-appropriate: clear sentences, clear images, no nested adult phrasing.",
-    "- At least 30 percent dialogue in the final story.",
+    `- Dialogue overshoot target: write toward ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue in the final story; the hard floor is ${DEV_MODE_MIN_DIALOG_PCT}%, so do not aim merely at the floor.`,
     "- At least two concrete sensory impressions per chapter.",
     "- At least one humorous moment per chapter from situation or character (mandatory, not optional).",
     "- Dialogue must do multiple jobs: drive action, show relationship, distinguish voice, carry subtext.",
@@ -1795,6 +1932,7 @@ function buildStoryDraftPrompts(
     "DIALOGUE-FIRST SCENE PLANNING (MANDATORY, SILENT):",
     "Before writing each chapter, silently plan the chapter's goal, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the scene instead of decorating narration.",
     "Every chapter needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
+    `Dialogue overshoot is intentional: aim for ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue because drafts usually measure lower after server diagnostics. Replace narrator explanation with action-bearing speaker turns instead of adding filler chatter.`,
     "Chapter shape contract: 7-8 compact paragraphs; at least 4 paragraphs contain direct speech; at least 3 short speaker exchanges; no paragraph may become an explanation block.",
     "",
     "DRAMATURGY RULES:",
@@ -1804,7 +1942,7 @@ function buildStoryDraftPrompts(
     `- Use ${paragraphBudget.targetCount} compact paragraphs per chapter. Keep each paragraph around ${paragraphBudget.maxChars} characters; if a paragraph grows longer, split the beat or cut explanation.`,
     "- Models often undercount prose length; write visibly shorter than the upper edge so the server's real character count still passes.",
     `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
-    `- Overall dialogue share at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
+    `- Overall dialogue share: writer target ${DEV_MODE_PROMPT_DIALOG_PCT}%, soft diagnostic target ${DEV_MODE_TARGET_DIALOG_PCT}%, hard floor ${DEV_MODE_MIN_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Every chapter should include at least ${DEV_MODE_CHAPTER_DIALOG_LINE_TARGET} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns unless the chapter is intentionally very short (${input.config.length === "short" ? "short mode" : "not short mode"}).`,
     "- Chapter 1: strong hook in the first 2 sentences, concrete problem, different reactions from the main characters, open ending.",
     "- Chapter 2: world becomes concrete, trail/encounter, side or antagonist character shows a quirk, problem grows.",
@@ -1967,7 +2105,7 @@ function buildCompactStoryDraftPrompts(
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
     `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter; aim for ${paragraphBudget.targetCount} compact paragraphs.`,
     `- Keep each paragraph around ${paragraphBudget.maxChars} characters. If unsure, cut rather than explain.`,
-    `- Overall dialogue at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
+    `- Overall dialogue: writer target ${DEV_MODE_PROMPT_DIALOG_PCT}%, soft diagnostic target ${DEV_MODE_TARGET_DIALOG_PCT}%, hard floor ${DEV_MODE_MIN_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
     "- Keep sentences child-readable for ages 6-8: concrete, warm, funny, sensory.",
     "- Every chapter must have a goal, obstacle, turn, and pull at the end.",
@@ -2028,7 +2166,7 @@ function buildStoryPolishPrompts(
     `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
     `- Each chapter must have ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs. If there are too many paragraphs, merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
-    `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%.`,
+    `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%; repair toward ${DEV_MODE_PROMPT_DIALOG_PCT}% so the measured result safely clears the floor.`,
     `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; anything below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}/10 needs another concrete fix, not score inflation.`,
     "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
@@ -2327,6 +2465,9 @@ function buildChapterRepairPrompts(
     `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
     `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for ${paragraphBudget.targetCount} paragraphs.`,
     `- At least ${chapterTargetDialogPct}% dialogue in this chapter; never below ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
+    storyDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT
+      ? `- Because the full story is under the dialogue floor, aim closer to ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue in this repaired chapter by replacing narration with conflict-bearing exchanges.`
+      : null,
     `- At least ${dialogueLineTarget} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns.`,
     "- Dialogue must change action, relationship, tension, subtext, or comic timing. No filler chatter.",
     "- End the chapter with a concrete pull: danger, decision, question, new rule, or funny aftershock.",
@@ -3093,9 +3234,9 @@ function analyzeDevModeStoryQuality(
   }
 
   if (dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
-    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${DEV_MODE_MIN_DIALOG_PCT}%, Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%.`);
+    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${DEV_MODE_MIN_DIALOG_PCT}%, Soft-Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%, Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   } else if (dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
-    softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}%.`);
+    softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Soft-Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}% trotz Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   }
 
   story.chapters.forEach((chapter, index) => {
@@ -3145,8 +3286,8 @@ function analyzeDevModeStoryQuality(
   if (hardIssues.some((issue) => /Dialoganteil|ASCII|Namensfehler|\[object Object\]|deutlich zu lang|zu wenige Absaetze|zu viele Absaetze/i.test(issue))) {
     polishInstructions.push("Behebe alle harten Form- und Oberflaechenfehler vollstaendig.");
   }
-  if (dialogPct < 30) {
-    polishInstructions.push("Erhoehe den Dialoganteil auf mindestens 30%, indem Erklaerungen in charakterstarke Dialoge mit Handlung/Subtext umgebaut werden. Nicht durch Fuellsaetze aufblaehen.");
+  if (dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
+    polishInstructions.push(`Erhoehe den Dialoganteil sicher ueber ${DEV_MODE_MIN_DIALOG_PCT}% und peile beim Schreiben ${DEV_MODE_PROMPT_DIALOG_PCT}% an, indem Erklaerungen in charakterstarke Dialoge mit Handlung/Subtext umgebaut werden. Nicht durch Fuellsaetze aufblaehen.`);
   }
   if (hardIssues.concat(softIssues).some((issue) => /Laenge|lang|kurz|Absaetze/i.test(issue))) {
     polishInstructions.push(`Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und 6-12 Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
