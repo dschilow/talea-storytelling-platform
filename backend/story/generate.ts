@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
-import { generateStoryDevMode, pickDevModePoolCharacters } from "./dev-mode-generation";
+import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -720,6 +720,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           setting: config.setting,
           genre: config.genre,
           ageGroup: config.ageGroup,
+          userId: currentUserId,
           excludeNames: new Set(avatarDetails.map((a) => a.name.toLowerCase())),
           heroCount: avatarDetails.length,
         });
@@ -742,6 +743,11 @@ export const generate = api<GenerateStoryRequest, Story>(
           })),
           poolCharacters,
           primaryProfileAge: primaryProfile.age,
+        });
+        await recordDevModePoolCharacterUsage({
+          storyId: id,
+          poolCharacters,
+          selectedSupportingCast: devResult.metadata.selectedSupportingCast,
         });
         // Persist chapter shape with order field consumed downstream.
         generatedStory = devResult;

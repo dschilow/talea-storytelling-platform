@@ -58,6 +58,9 @@ const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
+const DEV_MODE_MIN_SUPPORTING_CAST = 2;
+const DEV_MODE_MAX_SUPPORTING_CAST = 4;
+const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 12;
 
 interface DevModeChapter {
   title: string;
@@ -189,6 +192,11 @@ export interface DevModePoolCharacter {
   speechStyle?: string[];
   quirk?: string | null;
   backstory?: string | null;
+  canonSettings?: string[];
+  recentUsageCount?: number;
+  totalUsageCount?: number;
+  recentUserUsageCount?: number;
+  lastUsedAt?: Date | string | null;
 }
 
 export interface DevModeGenerationInput {
@@ -864,7 +872,7 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
     return "AVAILABLE SUPPORTING CAST: none preselected. Do not force extra characters into every idea.";
   }
   const lines: string[] = [
-    "AVAILABLE SUPPORTING CAST FOR IDEA LAB (choose only if the fit is real; each selected name must matter in the story):",
+    `AVAILABLE SUPPORTING CAST CANDIDATES FOR IDEA LAB (recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names only when they truly fit; each selected name must matter in the story):`,
   ];
   pool.forEach((character, index) => {
     const parts = [
@@ -1139,12 +1147,141 @@ function normalizeIdeaSelection(
   };
 }
 
-function selectIdeaPoolCharacters(pool: DevModePoolCharacter[] | undefined, selectedIdea?: DevModeSelectedIdea): DevModePoolCharacter[] | undefined {
-  if (!pool || pool.length === 0 || !selectedIdea) return pool;
-  if (!selectedIdea.selectedSupportingCast || selectedIdea.selectedSupportingCast.length === 0) return pool;
-  const selectedNames = new Set(selectedIdea.selectedSupportingCast.map(normalizePoolName));
-  const filtered = pool.filter((character) => selectedNames.has(normalizePoolName(character.name)));
-  return filtered.length > 0 ? filtered : pool;
+function poolCharacterFitText(character: DevModePoolCharacter): string {
+  return [
+    character.name,
+    character.role,
+    character.archetype,
+    character.species,
+    character.ageCategory,
+    character.physicalDescription,
+    ...(character.personalityKeywords || []),
+    character.catchphrase,
+    ...(character.speechStyle || []),
+    character.quirk,
+    character.backstory,
+    ...(character.canonSettings || []),
+  ].filter(Boolean).join(" ");
+}
+
+function selectedIdeaFitText(selectedIdea: DevModeSelectedIdea, config: StoryConfig): string {
+  return [
+    selectedIdea.title,
+    selectedIdea.oneLineHook,
+    selectedIdea.centralObjectOrPlace,
+    selectedIdea.wonderRule,
+    selectedIdea.emotionalEngine,
+    selectedIdea.coreConflict,
+    selectedIdea.whyKidWantsThis,
+    config.genre,
+    config.setting,
+    config.customPrompt,
+    ...(config.emotionalFlavors || []),
+    ...(config.specialIngredients || []),
+  ].filter(Boolean).join(" ");
+}
+
+function scorePoolCharacterForSelectedIdea(
+  character: DevModePoolCharacter,
+  selectedIdea: DevModeSelectedIdea,
+  input: DevModeGenerationInput
+): number {
+  const recommendedNames = new Set((selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).map(normalizePoolName));
+  const isRecommended = recommendedNames.has(normalizePoolName(character.name));
+  const ideaKeywords = extractMotifKeywords(selectedIdeaFitText(selectedIdea, input.config), 18);
+  const characterKeywords = extractMotifKeywords(poolCharacterFitText(character), 18);
+  let score = isRecommended ? 34 : 0;
+  score += noveltyJaccard(ideaKeywords, characterKeywords) * 44;
+
+  const setting = String(input.config.setting || "").toLowerCase();
+  const genre = String(input.config.genre || "").toLowerCase();
+  const roleArchetype = `${character.role || ""} ${character.archetype || ""}`.toLowerCase();
+  const species = String(character.species || "").toLowerCase();
+  const canon = (character.canonSettings || []).map((value) => value.toLowerCase());
+  if (setting && canon.some((value) => value === setting || value.includes(setting) || setting.includes(value))) score += 16;
+  if (genre.includes("fairy") || genre.includes("maerchen") || genre.includes("märchen")) {
+    if (species === "animal" || species === "magical_creature" || species === "mythical") score += 8;
+    if (/helper|guide|witch|trickster|villain|guardian|mentor/.test(roleArchetype)) score += 7;
+  } else if (genre.includes("adventure") || genre.includes("abenteuer")) {
+    if (/helper|guide|scout|messenger|trickster|guardian/.test(roleArchetype)) score += 7;
+  }
+
+  if ((character.personalityKeywords || []).length >= 2) score += 3;
+  if ((character.speechStyle || []).length > 0) score += 3;
+  if (character.quirk) score += 3;
+  if (character.catchphrase) score += 2;
+
+  // Recency is deliberately soft: a recently used character may still win
+  // when the story fit is clearly stronger than fresher alternatives.
+  const recent = character.recentUsageCount || 0;
+  const userRecent = character.recentUserUsageCount || 0;
+  const total = character.totalUsageCount || 0;
+  score -= Math.min(7, recent * 1.4);
+  score -= Math.min(9, userRecent * 4);
+  score -= Math.min(5, total * 0.12);
+  const lastUsedDays = daysSince(character.lastUsedAt);
+  if (typeof lastUsedDays === "number") {
+    if (lastUsedDays < 2) score -= 4;
+    else if (lastUsedDays < 7) score -= 2;
+    else if (lastUsedDays < 21) score -= 1;
+  }
+
+  return score;
+}
+
+function finalizeSelectedIdeaCast(
+  input: DevModeGenerationInput,
+  selectedIdea: DevModeSelectedIdea,
+  pool?: DevModePoolCharacter[]
+): { selectedIdea: DevModeSelectedIdea; poolCharacters?: DevModePoolCharacter[] } {
+  if (!pool || pool.length === 0) return { selectedIdea, poolCharacters: pool };
+
+  const minCount = Math.min(DEV_MODE_MIN_SUPPORTING_CAST, pool.length);
+  const maxCount = Math.min(DEV_MODE_MAX_SUPPORTING_CAST, pool.length);
+  const recommendedCount = (selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).length;
+  const targetCount = Math.max(minCount, Math.min(maxCount, recommendedCount || minCount));
+  const scored = pool
+    .map((character) => ({ character, score: scorePoolCharacterForSelectedIdea(character, selectedIdea, input) }))
+    .sort((a, b) => b.score - a.score);
+
+  const picked: DevModePoolCharacter[] = [];
+  const seenArchetypes = new Set<string>();
+  const pick = (allowDuplicateArchetypes: boolean) => {
+    for (const candidate of scored) {
+      if (picked.length >= targetCount) break;
+      if (picked.includes(candidate.character)) continue;
+      const archetype = normalizePoolName(candidate.character.archetype || "");
+      if (!allowDuplicateArchetypes && archetype && seenArchetypes.has(archetype)) continue;
+      picked.push(candidate.character);
+      if (archetype) seenArchetypes.add(archetype);
+    }
+  };
+  pick(false);
+  pick(true);
+
+  const finalPool = picked.slice(0, targetCount);
+  const finalNames = finalPool.map((character) => character.name);
+  console.log("[dev-mode-generation] Final story-fit supporting cast", {
+    selectedIdea: selectedIdea.title,
+    targetCount,
+    selectedSupportingCast: finalNames,
+    topCandidates: scored.slice(0, 8).map((candidate) => ({
+      name: candidate.character.name,
+      score: Math.round(candidate.score * 10) / 10,
+      recent: candidate.character.recentUsageCount || 0,
+      userRecent: candidate.character.recentUserUsageCount || 0,
+    })),
+  });
+
+  return {
+    selectedIdea: {
+      ...selectedIdea,
+      selectedSupportingCast: finalNames,
+      recommendedSupportingCast: finalNames,
+      chosenReason: `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.`,
+    },
+    poolCharacters: finalPool,
+  };
 }
 
 function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
@@ -1479,7 +1616,7 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
-    "Recommended supporting cast names must come ONLY from the provided pool list and must be characters you expect to matter on-page.",
+    `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names when possible, and only characters you expect to matter on-page.`,
     "At least half the candidates should differ strongly in object/place/problem structure, not just surface wording.",
     "",
     `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
@@ -1544,7 +1681,8 @@ function buildIdeaSelectionPrompts(
     "IDEA LAB SELECTION CALL: Choose the single best premise candidate for a real children's book.",
     "Pick the candidate with the strongest combination of shelf appeal, child curiosity, emotional payoff, novelty, and usable supporting cast fit.",
     "Do not reward generic safety. A merely clean candidate should lose to a memorable one.",
-    "If a candidate recommends supporting cast, keep only the names that truly improve this story. Decorative or mismatched pool characters should be dropped.",
+    `If a candidate recommends supporting cast, keep ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names that truly improve this story. Decorative or mismatched pool characters should be dropped.`,
+    "A recently used character may still win if the fit is clearly stronger than fresher alternatives; freshness is a tie-breaker, not a ban.",
     "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
     "Use the server novelty precheck as a hard tie-breaker: reject candidates marked reject unless all candidates are rejected; penalize candidates marked penalize unless their shelf appeal is clearly superior.",
     "",
@@ -3913,10 +4051,12 @@ export async function generateStoryDevMode(
     }
 
     if (selectedIdea) {
+      const finalizedCast = finalizeSelectedIdeaCast(input, selectedIdea, input.poolCharacters);
+      selectedIdea = finalizedCast.selectedIdea;
       input = {
         ...input,
         selectedIdea,
-        poolCharacters: selectIdeaPoolCharacters(input.poolCharacters, selectedIdea),
+        poolCharacters: finalizedCast.poolCharacters,
       };
     }
 
@@ -4708,6 +4848,7 @@ interface CharacterPoolRow {
   canon_settings: string[] | null;
   recent_usage_count: number | null;
   total_usage_count: number | null;
+  last_used_at: Date | null;
 }
 
 function ageGroupMaxAge(ageGroup?: string): number {
@@ -4725,22 +4866,67 @@ function ageGroupMaxAge(ageGroup?: string): number {
   }
 }
 
+async function loadRecentCharacterUsageForUser(userId?: string): Promise<Map<string, number>> {
+  if (!userId) return new Map();
+  try {
+    const rows = await storyDB.queryAll<{ character_id: string; usage_count: number }>`
+      SELECT sc.character_id, COUNT(*) as usage_count
+      FROM story_characters sc
+      WHERE sc.story_id IN (
+        SELECT id
+        FROM stories
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT 20
+      )
+      GROUP BY sc.character_id
+    `;
+    return new Map(rows.map((row) => [row.character_id, Number(row.usage_count) || 0]));
+  } catch (err) {
+    console.warn("[dev-mode-generation] Failed to load recent character usage; casting will continue without user-recency penalty:", err);
+    return new Map();
+  }
+}
+
+function daysSince(date?: Date | string | null): number | undefined {
+  if (!date) return undefined;
+  const value = date instanceof Date ? date : new Date(date);
+  const time = value.getTime();
+  if (!Number.isFinite(time)) return undefined;
+  return Math.max(0, (Date.now() - time) / (24 * 60 * 60 * 1000));
+}
+
+function weightedPickCharacter<T extends { score: number }>(candidates: T[]): T | undefined {
+  if (candidates.length === 0) return undefined;
+  if (candidates.length === 1) return candidates[0];
+  const minScore = Math.min(...candidates.map((candidate) => candidate.score));
+  const weights = candidates.map((candidate) => Math.pow(Math.max(1, candidate.score - minScore + 1), 1.15));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (let i = 0; i < candidates.length; i += 1) {
+    roll -= weights[i];
+    if (roll <= 0) return candidates[i];
+  }
+  return candidates[candidates.length - 1];
+}
+
 /**
  * Pick supporting characters for dev mode. Caller passes the wizard's
  * setting/genre/age and the set of hero avatar names to exclude.
  *
  * Selection strategy:
  *  1. Load all active pool characters.
- *  2. Score each by setting match (canon_settings overlap) + freshness
- *     (lower recent_usage_count is better) + diversity (try not to pick
- *     duplicate archetypes).
- *  3. Return top N, where N = 4 for ages ≤ 8, 6 for older, minus the
- *     hero count, clamped to [2, 5].
+ *  2. Score each by setting/genre/age fit plus global and per-user freshness.
+ *  3. Pick from a weighted top window with archetype diversity instead of
+ *     always returning the same deterministic top rows.
+ *  4. Return a broader idea-lab candidate pool. The final 2-4 story cast is
+ *     selected after the winning premise is known, before blueprint writing.
  */
 export async function pickDevModePoolCharacters(input: {
   setting?: string;
   genre?: string;
   ageGroup?: string;
+  userId?: string;
   excludeNames: Set<string>;
   heroCount: number;
 }): Promise<DevModePoolCharacter[]> {
@@ -4750,7 +4936,8 @@ export async function pickDevModePoolCharacters(input: {
       SELECT id, name, role, archetype, emotional_nature, visual_profile,
              age_category, species_category, personality_keywords,
              physical_description, backstory, catchphrase, speech_style,
-             quirk, canon_settings, recent_usage_count, total_usage_count
+              quirk, canon_settings, recent_usage_count, total_usage_count,
+              last_used_at
       FROM character_pool
       WHERE is_active = TRUE
     `;
@@ -4765,7 +4952,12 @@ export async function pickDevModePoolCharacters(input: {
   const genre = (input.genre || "").trim().toLowerCase();
   const ageMax = ageGroupMaxAge(input.ageGroup);
   const maxGlobalChars = ageMax <= 5 ? 3 : ageMax <= 8 ? 4 : 6;
-  const targetCount = Math.max(2, Math.min(5, maxGlobalChars - Math.max(1, input.heroCount)));
+  const finalStoryCastBudget = Math.max(
+    DEV_MODE_MIN_SUPPORTING_CAST,
+    Math.min(DEV_MODE_MAX_SUPPORTING_CAST, maxGlobalChars - Math.max(1, input.heroCount))
+  );
+  const targetCount = Math.min(DEV_MODE_MAX_IDEA_POOL_CANDIDATES, Math.max(8, finalStoryCastBudget * 3));
+  const userRecentUsage = await loadRecentCharacterUsageForUser(input.userId);
 
   const scored = rows
     .filter((r) => !input.excludeNames.has((r.name || "").toLowerCase()))
@@ -4778,16 +4970,27 @@ export async function pickDevModePoolCharacters(input: {
       // Setting match — strong signal. canon_settings is text[].
       const canon = (r.canon_settings || []).map((s) => s.toLowerCase());
       if (setting.length > 0 && canon.length > 0) {
-        if (canon.includes(setting)) score += 50;
-        else if (canon.some((c) => c.includes(setting) || setting.includes(c))) score += 25;
+        if (canon.includes(setting)) score += 34;
+        else if (canon.some((c) => c.includes(setting) || setting.includes(c))) score += 18;
       } else if (canon.length === 0) {
         // No canon_settings = universal character, small neutral score.
-        score += 10;
+        score += 8;
       }
 
       // Freshness — prefer less-recently-used to rotate cast across stories.
       const recent = Number(r.recent_usage_count) || 0;
-      score += Math.max(0, 20 - recent * 4);
+      const total = Number(r.total_usage_count) || 0;
+      const userRecent = userRecentUsage.get(r.id) || 0;
+      score += Math.max(0, 18 - recent * 5);
+      score -= userRecent * 6;
+      score -= Math.min(total, 30) * 0.15;
+      if (total === 0) score += 8;
+      const lastUsedDays = daysSince(r.last_used_at);
+      if (typeof lastUsedDays === "number") {
+        if (lastUsedDays < 2) score -= 5;
+        else if (lastUsedDays < 7) score -= 3;
+        else if (lastUsedDays < 21) score -= 1;
+      }
 
       // Genre fit — light approximation of the standard pipeline's requirement-based matcher.
       if (genre.includes("fairy") || genre.includes("maerchen") || genre.includes("märchen")) {
@@ -4812,29 +5015,38 @@ export async function pickDevModePoolCharacters(input: {
       if ((r.personality_keywords || []).length >= 2) score += 3;
       if ((r.backstory || "").trim()) score += 2;
 
-      // Small noise so identical scores rotate naturally between generations.
-      score += Math.random() * 5;
+      // Small noise + weighted lottery below prevent the same top rows from
+      // winning every dev-mode generation while preserving relevance.
+      score += Math.random() * 8;
 
-      return { row: r, score };
+      return { row: r, score, recent, total, userRecent };
     })
     .sort((a, b) => b.score - a.score);
 
-  // Diversity: when picking the top N, skip duplicates of an archetype we
-  // already chose (unless we'd have to drop below targetCount).
   const picked: CharacterPoolRow[] = [];
   const seenArchetypes = new Set<string>();
-  const seenSpecies = new Set<string>();
-  for (const candidate of scored) {
-    if (picked.length >= targetCount) break;
-    const arch = (candidate.row.archetype || "").toLowerCase();
-    const species = (candidate.row.species_category || "").toLowerCase();
-    if (arch && seenArchetypes.has(arch)) continue;
-    if (species && seenSpecies.has(species) && scored.length > targetCount + 1) continue;
-    picked.push(candidate.row);
-    if (arch) seenArchetypes.add(arch);
-    if (species) seenSpecies.add(species);
-  }
-  // If diversity filter left us short, top up from the rest.
+
+  const pickFromScored = (allowDuplicateArchetypes: boolean) => {
+    while (picked.length < targetCount) {
+      const available = scored.filter((candidate) => {
+        if (picked.includes(candidate.row)) return false;
+        const arch = (candidate.row.archetype || "").toLowerCase();
+        return allowDuplicateArchetypes || !arch || !seenArchetypes.has(arch);
+      });
+      if (available.length === 0) break;
+      const windowSize = Math.min(available.length, Math.max(targetCount * 4, 12));
+      const chosen = weightedPickCharacter(available.slice(0, windowSize));
+      if (!chosen) break;
+      picked.push(chosen.row);
+      const arch = (chosen.row.archetype || "").toLowerCase();
+      if (arch) seenArchetypes.add(arch);
+    }
+  };
+
+  // Diversity first: avoid same archetype if enough candidates exist. Then top up.
+  pickFromScored(false);
+  pickFromScored(true);
+
   if (picked.length < targetCount) {
     for (const candidate of scored) {
       if (picked.length >= targetCount) break;
@@ -4842,6 +5054,21 @@ export async function pickDevModePoolCharacters(input: {
       picked.push(candidate.row);
     }
   }
+
+  console.log("[dev-mode-generation] Dev mode pool casting selection", {
+    availableCharacters: rows.length,
+    eligibleCharacters: scored.length,
+    targetCount,
+    finalStoryCastBudget,
+    picked: picked.map((row) => row.name),
+    topCandidates: scored.slice(0, 8).map((candidate) => ({
+      name: candidate.row.name,
+      score: Math.round(candidate.score * 10) / 10,
+      recent: candidate.recent,
+      userRecent: candidate.userRecent,
+      total: candidate.total,
+    })),
+  });
 
   return picked.map((r) => {
     const vp = r.visual_profile;
@@ -4862,6 +5089,63 @@ export async function pickDevModePoolCharacters(input: {
       speechStyle: r.speech_style || [],
       quirk: r.quirk,
       backstory: r.backstory,
+      canonSettings: r.canon_settings || [],
+      recentUsageCount: Number(r.recent_usage_count) || 0,
+      totalUsageCount: Number(r.total_usage_count) || 0,
+      recentUserUsageCount: userRecentUsage.get(r.id) || 0,
+      lastUsedAt: r.last_used_at,
     };
   });
+}
+
+export async function recordDevModePoolCharacterUsage(input: {
+  storyId: string;
+  poolCharacters: DevModePoolCharacter[];
+  selectedSupportingCast?: string[];
+}): Promise<void> {
+  const selectedNames = new Set((input.selectedSupportingCast || []).map(normalizePoolName));
+  const usedCharacters = selectedNames.size > 0
+    ? input.poolCharacters.filter((character) => selectedNames.has(normalizePoolName(character.name)))
+    : input.poolCharacters.slice(0, Math.min(3, input.poolCharacters.length));
+
+  if (usedCharacters.length === 0) return;
+
+  for (const [index, character] of usedCharacters.entries()) {
+    try {
+      const existing = await storyDB.queryRow<{ id: string }>`
+        SELECT id
+        FROM story_characters
+        WHERE story_id = ${input.storyId}
+          AND character_id = ${character.id}
+        LIMIT 1
+      `;
+      if (existing) continue;
+
+      await storyDB.exec`
+        UPDATE character_pool
+        SET recent_usage_count = COALESCE(recent_usage_count, 0) + 1,
+            total_usage_count = COALESCE(total_usage_count, 0) + 1,
+            last_used_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${character.id}
+      `;
+
+      await storyDB.exec`
+        INSERT INTO story_characters (id, story_id, character_id, placeholder)
+        VALUES (
+          ${crypto.randomUUID()},
+          ${input.storyId},
+          ${character.id},
+          ${`{{DEV_MODE_SUPPORT_${index + 1}}}`}
+        )
+      `;
+    } catch (err) {
+      console.warn("[dev-mode-generation] Failed to record dev-mode character usage", {
+        storyId: input.storyId,
+        characterId: character.id,
+        characterName: character.name,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 }
