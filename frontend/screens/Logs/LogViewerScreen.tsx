@@ -157,6 +157,10 @@ const LogViewerScreen: React.FC = () => {
 
   const getStageLabel = (stage?: string) => {
     switch (stage) {
+      case 'idea-candidates':
+        return '0. Ideen-Generierung';
+      case 'idea-selection':
+        return '0b. Ideen-Auswahl';
       case 'blueprint':
         return '1. Blueprint';
       case 'dramaturgy-check':
