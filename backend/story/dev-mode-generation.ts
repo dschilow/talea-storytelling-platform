@@ -47,8 +47,8 @@ const DEV_MODE_MIN_DIALOG_PCT = 30;
 const DEV_MODE_TARGET_DIALOG_PCT = 34;
 const DEV_MODE_PROMPT_DIALOG_PCT = 40;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 22;
-const DEV_MODE_MIN_PARAGRAPHS = 6;
-const DEV_MODE_MAX_PARAGRAPHS = 12;
+const DEV_MODE_MIN_PARAGRAPHS = 4;
+const DEV_MODE_MAX_PARAGRAPHS = 10;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
 const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 3;
 const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
@@ -424,6 +424,36 @@ function extractMotifKeywords(text: string, limit = 8): string[] {
   return [...new Set(words)].slice(0, limit);
 }
 
+function characterNameMotifAliases(name: string): string[] {
+  const normalized = normalizeNoveltyText(name);
+  if (!normalized) return [];
+  const parts = normalized
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 4 && !NOVELTY_STOPWORDS.has(part));
+  return [...new Set([normalized, ...parts])];
+}
+
+function currentCharacterNameMotifs(input: DevModeGenerationInput): Set<string> {
+  const aliases = new Set<string>();
+  for (const avatar of input.avatars || []) {
+    for (const alias of characterNameMotifAliases(avatar.name || "")) aliases.add(alias);
+  }
+  for (const character of input.poolCharacters || []) {
+    for (const alias of characterNameMotifAliases(character.name || "")) aliases.add(alias);
+  }
+  for (const name of input.selectedIdea?.selectedSupportingCast || []) {
+    for (const alias of characterNameMotifAliases(name || "")) aliases.add(alias);
+  }
+  return aliases;
+}
+
+function isCurrentCharacterNameMotif(motif: string, input: DevModeGenerationInput): boolean {
+  const normalized = normalizeNoveltyText(motif);
+  if (!normalized) return false;
+  return currentCharacterNameMotifs(input).has(normalized);
+}
+
 function noveltyJaccard(a: string[], b: string[]): number {
   if (a.length === 0 || b.length === 0) return 0;
   const setA = new Set(a);
@@ -496,6 +526,7 @@ function buildDevModeNoveltyBrief(input: DevModeGenerationInput, recentStories: 
   const recentMotifs = recentStories
     .flatMap((story) => story.motifKeywords)
     .filter((keyword) => keyword.length >= 6)
+    .filter((keyword) => !isCurrentCharacterNameMotif(keyword, input))
     .slice(0, 30);
   const hardAvoidMotifs = [
     ...new Set([
@@ -1070,6 +1101,7 @@ function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevMo
   for (const motif of brief?.hardAvoidMotifs || []) {
     const normalizedMotif = normalizeNoveltyText(motif);
     if (normalizedMotif.length < 6 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) continue;
     const phraseRegex = new RegExp(`\\b${normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     if (phraseRegex.test(normalizedCandidateText)) hardAvoidMatches.push(motif);
@@ -1859,9 +1891,9 @@ function settingCraftGuidance(setting?: string): string {
 }
 
 function chapterLengthGuidance(config: StoryConfig): string {
-  if (config.length === "short") return "Each chapter approx. 1,200–1,800 characters of target-language prose.";
-  if (config.length === "long") return "Each chapter approx. 2,000–2,700 characters of target-language prose.";
-  return "Each chapter approx. 1,800–2,400 characters of target-language prose.";
+  if (config.length === "short") return "Each chapter approx. 650–1,150 characters of target-language prose; one compact scene, not a mini-chapter.";
+  if (config.length === "long") return "Each chapter approx. 1,300–2,200 characters of target-language prose.";
+  return "Each chapter approx. 900–1,550 characters of target-language prose.";
 }
 
 function languageCodeFromName(languageName: string): string {
@@ -2128,6 +2160,12 @@ function buildStoryDraftPrompts(
   const bounds = getChapterLengthBounds(input.config);
   const draftTargetMaxChars = getChapterDraftTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
+  const dialogueLineTarget = input.config.length === "short"
+    ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 4)
+    : input.config.length === "medium"
+      ? Math.max(7, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
+      : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -2168,17 +2206,22 @@ function buildStoryDraftPrompts(
     "Before writing each chapter, silently plan the chapter's goal, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the scene instead of decorating narration.",
     "Every chapter needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
     `Dialogue overshoot is intentional: aim for ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue because drafts usually measure lower after server diagnostics. Replace narrator explanation with action-bearing speaker turns instead of adding filler chatter.`,
-    "Chapter shape contract: 7-8 compact paragraphs; at least 4 paragraphs contain direct speech; at least 3 short speaker exchanges; no paragraph may become an explanation block.",
+    `Chapter shape contract: ${paragraphBudget.targetCount} compact paragraphs; at least 3 paragraphs contain direct speech; at least 3 short speaker exchanges; no paragraph may become an explanation block.`,
     "",
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
     `- Aim each chapter for ${bounds.min}-${draftTargetMaxChars} characters. Do not write to the upper edge; the repair gate fails over ${bounds.max}.`,
     `- Use ${paragraphBudget.targetCount} compact paragraphs per chapter. Keep each paragraph around ${paragraphBudget.maxChars} characters; if a paragraph grows longer, split the beat or cut explanation.`,
+    input.config.length === "short"
+      ? "- SHORT MODE IS BINDING: one central beat per chapter, no scenic padding, no extra explanatory paragraph after the turn. If a detail is pretty but not causal, cut it."
+      : input.config.length === "medium"
+        ? "- MEDIUM MODE IS BINDING: compact chapter-book pacing, not long-form prose. Prefer one strong image over two decorative images."
+        : null,
     "- Models often undercount prose length; write visibly shorter than the upper edge so the server's real character count still passes.",
-    `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
+    `- ${paragraphBounds.min}–${paragraphBounds.max} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
     `- Overall dialogue share: writer target ${DEV_MODE_PROMPT_DIALOG_PCT}%, soft diagnostic target ${DEV_MODE_TARGET_DIALOG_PCT}%, hard floor ${DEV_MODE_MIN_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
-    `- Every chapter should include at least ${DEV_MODE_CHAPTER_DIALOG_LINE_TARGET} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns unless the chapter is intentionally very short (${input.config.length === "short" ? "short mode" : "not short mode"}).`,
+    `- Every chapter should include about ${dialogueLineTarget}+ short dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns. In short mode, use short exchanges, not extra paragraphs.`,
     "- Chapter 1: strong hook in the first 2 sentences, concrete problem, different reactions from the main characters, open ending.",
     "- Chapter 2: world becomes concrete, trail/encounter, side or antagonist character shows a quirk, problem grows.",
     "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
@@ -2304,6 +2347,7 @@ function buildCompactStoryDraftPrompts(
   const bounds = getChapterLengthBounds(input.config);
   const targetMaxChars = getChapterDraftTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
 
@@ -2338,7 +2382,12 @@ function buildCompactStoryDraftPrompts(
     "",
     "HARD OUTPUT SHAPE:",
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
-    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter; aim for ${paragraphBudget.targetCount} compact paragraphs.`,
+    input.config.length === "short"
+      ? "- SHORT MODE: write the short version, not a compressed long story. One scene turn per chapter. Cut setup explanations."
+      : input.config.length === "medium"
+        ? "- MEDIUM MODE: compact and brisk. Do not drift into long chapter-book pacing."
+        : null,
+    `- ${paragraphBounds.min}-${paragraphBounds.max} paragraphs per chapter; aim for ${paragraphBudget.targetCount} compact paragraphs.`,
     `- Keep each paragraph around ${paragraphBudget.maxChars} characters. If unsure, cut rather than explain.`,
     `- Overall dialogue: writer target ${DEV_MODE_PROMPT_DIALOG_PCT}%, soft diagnostic target ${DEV_MODE_TARGET_DIALOG_PCT}%, hard floor ${DEV_MODE_MIN_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
@@ -2371,6 +2420,7 @@ function buildStoryPolishPrompts(
   const bounds = getChapterLengthBounds(input.config);
   const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -2399,8 +2449,13 @@ function buildStoryPolishPrompts(
     `- Exactly ${chapterCount} chapters.`,
     `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
     `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
-    `- Each chapter must have ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs. If there are too many paragraphs, merge them.`,
+    `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
+    input.config.length === "short"
+      ? "- SHORT REPAIR: cut 25-40% before polishing. Keep only hook, conflict, turn, and pull."
+      : input.config.length === "medium"
+        ? "- MEDIUM REPAIR: cut decorative second images and repeated reactions before adding any line."
+        : null,
     `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%; repair toward ${DEV_MODE_PROMPT_DIALOG_PCT}% so the measured result safely clears the floor.`,
     `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; anything below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}/10 needs another concrete fix, not score inflation.`,
@@ -2449,6 +2504,7 @@ function selectChapterDiagnosticsForRepair(
   config: StoryConfig
 ): DevModeChapterDiagnostic[] {
   const bounds = getChapterLengthBounds(config);
+  const paragraphBounds = getParagraphBounds(config);
   const priority = (chapter: DevModeChapterDiagnostic): number => {
     const overBy = Math.max(0, chapter.chars - bounds.max);
     const underBy = Math.max(0, bounds.min - chapter.chars);
@@ -2459,7 +2515,7 @@ function selectChapterDiagnosticsForRepair(
   const failing = diagnostics.chapterDiagnostics.filter((chapter) => {
     if (chapter.issues.length > 0) return true;
     if (chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) return true;
-    if (chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS) return true;
+    if (chapter.paragraphs < paragraphBounds.min || chapter.paragraphs > paragraphBounds.max) return true;
     if (chapter.chars < bounds.min || chapter.chars > bounds.max) return true;
     return false;
   });
@@ -2614,7 +2670,7 @@ function buildChapterRepairBlueprintContext(reviewedBlueprint: any, order: numbe
 
 function parseChapterRepairResult(content: string, fallbackChapter: DevModeChapter): { chapter: DevModeChapter; selfReflection?: any; parsed: any } {
   const parsed = tryParseJson(content);
-  const rawChapter = parsed?.repairedChapter || parsed?.chapter || parsed?.chapters?.[0] || parsed;
+  const rawChapter = parsed?.repairedChapter || parsed?.chapter || parsed?.chapters?.[0] || parsed?.selfReflection?.repairedChapter || parsed;
   const chapter = parseChapterFromModel(rawChapter, Math.max(0, fallbackChapter.order - 1), fallbackChapter.title);
   return {
     chapter: {
@@ -2646,6 +2702,7 @@ function buildChapterRepairPrompts(
     : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
   const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
   const targetParagraphMaxChars = paragraphBudget.maxChars;
   const dialogueLineTarget = input.config.length === "short"
     ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
@@ -2698,7 +2755,10 @@ function buildChapterRepairPrompts(
     `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
     "- Previous repairs failed because the model under-estimated character counts. Trust the server budget, not your estimate.",
     `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
-    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for ${paragraphBudget.targetCount} paragraphs.`,
+    `- ${paragraphBounds.min}-${paragraphBounds.max} paragraphs, output as repairedChapter.paragraphs[]. Aim for ${paragraphBudget.targetCount} paragraphs.`,
+    input.config.length === "short"
+      ? "- SHORT REPAIR MEANS REAL CUTS: remove secondary images, repeated reactions, and any sentence that only explains what the reader already saw."
+      : null,
     `- At least ${chapterTargetDialogPct}% dialogue in this chapter; never below ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     storyDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT
       ? `- Because the full story is under the dialogue floor, aim closer to ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue in this repaired chapter by replacing narration with conflict-bearing exchanges.`
@@ -3287,27 +3347,33 @@ interface DevModeStoryDiagnostics {
 }
 
 function getChapterLengthBounds(config: StoryConfig): { min: number; max: number } {
-  if (config.length === "short") return { min: 1200, max: 1800 };
-  if (config.length === "long") return { min: 2000, max: 2700 };
-  return { min: 1800, max: 2400 };
+  if (config.length === "short") return { min: 650, max: 1150 };
+  if (config.length === "long") return { min: 1300, max: 2200 };
+  return { min: 900, max: 1550 };
 }
 
 function getChapterDraftTargetMaxChars(config: StoryConfig): number {
   const bounds = getChapterLengthBounds(config);
-  const margin = config.length === "short" ? 300 : config.length === "long" ? 400 : 400;
+  const margin = config.length === "short" ? 200 : config.length === "long" ? 350 : 250;
   return Math.max(bounds.min, bounds.max - margin);
 }
 
 function getChapterRepairTargetMaxChars(config: StoryConfig): number {
   const bounds = getChapterLengthBounds(config);
-  const margin = config.length === "short" ? 350 : config.length === "long" ? 500 : 450;
+  const margin = config.length === "short" ? 250 : config.length === "long" ? 400 : 300;
   return Math.max(bounds.min, bounds.max - margin);
 }
 
+function getParagraphBounds(config: StoryConfig): { min: number; max: number } {
+  if (config.length === "short") return { min: 4, max: 7 };
+  if (config.length === "long") return { min: 6, max: 10 };
+  return { min: 5, max: 8 };
+}
+
 function getParagraphBudgetGuidance(config: StoryConfig): { targetCount: string; maxChars: number } {
-  if (config.length === "short") return { targetCount: "6-7", maxChars: 210 };
-  if (config.length === "long") return { targetCount: "7-8", maxChars: 300 };
-  return { targetCount: "7-8", maxChars: 240 };
+  if (config.length === "short") return { targetCount: "4-5", maxChars: 170 };
+  if (config.length === "long") return { targetCount: "6-8", maxChars: 240 };
+  return { targetCount: "5-6", maxChars: 190 };
 }
 
 function countDialogChars(text: string): number {
@@ -3349,6 +3415,7 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
   for (const motif of brief.hardAvoidMotifs) {
     const normalizedMotif = normalizeNoveltyText(motif);
     if (normalizedMotif.length < 6) continue;
+    if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) {
       continue;
     }
@@ -3392,10 +3459,12 @@ function collectSelectedCastIssues(story: DevModeRawStory, input: DevModeGenerat
   ].join("\n"));
 
   const missing = selectedIdea.selectedSupportingCast.filter((name) => {
-    const normalized = normalizeNoveltyText(name);
-    if (!normalized) return false;
-    const pattern = new RegExp(`\\b${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    return !pattern.test(storyText);
+    const aliases = characterNameMotifAliases(name);
+    if (aliases.length === 0) return false;
+    return !aliases.some((alias) => {
+      const pattern = new RegExp(`\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`, "i");
+      return pattern.test(storyText);
+    });
   });
 
   if (missing.length === 0) return [];
@@ -3413,6 +3482,7 @@ function analyzeDevModeStoryQuality(
   const softIssues: string[] = [];
   const polishInstructions: string[] = [];
   const bounds = getChapterLengthBounds(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
   const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
   const chapterDiagnostics: DevModeChapterDiagnostic[] = [];
   const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
@@ -3489,12 +3559,12 @@ function analyzeDevModeStoryQuality(
       hardIssues.push(`${chapterPrefix} ist deutlich zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
     }
 
-    if (paragraphs < DEV_MODE_MIN_PARAGRAPHS) {
+    if (paragraphs < paragraphBounds.min) {
       issues.push(`zu wenige Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS}).`);
-    } else if (paragraphs > DEV_MODE_MAX_PARAGRAPHS) {
+      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
+    } else if (paragraphs > paragraphBounds.max) {
       issues.push(`zu viele Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS}).`);
+      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
     }
 
     const lastParagraph = chapter.content.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).slice(-1)[0] || "";
@@ -3525,7 +3595,7 @@ function analyzeDevModeStoryQuality(
     polishInstructions.push(`Erhoehe den Dialoganteil sicher ueber ${DEV_MODE_MIN_DIALOG_PCT}% und peile beim Schreiben ${DEV_MODE_PROMPT_DIALOG_PCT}% an, indem Erklaerungen in charakterstarke Dialoge mit Handlung/Subtext umgebaut werden. Nicht durch Fuellsaetze aufblaehen.`);
   }
   if (hardIssues.concat(softIssues).some((issue) => /Laenge|lang|kurz|Absaetze/i.test(issue))) {
-    polishInstructions.push(`Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und 6-12 Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
+    polishInstructions.push(`Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und ${paragraphBounds.min}-${paragraphBounds.max} Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
   }
   if (softIssues.some((issue) => /Pull|Weiterlese/i.test(issue))) {
     polishInstructions.push("Schaerfe jedes Nicht-Final-Kapitelende: letzter Absatz mit Frage, Gefahr, Entscheidung, komischem Nachhall oder neuem konkretem Detail.");
@@ -3646,13 +3716,14 @@ function diagnosticsSeverityScore(
     Math.max(0, DEV_MODE_MIN_DIALOG_PCT - diagnostics.dialogPct) * 80
     + Math.max(0, DEV_MODE_TARGET_DIALOG_PCT - diagnostics.dialogPct) * 10;
   const bounds = config ? getChapterLengthBounds(config) : undefined;
+  const paragraphBounds = config ? getParagraphBounds(config) : { min: DEV_MODE_MIN_PARAGRAPHS, max: DEV_MODE_MAX_PARAGRAPHS };
   const chapterPenalty = diagnostics.chapterDiagnostics.reduce((sum, chapter) => {
     const lengthPenalty = bounds
       ? (Math.max(0, chapter.chars - bounds.max) + Math.max(0, bounds.min - chapter.chars)) * 0.8
       : 0;
     const paragraphPenalty =
-      Math.max(0, DEV_MODE_MIN_PARAGRAPHS - chapter.paragraphs) * 120
-      + Math.max(0, chapter.paragraphs - DEV_MODE_MAX_PARAGRAPHS) * 120;
+      Math.max(0, paragraphBounds.min - chapter.paragraphs) * 120
+      + Math.max(0, chapter.paragraphs - paragraphBounds.max) * 120;
     const chapterDialogPenalty =
       Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - chapter.dialogPct) * 60
       + Math.max(0, DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) * 8;
@@ -3769,9 +3840,9 @@ function isRecoverableStoryDraftFailure(error: unknown): boolean {
 }
 
 function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, retry: boolean): number {
-  if (config.length === "long") return retry ? 16000 : compactMode ? 13000 : 12000;
-  if (config.length === "short") return retry ? 6500 : compactMode ? 5200 : 5000;
-  return retry ? 9500 : compactMode ? 7800 : 7600;
+  if (config.length === "long") return retry ? 12000 : compactMode ? 9800 : 9200;
+  if (config.length === "short") return retry ? 4200 : compactMode ? 3400 : 3200;
+  return retry ? 6800 : compactMode ? 5400 : 5200;
 }
 
 function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
@@ -4236,8 +4307,11 @@ export async function generateStoryDevMode(
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       repairAttempt += 1;
       let chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
+      const broadFailureChapterThreshold = input.config.length === "short"
+        ? DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT
+        : Math.min(DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT, Math.max(3, chapterCount));
       const broadFormFailure =
-        chaptersToRepair.length >= DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT
+        chaptersToRepair.length >= broadFailureChapterThreshold
         && finalDiagnostics.hardIssues.some((issue) => /Dialoganteil|deutlich zu lang|deutlich zu kurz|Absaetze|Absätze/i.test(issue));
       if (broadFormFailure) {
         console.log("[dev-mode-generation] Skipping many chapter repairs; broad form failure will use one full-story polish", {
@@ -4293,8 +4367,9 @@ export async function generateStoryDevMode(
         );
         let chapterRepairStage: Awaited<ReturnType<typeof runStage>>;
         try {
+          const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
           chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
-            maxTokens: input.config.length === "long" ? 5200 : 3400,
+            maxTokens: repairMaxTokens,
             temperature: repairAttempt === 1 ? 0.38 : 0.24,
             timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
             modelRole: "selected-story",
