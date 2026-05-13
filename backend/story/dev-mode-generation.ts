@@ -173,9 +173,9 @@ export interface DevModeAvatar {
 }
 
 /**
- * Slim pool character info for prompt injection. Mirrors what the standard
- * pipeline's casting-engine produces (auto-cast), but stripped to what a
- * single-shot prompt actually needs.
+ * Pool character info for prompt injection. Mirrors the standard pipeline's
+ * enhanced character sheets closely enough for vivid voice, motive, triggers,
+ * quirks, and visual identity without pulling in the full pipeline graph.
  */
 export interface DevModePoolCharacter {
   id: string;
@@ -184,14 +184,22 @@ export interface DevModePoolCharacter {
   archetype?: string;
   species?: string | null;
   ageCategory?: string | null;
+  dominantPersonality?: string | null;
+  secondaryTraits?: string[];
+  emotionalNature?: any;
+  emotionalTriggers?: string[];
   /** One-line visual hook. */
   physicalDescription?: string | null;
-  /** Up to ~3 personality words. */
+  colorPalette?: string[];
+  /** Compact personality words used as fallback when V2 fields are sparse. */
   personalityKeywords?: string[];
   catchphrase?: string | null;
+  catchphraseContext?: string | null;
   speechStyle?: string[];
   quirk?: string | null;
   backstory?: string | null;
+  maxScreenTime?: number | null;
+  availableChapters?: number[];
   canonSettings?: string[];
   recentUsageCount?: number;
   totalUsageCount?: number;
@@ -830,22 +838,94 @@ function buildPoolBlock(pool?: DevModePoolCharacter[]): string {
     if (meta.length > 0) lines.push(`   ${meta.join(" · ")}`);
     const physicalDescription = sanitizePoolPromptText(c.physicalDescription);
     if (physicalDescription) lines.push(`   Appearance: ${physicalDescription}`);
-    if (c.personalityKeywords && c.personalityKeywords.length > 0) {
-      lines.push(`   Character: ${c.personalityKeywords.join(", ")}`);
+    if (c.colorPalette && c.colorPalette.length > 0) {
+      lines.push(`   Visual palette: ${c.colorPalette.slice(0, 4).join(", ")}`);
+    }
+    const personality = poolCharacterPersonalityLine(c, 6);
+    if (personality.length > 0) {
+      lines.push(`   Character core: ${personality.join(", ")}`);
+    }
+    const triggers = poolCharacterTriggers(c, 4);
+    if (triggers.length > 0) {
+      lines.push(`   Emotional triggers: ${triggers.join(", ")}`);
     }
     if (c.catchphrase) lines.push(`   Catchphrase (translate into the target language while preserving meaning): "${c.catchphrase}"`);
+    if (c.catchphraseContext) lines.push(`   Catchphrase context: ${compactExcerpt(c.catchphraseContext, 140)}`);
     if (c.speechStyle && c.speechStyle.length > 0) {
       lines.push(`   Speech style: ${c.speechStyle.join(", ")}`);
     }
     if (c.quirk) lines.push(`   Quirk: ${c.quirk}`);
     const backstory = sanitizePoolPromptText(c.backstory);
     if (backstory) lines.push(`   Backstory: ${backstory}`);
+    if (typeof c.maxScreenTime === "number") {
+      lines.push(`   Screen-time guardrail: max about ${c.maxScreenTime}% of the story focus; make them vivid, not scene-stealing.`);
+    }
   });
   return lines.join("\n");
 }
 
 function normalizePoolName(name: string): string {
   return String(name || "").trim().toLowerCase();
+}
+
+function compactStringList(values: unknown, limit = 4): string[] {
+  if (!Array.isArray(values)) return [];
+  const result: string[] = [];
+  for (const value of values) {
+    const text = String(value || "").trim();
+    if (!text || result.includes(text)) continue;
+    result.push(text);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function asPlainObject(value: unknown): Record<string, any> {
+  if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
+  if (typeof value === "string" && value.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function poolCharacterDominant(character: DevModePoolCharacter): string | undefined {
+  const emotionalNature = asPlainObject(character.emotionalNature);
+  return compactExcerpt(String(
+    character.dominantPersonality ||
+    emotionalNature.dominant ||
+    character.personalityKeywords?.[0] ||
+    ""
+  ).trim(), 60) || undefined;
+}
+
+function poolCharacterSecondaryTraits(character: DevModePoolCharacter, limit = 4): string[] {
+  const emotionalNature = asPlainObject(character.emotionalNature);
+  const explicit = compactStringList(character.secondaryTraits, limit);
+  if (explicit.length > 0) return explicit;
+  const emotional = compactStringList(emotionalNature.secondary, limit);
+  if (emotional.length > 0) return emotional;
+  return compactStringList((character.personalityKeywords || []).slice(1), limit);
+}
+
+function poolCharacterTriggers(character: DevModePoolCharacter, limit = 4): string[] {
+  const emotionalNature = asPlainObject(character.emotionalNature);
+  const explicit = compactStringList(character.emotionalTriggers, limit);
+  if (explicit.length > 0) return explicit;
+  return compactStringList(emotionalNature.triggers, limit);
+}
+
+function poolCharacterPersonalityLine(character: DevModePoolCharacter, limit = 6): string[] {
+  const dominant = poolCharacterDominant(character);
+  return [dominant, ...poolCharacterSecondaryTraits(character, limit)].filter((value): value is string => Boolean(value)).slice(0, limit);
+}
+
+function looksLikeVividStorySpecies(species?: string | null): boolean {
+  return /animal|magical|myth|dragon|fairy|fee|witch|hexe|kobold|goblin|squirrel|eichhoernchen|eichhörnchen|frog|frosch|fox|fuchs|sprite|spirit|geist|creature|guardian|waechter|wächter/i.test(String(species || ""));
 }
 
 function buildIdeaAvatarBlock(avatars: DevModeAvatar[]): string {
@@ -882,12 +962,19 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
       character.ageCategory || null,
     ].filter((part): part is string => Boolean(part));
     lines.push(`${index + 1}. ${character.name}${parts.length > 0 ? ` - ${parts.join(", ")}` : ""}`);
-    const traits = (character.personalityKeywords || []).slice(0, 4);
+    const traits = poolCharacterPersonalityLine(character, 4);
     if (traits.length > 0) {
-      lines.push(`   Traits: ${traits.join(", ")}`);
+      lines.push(`   Core: ${traits.join(", ")}`);
+    }
+    const triggers = poolCharacterTriggers(character, 2);
+    if (triggers.length > 0) {
+      lines.push(`   Reacts strongly to: ${triggers.join(", ")}`);
     }
     if (character.quirk) {
       lines.push(`   Quirk: ${compactExcerpt(character.quirk, 120)}`);
+    }
+    if (character.speechStyle && character.speechStyle.length > 0) {
+      lines.push(`   Voice: ${character.speechStyle.slice(0, 3).join(", ")}`);
     }
     if (character.catchphrase) {
       lines.push(`   Catchphrase: ${compactExcerpt(character.catchphrase, 100)}`);
@@ -1154,9 +1241,14 @@ function poolCharacterFitText(character: DevModePoolCharacter): string {
     character.archetype,
     character.species,
     character.ageCategory,
+    poolCharacterDominant(character),
+    ...poolCharacterSecondaryTraits(character, 6),
+    ...poolCharacterTriggers(character, 6),
     character.physicalDescription,
+    ...(character.colorPalette || []),
     ...(character.personalityKeywords || []),
     character.catchphrase,
+    character.catchphraseContext,
     ...(character.speechStyle || []),
     character.quirk,
     character.backstory,
@@ -1186,7 +1278,10 @@ function scorePoolCharacterForSelectedIdea(
   selectedIdea: DevModeSelectedIdea,
   input: DevModeGenerationInput
 ): number {
-  const recommendedNames = new Set((selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).map(normalizePoolName));
+  const requestedCastNames = selectedIdea.selectedSupportingCast?.length
+    ? selectedIdea.selectedSupportingCast
+    : selectedIdea.recommendedSupportingCast || [];
+  const recommendedNames = new Set(requestedCastNames.map(normalizePoolName));
   const isRecommended = recommendedNames.has(normalizePoolName(character.name));
   const ideaKeywords = extractMotifKeywords(selectedIdeaFitText(selectedIdea, input.config), 18);
   const characterKeywords = extractMotifKeywords(poolCharacterFitText(character), 18);
@@ -1200,16 +1295,18 @@ function scorePoolCharacterForSelectedIdea(
   const canon = (character.canonSettings || []).map((value) => value.toLowerCase());
   if (setting && canon.some((value) => value === setting || value.includes(setting) || setting.includes(value))) score += 16;
   if (genre.includes("fairy") || genre.includes("maerchen") || genre.includes("märchen")) {
-    if (species === "animal" || species === "magical_creature" || species === "mythical") score += 8;
+    if (species === "animal" || species === "magical_creature" || species === "mythical" || looksLikeVividStorySpecies(species)) score += 8;
     if (/helper|guide|witch|trickster|villain|guardian|mentor/.test(roleArchetype)) score += 7;
   } else if (genre.includes("adventure") || genre.includes("abenteuer")) {
     if (/helper|guide|scout|messenger|trickster|guardian/.test(roleArchetype)) score += 7;
   }
 
-  if ((character.personalityKeywords || []).length >= 2) score += 3;
+  if (poolCharacterPersonalityLine(character, 6).length >= 2) score += 4;
+  if (poolCharacterTriggers(character, 4).length > 0) score += 3;
   if ((character.speechStyle || []).length > 0) score += 3;
   if (character.quirk) score += 3;
   if (character.catchphrase) score += 2;
+  if (character.catchphraseContext) score += 1;
 
   // Recency is deliberately soft: a recently used character may still win
   // when the story fit is clearly stronger than fresher alternatives.
@@ -4828,7 +4925,8 @@ async function generateStoryDevModeLegacy(
 // Mirrors the *outcome* of the standard pipeline's casting-engine but stays
 // fully synchronous and self-contained — no variant plan, no RNG seed, no
 // artifact matching, no LLM calls. Just: filter by setting/age, prefer
-// less-recently-used, return 2–4 candidates.
+// story-fit and freshness, return a broad idea-lab pool; final 2–4 supporting
+// characters are selected after the winning idea is known.
 
 interface CharacterPoolRow {
   id: string;
@@ -4837,13 +4935,19 @@ interface CharacterPoolRow {
   archetype: string | null;
   emotional_nature: any;
   visual_profile: any;
+  max_screen_time: number | null;
+  available_chapters: number[] | null;
   age_category: string | null;
   species_category: string | null;
   personality_keywords: string[] | null;
   physical_description: string | null;
   backstory: string | null;
+  dominant_personality: string | null;
+  secondary_traits: string[] | null;
   catchphrase: string | null;
+  catchphrase_context: string | null;
   speech_style: string[] | null;
+  emotional_triggers: string[] | null;
   quirk: string | null;
   canon_settings: string[] | null;
   recent_usage_count: number | null;
@@ -4934,10 +5038,12 @@ export async function pickDevModePoolCharacters(input: {
   try {
     rows = await storyDB.queryAll<CharacterPoolRow>`
       SELECT id, name, role, archetype, emotional_nature, visual_profile,
+             max_screen_time, available_chapters,
              age_category, species_category, personality_keywords,
-             physical_description, backstory, catchphrase, speech_style,
-              quirk, canon_settings, recent_usage_count, total_usage_count,
-              last_used_at
+             physical_description, backstory, dominant_personality,
+             secondary_traits, catchphrase, catchphrase_context,
+             speech_style, emotional_triggers, quirk, canon_settings,
+             recent_usage_count, total_usage_count, last_used_at
       FROM character_pool
       WHERE is_active = TRUE
     `;
@@ -4965,7 +5071,13 @@ export async function pickDevModePoolCharacters(input: {
       let score = 0;
       const role = String(r.role || "").toLowerCase();
       const archetype = String(r.archetype || "").toLowerCase();
-      const species = String(r.species_category || "").toLowerCase();
+      const visualProfile = asPlainObject(r.visual_profile);
+      const visualSpecies = String(visualProfile.species || "").toLowerCase();
+      const species = String(r.species_category && r.species_category !== "any" ? r.species_category : visualSpecies || r.species_category || "").toLowerCase();
+      const emotionalNature = asPlainObject(r.emotional_nature);
+      const dominantPersonality = String(r.dominant_personality || emotionalNature.dominant || r.personality_keywords?.[0] || "").trim();
+      const secondaryTraits = compactStringList((r.secondary_traits || []).length > 0 ? r.secondary_traits : emotionalNature.secondary, 4);
+      const emotionalTriggers = compactStringList((r.emotional_triggers || []).length > 0 ? r.emotional_triggers : emotionalNature.triggers, 4);
 
       // Setting match — strong signal. canon_settings is text[].
       const canon = (r.canon_settings || []).map((s) => s.toLowerCase());
@@ -4994,25 +5106,29 @@ export async function pickDevModePoolCharacters(input: {
 
       // Genre fit — light approximation of the standard pipeline's requirement-based matcher.
       if (genre.includes("fairy") || genre.includes("maerchen") || genre.includes("märchen")) {
-        if (species === "animal" || species === "magical_creature") score += 14;
+        if (species === "animal" || species === "magical_creature" || looksLikeVividStorySpecies(species)) score += 14;
         if (/helper|guide|witch|trickster|villain|guardian/.test(`${role} ${archetype}`)) score += 10;
       } else if (genre.includes("adventure") || genre.includes("abenteuer")) {
         if (/helper|guide|scout|messenger|trickster/.test(`${role} ${archetype}`)) score += 10;
-        if (species === "animal" || species === "magical_creature") score += 6;
+        if (species === "animal" || species === "magical_creature" || looksLikeVividStorySpecies(species)) score += 6;
       } else {
         if (/helper|guide|friend|guardian/.test(`${role} ${archetype}`)) score += 6;
       }
 
       // Age fit — younger stories benefit from vivid, readable support cast.
       if (ageMax <= 8) {
-        if (species === "animal" || species === "magical_creature") score += 8;
+        if (species === "animal" || species === "magical_creature" || looksLikeVividStorySpecies(species)) score += 8;
         if ((r.catchphrase || "").trim()) score += 4;
         if ((r.quirk || "").trim()) score += 4;
         if ((r.speech_style || []).length > 0) score += 3;
       }
 
       // Richness — prefer characters with usable on-page behavior, not empty shells.
-      if ((r.personality_keywords || []).length >= 2) score += 3;
+      if (dominantPersonality) score += 3;
+      if (secondaryTraits.length > 0) score += 3;
+      if (emotionalTriggers.length > 0) score += 4;
+      if ((r.personality_keywords || []).length >= 2) score += 2;
+      if ((r.catchphrase_context || "").trim()) score += 1;
       if ((r.backstory || "").trim()) score += 2;
 
       // Small noise + weighted lottery below prevent the same top rows from
@@ -5071,24 +5187,44 @@ export async function pickDevModePoolCharacters(input: {
   });
 
   return picked.map((r) => {
-    const vp = r.visual_profile;
+    const vp = asPlainObject(r.visual_profile);
     const physicalDescription =
       r.physical_description ||
-      (vp && typeof vp === "object" ? (vp.description || vp.appearance || null) : null);
+      (vp.description || vp.appearance || null);
+    const emotionalNature = asPlainObject(r.emotional_nature);
+    const dominantPersonality = String(r.dominant_personality || emotionalNature.dominant || r.personality_keywords?.[0] || "").trim() || null;
+    const secondaryTraits = compactStringList((r.secondary_traits || []).length > 0 ? r.secondary_traits : emotionalNature.secondary, 6);
+    const emotionalTriggers = compactStringList((r.emotional_triggers || []).length > 0 ? r.emotional_triggers : emotionalNature.triggers, 6);
+    const personalityKeywords = (r.personality_keywords || []).length > 0
+      ? r.personality_keywords || []
+      : [dominantPersonality, ...secondaryTraits].filter((value): value is string => Boolean(value)).slice(0, 6);
+    const visualSpecies = String(vp.species || "").trim();
+    const species = r.species_category && r.species_category !== "any"
+      ? r.species_category
+      : visualSpecies || r.species_category;
+    const colorPalette = compactStringList(vp.colorPalette, 4);
 
     return {
       id: r.id,
       name: r.name,
       role: r.role || undefined,
       archetype: r.archetype || undefined,
-      species: r.species_category,
+      species,
       ageCategory: r.age_category,
+      dominantPersonality,
+      secondaryTraits,
+      emotionalNature,
+      emotionalTriggers,
       physicalDescription,
-      personalityKeywords: r.personality_keywords || [],
+      colorPalette,
+      personalityKeywords,
       catchphrase: r.catchphrase,
+      catchphraseContext: r.catchphrase_context,
       speechStyle: r.speech_style || [],
       quirk: r.quirk,
       backstory: r.backstory,
+      maxScreenTime: r.max_screen_time,
+      availableChapters: r.available_chapters || [],
       canonSettings: r.canon_settings || [],
       recentUsageCount: Number(r.recent_usage_count) || 0,
       totalUsageCount: Number(r.total_usage_count) || 0,
