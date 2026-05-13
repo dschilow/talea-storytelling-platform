@@ -41,16 +41,21 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v3";
-const DEV_MODE_MIN_DIALOG_PCT = 25;
-const DEV_MODE_TARGET_DIALOG_PCT = 30;
-const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v4";
+const DEV_MODE_MIN_DIALOG_PCT = 30;
+const DEV_MODE_TARGET_DIALOG_PCT = 34;
+const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 22;
 const DEV_MODE_MIN_PARAGRAPHS = 6;
 const DEV_MODE_MAX_PARAGRAPHS = 12;
-const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
+const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 3;
+const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
-const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 8;
-const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 3;
+const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
+const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
+const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
+const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 
 interface DevModeChapter {
   title: string;
@@ -979,7 +984,8 @@ function buildStoryDraftPrompts(
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const bounds = getChapterLengthBounds(input.config);
-  const draftTargetMaxChars = Math.max(bounds.min, bounds.max - 150);
+  const draftTargetMaxChars = getChapterDraftTargetMaxChars(input.config);
+  const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -1036,7 +1042,8 @@ function buildStoryDraftPrompts(
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
     `- Aim each chapter for ${bounds.min}-${draftTargetMaxChars} characters. Do not write to the upper edge; the repair gate fails over ${bounds.max}.`,
-    "- Prefer 8 compact paragraphs over 10 long paragraphs. One paragraph should rarely exceed 350 characters in medium mode.",
+    `- Use ${paragraphBudget.targetCount} compact paragraphs per chapter. Keep each paragraph around ${paragraphBudget.maxChars} characters; if a paragraph grows longer, split the beat or cut explanation.`,
+    "- Models often undercount prose length; write visibly shorter than the upper edge so the server's real character count still passes.",
     `- ${DEV_MODE_MIN_PARAGRAPHS}–${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter. Output them as a paragraphs[] array. This is a hard gate, not a suggestion.`,
     `- Overall dialogue share at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Every chapter should include at least ${DEV_MODE_CHAPTER_DIALOG_LINE_TARGET} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns unless the chapter is intentionally very short (${input.config.length === "short" ? "short mode" : "not short mode"}).`,
@@ -1164,7 +1171,8 @@ function buildCompactStoryDraftPrompts(
   const languageName = localizedLanguageName(input.config.language);
   const code = languageCodeFromName(languageName);
   const bounds = getChapterLengthBounds(input.config);
-  const targetMaxChars = Math.max(bounds.min, bounds.max - 250);
+  const targetMaxChars = getChapterDraftTargetMaxChars(input.config);
+  const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
 
@@ -1199,7 +1207,8 @@ function buildCompactStoryDraftPrompts(
     "",
     "HARD OUTPUT SHAPE:",
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
-    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter; aim for 8 compact paragraphs.`,
+    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs per chapter; aim for ${paragraphBudget.targetCount} compact paragraphs.`,
+    `- Keep each paragraph around ${paragraphBudget.maxChars} characters. If unsure, cut rather than explain.`,
     `- Overall dialogue at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
     "- Keep sentences child-readable for ages 6-8: concrete, warm, funny, sensory.",
@@ -1237,6 +1246,9 @@ function buildStoryPolishPrompts(
   critique: any
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
+  const bounds = getChapterLengthBounds(input.config);
+  const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
+  const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -1245,9 +1257,10 @@ function buildStoryPolishPrompts(
       '  "title": string,',
       '  "description": string,',
       '  "chapters": [',
-      '    { "order": number, "title": string, "content": string }',
+      '    { "order": number, "title": string, "paragraphs": string[] }',
       "  ]",
       "}",
+      "IMPORTANT: Use paragraphs[] for chapter prose. Each array item is exactly one paragraph.",
     ].join("\n")
   );
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
@@ -1261,10 +1274,13 @@ function buildStoryPolishPrompts(
     "",
     "HARD GATES:",
     `- Exactly ${chapterCount} chapters.`,
-    `- Each chapter must stay within ${getChapterLengthBounds(input.config).min}-${getChapterLengthBounds(input.config).max} characters of target-language prose.`,
+    `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
+    `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
     `- Each chapter must have ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs. If there are too many paragraphs, merge them.`,
+    `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
     `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%, target ${DEV_MODE_TARGET_DIALOG_PCT}%.`,
     `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
+    `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; anything below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}/10 needs another concrete fix, not score inflation.`,
     "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
     "- JSON must be valid and match the schema exactly.",
     "",
@@ -1302,6 +1318,7 @@ function buildStoryPolishPrompts(
         addictiveReadingFixes: critique?.addictiveReadingFixes || [],
         chapterRisks: critique?.chapterRisks || [],
         validatorFindings: critique?.validatorFindings || null,
+        polishReason: critique?.polishReason || null,
       },
       null,
       2
@@ -1457,8 +1474,9 @@ function buildChapterRepairPrompts(
   const chapterTargetDialogPct = storyDiagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT
     ? DEV_MODE_TARGET_DIALOG_PCT
     : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
-  const targetMaxChars = Math.max(bounds.min, bounds.max - 150);
-  const targetParagraphMaxChars = input.config.length === "short" ? 280 : input.config.length === "long" ? 420 : 360;
+  const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
+  const paragraphBudget = getParagraphBudgetGuidance(input.config);
+  const targetParagraphMaxChars = paragraphBudget.maxChars;
   const dialogueLineTarget = input.config.length === "short"
     ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
     : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
@@ -1508,8 +1526,9 @@ function buildChapterRepairPrompts(
     `- Keep order exactly ${chapter.order}.`,
     `- Keep title unless a tiny grammar fix is needed: ${chapter.title}.`,
     `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
+    "- Previous repairs failed because the model under-estimated character counts. Trust the server budget, not your estimate.",
     `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
-    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for 8-10 paragraphs.`,
+    `- ${DEV_MODE_MIN_PARAGRAPHS}-${DEV_MODE_MAX_PARAGRAPHS} paragraphs, output as repairedChapter.paragraphs[]. Aim for ${paragraphBudget.targetCount} paragraphs.`,
     `- At least ${chapterTargetDialogPct}% dialogue in this chapter; never below ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- At least ${dialogueLineTarget} dialogue lines and at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns.`,
     "- Dialogue must change action, relationship, tension, subtext, or comic timing. No filler chatter.",
@@ -2089,6 +2108,24 @@ function getChapterLengthBounds(config: StoryConfig): { min: number; max: number
   return { min: 1800, max: 2400 };
 }
 
+function getChapterDraftTargetMaxChars(config: StoryConfig): number {
+  const bounds = getChapterLengthBounds(config);
+  const margin = config.length === "short" ? 300 : config.length === "long" ? 400 : 400;
+  return Math.max(bounds.min, bounds.max - margin);
+}
+
+function getChapterRepairTargetMaxChars(config: StoryConfig): number {
+  const bounds = getChapterLengthBounds(config);
+  const margin = config.length === "short" ? 350 : config.length === "long" ? 500 : 450;
+  return Math.max(bounds.min, bounds.max - margin);
+}
+
+function getParagraphBudgetGuidance(config: StoryConfig): { targetCount: string; maxChars: number } {
+  if (config.length === "short") return { targetCount: "6-7", maxChars: 210 };
+  if (config.length === "long") return { targetCount: "7-8", maxChars: 300 };
+  return { targetCount: "7-8", maxChars: 240 };
+}
+
 function countDialogChars(text: string): number {
   return Array.from(text.matchAll(/„[^“]+“|«[^»]+»|"[^"]+"/g)).reduce((sum, match) => sum + match[0].length, 0);
 }
@@ -2340,22 +2377,43 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
   return Math.max(0, Math.round(score * 10) / 10);
 }
 
-function diagnosticsSeverityScore(diagnostics: DevModeStoryDiagnostics, expectedChapterCount: number): number {
+function diagnosticsSeverityScore(
+  diagnostics: DevModeStoryDiagnostics,
+  expectedChapterCount: number,
+  config?: StoryConfig
+): number {
   const chapterCountPenalty = Math.abs(diagnostics.chapterDiagnostics.length - expectedChapterCount) * 1000;
-  const dialogPenalty = Math.max(0, DEV_MODE_MIN_DIALOG_PCT - diagnostics.dialogPct) * 8;
+  const dialogPenalty =
+    Math.max(0, DEV_MODE_MIN_DIALOG_PCT - diagnostics.dialogPct) * 80
+    + Math.max(0, DEV_MODE_TARGET_DIALOG_PCT - diagnostics.dialogPct) * 10;
+  const bounds = config ? getChapterLengthBounds(config) : undefined;
+  const chapterPenalty = diagnostics.chapterDiagnostics.reduce((sum, chapter) => {
+    const lengthPenalty = bounds
+      ? (Math.max(0, chapter.chars - bounds.max) + Math.max(0, bounds.min - chapter.chars)) * 0.8
+      : 0;
+    const paragraphPenalty =
+      Math.max(0, DEV_MODE_MIN_PARAGRAPHS - chapter.paragraphs) * 120
+      + Math.max(0, chapter.paragraphs - DEV_MODE_MAX_PARAGRAPHS) * 120;
+    const chapterDialogPenalty =
+      Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - chapter.dialogPct) * 60
+      + Math.max(0, DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) * 8;
+    return sum + lengthPenalty + paragraphPenalty + chapterDialogPenalty;
+  }, 0);
   return chapterCountPenalty
-    + diagnostics.hardIssueCount * 100
-    + diagnostics.softIssueCount * 10
-    + dialogPenalty;
+    + diagnostics.hardIssueCount * 1000
+    + diagnostics.softIssueCount * 50
+    + dialogPenalty
+    + chapterPenalty;
 }
 
 function isDiagnosticsBetter(
   candidate: DevModeStoryDiagnostics,
   currentBest: DevModeStoryDiagnostics | undefined,
-  expectedChapterCount: number
+  expectedChapterCount: number,
+  config?: StoryConfig
 ): boolean {
   if (!currentBest) return true;
-  return diagnosticsSeverityScore(candidate, expectedChapterCount) < diagnosticsSeverityScore(currentBest, expectedChapterCount);
+  return diagnosticsSeverityScore(candidate, expectedChapterCount, config) < diagnosticsSeverityScore(currentBest, expectedChapterCount, config);
 }
 
 function formatQualityGateFailureReason(diagnostics?: DevModeStoryDiagnostics): string | undefined {
@@ -2781,7 +2839,8 @@ export async function generateStoryDevMode(
   let rawQualityScore: number | undefined;
   let localGateScore: number | undefined;
   let finalDiagnostics: DevModeStoryDiagnostics | undefined;
-  let polishApplied = false;
+  let storyPolishApplied = false;
+  let chapterRepairApplied = false;
   let qualityGateFailureReason: string | undefined;
   const repairSelfReflections: any[] = [];
 
@@ -2863,13 +2922,28 @@ export async function generateStoryDevMode(
 
     let repairAttempt = 0;
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
-      polishApplied = true;
       repairAttempt += 1;
       let chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
+      const broadFormFailure =
+        chaptersToRepair.length >= DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT
+        && finalDiagnostics.hardIssues.some((issue) => /Dialoganteil|deutlich zu lang|deutlich zu kurz|Absaetze|Absätze/i.test(issue));
+      if (broadFormFailure) {
+        console.log("[dev-mode-generation] Skipping many chapter repairs; broad form failure will use one full-story polish", {
+          attempt: repairAttempt,
+          failingChapterCount: chaptersToRepair.length,
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          dialogPct: finalDiagnostics.dialogPct,
+        });
+        break;
+      }
+      if (chaptersToRepair.length > DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS) {
+        chaptersToRepair = chaptersToRepair.slice(0, DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS);
+      }
       if (repairAttempt > 1 && chaptersToRepair.length > DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT) {
         chaptersToRepair = chaptersToRepair.slice(0, DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT);
       }
       if (chaptersToRepair.length === 0) break;
+      chapterRepairApplied = true;
 
       console.log("[dev-mode-generation] Triggering chapter-level strict gate repair", {
         attempt: repairAttempt,
@@ -2881,6 +2955,7 @@ export async function generateStoryDevMode(
           dialogPct: chapter.dialogPct,
           issues: chapter.issues,
         })),
+        reason: "targeted-chapter-repair",
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
@@ -2981,8 +3056,8 @@ export async function generateStoryDevMode(
       }
 
       const repairedDiagnostics = analyzeDevModeStoryQuality(repairedParsed, input, chapterCount);
-      const improved = isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount);
-      if (isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount)) {
+      const improved = isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount, input.config);
+      if (isDiagnosticsBetter(repairedDiagnostics, bestDiagnostics, chapterCount, input.config)) {
         bestParsed = repairedParsed;
         bestModelUsed = repairedModelUsed;
         bestDiagnostics = repairedDiagnostics;
@@ -3006,6 +3081,138 @@ export async function generateStoryDevMode(
       if (!improved) break;
     }
 
+    if (!chapterRepairApplied) {
+      console.log("[dev-mode-generation] Skipping chapter repair", {
+        reason: finalDiagnostics?.needsPolish ? "broad-form-failure-story-polish" : "draft-passed-local-gates",
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        softIssueCount: finalDiagnostics?.softIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
+      });
+    }
+
+    for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS; validationAttempt += 1) {
+      let validatorFindings: any | undefined;
+      const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+      try {
+        const validationStage = await runStage("final-validation", validationPrompts, {
+          maxTokens: 2600,
+          temperature: 0.1,
+          timeoutMs: 120_000,
+          ...supportCallOptions,
+          modelRole: "support",
+        });
+        validatorFindings = validationStage.parsed;
+        rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+      } catch (validationError) {
+        console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
+          error: validationError instanceof Error ? validationError.message : String(validationError),
+          hardIssueCount: finalDiagnostics?.hardIssueCount,
+          dialogPct: finalDiagnostics?.dialogPct,
+        });
+        rawQualityScore = undefined;
+      }
+      localGateScore = calculateLocalGateScore(finalDiagnostics);
+      finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+
+      if (typeof rawQualityScore === "number" && typeof finalQualityScore === "number" && finalQualityScore < rawQualityScore) {
+        console.warn("[dev-mode-generation] Validator score capped by local gates", {
+          rawQualityScore,
+          localGateScore,
+          finalQualityScore,
+          hardIssueCount: finalDiagnostics?.hardIssueCount,
+          dialogPct: finalDiagnostics?.dialogPct,
+        });
+      }
+
+      const currentScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+      const shouldAttemptStoryPolish =
+        validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
+        && Boolean(finalParsed)
+        && Boolean(finalDiagnostics)
+        && (
+          (finalDiagnostics?.hardIssueCount ?? 0) > 0
+          || (finalDiagnostics?.dialogPct ?? 0) < DEV_MODE_TARGET_DIALOG_PCT
+          || currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+        );
+
+      if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) break;
+
+      const currentParsed = finalParsed;
+      const currentDiagnostics = finalDiagnostics;
+      const currentSeverity = diagnosticsSeverityScore(currentDiagnostics, chapterCount, input.config);
+      const polishReason =
+        currentDiagnostics.hardIssueCount > 0
+          ? "local-hard-gates"
+          : currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+            ? "validator-market-quality"
+            : "dialogue-target";
+
+      console.warn("[dev-mode-generation] Triggering full-story polish after validation", {
+        validationAttempt: validationAttempt + 1,
+        polishReason,
+        currentScore,
+        hardIssueCount: currentDiagnostics.hardIssueCount,
+        dialogPct: currentDiagnostics.dialogPct,
+      });
+
+      try {
+        const storyPolishPrompts = buildStoryPolishPrompts(
+          input,
+          chapterCount,
+          currentParsed,
+          currentDiagnostics,
+          blueprint,
+          {
+            ...critique,
+            validatorFindings,
+            polishReason,
+          }
+        );
+        const storyPolishStage = await runStage("story-polish", storyPolishPrompts, {
+          maxTokens: devModeStoryDraftMaxTokens(input.config, false, true),
+          temperature: currentDiagnostics.hardIssueCount > 0 ? 0.28 : 0.34,
+          timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
+          modelRole: "selected-story",
+        });
+        const polishedParsed = parseAndValidate(storyPolishStage.provider.content, chapterCount);
+        const polishedDiagnostics = analyzeDevModeStoryQuality(polishedParsed, input, chapterCount);
+        const polishedSeverity = diagnosticsSeverityScore(polishedDiagnostics, chapterCount, input.config);
+        const locallyAcceptable =
+          polishedDiagnostics.hardIssueCount === 0
+          || polishedSeverity < currentSeverity
+          || (
+            currentDiagnostics.hardIssueCount === 0
+            && polishedDiagnostics.hardIssueCount === 0
+            && polishedSeverity <= currentSeverity + 120
+          );
+
+        if (!locallyAcceptable) {
+          console.warn("[dev-mode-generation] Full-story polish rejected by deterministic diagnostics", {
+            currentSeverity,
+            polishedSeverity,
+            hardIssueCountBefore: currentDiagnostics.hardIssueCount,
+            hardIssueCountAfter: polishedDiagnostics.hardIssueCount,
+            dialogPctBefore: currentDiagnostics.dialogPct,
+            dialogPctAfter: polishedDiagnostics.dialogPct,
+          });
+          break;
+        }
+
+        finalParsed = polishedParsed;
+        finalModelUsed = storyPolishStage.provider.modelUsed;
+        finalDiagnostics = polishedDiagnostics;
+        storyPolishApplied = true;
+        rawQualityScore = undefined;
+        localGateScore = undefined;
+        finalQualityScore = undefined;
+      } catch (storyPolishError) {
+        console.warn("[dev-mode-generation] Full-story polish failed; keeping previous story", {
+          error: storyPolishError instanceof Error ? storyPolishError.message : String(storyPolishError),
+        });
+        break;
+      }
+    }
+
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
       qualityGateFailureReason = formatQualityGateFailureReason(finalDiagnostics);
       console.warn("[dev-mode-generation] Returning selected-model story with capped quality score after local gate warnings", {
@@ -3013,45 +3220,6 @@ export async function generateStoryDevMode(
         softIssueCount: finalDiagnostics.softIssueCount,
         dialogPct: finalDiagnostics.dialogPct,
         qualityGateFailureReason,
-      });
-    }
-
-    if (!polishApplied) {
-      console.log("[dev-mode-generation] Skipping chapter repair — draft passed local gates", {
-        hardIssueCount: finalDiagnostics?.hardIssueCount,
-        softIssueCount: finalDiagnostics?.softIssueCount,
-        dialogPct: finalDiagnostics?.dialogPct,
-      });
-    }
-
-    const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
-    try {
-      const validationStage = await runStage("final-validation", validationPrompts, {
-        maxTokens: 2200,
-        temperature: 0.1,
-        timeoutMs: 120_000,
-        ...supportCallOptions,
-        modelRole: "support",
-      });
-      rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
-    } catch (validationError) {
-      console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
-        error: validationError instanceof Error ? validationError.message : String(validationError),
-        hardIssueCount: finalDiagnostics?.hardIssueCount,
-        dialogPct: finalDiagnostics?.dialogPct,
-      });
-      rawQualityScore = undefined;
-    }
-    localGateScore = calculateLocalGateScore(finalDiagnostics);
-    finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
-
-    if (typeof rawQualityScore === "number" && typeof finalQualityScore === "number" && finalQualityScore < rawQualityScore) {
-      console.warn("[dev-mode-generation] Validator score capped by local gates", {
-        rawQualityScore,
-        localGateScore,
-        finalQualityScore,
-        hardIssueCount: finalDiagnostics?.hardIssueCount,
-        dialogPct: finalDiagnostics?.dialogPct,
       });
     }
   } catch (pipelineError) {
@@ -3162,8 +3330,8 @@ export async function generateStoryDevMode(
         })),
       },
       localQualityDiagnostics: finalDiagnostics,
-      storyPolishApplied: polishApplied,
-      chapterRepairApplied: polishApplied,
+      storyPolishApplied,
+      chapterRepairApplied,
       repairSelfReflections,
       rawQualityScore,
       localGateScore,
@@ -3210,8 +3378,8 @@ export async function generateStoryDevMode(
       imagesGenerated: 0,
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,
-      storyPolishApplied: polishApplied,
-      chapterRepairApplied: polishApplied,
+      storyPolishApplied,
+      chapterRepairApplied,
       localQualityDiagnostics: finalDiagnostics,
       repairSelfReflections,
       rawQualityScore,
