@@ -139,6 +139,10 @@ export interface DevModeGeneratedStory {
     qualityGateFailureReason?: string;
     returnedWithQualityGateWarnings?: boolean;
     repairSelfReflections?: any[];
+    noveltySeed?: string;
+    noveltyRecentStoryCount?: number;
+    noveltyHardAvoidMotifCount?: number;
+    noveltyKeyMomentLens?: string;
   };
 }
 
@@ -182,12 +186,116 @@ export interface DevModePoolCharacter {
 
 export interface DevModeGenerationInput {
   config: StoryConfig;
+  userId?: string;
+  storyId?: string;
   /** Full hero avatars (the user's chosen avatars). */
   avatars: DevModeAvatar[];
   /** Auto-cast supporting characters picked from character_pool. */
   poolCharacters?: DevModePoolCharacter[];
   primaryProfileAge?: number | null;
+  noveltyBrief?: DevModeNoveltyBrief;
 }
+
+interface DevModeRecentStoryFingerprint {
+  id: string;
+  title: string;
+  description: string;
+  motifKeywords: string[];
+}
+
+interface DevModeNoveltyBrief {
+  seed: string;
+  shelfPromise: string;
+  creativeLane: string;
+  emotionalEngine: string;
+  wonderMechanic: string;
+  keyMomentLens: string;
+  titleEnergy: string;
+  hardAvoidMotifs: string[];
+  recentStories: DevModeRecentStoryFingerprint[];
+}
+
+const NOVELTY_STOPWORDS = new Set([
+  "aber", "alle", "alles", "auch", "auf", "aus", "beim", "deine", "deiner", "dem", "den", "der", "des",
+  "die", "dies", "diese", "dieser", "ein", "eine", "einer", "eines", "fuer", "für", "hat", "ihre", "ihrer",
+  "mit", "nicht", "oder", "sein", "seine", "seiner", "und", "vom", "von", "war", "wenn", "wie", "zur",
+  "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
+  "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen",
+]);
+
+const NOVELTY_SHELF_PROMISES = [
+  "A child sees the title and immediately asks: what is THAT doing there?",
+  "The premise combines one ordinary child-world detail with one impossible rule.",
+  "The story feels like a discoverable book on a library display, not a generic fantasy quest.",
+  "The hook is concrete enough to draw as a cover and odd enough to remember after bedtime.",
+  "The adventure starts with a tiny wrongness in daily life, then opens into wonder.",
+  "The title promises a specific object, place, or problem a child can retell in one sentence.",
+];
+
+const NOVELTY_CREATIVE_LANES = [
+  "domestic magic: bedroom, kitchen, hallway, laundry, lost-and-found, pocket, lunchbox",
+  "social comedy: a rule at school, a club, a birthday, a queue, a contest, a secret job",
+  "miniature world: under a floorboard, inside a drawer, behind wallpaper, in a garden crack",
+  "living object: a stubborn tool, polite machine, jealous map, forgetful backpack, overhelpful umbrella",
+  "place with a rule: library after closing, stairwell with seasons, market stall that trades odd things",
+  "nature with a twist: puddle weather, migrating shadows, seed that remembers, cloud with stage fright",
+  "craft/building problem: something must be repaired, swapped, carried, hidden, shared, or returned",
+  "comic mystery: a harmless but puzzling disappearance with clues children can notice",
+];
+
+const NOVELTY_EMOTIONAL_ENGINES = [
+  "wanting to keep something private but learning what should be shared",
+  "feeling too small for a responsibility and finding one exact useful action",
+  "wanting a shortcut and discovering why the slow careful way matters",
+  "being embarrassed by a quirk that later solves a concrete problem",
+  "wanting everyone to notice you and learning to notice someone else first",
+  "being afraid of change and making one small brave experiment",
+  "thinking a mistake ruined everything until the mistake becomes a tool",
+  "arguing about who is right, then needing both wrong ideas together",
+];
+
+const NOVELTY_WONDER_MECHANICS = [
+  "a trade has a surprising cost",
+  "an object obeys a literal childlike misunderstanding",
+  "a place changes only when nobody is watching directly",
+  "a helper can only help badly until the child gives a precise instruction",
+  "the problem grows whenever adults explain it too neatly",
+  "the solution must be performed, not announced",
+  "the apparent monster is following a rule nobody has asked about yet",
+  "the smallest repeated detail becomes the final key",
+];
+
+const NOVELTY_TITLE_ENERGY = [
+  "specific noun + impossible adjective",
+  "ordinary place + secret job",
+  "funny problem statement",
+  "name + concrete object + ticking consequence",
+  "mystery title with one tactile image",
+  "series-like title: clear, warm, and collectible",
+];
+
+const NOVELTY_KEY_MOMENT_LENSES = [
+  "Wonder + Mystery: odd encounter -> pattern clue -> false explanation -> rule reveal -> earned solution",
+  "Adventure + Relationship: threshold crossing -> capability test -> value clash -> risk for someone else -> transformed return",
+  "Domestic Comedy + Craft: ridiculous requirement -> wrong tool -> escalated mess -> precise instruction -> practical payoff",
+  "Miniature World + Empathy: hidden place -> misunderstood helper -> costly mistake -> act of noticing -> restored role",
+  "Social Comedy + Courage: awkward rule -> public mistake -> wrong fix -> honest small action -> group reframe",
+  "Object Magic + Responsibility: tempting shortcut -> literal misunderstanding -> consequence cascade -> patient repair -> shared ownership",
+  "Nature Twist + Change: tiny wrongness -> scale reveal -> failed control -> brave experiment -> new seasonal ritual",
+  "Comic Mystery + Teamwork: missing thing -> suspect pattern -> wrong accusation -> combined clues -> surprising but fair culprit",
+];
+
+const ANCHOR_CONTAMINATION_MOTIFS = [
+  "Glöckchen",
+  "Gloeckchen",
+  "Geräusche-Fresser",
+  "Geraeusche-Fresser",
+  "lautlose Stadt",
+  "müdes Kissen",
+  "muedes Kissen",
+  "gestohlene Geräusche",
+  "gestohlene Geraeusche",
+];
 
 function deriveChapterCount(length: StoryConfig["length"]): number {
   switch (length) {
@@ -219,6 +327,162 @@ function localizedLanguageName(language?: string): string {
     default:
       return "German (Deutsch)";
   }
+}
+
+function hashString(input: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function pickNovelty<T>(items: T[], seed: number, offset: number): T {
+  return items[(seed + offset * 9973) % items.length];
+}
+
+function normalizeNoveltyText(value: string): string {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractMotifKeywords(text: string, limit = 8): string[] {
+  const words = normalizeNoveltyText(text)
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 5 && !NOVELTY_STOPWORDS.has(word));
+  return [...new Set(words)].slice(0, limit);
+}
+
+function noveltyJaccard(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersection = 0;
+  for (const item of setA) {
+    if (setB.has(item)) intersection += 1;
+  }
+  return intersection / Math.max(1, new Set([...setA, ...setB]).size);
+}
+
+function promptExplicitlyRequestsRepeatedSoundPremise(config: StoryConfig): boolean {
+  const text = normalizeNoveltyText([
+    config.customPrompt,
+    config.genre,
+    config.setting,
+  ].filter(Boolean).join(" "));
+  return /\b(gloeckchen|glocke|bell|sound|sounds|klang|klaenge|geraeusch|geraeusche|stille|lautlos)\b/.test(text);
+}
+
+async function loadRecentDevModeStoryFingerprints(input: DevModeGenerationInput): Promise<DevModeRecentStoryFingerprint[]> {
+  if (!input.userId) return [];
+  try {
+    const currentStoryId = input.storyId || "";
+    const rows = await storyDB.queryAll<{
+      id: string;
+      title: string | null;
+      description: string | null;
+    }>`
+      SELECT id, title, description
+      FROM stories
+      WHERE user_id = ${input.userId}
+        AND (${currentStoryId} = '' OR id <> ${currentStoryId})
+        AND status = 'complete'
+      ORDER BY updated_at DESC
+      LIMIT 20
+    `;
+
+    return rows
+      .map((row) => {
+        const title = String(row.title || "").trim();
+        const description = String(row.description || "").trim();
+        return {
+          id: row.id,
+          title,
+          description,
+          motifKeywords: extractMotifKeywords(`${title} ${description}`, 8),
+        };
+      })
+      .filter((story) => story.title.length > 0 || story.description.length > 0);
+  } catch (error) {
+    console.warn("[dev-mode-generation] Failed to load recent story fingerprints; continuing without recent-story novelty context", error);
+    return [];
+  }
+}
+
+function buildDevModeNoveltyBrief(input: DevModeGenerationInput, recentStories: DevModeRecentStoryFingerprint[]): DevModeNoveltyBrief {
+  const seedText = [
+    input.storyId || crypto.randomUUID(),
+    input.config.genre,
+    input.config.setting,
+    input.config.length,
+    input.config.ageGroup,
+    input.config.customPrompt,
+    (input.avatars || []).map((avatar) => avatar.name).join(","),
+    Date.now().toString(36),
+  ].filter(Boolean).join("|");
+  const seed = hashString(seedText);
+  const repeatedSoundRequested = promptExplicitlyRequestsRepeatedSoundPremise(input.config);
+  const recentMotifs = recentStories
+    .flatMap((story) => story.motifKeywords)
+    .filter((keyword) => keyword.length >= 6)
+    .slice(0, 30);
+  const hardAvoidMotifs = [
+    ...new Set([
+      ...recentMotifs,
+      ...(repeatedSoundRequested ? [] : ANCHOR_CONTAMINATION_MOTIFS),
+    ]),
+  ].slice(0, 42);
+
+  return {
+    seed: seed.toString(36),
+    shelfPromise: pickNovelty(NOVELTY_SHELF_PROMISES, seed, 1),
+    creativeLane: pickNovelty(NOVELTY_CREATIVE_LANES, seed, 2),
+    emotionalEngine: pickNovelty(NOVELTY_EMOTIONAL_ENGINES, seed, 3),
+    wonderMechanic: pickNovelty(NOVELTY_WONDER_MECHANICS, seed, 4),
+    keyMomentLens: pickNovelty(NOVELTY_KEY_MOMENT_LENSES, seed, 5),
+    titleEnergy: pickNovelty(NOVELTY_TITLE_ENERGY, seed, 6),
+    hardAvoidMotifs,
+    recentStories: recentStories.slice(0, 8),
+  };
+}
+
+function buildNoveltyPromptBlock(input: DevModeGenerationInput): string {
+  const brief = input.noveltyBrief;
+  if (!brief) return "";
+  const recentLines = brief.recentStories.length > 0
+    ? brief.recentStories.map((story, index) => {
+        const motifs = story.motifKeywords.length > 0 ? ` motifs: ${story.motifKeywords.slice(0, 6).join(", ")}` : "";
+        return `${index + 1}. ${story.title || "(untitled)"}${motifs}`;
+      })
+    : ["No recent finished stories were available; still avoid the style-anchor concepts and generic fairy-tale defaults."];
+  const hardAvoid = brief.hardAvoidMotifs.slice(0, 18);
+  return [
+    "NOVELTY / LIBRARY-SHELF BRIEF:",
+    `- Novelty seed: ${brief.seed}. Use it to choose a fresh direction; do not mention it in the story.`,
+    `- Shelf promise: ${brief.shelfPromise}`,
+    `- Creative lane for THIS story only: ${brief.creativeLane}.`,
+    `- Emotional engine for THIS story only: ${brief.emotionalEngine}.`,
+    `- Wonder mechanic for THIS story only: ${brief.wonderMechanic}.`,
+    `- Key-moment lens for THIS story only: ${brief.keyMomentLens}.`,
+    `- Title energy: ${brief.titleEnergy}.`,
+    "- Before writing the blueprint, silently invent 5 premise candidates and reject any that resemble the recent stories below. Use the most specific, cover-worthy candidate.",
+    "- The premise, title, central object/place, antagonist/problem, magic rule, and ending image must be different from the recent list.",
+    "- Do not reuse sample/style-anchor objects as story content. Style examples are punctuation/register only, never plot material.",
+    hardAvoid.length > 0 ? `- Hard-avoid motifs unless the user's prompt explicitly requires them: ${hardAvoid.join(", ")}.` : null,
+    "Recent stories to avoid:",
+    ...recentLines,
+  ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
 /**
@@ -587,6 +851,8 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     `Genre: ${config.genre}.`,
     `Setting: ${config.setting}.`,
     "",
+    buildNoveltyPromptBlock(input) || null,
+    "",
     avatarBlock,
     poolBlock || null,
     "",
@@ -638,6 +904,7 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     "",
     genreCraftGuidance(config.genre),
     settingCraftGuidance(config.setting),
+    buildNoveltyPromptBlock(input),
     "",
     avatarBlock,
     poolBlock || null,
@@ -656,7 +923,7 @@ function buildEmotionAndVoicePromptContext(input: DevModeGenerationInput, chapte
     "- Don't just resolve an adventure — transform a feeling a child recognizes.",
     "- After reading, the story should stay in mind as a place, a character, and a final image.",
     "- The story needs reading pull: kids should want to know what's around the next corner, in the next chapter, or on the next re-read.",
-    "- Build recognizability in: a short refrain, a funny saying, a recurring gesture, or a visible object that gains new meaning each time.",
+    "- Build recognizability in: a short refrain, a funny saying, a recurring gesture, or a visible object/action that gains new meaning each time.",
     "- Each chapter ends on a turn, not an explanation. The last paragraph must trigger anticipation, worry, wonder, or a quiet giggle.",
     "- Every main character must make one small mistake that comes from their character and later leads to a better action.",
     "- The antagonist must not be pure mechanic. They need a wound, a wrong belief, funny-unsettling behavior, and a new place at the end.",
@@ -744,19 +1011,19 @@ function languageCodeFromName(languageName: string): string {
 function targetLanguageStyleAnchor(languageCode: string): string {
   switch (languageCode) {
     case "de":
-      return 'Output-language micro-anchor (German): „Die Stadt klingt wie ein müdes Kissen", murmelte Alexander und hielt das Glöckchen fester. — Use this register: warm, concrete, sensory, light humor; typographic quotation marks „…".';
+      return 'Output-language style contract (German): warm, concrete, sensory, light humor; use German typographic dialogue marks „…“. This is punctuation/register guidance only, not a story premise.';
     case "fr":
-      return 'Output-language micro-anchor (French): « La ville sonne comme un coussin fatigué », murmura Alexandre en serrant la clochette. — Use this register: warm, concrete, sensory; French guillemets « ».';
+      return 'Output-language style contract (French): warm, concrete, sensory; use French guillemets « … ». This is punctuation/register guidance only, not a story premise.';
     case "es":
-      return 'Output-language micro-anchor (Spanish): «La ciudad suena como un cojín cansado», murmuró Alejandro apretando la campanita. — Use this register: warm, concrete, sensory; angle quotes «».';
+      return 'Output-language style contract (Spanish): warm, concrete, sensory; use angle quotes «…». This is punctuation/register guidance only, not a story premise.';
     case "it":
-      return 'Output-language micro-anchor (Italian): «La città suona come un cuscino stanco», mormorò Alessandro stringendo il campanello. — Use this register: warm, concrete, sensory; angle quotes «».';
+      return 'Output-language style contract (Italian): warm, concrete, sensory; use angle quotes «…». This is punctuation/register guidance only, not a story premise.';
     case "nl":
-      return 'Output-language micro-anchor (Dutch): „De stad klinkt als een moe kussentje", mompelde Alexander en hield het belletje vaster. — Use this register: warm, concrete, sensory.';
+      return 'Output-language style contract (Dutch): warm, concrete, sensory, light humor. This is register guidance only, not a story premise.';
     case "ru":
-      return 'Output-language micro-anchor (Russian): «Город звучит как уставшая подушка», прошептал Александр, крепче сжимая колокольчик. — Use this register: warm, concrete, sensory; guillemets «».';
+      return 'Output-language style contract (Russian): warm, concrete, sensory; use guillemets «…». This is punctuation/register guidance only, not a story premise.';
     default:
-      return 'Output-language micro-anchor (English): "The town sounds like a tired cushion," Alexander whispered, holding the bell tighter. — Use this register: warm, concrete, sensory, light humor; standard double quotes "".';
+      return 'Output-language style contract (English): warm, concrete, sensory, light humor; use standard dialogue quotes. This is punctuation/register guidance only, not a story premise.';
   }
 }
 
@@ -828,6 +1095,9 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       "Schema:",
       "{",
       '  "premise": string,',
+      '  "noveltySignature": { "oneLineShelfPitch": string, "whyDifferentFromRecent": string, "rejectedFamiliarPremises": string[] },',
+      '  "keyMoments": [ { "order": number, "emotionalExperience": string, "sceneFunction": string, "irreversibleChange": string } ],',
+      '  "causalChain": string[],',
       '  "emotionalEngine": {',
       '    "storyPromise": string,',
       '    "childRelatableNeed": string,',
@@ -859,6 +1129,10 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     "CALL 1: Produce a story blueprint with an integrated emotional engine. Do NOT write the actual story prose yet.",
     "This support call must prepare the later story: emotional core, character roles, a clear magic rule, a try-fail-try chain, finale built from earlier-planted details.",
     "Blueprint values may stay in English — only the final story prose (Call 3) must be in the target output language.",
+    "Novelty is a hard requirement: the blueprint must feel like a different book from the user's recent stories, with a new central object/place/problem and a title a child would want to pull from a shelf.",
+    "Populate noveltySignature honestly: include the shelf pitch, why this is different from recent stories, and the familiar premise candidates you rejected.",
+    "Plan from key moments before logistics: create 5-8 vivid emotional moments that define the story, with at least one irreversible turn where a choice changes the child/world/relationship.",
+    "Write causalChain as therefore/but links: each chapter result must cause or complicate the next chapter. Avoid a loose 'and then they went somewhere else' sequence.",
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount),
     "",
@@ -898,6 +1172,9 @@ function buildCritiquePrompts(
       '  "chapterRisks": [ { "order": number, "risk": string, "fix": string } ],',
       '  "revisedBlueprint": {',
       '    "premise": string,',
+      '    "noveltySignature": object,',
+      '    "keyMoments": array,',
+      '    "causalChain": array,',
       '    "emotionalEngine": object,',
       '    "readerMagnet": object,',
       '    "payoffEngine": object,',
@@ -916,11 +1193,12 @@ function buildCritiquePrompts(
   );
   const userPrompt = [
     "CALL 2: Critique this blueprint like a strict children's-book dramaturg and editor.",
-    "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn.",
+    "Find everything that would push the final story below 9.5/10 against real children's books: weak tension, missing emotional core, characters without an active role, identical voices, telling not showing, generic motifs, missing sensory detail, unearned turn, no irreversible key moment, or weak causality.",
+    "Treat repetition as a major market failure. If the blueprint resembles the recent stories or repeats hard-avoid motifs, cap score at 7.0 and replace the premise in revisedBlueprint.",
     "Inspect read-on pull specifically: is there a recognizable motif? Does every chapter end on a real question or decision? Are there enough comic or puzzling details kids want to re-listen to?",
-    "A blueprint without clear chapter-end hooks, refrain/callback, or a child-curiosity engine may score at most 8.4.",
+    "A blueprint without clear chapter-end hooks, refrain/callback, irreversible key moment, or a child-curiosity engine may score at most 8.4.",
     "Then return an improved revisedBlueprint. IMPORTANT: revisedBlueprint MUST be complete, not a reduced summary. Preserve and improve characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, full chapterPlan fields, and readerMagnet.",
-    "Also preserve/improve payoffEngine, antagonistChangeLadder, and humorCallbackPlan. If they are weak or missing, create them concretely.",
+    "Also preserve/improve noveltySignature, keyMoments, causalChain, payoffEngine, antagonistChangeLadder, and humorCallbackPlan. If they are weak or missing, create them concretely.",
     "Score harshly. A technically clean blueprint is not automatically market-quality.",
     "Critique values stay in English; only the final story prose (Call 3) is in the target output language.",
     "",
@@ -1007,10 +1285,10 @@ function buildStoryDraftPrompts(
   const userPrompt = [
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
     "This is the ONLY call allowed to write the actual story prose. Use the COMPLETE reviewedBlueprint, the critique, and the voice rules directly in the first draft.",
-    "Do not reduce the blueprint to hooks. You MUST actively use emotionalEngine, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
+    "Do not reduce the blueprint to hooks. You MUST actively use noveltySignature, keyMoments, causalChain, emotionalEngine, payoffEngine, antagonistChangeLadder, humorCallbackPlan, characterArcs, supportingCastUse, plantsAndPayoffs, sceneOwnership, readerMagnet, coreMagicRule, and every chapterPlan field.",
     "",
     "SELF-REFLECTION BEFORE WRITING (MANDATORY):",
-    "Before you write the story, answer the following three questions for yourself, in detail and concretely.",
+    "Before you write the story, answer the following four questions for yourself, in detail and concretely.",
     "Do NOT include the answers in your output. Only start writing the story AFTER you have answered each question concretely.",
     "If you cannot answer a question concretely, your answer is too generic — revise it before you start writing.",
     "(You may answer the reflection in English to think faster; this does NOT affect output language — the story itself must be in the target language.)",
@@ -1025,7 +1303,12 @@ function buildStoryDraftPrompts(
     "   b) Where exactly in chapters 4–5 does each of those three details pay off? The resolution of the main crisis MUST draw from at least one of these setups.",
     "   c) If the antagonist's defeat were NOT tied to one of these setups — what would I change?",
     "",
-    "Question 3 (Humor — MANDATORY, not optional): Where is the humor in this story?",
+    "Question 3 (Key moments & causality): What are the 5-8 emotional key moments, and how does each moment cause or complicate the next one?",
+    "   a) Which moment is irreversible: after it, what can no longer be the same?",
+    "   b) Which moment would a child remember as a picture from the book?",
+    "   c) Replace any 'and then' transition with 'therefore' or 'but' logic before drafting.",
+    "",
+    "Question 4 (Humor — MANDATORY, not optional): Where is the humor in this story?",
     "   a) Give me at least one concrete humorous moment per chapter. What exactly is funny — a gesture, a wordplay, an absurd comparison, a misunderstanding?",
     "   b) The humor must come from the characters, not from the narrator. Which character quirk triggers humor?",
     "   c) Age-appropriate humor: would a 6-year-old actually giggle when read aloud? If not, the humor is too adult or too abstract — revise.",
@@ -1052,6 +1335,8 @@ function buildStoryDraftPrompts(
     "- Chapter 3: a wrong attempt or wrong choice coming from character, real consequence, no lucky accident saves them.",
     "- Chapter 4: understand the deeper rule, combine different strengths, an emotional moment, prepare the finale.",
     "- Chapter 5: concrete action, prepared solution, emotional aftertaste, strong closing image, no explained moral.",
+    "- Key moments must land as visible scenes, not summary labels. At least one moment must make the old situation impossible to return to.",
+    "- Causality must be therefore/but logic: each chapter changes the problem in a way that forces the next chapter.",
     "- Do not duplicate the finale across chapters 4 and 5: chapter 4 reaches the crisis/realization; chapter 5 performs the final choice and payoff once.",
     "- A side/helper character may reveal a clue, but the children must perform the decisive action themselves.",
     "- Every main character must make at least one mini-decision that wouldn't happen without them.",
@@ -1130,6 +1415,13 @@ function compactReviewedBlueprintForDraft(reviewedBlueprint: any, chapterCount: 
 
   return {
     premise: compactExcerpt(reviewedBlueprint?.premise || "", 320),
+    noveltySignature: reviewedBlueprint?.noveltySignature,
+    keyMoments: Array.isArray(reviewedBlueprint?.keyMoments)
+      ? reviewedBlueprint.keyMoments.slice(0, 8)
+      : undefined,
+    causalChain: Array.isArray(reviewedBlueprint?.causalChain)
+      ? reviewedBlueprint.causalChain.slice(0, Math.max(5, chapterCount))
+      : undefined,
     coreMagicRule: compactExcerpt(reviewedBlueprint?.coreMagicRule || "", 260),
     emotionalEngine: reviewedBlueprint?.emotionalEngine,
     readerMagnet: reviewedBlueprint?.readerMagnet,
@@ -1419,6 +1711,16 @@ function buildChapterRepairBlueprintContext(reviewedBlueprint: any, order: numbe
     : null;
   return {
     premise: compactExcerpt(reviewedBlueprint?.premise || "", 260),
+    noveltySignature: reviewedBlueprint?.noveltySignature,
+    keyMoments: Array.isArray(reviewedBlueprint?.keyMoments)
+      ? reviewedBlueprint.keyMoments.filter((moment: any) => {
+          const momentOrder = Number(moment?.order);
+          return !Number.isFinite(momentOrder) || Math.abs(momentOrder - Number(order)) <= 1;
+        }).slice(0, 5)
+      : undefined,
+    causalChain: Array.isArray(reviewedBlueprint?.causalChain)
+      ? reviewedBlueprint.causalChain.slice(0, 8)
+      : undefined,
     coreMagicRule: compactExcerpt(reviewedBlueprint?.coreMagicRule || "", 260),
     readerMagnet: reviewedBlueprint?.readerMagnet
       ? {
@@ -1608,6 +1910,10 @@ function buildValidationPrompts(
     '    "voiceDistinctiveness": number,',
     '    "readAloudRhythm": number,',
     '    "originality": number,',
+    '    "premiseFreshness": number,',
+    '    "centralConflict": number,',
+    '    "keyMomentPayoff": number,',
+    '    "causalChain": number,',
     '    "ageFit": number,',
     '    "endingPayoff": number,',
     '    "pageTurnDrive": number,',
@@ -1652,19 +1958,28 @@ function buildValidationPrompts(
     "MANDATORY CAPS (whichever is lower wins):",
     "- Antagonist is only mechanic (no wound / no new place at the end): max 8.4.",
     "- Main characters not iconically distinguishable (dialogue interchangeable): max 8.7.",
+    "- No clear central conflict a child can retell in one sentence: max 8.2.",
+    "- No irreversible emotional key moment / shattering turn: max 8.3.",
+    "- Events feel like 'and then' episodes rather than therefore/but causality: max 8.4.",
+    "- Title/premise would not stand out on a children's-library shelf: max 8.6.",
     "- Ending explains moral instead of showing ('they learned...' / 'Sie lernten...'): max 7.5.",
     "- Chapter endings without read-on pull: max 8.6.",
     "- Dialogue quota / form gates failed per local diagnostics: max 8.7.",
     "- NO humor in the 'kid giggles' sense in at least 4 of 5 chapters: max 8.2.",
     "- No setup-payoff (resolution doesn't come from prepared details): max 8.0.",
+    "- Too similar to a recent story title/premise/motif from the novelty brief: max 7.0.",
+    "- Uses hard-avoid motifs without explicit user request: max 7.0.",
     "- More than 2 forbidden phrases in any language ('they learned...', 'true magic in the heart...', 'with courage and togetherness...'): max 6.5.",
     "",
-    "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
+    "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
     "Be honest. A truthful 7.8 beats a flattering 9.2. Self-inflating the score would be a pipeline error.",
     "",
     "VALIDATION TARGET:",
     contextSummary,
+    "",
+    "NOVELTY BRIEF USED FOR THIS GENERATION:",
+    buildNoveltyPromptBlock(input) || "No novelty brief available.",
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     JSON.stringify(diagnostics || null, null, 2),
@@ -2152,6 +2467,49 @@ function buildNameVariants(name: string): string[] {
   return [...variants];
 }
 
+function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+  const brief = input.noveltyBrief;
+  if (!brief) return [];
+  const issues: string[] = [];
+  const title = String(story.title || "");
+  const description = String(story.description || "");
+  const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
+  const normalizedStoryText = normalizeNoveltyText(`${title} ${description} ${allContent}`);
+  const explicitSoundRequest = promptExplicitlyRequestsRepeatedSoundPremise(input.config);
+
+  for (const motif of brief.hardAvoidMotifs) {
+    const normalizedMotif = normalizeNoveltyText(motif);
+    if (normalizedMotif.length < 6) continue;
+    if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) {
+      continue;
+    }
+    const phraseRegex = new RegExp(`\\b${normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    if (phraseRegex.test(normalizedStoryText)) {
+      issues.push(`Wiederholungs-/Novelty-Gate: verbotenes oder kuerzlich verwendetes Motiv gefunden: "${motif}".`);
+      break;
+    }
+  }
+
+  const storyKeywords = extractMotifKeywords(`${title} ${description}`, 12);
+  let closestTitle = "";
+  let closestScore = 0;
+  for (const recent of brief.recentStories) {
+    const recentKeywords = recent.motifKeywords.length > 0
+      ? recent.motifKeywords
+      : extractMotifKeywords(`${recent.title} ${recent.description}`, 12);
+    const score = noveltyJaccard(storyKeywords, recentKeywords);
+    if (score > closestScore) {
+      closestScore = score;
+      closestTitle = recent.title;
+    }
+  }
+  if (closestScore >= 0.45) {
+    issues.push(`Wiederholungs-/Novelty-Gate: Titel/Blurb ist zu nah an letzter Story "${closestTitle}" (Motivueberschneidung ${Math.round(closestScore * 100)}%).`);
+  }
+
+  return issues;
+}
+
 function analyzeDevModeStoryQuality(
   story: DevModeRawStory,
   input: DevModeGenerationInput,
@@ -2195,6 +2553,10 @@ function analyzeDevModeStoryQuality(
     if (pattern.test(allContent)) {
       hardIssues.push(`Verbotenes KI-/Moral-Muster gefunden: ${pattern.source}.`);
     }
+  }
+
+  for (const noveltyIssue of collectNoveltyGateIssues(story, input)) {
+    hardIssues.push(noveltyIssue);
   }
 
   const avatarNames = (input.avatars || []).map((avatar) => avatar.name).filter((name): name is string => Boolean(name));
@@ -2339,7 +2701,7 @@ function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number 
 
   if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
   if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
-  if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|\[object Object\]/i.test(issue))) {
+  if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|\[object Object\]/i.test(issue))) {
     score = Math.min(score, 7.8);
   }
 
@@ -2365,7 +2727,7 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
     if (diagnostics.hardIssues.some((issue) => /deutlich zu lang|deutlich zu kurz/i.test(issue))) {
       score = Math.min(score, 8.7);
     }
-    if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|\[object Object\]/i.test(issue))) {
+    if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|\[object Object\]/i.test(issue))) {
       score = Math.min(score, 7.8);
     }
   }
@@ -2731,6 +3093,11 @@ export async function generateStoryDevMode(
   const supportProvider = resolveDevModeSupportProvider(input.config);
   const supportModel = resolveDevModeSupportModel(input.config);
   const supportCallOptions = buildDevModeSupportCallOptions(input.config);
+  const recentStoryFingerprints = input.noveltyBrief?.recentStories || await loadRecentDevModeStoryFingerprints(input);
+  input = {
+    ...input,
+    noveltyBrief: input.noveltyBrief || buildDevModeNoveltyBrief(input, recentStoryFingerprints),
+  };
 
   const runStage = async (
     stage: DevModePipelineStage,
@@ -2831,6 +3198,10 @@ export async function generateStoryDevMode(
     supportProvider,
     supportModel,
     storyModel: resolveConfiguredStoryModel(input.config),
+    noveltySeed: input.noveltyBrief?.seed,
+    recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
+    hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
+    noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
   });
 
   let finalParsed: DevModeRawStory | null = null;
@@ -3246,6 +3617,10 @@ export async function generateStoryDevMode(
           learningModeEnabled: !!input.config.learningMode?.enabled,
           learningModeSubjects: input.config.learningMode?.subjects,
           customPrompt: input.config.customPrompt,
+          noveltySeed: input.noveltyBrief?.seed,
+          recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
+          hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
+          noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
         },
       },
       response: {
@@ -3299,6 +3674,10 @@ export async function generateStoryDevMode(
         learningModeEnabled: !!input.config.learningMode?.enabled,
         learningModeSubjects: input.config.learningMode?.subjects,
         customPrompt: input.config.customPrompt,
+        noveltySeed: input.noveltyBrief?.seed,
+        recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
+        hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
+        noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
       },
       stages: stageLogs.map((stage) => ({
         stage: stage.stage,
@@ -3387,6 +3766,10 @@ export async function generateStoryDevMode(
       qualityGatePassed: (finalDiagnostics?.hardIssueCount ?? 0) === 0,
       qualityGateFailureReason,
       returnedWithQualityGateWarnings: Boolean(qualityGateFailureReason),
+      noveltySeed: input.noveltyBrief?.seed,
+      noveltyRecentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
+      noveltyHardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
+      noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,

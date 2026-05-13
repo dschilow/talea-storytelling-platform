@@ -731,6 +731,8 @@ export const generate = api<GenerateStoryRequest, Story>(
 
         const devResult = await generateStoryDevMode({
           config,
+          userId: currentUserId,
+          storyId: id,
           avatars: avatarDetails.map((a) => ({
             id: a.id,
             name: a.name,
