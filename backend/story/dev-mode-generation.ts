@@ -928,7 +928,7 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
         ),
       };
     })
-    .filter((candidate): candidate is DevModeIdeaCandidate => Boolean(candidate));
+    .filter((candidate: DevModeIdeaCandidate | null): candidate is DevModeIdeaCandidate => Boolean(candidate));
 }
 
 function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevModePoolCharacter[]): DevModeSelectedIdea | undefined {
