@@ -1433,6 +1433,35 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
   ].join("\n");
 }
 
+function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, strict = false): string | null {
+  const castNames = input.selectedIdea?.selectedSupportingCast || [];
+  if (castNames.length === 0) return null;
+
+  const poolByName = new Map((input.poolCharacters || []).map((character) => [normalizePoolName(character.name), character]));
+  const lines: string[] = [
+    strict ? "LOCKED CAST REPAIR CONTRACT:" : "LOCKED CAST INTEGRATION CONTRACT:",
+    `- Selected supporting cast: ${castNames.join(", ")}. Each must change the plot, not merely appear or explain.`,
+    "- For every selected cast figure, include: one visible action only they would do, one line/gesture in their voice, and one causal effect on the problem or solution.",
+    "- Failure condition: if the story still works after deleting that figure, rewrite the beat until the figure is plot-necessary.",
+  ];
+
+  for (const name of castNames) {
+    const character = poolByName.get(normalizePoolName(name));
+    if (!character) continue;
+    const traits = poolCharacterPersonalityLine(character, 3);
+    const triggers = poolCharacterTriggers(character, 2);
+    const details = [
+      traits.length > 0 ? `core=${traits.join("/")}` : null,
+      character.quirk ? `quirk=${compactExcerpt(character.quirk, 90)}` : null,
+      character.catchphrase ? `catchphrase=${compactExcerpt(character.catchphrase, 70)}` : null,
+      triggers.length > 0 ? `trigger=${triggers.join("/")}` : null,
+    ].filter(Boolean).join("; ");
+    if (details) lines.push(`- ${name}: use their specific data on-page (${details}).`);
+  }
+
+  return lines.join("\n");
+}
+
 function wizardLevelLabel(value: number | undefined, kind: "suspense" | "humor"): string {
   const level = Math.max(0, Math.min(3, Number(value ?? 1)));
   if (kind === "suspense") {
@@ -2166,6 +2195,7 @@ function buildStoryDraftPrompts(
     : input.config.length === "medium"
       ? Math.max(7, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
       : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
+  const totalDraftTargetMaxChars = draftTargetMaxChars * chapterCount;
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -2192,6 +2222,7 @@ function buildStoryDraftPrompts(
     input.selectedIdea?.selectedSupportingCast?.length
       ? `Selected pool-cast figures ${input.selectedIdea.selectedSupportingCast.join(", ")} must appear on-page with meaningful action. Do not demote them to decorative cameos.`
       : null,
+    buildSelectedCastIntegrationContract(input),
     "",
     "SILENT PRE-DRAFT CHECKLIST (do not output):",
     `- Give ${heroA} and ${heroB} different speaking rhythms, gestures, and first reactions in every scene; a reader should often identify the speaker without tags.`,
@@ -2212,6 +2243,7 @@ function buildStoryDraftPrompts(
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
     `- Aim each chapter for ${bounds.min}-${draftTargetMaxChars} characters. Do not write to the upper edge; the repair gate fails over ${bounds.max}.`,
+    `- Whole-story prose target: about ${bounds.min * chapterCount}-${totalDraftTargetMaxChars} characters across all chapters. If the story wants more room, cut scope instead of expanding prose.`,
     `- Use ${paragraphBudget.targetCount} compact paragraphs per chapter. Keep each paragraph around ${paragraphBudget.maxChars} characters; if a paragraph grows longer, split the beat or cut explanation.`,
     input.config.length === "short"
       ? "- SHORT MODE IS BINDING: one central beat per chapter, no scenic padding, no extra explanatory paragraph after the turn. If a detail is pretty but not causal, cut it."
@@ -2421,6 +2453,9 @@ function buildStoryPolishPrompts(
   const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const paragraphBounds = getParagraphBounds(input.config);
+  const totalRepairTargetMaxChars = targetMaxChars * chapterCount;
+  const overlongChapterCount = diagnostics.chapterDiagnostics.filter((chapter) => chapter.chars > bounds.max).length;
+  const broadCompressionMode = overlongChapterCount >= Math.min(3, chapterCount) || diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -2442,13 +2477,18 @@ function buildStoryPolishPrompts(
     `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
     "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
     "If local diagnostics and your literary preference conflict, local diagnostics win. This is a mechanical repair pass first, a style polish second.",
+    broadCompressionMode
+      ? "BROAD COMPRESSION MODE: this is not line editing. Rewrite every chapter compactly from the current story map; each overlong chapter must become visibly shorter before any stylistic addition is allowed."
+      : null,
     "",
     buildLeanRepairPromptContext(input, chapterCount),
+    buildSelectedCastIntegrationContract(input, true),
     "",
     "HARD GATES:",
     `- Exactly ${chapterCount} chapters.`,
     `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
     `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
+    `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
     `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
     input.config.length === "short"
@@ -2463,6 +2503,9 @@ function buildStoryPolishPrompts(
     "- JSON must be valid and match the schema exactly.",
     "",
     "REPAIR METHOD:",
+    broadCompressionMode
+      ? "- First reduce scope and sentence count. Keep hook, conflict, turn, payoff. Delete decorative second images, repeated reactions, and recap sentences even if they sound nice."
+      : null,
     "- If a chapter is too long: cut explanatory narration first, not the core scene.",
     "- If a chapter has too many paragraphs: combine adjacent beats into fewer paragraphs.",
     "- If dialogue is low: convert explanation into short character-specific dialogue that carries action, relationship, humor, or tension.",
@@ -3410,17 +3453,31 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
   const description = String(story.description || "");
   const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
   const normalizedStoryText = normalizeNoveltyText(`${title} ${description} ${allContent}`);
+  const normalizedStorySurface = normalizeNoveltyText(`${title} ${description} ${story.chapters.map((chapter) => chapter.title).join(" ")}`);
   const explicitSoundRequest = promptExplicitlyRequestsRepeatedSoundPremise(input.config);
 
   for (const motif of brief.hardAvoidMotifs) {
     const normalizedMotif = normalizeNoveltyText(motif);
     if (normalizedMotif.length < 6) continue;
+    if (NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
     if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) {
       continue;
     }
-    const phraseRegex = new RegExp(`\\b${normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    if (phraseRegex.test(normalizedStoryText)) {
+    const escapedMotif = normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const surfaceRegex = new RegExp(`\\b${escapedMotif}\\b`, "i");
+    const storyRegex = new RegExp(`\\b${escapedMotif}\\b`, "gi");
+    const surfaceHit = surfaceRegex.test(normalizedStorySurface);
+    const fullHits = Array.from(normalizedStoryText.matchAll(storyRegex)).length;
+    const singleWordMotif = !normalizedMotif.includes(" ");
+
+    // A single incidental body mention (e.g. "Geschirr" heard downstairs)
+    // should not fail the entire story if the motif is not part of the title,
+    // blurb, chapter titles, or repeated premise mechanics.
+    if (!surfaceHit && singleWordMotif && fullHits < 2) continue;
+    if (!surfaceHit && !singleWordMotif && fullHits === 0) continue;
+
+    if (surfaceHit || fullHits > 0) {
       issues.push(`Wiederholungs-/Novelty-Gate: verbotenes oder kuerzlich verwendetes Motiv gefunden: "${motif}".`);
       break;
     }
@@ -3462,7 +3519,7 @@ function collectSelectedCastIssues(story: DevModeRawStory, input: DevModeGenerat
     const aliases = characterNameMotifAliases(name);
     if (aliases.length === 0) return false;
     return !aliases.some((alias) => {
-      const pattern = new RegExp(`\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\b`, "i");
+      const pattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
       return pattern.test(storyText);
     });
   });
@@ -3662,7 +3719,7 @@ function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number 
 
   for (const chapter of diagnostics.chapterDiagnostics) {
     if (chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) score -= 0.2;
-    if (chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS) score -= 0.2;
+    if (chapter.issues.some((issue) => /Absätze|Absaetze/i.test(issue))) score -= 0.2;
     if (chapter.issues.some((issue) => /kurz|lang|Laenge|Länge/i.test(issue))) score -= 0.15;
   }
 
@@ -3685,7 +3742,7 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
     if (diagnostics.dialogPct < 18) score = Math.min(score, 7.9);
     if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
     if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
-    if (diagnostics.chapterDiagnostics.some((chapter) => chapter.paragraphs < DEV_MODE_MIN_PARAGRAPHS || chapter.paragraphs > DEV_MODE_MAX_PARAGRAPHS)) {
+    if (diagnostics.hardIssues.some((issue) => /Absätze|Absaetze/i.test(issue))) {
       score = Math.min(score, 8.6);
     }
     if (diagnostics.chapterDiagnostics.some((chapter) => chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT)) {
@@ -3843,6 +3900,12 @@ function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, r
   if (config.length === "long") return retry ? 12000 : compactMode ? 9800 : 9200;
   if (config.length === "short") return retry ? 4200 : compactMode ? 3400 : 3200;
   return retry ? 6800 : compactMode ? 5400 : 5200;
+}
+
+function devModeStoryPolishMaxTokens(config: StoryConfig): number {
+  if (config.length === "long") return 7800;
+  if (config.length === "short") return 2600;
+  return 4200;
 }
 
 function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
@@ -4570,7 +4633,7 @@ export async function generateStoryDevMode(
           }
         );
         const storyPolishStage = await runStage("story-polish", storyPolishPrompts, {
-          maxTokens: devModeStoryDraftMaxTokens(input.config, false, true),
+          maxTokens: devModeStoryPolishMaxTokens(input.config),
           temperature: currentDiagnostics.hardIssueCount > 0 ? 0.28 : 0.34,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
@@ -4578,9 +4641,19 @@ export async function generateStoryDevMode(
         const polishedParsed = parseAndValidate(storyPolishStage.provider.content, chapterCount);
         const polishedDiagnostics = analyzeDevModeStoryQuality(polishedParsed, input, chapterCount);
         const polishedSeverity = diagnosticsSeverityScore(polishedDiagnostics, chapterCount, input.config);
+        const currentHardIssueKeys = new Set(currentDiagnostics.hardIssues.map((issue) => normalizeNoveltyText(issue)));
+        const introducedCriticalHardIssue = polishedDiagnostics.hardIssues.some((issue) => {
+          if (!/Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|Pool-Cast|\[object Object\]/i.test(issue)) return false;
+          return !currentHardIssueKeys.has(normalizeNoveltyText(issue));
+        });
         const locallyAcceptable =
           polishedDiagnostics.hardIssueCount === 0
-          || polishedSeverity < currentSeverity
+          || (
+            polishedSeverity < currentSeverity
+            && polishedDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
+            && polishedDiagnostics.dialogPct >= Math.max(0, currentDiagnostics.dialogPct - 0.5)
+            && !introducedCriticalHardIssue
+          )
           || (
             currentDiagnostics.hardIssueCount === 0
             && polishedDiagnostics.hardIssueCount === 0
@@ -4595,6 +4668,7 @@ export async function generateStoryDevMode(
             hardIssueCountAfter: polishedDiagnostics.hardIssueCount,
             dialogPctBefore: currentDiagnostics.dialogPct,
             dialogPctAfter: polishedDiagnostics.dialogPct,
+            introducedCriticalHardIssue,
           });
           break;
         }
