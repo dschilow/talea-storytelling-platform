@@ -51,6 +51,7 @@ const DEV_MODE_MIN_PARAGRAPHS = 4;
 const DEV_MODE_MAX_PARAGRAPHS = 10;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
 const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 3;
+const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 4;
 const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
@@ -1462,6 +1463,32 @@ function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, str
   return lines.join("\n");
 }
 
+function buildSilentPreWriteSelfReviewContract(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  mode: "draft" | "compact-draft" | "polish" | "chapter-repair"
+): string {
+  const bounds = getChapterLengthBounds(input.config);
+  const paragraphBounds = getParagraphBounds(input.config);
+  const modeLabel = mode === "chapter-repair"
+    ? "SILENT CHAPTER-REPAIR SELF-REVIEW BEFORE WRITING"
+    : mode === "polish"
+      ? "SILENT REPAIR/POLISH SELF-REVIEW BEFORE WRITING"
+      : "SILENT PRE-WRITE SELF-REVIEW";
+
+  return [
+    `${modeLabel} (mandatory; do not output this review):`,
+    "- Before writing prose, privately check the plan against the quality gates; do not reveal reasoning, notes, or checklist text.",
+    `- Shape: exactly ${chapterCount} chapter(s); each chapter must fit ${bounds.min}-${bounds.max} characters and ${paragraphBounds.min}-${paragraphBounds.max} paragraphs.`,
+    `- Dialogue: target ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue overall; every repaired/written chapter must clear ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% without filler chatter.`,
+    "- Causality: every chapter needs goal -> obstacle -> turn -> concrete pull; no loose 'and then' sequence.",
+    "- Voice: each quoted line must sound like that character and do at least two jobs: action, relationship, tension, humor, or subtext.",
+    "- Cast: selected supporting characters must be plot-necessary; each needs a unique action/line/gesture that changes the problem or solution.",
+    "- Payoff: finale/repaired chapter must use a planted detail, not a new convenient solution or explained moral.",
+    "- If any check fails, revise internally before emitting JSON. The final answer must contain only the requested JSON schema.",
+  ].join("\n");
+}
+
 function wizardLevelLabel(value: number | undefined, kind: "suspense" | "humor"): string {
   const level = Math.max(0, Math.min(3, Number(value ?? 1)));
   if (kind === "suspense") {
@@ -2225,6 +2252,7 @@ function buildStoryDraftPrompts(
     buildSelectedCastIntegrationContract(input),
     "",
     "SILENT PRE-DRAFT CHECKLIST (do not output):",
+    buildSilentPreWriteSelfReviewContract(input, chapterCount, "draft"),
     `- Give ${heroA} and ${heroB} different speaking rhythms, gestures, and first reactions in every scene; a reader should often identify the speaker without tags.`,
     "- Plant 3 small concrete details in chapters 1-2; the finale must use at least one of them.",
     "- Each chapter follows goal -> conflict -> turn/yes-but -> pull. No loose 'and then' sequence.",
@@ -2409,6 +2437,7 @@ function buildCompactStoryDraftPrompts(
       : "COMPATIBILITY DRAFT: This OpenRouter model is sensitive to long JSON/story prompts. Write the complete story with a smaller, stricter output.",
     `Exactly ${chapterCount} chapters. Output ONLY JSON.`,
     "No visible planning. No preface. No apology. No validator comments.",
+    buildSilentPreWriteSelfReviewContract(input, chapterCount, "compact-draft"),
     "",
     buildDevStoryContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
@@ -2483,6 +2512,7 @@ function buildStoryPolishPrompts(
     "",
     buildLeanRepairPromptContext(input, chapterCount),
     buildSelectedCastIntegrationContract(input, true),
+    buildSilentPreWriteSelfReviewContract(input, chapterCount, "polish"),
     "",
     "HARD GATES:",
     `- Exactly ${chapterCount} chapters.`,
@@ -2571,6 +2601,18 @@ function selectChapterDiagnosticsForRepair(
       .slice(0, Math.min(2, story.chapters.length));
   }
   return [];
+}
+
+function isDialogueOnlyHardFailure(diagnostics?: DevModeStoryDiagnostics): boolean {
+  if (!diagnostics || diagnostics.hardIssueCount === 0) return false;
+  return diagnostics.hardIssues.every((issue) => /Dialoganteil|zu wenig Dialog/i.test(issue));
+}
+
+function selectPostPolishDialogueRepairChapters(diagnostics: DevModeStoryDiagnostics): DevModeChapterDiagnostic[] {
+  return diagnostics.chapterDiagnostics
+    .filter((chapter) => chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT)
+    .sort((a, b) => a.dialogPct - b.dialogPct)
+    .slice(0, DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT);
 }
 
 function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeChapter): DevModeRawStory {
@@ -2791,6 +2833,8 @@ function buildChapterRepairPrompts(
     "",
     "TARGET CHAPTER DIAGNOSTICS:",
     promptJson(chapterDiagnostics),
+    "",
+    buildSilentPreWriteSelfReviewContract(input, 1, "chapter-repair"),
     "",
     "TARGET GATES FOR THE REPAIRED CHAPTER:",
     `- Keep order exactly ${chapter.order}.`,
@@ -4677,6 +4721,100 @@ export async function generateStoryDevMode(
         finalModelUsed = storyPolishStage.provider.modelUsed;
         finalDiagnostics = polishedDiagnostics;
         storyPolishApplied = true;
+
+        if (isDialogueOnlyHardFailure(finalDiagnostics)) {
+          const dialogueRepairChapters = selectPostPolishDialogueRepairChapters(finalDiagnostics);
+          if (dialogueRepairChapters.length > 0) {
+            console.warn("[dev-mode-generation] Triggering post-polish targeted dialogue repair", {
+              chapters: dialogueRepairChapters.map((chapter) => ({
+                order: chapter.order,
+                title: chapter.title,
+                chars: chapter.chars,
+                dialogPct: chapter.dialogPct,
+                issues: chapter.issues,
+              })),
+              hardIssueCount: finalDiagnostics.hardIssueCount,
+              dialogPct: finalDiagnostics.dialogPct,
+            });
+
+            let dialogueRepairedParsed = finalParsed;
+            let dialogueRepairedModelUsed = finalModelUsed;
+            let dialogueRepairDiagnostics = finalDiagnostics;
+            const postPolishRepairAttempt = repairAttempt + 1;
+
+            for (const chapterDiagnostic of dialogueRepairChapters) {
+              const currentChapter = dialogueRepairedParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
+              if (!currentChapter) continue;
+
+              const chapterRepairPrompts = buildChapterRepairPrompts(
+                input,
+                chapterCount,
+                dialogueRepairedParsed,
+                currentChapter,
+                chapterDiagnostic,
+                dialogueRepairDiagnostics,
+                blueprint,
+                {
+                  ...critique,
+                  validatorFindings,
+                  polishReason: "post-polish-dialogue-repair",
+                },
+                postPolishRepairAttempt
+              );
+
+              try {
+                const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
+                const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+                  maxTokens: repairMaxTokens,
+                  temperature: 0.24,
+                  timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
+                  modelRole: "selected-story",
+                });
+                const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
+                dialogueRepairedParsed = replaceStoryChapter(dialogueRepairedParsed, repairResult.chapter);
+                dialogueRepairedModelUsed = chapterRepairStage.provider.modelUsed;
+                dialogueRepairDiagnostics = analyzeDevModeStoryQuality(dialogueRepairedParsed, input, chapterCount);
+                const repairedChapterDiagnostics = dialogueRepairDiagnostics.chapterDiagnostics.find((chapter) => Number(chapter.order) === Number(repairResult.chapter.order));
+                repairSelfReflections.push({
+                  attempt: postPolishRepairAttempt,
+                  order: repairResult.chapter.order,
+                  title: repairResult.chapter.title,
+                  modelUsed: chapterRepairStage.provider.modelUsed,
+                  selfReflection: repairResult.selfReflection,
+                  deterministicChapterDiagnostics: repairedChapterDiagnostics,
+                  deterministicStoryHardIssueCount: dialogueRepairDiagnostics.hardIssueCount,
+                  deterministicStoryDialogPct: dialogueRepairDiagnostics.dialogPct,
+                  reason: "post-polish-dialogue-repair",
+                });
+              } catch (dialogueRepairError) {
+                console.warn("[dev-mode-generation] Post-polish dialogue repair failed for chapter; keeping current chapter", {
+                  order: currentChapter.order,
+                  title: currentChapter.title,
+                  error: dialogueRepairError instanceof Error ? dialogueRepairError.message : String(dialogueRepairError),
+                });
+              }
+            }
+
+            const dialogueImproved =
+              dialogueRepairDiagnostics.dialogPct > finalDiagnostics.dialogPct
+              && isDiagnosticsBetter(dialogueRepairDiagnostics, finalDiagnostics, chapterCount, input.config);
+            if (dialogueImproved) {
+              finalParsed = dialogueRepairedParsed;
+              finalModelUsed = dialogueRepairedModelUsed;
+              finalDiagnostics = dialogueRepairDiagnostics;
+              chapterRepairApplied = true;
+              repairAttempt = postPolishRepairAttempt;
+            } else {
+              console.warn("[dev-mode-generation] Post-polish dialogue repair rejected by deterministic diagnostics", {
+                hardIssueCountBefore: finalDiagnostics.hardIssueCount,
+                hardIssueCountAfter: dialogueRepairDiagnostics.hardIssueCount,
+                dialogPctBefore: finalDiagnostics.dialogPct,
+                dialogPctAfter: dialogueRepairDiagnostics.dialogPct,
+              });
+            }
+          }
+        }
+
         rawQualityScore = undefined;
         localGateScore = undefined;
         finalQualityScore = undefined;
