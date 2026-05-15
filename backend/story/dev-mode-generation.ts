@@ -50,7 +50,8 @@ const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 24;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 3;
-const DEV_MODE_BLUEPRINT_MIN_SCORE = 8.8;
+const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.8;
+const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 7.0;
 const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 2;
 const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 5;
 const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 4;
@@ -2193,7 +2194,7 @@ function buildBlueprintRepairPrompts(
   const userPrompt = [
     `CALL 2R.${repairAttempt}: Repair the blueprint before any expensive prose draft.`,
     "Do NOT write story prose. Return only a compact patch object that the server can merge into the existing blueprint.",
-    `The blueprint judge score is below ${DEV_MODE_BLUEPRINT_MIN_SCORE}/10, so drafting is blocked until the story spine and scene cards are stronger.`,
+    `The blueprint judge score is below the ${DEV_MODE_BLUEPRINT_TARGET_SCORE}/10 target, so repair the story spine and scene cards before any expensive prose draft.`,
     "",
     "REPAIR PRIORITIES:",
     "- Strengthen the 7-point storySpine: child wish, concrete trigger/mistake, magic rule, escalation, false solution, small sacrifice, final image.",
@@ -4483,6 +4484,9 @@ export async function generateStoryDevMode(
 
     let critique: any = null;
     let blueprintScore = 0;
+    let bestBlueprint = blueprint;
+    let bestCritique: any = null;
+    let bestBlueprintScore = Number.NEGATIVE_INFINITY;
     for (let blueprintAttempt = 0; blueprintAttempt <= DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS; blueprintAttempt += 1) {
       const critiquePrompts = buildCritiquePrompts(input, chapterCount, blueprint);
       const critiqueStage = await runStage("dramaturgy-check", critiquePrompts, {
@@ -4497,22 +4501,41 @@ export async function generateStoryDevMode(
         parseWarning: critiqueStage.parseError,
       };
       blueprintScore = extractQualityScore(critique) ?? 0;
-      blueprint = getReviewedBlueprint(blueprint, critique);
+      const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+      blueprint = reviewedBlueprint;
+      if (blueprintScore > bestBlueprintScore) {
+        bestBlueprintScore = blueprintScore;
+        bestBlueprint = reviewedBlueprint;
+        bestCritique = critique;
+      }
 
-      if (blueprintScore >= DEV_MODE_BLUEPRINT_MIN_SCORE) {
+      if (blueprintScore >= DEV_MODE_BLUEPRINT_TARGET_SCORE) {
         break;
       }
 
       if (blueprintAttempt >= DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS) {
-        throw new Error(
-          `Story quality gates failed: blueprint score ${blueprintScore || "unknown"} below ${DEV_MODE_BLUEPRINT_MIN_SCORE} after ${DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS} repair attempt(s).`
-        );
+        blueprint = bestBlueprint;
+        critique = bestCritique || critique;
+        blueprintScore = Number.isFinite(bestBlueprintScore) ? bestBlueprintScore : blueprintScore;
+        if (blueprintScore < DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE) {
+          throw new Error(
+            `Story quality gates failed: blueprint score ${blueprintScore || "unknown"} below hard floor ${DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE} after ${DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS} repair attempt(s).`
+          );
+        }
+        console.warn("[dev-mode-generation] Blueprint stayed below target after repairs; continuing with best blueprint and hard final release gates", {
+          score: blueprintScore,
+          targetScore: DEV_MODE_BLUEPRINT_TARGET_SCORE,
+          hardFloor: DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE,
+          repairAttempts: DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS,
+        });
+        break;
       }
 
-      console.warn("[dev-mode-generation] Blueprint below quality floor; repairing before draft", {
+      console.warn("[dev-mode-generation] Blueprint below target; repairing before draft", {
         attempt: blueprintAttempt + 1,
         score: blueprintScore,
-        minScore: DEV_MODE_BLUEPRINT_MIN_SCORE,
+        targetScore: DEV_MODE_BLUEPRINT_TARGET_SCORE,
+        hardFloor: DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE,
       });
 
       const blueprintRepairPrompts = buildBlueprintRepairPrompts(input, chapterCount, blueprint, critique, blueprintAttempt + 1);
