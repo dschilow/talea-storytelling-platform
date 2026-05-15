@@ -42,10 +42,10 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v5";
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v6";
 const DEV_MODE_MIN_DIALOG_PCT = 34;
 const DEV_MODE_TARGET_DIALOG_PCT = 38;
-const DEV_MODE_PROMPT_DIALOG_PCT = 42;
+const DEV_MODE_PROMPT_DIALOG_PCT = 50;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 24;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
@@ -62,7 +62,7 @@ const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.8;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
 const DEV_MODE_MIN_SUPPORTING_CAST = 2;
 const DEV_MODE_MAX_SUPPORTING_CAST = 4;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 12;
@@ -133,7 +133,7 @@ export interface DevModeGeneratedStory {
     storyModel?: string;
     imagesGenerated: number;
     developerMode: true;
-    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
+    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
       usage?: { prompt: number; completion: number; total: number };
@@ -286,6 +286,8 @@ const NOVELTY_STOPWORDS = new Set([
   "dann", "doch", "dort", "durch", "gegen", "grosse", "große", "grossen", "großen", "hatte", "haben", "hinter",
   "immer", "jetzt", "kleine", "kleinen", "kommt", "machen", "nach", "neben", "noch", "sagte", "schon", "unter",
   "ueber", "über", "wieder", "weiter", "wurde", "wurden", "zwischen",
+  "abenteuer", "bruder", "schwester", "familie", "freund", "freunde", "klein", "kleiner", "kleines", "kleinem",
+  "zauber", "magie", "fantasie", "geheimnis", "geheimnisse", "wunder", "ploetzlich", "plötzlich",
   "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
   "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen",
 ]);
@@ -2854,9 +2856,11 @@ function buildChapterRepairPrompts(
   const languageName = localizedLanguageName(input.config.language);
   const bounds = getChapterLengthBounds(input.config);
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
-  const chapterTargetDialogPct = storyDiagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT
-    ? DEV_MODE_TARGET_DIALOG_PCT
-    : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
+  const chapterTargetDialogPct = storyDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT
+    ? DEV_MODE_PROMPT_DIALOG_PCT
+    : storyDiagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT
+      ? DEV_MODE_PROMPT_DIALOG_PCT
+      : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
   const targetMaxChars = getChapterRepairTargetMaxChars(input.config);
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const paragraphBounds = getParagraphBounds(input.config);
@@ -3516,13 +3520,13 @@ function getChapterLengthBounds(config: StoryConfig): { min: number; max: number
 
 function getChapterDraftTargetMaxChars(config: StoryConfig): number {
   const bounds = getChapterLengthBounds(config);
-  const margin = config.length === "short" ? 200 : config.length === "long" ? 350 : 100;
+  const margin = config.length === "short" ? 250 : config.length === "long" ? 350 : 250;
   return Math.max(bounds.min, bounds.max - margin);
 }
 
 function getChapterRepairTargetMaxChars(config: StoryConfig): number {
   const bounds = getChapterLengthBounds(config);
-  const margin = config.length === "short" ? 250 : config.length === "long" ? 400 : 100;
+  const margin = config.length === "short" ? 300 : config.length === "long" ? 450 : 400;
   return Math.max(bounds.min, bounds.max - margin);
 }
 
@@ -3535,7 +3539,7 @@ function getParagraphBounds(config: StoryConfig): { min: number; max: number } {
 function getParagraphBudgetGuidance(config: StoryConfig): { targetCount: string; maxChars: number } {
   if (config.length === "short") return { targetCount: "4-5", maxChars: 170 };
   if (config.length === "long") return { targetCount: "6-8", maxChars: 240 };
-  return { targetCount: "5-6", maxChars: 190 };
+  return { targetCount: "5", maxChars: 160 };
 }
 
 function countDialogChars(text: string): number {
@@ -4393,6 +4397,7 @@ export async function generateStoryDevMode(
   };
 
   console.log("[dev-mode-generation] Dev mode adaptive chapter-repair quality pipeline", {
+    pipeline: DEV_MODE_PIPELINE_ID,
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
@@ -4763,6 +4768,15 @@ export async function generateStoryDevMode(
       finalModelUsed = bestModelUsed;
       finalDiagnostics = bestDiagnostics;
 
+      if (broadFormFailure && repairAttempt >= 1 && finalDiagnostics.hardIssueCount > 0) {
+        console.warn("[dev-mode-generation] Broad form failure remains after chapter repair pass; escalating to full-story gate rescue", {
+          attempt: repairAttempt,
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          dialogPct: finalDiagnostics.dialogPct,
+        });
+        break;
+      }
+
       // One successful local repair is enough for soft issues; keep looping
       // only while hard gates still fail.
       if (finalDiagnostics.hardIssueCount === 0) break;
@@ -4828,12 +4842,14 @@ export async function generateStoryDevMode(
       }
 
       const currentScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+      const hasLocalHardIssues = (finalDiagnostics?.hardIssueCount ?? 0) > 0;
       const shouldAttemptStoryPolish =
         validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
         && Boolean(finalParsed)
         && Boolean(finalDiagnostics)
-        && (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && (
+          hasLocalHardIssues
+          ||
           (finalDiagnostics?.dialogPct ?? 0) < DEV_MODE_TARGET_DIALOG_PCT
           || currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
         );
