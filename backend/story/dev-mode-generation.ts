@@ -37,6 +37,8 @@ import { buildStoryExperienceContext, describeEmotionalFlavors, describeSpecialI
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { storyDB } from "./db";
+import { artifactMatcher, recordStoryArtifact } from "./artifact-matcher";
+import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory } from "./types";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -173,6 +175,12 @@ export interface DevModeGeneratedStory {
     ideaCandidateCount?: number;
     selectedIdeaTitle?: string;
     selectedSupportingCast?: string[];
+    matchedArtifact?: {
+      id: string;
+      name: string;
+      category?: string;
+      rarity?: string;
+    };
   };
 }
 
@@ -238,6 +246,24 @@ export interface DevModeGenerationInput {
   primaryProfileAge?: number | null;
   noveltyBrief?: DevModeNoveltyBrief;
   selectedIdea?: DevModeSelectedIdea;
+  /**
+   * Artifact picked from `artifact_pool` for this story. Acts as a supporting
+   * prop / red-thread candidate — NOT the main role. Selected before idea
+   * candidates so the prose can plant it naturally.
+   */
+  matchedArtifact?: DevModeMatchedArtifact;
+}
+
+export interface DevModeMatchedArtifact {
+  id: string;
+  name: string;             // already in user language
+  nameEn?: string;
+  category: ArtifactCategory;
+  rarity?: string;
+  storyRole: string;
+  visualKeywords: string[];
+  emoji?: string;
+  imageUrl?: string;
 }
 
 interface DevModeRecentStoryFingerprint {
@@ -1072,8 +1098,7 @@ function looksLikeVividStorySpecies(species?: string | null): boolean {
 
 function buildIdeaAvatarBlock(avatars: DevModeAvatar[]): string {
   if (!avatars || avatars.length === 0) return "MAIN CHARACTERS: free choice.";
-  const lines: string[] = ["MAIN CHARACTERS FOR IDEA LAB:"];
-  avatars.forEach((avatar, index) => {
+  const lines: string[] = ["MAIN CHARACTERS FOR IDEA LAB:"];  avatars.forEach((avatar, index) => {
     const heading = avatar.age != null
       ? `${index + 1}. ${avatar.name} (${avatar.age} years old)`
       : `${index + 1}. ${avatar.name}`;
@@ -1123,6 +1148,93 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
     }
   });
   return lines.join("\n");
+}
+
+/**
+ * Builds the artifact-from-pool block injected into idea/blueprint/draft/polish
+ * prompts. The artifact is a SUPPORTING PROP and red-thread candidate, NOT the
+ * main role. The model may anchor the recurring object/refrain around it, but
+ * is free to keep it on the periphery if the story needs another red thread.
+ */
+function buildArtifactPropBlock(input: DevModeGenerationInput): string | null {
+  const artifact = input.matchedArtifact;
+  if (!artifact || !artifact.name) return null;
+  const visualWords = (artifact.visualKeywords || []).slice(0, 6).filter(Boolean).join(", ");
+  const lines: string[] = [
+    "ARTIFACT FROM POOL (supporting prop, NOT the main role \u2014 use as the recurring red-thread object if it fits naturally):",
+    `- Name: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}`,
+    `- Category: ${artifact.category}${artifact.rarity ? ` (${artifact.rarity})` : ""}`,
+    `- Story role / how it works: ${artifact.storyRole}`,
+  ];
+  if (visualWords) lines.push(`- Visual cues: ${visualWords}`);
+  lines.push(
+    "- Treat this prop the way a real picture-book uses an object: it appears in the world, it gets used or misused once, it carries a small choice, and it stays present \u2014 it never solves the plot for the children. The MAIN avatars perform every decisive action."
+  );
+  lines.push(
+    "- If the artifact does not fit the story idea cleanly, mention it only briefly as a small background detail; never force it. Do not put it on the cover or in the title unless it is genuinely central."
+  );
+  return lines.join("\n");
+}
+
+/**
+ * Picks an artifact from `artifact_pool` using the shared ArtifactMatcher.
+ * Lightweight requirement: no chapter constraints (dev-mode does not enforce
+ * artifact discovery/usage chapters), category preference derived from genre
+ * with sensible fallbacks. Returns null when the pool is empty or matching
+ * fails \u2014 callers must NEVER block story generation on artifact selection.
+ */
+async function selectDevModeArtifact(
+  input: DevModeGenerationInput,
+  recentFingerprints: DevModeRecentStoryFingerprint[]
+): Promise<DevModeMatchedArtifact | null> {
+  const requirement: ArtifactRequirement = {
+    placeholder: "{{ARTIFACT_REWARD}}",
+    preferredCategory: pickDevModeArtifactCategory(input.config),
+    requiredAbility: undefined,
+    contextHint: "Dev-mode whole-story-first: prefer a graspable child-readable prop usable as a red-thread object.",
+    discoveryChapter: 2,
+    usageChapter: Math.max(3, deriveChapterCount(input.config.length) - 1),
+    importance: "medium",
+  };
+  const recentIds = (recentFingerprints || []).map((entry) => entry.id).filter(Boolean);
+  const genreKey = String(input.config.genre || "adventure").toLowerCase();
+  const languageCode = String(input.config.language || "de").toLowerCase().startsWith("en") ? "en" : "de";
+  let template: ArtifactTemplate;
+  try {
+    template = await artifactMatcher.match(requirement, genreKey, recentIds, languageCode);
+  } catch (err) {
+    console.warn("[dev-mode-generation] artifactMatcher.match failed:", (err as Error)?.message || err);
+    return null;
+  }
+  if (!template || !template.id) return null;
+  const localizedName = languageCode === "en" ? (template.name?.en || template.name?.de) : (template.name?.de || template.name?.en);
+  return {
+    id: template.id,
+    name: String(localizedName || "").trim(),
+    nameEn: template.name?.en,
+    category: template.category,
+    rarity: template.rarity,
+    storyRole: template.storyRole,
+    visualKeywords: Array.isArray(template.visualKeywords) ? template.visualKeywords : [],
+    emoji: template.emoji,
+    imageUrl: template.imageUrl,
+  };
+}
+
+/**
+ * Genre-aware category preference for dev-mode artifact picks. Keeps the
+ * selection biased toward graspable picture-book props rather than weapons or
+ * battle gear.
+ */
+function pickDevModeArtifactCategory(config: StoryConfig): ArtifactCategory | undefined {
+  const genre = String(config.genre || "").toLowerCase();
+  if (/mystery|detective|krim/.test(genre)) return "tool";
+  if (/learning|education|lern/.test(genre)) return "book";
+  if (/nature|tier|animal|wald|forest/.test(genre)) return "nature";
+  if (/friendship|freund/.test(genre)) return "jewelry";
+  if (/fantasy|magic|magie|maerchen|m\u00e4rchen/.test(genre)) return "magic";
+  if (/adventure|abenteuer|quest/.test(genre)) return "map";
+  return undefined; // let matcher decide
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
@@ -2119,6 +2231,8 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "",
     buildPoolIdeaCastingBlock(input.poolCharacters),
     "",
+    buildArtifactPropBlock(input),
+    "",
     `Genre: ${input.config.genre}.`,
     `Setting: ${input.config.setting}.`,
     `Age group: ${input.config.ageGroup}.`,
@@ -2456,7 +2570,9 @@ function buildBlueprintPrompts(
     "The final sentence of the whole story must be closed AND curiosity-inducing: main problem resolved, but the world feels bigger.",
     "Make sure antagonist hints aren't smuggled into the solution as a spoiler shortcut.",
     "The emotional engine must be concrete enough that the final story writer can translate it directly into scene, dialogue, and closing image.",
-  ].join("\n");
+    "",
+    buildArtifactPropBlock(input) || null,
+  ].filter((line): line is string => line !== null && line !== undefined).join("\n");
   return { systemPrompt, userPrompt };
 }
 
@@ -2714,6 +2830,8 @@ function buildWholeStoryDraftPrompts(
     "SELECTED IDEA AND CAST:",
     buildSelectedIdeaPromptBlock(input),
     buildSelectedCastIntegrationContract(input),
+    "",
+    buildArtifactPropBlock(input) || "",
     "",
     "LENGTH & RHYTHM:",
     `- Target ${wordBounds.targetMin}-${wordBounds.targetMax} words for the whole story (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
@@ -3425,6 +3543,8 @@ function buildStoryPolishPrompts(
     "",
     "CRITIQUE FROM DRAMATURGY CHECK:",
     promptJson(compactCritiqueForDraft(critique)),
+    "",
+    buildArtifactPropBlock(input) || "",
     "",
     "CURRENT STORY TO POLISH:",
     promptJson(story),
@@ -5653,6 +5773,27 @@ export async function generateStoryDevMode(
     noveltyBrief: input.noveltyBrief || buildDevModeNoveltyBrief(input, recentStoryFingerprints),
   };
 
+  // Artifact selection from pool. Picked BEFORE idea-candidates so the chosen
+  // prop can act as the red-thread object across the whole pipeline (idea,
+  // blueprint, draft, polish). Failure must NEVER block story generation \u2014
+  // dev-mode is also used for cold-start / smoke runs without artifact_pool.
+  if (!input.matchedArtifact) {
+    try {
+      const matched = await selectDevModeArtifact(input, recentStoryFingerprints);
+      if (matched) {
+        input = { ...input, matchedArtifact: matched };
+        console.log("[dev-mode-generation] Selected artifact from pool", {
+          id: matched.id,
+          name: matched.name,
+          category: matched.category,
+          rarity: matched.rarity,
+        });
+      }
+    } catch (err) {
+      console.warn("[dev-mode-generation] Artifact selection skipped:", (err as Error)?.message || err);
+    }
+  }
+
   const runStage = async (
     stage: DevModePipelineStage,
     prompts: { systemPrompt: string; userPrompt: string },
@@ -6851,6 +6992,17 @@ export async function generateStoryDevMode(
       imageModel: undefined,
     }));
 
+  // Best-effort: record the artifact assignment so usage counters and recent
+  // history work the same way as in the standard pipeline. Failure here must
+  // never break the generated story.
+  if (input.matchedArtifact?.id && input.storyId) {
+    try {
+      await recordStoryArtifact(input.storyId, input.matchedArtifact.id, 2, Math.max(3, chapters.length - 1));
+    } catch (err) {
+      console.warn("[dev-mode-generation] recordStoryArtifact failed:", (err as Error)?.message || err);
+    }
+  }
+
   return {
     title: parsed.title,
     description: parsed.description || parsed.title,
@@ -6890,6 +7042,14 @@ export async function generateStoryDevMode(
       ideaCandidateCount: ideaCandidates.length,
       selectedIdeaTitle: input.selectedIdea?.title,
       selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
+      matchedArtifact: input.matchedArtifact
+        ? {
+            id: input.matchedArtifact.id,
+            name: input.matchedArtifact.name,
+            category: input.matchedArtifact.category,
+            rarity: input.matchedArtifact.rarity,
+          }
+        : undefined,
       devModeStages: stageLogs.map((stage) => ({
         stage: stage.stage,
         usage: stage.usage,
