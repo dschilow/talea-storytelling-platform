@@ -1587,10 +1587,10 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
 
   const fragments: string[] = [];
   if (/zahnluecke|zahnlucke|zahnluecken|pfeif|tanzen|tanzt/.test(profileText)) {
-    fragments.push(`younger, body-first voice: short warm questions, tiny dance/foot beats, sometimes whistles through the tooth gap before answering`);
+    fragments.push(`younger, body-first voice: short warm questions, tiny foot/dance beats, occasionally a quiet whistle through the tooth gap (NOT every line); empathy through action, not slogans`);
   }
   if (/schlau|gedaechtnis|gedachtnis|merkt|schnell|ohren|abstehend/.test(profileText)) {
-    fragments.push(`older quick-memory voice: remembers exact details, counts patterns, starts with "Ich hab mir gemerkt..." or "Warte, das war eben anders"`);
+    fragments.push(`older, pattern-noticing voice: counts and compares, dry sachlich humor, shows uncertainty through small physical tells (ears flush, notebook held tighter, sentence breaks); avoid fixed memory-openers as a default reflex`);
   }
   if (age > 0 && age <= 6) {
     fragments.push(`speaks in very short concrete child sentences; one feeling or question per line`);
@@ -1607,10 +1607,10 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
     fragments.push(`asks concrete why/how questions tied to visible clues; avoid repeating the same opener more than once in the whole story`);
   }
   if (v.empathy >= 45) {
-    fragments.push(`names the other person's feeling before doing anything ("Du bist traurig, oder?")`);
+    fragments.push(`reads the other person's body before acting; shows empathy through one concrete gesture (hand on shoulder, stepping closer, lowering voice) instead of a fixed catchphrase`);
   }
   if (v.courage >= 45) {
-    fragments.push(`takes a small physical step forward when others freeze, says "Ich geh vor."`);
+    fragments.push(`takes a small physical step forward when others freeze; quiet decisive action rather than slogans`);
   }
   if (v.vocabulary >= 70) {
     fragments.push(`expressive precise words, but still child-concrete (no adult abstractions)`);
@@ -2684,6 +2684,8 @@ function buildWholeStoryDraftPrompts(
     `- Target ${wordBounds.targetMin}-${wordBounds.targetMax} words for the whole story (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
     `- Roughly ${totalMinChars}-${totalMaxChars} characters of prose across the whole story.`,
     `- Output the prose as flat paragraphs (around ${chapterCount * 5}-${chapterCount * 7} paragraphs total for the whole story \u2014 the splitter will group them into ${chapterCount} chapters later).`,
+    `- Each paragraph \u2264 380 characters. Split long beats into separate paragraphs instead of cramming.`,
+    `- Every 4\u20136 paragraphs must contain a natural scene-turn (open question, new visible detail, decision, small surprise, comic aftershock, direction change). These turns are NOT chapter headings, but they must be strong enough that an editor could later cut a chapter right after them.`,
     `- No sentence may exceed ${maxSentenceChars} characters. Use child-readable beats.`,
     `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
@@ -2691,9 +2693,10 @@ function buildWholeStoryDraftPrompts(
     "BANNED:",
     "- chapter headings, chapter numbers, scene labels, dividers (\"---\", \"***\"), or recap sentences",
     "- mini-conclusions or moral closures inside the prose",
-    "- formulaic catchphrase repetition (each character may use a signature line at MOST once in the whole story)",
-    "- helper figures solving the central problem by explaining it",
-    "- multiple competing magic rules \u2014 keep ONE clear rule",
+    "- formulaic catchphrase repetition (each character may use a signature line at MOST once in the whole story; max 2 formulaic feeling/memory openers total across all characters)",
+    "- supporting / helper figures EXPLAINING the magic rule, the lesson, or the solution. Helpers may pressure, misinterpret, ask a sharp question, hand over a tool, or miss a clue \u2014 the MAIN avatars must perform the decisive insight and action.",
+    "- the finale repeating the exact mechanism/payoff of an earlier chapter; the finale must escalate or transform what was tried before",
+    "- multiple competing magic rules \u2014 keep ONE clear rule, and test it on-page at least twice before the finale",
     "- AI-tics: \"Not X. Not Y. Just Z.\" chains, narrator commentary, explained jokes",
     "",
     "COMPACT REVIEWED BLUEPRINT (use the beats privately as dramaturgy, do NOT echo them):",
@@ -2768,6 +2771,8 @@ function buildStorySplitterPrompts(
     "You do NOT rewrite prose. You decide chapter boundaries and write short, concrete chapter titles.",
     "Return JSON ONLY in this exact schema:",
     "{",
+    '  "splitQuality": "strong" | "medium" | "weak",',
+    '  "weakBoundaries": number[],   // 1-based chapter indices whose ENDING paragraph does NOT pull strongly into the next chapter (empty if all strong)',
     '  "chapters": [',
     '    { "order": number, "title": string, "paragraphStartIndex": number, "paragraphEndIndex": number }',
     "  ]",
@@ -2781,13 +2786,20 @@ function buildStorySplitterPrompts(
     `Split this finished children's story into exactly ${chapterCount} chapters. Language: ${languageName}.`,
     "",
     "Rules:",
-    "- Set chapter boundaries ONLY at natural scene/beat changes (new goal, new place, new pressure, new decision).",
+    "- Set chapter boundaries ONLY at natural scene/beat changes (new goal, new place, new pressure, new decision, new visible detail).",
+    "- PREFER cutting RIGHT AFTER a paragraph that ends with an open question, a new physical clue, a decision, or a surprise. AVOID cutting after a calm, closed, summarising paragraph.",
     "- Do NOT change the prose. Do NOT add summaries, recaps, or new sentences.",
-    "- Chapters 1 to N-1 must NOT feel like they finish a mini-story; they must leave a concrete pull into the next chapter.",
+    "- Chapters 1 to N-1 must NOT feel like they finish a mini-story; they must leave a concrete pull (a question, a missing piece, a decision in mid-air) into the next chapter.",
     "- Only the final chapter is allowed to close calmly.",
     "- Chapter titles: 2\u20136 words, concrete and image-based. NO moral. NO spoiler of the finale. NO generic titles like \"Die L\u00f6sung\" or \"Das Ende\".",
     "- A title should label the next image or turn of the scene, not the lesson.",
-    "- Distribute paragraphs roughly evenly, but prefer a natural break over an even split.",
+    `- Distribute paragraphs as evenly as you can WITHOUT killing a strong turn: the longest chapter\u2019s character count must be \u2264 1.6\u00d7 the shortest chapter\u2019s character count whenever a natural break allows it.`,
+    "",
+    "AFTER planning the boundaries, self-judge the result honestly:",
+    `- splitQuality = \"strong\" only if every non-final chapter ends on a real pull AND the longest/shortest ratio is \u2264 1.6.`,
+    "- splitQuality = \"medium\" if at most one boundary is soft.",
+    "- splitQuality = \"weak\" if two or more non-final chapters end on closure, or the balance ratio is > 1.8.",
+    "- List the 1-based chapter index of every non-final chapter whose ending pull is weak in weakBoundaries.",
     "",
     `TITLE OF STORY: ${draft.title}`,
     draft.description ? `STORY DESCRIPTION: ${draft.description}` : "",
@@ -2818,11 +2830,63 @@ function deterministicSplit(paragraphCount: number, chapterCount: number): Array
   return chunks;
 }
 
+// Computes the balance ratio (max chunk chars / min chunk chars) for a plan
+// against the raw paragraph text. A ratio of 1.0 means perfectly even, larger
+// values mean increasingly unbalanced chapters.
+function computePlanBalanceRatio(
+  draft: DevModeWholeStoryDraft,
+  plan: Array<{ start: number; end: number }>
+): number {
+  const chars = plan.map((slice) =>
+    draft.paragraphs.slice(slice.start, slice.end + 1).reduce((sum, p) => sum + p.length, 0)
+  );
+  const min = Math.min(...chars);
+  const max = Math.max(...chars);
+  if (min <= 0) return Number.POSITIVE_INFINITY;
+  return max / min;
+}
+
+// Deterministic balanced split that minimises char-count variance across
+// chapters. Used when the LLM splitter returns an unbalanced plan (ratio > 1.6)
+// and we cannot trust the model boundaries.
+function balancedDeterministicSplit(
+  draft: DevModeWholeStoryDraft,
+  chapterCount: number
+): Array<{ start: number; end: number }> {
+  const paragraphCount = draft.paragraphs.length;
+  if (chapterCount <= 1 || paragraphCount <= chapterCount) {
+    return deterministicSplit(paragraphCount, chapterCount);
+  }
+  const totalChars = draft.paragraphs.reduce((sum, p) => sum + p.length, 0);
+  const targetPerChapter = totalChars / chapterCount;
+  const plan: Array<{ start: number; end: number }> = [];
+  let cursor = 0;
+  let accumulated = 0;
+  for (let i = 0; i < chapterCount - 1; i += 1) {
+    const remainingChapters = chapterCount - i;
+    const maxAdvance = paragraphCount - cursor - (remainingChapters - 1);
+    let chunkChars = 0;
+    let end = cursor;
+    for (let j = 0; j < maxAdvance; j += 1) {
+      chunkChars += draft.paragraphs[cursor + j].length;
+      end = cursor + j;
+      const projectedTotal = accumulated + chunkChars;
+      const projectedTarget = targetPerChapter * (i + 1);
+      if (projectedTotal >= projectedTarget && j >= 0) break;
+    }
+    plan.push({ start: cursor, end });
+    accumulated += chunkChars;
+    cursor = end + 1;
+  }
+  plan.push({ start: cursor, end: paragraphCount - 1 });
+  return plan;
+}
+
 function applySplitterPlanToDraft(
   draft: DevModeWholeStoryDraft,
   chapterCount: number,
   splitterParsed: any
-): DevModeRawStory {
+): DevModeRawStory & { splitQuality?: "strong" | "medium" | "weak"; balanceRatio?: number } {
   const paragraphCount = draft.paragraphs.length;
   let plan: Array<{ start: number; end: number; title?: string }> = [];
 
@@ -2847,18 +2911,40 @@ function applySplitterPlanToDraft(
   }
 
   if (plan.length === 0) {
-    console.warn("[dev-mode-generation] Splitter plan invalid; using deterministic even split", {
+    console.warn("[dev-mode-generation] Splitter plan invalid; using deterministic balanced split", {
       paragraphCount,
       chapterCount,
       received: rawChapters.length,
     });
-    plan = deterministicSplit(paragraphCount, chapterCount).map((p) => ({ ...p }));
+    plan = balancedDeterministicSplit(draft, chapterCount).map((p) => ({ ...p }));
     // Best-effort: re-use any usable titles in order.
     rawChapters.forEach((ch: any, idx: number) => {
       const t = String(ch?.title || "").trim();
       if (t && plan[idx]) plan[idx].title = t;
     });
   }
+
+  // Enforce balance ratio: if LLM plan is too lopsided, fall back to a balanced
+  // deterministic split (keeping any usable titles).
+  const llmRatio = computePlanBalanceRatio(draft, plan);
+  if (llmRatio > 1.6) {
+    console.warn("[dev-mode-generation] Splitter plan unbalanced; using balanced deterministic split", {
+      llmRatio: Number(llmRatio.toFixed(2)),
+      threshold: 1.6,
+    });
+    const balanced = balancedDeterministicSplit(draft, chapterCount);
+    plan = balanced.map((slice, idx) => ({ ...slice, title: plan[idx]?.title }));
+  }
+
+  const balanceRatio = computePlanBalanceRatio(draft, plan);
+  let splitQuality: "strong" | "medium" | "weak" | undefined;
+  const reportedQuality = String(splitterParsed?.splitQuality || "").toLowerCase();
+  if (reportedQuality === "strong" || reportedQuality === "medium" || reportedQuality === "weak") {
+    splitQuality = reportedQuality as "strong" | "medium" | "weak";
+  }
+  // Downgrade reported quality if balance is bad.
+  if (balanceRatio > 1.8) splitQuality = "weak";
+  else if (splitQuality === "strong" && balanceRatio > 1.6) splitQuality = "medium";
 
   const chapters: DevModeChapter[] = plan.map((slice, idx) => {
     const paragraphs = draft.paragraphs.slice(slice.start, slice.end + 1);
@@ -2871,6 +2957,8 @@ function applySplitterPlanToDraft(
     title: draft.title,
     description: draft.description,
     chapters,
+    splitQuality,
+    balanceRatio,
   };
 }
 
@@ -3265,6 +3353,9 @@ function buildStoryPolishPrompts(
     "- If a personal object is used in the solution, make the character choose to give it up consciously, not by accident.",
     "- The antagonist gets a new way to exist or a task, not instant friendship as a moral shortcut.",
     "- The wonder rule must be tested on-page at least twice before the finale and must matter in the final action.",
+    "- The finale must NOT repeat the same mechanism/payoff as an earlier chapter. If chapter N-1 already paid off the rule the same way, escalate, transform, or invert it for the finale (new cost, new audience, new object, new emotional weight).",
+    "- Supporting/helper figures may pressure, misinterpret, ask, or hand over an object \\u2014 they must NOT explain the magic rule or the lesson. The MAIN avatars must spot the crucial clue and perform the decisive action on-page.",
+    "- Each character may use a signature catchphrase / formulaic opener at MOST ONCE in the whole story. Across all characters, no more than 2 such formulaic openers total. Replace extra ones with body language, action, or a fresh concrete line.",
     "",
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
@@ -4450,9 +4541,12 @@ interface DevModeStoryDiagnostics {
 }
 
 function getChapterLengthBounds(config: StoryConfig): { min: number; max: number } {
-  if (config.length === "short") return { min: 650, max: 1150 };
+  // v11 alignment: 5 chapters * max chars must comfortably fit the whole-story
+  // word budget. Previous medium=1250 made the per-chapter caps mathematically
+  // tighter than the story-word target. Raised so the splitter has room.
+  if (config.length === "short") return { min: 650, max: 1250 };
   if (config.length === "long") return { min: 1300, max: 2200 };
-  return { min: 800, max: 1250 };
+  return { min: 800, max: 1450 };
 }
 
 function getChapterDraftTargetMaxChars(config: StoryConfig): number {
@@ -5088,6 +5182,25 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
     // (surfaced as a market-quality soft issue) -> max 8.2.
     if (diagnostics.softIssues.some((issue) => /erklaert die Loesung|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(issue))) {
       score = Math.min(score, 8.2);
+    }
+    // Finale mechanism repeats an earlier chapter's payoff -> max 8.4 (spec).
+    if (diagnostics.softIssues.some((issue) => /Finale wiederholt|Payoff wiederholt|wiederholtes Payoff/i.test(issue))) {
+      score = Math.min(score, 8.4);
+    }
+    // Weak weiterlese-pull on two or more non-final chapters -> max 8.5.
+    {
+      const weakPullCount = diagnostics.softIssues.filter((issue) =>
+        /wenig Weiterlese-Sog|schwacher Pull|ohne klaren Pull|Kapitelende ohne Sog/i.test(issue)
+      ).length;
+      if (weakPullCount >= 2) score = Math.min(score, 8.5);
+    }
+    // Single magic rule never tested twice on-page before the finale -> max 8.4.
+    if (diagnostics.softIssues.some((issue) => /Wunder-Regel nicht zweimal|Magie-Regel nur einmal|Regel nicht getestet/i.test(issue))) {
+      score = Math.min(score, 8.4);
+    }
+    // Too many formulaic catchphrase / fixed-opener uses -> max 8.5.
+    if (diagnostics.softIssues.some((issue) => /formulaic|formelhaft|Catchphrase wiederholt|fester Eingangssatz/i.test(issue))) {
+      score = Math.min(score, 8.5);
     }
     // Story-level dialogue clearly under floor -> max 8.4 (per spec).
     if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
