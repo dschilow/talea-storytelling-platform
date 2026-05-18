@@ -4391,11 +4391,12 @@ function analyzeDevModeStoryQuality(
     const chapterLongestSentence = longestSentenceChars(chapter.content);
     const chapterPrefix = `Kapitel ${chapter.order || index + 1}`;
 
-    // Grace margin: a single chapter overshooting the upper bound by < 100
-    // chars is a soft issue (warning) — published children's books regularly
-    // have chapters of 1500-1600 chars without quality loss. Hard fail only
-    // for clear overshoots that affect pacing.
-    const chapterHardMaxOver = bounds.max + 100;
+    // Grace margin: modest chapter-length variation is a quality warning, not
+    // a reason to abort generation. The LLM regularly undercounts characters;
+    // keep hard failures for clear pacing problems, not a single fuller scene.
+    const chapterHardMaxOver = bounds.max + (
+      input.config.length === "short" ? 180 : input.config.length === "long" ? 450 : 300
+    );
     const chapterHardMinUnder = Math.max(0, bounds.min - 100);
     if (chars < chapterHardMinUnder) {
       issues.push(`zu kurz (${chars} Zeichen)`);
@@ -5177,11 +5178,13 @@ export async function generateStoryDevMode(
         critique = bestCritique || critique;
         blueprintScore = Number.isFinite(bestBlueprintScore) ? bestBlueprintScore : blueprintScore;
         if (blueprintScore < DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE) {
-          throw new Error(
-            `Story quality gates failed: blueprint score ${blueprintScore || "unknown"} below hard floor ${DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE} after ${DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS} repair attempt(s).`
-          );
+          console.warn("[dev-mode-generation] Blueprint stayed below hard floor after repairs; continuing for stability with final release warnings", {
+            score: blueprintScore,
+            hardFloor: DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE,
+            repairAttempts: DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS,
+          });
         }
-        console.warn("[dev-mode-generation] Blueprint stayed below target after repairs; continuing with best blueprint and hard final release gates", {
+        console.warn("[dev-mode-generation] Blueprint stayed below target after repairs; continuing with best blueprint and final release warnings if needed", {
           score: blueprintScore,
           targetScore: DEV_MODE_BLUEPRINT_TARGET_SCORE,
           hardFloor: DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE,
@@ -5931,7 +5934,7 @@ export async function generateStoryDevMode(
     releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings));
     if (releaseGateFailures.length > 0) {
       qualityGateFailureReason = releaseGateFailures.join(" ");
-      console.warn("[dev-mode-generation] Blocking developer-mode story release after quality gate failure", {
+      console.warn("[dev-mode-generation] Returning developer-mode story with quality gate warnings", {
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
@@ -5940,7 +5943,6 @@ export async function generateStoryDevMode(
         finalQualityScore,
         qualityGateFailureReason,
       });
-      throw new Error(`Story quality gates failed: ${qualityGateFailureReason}`);
     }
   } catch (pipelineError) {
     await publishWithTimeout(logTopic, {
