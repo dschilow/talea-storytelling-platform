@@ -42,7 +42,7 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v8";
+const DEV_MODE_PIPELINE_ID = "whole-story-continuity-v10";
 const DEV_MODE_MIN_DIALOG_PCT = 28;
 const DEV_MODE_TARGET_DIALOG_PCT = 35;
 const DEV_MODE_PROMPT_DIALOG_PCT = 50;
@@ -69,6 +69,8 @@ const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
 const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
 const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
+
+const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
 interface DevModeChapter {
   title: string;
@@ -489,15 +491,21 @@ function buildNoveltyMotifRegexes(normalizedMotif: string): RegExp[] {
   if (motif.includes(" ")) return [exact];
 
   let stem = motif;
+  let stemmed = false;
   for (const suffix of ["ungen", "chen", "lein", "ung", "ern", "en", "er", "e", "s"]) {
     if (stem.endsWith(suffix) && stem.length - suffix.length >= 5) {
       stem = stem.slice(0, -suffix.length);
+      stemmed = true;
       break;
     }
   }
 
-  const prefix = stem.length >= 5 ? stem : motif.slice(0, Math.min(motif.length, 6));
-  if (prefix.length < 5) return [exact];
+  if (stemmed && stem.length < NOVELTY_MIN_FAMILY_PREFIX_LENGTH) stem = motif;
+
+  const prefix = stem.length >= NOVELTY_MIN_FAMILY_PREFIX_LENGTH
+    ? stem
+    : motif.slice(0, Math.min(motif.length, NOVELTY_MIN_FAMILY_PREFIX_LENGTH));
+  if (prefix.length < NOVELTY_MIN_FAMILY_PREFIX_LENGTH) return [exact];
   const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const family = new RegExp(`\\b${escapedPrefix}[a-z0-9-]{0,14}\\b`, "gi");
   return [exact, family];
@@ -1554,6 +1562,12 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
   const values: Partial<Record<StoryTraitKey, number>> = {};
   for (const key of STORY_TRAIT_KEYS) values[key] = readTraitValue(pt, key);
   const v = values as Record<StoryTraitKey, number>;
+  const profileText = normalizeNoveltyText([
+    avatar.name,
+    avatar.description,
+    summarizeVisualProfile(avatar.visualProfile),
+  ].filter(Boolean).join(" "));
+  const age = Number(avatar.age ?? 0);
 
   // Compute dominant trait (handle the 0-only baseline by falling back to a
   // gentle observer voice instead of inventing personality).
@@ -1565,6 +1579,17 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
   }
 
   const fragments: string[] = [];
+  if (/zahnluecke|zahnlucke|zahnluecken|pfeif|tanzen|tanzt/.test(profileText)) {
+    fragments.push(`younger, body-first voice: short warm questions, tiny dance/foot beats, sometimes whistles through the tooth gap before answering`);
+  }
+  if (/schlau|gedaechtnis|gedachtnis|merkt|schnell|ohren|abstehend/.test(profileText)) {
+    fragments.push(`older quick-memory voice: remembers exact details, counts patterns, starts with "Ich hab mir gemerkt..." or "Warte, das war eben anders"`);
+  }
+  if (age > 0 && age <= 6) {
+    fragments.push(`speaks in very short concrete child sentences; one feeling or question per line`);
+  } else if (age >= 8) {
+    fragments.push(`can use slightly longer observation lines, but still childlike and never adult-explanatory`);
+  }
   if (v.logic >= 45 || v.persistence >= 45) {
     fragments.push(`uses short corrections and rules ("X gehört zu Y. Immer."), counts on fingers, prefers list-numbers ("Erstens... Zweitens...")`);
   }
@@ -1572,7 +1597,7 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
     fragments.push(`compares things to toys/props ("wie ein kleiner Mond", "wie ein Spielzeugauto"), grins before speaking`);
   }
   if (v.curiosity >= 45) {
-    fragments.push(`signature opener "Warte, ich hab da noch eine Frage!" or "Aber wieso...?"`);
+    fragments.push(`asks concrete why/how questions tied to visible clues; avoid repeating the same opener more than once in the whole story`);
   }
   if (v.empathy >= 45) {
     fragments.push(`names the other person's feeling before doing anything ("Du bist traurig, oder?")`);
@@ -1665,6 +1690,30 @@ function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | nu
   return null;
 }
 
+function buildReleaseCraftContract(input: DevModeGenerationInput): string {
+  const languageName = localizedLanguageName(input.config.language);
+  return [
+    "RELEASE-QUALITY CRAFT CONTRACT (9.0+ target, benchmark principles only):",
+    `- Output is in ${languageName}, but quality must compare to real shelf books: a child-retellable premise, musical read-aloud rhythm, distinct voices, escalating try-fail-try, and an earned final reversal/payoff.`,
+    "- Every recurrence changes meaning. If a refrain, prop, sound, or rule repeats at the same emotional level, rewrite it so it tests, blocks, reveals, jokes, or pays off.",
+    "- Each chapter result must force the next chapter by therefore/but causality. No episode may be movable without breaking the plot.",
+    "- The final choice must be child-small but emotionally exact: giving up control, sharing a private thing, waiting, admitting a mistake, or noticing what a helper cannot say.",
+    "- Pool characters may complicate, pressure, reveal, or create comedy; they must not explain the lesson or steal the decisive action from the main avatars.",
+    "- The ending image should be closed, funny/tender, and slightly larger than the problem — not a moral sentence and not a marketing cliffhanger.",
+  ].join("\n");
+}
+
+function buildWholeStoryContinuityContract(chapterCount: number): string {
+  return [
+    "WHOLE-STORY CONTINUITY CONTRACT:",
+    `- Write ONE continuous story arc that is displayed as exactly ${chapterCount} chapters. Chapters are scene/beat breaks for the reader, not standalone mini-stories.`,
+    "- The prose must still read smoothly if all chapter titles were removed. Do not restart, recap, or neatly resolve the tension at every chapter boundary.",
+    "- Each chapter inherits pressure from the previous one, changes the problem once, and leaves a concrete pull that makes the next chapter necessary.",
+    "- Use therefore/but causality across chapter boundaries; avoid episodic 'and then another thing happened' structure.",
+    "- Chapter titles should label the next turn or image, not make each chapter feel like a separate book.",
+  ].join("\n");
+}
+
 function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, strict = false): string | null {
   const castNames = input.selectedIdea?.selectedSupportingCast || [];
   if (castNames.length === 0) return null;
@@ -1717,7 +1766,8 @@ function buildSilentPreWriteSelfReviewContract(
     `- Shape: exactly ${chapterCount} chapter(s); each chapter must fit ${bounds.min}-${bounds.max} characters and ${paragraphBounds.min}-${paragraphBounds.max} paragraphs.`,
     `- Budget: ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Dialogue: target ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue overall; every repaired/written chapter must clear ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% without filler chatter.`,
-    "- Causality: every chapter needs goal -> obstacle -> turn -> concrete pull; no loose 'and then' sequence.",
+    "- Continuity: write one continuous story split into display chapters; no chapter may feel like a reset, recap, or separate mini-story.",
+    "- Causality: every chapter segment needs inherited pressure -> obstacle -> irreversible change -> concrete pull; no loose 'and then' sequence.",
     "- Voice: each quoted line must sound like that character and do at least two jobs: action, relationship, tension, humor, or subtext.",
     "- Cast: selected supporting characters must be plot-necessary; each needs a unique action/line/gesture that changes the problem or solution.",
     "- Agency: adults/helpers may offer pressure, tools, or comic complications; the main avatars must notice the key clue and perform the decisive action.",
@@ -1907,7 +1957,7 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     : null;
 
   const userPrompt = [
-    `Write a children's story with ${chapterCount} chapters.`,
+    `Write one continuous children's story that will be displayed as ${chapterCount} chapters.`,
     `Age group: ${config.ageGroup}.`,
     `Genre: ${config.genre}.`,
     `Setting: ${config.setting}.`,
@@ -1921,7 +1971,8 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     "",
     learningLine,
     customLine,
-    "Each chapter needs a clear arc (beginning, middle, turn/climax) and must feel complete on its own.",
+    buildWholeStoryContinuityContract(chapterCount),
+    "Each chapter needs a clear scene turn, but must NOT feel complete on its own; unresolved pressure should carry into the next chapter.",
     `"order" starts at 1 and counts up. Exactly ${chapterCount} chapters.`,
     `"description" is a 1–2 sentence blurb.`,
     `FINAL REMINDER: title, description and all chapter content MUST be in ${languageName}.`,
@@ -2003,6 +2054,10 @@ function buildEmotionAndVoicePromptContext(
     "- Each chapter ends on a turn, not an explanation. The last paragraph must trigger anticipation, worry, wonder, or a quiet giggle.",
     "- Every main character must make one small mistake that comes from their character and later leads to a better action.",
     "- The antagonist must not be pure mechanic. They need a wound, a wrong belief, funny-unsettling behavior, and a new place at the end.",
+    "",
+    buildReleaseCraftContract(input),
+    "",
+    buildWholeStoryContinuityContract(chapterCount),
   ].join("\n");
 }
 
@@ -2151,7 +2206,7 @@ function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCoun
     heroNames.length > 0 ? `Main characters: ${heroNames.join(", ")}.` : "Main characters: preserve the existing story's main characters.",
     poolNames.length > 0 ? `Supporting cast already available: ${poolNames.join(", ")}.` : null,
     "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
-    "Voice contract: one careful observer, one lively feeler, helper acts instead of explaining, antagonist stays funny-uncanny and conflicted.",
+    "Voice contract: use the named voice/cast notes from the full prompt; do not force generic careful/lively/helper templates if they do not fit the actual characters.",
     "Quality goal: shorter, cleaner scenes with more action-bearing dialogue; no new subplot, no rewritten story world.",
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
@@ -2315,7 +2370,11 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
   ].join("\n");
 }
 
-function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+function buildBlueprintPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  options: { compactRetry?: boolean; retryReason?: string } = {}
+): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -2356,9 +2415,12 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 1: Produce a story blueprint with an integrated emotional engine. Do NOT write the actual story prose yet.",
+    options.compactRetry
+      ? `CALL 1 RETRY: Produce a SHORTER valid JSON blueprint. Previous blueprint was unusable/truncated (${compactExcerpt(options.retryReason || "unknown parse error", 160)}).`
+      : "CALL 1: Produce a story blueprint with an integrated emotional engine. Do NOT write the actual story prose yet.",
     "This support call must prepare the later story: emotional core, character roles, a clear magic rule, a try-fail-try chain, finale built from earlier-planted details.",
     "Blueprint values may stay in English — only the final story prose (Call 3) must be in the target output language.",
+    "BLUEPRINT OUTPUT BUDGET (hard): valid compact JSON under 7,000 characters. One short phrase/sentence per string. sceneBeats max 4 short beats. Arrays max chapterCount items unless schema explicitly needs fewer. No prose samples, no explanations.",
     "Novelty is a hard requirement: the blueprint must feel like a different book from the user's recent stories, with a new central object/place/problem and a title a child would want to pull from a shelf.",
     "Treat the locked winning idea as binding. Expand it; do not invent a replacement premise.",
     "First create a 7-point storySpine: child wish -> concrete trigger/mistake -> magic rule -> escalation -> false solution -> small concrete sacrifice -> final image. If the spine is weak, the later draft will be rejected.",
@@ -2575,7 +2637,7 @@ function buildStoryDraftPrompts(
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "draft"),
     `- Give ${heroA} and ${heroB} different speaking rhythms, gestures, and first reactions in every scene; a reader should often identify the speaker without tags.`,
     "- Plant 3 small concrete details in chapters 1-2; the finale must use at least one of them.",
-    "- Each chapter follows goal -> conflict -> turn/yes-but -> pull. No loose 'and then' sequence.",
+    "- Each chapter segment follows inherited pressure -> conflict -> turn/yes-but -> pull. Do not make chapters self-contained episodes.",
     "- Every chapter has a child-giggle moment from character action, misunderstanding, prop, or wordplay.",
     "- Keep dialogue double-duty: every quoted line must move action, relationship, tension, subtext, or humor.",
     "- TITLE-PROMISE CONTRACT: the title's central image/word MUST surface and be redeemed in the prose (not only as decoration). Plant it early, deliver it in the climax.",
@@ -2589,8 +2651,8 @@ function buildStoryDraftPrompts(
     buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
     "DIALOGUE-FIRST SCENE PLANNING (MANDATORY, SILENT):",
-    "Before writing each chapter, silently plan the chapter's goal, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the scene instead of decorating narration.",
-    "Every chapter needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
+    "Before writing each chapter segment, silently plan the inherited pressure, conflict, wrong move/turn, and at least 3 concrete speaker exchanges. Do not output this plan; use it so dialogue drives the continuous story instead of decorating narration.",
+    "Every chapter segment needs at least one line where a character decides, refuses, misunderstands, jokes, or changes direction.",
     `Dialogue overshoot is intentional: aim for ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue because drafts usually measure lower after server diagnostics. Replace narrator explanation with action-bearing speaker turns instead of adding filler chatter.`,
     `Chapter shape contract: ${paragraphBudget.targetCount} compact paragraphs; at least 3 paragraphs contain direct speech; at least 3 short speaker exchanges; no paragraph may become an explanation block.`,
     "",
@@ -2617,7 +2679,7 @@ function buildStoryDraftPrompts(
     "- Chapter 4: understand the deeper rule, combine different strengths, an emotional moment, prepare the finale.",
     "- Chapter 5: concrete action, prepared solution, emotional aftertaste, strong closing image, no explained moral.",
     "- Key moments must land as visible scenes, not summary labels. At least one moment must make the old situation impossible to return to.",
-    "- Causality must be therefore/but logic: each chapter changes the problem in a way that forces the next chapter.",
+    "- Causality must be therefore/but logic: each chapter segment changes the problem in a way that forces the next chapter.",
     "- Do not duplicate the finale across chapters 4 and 5: chapter 4 reaches the crisis/realization; chapter 5 performs the final choice and payoff once.",
     "- A side/helper character may reveal a clue, but the children must perform the decisive action themselves.",
     "- If an adult/helper explains what the children should learn, rewrite that beat as child action, failed attempt, or a concrete prop payoff.",
@@ -2789,6 +2851,7 @@ function buildCompactStoryDraftPrompts(
     buildWriterVoiceAnchorBlock(input),
     "",
     buildDevStoryContext(input, chapterCount, { includeNoveltyBrief: false }),
+    buildWholeStoryContinuityContract(chapterCount),
     "",
     "HARD OUTPUT SHAPE:",
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
@@ -2804,7 +2867,7 @@ function buildCompactStoryDraftPrompts(
     `- Overall dialogue: writer target ${DEV_MODE_PROMPT_DIALOG_PCT}%, soft diagnostic target ${DEV_MODE_TARGET_DIALOG_PCT}%, hard floor ${DEV_MODE_MIN_DIALOG_PCT}%. Each chapter at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%.`,
     `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
     "- Keep sentences child-readable for ages 6-8: concrete, warm, funny, sensory.",
-    "- Every chapter must have a goal, obstacle, turn, and pull at the end.",
+    "- Every chapter segment must inherit pressure, hit an obstacle, change the problem, and pull into the next segment.",
     "- Recurring refrain/motif must do plot work in every chapter; never repeat it as decoration only.",
     "- Every chapter needs at least one child-giggle moment from action, misunderstanding, prop, or character voice.",
     "- Finale must use planted details; no moral-summary ending like 'Sie lernten...'.",
@@ -2867,6 +2930,10 @@ function buildStoryPolishPrompts(
     buildLeanRepairPromptContext(input, chapterCount),
     buildSelectedCastIntegrationContract(input, true),
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "polish"),
+    buildVoiceBibleBlock(input),
+    buildWriterVoiceAnchorBlock(input),
+    buildReleaseCraftContract(input),
+    buildWholeStoryContinuityContract(chapterCount),
     "",
     "HARD GATES:",
     `- Exactly ${chapterCount} chapters.`,
@@ -2902,10 +2969,9 @@ function buildStoryPolishPrompts(
     "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
     "",
     "DIALOGUE VOICE CONTRACT:",
-    "- Main careful observer: short, concrete, braking lines; points at details; rarely speaks in long explanations.",
-    "- Main lively feeler: quicker, warmer, more physical; asks questions; uses small funny comparisons.",
-    "- Trickster/helper: fast, frech, tool/prop humor; helps through action, never by simply explaining the solution.",
-    "- Antagonist: slow, whispering, uncanny/funny; keeps wavering between wanting to possess and learning to listen.",
+    "- Use the named VOICE BIBLE above. Do not force generic 'careful/lively/trickster/whispering' templates if they do not match the actual characters.",
+    "- Each quoted line needs at least two jobs: action, relationship, tension, subtext, or humor.",
+    "- If two main avatars could swap a line without anyone noticing, rewrite the line using their age, body detail, memory habit, question style, or visible gesture.",
     "",
     "PAYOFF CONTRACT:",
     "- Preserve prepared payoffs from the blueprint. The finale must come from planted details, not a new solution.",
@@ -3275,12 +3341,12 @@ function compactCritiqueForDraft(critique: any): any {
   return {
     score: critique?.score,
     marketGap: compactExcerpt(critique?.marketGap || "", 220) || undefined,
-    mustFix: Array.isArray(critique?.mustFix) ? critique.mustFix.slice(0, 8) : [],
-    missingEmotionalPayoff: Array.isArray(critique?.missingEmotionalPayoff) ? critique.missingEmotionalPayoff.slice(0, 5) : [],
-    voiceRisks: Array.isArray(critique?.voiceRisks) ? critique.voiceRisks.slice(0, 5) : [],
-    readOnRisks: Array.isArray(critique?.readOnRisks) ? critique.readOnRisks.slice(0, 5) : [],
-    addictiveReadingFixes: Array.isArray(critique?.addictiveReadingFixes) ? critique.addictiveReadingFixes.slice(0, 5) : [],
-    draftInstructions: Array.isArray(critique?.draftInstructions) ? critique.draftInstructions.slice(0, 10) : [],
+    mustFix: asStringArray(critique?.mustFix, 8),
+    missingEmotionalPayoff: asStringArray(critique?.missingEmotionalPayoff, 5),
+    voiceRisks: asStringArray(critique?.voiceRisks, 5),
+    readOnRisks: asStringArray(critique?.readOnRisks, 5),
+    addictiveReadingFixes: asStringArray(critique?.addictiveReadingFixes, 5),
+    draftInstructions: asStringArray(critique?.draftInstructions, 10),
     chapterRisks: Array.isArray(critique?.chapterRisks) ? critique.chapterRisks.slice(0, 8) : [],
     validatorFindings: critique?.validatorFindings
       ? {
@@ -3292,6 +3358,24 @@ function compactCritiqueForDraft(critique: any): any {
       : undefined,
     polishReason: critique?.polishReason || undefined,
   };
+}
+
+function asStringArray(value: any, limit = 6): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => compactExcerpt(typeof item === "string" ? item : String(JSON.stringify(item) || ""), 260))
+      .filter(Boolean)
+      .slice(0, limit);
+  }
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (!text) return [];
+    return [compactExcerpt(text, 260)];
+  }
+  if (value && typeof value === "object") {
+    return [compactExcerpt(String(JSON.stringify(value) || ""), 260)];
+  }
+  return [];
 }
 
 function compactExcerpt(text: string, maxChars = 360): string {
@@ -3504,10 +3588,9 @@ function buildChapterRepairPrompts(
     "",
     "DIALOGUE / VOICE REPAIR METHOD:",
     "- Convert explanatory narration into short character-specific exchanges.",
-    "- Main careful observer: short, concrete, braking lines; points at details; rarely explains.",
-    "- Main lively feeler: quicker, warmer, physical; asks questions; uses small funny comparisons.",
-    "- Trickster/helper: fast, frech, prop humor; acts, never simply explains the solution.",
-    "- Antagonist: slow, whispering, uncanny/funny; wavers between possessing and listening.",
+    "- Use the named VOICE BIBLE above; never flatten characters into generic careful/lively/helper/antagonist templates.",
+    "- If a helper/adult line explains the solution, turn it into pressure, comic action, or a prop clue so the main avatars still decide and act.",
+    "- If two speakers sound interchangeable, rewrite one line using age, body detail, memory habit, question style, or gesture.",
     "",
     "STRUCTURE / PAYOFF REPAIR METHOD:",
     "- Preserve the chapter's goal, conflict, turn, and chapter-end hook from the blueprint.",
@@ -5253,13 +5336,33 @@ export async function generateStoryDevMode(
     }
 
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
-    const blueprintStage = await runStage("blueprint", blueprintPrompts, {
-      maxTokens: input.config.length === "long" ? 4200 : 3400,
+    let blueprintStage = await runStage("blueprint", blueprintPrompts, {
+      maxTokens: input.config.length === "long" ? 5200 : 4300,
       temperature: 0.45,
       timeoutMs: 120_000,
       ...supportCallOptions,
       modelRole: "support",
     });
+    if (!blueprintStage.parsed) {
+      console.warn("[dev-mode-generation] Blueprint did not parse; retrying once with compact blueprint prompt", {
+        parseError: blueprintStage.parseError,
+        rawContentChars: blueprintStage.provider.content.length,
+      });
+      const compactBlueprintPrompts = buildBlueprintPrompts(input, chapterCount, {
+        compactRetry: true,
+        retryReason: blueprintStage.parseError,
+      });
+      const retryBlueprintStage = await runStage("blueprint", compactBlueprintPrompts, {
+        maxTokens: input.config.length === "long" ? 4600 : 3200,
+        temperature: 0.28,
+        timeoutMs: 120_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      if (retryBlueprintStage.parsed) {
+        blueprintStage = retryBlueprintStage;
+      }
+    }
     let blueprint = blueprintStage.parsed || {
       rawBlueprint: blueprintStage.provider.content,
       parseWarning: blueprintStage.parseError,
