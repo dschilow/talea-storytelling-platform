@@ -42,11 +42,16 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "whole-story-continuity-v10";
-const DEV_MODE_MIN_DIALOG_PCT = 28;
-const DEV_MODE_TARGET_DIALOG_PCT = 35;
-const DEV_MODE_PROMPT_DIALOG_PCT = 50;
-const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 20;
+// v11 — "whole-story-first": draft a continuous narrative as prose paragraphs,
+// then split into display chapters with a cheap support-model call. This
+// stops episodic chapter writing and protects the red thread.
+const DEV_MODE_PIPELINE_ID = "whole-story-first-v11";
+const DEV_MODE_MIN_DIALOG_PCT = 25;
+const DEV_MODE_TARGET_DIALOG_PCT = 32;
+// Writer-side target. Was 50% (caused filler chatter and compliance prose).
+// New range matches real children's-book dialogue density (25–40%).
+const DEV_MODE_PROMPT_DIALOG_PCT = 35;
+const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
 const DEV_MODE_MIN_PARAGRAPHS = 4;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
@@ -91,6 +96,8 @@ type DevModePipelineStage =
   | "blueprint-repair"
   | "dramaturgy-check"
   | "story-draft"
+  | "whole-story-draft"
+  | "story-splitter"
   | "chapter-repair"
   | "story-polish"
   | "line-punchup"
@@ -139,7 +146,7 @@ export interface DevModeGeneratedStory {
     storyModel?: string;
     imagesGenerated: number;
     developerMode: true;
-    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
+    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
       usage?: { prompt: number; completion: number; total: number };
@@ -1656,9 +1663,11 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
   }
   if (lines.length === 0) return null;
   return [
-    "VOICE BIBLE (binding — every quoted line must sound unmistakably like the named character):",
+    "VOICE BIBLE (binding \u2014 every quoted line must sound unmistakably like the named character):",
     ...lines,
     "- A reader should often identify the speaker WITHOUT tags. If two characters could say a line interchangeably, rewrite one of them.",
+    "- CATCHPHRASE RULE: any fixed signature line for a character (e.g. \"Du bist traurig, oder?\", \"Ich hab mir gemerkt...\", \"Warte, ich hab da noch eine Frage!\") may appear AT MOST ONCE in the whole story. Prefer showing the character\u2019s voice through fresh, varied phrasings, gestures, and concrete actions \u2014 not by repeating catchphrases.",
+    "- Voice should come from rhythm, vocabulary, body, and reaction style \u2014 not from formulaic openers. Two lines starting with the same fixed phrase = rewrite one.",
   ].join("\n");
 }
 
@@ -2585,6 +2594,284 @@ function mergeBlueprintObjects(base: any, revision: any): any {
 
 function getReviewedBlueprint(blueprint: any, critique: any): any {
   return mergeBlueprintObjects(blueprint || {}, critique?.revisedBlueprintPatch || critique?.revisedBlueprint || {});
+}
+
+// ---------------------------------------------------------------------------
+// WHOLE-STORY-FIRST PIPELINE (v11)
+//
+// Replaces the old "model emits chapters[] directly" approach. The story
+// model writes ONE continuous narrative as flat paragraphs[]. A cheap
+// support-model call then splits the prose into display chapters with titles
+// at natural scene breaks. This stops the model from packing 5 mini-endings,
+// preserves the red thread, and keeps targeted chapter repair as a fallback.
+//
+// Output of the writer (whole-story-draft):
+//   { "title": string, "description": string, "paragraphs": string[] }
+//
+// Output of the splitter (story-splitter):
+//   { "chapters": [ { "order": number, "title": string,
+//                     "paragraphStartIndex": number,
+//                     "paragraphEndIndex": number } ] }
+// ---------------------------------------------------------------------------
+
+function buildWholeStoryDraftPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  blueprint: any,
+  critique: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const wordBounds = getStoryWordBounds(input.config);
+  const totalBounds = getChapterLengthBounds(input.config);
+  const maxSentenceChars = maxSentenceCharsForAge(input.config.ageGroup);
+  const totalMinChars = totalBounds.min * chapterCount;
+  const totalMaxChars = totalBounds.max * chapterCount;
+  const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const compactBlueprint = compactReviewedBlueprintForDraft(revisedBlueprint, chapterCount);
+  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  const heroA = heroNames[0] || "Main character A";
+  const heroB = heroNames[1] || "Main character B";
+
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Whole-story draft schema (NO chapters here \u2014 a separate step splits the prose):",
+      "{",
+      '  "title": string,',
+      '  "description": string,',
+      '  "paragraphs": string[]   // ONE flat array; the entire story as continuous prose, in reading order',
+      "}",
+      "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, or labels into the paragraphs.",
+      "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
+    ].join("\n")
+  );
+
+  const userPrompt = [
+    `WHOLE STORY DRAFT \u2014 write ONE continuous children's story in ${languageName}.`,
+    "Do NOT split it into chapters. Do NOT write chapter headings, numbers, or scene labels.",
+    "Internally use the blueprint's beats as private dramaturgy; on the page the prose flows as one arc.",
+    "",
+    "CORE WRITER CONTRACT (only the rules that matter \u2014 do not over-comply, write like a real children's-book author):",
+    "1. Write one continuous story, not 5 mini-stories. Every paragraph must grow out of the previous one.",
+    "2. Each repetition (refrain, prop, sound, rule) must shift in meaning. Never repeat for decoration.",
+    "3. The MAIN avatars must spot the crucial clue and perform the decisive action. Helpers may complicate, pressure, or hint \u2014 they may NEVER explain the solution.",
+    "4. The final action must come from a detail that was planted earlier in the story.",
+    "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
+    "6. One clear magic/wonder rule. Test it on-page at least twice before the finale; the finale uses it.",
+    "7. Somewhere in the middle, something becomes irreversible (object lost, voice gone, path closed, secret revealed) so the children can't simply turn back.",
+    "",
+    "STRUCTURAL ARC (use silently as dramaturgy, do NOT label these on the page):",
+    "- Child wants something specific, quickly.",
+    "- First wrong attempt -> visible consequence.",
+    "- Helper or world complicates it; the problem grows.",
+    "- Irreversible middle: a personal stake appears.",
+    "- Children observe a pattern only they can see.",
+    "- They make one small, concrete, emotional decision.",
+    "- The world changes visibly in response.",
+    "- Closing image: the new order, warm, concrete, slightly larger than the problem.",
+    "",
+    buildVoiceBibleBlock(input),
+    "",
+    buildWriterVoiceAnchorBlock(input),
+    "",
+    buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
+    "",
+    "SELECTED IDEA AND CAST:",
+    buildSelectedIdeaPromptBlock(input),
+    buildSelectedCastIntegrationContract(input),
+    "",
+    "LENGTH & RHYTHM:",
+    `- Target ${wordBounds.targetMin}-${wordBounds.targetMax} words for the whole story (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
+    `- Roughly ${totalMinChars}-${totalMaxChars} characters of prose across the whole story.`,
+    `- Output the prose as flat paragraphs (around ${chapterCount * 5}-${chapterCount * 7} paragraphs total for the whole story \u2014 the splitter will group them into ${chapterCount} chapters later).`,
+    `- No sentence may exceed ${maxSentenceChars} characters. Use child-readable beats.`,
+    `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
+    `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
+    "",
+    "BANNED:",
+    "- chapter headings, chapter numbers, scene labels, dividers (\"---\", \"***\"), or recap sentences",
+    "- mini-conclusions or moral closures inside the prose",
+    "- formulaic catchphrase repetition (each character may use a signature line at MOST once in the whole story)",
+    "- helper figures solving the central problem by explaining it",
+    "- multiple competing magic rules \u2014 keep ONE clear rule",
+    "- AI-tics: \"Not X. Not Y. Just Z.\" chains, narrator commentary, explained jokes",
+    "",
+    "COMPACT REVIEWED BLUEPRINT (use the beats privately as dramaturgy, do NOT echo them):",
+    promptJson(compactBlueprint),
+    "",
+    "CRITIQUE TO RESOLVE:",
+    promptJson(compactCritiqueForDraft(critique)),
+    "",
+    `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array. No headings in the prose. All story text in ${languageName}.`,
+  ].filter(Boolean).join("\n");
+
+  return { systemPrompt, userPrompt };
+}
+
+interface DevModeWholeStoryDraft {
+  title: string;
+  description: string;
+  paragraphs: string[];
+}
+
+function parseWholeStoryDraft(content: string): DevModeWholeStoryDraft {
+  let parsed: any;
+  try {
+    parsed = tryParseJson(content);
+  } catch (err) {
+    throw new Error(
+      `Whole-story draft returned unparseable JSON: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Whole-story draft returned malformed JSON.");
+  }
+  const title = String(parsed.title || "").trim();
+  const description = String(parsed.description || "").trim();
+  if (!title) throw new Error("Whole-story draft missing title.");
+
+  // Accept either paragraphs[] (preferred) or a single body/content string.
+  let paragraphs: string[] = [];
+  if (Array.isArray(parsed.paragraphs)) {
+    paragraphs = parsed.paragraphs.map((p: any) => String(p || "").trim()).filter(Boolean);
+  } else if (typeof parsed.body === "string") {
+    paragraphs = splitParagraphs(parsed.body).map((p) => p.trim()).filter(Boolean);
+  } else if (typeof parsed.content === "string") {
+    paragraphs = splitParagraphs(parsed.content).map((p) => p.trim()).filter(Boolean);
+  } else if (Array.isArray(parsed.chapters)) {
+    // Defensive fallback: model ignored the schema and emitted chapters. Flatten.
+    for (const ch of parsed.chapters) {
+      const chParagraphs = Array.isArray(ch?.paragraphs)
+        ? ch.paragraphs.map((p: any) => String(p || "").trim()).filter(Boolean)
+        : splitParagraphs(String(ch?.content || "")).map((p) => p.trim()).filter(Boolean);
+      paragraphs.push(...chParagraphs);
+    }
+  }
+
+  // Strip any chapter heading lines the model snuck in.
+  paragraphs = paragraphs
+    .map((p) => p.replace(/^(?:kapitel|chapter)\s*\d+[.:\s\-\u2013\u2014]*/i, "").trim())
+    .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p));
+
+  if (paragraphs.length === 0) throw new Error("Whole-story draft produced no paragraphs.");
+  return { title, description, paragraphs };
+}
+
+function buildStorySplitterPrompts(
+  draft: DevModeWholeStoryDraft,
+  chapterCount: number,
+  languageName: string
+): { systemPrompt: string; userPrompt: string } {
+  const numbered = draft.paragraphs.map((p, idx) => `[${idx}] ${p}`).join("\n\n");
+  const systemPrompt = [
+    "You are a children's-book editor splitting a finished continuous story into display chapters.",
+    "You do NOT rewrite prose. You decide chapter boundaries and write short, concrete chapter titles.",
+    "Return JSON ONLY in this exact schema:",
+    "{",
+    '  "chapters": [',
+    '    { "order": number, "title": string, "paragraphStartIndex": number, "paragraphEndIndex": number }',
+    "  ]",
+    "}",
+    "Indices refer to the numbered paragraphs in the user message. paragraphEndIndex is INCLUSIVE.",
+    "Chapters must cover every paragraph exactly once, in order, with no overlaps and no gaps.",
+    `Produce EXACTLY ${chapterCount} chapters.`,
+  ].join("\n");
+
+  const userPrompt = [
+    `Split this finished children's story into exactly ${chapterCount} chapters. Language: ${languageName}.`,
+    "",
+    "Rules:",
+    "- Set chapter boundaries ONLY at natural scene/beat changes (new goal, new place, new pressure, new decision).",
+    "- Do NOT change the prose. Do NOT add summaries, recaps, or new sentences.",
+    "- Chapters 1 to N-1 must NOT feel like they finish a mini-story; they must leave a concrete pull into the next chapter.",
+    "- Only the final chapter is allowed to close calmly.",
+    "- Chapter titles: 2\u20136 words, concrete and image-based. NO moral. NO spoiler of the finale. NO generic titles like \"Die L\u00f6sung\" or \"Das Ende\".",
+    "- A title should label the next image or turn of the scene, not the lesson.",
+    "- Distribute paragraphs roughly evenly, but prefer a natural break over an even split.",
+    "",
+    `TITLE OF STORY: ${draft.title}`,
+    draft.description ? `STORY DESCRIPTION: ${draft.description}` : "",
+    "",
+    "PARAGRAPHS (numbered):",
+    numbered,
+    "",
+    `Return JSON only. Exactly ${chapterCount} chapters covering paragraphs 0..${draft.paragraphs.length - 1} inclusive with no gaps.`,
+  ].filter(Boolean).join("\n");
+
+  return { systemPrompt, userPrompt };
+}
+
+function deterministicSplit(paragraphCount: number, chapterCount: number): Array<{ start: number; end: number }> {
+  const chunks: Array<{ start: number; end: number }> = [];
+  const base = Math.floor(paragraphCount / chapterCount);
+  const rem = paragraphCount % chapterCount;
+  let cursor = 0;
+  for (let i = 0; i < chapterCount; i += 1) {
+    const size = base + (i < rem ? 1 : 0);
+    const start = cursor;
+    const end = Math.min(paragraphCount - 1, cursor + Math.max(1, size) - 1);
+    chunks.push({ start, end });
+    cursor = end + 1;
+  }
+  // Guarantee last chunk reaches the end.
+  if (chunks.length > 0) chunks[chunks.length - 1].end = paragraphCount - 1;
+  return chunks;
+}
+
+function applySplitterPlanToDraft(
+  draft: DevModeWholeStoryDraft,
+  chapterCount: number,
+  splitterParsed: any
+): DevModeRawStory {
+  const paragraphCount = draft.paragraphs.length;
+  let plan: Array<{ start: number; end: number; title?: string }> = [];
+
+  const rawChapters = Array.isArray(splitterParsed?.chapters) ? splitterParsed.chapters : [];
+  if (rawChapters.length === chapterCount) {
+    const candidate: Array<{ start: number; end: number; title?: string }> = [];
+    let ok = true;
+    let expectedStart = 0;
+    for (const ch of rawChapters) {
+      const start = Number(ch?.paragraphStartIndex ?? ch?.startIndex ?? ch?.start);
+      const end = Number(ch?.paragraphEndIndex ?? ch?.endIndex ?? ch?.end);
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start !== expectedStart || end < start || end >= paragraphCount) {
+        ok = false;
+        break;
+      }
+      candidate.push({ start, end, title: String(ch?.title || "").trim() || undefined });
+      expectedStart = end + 1;
+    }
+    if (ok && expectedStart === paragraphCount) {
+      plan = candidate;
+    }
+  }
+
+  if (plan.length === 0) {
+    console.warn("[dev-mode-generation] Splitter plan invalid; using deterministic even split", {
+      paragraphCount,
+      chapterCount,
+      received: rawChapters.length,
+    });
+    plan = deterministicSplit(paragraphCount, chapterCount).map((p) => ({ ...p }));
+    // Best-effort: re-use any usable titles in order.
+    rawChapters.forEach((ch: any, idx: number) => {
+      const t = String(ch?.title || "").trim();
+      if (t && plan[idx]) plan[idx].title = t;
+    });
+  }
+
+  const chapters: DevModeChapter[] = plan.map((slice, idx) => {
+    const paragraphs = draft.paragraphs.slice(slice.start, slice.end + 1);
+    const content = paragraphsToContent(paragraphs);
+    const title = slice.title && slice.title.length > 0 ? slice.title : `Kapitel ${idx + 1}`;
+    return { title, content, order: idx + 1 };
+  });
+
+  return {
+    title: draft.title,
+    description: draft.description,
+    chapters,
+  };
 }
 
 function buildStoryDraftPrompts(
@@ -4783,6 +5070,29 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
     if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|\[object Object\]/i.test(issue))) {
       score = Math.min(score, 7.8);
     }
+    // --- v11 scoring caps (whole-story-first spec) ----------------------
+    // Title promise missing -> max 8.2 (per spec).
+    if (diagnostics.softIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))) {
+      score = Math.min(score, 8.2);
+    }
+    // Finale sounds like an explained moral -> max 7.5 (per spec).
+    if (diagnostics.softIssues.some((issue) => /ausgesprochene Lehre|wie eine Lehre|erklaerte Moral/i.test(issue))) {
+      score = Math.min(score, 7.5);
+    }
+    // Novelty core-fail -> max 7.0 (per spec). Incidental single-word hits
+    // are already filtered to soft warnings inside collectNoveltyGateIssues.
+    if (diagnostics.hardIssues.some((issue) => /Novelty|Wiederholungs/i.test(issue))) {
+      score = Math.min(score, 7.0);
+    }
+    // Helper/cast explains the solution OR steals decisive action
+    // (surfaced as a market-quality soft issue) -> max 8.2.
+    if (diagnostics.softIssues.some((issue) => /erklaert die Loesung|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(issue))) {
+      score = Math.min(score, 8.2);
+    }
+    // Story-level dialogue clearly under floor -> max 8.4 (per spec).
+    if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
+      score = Math.min(score, 8.4);
+    }
   }
 
   if (typeof localGateScore === "number") {
@@ -5444,49 +5754,76 @@ export async function generateStoryDevMode(
       blueprint = mergeBlueprintObjects(blueprint, patch || {});
     }
 
+    // ---- WHOLE-STORY-FIRST PIPELINE (v11) -------------------------------
+    // 1) Selected story model writes ONE continuous narrative as paragraphs[].
+    // 2) Support model splits the prose into display chapters with titles.
+    // On failure or invalid plan we fall back to a deterministic even split.
     const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
     const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
-    const storyPrompts = compactDraftMode
-      ? buildCompactStoryDraftPrompts(input, chapterCount, blueprint, critique)
-      : buildStoryDraftPrompts(input, chapterCount, blueprint, critique);
-    let storyStage: Awaited<ReturnType<typeof runStage>>;
-    let parsedStoryDraft: DevModeRawStory;
+    const wholeStoryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique);
+
+    let wholeStoryStage: Awaited<ReturnType<typeof runStage>>;
+    let wholeStoryDraft: DevModeWholeStoryDraft;
     try {
-      storyStage = await runStage("story-draft", storyPrompts, {
+      wholeStoryStage = await runStage("whole-story-draft", wholeStoryPrompts, {
         maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, false),
-        temperature: compactDraftMode ? 0.64 : 0.82,
+        temperature: 0.82,
         timeoutMs: devModeStoryDraftTimeoutMs(input.config, false),
         modelRole: "selected-story",
       });
-      parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
-    } catch (storyDraftError) {
-      if (!isRecoverableStoryDraftFailure(storyDraftError)) {
-        throw storyDraftError;
-      }
-
-      const reason = storyDraftError instanceof Error ? storyDraftError.message : String(storyDraftError);
-      console.warn("[dev-mode-generation] Story draft failed on selected story model; retrying with compact compatibility prompt", {
+      wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
+    } catch (wholeStoryError) {
+      const reason = wholeStoryError instanceof Error ? wholeStoryError.message : String(wholeStoryError);
+      console.warn("[dev-mode-generation] Whole-story draft failed; retrying once with stricter prompt", {
         model: selectedOpenRouterStoryModel,
-        compactDraftMode,
         error: reason,
       });
-      const retryPrompts = buildCompactStoryDraftPrompts(input, chapterCount, blueprint, critique, reason);
+      const retryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique);
       try {
-        storyStage = await runStage("story-draft", retryPrompts, {
+        wholeStoryStage = await runStage("whole-story-draft", retryPrompts, {
           maxTokens: devModeStoryDraftMaxTokens(input.config, true, true),
-          temperature: 0.52,
+          temperature: 0.6,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
         });
-        parsedStoryDraft = parseAndValidate(storyStage.provider.content, chapterCount);
+        wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
       } catch (retryError) {
         throw new Error(
-          `Selected story model could not produce a usable story draft after compact retry (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
+          `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
         );
       }
     }
+
+    // Splitter: cheap support-model call. Falls back to deterministic even
+    // split if the plan is malformed or has gaps/overlaps.
+    let parsedStoryDraft: DevModeRawStory;
+    try {
+      const splitterPrompts = buildStorySplitterPrompts(
+        wholeStoryDraft,
+        chapterCount,
+        localizedLanguageName(input.config.language)
+      );
+      const splitterStage = await runStage("story-splitter", splitterPrompts, {
+        maxTokens: 1400,
+        temperature: 0.2,
+        timeoutMs: 60_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      parsedStoryDraft = applySplitterPlanToDraft(wholeStoryDraft, chapterCount, splitterStage.parsed);
+    } catch (splitterError) {
+      console.warn("[dev-mode-generation] Story splitter stage failed; using deterministic even split", {
+        error: splitterError instanceof Error ? splitterError.message : String(splitterError),
+      });
+      parsedStoryDraft = applySplitterPlanToDraft(wholeStoryDraft, chapterCount, undefined);
+    }
+
+    const storyStage = wholeStoryStage;
     finalParsed = parsedStoryDraft;
     finalModelUsed = storyStage.provider.modelUsed;
+    // Suppress unused-variable warnings for legacy compact-draft helpers
+    // that are still referenced elsewhere (compatibility retry paths).
+    void compactDraftMode;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
 
     let bestParsed = finalParsed;
