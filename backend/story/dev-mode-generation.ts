@@ -47,7 +47,7 @@ const DEV_MODE_MIN_DIALOG_PCT = 28;
 const DEV_MODE_TARGET_DIALOG_PCT = 35;
 const DEV_MODE_PROMPT_DIALOG_PCT = 50;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 20;
-const DEV_MODE_MIN_PARAGRAPHS = 5;
+const DEV_MODE_MIN_PARAGRAPHS = 4;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
 const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.8;
@@ -481,6 +481,44 @@ function extractMotifKeywords(text: string, limit = 8): string[] {
   return [...new Set(words)].slice(0, limit);
 }
 
+function buildNoveltyMotifRegexes(normalizedMotif: string): RegExp[] {
+  const motif = normalizeNoveltyText(normalizedMotif);
+  if (!motif) return [];
+  const escapedExact = motif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const exact = new RegExp(`\\b${escapedExact}\\b`, "gi");
+  if (motif.includes(" ")) return [exact];
+
+  let stem = motif;
+  for (const suffix of ["ungen", "chen", "lein", "ung", "ern", "en", "er", "e", "s"]) {
+    if (stem.endsWith(suffix) && stem.length - suffix.length >= 5) {
+      stem = stem.slice(0, -suffix.length);
+      break;
+    }
+  }
+
+  const prefix = stem.length >= 5 ? stem : motif.slice(0, Math.min(motif.length, 6));
+  if (prefix.length < 5) return [exact];
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const family = new RegExp(`\\b${escapedPrefix}[a-z0-9-]{0,14}\\b`, "gi");
+  return [exact, family];
+}
+
+function noveltyMotifHitCount(normalizedText: string, normalizedMotif: string): number {
+  const text = normalizeNoveltyText(normalizedText);
+  const hits = new Set<string>();
+  for (const regex of buildNoveltyMotifRegexes(normalizedMotif)) {
+    regex.lastIndex = 0;
+    for (const match of text.matchAll(regex)) {
+      hits.add(`${match.index ?? 0}:${match[0]}`);
+    }
+  }
+  return hits.size;
+}
+
+function noveltyMotifMatches(normalizedText: string, normalizedMotif: string): boolean {
+  return noveltyMotifHitCount(normalizedText, normalizedMotif) > 0;
+}
+
 function characterNameMotifAliases(name: string): string[] {
   const normalized = normalizeNoveltyText(name);
   if (!normalized) return [];
@@ -627,6 +665,7 @@ function buildNoveltyPromptBlock(input: DevModeGenerationInput): string {
     "- Before writing the blueprint, silently invent 5 premise candidates and reject any that resemble the recent stories below. Use the most specific, cover-worthy candidate.",
     "- The premise, title, central object/place, antagonist/problem, magic rule, and ending image must be different from the recent list.",
     "- Do not reuse sample/style-anchor objects as story content. Style examples are punctuation/register only, never plot material.",
+    "- Treat hard-avoid motifs as word families: if 'spiegel' is forbidden, also avoid spiegelt, Spiegelung, Spiegelwasser, etc.",
     hardAvoid.length > 0 ? `- Hard-avoid motifs unless the user's prompt explicitly requires them: ${hardAvoid.join(", ")}.` : null,
     "Recent stories to avoid:",
     ...recentLines,
@@ -1160,8 +1199,7 @@ function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevMo
     if (normalizedMotif.length < 6 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
     if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) continue;
-    const phraseRegex = new RegExp(`\\b${normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    if (phraseRegex.test(normalizedCandidateText)) hardAvoidMatches.push(motif);
+    if (noveltyMotifMatches(normalizedCandidateText, normalizedMotif)) hardAvoidMatches.push(motif);
   }
 
   const recommendation: DevModeIdeaNoveltyAudit["recommendation"] =
@@ -1999,6 +2037,7 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
+    "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
     `Recommended supporting cast names must come ONLY from the provided pool list. Recommend 0-${DEV_MODE_MAX_SUPPORTING_CAST} names; choose zero if the premise is stronger with only the main avatars.`,
     "Never recommend a cast member just to use the pool. A pool figure must create a turn, complication, joke, clue, or payoff that the main avatars could not create alone.",
@@ -4061,7 +4100,7 @@ function getChapterRepairTargetMaxChars(config: StoryConfig): number {
 function getParagraphBounds(config: StoryConfig): { min: number; max: number } {
   if (config.length === "short") return { min: 4, max: 7 };
   if (config.length === "long") return { min: 6, max: 10 };
-  return { min: 5, max: 8 };
+  return { min: 4, max: 6 };
 }
 
 function getParagraphBudgetGuidance(config: StoryConfig): { targetCount: string; maxChars: number } {
@@ -4151,11 +4190,8 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) {
       continue;
     }
-    const escapedMotif = normalizedMotif.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const surfaceRegex = new RegExp(`\\b${escapedMotif}\\b`, "i");
-    const storyRegex = new RegExp(`\\b${escapedMotif}\\b`, "gi");
-    const surfaceHit = surfaceRegex.test(normalizedStorySurface);
-    const fullHits = Array.from(normalizedStoryText.matchAll(storyRegex)).length;
+    const surfaceHit = noveltyMotifMatches(normalizedStorySurface, normalizedMotif);
+    const fullHits = noveltyMotifHitCount(normalizedStoryText, normalizedMotif);
     const singleWordMotif = !normalizedMotif.includes(" ");
 
     // A single incidental body mention (e.g. "Geschirr" heard downstairs)
@@ -4200,7 +4236,7 @@ const TITLE_PROMISE_STOPWORDS_DE = new Set([
   "vor","unter","ueber","über","durch","gegen","ohne","fuer","für","an","zu","als","so",
   "wie","wenn","weil","dass","nur","auch","schon","noch","mehr","mal","ja","nein","nicht",
   "kein","keine","kann","kannst","koennen","koennten","wird","werden","sind","ist","war",
-  "waren","hat","hatte","haben","sein","sehr","viel","viele","dann","wer","was","wo","wann",
+  "waren","hat","hatte","haben","sein","geht","gehen","ging","sehr","viel","viele","dann","wer","was","wo","wann",
   "story","geschichte","kapitel","ende","mit","ohne"
 ]);
 
@@ -4226,7 +4262,7 @@ function collectTitlePromiseIssues(story: DevModeRawStory, input: DevModeGenerat
   if (titleWords.length === 0) return [];
   const code = languageCodeFromName(localizedLanguageName(input.config.language));
   if (code !== "de") return []; // stopword list is German for now
-  const body = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n");
+  const body = `${story.description || ""}\n${story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n")}`;
   const missing = titleWords.filter((word) => {
     const characterNameMatch = (input.avatars || []).some(
       (avatar) => avatar.name && avatar.name.toLowerCase().includes(word.slice(0, 4))
