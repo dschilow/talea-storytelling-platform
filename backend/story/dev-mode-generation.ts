@@ -604,7 +604,28 @@ function currentCharacterNameMotifs(input: DevModeGenerationInput): Set<string> 
 function isCurrentCharacterNameMotif(motif: string, input: DevModeGenerationInput): boolean {
   const normalized = normalizeNoveltyText(motif);
   if (!normalized) return false;
-  return currentCharacterNameMotifs(input).has(normalized);
+  const aliases = currentCharacterNameMotifs(input);
+  if (aliases.has(normalized)) return true;
+  // Also catch German genitive/plural/possessive forms of character names
+  // (e.g. "adrians" \u2192 "adrian", "alexanders" \u2192 "alexander", "novas" \u2192 "nova").
+  // Strip a handful of common German/English noun suffixes and re-check.
+  const trimmedCandidates = new Set<string>();
+  for (const suffix of ["s", "es", "en", "n", "'s", "'"]) {
+    if (normalized.endsWith(suffix) && normalized.length - suffix.length >= 3) {
+      trimmedCandidates.add(normalized.slice(0, normalized.length - suffix.length));
+    }
+  }
+  for (const candidate of trimmedCandidates) {
+    if (aliases.has(candidate)) return true;
+  }
+  // Final guard: if any alias is a prefix of the motif and the motif is only
+  // 1-3 chars longer (a typical inflection), treat as the same character name.
+  for (const alias of aliases) {
+    if (alias.length >= 4 && normalized.startsWith(alias) && normalized.length - alias.length <= 3) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function noveltyJaccard(a: string[], b: string[]): number {
@@ -1425,7 +1446,7 @@ async function generateDevModeImages(
   try {
     const res = await callProvider(input.config, systemPrompt, userPrompt, {
       stage: "image-prompts" as any,
-      maxTokens: 4000,
+      maxTokens: 6000,
       temperature: 0.7,
     });
     promptTokenUsage.prompt += res.usage.prompt;
@@ -1435,7 +1456,107 @@ async function generateDevModeImages(
     parsedPrompts = JSON.parse(raw);
   } catch (err) {
     console.warn("[dev-mode-generation] Image prompt generation failed:", (err as Error)?.message || err);
-    return { coverImageUrl: undefined, chapterImages, imagesGenerated: 0, promptTokenUsage };
+    parsedPrompts = null;
+  }
+
+  // ---------------------------------------------------------------------
+  // 3b) Heuristic: if the director call returned no parse, no cover, or one
+  //     or more chapters are missing/too short/clearly not English, issue a
+  //     per-chapter mini-call so EVERY image gets a clean English picture-book
+  //     prompt. This eliminates the "raw German story text used as image
+  //     prompt" regression we saw in production.
+  // ---------------------------------------------------------------------
+  const looksLikeEnglishPrompt = (s: string): boolean => {
+    const t = String(s || "").trim();
+    if (t.length < 30) return false;
+    // Heuristic: English picture-book prompts overwhelmingly use ASCII Latin-1
+    // and lack German diacritics. If we detect German-specific characters or
+    // common German short words, treat as not-English and refill.
+    if (/[\u00e4\u00f6\u00fc\u00df\u00c4\u00d6\u00dc]/.test(t)) return false;
+    if (/\b(der|die|das|und|nicht|ist|war|sich|nach|sie|ihn|aber)\b/i.test(t)) return false;
+    return true;
+  };
+
+  const needsCoverRefill = !parsedPrompts?.cover || !looksLikeEnglishPrompt(String(parsedPrompts.cover));
+  const missingChapters: Array<{ order: number; title: string; content: string }> = [];
+  for (const ch of parsedChapters) {
+    const found = (parsedPrompts?.chapters || []).find((c) => Number(c?.order) === ch.order);
+    if (!found?.prompt || !looksLikeEnglishPrompt(String(found.prompt))) {
+      missingChapters.push(ch);
+    }
+  }
+
+  if (needsCoverRefill || missingChapters.length > 0) {
+    console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, chapters=${missingChapters.map(c => c.order).join(",")}`);
+    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no text in image.";
+    const refillCommon = [
+      `Story title: ${parsedTitle}`,
+      `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
+      "",
+      "ON-STAGE CAST:",
+      castDescriptors,
+      "",
+      collageBlock,
+      "",
+      artifactBlock,
+      "",
+      collagePositions.length > 0
+        ? "Refer to on-stage characters by NAME and slot_N (e.g. 'Adrian (slot_1)'). Do NOT mention frame colors."
+        : "Describe each on-stage character's appearance with concrete visual specifics.",
+      "Do NOT include any text, captions, letters, or written words in the imagery.",
+      "Reply with the ENGLISH 40-80 word prompt ONLY \u2014 no preamble, no quotes.",
+    ].join("\n");
+
+    type RefillJob = { kind: "cover" | "chapter"; order?: number; instruction: string };
+    const refillJobs: RefillJob[] = [];
+    if (needsCoverRefill) {
+      refillJobs.push({
+        kind: "cover",
+        instruction: `${refillCommon}\n\nTASK: Write the COVER illustration prompt \u2014 one iconic single-scene image capturing the story's heart, featuring the main heroes (and at least one supporting cast member if applicable).`,
+      });
+    }
+    for (const ch of missingChapters) {
+      refillJobs.push({
+        kind: "chapter",
+        order: ch.order,
+        instruction: `${refillCommon}\n\nTASK: Write the picture-book prompt for Chapter ${ch.order} \"${ch.title}\". Base the visual on this German chapter content (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
+      });
+    }
+
+    const refillResults = await mapWithConcurrency(refillJobs, 3, async (job) => {
+      try {
+        const r = await callProvider(input.config, refillSystem, job.instruction, {
+          stage: "image-prompts" as any,
+          maxTokens: 400,
+          temperature: 0.7,
+        });
+        promptTokenUsage.prompt += r.usage.prompt;
+        promptTokenUsage.completion += r.usage.completion;
+        promptTokenUsage.total += r.usage.total;
+        const text = String(r.content || "")
+          .trim()
+          .replace(/^```(?:json|text)?\s*/i, "")
+          .replace(/```\s*$/i, "")
+          .replace(/^["'\s]+|["'\s]+$/g, "");
+        return { job, text };
+      } catch (err) {
+        console.warn(`[dev-mode-generation] Image-prompt refill failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
+        return { job, text: "" };
+      }
+    });
+
+    if (!parsedPrompts) parsedPrompts = { chapters: [] };
+    if (!parsedPrompts.chapters) parsedPrompts.chapters = [];
+    for (const r of refillResults) {
+      if (!r.text || !looksLikeEnglishPrompt(r.text)) continue;
+      if (r.job.kind === "cover") {
+        parsedPrompts.cover = r.text;
+      } else if (r.job.kind === "chapter" && typeof r.job.order === "number") {
+        const existing = parsedPrompts.chapters.find((c) => Number(c?.order) === r.job.order);
+        if (existing) existing.prompt = r.text;
+        else parsedPrompts.chapters.push({ order: r.job.order, prompt: r.text });
+      }
+    }
   }
 
   const styleSuffix = ", Axel Scheffler watercolor storybook style, bright colors, soft outlines, child-friendly illustration, single cohesive scene, no text in image, no captions, no letters";
@@ -1480,7 +1601,13 @@ async function generateDevModeImages(
   if (parsedPrompts?.cover) jobs.push({ kind: "cover", prompt: String(parsedPrompts.cover).trim() });
   for (const ch of parsedChapters) {
     const found = (parsedPrompts?.chapters || []).find((c) => Number(c?.order) === ch.order);
-    const promptText = String(found?.prompt || `${ch.title}: ${ch.content.slice(0, 400)}`).trim();
+    let promptText = String(found?.prompt || "").trim();
+    if (!promptText || !looksLikeEnglishPrompt(promptText)) {
+      // Last-resort: ship a SHORT generic English scene description rather
+      // than raw German story text (which Runware cannot render well).
+      const castNamesEn = cast.slice(0, 4).map((e) => e.name).join(", ") || "the heroes";
+      promptText = `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from chapter "${ch.title}"; warm, child-friendly, single cohesive scene.`;
+    }
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
@@ -3742,6 +3869,34 @@ function buildStoryPolishPrompts(
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
 
+  // Build a chapter-by-chapter dialogue-deficit briefing so the polish model
+  // sees EXACTLY which chapters are below 18 % / 25 % and roughly how many
+  // short quoted lines it needs to inject. Without this concrete budget, the
+  // model tends to leave the overall dialog ratio in the low 20s.
+  const dialogDeficit: Array<{ order: number; pct: number; addLines: number }> = [];
+  for (const chapter of diagnostics.chapterDiagnostics || []) {
+    const gap = DEV_MODE_PROMPT_DIALOG_PCT - Math.max(0, chapter.dialogPct || 0);
+    if (gap <= 0) continue;
+    // ~6-8 characters per spoken word, ~8 words per added short line.
+    const approxWords = Math.max(40, Math.round((chapter.chars || 0) / 6));
+    const wordsNeeded = Math.ceil((gap / 100) * approxWords);
+    const addLines = Math.max(2, Math.min(10, Math.round(wordsNeeded / 8)));
+    dialogDeficit.push({ order: chapter.order, pct: Math.round(chapter.dialogPct || 0), addLines });
+  }
+  const overallDialogGap = Math.max(0, DEV_MODE_PROMPT_DIALOG_PCT - Math.round(diagnostics.dialogPct || 0));
+
+  const dialogBoostBlock = dialogDeficit.length > 0 || overallDialogGap > 0
+    ? [
+        "DIALOGUE INJECTION PLAN (TOP PRIORITY \u2014 the previous draft failed the dialog gate):",
+        `- Overall dialog share is currently ${Math.round(diagnostics.dialogPct || 0)} % \u2014 it MUST end at \u2265 ${DEV_MODE_MIN_DIALOG_PCT} %, aim ${DEV_MODE_PROMPT_DIALOG_PCT} %.`,
+        ...dialogDeficit.map((d) =>
+          `- Chapter ${d.order}: currently ~${d.pct} % dialog \u2192 inject about ${d.addLines} short quoted lines (1\u20138 words each). Replace narrator sentences with character speech, not new filler chatter.`
+        ),
+        "- Each quoted line must DO something (action, conflict, decision, relationship beat, joke). Forbidden filler: \"Ja.\" / \"Okay.\" / \"Stimmt.\" / \"Gut.\" alone.",
+        "- Convert summary or interior thought to dialogue between the on-stage characters rather than adding new ones.",
+      ].join("\n")
+    : "";
+
   const userPrompt = [
     `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
     "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
@@ -3749,6 +3904,8 @@ function buildStoryPolishPrompts(
     broadCompressionMode
       ? "BROAD COMPRESSION MODE: this is not line editing. Rewrite every chapter compactly from the current story map; each overlong chapter must become visibly shorter before any stylistic addition is allowed."
       : null,
+    dialogBoostBlock ? "" : null,
+    dialogBoostBlock || null,
     "",
     buildLeanRepairPromptContext(input, chapterCount),
     buildSelectedCastIntegrationContract(input, true),
