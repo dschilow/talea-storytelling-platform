@@ -738,6 +738,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             id: a.id,
             name: a.name,
             description: a.description,
+            imageUrl: a.imageUrl,
             visualProfile: a.visualProfile,
             personalityTraits: a.personalityTraits,
           })),

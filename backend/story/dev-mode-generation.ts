@@ -43,6 +43,8 @@ import { storyDB } from "./db";
 import { artifactMatcher, recordStoryArtifact } from "./artifact-matcher";
 import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory } from "./types";
 import { mapWithConcurrency } from "../helpers/asyncPool";
+import { buildSpriteCollage } from "./pipeline/sprite-collage";
+import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -74,8 +76,8 @@ const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
-const DEV_MODE_MIN_SUPPORTING_CAST = 0;
-const DEV_MODE_MAX_SUPPORTING_CAST = 2;
+const DEV_MODE_MIN_SUPPORTING_CAST = 1;
+const DEV_MODE_MAX_SUPPORTING_CAST = 4;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
 const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
@@ -185,6 +187,13 @@ export interface DevModeGeneratedStory {
       category?: string;
       rarity?: string;
     };
+    /**
+     * Pool characters that actually made it into the story. Persisted into
+     * the story metadata so `backend/story/list.ts` can hydrate them as
+     * `story.config.characters` for the participants UI (same shape as the
+     * standard pipeline).
+     */
+    characterPoolUsed?: Array<{ characterId: string; characterName: string }>;
   };
 }
 
@@ -198,6 +207,8 @@ export interface DevModeAvatar {
   name: string;
   age?: number | null;
   description?: string;
+  /** Canonical character reference image URL (used to build the sprite collage). */
+  imageUrl?: string;
   /** Avatar visual profile (canonical appearance). Free-form JSON. */
   visualProfile?: any;
   /** Avatar personality traits (9 base values, optionally with subcategories). Free-form JSON. */
@@ -212,6 +223,8 @@ export interface DevModeAvatar {
 export interface DevModePoolCharacter {
   id: string;
   name: string;
+  /** Canonical pool character reference image URL (used to build the sprite collage). */
+  imageUrl?: string;
   role?: string;
   archetype?: string;
   species?: string | null;
@@ -1123,7 +1136,7 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
     return "AVAILABLE SUPPORTING CAST: none preselected. Do not force extra characters into every idea.";
   }
   const lines: string[] = [
-    `AVAILABLE SUPPORTING CAST CANDIDATES FOR IDEA LAB (recommend 0-${DEV_MODE_MAX_SUPPORTING_CAST} names only when they truly improve the premise; most strong short stories use 0-1):`,
+    `AVAILABLE SUPPORTING CAST CANDIDATES FOR IDEA LAB (recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names — every story should include at least one supporting character to give the heroes someone to react to):`,
   ];
   pool.forEach((character, index) => {
     const parts = [
@@ -1264,19 +1277,96 @@ async function generateDevModeImages(
   const chapterImages = new Map<number, { imageUrl?: string; prompt: string }>();
   const promptTokenUsage = { prompt: 0, completion: 0, total: 0 };
 
-  const avatarBlock = (input.avatars || [])
-    .slice(0, 4)
-    .map((a) => {
-      const vp = a.visualProfile && typeof a.visualProfile === "object"
-        ? JSON.stringify(a.visualProfile).slice(0, 600)
-        : "";
-      return `- ${a.name}${a.age ? ` (age ${a.age})` : ""}${vp ? `: ${vp}` : ""}`;
+  // -----------------------------------------------------------------------
+  // 1) Build the on-stage cast for the whole story (avatars + selected
+  //    supporting characters). The supporting cast is filtered down to the
+  //    names the idea lab actually picked, so we never put unrelated pool
+  //    characters into the reference collage.
+  // -----------------------------------------------------------------------
+  const selectedSupportingNames = new Set(
+    (input.selectedIdea?.selectedSupportingCast || []).map((n) => normalizePoolName(String(n)))
+  );
+  const selectedPoolCharacters = (input.poolCharacters || []).filter((c) =>
+    selectedSupportingNames.size === 0 ? true : selectedSupportingNames.has(normalizePoolName(c.name))
+  );
+
+  type CastEntry = { kind: "avatar" | "pool"; name: string; imageUrl?: string; description?: string };
+  const cast: CastEntry[] = [];
+  for (const a of input.avatars || []) {
+    cast.push({
+      kind: "avatar",
+      name: a.name,
+      imageUrl: a.imageUrl,
+      description: a.visualProfile && typeof a.visualProfile === "object"
+        ? JSON.stringify(a.visualProfile).slice(0, 400)
+        : a.description,
+    });
+  }
+  for (const c of selectedPoolCharacters) {
+    cast.push({
+      kind: "pool",
+      name: c.name,
+      imageUrl: c.imageUrl,
+      description: c.physicalDescription || (c.personalityKeywords || []).slice(0, 4).join(", ") || c.archetype,
+    });
+  }
+
+  // -----------------------------------------------------------------------
+  // 2) Build the sprite collage from cast entries that actually have a
+  //    canonical reference image. <2 entries \u2192 no collage (Runware falls back
+  //    to plain prompt). Failure is non-fatal.
+  // -----------------------------------------------------------------------
+  const collageCandidates = cast.filter((entry) => Boolean(entry.imageUrl));
+  let collageUrl: string | undefined;
+  let collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
+  if (collageCandidates.length >= 2) {
+    try {
+      const slots = collageCandidates.map((entry) => ({
+        imageUrl: entry.imageUrl as string,
+        displayName: entry.name,
+      }));
+      const collageResult = await buildSpriteCollage(slots);
+      if (collageResult?.collageUrl) {
+        collageUrl = collageResult.collageUrl;
+        const kindByName = new Map(collageCandidates.map((c) => [c.name, c.kind]));
+        collagePositions = collageResult.positions.map((pos) => ({
+          index: pos.index,
+          name: pos.displayName,
+          colorName: pos.color.name,
+          colorHex: pos.color.hex,
+          kind: kindByName.get(pos.displayName) || "avatar",
+        }));
+      }
+    } catch (err) {
+      console.warn("[dev-mode-generation] Sprite collage build failed:", (err as Error)?.message || err);
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // 3) Generate the prompts. When we have a collage, instruct the model to
+  //    anchor each on-stage character to its slot \u2014 the same convention the
+  //    standard pipeline uses (slot_1, slot_2, \u2026). Without a collage we fall
+  //    back to plain descriptive prompts.
+  // -----------------------------------------------------------------------
+  const castDescriptors = cast
+    .slice(0, 6)
+    .map((entry) => {
+      const desc = entry.description ? `: ${entry.description.slice(0, 400)}` : "";
+      return `- ${entry.name} [${entry.kind}]${desc}`;
     })
-    .join("\n") || "- (no canonical avatars)";
+    .join("\n") || "- (no canonical cast)";
+
+  const collageBlock = collagePositions.length > 0
+    ? [
+        "REFERENCE COLLAGE (one image with framed slots, left-to-right):",
+        ...collagePositions.map((pos) => `- slot_${pos.index + 1} = ${pos.name} (${pos.colorName} frame, ${pos.colorHex})`),
+        "When a character is on-stage in a chapter, ALWAYS reference them by slot_N and their canonical face/body must match that slot. Do NOT mention frame colors in the image \u2014 the colored borders are reference-only.",
+      ].join("\n")
+    : "(no reference collage \u2014 describe each character's appearance verbatim from the cast list above)";
 
   const artifact = input.matchedArtifact;
   const artifactBlock = artifact
-    ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it in chapters where it is on-stage.`
+    ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it briefly in chapters where it is on-stage.`
     : "(no supporting prop)";
 
   const chapterDigest = parsedChapters
@@ -1288,8 +1378,10 @@ async function generateDevModeImages(
     `Story title: ${parsedTitle}`,
     `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
     "",
-    "AVATARS (must appear true to these visuals across ALL images for consistency):",
-    avatarBlock,
+    "ON-STAGE CAST (avatars + chosen supporting characters):",
+    castDescriptors,
+    "",
+    collageBlock,
     "",
     artifactBlock,
     "",
@@ -1299,12 +1391,15 @@ async function generateDevModeImages(
     "TASK:",
     "Return JSON with this exact shape:",
     "{ \"cover\": \"<cover prompt>\", \"chapters\": [{\"order\": 1, \"prompt\": \"<prompt>\"}, ...] }",
-    "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (main avatars present).",
+    "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (the main heroes plus at least one supporting cast member if applicable).",
     "- Exactly one prompt per chapter, single scene, picture-book composition.",
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
-    "- Always describe each on-stage avatar's appearance with specifics from the visual profile above (hair, skin, clothing colors).",
-    "- If the supporting prop is on-stage in that chapter, mention it briefly with its visual cues.",
+    collagePositions.length > 0
+      ? "- Refer to on-stage characters by both their NAME and their slot_N tag (e.g. 'Adrian (slot_1)'). The slot anchors their canonical face/body."
+      : "- Describe each on-stage character's appearance with concrete visual specifics (hair, skin, clothing colors).",
+    "- If the supporting prop is on-stage in a chapter, mention it briefly with its visual cues.",
     "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
+    "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
     "- Do NOT mention TTS markers, brackets, or technical instructions.",
   ].join("\n");
 
@@ -1327,6 +1422,24 @@ async function generateDevModeImages(
 
   const styleSuffix = ", Axel Scheffler watercolor storybook style, bright colors, soft outlines, child-friendly illustration, single cohesive scene, no text in image, no captions, no letters";
 
+  // -----------------------------------------------------------------------
+  // 4) Render via Runware. Pass the resolved collage URL as the single
+  //    reference image when available; this gives identity consistency
+  //    across all chapters and the cover (same approach as standard pipeline).
+  // -----------------------------------------------------------------------
+  let referenceImages: string[] = [];
+  if (collageUrl) {
+    try {
+      const resolved = await resolveImageUrlForClient(collageUrl);
+      if (resolved) referenceImages = [resolved];
+    } catch (err) {
+      console.warn("[dev-mode-generation] Failed to resolve collage URL, continuing without reference:", (err as Error)?.message || err);
+    }
+  }
+  const ipAdapterWeight = referenceImages.length > 0
+    ? (collagePositions.length >= 3 ? 0.72 : 0.7)
+    : undefined;
+
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
   if (parsedPrompts?.cover) jobs.push({ kind: "cover", prompt: String(parsedPrompts.cover).trim() });
@@ -1346,6 +1459,8 @@ async function generateDevModeImages(
         steps: 4,
         CFGScale: 4,
         outputFormat: "JPEG",
+        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+        ipAdapterWeight,
       });
       return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt };
     } catch (err) {
@@ -2346,7 +2461,7 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
-    `Recommended supporting cast names must come ONLY from the provided pool list. Recommend 0-${DEV_MODE_MAX_SUPPORTING_CAST} names; choose zero if the premise is stronger with only the main avatars.`,
+    `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names; pick the smallest set that genuinely serves the story.`,
     "Never recommend a cast member just to use the pool. A pool figure must create a turn, complication, joke, clue, or payoff that the main avatars could not create alone.",
     "At least half the candidates should differ strongly in object/place/problem structure, not just surface wording.",
     "",
@@ -2419,7 +2534,7 @@ function buildIdeaSelectionPrompts(
     "IDEA LAB SELECTION CALL: Choose the single best premise candidate for a real children's book.",
     "Pick the candidate with the strongest combination of shelf appeal, child curiosity, emotional payoff, novelty, and usable supporting cast fit.",
     "Do not reward generic safety. A merely clean candidate should lose to a memorable one.",
-    `If a candidate recommends supporting cast, keep 0-${DEV_MODE_MAX_SUPPORTING_CAST} names that truly improve this story. Decorative, adult-explainer, or mismatched pool characters should be dropped.`,
+    `If a candidate recommends supporting cast, keep ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names that truly improve this story. Decorative, adult-explainer, or mismatched pool characters should be dropped.`,
     "Prefer one vivid supporting figure over two functional helpers. Zero supporting figures is a valid high-quality choice when it protects voice, pacing, and child agency.",
     "A recently used character may still win if the fit is clearly stronger than fresher alternatives; freshness is a tie-breaker, not a ban.",
     "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
@@ -7199,6 +7314,15 @@ export async function generateStoryDevMode(
       ideaCandidateCount: ideaCandidates.length,
       selectedIdeaTitle: input.selectedIdea?.title,
       selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
+      characterPoolUsed: (() => {
+        const selected = input.selectedIdea?.selectedSupportingCast || [];
+        if (!selected.length || !input.poolCharacters?.length) return undefined;
+        const wanted = new Set(selected.map((n) => normalizePoolName(String(n))));
+        const used = input.poolCharacters
+          .filter((c) => wanted.has(normalizePoolName(c.name)))
+          .map((c) => ({ characterId: c.id, characterName: c.name }));
+        return used.length > 0 ? used : undefined;
+      })(),
       matchedArtifact: input.matchedArtifact
         ? {
             id: input.matchedArtifact.id,
@@ -7404,6 +7528,7 @@ async function generateStoryDevModeLegacy(
 interface CharacterPoolRow {
   id: string;
   name: string;
+  image_url: string | null;
   role: string | null;
   archetype: string | null;
   emotional_nature: any;
@@ -7510,7 +7635,7 @@ export async function pickDevModePoolCharacters(input: {
   let rows: CharacterPoolRow[] = [];
   try {
     rows = await storyDB.queryAll<CharacterPoolRow>`
-      SELECT id, name, role, archetype, emotional_nature, visual_profile,
+      SELECT id, name, image_url, role, archetype, emotional_nature, visual_profile,
              max_screen_time, available_chapters,
              age_category, species_category, personality_keywords,
              physical_description, backstory, dominant_personality,
@@ -7680,6 +7805,7 @@ export async function pickDevModePoolCharacters(input: {
     return {
       id: r.id,
       name: r.name,
+      imageUrl: r.image_url || undefined,
       role: r.role || undefined,
       archetype: r.archetype || undefined,
       species,
