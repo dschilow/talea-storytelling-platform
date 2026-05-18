@@ -50,19 +50,19 @@ const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 22;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
-const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.5;
+const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.2;
 const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 7.0;
-const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 1;
-const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 3;
-const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 2;
+const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 4;
+const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 3;
 const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.5;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
-const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 7.8;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
+const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 7.5;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
 const DEV_MODE_MIN_SUPPORTING_CAST = 2;
 const DEV_MODE_MAX_SUPPORTING_CAST = 4;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 12;
@@ -5300,13 +5300,25 @@ export async function generateStoryDevMode(
             : "dialogue-target";
 
       // Decide between SURGICAL line-punchup (default, low-cost, preserves
-      // iconic prose) and the legacy FULL-STORY polish (only for hard form
+      // iconic prose) and the legacy FULL-STORY polish (for hard form
       // failures the punchup cannot fix). Line-punchup is the v7 default
-      // because prior full-story polish passes were the main source of
-      // quality regression (flattened similes, weakened dialogue, dropped
-      // refrains chasing dialog% gates).
-      const canUseLinePunchup =
-        currentDiagnostics.hardIssueCount === 0 || isDialogueOnlyHardFailure(currentDiagnostics);
+      // for soft-quality bumps because prior full-story polish passes were
+      // the main source of quality regression (flattened similes, weakened
+      // dialogue, dropped refrains chasing dialog% gates).
+      //
+      // Punchup CANNOT fix: length-over-bound chapters (it preserves length
+      // by design), low dialog ratios (replaces 1:1, doesn't add lines),
+      // missing paragraphs, novelty/cast-gate failures.
+      // For those, fall through to the legacy full-story polish.
+      const onlyValidatorScoreGap =
+        currentDiagnostics.hardIssueCount === 0
+        && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+        && currentDiagnostics.dialogPct >= DEV_MODE_MIN_DIALOG_PCT;
+      const onlySoftIssuesAndDialogueOK =
+        currentDiagnostics.hardIssueCount === 0
+        && currentDiagnostics.softIssueCount > 0
+        && currentDiagnostics.dialogPct >= DEV_MODE_TARGET_DIALOG_PCT;
+      const canUseLinePunchup = onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK;
 
       console.warn("[dev-mode-generation] Triggering post-validation polish", {
         validationAttempt: validationAttempt + 1,
