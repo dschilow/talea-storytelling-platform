@@ -22,12 +22,15 @@
  *   3b. selected wizard model: targeted chapter-level repair when local gates fail
  *   4. support model: hard market-quality validation (no prose rewrite)
  *
- * No images are generated in this mode (chapters render text-only in the reader).
+ * Images: cover + per-chapter illustrations are generated via a single
+ * support-model call that produces all image prompts, followed by parallel
+ * Runware calls. Best-effort: a story without images still ships.
  * No personality / memory mutation happens after generation — the caller
  * (`backend/story/generate.ts`) is responsible for skipping that block.
  */
 
 import { secret } from "encore.dev/config";
+import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
@@ -39,6 +42,7 @@ import { logTopic } from "../log/logger";
 import { storyDB } from "./db";
 import { artifactMatcher, recordStoryArtifact } from "./artifact-matcher";
 import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory } from "./types";
+import { mapWithConcurrency } from "../helpers/asyncPool";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -1235,6 +1239,133 @@ function pickDevModeArtifactCategory(config: StoryConfig): ArtifactCategory | un
   if (/fantasy|magic|magie|maerchen|m\u00e4rchen/.test(genre)) return "magic";
   if (/adventure|abenteuer|quest/.test(genre)) return "map";
   return undefined; // let matcher decide
+}
+
+/**
+ * Two-step image generation for dev-mode stories:
+ *   1) Support model produces ONE JSON with cover + per-chapter English image
+ *      prompts (avatar visuals + artifact visuals + scene cues).
+ *   2) Parallel Runware calls via `ai.generateImage` (concurrency 3).
+ *
+ * Never throws \u2014 partial failure returns whichever images succeeded. The
+ * caller treats this as best-effort: a story without images is still a valid
+ * dev-mode result.
+ */
+async function generateDevModeImages(
+  input: DevModeGenerationInput,
+  parsedTitle: string,
+  parsedChapters: Array<{ order: number; title: string; content: string }>
+): Promise<{
+  coverImageUrl?: string;
+  chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
+  imagesGenerated: number;
+  promptTokenUsage: { prompt: number; completion: number; total: number };
+}> {
+  const chapterImages = new Map<number, { imageUrl?: string; prompt: string }>();
+  const promptTokenUsage = { prompt: 0, completion: 0, total: 0 };
+
+  const avatarBlock = (input.avatars || [])
+    .slice(0, 4)
+    .map((a) => {
+      const vp = a.visualProfile && typeof a.visualProfile === "object"
+        ? JSON.stringify(a.visualProfile).slice(0, 600)
+        : "";
+      return `- ${a.name}${a.age ? ` (age ${a.age})` : ""}${vp ? `: ${vp}` : ""}`;
+    })
+    .join("\n") || "- (no canonical avatars)";
+
+  const artifact = input.matchedArtifact;
+  const artifactBlock = artifact
+    ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it in chapters where it is on-stage.`
+    : "(no supporting prop)";
+
+  const chapterDigest = parsedChapters
+    .map((c) => `Ch ${c.order} \u2014 ${c.title}\n${c.content.slice(0, 700)}`)
+    .join("\n\n---\n\n");
+
+  const systemPrompt = "You are an image-prompt director for a children's picture book. Output STRICT JSON only \u2014 no commentary, no markdown fences.";
+  const userPrompt = [
+    `Story title: ${parsedTitle}`,
+    `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
+    "",
+    "AVATARS (must appear true to these visuals across ALL images for consistency):",
+    avatarBlock,
+    "",
+    artifactBlock,
+    "",
+    "CHAPTERS:",
+    chapterDigest,
+    "",
+    "TASK:",
+    "Return JSON with this exact shape:",
+    "{ \"cover\": \"<cover prompt>\", \"chapters\": [{\"order\": 1, \"prompt\": \"<prompt>\"}, ...] }",
+    "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (main avatars present).",
+    "- Exactly one prompt per chapter, single scene, picture-book composition.",
+    "- ENGLISH ONLY. 40\u201380 words per prompt.",
+    "- Always describe each on-stage avatar's appearance with specifics from the visual profile above (hair, skin, clothing colors).",
+    "- If the supporting prop is on-stage in that chapter, mention it briefly with its visual cues.",
+    "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
+    "- Do NOT mention TTS markers, brackets, or technical instructions.",
+  ].join("\n");
+
+  let parsedPrompts: { cover?: string; chapters?: Array<{ order?: number; prompt?: string }> } | null = null;
+  try {
+    const res = await callProvider(input.config, systemPrompt, userPrompt, {
+      stage: "image-prompts" as any,
+      maxTokens: 4000,
+      temperature: 0.7,
+    });
+    promptTokenUsage.prompt += res.usage.prompt;
+    promptTokenUsage.completion += res.usage.completion;
+    promptTokenUsage.total += res.usage.total;
+    const raw = String(res.content || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
+    parsedPrompts = JSON.parse(raw);
+  } catch (err) {
+    console.warn("[dev-mode-generation] Image prompt generation failed:", (err as Error)?.message || err);
+    return { coverImageUrl: undefined, chapterImages, imagesGenerated: 0, promptTokenUsage };
+  }
+
+  const styleSuffix = ", Axel Scheffler watercolor storybook style, bright colors, soft outlines, child-friendly illustration, single cohesive scene, no text in image, no captions, no letters";
+
+  type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
+  const jobs: Job[] = [];
+  if (parsedPrompts?.cover) jobs.push({ kind: "cover", prompt: String(parsedPrompts.cover).trim() });
+  for (const ch of parsedChapters) {
+    const found = (parsedPrompts?.chapters || []).find((c) => Number(c?.order) === ch.order);
+    const promptText = String(found?.prompt || `${ch.title}: ${ch.content.slice(0, 400)}`).trim();
+    jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
+  }
+
+  const imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
+    try {
+      const fullPrompt = `${job.prompt}${styleSuffix}`;
+      const img = await ai.generateImage({
+        prompt: fullPrompt,
+        width: 1024,
+        height: 1024,
+        steps: 4,
+        CFGScale: 4,
+        outputFormat: "JPEG",
+      });
+      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt };
+    } catch (err) {
+      console.warn(`[dev-mode-generation] Image generation failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
+      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt };
+    }
+  });
+
+  let coverImageUrl: string | undefined;
+  let imagesGenerated = 0;
+  for (const r of imageResults) {
+    if (r.imageUrl) imagesGenerated += 1;
+    if (r.job.kind === "cover") {
+      coverImageUrl = r.imageUrl;
+    } else if (r.job.kind === "chapter" && typeof r.job.order === "number") {
+      chapterImages.set(r.job.order, { imageUrl: r.imageUrl, prompt: r.fullPrompt });
+    }
+  }
+
+  return { coverImageUrl, chapterImages, imagesGenerated, promptTokenUsage };
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
@@ -6979,18 +7110,44 @@ export async function generateStoryDevMode(
     console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
   });
 
-  const chapters = parsed.chapters
-    .slice()
-    .sort((a, b) => a.order - b.order)
-    .map((ch, idx) => ({
+  const sortedParsedChapters = parsed.chapters.slice().sort((a, b) => a.order - b.order);
+
+  // Image generation (cover + per-chapter). Best-effort: a story without
+  // images still ships. Token usage is folded into the running total so the
+  // returned metadata stays accurate.
+  let devModeImages: {
+    coverImageUrl?: string;
+    chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
+    imagesGenerated: number;
+    promptTokenUsage: { prompt: number; completion: number; total: number };
+  } = {
+    coverImageUrl: undefined,
+    chapterImages: new Map(),
+    imagesGenerated: 0,
+    promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
+  };
+  try {
+    devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters);
+    totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
+    totalUsage.completion += devModeImages.promptTokenUsage.completion;
+    totalUsage.total += devModeImages.promptTokenUsage.total;
+  } catch (err) {
+    console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
+  }
+
+  const chapters = sortedParsedChapters.map((ch, idx) => {
+    const order = idx + 1;
+    const img = devModeImages.chapterImages.get(ch.order) || devModeImages.chapterImages.get(order);
+    return {
       id: crypto.randomUUID(),
       title: ch.title,
       content: ch.content,
-      order: idx + 1,
-      imageUrl: undefined,
-      imagePrompt: undefined,
-      imageModel: undefined,
-    }));
+      order,
+      imageUrl: img?.imageUrl,
+      imagePrompt: img?.prompt,
+      imageModel: img?.imageUrl ? "runware" : undefined,
+    };
+  });
 
   // Best-effort: record the artifact assignment so usage counters and recent
   // history work the same way as in the standard pipeline. Failure here must
@@ -7006,7 +7163,7 @@ export async function generateStoryDevMode(
   return {
     title: parsed.title,
     description: parsed.description || parsed.title,
-    coverImageUrl: undefined,
+    coverImageUrl: devModeImages.coverImageUrl,
     chapters,
     avatarDevelopments: [],
     metadata: {
@@ -7019,7 +7176,7 @@ export async function generateStoryDevMode(
       model: finalModelUsed,
       supportModel,
       storyModel: finalModelUsed,
-      imagesGenerated: 0,
+      imagesGenerated: devModeImages.imagesGenerated,
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,
       storyPolishApplied,
