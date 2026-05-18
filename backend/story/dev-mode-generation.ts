@@ -283,16 +283,36 @@ interface DevModeIdeaNoveltyAudit {
 }
 
 const NOVELTY_STOPWORDS = new Set([
-  "aber", "alle", "alles", "auch", "auf", "aus", "beim", "deine", "deiner", "dem", "den", "der", "des",
-  "die", "dies", "diese", "dieser", "ein", "eine", "einer", "eines", "fuer", "für", "hat", "ihre", "ihrer",
-  "mit", "nicht", "oder", "sein", "seine", "seiner", "und", "vom", "von", "war", "wenn", "wie", "zur",
-  "dann", "doch", "dort", "durch", "gegen", "grosse", "große", "grossen", "großen", "hatte", "haben", "hinter",
-  "immer", "jetzt", "kleine", "kleinen", "kommt", "machen", "nach", "neben", "noch", "sagte", "schon", "unter",
-  "ueber", "über", "wieder", "weiter", "wurde", "wurden", "zwischen",
-  "abenteuer", "bruder", "schwester", "familie", "freund", "freunde", "klein", "kleiner", "kleines", "kleinem",
+  // German articles and possessives (all cases)
+  "aber", "alle", "alles", "auch", "auf", "aus", "beim", "dem", "den", "der", "des", "die", "dies",
+  "diese", "dieser", "diesem", "diesen", "ein", "eine", "einer", "eines", "einem", "einen",
+  "kein", "keine", "keiner", "keines", "keinem", "keinen",
+  "mein", "meine", "meiner", "meines", "meinem", "meinen",
+  "dein", "deine", "deiner", "deines", "deinem", "deinen",
+  "sein", "seine", "seiner", "seines", "seinem", "seinen",
+  "ihr", "ihre", "ihrer", "ihres", "ihrem", "ihren",
+  "unser", "unsere", "unserer", "unseres", "unserem", "unseren",
+  "euer", "eure", "eurer", "eures", "eurem", "euren",
+  // German prepositions
+  "fuer", "für", "mit", "nicht", "oder", "und", "vom", "von", "wie", "zur", "zum", "ins", "im", "am",
+  "an", "ab", "bei", "nach", "vor", "ueber", "über", "unter", "durch", "gegen", "ohne", "bis",
+  "neben", "hinter", "zwischen", "trotz", "wegen", "waehrend", "während",
+  // German verbs / auxiliaries / common forms
+  "hat", "hatte", "haben", "ist", "sind", "war", "waren", "wird", "werden", "wurde", "wurden",
+  "soll", "sollte", "sollen", "muss", "müssen", "muessen", "kann", "können", "koennen", "konnte",
+  "darf", "dürfen", "duerfen", "macht", "machen", "machte", "machten",
+  "kommt", "kommen", "kam", "kamen", "geht", "gehen", "ging", "gingen",
+  "sieht", "sehen", "sah", "sahen", "sagt", "sagte", "sagen", "sagten",
+  // German conjunctions / adverbs
+  "als", "wenn", "weil", "dass", "denn", "doch", "dann", "schon", "noch", "immer", "wieder",
+  "weiter", "jetzt", "dort", "hier", "heute", "morgen", "abend", "nacht",
+  // Common content stopwords that aren't story-distinguishing
+  "grosse", "große", "grossen", "großen", "klein", "kleine", "kleiner", "kleinen", "kleines", "kleinem",
+  "abenteuer", "bruder", "schwester", "familie", "freund", "freunde",
   "zauber", "magie", "fantasie", "geheimnis", "geheimnisse", "wunder", "ploetzlich", "plötzlich",
+  "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen", "junge",
+  // English stopwords
   "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
-  "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen",
 ]);
 
 const NOVELTY_SHELF_PROMISES = [
@@ -2987,15 +3007,44 @@ function selectChapterDiagnosticsForRepair(
   return [];
 }
 
-function isDialogueOnlyHardFailure(diagnostics?: DevModeStoryDiagnostics): boolean {
+// True when every remaining hard issue is something a targeted chapter-repair
+// can fix (length out of bounds, dialogue%, paragraph count, long sentences,
+// chapter-localized issues). Story-level issues like novelty/cast/banned
+// patterns require a different path.
+function isChapterLocalHardFailure(diagnostics?: DevModeStoryDiagnostics): boolean {
   if (!diagnostics || diagnostics.hardIssueCount === 0) return false;
-  return diagnostics.hardIssues.every((issue) => /Dialoganteil|zu wenig Dialog/i.test(issue));
+  const chapterLocalPattern = /Kapitel \d+|Dialoganteil|deutlich zu lang|deutlich zu kurz|Absaetze|Absätze|zu langen Satz/i;
+  return diagnostics.hardIssues.every((issue) => chapterLocalPattern.test(issue));
 }
 
-function selectPostPolishDialogueRepairChapters(diagnostics: DevModeStoryDiagnostics): DevModeChapterDiagnostic[] {
-  return diagnostics.chapterDiagnostics
-    .filter((chapter) => chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT)
-    .sort((a, b) => a.dialogPct - b.dialogPct)
+// Picks the failing chapters for a final post-polish rescue pass. Prioritizes
+// chapters with any hard issue (length-out-of-bounds, dialogue too low,
+// paragraph count off, sentence too long).
+function selectPostPolishChapterRepairChapters(
+  diagnostics: DevModeStoryDiagnostics,
+  config: StoryConfig
+): DevModeChapterDiagnostic[] {
+  const bounds = getChapterLengthBounds(config);
+  const paragraphBounds = getParagraphBounds(config);
+  const maxSentenceChars = maxSentenceCharsForAge(config.ageGroup);
+  const offenders = diagnostics.chapterDiagnostics.filter((chapter) => {
+    if (chapter.issues.length > 0) return true;
+    if (chapter.chars > bounds.max || chapter.chars < bounds.min) return true;
+    if (chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) return true;
+    if (chapter.paragraphs < paragraphBounds.min || chapter.paragraphs > paragraphBounds.max) return true;
+    if (chapter.longestSentenceChars > maxSentenceChars) return true;
+    return false;
+  });
+  // Priority: most-over-bound length first, then most-under-dialog.
+  return offenders
+    .slice()
+    .sort((a, b) => {
+      const aSev = Math.max(0, a.chars - bounds.max) + Math.max(0, bounds.min - a.chars)
+        + Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - a.dialogPct) * 30;
+      const bSev = Math.max(0, b.chars - bounds.max) + Math.max(0, bounds.min - b.chars)
+        + Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - b.dialogPct) * 30;
+      return bSev - aSev;
+    })
     .slice(0, DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT);
 }
 
@@ -5470,42 +5519,49 @@ export async function generateStoryDevMode(
         finalDiagnostics = polishedDiagnostics;
         storyPolishApplied = true;
 
-        if (isDialogueOnlyHardFailure(finalDiagnostics)) {
-          const dialogueRepairChapters = selectPostPolishDialogueRepairChapters(finalDiagnostics);
-          if (dialogueRepairChapters.length > 0) {
-            console.warn("[dev-mode-generation] Triggering post-polish targeted dialogue repair", {
-              chapters: dialogueRepairChapters.map((chapter) => ({
+        // Post-polish targeted rescue: if the polish reduced issues but still
+        // leaves chapter-localized hard fails (length, dialogue, paragraphs,
+        // long sentences), run one more pass of chapter-repair on the worst
+        // offenders. Was previously dialogue-only; widened to also rescue
+        // length issues, which the full-story polish often fails to cut.
+        if (isChapterLocalHardFailure(finalDiagnostics)) {
+          const rescueChapters = selectPostPolishChapterRepairChapters(finalDiagnostics, input.config);
+          if (rescueChapters.length > 0) {
+            console.warn("[dev-mode-generation] Triggering post-polish targeted chapter rescue", {
+              chapters: rescueChapters.map((chapter) => ({
                 order: chapter.order,
                 title: chapter.title,
                 chars: chapter.chars,
                 dialogPct: chapter.dialogPct,
+                paragraphs: chapter.paragraphs,
+                longestSentenceChars: chapter.longestSentenceChars,
                 issues: chapter.issues,
               })),
               hardIssueCount: finalDiagnostics.hardIssueCount,
               dialogPct: finalDiagnostics.dialogPct,
             });
 
-            let dialogueRepairedParsed = finalParsed;
-            let dialogueRepairedModelUsed = finalModelUsed;
-            let dialogueRepairDiagnostics = finalDiagnostics;
+            let rescueParsed = finalParsed;
+            let rescueModelUsed = finalModelUsed;
+            let rescueDiagnostics = finalDiagnostics;
             const postPolishRepairAttempt = repairAttempt + 1;
 
-            for (const chapterDiagnostic of dialogueRepairChapters) {
-              const currentChapter = dialogueRepairedParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
+            for (const chapterDiagnostic of rescueChapters) {
+              const currentChapter = rescueParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
               if (!currentChapter) continue;
 
               const chapterRepairPrompts = buildChapterRepairPrompts(
                 input,
                 chapterCount,
-                dialogueRepairedParsed,
+                rescueParsed,
                 currentChapter,
                 chapterDiagnostic,
-                dialogueRepairDiagnostics,
+                rescueDiagnostics,
                 blueprint,
                 {
                   ...critique,
                   validatorFindings,
-                  polishReason: "post-polish-dialogue-repair",
+                  polishReason: "post-polish-chapter-rescue",
                 },
                 postPolishRepairAttempt
               );
@@ -5519,10 +5575,10 @@ export async function generateStoryDevMode(
                   modelRole: "selected-story",
                 });
                 const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
-                dialogueRepairedParsed = replaceStoryChapter(dialogueRepairedParsed, repairResult.chapter);
-                dialogueRepairedModelUsed = chapterRepairStage.provider.modelUsed;
-                dialogueRepairDiagnostics = analyzeDevModeStoryQuality(dialogueRepairedParsed, input, chapterCount);
-                const repairedChapterDiagnostics = dialogueRepairDiagnostics.chapterDiagnostics.find((chapter) => Number(chapter.order) === Number(repairResult.chapter.order));
+                rescueParsed = replaceStoryChapter(rescueParsed, repairResult.chapter);
+                rescueModelUsed = chapterRepairStage.provider.modelUsed;
+                rescueDiagnostics = analyzeDevModeStoryQuality(rescueParsed, input, chapterCount);
+                const repairedChapterDiagnostics = rescueDiagnostics.chapterDiagnostics.find((chapter) => Number(chapter.order) === Number(repairResult.chapter.order));
                 repairSelfReflections.push({
                   attempt: postPolishRepairAttempt,
                   order: repairResult.chapter.order,
@@ -5530,34 +5586,33 @@ export async function generateStoryDevMode(
                   modelUsed: chapterRepairStage.provider.modelUsed,
                   selfReflection: repairResult.selfReflection,
                   deterministicChapterDiagnostics: repairedChapterDiagnostics,
-                  deterministicStoryHardIssueCount: dialogueRepairDiagnostics.hardIssueCount,
-                  deterministicStoryDialogPct: dialogueRepairDiagnostics.dialogPct,
-                  reason: "post-polish-dialogue-repair",
+                  deterministicStoryHardIssueCount: rescueDiagnostics.hardIssueCount,
+                  deterministicStoryDialogPct: rescueDiagnostics.dialogPct,
+                  reason: "post-polish-chapter-rescue",
                 });
-              } catch (dialogueRepairError) {
-                console.warn("[dev-mode-generation] Post-polish dialogue repair failed for chapter; keeping current chapter", {
+              } catch (rescueError) {
+                console.warn("[dev-mode-generation] Post-polish chapter rescue failed; keeping current chapter", {
                   order: currentChapter.order,
                   title: currentChapter.title,
-                  error: dialogueRepairError instanceof Error ? dialogueRepairError.message : String(dialogueRepairError),
+                  error: rescueError instanceof Error ? rescueError.message : String(rescueError),
                 });
               }
             }
 
-            const dialogueImproved =
-              dialogueRepairDiagnostics.dialogPct > finalDiagnostics.dialogPct
-              && isDiagnosticsBetter(dialogueRepairDiagnostics, finalDiagnostics, chapterCount, input.config);
-            if (dialogueImproved) {
-              finalParsed = dialogueRepairedParsed;
-              finalModelUsed = dialogueRepairedModelUsed;
-              finalDiagnostics = dialogueRepairDiagnostics;
+            const rescueImproved = isDiagnosticsBetter(rescueDiagnostics, finalDiagnostics, chapterCount, input.config)
+              || rescueDiagnostics.hardIssueCount < finalDiagnostics.hardIssueCount;
+            if (rescueImproved) {
+              finalParsed = rescueParsed;
+              finalModelUsed = rescueModelUsed;
+              finalDiagnostics = rescueDiagnostics;
               chapterRepairApplied = true;
               repairAttempt = postPolishRepairAttempt;
             } else {
-              console.warn("[dev-mode-generation] Post-polish dialogue repair rejected by deterministic diagnostics", {
+              console.warn("[dev-mode-generation] Post-polish chapter rescue rejected by deterministic diagnostics", {
                 hardIssueCountBefore: finalDiagnostics.hardIssueCount,
-                hardIssueCountAfter: dialogueRepairDiagnostics.hardIssueCount,
+                hardIssueCountAfter: rescueDiagnostics.hardIssueCount,
                 dialogPctBefore: finalDiagnostics.dialogPct,
-                dialogPctAfter: dialogueRepairDiagnostics.dialogPct,
+                dialogPctAfter: rescueDiagnostics.dialogPct,
               });
             }
           }
