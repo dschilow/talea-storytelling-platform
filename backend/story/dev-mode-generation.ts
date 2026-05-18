@@ -1312,23 +1312,38 @@ async function generateDevModeImages(
   }
 
   // -----------------------------------------------------------------------
-  // 2) Build the sprite collage from cast entries that actually have a
-  //    canonical reference image. <2 entries \u2192 no collage (Runware falls back
-  //    to plain prompt). Failure is non-fatal.
+  // 2) Resolve every cast reference URL to a publicly-fetchable URL (proxy or
+  //    signed). Bucket-internal URLs cannot be downloaded by sharp inside
+  //    `buildSpriteCollage`, so this step is required \u2014 the standard pipeline
+  //    does the same in `buildCollageReference`.
+  //    Then build the sprite collage. Failure is non-fatal.
   // -----------------------------------------------------------------------
-  const collageCandidates = cast.filter((entry) => Boolean(entry.imageUrl));
+  const resolvedCast: Array<{ kind: "avatar" | "pool"; name: string; resolvedUrl: string }> = [];
+  for (const entry of cast) {
+    if (!entry.imageUrl) continue;
+    try {
+      const resolved = await resolveImageUrlForClient(entry.imageUrl);
+      if (resolved) {
+        resolvedCast.push({ kind: entry.kind, name: entry.name, resolvedUrl: resolved });
+      }
+    } catch (err) {
+      console.warn(`[dev-mode-generation] Failed to resolve ref image for ${entry.name}:`, (err as Error)?.message || err);
+    }
+  }
+  console.log(`[dev-mode-generation] Reference images resolved: ${resolvedCast.length} (avatars=${resolvedCast.filter(c => c.kind === "avatar").length}, pool=${resolvedCast.filter(c => c.kind === "pool").length})`);
+
   let collageUrl: string | undefined;
   let collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
-  if (collageCandidates.length >= 2) {
+  if (resolvedCast.length >= 2) {
     try {
-      const slots = collageCandidates.map((entry) => ({
-        imageUrl: entry.imageUrl as string,
+      const slots = resolvedCast.map((entry) => ({
+        imageUrl: entry.resolvedUrl,
         displayName: entry.name,
       }));
       const collageResult = await buildSpriteCollage(slots);
       if (collageResult?.collageUrl) {
         collageUrl = collageResult.collageUrl;
-        const kindByName = new Map(collageCandidates.map((c) => [c.name, c.kind]));
+        const kindByName = new Map(resolvedCast.map((c) => [c.name, c.kind]));
         collagePositions = collageResult.positions.map((pos) => ({
           index: pos.index,
           name: pos.displayName,
@@ -1336,6 +1351,9 @@ async function generateDevModeImages(
           colorHex: pos.color.hex,
           kind: kindByName.get(pos.displayName) || "avatar",
         }));
+        console.log(`[dev-mode-generation] Sprite collage built with ${collagePositions.length} slots, url=${collageUrl}`);
+      } else {
+        console.warn("[dev-mode-generation] buildSpriteCollage returned null \u2014 falling back to individual refs");
       }
     } catch (err) {
       console.warn("[dev-mode-generation] Sprite collage build failed:", (err as Error)?.message || err);
@@ -1423,22 +1441,39 @@ async function generateDevModeImages(
   const styleSuffix = ", Axel Scheffler watercolor storybook style, bright colors, soft outlines, child-friendly illustration, single cohesive scene, no text in image, no captions, no letters";
 
   // -----------------------------------------------------------------------
-  // 4) Render via Runware. Pass the resolved collage URL as the single
-  //    reference image when available; this gives identity consistency
-  //    across all chapters and the cover (same approach as standard pipeline).
+  // 4) Render via Runware. Prefer the resolved collage URL as the single
+  //    reference image (same approach as standard pipeline). When the collage
+  //    is unavailable (e.g. only one cast member with an image), fall back
+  //    to passing that single character image directly so Runware still gets
+  //    an identity reference.
   // -----------------------------------------------------------------------
   let referenceImages: string[] = [];
+  let usingCollageReference = false;
   if (collageUrl) {
     try {
       const resolved = await resolveImageUrlForClient(collageUrl);
-      if (resolved) referenceImages = [resolved];
+      if (resolved) {
+        referenceImages = [resolved];
+        usingCollageReference = true;
+      }
     } catch (err) {
-      console.warn("[dev-mode-generation] Failed to resolve collage URL, continuing without reference:", (err as Error)?.message || err);
+      console.warn("[dev-mode-generation] Failed to resolve collage URL, will fall back to individual refs:", (err as Error)?.message || err);
     }
   }
+  if (referenceImages.length === 0 && resolvedCast.length > 0) {
+    // Individual references mode: pass up to 4 already-resolved URLs (avatars first).
+    const avatarsFirst = [
+      ...resolvedCast.filter((c) => c.kind === "avatar"),
+      ...resolvedCast.filter((c) => c.kind === "pool"),
+    ];
+    referenceImages = avatarsFirst.slice(0, 4).map((c) => c.resolvedUrl);
+  }
   const ipAdapterWeight = referenceImages.length > 0
-    ? (collagePositions.length >= 3 ? 0.72 : 0.7)
+    ? (usingCollageReference
+        ? (collagePositions.length >= 3 ? 0.72 : 0.7)
+        : (referenceImages.length >= 3 ? 0.74 : referenceImages.length === 2 ? 0.72 : 0.68))
     : undefined;
+  console.log(`[dev-mode-generation] Runware reference set: count=${referenceImages.length}, collage=${usingCollageReference}, ipAdapterWeight=${ipAdapterWeight}`);
 
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
