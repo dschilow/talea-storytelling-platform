@@ -49,26 +49,26 @@ const DEV_MODE_PROMPT_DIALOG_PCT = 50;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 20;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
-const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_MAX_REPAIR_ATTEMPTS = 1;
 const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.8;
 const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 8.0;
-const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 2;
-const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 4;
-const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 3;
+const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 1;
+const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 2;
+const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 1;
 const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
-const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
+const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 1;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 const DEV_MODE_MAX_SUPPORTING_CAST = 2;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
 const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
-const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 2;
+const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
 
 interface DevModeChapter {
   title: string;
@@ -1072,9 +1072,9 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
-  if (config.length === "long") return 12;
-  if (config.length === "medium") return 10;
-  return 8;
+  if (config.length === "long") return 8;
+  if (config.length === "medium") return 6;
+  return 5;
 }
 
 function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string[] {
@@ -1270,7 +1270,18 @@ function enforceSelectedIdeaNovelty(
   if (!selectedIdea) return fallbackNoveltySafeSelectedIdea(candidates, input, pool);
   const audit = auditIdeaCandidateNovelty(selectedIdea, input);
   if (audit.recommendation !== "reject") return selectedIdea;
-  return fallbackNoveltySafeSelectedIdea(candidates, input, pool) || selectedIdea;
+  const fallback = fallbackNoveltySafeSelectedIdea(candidates, input, pool);
+  if (!fallback) return selectedIdea;
+  return {
+    ...fallback,
+    chosenReason: [
+      `Server novelty override: model selected "${selectedIdea.title}", but the novelty audit marked it reject.`,
+      audit.closestRecentTitle
+        ? `Closest recent story: ${audit.closestRecentTitle} (${Math.round(audit.closestRecentOverlap * 100)}% motif overlap).`
+        : "Rejected by hard-avoid motif overlap.",
+      fallback.chosenReason,
+    ].filter(Boolean).join(" "),
+  };
 }
 
 function normalizeIdeaSelection(
@@ -1666,6 +1677,7 @@ function buildSilentPreWriteSelfReviewContract(
     `${modeLabel} (mandatory; do not output this review):`,
     "- Before writing prose, privately check the plan against the quality gates; do not reveal reasoning, notes, or checklist text.",
     `- Shape: exactly ${chapterCount} chapter(s); each chapter must fit ${bounds.min}-${bounds.max} characters and ${paragraphBounds.min}-${paragraphBounds.max} paragraphs.`,
+    `- Budget: ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Dialogue: target ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue overall; every repaired/written chapter must clear ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% without filler chatter.`,
     "- Causality: every chapter needs goal -> obstacle -> turn -> concrete pull; no loose 'and then' sequence.",
     "- Voice: each quoted line must sound like that character and do at least two jobs: action, relationship, tension, humor, or subtext.",
@@ -2019,6 +2031,11 @@ function buildIdeaSelectionPrompts(
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const noveltyAudits = auditIdeaCandidatesNovelty(candidates, input);
+  const auditById = new Map(noveltyAudits.map((audit) => [audit.id, audit]));
+  const selectableCandidates = candidates.filter((candidate) => auditById.get(candidate.id)?.recommendation !== "reject");
+  const candidatesForSelection = selectableCandidates.length > 0 ? selectableCandidates : candidates;
+  const allCandidatesRejected = selectableCandidates.length === 0 && candidates.length > 0;
+  const rejectedCount = allCandidatesRejected ? candidates.length : candidates.length - candidatesForSelection.length;
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -2058,7 +2075,12 @@ function buildIdeaSelectionPrompts(
     "Prefer one vivid supporting figure over two functional helpers. Zero supporting figures is a valid high-quality choice when it protects voice, pacing, and child agency.",
     "A recently used character may still win if the fit is clearly stronger than fresher alternatives; freshness is a tie-breaker, not a ban.",
     "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
-    "Use the server novelty precheck as a hard tie-breaker: reject candidates marked reject unless all candidates are rejected; penalize candidates marked penalize unless their shelf appeal is clearly superior.",
+    "Use the server novelty precheck as binding eligibility: choose only from SELECTABLE CANDIDATES. Rejected candidates are shown only for audit transparency.",
+    allCandidatesRejected
+      ? "All candidates were marked reject by server novelty audit; choose the least-overlapping candidate and explain why."
+      : rejectedCount > 0
+      ? `${rejectedCount} candidate(s) were removed from the selectable list by server novelty audit; do not choose them.`
+      : "No candidate was removed by server novelty audit.",
     "",
     `Target output language later: ${languageName}.`,
     `Future chapter count: exactly ${chapterCount}.`,
@@ -2071,8 +2093,8 @@ function buildIdeaSelectionPrompts(
     "SERVER NOVELTY PRECHECK:",
     promptJson(noveltyAudits),
     "",
-    "CANDIDATES:",
-    promptJson(candidates),
+    "SELECTABLE CANDIDATES:",
+    promptJson(candidatesForSelection),
   ].filter((line): line is string => Boolean(line)).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -2136,9 +2158,26 @@ function settingCraftGuidance(setting?: string): string {
 }
 
 function chapterLengthGuidance(config: StoryConfig): string {
+  if (config.length === "medium") return "Each chapter approx. 850-1,100 target characters, with hard bounds 800-1,250. Whole story target: 900-1,200 words total.";
   if (config.length === "short") return "Each chapter approx. 650–1,150 characters of target-language prose; one compact scene, not a mini-chapter.";
   if (config.length === "long") return "Each chapter approx. 1,300–2,200 characters of target-language prose.";
   return "Each chapter approx. 1,100–1,350 target characters, with hard bounds 950–1,450.";
+}
+
+function storyWordBudgetGuidance(config: StoryConfig, chapterCount: number): string {
+  if (config.length === "short") {
+    return `Whole-story word budget: about 550-850 words total across ${chapterCount} compact chapters.`;
+  }
+  if (config.length === "long") {
+    return `Whole-story word budget: about 1,400-2,200 words total across ${chapterCount} chapters.`;
+  }
+  return `Whole-story word budget: 900-1,200 words total across ${chapterCount} chapters; aim around 180-240 words per chapter.`;
+}
+
+function getStoryWordBounds(config: StoryConfig): { min: number; max: number; targetMin: number; targetMax: number } {
+  if (config.length === "short") return { min: 500, max: 900, targetMin: 550, targetMax: 850 };
+  if (config.length === "long") return { min: 1200, max: 2400, targetMin: 1400, targetMax: 2200 };
+  return { min: 800, max: 1250, targetMin: 900, targetMax: 1200 };
 }
 
 function languageCodeFromName(languageName: string): string {
@@ -2260,6 +2299,7 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       '    "refrainLine": string,',
       '    "iconicMotif": string,',
       '    "callbackLadder": string[],',
+      '    "activeUseByChapter": string[],',
       '    "rereadRewards": string[],',
       '    "nextStorySpark": string',
       "  },",
@@ -2296,6 +2336,7 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
       ? `Selected pool cast that MUST appear in supportingCastUse with real jobs: ${input.selectedIdea.selectedSupportingCast.join(", ")}.`
       : null,
     "Plan the read-on pull explicitly: refrain / leitmotif, chapter-end hooks, a callback ladder, small reread details.",
+    "The refrain/leitmotif must be an active tool, not a label: add one concrete activeUseByChapter entry per chapter where it creates a clue, test, choice, obstacle, joke, or payoff.",
     "Plan the emotional price explicitly: which concrete object, habit, sound, promise, or comfort must a child choose to risk or share in the finale, why it matters, and what choice makes the payoff earned.",
     "Plan the antagonist's change as a ladder, not a switch: wants to possess -> confusion -> small relapse -> active decision -> new role/task.",
     "Plan one recurring humor callback that escalates across chapters and pays off in the finale; it must come from character behavior or a prop, not narrator commentary.",
@@ -2517,6 +2558,7 @@ function buildStoryDraftPrompts(
     "DRAMATURGY RULES:",
     `- Exactly ${chapterCount} chapters.`,
     `- ${chapterLengthGuidance(input.config)}`,
+    `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Aim each chapter for ${bounds.min}-${draftTargetMaxChars} characters. Do not write to the upper edge; the repair gate fails over ${bounds.max}.`,
     `- Whole-story prose target: about ${bounds.min * chapterCount}-${totalDraftTargetMaxChars} characters across all chapters. If the story wants more room, cut scope instead of expanding prose.`,
     `- Use ${paragraphBudget.targetCount} compact paragraphs per chapter. Keep each paragraph around ${paragraphBudget.maxChars} characters; if a paragraph grows longer, split the beat or cut explanation.`,
@@ -2547,6 +2589,7 @@ function buildStoryDraftPrompts(
     "READ-ON / PULL RULES:",
     "- Chapter 1 must show a concrete, memorable problem in the first 2 sentences.",
     "- Every chapter ends on a pull: open question, looming consequence, new rule, unexpected gesture, or a funny moment that lingers.",
+    "- If readerMagnet has a refrainLine or activeUseByChapter, each chapter must use it as action: clue, test, choice, obstacle, joke, or payoff. A repeated sentence alone is not enough.",
     "- Make the blueprint's readerMagnet visible on the page: refrain/leitmotif/callback must not stay theoretical — it must happen in the prose.",
     "- Plant at least 3 small setups that get a payoff later. Kids should be able to say in retrospect: ah, that's why that mattered.",
     "- The finale must be closed, but a small friendly spark may show this world holds more stories.",
@@ -2710,6 +2753,7 @@ function buildCompactStoryDraftPrompts(
     "",
     "HARD OUTPUT SHAPE:",
     `- Each chapter: ${bounds.min}-${targetMaxChars} characters of prose; do not exceed ${bounds.max}.`,
+    `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     input.config.length === "short"
       ? "- SHORT MODE: write the short version, not a compressed long story. One scene turn per chapter. Cut setup explanations."
       : input.config.length === "medium"
@@ -2722,6 +2766,7 @@ function buildCompactStoryDraftPrompts(
     `- Use at least ${DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET} speaker turns per chapter when natural.`,
     "- Keep sentences child-readable for ages 6-8: concrete, warm, funny, sensory.",
     "- Every chapter must have a goal, obstacle, turn, and pull at the end.",
+    "- Recurring refrain/motif must do plot work in every chapter; never repeat it as decoration only.",
     "- Every chapter needs at least one child-giggle moment from action, misunderstanding, prop, or character voice.",
     "- Finale must use planted details; no moral-summary ending like 'Sie lernten...'.",
     "- Keep supporting cast lean; one vivid helper is stronger than a parade of explainers.",
@@ -2788,6 +2833,7 @@ function buildStoryPolishPrompts(
     `- Exactly ${chapterCount} chapters.`,
     `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
     `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
+    `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
     `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
@@ -3169,6 +3215,7 @@ function compactDiagnosticsForPrompt(diagnostics?: DevModeStoryDiagnostics | nul
     hardIssueCount: diagnostics.hardIssueCount,
     softIssueCount: diagnostics.softIssueCount,
     totalChars: diagnostics.totalChars,
+    totalWords: diagnostics.totalWords,
     dialogPct: diagnostics.dialogPct,
     hardIssues: diagnostics.hardIssues.slice(0, 12),
     softIssues: diagnostics.softIssues.slice(0, 8),
@@ -3270,6 +3317,9 @@ function buildChapterRepairBlueprintContext(reviewedBlueprint: any, order: numbe
       ? {
           refrainLine: reviewedBlueprint.readerMagnet.refrainLine,
           iconicMotif: reviewedBlueprint.readerMagnet.iconicMotif,
+          activeUseByChapter: Array.isArray(reviewedBlueprint.readerMagnet.activeUseByChapter)
+            ? reviewedBlueprint.readerMagnet.activeUseByChapter.slice(0, 8)
+            : undefined,
           nextStorySpark: reviewedBlueprint.readerMagnet.nextStorySpark,
         }
       : undefined,
@@ -3390,6 +3440,7 @@ function buildChapterRepairPrompts(
     `- Keep order exactly ${chapter.order}.`,
     `- Keep title unless a tiny grammar fix is needed: ${chapter.title}.`,
     `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
+    `- Whole-story budget still applies: ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     "- Previous repairs failed because the model under-estimated character counts. Trust the server budget, not your estimate.",
     `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
     `- No sentence may exceed ${maxSentenceChars} characters. Split long sentences into simple action/dialogue beats.`,
@@ -3430,6 +3481,7 @@ function buildChapterRepairPrompts(
     "- Preserve the recurring humor callback; make it slightly evolve instead of repeating the exact same joke.",
     "- If a helper/adult currently explains the answer, convert that beat into the main avatars noticing, testing, choosing, or doing.",
     "- If the magic/wonder rule is only described, make it cause a visible obstacle, false attempt, or final action.",
+    "- If the readerMagnet/refrain is present, make it cause or reveal something in this chapter. Do not keep it as a decorative repeated line.",
     "",
     "RELEVANT BLUEPRINT FOR THIS CHAPTER:",
     promptJson(buildChapterRepairBlueprintContext(reviewedBlueprint, chapter.order)),
@@ -3980,6 +4032,7 @@ interface DevModeStoryDiagnostics {
   hardIssueCount: number;
   softIssueCount: number;
   totalChars: number;
+  totalWords: number;
   dialogPct: number;
   chapterDiagnostics: DevModeChapterDiagnostic[];
   hardIssues: string[];
@@ -3990,12 +4043,12 @@ interface DevModeStoryDiagnostics {
 function getChapterLengthBounds(config: StoryConfig): { min: number; max: number } {
   if (config.length === "short") return { min: 650, max: 1150 };
   if (config.length === "long") return { min: 1300, max: 2200 };
-  return { min: 950, max: 1450 };
+  return { min: 800, max: 1250 };
 }
 
 function getChapterDraftTargetMaxChars(config: StoryConfig): number {
   const bounds = getChapterLengthBounds(config);
-  const margin = config.length === "short" ? 250 : config.length === "long" ? 350 : 250;
+  const margin = config.length === "short" ? 250 : config.length === "long" ? 350 : 200;
   return Math.max(bounds.min, bounds.max - margin);
 }
 
@@ -4014,7 +4067,7 @@ function getParagraphBounds(config: StoryConfig): { min: number; max: number } {
 function getParagraphBudgetGuidance(config: StoryConfig): { targetCount: string; maxChars: number } {
   if (config.length === "short") return { targetCount: "4-5", maxChars: 170 };
   if (config.length === "long") return { targetCount: "6-8", maxChars: 240 };
-  return { targetCount: "5", maxChars: 160 };
+  return { targetCount: "4-5", maxChars: 145 };
 }
 
 function countDialogChars(text: string): number {
@@ -4023,6 +4076,14 @@ function countDialogChars(text: string): number {
 
 function countParagraphs(text: string): number {
   return splitParagraphs(text).length;
+}
+
+function countWords(text: string): number {
+  return String(text || "")
+    .replace(/[^\w\u00c0-\u024f\u1e00-\u1eff'-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
 }
 
 function hasForwardPull(text: string): boolean {
@@ -4308,6 +4369,8 @@ function analyzeDevModeStoryQuality(
   const chapterDiagnostics: DevModeChapterDiagnostic[] = [];
   const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
   const totalChars = story.chapters.reduce((sum, chapter) => sum + chapter.content.length, 0);
+  const totalWords = countWords(allContent);
+  const wordBounds = getStoryWordBounds(input.config);
   const dialogPct = totalChars > 0 ? Math.round((countDialogChars(allContent) / totalChars) * 1000) / 10 : 0;
 
   if (story.chapters.length !== chapterCount) {
@@ -4381,6 +4444,17 @@ function analyzeDevModeStoryQuality(
     hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${DEV_MODE_MIN_DIALOG_PCT}%, Soft-Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%, Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   } else if (dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
     softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Soft-Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}% trotz Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
+  }
+
+  if (totalWords > wordBounds.max) {
+    hardIssues.push(`Story ist deutlich zu lang (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}, Maximum ${wordBounds.max}).`);
+    polishInstructions.push("Kuerze den Scope: pro Kapitel nur Hook, Konflikt, Wendung und Pull behalten; dekorative Nebenbilder und Wiederholungen streichen.");
+  } else if (totalWords > wordBounds.targetMax) {
+    softIssues.push(`Story ist etwas zu lang (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}).`);
+    polishInstructions.push("Kuerze Erklaerungen und zweite Sinnesbilder, damit die Geschichte im Zielbereich bleibt.");
+  } else if (totalWords < wordBounds.min) {
+    softIssues.push(`Story ist sehr knapp (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}).`);
+    polishInstructions.push("Nur wenn es der Plot braucht: ein konkretes Handlungsdetail ergaenzen, keine allgemeine Erklaerung.");
   }
 
   story.chapters.forEach((chapter, index) => {
@@ -4479,6 +4553,7 @@ function analyzeDevModeStoryQuality(
     hardIssueCount: hardIssues.length,
     softIssueCount: softIssues.length,
     totalChars,
+    totalWords,
     dialogPct,
     chapterDiagnostics,
     hardIssues,
@@ -4549,7 +4624,6 @@ function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number 
   if (diagnostics.dialogPct < DEV_MODE_TARGET_DIALOG_PCT) score -= 0.3;
   if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) score -= 0.4;
   if (diagnostics.dialogPct < 18) score -= 0.5;
-
   for (const chapter of diagnostics.chapterDiagnostics) {
     if (chapter.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) score -= 0.2;
     if (chapter.issues.some((issue) => /Absätze|Absaetze/i.test(issue))) score -= 0.2;
@@ -4735,13 +4809,13 @@ function isRecoverableStoryDraftFailure(error: unknown): boolean {
 function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, retry: boolean): number {
   if (config.length === "long") return retry ? 12000 : compactMode ? 9800 : 9200;
   if (config.length === "short") return retry ? 4200 : compactMode ? 3400 : 3200;
-  return retry ? 6800 : compactMode ? 5400 : 5200;
+  return retry ? 5200 : compactMode ? 4200 : 4300;
 }
 
 function devModeStoryPolishMaxTokens(config: StoryConfig): number {
   if (config.length === "long") return 7800;
   if (config.length === "short") return 2600;
-  return 4200;
+  return 3400;
 }
 
 function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
@@ -5091,7 +5165,7 @@ export async function generateStoryDevMode(
   try {
     const ideaCandidatePrompts = buildIdeaCandidatePrompts(input, chapterCount);
     const ideaCandidatesStage = await runStage("idea-candidates", ideaCandidatePrompts, {
-      maxTokens: 3200,
+      maxTokens: 2400,
       temperature: 0.92,
       timeoutMs: 90_000,
       ...supportCallOptions,
@@ -5102,19 +5176,32 @@ export async function generateStoryDevMode(
     if (ideaCandidates.length > 0) {
       const ideaSelectionPrompts = buildIdeaSelectionPrompts(input, chapterCount, ideaCandidates);
       const ideaSelectionStage = await runStage("idea-selection", ideaSelectionPrompts, {
-        maxTokens: 1800,
+        maxTokens: 1100,
         temperature: 0.22,
         timeoutMs: 90_000,
         ...supportCallOptions,
         modelRole: "support",
       });
-      selectedIdea = enforceSelectedIdeaNovelty(
+      const modelSelectedIdea =
         normalizeIdeaSelection(ideaSelectionStage.parsed, ideaCandidates, input.poolCharacters) ||
-        fallbackSelectedIdea(ideaCandidates, input.poolCharacters),
+        fallbackSelectedIdea(ideaCandidates, input.poolCharacters);
+      selectedIdea = enforceSelectedIdeaNovelty(
+        modelSelectedIdea,
         ideaCandidates,
         input,
         input.poolCharacters
       );
+      if (
+        modelSelectedIdea
+        && selectedIdea
+        && normalizePoolName(modelSelectedIdea.title) !== normalizePoolName(selectedIdea.title)
+      ) {
+        console.warn("[dev-mode-generation] Server novelty audit overrode model idea selection", {
+          modelSelectedIdea: modelSelectedIdea.title,
+          finalSelectedIdea: selectedIdea.title,
+          reason: selectedIdea.chosenReason,
+        });
+      }
     } else {
       console.warn("[dev-mode-generation] Idea lab returned no usable candidates; continuing without locked winning idea.");
     }
@@ -5131,7 +5218,7 @@ export async function generateStoryDevMode(
 
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
     const blueprintStage = await runStage("blueprint", blueprintPrompts, {
-      maxTokens: 4200,
+      maxTokens: input.config.length === "long" ? 4200 : 3400,
       temperature: 0.45,
       timeoutMs: 120_000,
       ...supportCallOptions,
@@ -5330,7 +5417,7 @@ export async function generateStoryDevMode(
         );
         let chapterRepairStage: Awaited<ReturnType<typeof runStage>>;
         try {
-          const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
+          const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
           chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
             maxTokens: repairMaxTokens,
             temperature: repairAttempt === 1 ? 0.38 : 0.24,
@@ -5467,7 +5554,7 @@ export async function generateStoryDevMode(
         const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed!, finalDiagnostics);
         try {
           const validationStage = await runStage("final-validation", validationPrompts, {
-            maxTokens: 2600,
+            maxTokens: 1800,
             temperature: 0.1,
             timeoutMs: 120_000,
             ...supportCallOptions,
@@ -5606,7 +5693,7 @@ export async function generateStoryDevMode(
             );
 
             try {
-              const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
+              const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
               const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
                 maxTokens: repairMaxTokens,
                 temperature: 0.3,
@@ -5858,7 +5945,7 @@ export async function generateStoryDevMode(
               );
 
               try {
-                const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
+                const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
                 const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
                   maxTokens: repairMaxTokens,
                   temperature: 0.24,
