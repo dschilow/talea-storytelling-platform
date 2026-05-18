@@ -42,19 +42,19 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v6";
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v7";
 const DEV_MODE_MIN_DIALOG_PCT = 30;
-const DEV_MODE_TARGET_DIALOG_PCT = 38;
+const DEV_MODE_TARGET_DIALOG_PCT = 35;
 const DEV_MODE_PROMPT_DIALOG_PCT = 50;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 22;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
-const DEV_MODE_MAX_REPAIR_ATTEMPTS = 3;
-const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.8;
+const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
+const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.5;
 const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 7.0;
-const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 2;
-const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 5;
-const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 4;
+const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 1;
+const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 3;
+const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 2;
 const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
@@ -62,10 +62,12 @@ const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.5;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 7.8;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 const DEV_MODE_MIN_SUPPORTING_CAST = 2;
 const DEV_MODE_MAX_SUPPORTING_CAST = 4;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 12;
+const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
+const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
 
 interface DevModeChapter {
   title: string;
@@ -88,6 +90,7 @@ type DevModePipelineStage =
   | "story-draft"
   | "chapter-repair"
   | "story-polish"
+  | "line-punchup"
   | "final-validation";
 
 interface DevModeStageLog {
@@ -1442,6 +1445,131 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
   ].join("\n");
 }
 
+// --- Voice Bible ----------------------------------------------------------
+// Renders a single-line "voice tic" rule per main character + selected pool
+// cast member. The goal is to prevent voice-blur (validator-flagged failure
+// mode) by giving each speaker concrete rhythm, vocabulary, and signature
+// gesture cues instead of generic personality summaries.
+
+function voiceForAvatar(avatar: DevModeAvatar): string {
+  const pt = avatar.personalityTraits;
+  const values: Partial<Record<StoryTraitKey, number>> = {};
+  for (const key of STORY_TRAIT_KEYS) values[key] = readTraitValue(pt, key);
+  const v = values as Record<StoryTraitKey, number>;
+
+  // Compute dominant trait (handle the 0-only baseline by falling back to a
+  // gentle observer voice instead of inventing personality).
+  const sorted = STORY_TRAIT_KEYS.slice().sort((a, b) => v[b] - v[a]);
+  const top = sorted[0];
+  const topVal = v[top] ?? 0;
+  if (topVal < 5) {
+    return `${avatar.name}: warm observer; short sentences, asks simple "und dann?" questions, reacts with one concrete action per scene (no abstract opinions).`;
+  }
+
+  const fragments: string[] = [];
+  if (v.logic >= 45 || v.persistence >= 45) {
+    fragments.push(`uses short corrections and rules ("X gehört zu Y. Immer."), counts on fingers, prefers list-numbers ("Erstens... Zweitens...")`);
+  }
+  if (v.creativity >= 45) {
+    fragments.push(`compares things to toys/props ("wie ein kleiner Mond", "wie ein Spielzeugauto"), grins before speaking`);
+  }
+  if (v.curiosity >= 45) {
+    fragments.push(`signature opener "Warte, ich hab da noch eine Frage!" or "Aber wieso...?"`);
+  }
+  if (v.empathy >= 45) {
+    fragments.push(`names the other person's feeling before doing anything ("Du bist traurig, oder?")`);
+  }
+  if (v.courage >= 45) {
+    fragments.push(`takes a small physical step forward when others freeze, says "Ich geh vor."`);
+  }
+  if (v.vocabulary >= 70) {
+    fragments.push(`expressive precise words, but still child-concrete (no adult abstractions)`);
+  }
+  if (v.vocabulary > 0 && v.vocabulary < 30) {
+    fragments.push(`speaks simply; short clear words; no literary metaphors`);
+  }
+
+  const tic = fragments.slice(0, 3).join("; ") || `concrete, age-appropriate phrasing; no adult abstractions`;
+  return `${avatar.name}: ${tic}.`;
+}
+
+function voiceForPoolCharacter(character: DevModePoolCharacter): string {
+  const bits: string[] = [];
+  if (character.catchphrase) {
+    bits.push(`signature line „${compactExcerpt(character.catchphrase, 80)}"`);
+  }
+  if (Array.isArray(character.speechStyle) && character.speechStyle.length > 0) {
+    bits.push(`speech style: ${character.speechStyle.slice(0, 3).join(", ")}`);
+  }
+  if (character.quirk) {
+    bits.push(`physical/verbal quirk: ${compactExcerpt(character.quirk, 80)}`);
+  }
+  const triggers = poolCharacterTriggers(character, 2);
+  if (triggers.length > 0) {
+    bits.push(`reacts strongly to: ${triggers.join(", ")}`);
+  }
+  if (bits.length === 0) {
+    const dominant = poolCharacterDominant(character);
+    if (dominant) bits.push(`dominant trait colors the voice: ${dominant}`);
+  }
+  const line = bits.length > 0 ? bits.join("; ") : "concrete voice, no narrator-style explanations";
+  return `${character.name}: ${line}.`;
+}
+
+function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
+  const lines: string[] = [];
+  for (const avatar of input.avatars || []) {
+    if (!avatar?.name) continue;
+    lines.push(`- ${voiceForAvatar(avatar)}`);
+  }
+  const selectedCast = input.selectedIdea?.selectedSupportingCast || [];
+  const poolByName = new Map(
+    (input.poolCharacters || []).map((character) => [normalizePoolName(character.name), character])
+  );
+  for (const name of selectedCast) {
+    const character = poolByName.get(normalizePoolName(name));
+    if (!character) continue;
+    lines.push(`- ${voiceForPoolCharacter(character)}`);
+  }
+  if (lines.length === 0) return null;
+  return [
+    "VOICE BIBLE (binding — every quoted line must sound unmistakably like the named character):",
+    ...lines,
+    "- A reader should often identify the speaker WITHOUT tags. If two characters could say a line interchangeably, rewrite one of them.",
+  ].join("\n");
+}
+
+// --- Writer voice anchor --------------------------------------------------
+// Inlines a tiny imitation target so the draft model writes toward
+// Donaldson rhythm + Nordqvist subtext. Existing validator anchors mention
+// these books only at validation time — too late to influence prose.
+
+function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | null {
+  const code = languageCodeFromName(localizedLanguageName(input.config.language));
+  if (code === "de") {
+    return [
+      'WRITER VOICE ANCHOR (target prose FEEL — do not copy any surface words):',
+      '- Donaldson rhythm reference: short, marching sentences with a recurring refrain; every word earns its place.',
+      '  Beat example (FEEL, not text): „Eine Maus ging durch den dunklen Wald, da kam ein Fuchs, der sah sie bald."',
+      '- Nordqvist subtext reference: two unmistakably different voices; comedy from action and prop, not narrator commentary; warmth shown through small gestures, not stated.',
+      '  Beat example: Findus hängt im Apfelbaum — „Wenn man so hängt, ist der Himmel unten." Pettson nur: „Praktisch."',
+      "- Imitate the FEEL of these masters. Your story is the user's premise — the anchor only sets cadence, voice distinctness, and the courage to keep iconic similes intact.",
+      "- Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+    ].join("\n");
+  }
+  if (code === "en") {
+    return [
+      'WRITER VOICE ANCHOR (target prose FEEL — do not copy any surface words):',
+      '- Donaldson rhythm reference: short marching sentences with a recurring refrain; every word earns its place.',
+      '  Beat example: "A mouse took a stroll through the deep dark wood. A fox saw the mouse and the mouse looked good."',
+      '- Nordqvist subtext reference: two unmistakably different voices; comedy from action and prop; warmth in small gestures.',
+      '  Beat example: Findus hangs upside-down — "When you hang like this, the sky is below." Pettson only: "Practical."',
+      "- Imitate the FEEL of these masters. Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+    ].join("\n");
+  }
+  return null;
+}
+
 function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, strict = false): string | null {
   const castNames = input.selectedIdea?.selectedSupportingCast || [];
   if (castNames.length === 0) return null;
@@ -2314,6 +2442,11 @@ function buildStoryDraftPrompts(
     "- Each chapter follows goal -> conflict -> turn/yes-but -> pull. No loose 'and then' sequence.",
     "- Every chapter has a child-giggle moment from character action, misunderstanding, prop, or wordplay.",
     "- Keep dialogue double-duty: every quoted line must move action, relationship, tension, subtext, or humor.",
+    "- TITLE-PROMISE CONTRACT: the title's central image/word MUST surface and be redeemed in the prose (not only as decoration). Plant it early, deliver it in the climax.",
+    "",
+    buildVoiceBibleBlock(input),
+    "",
+    buildWriterVoiceAnchorBlock(input),
     "",
     buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
@@ -2507,6 +2640,11 @@ function buildCompactStoryDraftPrompts(
     `Exactly ${chapterCount} chapters. Output ONLY JSON.`,
     "No visible planning. No preface. No apology. No validator comments.",
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "compact-draft"),
+    "- TITLE-PROMISE CONTRACT: the title's central image/word MUST surface and be redeemed in the prose.",
+    "",
+    buildVoiceBibleBlock(input),
+    "",
+    buildWriterVoiceAnchorBlock(input),
     "",
     buildDevStoryContext(input, chapterCount, { includeNoveltyBrief: false }),
     "",
@@ -2641,6 +2779,180 @@ function buildStoryPolishPrompts(
     `FINAL REMINDER: title, description and ALL chapter content must remain in ${languageName}.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
+}
+
+// --- Line-Level Punchup ---------------------------------------------------
+// Replaces the full-story polish pass with a surgical one: the model returns
+// only the 5-8 weakest lines + stronger replacements. The server applies
+// exact-string-replace per chapter and falls back to the original story if
+// deterministic diagnostics get worse.
+//
+// Rationale: the previous full-story polish pass routinely flattened iconic
+// similes ("als müsse sie stillstehen wie ein Zinnsoldat" -> deleted) while
+// chasing dialog%/length gates. Surgical punchup preserves the draft's
+// strongest writing AND still upgrades weak lines.
+
+interface LinePunchupReplacement {
+  chapterOrder: number;
+  find: string;
+  replaceWith: string;
+  reason?: string;
+}
+
+function buildLinePunchupPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  story: DevModeRawStory,
+  diagnostics: DevModeStoryDiagnostics,
+  blueprint: any,
+  critique: any
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
+
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Line-punchup schema:",
+      "{",
+      '  "lineReplacements": [',
+      '    {',
+      '      "chapterOrder": number,',
+      '      "find": string,',
+      '      "replaceWith": string,',
+      '      "reason": string',
+      "    }",
+      "  ],",
+      '  "punchupNotes": string[]',
+      "}",
+      "IMPORTANT: 'find' must be an EXACT substring of the chapter's prose (one full sentence, dialogue line, or short paragraph excerpt). The server runs literal string.replace on it.",
+    ].join("\n")
+  );
+
+  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+
+  const userPrompt = [
+    `CALL 3C: SURGICAL LINE-LEVEL PUNCHUP. Output language: ${languageName}.`,
+    "Do NOT rewrite the story. Do NOT touch the plot, the magic rule, the characters, the refrain, or the chapter structure.",
+    `Identify the ${DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS} weakest sentences across the whole story and supply stronger replacements that fit seamlessly in their place.`,
+    "What counts as a 'weak' sentence to replace:",
+    "- generic narrator description that could be in any children's book ('Es war schön.', 'Sie waren glücklich.')",
+    "- a moral-summary or explained-emotion sentence",
+    "- a long sentence that loses its punch (split or compress it)",
+    "- a dialogue line that does only one job (decorate); replace with a line that adds action, subtext, or comic timing",
+    "- a flat opening line of a chapter that doesn't set up the central image",
+    "- a flat closing line of a chapter that doesn't pull the reader forward",
+    "",
+    "STRICT REPLACEMENT RULES:",
+    "- 'find' must be an EXACT contiguous substring from a single chapter's prose. Copy it character-for-character including punctuation and dialogue marks („...\").",
+    "- Replacement should be roughly the SAME LENGTH as the original (±40 characters). Do not grow chapter length.",
+    "- Replacement must use age-appropriate, concrete, sensory language. No adult abstractions, no moralizing.",
+    "- Replacement must keep the same speaker if it is a dialogue line.",
+    "- Replacement may add ONE small simile from a child's world (toy, animal, food, weather) per chapter, but never replace an existing iconic simile with a blander one.",
+    "- NEVER touch the refrain or any line that appears identically in multiple chapters (those are leitmotifs).",
+    `- NEVER change main character names: ${heroNames.join(", ") || "(none specified)"}. NEVER change pool character names.`,
+    "- ALWAYS keep typographic quotation marks where the original used them.",
+    "- DO NOT introduce new characters, settings, or plot beats.",
+    `- Maximum ${DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS} replacements across the whole story.`,
+    "- Prefer 1-2 replacements per chapter, not all in one chapter.",
+    "",
+    "PRIORITY HINTS FROM DIAGNOSTICS:",
+    promptJson(compactDiagnosticsForPrompt(diagnostics)),
+    "",
+    buildVoiceBibleBlock(input),
+    "",
+    buildWriterVoiceAnchorBlock(input),
+    "",
+    "TITLE-PROMISE: if the title's central word/image is missing from the prose, AT LEAST ONE replacement must reintroduce it cleanly (in dialogue or refrain, never as forced exposition).",
+    "",
+    buildLeanRepairPromptContext(input, chapterCount),
+    "",
+    "COMPACT BLUEPRINT (for reference only — do not invent new beats):",
+    promptJson(compactBlueprint),
+    "",
+    "CURRENT STORY (replace exact substrings only — do not return the rewritten story):",
+    promptJson(story),
+    "",
+    `FINAL REMINDER: respond with the schema above and nothing else. All 'replaceWith' strings must be in ${languageName} and use typographic quotation marks for dialogue.`,
+  ].join("\n");
+
+  return { systemPrompt, userPrompt };
+}
+
+function parseLinePunchupResult(content: string): LinePunchupReplacement[] {
+  const parsed = tryParseJson(content);
+  const list = parsed?.lineReplacements;
+  if (!Array.isArray(list)) return [];
+  const out: LinePunchupReplacement[] = [];
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const order = Number(item.chapterOrder ?? item.order);
+    const find = typeof item.find === "string" ? item.find.trim() : "";
+    const replaceWith = typeof item.replaceWith === "string" ? item.replaceWith.trim() : "";
+    if (!Number.isFinite(order) || order < 1) continue;
+    if (find.length < DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS) continue;
+    if (replaceWith.length < DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS) continue;
+    if (find === replaceWith) continue;
+    out.push({
+      chapterOrder: order,
+      find,
+      replaceWith,
+      reason: typeof item.reason === "string" ? item.reason : undefined,
+    });
+    if (out.length >= DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS) break;
+  }
+  return out;
+}
+
+interface LinePunchupApplyResult {
+  story: DevModeRawStory;
+  appliedCount: number;
+  droppedCount: number;
+  appliedReplacements: LinePunchupReplacement[];
+  droppedReplacements: Array<LinePunchupReplacement & { reason: string }>;
+}
+
+function applyLinePunchupResult(
+  story: DevModeRawStory,
+  replacements: LinePunchupReplacement[]
+): LinePunchupApplyResult {
+  const chaptersByOrder = new Map(story.chapters.map((chapter) => [Number(chapter.order), { ...chapter }]));
+  const appliedReplacements: LinePunchupReplacement[] = [];
+  const droppedReplacements: Array<LinePunchupReplacement & { reason: string }> = [];
+
+  for (const replacement of replacements) {
+    const chapter = chaptersByOrder.get(Number(replacement.chapterOrder));
+    if (!chapter) {
+      droppedReplacements.push({ ...replacement, reason: "chapter-order-not-found" });
+      continue;
+    }
+    if (!chapter.content.includes(replacement.find)) {
+      droppedReplacements.push({ ...replacement, reason: "find-string-not-in-chapter" });
+      continue;
+    }
+    // Length sanity check: must stay within ±60 chars to keep length gates happy.
+    const lengthDelta = replacement.replaceWith.length - replacement.find.length;
+    if (Math.abs(lengthDelta) > 60) {
+      droppedReplacements.push({ ...replacement, reason: `length-delta-too-big (${lengthDelta})` });
+      continue;
+    }
+    chapter.content = chapter.content.replace(replacement.find, replacement.replaceWith);
+    chaptersByOrder.set(Number(replacement.chapterOrder), chapter);
+    appliedReplacements.push(replacement);
+  }
+
+  const newChapters = story.chapters
+    .map((chapter) => chaptersByOrder.get(Number(chapter.order)) || chapter)
+    .sort((a, b) => a.order - b.order);
+
+  return {
+    story: { ...story, chapters: newChapters },
+    appliedCount: appliedReplacements.length,
+    droppedCount: droppedReplacements.length,
+    appliedReplacements,
+    droppedReplacements,
+  };
 }
 
 function selectChapterDiagnosticsForRepair(
@@ -2912,6 +3224,8 @@ function buildChapterRepairPrompts(
     promptJson(chapterDiagnostics),
     "",
     buildSilentPreWriteSelfReviewContract(input, 1, "chapter-repair"),
+    "",
+    buildVoiceBibleBlock(input),
     "",
     "TARGET GATES FOR THE REPAIRED CHAPTER:",
     `- Keep order exactly ${chapter.order}.`,
@@ -3650,6 +3964,113 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
   return issues;
 }
 
+// --- Title-promise gate ---------------------------------------------------
+// Verifies the title's core content words actually surface in the story body.
+// Catches "Der Kühlschrank, der nur Dienstags singt" -> Dienstag is never used.
+
+const TITLE_PROMISE_STOPWORDS_DE = new Set([
+  "der","die","das","den","dem","des","ein","eine","einen","einem","einer","eines",
+  "und","oder","aber","mit","von","zum","zur","ins","im","am","auf","aus","bei","nach",
+  "vor","unter","ueber","über","durch","gegen","ohne","fuer","für","an","zu","als","so",
+  "wie","wenn","weil","dass","nur","auch","schon","noch","mehr","mal","ja","nein","nicht",
+  "kein","keine","kann","kannst","koennen","koennten","wird","werden","sind","ist","war",
+  "waren","hat","hatte","haben","sein","sehr","viel","viele","dann","wer","was","wo","wann",
+  "story","geschichte","kapitel","ende","mit","ohne"
+]);
+
+function extractTitleContentWords(title: string): string[] {
+  return String(title || "")
+    .toLowerCase()
+    .replace(/[„""''«»‚‹›()\[\]{},.:;!?—–\-]/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 4 && !TITLE_PROMISE_STOPWORDS_DE.has(word));
+}
+
+function buildWordStemRegex(word: string): RegExp {
+  // Match the stem (first 4-5 chars) followed by any inflection up to 4 chars,
+  // so "singt" matches "singen, sang, sing, singend" etc.
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const stem = escaped.slice(0, Math.max(4, Math.min(escaped.length, 5)));
+  return new RegExp(`\\b${stem}\\w{0,5}\\b`, "i");
+}
+
+function collectTitlePromiseIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+  const titleWords = extractTitleContentWords(story.title || "");
+  if (titleWords.length === 0) return [];
+  const code = languageCodeFromName(localizedLanguageName(input.config.language));
+  if (code !== "de") return []; // stopword list is German for now
+  const body = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n");
+  const missing = titleWords.filter((word) => {
+    const characterNameMatch = (input.avatars || []).some(
+      (avatar) => avatar.name && avatar.name.toLowerCase().includes(word.slice(0, 4))
+    );
+    if (characterNameMatch) return false;
+    return !buildWordStemRegex(word).test(body);
+  });
+  if (missing.length === 0) return [];
+  // Limit to a single soft issue so we don't flood diagnostics.
+  return [
+    `Titel-Versprechen unerfuellt: Kernwoerter aus dem Titel fehlen im Storytext (${missing.slice(0, 3).join(", ")}). Loese das Titelversprechen im Text ein oder schaerfe den Titel.`,
+  ];
+}
+
+// --- Age-vocabulary filter ------------------------------------------------
+// Flags words too literary/adult for the target age band. Soft-issue only.
+
+const AGE_BANNED_VOCAB_6_8 = new Set([
+  "stocksteif","geschniegelt","zinnsoldat","dirigentenstab","mutstein","verbuendete",
+  "verbündete","unscheinbar","befangen","ergeben","versichert","ergebnis","insofern",
+  "demzufolge","mithin","gleichwohl","dergleichen","wankelmuetig","wankelmütig",
+  "argwoehnisch","argwöhnisch","wehmuetig","wehmütig","beflissen","unterfangen",
+  "geheimnisumwittert","schicksalhaft","verbluefft","verblüfft","schlauerweise",
+  "weisheitlich","grundlegend","durchaus","mithilfe","gegebenenfalls","keineswegs",
+  "schlechterdings","mitnichten","weitlaeufig","weitläufig","mannigfaltig","sodann",
+  "weiland","fuerderhin","fürderhin","alsbald","unterdessen","nichtsdestoweniger",
+  "andernfalls","unbeschadet","abermals","bisweilen","gleichermassen","gleichermaßen",
+  "spaehte","spähte","kalibrierte","akzentuierte","sondiert","sondierte",
+  "gravitaetisch","gravitätisch","ostentativ","apodiktisch"
+]);
+
+const AGE_BANNED_VOCAB_3_5 = new Set([
+  ...AGE_BANNED_VOCAB_6_8,
+  // tighter list for younger children
+  "obwohl","jedoch","beizeiten","unverhofft","wuetend","wütend","entrüstet","entruestet",
+  "verstoeren","verstören","entgeistert","schamhaft","tunlichst","umsichtig",
+  "behutsam","behaglich","betraechtlich","beträchtlich"
+]);
+
+function ageBannedVocab(ageGroup?: string): Set<string> {
+  switch (ageGroup) {
+    case "3-5": return AGE_BANNED_VOCAB_3_5;
+    case "6-8": return AGE_BANNED_VOCAB_6_8;
+    case "9-12":
+    case "13+":
+    default:
+      // Older bands: tolerate richer vocabulary; no filter applied.
+      return new Set();
+  }
+}
+
+function collectAgeVocabularyIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+  const code = languageCodeFromName(localizedLanguageName(input.config.language));
+  if (code !== "de") return []; // banned list is German for now
+  const banned = ageBannedVocab(input.config.ageGroup);
+  if (banned.size === 0) return [];
+  const allContent = story.chapters
+    .map((chapter) => chapter.content.toLowerCase())
+    .join("\n");
+  const found = new Set<string>();
+  for (const word of banned) {
+    const regex = new RegExp(`\\b${word}\\b`, "i");
+    if (regex.test(allContent)) found.add(word);
+  }
+  if (found.size === 0) return [];
+  return [
+    `Alters-Vokabular-Gate (${input.config.ageGroup}): zu erwachsene/literarische Woerter gefunden: ${[...found].slice(0, 5).join(", ")}. Ersetze durch konkretere, kindlichere Sprache.`,
+  ];
+}
+
 function collectSelectedCastIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
   const selectedIdea = input.selectedIdea;
   if (!selectedIdea || !selectedIdea.selectedSupportingCast || selectedIdea.selectedSupportingCast.length === 0) {
@@ -3729,6 +4150,18 @@ function analyzeDevModeStoryQuality(
   }
   for (const castIssue of collectSelectedCastIssues(story, input)) {
     hardIssues.push(castIssue);
+  }
+  for (const titleIssue of collectTitlePromiseIssues(story, input)) {
+    softIssues.push(titleIssue);
+    polishInstructions.push(
+      "Loese das Titel-Versprechen ein: arbeite die zentralen Titel-Begriffe spuerbar in mindestens ein Kapitel ein (gerne als Refrain oder Reim), oder schaerfe den Titel beim Polish so, dass er zum Storyinhalt passt."
+    );
+  }
+  for (const vocabIssue of collectAgeVocabularyIssues(story, input)) {
+    softIssues.push(vocabIssue);
+    polishInstructions.push(
+      "Ersetze zu erwachsene/literarische Woerter durch konkretere, kindlichere Begriffe; nutze Vergleiche aus dem Alltag des Kindes (Spielzeug, Tiere, Essen)."
+    );
   }
 
   const avatarNames = (input.avatars || []).map((avatar) => avatar.name).filter((name): name is string => Boolean(name));
@@ -4866,15 +5299,107 @@ export async function generateStoryDevMode(
             ? "validator-market-quality"
             : "dialogue-target";
 
-      console.warn("[dev-mode-generation] Triggering full-story polish after validation", {
+      // Decide between SURGICAL line-punchup (default, low-cost, preserves
+      // iconic prose) and the legacy FULL-STORY polish (only for hard form
+      // failures the punchup cannot fix). Line-punchup is the v7 default
+      // because prior full-story polish passes were the main source of
+      // quality regression (flattened similes, weakened dialogue, dropped
+      // refrains chasing dialog% gates).
+      const canUseLinePunchup =
+        currentDiagnostics.hardIssueCount === 0 || isDialogueOnlyHardFailure(currentDiagnostics);
+
+      console.warn("[dev-mode-generation] Triggering post-validation polish", {
         validationAttempt: validationAttempt + 1,
         polishReason,
         currentScore,
         hardIssueCount: currentDiagnostics.hardIssueCount,
         dialogPct: currentDiagnostics.dialogPct,
+        mode: canUseLinePunchup ? "line-punchup" : "full-story-polish",
       });
 
       try {
+        if (canUseLinePunchup) {
+          const punchupPrompts = buildLinePunchupPrompts(
+            input,
+            chapterCount,
+            currentParsed,
+            currentDiagnostics,
+            blueprint,
+            {
+              ...critique,
+              validatorFindings,
+              polishReason,
+            }
+          );
+          const punchupStage = await runStage("line-punchup", punchupPrompts, {
+            maxTokens: 2200,
+            temperature: 0.5,
+            timeoutMs: 90_000,
+            modelRole: "selected-story",
+          });
+          const replacements = parseLinePunchupResult(punchupStage.provider.content);
+          if (replacements.length === 0) {
+            console.warn("[dev-mode-generation] Line-punchup returned no usable replacements; keeping previous story", {
+              rawContentChars: punchupStage.provider.content?.length ?? 0,
+            });
+            break;
+          }
+          const punchupResult = applyLinePunchupResult(currentParsed, replacements);
+          if (punchupResult.appliedCount === 0) {
+            console.warn("[dev-mode-generation] Line-punchup had no applicable replacements (all 'find' strings missed); keeping previous story", {
+              droppedCount: punchupResult.droppedCount,
+              droppedReplacements: punchupResult.droppedReplacements.slice(0, 4),
+            });
+            break;
+          }
+          const punchupDiagnostics = analyzeDevModeStoryQuality(punchupResult.story, input, chapterCount);
+          const punchupSeverity = diagnosticsSeverityScore(punchupDiagnostics, chapterCount, input.config);
+          const introducedHardIssue =
+            punchupDiagnostics.hardIssueCount > currentDiagnostics.hardIssueCount;
+          const locallyAcceptable =
+            !introducedHardIssue
+            && (
+              punchupSeverity <= currentSeverity + 40
+              || punchupDiagnostics.softIssueCount < currentDiagnostics.softIssueCount
+            );
+          if (!locallyAcceptable) {
+            console.warn("[dev-mode-generation] Line-punchup rejected by deterministic diagnostics", {
+              currentSeverity,
+              punchupSeverity,
+              hardIssueCountBefore: currentDiagnostics.hardIssueCount,
+              hardIssueCountAfter: punchupDiagnostics.hardIssueCount,
+              dialogPctBefore: currentDiagnostics.dialogPct,
+              dialogPctAfter: punchupDiagnostics.dialogPct,
+              appliedCount: punchupResult.appliedCount,
+              droppedCount: punchupResult.droppedCount,
+            });
+            break;
+          }
+          finalParsed = punchupResult.story;
+          finalModelUsed = punchupStage.provider.modelUsed;
+          finalDiagnostics = punchupDiagnostics;
+          storyPolishApplied = true;
+          repairSelfReflections.push({
+            attempt: validationAttempt + 1,
+            modelUsed: punchupStage.provider.modelUsed,
+            reason: "line-punchup",
+            polishReason,
+            appliedCount: punchupResult.appliedCount,
+            droppedCount: punchupResult.droppedCount,
+            appliedReplacements: punchupResult.appliedReplacements,
+            droppedReplacements: punchupResult.droppedReplacements.slice(0, 4),
+            deterministicStoryHardIssueCount: punchupDiagnostics.hardIssueCount,
+            deterministicStoryDialogPct: punchupDiagnostics.dialogPct,
+          });
+
+          rawQualityScore = undefined;
+          localGateScore = undefined;
+          finalQualityScore = undefined;
+          finalValidatorFindings = undefined;
+          continue;
+        }
+
+        // Hard structural failure path → keep legacy full-story polish.
         const storyPolishPrompts = buildStoryPolishPrompts(
           input,
           chapterCount,
