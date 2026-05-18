@@ -42,7 +42,7 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v7";
+const DEV_MODE_PIPELINE_ID = "adaptive-chapter-repair-v8";
 const DEV_MODE_MIN_DIALOG_PCT = 28;
 const DEV_MODE_TARGET_DIALOG_PCT = 35;
 const DEV_MODE_PROMPT_DIALOG_PCT = 50;
@@ -50,8 +50,8 @@ const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 20;
 const DEV_MODE_MIN_PARAGRAPHS = 5;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
 const DEV_MODE_MAX_REPAIR_ATTEMPTS = 2;
-const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.2;
-const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 7.0;
+const DEV_MODE_BLUEPRINT_TARGET_SCORE = 8.8;
+const DEV_MODE_BLUEPRINT_HARD_FLOOR_SCORE = 8.0;
 const DEV_MODE_MAX_BLUEPRINT_REPAIR_ATTEMPTS = 2;
 const DEV_MODE_CHAPTER_REPAIR_LIMIT_PER_PASS = 4;
 const DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT = 3;
@@ -59,15 +59,16 @@ const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 2;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
-const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.2;
+const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
-const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 7.0;
+const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
-const DEV_MODE_MIN_SUPPORTING_CAST = 2;
-const DEV_MODE_MAX_SUPPORTING_CAST = 4;
-const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 12;
+const DEV_MODE_MIN_SUPPORTING_CAST = 0;
+const DEV_MODE_MAX_SUPPORTING_CAST = 2;
+const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
 const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
+const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 2;
 
 interface DevModeChapter {
   title: string;
@@ -1039,7 +1040,7 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
     return "AVAILABLE SUPPORTING CAST: none preselected. Do not force extra characters into every idea.";
   }
   const lines: string[] = [
-    `AVAILABLE SUPPORTING CAST CANDIDATES FOR IDEA LAB (recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names only when they truly fit; each selected name must matter in the story):`,
+    `AVAILABLE SUPPORTING CAST CANDIDATES FOR IDEA LAB (recommend 0-${DEV_MODE_MAX_SUPPORTING_CAST} names only when they truly improve the premise; most strong short stories use 0-1):`,
   ];
   pool.forEach((character, index) => {
     const parts = [
@@ -1086,7 +1087,7 @@ function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string
     if (!match || resolved.includes(match)) continue;
     resolved.push(match);
   }
-  return resolved.slice(0, 3);
+  return resolved.slice(0, DEV_MODE_MAX_SUPPORTING_CAST);
 }
 
 function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): DevModeIdeaCandidate[] {
@@ -1192,7 +1193,8 @@ function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevMode
       let score = 0;
       score += candidate.whyKidWantsThis.length > 0 ? 4 : 0;
       score += candidate.whyDifferentFromRecent.length > 0 ? 3 : 0;
-      score += candidate.recommendedSupportingCast.length * 1.5;
+      score += candidate.recommendedSupportingCast.length > 0 ? 0.6 : 0;
+      score -= Math.max(0, candidate.recommendedSupportingCast.length - 1) * 0.4;
       score += candidate.centralObjectOrPlace.length > 16 ? 1 : 0;
       return { candidate, score };
     })
@@ -1209,7 +1211,7 @@ function fallbackSelectedIdea(candidates: DevModeIdeaCandidate[], pool?: DevMode
       novelty: 8.4,
       emotionalPotential: 8.2,
       childCuriosity: 8.3,
-      poolCastFit: selectedSupportingCast.length > 0 ? 8.4 : 7.5,
+      poolCastFit: selectedSupportingCast.length > 0 ? 8.4 : 8.0,
     },
   };
 }
@@ -1227,7 +1229,8 @@ function fallbackNoveltySafeSelectedIdea(
       let score = 0;
       score += candidate.whyKidWantsThis.length > 0 ? 4 : 0;
       score += candidate.whyDifferentFromRecent.length > 0 ? 3 : 0;
-      score += candidate.recommendedSupportingCast.length * 1.5;
+      score += candidate.recommendedSupportingCast.length > 0 ? 0.6 : 0;
+      score -= Math.max(0, candidate.recommendedSupportingCast.length - 1) * 0.4;
       score += candidate.centralObjectOrPlace.length > 16 ? 1 : 0;
       if (audit?.recommendation === "prefer") score += 2.5;
       if (audit?.recommendation === "acceptable") score += 1;
@@ -1253,7 +1256,7 @@ function fallbackNoveltySafeSelectedIdea(
       novelty: winnerAudit?.recommendation === "prefer" ? 9 : winnerAudit?.recommendation === "acceptable" ? 8.4 : 7.4,
       emotionalPotential: 8.2,
       childCuriosity: 8.2,
-      poolCastFit: selectedSupportingCast.length > 0 ? 8.3 : 7.5,
+      poolCastFit: selectedSupportingCast.length > 0 ? 8.3 : 8.0,
     },
   };
 }
@@ -1463,7 +1466,9 @@ function finalizeSelectedIdeaCast(
       ...selectedIdea,
       selectedSupportingCast: finalNames,
       recommendedSupportingCast: finalNames,
-      chosenReason: `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.`,
+      chosenReason: finalNames.length > 0
+        ? `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.`
+        : `${selectedIdea.chosenReason} No supporting cast was forced after premise selection; main-avatar agency and pacing ranked higher than pool usage.`,
     },
     poolCharacters: finalPool,
   };
@@ -1483,7 +1488,7 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     `- Why a child wants this book: ${selectedIdea.whyKidWantsThis}`,
     `- Why different from recent stories: ${selectedIdea.whyDifferentFromRecent}`,
     selectedIdea.selectedSupportingCast.length > 0
-      ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with real function, not cameo decoration.`
+      ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with one plot-necessary function each, then leave room for the main avatars.`
       : "- No pool character is mandatory for this idea; keep extra cast lean.",
     `- Selection reason: ${selectedIdea.chosenReason}`,
   ].join("\n");
@@ -1592,23 +1597,20 @@ function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | nu
   const code = languageCodeFromName(localizedLanguageName(input.config.language));
   if (code === "de") {
     return [
-      'WRITER VOICE ANCHOR (target prose FEEL — do not copy any surface words):',
-      '- Donaldson rhythm reference: short, marching sentences with a recurring refrain; every word earns its place.',
-      '  Beat example (FEEL, not text): „Eine Maus ging durch den dunklen Wald, da kam ein Fuchs, der sah sie bald."',
-      '- Nordqvist subtext reference: two unmistakably different voices; comedy from action and prop, not narrator commentary; warmth shown through small gestures, not stated.',
-      '  Beat example: Findus hängt im Apfelbaum — „Wenn man so hängt, ist der Himmel unten." Pettson nur: „Praktisch."',
-      "- Imitate the FEEL of these masters. Your story is the user's premise — the anchor only sets cadence, voice distinctness, and the courage to keep iconic similes intact.",
+      "WRITER VOICE BENCHMARK (craft target — do not copy, continue, or imitate any existing book):",
+      "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
+      "- Top character-comedy craft: two unmistakably different voices; comedy from action and props, not narrator commentary; warmth shown through small gestures, not stated.",
+      "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
       "- Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
     ].join("\n");
   }
   if (code === "en") {
     return [
-      'WRITER VOICE ANCHOR (target prose FEEL — do not copy any surface words):',
-      '- Donaldson rhythm reference: short marching sentences with a recurring refrain; every word earns its place.',
-      '  Beat example: "A mouse took a stroll through the deep dark wood. A fox saw the mouse and the mouse looked good."',
-      '- Nordqvist subtext reference: two unmistakably different voices; comedy from action and prop; warmth in small gestures.',
-      '  Beat example: Findus hangs upside-down — "When you hang like this, the sky is below." Pettson only: "Practical."',
-      "- Imitate the FEEL of these masters. Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+      "WRITER VOICE BENCHMARK (craft target — do not copy, continue, or imitate any existing book):",
+      "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
+      "- Top character-comedy craft: two unmistakably different voices; comedy from action and props; warmth in small gestures.",
+      "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
+      "- Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
     ].join("\n");
   }
   return null;
@@ -1624,6 +1626,10 @@ function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, str
     `- Selected supporting cast: ${castNames.join(", ")}. Each must change the plot, not merely appear or explain.`,
     "- For every selected cast figure, include: one visible action only they would do, one line/gesture in their voice, and one causal effect on the problem or solution.",
     "- Failure condition: if the story still works after deleting that figure, rewrite the beat until the figure is plot-necessary.",
+    "- Cast budget: give each supporting figure a compact scene job. Do not let helpers form a parade, take over the finale, or explain the lesson.",
+    castNames.length > 1
+      ? "- With two supporting figures, split functions clearly: one may complicate or reveal; one may help with a tool/action. The main avatars must still make the decisive choice."
+      : "- The supporting figure may nudge the problem, but the main avatars must make the decisive choice.",
   ];
 
   for (const name of castNames) {
@@ -1664,6 +1670,7 @@ function buildSilentPreWriteSelfReviewContract(
     "- Causality: every chapter needs goal -> obstacle -> turn -> concrete pull; no loose 'and then' sequence.",
     "- Voice: each quoted line must sound like that character and do at least two jobs: action, relationship, tension, humor, or subtext.",
     "- Cast: selected supporting characters must be plot-necessary; each needs a unique action/line/gesture that changes the problem or solution.",
+    "- Agency: adults/helpers may offer pressure, tools, or comic complications; the main avatars must notice the key clue and perform the decisive action.",
     "- Payoff: finale/repaired chapter must use a planted detail, not a new convenient solution or explained moral.",
     "- If any check fails, revise internally before emitting JSON. The final answer must contain only the requested JSON schema.",
   ].join("\n");
@@ -1981,7 +1988,8 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
-    `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names when possible, and only characters you expect to matter on-page.`,
+    `Recommended supporting cast names must come ONLY from the provided pool list. Recommend 0-${DEV_MODE_MAX_SUPPORTING_CAST} names; choose zero if the premise is stronger with only the main avatars.`,
+    "Never recommend a cast member just to use the pool. A pool figure must create a turn, complication, joke, clue, or payoff that the main avatars could not create alone.",
     "At least half the candidates should differ strongly in object/place/problem structure, not just surface wording.",
     "",
     `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
@@ -2046,7 +2054,8 @@ function buildIdeaSelectionPrompts(
     "IDEA LAB SELECTION CALL: Choose the single best premise candidate for a real children's book.",
     "Pick the candidate with the strongest combination of shelf appeal, child curiosity, emotional payoff, novelty, and usable supporting cast fit.",
     "Do not reward generic safety. A merely clean candidate should lose to a memorable one.",
-    `If a candidate recommends supporting cast, keep ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names that truly improve this story. Decorative or mismatched pool characters should be dropped.`,
+    `If a candidate recommends supporting cast, keep 0-${DEV_MODE_MAX_SUPPORTING_CAST} names that truly improve this story. Decorative, adult-explainer, or mismatched pool characters should be dropped.`,
+    "Prefer one vivid supporting figure over two functional helpers. Zero supporting figures is a valid high-quality choice when it protects voice, pacing, and child agency.",
     "A recently used character may still win if the fit is clearly stronger than fresher alternatives; freshness is a tie-breaker, not a ban.",
     "The winner must be a premise that can plausibly reach 9/10 quality after blueprint + draft, not just a cute image.",
     "Use the server novelty precheck as a hard tie-breaker: reject candidates marked reject unless all candidates are rejected; penalize candidates marked penalize unless their shelf appeal is clearly superior.",
@@ -2175,6 +2184,7 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
   return [
     "You are an award-winning children's-book author and dramaturg, writing age-appropriate read-aloud and read-yourself stories.",
     "Your goal is true children's-book quality: warm, gripping, clear, visual, emotional, humorous, with characters children recognize and love.",
+    "Do not copy, continue, or imitate any existing book or named author's surface style; use benchmark craft principles only.",
     "",
     `OUTPUT LANGUAGE (CRITICAL):`,
     `- The final prose, all dialogue, all titles, all descriptions MUST be in ${languageName}.`,
@@ -2289,6 +2299,8 @@ function buildBlueprintPrompts(input: DevModeGenerationInput, chapterCount: numb
     "Plan the emotional price explicitly: which concrete object, habit, sound, promise, or comfort must a child choose to risk or share in the finale, why it matters, and what choice makes the payoff earned.",
     "Plan the antagonist's change as a ladder, not a switch: wants to possess -> confusion -> small relapse -> active decision -> new role/task.",
     "Plan one recurring humor callback that escalates across chapters and pays off in the finale; it must come from character behavior or a prop, not narrator commentary.",
+    "Protect protagonist agency: supporting/adult figures may complicate, reveal pressure, or lend a tool, but the main avatars must notice the key clue and choose the final action.",
+    "Keep cast lean. If a supporting figure does not change the causal chain, remove them from the plan instead of giving them a cameo.",
     "The pull must come from real curiosity: kids want to know what the thing means, why the character reacts this way, or which rule shows up next.",
     "The final sentence of the whole story must be closed AND curiosity-inducing: main problem resolved, but the world feels bigger.",
     "Make sure antagonist hints aren't smuggled into the solution as a spoiler shortcut.",
@@ -2487,6 +2499,8 @@ function buildStoryDraftPrompts(
     "- Every chapter has a child-giggle moment from character action, misunderstanding, prop, or wordplay.",
     "- Keep dialogue double-duty: every quoted line must move action, relationship, tension, subtext, or humor.",
     "- TITLE-PROMISE CONTRACT: the title's central image/word MUST surface and be redeemed in the prose (not only as decoration). Plant it early, deliver it in the climax.",
+    "- AGENCY CONTRACT: the main avatars must find the crucial clue, make the decisive choice, and perform the final action. Helpers can pressure or assist, never solve by advice.",
+    "- CAST BUDGET: if pool characters are selected, give each one compact job. Do not let adult/helper figures arrive one after another as repair modules.",
     "",
     buildVoiceBibleBlock(input),
     "",
@@ -2525,6 +2539,7 @@ function buildStoryDraftPrompts(
     "- Causality must be therefore/but logic: each chapter changes the problem in a way that forces the next chapter.",
     "- Do not duplicate the finale across chapters 4 and 5: chapter 4 reaches the crisis/realization; chapter 5 performs the final choice and payoff once.",
     "- A side/helper character may reveal a clue, but the children must perform the decisive action themselves.",
+    "- If an adult/helper explains what the children should learn, rewrite that beat as child action, failed attempt, or a concrete prop payoff.",
     "- Every main character must make at least one mini-decision that wouldn't happen without them.",
     "- The antagonist must show a recognizable behavior across at least three chapters and gain a new place at the end.",
     "- HUMOR (MANDATORY): EVERY chapter needs at least one humorous moment coming from character or situation — no narrator jokes. Good kinds: absurd comparisons, small mishaps, a dry remark from a side character, a wordplay, a loving teasing moment between the main characters. No 'explained joke', no adult irony.",
@@ -2685,6 +2700,7 @@ function buildCompactStoryDraftPrompts(
     "No visible planning. No preface. No apology. No validator comments.",
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "compact-draft"),
     "- TITLE-PROMISE CONTRACT: the title's central image/word MUST surface and be redeemed in the prose.",
+    "- AGENCY CONTRACT: main avatars notice the key clue and perform the decisive action; helpers never solve by explaining.",
     "",
     buildVoiceBibleBlock(input),
     "",
@@ -2708,6 +2724,7 @@ function buildCompactStoryDraftPrompts(
     "- Every chapter must have a goal, obstacle, turn, and pull at the end.",
     "- Every chapter needs at least one child-giggle moment from action, misunderstanding, prop, or character voice.",
     "- Finale must use planted details; no moral-summary ending like 'Sie lernten...'.",
+    "- Keep supporting cast lean; one vivid helper is stronger than a parade of explainers.",
     "",
     "COMPACT REVIEWED BLUEPRINT TO FOLLOW:",
     promptJson(compactBlueprint),
@@ -2796,6 +2813,8 @@ function buildStoryPolishPrompts(
     "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
     "- Keep the same title idea, central conflict, recurring motif, and closing image.",
     "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
+    "- Preserve child agency: replace helper/adult explanations with child noticing, child choice, and a concrete action.",
+    "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
     "",
     "DIALOGUE VOICE CONTRACT:",
     "- Main careful observer: short, concrete, braking lines; points at details; rarely speaks in long explanations.",
@@ -2807,6 +2826,7 @@ function buildStoryPolishPrompts(
     "- Preserve prepared payoffs from the blueprint. The finale must come from planted details, not a new solution.",
     "- If a personal object is used in the solution, make the character choose to give it up consciously, not by accident.",
     "- The antagonist gets a new way to exist or a task, not instant friendship as a moral shortcut.",
+    "- The wonder rule must be tested on-page at least twice before the finale and must matter in the final action.",
     "",
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
@@ -3073,6 +3093,61 @@ function selectPostPolishChapterRepairChapters(
     .slice(0, DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT);
 }
 
+function selectValidatorQualityRepairChapters(
+  diagnostics: DevModeStoryDiagnostics,
+  validatorFindings: any,
+  chapterCount: number
+): DevModeChapterDiagnostic[] {
+  const selected = new Map<number, DevModeChapterDiagnostic>();
+  const chapters = diagnostics.chapterDiagnostics.slice().sort((a, b) => a.order - b.order);
+  const add = (order: number | undefined) => {
+    if (!order || selected.size >= DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT) return;
+    const chapter = chapters.find((candidate) => Number(candidate.order) === Number(order));
+    if (chapter) selected.set(Number(chapter.order), chapter);
+  };
+  const addLowestDialogue = () => {
+    const chapter = chapters
+      .filter((candidate) => !selected.has(Number(candidate.order)))
+      .slice()
+      .sort((a, b) => a.dialogPct - b.dialogPct)[0];
+    add(chapter?.order);
+  };
+
+  const findingText = [
+    ...(Array.isArray(validatorFindings?.warnings) ? validatorFindings.warnings : []),
+    ...(Array.isArray(validatorFindings?.mustFixBefore95) ? validatorFindings.mustFixBefore95 : []),
+    ...(Array.isArray(validatorFindings?.publishabilityBlockers) ? validatorFindings.publishabilityBlockers : []),
+  ].join(" ").toLowerCase();
+
+  if (/chapter|page|pull|hook|cliff|weiter|sog|kapitelende/.test(findingText)) {
+    for (const chapter of chapters.filter((candidate) => candidate.issues.some((issue) => /pull|weiterlese|sog/i.test(issue)))) {
+      add(chapter.order);
+    }
+    if (selected.size === 0 && chapterCount > 1) add(Math.max(1, chapterCount - 1));
+  }
+
+  if (/ending|payoff|moral|didactic|resolution|finale|schluss|lehre|lesson/.test(findingText)) {
+    add(chapterCount);
+  }
+
+  if (/wonder|magic|mechanic|rule|regel|plot driver|magi/.test(findingText)) {
+    add(Math.min(chapterCount, Math.max(2, Math.ceil(chapterCount / 2))));
+    add(Math.max(1, chapterCount - 1));
+  }
+
+  if (/dialogue|dialog|voice|stimme|speaker|character voices/.test(findingText)) {
+    addLowestDialogue();
+    addLowestDialogue();
+  }
+
+  if (selected.size === 0) {
+    add(chapters.find((chapter) => chapter.issues.length > 0)?.order);
+    add(chapterCount);
+  }
+
+  return [...selected.values()].slice(0, DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT);
+}
+
 function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeChapter): DevModeRawStory {
   const chapters = story.chapters
     .map((chapter) => (Number(chapter.order) === Number(repairedChapter.order) ? repairedChapter : chapter))
@@ -3255,6 +3330,7 @@ function buildChapterRepairPrompts(
   const dialogueLineTarget = input.config.length === "short"
     ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
     : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
+  const validatorQualityRepairMode = /validator-quality|market-quality/i.test(String(critique?.polishReason || ""));
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -3296,6 +3372,15 @@ function buildChapterRepairPrompts(
     "",
     "TARGET CHAPTER DIAGNOSTICS:",
     promptJson(chapterDiagnostics),
+    validatorQualityRepairMode
+      ? [
+          "",
+          "VALIDATOR MARKET-QUALITY REPAIR MODE:",
+          "- This chapter passed basic form gates, but the full story is below release quality. Repair for literary effect, not just mechanics.",
+          "- Use validatorFindings in the critique block as binding: strengthen page-turn pull, wonder-rule payoff, voice, child agency, or non-didactic ending as relevant.",
+          "- Preserve continuity. Change only this chapter's prose, and only enough to address the named market-quality gap.",
+        ].join("\n")
+      : null,
     "",
     buildSilentPreWriteSelfReviewContract(input, 1, "chapter-repair"),
     "",
@@ -3343,6 +3428,8 @@ function buildChapterRepairPrompts(
     "- If the antagonist changes too quickly, add a small visible hesitation or pull toward old behavior.",
     "- If this chapter participates in the finale/payoff, make the cost of sharing or letting go visible as an action, not a moral sentence.",
     "- Preserve the recurring humor callback; make it slightly evolve instead of repeating the exact same joke.",
+    "- If a helper/adult currently explains the answer, convert that beat into the main avatars noticing, testing, choosing, or doing.",
+    "- If the magic/wonder rule is only described, make it cause a visible obstacle, false attempt, or final action.",
     "",
     "RELEVANT BLUEPRINT FOR THIS CHAPTER:",
     promptJson(buildChapterRepairBlueprintContext(reviewedBlueprint, chapter.order)),
@@ -3427,7 +3514,7 @@ function buildValidationPrompts(
     "",
     "SCORING RULES:",
     "- 9.5+ ONLY if the story sits in the same league as Donaldson/Nordqvist (rhyme/beat OR unmistakable character voices + humor + setup-payoff + emotional aftertaste).",
-    "- 9.0–9.4 if clearly better than the elevated standard anchor (7.5), but rhyme/beat missing OR humor weak.",
+    "- 9.0–9.4 only if it is release-ready: strong child agency, consistent wonder rule, distinct voices, page-turn pull, earned ending, and no didactic final explanation.",
     "- 8.5–8.9 if clearly above anchor 7.5, but at least one weakness (e.g. character voices present but not iconic; humor present but quiet; setup/payoff present but not surprising).",
     "- 7.0–8.4 if at or slightly above anchor 7.5 (standard children's book).",
     "- 5.0–6.9 if at anchor-6 level (forbidden phrases, generic).",
@@ -3438,9 +3525,13 @@ function buildValidationPrompts(
     "- Main characters not iconically distinguishable (dialogue interchangeable): max 8.7.",
     "- No clear central conflict a child can retell in one sentence: max 8.2.",
     "- No irreversible emotional key moment / shattering turn: max 8.3.",
+    "- Wonder mechanic / magic rule is named but not repeatedly tested as a plot driver: max 8.6.",
     "- Events feel like 'and then' episodes rather than therefore/but causality: max 8.4.",
     "- Title/premise would not stand out on a children's-library shelf: max 8.6.",
     "- Ending explains moral instead of showing ('they learned...' / 'Sie lernten...'): max 7.5.",
+    "- Final paragraph states the lesson in a neat aphorism instead of leaving a concrete image: max 8.2.",
+    "- Adult/helper/supporting figure solves the decisive problem, while the child only follows instructions: max 8.2.",
+    "- Supporting cast crowds the story and weakens the main character arc: max 8.5.",
     "- Chapter endings without read-on pull: max 8.6.",
     "- Dialogue quota / form gates failed per local diagnostics: max 8.7.",
     "- NO humor in the 'kid giggles' sense in at least 4 of 5 chapters: max 8.2.",
@@ -3482,13 +3573,11 @@ function buildValidationPrompts(
 function validatorAnchorBlock(languageCode: string): string {
   if (languageCode === "de") {
     return [
-      "ANCHOR 10.0 — Julia Donaldson 'Der Grüffelo' (German):",
-      '  „Eine Maus ging durch den dunklen Wald, / Da kam ein Fuchs, der sah sie bald. / \'Komm doch mit mir, kleine Maus, / komm zum Mittagessen mit zu mir nach Haus!\'"',
-      "  Why 10: rhyme/beat make it memorizable; no wasted word; the mouse's mini-gesture (list-telling) carries the entire plot; punchline is set up.",
+      "ANCHOR 10.0 — Gruffalo-level picture-book craft (German market):",
+      "  Why 10: read-aloud rhythm or refrain makes it memorizable; no wasted word; one small protagonist trick/rule carries the plot; punchline and reversal are planted early.",
       "",
-      "ANCHOR 9.0 — Sven Nordqvist 'Pettersson und Findus' (German):",
-      '  Findus hängt kopfüber im Apfelbaum: „Wenn man so hängt, ist der Himmel unten und die Äpfel oben. Das ist sehr praktisch." Pettersson murmelt: „Sehr praktisch, ja." und schenkt sich noch Kaffee ein.',
-      "  Why 9: two clearly separated voices (Findus naive-philosophical, Pettersson dry); concrete situational comedy; no explained joke; subtext (Pettersson loves Findus without saying so).",
+      "ANCHOR 9.0 — Pettersson-und-Findus-level character comedy (German market):",
+      "  Why 9: two clearly separated voices; concrete situational comedy; visual/detail-rich scenes; no explained joke; warmth and affection appear through small actions, not direct statements.",
       "",
       "ANCHOR 7.5 — elevated standard children's book (German):",
       "  „Anna nahm den goldenen Schlüssel und sagte: 'Damit öffnen wir das geheimnisvolle Tor!' Ben nickte tapfer. Gemeinsam stürmten sie los, denn sie wussten: Freundschaft ist stärker als jede Angst.\"",
@@ -3505,13 +3594,11 @@ function validatorAnchorBlock(languageCode: string): string {
   }
   if (languageCode === "en") {
     return [
-      "ANCHOR 10.0 — Julia Donaldson 'The Gruffalo' (English):",
-      '  "A mouse took a stroll through the deep dark wood. / A fox saw the mouse and the mouse looked good. / \'Where are you going to, little brown mouse? / Come and have lunch in my underground house.\'"',
-      "  Why 10: rhyme/beat make it memorizable; no wasted word; the mouse's mini-gesture (list-telling) carries the entire plot; punchline is set up.",
+      "ANCHOR 10.0 — Gruffalo-level picture-book craft (English market):",
+      "  Why 10: read-aloud rhythm or refrain makes it memorizable; no wasted word; one small protagonist trick/rule carries the plot; punchline and reversal are planted early.",
       "",
-      "ANCHOR 9.0 — Sven Nordqvist 'Findus and Pettson' (English):",
-      '  Findus hangs upside down in the apple tree: "When you hang like this, the sky is below and the apples are above. That is very practical." Pettson mumbles: "Very practical, yes," and pours himself more coffee.',
-      "  Why 9: two clearly separated voices; concrete situational comedy; no explained joke; subtext.",
+      "ANCHOR 9.0 — Pettson-and-Findus-level character comedy (English market):",
+      "  Why 9: two clearly separated voices; concrete situational comedy; detail-rich scenes; no explained joke; warmth and affection appear through small actions.",
       "",
       "ANCHOR 7.5 — elevated standard children's book (English):",
       "  \"Anna took the golden key and said: 'This will open the mysterious gate!' Ben nodded bravely. Together they rushed off, because they knew: friendship is stronger than fear.\"",
@@ -4149,6 +4236,36 @@ function collectAgeVocabularyIssues(story: DevModeRawStory, input: DevModeGenera
   ];
 }
 
+function collectMarketQualitySoftIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+  const issues: string[] = [];
+  const finalChapter = story.chapters.slice().sort((a, b) => a.order - b.order).slice(-1)[0];
+  const finalTail = finalChapter ? splitParagraphs(finalChapter.content).slice(-2).join(" ") : "";
+  const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
+
+  if (languageCode === "de") {
+    const neatLessonPattern = /\b(Fehler|Mut|Freundschaft|Magie|Zauber|Fragen|Zusammenhalt|Geschichten)\b.{0,34}\b(sind|ist|machen|macht|bedeutet|heisst|heißt)\b/i;
+    if (neatLessonPattern.test(finalTail)) {
+      issues.push("Finale klingt stellenweise wie eine ausgesprochene Lehre; ersetze die Schluss-Aussage durch ein konkretes Bild, eine Handlung oder einen leisen Witz.");
+    }
+  }
+
+  const selectedCast = input.selectedIdea?.selectedSupportingCast || [];
+  if (selectedCast.length > 1 && finalChapter) {
+    const finalText = normalizeNoveltyText(finalChapter.content);
+    const castHits = selectedCast.filter((name) =>
+      characterNameMotifAliases(name).some((alias) => {
+        const pattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+        return pattern.test(finalText);
+      })
+    );
+    if (castHits.length > 1) {
+      issues.push(`Finale wirkt durch mehrere Nebenfiguren potenziell ueberfuellt (${castHits.join(", ")}); pruefe, ob die Hauptavatare die entscheidende Handlung sichtbar selbst tragen.`);
+    }
+  }
+
+  return issues;
+}
+
 function collectSelectedCastIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
   const selectedIdea = input.selectedIdea;
   if (!selectedIdea || !selectedIdea.selectedSupportingCast || selectedIdea.selectedSupportingCast.length === 0) {
@@ -4239,6 +4356,12 @@ function analyzeDevModeStoryQuality(
     softIssues.push(vocabIssue);
     polishInstructions.push(
       "Ersetze zu erwachsene/literarische Woerter durch konkretere, kindlichere Begriffe; nutze Vergleiche aus dem Alltag des Kindes (Spielzeug, Tiere, Essen)."
+    );
+  }
+  for (const qualityIssue of collectMarketQualitySoftIssues(story, input)) {
+    softIssues.push(qualityIssue);
+    polishInstructions.push(
+      "Schaerfe Marktqualitaet: Hauptavatare handeln entscheidend selbst, Magieregel wirkt als Plotmotor, Schluss endet in Bild/Handlung statt Lehre."
     );
   }
 
@@ -5338,7 +5461,7 @@ export async function generateStoryDevMode(
         });
         rawQualityScore = undefined;
       } else {
-        const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+        const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed!, finalDiagnostics);
         try {
           const validationStage = await runStage("final-validation", validationPrompts, {
             maxTokens: 2600,
@@ -5380,15 +5503,13 @@ export async function generateStoryDevMode(
         && Boolean(finalDiagnostics)
         && (
           hasLocalHardIssues
-          ||
-          (finalDiagnostics?.dialogPct ?? 0) < DEV_MODE_TARGET_DIALOG_PCT
           || currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
         );
 
       if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) break;
 
-      const currentParsed = finalParsed;
-      const currentDiagnostics = finalDiagnostics;
+      const currentParsed: DevModeRawStory = finalParsed;
+      const currentDiagnostics: DevModeStoryDiagnostics = finalDiagnostics;
       const currentSeverity = diagnosticsSeverityScore(currentDiagnostics, chapterCount, input.config);
       const polishReason =
         currentDiagnostics.hardIssueCount > 0
@@ -5417,6 +5538,12 @@ export async function generateStoryDevMode(
         && currentDiagnostics.softIssueCount > 0
         && currentDiagnostics.dialogPct >= DEV_MODE_TARGET_DIALOG_PCT;
       const canUseLinePunchup = onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK;
+      const validatorQualityRepairChapters =
+        currentDiagnostics.hardIssueCount === 0
+        && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+        && validatorFindings
+          ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
+          : [];
 
       console.warn("[dev-mode-generation] Triggering post-validation polish", {
         validationAttempt: validationAttempt + 1,
@@ -5424,10 +5551,122 @@ export async function generateStoryDevMode(
         currentScore,
         hardIssueCount: currentDiagnostics.hardIssueCount,
         dialogPct: currentDiagnostics.dialogPct,
-        mode: canUseLinePunchup ? "line-punchup" : "full-story-polish",
+        mode: validatorQualityRepairChapters.length > 0
+          ? "validator-quality-chapter-repair"
+          : canUseLinePunchup ? "line-punchup" : "full-story-polish",
       });
 
       try {
+        if (validatorQualityRepairChapters.length > 0) {
+          console.warn("[dev-mode-generation] Triggering validator-driven chapter quality repair", {
+            validationAttempt: validationAttempt + 1,
+            score: currentScore,
+            targetScore: DEV_MODE_MIN_MARKET_QUALITY_SCORE,
+            chapters: validatorQualityRepairChapters.map((chapter) => ({
+              order: chapter.order,
+              title: chapter.title,
+              chars: chapter.chars,
+              dialogPct: chapter.dialogPct,
+              issues: chapter.issues,
+            })),
+            mustFixBefore95: Array.isArray(validatorFindings?.mustFixBefore95)
+              ? validatorFindings.mustFixBefore95.slice(0, 6)
+              : [],
+            warnings: Array.isArray(validatorFindings?.warnings)
+              ? validatorFindings.warnings.slice(0, 6)
+              : [],
+          });
+
+          let qualityParsed: DevModeRawStory = currentParsed;
+          let qualityModelUsed = finalModelUsed;
+          let qualityDiagnostics: DevModeStoryDiagnostics = currentDiagnostics;
+          let repairedAnyChapter = false;
+
+          for (const chapterDiagnostic of validatorQualityRepairChapters) {
+            const currentChapter = qualityParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
+            if (!currentChapter) continue;
+
+            const chapterRepairPrompts = buildChapterRepairPrompts(
+              input,
+              chapterCount,
+              qualityParsed,
+              currentChapter,
+              chapterDiagnostic,
+              qualityDiagnostics,
+              blueprint,
+              {
+                ...critique,
+                validatorFindings,
+                polishReason: "validator-quality-chapter-rescue",
+              },
+              validationAttempt + 1
+            );
+
+            try {
+              const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1900 : 2800;
+              const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+                maxTokens: repairMaxTokens,
+                temperature: 0.3,
+                timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
+                modelRole: "selected-story",
+              });
+              const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
+              qualityParsed = replaceStoryChapter(qualityParsed, repairResult.chapter);
+              qualityModelUsed = chapterRepairStage.provider.modelUsed;
+              qualityDiagnostics = analyzeDevModeStoryQuality(qualityParsed, input, chapterCount);
+              repairedAnyChapter = true;
+              const repairedChapterDiagnostics = qualityDiagnostics.chapterDiagnostics.find((chapter) => Number(chapter.order) === Number(repairResult.chapter.order));
+              repairSelfReflections.push({
+                attempt: validationAttempt + 1,
+                order: repairResult.chapter.order,
+                title: repairResult.chapter.title,
+                modelUsed: chapterRepairStage.provider.modelUsed,
+                selfReflection: repairResult.selfReflection,
+                deterministicChapterDiagnostics: repairedChapterDiagnostics,
+                deterministicStoryHardIssueCount: qualityDiagnostics.hardIssueCount,
+                deterministicStoryDialogPct: qualityDiagnostics.dialogPct,
+                reason: "validator-quality-chapter-rescue",
+                validatorFindings: compactCritiqueForDraft({ validatorFindings }).validatorFindings,
+              });
+            } catch (qualityRepairError) {
+              console.warn("[dev-mode-generation] Validator-driven chapter repair failed; keeping current chapter", {
+                order: currentChapter.order,
+                title: currentChapter.title,
+                error: qualityRepairError instanceof Error ? qualityRepairError.message : String(qualityRepairError),
+              });
+            }
+          }
+
+          if (repairedAnyChapter) {
+            const qualitySeverity = diagnosticsSeverityScore(qualityDiagnostics, chapterCount, input.config);
+            const locallyAcceptable =
+              qualityDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
+              && qualityDiagnostics.dialogPct >= Math.max(DEV_MODE_MIN_DIALOG_PCT, currentDiagnostics.dialogPct - 1)
+              && qualitySeverity <= currentSeverity + 180;
+            if (locallyAcceptable) {
+              finalParsed = qualityParsed;
+              finalModelUsed = qualityModelUsed;
+              finalDiagnostics = qualityDiagnostics;
+              chapterRepairApplied = true;
+              storyPolishApplied = true;
+              rawQualityScore = undefined;
+              localGateScore = undefined;
+              finalQualityScore = undefined;
+              finalValidatorFindings = undefined;
+              continue;
+            }
+
+            console.warn("[dev-mode-generation] Validator-driven chapter repair rejected by deterministic diagnostics", {
+              currentSeverity,
+              qualitySeverity,
+              hardIssueCountBefore: currentDiagnostics.hardIssueCount,
+              hardIssueCountAfter: qualityDiagnostics.hardIssueCount,
+              dialogPctBefore: currentDiagnostics.dialogPct,
+              dialogPctAfter: qualityDiagnostics.dialogPct,
+            });
+          }
+        }
+
         if (canUseLinePunchup) {
           const punchupPrompts = buildLinePunchupPrompts(
             input,
@@ -6183,7 +6422,7 @@ function weightedPickCharacter<T extends { score: number }>(candidates: T[]): T 
  *  2. Score each by setting/genre/age fit plus global and per-user freshness.
  *  3. Pick from a weighted top window with archetype diversity instead of
  *     always returning the same deterministic top rows.
- *  4. Return a broader idea-lab candidate pool. The final 2-4 story cast is
+ *  4. Return a broader idea-lab candidate pool. The final 0-2 story cast is
  *     selected after the winning premise is known, before blueprint writing.
  */
 export async function pickDevModePoolCharacters(input: {
