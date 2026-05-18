@@ -2631,6 +2631,17 @@ function buildWholeStoryDraftPrompts(
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const heroA = heroNames[0] || "Main character A";
   const heroB = heroNames[1] || "Main character B";
+  // Title-promise contract: surface the concrete content nouns from the chosen
+  // idea title so the writer is FORCED to weave them into the prose.
+  const ideaTitle = String(
+    (input.selectedIdea as any)?.title
+    || (input.selectedIdea as any)?.workingTitle
+    || (revisedBlueprint as any)?.title
+    || ""
+  );
+  const titleKeyWords = ideaTitle ? extractTitleContentWords(ideaTitle) : [];
+  const ageGroup = input.config.ageGroup || "6-8";
+  const isYoungAudience = ageGroup === "3-5" || ageGroup === "6-8";
 
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -2659,6 +2670,30 @@ function buildWholeStoryDraftPrompts(
     "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
     "6. One clear magic/wonder rule. Test it on-page at least twice before the finale; the finale uses it.",
     "7. Somewhere in the middle, something becomes irreversible (object lost, voice gone, path closed, secret revealed) so the children can't simply turn back.",
+    "",
+    "ROTER FADEN (causal through-line \u2014 the single most important rule):",
+    "- Pick ONE concrete recurring object/sound/refrain (the red thread) and make it visible in EVERY segment of the story. Each appearance must change meaning (introduced \u2192 misused \u2192 lost \u2192 reinterpreted \u2192 redeems the finale).",
+    "- Every paragraph must answer 'why now?' from the previous paragraph. If a paragraph could be deleted without the next one missing it, REMOVE that paragraph.",
+    "- No orphan scenes, no decorative side-trips. Place markers for the future payoff EARLY \u2014 a child should be able to retell the story as a chain: 'because... then... so...'.",
+    "- After writing, mentally read the story to a 6-year-old. If they would ask 'wait, why did that happen?' anywhere, rewrite that bridge.",
+    "",
+    isYoungAudience
+      ? `KINDERVERSTAENDLICHKEIT (Pflicht fuer Alter ${ageGroup}):`
+      : `KINDERVERSTAENDLICHKEIT (Ziel-Alter ${ageGroup}):`,
+    "- Kurze Saetze. Bilder aus dem Kinder-Alltag: Spielzeug, Tiere, Essen, Wetter, Schule, Familie. Keine literarischen Adjektive (\"stocksteif\", \"geschniegelt\", \"gravitaetisch\", \"sondiert\").",
+    "- Hoechstens ein Fremdwort pro Segment, und wenn, dann sofort durch ein Bild erklaert.",
+    "- Keine verschachtelten Bandwurmsaetze. Max ein Nebensatz pro Satz; lieber zwei kurze Saetze als ein langer.",
+    "- Gefuehle nicht benennen \u2014 sie an Koerper und Handlung zeigen (\"die Hand wurde feucht\", nicht \"sie war nervoes\").",
+    "- Jedes Kapitelende: eine Frage, ein neuer Gegenstand, eine Tueroeffnung. Das Kind soll umblaettern wollen.",
+    "",
+    titleKeyWords.length > 0
+      ? `TITEL-VERTRAG (PFLICHT): Der Storytitel ist \"${ideaTitle}\". Diese Kernwoerter MUESSEN wortgetreu (oder als enge Beugung) sichtbar im Prosatext vorkommen \u2014 verteilt ueber die Story, nicht nur einmal: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. Falls ein Wort nicht in den Prosatext passt, aendere lieber den Titel als das Versprechen zu brechen.`
+      : "",
+    "",
+    "DIALOG-VERTEILUNG (Pflicht):",
+    `- Jedes Segment von 4\u20136 Paragraphen MUSS mindestens 2 echte Dialog-Wechsel enthalten (zwei oder mehr direkt aufeinander folgende quoted lines). Kein Segment darf rein narrativ sein.`,
+    `- Direkte Rede insgesamt 25\u201340% des Prosatexts. Jede Zeile traegt Handlung, Beziehung, Humor, Spannung oder Subtext \u2014 keine Fueller.`,
+    `- ${heroA} und ${heroB} klingen unverwechselbar (Rhythmus, Wortwahl, Gesten). Ein Leser soll ohne Sprechertag wissen, wer spricht.`,
     "",
     "STRUCTURAL ARC (use silently as dramaturgy, do NOT label these on the page):",
     "- Child wants something specific, quickly.",
@@ -2704,6 +2739,18 @@ function buildWholeStoryDraftPrompts(
     "",
     "CRITIQUE TO RESOLVE:",
     promptJson(compactCritiqueForDraft(critique)),
+    "",
+    "PRE-EMIT SELF-CHECK (silently run before JSON output \u2014 rewrite, do not narrate):",
+    `1. Word count: count words in paragraphs[]. If outside ${wordBounds.targetMin}\u2013${wordBounds.targetMax}, trim descriptive subordinate clauses (NEVER cut dialogue) or expand a beat.`,
+    "2. Dialog share: count characters inside quotation marks vs. total. If below 28%, add 1\u20132 short exchanges to the narrative-heaviest segment.",
+    "3. Red thread: list the recurring red-thread object/refrain by paragraph. If it is missing from a segment, weave it in.",
+    titleKeyWords.length > 0
+      ? `4. Title contract: confirm each of these words appears in paragraphs[]: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. If any is missing, add it naturally to a fitting paragraph.`
+      : "4. Title coherence: confirm the title genuinely matches what the prose delivers.",
+    "5. Causality: scan paragraph starts. Each new paragraph must follow logically from the previous (because/then/so/meanwhile/now). If a paragraph reads like a topic switch, add a one-sentence bridge.",
+    isYoungAudience
+      ? "6. Verstaendlichkeit: scan for any sentence over " + maxSentenceChars + " characters or with more than one nested subordinate clause. Split into two simpler sentences."
+      : "6. Sentence rhythm: vary length; no chains of long sentences.",
     "",
     `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array. No headings in the prose. All story text in ${languageName}.`,
   ].filter(Boolean).join("\n");
@@ -2924,13 +2971,15 @@ function applySplitterPlanToDraft(
     });
   }
 
-  // Enforce balance ratio: if LLM plan is too lopsided, fall back to a balanced
-  // deterministic split (keeping any usable titles).
+  // Enforce balance ratio: stricter than spec's 1.6 because real children's
+  // books are tightly balanced. Medium/short stories: 1.4. Long stories
+  // (>25 paragraphs in the draft): 1.6.
+  const balanceCap = draft.paragraphs.length > 25 ? 1.6 : 1.4;
   const llmRatio = computePlanBalanceRatio(draft, plan);
-  if (llmRatio > 1.6) {
+  if (llmRatio > balanceCap) {
     console.warn("[dev-mode-generation] Splitter plan unbalanced; using balanced deterministic split", {
       llmRatio: Number(llmRatio.toFixed(2)),
-      threshold: 1.6,
+      threshold: balanceCap,
     });
     const balanced = balancedDeterministicSplit(draft, chapterCount);
     plan = balanced.map((slice, idx) => ({ ...slice, title: plan[idx]?.title }));
@@ -3357,6 +3406,17 @@ function buildStoryPolishPrompts(
     "- Supporting/helper figures may pressure, misinterpret, ask, or hand over an object \\u2014 they must NOT explain the magic rule or the lesson. The MAIN avatars must spot the crucial clue and perform the decisive action on-page.",
     "- Each character may use a signature catchphrase / formulaic opener at MOST ONCE in the whole story. Across all characters, no more than 2 such formulaic openers total. Replace extra ones with body language, action, or a fresh concrete line.",
     "",
+    "ROTER FADEN (red thread) UND TITEL-VERTRAG:",
+    "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
+    "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
+    "- If the title promises specific words/concepts, those words must surface in the prose. If a title key word is missing, add it naturally \u2014 OR change the title to match the prose. Do not leave the title promise unredeemed.",
+    "",
+    "KINDERVERSTAENDLICHKEIT (children ages 6-8 must follow on first read):",
+    "- Replace literary/adult words (stocksteif, gravitaetisch, sondiert, etc.) with concrete child-world images (toys, animals, food, weather, family).",
+    "- Split any sentence with more than one nested subordinate clause into two simpler sentences. No Bandwurmsaetze.",
+    "- Show feelings through body and action (hand wird feucht, Knie zittern), not labels (\"sie war nervoes\").",
+    "- Every chapter ending must give the child a clear pull forward: a question, an unopened door, a new object, an unfinished gesture.",
+    "",
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
     "",
@@ -3609,14 +3669,19 @@ function selectPostPolishChapterRepairChapters(
   const offenders = diagnostics.chapterDiagnostics.filter((chapter) =>
     chaptersWithHardIssues.has(Number(chapter.order))
   );
-  // Priority: most-over-bound length first, then most-under-dialog.
+  // Priority: dialog-floor breaches FIRST (children's books need talk), then
+  // length over/under-bound. Empirically the polish stage cuts length well but
+  // rarely seeds new dialogue, so we steer rescues toward the talk-thin
+  // chapters.
   return offenders
     .slice()
     .sort((a, b) => {
-      const aSev = Math.max(0, a.chars - bounds.max) + Math.max(0, bounds.min - a.chars)
-        + Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - a.dialogPct) * 30;
-      const bSev = Math.max(0, b.chars - bounds.max) + Math.max(0, bounds.min - b.chars)
-        + Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - b.dialogPct) * 30;
+      const aDialogGap = Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - a.dialogPct);
+      const bDialogGap = Math.max(0, DEV_MODE_MIN_CHAPTER_DIALOG_PCT - b.dialogPct);
+      const aLenSev = Math.max(0, a.chars - bounds.max) + Math.max(0, bounds.min - a.chars);
+      const bLenSev = Math.max(0, b.chars - bounds.max) + Math.max(0, bounds.min - b.chars);
+      const aSev = aDialogGap * 60 + aLenSev;
+      const bSev = bDialogGap * 60 + bLenSev;
       return bSev - aSev;
     })
     .slice(0, DEV_MODE_POST_POLISH_DIALOG_REPAIR_LIMIT);
@@ -4910,7 +4975,10 @@ function analyzeDevModeStoryQuality(
     hardIssues.push(castIssue);
   }
   for (const titleIssue of collectTitlePromiseIssues(story, input)) {
-    softIssues.push(titleIssue);
+    // Title-promise is a HARD gate: if the title makes a concrete promise and
+    // the prose never redeems it, the book misleads the child reader. Polish
+    // must either weave the missing words in or sharpen the title.
+    hardIssues.push(titleIssue);
     polishInstructions.push(
       "Loese das Titel-Versprechen ein: arbeite die zentralen Titel-Begriffe spuerbar in mindestens ein Kapitel ein (gerne als Refrain oder Reim), oder schaerfe den Titel beim Polish so, dass er zum Storyinhalt passt."
     );
@@ -5165,8 +5233,11 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
       score = Math.min(score, 7.8);
     }
     // --- v11 scoring caps (whole-story-first spec) ----------------------
-    // Title promise missing -> max 8.2 (per spec).
-    if (diagnostics.softIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))) {
+    // Title promise missing -> max 8.2 (per spec). Now also a HARD gate (see
+    // collectTitlePromiseIssues), but keep the cap so even a near-miss never
+    // hits 9.0+ unless the title genuinely surfaces in the prose.
+    if (diagnostics.softIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))
+        || diagnostics.hardIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))) {
       score = Math.min(score, 8.2);
     }
     // Finale sounds like an explained moral -> max 7.5 (per spec).
@@ -6456,6 +6527,14 @@ export async function generateStoryDevMode(
         });
         const locallyAcceptable =
           polishedDiagnostics.hardIssueCount === 0
+          || (
+            // Softened acceptance: if polish strictly REDUCES the hard-issue
+            // count and doesn't introduce a critical new issue, accept it
+            // even if severity ticks up slightly (severity weighs soft issues
+            // and length penalties; we prioritise eliminating hard gates).
+            polishedDiagnostics.hardIssueCount < currentDiagnostics.hardIssueCount
+            && !introducedCriticalHardIssue
+          )
           || (
             polishedSeverity < currentSeverity
             && polishedDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
