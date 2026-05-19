@@ -75,10 +75,11 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-// v11 — "whole-story-first": draft a continuous narrative as prose paragraphs,
-// then split into display chapters with a cheap support-model call. This
-// stops episodic chapter writing and protects the red thread.
-const DEV_MODE_PIPELINE_ID = "whole-story-first-v11";
+// v12 - "screenplay-first": lock idea potential and scene function before prose,
+// then draft a continuous narrative and split it into display chapters.
+const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
+const DEV_MODE_SCENE_CARD_COUNT = 5;
+const DEV_MODE_MAX_IDEA_ROUNDS = 2;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 const DEV_MODE_TARGET_DIALOG_PCT = 32;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
@@ -110,6 +111,16 @@ const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
 
 const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
+const DEV_MODE_POTENTIAL_THRESHOLDS = {
+  novelty: 8.8,
+  emotionalEngine: 8.7,
+  personalCostPotential: 8.5,
+  irreversibleMiddlePotential: 8.7,
+  conflictEscalationPotential: 8.5,
+  helperDependencyRiskMax: 6.5,
+  similarityToRecentEmotionalMechanicsMax: 6.5,
+};
+
 interface DevModeChapter {
   title: string;
   content: string;
@@ -125,16 +136,29 @@ interface DevModeRawStory {
 type DevModePipelineStage =
   | "idea-candidates"
   | "idea-selection"
+  | "potential-filter"
+  | "logline-emotional-engine"
+  | "filmic-beat-sheet"
+  | "beat-sheet-repair"
+  | "scene-cards"
+  | "scene-cards-repair"
+  | "dialogue-intent"
   | "blueprint"
   | "blueprint-repair"
   | "dramaturgy-check"
   | "story-draft"
   | "whole-story-draft"
   | "story-splitter"
+  | "local-diagnostics"
+  | "repair-router"
   | "chapter-repair"
   | "story-polish"
   | "line-punchup"
-  | "final-validation";
+  | "final-validation"
+  | "image-scene-plan"
+  | "image-prompt-compiler"
+  | "visual-qa"
+  | "image-prompts";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -179,7 +203,7 @@ export interface DevModeGeneratedStory {
     storyModel?: string;
     imagesGenerated: number;
     developerMode: true;
-    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
+    devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-first-v11" | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
       usage?: { prompt: number; completion: number; total: number };
@@ -335,6 +359,19 @@ interface DevModeNoveltyBrief {
   recentStories: DevModeRecentStoryFingerprint[];
 }
 
+export interface CandidatePotentialScores {
+  childRetellableHook: number;
+  visualShelfAppeal: number;
+  novelty: number;
+  emotionalEngine: number;
+  personalCostPotential: number;
+  irreversibleMiddlePotential: number;
+  conflictEscalationPotential: number;
+  finalImagePotential: number;
+  helperDependencyRisk: number;
+  similarityToRecentEmotionalMechanics: number;
+}
+
 interface DevModeIdeaCandidate {
   id: string;
   title: string;
@@ -346,6 +383,7 @@ interface DevModeIdeaCandidate {
   whyKidWantsThis: string;
   whyDifferentFromRecent: string;
   recommendedSupportingCast: string[];
+  potentialScores?: Partial<CandidatePotentialScores>;
 }
 
 interface DevModeSelectedIdea extends DevModeIdeaCandidate {
@@ -366,6 +404,29 @@ interface DevModeIdeaNoveltyAudit {
   closestRecentOverlap: number;
   hardAvoidMatches: string[];
   recommendation: "prefer" | "acceptable" | "penalize" | "reject";
+}
+
+interface DevModePotentialFilterAudit {
+  id: string;
+  title: string;
+  scores: Candidate9Audit;
+}
+
+interface DevModePotentialFilterResult {
+  candidateAudits: DevModePotentialFilterAudit[];
+  passingCandidateIds: string[];
+  chosenIdeaId?: string;
+  selectedSupportingCast?: string[];
+  roundRecommendation: "pass" | "regenerate";
+}
+
+interface DevModeScreenplayPlan {
+  potentialFilter?: DevModePotentialFilterResult;
+  loglineEngine?: any;
+  beatSheet?: any;
+  sceneCards?: any[];
+  dialoguePlan?: any;
+  gateIssues?: string[];
 }
 
 const NOVELTY_STOPWORDS = new Set([
@@ -1442,7 +1503,7 @@ async function generateDevModeImages(
     ? [
         "REFERENCE COLLAGE (one image with framed slots, left-to-right):",
         ...collagePositions.map((pos) => `- slot_${pos.index + 1} = ${pos.name} (${pos.colorName} frame, ${pos.colorHex})`),
-        "When a character is on-stage in a chapter, ALWAYS reference them by slot_N and their canonical face/body must match that slot. Do NOT mention frame colors in the image \u2014 the colored borders are reference-only.",
+        "Use slots only as invisible identity anchors. Final prompts must name characters by NAME and visual description only; do NOT write slot_N, frame colors, borders, or technical reference markers into any prompt.",
       ].join("\n")
     : "(no reference collage \u2014 describe each character's appearance verbatim from the cast list above)";
 
@@ -1451,9 +1512,27 @@ async function generateDevModeImages(
     ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it briefly in chapters where it is on-stage.`
     : "(no supporting prop)";
 
-  const chapterDigest = parsedChapters
-    .map((c) => `Ch ${c.order} \u2014 ${c.title}\n${c.content.slice(0, 700)}`)
-    .join("\n\n---\n\n");
+  const imageScenePlan = parsedChapters.map((chapter) => {
+    const contentLower = chapter.content.toLowerCase();
+    const onStageNames = cast
+      .filter((entry) => contentLower.includes(entry.name.toLowerCase()))
+      .map((entry) => entry.name);
+    return {
+      order: chapter.order,
+      title: chapter.title,
+      onStageNames,
+      humanChildCount: onStageNames.filter((name) => (input.avatars || []).some((avatar) => avatar.name === name)).length,
+      sceneSummary: compactExcerpt(chapter.content.replace(/\s+/g, " "), 520),
+      mustAvoid: [
+        "no raw JSON",
+        "no slot_N text",
+        "no collage terminology",
+        "no text or signs in the image",
+        "no extra background children",
+        "no outfit transfer between characters",
+      ],
+    };
+  });
 
   const systemPrompt = "You are an image-prompt director for a children's picture book. Output STRICT JSON only \u2014 no commentary, no markdown fences.";
   const userPrompt = [
@@ -1467,8 +1546,8 @@ async function generateDevModeImages(
     "",
     artifactBlock,
     "",
-    "CHAPTERS:",
-    chapterDigest,
+    "IMAGE SCENE PLAN (use this, not raw prose snippets):",
+    promptJson(imageScenePlan),
     "",
     "TASK:",
     "Return JSON with this exact shape:",
@@ -1476,9 +1555,7 @@ async function generateDevModeImages(
     "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (the main heroes plus at least one supporting cast member if applicable).",
     "- Exactly one prompt per chapter, single scene, picture-book composition.",
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
-    collagePositions.length > 0
-      ? "- Refer to on-stage characters by both their NAME and their slot_N tag (e.g. 'Adrian (slot_1)'). The slot anchors their canonical face/body."
-      : "- Describe each on-stage character's appearance with concrete visual specifics (hair, skin, clothing colors).",
+    "- Refer to on-stage characters by NAME plus concrete visual specifics (hair, skin, clothing colors, outfit). NEVER include slot_N or collage wording in final prompts.",
     "- If the supporting prop is on-stage in a chapter, mention it briefly with its visual cues.",
     "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
     "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
@@ -1490,7 +1567,7 @@ async function generateDevModeImages(
   let parsedPrompts: { cover?: string; chapters?: Array<{ order?: number; prompt?: string }> } | null = null;
   try {
     const res = await callProvider(input.config, systemPrompt, userPrompt, {
-      stage: "image-prompts" as any,
+      stage: "image-prompt-compiler",
       maxTokens: 6000,
       temperature: 0.7,
     });
@@ -1553,6 +1630,8 @@ async function generateDevModeImages(
     // Generic "in the style of X" / "X style" stripping.
     out = out.replace(/,?\s*in the style of [^,.]+/ig, "");
     out = out.replace(/,?\s*[A-Z][a-z]+ [A-Z][a-z]+ (?:watercolor|illustration|storybook) style/g, "");
+    out = out.replace(/\bslot_\d+\b/ig, "");
+    out = out.replace(/\b(?:collage|reference frame|frame color|colored border|technical reference marker)s?\b/ig, "");
     // Cleanup leftover punctuation/space.
     out = out.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/\s{2,}/g, " ").trim();
     return out;
@@ -1581,9 +1660,7 @@ async function generateDevModeImages(
       "",
       artifactBlock,
       "",
-      collagePositions.length > 0
-        ? "Refer to on-stage characters by NAME and slot_N (e.g. 'Adrian (slot_1)'). Do NOT mention frame colors."
-        : "Describe each on-stage character's appearance with concrete visual specifics.",
+      "Refer to on-stage characters by NAME and concrete visual specifics. Do NOT mention slot_N, collage, frame colors, or borders.",
       "Do NOT include any text, captions, letters, or written words in the imagery.",
       "Reply with the ENGLISH 40-80 word prompt ONLY \u2014 no preamble, no quotes.",
     ].join("\n");
@@ -1607,7 +1684,7 @@ async function generateDevModeImages(
     const refillResults = await mapWithConcurrency(refillJobs, 3, async (job) => {
       try {
         const r = await callProvider(input.config, refillSystem, job.instruction, {
-          stage: "image-prompts" as any,
+          stage: "image-prompt-compiler",
           maxTokens: 400,
           temperature: 0.7,
         });
@@ -1908,6 +1985,31 @@ function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string
   return resolved.slice(0, DEV_MODE_MAX_SUPPORTING_CAST);
 }
 
+function normalizePotentialScores(raw: any): Partial<CandidatePotentialScores> {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const read = (key: keyof CandidatePotentialScores): number | undefined => {
+    const value = Number(source[key]);
+    return Number.isFinite(value) ? clampNumber(value, 0, 10) : undefined;
+  };
+  const result: Partial<CandidatePotentialScores> = {};
+  for (const key of [
+    "childRetellableHook",
+    "visualShelfAppeal",
+    "novelty",
+    "emotionalEngine",
+    "personalCostPotential",
+    "irreversibleMiddlePotential",
+    "conflictEscalationPotential",
+    "finalImagePotential",
+    "helperDependencyRisk",
+    "similarityToRecentEmotionalMechanics",
+  ] as Array<keyof CandidatePotentialScores>) {
+    const value = read(key);
+    if (typeof value === "number") result[key] = Math.round(value * 10) / 10;
+  }
+  return result;
+}
+
 function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): DevModeIdeaCandidate[] {
   const rawCandidates = Array.isArray(parsed)
     ? parsed
@@ -1940,6 +2042,7 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
           candidate?.recommendedSupportingCast || candidate?.selectedSupportingCast || [],
           pool
         ),
+        potentialScores: normalizePotentialScores(candidate?.potentialScores || candidate?.scores || candidate),
       };
     })
     .filter((candidate: DevModeIdeaCandidate | null): candidate is DevModeIdeaCandidate => Boolean(candidate));
@@ -1957,14 +2060,15 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
  * Returns the audit so the orchestrator can pick a different candidate when
  * the selected one is structurally under 9.0.
  */
-export interface Candidate9Audit {
+export interface Candidate9Audit extends Partial<CandidatePotentialScores> {
   emotionalEngine: number;
   novelty: number;
   irreversibleMiddlePotential: number;
-  personalObjectPotential: number;
   helperDependencyRisk: number;
+  personalObjectPotential?: number;
   reject: boolean;
   rejectReason?: string;
+  rejectReasons?: string[];
 }
 
 const PERSONAL_OBJECT_HINTS = [
@@ -2035,6 +2139,117 @@ export function auditCandidate9Potential(
     reject,
     rejectReason,
   };
+}
+
+function potentialGateFailures(scores: Partial<CandidatePotentialScores>): string[] {
+  const failures: string[] = [];
+  const read = (key: keyof CandidatePotentialScores): number => {
+    const value = Number(scores[key]);
+    return Number.isFinite(value) ? value : 0;
+  };
+  if (read("novelty") < DEV_MODE_POTENTIAL_THRESHOLDS.novelty) {
+    failures.push(`novelty ${read("novelty").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.novelty}`);
+  }
+  if (read("emotionalEngine") < DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine) {
+    failures.push(`emotionalEngine ${read("emotionalEngine").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine}`);
+  }
+  if (read("personalCostPotential") < DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential) {
+    failures.push(`personalCostPotential ${read("personalCostPotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential}`);
+  }
+  if (read("irreversibleMiddlePotential") < DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential) {
+    failures.push(`irreversibleMiddlePotential ${read("irreversibleMiddlePotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential}`);
+  }
+  if (read("conflictEscalationPotential") < DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential) {
+    failures.push(`conflictEscalationPotential ${read("conflictEscalationPotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential}`);
+  }
+  if (read("helperDependencyRisk") > DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax) {
+    failures.push(`helperDependencyRisk ${read("helperDependencyRisk").toFixed(1)} > ${DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax}`);
+  }
+  if (read("similarityToRecentEmotionalMechanics") > DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax) {
+    failures.push(`similarityToRecentEmotionalMechanics ${read("similarityToRecentEmotionalMechanics").toFixed(1)} > ${DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax}`);
+  }
+  return failures;
+}
+
+function buildFullPotentialAudit(
+  candidate: DevModeIdeaCandidate,
+  input: DevModeGenerationInput,
+  modelScores?: Partial<CandidatePotentialScores>,
+  modelRejectReasons: string[] = []
+): Candidate9Audit {
+  const noveltyAudit = auditIdeaCandidateNovelty(candidate, input);
+  const legacy = auditCandidate9Potential(candidate, noveltyAudit.closestRecentOverlap);
+  const c = candidate.potentialScores || {};
+  const text = [
+    candidate.title,
+    candidate.oneLineHook,
+    candidate.centralObjectOrPlace,
+    candidate.wonderRule,
+    candidate.emotionalEngine,
+    candidate.coreConflict,
+  ].join(" ").toLowerCase();
+  const hasPersonalObject = PERSONAL_OBJECT_HINTS.some((hint) => text.includes(hint));
+  const fallbackScores: CandidatePotentialScores = {
+    childRetellableHook: Math.max(7.5, legacy.childRetellableHook ?? (candidate.oneLineHook.length > 70 ? 8.6 : 8.1)),
+    visualShelfAppeal: Math.max(7.5, legacy.visualShelfAppeal ?? (hasPersonalObject ? 8.6 : 8.0)),
+    novelty: Math.min(legacy.novelty, noveltyAudit.recommendation === "reject" ? 7.0 : 10),
+    emotionalEngine: legacy.emotionalEngine,
+    personalCostPotential: Math.max(legacy.personalCostPotential ?? legacy.personalObjectPotential ?? 0, hasPersonalObject ? 8.2 : 7.2),
+    irreversibleMiddlePotential: legacy.irreversibleMiddlePotential,
+    conflictEscalationPotential: Math.max(7.5, legacy.conflictEscalationPotential ?? (/(scheit|falsch|folge|sonst|bis|problem)/.test(text) ? 8.6 : 7.8)),
+    finalImagePotential: Math.max(7.7, legacy.finalImagePotential ?? (hasPersonalObject ? 8.6 : 8.0)),
+    helperDependencyRisk: legacy.helperDependencyRisk,
+    similarityToRecentEmotionalMechanics: noveltyAudit.recommendation === "reject"
+      ? 8.5
+      : Math.max(legacy.similarityToRecentEmotionalMechanics ?? 0, noveltyAudit.closestRecentOverlap * 10),
+  };
+  const merged: CandidatePotentialScores = { ...fallbackScores };
+  for (const key of Object.keys(merged) as Array<keyof CandidatePotentialScores>) {
+    const provided = modelScores?.[key] ?? c[key];
+    if (typeof provided !== "number" || !Number.isFinite(provided)) continue;
+    if (key === "helperDependencyRisk" || key === "similarityToRecentEmotionalMechanics") {
+      merged[key] = Math.round(Math.max(fallbackScores[key], clampNumber(provided, 0, 10)) * 10) / 10;
+    } else {
+      merged[key] = Math.round(Math.min(clampNumber(provided, 0, 10), fallbackScores[key] + 1.0) * 10) / 10;
+    }
+  }
+  if (noveltyAudit.recommendation === "reject") {
+    merged.novelty = Math.min(merged.novelty, 7.0);
+    merged.similarityToRecentEmotionalMechanics = Math.max(merged.similarityToRecentEmotionalMechanics, 8.5);
+  }
+  const rejectReasons = [
+    ...potentialGateFailures(merged),
+    ...modelRejectReasons.filter(Boolean),
+  ];
+  if (noveltyAudit.hardAvoidMatches.length > 0) {
+    rejectReasons.push(`hardAvoidMatches: ${noveltyAudit.hardAvoidMatches.join(", ")}`);
+  }
+  return {
+    ...merged,
+    personalObjectPotential: merged.personalCostPotential,
+    reject: rejectReasons.length > 0,
+    rejectReason: rejectReasons[0],
+    rejectReasons,
+  };
+}
+
+function potentialAuditScore(audit: Candidate9Audit): number {
+  const scoreKeys: Array<keyof CandidatePotentialScores> = [
+    "childRetellableHook",
+    "visualShelfAppeal",
+    "novelty",
+    "emotionalEngine",
+    "personalCostPotential",
+    "irreversibleMiddlePotential",
+    "conflictEscalationPotential",
+    "finalImagePotential",
+  ];
+  const positive = scoreKeys.reduce((sum, key) => sum + Number(audit[key] ?? 0), 0) / scoreKeys.length;
+  return positive - Math.max(0, Number(audit.helperDependencyRisk ?? 0) - 4) * 0.6 - Math.max(0, Number(audit.similarityToRecentEmotionalMechanics ?? 0) - 3) * 0.4;
+}
+
+function auditSummaryLine(audit: DevModePotentialFilterAudit): string {
+  return `${audit.title}: ${audit.scores.rejectReason || "passed"} (novelty ${audit.scores.novelty?.toFixed?.(1) ?? "?"}, emotional ${audit.scores.emotionalEngine?.toFixed?.(1) ?? "?"}, cost ${audit.scores.personalCostPotential?.toFixed?.(1) ?? "?"}, irreversible ${audit.scores.irreversibleMiddlePotential?.toFixed?.(1) ?? "?"})`;
 }
 
 function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevModeGenerationInput): DevModeIdeaNoveltyAudit {
@@ -3009,7 +3224,11 @@ function buildEmotionAndVoicePromptContext(
   ].join("\n");
 }
 
-function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: number): { systemPrompt: string; userPrompt: string } {
+function buildIdeaCandidatePrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  options: { round?: number; previousPotentialFailures?: string[] } = {}
+): { systemPrompt: string; userPrompt: string } {
   const candidateCount = countIdeaCandidates(input.config);
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
@@ -3028,6 +3247,18 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
       '      "coreConflict": string,',
       '      "whyKidWantsThis": string,',
       '      "whyDifferentFromRecent": string,',
+      '      "potentialScores": {',
+      '        "childRetellableHook": number,',
+      '        "visualShelfAppeal": number,',
+      '        "novelty": number,',
+      '        "emotionalEngine": number,',
+      '        "personalCostPotential": number,',
+      '        "irreversibleMiddlePotential": number,',
+      '        "conflictEscalationPotential": number,',
+      '        "finalImagePotential": number,',
+      '        "helperDependencyRisk": number,',
+      '        "similarityToRecentEmotionalMechanics": number',
+      "      },",
       '      "recommendedSupportingCast": string[]',
       "    }",
       "  ]",
@@ -3036,9 +3267,17 @@ function buildIdeaCandidatePrompts(input: DevModeGenerationInput, chapterCount: 
   );
 
   const userPrompt = [
-    `IDEA LAB CALL: Generate exactly ${candidateCount} short children's-book premises before any blueprint writing.`,
+    `IDEA LAB CALL${options.round ? ` ROUND ${options.round}` : ""}: Generate exactly ${candidateCount} short children's-book premises before any blueprint writing.`,
     "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
+    "Every candidate must be capable of a visible irreversible middle and a concrete personal cost. If you cannot name those potentials, do not include the candidate.",
+    "Score potentialScores honestly from 0-10. Scores below 8.5 on emotional engine, personal cost, irreversible middle, or conflict escalation mean the premise should probably be replaced before output.",
+    options.previousPotentialFailures?.length
+      ? [
+          "PREVIOUS POTENTIAL FILTER REJECTIONS (do not repeat these mechanics):",
+          ...options.previousPotentialFailures.slice(0, 12).map((failure) => `- ${failure}`),
+        ].join("\n")
+      : null,
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
@@ -3142,6 +3381,148 @@ function buildIdeaSelectionPrompts(
   ].filter((line): line is string => Boolean(line)).join("\n");
 
   return { systemPrompt, userPrompt };
+}
+
+function buildPotentialFilterPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  candidates: DevModeIdeaCandidate[],
+  round: number
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "candidateAudits": [',
+      '    {',
+      '      "id": string,',
+      '      "title": string,',
+      '      "scores": {',
+      '        "childRetellableHook": number,',
+      '        "visualShelfAppeal": number,',
+      '        "novelty": number,',
+      '        "emotionalEngine": number,',
+      '        "personalCostPotential": number,',
+      '        "irreversibleMiddlePotential": number,',
+      '        "conflictEscalationPotential": number,',
+      '        "finalImagePotential": number,',
+      '        "helperDependencyRisk": number,',
+      '        "similarityToRecentEmotionalMechanics": number',
+      "      },",
+      '      "reject": boolean,',
+      '      "rejectReasons": string[]',
+      "    }",
+      "  ],",
+      '  "passingCandidateIds": string[],',
+      '  "chosenIdeaId": string | null,',
+      '  "selectedSupportingCast": string[],',
+      '  "roundRecommendation": "pass" | "regenerate"',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    `CALL 2: 9.0 POTENTIAL FILTER, round ${round}. Do not write prose and do not outline chapters.`,
+    "Judge whether each candidate can realistically become a 9.0+ children's story after beat sheet and scene-card work.",
+    "Use these hard thresholds exactly:",
+    `- novelty >= ${DEV_MODE_POTENTIAL_THRESHOLDS.novelty}`,
+    `- emotionalEngine >= ${DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine}`,
+    `- personalCostPotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential}`,
+    `- irreversibleMiddlePotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential}`,
+    `- conflictEscalationPotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential}`,
+    `- helperDependencyRisk <= ${DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax}`,
+    `- similarityToRecentEmotionalMechanics <= ${DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax}`,
+    "Reject cute but structurally soft ideas. Reject any idea whose core emotional mechanic is another version of waiting/listening/letting go unless the user explicitly requested that mechanic.",
+    "If no candidate passes, set passingCandidateIds=[] and roundRecommendation='regenerate'. Do not choose the best weak candidate.",
+    `If a candidate passes, choose the strongest one for exactly ${chapterCount} display chapters later and keep only supporting cast that creates a complication, clue, pressure, joke, or payoff.`,
+    "",
+    "WIZARD CONTEXT:",
+    buildWizardCreativeBrief(input.config, chapterCount, true),
+    buildNoveltyPromptBlock(input) || "No novelty brief available.",
+    "",
+    "CANDIDATES:",
+    promptJson(candidates),
+  ].filter(Boolean).join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function normalizePotentialFilterResult(
+  parsed: any,
+  candidates: DevModeIdeaCandidate[],
+  input: DevModeGenerationInput,
+  pool?: DevModePoolCharacter[]
+): DevModePotentialFilterResult {
+  const rawAudits = Array.isArray(parsed?.candidateAudits)
+    ? parsed.candidateAudits
+    : Array.isArray(parsed?.audits)
+      ? parsed.audits
+      : [];
+  const rawByIdOrTitle = new Map<string, any>();
+  for (const raw of rawAudits) {
+    const id = String(raw?.id || "").trim();
+    const title = normalizePoolName(String(raw?.title || ""));
+    if (id) rawByIdOrTitle.set(id, raw);
+    if (title) rawByIdOrTitle.set(title, raw);
+  }
+
+  const candidateAudits: DevModePotentialFilterAudit[] = candidates.map((candidate) => {
+    const raw = rawByIdOrTitle.get(candidate.id) || rawByIdOrTitle.get(normalizePoolName(candidate.title));
+    const rawReasons = Array.isArray(raw?.rejectReasons)
+      ? raw.rejectReasons.map((r: any) => String(r || "").trim()).filter(Boolean)
+      : [];
+    const scores = buildFullPotentialAudit(
+      candidate,
+      input,
+      normalizePotentialScores(raw?.scores || raw),
+      Boolean(raw?.reject) ? rawReasons : []
+    );
+    return { id: candidate.id, title: candidate.title, scores };
+  });
+
+  const passingCandidateIds = candidateAudits
+    .filter((audit) => !audit.scores.reject)
+    .sort((a, b) => potentialAuditScore(b.scores) - potentialAuditScore(a.scores))
+    .map((audit) => audit.id);
+  const parsedChoice = String(parsed?.chosenIdeaId || parsed?.chosenId || "").trim();
+  const chosenIdeaId = parsedChoice && passingCandidateIds.includes(parsedChoice)
+    ? parsedChoice
+    : passingCandidateIds[0];
+  return {
+    candidateAudits,
+    passingCandidateIds,
+    chosenIdeaId: chosenIdeaId || undefined,
+    selectedSupportingCast: resolvePoolNames(parsed?.selectedSupportingCast || [], pool),
+    roundRecommendation: passingCandidateIds.length > 0 ? "pass" : "regenerate",
+  };
+}
+
+function selectedIdeaFromPotentialFilter(
+  result: DevModePotentialFilterResult,
+  candidates: DevModeIdeaCandidate[],
+  pool?: DevModePoolCharacter[]
+): DevModeSelectedIdea | undefined {
+  if (!result.chosenIdeaId) return undefined;
+  const candidate = candidates.find((c) => c.id === result.chosenIdeaId);
+  if (!candidate) return undefined;
+  const selectedSupportingCast = result.selectedSupportingCast && result.selectedSupportingCast.length > 0
+    ? result.selectedSupportingCast
+    : resolvePoolNames(candidate.recommendedSupportingCast, pool);
+  const audit = result.candidateAudits.find((a) => a.id === candidate.id);
+  return {
+    ...candidate,
+    chosenReason: audit
+      ? `9.0 potential filter passed: ${auditSummaryLine(audit)}.`
+      : "9.0 potential filter selected this candidate.",
+    selectedSupportingCast,
+    selectionScores: {
+      shelfAppeal: audit?.scores.visualShelfAppeal,
+      novelty: audit?.scores.novelty,
+      emotionalPotential: audit?.scores.emotionalEngine,
+      childCuriosity: audit?.scores.childRetellableHook,
+      poolCastFit: selectedSupportingCast.length > 0 ? 8.5 : 8.0,
+    },
+  };
 }
 
 function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCount: number): string {
@@ -3539,8 +3920,545 @@ function getReviewedBlueprint(blueprint: any, critique: any): any {
   return mergeBlueprintObjects(blueprint || {}, critique?.revisedBlueprintPatch || critique?.revisedBlueprint || {});
 }
 
+function buildLoglineEnginePrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "logline": string,',
+      '  "emotionalPremise": string,',
+      '  "centralQuestion": string,',
+      '  "mainWant": string,',
+      '  "mainNeed": string,',
+      '  "falseBelief": string,',
+      '  "wonderRule": string,',
+      '  "recurringMotif": string,',
+      '  "personalObject": string',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 3: LOGLINE + EMOTIONAL ENGINE. Do not write prose, chapters, or scene summaries.",
+    "Turn the locked 9.0-potential idea into a compact story engine a screenwriter could build from.",
+    "The engine must make child agency, personal cost, and the wonder rule concrete. No moral wording.",
+    `Future display chapters: ${chapterCount}. Scene cards will be exactly ${DEV_MODE_SCENE_CARD_COUNT}.`,
+    "",
+    "LOCKED WINNING IDEA:",
+    buildSelectedIdeaPromptBlock(input) || "No selected idea available.",
+    "",
+    "VOICE / CAST BRIEF:",
+    buildVoiceBibleBlock(input) || "",
+    buildSelectedCastIntegrationContract(input) || "",
+    "",
+    buildArtifactPropBlock(input) || "",
+  ].filter(Boolean).join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildBeatSheetPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  loglineEngine: any,
+  repairIssues: string[] = []
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "logline": string,',
+      '  "emotionalPremise": string,',
+      '  "centralQuestion": string,',
+      '  "mainWant": string,',
+      '  "mainNeed": string,',
+      '  "falseBelief": string,',
+      '  "wonderRule": string,',
+      '  "recurringMotif": string,',
+      '  "personalObject": string,',
+      '  "act1": { "hook": string, "incitingIncident": string, "wrongFirstMove": string, "firstConsequence": string },',
+      '  "act2": { "complication": string, "helperComplicates": string, "midpointIrreversibleTurn": string, "personalCost": string },',
+      '  "act3": { "recognition": string, "finalChoice": string, "payoffFromPlant": string, "closingImage": string }',
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    repairIssues.length > 0
+      ? "CALL 4R: REPAIR THE FILMIC BEAT SHEET. Do not write prose."
+      : "CALL 4: FILMIC BEAT SHEET. Do not write prose.",
+    "Build this like film/TV prep: a causal beat sheet before any pretty sentences exist.",
+    "Hard gates:",
+    "- midpointIrreversibleTurn must be visible and make the old situation impossible to restore by simply waiting.",
+    "- personalCost must be concrete: an object, comfort, promise, status, sound, secret, or habit the child risks or gives up.",
+    "- finalChoice must be executed by the main children, not by a helper or adult.",
+    "- helperComplicates may confuse, pressure, fail, ask, or hand over an object. It must not explain the answer.",
+    "- closingImage must be a picture/action, not a stated lesson.",
+    repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
+    "",
+    "LOCKED ENGINE:",
+    promptJson(loglineEngine),
+    "",
+    "LOCKED IDEA / CONTEXT:",
+    buildSelectedIdeaPromptBlock(input) || "",
+    buildSelectedCastIntegrationContract(input, true) || "",
+    buildArtifactPropBlock(input) || "",
+    `Future display chapters: ${chapterCount}; screenplay scene cards next: exactly ${DEV_MODE_SCENE_CARD_COUNT}.`,
+  ].filter(Boolean).join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildSceneCardPrompts(
+  input: DevModeGenerationInput,
+  beatSheet: any,
+  repairIssues: string[] = []
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const heroA = heroNames[0] || "main child A";
+  const heroB = heroNames[1] || "main child B";
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "sceneCards": [',
+      '    {',
+      '      "scene": number,',
+      '      "titleHint": string,',
+      '      "location": string,',
+      '      "timePressureOrQuestion": string,',
+      '      "scenePurpose": "hook" | "false_attempt" | "complication" | "irreversible_middle" | "final_payoff",',
+      '      "visibleGoal": string,',
+      '      "emotionalGoal": string,',
+      '      "obstacle": string,',
+      '      "wrongAction": string,',
+      '      "visibleConsequence": string,',
+      '      "irreversibleChange": string,',
+      '      "personalCost": string,',
+      '      "characterDriver": string,',
+      '      "adrianAction": string,',
+      '      "alexanderAction": string,',
+      '      "helperAction": string,',
+      '      "helperMustNotExplain": true,',
+      '      "dialogueBeats": [ { "speaker": string, "intent": string, "subtext": string } ],',
+      '      "plant": string,',
+      '      "payoffLater": string,',
+      '      "endPull": string',
+      "    }",
+      "  ]",
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    repairIssues.length > 0
+      ? "CALL 5R: REPAIR SCENE CARDS BEFORE PROSE. Do not write prose."
+      : "CALL 5: SCENE CARDS / DREHBUCHKARTEN. Do not write prose.",
+    `Create exactly ${DEV_MODE_SCENE_CARD_COUNT} scene cards. These are cinematic story functions, not display chapters.`,
+    "Required purposes, in order: hook, false_attempt, complication, irreversible_middle, final_payoff.",
+    "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
+    `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
+    "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
+    "Each card must already include at least 3 dialogueBeats; the next pass will expand them to 4-6.",
+    "Helpers must not explain the solution. helperAction may complicate, fail, ask, misread, pressure, or provide an object.",
+    "Non-final endPull must not be a calm conclusion.",
+    repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
+    "",
+    "BEAT SHEET:",
+    promptJson(beatSheet),
+    "",
+    "VOICE / CAST:",
+    buildVoiceBibleBlock(input) || "",
+    buildSelectedCastIntegrationContract(input, true) || "",
+  ].filter(Boolean).join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function buildDialogueIntentPrompts(
+  input: DevModeGenerationInput,
+  sceneCards: any[]
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const systemPrompt = qualitySystemPrompt(
+    languageName,
+    [
+      "Schema:",
+      "{",
+      '  "sceneDialogue": [',
+      '    {',
+      '      "scene": number,',
+      '      "dialogueBeats": [',
+      '        { "speaker": string, "intent": "want" | "resist" | "joke" | "observe" | "decide" | "hide fear" | "challenge", "subtext": string, "draftStyle": string }',
+      "      ]",
+      "    }",
+      "  ]",
+      "}",
+    ].join("\n")
+  );
+  const userPrompt = [
+    "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
+    "Plan dialogue function before drafting. This is not a quota pass; every beat must carry action, relationship, tension, humor, or subtext.",
+    "For each of the 5 scenes, produce 4-6 dialogue beats.",
+    "Make the main children sound different through rhythm, word choice, first reaction, and body action.",
+    "No filler acknowledgements. No helper explaining the magic rule or final answer.",
+    "",
+    "SCENE CARDS:",
+    promptJson(sceneCards),
+    "",
+    "VOICE BIBLE:",
+    buildVoiceBibleBlock(input) || "",
+    buildWriterVoiceAnchorBlock(input) || "",
+  ].filter(Boolean).join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function unwrapBeatSheet(parsed: any): any {
+  return parsed?.beatSheet || parsed?.filmicBeatSheet || parsed;
+}
+
+function normalizeSceneCards(parsed: any): any[] {
+  const raw = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.sceneCards)
+      ? parsed.sceneCards
+      : Array.isArray(parsed?.scenes)
+        ? parsed.scenes
+        : [];
+  return raw
+    .slice(0, DEV_MODE_SCENE_CARD_COUNT)
+    .map((scene: any, index: number) => ({
+      ...scene,
+      scene: Number(scene?.scene || index + 1),
+      helperMustNotExplain: scene?.helperMustNotExplain !== false,
+      dialogueBeats: Array.isArray(scene?.dialogueBeats) ? scene.dialogueBeats : [],
+    }));
+}
+
+function validateLoglineEngine(engine: any): string[] {
+  const issues: string[] = [];
+  for (const key of ["logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief", "wonderRule", "recurringMotif", "personalObject"]) {
+    if (!String(engine?.[key] || "").trim()) issues.push(`loglineEngine.${key} missing`);
+  }
+  return issues;
+}
+
+function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): string[] {
+  const issues: string[] = [];
+  const required = [
+    "logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief",
+    "wonderRule", "recurringMotif", "personalObject",
+  ];
+  for (const key of required) {
+    if (!String(beatSheet?.[key] || "").trim()) issues.push(`beatSheet.${key} missing`);
+  }
+  const midpoint = String(beatSheet?.act2?.midpointIrreversibleTurn || "");
+  if (!/(verlier|lost|lose|cannot|nicht|zerbr|break|schrump|shrink|verschwind|closed|locked|revealed|risk|cost|opfer|sacrifice|irreversible)/i.test(midpoint)) {
+    issues.push("midpointIrreversibleTurn is not visibly irreversible");
+  }
+  const personalCost = String(beatSheet?.act2?.personalCost || "");
+  if (personalCost.length < 18 || /(learns|lernt|understands|erkennt)\b/i.test(personalCost)) {
+    issues.push("personalCost is not concrete enough");
+  }
+  const helper = String(beatSheet?.act2?.helperComplicates || "");
+  if (/(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(helper)) {
+    issues.push("helperComplicates looks like helperExplains");
+  }
+  const finalChoice = String(beatSheet?.act3?.finalChoice || "");
+  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  if (!/(child|children|kid|kids|kinder|jungen|maedchen|mädchen)/i.test(finalChoice) && !heroNames.some((name) => finalChoice.toLowerCase().includes(name.toLowerCase()))) {
+    issues.push("finalChoice is not clearly executed by the children");
+  }
+  const closingImage = String(beatSheet?.act3?.closingImage || "");
+  if (/(learn|lesson|moral|lernten|lehre|wahre magie|friendship is)/i.test(closingImage)) {
+    issues.push("closingImage explains a moral instead of leaving an image");
+  }
+  return issues;
+}
+
+function validateSceneCards(sceneCards: any[]): string[] {
+  const issues: string[] = [];
+  if (sceneCards.length !== DEV_MODE_SCENE_CARD_COUNT) {
+    issues.push(`expected ${DEV_MODE_SCENE_CARD_COUNT} scene cards, got ${sceneCards.length}`);
+  }
+  const purposes = ["hook", "false_attempt", "complication", "irreversible_middle", "final_payoff"];
+  sceneCards.forEach((card, index) => {
+    const n = Number(card?.scene || index + 1);
+    if (card?.scenePurpose !== purposes[index]) issues.push(`scene ${n} purpose should be ${purposes[index]}`);
+    for (const key of ["visibleGoal", "obstacle", "visibleConsequence", "endPull"]) {
+      if (!String(card?.[key] || "").trim()) issues.push(`scene ${n}.${key} missing`);
+    }
+    if (!String(card?.irreversibleChange || "").trim() && index > 0) {
+      issues.push(`scene ${n}.irreversibleChange missing`);
+    }
+    if (!Array.isArray(card?.dialogueBeats) || card.dialogueBeats.length < 3) {
+      issues.push(`scene ${n} has fewer than 3 dialogue beats`);
+    }
+    if (index < sceneCards.length - 1 && /(calm|peaceful|ruhig|alles gut|closed|resolved|fertig)/i.test(String(card?.endPull || ""))) {
+      issues.push(`scene ${n} endPull is too closed`);
+    }
+    if (/(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(String(card?.helperAction || ""))) {
+      issues.push(`scene ${n} helperAction explains the solution`);
+    }
+  });
+  const irreversibleMiddle = sceneCards.slice(2, 4).some((card) =>
+    String(card?.irreversibleChange || "").trim().length > 0 && String(card?.personalCost || "").trim().length > 0
+  );
+  if (!irreversibleMiddle) issues.push("scene 3 or 4 must contain irreversibleChange plus personalCost");
+  return issues;
+}
+
+function normalizeDialoguePlan(parsed: any): any {
+  const sceneDialogue = Array.isArray(parsed?.sceneDialogue)
+    ? parsed.sceneDialogue
+    : Array.isArray(parsed?.scenes)
+      ? parsed.scenes
+      : [];
+  return { sceneDialogue };
+}
+
+function validateDialoguePlan(dialoguePlan: any): string[] {
+  const issues: string[] = [];
+  const scenes = Array.isArray(dialoguePlan?.sceneDialogue) ? dialoguePlan.sceneDialogue : [];
+  if (scenes.length !== DEV_MODE_SCENE_CARD_COUNT) {
+    issues.push(`dialogue intent expected ${DEV_MODE_SCENE_CARD_COUNT} scenes, got ${scenes.length}`);
+  }
+  for (let index = 0; index < DEV_MODE_SCENE_CARD_COUNT; index += 1) {
+    const scene = scenes.find((s: any) => Number(s?.scene) === index + 1) || scenes[index];
+    const beats = Array.isArray(scene?.dialogueBeats) ? scene.dialogueBeats : [];
+    if (beats.length < 4) issues.push(`scene ${index + 1} needs at least 4 dialogue intent beats`);
+  }
+  return issues;
+}
+
+function mergeDialoguePlanIntoSceneCards(sceneCards: any[], dialoguePlan: any): any[] {
+  const scenes = Array.isArray(dialoguePlan?.sceneDialogue) ? dialoguePlan.sceneDialogue : [];
+  return sceneCards.map((card, index) => {
+    const scene = scenes.find((s: any) => Number(s?.scene) === Number(card.scene)) || scenes[index];
+    return {
+      ...card,
+      dialogueBeats: Array.isArray(scene?.dialogueBeats) && scene.dialogueBeats.length > 0
+        ? scene.dialogueBeats
+        : card.dialogueBeats,
+    };
+  });
+}
+
+function buildBlueprintFromScreenplayPlan(
+  input: DevModeGenerationInput,
+  loglineEngine: any,
+  beatSheet: any,
+  sceneCards: any[],
+  dialoguePlan: any
+): any {
+  const selectedIdea = input.selectedIdea;
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  return {
+    premise: beatSheet?.logline || loglineEngine?.logline || selectedIdea?.oneLineHook || "",
+    storySpine: {
+      childWish: beatSheet?.mainWant || loglineEngine?.mainWant,
+      triggerMistake: beatSheet?.act1?.wrongFirstMove,
+      magicRule: beatSheet?.wonderRule || loglineEngine?.wonderRule,
+      escalation: beatSheet?.act2?.complication,
+      falseSolution: beatSheet?.act1?.wrongFirstMove,
+      smallSacrifice: beatSheet?.act2?.personalCost,
+      finalImage: beatSheet?.act3?.closingImage,
+    },
+    noveltySignature: {
+      oneLineShelfPitch: selectedIdea?.oneLineHook,
+      whyDifferentFromRecent: selectedIdea?.whyDifferentFromRecent,
+      rejectedFamiliarPremises: [],
+    },
+    keyMoments: sceneCards.map((card) => ({
+      order: card.scene,
+      emotionalExperience: card.emotionalGoal,
+      sceneFunction: card.scenePurpose,
+      irreversibleChange: card.irreversibleChange,
+    })),
+    causalChain: sceneCards.map((card) => `Scene ${card.scene}: ${card.visibleGoal} -> ${card.obstacle} -> ${card.visibleConsequence} -> ${card.endPull}`),
+    emotionalEngine: {
+      storyPromise: beatSheet?.emotionalPremise || loglineEngine?.emotionalPremise,
+      childRelatableNeed: beatSheet?.mainNeed || loglineEngine?.mainNeed,
+      relationshipDynamic: heroNames.join(" + "),
+      antagonistHumanity: "",
+      endingImage: beatSheet?.act3?.closingImage,
+    },
+    readerMagnet: {
+      refrainLine: "",
+      iconicMotif: beatSheet?.recurringMotif || loglineEngine?.recurringMotif,
+      callbackLadder: sceneCards.map((card) => card.plant).filter(Boolean),
+      activeUseByChapter: sceneCards.map((card) => card.payoffLater || card.plant).filter(Boolean),
+      rereadRewards: sceneCards.map((card) => card.plant).filter(Boolean).slice(0, 4),
+      nextStorySpark: beatSheet?.act3?.closingImage,
+    },
+    payoffEngine: {
+      personalObject: beatSheet?.personalObject || loglineEngine?.personalObject,
+      whyItMatters: beatSheet?.emotionalPremise || loglineEngine?.emotionalPremise,
+      whatItCostsToShare: beatSheet?.act2?.personalCost,
+      wrongAttempt: beatSheet?.act1?.wrongFirstMove,
+      finalChoice: beatSheet?.act3?.finalChoice,
+    },
+    antagonistChangeLadder: {
+      wantsToPossess: beatSheet?.act2?.complication,
+      confusion: beatSheet?.act2?.helperComplicates,
+      relapse: sceneCards[3]?.wrongAction,
+      decision: beatSheet?.act3?.finalChoice,
+      newRole: beatSheet?.act3?.closingImage,
+    },
+    humorCallbackPlan: {
+      recurringGag: sceneCards.map((card) => card.dialogueBeats?.find?.((beat: any) => /joke/i.test(String(beat?.intent || "")))?.subtext).find(Boolean) || "",
+      escalationByChapter: sceneCards.map((card) => card.titleHint).filter(Boolean),
+    },
+    coreMagicRule: beatSheet?.wonderRule || loglineEngine?.wonderRule,
+    characterArcs: heroNames.map((name) => ({
+      name,
+      startingFriction: beatSheet?.falseBelief || loglineEngine?.falseBelief,
+      strength: "acts visibly from their own voice and trait profile",
+      finalContribution: beatSheet?.act3?.finalChoice,
+    })),
+    supportingCastUse: (input.selectedIdea?.selectedSupportingCast || []).map((name) => ({
+      name,
+      storyFunction: beatSheet?.act2?.helperComplicates || "complicates the children's plan",
+      mustDo: "complicate, fail, ask, pressure, or provide a prop; never explain the solution",
+    })),
+    plantsAndPayoffs: sceneCards.map((card) => ({ plant: card.plant, payoff: card.payoffLater })).filter((item) => item.plant || item.payoff),
+    sceneOwnership: sceneCards.map((card) => ({ order: card.scene, driver: card.characterDriver, changedState: card.irreversibleChange || card.visibleConsequence })),
+    chapterPlan: sceneCards.map((card) => ({
+      order: card.scene,
+      title: card.titleHint,
+      goal: card.visibleGoal,
+      hook: card.timePressureOrQuestion,
+      sceneBeats: [
+        card.visibleGoal,
+        card.obstacle,
+        card.wrongAction,
+        card.visibleConsequence,
+        card.endPull,
+      ].filter(Boolean),
+      obstacle: card.obstacle,
+      conflict: card.timePressureOrQuestion,
+      wrongAction: card.wrongAction,
+      turn: card.visibleConsequence,
+      irreversibleChange: card.irreversibleChange,
+      endingTension: card.endPull,
+      chapterEndHook: card.endPull,
+      kidQuestion: card.timePressureOrQuestion,
+      humorMoment: card.dialogueBeats?.find?.((beat: any) => /joke/i.test(String(beat?.intent || "")))?.subtext || "",
+      emotionalBeat: card.emotionalGoal,
+      characterActions: { adrianAction: card.adrianAction, alexanderAction: card.alexanderAction, helperAction: card.helperAction },
+      preparedDetail: card.plant,
+      laterPayoff: card.payoffLater,
+      dialogueFunction: Array.isArray(card.dialogueBeats)
+        ? card.dialogueBeats.map((beat: any) => `${beat.speaker}: ${beat.intent} (${beat.subtext})`).join(" | ")
+        : "",
+      callbackToUse: beatSheet?.recurringMotif || loglineEngine?.recurringMotif,
+    })),
+    dialoguePlan,
+    forbiddenShortcuts: [
+      "helper explains the solution",
+      "prose before scene cards pass",
+      "moral-summary ending",
+      "dialogue filler to satisfy quota",
+    ],
+  };
+}
+
+function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
+  if (!plan) return null;
+  return {
+    loglineEngine: plan.loglineEngine,
+    beatSheet: plan.beatSheet,
+    sceneCards: (plan.sceneCards || []).slice(0, DEV_MODE_SCENE_CARD_COUNT).map((card: any) => ({
+      scene: card.scene,
+      titleHint: card.titleHint,
+      scenePurpose: card.scenePurpose,
+      location: card.location,
+      visibleGoal: card.visibleGoal,
+      emotionalGoal: card.emotionalGoal,
+      obstacle: card.obstacle,
+      wrongAction: card.wrongAction,
+      visibleConsequence: card.visibleConsequence,
+      irreversibleChange: card.irreversibleChange,
+      personalCost: card.personalCost,
+      characterDriver: card.characterDriver,
+      adrianAction: card.adrianAction,
+      alexanderAction: card.alexanderAction,
+      helperAction: card.helperAction,
+      dialogueBeats: Array.isArray(card.dialogueBeats)
+        ? card.dialogueBeats.slice(0, 6)
+        : [],
+      plant: card.plant,
+      payoffLater: card.payoffLater,
+      endPull: card.endPull,
+    })),
+  };
+}
+
+function buildCompactStoryBibleForDraft(
+  input: DevModeGenerationInput,
+  chapterCount: number
+): any {
+  return {
+    outputLanguage: localizedLanguageName(input.config.language),
+    ageGroup: input.config.ageGroup,
+    displayChapterCount: chapterCount,
+    genre: input.config.genre,
+    setting: input.config.setting,
+    selectedIdea: input.selectedIdea ? {
+      title: input.selectedIdea.title,
+      hook: input.selectedIdea.oneLineHook,
+      centralObjectOrPlace: input.selectedIdea.centralObjectOrPlace,
+      wonderRule: input.selectedIdea.wonderRule,
+      emotionalEngine: input.selectedIdea.emotionalEngine,
+      selectedSupportingCast: input.selectedIdea.selectedSupportingCast,
+    } : undefined,
+    mainCharacters: (input.avatars || []).map((avatar) => ({
+      name: avatar.name,
+      age: avatar.age,
+      description: compactExcerpt(avatar.description || "", 180),
+      traitSignals: summarizeDramaturgicTraitProfile(avatar.name, avatar.personalityTraits).slice(0, 4),
+    })),
+    supportingCast: (input.poolCharacters || [])
+      .filter((character) => (input.selectedIdea?.selectedSupportingCast || []).includes(character.name))
+      .map((character) => ({
+        name: character.name,
+        role: character.role,
+        speechStyle: character.speechStyle?.slice(0, 3),
+        quirk: character.quirk,
+        rule: "may complicate, fail, ask, pressure, or provide an object; never explain the answer",
+      })),
+    artifact: input.matchedArtifact ? {
+      name: input.matchedArtifact.name,
+      storyRole: input.matchedArtifact.storyRole,
+      visualKeywords: input.matchedArtifact.visualKeywords?.slice(0, 5),
+    } : undefined,
+  };
+}
+
+function screenplayCritiqueForDraft(gateIssues: string[]): any {
+  return {
+    score: gateIssues.length === 0 ? 9.1 : 8.0,
+    marketGap: gateIssues.length === 0
+      ? "Screenplay gates passed before prose."
+      : "Screenplay gates needed repair before prose.",
+    mustFix: gateIssues,
+    draftInstructions: [
+      "Follow the beat sheet and scene cards exactly; do not invent a new plot.",
+      "Use dialogue beats as action-bearing exchanges, not filler.",
+      "Scene 3 or 4 must land the irreversible middle and concrete personal cost on the page.",
+      "The final choice comes from the children and pays off an early plant.",
+      "End on a closing image, not a moral sentence.",
+    ],
+    chapterRisks: [],
+    revisedBlueprintPatch: {},
+  };
+}
+
 // ---------------------------------------------------------------------------
-// WHOLE-STORY-FIRST PIPELINE (v11)
+// SCREENPLAY-FIRST / WHOLE-STORY-DRAFT PIPELINE (v12)
 //
 // Replaces the old "model emits chapters[] directly" approach. The story
 // model writes ONE continuous narrative as flat paragraphs[]. A cheap
@@ -3561,7 +4479,8 @@ function buildWholeStoryDraftPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
   blueprint: any,
-  critique: any
+  critique: any,
+  screenplayPlan?: DevModeScreenplayPlan
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const wordBounds = getStoryWordBounds(input.config);
@@ -3571,6 +4490,8 @@ function buildWholeStoryDraftPrompts(
   const totalMaxChars = totalBounds.max * chapterCount;
   const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(revisedBlueprint, chapterCount);
+  const screenplayDraftPlan = compactScreenplayPlanForDraft(screenplayPlan);
+  const compactStoryBible = screenplayDraftPlan ? buildCompactStoryBibleForDraft(input, chapterCount) : null;
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const heroA = heroNames[0] || "Main character A";
   const heroB = heroNames[1] || "Main character B";
@@ -3603,7 +4524,9 @@ function buildWholeStoryDraftPrompts(
   const userPrompt = [
     `WHOLE STORY DRAFT \u2014 write ONE continuous children's story in ${languageName}.`,
     "Do NOT split it into chapters. Do NOT write chapter headings, numbers, or scene labels.",
-    "Internally use the blueprint's beats as private dramaturgy; on the page the prose flows as one arc.",
+    screenplayDraftPlan
+      ? "Use the locked screenplay plan as binding dramaturgy; on the page the prose flows as one arc."
+      : "Internally use the blueprint's beats as private dramaturgy; on the page the prose flows as one arc.",
     "",
     "CORE WRITER CONTRACT (only the rules that matter \u2014 do not over-comply, write like a real children's-book author):",
     "1. Write one continuous story, not 5 mini-stories. Every paragraph must grow out of the previous one.",
@@ -3648,15 +4571,25 @@ function buildWholeStoryDraftPrompts(
     "- The world changes visibly in response.",
     "- Closing image: the new order, warm, concrete, slightly larger than the problem.",
     "",
-    buildVoiceBibleBlock(input),
-    "",
-    buildWriterVoiceAnchorBlock(input),
-    "",
-    buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
-    "",
-    "SELECTED IDEA AND CAST:",
-    buildSelectedIdeaPromptBlock(input),
-    buildSelectedCastIntegrationContract(input),
+    screenplayDraftPlan
+      ? [
+          "COMPACT STORY BIBLE (binding):",
+          promptJson(compactStoryBible),
+          "",
+          "LOCKED SCREENPLAY PLAN (binding; prose may not invent a different plot):",
+          promptJson(screenplayDraftPlan),
+        ].join("\n")
+      : [
+          buildVoiceBibleBlock(input),
+          "",
+          buildWriterVoiceAnchorBlock(input),
+          "",
+          buildEmotionAndVoicePromptContext(input, chapterCount, { includeNoveltyBrief: false }),
+          "",
+          "SELECTED IDEA AND CAST:",
+          buildSelectedIdeaPromptBlock(input),
+          buildSelectedCastIntegrationContract(input),
+        ].join("\n"),
     "",
     buildArtifactPropBlock(input) || "",
     "",
@@ -3679,8 +4612,10 @@ function buildWholeStoryDraftPrompts(
     "- multiple competing magic rules \u2014 keep ONE clear rule, and test it on-page at least twice before the finale",
     "- AI-tics: \"Not X. Not Y. Just Z.\" chains, narrator commentary, explained jokes",
     "",
-    "COMPACT REVIEWED BLUEPRINT (use the beats privately as dramaturgy, do NOT echo them):",
-    promptJson(compactBlueprint),
+    screenplayDraftPlan
+      ? "SCREENPLAY FIRST CONTRACT: The AI was not allowed to write prose until beat sheet, scene cards, and dialogue intent passed. Preserve that structure exactly."
+      : "COMPACT REVIEWED BLUEPRINT (use the beats privately as dramaturgy, do NOT echo them):",
+    screenplayDraftPlan ? "" : promptJson(compactBlueprint),
     "",
     "CRITIQUE TO RESOLVE:",
     promptJson(compactCritiqueForDraft(critique)),
@@ -6945,6 +7880,16 @@ export async function generateStoryDevMode(
     }
   };
 
+  const recordLocalStage = (stage: DevModePipelineStage, parsed: any) => {
+    stageLogs.push({
+      stage,
+      systemPrompt: "",
+      userPrompt: "",
+      parsed,
+      durationMs: 0,
+    });
+  };
+
   console.log("[dev-mode-generation] Dev mode adaptive chapter-repair quality pipeline", {
     pipeline: DEV_MODE_PIPELINE_ID,
     chapterCount,
@@ -6981,6 +7926,7 @@ export async function generateStoryDevMode(
   const repairSelfReflections: any[] = [];
   let ideaCandidates: DevModeIdeaCandidate[] = [];
   let selectedIdea: DevModeSelectedIdea | undefined;
+  let screenplayPlan: DevModeScreenplayPlan | undefined;
 
   try {
     const ideaCandidatePrompts = buildIdeaCandidatePrompts(input, chapterCount);
@@ -6993,7 +7939,59 @@ export async function generateStoryDevMode(
     });
     ideaCandidates = normalizeIdeaCandidates(ideaCandidatesStage.parsed, input.poolCharacters);
 
-    if (ideaCandidates.length > 0) {
+    {
+      const potentialFailureSummaries: string[] = [];
+      for (let ideaRound = 1; ideaRound <= DEV_MODE_MAX_IDEA_ROUNDS && !selectedIdea; ideaRound += 1) {
+        if (ideaRound > 1) {
+          const retryIdeaPrompts = buildIdeaCandidatePrompts(input, chapterCount, {
+            round: ideaRound,
+            previousPotentialFailures: potentialFailureSummaries,
+          });
+          const retryIdeaStage = await runStage("idea-candidates", retryIdeaPrompts, {
+            maxTokens: 2600,
+            temperature: 0.96,
+            timeoutMs: 90_000,
+            ...supportCallOptions,
+            modelRole: "support",
+          });
+          ideaCandidates = normalizeIdeaCandidates(retryIdeaStage.parsed, input.poolCharacters);
+          if (ideaCandidates.length === 0) continue;
+        }
+
+        const potentialFilterPrompts = buildPotentialFilterPrompts(input, chapterCount, ideaCandidates, ideaRound);
+        const potentialFilterStage = await runStage("potential-filter", potentialFilterPrompts, {
+          maxTokens: 2200,
+          temperature: 0.16,
+          timeoutMs: 90_000,
+          ...supportCallOptions,
+          modelRole: "support",
+        });
+        const potentialFilter = normalizePotentialFilterResult(
+          potentialFilterStage.parsed,
+          ideaCandidates,
+          input,
+          input.poolCharacters
+        );
+        screenplayPlan = { ...(screenplayPlan || {}), potentialFilter };
+        console.log("[dev-mode-generation] 9.0 potential filter", {
+          round: ideaRound,
+          passing: potentialFilter.passingCandidateIds,
+          audits: potentialFilter.candidateAudits.map(auditSummaryLine),
+        });
+
+        if (potentialFilter.roundRecommendation === "pass") {
+          selectedIdea = selectedIdeaFromPotentialFilter(potentialFilter, ideaCandidates, input.poolCharacters);
+          break;
+        }
+
+        potentialFailureSummaries.push(...potentialFilter.candidateAudits.map(auditSummaryLine));
+      }
+
+      if (!selectedIdea) {
+        throw new Error(`No 9.0-potential idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+      }
+
+      if (!selectedIdea) {
       const ideaSelectionPrompts = buildIdeaSelectionPrompts(input, chapterCount, ideaCandidates);
       const ideaSelectionStage = await runStage("idea-selection", ideaSelectionPrompts, {
         maxTokens: 1100,
@@ -7076,11 +8074,29 @@ export async function generateStoryDevMode(
           }
         }
       }
-    } else {
-      console.warn("[dev-mode-generation] Idea lab returned no usable candidates; continuing without locked winning idea.");
+      }
     }
 
     if (selectedIdea) {
+      try {
+        const potentialEligibleCandidates = screenplayPlan?.potentialFilter?.passingCandidateIds?.length
+          ? ideaCandidates.filter((candidate) => screenplayPlan?.potentialFilter?.passingCandidateIds.includes(candidate.id))
+          : ideaCandidates;
+        selectedIdea = await enforceLongTermNovelty(
+          selectedIdea,
+          potentialEligibleCandidates,
+          input,
+          input.userId,
+          input.poolCharacters,
+        );
+      } catch (longTermErr) {
+        console.warn("[dev-mode-generation] long-term novelty enforcement failed after potential filter (non-fatal):",
+          longTermErr instanceof Error ? longTermErr.message : String(longTermErr));
+      }
+
+      if (!selectedIdea) {
+        throw new Error("Long-term novelty filter removed the selected idea and no 9.0-potential replacement was available.");
+      }
       const finalizedCast = finalizeSelectedIdeaCast(input, selectedIdea, input.poolCharacters);
       selectedIdea = finalizedCast.selectedIdea;
       input = {
@@ -7090,6 +8106,102 @@ export async function generateStoryDevMode(
       };
     }
 
+    let blueprint: any;
+    let critique: any;
+
+    const loglinePrompts = buildLoglineEnginePrompts(input, chapterCount);
+    const loglineStage = await runStage("logline-emotional-engine", loglinePrompts, {
+      maxTokens: 1200,
+      temperature: 0.34,
+      timeoutMs: 90_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    const loglineEngine = loglineStage.parsed || {};
+    const loglineIssues = validateLoglineEngine(loglineEngine);
+    if (loglineIssues.length > 0) {
+      throw new Error(`Logline + emotional engine gate failed before prose: ${loglineIssues.join(" | ")}`);
+    }
+
+    const beatSheetPrompts = buildBeatSheetPrompts(input, chapterCount, loglineEngine);
+    const beatSheetStage = await runStage("filmic-beat-sheet", beatSheetPrompts, {
+      maxTokens: 1800,
+      temperature: 0.32,
+      timeoutMs: 90_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    let beatSheet = unwrapBeatSheet(beatSheetStage.parsed || {});
+    let beatSheetIssues = validateBeatSheet(beatSheet, input);
+    if (beatSheetIssues.length > 0) {
+      const repairPrompts = buildBeatSheetPrompts(input, chapterCount, { ...loglineEngine, previousBeatSheet: beatSheet }, beatSheetIssues);
+      const repairedBeatSheetStage = await runStage("beat-sheet-repair", repairPrompts, {
+        maxTokens: 1800,
+        temperature: 0.2,
+        timeoutMs: 90_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      beatSheet = unwrapBeatSheet(repairedBeatSheetStage.parsed || beatSheet);
+      beatSheetIssues = validateBeatSheet(beatSheet, input);
+    }
+    if (beatSheetIssues.length > 0) {
+      throw new Error(`Filmic beat sheet gate failed before prose: ${beatSheetIssues.join(" | ")}`);
+    }
+
+    const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
+    const sceneCardStage = await runStage("scene-cards", sceneCardPrompts, {
+      maxTokens: 3400,
+      temperature: 0.34,
+      timeoutMs: 120_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    let sceneCards = normalizeSceneCards(sceneCardStage.parsed);
+    let sceneCardIssues = validateSceneCards(sceneCards);
+    if (sceneCardIssues.length > 0) {
+      const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, sceneCardIssues);
+      const repairedSceneCardStage = await runStage("scene-cards-repair", repairPrompts, {
+        maxTokens: 3400,
+        temperature: 0.22,
+        timeoutMs: 120_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
+      sceneCardIssues = validateSceneCards(sceneCards);
+    }
+    if (sceneCardIssues.length > 0) {
+      throw new Error(`Scene-card gate failed before prose: ${sceneCardIssues.join(" | ")}`);
+    }
+
+    const dialogueIntentPrompts = buildDialogueIntentPrompts(input, sceneCards);
+    const dialogueIntentStage = await runStage("dialogue-intent", dialogueIntentPrompts, {
+      maxTokens: 2200,
+      temperature: 0.28,
+      timeoutMs: 90_000,
+      ...supportCallOptions,
+      modelRole: "support",
+    });
+    const dialoguePlan = normalizeDialoguePlan(dialogueIntentStage.parsed || {});
+    const dialogueIssues = validateDialoguePlan(dialoguePlan);
+    if (dialogueIssues.length > 0) {
+      throw new Error(`Dialogue intent gate failed before prose: ${dialogueIssues.join(" | ")}`);
+    }
+
+    sceneCards = mergeDialoguePlanIntoSceneCards(sceneCards, dialoguePlan);
+    screenplayPlan = {
+      ...(screenplayPlan || {}),
+      loglineEngine,
+      beatSheet,
+      sceneCards,
+      dialoguePlan,
+      gateIssues: [...loglineIssues, ...beatSheetIssues, ...sceneCardIssues, ...dialogueIssues],
+    };
+    blueprint = buildBlueprintFromScreenplayPlan(input, loglineEngine, beatSheet, sceneCards, dialoguePlan);
+    critique = screenplayCritiqueForDraft(screenplayPlan.gateIssues || []);
+
+    if (false) {
     const blueprintPrompts = buildBlueprintPrompts(input, chapterCount);
     let blueprintStage = await runStage("blueprint", blueprintPrompts, {
       maxTokens: input.config.length === "long" ? 5200 : 4300,
@@ -7198,6 +8310,7 @@ export async function generateStoryDevMode(
           : {});
       blueprint = mergeBlueprintObjects(blueprint, patch || {});
     }
+    }
 
     // ---- WHOLE-STORY-FIRST PIPELINE (v11) -------------------------------
     // 1) Selected story model writes ONE continuous narrative as paragraphs[].
@@ -7205,7 +8318,7 @@ export async function generateStoryDevMode(
     // On failure or invalid plan we fall back to a deterministic even split.
     const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
     const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
-    const wholeStoryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique);
+    const wholeStoryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
 
     let wholeStoryStage: Awaited<ReturnType<typeof runStage>>;
     let wholeStoryDraft: DevModeWholeStoryDraft;
@@ -7223,7 +8336,7 @@ export async function generateStoryDevMode(
         model: selectedOpenRouterStoryModel,
         error: reason,
       });
-      const retryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique);
+      const retryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
       try {
         wholeStoryStage = await runStage("whole-story-draft", retryPrompts, {
           maxTokens: devModeStoryDraftMaxTokens(input.config, true, true),
@@ -7270,6 +8383,7 @@ export async function generateStoryDevMode(
     // that are still referenced elsewhere (compatibility retry paths).
     void compactDraftMode;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+    recordLocalStage("local-diagnostics", compactDiagnosticsForPrompt(finalDiagnostics));
 
     let bestParsed = finalParsed;
     let bestModelUsed = finalModelUsed;
@@ -7283,6 +8397,14 @@ export async function generateStoryDevMode(
       // deterministic remediation block below this loop will handle it, so
       // skip the expensive chapter-repair LLM round entirely.
       const routerDecision = chooseRepairStrategy(finalDiagnostics);
+      recordLocalStage("repair-router", {
+        attempt: repairAttempt,
+        strategy: routerDecision.strategy,
+        reason: routerDecision.reason,
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        softIssueCount: finalDiagnostics?.softIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
+      });
       console.log("[dev-mode-generation] §9 RepairRouter decision", {
         attempt: repairAttempt,
         strategy: routerDecision.strategy,
@@ -8091,6 +9213,9 @@ export async function generateStoryDevMode(
       );
     }
     releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings));
+    if ((finalDiagnostics?.hardIssueCount ?? 0) > 0) {
+      throw new Error(releaseGateFailures[0] || "Developer-mode story still has open hard gates after all repair attempts.");
+    }
     if (releaseGateFailures.length > 0) {
       qualityGateFailureReason = releaseGateFailures.join(" ");
       console.warn("[dev-mode-generation] Returning developer-mode story with quality gate warnings", {
