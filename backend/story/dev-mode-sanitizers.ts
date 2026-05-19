@@ -223,8 +223,10 @@ export function applyOrthographyAutoFix(text: string): OrthographyFixResult {
 const GRAMMAR_HARD_FAIL_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   // "Ich Idee" — missing verb between subject and noun
   { pattern: /\bIch\s+(Idee|Plan|Frage|Antwort)\b/i, reason: "Ich + Substantiv ohne Verb" },
-  // "Der ist silberne" — adjective in wrong position with article
-  { pattern: /\b(Der|Die|Das)\s+ist\s+\w+e[rn]?\b/i, reason: "Artikel + ist + Adjektiv-Endung" },
+  // "Der ist silberne" — adjective in wrong position with article.
+  // Keep this deliberately narrow; broad "\w+e" patterns misclassify valid
+  // openings such as "Das ist wie ..." or "Der ist hier ...".
+  { pattern: /\b(Der|Die|Das)\s+ist\s+(?:silberne[rn]?|goldene[rn]?|kleine[rn]?|gro(?:ss|ß)e[rn]?|schoene[rn]?|schöne[rn]?|rote[rn]?|blaue[rn]?|gruene[rn]?|grüne[rn]?|runde[rn]?|lange[rn]?|warme[rn]?|kalte[rn]?|neue[rn]?|alte[rn]?|leise[rn]?|laute[rn]?|schwere[rn]?|leichte[rn]?)\b/i, reason: "Artikel + ist + Adjektiv-Endung" },
   // "Sie ist silberne" with adjective ending requiring article
   { pattern: /\b(Sie|Er|Es)\s+ist\s+silberne[rns]?\b/i, reason: "Pronomen + ist + Adjektiv mit falscher Endung" },
 ];
