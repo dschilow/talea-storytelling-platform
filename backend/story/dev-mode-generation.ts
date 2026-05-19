@@ -45,6 +45,31 @@ import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory } from "./
 import { mapWithConcurrency } from "../helpers/asyncPool";
 import { buildSpriteCollage } from "./pipeline/sprite-collage";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import {
+  sanitizeDescription,
+  applyOrthographyAutoFix,
+  validateGermanGrammar,
+  detectHelperExplainsSolution,
+  detectStructureSignals,
+} from "./dev-mode-sanitizers";
+import {
+  unwrapJsonPrompt,
+  mergeNegativePrompt,
+  preflightImagePrompt,
+  filterReferencesForScene,
+} from "./dev-mode-image-guards";
+import {
+  recordStoryMotif,
+  loadRecentMotifs,
+  findMotifReuse,
+  buildFingerprintFromBlueprint,
+} from "./dev-mode-motif-memory";
+import {
+  buildVisualQaPrompt,
+  parseVisualQaReport,
+  shouldRegenerateImage,
+  type VisualQaReport,
+} from "./dev-mode-visual-qa";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -170,6 +195,8 @@ export interface DevModeGeneratedStory {
     rawQualityScore?: number;
     localGateScore?: number;
     qualityGatePassed?: boolean;
+    releaseReady?: boolean;
+    qualityMode?: "efficient" | "premium";
     qualityGateFailureReason?: string;
     returnedWithQualityGateWarnings?: boolean;
     literaryValidation?: any;
@@ -263,6 +290,12 @@ export interface DevModeGenerationInput {
   primaryProfileAge?: number | null;
   noveltyBrief?: DevModeNoveltyBrief;
   selectedIdea?: DevModeSelectedIdea;
+  /**
+   * v11 §5: quality mode. `efficient` targets 8.3–8.8 with tighter word
+   * budgets; `premium` targets 8.8–9.3+ with longer chapters. When unset
+   * the legacy defaults apply (medium-length, target 9.0+).
+   */
+  qualityMode?: "efficient" | "premium";
   /**
    * Artifact picked from `artifact_pool` for this story. Acts as a supporting
    * prop / red-thread candidate — NOT the main role. Selected before idea
@@ -1493,8 +1526,21 @@ async function generateDevModeImages(
   // by the director, the refill, or the fallback). Pattern includes any "in
   // the style of …" / "X style" phrase and a curated denylist of named
   // illustrators/studios that Runware would otherwise mimic too closely.
+  //
+  // v11 §12A: also unwrap any leftover `{"prompt":"..."}` JSON envelope that
+  // the director model may emit verbatim. Runware treats JSON as literal
+  // tokens otherwise.
   const sanitizeImagePrompt = (s: string): string => {
     let out = String(s || "");
+    const unwrapped = unwrapJsonPrompt(out);
+    if (unwrapped.changed) {
+      console.log("[dev-mode-generation] §12A unwrapped JSON envelope from image prompt", {
+        reason: unwrapped.reason,
+        before: out.slice(0, 120),
+        after: unwrapped.prompt.slice(0, 120),
+      });
+      out = unwrapped.prompt;
+    }
     const forbiddenNames = [
       "axel scheffler", "quentin blake", "studio ghibli", "ghibli", "pixar", "disney",
       "dreamworks", "tim burton", "miyazaki", "beatrix potter", "eric carle",
@@ -1602,6 +1648,26 @@ async function generateDevModeImages(
   // duplicate avatars, identity drift).
   const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characters, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, no text, no captions, no speech bubbles, no letters, no signs, no labels, no logos, no extra background children, no duplicate characters, no adults unless required by the scene";
 
+  // v11 §12D: per-scene character manifest is appended to the prompt so the
+  // diffusion model receives explicit "NO dress on boys" constraints rather
+  // than relying on the negative prompt alone. The manifest is added BEFORE
+  // the styleSuffix so it never gets truncated.
+  const buildManifestBlock = (sceneNames: string[]): string => {
+    if (sceneNames.length === 0) return "";
+    const lines: string[] = [];
+    for (const entry of cast) {
+      if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
+      if (entry.kind === "avatar") {
+        const visual = entry.description ? entry.description.slice(0, 220) : "casual boy clothing";
+        lines.push(`${entry.name}: human boy, ${visual}. NO dress, NO skirt, NO fairy wings, NO flower crown, NO pink fairy outfit.`);
+      } else {
+        const visual = entry.description ? entry.description.slice(0, 220) : "supporting character";
+        lines.push(`${entry.name}: ${visual}. Only ${entry.name} may wear wings or a fairy dress.`);
+      }
+    }
+    return lines.length > 0 ? ` CHARACTERS: ${lines.join(" ")}` : "";
+  };
+
   // -----------------------------------------------------------------------
   // 4) Render via Runware. Prefer the resolved collage URL as the single
   //    reference image (same approach as standard pipeline). When the collage
@@ -1652,23 +1718,80 @@ async function generateDevModeImages(
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
+  // v11 §12B: build a per-scene name list so reference filtering can drop
+  // characters that are not actually on stage. Names are matched
+  // case-insensitively against the chapter prompt body.
+  const allCastNames = cast.map((c) => c.name);
+  const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
+    if (job.kind === "cover") return allCastNames; // cover may show everyone
+    const lower = job.prompt.toLowerCase();
+    return allCastNames.filter((name) => lower.includes(name.toLowerCase()));
+  };
+
   const imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
     try {
       // Local image-prompt sanitizer: strip any named living artist/studio the
-      // model still slipped in, plus any "in the style of X" pattern. This is
-      // a deterministic guardrail so Runware never receives forbidden style
-      // references even if the director model misbehaves.
+      // model still slipped in, plus any "in the style of X" pattern, and
+      // unwrap any leftover JSON envelope. Deterministic guardrails.
       const sanitizedPrompt = sanitizeImagePrompt(job.prompt);
-      const fullPrompt = `${sanitizedPrompt}${styleSuffix}`;
+
+      // v11 §12B: filter individual references to characters actually in the
+      // scene. When using a 3-slot collage but the scene only contains 2
+      // boys, fall back to per-character refs of just those 2 boys so
+      // Rosalie's outfit cannot leak onto Adrian.
+      const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
+      let sceneRefs = referenceImages;
+      let sceneIpWeight = ipAdapterWeight;
+      if (usingCollageReference && resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
+        const filtered = filterReferencesForScene({
+          onStageNames: sceneNames,
+          availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
+        });
+        if (filtered.dropped.length > 0 && filtered.references.length > 0) {
+          sceneRefs = filtered.references.slice(0, 4).map((r) => r.imageUrl);
+          sceneIpWeight = sceneRefs.length >= 3 ? 0.74 : sceneRefs.length === 2 ? 0.72 : 0.68;
+          console.log(`[dev-mode-generation] §12B per-scene ref filter`, {
+            job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
+            kept: filtered.references.map((r) => r.name),
+            dropped: filtered.dropped,
+          });
+        }
+      }
+
+      // v11 §12F: merge canonical negative-prompt pack (no dress on boys,
+      // no wings, no flower crown, no outfit swap, no text, etc.).
+      const negativePrompt = mergeNegativePrompt(undefined);
+
+      // v11 §12D: append character manifest with explicit attribute locks.
+      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames);
+      const fullPrompt = `${sanitizedPrompt}${manifestBlock}${styleSuffix}`;
+
+      // v11 §12 preflight: assert prompt is well-formed before sending.
+      const preflight = preflightImagePrompt({
+        positivePrompt: fullPrompt,
+        references: sceneRefs.map((_, i) => ({ name: `slot_${i + 1}` })),
+        onStageNames: sceneNames.length > 0 ? sceneNames : allCastNames,
+      });
+      if (!preflight.ok && preflight.issues.some((i) => i.code === "json_wrapper")) {
+        // Hard issue — refuse to ship a JSON-wrapped prompt to Runware. This
+        // is the bug from log 88ec895c.
+        console.warn(`[dev-mode-generation] §12 preflight FAILED, dropping image job`, {
+          job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
+          issues: preflight.issues,
+        });
+        return { job, imageUrl: undefined as string | undefined, fullPrompt };
+      }
+
       const img = await ai.generateImage({
         prompt: fullPrompt,
+        negativePrompt,
         width: 1024,
         height: 1024,
         steps: 4,
         CFGScale: 4,
         outputFormat: "JPEG",
-        referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-        ipAdapterWeight,
+        referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
+        ipAdapterWeight: sceneIpWeight,
       });
       return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt };
     } catch (err) {
@@ -1686,6 +1809,81 @@ async function generateDevModeImages(
     } else if (r.job.kind === "chapter" && typeof r.job.order === "number") {
       chapterImages.set(r.job.order, { imageUrl: r.imageUrl, prompt: r.fullPrompt });
     }
+  }
+
+  // v11 §12H: Visual QA pass. Opt-in via env DEV_MODE_VISUAL_QA_ENABLED
+  // (costs ~1 extra Gemini Flash call per image + optional 1 regen).
+  // Reports are persisted to the success log so we can observe the
+  // ground-truth Identity/Character-Count failure rate over time.
+  const visualQaEnabled = process.env.DEV_MODE_VISUAL_QA_ENABLED === "1";
+  const qaReports: Array<{ kind: "cover" | "chapter"; order?: number; report: VisualQaReport; regenerate: boolean; reasons: string[] }> = [];
+  if (visualQaEnabled && imagesGenerated > 0) {
+    const boyNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+    const fairyNames = selectedPoolCharacters
+      .filter((c) => /fee|fairy/i.test(c.name) || /fee|fairy/i.test(c.archetype || ""))
+      .map((c) => c.name);
+
+    const qaJobs = imageResults
+      .filter((r) => Boolean(r.imageUrl))
+      .map((r) => ({ result: r }));
+
+    const qaModel = DEV_MODE_SUPPORT_MODEL; // Gemini Flash supports vision
+    const qaSeen = await mapWithConcurrency(qaJobs, 2, async ({ result: r }) => {
+      try {
+        const qaPrompt = buildVisualQaPrompt({
+          imageUrl: r.imageUrl!,
+          expectedBoyNames: boyNames,
+          expectedFairyNames: fairyNames,
+          scenePrompt: r.fullPrompt,
+        });
+        const qaRes = await callOpenRouterChatCompletion({
+          messages: [
+            { role: "system", content: "You are a strict picture-book illustration QA assistant. Output STRICT JSON only." },
+            { role: "user", content: qaPrompt },
+          ],
+          model: qaModel,
+          responseFormat: "json_object",
+          imageInputs: [r.imageUrl!],
+          temperature: 0,
+          maxTokens: 600,
+        });
+        const qaUsage = qaRes.data?.usage || {};
+        promptTokenUsage.prompt += Number(qaUsage.prompt_tokens || 0);
+        promptTokenUsage.completion += Number(qaUsage.completion_tokens || 0);
+        promptTokenUsage.total += Number(qaUsage.total_tokens || 0);
+        const qaContent = qaRes.data?.choices?.[0]?.message?.content || "";
+        const report = parseVisualQaReport(String(qaContent));
+        const { regenerate, reasons } = shouldRegenerateImage(report);
+        return { result: r, report, regenerate, reasons };
+      } catch (err) {
+        console.warn(`[dev-mode-generation] §12H visual-QA call failed`, {
+          job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return null;
+      }
+    });
+
+    for (const entry of qaSeen) {
+      if (!entry) continue;
+      qaReports.push({
+        kind: entry.result.job.kind,
+        order: entry.result.job.order,
+        report: entry.report,
+        regenerate: entry.regenerate,
+        reasons: entry.reasons,
+      });
+      if (entry.regenerate) {
+        console.warn(`[dev-mode-generation] §12H visual-QA flagged image for regen`, {
+          job: `${entry.result.job.kind}${entry.result.job.order ? `:ch${entry.result.job.order}` : ""}`,
+          reasons: entry.reasons,
+        });
+      }
+    }
+
+    // Persist QA reports on the cover slot for now (no schema field per
+    // chapter); downstream caller can pull them from the response log.
+    (chapterImages as any).__qaReports = qaReports;
   }
 
   return { coverImageUrl, chapterImages, imagesGenerated, promptTokenUsage };
@@ -1745,6 +1943,98 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
       };
     })
     .filter((candidate: DevModeIdeaCandidate | null): candidate is DevModeIdeaCandidate => Boolean(candidate));
+}
+
+/**
+ * v11 §4: deterministic 9.0-potential gate. Scores a candidate idea on the
+ * structural features that correlate with high-quality picture books:
+ *   - emotional engine (warm or socially meaningful conflict)
+ *   - novelty (no near-duplicate in recent stories)
+ *   - irreversible middle potential (clear path to a costly mistake)
+ *   - personal object potential (named tool/keepsake the hero can give up)
+ *   - helper dependency risk (penalised if helpers carry the plot)
+ *
+ * Returns the audit so the orchestrator can pick a different candidate when
+ * the selected one is structurally under 9.0.
+ */
+export interface Candidate9Audit {
+  emotionalEngine: number;
+  novelty: number;
+  irreversibleMiddlePotential: number;
+  personalObjectPotential: number;
+  helperDependencyRisk: number;
+  reject: boolean;
+  rejectReason?: string;
+}
+
+const PERSONAL_OBJECT_HINTS = [
+  "löffel", "loeffel", "kette", "amulett", "ring", "feder", "stein", "muschel",
+  "schlüssel", "schluessel", "buch", "kompass", "spielzeug", "puppe", "knopf",
+  "münze", "muenze", "uhr", "linse", "spiegel",
+];
+
+const HELPER_RESCUE_HINTS = [
+  /helfer rettet/i,
+  /\b(rosalie|fee|trolly?|magier|hexe|elf|sternenschweif)\b.{0,40}\b(erkl|zeig|hilft|fix|rettet|löst|loest)\b/i,
+];
+
+export function auditCandidate9Potential(
+  candidate: DevModeIdeaCandidate,
+  recentOverlap: number,
+): Candidate9Audit {
+  const text = [
+    candidate.title,
+    candidate.oneLineHook,
+    candidate.centralObjectOrPlace,
+    candidate.wonderRule,
+    candidate.emotionalEngine,
+    candidate.coreConflict,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  // emotional engine — does it speak about a child-relatable feeling
+  let emotional = 7.5;
+  if (/empath|trau|angst|fehl|mut|scheu|allein|stolz|schämen|schamen|verant/.test(text)) emotional += 1.0;
+  if (/lernt|merkt|erkennt|spürt|spuert/.test(text)) emotional += 0.5;
+  if (text.length > 120) emotional += 0.2;
+  emotional = Math.min(10, emotional);
+
+  // novelty — based on recent-overlap audit
+  const novelty = Math.max(0, 10 - recentOverlap * 14);
+
+  // irreversible middle potential — explicit cost word in candidate body
+  let irreversible = 7.5;
+  if (/(opfer|verlier|verzicht|nicht zurück|nicht zurueck|zerbroch|schrumpf|fest|verloren)/.test(text)) irreversible += 1.2;
+  if (/regel|magie|verwandl/.test(text)) irreversible += 0.4;
+  irreversible = Math.min(10, irreversible);
+
+  // personal object — named keepsake
+  const hasObject = PERSONAL_OBJECT_HINTS.some((h) => text.includes(h));
+  const personalObject = hasObject ? 8.5 : 7.0;
+
+  // helper dependency risk — high if helper does the rescue
+  let helperRisk = 4.0;
+  if (HELPER_RESCUE_HINTS.some((re) => re.test(text))) helperRisk += 2.5;
+  if (/fee\s+\w+/.test(text)) helperRisk += 0.5;
+  helperRisk = Math.min(10, helperRisk);
+
+  // Reject thresholds (spec §4)
+  let reject = false;
+  let rejectReason: string | undefined;
+  if (emotional < 8.5) { reject = true; rejectReason = `emotionalEngine ${emotional.toFixed(1)} < 8.5`; }
+  else if (novelty < 8.7) { reject = true; rejectReason = `novelty ${novelty.toFixed(1)} < 8.7`; }
+  else if (irreversible < 8.5) { reject = true; rejectReason = `irreversibleMiddlePotential ${irreversible.toFixed(1)} < 8.5`; }
+  else if (personalObject < 8.0) { reject = true; rejectReason = `personalObjectPotential ${personalObject.toFixed(1)} < 8.0`; }
+  else if (helperRisk > 6.5) { reject = true; rejectReason = `helperDependencyRisk ${helperRisk.toFixed(1)} > 6.5`; }
+
+  return {
+    emotionalEngine: Math.round(emotional * 10) / 10,
+    novelty: Math.round(novelty * 10) / 10,
+    irreversibleMiddlePotential: Math.round(irreversible * 10) / 10,
+    personalObjectPotential: Math.round(personalObject * 10) / 10,
+    helperDependencyRisk: Math.round(helperRisk * 10) / 10,
+    reject,
+    rejectReason,
+  };
 }
 
 function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevModeGenerationInput): DevModeIdeaNoveltyAudit {
@@ -1901,6 +2191,89 @@ function enforceSelectedIdeaNovelty(
       fallback.chosenReason,
     ].filter(Boolean).join(" "),
   };
+}
+
+/**
+ * v11 §3: after the in-window novelty audit, run a second pass against the
+ * long-term motif memory (last 50 stories from DB). If the selected idea
+ * collides on two load-bearing fields with a stored fingerprint, override
+ * to the next-best candidate.
+ *
+ * Best-effort: a DB failure must never block story generation. We log and
+ * fall through if the lookup fails.
+ */
+async function enforceLongTermNovelty(
+  selectedIdea: DevModeSelectedIdea | undefined,
+  candidates: DevModeIdeaCandidate[],
+  input: DevModeGenerationInput,
+  userId: string | undefined,
+  pool?: DevModePoolCharacter[]
+): Promise<DevModeSelectedIdea | undefined> {
+  if (!selectedIdea || !userId) return selectedIdea;
+  try {
+    const records = await loadRecentMotifs(userId, 50);
+    if (records.length === 0) return selectedIdea;
+
+    const buildFp = (idea: DevModeIdeaCandidate | DevModeSelectedIdea, storyId: string) =>
+      buildFingerprintFromBlueprint(storyId, {
+        title: idea.title,
+        description: idea.oneLineHook,
+        centralObject: idea.centralObjectOrPlace,
+        centralPlace: idea.centralObjectOrPlace,
+        wonderRule: idea.wonderRule,
+        emotionalEngine: idea.emotionalEngine,
+        coreConflict: idea.coreConflict,
+      }, []);
+
+    const fp = buildFp(selectedIdea, "pending");
+    const hits = findMotifReuse(fp, records);
+    const coreHit = hits.find((h) => h.classification === "core_reuse");
+    if (!coreHit) {
+      console.log("[dev-mode-generation] §3 long-term novelty: clean", {
+        candidatesChecked: candidates.length,
+        topHitSim: hits[0]?.similarity ?? 0,
+      });
+      return selectedIdea;
+    }
+
+    console.warn("[dev-mode-generation] §3 long-term novelty: core motif reuse detected, overriding", {
+      candidate: selectedIdea.title,
+      collidesWith: coreHit.record.title,
+      similarity: coreHit.similarity,
+      similarFields: coreHit.similarFields,
+    });
+
+    // Pick the next candidate without a core reuse.
+    const ranked = candidates
+      .filter((c) => c.title !== selectedIdea.title)
+      .map((c) => ({ c, fp: buildFp(c, "pending") }))
+      .map(({ c, fp: cfp }) => ({ c, hits: findMotifReuse(cfp, records) }))
+      .filter(({ hits: h }) => !h.some((x) => x.classification === "core_reuse"))
+      .sort((a, b) => {
+        const aSim = a.hits[0]?.similarity ?? 0;
+        const bSim = b.hits[0]?.similarity ?? 0;
+        return aSim - bSim;
+      });
+
+    if (ranked.length === 0) {
+      console.warn("[dev-mode-generation] §3 long-term novelty: NO replacement candidate, keeping flagged idea");
+      return selectedIdea;
+    }
+    const replacement = ranked[0].c;
+    return enforceSelectedIdeaNovelty(
+      {
+        ...replacement,
+        chosenReason: `Long-term novelty override: original "${selectedIdea.title}" collided with stored "${coreHit.record.title}" (${coreHit.similarFields.join(", ")}). Switched to ${replacement.title}.`,
+        selectedSupportingCast: resolvePoolNames(replacement.recommendedSupportingCast, pool),
+      },
+      candidates,
+      input,
+      pool,
+    );
+  } catch (err) {
+    console.warn("[dev-mode-generation] §3 long-term novelty check failed (non-fatal):", err instanceof Error ? err.message : String(err));
+    return selectedIdea;
+  }
 }
 
 function normalizeIdeaSelection(
@@ -5646,6 +6019,53 @@ function analyzeDevModeStoryQuality(
   for (const castIssue of collectSelectedCastIssues(story, input)) {
     hardIssues.push(castIssue);
   }
+
+  // v11 §7: pool/helper characters must not directly explain the solution.
+  // This is a soft issue (caps score at 8.2 via existing scoreCap path).
+  const helperNames = (input.selectedIdea?.selectedSupportingCast || []).slice();
+  if (helperNames.length > 0 && languageCode === "de") {
+    for (const chapter of story.chapters) {
+      const result = detectHelperExplainsSolution(chapter.content, helperNames);
+      if (result.triggered) {
+        softIssues.push(
+          `Helper-Explains-Gate: ${result.helper} erklaert die Loesung direkt im Dialog (${result.evidence?.slice(0, 80) || ""}). Helfer dürfen scheitern, stören oder ein Werkzeug geben — nicht die Magieregel + Lösung in einem Satz nennen.`
+        );
+        polishInstructions.push(
+          "Lass Helfer NICHT die Magieregel + Lösung erklären. Stattdessen: Helfer gibt nur ein Werkzeug oder eine missverständliche Geste; die Kinder müssen die Regel selbst herausfinden."
+        );
+        break;
+      }
+    }
+  }
+
+  // v11 §8: grammar artefacts that need LLM repair (not auto-fix).
+  if (languageCode === "de") {
+    const grammar = validateGermanGrammar(allContent);
+    for (const issue of grammar.hardIssues) hardIssues.push(issue);
+    if (grammar.hardIssues.length > 0) {
+      polishInstructions.push(
+        "Behebe Grammatik-Artefakte vollständig (z.B. 'Ich Idee' → 'Ich habe eine Idee'; 'Der ist silberne' → 'Der ist silbern')."
+      );
+    }
+  }
+
+  // v11 §6: structural signals (irreversible middle, personal sacrifice,
+  // image-not-moral finale). Missing signals become soft issues so the
+  // existing scoreCap regexes ("irreversibleMiddle ..." -> max 8.3) trigger.
+  if (story.chapters.length >= 3 && languageCode === "de") {
+    const structure = detectStructureSignals(
+      story.chapters.map((c) => ({ order: c.order, title: c.title, content: c.content }))
+    );
+    if (!structure.hasIrreversibleMiddle) {
+      softIssues.push("Strukturelle Schwäche: keine sichtbare irreversible Mitte (Verlust, sichtbare Veränderung, Schrumpfen) erkannt.");
+    }
+    if (!structure.hasPersonalSacrifice) {
+      softIssues.push("Strukturelle Schwäche: kein persönlicher Einsatz/Opfer erkannt (Figur gibt etwas Geliebtes her).");
+    }
+    if (!structure.finaleEndsInImage) {
+      softIssues.push("Finale endet eher mit Erklärung als mit Bild/Handlung; baue konkrete Schlussbeobachtung ein.");
+    }
+  }
   for (const titleIssue of collectTitlePromiseIssues(story, input)) {
     // Title-promise is a HARD gate: if the title makes a concrete promise and
     // the prose never redeems it, the book misleads the child reader. Polish
@@ -6007,8 +6427,18 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
     }
     // Helper/cast explains the solution OR steals decisive action
     // (surfaced as a market-quality soft issue) -> max 8.2.
-    if (diagnostics.softIssues.some((issue) => /erklaert die Loesung|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(issue))) {
+    if (diagnostics.softIssues.some((issue) => /erklaert die Loesung|erklärt die Lösung|Helper-Explains-Gate|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(issue))) {
       score = Math.min(score, 8.2);
+    }
+    // v11 §6 structural caps.
+    if (diagnostics.softIssues.some((issue) => /keine sichtbare irreversible Mitte/i.test(issue))) {
+      score = Math.min(score, 8.3);
+    }
+    if (diagnostics.softIssues.some((issue) => /kein persönlicher Einsatz|kein persoenlicher Einsatz/i.test(issue))) {
+      score = Math.min(score, 8.4);
+    }
+    if (diagnostics.softIssues.some((issue) => /Finale endet eher mit Erkl/i.test(issue))) {
+      score = Math.min(score, 8.5);
     }
     // Finale mechanism repeats an earlier chapter's payoff -> max 8.4 (spec).
     if (diagnostics.softIssues.some((issue) => /Finale wiederholt|Payoff wiederholt|wiederholtes Payoff/i.test(issue))) {
@@ -6581,6 +7011,23 @@ export async function generateStoryDevMode(
         input,
         input.poolCharacters
       );
+
+      // v11 §3: second pass against persistent long-term motif memory.
+      // Best-effort; if the DB lookup or override fails, we keep the
+      // in-window choice.
+      try {
+        selectedIdea = await enforceLongTermNovelty(
+          selectedIdea,
+          ideaCandidates,
+          input,
+          input.userId,
+          input.poolCharacters,
+        );
+      } catch (longTermErr) {
+        console.warn("[dev-mode-generation] §3 long-term novelty enforcement failed (non-fatal):",
+          longTermErr instanceof Error ? longTermErr.message : String(longTermErr));
+      }
+
       if (
         modelSelectedIdea
         && selectedIdea
@@ -6591,6 +7038,43 @@ export async function generateStoryDevMode(
           finalSelectedIdea: selectedIdea.title,
           reason: selectedIdea.chosenReason,
         });
+      }
+
+      // v11 §4: candidate 9.0-potential audit. Log per-candidate scores so
+      // we can tune thresholds; if the selected one fails, swap to the
+      // best-audit candidate that passes. Best-effort — fall through if
+      // every candidate fails.
+      if (selectedIdea && ideaCandidates.length > 0) {
+        const candidate9Audits = ideaCandidates.map((c) => ({
+          id: c.id,
+          title: c.title,
+          audit: auditCandidate9Potential(c, auditIdeaCandidateNovelty(c, input).closestRecentOverlap),
+        }));
+        const selectedAudit = candidate9Audits.find((a) => a.title === selectedIdea?.title);
+        console.log("[dev-mode-generation] §4 candidate-9.0 audit", {
+          selected: selectedAudit?.title,
+          selectedAudit: selectedAudit?.audit,
+          allTitles: candidate9Audits.map((a) => `${a.title}${a.audit.reject ? ` [REJECT: ${a.audit.rejectReason}]` : ""}`),
+        });
+        if (selectedAudit?.audit.reject) {
+          const replacement = candidate9Audits.find((a) => !a.audit.reject && a.title !== selectedAudit.title);
+          if (replacement) {
+            const replacementCandidate = ideaCandidates.find((c) => c.title === replacement.title);
+            if (replacementCandidate) {
+              console.warn("[dev-mode-generation] §4 candidate-9.0 swap", {
+                from: selectedIdea.title,
+                fromAudit: selectedAudit.audit,
+                to: replacement.title,
+                toAudit: replacement.audit,
+              });
+              selectedIdea = {
+                ...replacementCandidate,
+                chosenReason: `§4 candidate-9.0 swap: original "${selectedIdea.title}" failed structural gate (${selectedAudit.audit.rejectReason}). Switched to "${replacement.title}".`,
+                selectedSupportingCast: resolvePoolNames(replacementCandidate.recommendedSupportingCast, input.poolCharacters),
+              };
+            }
+          }
+        }
       }
     } else {
       console.warn("[dev-mode-generation] Idea lab returned no usable candidates; continuing without locked winning idea.");
@@ -6794,20 +7278,25 @@ export async function generateStoryDevMode(
     let repairAttempt = 0;
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       repairAttempt += 1;
-      // Phase 1 RepairRouter: log the recommended strategy so we can validate
-      // routing decisions against real production diagnostics before wiring it
-      // as the primary dispatcher (Phase 2).
-      try {
-        const routerDecision = chooseRepairStrategy(finalDiagnostics);
-        console.log("[dev-mode-generation] RepairRouter decision", {
-          attempt: repairAttempt,
+      // v11 §9 RepairRouter (Phase 2): use the strategy to short-circuit
+      // cheap fixes. For metadata_sanitize / title_promise_micro_repair the
+      // deterministic remediation block below this loop will handle it, so
+      // skip the expensive chapter-repair LLM round entirely.
+      const routerDecision = chooseRepairStrategy(finalDiagnostics);
+      console.log("[dev-mode-generation] §9 RepairRouter decision", {
+        attempt: repairAttempt,
+        strategy: routerDecision.strategy,
+        reason: routerDecision.reason,
+        hardIssueCount: finalDiagnostics?.hardIssueCount,
+        softIssueCount: finalDiagnostics?.softIssueCount,
+        dialogPct: finalDiagnostics?.dialogPct,
+      });
+      if (routerDecision.strategy === "metadata_sanitize" || routerDecision.strategy === "title_promise_micro_repair") {
+        console.log("[dev-mode-generation] §9 skipping chapter-repair LLM call — deterministic remediation handles this", {
           strategy: routerDecision.strategy,
-          reason: routerDecision.reason,
-          hardIssueCount: finalDiagnostics?.hardIssueCount,
-          softIssueCount: finalDiagnostics?.softIssueCount,
-          dialogPct: finalDiagnostics?.dialogPct,
         });
-      } catch (_err) { /* router is best-effort logging only */ }
+        break;
+      }
       let chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
       const broadFailureChapterThreshold = input.config.length === "short"
         ? DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT
@@ -6922,13 +7411,19 @@ export async function generateStoryDevMode(
             remainingIssues: selfCheck.remainingIssues,
           });
         }
-        if (selfCheck?.hardGatesPassed === true && repairedChapterDiagnostics?.issues?.length) {
-          console.warn("[dev-mode-generation] Model self-reflection claimed pass, deterministic diagnostics disagree", {
+        // v11 §10: model self-reflection is debug-only. If it claims success
+        // while deterministic diagnostics still fail, mark the reflection as
+        // unreliable and rely on the deterministic verdict alone for any
+        // score / loop decision downstream.
+        const repairSelfReflectionUnreliable =
+          selfCheck?.hardGatesPassed === true && (repairedChapterDiagnostics?.issues?.length ?? 0) > 0;
+        if (repairSelfReflectionUnreliable) {
+          console.warn("[dev-mode-generation] §10 model self-reflection unreliable; deterministic verdict wins", {
             attempt: repairAttempt,
             order: repairResult.chapter.order,
             title: repairResult.chapter.title,
             modelSelfCheck: selfCheck,
-            deterministicIssues: repairedChapterDiagnostics.issues,
+            deterministicIssues: repairedChapterDiagnostics?.issues,
           });
         }
         repairSelfReflections.push({
@@ -6937,6 +7432,7 @@ export async function generateStoryDevMode(
           title: repairResult.chapter.title,
           modelUsed: chapterRepairStage.provider.modelUsed,
           selfReflection: repairResult.selfReflection,
+          repairSelfReflectionUnreliable,
           deterministicChapterDiagnostics: repairedChapterDiagnostics,
           deterministicStoryHardIssueCount: interimDiagnostics.hardIssueCount,
           deterministicStoryDialogPct: interimDiagnostics.dialogPct,
@@ -7468,12 +7964,42 @@ export async function generateStoryDevMode(
     }
 
     // Deterministic last-mile remediation after the creative passes have run.
-    // The polish stage occasionally refuses to fix two specific hard issues:
-    //  1. Forbidden / "lustige"-style adjectives in the AI-generated description.
-    //  2. Title key words that the prose never picks up.
-    // For these we apply a SAFE mechanical fix (strip the offending word from
-    // the description, or trim the unredeemed adjective from the title), then
-    // re-run diagnostics. We never touch chapter content here.
+    // v11 §2: metadata sanitizer FIRST — always — so generic genre adjectives
+    // ("warme, lustige Märchengeschichte") never block release, regardless of
+    // whether they appear in the dynamic novelty motif list.
+    if (finalParsed) {
+      const sanitized = sanitizeDescription(finalParsed.description || "");
+      if (sanitized.changed && sanitized.description.length >= 10) {
+        console.log("[dev-mode-generation] §2 metadata sanitizer applied", {
+          before: finalParsed.description,
+          after: sanitized.description,
+          removed: sanitized.removed,
+        });
+        finalParsed = { ...finalParsed, description: sanitized.description };
+      }
+
+      // v11 §8: orthography autofix on chapter content (umlaut translit only).
+      const orthoFixes: string[] = [];
+      const fixedChapters = finalParsed.chapters.map((chapter) => {
+        const result = applyOrthographyAutoFix(chapter.content);
+        if (result.changed) orthoFixes.push(...result.fixes);
+        return result.changed ? { ...chapter, content: result.text } : chapter;
+      });
+      if (orthoFixes.length > 0) {
+        console.log("[dev-mode-generation] §8 orthography autofix applied", {
+          fixes: [...new Set(orthoFixes)],
+        });
+        finalParsed = { ...finalParsed, chapters: fixedChapters };
+      }
+
+      if (sanitized.changed || orthoFixes.length > 0) {
+        finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        localGateScore = calculateLocalGateScore(finalDiagnostics);
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+      }
+    }
+
+    // Legacy: motif-list-driven scrub for cases the static sanitizer missed.
     if (finalParsed && finalDiagnostics && finalDiagnostics.hardIssueCount > 0) {
       let remediated = false;
       const brief = input.noveltyBrief;
@@ -7537,14 +8063,31 @@ export async function generateStoryDevMode(
       }
     }
 
-    const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+    // v11 §1 + §13: derive a STRICT release score. If hard gates are still
+    // open after all repair attempts, the final score is forcibly capped at
+    // 7.9 so a downstream "score >= 9" check cannot accidentally let a
+    // story through with releaseReady=true. The cap below honours
+    // calculateLocalGateScore (always >= 0 if defined) and never raises
+    // an existing score.
+    let releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+    if ((finalDiagnostics?.hardIssueCount ?? 0) > 0) {
+      const cap = Math.min(localGateScore ?? 7.9, 7.9);
+      if (releaseScore > cap) releaseScore = cap;
+    }
+    // v11 §5: quality-mode-aware minimum. "efficient" mode targets 8.3+,
+    // "premium" targets 9.0+. When mode is unset we keep the legacy
+    // DEV_MODE_MIN_MARKET_QUALITY_SCORE so existing callers do not change.
+    const qualityMode = input.qualityMode || "premium";
+    const minReleaseScore = qualityMode === "efficient"
+      ? Math.min(8.3, DEV_MODE_MIN_MARKET_QUALITY_SCORE)
+      : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
     const releaseGateFailures: string[] = [];
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
       releaseGateFailures.push(formatQualityGateFailureReason(finalDiagnostics) || "Hard local quality gates failed.");
     }
-    if (releaseScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE) {
+    if (releaseScore < minReleaseScore) {
       releaseGateFailures.push(
-        `Developer-mode story market-quality score ${releaseScore} is below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}.`
+        `Developer-mode story market-quality score ${releaseScore} is below ${minReleaseScore} (mode=${qualityMode}).`
       );
     }
     releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings));
@@ -7749,6 +8292,25 @@ export async function generateStoryDevMode(
     }
   }
 
+  // v11 §3: record this story's motif fingerprint so future generations can
+  // compare against it. Best-effort — a DB failure must never break delivery.
+  if (input.storyId && input.userId) {
+    try {
+      const fingerprint = buildFingerprintFromBlueprint(input.storyId, {
+        title: parsed.title,
+        description: parsed.description,
+        centralObject: input.selectedIdea?.centralObjectOrPlace || "",
+        centralPlace: input.selectedIdea?.centralObjectOrPlace || "",
+        wonderRule: input.selectedIdea?.wonderRule || "",
+        emotionalEngine: input.selectedIdea?.emotionalEngine || "",
+        coreConflict: input.selectedIdea?.coreConflict || "",
+      }, chapters.map((c) => c.title));
+      await recordStoryMotif(fingerprint, input.userId, DEV_MODE_PIPELINE_ID);
+    } catch (err) {
+      console.warn("[dev-mode-generation] §3 recordStoryMotif failed (non-fatal):", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   return {
     title: parsed.title,
     description: parsed.description || parsed.title,
@@ -7775,11 +8337,22 @@ export async function generateStoryDevMode(
       rawQualityScore,
       localGateScore,
       literaryValidation: finalValidatorFindings,
+      // v11 §1 + §5: releaseReady is true ONLY when no hard gates remain
+      // AND score meets the mode-specific minimum (premium 9.0, efficient 8.3).
+      releaseReady:
+        (finalDiagnostics?.hardIssueCount ?? 0) === 0
+        && releaseDimensionFailures(finalValidatorFindings).length === 0
+        && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
+          >= ((input.qualityMode || "premium") === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE),
+      qualityMode: input.qualityMode || "premium",
+      // qualityGatePassed kept as alias for downstream code that still reads it.
       qualityGatePassed:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0) >= DEV_MODE_MIN_MARKET_QUALITY_SCORE
         && releaseDimensionFailures(finalValidatorFindings).length === 0,
       qualityGateFailureReason,
+      // v11 §1: warnings ARE failures. Keep field for backwards compat but
+      // do not let downstream treat it as a soft success.
       returnedWithQualityGateWarnings: Boolean(qualityGateFailureReason),
       noveltySeed: input.noveltyBrief?.seed,
       noveltyRecentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,

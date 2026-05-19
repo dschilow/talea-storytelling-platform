@@ -89,6 +89,13 @@ export async function callOpenRouterChatCompletion(input: {
   temperature?: number;
   seed?: number;
   signal?: AbortSignal;
+  /**
+   * Optional: attach images to the FINAL user message for vision-capable
+   * models (Gemini, GPT-4V, Claude 3, etc.). When set, the last user
+   * message is upgraded to the multimodal content-parts shape per
+   * OpenAI / OpenRouter spec.
+   */
+  imageInputs?: string[];
 }): Promise<OpenRouterChatCompletionResult> {
   const apiKey = resolveOpenRouterApiKey();
   if (!apiKey) {
@@ -98,9 +105,25 @@ export async function callOpenRouterChatCompletion(input: {
   }
 
   const model = normalizeOpenRouterModel(input.model);
+
+  // Multimodal upgrade: if imageInputs are present, rewrite the last user
+  // message as content-parts array. Other messages stay as plain strings.
+  let outgoingMessages: any[] = input.messages;
+  if (input.imageInputs && input.imageInputs.length > 0) {
+    outgoingMessages = input.messages.map((m, idx) => {
+      const isLastUser = idx === input.messages.length - 1 && m.role === "user";
+      if (!isLastUser) return m;
+      const parts: any[] = [{ type: "text", text: m.content }];
+      for (const url of input.imageInputs!) {
+        parts.push({ type: "image_url", image_url: { url } });
+      }
+      return { role: m.role, content: parts };
+    });
+  }
+
   const payload: any = {
     model,
-    messages: input.messages,
+    messages: outgoingMessages,
     max_tokens: input.maxTokens ?? 2000,
   };
 
