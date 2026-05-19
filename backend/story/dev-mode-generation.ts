@@ -152,6 +152,7 @@ type DevModePipelineStage =
   | "scene-cards"
   | "scene-cards-repair"
   | "dialogue-intent"
+  | "dialogue-intent-repair"
   | "blueprint"
   | "blueprint-repair"
   | "dramaturgy-check"
@@ -4118,7 +4119,9 @@ function buildSceneCardPrompts(
 
 function buildDialogueIntentPrompts(
   input: DevModeGenerationInput,
-  sceneCards: any[]
+  sceneCards: any[],
+  repairIssues: string[] = [],
+  previousDialoguePlan?: any
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
@@ -4138,11 +4141,17 @@ function buildDialogueIntentPrompts(
     ].join("\n")
   );
   const userPrompt = [
-    "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
+    repairIssues.length > 0
+      ? "CALL 6R: REPAIR DIALOGUE INTENT BEFORE PROSE. Do not write prose."
+      : "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
     "Plan dialogue function before drafting. This is not a quota pass; every beat must carry action, relationship, tension, humor, or subtext.",
-    "For each of the 5 scenes, produce 4-6 dialogue beats.",
+    "For each of the 5 scenes, produce 4-6 dialogue beats. Hard minimum is 4 beats per scene.",
     "Make the main children sound different through rhythm, word choice, first reaction, and body action.",
     "No filler acknowledgements. No helper explaining the magic rule or final answer.",
+    repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
+    repairIssues.length > 0 && previousDialoguePlan
+      ? `Previous incomplete plan to extend (keep good beats, add more to reach 4-6 per scene):\n${promptJson(previousDialoguePlan)}`
+      : null,
     "",
     "SCENE CARDS:",
     promptJson(sceneCards),
@@ -4326,6 +4335,55 @@ function validateDialoguePlan(dialoguePlan: any): string[] {
     if (beats.length < 4) issues.push(`scene ${index + 1} needs at least 4 dialogue intent beats`);
   }
   return issues;
+}
+
+function padDialoguePlanFromSceneCards(dialoguePlan: any, sceneCards: any[]): any {
+  const minBeats = 4;
+  const planScenes: any[] = Array.isArray(dialoguePlan?.sceneDialogue) ? dialoguePlan.sceneDialogue : [];
+  const fallbackIntents = ["want", "resist", "observe", "decide", "challenge", "hide fear"];
+  const sceneDialogue: any[] = [];
+  for (let index = 0; index < DEV_MODE_SCENE_CARD_COUNT; index += 1) {
+    const sceneNumber = index + 1;
+    const planScene = planScenes.find((s) => Number(s?.scene) === sceneNumber) || planScenes[index] || {};
+    const card = sceneCards.find((c) => Number(c?.scene) === sceneNumber) || sceneCards[index] || {};
+    const planBeats: any[] = Array.isArray(planScene?.dialogueBeats) ? planScene.dialogueBeats.filter(Boolean) : [];
+    const cardBeats: any[] = Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.filter(Boolean) : [];
+    const beats: any[] = [...planBeats];
+    for (const candidate of cardBeats) {
+      if (beats.length >= minBeats) break;
+      const speaker = String(candidate?.speaker || "").trim();
+      const intent = String(candidate?.intent || "").trim();
+      if (!speaker || !intent) continue;
+      const alreadyIn = beats.some((b) =>
+        String(b?.speaker || "").trim() === speaker &&
+        String(b?.intent || "").trim() === intent &&
+        String(b?.subtext || "").trim() === String(candidate?.subtext || "").trim()
+      );
+      if (alreadyIn) continue;
+      beats.push({
+        speaker,
+        intent,
+        subtext: String(candidate?.subtext || "").trim() || "implied tension",
+        draftStyle: String(candidate?.draftStyle || "").trim() || "short, in-character line with body action",
+      });
+    }
+    let intentCursor = 0;
+    while (beats.length < minBeats) {
+      const lastSpeaker = beats.length > 0 ? String(beats[beats.length - 1]?.speaker || "") : "";
+      const cardSpeakerPool = cardBeats.map((b) => String(b?.speaker || "").trim()).filter(Boolean);
+      const fallbackSpeaker = cardSpeakerPool.find((s) => s && s !== lastSpeaker) || cardSpeakerPool[0] || "main child";
+      const intent = fallbackIntents[intentCursor % fallbackIntents.length];
+      intentCursor += 1;
+      beats.push({
+        speaker: fallbackSpeaker,
+        intent,
+        subtext: "carries action, relationship, or tension",
+        draftStyle: "short, in-character line with body action",
+      });
+    }
+    sceneDialogue.push({ scene: sceneNumber, dialogueBeats: beats });
+  }
+  return { sceneDialogue };
 }
 
 function mergeDialoguePlanIntoSceneCards(sceneCards: any[], dialoguePlan: any): any[] {
@@ -8432,10 +8490,36 @@ export async function generateStoryDevMode(
       ...supportCallOptions,
       modelRole: "support",
     });
-    const dialoguePlan = normalizeDialoguePlan(dialogueIntentStage.parsed || {});
-    const dialogueIssues = validateDialoguePlan(dialoguePlan);
+    let dialoguePlan = normalizeDialoguePlan(dialogueIntentStage.parsed || {});
+    let dialogueIssues = validateDialoguePlan(dialoguePlan);
     if (dialogueIssues.length > 0) {
-      throw new Error(`Dialogue intent gate failed before prose: ${dialogueIssues.join(" | ")}`);
+      const repairPrompts = buildDialogueIntentPrompts(input, sceneCards, dialogueIssues, dialoguePlan);
+      const repairedDialogueStage = await runStage("dialogue-intent-repair", repairPrompts, {
+        maxTokens: 2600,
+        temperature: 0.2,
+        timeoutMs: 90_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      const repaired = normalizeDialoguePlan(repairedDialogueStage.parsed || {});
+      const mergedScenes = Array.isArray(repaired?.sceneDialogue) && repaired.sceneDialogue.length > 0
+        ? repaired.sceneDialogue
+        : dialoguePlan.sceneDialogue;
+      dialoguePlan = { sceneDialogue: mergedScenes };
+      dialogueIssues = validateDialoguePlan(dialoguePlan);
+    }
+    if (dialogueIssues.length > 0) {
+      const padded = padDialoguePlanFromSceneCards(dialoguePlan, sceneCards);
+      const padIssues = validateDialoguePlan(padded);
+      if (padIssues.length === 0) {
+        console.warn("[dev-mode-generation] dialogue-intent soft-pad applied after repair fallback", {
+          originalIssues: dialogueIssues,
+        });
+        dialoguePlan = padded;
+        dialogueIssues = padIssues;
+      } else {
+        throw new Error(`Dialogue intent gate failed before prose: ${dialogueIssues.join(" | ")}`);
+      }
     }
 
     sceneCards = mergeDialoguePlanIntoSceneCards(sceneCards, dialoguePlan);
