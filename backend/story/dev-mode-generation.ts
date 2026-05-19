@@ -78,6 +78,7 @@ const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 // v12 - "screenplay-first": lock idea potential and scene function before prose,
 // then draft a continuous narrative and derive display-only reading pages.
 const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
+const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-nonblocking-quality-gates-2026-05-19";
 const DEV_MODE_SCENE_CARD_COUNT = 5;
 const DEV_MODE_MAX_IDEA_ROUNDS = 2;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
@@ -8330,6 +8331,7 @@ export async function generateStoryDevMode(
 
   console.log("[dev-mode-generation] Dev mode adaptive chapter-repair quality pipeline", {
     pipeline: DEV_MODE_PIPELINE_ID,
+    runtimeHotfix: DEV_MODE_RUNTIME_HOTFIX,
     chapterCount,
     ageGroup: input.config.ageGroup,
     genre: input.config.genre,
