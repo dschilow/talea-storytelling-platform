@@ -4821,6 +4821,13 @@ function extractProseFallback(
     body = body.replace(descFieldMatch[0], "\n").trim();
   }
   body = body.replace(/^\s*[\[\]{},]+\s*$/gm, "").trim();
+  const looksLikeMetaAnalysis =
+    /\(\s*\d+\s*words?\s*\)/i.test(body) ||
+    /let'?s\s+check/i.test(body) ||
+    /dialogue\s+density/i.test(body) ||
+    /^\s*(?:ch|kap|chapter|kapitel)\s*\d+\s*[:.\-]/im.test(body) ||
+    /^\s*\*\s+\*\s+/m.test(body);
+  if (looksLikeMetaAnalysis) return null;
   const rawParagraphs = splitParagraphs(body)
     .map((p) =>
       p
@@ -4828,7 +4835,8 @@ function extractProseFallback(
         .replace(/^(?:kapitel|chapter)\s*\d+[.:\s\-–—]*/i, "")
         .trim()
     )
-    .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p));
+    .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p))
+    .filter((p) => !/^[\*\-•]\s/.test(p) && !/\(\s*\d+\s*words?\s*\)/i.test(p));
   if (rawParagraphs.length === 0) return null;
   if (!title) {
     const firstParagraph = rawParagraphs[0];
@@ -4839,6 +4847,11 @@ function extractProseFallback(
     }
   }
   if (rawParagraphs.length === 0) return null;
+  const totalChars = rawParagraphs.reduce((sum, p) => sum + p.length, 0);
+  const sentenceLikeCount = rawParagraphs.filter((p) => /[.!?]/.test(p)).length;
+  if (rawParagraphs.length < 4 || totalChars < 600 || sentenceLikeCount < Math.max(2, Math.floor(rawParagraphs.length / 2))) {
+    return null;
+  }
   if (!title) {
     const sentenceMatch = rawParagraphs[0].match(/^(.{6,80}?[.!?])/);
     title = sentenceMatch ? sentenceMatch[1].replace(/[.!?]+$/, "").trim() : rawParagraphs[0].slice(0, 60).trim();
