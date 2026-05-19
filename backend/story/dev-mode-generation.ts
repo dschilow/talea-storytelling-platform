@@ -4203,7 +4203,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
     if (!String(beatSheet?.[key] || "").trim()) issues.push(`beatSheet.${key} missing`);
   }
   const midpoint = String(beatSheet?.act2?.midpointIrreversibleTurn || "");
-  if (!/(verlier|lost|lose|cannot|nicht|zerbr|break|schrump|shrink|verschwind|closed|locked|revealed|risk|cost|opfer|sacrifice|irreversible)/i.test(midpoint)) {
+  if (!/(verlier|verloren|lost|lose|cannot|kann nicht|kein|keinen|keine|niemals|nie mehr|nicht mehr|endgueltig|endgültig|fuer immer|für immer|zerbr|zerbrich|zerbrochen|kaputt|broken|break|schrump|shrink|verschwind|gone|fort|weg|closed|verschlossen|locked|eingesperrt|gefangen|revealed|enthuellt|enthüllt|risk|risiko|cost|preis|opfer|sacrifice|aufgeben|muss|verlassen|geht verloren|abgeschnitten|verbrannt|ruiniert|kein zurück|kein zurueck|irreversible|irreversibel|unwiederbringlich|stirbt|tot|gestorben|verlischt|erlischt|verstummt)/i.test(midpoint)) {
     issues.push("midpointIrreversibleTurn is not visibly irreversible");
   }
   const personalCost = String(beatSheet?.act2?.personalCost || "");
@@ -4216,7 +4216,9 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   }
   const finalChoice = String(beatSheet?.act3?.finalChoice || "");
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
-  if (!/(child|children|kid|kids|kinder|jungen|maedchen|mädchen)/i.test(finalChoice) && !heroNames.some((name) => finalChoice.toLowerCase().includes(name.toLowerCase()))) {
+  const heroSubjectHint = /(child|children|kid|kids|kinder|jungen|junge|maedchen|mädchen|freunde|freundinnen|geschwister|beide|die zwei|die zwoo|sie zusammen|gemeinsam|zusammen entscheid|together they|both of them|the two)/i.test(finalChoice);
+  const namedHero = heroNames.some((name) => finalChoice.toLowerCase().includes(name.toLowerCase()));
+  if (!heroSubjectHint && !namedHero) {
     issues.push("finalChoice is not clearly executed by the children");
   }
   const closingImage = String(beatSheet?.act3?.closingImage || "");
