@@ -16,13 +16,13 @@
  *   - customPrompt (the raw user wish text, no profile context merged in)
  *
  * Generation is intentionally multi-call, but cost-optimized:
- *   1. support model: emotional engine + story blueprint
- *   2. support model: dramaturgy / quality check
- *   3. selected wizard model: final story draft
- *   3b. selected wizard model: targeted chapter-level repair when local gates fail
+ *   1. support model: idea candidates + 9.0 potential filter
+ *   2. support model: logline, emotional engine, beat sheet, scene cards
+ *   3. selected wizard model: one continuous final story draft
+ *   3b. server-side reading breaks for app display (not author chapters)
  *   4. support model: hard market-quality validation (no prose rewrite)
  *
- * Images: cover + per-chapter illustrations are generated via a single
+ * Images: cover + per-reading-page illustrations are generated via a single
  * support-model call that produces all image prompts, followed by parallel
  * Runware calls. Best-effort: a story without images still ships.
  * No personality / memory mutation happens after generation — the caller
@@ -76,7 +76,7 @@ const openAIKey = secret("OpenAIKey");
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 // v12 - "screenplay-first": lock idea potential and scene function before prose,
-// then draft a continuous narrative and split it into display chapters.
+// then draft a continuous narrative and derive display-only reading pages.
 const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
 const DEV_MODE_SCENE_CARD_COUNT = 5;
 const DEV_MODE_MAX_IDEA_ROUNDS = 2;
@@ -127,10 +127,19 @@ interface DevModeChapter {
   order: number;
 }
 
+interface DevModeReadingBreak {
+  afterParagraph: number;
+  imagePromptScene: string;
+  scenePurpose?: string;
+}
+
 interface DevModeRawStory {
   title: string;
   description: string;
   chapters: DevModeChapter[];
+  storyText?: string;
+  readingBreaks?: DevModeReadingBreak[];
+  displayMode?: "reading_pages";
 }
 
 type DevModePipelineStage =
@@ -149,6 +158,7 @@ type DevModePipelineStage =
   | "story-draft"
   | "whole-story-draft"
   | "story-splitter"
+  | "reading-breaks"
   | "local-diagnostics"
   | "repair-router"
   | "chapter-repair"
@@ -178,6 +188,9 @@ export interface DevModeGeneratedStory {
   title: string;
   description: string;
   coverImageUrl?: string;
+  storyText?: string;
+  readingBreaks?: DevModeReadingBreak[];
+  displayMode?: "reading_pages";
   chapters: Array<{
     id: string;
     title: string;
@@ -225,6 +238,9 @@ export interface DevModeGeneratedStory {
     returnedWithQualityGateWarnings?: boolean;
     literaryValidation?: any;
     repairSelfReflections?: any[];
+    displayMode?: "reading_pages";
+    readingBreaks?: DevModeReadingBreak[];
+    storyText?: string;
     noveltySeed?: string;
     noveltyRecentStoryCount?: number;
     noveltyHardAvoidMotifCount?: number;
@@ -1381,8 +1397,8 @@ function pickDevModeArtifactCategory(config: StoryConfig): ArtifactCategory | un
 
 /**
  * Two-step image generation for dev-mode stories:
- *   1) Support model produces ONE JSON with cover + per-chapter English image
- *      prompts (avatar visuals + artifact visuals + scene cues).
+ *   1) Support model produces ONE JSON with cover + per-reading-page English
+ *      image prompts (avatar visuals + artifact visuals + scene cues).
  *   2) Parallel Runware calls via `ai.generateImage` (concurrency 3).
  *
  * Never throws \u2014 partial failure returns whichever images succeeded. The
@@ -1509,7 +1525,7 @@ async function generateDevModeImages(
 
   const artifact = input.matchedArtifact;
   const artifactBlock = artifact
-    ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it briefly in chapters where it is on-stage.`
+    ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it briefly on reading pages where it is on-stage.`
     : "(no supporting prop)";
 
   const imageScenePlan = parsedChapters.map((chapter) => {
@@ -1553,10 +1569,10 @@ async function generateDevModeImages(
     "Return JSON with this exact shape:",
     "{ \"cover\": \"<cover prompt>\", \"chapters\": [{\"order\": 1, \"prompt\": \"<prompt>\"}, ...] }",
     "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (the main heroes plus at least one supporting cast member if applicable).",
-    "- Exactly one prompt per chapter, single scene, picture-book composition.",
+    "- Exactly one prompt per reading page, single scene, picture-book composition. The JSON key stays chapters for app compatibility.",
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
     "- Refer to on-stage characters by NAME plus concrete visual specifics (hair, skin, clothing colors, outfit). NEVER include slot_N or collage wording in final prompts.",
-    "- If the supporting prop is on-stage in a chapter, mention it briefly with its visual cues.",
+    "- If the supporting prop is on-stage on a reading page, mention it briefly with its visual cues.",
     "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
     "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
     "- Do NOT mention TTS markers, brackets, or technical instructions.",
@@ -1584,7 +1600,7 @@ async function generateDevModeImages(
   // ---------------------------------------------------------------------
   // 3b) Heuristic: if the director call returned no parse, no cover, or one
   //     or more chapters are missing/too short/clearly not English, issue a
-  //     per-chapter mini-call so EVERY image gets a clean English picture-book
+  //     per-reading-page mini-call so EVERY image gets a clean English picture-book
   //     prompt. This eliminates the "raw German story text used as image
   //     prompt" regression we saw in production.
   // ---------------------------------------------------------------------
@@ -1647,7 +1663,7 @@ async function generateDevModeImages(
   }
 
   if (needsCoverRefill || missingChapters.length > 0) {
-    console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, chapters=${missingChapters.map(c => c.order).join(",")}`);
+    console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, readingPages=${missingChapters.map(c => c.order).join(",")}`);
     const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage child count explicitly; no extra background children.";
     const refillCommon = [
       `Story title: ${parsedTitle}`,
@@ -1677,7 +1693,7 @@ async function generateDevModeImages(
       refillJobs.push({
         kind: "chapter",
         order: ch.order,
-        instruction: `${refillCommon}\n\nTASK: Write the picture-book prompt for Chapter ${ch.order} \"${ch.title}\". Base the visual on this German chapter content (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
+        instruction: `${refillCommon}\n\nTASK: Write the picture-book prompt for reading page ${ch.order}. The page title is only an app label: \"${ch.title}\". Base the visual on this German reading-page content (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
       });
     }
 
@@ -1790,14 +1806,14 @@ async function generateDevModeImages(
       // Last-resort: ship a SHORT generic English scene description rather
       // than raw German story text (which Runware cannot render well).
       const castNamesEn = cast.slice(0, 4).map((e) => e.name).join(", ") || "the heroes";
-      promptText = `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from chapter "${ch.title}"; warm, child-friendly, single cohesive scene.`;
+      promptText = `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from reading page ${ch.order}; warm, child-friendly, single cohesive scene.`;
     }
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
   // v11 §12B: build a per-scene name list so reference filtering can drop
   // characters that are not actually on stage. Names are matched
-  // case-insensitively against the chapter prompt body.
+  // case-insensitively against the reading-page prompt body.
   const allCastNames = cast.map((c) => c.name);
   const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
     if (job.kind === "cover") return allCastNames; // cover may show everyone
@@ -2838,7 +2854,7 @@ function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | nu
       "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
       "- Top character-comedy craft: two unmistakably different voices; comedy from action and props, not narrator commentary; warmth shown through small gestures, not stated.",
       "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
-      "- Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+      "- Allowed and encouraged: one surprising simile per major scene movement from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
     ].join("\n");
   }
   if (code === "en") {
@@ -2847,7 +2863,7 @@ function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | nu
       "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
       "- Top character-comedy craft: two unmistakably different voices; comedy from action and props; warmth in small gestures.",
       "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
-      "- Allowed and encouraged: one surprising simile per chapter from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+      "- Allowed and encouraged: one surprising simile per major scene movement from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
     ].join("\n");
   }
   return null;
@@ -2859,7 +2875,7 @@ function buildReleaseCraftContract(input: DevModeGenerationInput): string {
     "RELEASE-QUALITY CRAFT CONTRACT (9.0+ target, benchmark principles only):",
     `- Output is in ${languageName}, but quality must compare to real shelf books: a child-retellable premise, musical read-aloud rhythm, distinct voices, escalating try-fail-try, and an earned final reversal/payoff.`,
     "- Every recurrence changes meaning. If a refrain, prop, sound, or rule repeats at the same emotional level, rewrite it so it tests, blocks, reveals, jokes, or pays off.",
-    "- Each chapter result must force the next chapter by therefore/but causality. No episode may be movable without breaking the plot.",
+    "- Each scene movement must force the next by therefore/but causality. No episode may be movable without breaking the plot.",
     "- The final choice must be child-small but emotionally exact: giving up control, sharing a private thing, waiting, admitting a mistake, or noticing what a helper cannot say.",
     "- Pool characters may complicate, pressure, reveal, or create comedy; they must not explain the lesson or steal the decisive action from the main avatars.",
     "- The ending image should be closed, funny/tender, and slightly larger than the problem — not a moral sentence and not a marketing cliffhanger.",
@@ -2874,6 +2890,17 @@ function buildWholeStoryContinuityContract(chapterCount: number): string {
     "- Each chapter inherits pressure from the previous one, changes the problem once, and leaves a concrete pull that makes the next chapter necessary.",
     "- Use therefore/but causality across chapter boundaries; avoid episodic 'and then another thing happened' structure.",
     "- Chapter titles should label the next turn or image, not make each chapter feel like a separate book.",
+  ].join("\n");
+}
+
+function buildReadingPageContinuityContract(pageCount: number): string {
+  return [
+    "CONTINUOUS-STORY / READING-PAGE CONTRACT:",
+    `- Write ONE fluent read-aloud story that the app displays as exactly ${pageCount} technical reading pages.`,
+    "- Reading pages are display containers only. Do not add chapter titles, chapter arcs, recaps, page labels, or mini-endings.",
+    "- The five scene movements should flow by cause/effect: hook and false impulse -> first wrong try -> irreversible middle -> discovery by observation -> final choice and closing image.",
+    "- Every page boundary must read like a natural paragraph break inside one story, not like the end of a small episode.",
+    "- Preserve forward pull through unresolved cause/effect, not through cheap cliffhangers or title-shaped chapter endings.",
   ].join("\n");
 }
 
@@ -3525,18 +3552,29 @@ function selectedIdeaFromPotentialFilter(
   };
 }
 
-function buildLeanRepairPromptContext(input: DevModeGenerationInput, chapterCount: number): string {
+function buildLeanRepairPromptContext(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  options: { readingPageMode?: boolean } = {}
+): string {
   const languageName = localizedLanguageName(input.config.language);
   const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
   const poolNames = (input.poolCharacters || []).map((character) => character.name).filter(Boolean);
+  const readingPageMode = !!options.readingPageMode;
   return [
     `Output language: ${languageName}.`,
-    `Age group: ${input.config.ageGroup}. Chapter count: exactly ${chapterCount}.`,
+    readingPageMode
+      ? `Age group: ${input.config.ageGroup}. Display target: exactly ${chapterCount} technical reading pages; no author chapters.`
+      : `Age group: ${input.config.ageGroup}. Chapter count: exactly ${chapterCount}.`,
     `Genre: ${input.config.genre}. Setting: ${input.config.setting}.`,
-    buildWizardCreativeBrief(input.config, chapterCount, true),
+    readingPageMode
+      ? `Length: ${input.config.length}; write one continuous story, later displayed as ${chapterCount} reading pages.`
+      : buildWizardCreativeBrief(input.config, chapterCount, true),
     heroNames.length > 0 ? `Main characters: ${heroNames.join(", ")}.` : "Main characters: preserve the existing story's main characters.",
     poolNames.length > 0 ? `Supporting cast already available: ${poolNames.join(", ")}.` : null,
-    "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
+    readingPageMode
+      ? "Repair context is intentionally compact to reduce cost. Preserve whole-story continuity and do not make reading pages self-contained."
+      : "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
     "Voice contract: use the named voice/cast notes from the full prompt; do not force generic careful/lively/helper templates if they do not fit the actual characters.",
     "Quality goal: shorter, cleaner scenes with more action-bearing dialogue; no new subplot, no rewritten story world.",
   ].filter((line): line is string => Boolean(line)).join("\n");
@@ -3591,12 +3629,12 @@ function chapterLengthGuidance(config: StoryConfig): string {
 
 function storyWordBudgetGuidance(config: StoryConfig, chapterCount: number): string {
   if (config.length === "short") {
-    return `Whole-story word budget: about 550-850 words total across ${chapterCount} compact chapters.`;
+    return `Whole-story word budget: about 550-850 words total across one continuous story, later displayed as ${chapterCount} reading pages.`;
   }
   if (config.length === "long") {
-    return `Whole-story word budget: about 1,400-2,200 words total across ${chapterCount} chapters.`;
+    return `Whole-story word budget: about 1,400-2,200 words total across one continuous story, later displayed as ${chapterCount} reading pages.`;
   }
-  return `Whole-story word budget: 900-1,200 words total across ${chapterCount} chapters; aim around 180-240 words per chapter.`;
+  return `Whole-story word budget: 900-1,200 words total across one continuous story, later displayed as ${chapterCount} reading pages.`;
 }
 
 function getStoryWordBounds(config: StoryConfig): { min: number; max: number; targetMin: number; targetMax: number } {
@@ -4460,19 +4498,15 @@ function screenplayCritiqueForDraft(gateIssues: string[]): any {
 // ---------------------------------------------------------------------------
 // SCREENPLAY-FIRST / WHOLE-STORY-DRAFT PIPELINE (v12)
 //
-// Replaces the old "model emits chapters[] directly" approach. The story
-// model writes ONE continuous narrative as flat paragraphs[]. A cheap
-// support-model call then splits the prose into display chapters with titles
-// at natural scene breaks. This stops the model from packing 5 mini-endings,
-// preserves the red thread, and keeps targeted chapter repair as a fallback.
+// The story model writes ONE continuous narrative as flat paragraphs[].
+// The server then creates technical reading breaks for app pages and images.
+// No model is asked to invent chapter titles or mini-endings.
 //
 // Output of the writer (whole-story-draft):
 //   { "title": string, "description": string, "paragraphs": string[] }
 //
-// Output of the splitter (story-splitter):
-//   { "chapters": [ { "order": number, "title": string,
-//                     "paragraphStartIndex": number,
-//                     "paragraphEndIndex": number } ] }
+// Internal display projection:
+//   { storyText, readingBreaks, chapters[] as reading pages }
 // ---------------------------------------------------------------------------
 
 function buildWholeStoryDraftPrompts(
@@ -4510,13 +4544,13 @@ function buildWholeStoryDraftPrompts(
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
-      "Whole-story draft schema (NO chapters here \u2014 a separate step splits the prose):",
+      "Whole-story draft schema (NO chapters, NO headings, NO reading-page labels):",
       "{",
       '  "title": string,',
       '  "description": string,',
       '  "paragraphs": string[]   // ONE flat array; the entire story as continuous prose, in reading order',
       "}",
-      "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, or labels into the paragraphs.",
+      "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, page labels, or labels into the paragraphs.",
       "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
     ].join("\n")
   );
@@ -4550,7 +4584,7 @@ function buildWholeStoryDraftPrompts(
     "- Hoechstens ein Fremdwort pro Segment, und wenn, dann sofort durch ein Bild erklaert.",
     "- Keine verschachtelten Bandwurmsaetze. Max ein Nebensatz pro Satz; lieber zwei kurze Saetze als ein langer.",
     "- Gefuehle nicht benennen \u2014 sie an Koerper und Handlung zeigen (\"die Hand wurde feucht\", nicht \"sie war nervoes\").",
-    "- Jedes Kapitelende: eine Frage, ein neuer Gegenstand, eine Tueroeffnung. Das Kind soll umblaettern wollen.",
+    "- Die Geschichte hat fuenf natuerliche Szenenbewegungen, aber keine sichtbaren Kapitel. Jeder Szenenwechsel entsteht aus Ursache/Folge, nicht aus einer Ueberschrift.",
     "",
     titleKeyWords.length > 0
       ? `TITEL-VERTRAG (PFLICHT): Der Storytitel ist \"${ideaTitle}\". Diese Kernwoerter MUESSEN wortgetreu (oder als enge Beugung) sichtbar im Prosatext vorkommen \u2014 verteilt ueber die Story, nicht nur einmal: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. Falls ein Wort nicht in den Prosatext passt, aendere lieber den Titel als das Versprechen zu brechen.`
@@ -4596,19 +4630,20 @@ function buildWholeStoryDraftPrompts(
     "LENGTH & RHYTHM:",
     `- Target ${wordBounds.targetMin}-${wordBounds.targetMax} words for the whole story (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
     `- Roughly ${totalMinChars}-${totalMaxChars} characters of prose across the whole story.`,
-    `- Output the prose as flat paragraphs (around ${chapterCount * 5}-${chapterCount * 7} paragraphs total for the whole story \u2014 the splitter will group them into ${chapterCount} chapters later).`,
+    `- Output the prose as flat paragraphs (around ${chapterCount * 5}-${chapterCount * 7} paragraphs total for the whole story). The server will create technical reading breaks later; you do not write them.`,
     `- Each paragraph \u2264 380 characters. Split long beats into separate paragraphs instead of cramming.`,
-    `- Every 4\u20136 paragraphs must contain a natural scene-turn (open question, new visible detail, decision, small surprise, comic aftershock, direction change). These turns are NOT chapter headings, but they must be strong enough that an editor could later cut a chapter right after them.`,
+    `- Every 4\u20136 paragraphs should contain a natural scene-turn (open question, new visible detail, decision, small surprise, comic aftershock, direction change). These turns are NOT chapter endings and must not close the scene like a mini-story.`,
     `- No sentence may exceed ${maxSentenceChars} characters. Use child-readable beats.`,
     `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
     "",
     "BANNED:",
     "- chapter headings, chapter numbers, scene labels, dividers (\"---\", \"***\"), or recap sentences",
+    "- mini-endings after each scene movement",
     "- mini-conclusions or moral closures inside the prose",
     "- formulaic catchphrase repetition (each character may use a signature line at MOST once in the whole story; max 2 formulaic feeling/memory openers total across all characters)",
     "- supporting / helper figures EXPLAINING the magic rule, the lesson, or the solution. Helpers may pressure, misinterpret, ask a sharp question, hand over a tool, or miss a clue \u2014 the MAIN avatars must perform the decisive insight and action.",
-    "- the finale repeating the exact mechanism/payoff of an earlier chapter; the finale must escalate or transform what was tried before",
+    "- the finale repeating the exact mechanism/payoff of an earlier scene movement; the finale must escalate or transform what was tried before",
     "- multiple competing magic rules \u2014 keep ONE clear rule, and test it on-page at least twice before the finale",
     "- AI-tics: \"Not X. Not Y. Just Z.\" chains, narrator commentary, explained jokes",
     "",
@@ -4632,7 +4667,7 @@ function buildWholeStoryDraftPrompts(
       ? "6. Verstaendlichkeit: scan for any sentence over " + maxSentenceChars + " characters or with more than one nested subordinate clause. Split into two simpler sentences."
       : "6. Sentence rhythm: vary length; no chains of long sentences.",
     "",
-    `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array. No headings in the prose. All story text in ${languageName}.`,
+    `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array, no readingBreaks array, no headings in the prose. All story text in ${languageName}.`,
   ].filter(Boolean).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -4888,6 +4923,73 @@ function applySplitterPlanToDraft(
     chapters,
     splitQuality,
     balanceRatio,
+  };
+}
+
+function buildReadingPageTitle(order: number, languageName: string): string {
+  const code = languageCodeFromName(languageName);
+  if (code === "de") return `Leseseite ${order}`;
+  if (code === "nl") return `Leespagina ${order}`;
+  if (code === "es" || code === "it") return `Pagina ${order}`;
+  if (code === "fr") return `Page ${order}`;
+  return `Reading page ${order}`;
+}
+
+function applyReadingBreaksToDraft(
+  draft: DevModeWholeStoryDraft,
+  pageCount: number,
+  languageName: string,
+  screenplayPlan?: DevModeScreenplayPlan
+): DevModeRawStory & { balanceRatio?: number } {
+  const plan = balancedDeterministicSplit(draft, pageCount);
+  const sceneCards = screenplayPlan?.sceneCards || [];
+  const readingBreaks: DevModeReadingBreak[] = plan.map((slice, index) => {
+    const sceneCard = sceneCards[index];
+    return {
+      afterParagraph: slice.end + 1,
+      imagePromptScene: String(
+        sceneCard?.titleHint ||
+        sceneCard?.visibleConsequence ||
+        draft.paragraphs[slice.end] ||
+        `Reading page ${index + 1}`
+      ).slice(0, 220),
+      scenePurpose: sceneCard?.scenePurpose,
+    };
+  });
+  const chapters: DevModeChapter[] = plan.map((slice, index) => ({
+    order: index + 1,
+    title: buildReadingPageTitle(index + 1, languageName),
+    content: paragraphsToContent(draft.paragraphs.slice(slice.start, slice.end + 1)),
+  }));
+  return {
+    title: draft.title,
+    description: draft.description,
+    storyText: paragraphsToContent(draft.paragraphs),
+    readingBreaks,
+    displayMode: "reading_pages",
+    chapters,
+    balanceRatio: computePlanBalanceRatio(draft, plan),
+  };
+}
+
+function markStoryAsReadingPages(story: DevModeRawStory, source?: DevModeRawStory): DevModeRawStory {
+  const chapters = story.chapters.map((chapter, index) => ({
+    ...chapter,
+    title: source?.chapters?.[index]?.title || chapter.title,
+  }));
+  const readingBreaks = story.chapters.map((chapter, index) => ({
+    afterParagraph: story.chapters
+      .slice(0, index + 1)
+      .reduce((sum, ch) => sum + splitParagraphs(ch.content).length, 0),
+    imagePromptScene: source?.readingBreaks?.[index]?.imagePromptScene || chapter.title || `Reading page ${index + 1}`,
+    scenePurpose: source?.readingBreaks?.[index]?.scenePurpose,
+  }));
+  return {
+    ...story,
+    chapters,
+    displayMode: "reading_pages",
+    storyText: chapters.map((chapter) => chapter.content).join("\n\n"),
+    readingBreaks,
   };
 }
 
@@ -5206,6 +5308,7 @@ function buildStoryPolishPrompts(
   const totalRepairTargetMaxChars = targetMaxChars * chapterCount;
   const overlongChapterCount = diagnostics.chapterDiagnostics.filter((chapter) => chapter.chars > bounds.max).length;
   const broadCompressionMode = overlongChapterCount >= Math.min(3, chapterCount) || diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
+  const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -5244,7 +5347,7 @@ function buildStoryPolishPrompts(
         "DIALOGUE INJECTION PLAN (TOP PRIORITY \u2014 the previous draft failed the dialog gate):",
         `- Overall dialog share is currently ${Math.round(diagnostics.dialogPct || 0)} % \u2014 it MUST end at \u2265 ${DEV_MODE_MIN_DIALOG_PCT} %, aim ${DEV_MODE_PROMPT_DIALOG_PCT} %.`,
         ...dialogDeficit.map((d) =>
-          `- Chapter ${d.order}: currently ~${d.pct} % dialog \u2192 inject about ${d.addLines} short quoted lines (1\u20138 words each). Replace narrator sentences with character speech, not new filler chatter.`
+          `- ${readingPageMode ? "Reading page" : "Chapter"} ${d.order}: currently ~${d.pct} % dialog \u2192 inject about ${d.addLines} short quoted lines (1\u20138 words each). Replace narrator sentences with character speech, not new filler chatter.`
         ),
         "- Each quoted line must DO something (action, conflict, decision, relationship beat, joke). Forbidden filler: \"Ja.\" / \"Okay.\" / \"Stimmt.\" / \"Gut.\" alone.",
         "- Convert summary or interior thought to dialogue between the on-stage characters rather than adding new ones.",
@@ -5255,27 +5358,30 @@ function buildStoryPolishPrompts(
     `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
     "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
     "If local diagnostics and your literary preference conflict, local diagnostics win. This is a mechanical repair pass first, a style polish second.",
+    readingPageMode
+      ? "READING-PAGE MODE: the chapters[] schema is only an app display container. Think and write as ONE continuous Vorlesegeschichte with natural reading pages. Do not create chapter arcs, chapter titles, mini-endings, recaps, or isolated page tasks."
+      : null,
     broadCompressionMode
       ? "BROAD COMPRESSION MODE: this is not line editing. Rewrite every chapter compactly from the current story map; each overlong chapter must become visibly shorter before any stylistic addition is allowed."
       : null,
     dialogBoostBlock ? "" : null,
     dialogBoostBlock || null,
     "",
-    buildLeanRepairPromptContext(input, chapterCount),
+    buildLeanRepairPromptContext(input, chapterCount, { readingPageMode }),
     buildSelectedCastIntegrationContract(input, true),
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "polish"),
     buildVoiceBibleBlock(input),
     buildWriterVoiceAnchorBlock(input),
     buildReleaseCraftContract(input),
-    buildWholeStoryContinuityContract(chapterCount),
+    readingPageMode ? buildReadingPageContinuityContract(chapterCount) : buildWholeStoryContinuityContract(chapterCount),
     "",
     "HARD GATES:",
-    `- Exactly ${chapterCount} chapters.`,
-    `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
-    `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
+    readingPageMode ? `- Exactly ${chapterCount} reading pages in chapters[] for app compatibility.` : `- Exactly ${chapterCount} chapters.`,
+    readingPageMode ? `- Reading pages should stay roughly within ${bounds.min}-${bounds.max} characters, but story-level causality and emotional payoff outrank page symmetry.` : `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
+    readingPageMode ? `- Aim each reading page for ${bounds.min}-${targetMaxChars} characters only if it does not create a mini-ending.` : `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
     `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
-    `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
+    readingPageMode ? `- Each reading page should have about ${paragraphBounds.min}-${paragraphBounds.max} paragraphs, but do not force a page to feel closed.` : `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
     `- No sentence may exceed ${maxSentenceChars} characters; split long clauses into child-readable beats.`,
     input.config.length === "short"
@@ -5284,9 +5390,9 @@ function buildStoryPolishPrompts(
         ? "- MEDIUM REPAIR: cut decorative second images and repeated reactions before adding any line."
         : null,
     `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%; repair toward ${DEV_MODE_PROMPT_DIALOG_PCT}% so the measured result safely clears the floor.`,
-    `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
+    readingPageMode ? "- Per-page dialogue may vary naturally; the full story must clear the dialogue floor." : `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
     `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; anything below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}/10 needs another concrete fix, not score inflation.`,
-    "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
+    readingPageMode ? "- No new main figures, no new subplot, no explained moral, no summary sentences at reading breaks." : "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
     "- JSON must be valid and match the schema exactly.",
     "",
     "REPAIR METHOD:",
@@ -5298,7 +5404,7 @@ function buildStoryPolishPrompts(
     "- If dialogue is low: convert explanation into short character-specific dialogue that carries action, relationship, humor, or tension.",
     "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
     "- Keep the same title idea, central conflict, recurring motif, and closing image.",
-    "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
+    readingPageMode ? "- Strengthen the five scene movements through cause/effect; do not turn reading breaks into cliffhanger chapter endings." : "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
     "- Preserve child agency: replace helper/adult explanations with child noticing, child choice, and a concrete action.",
     "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
     "",
@@ -5317,15 +5423,15 @@ function buildStoryPolishPrompts(
     "- Each character may use a signature catchphrase / formulaic opener at MOST ONCE in the whole story. Across all characters, no more than 2 such formulaic openers total. Replace extra ones with body language, action, or a fresh concrete line.",
     "",
     "ROTER FADEN (red thread) UND TITEL-VERTRAG:",
-    "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
-    "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
+    readingPageMode ? "- Identify the recurring concrete object/refrain/sound. Make sure it appears across the whole story and shifts meaning at each scene movement." : "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
+    readingPageMode ? "- Every paragraph must follow causally from the previous one. If a reading page opens cold, add a bridge sentence without recap." : "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
     "- If the title promises specific words/concepts, those words must surface in the prose. If a title key word is missing, add it naturally \u2014 OR change the title to match the prose. Do not leave the title promise unredeemed.",
     "",
     "KINDERVERSTAENDLICHKEIT (children ages 6-8 must follow on first read):",
     "- Replace literary/adult words (stocksteif, gravitaetisch, sondiert, etc.) with concrete child-world images (toys, animals, food, weather, family).",
     "- Split any sentence with more than one nested subordinate clause into two simpler sentences. No Bandwurmsaetze.",
     "- Show feelings through body and action (hand wird feucht, Knie zittern), not labels (\"sie war nervoes\").",
-    "- Every chapter ending must give the child a clear pull forward: a question, an unopened door, a new object, an unfinished gesture.",
+    readingPageMode ? "- Every scene movement should leave momentum without sounding like a separate chapter ending." : "- Every chapter ending must give the child a clear pull forward: a question, an unopened door, a new object, an unfinished gesture.",
     "",
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
@@ -5341,7 +5447,7 @@ function buildStoryPolishPrompts(
     "CURRENT STORY TO POLISH:",
     promptJson(story),
     "",
-    `FINAL REMINDER: title, description and ALL chapter content must remain in ${languageName}.`,
+    `FINAL REMINDER: title, description and ALL ${readingPageMode ? "reading-page content" : "chapter content"} must remain in ${languageName}.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
@@ -5510,9 +5616,12 @@ function applyLinePunchupResult(
   const newChapters = story.chapters
     .map((chapter) => chaptersByOrder.get(Number(chapter.order)) || chapter)
     .sort((a, b) => a.order - b.order);
+  const nextStory = story.displayMode === "reading_pages"
+    ? markStoryAsReadingPages({ ...story, chapters: newChapters }, story)
+    : { ...story, chapters: newChapters };
 
   return {
-    story: { ...story, chapters: newChapters },
+    story: nextStory,
     appliedCount: appliedReplacements.length,
     droppedCount: droppedReplacements.length,
     appliedReplacements,
@@ -6022,11 +6131,12 @@ function buildValidationPrompts(
     "}",
   ].join("\n");
   const code = languageCodeFromName(languageName);
+  const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
   const anchorBlock = validatorAnchorBlock(code);
   const contextSummary = [
     `Output language: ${languageName}`,
     `Age group: ${input.config.ageGroup}`,
-    `Chapter count: exactly ${chapterCount}`,
+    readingPageMode ? `Display mode: reading_pages; exactly ${chapterCount} technical reading pages, not story chapters` : `Chapter count: exactly ${chapterCount}`,
     `Genre: ${input.config.genre}`,
     `Setting: ${input.config.setting}`,
     `Main characters: ${(input.avatars || []).map((avatar) => avatar.name).filter(Boolean).join(", ") || "unspecified"}`,
@@ -6050,6 +6160,7 @@ function buildValidationPrompts(
     "- < 5.0 if at anchor-4 level or worse.",
     "",
     "MANDATORY CAPS (whichever is lower wins):",
+    readingPageMode ? "- Reading-page boundaries are app display breaks, not story chapters. Do NOT require each reading page to behave like a standalone chapter or have a title-shaped mini-arc." : null,
     "- Antagonist is only mechanic (no wound / no new place at the end): max 8.4.",
     "- Main characters not iconically distinguishable (dialogue interchangeable): max 8.7.",
     "- No clear central conflict a child can retell in one sentence: max 8.2.",
@@ -6061,7 +6172,7 @@ function buildValidationPrompts(
     "- Final paragraph states the lesson in a neat aphorism instead of leaving a concrete image: max 8.2.",
     "- Adult/helper/supporting figure solves the decisive problem, while the child only follows instructions: max 8.2.",
     "- Supporting cast crowds the story and weakens the main character arc: max 8.5.",
-    "- Chapter endings without read-on pull: max 8.6.",
+    readingPageMode ? "- If the continuous story itself lacks forward momentum between scene movements: max 8.6." : "- Chapter endings without read-on pull: max 8.6.",
     "- Dialogue quota / form gates failed per local diagnostics: max 8.7.",
     "- NO humor in the 'kid giggles' sense in at least 4 of 5 chapters: max 8.2.",
     "- No setup-payoff (resolution doesn't come from prepared details): max 8.0.",
@@ -6917,9 +7028,12 @@ function analyzeDevModeStoryQuality(
   const totalWords = countWords(allContent);
   const wordBounds = getStoryWordBounds(input.config);
   const dialogPct = totalChars > 0 ? Math.round((countDialogChars(allContent) / totalChars) * 1000) / 10 : 0;
+  const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
 
   if (story.chapters.length !== chapterCount) {
-    hardIssues.push(`Erwartet ${chapterCount} Kapitel, erhalten ${story.chapters.length}.`);
+    hardIssues.push(readingPageMode
+      ? `Erwartet ${chapterCount} Leseseiten, erhalten ${story.chapters.length}.`
+      : `Erwartet ${chapterCount} Kapitel, erhalten ${story.chapters.length}.`);
   }
 
   if (/\[object Object\]/i.test(allContent)) {
@@ -7064,7 +7178,9 @@ function analyzeDevModeStoryQuality(
     const paragraphs = countParagraphs(chapter.content);
     const chapterDialogPct = chars > 0 ? Math.round((countDialogChars(chapter.content) / chars) * 1000) / 10 : 0;
     const chapterLongestSentence = longestSentenceChars(chapter.content);
-    const chapterPrefix = `Kapitel ${chapter.order || index + 1}`;
+    const chapterPrefix = readingPageMode
+      ? `Leseseite ${chapter.order || index + 1}`
+      : `Kapitel ${chapter.order || index + 1}`;
 
     // Grace margin: modest chapter-length variation is a quality warning, not
     // a reason to abort generation. The LLM regularly undercounts characters;
@@ -7075,13 +7191,21 @@ function analyzeDevModeStoryQuality(
     const chapterHardMinUnder = Math.max(0, bounds.min - 100);
     if (chars < chapterHardMinUnder) {
       issues.push(`zu kurz (${chars} Zeichen)`);
-      hardIssues.push(`${chapterPrefix} ist deutlich zu kurz (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+      if (readingPageMode) {
+        softIssues.push(`${chapterPrefix} / Leseseite ist kurz (${chars}; Ziel ${bounds.min}-${bounds.max}) - nur Display-Balance, keine Story-Reparatur erzwingen.`);
+      } else {
+        hardIssues.push(`${chapterPrefix} ist deutlich zu kurz (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+      }
     } else if (chars < bounds.min) {
       issues.push(`leicht zu kurz (${chars} Zeichen)`);
       softIssues.push(`${chapterPrefix} ist leicht zu kurz (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
     } else if (chars > chapterHardMaxOver) {
       issues.push(`deutlich zu lang (${chars} Zeichen)`);
-      hardIssues.push(`${chapterPrefix} ist deutlich zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+      if (readingPageMode) {
+        softIssues.push(`${chapterPrefix} / Leseseite ist lang (${chars}; Ziel ${bounds.min}-${bounds.max}) - nur Display-Balance, keine Kapitel-Reparatur erzwingen.`);
+      } else {
+        hardIssues.push(`${chapterPrefix} ist deutlich zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
+      }
     } else if (chars > bounds.max) {
       issues.push(`leicht zu lang (${chars} Zeichen)`);
       softIssues.push(`${chapterPrefix} ist leicht zu lang (${chars}; Ziel ${bounds.min}-${bounds.max}).`);
@@ -7089,21 +7213,33 @@ function analyzeDevModeStoryQuality(
 
     if (paragraphs < paragraphBounds.min) {
       issues.push(`zu wenige Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
+      if (readingPageMode) {
+        softIssues.push(`${chapterPrefix} / Leseseite hat wenige Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}) - Display-Hinweis, kein dramaturgischer Hard-Gate.`);
+      } else {
+        hardIssues.push(`${chapterPrefix} hat zu wenige Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
+      }
     } else if (paragraphs > paragraphBounds.max) {
       issues.push(`zu viele Absaetze (${paragraphs})`);
-      hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
+      if (readingPageMode) {
+        softIssues.push(`${chapterPrefix} / Leseseite hat viele Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}) - Display-Hinweis, kein dramaturgischer Hard-Gate.`);
+      } else {
+        hardIssues.push(`${chapterPrefix} hat zu viele Absaetze (${paragraphs}; Ziel ${paragraphBounds.min}-${paragraphBounds.max}).`);
+      }
     }
 
     const lastParagraph = chapter.content.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean).slice(-1)[0] || "";
-    if (index < story.chapters.length - 1 && !hasForwardPull(lastParagraph)) {
+    if (!readingPageMode && index < story.chapters.length - 1 && !hasForwardPull(lastParagraph)) {
       issues.push("Kapitelende hat wenig Weiterlese-Sog");
       softIssues.push(`${chapterPrefix} endet ohne klaren Pull zur naechsten Szene.`);
     }
 
     if (chapterDialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT) {
       issues.push(`wenig Dialog (${chapterDialogPct}%)`);
-      hardIssues.push(`${chapterPrefix} hat zu wenig Dialog (${chapterDialogPct}%; Minimum ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%).`);
+      if (readingPageMode) {
+        softIssues.push(`${chapterPrefix} / Leseseite hat wenig Dialog (${chapterDialogPct}%; Story-Gesamtanteil ist massgeblich).`);
+      } else {
+        hardIssues.push(`${chapterPrefix} hat zu wenig Dialog (${chapterDialogPct}%; Minimum ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}%).`);
+      }
     }
 
     // Grace margin: a single sentence overshooting by < 30 chars is a soft
@@ -7137,18 +7273,24 @@ function analyzeDevModeStoryQuality(
     polishInstructions.push(`Erhoehe den Dialoganteil sicher ueber ${DEV_MODE_MIN_DIALOG_PCT}% und peile beim Schreiben ${DEV_MODE_PROMPT_DIALOG_PCT}% an, indem Erklaerungen in charakterstarke Dialoge mit Handlung/Subtext umgebaut werden. Nicht durch Fuellsaetze aufblaehen.`);
   }
   if (hardIssues.concat(softIssues).some((issue) => /Laenge|lang|kurz|Absaetze/i.test(issue))) {
-    polishInstructions.push(`Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und ${paragraphBounds.min}-${paragraphBounds.max} Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
+    polishInstructions.push(readingPageMode
+      ? `Halte Leseseiten grob bei ${bounds.min}-${bounds.max} Zeichen und ${paragraphBounds.min}-${paragraphBounds.max} Absaetzen, aber nicht auf Kosten des durchgehenden Storyflusses.`
+      : `Bringe Kapitel naeher an ${bounds.min}-${bounds.max} Zeichen und ${paragraphBounds.min}-${paragraphBounds.max} Absaetze, ohne die Szenenhaftigkeit zu verlieren.`);
   }
   if (hardIssues.some((issue) => /zu langen Satz/i.test(issue))) {
     polishInstructions.push("Kuerze zu lange Saetze: aufteilen, Nebensaetze entfernen und kindnahe Hauptsaetze bevorzugen.");
   }
   if (softIssues.some((issue) => /Pull|Weiterlese/i.test(issue))) {
-    polishInstructions.push("Schaerfe jedes Nicht-Final-Kapitelende: letzter Absatz mit Frage, Gefahr, Entscheidung, komischem Nachhall oder neuem konkretem Detail.");
+    polishInstructions.push(readingPageMode
+      ? "Schaerfe den kontinuierlichen Lesesog zwischen Szenenbewegungen, ohne Leseseiten wie Kapitelenden klingen zu lassen."
+      : "Schaerfe jedes Nicht-Final-Kapitelende: letzter Absatz mit Frage, Gefahr, Entscheidung, komischem Nachhall oder neuem konkretem Detail.");
   }
-  polishInstructions.push("Staerke Lesesog und Wiedererkennung: ein Leitmotiv/Refrain/Objekt soll in mehreren Kapiteln wiederkommen und im Finale emotional oder plotrelevant auszahlen.");
+  polishInstructions.push(readingPageMode
+    ? "Staerke Lesesog und Wiedererkennung: ein Leitmotiv/Refrain/Objekt soll ueber die ganze Geschichte hinweg wiederkommen und im Finale emotional oder plotrelevant auszahlen."
+    : "Staerke Lesesog und Wiedererkennung: ein Leitmotiv/Refrain/Objekt soll in mehreren Kapiteln wiederkommen und im Finale emotional oder plotrelevant auszahlen.");
   polishInstructions.push("Fixe Namens-, Tipp- und Grammatikfehler. Keine neuen Figuren, keine neue Nebenhandlung, keine Meta-Erklaerung.");
 
-  const needsPolish = hardIssues.length > 0 || softIssues.length >= 3;
+  const needsPolish = hardIssues.length > 0 || (!readingPageMode && softIssues.length >= 3);
   return {
     needsPolish,
     hardIssueCount: hardIssues.length,
@@ -8312,10 +8454,10 @@ export async function generateStoryDevMode(
     }
     }
 
-    // ---- WHOLE-STORY-FIRST PIPELINE (v11) -------------------------------
-    // 1) Selected story model writes ONE continuous narrative as paragraphs[].
-    // 2) Support model splits the prose into display chapters with titles.
-    // On failure or invalid plan we fall back to a deterministic even split.
+    // ---- SCREENPLAY-FIRST / CONTINUOUS-STORY PIPELINE (v12) -------------
+    // The selected story model writes ONE continuous narrative. The server
+    // creates reading breaks for app display without asking another model to
+    // invent chapter titles or mini-endings.
     const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
     const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
     const wholeStoryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
@@ -8352,29 +8494,17 @@ export async function generateStoryDevMode(
       }
     }
 
-    // Splitter: cheap support-model call. Falls back to deterministic even
-    // split if the plan is malformed or has gaps/overlaps.
-    let parsedStoryDraft: DevModeRawStory;
-    try {
-      const splitterPrompts = buildStorySplitterPrompts(
-        wholeStoryDraft,
-        chapterCount,
-        localizedLanguageName(input.config.language)
-      );
-      const splitterStage = await runStage("story-splitter", splitterPrompts, {
-        maxTokens: 1400,
-        temperature: 0.2,
-        timeoutMs: 60_000,
-        ...supportCallOptions,
-        modelRole: "support",
-      });
-      parsedStoryDraft = applySplitterPlanToDraft(wholeStoryDraft, chapterCount, splitterStage.parsed);
-    } catch (splitterError) {
-      console.warn("[dev-mode-generation] Story splitter stage failed; using deterministic even split", {
-        error: splitterError instanceof Error ? splitterError.message : String(splitterError),
-      });
-      parsedStoryDraft = applySplitterPlanToDraft(wholeStoryDraft, chapterCount, undefined);
-    }
+    const parsedStoryDraft = applyReadingBreaksToDraft(
+      wholeStoryDraft,
+      chapterCount,
+      localizedLanguageName(input.config.language),
+      screenplayPlan
+    );
+    recordLocalStage("reading-breaks", {
+      displayMode: parsedStoryDraft.displayMode,
+      readingBreaks: parsedStoryDraft.readingBreaks,
+      balanceRatio: parsedStoryDraft.balanceRatio,
+    });
 
     const storyStage = wholeStoryStage;
     finalParsed = parsedStoryDraft;
@@ -8413,6 +8543,12 @@ export async function generateStoryDevMode(
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
       });
+      if (finalParsed?.displayMode === "reading_pages") {
+        console.log("[dev-mode-generation] skipping targeted chapter repair in reading-page mode; whole-story validation/polish handles story-level gates", {
+          strategy: routerDecision.strategy,
+        });
+        break;
+      }
       if (routerDecision.strategy === "metadata_sanitize" || routerDecision.strategy === "title_promise_micro_repair") {
         console.log("[dev-mode-generation] §9 skipping chapter-repair LLM call — deterministic remediation handles this", {
           strategy: routerDecision.strategy,
@@ -8699,6 +8835,7 @@ export async function generateStoryDevMode(
       const canUseLinePunchup = onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK;
       const validatorQualityRepairChapters =
         currentDiagnostics.hardIssueCount === 0
+        && currentParsed.displayMode !== "reading_pages"
         && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
         && validatorFindings
           ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
@@ -8926,7 +9063,10 @@ export async function generateStoryDevMode(
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
         });
-        const polishedParsed = parseAndValidate(storyPolishStage.provider.content, chapterCount);
+        const parsedPolishResult = parseAndValidate(storyPolishStage.provider.content, chapterCount);
+        const polishedParsed = currentParsed.displayMode === "reading_pages"
+          ? markStoryAsReadingPages(parsedPolishResult, currentParsed)
+          : parsedPolishResult;
         const polishedDiagnostics = analyzeDevModeStoryQuality(polishedParsed, input, chapterCount);
         const polishedSeverity = diagnosticsSeverityScore(polishedDiagnostics, chapterCount, input.config);
         const currentHardIssueKeys = new Set(currentDiagnostics.hardIssues.map((issue) => normalizeNoveltyText(issue)));
@@ -8979,7 +9119,7 @@ export async function generateStoryDevMode(
         // long sentences), run one more pass of chapter-repair on the worst
         // offenders. Was previously dialogue-only; widened to also rescue
         // length issues, which the full-story polish often fails to cut.
-        if (isChapterLocalHardFailure(finalDiagnostics)) {
+        if (finalParsed.displayMode !== "reading_pages" && isChapterLocalHardFailure(finalDiagnostics)) {
           const rescueChapters = selectPostPolishChapterRepairChapters(finalDiagnostics, input.config);
           if (rescueChapters.length > 0) {
             console.warn("[dev-mode-generation] Triggering post-polish targeted chapter rescue", {
@@ -9111,7 +9251,9 @@ export async function generateStoryDevMode(
         console.log("[dev-mode-generation] §8 orthography autofix applied", {
           fixes: [...new Set(orthoFixes)],
         });
-        finalParsed = { ...finalParsed, chapters: fixedChapters };
+        finalParsed = finalParsed.displayMode === "reading_pages"
+          ? markStoryAsReadingPages({ ...finalParsed, chapters: fixedChapters }, finalParsed)
+          : { ...finalParsed, chapters: fixedChapters };
       }
 
       if (sanitized.changed || orthoFixes.length > 0) {
@@ -9342,6 +9484,10 @@ export async function generateStoryDevMode(
       parsed: {
         title: parsed.title,
         description: parsed.description,
+        displayMode: parsed.displayMode,
+        storyTextChars: parsed.storyText?.length,
+        readingBreaks: parsed.readingBreaks,
+        displayPageCount: parsed.displayMode === "reading_pages" ? parsed.chapters.length : undefined,
         chapterCount: parsed.chapters.length,
         chapters: parsed.chapters.map((c) => ({
           order: c.order,
@@ -9369,7 +9515,7 @@ export async function generateStoryDevMode(
 
   const sortedParsedChapters = parsed.chapters.slice().sort((a, b) => a.order - b.order);
 
-  // Image generation (cover + per-chapter). Best-effort: a story without
+  // Image generation (cover + per-reading-page). Best-effort: a story without
   // images still ships. Token usage is folded into the running total so the
   // returned metadata stays accurate.
   let devModeImages: {
@@ -9429,7 +9575,9 @@ export async function generateStoryDevMode(
         wonderRule: input.selectedIdea?.wonderRule || "",
         emotionalEngine: input.selectedIdea?.emotionalEngine || "",
         coreConflict: input.selectedIdea?.coreConflict || "",
-      }, chapters.map((c) => c.title));
+      }, (parsed.readingBreaks || []).map((br) => br.imagePromptScene).filter(Boolean).length > 0
+        ? (parsed.readingBreaks || []).map((br) => br.imagePromptScene).filter(Boolean)
+        : chapters.map((c) => c.title));
       await recordStoryMotif(fingerprint, input.userId, DEV_MODE_PIPELINE_ID);
     } catch (err) {
       console.warn("[dev-mode-generation] §3 recordStoryMotif failed (non-fatal):", err instanceof Error ? err.message : String(err));
@@ -9440,6 +9588,9 @@ export async function generateStoryDevMode(
     title: parsed.title,
     description: parsed.description || parsed.title,
     coverImageUrl: devModeImages.coverImageUrl,
+    storyText: parsed.storyText,
+    readingBreaks: parsed.readingBreaks,
+    displayMode: parsed.displayMode,
     chapters,
     avatarDevelopments: [],
     metadata: {
@@ -9455,6 +9606,9 @@ export async function generateStoryDevMode(
       imagesGenerated: devModeImages.imagesGenerated,
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,
+      displayMode: parsed.displayMode,
+      readingBreaks: parsed.readingBreaks,
+      storyText: parsed.storyText,
       storyPolishApplied,
       chapterRepairApplied,
       localQualityDiagnostics: finalDiagnostics,
