@@ -184,12 +184,36 @@ jobs:
 
       - name: Push Docker images
         run: |
+          set -u
           BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
-          docker push ghcr.io/${{ github.repository }}:${BRANCH_NAME}
-          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+          # Retry wrapper: ghcr.io occasionally returns "context deadline
+          # exceeded" on the manifest PUT even when all layers are already
+          # uploaded. Retrying the same push picks up the cached layers and
+          # only re-attempts the manifest, which usually succeeds quickly.
+          push_with_retry() {
+            local ref="$1"
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              echo "::group::docker push $ref (attempt $attempt/5)"
+              if docker push "$ref"; then
+                echo "::endgroup::"
+                echo "✅ pushed $ref"
+                return 0
+              fi
+              echo "::endgroup::"
+              echo "⚠️  push failed for $ref (attempt $attempt). Sleeping before retry..."
+              sleep $((attempt * 10))
+            done
+            echo "❌ docker push $ref failed after 5 attempts."
+            return 1
+          }
+
+          push_with_retry "ghcr.io/${{ github.repository }}:${BRANCH_NAME}"
+          push_with_retry "ghcr.io/${{ github.repository }}:${{ github.sha }}"
           # Only push 'latest' if on main branch
           if [ "${{ github.ref_name }}" = "main" ]; then
-            docker push ghcr.io/${{ github.repository }}:latest
+            push_with_retry "ghcr.io/${{ github.repository }}:latest"
           fi
 
       - name: Set up Node for Railway trigger
