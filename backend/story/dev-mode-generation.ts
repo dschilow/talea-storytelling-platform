@@ -4795,16 +4795,81 @@ interface DevModeWholeStoryDraft {
   paragraphs: string[];
 }
 
+function extractProseFallback(
+  content: string
+): { title: string; description: string; paragraphs: string[]; titleSource: "field" | "first-paragraph" | "synthetic" } | null {
+  if (!content) return null;
+  let body = String(content).trim();
+  if (!body) return null;
+  if (body.startsWith("```")) {
+    body = body.replace(/^```(?:json|markdown|md|text)?\s*/i, "").replace(/```\s*$/, "").trim();
+  }
+  body = body.replace(/^﻿/, "").trim();
+  if (!body) return null;
+  let title = "";
+  let titleSource: "field" | "first-paragraph" | "synthetic" = "synthetic";
+  const titleFieldMatch = body.match(/(?:^|\n)\s*(?:"?title"?|titel)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
+  if (titleFieldMatch) {
+    title = titleFieldMatch[1].trim();
+    titleSource = "field";
+    body = body.replace(titleFieldMatch[0], "\n").trim();
+  }
+  let description = "";
+  const descFieldMatch = body.match(/(?:^|\n)\s*(?:"?description"?|beschreibung)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
+  if (descFieldMatch) {
+    description = descFieldMatch[1].trim();
+    body = body.replace(descFieldMatch[0], "\n").trim();
+  }
+  body = body.replace(/^\s*[\[\]{},]+\s*$/gm, "").trim();
+  const rawParagraphs = splitParagraphs(body)
+    .map((p) =>
+      p
+        .replace(/^[\s>*\-•]+/, "")
+        .replace(/^(?:kapitel|chapter)\s*\d+[.:\s\-–—]*/i, "")
+        .trim()
+    )
+    .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p));
+  if (rawParagraphs.length === 0) return null;
+  if (!title) {
+    const firstParagraph = rawParagraphs[0];
+    if (firstParagraph && firstParagraph.length <= 90 && !/[.!?]/.test(firstParagraph)) {
+      title = firstParagraph;
+      titleSource = "first-paragraph";
+      rawParagraphs.shift();
+    }
+  }
+  if (rawParagraphs.length === 0) return null;
+  if (!title) {
+    const sentenceMatch = rawParagraphs[0].match(/^(.{6,80}?[.!?])/);
+    title = sentenceMatch ? sentenceMatch[1].replace(/[.!?]+$/, "").trim() : rawParagraphs[0].slice(0, 60).trim();
+    titleSource = "synthetic";
+  }
+  return { title, description, paragraphs: rawParagraphs, titleSource };
+}
+
 function parseWholeStoryDraft(content: string): DevModeWholeStoryDraft {
   let parsed: any;
+  let parseError: unknown = null;
   try {
     parsed = tryParseJson(content);
   } catch (err) {
-    throw new Error(
-      `Whole-story draft returned unparseable JSON: ${err instanceof Error ? err.message : String(err)}`
-    );
+    parseError = err;
   }
   if (!parsed || typeof parsed !== "object") {
+    const prose = extractProseFallback(content);
+    if (prose) {
+      console.warn("[dev-mode-generation] Whole-story draft was prose, not JSON; recovering as prose fallback", {
+        paragraphCount: prose.paragraphs.length,
+        titleSource: prose.titleSource,
+        parseError: parseError instanceof Error ? parseError.message : parseError ? String(parseError) : undefined,
+      });
+      return { title: prose.title, description: prose.description, paragraphs: prose.paragraphs };
+    }
+    if (parseError) {
+      throw new Error(
+        `Whole-story draft returned unparseable JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+      );
+    }
     throw new Error("Whole-story draft returned malformed JSON.");
   }
   const title = String(parsed.title || "").trim();
