@@ -8129,8 +8129,59 @@ export async function generateStoryDevMode(
         potentialFailureSummaries.push(...potentialFilter.candidateAudits.map(auditSummaryLine));
       }
 
+      // Soft-fail (v11 §4 update): if after MAX_IDEA_ROUNDS no candidate
+      // cleared the 9.0 gate, pick the BEST-AUDIT candidate instead of
+      // throwing. The user expects a story; a slightly-under-threshold idea
+      // is better than a hard 500. Annotate it so downstream knows the
+      // strict gate was bypassed.
+      //
+      // We reuse the LAST filter audits from the loop above so we do not
+      // burn another LLM call here. If audits are empty (LLM returned
+      // garbage), fall back to local auditCandidate9Potential ranking.
+      if (!selectedIdea && ideaCandidates.length > 0) {
+        let bestCandidate: DevModeIdeaCandidate | undefined;
+        let bestAuditLine = "(no audit available)";
+
+        const lastAudits = screenplayPlan?.potentialFilter?.candidateAudits || [];
+        if (lastAudits.length > 0) {
+          const rankedAudits = lastAudits
+            .slice()
+            .sort((a, b) => potentialAuditScore(b.scores) - potentialAuditScore(a.scores));
+          const bestAudit = rankedAudits[0];
+          bestCandidate = ideaCandidates.find((c) => c.id === bestAudit.id);
+          if (bestAudit) bestAuditLine = auditSummaryLine(bestAudit);
+        }
+
+        if (!bestCandidate) {
+          // No usable audits — rank purely on local heuristic.
+          const localRanked = ideaCandidates
+            .map((c) => ({
+              c,
+              score: potentialAuditScore(
+                auditCandidate9Potential(c, auditIdeaCandidateNovelty(c, input).closestRecentOverlap),
+              ),
+            }))
+            .sort((a, b) => b.score - a.score);
+          bestCandidate = localRanked[0]?.c;
+          bestAuditLine = "local-heuristic fallback";
+        }
+
+        if (bestCandidate) {
+          console.warn("[dev-mode-generation] §4 soft-fail: no candidate passed 9.0 gate after 2 rounds; using best-audit fallback", {
+            chosen: bestCandidate.title,
+            bestAudit: bestAuditLine,
+            allFailures: potentialFailureSummaries.slice(0, 6),
+          });
+          selectedIdea = {
+            ...bestCandidate,
+            chosenReason: `§4 soft-fail: best of ${ideaCandidates.length} candidates after 2 strict rounds. ${bestAuditLine}`,
+            selectedSupportingCast: resolvePoolNames(bestCandidate.recommendedSupportingCast, input.poolCharacters),
+          };
+        }
+      }
+
       if (!selectedIdea) {
-        throw new Error(`No 9.0-potential idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+        throw new Error(`No 9.0-potential idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
       }
 
       if (!selectedIdea) {
