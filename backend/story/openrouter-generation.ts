@@ -17,6 +17,7 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "minimax/minimax-m2.7": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
   "x-ai/grok-4.3": { inputCostPer1M: 1.25, outputCostPer1M: 2.5 },
   "openrouter/owl-alpha": { inputCostPer1M: 0, outputCostPer1M: 0 },
+  "google/gemini-3.5-flash": { inputCostPer1M: 1.5, outputCostPer1M: 9.0 },
   "google/gemini-3.1-flash-lite": { inputCostPer1M: 0.25, outputCostPer1M: 1.5 },
   "google/gemini-3.1-flash-lite-preview": { inputCostPer1M: 0.25, outputCostPer1M: 1.5 },
   "~google/gemini-pro-latest": { inputCostPer1M: 2.0, outputCostPer1M: 12.0 },

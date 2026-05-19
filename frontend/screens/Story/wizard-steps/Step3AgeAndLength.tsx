@@ -62,6 +62,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
   { id: 'x-ai/grok-4.3', title: 'Grok 4.3', provider: 'xAI', cost: '$1.25 in / $2.50 out' },
   { id: 'openrouter/owl-alpha', title: 'Owl Alpha', provider: 'OpenRouter', cost: 'FREE' },
+  { id: 'google/gemini-3.5-flash', title: 'Gemini 3.5 Flash', provider: 'Google', cost: '$1.50 in / $9 out' },
   { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },
   { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$0.50 in / $3 out' },
   { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest', provider: 'Anthropic', cost: '$3 in / $15 out' },

@@ -17,6 +17,7 @@ export type OpenRouterStoryModel =
   | 'minimax/minimax-m2.7'
   | 'x-ai/grok-4.3'
   | 'openrouter/owl-alpha'
+  | 'google/gemini-3.5-flash'
   | '~google/gemini-pro-latest'
   | '~google/gemini-flash-latest'
   | '~anthropic/claude-sonnet-latest'

@@ -172,6 +172,7 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     { key: 'minimax/minimax-m2.7', label: 'MiniMax M2.7', description: 'MiniMax - $0.30 in / $1.20 out' },
     { key: 'x-ai/grok-4.3', label: 'Grok 4.3', description: 'xAI - $1.25 in / $2.50 out' },
     { key: 'openrouter/owl-alpha', label: 'Owl Alpha', description: 'OpenRouter - Free' },
+    { key: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Google - $1.50 in / $9 out' },
     { key: '~google/gemini-pro-latest', label: 'Gemini Pro Latest', description: 'Google - $2 in / $12 out' },
     { key: '~google/gemini-flash-latest', label: 'Gemini Flash Latest', description: 'Google - $0.50 in / $3 out' },
     { key: '~anthropic/claude-sonnet-latest', label: 'Claude Sonnet Latest', description: 'Anthropic - $3 in / $15 out' },
