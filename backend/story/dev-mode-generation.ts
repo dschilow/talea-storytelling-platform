@@ -388,6 +388,16 @@ const NOVELTY_STOPWORDS = new Set([
   "abenteuer", "bruder", "schwester", "familie", "freund", "freunde",
   "zauber", "magie", "fantasie", "geheimnis", "geheimnisse", "wunder", "ploetzlich", "plötzlich",
   "geschichte", "kapitel", "kinder", "jungen", "maedchen", "mädchen", "junge",
+  // Generic descriptive adjectives — these appear in nearly every blurb and
+  // should never count as a "motif" that blocks a future story.
+  "lustig", "lustige", "lustigen", "lustiges", "lustiger", "lustigem",
+  "spannend", "spannende", "spannenden", "spannendes", "spannender", "spannendem",
+  "wundervoll", "wundervolle", "wundervollen", "wundervolles", "wundervoller",
+  "schoen", "schön", "schoene", "schöne", "schoenen", "schönen", "schoenes", "schönes",
+  "warm", "warme", "warmen", "warmes", "warmer", "warmem",
+  "froehlich", "fröhlich", "froehliche", "fröhliche", "froehlichen", "fröhlichen",
+  "magisch", "magische", "magischen", "magisches", "magischer",
+  "geheimnisvoll", "geheimnisvolle", "geheimnisvollen", "geheimnisvolles",
   // English stopwords
   "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
 ]);
@@ -5537,8 +5547,14 @@ function analyzeDevModeStoryQuality(
     // the prose never redeems it, the book misleads the child reader. Polish
     // must either weave the missing words in or sharpen the title.
     hardIssues.push(titleIssue);
+    // Extract the missing words from the issue string so the polish prompt
+    // can reference them by name.
+    const missingMatch = titleIssue.match(/\(([^)]+)\)/);
+    const missingWords = missingMatch ? missingMatch[1] : "";
     polishInstructions.push(
-      "Loese das Titel-Versprechen ein: arbeite die zentralen Titel-Begriffe spuerbar in mindestens ein Kapitel ein (gerne als Refrain oder Reim), oder schaerfe den Titel beim Polish so, dass er zum Storyinhalt passt."
+      missingWords
+        ? `Titel-Vertrag einloesen: Die Titel-Kernwoerter (${missingWords}) MUESSEN im Prosatext erscheinen \u2014 entweder wortgetreu in mindestens einem Satz/Dialog (z. B. \"... ist verschwunden\") ODER kuerze den Titel beim Polish so, dass er zum vorhandenen Text passt. Beides ist erlaubt, eins ist Pflicht.`
+        : "Loese das Titel-Versprechen ein: arbeite die zentralen Titel-Begriffe spuerbar in mindestens ein Kapitel ein (gerne als Refrain oder Reim), oder schaerfe den Titel beim Polish so, dass er zum Storyinhalt passt."
     );
   }
   for (const vocabIssue of collectAgeVocabularyIssues(story, input)) {
@@ -7252,6 +7268,76 @@ export async function generateStoryDevMode(
           error: storyPolishError instanceof Error ? storyPolishError.message : String(storyPolishError),
         });
         break;
+      }
+    }
+
+    // Deterministic last-mile remediation after the creative passes have run.
+    // The polish stage occasionally refuses to fix two specific hard issues:
+    //  1. Forbidden / "lustige"-style adjectives in the AI-generated description.
+    //  2. Title key words that the prose never picks up.
+    // For these we apply a SAFE mechanical fix (strip the offending word from
+    // the description, or trim the unredeemed adjective from the title), then
+    // re-run diagnostics. We never touch chapter content here.
+    if (finalParsed && finalDiagnostics && finalDiagnostics.hardIssueCount > 0) {
+      let remediated = false;
+      const brief = input.noveltyBrief;
+      if (brief && finalParsed.description) {
+        const normalizedDesc = normalizeNoveltyText(finalParsed.description);
+        const allChapterContent = finalParsed.chapters.map((c) => `${c.title}\n${c.content}`).join("\n");
+        const normalizedBody = normalizeNoveltyText(allChapterContent);
+        for (const motif of brief.hardAvoidMotifs) {
+          const normalizedMotif = normalizeNoveltyText(motif);
+          if (normalizedMotif.length < 4 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+          if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
+          // Only strip from description if the motif is NOT a load-bearing
+          // story element (i.e. not also in the chapter body / chapter titles).
+          const inDescription = noveltyMotifMatches(normalizedDesc, normalizedMotif);
+          const inBody = noveltyMotifMatches(normalizedBody, normalizedMotif);
+          if (inDescription && !inBody) {
+            const stripRegex = new RegExp(`,?\\s*\\b${motif.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\w{0,4}\\b`, "gi");
+            const cleaned = finalParsed.description.replace(stripRegex, "").replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/\s{2,}/g, " ").trim();
+            if (cleaned && cleaned.length >= 10 && cleaned !== finalParsed.description) {
+              console.log("[dev-mode-generation] Deterministic description scrub", { motif, before: finalParsed.description, after: cleaned });
+              finalParsed = { ...finalParsed, description: cleaned };
+              remediated = true;
+            }
+          }
+        }
+      }
+      const titleIssue = finalDiagnostics.hardIssues.find((issue) => issue.startsWith("Titel-Versprechen unerfuellt"));
+      if (titleIssue && finalParsed.title) {
+        const missingMatch = titleIssue.match(/\(([^)]+)\)/);
+        const missing = missingMatch ? missingMatch[1].split(",").map((w) => w.trim()).filter(Boolean) : [];
+        let trimmedTitle = finalParsed.title;
+        for (const word of missing) {
+          // Trim the missing adjective (and any trailing/leading whitespace and
+          // remaining hyphens) from the title. We only trim words 5+ chars to
+          // avoid mangling short connective words.
+          if (word.length < 5) continue;
+          const safe = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const re = new RegExp(`\\b${safe}\\w{0,4}\\b\\s*-?\\s*`, "gi");
+          trimmedTitle = trimmedTitle.replace(re, "").replace(/\s{2,}/g, " ").replace(/\s+-\s+/g, " - ").trim();
+        }
+        // Cleanup leading article remnants like "Der " followed by nothing.
+        trimmedTitle = trimmedTitle.replace(/^(Der|Die|Das|Ein|Eine)\s+$/i, "").trim();
+        if (trimmedTitle && trimmedTitle.length >= 4 && trimmedTitle !== finalParsed.title) {
+          console.log("[dev-mode-generation] Deterministic title trim", { before: finalParsed.title, after: trimmedTitle, missing });
+          finalParsed = { ...finalParsed, title: trimmedTitle };
+          remediated = true;
+        }
+      }
+      if (remediated) {
+        finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        localGateScore = calculateLocalGateScore(finalDiagnostics);
+        // Re-apply hard caps against the LAST validator score so the release
+        // score reflects the cleaned story rather than 0.
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+        console.log("[dev-mode-generation] Diagnostics re-evaluated after remediation", {
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          softIssueCount: finalDiagnostics.softIssueCount,
+          localGateScore,
+          finalQualityScore,
+        });
       }
     }
 
