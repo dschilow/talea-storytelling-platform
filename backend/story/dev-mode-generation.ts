@@ -4217,6 +4217,27 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   return issues;
 }
 
+function isNegated(text: string, word: string): boolean {
+  const negators = /\b(nicht|kein|keine|keinen|keines|keineswegs|nie|kaum|alles andere als|not|never|no|hardly|scarcely|barely)\b/i;
+  const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+  
+  const match = text.match(wordRegex);
+  if (!match) return false;
+  
+  const wordIndex = match.index ?? 0;
+  const prefix = text.substring(0, wordIndex);
+  
+  const lastNegatorMatch = [...prefix.matchAll(new RegExp(negators, 'gi'))].pop();
+  if (lastNegatorMatch) {
+    const negatorIndex = lastNegatorMatch.index ?? 0;
+    const distance = wordIndex - (negatorIndex + lastNegatorMatch[0].length);
+    if (distance < 30) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function validateSceneCards(sceneCards: any[]): string[] {
   const issues: string[] = [];
   if (sceneCards.length !== DEV_MODE_SCENE_CARD_COUNT) {
@@ -4235,8 +4256,43 @@ function validateSceneCards(sceneCards: any[]): string[] {
     if (!Array.isArray(card?.dialogueBeats) || card.dialogueBeats.length < 3) {
       issues.push(`scene ${n} has fewer than 3 dialogue beats`);
     }
-    if (index < sceneCards.length - 1 && /(calm|peaceful|ruhig|alles gut|closed|resolved|fertig)/i.test(String(card?.endPull || ""))) {
-      issues.push(`scene ${n} endPull is too closed`);
+    if (index < sceneCards.length - 1) {
+      const endPullVal = String(card?.endPull || "").trim().toLowerCase();
+      let isTooClosed = false;
+      
+      // 1. English exact words (calm, peaceful, closed, resolved)
+      if (/\b(calm|peaceful|closed|resolved)\b/i.test(endPullVal)) {
+        if (!["calm", "peaceful", "closed", "resolved"].some(w => isNegated(endPullVal, w))) {
+          isTooClosed = true;
+        }
+      }
+      // 2. German "alles gut" or "gelöst"
+      if (!isTooClosed && /\b(alles gut|gelöst)\b/i.test(endPullVal)) {
+        if (!["alles gut", "gelöst"].some(w => isNegated(endPullVal, w))) {
+          isTooClosed = true;
+        }
+      }
+      // 3. German "ruhig"
+      if (!isTooClosed && /\bruhig\b/i.test(endPullVal)) {
+        if (!/\bunruhig\b/i.test(endPullVal) && !isNegated(endPullVal, "ruhig")) {
+          isTooClosed = true;
+        }
+      }
+      // 4. German "fertig"
+      if (!isTooClosed && /\bfertig\b/i.test(endPullVal)) {
+        const isExcludedFertig = 
+          /\bunfertig\b/i.test(endPullVal) ||
+          /\bfertig\s+(für|zum|mit\s+den\s+nerven)\b/i.test(endPullVal) ||
+          /\bmach(e|t|en|te|ten)?\s+fertig\b/i.test(endPullVal) ||
+          isNegated(endPullVal, "fertig");
+        if (!isExcludedFertig) {
+          isTooClosed = true;
+        }
+      }
+      
+      if (isTooClosed) {
+        issues.push(`scene ${n} endPull is too closed`);
+      }
     }
     if (/(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(String(card?.helperAction || ""))) {
       issues.push(`scene ${n} helperAction explains the solution`);
