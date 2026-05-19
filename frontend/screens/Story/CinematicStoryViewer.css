@@ -206,23 +206,29 @@
 .sr-chapter-image-wrap {
   position: relative;
   width: 100%;
+  /* Chapter images are rendered as 1024x1024 squares by Runware. Show them
+     square and centred so we never crop characters or text out of frame. */
+  max-width: 720px;
+  margin: 0 auto;
   border-radius: 16px;
   overflow: hidden;
-  aspect-ratio: 21 / 9;
+  aspect-ratio: 1 / 1;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: rgba(8, 6, 4, 0.35);
 }
 
 @media (max-width: 640px) {
   .sr-chapter-image-wrap {
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 1 / 1;
     border-radius: 12px;
+    max-width: 100%;
   }
 }
 
 .sr-chapter-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 1.2s var(--sr-ease-elegant);
 }
 
