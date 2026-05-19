@@ -1450,6 +1450,8 @@ async function generateDevModeImages(
     "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
     "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
     "- Do NOT mention TTS markers, brackets, or technical instructions.",
+    "- Do NOT reference any named living artist or studio (forbidden: Axel Scheffler, Quentin Blake, Studio Ghibli, Pixar, Disney, etc.). Describe style with neutral terms only.",
+    "- Composition constraint: state how many human children are on-stage in each scene; never imply extra background children. Each named avatar appears EXACTLY once per image.",
   ].join("\n");
 
   let parsedPrompts: { cover?: string; chapters?: Array<{ order?: number; prompt?: string }> } | null = null;
@@ -1487,6 +1489,29 @@ async function generateDevModeImages(
     return true;
   };
 
+  // Strip forbidden style references from any image prompt (whether produced
+  // by the director, the refill, or the fallback). Pattern includes any "in
+  // the style of …" / "X style" phrase and a curated denylist of named
+  // illustrators/studios that Runware would otherwise mimic too closely.
+  const sanitizeImagePrompt = (s: string): string => {
+    let out = String(s || "");
+    const forbiddenNames = [
+      "axel scheffler", "quentin blake", "studio ghibli", "ghibli", "pixar", "disney",
+      "dreamworks", "tim burton", "miyazaki", "beatrix potter", "eric carle",
+      "maurice sendak", "oliver jeffers", "chris van allsburg", "jon klassen",
+    ];
+    for (const name of forbiddenNames) {
+      const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b[^,.]*`, "ig");
+      out = out.replace(re, "");
+    }
+    // Generic "in the style of X" / "X style" stripping.
+    out = out.replace(/,?\s*in the style of [^,.]+/ig, "");
+    out = out.replace(/,?\s*[A-Z][a-z]+ [A-Z][a-z]+ (?:watercolor|illustration|storybook) style/g, "");
+    // Cleanup leftover punctuation/space.
+    out = out.replace(/\s+,/g, ",").replace(/,\s*,/g, ",").replace(/\s{2,}/g, " ").trim();
+    return out;
+  };
+
   const needsCoverRefill = !parsedPrompts?.cover || !looksLikeEnglishPrompt(String(parsedPrompts.cover));
   const missingChapters: Array<{ order: number; title: string; content: string }> = [];
   for (const ch of parsedChapters) {
@@ -1498,7 +1523,7 @@ async function generateDevModeImages(
 
   if (needsCoverRefill || missingChapters.length > 0) {
     console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, chapters=${missingChapters.map(c => c.order).join(",")}`);
-    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no text in image.";
+    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage child count explicitly; no extra background children.";
     const refillCommon = [
       `Story title: ${parsedTitle}`,
       `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
@@ -1569,7 +1594,13 @@ async function generateDevModeImages(
     }
   }
 
-  const styleSuffix = ", Axel Scheffler watercolor storybook style, bright colors, soft outlines, child-friendly illustration, single cohesive scene, no text in image, no captions, no letters";
+  // Style suffix: deliberately NOT referencing any named living artist. Runware
+  // ip-adapter handles identity via the collage reference, so we describe style
+  // generically and append hard constraints against text, extra characters, and
+  // duplicate avatars. These constraints are the most reliable in-prompt lever
+  // against the visual-QA failures we observed (text/labels, ghost children,
+  // duplicate avatars, identity drift).
+  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characters, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, no text, no captions, no speech bubbles, no letters, no signs, no labels, no logos, no extra background children, no duplicate characters, no adults unless required by the scene";
 
   // -----------------------------------------------------------------------
   // 4) Render via Runware. Prefer the resolved collage URL as the single
@@ -1623,7 +1654,12 @@ async function generateDevModeImages(
 
   const imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
     try {
-      const fullPrompt = `${job.prompt}${styleSuffix}`;
+      // Local image-prompt sanitizer: strip any named living artist/studio the
+      // model still slipped in, plus any "in the style of X" pattern. This is
+      // a deterministic guardrail so Runware never receives forbidden style
+      // references even if the director model misbehaves.
+      const sanitizedPrompt = sanitizeImagePrompt(job.prompt);
+      const fullPrompt = `${sanitizedPrompt}${styleSuffix}`;
       const img = await ai.generateImage({
         prompt: fullPrompt,
         width: 1024,
@@ -5354,6 +5390,71 @@ function buildWordStemRegex(word: string): RegExp {
   return new RegExp(`\\b${stem}\\w{0,5}\\b`, "i");
 }
 
+// German synonym clusters for common title adjectives/verbs. The title gate
+// requires that the *concept* surfaces in the story body — not necessarily
+// the exact word. Without this, "Der verschwundene Socken" hard-fails even
+// though the body says "der Socken war weg / fehlte / niemand fand ihn".
+// Map keys are normalized (lowercase, base form prefix); values are stems
+// (5 chars max) that we test with buildWordStemRegex.
+const TITLE_PROMISE_SYNONYMS_DE: Record<string, string[]> = {
+  "verschw": ["verschw", "weg", "fehlt", "vermis", "verlor", "spurl", "wohin", "nicht da", "fort"],
+  "fehlen": ["fehlt", "verschw", "weg", "vermis", "verlor"],
+  "verlor": ["verlor", "weg", "fehlt", "verschw", "spurl"],
+  "vermis": ["vermis", "fehlt", "weg", "verschw"],
+  "gehei": ["gehei", "raets", "ratse", "mysti", "ratsel"],
+  "raets": ["raets", "ratse", "ratsel", "gehei", "myste"],
+  "magisc": ["magis", "zaube", "wunde", "verzau"],
+  "zaube": ["zaube", "magis", "wunde", "verzau"],
+  "munte": ["munte", "frohli", "lust", "lebha", "vergn"],
+  "wunder": ["wunde", "magis", "zaube", "stau"],
+  "spannen": ["spann", "aufre", "abent", "erleb"],
+  "luste": ["lust", "frohl", "vergn", "kichi", "munte"],
+  "frohli": ["frohl", "lust", "vergn", "munte"],
+  "tapfe": ["tapfe", "mutig", "trau", "mut "],
+  "mutig": ["mutig", "tapfe", "trau", "mut "],
+  "neugi": ["neugi", "wunde", "forsc", "frage"],
+  "kluge": ["klug", "schl", "weis", "klau"],
+  "schla": ["schla", "klug", "weis", "klau"],
+  "stille": ["still", "leis", "ruhi", "lautl"],
+  "leise": ["leis", "still", "lautl", "ruhi"],
+  "laute": ["laut", "krac", "donne", "geras"],
+  "muede": ["muede", "schlaf", "matte", "ersch"],
+};
+
+function expandTitleWordToStems(word: string): string[] {
+  const normalized = word.toLowerCase();
+  const stems: string[] = [normalized.slice(0, Math.min(normalized.length, 6))];
+  // Find the longest matching cluster key that is a prefix of the word.
+  let bestKey: string | null = null;
+  for (const key of Object.keys(TITLE_PROMISE_SYNONYMS_DE)) {
+    if (normalized.startsWith(key) && (bestKey === null || key.length > bestKey.length)) {
+      bestKey = key;
+    }
+  }
+  if (bestKey) {
+    for (const syn of TITLE_PROMISE_SYNONYMS_DE[bestKey]) {
+      stems.push(syn);
+    }
+  }
+  return stems;
+}
+
+function titleWordSatisfiedByBody(word: string, body: string): boolean {
+  const stems = expandTitleWordToStems(word);
+  for (const stem of stems) {
+    const safe = stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
+    if (!safe) continue;
+    // Multi-word stems (e.g. "nicht da") use literal search.
+    if (safe.includes(" ")) {
+      if (body.toLowerCase().includes(safe)) return true;
+      continue;
+    }
+    const re = new RegExp(`\\b${safe}\\w{0,5}\\b`, "i");
+    if (re.test(body)) return true;
+  }
+  return false;
+}
+
 function collectTitlePromiseIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
   const titleWords = extractTitleContentWords(story.title || "");
   if (titleWords.length === 0) return [];
@@ -5365,7 +5466,10 @@ function collectTitlePromiseIssues(story: DevModeRawStory, input: DevModeGenerat
       (avatar) => avatar.name && avatar.name.toLowerCase().includes(word.slice(0, 4))
     );
     if (characterNameMatch) return false;
-    return !buildWordStemRegex(word).test(body);
+    // Semantic check: word counts as fulfilled if its stem OR any of its
+    // German synonym-cluster stems appear in the body. Falls back to the
+    // legacy strict stem regex if no cluster matches.
+    return !titleWordSatisfiedByBody(word, body);
   });
   if (missing.length === 0) return [];
   // Limit to a single soft issue so we don't flood diagnostics.
@@ -5759,6 +5863,80 @@ function releaseDimensionFailures(validatorFindings: any): string[] {
     .map(([name, score]) => `${name} ${score} is below ${DEV_MODE_MIN_RELEASE_DIMENSION_SCORE}.`);
 }
 
+// --- RepairRouter (v11 Section E, light) -------------------------------
+// Classifies the deterministic diagnostics into the cheapest repair strategy
+// that could plausibly fix the remaining hard/soft gates. The router itself
+// is a pure function so it can be unit-tested independently; the orchestrator
+// logs its decision today and will fully consume it once the per-strategy
+// prompt templates land (Phase 2).
+export type DevModeRepairStrategy =
+  | "none"
+  | "metadata_sanitize"               // description-only / title-only adjective
+  | "title_promise_micro_repair"      // title concept missing in body
+  | "whole_story_compression_repair"  // multiple over-length chapters
+  | "whole_story_pull_repair"         // weak weiterlese-pull on multiple chapters
+  | "whole_story_dialog_rebalance"    // dialogPct under floor across story
+  | "targeted_chapter_repair_with_context" // exactly one chapter has hard issues
+  | "whole_story_repair";             // catch-all
+
+export function chooseRepairStrategy(
+  diagnostics: DevModeStoryDiagnostics | undefined,
+  opts?: { totalWordsOverMax?: boolean }
+): { strategy: DevModeRepairStrategy; reason: string } {
+  if (!diagnostics) return { strategy: "none", reason: "no diagnostics" };
+  const hard = diagnostics.hardIssues || [];
+  const soft = diagnostics.softIssues || [];
+  if (hard.length === 0 && soft.length === 0) {
+    return { strategy: "none", reason: "all gates clean" };
+  }
+
+  const hardIsDescriptionOnly = hard.length === 1
+    && /Verbotenes|Novelty|Wiederholungs/i.test(hard[0])
+    && !hard.some((h) => /Kapitel|chapter|dialog|Absaetze|Laenge|Lange/i.test(h));
+  const hardIsTitleOnly = hard.length === 1
+    && /Titel-Versprechen unerfuellt/i.test(hard[0]);
+  if (hardIsDescriptionOnly) {
+    return { strategy: "metadata_sanitize", reason: "only novelty/forbidden motif in description" };
+  }
+  if (hardIsTitleOnly) {
+    return { strategy: "title_promise_micro_repair", reason: "only title-promise unresolved" };
+  }
+
+  const tooLongChapters = diagnostics.chapterDiagnostics.filter(
+    (c) => c.issues.some((i) => /deutlich zu lang|zu lang/i.test(i))
+  ).length;
+  const tooShortChapters = diagnostics.chapterDiagnostics.filter(
+    (c) => c.issues.some((i) => /deutlich zu kurz|zu kurz/i.test(i))
+  ).length;
+  if (opts?.totalWordsOverMax || tooLongChapters >= 2) {
+    return { strategy: "whole_story_compression_repair", reason: `over-length: chapters=${tooLongChapters}, storyOverMax=${!!opts?.totalWordsOverMax}` };
+  }
+
+  const lowDialogChapters = diagnostics.chapterDiagnostics.filter(
+    (c) => c.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT
+  ).length;
+  if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT || lowDialogChapters >= 2) {
+    return { strategy: "whole_story_dialog_rebalance", reason: `dialogPct=${diagnostics.dialogPct}, lowChapters=${lowDialogChapters}` };
+  }
+
+  const weakPullCount = soft.filter((s) =>
+    /wenig Weiterlese-Sog|schwacher Pull|ohne klaren Pull|Kapitelende ohne Sog/i.test(s)
+  ).length;
+  if (weakPullCount >= 2) {
+    return { strategy: "whole_story_pull_repair", reason: `weakPullCount=${weakPullCount}` };
+  }
+
+  const hardFailChapters = diagnostics.chapterDiagnostics.filter((c) => c.issues.length > 0).length;
+  if (hardFailChapters === 1) {
+    return { strategy: "targeted_chapter_repair_with_context", reason: "single chapter with hard issues" };
+  }
+
+  return {
+    strategy: "whole_story_repair",
+    reason: `fallback: hard=${hard.length}, soft=${soft.length}, badChapters=${hardFailChapters}, tooLong=${tooLongChapters}, tooShort=${tooShortChapters}`,
+  };
+}
+
 function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number | undefined {
   if (!diagnostics) return undefined;
 
@@ -5789,8 +5967,12 @@ function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryD
   if (diagnostics) {
     if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) score = Math.min(score, 8.4);
     if (diagnostics.dialogPct < 18) score = Math.min(score, 7.9);
-    if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
-    if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
+    // v11 Section A+Q: any unresolved hard gate caps the score at 7.9 so
+    // "ok" never coincides with hardIssueCount>0. Multiple hard gates cap
+    // lower still.
+    if (diagnostics.hardIssueCount > 0) score = Math.min(score, 7.9);
+    if (diagnostics.hardIssueCount >= 2) score = Math.min(score, 7.4);
+    if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 6.9);
     if (diagnostics.hardIssues.some((issue) => /Absätze|Absaetze/i.test(issue))) {
       score = Math.min(score, 8.6);
     }
@@ -6612,6 +6794,20 @@ export async function generateStoryDevMode(
     let repairAttempt = 0;
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       repairAttempt += 1;
+      // Phase 1 RepairRouter: log the recommended strategy so we can validate
+      // routing decisions against real production diagnostics before wiring it
+      // as the primary dispatcher (Phase 2).
+      try {
+        const routerDecision = chooseRepairStrategy(finalDiagnostics);
+        console.log("[dev-mode-generation] RepairRouter decision", {
+          attempt: repairAttempt,
+          strategy: routerDecision.strategy,
+          reason: routerDecision.reason,
+          hardIssueCount: finalDiagnostics?.hardIssueCount,
+          softIssueCount: finalDiagnostics?.softIssueCount,
+          dialogPct: finalDiagnostics?.dialogPct,
+        });
+      } catch (_err) { /* router is best-effort logging only */ }
       let chaptersToRepair = selectChapterDiagnosticsForRepair(finalDiagnostics, finalParsed, input.config);
       const broadFailureChapterThreshold = input.config.length === "short"
         ? DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT
