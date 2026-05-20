@@ -4706,7 +4706,8 @@ function screenplayCritiqueForDraft(gateIssues: string[]): any {
 // No model is asked to invent chapter titles or mini-endings.
 //
 // Output of the writer (whole-story-draft):
-//   { "title": string, "description": string, "paragraphs": string[] }
+//   JSON-capable models: { "title": string, "description": string, "paragraphs": string[] }
+//   Text-compat OpenRouter models: TITLE/DESCRIPTION/STORY plain text
 //
 // Internal display projection:
 //   { storyText, readingBreaks, chapters[] as reading pages }
@@ -4913,7 +4914,7 @@ function extractProseFallback(
   content: string
 ): { title: string; description: string; paragraphs: string[]; titleSource: "field" | "first-paragraph" | "synthetic" } | null {
   if (!content) return null;
-  let body = String(content).trim();
+  let body = stripReasoningPreamble(String(content).trim());
   if (!body) return null;
   if (body.startsWith("```")) {
     body = body.replace(/^```(?:json|markdown|md|text)?\s*/i, "").replace(/```\s*$/, "").trim();
@@ -4946,7 +4947,7 @@ function extractProseFallback(
     /^\s*(?:ch|kap|chapter|kapitel)\s*\d+\s*[:.\-]/im.test(body) ||
     /^\s*\*\s+\*\s+/m.test(body);
   if (looksLikeMetaAnalysis) return null;
-  const rawParagraphs = splitParagraphs(body)
+  const rawParagraphs = splitLooseProseParagraphs(body)
     .map((p) =>
       p
         .replace(/^[\s>*\-•]+/, "")
@@ -6797,7 +6798,7 @@ function stripLineCommentsOutsideStrings(s: string): string {
 }
 
 function tryParseJson(raw: string): any {
-  const trimmed = raw.trim();
+  const trimmed = stripReasoningPreamble(raw.trim());
   const fenced = stripJsonFence(trimmed);
   const sliced = sliceToOuterObject(fenced);
   const looseRepaired = repairLooseJson(sliced);
@@ -6826,11 +6827,70 @@ function tryParseJson(raw: string): any {
   throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "unknown JSON parse failure"));
 }
 
+function stripReasoningPreamble(content: string): string {
+  const text = String(content || "").trim();
+  if (!text) return text;
+
+  const markerPatterns = [
+    /\n\s*```(?:json)?\s*\{/i,
+    /(?:^|\n)\s*\{/,
+    /(?:^|\n)\s*(?:TITLE|TITEL)\s*[:=]/i,
+    /(?:^|\n)\s*(?:DESCRIPTION|BESCHREIBUNG)\s*[:=]/i,
+    /(?:^|\n)\s*(?:STORY|GESCHICHTE)\s*[:=]/i,
+  ];
+
+  const markerIndex = markerPatterns
+    .map((pattern) => {
+      const match = text.match(pattern);
+      return match?.index ?? -1;
+    })
+    .filter((index) => index >= 0)
+    .sort((a, b) => a - b)[0];
+
+  if (!markerIndex || markerIndex <= 0) return text;
+  const prefix = text.slice(0, markerIndex);
+  const looksLikeReasoning =
+    /\*\*[^*\n]{3,80}\*\*/.test(prefix) ||
+    /\bI'm\s+(?:now|currently|focusing|exploring|integrating|refining|drafting|counting)\b/i.test(prefix) ||
+    /\b(?:reasoning|thinking|drafting|refining|structuring|integrating|developing|finalizing)\b/i.test(prefix);
+
+  return looksLikeReasoning ? text.slice(markerIndex).trim() : text;
+}
+
 function splitParagraphs(text: string): string[] {
   return String(text || "")
     .split(/\n\s*\n/)
     .map((part) => part.trim())
     .filter(Boolean);
+}
+
+function splitLooseProseParagraphs(text: string): string[] {
+  const paragraphSource = splitParagraphs(text);
+  if (paragraphSource.length >= 4) return paragraphSource;
+
+  const lineSource = String(text || "")
+    .split(/\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (lineSource.length >= 4) return lineSource;
+
+  const normalized = (lineSource.length > 0 ? lineSource : paragraphSource).join(" ").replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+
+  const sentences = normalized.match(/[^.!?]+[.!?]+["')\]]*/g) || [];
+  if (sentences.length < 4) return paragraphSource.length > 0 ? paragraphSource : [normalized];
+
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    current = `${current} ${sentence.trim()}`.trim();
+    if (countWords(current) >= 45 || current.length >= 360) {
+      chunks.push(current);
+      current = "";
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.length >= 4 ? chunks : paragraphSource.length > 0 ? paragraphSource : [normalized];
 }
 
 function normalizeParagraphsToMax(paragraphs: string[], maxParagraphs = DEV_MODE_MAX_PARAGRAPHS): string[] {
@@ -8004,6 +8064,14 @@ function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
   return isOpenRouterTextCompatibilityModel(resolveSelectedOpenRouterStoryModel(config));
 }
 
+function openRouterReasoningForDevMode(model: string): { effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"; exclude: boolean } {
+  const normalized = String(model || "").toLowerCase();
+  if (/google\/gemini|gemini-pro|gemini-flash/.test(normalized)) {
+    return { effort: "minimal", exclude: true };
+  }
+  return { exclude: true };
+}
+
 function isRecoverableStoryDraftFailure(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
   return message.includes("empty response from openrouter")
@@ -8075,8 +8143,10 @@ async function callProvider(
   if (aiProvider === "openrouter") {
     const orModel = normalizeOpenRouterModel(openRouterModel);
     const forceJsonObjectFormat = shouldForceOpenRouterJsonObject(orModel);
+    const reasoning = openRouterReasoningForDevMode(orModel);
     console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`, {
       forceJsonObjectFormat,
+      reasoning,
     });
     const timeoutMs =
       options.timeoutMs ??
@@ -8094,6 +8164,8 @@ async function callProvider(
         ],
         maxTokens,
         responseFormat: forceJsonObjectFormat ? "json_object" : "text",
+        reasoning,
+        includeReasoning: false,
         temperature,
         signal: controller.signal,
       });
@@ -8382,6 +8454,7 @@ export async function generateStoryDevMode(
     supportProvider,
     supportModel,
     storyModel: resolveConfiguredStoryModel(input.config),
+    plainTextWholeStoryDraft: shouldUsePlainTextWholeStoryDraft(input.config),
     noveltySeed: input.noveltyBrief?.seed,
     recentStoryCount: input.noveltyBrief?.recentStories.length ?? 0,
     hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,

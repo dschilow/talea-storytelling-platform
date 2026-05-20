@@ -38,6 +38,13 @@ export interface OpenRouterChatCompletionResult {
   model: string;
 }
 
+type OpenRouterReasoningOptions = {
+  effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  max_tokens?: number;
+  exclude?: boolean;
+  enabled?: boolean;
+};
+
 export function normalizeOpenRouterModel(model?: string | null): string {
   const normalized = String(model || "").trim();
   return normalized.length > 0 ? normalized : DEFAULT_OPENROUTER_STORY_MODEL;
@@ -90,6 +97,8 @@ export async function callOpenRouterChatCompletion(input: {
   temperature?: number;
   seed?: number;
   signal?: AbortSignal;
+  reasoning?: OpenRouterReasoningOptions | false;
+  includeReasoning?: boolean;
   /**
    * Optional: attach images to the FINAL user message for vision-capable
    * models (Gemini, GPT-4V, Claude 3, etc.). When set, the last user
@@ -130,6 +139,19 @@ export async function callOpenRouterChatCompletion(input: {
 
   if (input.responseFormat === "json_object") {
     payload.response_format = { type: "json_object" };
+  }
+
+  if (input.reasoning !== false) {
+    const reasoning = { ...(input.reasoning || { exclude: true }) };
+    if (input.includeReasoning !== true && typeof reasoning.exclude !== "boolean") {
+      reasoning.exclude = true;
+    }
+    if (Object.keys(reasoning).length > 0) {
+      payload.reasoning = reasoning;
+    }
+    if (input.includeReasoning === false || reasoning.exclude === true) {
+      payload.include_reasoning = false;
+    }
   }
 
   if (typeof input.temperature === "number") {
