@@ -764,6 +764,20 @@ export const generate = api<GenerateStoryRequest, Story>(
           poolCharacters,
           selectedSupportingCast: devResult.metadata.selectedSupportingCast,
         });
+        // v12 §F: visibility for the release gate. The story is still
+        // persisted (so devs can inspect what went wrong) but PDF building
+        // and final-image consumers must treat it as a debug candidate.
+        if (devResult.metadata?.status === "quality_gate_failed" || devResult.metadata?.releaseReady === false) {
+          console.warn("[story.generate] Dev-mode story returned with quality gate fail — treating as debug candidate", {
+            storyId: id,
+            status: devResult.metadata?.status,
+            releaseReady: devResult.metadata?.releaseReady,
+            qualityGateFailureReason: devResult.metadata?.qualityGateFailureReason,
+            hardIssueList: devResult.metadata?.hardIssueList?.slice(0, 6),
+            imagesSkippedDueToQualityGate: devResult.metadata?.imagesSkippedDueToQualityGate,
+            qualityScore: devResult.metadata?.qualityScore,
+          });
+        }
         // Persist chapter shape with order field consumed downstream.
         generatedStory = devResult;
       } else if (useCharacterPool) {

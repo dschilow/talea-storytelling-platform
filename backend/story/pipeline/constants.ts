@@ -21,6 +21,15 @@ export const MAX_REFERENCE_IMAGES = 4;
 export const MAX_ON_STAGE_CHARACTERS = 4;
 
 export const GLOBAL_IMAGE_NEGATIVES = [
+  // v12 §13D/F: extra negatives to prevent the JSON-fragment bleed and the
+  // false fairy-wings/dress carryover from log-runware-single-image-3b8eedfe.
+  "JSON fragments",
+  "raw JSON",
+  "stringified character profile",
+  "accessories array",
+  "fairy wings",
+  "fairy dress",
+  "flower crown",
   "looking at camera",
   "portrait",
   "close-up portrait",

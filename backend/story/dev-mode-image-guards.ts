@@ -156,6 +156,20 @@ export const CANONICAL_NEGATIVE_PACK = [
   "do not copy Fee Rosalie clothing onto boys",
   "do not swap character outfits", "do not merge fairy with boy",
   "no gender swap",
+  // v12 §13D/F: log-runware-single-image-3b8eedfe contained raw JSON +
+  // false fairy permission. Add explicit guards so even when the positive
+  // prompt accidentally leaks an object stringification or generic
+  // "wings"/"forest" language, the diffusion model is told not to render
+  // those tokens. Per-scene location/character permissions still go in the
+  // positive prompt (see image-prompt-builder.ts buildSceneSpecificPrompt).
+  "no JSON fragments", "no raw JSON", "no accessories array",
+  "no stringified character profile",
+  "no fairy wings unless explicitly required by scene",
+  "no fairy dress unless explicitly required by scene",
+  "no flower crown unless explicitly required by scene",
+  "no forest unless the scene is outdoors",
+  "no character not listed in the scene",
+  "no floating unrelated props",
 ];
 
 export function mergeNegativePrompt(existing: string | undefined | null): string {

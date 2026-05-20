@@ -78,7 +78,8 @@ const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 // v12 - "screenplay-first": lock idea potential and scene function before prose,
 // then draft a continuous narrative and derive display-only reading pages.
 const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
-const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-nonblocking-quality-gates-2026-05-19";
+const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-blocking-quality-gates-2026-05-20";
+const DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE = 7.9;
 const DEV_MODE_SCENE_CARD_COUNT = 5;
 const DEV_MODE_MAX_IDEA_ROUNDS = 2;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
@@ -104,7 +105,12 @@ const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 const DEV_MODE_MIN_SUPPORTING_CAST = 1;
-const DEV_MODE_MAX_SUPPORTING_CAST = 4;
+// v12 §8: short children's stories (900-1200 words) collapse under 4 supporting
+// characters. Cap at 2 and bias the cast-selection toward 1 unless both are
+// plot-critical (see finalizeSelectedIdeaCast / supporting-cast prompt
+// instructions, which now require `requiredForBeat` for the second slot).
+const DEV_MODE_MAX_SUPPORTING_CAST = 2;
+const DEV_MODE_PREFERRED_SUPPORTING_CAST = 1;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
 const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
@@ -112,12 +118,18 @@ const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
 
 const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
+// v12 §2: strict premium thresholds. The previous values let "best of weak
+// candidates" through; raised to keep premium runs from grinding out a story
+// whose central irreversible turn / personal cost is only nominally present.
+// `finalImagePotential` is new — added because a story with weak finale-image
+// potential almost always slips the cover/last-page Visual-QA gate later.
 const DEV_MODE_POTENTIAL_THRESHOLDS = {
   novelty: 8.8,
   emotionalEngine: 8.7,
-  personalCostPotential: 8.5,
-  irreversibleMiddlePotential: 8.7,
-  conflictEscalationPotential: 8.5,
+  personalCostPotential: 8.7,
+  irreversibleMiddlePotential: 8.8,
+  conflictEscalationPotential: 8.7,
+  finalImagePotential: 8.7,
   helperDependencyRiskMax: 6.5,
   similarityToRecentEmotionalMechanicsMax: 6.5,
 };
@@ -170,7 +182,10 @@ type DevModePipelineStage =
   | "image-scene-plan"
   | "image-prompt-compiler"
   | "visual-qa"
-  | "image-prompts";
+  | "image-prompts"
+  // v12 §4 + §11: page-count + expansion repair logging.
+  | "page-count-repair"
+  | "expansion-repair";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -237,6 +252,11 @@ export interface DevModeGeneratedStory {
     releaseReady?: boolean;
     qualityMode?: "efficient" | "premium";
     qualityGateFailureReason?: string;
+    // v12 §1: explicit failure status so downstream PDF/image pipelines never
+    // ship a story with open hard-gates. "ok" means releaseReady can be true.
+    status?: "ok" | "quality_gate_failed";
+    hardIssueList?: string[];
+    imagesSkippedDueToQualityGate?: boolean;
     returnedWithQualityGateWarnings?: boolean;
     literaryValidation?: any;
     repairSelfReflections?: any[];
@@ -697,6 +717,149 @@ function noveltyMotifHitCount(normalizedText: string, normalizedMotif: string): 
 
 function noveltyMotifMatches(normalizedText: string, normalizedMotif: string): boolean {
   return noveltyMotifHitCount(normalizedText, normalizedMotif) > 0;
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// v12 §3: Forbidden-Motif Preflight
+//
+// The novelty system tracks hardAvoidMotifs as full word-families
+// ("schatten" -> schatten, schattencape, schattenumhang, schattenflur, …).
+// Without an explicit pre-draft check those motifs can still slip into
+// title/centralObject/wonderRule/sceneCards via the LLM's free-form fields
+// and produce a fail at final-validation (one whole pipeline run wasted).
+//
+// This preflight runs BEFORE the prose draft. It does two things:
+//   1. Try a local rename via a small dictionary (cheap, deterministic).
+//   2. If the motif is load-bearing (centralObject or wonderRule), refuse
+//      to repair and signal "regenerate idea".
+// ───────────────────────────────────────────────────────────────────────────
+
+const FORBIDDEN_MOTIF_LOCAL_REPAIRS: Record<string, string[]> = {
+  schattencape: ["Tarncape", "Leisecape", "Stillcape", "Umhang der stillen Schritte"],
+  schattenumhang: ["Tarncape", "Leisecape", "Stillumhang"],
+  schattenkleid: ["Stillkleid", "Leisekleid"],
+  schattenflur: ["Diele", "Stillflur"],
+  schattenmantel: ["Tarnmantel", "Leisemantel"],
+  toastgeraet: ["Frühstückskorb", "Frühstückstablett"],
+  toaster: ["Frühstückskorb", "Frühstückstablett"],
+  bodenritze: ["Bodenfuge", "Bodenrinne"],
+};
+
+interface ForbiddenMotifPlanScan {
+  title?: string | null;
+  description?: string | null;
+  centralObjectOrPlace?: string | null;
+  wonderRule?: string | null;
+  artifact?: string | null;
+  imagePromptSeed?: string | null;
+  sceneCards?: Array<Record<string, any> | string> | null;
+  oneLineHook?: string | null;
+}
+
+interface ForbiddenMotifPreflightResult {
+  violations: Array<{ field: string; motif: string; matched: string }>;
+  canRepair: boolean;
+  repairedPlan?: ForbiddenMotifPlanScan;
+  repairLog: string[];
+}
+
+function localRepairCandidate(matched: string): string | null {
+  const key = normalizeNoveltyText(matched).replace(/\s+/g, "");
+  if (FORBIDDEN_MOTIF_LOCAL_REPAIRS[key]) return FORBIDDEN_MOTIF_LOCAL_REPAIRS[key][0];
+  return null;
+}
+
+function scanFieldForMotifs(
+  fieldName: string,
+  value: string | null | undefined,
+  hardAvoidMotifs: string[]
+): Array<{ field: string; motif: string; matched: string }> {
+  if (!value) return [];
+  const normalized = normalizeNoveltyText(value);
+  const hits: Array<{ field: string; motif: string; matched: string }> = [];
+  for (const motif of hardAvoidMotifs) {
+    const normMotif = normalizeNoveltyText(motif);
+    if (!normMotif) continue;
+    for (const regex of buildNoveltyMotifRegexes(normMotif)) {
+      regex.lastIndex = 0;
+      for (const match of normalized.matchAll(regex)) {
+        hits.push({ field: fieldName, motif, matched: match[0] });
+      }
+    }
+  }
+  return hits;
+}
+
+export function forbiddenMotifPreflight(
+  plan: ForbiddenMotifPlanScan,
+  hardAvoidMotifs: string[]
+): ForbiddenMotifPreflightResult {
+  const allViolations: Array<{ field: string; motif: string; matched: string }> = [];
+  const repairLog: string[] = [];
+
+  const scalarFields: Array<keyof ForbiddenMotifPlanScan> = [
+    "title",
+    "description",
+    "oneLineHook",
+    "centralObjectOrPlace",
+    "wonderRule",
+    "artifact",
+    "imagePromptSeed",
+  ];
+
+  for (const field of scalarFields) {
+    const value = plan[field];
+    if (typeof value !== "string") continue;
+    const hits = scanFieldForMotifs(field as string, value, hardAvoidMotifs);
+    allViolations.push(...hits);
+  }
+
+  if (Array.isArray(plan.sceneCards)) {
+    plan.sceneCards.forEach((card, idx) => {
+      if (!card) return;
+      const text = typeof card === "string" ? card : JSON.stringify(card);
+      const hits = scanFieldForMotifs(`sceneCards[${idx}]`, text, hardAvoidMotifs);
+      allViolations.push(...hits);
+    });
+  }
+
+  if (allViolations.length === 0) {
+    return { violations: [], canRepair: true, repairLog: [] };
+  }
+
+  // If any violation lives in centralObjectOrPlace or wonderRule, the motif
+  // is load-bearing — local rename would break the story logic, so we refuse
+  // to repair and signal regenerate.
+  const loadBearingFields = new Set(["centralObjectOrPlace", "wonderRule"]);
+  const hasLoadBearing = allViolations.some((v) => loadBearingFields.has(v.field));
+  if (hasLoadBearing) {
+    repairLog.push(
+      `Load-bearing forbidden motif in ${allViolations
+        .filter((v) => loadBearingFields.has(v.field))
+        .map((v) => `${v.field}="${v.matched}"`)
+        .join(", ")} — idea must be regenerated.`
+    );
+    return { violations: allViolations, canRepair: false, repairLog };
+  }
+
+  // Attempt local repairs on the remaining fields.
+  const repaired: ForbiddenMotifPlanScan = { ...plan };
+  for (const violation of allViolations) {
+    const replacement = localRepairCandidate(violation.matched);
+    if (!replacement) {
+      repairLog.push(`No local repair candidate for "${violation.matched}" in ${violation.field}.`);
+      return { violations: allViolations, canRepair: false, repairLog };
+    }
+    const field = violation.field as keyof ForbiddenMotifPlanScan;
+    const original = repaired[field];
+    if (typeof original === "string") {
+      const re = new RegExp(violation.matched.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      (repaired as any)[field] = original.replace(re, replacement);
+      repairLog.push(`Renamed "${violation.matched}" → "${replacement}" in ${violation.field}.`);
+    }
+  }
+
+  return { violations: allViolations, canRepair: true, repairedPlan: repaired, repairLog };
 }
 
 function characterNameMotifAliases(name: string): string[] {
@@ -1410,7 +1573,11 @@ function pickDevModeArtifactCategory(config: StoryConfig): ArtifactCategory | un
 async function generateDevModeImages(
   input: DevModeGenerationInput,
   parsedTitle: string,
-  parsedChapters: Array<{ order: number; title: string; content: string }>
+  parsedChapters: Array<{ order: number; title: string; content: string }>,
+  // v12 §13B: scene-card scope so the per-chapter prompt fallback can
+  // restrict character names to actually-on-stage figures rather than the
+  // full cast.
+  screenplayPlan?: DevModeScreenplayPlan
 ): Promise<{
   coverImageUrl?: string;
   chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
@@ -1748,21 +1915,74 @@ async function generateDevModeImages(
   // duplicate avatars, identity drift).
   const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characters, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, no text, no captions, no speech bubbles, no letters, no signs, no labels, no logos, no extra background children, no duplicate characters, no adults unless required by the scene";
 
-  // v11 §12D: per-scene character manifest is appended to the prompt so the
-  // diffusion model receives explicit "NO dress on boys" constraints rather
-  // than relying on the negative prompt alone. The manifest is added BEFORE
-  // the styleSuffix so it never gets truncated.
+  // v11 §12D + v12 §13C/D: per-scene character manifest is appended to the
+  // prompt so the diffusion model receives explicit "NO dress on boys"
+  // constraints rather than relying on the negative prompt alone. The
+  // manifest is added BEFORE the styleSuffix so it never gets truncated.
+  //
+  // v12 fixes three bugs from log-runware-single-image-3b8eedfe:
+  //   1. JSON fragments: `entry.description` can be a stringified character
+  //      profile ({"accessories":[],"ageApprox":"5 years old",…}). We now
+  //      sanitize it to a plain prose 1-liner with `compactCharacterDescription()`.
+  //   2. False wings permission: the old code emitted
+  //      `Only ${entry.name} may wear wings or a fairy dress` for every
+  //      non-avatar, granting Detektiv Schnüffel and Mia Neugier wings
+  //      unconditionally. The new rule is: nobody wears wings/fairy dress
+  //      unless the character is explicitly a fairy in this scene.
+  //   3. The cover/fallback prompt formerly listed all cast names (4
+  //      figures) — see the fallbackImagePrompt fix below.
+  const compactCharacterDescription = (raw: string | undefined, fallback: string): string => {
+    if (!raw) return fallback;
+    const trimmed = String(raw).trim();
+    // If the value already looks like JSON, parse and extract a few plain
+    // fields. Otherwise treat it as prose and collapse whitespace.
+    if (/^[\[{]/.test(trimmed)) {
+      try {
+        const obj = JSON.parse(trimmed);
+        const parts: string[] = [];
+        const visual = (obj?.visualSignature || obj?.outfitLock || obj?.faceLock || []) as unknown;
+        if (Array.isArray(visual)) {
+          parts.push(...visual.filter((v) => typeof v === "string").slice(0, 3) as string[]);
+        }
+        if (typeof obj?.description === "string") parts.push(obj.description);
+        if (typeof obj?.outfit === "string") parts.push(obj.outfit);
+        if (typeof obj?.hair === "string") parts.push(`hair: ${obj.hair}`);
+        const joined = parts
+          .filter(Boolean)
+          .join(", ")
+          .replace(/\s{2,}/g, " ")
+          .replace(/[{}\[\]"]/g, "")
+          .slice(0, 200)
+          .trim();
+        return joined || fallback;
+      } catch {
+        // Strip JSON-ish punctuation so a half-parsed string doesn't leak.
+        return trimmed
+          .replace(/[{}\[\]"]/g, " ")
+          .replace(/\b\w+:\s*null\b/g, " ")
+          .replace(/\s{2,}/g, " ")
+          .trim()
+          .slice(0, 200) || fallback;
+      }
+    }
+    return trimmed.replace(/\s{2,}/g, " ").slice(0, 220);
+  };
+
   const buildManifestBlock = (sceneNames: string[]): string => {
     if (sceneNames.length === 0) return "";
     const lines: string[] = [];
     for (const entry of cast) {
       if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
       if (entry.kind === "avatar") {
-        const visual = entry.description ? entry.description.slice(0, 220) : "casual boy clothing";
-        lines.push(`${entry.name}: human boy, ${visual}. NO dress, NO skirt, NO fairy wings, NO flower crown, NO pink fairy outfit.`);
+        const visual = compactCharacterDescription(entry.description, "casual boy clothing");
+        lines.push(`${entry.name}: human boy, ${visual}. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
       } else {
-        const visual = entry.description ? entry.description.slice(0, 220) : "supporting character";
-        lines.push(`${entry.name}: ${visual}. Only ${entry.name} may wear wings or a fairy dress.`);
+        const visual = compactCharacterDescription(entry.description, "supporting character");
+        // v12 §13D: NO character permission for wings unless the character
+        // is explicitly a fairy in the story AND appears as a fairy in this
+        // scene. The old "Only X may wear wings" template gave non-fairy
+        // characters wings in every image.
+        lines.push(`${entry.name}: ${visual}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
       }
     }
     return lines.length > 0 ? ` CHARACTERS: ${lines.join(" ")}` : "";
@@ -1805,12 +2025,41 @@ async function generateDevModeImages(
 
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
+  // v12 §13B/E: fallback prompts must NOT list the entire cast pauschal.
+  // The previous build inserted "Adrian, Alexander, Detektiv Schnüffel, Mia
+  // Neugier" into every chapter image — even chapters where only Adrian +
+  // Alexander appear. We now derive per-chapter names from the scene card /
+  // scene plan so the diffusion model is not asked to render 4 characters in
+  // a kitchen/hallway scene that only contains 2.
+  const sceneCharsByChapter = new Map<number, string[]>();
+  for (const card of (screenplayPlan?.sceneCards as any[] | undefined) || []) {
+    const order = Number((card && (card.order ?? card.chapter)) ?? NaN);
+    if (!Number.isFinite(order)) continue;
+    const names = Array.isArray(card?.onStage) && card.onStage.length > 0
+      ? card.onStage
+      : Array.isArray(card?.onStageCharacters) && card.onStageCharacters.length > 0
+        ? card.onStageCharacters
+        : (cast.filter((c) => c.kind === "avatar").map((c) => c.name));
+    sceneCharsByChapter.set(
+      order,
+      names
+        .map((n: any) => String(n || "").trim())
+        .filter((n: string): n is string => Boolean(n))
+        .slice(0, 3) // never more than 3 characters in one picture-book scene
+    );
+  }
+  const avatarNamesOnly = cast.filter((c) => c.kind === "avatar").map((c) => c.name);
   const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
-    const castNamesEn = cast.slice(0, 4).map((e) => e.name).join(", ") || "the heroes";
     if (job.kind === "cover") {
-      return `Single picture-book cover scene with ${castNamesEn} in a ${input.config.setting} setting, centered around the story's main magical problem, warm child-friendly atmosphere, no text.`;
+      // Cover can show the full hero set, but capped at 3 to avoid clutter.
+      const coverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : cast.map((e) => e.name))
+        .slice(0, 3)
+        .join(", ") || "the heroes";
+      return `Single picture-book cover scene with ${coverNames} in a ${input.config.setting} setting, centered around the story's main magical problem, warm child-friendly atmosphere, no text.`;
     }
-    return `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from reading page ${job.order}; warm, child-friendly, single cohesive scene, no text.`;
+    const sceneNames = (job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly;
+    const chapterNames = sceneNames.slice(0, 3).join(", ") || "the heroes";
+    return `Picture-book illustration of ${chapterNames} in a ${input.config.setting} scene from reading page ${job.order}; warm, child-friendly, single cohesive scene, no text.`;
   };
   const coverPrompt = String(parsedPrompts?.cover || "").trim();
   jobs.push({ kind: "cover", prompt: looksLikeEnglishPrompt(coverPrompt) ? coverPrompt : fallbackImagePrompt({ kind: "cover" }) });
@@ -4757,6 +5006,84 @@ function screenplayCritiqueForDraft(gateIssues: string[]): any {
 // Internal display projection:
 //   { storyText, readingBreaks, chapters[] as reading pages }
 // ---------------------------------------------------------------------------
+
+/**
+ * v12 §10 — Compact whole-story-draft prompt builder.
+ *
+ * The legacy `buildWholeStoryDraftPrompts()` produces a ~27 000-character
+ * userPrompt because it bundles the voice bible, blueprint, critique,
+ * screenplay plan, novelty brief, dialog rules and structural arc into a
+ * single message. Prompt.txt §9 caps `whole-story-draft userPrompt` at
+ * 10 000 characters; §10 specifies the new short shape.
+ *
+ * This compact variant strips everything that is already locked into the
+ * screenplay plan (scene cards, beat sheet, dialogue intent) and feeds the
+ * model only:
+ *   - the compact story bible (≤ 2 k)
+ *   - the compact scene cards (≤ 2 k)
+ *   - the binding writer contract (≤ 1 k)
+ *   - the JSON output shape (≤ 0.5 k)
+ *
+ * Total target: under 7 000 characters. The legacy builder is kept for
+ * backward compatibility and for the case where no screenplay plan is
+ * available (which would leave this compact variant without anchors).
+ */
+function buildCompactWholeStoryDraftPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  screenplayPlan: DevModeScreenplayPlan
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const wordBounds = getStoryWordBounds(input.config);
+  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
+  const heroA = heroNames[0] || "Main A";
+  const heroB = heroNames[1] || "Main B";
+  const ageGroup = input.config.ageGroup || "6-8";
+
+  const compactStoryBible = buildCompactStoryBibleForDraft(input, chapterCount);
+  const compactScenePlan = compactScreenplayPlanForDraft(screenplayPlan);
+
+  const systemPrompt = [
+    `You write children's storybook prose in ${languageName} for ages ${ageGroup}.`,
+    "Output schema (NO chapters, NO headings, NO reading-page labels):",
+    '{ "title": string, "description": string, "paragraphs": string[] }',
+    "Do not output: chapters, reading-page labels, markdown, raw JSON inside the prose, explanation notes.",
+  ].join("\n");
+
+  const userPrompt = [
+    `WHOLE STORY DRAFT — one continuous ${languageName} story for ages ${ageGroup}.`,
+    "No chapter headings, no scene labels. The app technically splits later into reading pages.",
+    "",
+    "STORY BIBLE (binding):",
+    promptJson(compactStoryBible),
+    "",
+    "SCENE PLAN (binding, do not invent a different plot):",
+    promptJson(compactScenePlan),
+    "",
+    "MANDATORY:",
+    "- one clear magic / wonder rule, tested on-page at least twice",
+    "- one visible wrong action with visible consequence",
+    "- irreversible middle with concrete personal cost (object, place, privilege given up)",
+    "- final decision performed by the children, not by helpers",
+    "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
+    "- finale uses a detail planted earlier",
+    "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\".",
+    `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max})`,
+    "- dialogue 28–36% of prose",
+    `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures)`,
+    "",
+    "BANNED:",
+    "- chapter headings, dividers, page labels, scene labels",
+    "- mini-endings between scenes",
+    "- moral closures inside the prose",
+    "- helpers explaining the solution",
+    "- multiple competing magic rules",
+    "",
+    `FINAL REMINDER: ONE JSON object with title, description, paragraphs[]. All prose in ${languageName}.`,
+  ].join("\n");
+
+  return { systemPrompt, userPrompt };
+}
 
 function buildWholeStoryDraftPrompts(
   input: DevModeGenerationInput,
@@ -7792,11 +8119,23 @@ export type DevModeRepairStrategy =
   | "whole_story_pull_repair"         // weak weiterlese-pull on multiple chapters
   | "whole_story_dialog_rebalance"    // dialogPct under floor across story
   | "targeted_chapter_repair_with_context" // exactly one chapter has hard issues
+  // v12 §11: new strategies
+  | "page_count_repair"               // chapters.length !== requiredPageCount
+  | "expansion_repair"                // totalWords < 900 — polish must expand, not compress
+  | "scene_card_repair_then_rewrite"  // irreversible-middle/personal-cost missing
   | "whole_story_repair";             // catch-all
 
 export function chooseRepairStrategy(
   diagnostics: DevModeStoryDiagnostics | undefined,
-  opts?: { totalWordsOverMax?: boolean }
+  opts?: {
+    totalWordsOverMax?: boolean;
+    // v12 §11: new context for page/expansion/scene-card routing.
+    requiredPageCount?: number;
+    actualPageCount?: number;
+    totalWords?: number;
+    missingIrreversibleMiddle?: boolean;
+    missingPersonalCost?: boolean;
+  }
 ): { strategy: DevModeRepairStrategy; reason: string } {
   if (!diagnostics) return { strategy: "none", reason: "no diagnostics" };
   const hard = diagnostics.hardIssues || [];
@@ -7815,6 +8154,32 @@ export function chooseRepairStrategy(
   }
   if (hardIsTitleOnly) {
     return { strategy: "title_promise_micro_repair", reason: "only title-promise unresolved" };
+  }
+
+  // v12 §11 priority order (deterministic): pageCount mismatch first
+  // because every downstream calculation (words, dialog%) is per-page;
+  // then underlength expansion; then irreversible-middle scene repair.
+  if (
+    typeof opts?.requiredPageCount === "number"
+    && typeof opts?.actualPageCount === "number"
+    && opts.requiredPageCount !== opts.actualPageCount
+  ) {
+    return {
+      strategy: "page_count_repair",
+      reason: `pageCount mismatch: required=${opts.requiredPageCount}, actual=${opts.actualPageCount}`,
+    };
+  }
+  if (typeof opts?.totalWords === "number" && opts.totalWords < 900) {
+    return {
+      strategy: "expansion_repair",
+      reason: `underlength: totalWords=${opts.totalWords} < 900`,
+    };
+  }
+  if (opts?.missingIrreversibleMiddle || opts?.missingPersonalCost) {
+    return {
+      strategy: "scene_card_repair_then_rewrite",
+      reason: `missing structural anchor: irreversibleMiddle=${!!opts.missingIrreversibleMiddle}, personalCost=${!!opts.missingPersonalCost}`,
+    };
   }
 
   const tooLongChapters = diagnostics.chapterDiagnostics.filter(
@@ -7852,7 +8217,10 @@ export function chooseRepairStrategy(
   };
 }
 
-function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number | undefined {
+function calculateLocalGateScore(
+  diagnostics?: DevModeStoryDiagnostics,
+  opts?: { qualityMode?: "efficient" | "premium" }
+): number | undefined {
   if (!diagnostics) return undefined;
 
   let score = 9.5;
@@ -7865,8 +8233,14 @@ function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number 
     if (chapter.issues.some((issue) => /kurz|lang|Laenge|Länge/i.test(issue))) score -= 0.15;
   }
 
-  if (diagnostics.hardIssueCount > 0) score = Math.min(score, 8.6);
-  if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 8.2);
+  // v12 §1: in premium any open hard-gate caps the score below 8.0 so a
+  // release-grade run can never coexist with hardIssueCount>0. Efficient
+  // mode keeps the looser 8.6 cap as before.
+  const isPremium = (opts?.qualityMode || "premium") === "premium";
+  if (diagnostics.hardIssueCount > 0) {
+    score = Math.min(score, isPremium ? DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE : 8.6);
+  }
+  if (diagnostics.hardIssueCount >= 4) score = Math.min(score, isPremium ? 7.4 : 8.2);
   if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|\[object Object\]/i.test(issue))) {
     score = Math.min(score, 7.8);
   }
@@ -7874,18 +8248,22 @@ function calculateLocalGateScore(diagnostics?: DevModeStoryDiagnostics): number 
   return Math.max(0, Math.round(score * 10) / 10);
 }
 
-function applyHardCaps(llmScore: number | undefined, diagnostics?: DevModeStoryDiagnostics): number | undefined {
-  const localGateScore = calculateLocalGateScore(diagnostics);
+function applyHardCaps(
+  llmScore: number | undefined,
+  diagnostics?: DevModeStoryDiagnostics,
+  opts?: { qualityMode?: "efficient" | "premium" }
+): number | undefined {
+  const localGateScore = calculateLocalGateScore(diagnostics, opts);
   let score = typeof llmScore === "number" && Number.isFinite(llmScore) ? llmScore : localGateScore;
   if (score === undefined) return undefined;
 
   if (diagnostics) {
     if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) score = Math.min(score, 8.4);
     if (diagnostics.dialogPct < 18) score = Math.min(score, 7.9);
-    // v11 Section A+Q: any unresolved hard gate caps the score at 7.9 so
-    // "ok" never coincides with hardIssueCount>0. Multiple hard gates cap
-    // lower still.
-    if (diagnostics.hardIssueCount > 0) score = Math.min(score, 7.9);
+    // v12 §1: any unresolved hard gate caps the score at the premium
+    // cap (7.9). Premium release requires hardIssueCount===0 AND score>=9.0,
+    // so the two can never be satisfied at the same time with open gates.
+    if (diagnostics.hardIssueCount > 0) score = Math.min(score, DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE);
     if (diagnostics.hardIssueCount >= 2) score = Math.min(score, 7.4);
     if (diagnostics.hardIssueCount >= 4) score = Math.min(score, 6.9);
     if (diagnostics.hardIssues.some((issue) => /Absätze|Absaetze/i.test(issue))) {
@@ -8656,21 +9034,37 @@ export async function generateStoryDevMode(
           bestAuditLine = "local-heuristic fallback";
         }
 
-        if (bestCandidate) {
-          console.warn("[dev-mode-generation] §4 soft-fail: no candidate passed 9.0 gate after 2 rounds; using best-audit fallback", {
+        // v12 §2: premium mode no longer accepts "best of weak candidates".
+        // The previous soft-fail let an 8.5-grade idea through after 2 rounds
+        // and that idea then drove a 7.x final story. Premium must either
+        // pass the thresholds clean or fail loudly so the caller knows to
+        // regenerate candidates with a different creative lane.
+        const premiumStrict = (input.qualityMode || "premium") === "premium";
+        if (bestCandidate && !premiumStrict) {
+          console.warn("[dev-mode-generation] §4 efficient-mode soft-fail: no candidate passed 9.0 gate after 2 rounds; using best-audit fallback", {
             chosen: bestCandidate.title,
             bestAudit: bestAuditLine,
             allFailures: potentialFailureSummaries.slice(0, 6),
           });
           selectedIdea = {
             ...bestCandidate,
-            chosenReason: `§4 soft-fail: best of ${ideaCandidates.length} candidates after 2 strict rounds. ${bestAuditLine}`,
+            chosenReason: `§4 efficient soft-fail: best of ${ideaCandidates.length} candidates after 2 strict rounds. ${bestAuditLine}`,
             selectedSupportingCast: resolvePoolNames(bestCandidate.recommendedSupportingCast, input.poolCharacters),
           };
+        } else if (bestCandidate && premiumStrict) {
+          console.warn("[dev-mode-generation] §4 PREMIUM strict-fail: no candidate passed thresholds after 2 rounds — refusing soft-fail", {
+            bestCandidateTitle: bestCandidate.title,
+            bestAudit: bestAuditLine,
+            allFailures: potentialFailureSummaries.slice(0, 6),
+          });
         }
       }
 
       if (!selectedIdea) {
+        const mode = input.qualityMode || "premium";
+        if (mode === "premium") {
+          throw new Error(`§2 premium quality_gate_failed: no candidate met the strict thresholds after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Caller must regenerate with a different creative lane. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+        }
         throw new Error(`No 9.0-potential idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
       }
 
@@ -8787,6 +9181,50 @@ export async function generateStoryDevMode(
         selectedIdea,
         poolCharacters: finalizedCast.poolCharacters,
       };
+
+      // v12 §3: forbidden-motif preflight on the selected idea — before any
+      // expensive downstream stage (logline, beat-sheet, scene-cards, draft).
+      // If a motif is load-bearing we'd waste a whole pipeline run; renaming
+      // it here is one regex pass.
+      const hardAvoidForPreflight = input.noveltyBrief?.hardAvoidMotifs ?? [];
+      if (hardAvoidForPreflight.length > 0 && selectedIdea) {
+        const ideaScan: ForbiddenMotifPlanScan = {
+          title: selectedIdea.title,
+          description: selectedIdea.coreConflict ?? null,
+          oneLineHook: selectedIdea.oneLineHook ?? null,
+          centralObjectOrPlace: selectedIdea.centralObjectOrPlace ?? null,
+          wonderRule: selectedIdea.wonderRule ?? null,
+          artifact: (selectedIdea as any).artifact ?? null,
+          imagePromptSeed: (selectedIdea as any).imagePromptSeed ?? null,
+        };
+        const preflight = forbiddenMotifPreflight(ideaScan, hardAvoidForPreflight);
+        if (preflight.violations.length > 0) {
+          console.warn("[dev-mode-generation] §3 forbidden-motif preflight on selected idea", {
+            violations: preflight.violations.slice(0, 6),
+            canRepair: preflight.canRepair,
+            repairLog: preflight.repairLog,
+          });
+          if (preflight.canRepair && preflight.repairedPlan) {
+            const repaired = preflight.repairedPlan;
+            selectedIdea = {
+              ...selectedIdea,
+              title: typeof repaired.title === "string" ? repaired.title : selectedIdea.title,
+              ...(typeof repaired.description === "string" ? { coreConflict: repaired.description } : {}),
+              ...(typeof repaired.oneLineHook === "string" ? { oneLineHook: repaired.oneLineHook } : {}),
+              ...(typeof repaired.centralObjectOrPlace === "string" ? { centralObjectOrPlace: repaired.centralObjectOrPlace } : {}),
+              ...(typeof repaired.wonderRule === "string" ? { wonderRule: repaired.wonderRule } : {}),
+              chosenReason: `${selectedIdea.chosenReason || ""} | §3 motif-preflight rename: ${preflight.repairLog.join("; ")}`.trim(),
+            };
+            input = { ...input, selectedIdea };
+          } else {
+            throw new Error(
+              `Forbidden motif preflight: idea "${selectedIdea.title}" contains load-bearing forbidden motifs (${preflight.violations
+                .map((v) => `${v.field}="${v.matched}"`)
+                .join(", ")}). Idea must be regenerated.`
+            );
+          }
+        }
+      }
     }
 
     let blueprint: any;
@@ -8871,6 +9309,89 @@ export async function generateStoryDevMode(
     }
     if (sceneCardIssues.length > 0) {
       throw new Error(`Scene-card gate failed before prose: ${sceneCardIssues.join(" | ")}`);
+    }
+
+    // v12 §3: re-run forbidden-motif preflight on scene cards. The LLM can
+    // still introduce a banned word-family inside a scene description even
+    // when the selected idea was clean. Catch it here, before the most
+    // expensive stages (dialogue-intent, whole-story-draft).
+    const hardAvoidForSceneScan = input.noveltyBrief?.hardAvoidMotifs ?? [];
+    if (hardAvoidForSceneScan.length > 0 && Array.isArray(sceneCards) && sceneCards.length > 0) {
+      const sceneScan: ForbiddenMotifPlanScan = { sceneCards: sceneCards as any[] };
+      const sceneFlight = forbiddenMotifPreflight(sceneScan, hardAvoidForSceneScan);
+      if (sceneFlight.violations.length > 0) {
+        console.warn("[dev-mode-generation] §3 forbidden-motif preflight on scene cards", {
+          violations: sceneFlight.violations.slice(0, 8),
+          canRepair: sceneFlight.canRepair,
+          repairLog: sceneFlight.repairLog,
+        });
+        if (!sceneFlight.canRepair) {
+          throw new Error(
+            `Scene-cards contain forbidden motifs that cannot be locally repaired: ${sceneFlight.violations
+              .map((v) => `${v.field}="${v.matched}"`)
+              .join(", ")}`
+          );
+        }
+        // Local rename: apply replacement string-wise across each scene card.
+        for (const violation of sceneFlight.violations) {
+          const replacement = localRepairCandidate(violation.matched);
+          if (!replacement) continue;
+          const re = new RegExp(violation.matched.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+          sceneCards = sceneCards.map((card: any) => {
+            if (!card) return card;
+            return Object.fromEntries(
+              Object.entries(card).map(([key, value]) => [
+                key,
+                typeof value === "string" ? value.replace(re, replacement) : value,
+              ])
+            );
+          });
+        }
+      }
+    }
+
+    // v12 §6: irreversible-middle gate — the central turn scene (scene 3 or
+    // 4 for a 5-card plan) must carry both visibleDamage AND personalCost,
+    // otherwise the story has no real reversal point. Soft-fail to a one-
+    // shot scene-cards-repair; if still missing after repair, raise.
+    {
+      const turnIndex = Math.max(2, Math.min(sceneCards.length - 2, Math.floor(sceneCards.length / 2)));
+      const turnCard: any = sceneCards[turnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
+      const hasVisibleDamage = !!(turnCard?.visibleDamage || turnCard?.irreversibleChange);
+      const hasPersonalCost = !!turnCard?.personalCost;
+      if (!hasVisibleDamage || !hasPersonalCost) {
+        console.warn("[dev-mode-generation] §6 irreversible-middle gate flagged", {
+          turnIndex,
+          hasVisibleDamage,
+          hasPersonalCost,
+          turnCardKeys: turnCard ? Object.keys(turnCard) : [],
+        });
+        const repairIssues = [
+          !hasVisibleDamage
+            ? `Scene ${turnIndex + 1} (Wendepunkt) hat keinen sichtbaren Schaden — füge visibleDamage konkret (Objekt, Kratzer, Riss, Stoß) hinzu.`
+            : null,
+          !hasPersonalCost
+            ? `Scene ${turnIndex + 1} (Wendepunkt) hat keinen persönlichen Einsatz — füge personalCost konkret (Lieblingsplatz, Murmel, Tuch, Verzicht) hinzu.`
+            : null,
+        ].filter((line): line is string => Boolean(line));
+        const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, repairIssues);
+        const repairedSceneCardStage = await runStage("scene-cards-repair", repairPrompts, {
+          maxTokens: 3400,
+          temperature: 0.22,
+          timeoutMs: 120_000,
+          ...supportCallOptions,
+          modelRole: "support",
+        });
+        sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
+        const turnCardRetry: any = sceneCards[turnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
+        const stillNoDamage = !(turnCardRetry?.visibleDamage || turnCardRetry?.irreversibleChange);
+        const stillNoCost = !turnCardRetry?.personalCost;
+        if (stillNoDamage || stillNoCost) {
+          throw new Error(
+            `Scene-card §6 gate still failed after repair: visibleDamage=${!stillNoDamage}, personalCost=${!stillNoCost} on scene ${turnIndex + 1}.`
+          );
+        }
+      }
     }
 
     const dialogueIntentPrompts = buildDialogueIntentPrompts(input, sceneCards);
@@ -9042,7 +9563,23 @@ export async function generateStoryDevMode(
     // invent chapter titles or mini-endings.
     const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
     const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
-    const wholeStoryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
+    // v12 §10: opt-in compact whole-story-draft. Activated by setting
+    // `useCompactDraftPrompt: true` on StoryConfig — kept as an explicit
+    // flag because the legacy prompt is still the safest fallback when the
+    // screenplay plan is incomplete. Compact mode drops the userPrompt from
+    // ~27 000 chars to ~7 000.
+    const useCompactWholeStoryDraft =
+      Boolean((input.config as any)?.useCompactDraftPrompt)
+      && Boolean(screenplayPlan?.sceneCards?.length);
+    const wholeStoryPrompts = useCompactWholeStoryDraft
+      ? buildCompactWholeStoryDraftPrompts(input, chapterCount, screenplayPlan!)
+      : buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
+    if (useCompactWholeStoryDraft) {
+      console.log("[dev-mode-generation] §10 compact whole-story-draft prompt enabled", {
+        systemPromptChars: wholeStoryPrompts.systemPrompt.length,
+        userPromptChars: wholeStoryPrompts.userPrompt.length,
+      });
+    }
 
     let wholeStoryStage: Awaited<ReturnType<typeof runStage>>;
     let wholeStoryDraft: DevModeWholeStoryDraft;
@@ -9104,11 +9641,31 @@ export async function generateStoryDevMode(
     let repairAttempt = 0;
     while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
       repairAttempt += 1;
-      // v11 §9 RepairRouter (Phase 2): use the strategy to short-circuit
+      // v11 §9 + v12 §11 RepairRouter: use the strategy to short-circuit
       // cheap fixes. For metadata_sanitize / title_promise_micro_repair the
       // deterministic remediation block below this loop will handle it, so
-      // skip the expensive chapter-repair LLM round entirely.
-      const routerDecision = chooseRepairStrategy(finalDiagnostics);
+      // skip the expensive chapter-repair LLM round entirely. v12 extends
+      // with pageCount, expansion, scene-card-rewrite strategies — see
+      // chooseRepairStrategy() priority order.
+      const routerActualPageCount = finalParsed?.chapters?.length ?? 0;
+      const routerTotalWords = finalDiagnostics?.totalWords ?? 0;
+      const routerMissingIrreversibleMiddle = !!finalDiagnostics?.softIssues?.some((s) =>
+        /keine sichtbare irreversible Mitte/i.test(s)
+      ) || !!finalDiagnostics?.hardIssues?.some((s) =>
+        /keine sichtbare irreversible Mitte/i.test(s)
+      );
+      const routerMissingPersonalCost = !!finalDiagnostics?.softIssues?.some((s) =>
+        /kein persönlicher Einsatz|kein persoenlicher Einsatz/i.test(s)
+      ) || !!finalDiagnostics?.hardIssues?.some((s) =>
+        /kein persönlicher Einsatz|kein persoenlicher Einsatz/i.test(s)
+      );
+      const routerDecision = chooseRepairStrategy(finalDiagnostics, {
+        requiredPageCount: chapterCount,
+        actualPageCount: routerActualPageCount,
+        totalWords: routerTotalWords,
+        missingIrreversibleMiddle: routerMissingIrreversibleMiddle,
+        missingPersonalCost: routerMissingPersonalCost,
+      });
       recordLocalStage("repair-router", {
         attempt: repairAttempt,
         strategy: routerDecision.strategy,
@@ -9359,8 +9916,8 @@ export async function generateStoryDevMode(
           rawQualityScore = undefined;
         }
       }
-      localGateScore = calculateLocalGateScore(finalDiagnostics);
-      finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+      localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+      finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
 
       if (typeof rawQualityScore === "number" && typeof finalQualityScore === "number" && finalQualityScore < rawQualityScore) {
         console.warn("[dev-mode-generation] Validator score capped by local gates", {
@@ -9696,6 +10253,63 @@ export async function generateStoryDevMode(
         finalDiagnostics = polishedDiagnostics;
         storyPolishApplied = true;
 
+        // v12 §4: page-count guard. Polish must NEVER change the number of
+        // reading pages. The previous build (log 0245196d) trimmed 5 reading
+        // pages to 4 during polish, which broke a hard wizard gate. If the
+        // chapter count drifts here, deterministically re-split the polished
+        // prose into `chapterCount` pages using the same balanced splitter
+        // that produced the original layout.
+        if (
+          finalParsed?.displayMode === "reading_pages"
+          && Array.isArray(finalParsed.chapters)
+          && finalParsed.chapters.length !== chapterCount
+        ) {
+          console.warn("[dev-mode-generation] §4 page-count repair: polish drifted from required count", {
+            requiredPageCount: chapterCount,
+            actualPageCount: finalParsed.chapters.length,
+          });
+          // Rebuild a synthetic DevModeWholeStoryDraft from the polished
+          // chapter content so we can call the standard splitter. Paragraphs
+          // are re-derived from chapter content (split on blank lines).
+          const rebuiltParagraphs: string[] = [];
+          for (const ch of finalParsed.chapters) {
+            const paras = String(ch.content || "")
+              .split(/\n\s*\n/)
+              .map((p) => p.trim())
+              .filter(Boolean);
+            rebuiltParagraphs.push(...paras);
+          }
+          if (rebuiltParagraphs.length >= chapterCount) {
+            const syntheticDraft: DevModeWholeStoryDraft = {
+              title: finalParsed.title,
+              description: finalParsed.description,
+              paragraphs: rebuiltParagraphs,
+            };
+            const repaired = applyReadingBreaksToDraft(
+              syntheticDraft,
+              chapterCount,
+              localizedLanguageName(input.config.language),
+              screenplayPlan
+            );
+            finalParsed = repaired;
+            finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+            recordLocalStage("page-count-repair", {
+              requiredPageCount: chapterCount,
+              actualPageCount: finalParsed.chapters.length,
+              totalWords: finalDiagnostics.totalWords,
+            });
+            console.log("[dev-mode-generation] §4 page-count repair applied", {
+              afterPageCount: finalParsed.chapters.length,
+              afterTotalWords: finalDiagnostics.totalWords,
+            });
+          } else {
+            console.warn("[dev-mode-generation] §4 page-count repair skipped: too few paragraphs to split", {
+              paragraphCount: rebuiltParagraphs.length,
+              chapterCount,
+            });
+          }
+        }
+
         // Post-polish targeted rescue: if the polish reduced issues but still
         // leaves chapter-localized hard fails (length, dialogue, paragraphs,
         // long sentences), run one more pass of chapter-repair on the worst
@@ -9840,8 +10454,8 @@ export async function generateStoryDevMode(
 
       if (sanitized.changed || orthoFixes.length > 0) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
-        localGateScore = calculateLocalGateScore(finalDiagnostics);
-        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
       }
     }
 
@@ -9896,10 +10510,10 @@ export async function generateStoryDevMode(
       }
       if (remediated) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
-        localGateScore = calculateLocalGateScore(finalDiagnostics);
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
         // Re-apply hard caps against the LAST validator score so the release
         // score reflects the cleaned story rather than 0.
-        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics);
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
         console.log("[dev-mode-generation] Diagnostics re-evaluated after remediation", {
           hardIssueCount: finalDiagnostics.hardIssueCount,
           softIssueCount: finalDiagnostics.softIssueCount,
@@ -10111,13 +10725,36 @@ export async function generateStoryDevMode(
     imagesGenerated: 0,
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
-  try {
-    devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters);
-    totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
-    totalUsage.completion += devModeImages.promptTokenUsage.completion;
-    totalUsage.total += devModeImages.promptTokenUsage.total;
-  } catch (err) {
-    console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
+
+  // v12 §F: release gate before expensive image generation. In premium mode,
+  // if a hard quality gate is still open, do NOT spend Runware credits
+  // generating images for a story that will be returned as
+  // `status="quality_gate_failed"` anyway. The story is still persisted as a
+  // debug candidate (so devs can inspect what went wrong), but with no
+  // chapter images and no cover. This is the cheap-fail path the previous
+  // build was missing.
+  const skipImageGenerationForQualityGate =
+    (input.qualityMode || "premium") === "premium"
+    && (
+      Boolean(qualityGateFailureReason)
+      || ((finalDiagnostics?.hardIssueCount ?? 0) > 0)
+    );
+
+  if (skipImageGenerationForQualityGate) {
+    console.warn("[dev-mode-generation] §F release-gate: skipping image generation because premium quality gate failed", {
+      hardIssueCount: finalDiagnostics?.hardIssueCount,
+      qualityGateFailureReason,
+      finalQualityScore,
+    });
+  } else {
+    try {
+      devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
+      totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
+      totalUsage.completion += devModeImages.promptTokenUsage.completion;
+      totalUsage.total += devModeImages.promptTokenUsage.total;
+    } catch (err) {
+      console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
+    }
   }
 
   const chapters = sortedParsedChapters.map((ch, idx) => {
@@ -10205,6 +10842,26 @@ export async function generateStoryDevMode(
         && releaseDimensionFailures(finalValidatorFindings).length === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
           >= ((input.qualityMode || "premium") === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE),
+      // v12 §1: explicit hard-fail status. In premium mode any open hard
+      // gate flips this to "quality_gate_failed" so downstream PDF/image
+      // pipelines must short-circuit (see backend/story/generate.ts §F).
+      status: ((): "ok" | "quality_gate_failed" => {
+        const mode = input.qualityMode || "premium";
+        const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+        const minScore = mode === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
+        const releaseReadyComputed =
+          (finalDiagnostics?.hardIssueCount ?? 0) === 0
+          && releaseDimensionFailures(finalValidatorFindings).length === 0
+          && releaseScore >= minScore;
+        if (mode === "premium" && !releaseReadyComputed) return "quality_gate_failed";
+        if ((finalDiagnostics?.hardIssueCount ?? 0) > 0) return "quality_gate_failed";
+        return "ok";
+      })(),
+      hardIssueList: finalDiagnostics?.hardIssues ?? [],
+      // v12 §F: signal whether image generation was skipped due to quality
+      // gate fail. Downstream PDF/image consumers (story-experience UI,
+      // PDF builder) should treat this story as a debug candidate only.
+      imagesSkippedDueToQualityGate: skipImageGenerationForQualityGate,
       qualityMode: input.qualityMode || "premium",
       // qualityGatePassed kept as alias for downstream code that still reads it.
       qualityGatePassed:
