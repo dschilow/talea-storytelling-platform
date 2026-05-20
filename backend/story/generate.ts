@@ -368,10 +368,24 @@ type StoryAvatar = Omit<Avatar, "userId" | "isShared" | "originalAvatarId" | "cr
 };
 
 interface GenerateStoryRequest {
+  storyId?: string;
   userId: string;
   profileId?: string;
   participantProfileIds?: string[];
   config: StoryConfig;
+}
+
+function resolveClientProvidedStoryId(storyId: string | undefined): string {
+  const trimmed = storyId?.trim();
+  if (!trimmed) {
+    return crypto.randomUUID();
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(trimmed)) {
+    throw APIError.invalidArgument("storyId must be a valid UUID");
+  }
+
+  return trimmed;
 }
 
 function uniqueTrimmed(values: string[]): string[] {
@@ -397,7 +411,7 @@ function mergePromptBlocks(...blocks: Array<string | undefined>): string | undef
 export const generate = api<GenerateStoryRequest, Story>(
   { expose: true, method: "POST", path: "/story/generate", auth: true },
   async (req) => {
-    const id = crypto.randomUUID();
+    const id = resolveClientProvidedStoryId(req.storyId);
     const now = new Date();
     const auth = getAuthData();
     const currentUserId = auth?.userID;

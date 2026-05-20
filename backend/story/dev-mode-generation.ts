@@ -1609,6 +1609,10 @@ async function generateDevModeImages(
   const looksLikeEnglishPrompt = (s: string): boolean => {
     const t = String(s || "").trim();
     if (t.length < 30) return false;
+    if (/^\s*[\[{]/.test(t)) return false;
+    if (/"error"\s*:|developer instruction requires|can't provide|cannot provide|requested json|plain single-paragraph prompt|no json/i.test(t)) {
+      return false;
+    }
     // Heuristic: English picture-book prompts overwhelmingly use ASCII Latin-1
     // and lack German diacritics. If we detect German-specific characters or
     // common German short words, treat as not-English and refill.
@@ -1705,6 +1709,7 @@ async function generateDevModeImages(
           stage: "image-prompt-compiler",
           maxTokens: 400,
           temperature: 0.7,
+          openRouterResponseFormat: "text",
         });
         promptTokenUsage.prompt += r.usage.prompt;
         promptTokenUsage.completion += r.usage.completion;
@@ -1800,15 +1805,22 @@ async function generateDevModeImages(
 
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
-  if (parsedPrompts?.cover) jobs.push({ kind: "cover", prompt: String(parsedPrompts.cover).trim() });
+  const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
+    const castNamesEn = cast.slice(0, 4).map((e) => e.name).join(", ") || "the heroes";
+    if (job.kind === "cover") {
+      return `Single picture-book cover scene with ${castNamesEn} in a ${input.config.setting} setting, centered around the story's main magical problem, warm child-friendly atmosphere, no text.`;
+    }
+    return `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from reading page ${job.order}; warm, child-friendly, single cohesive scene, no text.`;
+  };
+  const coverPrompt = String(parsedPrompts?.cover || "").trim();
+  jobs.push({ kind: "cover", prompt: looksLikeEnglishPrompt(coverPrompt) ? coverPrompt : fallbackImagePrompt({ kind: "cover" }) });
   for (const ch of parsedChapters) {
     const found = (parsedPrompts?.chapters || []).find((c) => Number(c?.order) === ch.order);
     let promptText = String(found?.prompt || "").trim();
     if (!promptText || !looksLikeEnglishPrompt(promptText)) {
       // Last-resort: ship a SHORT generic English scene description rather
       // than raw German story text (which Runware cannot render well).
-      const castNamesEn = cast.slice(0, 4).map((e) => e.name).join(", ") || "the heroes";
-      promptText = `Picture-book illustration of ${castNamesEn} in a ${input.config.setting} scene from reading page ${ch.order}; warm, child-friendly, single cohesive scene.`;
+      promptText = fallbackImagePrompt({ kind: "chapter", order: ch.order });
     }
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
@@ -1828,7 +1840,14 @@ async function generateDevModeImages(
       // Local image-prompt sanitizer: strip any named living artist/studio the
       // model still slipped in, plus any "in the style of X" pattern, and
       // unwrap any leftover JSON envelope. Deterministic guardrails.
-      const sanitizedPrompt = sanitizeImagePrompt(job.prompt);
+      let sanitizedPrompt = sanitizeImagePrompt(job.prompt);
+      if (!looksLikeEnglishPrompt(sanitizedPrompt)) {
+        console.warn("[dev-mode-generation] image prompt rejected after sanitizer; using deterministic fallback", {
+          job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
+          rejectedPreview: sanitizedPrompt.slice(0, 120),
+        });
+        sanitizedPrompt = fallbackImagePrompt(job);
+      }
 
       // v11 §12B: filter individual references to characters actually in the
       // scene. When using a 3-slot collage but the scene only contains 2
@@ -8029,6 +8048,7 @@ interface ProviderCallOptions {
   modelOverride?: string;
   providerOverride?: AIProvider;
   openRouterModelOverride?: string;
+  openRouterResponseFormat?: "json_object" | "text";
   modelRole?: "support" | "selected-story";
 }
 
@@ -8169,9 +8189,11 @@ async function callProvider(
   if (aiProvider === "openrouter") {
     const orModel = normalizeOpenRouterModel(openRouterModel);
     const forceJsonObjectFormat = shouldForceOpenRouterJsonObject(orModel);
+    const responseFormat = options.openRouterResponseFormat || (forceJsonObjectFormat ? "json_object" : "text");
     const reasoning = openRouterReasoningForDevMode(orModel);
     console.log(`[dev-mode-generation] Calling OpenRouter model: ${orModel}`, {
       forceJsonObjectFormat,
+      responseFormat,
       reasoning,
     });
     const timeoutMs =
@@ -8189,7 +8211,7 @@ async function callProvider(
           { role: "user", content: userPrompt },
         ],
         maxTokens,
-        responseFormat: forceJsonObjectFormat ? "json_object" : "text",
+        responseFormat,
         reasoning,
         includeReasoning: false,
         temperature,

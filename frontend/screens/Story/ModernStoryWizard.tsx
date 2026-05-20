@@ -17,7 +17,12 @@ import Step3AgeAndLength from "./wizard-steps/Step3AgeAndLength";
 import Step4StoryFeeling from "./wizard-steps/Step4StoryFeeling";
 import Step5SpecialWishes from "./wizard-steps/Step5SpecialWishes";
 import Step6Summary from "./wizard-steps/Step6Summary";
-import { generateStoryWithModelFallback } from "./storyGenerateWithModelFallback";
+import {
+  createStoryGenerationId,
+  generateStoryWithModelFallback,
+  recoverGeneratedStoryAfterFailure,
+  shouldAttemptStoryGenerationRecovery,
+} from "./storyGenerateWithModelFallback";
 import {
   TaleaActionButton,
   TaleaMetricPill,
@@ -203,11 +208,39 @@ export default function ModernStoryWizard() {
     }
   };
 
+  const openGeneratedStory = (story: any) => {
+    const newArtifact = story.newArtifact || story.metadata?.newArtifact;
+
+    if (newArtifact) {
+      const lootItem: InventoryItem = {
+        id: crypto.randomUUID(),
+        name: newArtifact.name,
+        type: newArtifact.type || "TOOL",
+        level: 1,
+        sourceStoryId: story.id,
+        description: newArtifact.description,
+        visualPrompt: newArtifact.visualDescriptorKeywords?.join(", ") || "",
+        tags: newArtifact.visualDescriptorKeywords || [],
+        acquiredAt: new Date().toISOString(),
+        imageUrl: newArtifact.imageUrl,
+        storyEffect: newArtifact.storyEffect,
+      };
+
+      setLootArtifact(lootItem);
+      setPendingStoryId(story.id);
+      setShowLootModal(true);
+    } else {
+      navigate(`/story-reader/${story.id}`);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!userId) {
       alert(t("story.wizard.alerts.loginRequired"));
       return;
     }
+
+    const storyId = createStoryGenerationId();
 
     try {
       setGenerating(true);
@@ -222,10 +255,11 @@ export default function ModernStoryWizard() {
 
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       const story = await generateStoryWithModelFallback(backend.story.generate, {
+        storyId,
         userId,
         config: storyConfig,
         profileId: activeProfileId || undefined,
-      });
+      } as any);
 
       setGenerationStep("validation");
       await new Promise((resolve) => setTimeout(resolve, 900));
@@ -236,32 +270,22 @@ export default function ModernStoryWizard() {
       setGenerationStep("complete");
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      const storyData = story as any;
-      const newArtifact = storyData.newArtifact || storyData.metadata?.newArtifact;
-
-      if (newArtifact) {
-        const lootItem: InventoryItem = {
-          id: crypto.randomUUID(),
-          name: newArtifact.name,
-          type: newArtifact.type || "TOOL",
-          level: 1,
-          sourceStoryId: story.id,
-          description: newArtifact.description,
-          visualPrompt: newArtifact.visualDescriptorKeywords?.join(", ") || "",
-          tags: newArtifact.visualDescriptorKeywords || [],
-          acquiredAt: new Date().toISOString(),
-          imageUrl: newArtifact.imageUrl,
-          storyEffect: newArtifact.storyEffect,
-        };
-
-        setLootArtifact(lootItem);
-        setPendingStoryId(story.id);
-        setShowLootModal(true);
-      } else {
-        navigate(`/story-reader/${story.id}`);
-      }
+      openGeneratedStory(story);
     } catch (error) {
       console.error("[ModernWizard] Error generating story:", error);
+      if (shouldAttemptStoryGenerationRecovery(error)) {
+        const recoveredStory = await recoverGeneratedStoryAfterFailure(
+          backend.story,
+          storyId,
+          activeProfileId || undefined
+        );
+        if (recoveredStory) {
+          setGenerationStep("complete");
+          openGeneratedStory(recoveredStory);
+          return;
+        }
+      }
+
       const fallback = t("story.wizard.alerts.error");
       alert(getStoryGenerationErrorMessage(error, fallback));
     } finally {

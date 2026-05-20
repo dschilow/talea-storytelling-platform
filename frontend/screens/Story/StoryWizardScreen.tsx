@@ -20,7 +20,12 @@ import StoryFlavorStep, {
 import { useBackend } from '../../hooks/useBackend';
 import { StoryGenerationStep } from '../../components/story/StoryGenerationProgress';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
-import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
+import {
+  createStoryGenerationId,
+  generateStoryWithModelFallback,
+  recoverGeneratedStoryAfterFailure,
+  shouldAttemptStoryGenerationRecovery,
+} from './storyGenerateWithModelFallback';
 import { useTheme } from '../../contexts/ThemeContext';
 import { TaleaPageBackground, taleaDisplayFont, taleaPageShellClass } from '@/components/talea/TaleaPastelPrimitives';
 import {
@@ -225,6 +230,8 @@ const StoryWizardScreen: React.FC = () => {
       return;
     }
 
+    const storyId = createStoryGenerationId();
+
     try {
       setGenerating(true);
       setGenerationStep('profiles');
@@ -235,10 +242,11 @@ const StoryWizardScreen: React.FC = () => {
 
       // Story-Experience-Einstellungen werden ueber storyConfig uebergeben.
       const story = await generateStoryWithModelFallback(backend.story.generate, {
+        storyId,
         userId: user.id,
         config: storyConfig,
         profileId: activeProfileId || undefined,
-      });
+      } as any);
 
       setGenerationStep('validation');
       await new Promise(r => setTimeout(r, 900));
@@ -248,8 +256,21 @@ const StoryWizardScreen: React.FC = () => {
       await new Promise(r => setTimeout(r, 800));
 
       alert(t('story.wizard.alerts.success', { title: story.title }));
-      window.location.href = '/';
+      window.location.href = `/story-reader/${story.id}`;
     } catch (error) {
+      if (shouldAttemptStoryGenerationRecovery(error)) {
+        const recoveredStory = await recoverGeneratedStoryAfterFailure(
+          backend.story,
+          storyId,
+          activeProfileId || undefined
+        );
+        if (recoveredStory) {
+          alert(t('story.wizard.alerts.success', { title: recoveredStory.title }));
+          window.location.href = `/story-reader/${recoveredStory.id}`;
+          return;
+        }
+      }
+
       console.error('❌ Error generating story:', error);
       const fallback = t('story.wizard.alerts.error');
       const errorMessage = getStoryGenerationErrorMessage(error, fallback);

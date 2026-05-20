@@ -43,7 +43,12 @@ import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
 import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
 import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
 import Step6Summary from './wizard-steps/Step6Summary';
-import { generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
+import {
+  createStoryGenerationId,
+  generateStoryWithModelFallback,
+  recoverGeneratedStoryAfterFailure,
+  shouldAttemptStoryGenerationRecovery,
+} from './storyGenerateWithModelFallback';
 import {
   DEFAULT_OPENROUTER_STORY_MODEL,
   type AIModel,
@@ -353,6 +358,31 @@ export default function TaleaStoryWizard() {
     }
   };
 
+  const openGeneratedStory = (story: any) => {
+    const newArtifact = story.newArtifact || story.metadata?.newArtifact;
+    if (newArtifact) {
+      const lootItem: InventoryItem = {
+        id: crypto.randomUUID(),
+        name: newArtifact.name,
+        type: newArtifact.type || 'TOOL',
+        level: 1,
+        sourceStoryId: story.id,
+        description: newArtifact.description,
+        visualPrompt: newArtifact.visualDescriptorKeywords?.join(', ') || '',
+        tags: newArtifact.visualDescriptorKeywords || [],
+        acquiredAt: new Date().toISOString(),
+        imageUrl: newArtifact.imageUrl,
+        storyEffect: newArtifact.storyEffect,
+      };
+      setLootArtifact(lootItem);
+      setPendingStoryId(story.id);
+      setShowLootModal(true);
+    } else {
+      onStoryReady();
+      navigate(`/story-reader/${story.id}`);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!userId) {
       alert(t('story.wizard.alerts.loginRequired'));
@@ -369,6 +399,8 @@ export default function TaleaStoryWizard() {
       return;
     }
 
+    const storyId = createStoryGenerationId();
+
     try {
       setGenerating(true);
       setGenerationStep('profiles');
@@ -382,10 +414,11 @@ export default function TaleaStoryWizard() {
 
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       const story = await generateStoryWithModelFallback(backend.story.generate, {
+        storyId,
         userId,
         config: storyConfig,
         profileId: activeProfileId || undefined,
-      });
+      } as any);
 
       setStoryCredits((prev) =>
         prev
@@ -407,31 +440,23 @@ export default function TaleaStoryWizard() {
       onPhaseChange('complete');
       await new Promise((r) => setTimeout(r, 800));
 
-      const storyData = story as any;
-      const newArtifact = storyData.newArtifact || storyData.metadata?.newArtifact;
-      if (newArtifact) {
-        const lootItem: InventoryItem = {
-          id: crypto.randomUUID(),
-          name: newArtifact.name,
-          type: newArtifact.type || 'TOOL',
-          level: 1,
-          sourceStoryId: story.id,
-          description: newArtifact.description,
-          visualPrompt: newArtifact.visualDescriptorKeywords?.join(', ') || '',
-          tags: newArtifact.visualDescriptorKeywords || [],
-          acquiredAt: new Date().toISOString(),
-          imageUrl: newArtifact.imageUrl,
-          storyEffect: newArtifact.storyEffect,
-        };
-        setLootArtifact(lootItem);
-        setPendingStoryId(story.id);
-        setShowLootModal(true);
-      } else {
-        onStoryReady();
-        navigate(`/story-reader/${story.id}`);
-      }
+      openGeneratedStory(story);
     } catch (error) {
       console.error('[StoryWizard] Error:', error);
+      if (shouldAttemptStoryGenerationRecovery(error)) {
+        const recoveredStory = await recoverGeneratedStoryAfterFailure(
+          backend.story,
+          storyId,
+          activeProfileId || undefined
+        );
+        if (recoveredStory) {
+          setGenerationStep('complete');
+          onPhaseChange('complete');
+          openGeneratedStory(recoveredStory);
+          return;
+        }
+      }
+
       let errorMessage = t('story.wizard.alerts.error');
       if (error instanceof Error) {
         if (error.message.includes('length limit exceeded')) errorMessage = t('story.wizard.alerts.tooLong');
