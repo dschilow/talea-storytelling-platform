@@ -25,7 +25,7 @@ import {
 import { useBackend } from "../../hooks/useBackend";
 import { exportStoryAsPDF, isPDFExportSupported } from "../../utils/pdfExport";
 import type { Story } from "../../types/story";
-import { isStoryQualityGateDraft, wereStoryImagesSkipped } from "../../utils/storyQualityGate";
+import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { cn } from "@/lib/utils";
@@ -267,7 +267,6 @@ const GridStoryCard: React.FC<{
   const reduceMotion = useReducedMotion();
   const isFeatured = index === 0;
   const imagesSkipped = wereStoryImagesSkipped(story);
-  const qualityGateDraft = isStoryQualityGateDraft(story);
 
   return (
     <motion.article
@@ -315,7 +314,7 @@ const GridStoryCard: React.FC<{
               {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-400" /> : <Bookmark className="h-4 w-4" />}
             </motion.button>
           )}
-          {canDownload && story.status === "complete" && !qualityGateDraft && (
+          {canDownload && story.status === "complete" && (
             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
               {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </motion.button>
@@ -378,7 +377,6 @@ const ListStoryRow: React.FC<{
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
   const imagesSkipped = wereStoryImagesSkipped(story);
-  const qualityGateDraft = isStoryQualityGateDraft(story);
 
   return (
     <motion.article
@@ -419,7 +417,7 @@ const ListStoryRow: React.FC<{
                     {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
                   </motion.button>
                 )}
-                {canDownload && story.status === "complete" && !qualityGateDraft && (
+                {canDownload && story.status === "complete" && (
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                     {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   </motion.button>
@@ -448,7 +446,7 @@ const ListStoryRow: React.FC<{
                 {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
               </motion.button>
             )}
-            {canDownload && story.status === "complete" && !qualityGateDraft && (
+            {canDownload && story.status === "complete" && (
               <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               </motion.button>

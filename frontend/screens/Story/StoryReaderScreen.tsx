@@ -19,7 +19,7 @@ import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
-import { isStoryQualityGateDraft, wereStoryImagesSkipped } from '../../utils/storyQualityGate';
+import { wereStoryImagesSkipped } from '../../utils/storyQualityGate';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -498,7 +498,6 @@ const StoryReaderScreen: React.FC = () => {
 
   const currentChapter = story.chapters?.[currentChapterIndex];
   const imagesSkipped = wereStoryImagesSkipped(story);
-  const qualityGateDraft = isStoryQualityGateDraft(story);
   const chapterParagraphs = buildChapterTextSegments(
     currentChapter?.content || "",
     Boolean(currentChapter?.imageUrl),
@@ -590,7 +589,7 @@ const StoryReaderScreen: React.FC = () => {
                         {t('story.reader.read')}
                       </TaleaActionButton>
 
-                      {isAdmin && !qualityGateDraft && (
+                      {isAdmin && (
                         <TaleaActionButton
                           variant="secondary"
                           onClick={handleExportPDF}

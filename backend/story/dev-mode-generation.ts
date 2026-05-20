@@ -10842,35 +10842,25 @@ export async function generateStoryDevMode(
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
 
-  // v12 §F: release gate before expensive image generation. In premium mode,
-  // if a hard quality gate is still open, do NOT spend Runware credits
-  // generating images for a story that will be returned as
-  // `status="quality_gate_failed"` anyway. The story is still persisted as a
-  // debug candidate (so devs can inspect what went wrong), but with no
-  // chapter images and no cover. This is the cheap-fail path the previous
-  // build was missing.
-  const skipImageGenerationForQualityGate =
-    (input.qualityMode || "premium") === "premium"
-    && (
-      Boolean(qualityGateFailureReason)
-      || ((finalDiagnostics?.hardIssueCount ?? 0) > 0)
-    );
+  // User-facing stories must still get artwork even when the quality gate
+  // remains open. We keep the release metadata for diagnostics, but we no
+  // longer short-circuit image generation here.
+  const skipImageGenerationForQualityGate = false;
 
-  if (skipImageGenerationForQualityGate) {
-    console.warn("[dev-mode-generation] §F release-gate: skipping image generation because premium quality gate failed", {
+  if (Boolean(qualityGateFailureReason) || ((finalDiagnostics?.hardIssueCount ?? 0) > 0)) {
+    console.warn("[dev-mode-generation] §F release-gate failed, but continuing image generation for user-facing story", {
       hardIssueCount: finalDiagnostics?.hardIssueCount,
       qualityGateFailureReason,
       finalQualityScore,
     });
-  } else {
-    try {
-      devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
-      totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
-      totalUsage.completion += devModeImages.promptTokenUsage.completion;
-      totalUsage.total += devModeImages.promptTokenUsage.total;
-    } catch (err) {
-      console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
-    }
+  }
+  try {
+    devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
+    totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
+    totalUsage.completion += devModeImages.promptTokenUsage.completion;
+    totalUsage.total += devModeImages.promptTokenUsage.total;
+  } catch (err) {
+    console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
   }
 
   const chapters = sortedParsedChapters.map((ch, idx) => {

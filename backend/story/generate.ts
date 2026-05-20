@@ -724,7 +724,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.developerMode === true) {
-        console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, NO images, NO personality updates)");
+        console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");
 
         // Auto-cast: load the active character pool and pick supporting cast
         // matching this story's setting. We deliberately don't run the full
