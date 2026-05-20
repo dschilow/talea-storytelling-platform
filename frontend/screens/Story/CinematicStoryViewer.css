@@ -165,36 +165,6 @@
   transform: translateY(0) scale(0.98);
 }
 
-/* ── Chapter Divider ── */
-.sr-chapter-divider {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 1rem;
-  position: relative;
-}
-
-.sr-chapter-divider-line {
-  width: 1px;
-  height: 60px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(232, 168, 56, 0.4) 50%,
-    transparent 100%
-  );
-}
-
-.sr-chapter-divider-ornament {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(232, 168, 56, 0.5);
-  box-shadow: 0 0 8px rgba(232, 168, 56, 0.3);
-  margin: 0.75rem 0;
-}
-
 /* ── Chapter Section ── */
 .sr-chapter {
   position: relative;
@@ -295,12 +265,12 @@
 .sr-chapter-content {
   max-width: 700px;
   margin: 0 auto;
-  padding: 2.5rem 0.5rem 3rem;
+  padding: 0.5rem 0.5rem 1.25rem;
 }
 
 @media (min-width: 768px) {
   .sr-chapter-content {
-    padding: 3.5rem 1rem 4rem;
+    padding: 0.85rem 1rem 1.5rem;
   }
 }
 

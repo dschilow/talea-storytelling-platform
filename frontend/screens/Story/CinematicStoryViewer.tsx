@@ -430,21 +430,15 @@ const CinematicStoryViewer: React.FC = () => {
 
         {/* ── Chapters ── */}
         {chapters.map((chapter, index) => (
-          <React.Fragment key={chapter.id || `${chapter.title}-${index}`}>
-            {/* Divider between chapters */}
-            <ChapterDivider />
-
-            <ChapterSection
-              chapter={chapter}
-              index={index}
-              total={chapters.length}
-              palette={palette}
-              isDark={isDark}
-              onComplete={index === chapters.length - 1 ? handleStoryCompletion : undefined}
-              isCompleted={storyCompleted}
-              onBecomeActive={() => setActiveChapter(index)}
-            />
-          </React.Fragment>
+          <ChapterSection
+            key={chapter.id || `${chapter.title}-${index}`}
+            chapter={chapter}
+            index={index}
+            palette={palette}
+            onComplete={index === chapters.length - 1 ? handleStoryCompletion : undefined}
+            isCompleted={storyCompleted}
+            onBecomeActive={() => setActiveChapter(index)}
+          />
         ))}
 
         {/* ── Cast Members ── */}
@@ -555,32 +549,15 @@ const CinematicStoryViewer: React.FC = () => {
   );
 };
 
-/* ── Chapter Divider ── */
-const ChapterDivider: React.FC = () => (
-  <motion.div
-    className="sr-chapter-divider"
-    initial={{ opacity: 0 }}
-    whileInView={{ opacity: 1 }}
-    viewport={{ once: true, amount: 0.5 }}
-    transition={{ duration: 0.6 }}
-  >
-    <div className="sr-chapter-divider-line" />
-    <div className="sr-chapter-divider-ornament" />
-    <div className="sr-chapter-divider-line" />
-  </motion.div>
-);
-
 /* ── Chapter Section ── */
 const ChapterSection: React.FC<{
   chapter: Chapter;
   index: number;
-  total: number;
   palette: StoryPalette;
-  isDark: boolean;
   onComplete?: () => void;
   isCompleted?: boolean;
   onBecomeActive: () => void;
-}> = ({ chapter, index, total, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
+}> = ({ chapter, index, palette, onComplete, isCompleted, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
   const paragraphs = useMemo(() => buildChapterTextSegments(
@@ -598,31 +575,15 @@ const ChapterSection: React.FC<{
 
   useEffect(() => {
     if (isInView) onBecomeActive();
-  }, [isInView]);
+  }, [isInView, onBecomeActive]);
 
   return (
     <section
       id={`chapter-${index}`}
       ref={sectionRef}
       className="sr-chapter"
-      style={{ paddingTop: '1rem', paddingBottom: '2rem' }}
+      style={{ paddingTop: index === 0 ? '1rem' : '0.2rem', paddingBottom: onComplete ? '1.75rem' : '0.2rem' }}
     >
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.15 }}
-        transition={{ duration: 0.7, ease: [0.2, 0.65, 0.3, 0.9] }}
-        className="mb-8 text-center"
-      >
-        <div className="flex flex-col items-center gap-2">
-          <span className="sr-chapter-number" style={{ color: palette.sub }}>
-            Kapitel {index + 1} von {total}
-          </span>
-          <h2 className="sr-chapter-title" style={{ color: palette.title, marginTop: 0 }}>{chapter.title}</h2>
-        </div>
-      </motion.div>
-
-      {/* Chapter Content */}
       <div className="sr-chapter-content">
         {paragraphs.map((paragraph, paragraphIndex) => (
           <React.Fragment key={`${chapter.id || index}-paragraph-${paragraphIndex}`}>
@@ -631,7 +592,7 @@ const ChapterSection: React.FC<{
               paragraphClassName="sr-paragraph"
               paragraphStyle={{ color: palette.title }}
               className="space-y-0"
-              enableDropCap={paragraphIndex === 0}
+              enableDropCap={index === 0 && paragraphIndex === 0}
             />
 
             {insertPoints.primaryAfterSegment === paragraphIndex && (

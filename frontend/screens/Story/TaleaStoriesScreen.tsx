@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
 import {
   Bookmark,
@@ -56,6 +57,7 @@ const bodyFont = taleaBodyFont;
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
 type ContentTab = "stories" | "studio";
+type TranslateFn = TFunction;
 
 const statusMeta: Record<Story["status"], { className: string }> = {
   complete: {
@@ -107,10 +109,15 @@ function getStoryLengthKey(story: Story): string {
   return "";
 }
 
-function formatGenreLabel(genre: string, t: (key: string, fallback?: string) => string): string {
-  if (!genre) return t("storiesScreen.genre.unknown", "Unbekannt");
+function translateWithFallback(t: TranslateFn, key: string, fallback: string): string {
+  const translated = t(key, { defaultValue: fallback });
+  return typeof translated === "string" ? translated : fallback;
+}
+
+function formatGenreLabel(genre: string, t: TranslateFn): string {
+  if (!genre) return translateWithFallback(t, "storiesScreen.genre.unknown", "Unbekannt");
   const key = `storiesScreen.genre.${genre}`;
-  const translated = t(key, "");
+  const translated = translateWithFallback(t, key, "");
   if (translated && translated !== key) return translated;
   return genre
     .replace(/[_-]+/g, " ")
@@ -120,10 +127,10 @@ function formatGenreLabel(genre: string, t: (key: string, fallback?: string) => 
     .join(" ");
 }
 
-function formatLengthLabel(length: string, t: (key: string, fallback?: string) => string): string {
-  if (!length) return t("storiesScreen.length.unknown", "Unbekannt");
+function formatLengthLabel(length: string, t: TranslateFn): string {
+  if (!length) return translateWithFallback(t, "storiesScreen.length.unknown", "Unbekannt");
   const key = `storiesScreen.length.${length}`;
-  const translated = t(key, "");
+  const translated = translateWithFallback(t, key, "");
   if (translated && translated !== key) return translated;
   return length;
 }

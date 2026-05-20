@@ -25,6 +25,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SignedIn, SignedOut, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import { DokuCard } from '../../components/cards/DokuCard';
 import { useBackend } from '../../hooks/useBackend';
@@ -65,6 +66,7 @@ type DokuTab = 'mine' | 'discover' | 'audio';
 type DokuSortMode = 'newest' | 'oldest' | 'title';
 type AudioScope = 'all' | 'mine' | 'public';
 const AUDIO_DOKU_LIST_PAGE_SIZE = 100;
+type TranslateFn = TFunction;
 
 // Tab-Theme: jeder Tab hat einen eigenen Akzentcolor für klare visuelle Trennung
 type TabTheme = {
@@ -91,11 +93,16 @@ function getDokuDepthValue(doku: Doku): string {
   return normalizeFilterValue(doku.metadata?.configSnapshot?.depth);
 }
 
-function formatDokuDepthLabel(depth: string, t: (key: string, fallback?: string) => string): string {
-  if (depth === 'basic') return t('doku.depthBasic', 'Basis');
-  if (depth === 'standard') return t('doku.depthStandard', 'Standard');
-  if (depth === 'deep') return t('doku.depthDeep', 'Tief');
-  return depth || t('doku.depthUnknown', 'Unbekannt');
+function translateWithFallback(t: TranslateFn, key: string, fallback: string): string {
+  const translated = t(key, { defaultValue: fallback });
+  return typeof translated === 'string' ? translated : fallback;
+}
+
+function formatDokuDepthLabel(depth: string, t: TranslateFn): string {
+  if (depth === 'basic') return translateWithFallback(t, 'doku.depthBasic', 'Basis');
+  if (depth === 'standard') return translateWithFallback(t, 'doku.depthStandard', 'Standard');
+  if (depth === 'deep') return translateWithFallback(t, 'doku.depthDeep', 'Tief');
+  return depth || translateWithFallback(t, 'doku.depthUnknown', 'Unbekannt');
 }
 
 function formatTopicLabel(topic: string, unknownFallback = 'Unbekannt'): string {
