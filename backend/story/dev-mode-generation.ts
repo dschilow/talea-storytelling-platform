@@ -757,7 +757,14 @@ interface ForbiddenMotifPlanScan {
 }
 
 interface ForbiddenMotifPreflightResult {
+  // Hard violations only: motifs the spec actually bans (e.g. user-supplied
+  // hard-avoid list, anchor-contamination set). Caller should refuse to
+  // proceed or trigger an idea regenerate when this is non-empty.
   violations: Array<{ field: string; motif: string; matched: string }>;
+  // Soft warnings: novelty-hint motifs from recent stories. Logged for
+  // observability but not blocking — children's-book vocabulary inevitably
+  // overlaps with previous stories' theme words.
+  softWarnings: Array<{ field: string; motif: string; matched: string }>;
   canRepair: boolean;
   repairedPlan?: ForbiddenMotifPlanScan;
   repairLog: string[];
@@ -790,11 +797,50 @@ function scanFieldForMotifs(
   return hits;
 }
 
+/**
+ * Classify a motif as a hard ban or a soft novelty hint.
+ *
+ * Hard bans:
+ *   - the curated `ANCHOR_CONTAMINATION_MOTIFS` set (style-anchor leakage)
+ *   - the existing `FORBIDDEN_MOTIF_LOCAL_REPAIRS` keys (we have a known
+ *     rename for them, so they are explicit policy)
+ *
+ * Everything else (`recentMotifs` from the user's prior stories) is a
+ * novelty *hint* — children's-book vocabulary inevitably overlaps with
+ * earlier stories' theme words ("wachst", "ablenkung", "regen", …) and
+ * blocking every overlap kills generation outright (see logs.1779275469620
+ * where two harmless words shut down a healthy scene-cards stage).
+ */
+function isHardBanMotif(motif: string): boolean {
+  const normalized = normalizeNoveltyText(motif);
+  if (!normalized) return false;
+  for (const anchor of ANCHOR_CONTAMINATION_MOTIFS) {
+    if (normalizeNoveltyText(anchor) === normalized) return true;
+  }
+  // Local-repair dictionary keys are explicit policy motifs.
+  const collapsed = normalized.replace(/\s+/g, "");
+  if (FORBIDDEN_MOTIF_LOCAL_REPAIRS[collapsed]) return true;
+  // Also treat the prefix root as hard if any repair-dict key starts with
+  // it (e.g. "schatten" is hard because "schattencape", "schattenumhang"
+  // are in the dict). This catches the case where the user adds the bare
+  // root to hardAvoidMotifs.
+  for (const dictKey of Object.keys(FORBIDDEN_MOTIF_LOCAL_REPAIRS)) {
+    if (dictKey.startsWith(collapsed) && collapsed.length >= 6) return true;
+  }
+  return false;
+}
+
 export function forbiddenMotifPreflight(
   plan: ForbiddenMotifPlanScan,
   hardAvoidMotifs: string[]
 ): ForbiddenMotifPreflightResult {
+  // Split the input motif list once. `hardMotifs` block; `softMotifs` only
+  // get logged as novelty drift signals.
+  const hardMotifs = hardAvoidMotifs.filter(isHardBanMotif);
+  const softMotifs = hardAvoidMotifs.filter((m) => !isHardBanMotif(m));
+
   const allViolations: Array<{ field: string; motif: string; matched: string }> = [];
+  const softWarnings: Array<{ field: string; motif: string; matched: string }> = [];
   const repairLog: string[] = [];
 
   const scalarFields: Array<keyof ForbiddenMotifPlanScan> = [
@@ -810,21 +856,21 @@ export function forbiddenMotifPreflight(
   for (const field of scalarFields) {
     const value = plan[field];
     if (typeof value !== "string") continue;
-    const hits = scanFieldForMotifs(field as string, value, hardAvoidMotifs);
-    allViolations.push(...hits);
+    allViolations.push(...scanFieldForMotifs(field as string, value, hardMotifs));
+    softWarnings.push(...scanFieldForMotifs(field as string, value, softMotifs));
   }
 
   if (Array.isArray(plan.sceneCards)) {
     plan.sceneCards.forEach((card, idx) => {
       if (!card) return;
       const text = typeof card === "string" ? card : JSON.stringify(card);
-      const hits = scanFieldForMotifs(`sceneCards[${idx}]`, text, hardAvoidMotifs);
-      allViolations.push(...hits);
+      allViolations.push(...scanFieldForMotifs(`sceneCards[${idx}]`, text, hardMotifs));
+      softWarnings.push(...scanFieldForMotifs(`sceneCards[${idx}]`, text, softMotifs));
     });
   }
 
   if (allViolations.length === 0) {
-    return { violations: [], canRepair: true, repairLog: [] };
+    return { violations: [], softWarnings, canRepair: true, repairLog: [] };
   }
 
   // If any violation lives in centralObjectOrPlace or wonderRule, the motif
@@ -839,16 +885,27 @@ export function forbiddenMotifPreflight(
         .map((v) => `${v.field}="${v.matched}"`)
         .join(", ")} — idea must be regenerated.`
     );
-    return { violations: allViolations, canRepair: false, repairLog };
+    return { violations: allViolations, softWarnings, canRepair: false, repairLog };
   }
 
-  // Attempt local repairs on the remaining fields.
+  // Attempt local repairs on the remaining fields. Scene-card matches that
+  // we can't rename are dropped to softWarnings rather than failing the
+  // whole pipeline — the model can revise mid-stream.
   const repaired: ForbiddenMotifPlanScan = { ...plan };
+  const stillHardViolations: typeof allViolations = [];
   for (const violation of allViolations) {
     const replacement = localRepairCandidate(violation.matched);
     if (!replacement) {
+      if (violation.field.startsWith("sceneCards")) {
+        // Sceneside hits are usually surface-level wording, not load-bearing;
+        // we keep them as warnings instead of throwing.
+        softWarnings.push(violation);
+        repairLog.push(`No local repair for "${violation.matched}" in ${violation.field}; downgraded to soft warning.`);
+        continue;
+      }
+      stillHardViolations.push(violation);
       repairLog.push(`No local repair candidate for "${violation.matched}" in ${violation.field}.`);
-      return { violations: allViolations, canRepair: false, repairLog };
+      continue;
     }
     const field = violation.field as keyof ForbiddenMotifPlanScan;
     const original = repaired[field];
@@ -859,7 +916,10 @@ export function forbiddenMotifPreflight(
     }
   }
 
-  return { violations: allViolations, canRepair: true, repairedPlan: repaired, repairLog };
+  if (stillHardViolations.length > 0) {
+    return { violations: stillHardViolations, softWarnings, canRepair: false, repairLog };
+  }
+  return { violations: [], softWarnings, canRepair: true, repairedPlan: repaired, repairLog };
 }
 
 function characterNameMotifAliases(name: string): string[] {
@@ -9198,8 +9258,13 @@ export async function generateStoryDevMode(
           imagePromptSeed: (selectedIdea as any).imagePromptSeed ?? null,
         };
         const preflight = forbiddenMotifPreflight(ideaScan, hardAvoidForPreflight);
+        if (preflight.softWarnings.length > 0) {
+          console.log("[dev-mode-generation] §3 idea novelty drift (soft)", {
+            warnings: preflight.softWarnings.slice(0, 6),
+          });
+        }
         if (preflight.violations.length > 0) {
-          console.warn("[dev-mode-generation] §3 forbidden-motif preflight on selected idea", {
+          console.warn("[dev-mode-generation] §3 forbidden-motif preflight on selected idea (HARD)", {
             violations: preflight.violations.slice(0, 6),
             canRepair: preflight.canRepair,
             repairLog: preflight.repairLog,
@@ -9315,19 +9380,31 @@ export async function generateStoryDevMode(
     // still introduce a banned word-family inside a scene description even
     // when the selected idea was clean. Catch it here, before the most
     // expensive stages (dialogue-intent, whole-story-draft).
+    //
+    // Severity model (post-fix from logs.1779275469620):
+    //   - violations[] = hard bans (ANCHOR set / local-repair dict). Block.
+    //   - softWarnings[] = novelty-drift hints from recent stories. Log only;
+    //     the LLM will revise during draft/polish if needed. Surface-level
+    //     overlaps with common children's vocabulary ("wachst", "ablenkung")
+    //     should never halt generation.
     const hardAvoidForSceneScan = input.noveltyBrief?.hardAvoidMotifs ?? [];
     if (hardAvoidForSceneScan.length > 0 && Array.isArray(sceneCards) && sceneCards.length > 0) {
       const sceneScan: ForbiddenMotifPlanScan = { sceneCards: sceneCards as any[] };
       const sceneFlight = forbiddenMotifPreflight(sceneScan, hardAvoidForSceneScan);
+      if (sceneFlight.softWarnings.length > 0) {
+        console.log("[dev-mode-generation] §3 scene-cards novelty drift (soft)", {
+          warnings: sceneFlight.softWarnings.slice(0, 6),
+        });
+      }
       if (sceneFlight.violations.length > 0) {
-        console.warn("[dev-mode-generation] §3 forbidden-motif preflight on scene cards", {
+        console.warn("[dev-mode-generation] §3 forbidden-motif preflight on scene cards (HARD)", {
           violations: sceneFlight.violations.slice(0, 8),
           canRepair: sceneFlight.canRepair,
           repairLog: sceneFlight.repairLog,
         });
         if (!sceneFlight.canRepair) {
           throw new Error(
-            `Scene-cards contain forbidden motifs that cannot be locally repaired: ${sceneFlight.violations
+            `Scene-cards contain hard-banned motifs that cannot be locally repaired: ${sceneFlight.violations
               .map((v) => `${v.field}="${v.matched}"`)
               .join(", ")}`
           );
