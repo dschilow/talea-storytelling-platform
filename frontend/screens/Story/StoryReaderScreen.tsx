@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, ImageOff, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
+import { isStoryQualityGateDraft, wereStoryImagesSkipped } from '../../utils/storyQualityGate';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -496,6 +497,8 @@ const StoryReaderScreen: React.FC = () => {
   }
 
   const currentChapter = story.chapters?.[currentChapterIndex];
+  const imagesSkipped = wereStoryImagesSkipped(story);
+  const qualityGateDraft = isStoryQualityGateDraft(story);
   const chapterParagraphs = buildChapterTextSegments(
     currentChapter?.content || "",
     Boolean(currentChapter?.imageUrl),
@@ -558,6 +561,12 @@ const StoryReaderScreen: React.FC = () => {
                     <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 dark:text-slate-300">
                       {story.summary}
                     </p>
+                    {imagesSkipped ? (
+                      <div className="mt-4 flex max-w-2xl items-start gap-3 rounded-[24px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
+                        <ImageOff className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>Diese Story wurde als Entwurf gespeichert. Die Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.</span>
+                      </div>
+                    ) : null}
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">
                       <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
@@ -570,7 +579,9 @@ const StoryReaderScreen: React.FC = () => {
                       </div>
                       <div className="rounded-[22px] border border-white/70 bg-white/66 px-4 py-3 dark:border-white/10 dark:bg-white/5">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Bereit</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">Mit Audio und Belohnungen</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                          {imagesSkipped ? "Ohne Storybilder" : "Mit Audio und Belohnungen"}
+                        </p>
                       </div>
                     </div>
 
@@ -579,7 +590,7 @@ const StoryReaderScreen: React.FC = () => {
                         {t('story.reader.read')}
                       </TaleaActionButton>
 
-                      {isAdmin && (
+                      {isAdmin && !qualityGateDraft && (
                         <TaleaActionButton
                           variant="secondary"
                           onClick={handleExportPDF}

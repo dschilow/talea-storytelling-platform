@@ -9,6 +9,7 @@ import {
   BookOpen,
   Clock3,
   Download,
+  ImageOff,
   Grid3X3,
   LayoutList,
   Plus,
@@ -24,6 +25,7 @@ import {
 import { useBackend } from "../../hooks/useBackend";
 import { exportStoryAsPDF, isPDFExportSupported } from "../../utils/pdfExport";
 import type { Story } from "../../types/story";
+import { isStoryQualityGateDraft, wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { cn } from "@/lib/utils";
@@ -242,6 +244,13 @@ const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
   );
 };
 
+const StoryImageSkipChip: React.FC = () => (
+  <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300">
+    <ImageOff className="h-3.5 w-3.5" />
+    Bilder ubersprungen
+  </span>
+);
+
 const GridStoryCard: React.FC<{
   story: Story;
   index: number;
@@ -257,6 +266,8 @@ const GridStoryCard: React.FC<{
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
   const isFeatured = index === 0;
+  const imagesSkipped = wereStoryImagesSkipped(story);
+  const qualityGateDraft = isStoryQualityGateDraft(story);
 
   return (
     <motion.article
@@ -292,13 +303,19 @@ const GridStoryCard: React.FC<{
           <StoryStatusChip status={story.status} />
         </div>
 
+        {imagesSkipped ? (
+          <div className="absolute left-4 top-14">
+            <StoryImageSkipChip />
+          </div>
+        ) : null}
+
         <div className="absolute right-4 top-4 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
           {canSaveOffline && story.status === "complete" && onToggleOffline && (
             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
               {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-400" /> : <Bookmark className="h-4 w-4" />}
             </motion.button>
           )}
-          {canDownload && story.status === "complete" && (
+          {canDownload && story.status === "complete" && !qualityGateDraft && (
             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
               {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </motion.button>
@@ -323,6 +340,11 @@ const GridStoryCard: React.FC<{
         <p className={cn("mt-3 flex-1 font-medium leading-7 text-slate-600 dark:text-slate-300", isFeatured ? "line-clamp-4 text-base" : "line-clamp-2 text-sm")}>
           {getStoryPreviewText(story)}
         </p>
+        {imagesSkipped ? (
+          <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+            Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.
+          </p>
+        ) : null}
 
         <div className="mt-5 flex flex-col gap-3 border-t border-[var(--talea-border-light)] pt-5 dark:border-white/10">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -355,6 +377,8 @@ const ListStoryRow: React.FC<{
   onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
+  const imagesSkipped = wereStoryImagesSkipped(story);
+  const qualityGateDraft = isStoryQualityGateDraft(story);
 
   return (
     <motion.article
@@ -385,8 +409,9 @@ const ListStoryRow: React.FC<{
         <div className="flex flex-1 flex-col px-2 pb-4 sm:px-0 sm:py-4 sm:pr-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <h3 className="line-clamp-2 text-2xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <StoryStatusChip status={story.status} />
+              {imagesSkipped ? <StoryImageSkipChip /> : null}
               
               <div className="hidden sm:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 {canSaveOffline && story.status === "complete" && onToggleOffline && (
@@ -394,7 +419,7 @@ const ListStoryRow: React.FC<{
                     {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
                   </motion.button>
                 )}
-                {canDownload && story.status === "complete" && (
+                {canDownload && story.status === "complete" && !qualityGateDraft && (
                   <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                     {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                   </motion.button>
@@ -407,6 +432,11 @@ const ListStoryRow: React.FC<{
           </div>
           
           <p className="mt-3 line-clamp-2 text-base font-medium leading-7 text-slate-600 dark:text-slate-300">{getStoryPreviewText(story)}</p>
+          {imagesSkipped ? (
+            <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+              Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.
+            </p>
+          ) : null}
           
           <div className="mt-auto flex flex-col gap-4 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
             <StoryParticipantsDialog story={story} maxVisible={5} />
@@ -418,7 +448,7 @@ const ListStoryRow: React.FC<{
                 {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
               </motion.button>
             )}
-            {canDownload && story.status === "complete" && (
+            {canDownload && story.status === "complete" && !qualityGateDraft && (
               <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               </motion.button>

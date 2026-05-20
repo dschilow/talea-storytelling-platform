@@ -85,6 +85,14 @@ export interface Story {
     model?: string;
     processingTime?: number;
     imagesGenerated?: number;
+    developerMode?: boolean;
+    releaseReady?: boolean;
+    status?: "ok" | "quality_gate_failed";
+    imagesSkippedDueToQualityGate?: boolean;
+    qualityGatePassed?: boolean;
+    qualityGateFailureReason?: string;
+    returnedWithQualityGateWarnings?: boolean;
+    hardIssueList?: string[];
     totalCost?: {
       text: number;
       images: number;

@@ -9,6 +9,7 @@ import {
   BookmarkCheck,
   BookOpen,
   Clock3,
+  ImageOff,
   Library,
   LogIn,
   Plus,
@@ -25,6 +26,7 @@ import {
 
 import { useBackend } from "../../hooks/useBackend";
 import type { Story, StoryConfig } from "../../types/story";
+import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { cn } from "@/lib/utils";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import taleaLogo from "@/img/talea_logo.png";
@@ -278,6 +280,17 @@ const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => {
   );
 };
 
+const StoryImageSkipTag: React.FC = () => (
+  <motion.span
+    initial={{ scale: 0 }}
+    animate={{ scale: 1 }}
+    className="absolute left-5 top-5 z-20 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300"
+  >
+    <ImageOff className="h-3.5 w-3.5" />
+    Bilder ubersprungen
+  </motion.span>
+);
+
 const StoryCard: React.FC<{
   story: Story;
   onRead: () => void;
@@ -291,6 +304,7 @@ const StoryCard: React.FC<{
   const reduceMotion = useReducedMotion();
   const { t, i18n } = useTranslation();
   const isFeatured = index === 0;
+  const imagesSkipped = wereStoryImagesSkipped(story);
 
   return (
     <motion.article
@@ -304,6 +318,7 @@ const StoryCard: React.FC<{
       onClick={onRead}
     >
       <StoryStatusTag status={story.status} />
+      {imagesSkipped ? <StoryImageSkipTag /> : null}
 
       <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-shadow duration-500 group-hover:shadow-[0_24px_48px_-12px_rgba(var(--talea-accent-rose),0.2),0_12px_24px_-8px_rgba(var(--talea-accent-sky),0.15)] dark:group-hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.7)]")}>
         <div className={cn("flex h-full min-w-0", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
@@ -383,6 +398,11 @@ const StoryCard: React.FC<{
               )}>
                 {story.summary || story.description}
               </p>
+              {imagesSkipped ? (
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                  Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.
+                </p>
+              ) : null}
             </div>
 
             <div className="mt-6 space-y-4">
