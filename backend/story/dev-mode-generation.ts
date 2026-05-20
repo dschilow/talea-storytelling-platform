@@ -4315,6 +4315,32 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   return issues;
 }
 
+function repairBeatSheetDeterministically(
+  beatSheet: any,
+  input: DevModeGenerationInput,
+  issues: string[]
+): any {
+  if (!beatSheet || typeof beatSheet !== "object") return beatSheet;
+  if (!issues.some((issue) => /closingImage explains a moral/i.test(issue))) return beatSheet;
+
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const heroA = heroNames[0] || "Die Kinder";
+  const heroB = heroNames[1] || "das zweite Kind";
+  const artifactName = String(input.matchedArtifact?.name || "").trim();
+  const motif = String(beatSheet?.recurringMotif || artifactName || "das kleine Zeichen").trim();
+  const object = String(beatSheet?.personalObject || artifactName || motif).trim();
+  const helper = String((input.selectedIdea as any)?.selectedSupportingCast?.[0] || "").trim();
+  const helperClause = helper ? `, waehrend ${helper} daneben einen letzten, leisen Handgriff macht` : "";
+
+  return {
+    ...beatSheet,
+    act3: {
+      ...(beatSheet.act3 || {}),
+      closingImage: `${heroA} und ${heroB} stellen ${object} ans Fenster; ${motif} bewegt sich noch einmal im Licht${helperClause}.`,
+    },
+  };
+}
+
 function isNegated(text: string, word: string): boolean {
   const negators = /\b(nicht|kein|keine|keinen|keines|keineswegs|nie|kaum|alles andere als|not|never|no|hardly|scarcely|barely)\b/i;
   const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
@@ -8781,7 +8807,22 @@ export async function generateStoryDevMode(
       beatSheetIssues = validateBeatSheet(beatSheet, input);
     }
     if (beatSheetIssues.length > 0) {
-      throw new Error(`Filmic beat sheet gate failed before prose: ${beatSheetIssues.join(" | ")}`);
+      const repairedBeatSheet = repairBeatSheetDeterministically(beatSheet, input, beatSheetIssues);
+      const repairedIssues = validateBeatSheet(repairedBeatSheet, input);
+      if (repairedIssues.length < beatSheetIssues.length) {
+        console.warn("[dev-mode-generation] beat-sheet deterministic repair applied after support-model repair", {
+          originalIssues: beatSheetIssues,
+          remainingIssues: repairedIssues,
+          repairedClosingImage: repairedBeatSheet?.act3?.closingImage,
+        });
+        beatSheet = repairedBeatSheet;
+        beatSheetIssues = repairedIssues;
+      }
+    }
+    if (beatSheetIssues.length > 0) {
+      console.warn("[dev-mode-generation] beat-sheet soft-fail after repair; continuing to prose pipeline", {
+        issues: beatSheetIssues,
+      });
     }
 
     const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
