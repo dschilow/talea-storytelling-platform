@@ -7533,10 +7533,19 @@ function buildNameVariants(name: string): string[] {
   return [...variants];
 }
 
-function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerationInput): string[] {
+interface NoveltyGateIssueSet {
+  hard: string[];
+  soft: string[];
+}
+
+function collectNoveltyGateIssues(
+  story: DevModeRawStory,
+  input: DevModeGenerationInput
+): NoveltyGateIssueSet {
   const brief = input.noveltyBrief;
-  if (!brief) return [];
-  const issues: string[] = [];
+  if (!brief) return { hard: [], soft: [] };
+  const hard: string[] = [];
+  const soft: string[] = [];
   const title = String(story.title || "");
   const description = String(story.description || "");
   const allContent = story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n\n");
@@ -7563,7 +7572,18 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
     if (!surfaceHit && !singleWordMotif && fullHits === 0) continue;
 
     if (surfaceHit || fullHits > 0) {
-      issues.push(`Wiederholungs-/Novelty-Gate: verbotenes oder kuerzlich verwendetes Motiv gefunden: "${motif}".`);
+      // v12 (post-fix from logs.1779277372031): only ANCHOR/local-repair
+      // motifs hard-fail the story. Recent-stories drift words like "loffel"
+      // are children's-book vocabulary — flag as soft so the polish round
+      // can revise, but never let one body-mention sink an otherwise-ready
+      // release.
+      const message = `Wiederholungs-/Novelty-Gate: verbotenes oder kuerzlich verwendetes Motiv gefunden: "${motif}".`;
+      if (isHardBanMotif(motif)) {
+        hard.push(message);
+      } else {
+        soft.push(message);
+      }
+      // We collected the strongest signal for this motif; move on.
       break;
     }
   }
@@ -7582,10 +7602,13 @@ function collectNoveltyGateIssues(story: DevModeRawStory, input: DevModeGenerati
     }
   }
   if (closestScore >= 0.45) {
-    issues.push(`Wiederholungs-/Novelty-Gate: Titel/Blurb ist zu nah an letzter Story "${closestTitle}" (Motivueberschneidung ${Math.round(closestScore * 100)}%).`);
+    // Title/blurb collision with a recent story IS a real release blocker —
+    // a child seeing two stories with the same surface motif on the same
+    // shelf is exactly what the novelty system exists to prevent.
+    hard.push(`Wiederholungs-/Novelty-Gate: Titel/Blurb ist zu nah an letzter Story "${closestTitle}" (Motivueberschneidung ${Math.round(closestScore * 100)}%).`);
   }
 
-  return issues;
+  return { hard, soft };
 }
 
 // --- Title-promise gate ---------------------------------------------------
@@ -7872,9 +7895,13 @@ function analyzeDevModeStoryQuality(
     }
   }
 
-  for (const noveltyIssue of collectNoveltyGateIssues(story, input)) {
-    hardIssues.push(noveltyIssue);
-  }
+  // v12 §3 (post-fix from logs.1779277372031): split novelty gate into
+  // hard (ANCHOR motifs, title/blurb collision) and soft (recent-story
+  // drift words). Soft hits cap the score via existing softIssue path but
+  // no longer block release of an otherwise-ready story.
+  const noveltyIssues = collectNoveltyGateIssues(story, input);
+  for (const issue of noveltyIssues.hard) hardIssues.push(issue);
+  for (const issue of noveltyIssues.soft) softIssues.push(issue);
   for (const castIssue of collectSelectedCastIssues(story, input)) {
     hardIssues.push(castIssue);
   }
@@ -9645,13 +9672,20 @@ export async function generateStoryDevMode(
     // invent chapter titles or mini-endings.
     const selectedOpenRouterStoryModel = resolveSelectedOpenRouterStoryModel(input.config);
     const compactDraftMode = shouldUseCompactOpenRouterDraft(input.config);
-    // v12 §10: opt-in compact whole-story-draft. Activated by setting
-    // `useCompactDraftPrompt: true` on StoryConfig — kept as an explicit
-    // flag because the legacy prompt is still the safest fallback when the
-    // screenplay plan is incomplete. Compact mode drops the userPrompt from
-    // ~27 000 chars to ~7 000.
+    // v12 §10 (default-on after logs.1779277372031 showed ~67s end-to-end
+    // generation hitting Railway/Cloudflare edge timeout): compact whole-
+    // story-draft prompt is now the DEFAULT for premium runs whenever the
+    // screenplay plan is complete. Drops the userPrompt from ~27 000 chars
+    // to ~7 000 and shaves roughly 30-40s off generation, which is enough
+    // to keep responses inside the 60s edge budget.
+    //
+    // Opt-out: set `useCompactDraftPrompt: false` on StoryConfig to force
+    // the legacy long-form builder (e.g. when chasing a quality regression).
+    // The legacy builder is still the safe fallback when no screenplay plan
+    // exists.
+    const compactDraftOptOut = (input.config as any)?.useCompactDraftPrompt === false;
     const useCompactWholeStoryDraft =
-      Boolean((input.config as any)?.useCompactDraftPrompt)
+      !compactDraftOptOut
       && Boolean(screenplayPlan?.sceneCards?.length);
     const wholeStoryPrompts = useCompactWholeStoryDraft
       ? buildCompactWholeStoryDraftPrompts(input, chapterCount, screenplayPlan!)
