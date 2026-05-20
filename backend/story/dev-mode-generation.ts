@@ -4743,19 +4743,32 @@ function buildWholeStoryDraftPrompts(
   const titleKeyWords = ideaTitle ? extractTitleContentWords(ideaTitle) : [];
   const ageGroup = input.config.ageGroup || "6-8";
   const isYoungAudience = ageGroup === "3-5" || ageGroup === "6-8";
+  const plainTextDraftMode = shouldUsePlainTextWholeStoryDraft(input.config);
 
   const systemPrompt = qualitySystemPrompt(
     languageName,
-    [
-      "Whole-story draft schema (NO chapters, NO headings, NO reading-page labels):",
-      "{",
-      '  "title": string,',
-      '  "description": string,',
-      '  "paragraphs": string[]   // ONE flat array; the entire story as continuous prose, in reading order',
-      "}",
-      "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, page labels, or labels into the paragraphs.",
-      "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
-    ].join("\n")
+    plainTextDraftMode
+      ? [
+          "Whole-story draft output format for this model (plain text, NO JSON):",
+          "TITLE: <one story title>",
+          "DESCRIPTION: <one sentence>",
+          "STORY:",
+          "<blank-line-separated story paragraphs>",
+          "",
+          "IMPORTANT: Do NOT output JSON, arrays, braces, Markdown fences, chapters, scene headings, dividers, page labels, or reading-break labels.",
+          "Only the control labels TITLE, DESCRIPTION, and STORY are allowed. The STORY section itself must be pure prose paragraphs.",
+          "The reader should be able to read the STORY paragraphs straight through as ONE continuous narrative.",
+        ].join("\n")
+      : [
+          "Whole-story draft schema (NO chapters, NO headings, NO reading-page labels):",
+          "{",
+          '  "title": string,',
+          '  "description": string,',
+          '  "paragraphs": string[]   // ONE flat array; the entire story as continuous prose, in reading order',
+          "}",
+          "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, page labels, or labels into the paragraphs.",
+          "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
+        ].join("\n")
   );
 
   const userPrompt = [
@@ -4858,19 +4871,33 @@ function buildWholeStoryDraftPrompts(
     "CRITIQUE TO RESOLVE:",
     promptJson(compactCritiqueForDraft(critique)),
     "",
-    "PRE-EMIT SELF-CHECK (silently run before JSON output \u2014 rewrite, do not narrate):",
-    `1. Word count: count words in paragraphs[]. If outside ${wordBounds.targetMin}\u2013${wordBounds.targetMax}, trim descriptive subordinate clauses (NEVER cut dialogue) or expand a beat.`,
+    plainTextDraftMode
+      ? "PRE-EMIT SELF-CHECK (silently run before plain-text output \u2014 rewrite, do not narrate):"
+      : "PRE-EMIT SELF-CHECK (silently run before JSON output \u2014 rewrite, do not narrate):",
+    `1. Word count: count words in the story paragraphs. If outside ${wordBounds.targetMin}\u2013${wordBounds.targetMax}, trim descriptive subordinate clauses (NEVER cut dialogue) or expand a beat.`,
     "2. Dialog share: count characters inside quotation marks vs. total. If below 28%, add 1\u20132 short exchanges to the narrative-heaviest segment.",
     "3. Red thread: list the recurring red-thread object/refrain by paragraph. If it is missing from a segment, weave it in.",
     titleKeyWords.length > 0
-      ? `4. Title contract: confirm each of these words appears in paragraphs[]: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. If any is missing, add it naturally to a fitting paragraph.`
+      ? `4. Title contract: confirm each of these words appears in the story paragraphs: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. If any is missing, add it naturally to a fitting paragraph.`
       : "4. Title coherence: confirm the title genuinely matches what the prose delivers.",
     "5. Causality: scan paragraph starts. Each new paragraph must follow logically from the previous (because/then/so/meanwhile/now). If a paragraph reads like a topic switch, add a one-sentence bridge.",
     isYoungAudience
       ? "6. Verstaendlichkeit: scan for any sentence over " + maxSentenceChars + " characters or with more than one nested subordinate clause. Split into two simpler sentences."
       : "6. Sentence rhythm: vary length; no chains of long sentences.",
     "",
-    `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array, no readingBreaks array, no headings in the prose. All story text in ${languageName}.`,
+    plainTextDraftMode
+      ? [
+          "FINAL REMINDER: output plain text only, exactly in this shape:",
+          "TITLE: one story title",
+          "DESCRIPTION: one sentence",
+          "STORY:",
+          "first story paragraph",
+          "",
+          "second story paragraph",
+          "",
+          `No JSON, no braces, no arrays, no Markdown, no chapters, no readingBreaks, no headings in the prose. All story text in ${languageName}.`,
+        ].join("\n")
+      : `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array, no readingBreaks array, no headings in the prose. All story text in ${languageName}.`,
   ].filter(Boolean).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -4895,18 +4922,22 @@ function extractProseFallback(
   if (!body) return null;
   let title = "";
   let titleSource: "field" | "first-paragraph" | "synthetic" = "synthetic";
-  const titleFieldMatch = body.match(/(?:^|\n)\s*(?:"?title"?|titel)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
+  const titleFieldMatch = body.match(/(?:^|\n)\s*[*_#>\-]*\s*(?:"?title"?|titel)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
   if (titleFieldMatch) {
     title = titleFieldMatch[1].trim();
     titleSource = "field";
     body = body.replace(titleFieldMatch[0], "\n").trim();
   }
   let description = "";
-  const descFieldMatch = body.match(/(?:^|\n)\s*(?:"?description"?|beschreibung)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
+  const descFieldMatch = body.match(/(?:^|\n)\s*[*_#>\-]*\s*(?:"?description"?|beschreibung)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
   if (descFieldMatch) {
     description = descFieldMatch[1].trim();
     body = body.replace(descFieldMatch[0], "\n").trim();
   }
+  body = body
+    .replace(/^\s*[*_#>\-]*\s*(?:story|geschichte|prose|text)\s*[:=]\s*/im, "\n")
+    .replace(/^\s*[*_#>\-]*\s*(?:story|geschichte|prose|text)\s*:?\s*$/gim, "")
+    .trim();
   body = body.replace(/^\s*[\[\]{},]+\s*$/gm, "").trim();
   const looksLikeMetaAnalysis =
     /\(\s*\d+\s*words?\s*\)/i.test(body) ||
@@ -4923,6 +4954,7 @@ function extractProseFallback(
         .trim()
     )
     .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p))
+    .filter((p) => !/^(?:story|geschichte|prose|text)\s*:?\s*$/i.test(p))
     .filter((p) => !/^[\*\-•]\s/.test(p) && !/\(\s*\d+\s*words?\s*\)/i.test(p));
   if (rawParagraphs.length === 0) return null;
   if (!title) {
@@ -7965,6 +7997,11 @@ function resolveSelectedOpenRouterStoryModel(config: StoryConfig): string {
 function shouldUseCompactOpenRouterDraft(config: StoryConfig): boolean {
   if (config.aiProvider !== "openrouter") return false;
   return true;
+}
+
+function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
+  if (config.aiProvider !== "openrouter") return false;
+  return isOpenRouterTextCompatibilityModel(resolveSelectedOpenRouterStoryModel(config));
 }
 
 function isRecoverableStoryDraftFailure(error: unknown): boolean {
