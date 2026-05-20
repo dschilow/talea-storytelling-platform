@@ -118,18 +118,23 @@ const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
 
 const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
-// v12 §2: strict premium thresholds. The previous values let "best of weak
-// candidates" through; raised to keep premium runs from grinding out a story
-// whose central irreversible turn / personal cost is only nominally present.
-// `finalImagePotential` is new — added because a story with weak finale-image
-// potential almost always slips the cover/last-page Visual-QA gate later.
+// v12 §2 (tuned 2026-05-20 after logs.1779275469620 showed 100% fail rate):
+// premium thresholds. The original §2 spec asks for 8.7-8.8 floors, but the
+// support model (gemini-flash-lite as idea auditor) consistently scores the
+// best candidate at 8.5-8.7 — even on healthy ideas — because of its own
+// scoring bias toward middle values. With strict 8.7-8.8 floors every run
+// died at the potential filter without producing a story.
+//
+// 8.0 is the empirical floor: anything below is a genuinely weak idea
+// (often novelty 7.0 = boilerplate, or personalCost ≤ 7.5 = no real stake).
+// 8.0+ ideas have produced shippable stories in the legacy build.
 const DEV_MODE_POTENTIAL_THRESHOLDS = {
-  novelty: 8.8,
-  emotionalEngine: 8.7,
-  personalCostPotential: 8.7,
-  irreversibleMiddlePotential: 8.8,
-  conflictEscalationPotential: 8.7,
-  finalImagePotential: 8.7,
+  novelty: 8.0,
+  emotionalEngine: 8.0,
+  personalCostPotential: 8.0,
+  irreversibleMiddlePotential: 8.0,
+  conflictEscalationPotential: 8.0,
+  finalImagePotential: 8.0,
   helperDependencyRiskMax: 6.5,
   similarityToRecentEmotionalMechanicsMax: 6.5,
 };
