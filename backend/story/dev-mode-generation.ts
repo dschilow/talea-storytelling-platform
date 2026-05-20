@@ -4968,31 +4968,54 @@ function buildBlueprintFromScreenplayPlan(
 
 function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
   if (!plan) return null;
+  const sceneCards = (plan.sceneCards || []).slice(0, DEV_MODE_SCENE_CARD_COUNT);
   return {
-    loglineEngine: plan.loglineEngine,
-    beatSheet: plan.beatSheet,
-    sceneCards: (plan.sceneCards || []).slice(0, DEV_MODE_SCENE_CARD_COUNT).map((card: any) => ({
+    storyCore: {
+      logline: compactExcerpt(plan.loglineEngine?.logline || "", 220),
+      centralQuestion: compactExcerpt(plan.loglineEngine?.centralQuestion || "", 180),
+      wonderRule: compactExcerpt(plan.loglineEngine?.wonderRule || plan.beatSheet?.wonderRule || "", 220),
+      recurringMotif: compactExcerpt(plan.loglineEngine?.recurringMotif || plan.beatSheet?.recurringMotif || "", 140),
+      personalObject: compactExcerpt(plan.loglineEngine?.personalObject || plan.beatSheet?.personalObject || "", 140),
+      emotionalPremise: compactExcerpt(plan.loglineEngine?.emotionalPremise || "", 200),
+    },
+    actPath: {
+      hook: compactExcerpt(plan.beatSheet?.act1?.hook || "", 180),
+      wrongFirstMove: compactExcerpt(plan.beatSheet?.act1?.wrongFirstMove || "", 180),
+      firstConsequence: compactExcerpt(plan.beatSheet?.act1?.firstConsequence || "", 180),
+      helperComplicates: compactExcerpt(plan.beatSheet?.act2?.helperComplicates || "", 180),
+      midpointIrreversibleTurn: compactExcerpt(plan.beatSheet?.act2?.midpointIrreversibleTurn || "", 180),
+      personalCost: compactExcerpt(plan.beatSheet?.act2?.personalCost || "", 180),
+      recognition: compactExcerpt(plan.beatSheet?.act3?.recognition || "", 180),
+      finalChoice: compactExcerpt(plan.beatSheet?.act3?.finalChoice || "", 180),
+      payoffFromPlant: compactExcerpt(plan.beatSheet?.act3?.payoffFromPlant || "", 180),
+      closingImage: compactExcerpt(plan.beatSheet?.act3?.closingImage || "", 180),
+    },
+    sceneCards: sceneCards.map((card: any) => ({
       scene: card.scene,
-      titleHint: card.titleHint,
-      scenePurpose: card.scenePurpose,
-      location: card.location,
-      visibleGoal: card.visibleGoal,
-      emotionalGoal: card.emotionalGoal,
-      obstacle: card.obstacle,
-      wrongAction: card.wrongAction,
-      visibleConsequence: card.visibleConsequence,
-      irreversibleChange: card.irreversibleChange,
-      personalCost: card.personalCost,
-      characterDriver: card.characterDriver,
-      adrianAction: card.adrianAction,
-      alexanderAction: card.alexanderAction,
-      helperAction: card.helperAction,
+      purpose: card.scenePurpose,
+      location: compactExcerpt(card.location || "", 90),
+      goal: compactExcerpt(card.visibleGoal || "", 110),
+      obstacle: compactExcerpt(card.obstacle || "", 110),
+      wrongAction: compactExcerpt(card.wrongAction || "", 110),
+      consequence: compactExcerpt(card.visibleConsequence || "", 120),
+      irreversibleChange: compactExcerpt(card.irreversibleChange || "", 120),
+      personalCost: compactExcerpt(card.personalCost || "", 120),
+      driver: compactExcerpt(card.characterDriver || "", 40),
+      castMoves: [
+        compactExcerpt(card.adrianAction || "", 90),
+        compactExcerpt(card.alexanderAction || "", 90),
+        compactExcerpt(card.helperAction || "", 90),
+      ].filter(Boolean),
       dialogueBeats: Array.isArray(card.dialogueBeats)
-        ? card.dialogueBeats.slice(0, 6)
+        ? card.dialogueBeats.slice(0, 4).map((beat: any) => ({
+            speaker: beat?.speaker,
+            intent: compactExcerpt(beat?.intent || "", 40),
+            subtext: compactExcerpt(beat?.subtext || "", 80),
+          }))
         : [],
-      plant: card.plant,
-      payoffLater: card.payoffLater,
-      endPull: card.endPull,
+      plant: compactExcerpt(card.plant || "", 90),
+      payoffLater: compactExcerpt(card.payoffLater || "", 90),
+      endPull: compactExcerpt(card.endPull || "", 110),
     })),
   };
 }
@@ -5018,24 +5041,151 @@ function buildCompactStoryBibleForDraft(
     mainCharacters: (input.avatars || []).map((avatar) => ({
       name: avatar.name,
       age: avatar.age,
-      description: compactExcerpt(avatar.description || "", 180),
-      traitSignals: summarizeDramaturgicTraitProfile(avatar.name, avatar.personalityTraits).slice(0, 4),
+      description: compactExcerpt(avatar.description || "", 110),
+      traitSignals: summarizeDramaturgicTraitProfile(avatar.name, avatar.personalityTraits)
+        .slice(0, 2)
+        .map((signal) => compactExcerpt(signal, 120)),
     })),
     supportingCast: (input.poolCharacters || [])
       .filter((character) => (input.selectedIdea?.selectedSupportingCast || []).includes(character.name))
       .map((character) => ({
         name: character.name,
         role: character.role,
-        speechStyle: character.speechStyle?.slice(0, 3),
-        quirk: character.quirk,
+        speechStyle: character.speechStyle?.slice(0, 2),
+        quirk: compactExcerpt(character.quirk || "", 90),
         rule: "may complicate, fail, ask, pressure, or provide an object; never explain the answer",
       })),
     artifact: input.matchedArtifact ? {
       name: input.matchedArtifact.name,
-      storyRole: input.matchedArtifact.storyRole,
-      visualKeywords: input.matchedArtifact.visualKeywords?.slice(0, 5),
+      storyRole: compactExcerpt(input.matchedArtifact.storyRole, 110),
+      visualKeywords: input.matchedArtifact.visualKeywords?.slice(0, 4),
+    } : undefined,
+    titleContract: input.selectedIdea?.title ? {
+      title: input.selectedIdea.title,
+      exactWordsToRedeem: extractTitleContentWords(input.selectedIdea.title).slice(0, 4),
     } : undefined,
   };
+}
+
+function buildCompactPromptStory(
+  story: DevModeRawStory,
+  options: { includeReadingBreaks?: boolean } = {}
+): any {
+  return {
+    title: story.title,
+    description: story.description,
+    displayMode: story.displayMode,
+    chapters: (story.chapters || [])
+      .map((chapter) => ({
+        order: chapter.order,
+        title: chapter.title,
+        content: chapter.content,
+      }))
+      .sort((a, b) => a.order - b.order),
+    readingBreaks: options.includeReadingBreaks && Array.isArray(story.readingBreaks)
+      ? story.readingBreaks.map((item) => ({
+          afterParagraph: item.afterParagraph,
+          imagePromptScene: item.imagePromptScene,
+          scenePurpose: item.scenePurpose,
+        }))
+      : undefined,
+  };
+}
+
+function compactReviewedBlueprintForRepair(reviewedBlueprint: any, chapterCount: number): any {
+  const compact = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
+  return {
+    premise: compact.premise,
+    storySpine: compact.storySpine
+      ? {
+          childWish: compactExcerpt(compact.storySpine.childWish || "", 120),
+          triggerMistake: compactExcerpt(compact.storySpine.triggerMistake || "", 120),
+          magicRule: compactExcerpt(compact.storySpine.magicRule || "", 140),
+          falseSolution: compactExcerpt(compact.storySpine.falseSolution || "", 120),
+          smallSacrifice: compactExcerpt(compact.storySpine.smallSacrifice || "", 120),
+          finalImage: compactExcerpt(compact.storySpine.finalImage || "", 140),
+        }
+      : undefined,
+    readerMagnet: compact.readerMagnet
+      ? {
+          refrainLine: compactExcerpt(compact.readerMagnet.refrainLine || "", 90),
+          iconicMotif: compactExcerpt(compact.readerMagnet.iconicMotif || "", 90),
+          callbackLadder: Array.isArray(compact.readerMagnet.callbackLadder)
+            ? compact.readerMagnet.callbackLadder.slice(0, chapterCount).map((item: any) => compactExcerpt(item, 90))
+            : [],
+        }
+      : undefined,
+    payoffEngine: compact.payoffEngine
+      ? {
+          personalObject: compactExcerpt(compact.payoffEngine.personalObject || "", 100),
+          whatItCostsToShare: compactExcerpt(compact.payoffEngine.whatItCostsToShare || "", 120),
+          wrongAttempt: compactExcerpt(compact.payoffEngine.wrongAttempt || "", 120),
+          finalChoice: compactExcerpt(compact.payoffEngine.finalChoice || "", 120),
+        }
+      : undefined,
+    characterArcs: Array.isArray(compact.characterArcs)
+      ? compact.characterArcs.map((arc: any) => ({
+          name: arc?.name,
+          startingFriction: compactExcerpt(arc?.startingFriction || "", 110),
+          strength: compactExcerpt(arc?.strength || "", 110),
+          finalContribution: compactExcerpt(arc?.finalContribution || "", 110),
+        }))
+      : [],
+    supportingCastUse: Array.isArray(compact.supportingCastUse)
+      ? compact.supportingCastUse
+      : [],
+    chapterPlan: Array.isArray(compact.chapterPlan)
+      ? compact.chapterPlan.map((plan: any) => ({
+          order: plan.order,
+          title: plan.title,
+          goal: compactExcerpt(plan.goal || "", 90),
+          wrongAction: compactExcerpt(plan.wrongAction || "", 90),
+          irreversibleChange: compactExcerpt(plan.irreversibleChange || "", 110),
+          chapterEndHook: compactExcerpt(plan.chapterEndHook || "", 100),
+          preparedDetail: compactExcerpt(plan.preparedDetail || "", 90),
+          laterPayoff: compactExcerpt(plan.laterPayoff || "", 90),
+          dialogueFunction: compactExcerpt(plan.dialogueFunction || "", 110),
+        }))
+      : [],
+  };
+}
+
+function buildCompactValidationNoveltyBlock(input: DevModeGenerationInput): string {
+  const brief = input.noveltyBrief;
+  if (!brief) return "No novelty brief available.";
+  const recent = brief.recentStories
+    .slice(0, 6)
+    .map((story, index) => `${index + 1}. ${story.title}${story.motifKeywords?.length ? ` motifs: ${story.motifKeywords.slice(0, 4).join(", ")}` : ""}`);
+  const lines = [
+    "NOVELTY CHECK BRIEF:",
+    `- Shelf promise: ${compactExcerpt(brief.shelfPromise, 140)}`,
+    `- Creative lane: ${compactExcerpt(brief.creativeLane, 120)}`,
+    `- Emotional engine: ${compactExcerpt(brief.emotionalEngine, 120)}`,
+    `- Wonder mechanic: ${compactExcerpt(brief.wonderMechanic, 120)}`,
+    brief.hardAvoidMotifs.length > 0
+      ? `- Hard-avoid motifs: ${brief.hardAvoidMotifs.slice(0, 14).join(", ")}`
+      : null,
+    recent.length > 0 ? "Recent stories to avoid:" : null,
+    ...recent,
+  ];
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function buildCompactValidationIdeaBlock(input: DevModeGenerationInput): string {
+  const idea = input.selectedIdea;
+  if (!idea) return "No explicit winning-idea block available.";
+  return [
+    "LOCKED IDEA SUMMARY:",
+    `- Title: ${idea.title}`,
+    `- Hook: ${compactExcerpt(idea.oneLineHook, 180)}`,
+    `- Central object/place: ${compactExcerpt(idea.centralObjectOrPlace, 120)}`,
+    `- Wonder rule: ${compactExcerpt(idea.wonderRule, 160)}`,
+    `- Emotional engine: ${compactExcerpt(idea.emotionalEngine, 160)}`,
+    `- Core conflict: ${compactExcerpt(idea.coreConflict, 160)}`,
+    idea.selectedSupportingCast.length > 0
+      ? `- Locked supporting cast: ${idea.selectedSupportingCast.join(", ")}`
+      : "- No pool character is mandatory for this idea.",
+  ].join("\n");
 }
 
 function screenplayCritiqueForDraft(gateIssues: string[]): any {
@@ -5104,6 +5254,7 @@ function buildCompactWholeStoryDraftPrompts(
   const heroA = heroNames[0] || "Main A";
   const heroB = heroNames[1] || "Main B";
   const ageGroup = input.config.ageGroup || "6-8";
+  const titleWords = extractTitleContentWords(String(input.selectedIdea?.title || "")).slice(0, 4);
 
   const compactStoryBible = buildCompactStoryBibleForDraft(input, chapterCount);
   const compactScenePlan = compactScreenplayPlanForDraft(screenplayPlan);
@@ -5135,6 +5286,11 @@ function buildCompactWholeStoryDraftPrompts(
     "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\".",
     `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max})`,
     "- dialogue 28–36% of prose",
+    "- in the first half of the story, never go more than 2 paragraphs without direct speech",
+    "- each scene movement needs at least one short quoted exchange that changes action, pressure, or relationship",
+    titleWords.length > 0
+      ? `- redeem the title inside the prose with these exact content words or close inflections: ${titleWords.map((word) => `"${word}"`).join(", ")}`
+      : null,
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures)`,
     "",
     "BANNED:",
@@ -6075,7 +6231,12 @@ function buildStoryPolishPrompts(
     ].join("\n")
   );
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
-  const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
+  const compactBlueprint = compactReviewedBlueprintForRepair(reviewedBlueprint, chapterCount);
+  const compactStory = buildCompactPromptStory(story);
+  const compactStoryBible = buildCompactStoryBibleForDraft(input, chapterCount);
+  const hasTitlePromiseIssue = diagnostics.hardIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue));
+  const hasEndingImageIssue = diagnostics.softIssues.some((issue) => /Finale endet eher mit Erkl/i.test(issue));
+  const hasPersonalCostIssue = diagnostics.softIssues.some((issue) => /kein pers[oö]nlicher Einsatz|kein persoenlicher Einsatz/i.test(issue));
 
   // Build a chapter-by-chapter dialogue-deficit briefing so the polish model
   // sees EXACTLY which chapters are below 18 % / 25 % and roughly how many
@@ -6117,13 +6278,21 @@ function buildStoryPolishPrompts(
       : null,
     dialogBoostBlock ? "" : null,
     dialogBoostBlock || null,
+    hasTitlePromiseIssue
+      ? "- TITLE-REPAIR PRIORITY: if the title promises a specific word or action, redeem it verbatim inside the prose. Do not dodge this by flattening the title into something vague."
+      : null,
+    hasEndingImageIssue
+      ? "- ENDING-IMAGE PRIORITY: the final paragraph must end on one visible object/sound/motion from the world, not on explanation."
+      : null,
+    hasPersonalCostIssue
+      ? "- COST PRIORITY: make the child visibly give up, risk, or release something concrete on-page. A private insight alone does not count."
+      : null,
     "",
     buildLeanRepairPromptContext(input, chapterCount, { readingPageMode }),
+    "LOCKED STORY BIBLE TO PRESERVE:",
+    promptJson(compactStoryBible),
     buildSelectedCastIntegrationContract(input, true),
-    buildSilentPreWriteSelfReviewContract(input, chapterCount, "polish"),
     buildVoiceBibleBlock(input),
-    buildWriterVoiceAnchorBlock(input),
-    buildReleaseCraftContract(input),
     readingPageMode ? buildReadingPageContinuityContract(chapterCount) : buildWholeStoryContinuityContract(chapterCount),
     "",
     "HARD GATES:",
@@ -6187,16 +6356,14 @@ function buildStoryPolishPrompts(
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
     "",
-    "COMPACT REVIEWED BLUEPRINT TO PRESERVE:",
+    "LOCKED STORY MAP TO PRESERVE:",
     promptJson(compactBlueprint),
     "",
     "CRITIQUE FROM DRAMATURGY CHECK:",
     promptJson(compactCritiqueForDraft(critique)),
     "",
-    buildArtifactPropBlock(input) || "",
-    "",
     "CURRENT STORY TO POLISH:",
-    promptJson(story),
+    promptJson(compactStory),
     "",
     `FINAL REMINDER: title, description and ALL ${readingPageMode ? "reading-page content" : "chapter content"} must remain in ${languageName}.`,
   ].join("\n");
@@ -6232,6 +6399,7 @@ function buildLinePunchupPrompts(
   const languageName = localizedLanguageName(input.config.language);
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(reviewedBlueprint, chapterCount);
+  const compactStory = buildCompactPromptStory(story);
 
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -6294,7 +6462,7 @@ function buildLinePunchupPrompts(
     promptJson(compactBlueprint),
     "",
     "CURRENT STORY (replace exact substrings only — do not return the rewritten story):",
-    promptJson(story),
+    promptJson(compactStory),
     "",
     `FINAL REMINDER: respond with the schema above and nothing else. All 'replaceWith' strings must be in ${languageName} and use typographic quotation marks for dialogue.`,
   ].join("\n");
@@ -6847,6 +7015,7 @@ function buildValidationPrompts(
   diagnostics?: DevModeStoryDiagnostics
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
+  const compactStory = buildCompactPromptStory(story);
   const systemPrompt = [
     "You are a strict children's-book market-quality validator, not a story writer.",
     "Evaluate honestly against real published children's books. Never rewrite the story.",
@@ -6891,7 +7060,7 @@ function buildValidationPrompts(
     `Genre: ${input.config.genre}`,
     `Setting: ${input.config.setting}`,
     `Main characters: ${(input.avatars || []).map((avatar) => avatar.name).filter(Boolean).join(", ") || "unspecified"}`,
-    `Supporting pool used: ${(input.poolCharacters || []).map((character) => character.name).filter(Boolean).join(", ") || "none"}`,
+    `Supporting pool used: ${(input.selectedIdea?.selectedSupportingCast || []).join(", ") || "none"}`,
   ].join("\n");
   const userPrompt = [
     "CALL 4: Validate JSON, style, market quality, and logic of the final story.",
@@ -6940,16 +7109,16 @@ function buildValidationPrompts(
     contextSummary,
     "",
     "NOVELTY BRIEF USED FOR THIS GENERATION:",
-    buildNoveltyPromptBlock(input) || "No novelty brief available.",
+    buildCompactValidationNoveltyBlock(input),
     "",
     "LOCKED WINNING IDEA FOR THIS GENERATION:",
-    buildSelectedIdeaPromptBlock(input) || "No explicit winning-idea block available.",
+    buildCompactValidationIdeaBlock(input),
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     promptJson(compactDiagnosticsForPrompt(diagnostics || null)),
     "",
     "STORY:",
-    promptJson(story),
+    promptJson(compactStory),
   ].join("\n");
   return { systemPrompt, userPrompt };
 }
