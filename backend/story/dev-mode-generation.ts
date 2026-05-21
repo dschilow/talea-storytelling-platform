@@ -104,7 +104,7 @@ const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
 const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 // v12 §8: short children's stories (900-1200 words) collapse under 4 supporting
 // characters. Cap at 2 and bias the cast-selection toward 1 unless both are
@@ -4364,6 +4364,8 @@ function buildPotentialFilterPrompts(
     `- helperDependencyRisk <= ${t.helperDependencyRiskMax}`,
     `- similarityToRecentEmotionalMechanics <= ${t.similarityToRecentEmotionalMechanicsMax}`,
     "Reject cute but structurally soft ideas. Reject any idea whose core emotional mechanic is another version of waiting/listening/letting go unless the user explicitly requested that mechanic.",
+    "For ages 6-8, concrete child-play beats poetic abstraction: a physical comic engine/object game outranks a beautiful metaphor if both pass.",
+    "If two candidates are close, choose the one a child can retell and play immediately (funny rule, visible object, escalating mess), not the one with the deepest abstract emotional wording.",
     "If no candidate passes, set passingCandidateIds=[] and roundRecommendation='regenerate'. Do not choose the best weak candidate.",
     `If a candidate passes, choose the strongest one for exactly ${chapterCount} display chapters later and keep only supporting cast that creates a complication, clue, pressure, joke, or payoff.`,
     "",
@@ -4414,10 +4416,11 @@ function normalizePotentialFilterResult(
     .filter((audit) => !audit.scores.reject)
     .sort((a, b) => potentialAuditScore(b.scores) - potentialAuditScore(a.scores))
     .map((audit) => audit.id);
-  const parsedChoice = String(parsed?.chosenIdeaId || parsed?.chosenId || "").trim();
-  const chosenIdeaId = parsedChoice && passingCandidateIds.includes(parsedChoice)
-    ? parsedChoice
-    : passingCandidateIds[0];
+  // Deterministic audit wins over the model's own final pick. Logs showed the
+  // support model sometimes chose a poetic/abstract candidate even when its
+  // own audited scores ranked a more concrete, funny, child-playable idea
+  // slightly higher. The sorted passing list is the source of truth.
+  const chosenIdeaId = passingCandidateIds[0];
   return {
     candidateAudits,
     passingCandidateIds,
@@ -5805,6 +5808,7 @@ function buildCompactWholeStoryDraftPrompts(
     `You write children's storybook prose in ${languageName} for ages ${ageGroup}.`,
     "Output schema (NO chapters, NO headings, NO reading-page labels):",
     '{ "title": string, "description": string, "paragraphs": string[] }',
+    "Emit the \"paragraphs\" key EXACTLY ONCE. Do not restart it per scene; append every paragraph to the same flat array in reading order.",
     "Do not output: chapters, reading-page labels, markdown, raw JSON inside the prose, explanation notes.",
   ].join("\n");
 
@@ -5843,7 +5847,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- helpers explaining the solution",
     "- multiple competing magic rules",
     "",
-    `FINAL REMINDER: ONE JSON object with title, description, paragraphs[]. All prose in ${languageName}.`,
+    `FINAL REMINDER: ONE JSON object with title, description, ONE paragraphs[] array only. Never emit duplicate \"paragraphs\" keys. All prose in ${languageName}.`,
   ].join("\n");
 
   return { systemPrompt, userPrompt };
@@ -5903,6 +5907,7 @@ function buildWholeStoryDraftPrompts(
           '  "description": string,',
           '  "paragraphs": string[]   // ONE flat array; the entire story as continuous prose, in reading order',
           "}",
+          "CRITICAL JSON RULE: emit the \"paragraphs\" key exactly once. Never output multiple paragraphs arrays; append every scene paragraph to the single flat array.",
           "IMPORTANT: Do NOT output a chapters array. Do NOT insert chapter headings, scene breaks, dividers, page labels, or labels into the paragraphs.",
           "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
         ].join("\n")
@@ -6035,7 +6040,7 @@ function buildWholeStoryDraftPrompts(
           "",
           `No JSON, no braces, no arrays, no Markdown, no chapters, no readingBreaks, no headings in the prose. All story text in ${languageName}.`,
         ].join("\n")
-      : `FINAL REMINDER: output ONE JSON object with title, description, paragraphs[]. No chapters array, no readingBreaks array, no headings in the prose. All story text in ${languageName}.`,
+        : `FINAL REMINDER: output ONE JSON object with title, description, ONE paragraphs[] array only. Never emit duplicate \"paragraphs\" keys. No chapters array, no readingBreaks array, no headings in the prose. All story text in ${languageName}.`,
   ].filter(Boolean).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -6117,6 +6122,37 @@ function extractProseFallback(
   return { title, description, paragraphs: rawParagraphs, titleSource };
 }
 
+function splitWholeStoryDraftParagraphIntoChunks(paragraph: string, maxChars = 420): string[] {
+  const text = String(paragraph || "").trim();
+  if (text.length <= maxChars) return text ? [text] : [];
+  const sentences = (text.match(/.+?(?:[.!?…]+["“”»]?|$)(?=\s+|$)/gu) || [text])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+  if (sentences.length <= 1) return [text];
+
+  const chunks: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    if (!current) {
+      current = sentence;
+      continue;
+    }
+    if (current.length + 1 + sentence.length <= maxChars || current.length < 180) {
+      current = `${current} ${sentence}`.trim();
+      continue;
+    }
+    chunks.push(current);
+    current = sentence;
+  }
+  if (current) chunks.push(current);
+  return chunks.length > 0 ? chunks : [text];
+}
+
+function splitOverlongWholeStoryDraftParagraphs(paragraphs: string[]): { paragraphs: string[]; changed: boolean } {
+  const split = paragraphs.flatMap((paragraph) => splitWholeStoryDraftParagraphIntoChunks(paragraph));
+  return { paragraphs: split, changed: split.length !== paragraphs.length };
+}
+
 function parseWholeStoryDraft(content: string): DevModeWholeStoryDraft {
   let parsed: any;
   let parseError: unknown = null;
@@ -6148,7 +6184,15 @@ function parseWholeStoryDraft(content: string): DevModeWholeStoryDraft {
 
   // Accept either paragraphs[] (preferred) or a single body/content string.
   let paragraphs: string[] = [];
-  if (Array.isArray(parsed.paragraphs)) {
+  const duplicateParagraphRecovery = recoverDuplicateWholeStoryParagraphs(content, parsed);
+  if (duplicateParagraphRecovery) {
+    paragraphs = duplicateParagraphRecovery.paragraphs;
+    console.warn("[dev-mode-generation] Recovered duplicate whole-story paragraphs arrays", {
+      paragraphArrayCount: duplicateParagraphRecovery.arrayCount,
+      parsedParagraphCount: duplicateParagraphRecovery.parsedParagraphCount,
+      recoveredParagraphCount: paragraphs.length,
+    });
+  } else if (Array.isArray(parsed.paragraphs)) {
     paragraphs = parsed.paragraphs.map((p: any) => String(p || "").trim()).filter(Boolean);
   } else if (typeof parsed.body === "string") {
     paragraphs = splitParagraphs(parsed.body).map((p) => p.trim()).filter(Boolean);
@@ -6168,6 +6212,15 @@ function parseWholeStoryDraft(content: string): DevModeWholeStoryDraft {
   paragraphs = paragraphs
     .map((p) => p.replace(/^(?:kapitel|chapter)\s*\d+[.:\s\-\u2013\u2014]*/i, "").trim())
     .filter((p) => p.length > 0 && !/^(?:[-*_=]{3,}|kapitel\s*\d+|chapter\s*\d+)\s*$/i.test(p));
+
+  const paragraphSplit = splitOverlongWholeStoryDraftParagraphs(paragraphs);
+  if (paragraphSplit.changed) {
+    console.warn("[dev-mode-generation] Split overlong whole-story draft paragraphs before reading-page layout", {
+      beforeParagraphCount: paragraphs.length,
+      afterParagraphCount: paragraphSplit.paragraphs.length,
+    });
+    paragraphs = paragraphSplit.paragraphs;
+  }
 
   if (paragraphs.length === 0) throw new Error("Whole-story draft produced no paragraphs.");
   return { title, description, paragraphs };
@@ -6756,10 +6809,16 @@ function buildStoryPolishPrompts(
   const paragraphBudget = getParagraphBudgetGuidance(input.config);
   const paragraphBounds = getParagraphBounds(input.config);
   const maxSentenceChars = maxSentenceCharsForAge(input.config.ageGroup);
+  const wordBounds = getStoryWordBounds(input.config);
   const totalRepairTargetMaxChars = targetMaxChars * chapterCount;
   const overlongChapterCount = diagnostics.chapterDiagnostics.filter((chapter) => chapter.chars > bounds.max).length;
   const broadCompressionMode = overlongChapterCount >= Math.min(3, chapterCount) || diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
   const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
+  const hardUnderlengthMode =
+    diagnostics.totalWords < wordBounds.min
+    || diagnostics.hardIssues.some((issue) => /deutlich zu kurz|too short|word count/i.test(issue));
+  const wordsToAddForTarget = Math.max(0, wordBounds.targetMin - diagnostics.totalWords);
+  const targetWordsPerPage = Math.ceil(wordBounds.targetMin / Math.max(1, chapterCount));
   const systemPrompt = [
     `You are a surgical children's-story repair editor. Repair prose in ${languageName}.`,
     "Return valid JSON only, no markdown, no commentary.",
@@ -6819,6 +6878,9 @@ function buildStoryPolishPrompts(
     broadCompressionMode
       ? "BROAD COMPRESSION MODE: this is not line editing. Rewrite every chapter compactly from the current story map; each overlong chapter must become visibly shorter before any stylistic addition is allowed."
       : null,
+    hardUnderlengthMode
+      ? `EXPANSION MODE: the current story has only ${diagnostics.totalWords} words. This fails the hard floor (${wordBounds.min}). Add roughly ${wordsToAddForTarget} meaningful words through action, sensory consequence, and character-specific dialogue. Do not compress.`
+      : null,
     dialogBoostBlock ? "" : null,
     dialogBoostBlock || null,
     hasTitlePromiseIssue
@@ -6845,6 +6907,10 @@ function buildStoryPolishPrompts(
     readingPageMode ? `- Reading pages should stay roughly within ${bounds.min}-${bounds.max} characters, but story-level causality and emotional payoff outrank page symmetry.` : `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
     readingPageMode ? `- Aim each reading page for ${bounds.min}-${targetMaxChars} characters only if it does not create a mini-ending.` : `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
     `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
+    `- Whole repaired story MUST land in ${wordBounds.targetMin}-${wordBounds.targetMax} words; absolute rejection below ${wordBounds.min}. Current word count: ${diagnostics.totalWords}.`,
+    hardUnderlengthMode && readingPageMode
+      ? `- Reading-page mode underlength fix: target at least about ${targetWordsPerPage} words per reading page on average. Whole-story word count wins over display symmetry.`
+      : null,
     `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
     readingPageMode ? `- Each reading page MUST have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs in paragraphs[]. This is a release-form hard gate; split scene beats instead of returning 1-2 large blocks.` : `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
@@ -6863,6 +6929,9 @@ function buildStoryPolishPrompts(
     "REPAIR METHOD:",
     broadCompressionMode
       ? "- First reduce scope and sentence count. Keep hook, conflict, turn, payoff. Delete decorative second images, repeated reactions, and recap sentences even if they sound nice."
+      : null,
+    hardUnderlengthMode
+      ? "- First expand the causal spine: each reading-page movement needs one extra concrete obstacle/reaction, one short exchange, and one visible consequence. Do not add explanation or moral filler."
       : null,
     "- If a chapter is too long: cut explanatory narration first, not the core scene.",
     readingPageMode ? "- If a reading page has too few paragraphs: split existing action, dialogue, and reaction beats into compact paragraphs. Do not pad with filler." : null,
@@ -8180,6 +8249,138 @@ function recoverTruncatedIdeaCandidatePayload(content: string): any | null {
   };
 }
 
+function readJsonStringLiteral(source: string, start: number): { value: string; end: number } | null {
+  if (source[start] !== '"') return null;
+  let escape = false;
+  for (let i = start + 1; i < source.length; i += 1) {
+    const ch = source[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      const literal = source.slice(start, i + 1);
+      try {
+        return { value: JSON.parse(literal), end: i + 1 };
+      } catch {
+        return { value: literal.slice(1, -1), end: i + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+function findMatchingJsonBracket(source: string, start: number): number {
+  const open = source[start];
+  const close = open === "[" ? "]" : open === "{" ? "}" : "";
+  if (!close) return -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < source.length; i += 1) {
+    const ch = source[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === open) {
+      depth += 1;
+    } else if (ch === close) {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function recoverTopLevelStringArrayProperties(content: string, propertyName: string): string[][] {
+  const trimmed = stripReasoningPreamble(String(content || "").trim());
+  const source = repairLooseJson(sliceToOuterObject(stripJsonFence(trimmed)));
+  const arrays: string[][] = [];
+  let braceDepth = 0;
+  let arrayDepth = 0;
+
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+
+    if (ch === '"') {
+      const token = readJsonStringLiteral(source, i);
+      if (!token) continue;
+      let afterToken = token.end;
+      while (afterToken < source.length && /\s/.test(source[afterToken])) afterToken += 1;
+
+      if (
+        braceDepth === 1
+        && arrayDepth === 0
+        && token.value === propertyName
+        && source[afterToken] === ":"
+      ) {
+        let valueStart = afterToken + 1;
+        while (valueStart < source.length && /\s/.test(source[valueStart])) valueStart += 1;
+        if (source[valueStart] === "[") {
+          const arrayEnd = findMatchingJsonBracket(source, valueStart);
+          if (arrayEnd > valueStart) {
+            const arrayText = source.slice(valueStart, arrayEnd + 1);
+            try {
+              const parsedArray = JSON.parse(repairLooseJson(arrayText));
+              if (Array.isArray(parsedArray)) {
+                const paragraphs = parsedArray
+                  .map((item: any) => String(item || "").trim())
+                  .filter(Boolean);
+                if (paragraphs.length > 0) arrays.push(paragraphs);
+              }
+            } catch {
+              // Ignore one malformed duplicate array and keep scanning. A later
+              // complete array can still rescue usable prose.
+            }
+            i = arrayEnd;
+            continue;
+          }
+        }
+      }
+
+      i = token.end - 1;
+      continue;
+    }
+
+    if (ch === "{") braceDepth += 1;
+    else if (ch === "}" && braceDepth > 0) braceDepth -= 1;
+    else if (ch === "[") arrayDepth += 1;
+    else if (ch === "]" && arrayDepth > 0) arrayDepth -= 1;
+  }
+
+  return arrays;
+}
+
+function recoverDuplicateWholeStoryParagraphs(
+  content: string,
+  parsed: any
+): { paragraphs: string[]; arrayCount: number; parsedParagraphCount: number } | null {
+  if (Array.isArray(parsed?.chapters)) return null;
+  const arrays = recoverTopLevelStringArrayProperties(content, "paragraphs");
+  if (arrays.length <= 1) return null;
+  const paragraphs = arrays.flat().map((p) => p.trim()).filter(Boolean);
+  const parsedParagraphCount = Array.isArray(parsed?.paragraphs)
+    ? parsed.paragraphs.map((p: any) => String(p || "").trim()).filter(Boolean).length
+    : 0;
+  if (paragraphs.length <= parsedParagraphCount) return null;
+  return { paragraphs, arrayCount: arrays.length, parsedParagraphCount };
+}
+
 function stripReasoningPreamble(content: string): string {
   const text = String(content || "").trim();
   if (!text) return text;
@@ -9086,7 +9287,23 @@ function analyzeDevModeStoryQuality(
 
 function parseStageObject(content: string, stage?: DevModePipelineStage): { parsed?: any; parseError?: string } {
   try {
-    return { parsed: tryParseJson(content) };
+    const parsed = tryParseJson(content);
+    if (stage === "whole-story-draft") {
+      const recovered = recoverDuplicateWholeStoryParagraphs(content, parsed);
+      if (recovered) {
+        return {
+          parsed: {
+            ...parsed,
+            paragraphs: recovered.paragraphs,
+            recoveredFromDuplicateParagraphKeys: true,
+            recoveredParagraphArrayCount: recovered.arrayCount,
+            recoveredParagraphCount: recovered.paragraphs.length,
+          },
+          parseError: `Recovered ${recovered.paragraphs.length} paragraphs from ${recovered.arrayCount} duplicate paragraphs arrays; normal JSON kept only ${recovered.parsedParagraphCount}`,
+        };
+      }
+    }
+    return { parsed };
   } catch (err) {
     if (stage === "idea-candidates") {
       const recovered = recoverTruncatedIdeaCandidatePayload(content);
