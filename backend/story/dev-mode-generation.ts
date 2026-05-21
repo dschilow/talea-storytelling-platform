@@ -2478,9 +2478,13 @@ async function generateDevModeImages(
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
-  if (config.length === "long") return 10;
-  if (config.length === "medium") return 8;
-  return 8;
+  // Keep each idea-lab response parseable. The previous 8/10-candidate
+  // payload regularly exceeded the support model's completion budget, so the
+  // JSON was cut mid-string and the pipeline fell back to deterministic ideas.
+  // Multiple rounds still provide variety, but every single round must finish.
+  if (config.length === "long") return 6;
+  if (config.length === "medium") return 5;
+  return 4;
 }
 
 function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string[] {
@@ -3508,6 +3512,7 @@ function buildReleaseCraftContract(input: DevModeGenerationInput): string {
     "- Every recurrence changes meaning. If a refrain, prop, sound, or rule repeats at the same emotional level, rewrite it so it tests, blocks, reveals, jokes, or pays off.",
     "- Each scene movement must force the next by therefore/but causality. No episode may be movable without breaking the plot.",
     "- The final choice must be child-small but emotionally exact: giving up control, sharing a private thing, waiting, admitting a mistake, or noticing what a helper cannot say.",
+    "- No-refund rule: if a personal object, privilege, promise, status, or secret is paid as the story's cost, the finale may transform/rehome it, but may NOT simply return it unchanged or let a helper undo the cost.",
     "- Pool characters may complicate, pressure, reveal, or create comedy; they must not explain the lesson or steal the decisive action from the main avatars.",
     "- The ending image should be closed, funny/tender, and slightly larger than the problem — not a moral sentence and not a marketing cliffhanger.",
   ].join("\n");
@@ -4131,7 +4136,7 @@ function buildDevModePremiseSeedLibraryBlock(
       matchedArtifactName: input.matchedArtifact?.name,
       round,
     },
-    Math.min(6, Math.max(4, candidateCount - 2))
+    Math.min(6, Math.max(4, candidateCount))
   );
   return buildPremiseSeedPromptBlock(seeds, { candidateCount, round });
 }
@@ -4183,6 +4188,7 @@ function buildIdeaCandidatePrompts(
   const userPrompt = [
     `IDEA LAB CALL${options.round ? ` ROUND ${options.round}` : ""}: Generate exactly ${candidateCount} short children's-book premises before any blueprint writing.`,
     "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
+    "COMPLETION BUDGET IS BINDING: output complete valid JSON. Keep every string to one compact sentence. Do not exceed 850 characters per candidate. If you need to save space, shorten wording; never truncate the JSON.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "Every candidate must be capable of a visible irreversible middle and a concrete personal cost. If you cannot name those potentials, do not include the candidate.",
     "Score potentialScores honestly from 0-10. Scores below 8.5 on emotional engine, personal cost, irreversible middle, or conflict escalation mean the premise should probably be replaced before output.",
@@ -4345,6 +4351,7 @@ function buildPotentialFilterPrompts(
   const userPrompt = [
     `CALL 2: 9.0 POTENTIAL FILTER, round ${round}. Do not write prose and do not outline chapters.`,
     "Judge whether each candidate can realistically become a 9.0+ children's story after beat sheet and scene-card work.",
+    "Do not trust the candidate's self-scores. Judge the evidence in the fields: a candidate without a concrete cost, irreversible middle, conflict escalation path, and final image must be rejected even if its numbers are high.",
     `Quality mode: ${input.qualityMode || "premium"}. Use these hard thresholds exactly:`,
     `- childRetellableHook >= ${t.childRetellableHook}`,
     `- visualShelfAppeal >= ${t.visualShelfAppeal}`,
@@ -5815,6 +5822,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- one clear magic / wonder rule, tested on-page at least twice",
     "- one visible wrong action with visible consequence",
     "- irreversible middle with concrete personal cost (object, place, privilege given up)",
+    "- no-refund payoff: a sacrificed object/status may become useful in a new place, but cannot simply be handed back unchanged by a helper",
     "- final decision performed by the children, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
     "- finale uses a detail planted earlier",
@@ -5915,6 +5923,7 @@ function buildWholeStoryDraftPrompts(
     "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
     "6. One clear magic/wonder rule. Test it on-page at least twice before the finale; the finale uses it.",
     "7. Somewhere in the middle, something becomes irreversible (object lost, voice gone, path closed, secret revealed) so the children can't simply turn back.",
+    "8. No-refund payoff: if the child pays a personal cost, do not erase it by returning the object/status unchanged. Transform it, rehome it, or let the child choose a new relationship to it.",
     "",
     "ROTER FADEN (causal through-line \u2014 the single most important rule):",
     "- Pick ONE concrete recurring object/sound/refrain (the red thread) and make it visible in EVERY segment of the story. Each appearance must change meaning (introduced \u2192 misused \u2192 lost \u2192 reinterpreted \u2192 redeems the finale).",
@@ -8103,6 +8112,74 @@ function tryParseJson(raw: string): any {
   throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "unknown JSON parse failure"));
 }
 
+function recoverCompleteObjectsFromArrayProperty(content: string, propertyName: string): any[] {
+  const propertyIndex = content.indexOf(`"${propertyName}"`);
+  if (propertyIndex < 0) return [];
+  const arrayStart = content.indexOf("[", propertyIndex);
+  if (arrayStart < 0) return [];
+
+  const objects: any[] = [];
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escape = false;
+
+  for (let i = arrayStart + 1; i < content.length; i += 1) {
+    const ch = content[i];
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{") {
+      if (depth === 0) objectStart = i;
+      depth += 1;
+      continue;
+    }
+
+    if (ch === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && objectStart >= 0) {
+        const objectText = content.slice(objectStart, i + 1);
+        try {
+          objects.push(tryParseJson(objectText));
+        } catch {
+          // A single malformed completed object should not prevent recovery of
+          // earlier/later completed candidates.
+        }
+        objectStart = -1;
+      }
+      continue;
+    }
+
+    if (ch === "]" && depth === 0) break;
+  }
+
+  return objects;
+}
+
+function recoverTruncatedIdeaCandidatePayload(content: string): any | null {
+  const candidates = recoverCompleteObjectsFromArrayProperty(content, "candidates");
+  if (candidates.length === 0) return null;
+  return {
+    candidates,
+    recoveredFromTruncatedJson: true,
+    recoveredCandidateCount: candidates.length,
+  };
+}
+
 function stripReasoningPreamble(content: string): string {
   const text = String(content || "").trim();
   if (!text) return text;
@@ -8868,8 +8945,10 @@ function analyzeDevModeStoryQuality(
     softIssues.push(`Story ist etwas zu lang (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}).`);
     polishInstructions.push("Kuerze Erklaerungen und zweite Sinnesbilder, damit die Geschichte im Zielbereich bleibt.");
   } else if (totalWords < wordBounds.min) {
-    softIssues.push(`Story ist sehr knapp (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}).`);
-    polishInstructions.push("Nur wenn es der Plot braucht: ein konkretes Handlungsdetail ergaenzen, keine allgemeine Erklaerung.");
+    const issue = `Story ist deutlich zu kurz (${totalWords} Woerter; Ziel ${wordBounds.targetMin}-${wordBounds.targetMax}, Minimum ${wordBounds.min}).`;
+    if ((input.qualityMode || "premium") === "premium") hardIssues.push(issue);
+    else softIssues.push(issue);
+    polishInstructions.push(`Erweitere auf mindestens ${wordBounds.targetMin} Woerter: pro Szenenbewegung ein zusaetzliches konkretes Handlungsdetail, ein kurzer Dialogwechsel oder eine sichtbare Folge. Keine allgemeine Erklaerung, kein Moralabsatz.`);
   }
 
   story.chapters.forEach((chapter, index) => {
@@ -9005,14 +9084,66 @@ function analyzeDevModeStoryQuality(
   };
 }
 
-function parseStageObject(content: string): { parsed?: any; parseError?: string } {
+function parseStageObject(content: string, stage?: DevModePipelineStage): { parsed?: any; parseError?: string } {
   try {
     return { parsed: tryParseJson(content) };
   } catch (err) {
+    if (stage === "idea-candidates") {
+      const recovered = recoverTruncatedIdeaCandidatePayload(content);
+      if (recovered) {
+        const originalError = err instanceof Error ? err.message : String(err);
+        return {
+          parsed: recovered,
+          parseError: `${originalError}; recovered ${recovered.recoveredCandidateCount} complete idea candidate(s) from truncated JSON`,
+        };
+      }
+    }
     return {
       parseError: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+function applyGermanDialogueQuoteAutoFix(text: string): { text: string; changed: boolean; fixes: string[] } {
+  if (!text) return { text: "", changed: false, fixes: [] };
+  const fixed = text.replace(/"([^"\n\r]{1,500})"/g, "„$1“");
+  return {
+    text: fixed,
+    changed: fixed !== text,
+    fixes: fixed !== text ? ["straight-dialogue-quotes"] : [],
+  };
+}
+
+function applyDeterministicStoryTextAutofixes(
+  story: DevModeRawStory,
+  input: DevModeGenerationInput
+): { story: DevModeRawStory; changed: boolean; fixes: string[] } {
+  const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
+  const fixes: string[] = [];
+  const fixedChapters = story.chapters.map((chapter) => {
+    let content = chapter.content;
+    const ortho = applyOrthographyAutoFix(content);
+    if (ortho.changed) {
+      content = ortho.text;
+      fixes.push(...ortho.fixes);
+    }
+
+    if (languageCode === "de") {
+      const quotes = applyGermanDialogueQuoteAutoFix(content);
+      if (quotes.changed) {
+        content = quotes.text;
+        fixes.push(...quotes.fixes);
+      }
+    }
+
+    return content !== chapter.content ? { ...chapter, content } : chapter;
+  });
+
+  if (fixes.length === 0) return { story, changed: false, fixes: [] };
+  const fixedStory = story.displayMode === "reading_pages"
+    ? markStoryAsReadingPages({ ...story, chapters: fixedChapters }, story)
+    : { ...story, chapters: fixedChapters };
+  return { story: fixedStory, changed: true, fixes: [...new Set(fixes)] };
 }
 
 function usageSum(results: ProviderResult[]): { prompt: number; completion: number; total: number } {
@@ -9403,6 +9534,12 @@ function devModeStoryPolishMaxTokens(config: StoryConfig): number {
   return 3400;
 }
 
+function devModeIdeaCandidateMaxTokens(config: StoryConfig, retry: boolean): number {
+  if (config.length === "long") return retry ? 5600 : 5000;
+  if (config.length === "short") return retry ? 3600 : 3200;
+  return retry ? 4400 : 4000;
+}
+
 function devModeStoryDraftTimeoutMs(config: StoryConfig, retry: boolean): number {
   if (config.length === "long") return retry ? 420_000 : 300_000;
   return retry ? 330_000 : 240_000;
@@ -9717,7 +9854,7 @@ export async function generateStoryDevMode(
         { ...options, stage }
       );
       providerResults.push(provider);
-      const parsedStage = parseStageObject(provider.content);
+      const parsedStage = parseStageObject(provider.content, stage);
 
       logEntry.rawContent = provider.content;
       logEntry.parsed = parsedStage.parsed;
@@ -9791,7 +9928,7 @@ export async function generateStoryDevMode(
   try {
     const ideaCandidatePrompts = buildIdeaCandidatePrompts(input, chapterCount);
     const ideaCandidatesStage = await runStage("idea-candidates", ideaCandidatePrompts, {
-      maxTokens: 2400,
+      maxTokens: devModeIdeaCandidateMaxTokens(input.config, false),
       temperature: 0.92,
       timeoutMs: 90_000,
       ...supportCallOptions,
@@ -9809,7 +9946,7 @@ export async function generateStoryDevMode(
             previousPotentialFailures: potentialFailureSummaries,
           });
           const retryIdeaStage = await runStage("idea-candidates", retryIdeaPrompts, {
-            maxTokens: 2600,
+            maxTokens: devModeIdeaCandidateMaxTokens(input.config, true),
             temperature: 0.96,
             timeoutMs: 90_000,
             ...supportCallOptions,
@@ -10944,12 +11081,29 @@ export async function generateStoryDevMode(
       });
     }
 
+    const applyCurrentStoryTextAutofixes = (context: string) => {
+      if (!finalParsed) return;
+      const result = applyDeterministicStoryTextAutofixes(finalParsed, input);
+      if (!result.changed) return;
+      finalParsed = result.story;
+      finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+      console.log("[dev-mode-generation] deterministic story text autofix applied", {
+        context,
+        fixes: result.fixes,
+        hardIssueCount: finalDiagnostics.hardIssueCount,
+        dialogPct: finalDiagnostics.dialogPct,
+      });
+    };
+
+    applyCurrentStoryTextAutofixes("before-validation-loop");
+
     const skipInitialValidationForLocalGates = Boolean(
       finalDiagnostics
       && ((finalDiagnostics.hardIssueCount ?? 0) > 0 || (finalDiagnostics.dialogPct ?? 0) < DEV_MODE_MIN_DIALOG_PCT)
     );
 
     for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS; validationAttempt += 1) {
+      applyCurrentStoryTextAutofixes(`validation-attempt-${validationAttempt + 1}`);
       let validatorFindings: any | undefined;
       const shouldSkipValidation = validationAttempt === 0 && skipInitialValidationForLocalGates;
       if (shouldSkipValidation) {
