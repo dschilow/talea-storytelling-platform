@@ -194,6 +194,14 @@ console.log("[1] Metadata sanitizer strips genre words");
   check("description still non-empty", result.description.length >= 10, result.description);
 }
 
+console.log("[1b] Metadata sanitizer removes broken article comma");
+{
+  const input = "Eine, wunderliche Geschichte ueber einen Sessel.";
+  const result = sanitizeDescription(input);
+  check("Eine, fixed", !/^Eine,\s/.test(result.description), result.description);
+  check("article preserved", /^Eine\s+wunderliche/i.test(result.description), result.description);
+}
+
 // -----------------------------------------------------------------------------
 // Test 2 — Core motif DOES hard fail (§14.2)
 // -----------------------------------------------------------------------------

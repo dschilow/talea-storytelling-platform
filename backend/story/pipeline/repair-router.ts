@@ -35,7 +35,7 @@ export interface RepairRouterDiagnostics {
 // Constants — picked to match the existing dev-mode-generation.ts thresholds.
 // Keep these in sync if the orchestrator constants change.
 // ──────────────────────────────────────────────────────────────────────────
-export const ROUTER_MIN_DIALOG_PCT = 25;
+export const ROUTER_MIN_DIALOG_PCT = 27;
 export const ROUTER_MIN_CHAPTER_DIALOG_PCT = 18;
 export const ROUTER_MIN_WORDS = 900;
 export const ROUTER_VOICE_DISTINCTIVENESS_FLOOR = 8;

@@ -196,10 +196,19 @@ console.log("\n═══ screenplay-v12 §O repair-router smoke ═══");
 // ─── §O priority: agency_repair beats dialog_rebalance ──────────────────────
 {
   const d = withSoft(["Helper-Explains-Gate", "dialog rebalance soft"]);
-  d.dialogPct = 22; // below 25 → would trigger dialog_rebalance on its own
+  d.dialogPct = 22; // below 27 -> would trigger dialog_rebalance on its own
   const r = chooseRepairStrategy(d, { helperExplainsSolution: true });
   assert.strictEqual(r.strategy, "agency_repair");
   console.log("  ✓ §O priority — agency_repair beats dialog_rebalance");
+}
+
+// ─── §O premium-safe dialogue floor: 26.x still rebalances ────────────────
+{
+  const d = withSoft(["Dialoganteil knapp unter Premium-Floor"]);
+  d.dialogPct = 26.5;
+  const r = chooseRepairStrategy(d);
+  assert.strictEqual(r.strategy, "whole_story_dialog_rebalance");
+  console.log("  ✓ §O dialogPct=26.5 -> whole_story_dialog_rebalance");
 }
 
 console.log("\n✓ All §O repair-router tests passed.");

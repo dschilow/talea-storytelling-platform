@@ -6,12 +6,21 @@ console.log("\n=== dev-mode premium gate policy ===");
 {
   const blocks = shouldBlockPremiumPotentialGateFailure({
     qualityMode: "premium",
+    debug: false,
+  });
+  assert.strictEqual(blocks, true, "default premium policy must block weak candidates");
+  console.log("  ok default premium policy blocks weak candidates");
+}
+
+{
+  const blocks = shouldBlockPremiumPotentialGateFailure({
+    qualityMode: "premium",
     strictQualityGates: false,
     strictReleaseGateMode: "warn",
     debug: false,
   });
-  assert.strictEqual(blocks, false, "default premium policy should degrade gracefully");
-  console.log("  ok default premium policy stays non-blocking");
+  assert.strictEqual(blocks, false, "explicit warn lane should keep failed candidates inspectable");
+  console.log("  ok explicit warn lane stays non-blocking");
 }
 
 {

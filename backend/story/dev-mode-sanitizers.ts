@@ -84,6 +84,7 @@ export function sanitizeDescription(description: string): DescriptionSanitizeRes
   }
 
   cleaned = cleaned
+    .replace(/\b(Eine|Ein|Einen),\s+/g, "$1 ")
     .replace(/\s*,\s*,/g, ",")
     .replace(/,\s*(\.|!|\?)/g, "$1")
     .replace(/\(\s*\)/g, "")

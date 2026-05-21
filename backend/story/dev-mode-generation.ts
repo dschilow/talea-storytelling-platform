@@ -81,8 +81,9 @@ const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
 const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-blocking-quality-gates-2026-05-20";
 const DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE = 7.9;
 const DEV_MODE_SCENE_CARD_COUNT = 5;
-const DEV_MODE_MAX_IDEA_ROUNDS = 2;
+const DEV_MODE_MAX_IDEA_ROUNDS = 3;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
+const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 27;
 const DEV_MODE_TARGET_DIALOG_PCT = 32;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
 // New range matches real children's-book dialogue density (25–40%).
@@ -104,7 +105,7 @@ const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
-const DEV_MODE_MIN_SUPPORTING_CAST = 1;
+const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 // v12 §8: short children's stories (900-1200 words) collapse under 4 supporting
 // characters. Cap at 2 and bias the cast-selection toward 1 unless both are
 // plot-critical (see finalizeSelectedIdeaCast / supporting-cast prompt
@@ -200,6 +201,7 @@ type DevModePipelineStage =
   | "scene-cards-repair"
   | "dialogue-intent"
   | "dialogue-intent-repair"
+  | "dialogue-rebalance"
   | "blueprint"
   | "blueprint-repair"
   | "dramaturgy-check"
@@ -1845,6 +1847,46 @@ async function generateDevModeImages(
       ],
     };
   });
+  const imageScenePlanByOrder = new Map(imageScenePlan.map((scene) => [Number(scene.order), scene]));
+
+  const englishVisualHint = (raw: unknown, fallback: string, maxChars = 180): string => {
+    let out = String(raw || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    const replacements: Array<[RegExp, string]> = [
+      [/\bsesselbezug\b/g, "armchair seam"],
+      [/\bsessel\b/g, "armchair"],
+      [/\bamulett\b/g, "amulet"],
+      [/\bkette\b/g, "necklace"],
+      [/\bwohnzimmer\b/g, "living room"],
+      [/\bkuche\b/g, "kitchen"],
+      [/\bflur\b/g, "hallway"],
+      [/\bdachboden\b/g, "attic"],
+      [/\bschrank\b/g, "wardrobe"],
+      [/\bsofa\b/g, "sofa"],
+      [/\bstuhl\b/g, "chair"],
+      [/\btisch\b/g, "table"],
+      [/\bstaub\b/g, "dust"],
+      [/\bdraht\b/g, "wire"],
+      [/\bleuchtet?\b/g, "glowing"],
+      [/\bglanzt?\b/g, "shining"],
+      [/\bversteckt\w*\b/g, "hidden"],
+      [/\bverlor\w*\b/g, "lost"],
+      [/\bsucht\w*\b/g, "searching"],
+      [/\bflick\w*\b/g, "repairing"],
+      [/\brepar\w*\b/g, "repairing"],
+      [/\balte[nrs]?\b/g, "old"],
+      [/\bwunderlich\w*\b/g, "wonder-filled"],
+    ];
+    for (const [pattern, replacement] of replacements) out = out.replace(pattern, replacement);
+    out = out
+      .replace(/\b(der|die|das|den|dem|des|ein|eine|einen|einem|und|oder|aber|mit|von|vom|im|in|am|an|auf|aus|zu|zum|zur|als|sich|sie|er|es|war|ist|waren|wird|nicht|nur|ganz|plot|seite|leseseite)\b/g, " ")
+      .replace(/[^a-z0-9\s,.-]/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return compactExcerpt(out || fallback, maxChars);
+  };
 
   const systemPrompt = "You are an image-prompt director for a children's picture book. Output STRICT JSON only \u2014 no commentary, no markdown fences.";
   const userPrompt = [
@@ -2177,16 +2219,28 @@ async function generateDevModeImages(
   }
   const avatarNamesOnly = cast.filter((c) => c.kind === "avatar").map((c) => c.name);
   const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
+    const storyAnchor = englishVisualHint(
+      input.selectedIdea?.centralObjectOrPlace || input.matchedArtifact?.name || input.selectedIdea?.wonderRule,
+      "the story's central object",
+      120
+    );
+    const settingHint = englishVisualHint(input.config.setting || input.config.genre, "cozy story setting", 80);
     if (job.kind === "cover") {
       // Cover can show the full hero set, but capped at 3 to avoid clutter.
       const coverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : cast.map((e) => e.name))
         .slice(0, 3)
         .join(", ") || "the heroes";
-      return `Single picture-book cover scene with ${coverNames} in a ${input.config.setting} setting, centered around the story's main magical problem, warm child-friendly atmosphere, no text.`;
+      return `Single picture-book cover scene with ${coverNames}, centered on ${storyAnchor} in ${settingHint}. Show one specific magical problem, warm child-friendly tension, exactly the named characters, no text.`;
     }
     const sceneNames = (job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly;
     const chapterNames = sceneNames.slice(0, 3).join(", ") || "the heroes";
-    return `Picture-book illustration of ${chapterNames} in a ${input.config.setting} scene from reading page ${job.order}; warm, child-friendly, single cohesive scene, no text.`;
+    const scenePlan = typeof job.order === "number" ? imageScenePlanByOrder.get(job.order) : undefined;
+    const actionHint = englishVisualHint(scenePlan?.sceneSummary, `a concrete action around ${storyAnchor}`, 180);
+    const childCount = sceneNames.filter((name) => avatarNamesOnly.includes(name)).length;
+    const countHint = childCount > 0
+      ? `exactly ${childCount} named human child${childCount === 1 ? "" : "ren"}`
+      : "only the named on-stage characters";
+    return `Picture-book illustration with ${chapterNames}, ${countHint}. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings, one cohesive moment, no text.`;
   };
   const coverPrompt = String(parsedPrompts?.cover || "").trim();
   jobs.push({ kind: "cover", prompt: looksLikeEnglishPrompt(coverPrompt) ? coverPrompt : fallbackImagePrompt({ kind: "cover" }) });
@@ -2380,9 +2434,9 @@ async function generateDevModeImages(
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
-  if (config.length === "long") return 8;
-  if (config.length === "medium") return 6;
-  return 5;
+  if (config.length === "long") return 10;
+  if (config.length === "medium") return 8;
+  return 8;
 }
 
 function resolvePoolNames(names: unknown, pool?: DevModePoolCharacter[]): string[] {
@@ -2644,6 +2698,32 @@ function potentialAuditScore(audit: Candidate9Audit): number {
   ];
   const positive = scoreKeys.reduce((sum, key) => sum + Number(audit[key] ?? 0), 0) / scoreKeys.length;
   return positive - Math.max(0, Number(audit.helperDependencyRisk ?? 0) - 4) * 0.6 - Math.max(0, Number(audit.similarityToRecentEmotionalMechanics ?? 0) - 3) * 0.4;
+}
+
+function selectPotentialFilterCandidates(
+  candidates: DevModeIdeaCandidate[],
+  input: DevModeGenerationInput,
+  limit = 3
+): DevModeIdeaCandidate[] {
+  if (candidates.length <= limit) return candidates;
+  return candidates
+    .map((candidate) => {
+      const novelty = auditIdeaCandidateNovelty(candidate, input);
+      const audit = auditCandidate9Potential(candidate, novelty.closestRecentOverlap);
+      const auditNovelty = Number(audit.novelty ?? 0);
+      const auditSimilarity = Number(audit.similarityToRecentEmotionalMechanics ?? 0);
+      const score = potentialAuditScore({
+        ...audit,
+        novelty: novelty.recommendation === "reject" ? Math.min(auditNovelty, 7.0) : auditNovelty,
+        similarityToRecentEmotionalMechanics: novelty.recommendation === "reject"
+          ? Math.max(auditSimilarity, 8.5)
+          : auditSimilarity,
+      });
+      return { candidate, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((entry) => entry.candidate);
 }
 
 function auditSummaryLine(audit: DevModePotentialFilterAudit): string {
@@ -3119,6 +3199,29 @@ function scorePoolCharacterForSelectedIdea(
   return score;
 }
 
+function isExplanatoryAdultCastRisk(
+  character: DevModePoolCharacter,
+  selectedIdea: DevModeSelectedIdea,
+  input: DevModeGenerationInput
+): boolean {
+  const mode = input.qualityMode || "premium";
+  if (mode !== "premium") return false;
+  const characterText = normalizeNoveltyText(poolCharacterFitText(character));
+  const ideaText = normalizeNoveltyText(selectedIdeaFitText(selectedIdea, input.config));
+  const looksAdultExplainer =
+    /\b(lehrer|lehrerin|teacher|mentor|guide|coach|erzieher|erwachsen|adult|mutter|vater|parent|professor|weise|wisdom)\b/.test(characterText);
+  if (!looksAdultExplainer) return false;
+
+  const moralOrLessonPremise =
+    /\b(ehrlich|ehrlichkeit|wahrheit|lug|lugen|lueg|gelog|gelogen|schuld|verantwort|mut|moral|lehre|lesson|frage|fragen|aufsatz|schule|school)\b/.test(ideaText);
+  const physicalCausality =
+    /\b(werkzeug|tool|repar|flick|nah|naeh|schraub|klemm|druck|drueck|zieh|schieb|block|rutsch|leucht|mess|mass|karte|kompass)\b/.test(characterText);
+
+  // Premium short stories usually flatten when an adult/teacher figure sits
+  // inside an honesty/courage lesson and has no physical plot job.
+  return moralOrLessonPremise && !physicalCausality;
+}
+
 function finalizeSelectedIdeaCast(
   input: DevModeGenerationInput,
   selectedIdea: DevModeSelectedIdea,
@@ -3126,11 +3229,19 @@ function finalizeSelectedIdeaCast(
 ): { selectedIdea: DevModeSelectedIdea; poolCharacters?: DevModePoolCharacter[] } {
   if (!pool || pool.length === 0) return { selectedIdea, poolCharacters: pool };
 
-  const minCount = Math.min(DEV_MODE_MIN_SUPPORTING_CAST, pool.length);
+  const requestedNames = new Set((selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).map(normalizePoolName));
+  const removedRiskyRequested = pool
+    .filter((character) => requestedNames.has(normalizePoolName(character.name)))
+    .filter((character) => isExplanatoryAdultCastRisk(character, selectedIdea, input))
+    .map((character) => character.name);
+  const eligiblePool = pool.filter((character) => !isExplanatoryAdultCastRisk(character, selectedIdea, input));
+
+  const minCount = Math.min(DEV_MODE_MIN_SUPPORTING_CAST, eligiblePool.length);
   const maxCount = Math.min(DEV_MODE_MAX_SUPPORTING_CAST, pool.length);
   const recommendedCount = (selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).length;
-  const targetCount = Math.max(minCount, Math.min(maxCount, recommendedCount || minCount));
-  const scored = pool
+  const effectiveRecommendedCount = Math.max(0, recommendedCount - removedRiskyRequested.length);
+  const targetCount = Math.max(minCount, Math.min(maxCount, effectiveRecommendedCount || minCount));
+  const scored = eligiblePool
     .map((character) => ({ character, score: scorePoolCharacterForSelectedIdea(character, selectedIdea, input) }))
     .sort((a, b) => b.score - a.score);
 
@@ -3154,6 +3265,7 @@ function finalizeSelectedIdeaCast(
   console.log("[dev-mode-generation] Final story-fit supporting cast", {
     selectedIdea: selectedIdea.title,
     targetCount,
+    removedRiskyRequested,
     selectedSupportingCast: finalNames,
     topCandidates: scored.slice(0, 8).map((candidate) => ({
       name: candidate.character.name,
@@ -3169,8 +3281,8 @@ function finalizeSelectedIdeaCast(
       selectedSupportingCast: finalNames,
       recommendedSupportingCast: finalNames,
       chosenReason: finalNames.length > 0
-        ? `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.`
-        : `${selectedIdea.chosenReason} No supporting cast was forced after premise selection; main-avatar agency and pacing ranked higher than pool usage.`,
+        ? `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.${removedRiskyRequested.length ? ` Removed adult-explainer risk: ${removedRiskyRequested.join(", ")}.` : ""}`
+        : `${selectedIdea.chosenReason} No supporting cast was forced after premise selection; main-avatar agency and pacing ranked higher than pool usage.${removedRiskyRequested.length ? ` Removed adult-explainer risk: ${removedRiskyRequested.join(", ")}.` : ""}`,
     },
     poolCharacters: finalPool,
   };
@@ -5169,8 +5281,19 @@ function buildCompactStoryBibleForDraft(
 
 function buildCompactPromptStory(
   story: DevModeRawStory,
-  options: { includeReadingBreaks?: boolean } = {}
+  options: { includeReadingBreaks?: boolean; maxChapterContentChars?: number } = {}
 ): any {
+  const compactChapterContent = (content: string): string => {
+    const max = options.maxChapterContentChars;
+    if (!max || content.length <= max) return content;
+    const headSize = Math.max(300, Math.floor(max * 0.58));
+    const tailSize = Math.max(220, max - headSize - 80);
+    return [
+      content.slice(0, headSize).trim(),
+      "[middle omitted in prompt; preserve continuity from current story]",
+      content.slice(Math.max(0, content.length - tailSize)).trim(),
+    ].join("\n");
+  };
   return {
     title: story.title,
     description: story.description,
@@ -5179,7 +5302,7 @@ function buildCompactPromptStory(
       .map((chapter) => ({
         order: chapter.order,
         title: chapter.title,
-        content: chapter.content,
+        content: compactChapterContent(chapter.content),
       }))
       .sort((a, b) => a.order - b.order),
     readingBreaks: options.includeReadingBreaks && Array.isArray(story.readingBreaks)
@@ -6316,20 +6439,19 @@ function buildStoryPolishPrompts(
   const overlongChapterCount = diagnostics.chapterDiagnostics.filter((chapter) => chapter.chars > bounds.max).length;
   const broadCompressionMode = overlongChapterCount >= Math.min(3, chapterCount) || diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
   const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
-  const systemPrompt = qualitySystemPrompt(
-    languageName,
-    [
-      "Final story schema:",
-      "{",
-      '  "title": string,',
-      '  "description": string,',
-      '  "chapters": [',
-      '    { "order": number, "title": string, "paragraphs": string[] }',
-      "  ]",
-      "}",
-      "IMPORTANT: Use paragraphs[] for chapter prose. Each array item is exactly one paragraph.",
-    ].join("\n")
-  );
+  const systemPrompt = [
+    `You are a surgical children's-story repair editor. Repair prose in ${languageName}.`,
+    "Return valid JSON only, no markdown, no commentary.",
+    "Schema:",
+    "{",
+    '  "title": string,',
+    '  "description": string,',
+    '  "chapters": [',
+    '    { "order": number, "title": string, "paragraphs": string[] }',
+    "  ]",
+    "}",
+    "Use paragraphs[] for prose. Do not output content fields unless unavoidable.",
+  ].join("\n");
   const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForRepair(reviewedBlueprint, chapterCount);
   const compactStory = buildCompactPromptStory(story);
@@ -6389,11 +6511,13 @@ function buildStoryPolishPrompts(
       : null,
     "",
     buildLeanRepairPromptContext(input, chapterCount, { readingPageMode }),
-    "LOCKED STORY BIBLE TO PRESERVE:",
-    promptJson(compactStoryBible),
-    buildSelectedCastIntegrationContract(input, true),
-    buildVoiceBibleBlock(input),
-    readingPageMode ? buildReadingPageContinuityContract(chapterCount) : buildWholeStoryContinuityContract(chapterCount),
+    "LOCKED STORY SUMMARY TO PRESERVE:",
+    promptJson({
+      selectedIdea: compactStoryBible.selectedIdea,
+      mainCharacters: compactStoryBible.mainCharacters,
+      supportingCast: compactStoryBible.supportingCast,
+      titleContract: compactStoryBible.titleContract,
+    }),
     "",
     "HARD GATES:",
     readingPageMode ? `- Exactly ${chapterCount} reading pages in chapters[] for app compatibility.` : `- Exactly ${chapterCount} chapters.`,
@@ -6456,11 +6580,19 @@ function buildStoryPolishPrompts(
     "LOCAL DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
     "",
-    "LOCKED STORY MAP TO PRESERVE:",
-    promptJson(compactBlueprint),
+    "LOCKED PLOT SPINE TO PRESERVE:",
+    promptJson({
+      premise: compactBlueprint.premise,
+      storySpine: compactBlueprint.storySpine,
+      coreMagicRule: compactBlueprint.coreMagicRule,
+      supportingCastUse: compactBlueprint.supportingCastUse,
+    }),
     "",
-    "CRITIQUE FROM DRAMATURGY CHECK:",
-    promptJson(compactCritiqueForDraft(critique)),
+    "CRITIQUE FOCUS:",
+    promptJson({
+      mustFix: compactCritiqueForDraft(critique).mustFix,
+      polishReason: compactCritiqueForDraft(critique).polishReason,
+    }),
     "",
     "CURRENT STORY TO POLISH:",
     promptJson(compactStory),
@@ -6468,6 +6600,116 @@ function buildStoryPolishPrompts(
     `FINAL REMINDER: title, description and ALL ${readingPageMode ? "reading-page content" : "chapter content"} must remain in ${languageName}.`,
   ].join("\n");
   return { systemPrompt, userPrompt };
+}
+
+function selectDialogueRebalanceTargets(
+  story: DevModeRawStory,
+  diagnostics: DevModeStoryDiagnostics,
+  limit = 2
+): DevModeChapter[] {
+  const byOrder = new Map(story.chapters.map((chapter) => [Number(chapter.order), chapter]));
+  return diagnostics.chapterDiagnostics
+    .filter((chapter) => chapter.dialogPct < DEV_MODE_TARGET_DIALOG_PCT)
+    .sort((a, b) => {
+      const aHard = a.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT ? 1000 : 0;
+      const bHard = b.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT ? 1000 : 0;
+      return (bHard + (DEV_MODE_TARGET_DIALOG_PCT - b.dialogPct) * 10) - (aHard + (DEV_MODE_TARGET_DIALOG_PCT - a.dialogPct) * 10);
+    })
+    .slice(0, limit)
+    .map((chapter) => byOrder.get(Number(chapter.order)))
+    .filter((chapter): chapter is DevModeChapter => Boolean(chapter));
+}
+
+function buildDialogueRebalancePrompts(
+  input: DevModeGenerationInput,
+  story: DevModeRawStory,
+  diagnostics: DevModeStoryDiagnostics,
+  targets: DevModeChapter[]
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const targetOrders = new Set(targets.map((chapter) => Number(chapter.order)));
+  const targetDiagnostics = diagnostics.chapterDiagnostics
+    .filter((chapter) => targetOrders.has(Number(chapter.order)))
+    .map((chapter) => ({
+      order: chapter.order,
+      currentDialogPct: chapter.dialogPct,
+      chars: chapter.chars,
+      addShortLines: Math.max(3, Math.min(8, Math.ceil((DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) / 3))),
+      issues: chapter.issues,
+    }));
+  const onStageNames = [
+    ...(input.avatars || []).map((avatar) => avatar.name).filter(Boolean),
+    ...(input.selectedIdea?.selectedSupportingCast || []),
+  ];
+  const systemPrompt = [
+    `You repair only dialogue balance in a ${languageName} children's story.`,
+    "Return JSON only. No markdown. No comments.",
+    'Schema: { "replacements": [ { "order": number, "paragraphs": string[] } ] }',
+  ].join("\n");
+  const userPrompt = [
+    "TASK: Increase dialogue share only in the listed reading pages.",
+    "No new plot. No new characters. No new locations. No moral. No explanatory lesson sentence.",
+    "Replace narration or inner explanation with short action-bearing dialogue.",
+    `Goal: whole-story dialogue ${DEV_MODE_TARGET_DIALOG_PCT}-${DEV_MODE_PROMPT_DIALOG_PCT}%; minimum accepted after this repair is ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}%.`,
+    "Every new quoted line must carry action, decision, relationship, tension, clue, or a small joke.",
+    "Forbidden filler: Ja. Okay. Stimmt. Gut. alone.",
+    "",
+    `On-stage character names only: ${onStageNames.join(", ") || "existing characters only"}.`,
+    "Diagnostics:",
+    promptJson({
+      storyDialogPct: diagnostics.dialogPct,
+      hardIssues: diagnostics.hardIssues.slice(0, 6),
+      targets: targetDiagnostics,
+    }),
+    "",
+    "Replace ONLY these reading pages; preserve their order/title and output full replacement paragraphs for each target:",
+    promptJson({
+      title: story.title,
+      description: story.description,
+      targets: targets.map((chapter) => ({
+        order: chapter.order,
+        title: chapter.title,
+        content: chapter.content,
+      })),
+    }),
+    "",
+    `Return JSON only. All replacement paragraphs must stay in ${languageName}.`,
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function parseDialogueRebalanceResult(content: string, currentStory: DevModeRawStory): DevModeRawStory {
+  const parsed = tryParseJson(content);
+  const replacements = Array.isArray(parsed?.replacements)
+    ? parsed.replacements
+    : Array.isArray(parsed?.chapters)
+      ? parsed.chapters
+      : [];
+  if (replacements.length === 0) {
+    throw new Error("dialogue-rebalance returned no replacements.");
+  }
+  let next = currentStory;
+  for (const raw of replacements) {
+    const order = Number(raw?.order);
+    if (!Number.isFinite(order)) continue;
+    const existing = currentStory.chapters.find((chapter) => Number(chapter.order) === order);
+    if (!existing) continue;
+    const parsedChapter = parseChapterFromModel(
+      {
+        order,
+        title: raw?.title || existing.title,
+        paragraphs: raw?.paragraphs,
+        content: raw?.content,
+      },
+      Math.max(0, order - 1)
+    );
+    next = replaceStoryChapter(next, {
+      ...parsedChapter,
+      title: existing.title,
+      order,
+    });
+  }
+  return currentStory.displayMode === "reading_pages" ? markStoryAsReadingPages(next, currentStory) : next;
 }
 
 // --- Line-Level Punchup ---------------------------------------------------
@@ -8077,7 +8319,7 @@ function collectMarketQualitySoftIssues(story: DevModeRawStory, input: DevModeGe
   const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
 
   if (languageCode === "de") {
-    const neatLessonPattern = /\b(Fehler|Mut|Freundschaft|Magie|Zauber|Fragen|Zusammenhalt|Geschichten)\b.{0,34}\b(sind|ist|machen|macht|bedeutet|heisst|heißt)\b/i;
+    const neatLessonPattern = /\b(Fehler|Mut|Freundschaft|Magie|Zauber|Fragen|Zusammenhalt|Geschichten|Ehrlichkeit|Wahrheit|Schuld|Verantwortung|Gold)\b.{0,48}\b(sind|ist|machen|macht|bedeutet|heisst|heißt|wichtiger)\b/i;
     if (neatLessonPattern.test(finalTail)) {
       issues.push("Finale klingt stellenweise wie eine ausgesprochene Lehre; ersetze die Schluss-Aussage durch ein konkretes Bild, eine Handlung oder einen leisen Witz.");
     }
@@ -8276,8 +8518,11 @@ function analyzeDevModeStoryQuality(
     }
   }
 
-  if (dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
-    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${DEV_MODE_MIN_DIALOG_PCT}%, Soft-Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%, Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
+  const minDialogPct = (input.qualityMode || "premium") === "premium"
+    ? DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT
+    : DEV_MODE_MIN_DIALOG_PCT;
+  if (dialogPct < minDialogPct) {
+    hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${minDialogPct}%, Soft-Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%, Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   } else if (dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
     softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Soft-Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}% trotz Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   }
@@ -9254,7 +9499,17 @@ export async function generateStoryDevMode(
           continue;
         }
 
-        const potentialFilterPrompts = buildPotentialFilterPrompts(input, chapterCount, ideaCandidates, ideaRound);
+        const potentialFilterCandidates = selectPotentialFilterCandidates(ideaCandidates, input, 3);
+        if (potentialFilterCandidates.length < ideaCandidates.length) {
+          recordLocalStage("potential-filter", {
+            round: ideaRound,
+            localTop3PreFilter: true,
+            candidateCount: ideaCandidates.length,
+            auditedCandidateCount: potentialFilterCandidates.length,
+            auditedTitles: potentialFilterCandidates.map((candidate) => candidate.title),
+          });
+        }
+        const potentialFilterPrompts = buildPotentialFilterPrompts(input, chapterCount, potentialFilterCandidates, ideaRound);
         const potentialFilterStage = await runStage("potential-filter", potentialFilterPrompts, {
           maxTokens: 2200,
           temperature: 0.16,
@@ -9264,7 +9519,7 @@ export async function generateStoryDevMode(
         });
         const potentialFilter = normalizePotentialFilterResult(
           potentialFilterStage.parsed,
-          ideaCandidates,
+          potentialFilterCandidates,
           input,
           input.poolCharacters
         );
@@ -10084,7 +10339,59 @@ export async function generateStoryDevMode(
         dialogPct: finalDiagnostics?.dialogPct,
       });
       if (finalParsed?.displayMode === "reading_pages") {
-        console.log("[dev-mode-generation] skipping targeted chapter repair in reading-page mode; whole-story validation/polish handles story-level gates", {
+        if (routerDecision.strategy === "whole_story_dialog_rebalance") {
+          const targets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 2);
+          if (targets.length === 0) {
+            console.warn("[dev-mode-generation] dialogue-rebalance selected but no target pages were found", {
+              dialogPct: finalDiagnostics.dialogPct,
+            });
+            break;
+          }
+          try {
+            const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, targets);
+            const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
+              maxTokens: 1800,
+              temperature: 0.22,
+              timeoutMs: 120_000,
+              modelRole: "selected-story",
+            });
+            const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+            const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
+            const improved =
+              rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct + 0.4
+              && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount;
+            repairSelfReflections.push({
+              attempt: repairAttempt,
+              modelUsed: rebalanceStage.provider.modelUsed,
+              reason: "dialogue-rebalance",
+              targetOrders: targets.map((chapter) => chapter.order),
+              beforeDialogPct: finalDiagnostics.dialogPct,
+              afterDialogPct: rebalancedDiagnostics.dialogPct,
+              deterministicStoryHardIssueCount: rebalancedDiagnostics.hardIssueCount,
+            });
+            if (!improved) {
+              console.warn("[dev-mode-generation] dialogue-rebalance rejected by deterministic diagnostics", {
+                beforeDialogPct: finalDiagnostics.dialogPct,
+                afterDialogPct: rebalancedDiagnostics.dialogPct,
+                beforeHardIssueCount: finalDiagnostics.hardIssueCount,
+                afterHardIssueCount: rebalancedDiagnostics.hardIssueCount,
+              });
+              break;
+            }
+            finalParsed = rebalancedParsed;
+            finalModelUsed = rebalanceStage.provider.modelUsed;
+            finalDiagnostics = rebalancedDiagnostics;
+            storyPolishApplied = true;
+            if (finalDiagnostics.hardIssueCount === 0 && finalDiagnostics.dialogPct >= DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT) break;
+            continue;
+          } catch (rebalanceError) {
+            console.warn("[dev-mode-generation] dialogue-rebalance failed; falling back to later full-story polish", {
+              error: rebalanceError instanceof Error ? rebalanceError.message : String(rebalanceError),
+            });
+            break;
+          }
+        }
+        console.log("[dev-mode-generation] skipping chapter-level repair in reading-page mode; later whole-story polish handles non-dialogue strategy", {
           strategy: routerDecision.strategy,
         });
         break;
@@ -11118,7 +11425,11 @@ export async function generateStoryDevMode(
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },
-    metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "complete" },
+    metadata: {
+      devMode: true,
+      pipeline: DEV_MODE_PIPELINE_ID,
+      stage: qualityGateFailureReason ? "quality_gate_failed" : "complete",
+    },
   }).catch((logErr) => {
     console.warn("[dev-mode-generation] Failed to publish success log:", logErr);
   });
@@ -11140,13 +11451,12 @@ export async function generateStoryDevMode(
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
 
-  // User-facing stories must still get artwork even when the quality gate
-  // remains open. We keep the release metadata for diagnostics, but we no
-  // longer short-circuit image generation here.
-  const skipImageGenerationForQualityGate = false;
+  const skipImageGenerationForQualityGate =
+    Boolean(qualityGateFailureReason)
+    || ((finalDiagnostics?.hardIssueCount ?? 0) > 0);
 
-  if (Boolean(qualityGateFailureReason) || ((finalDiagnostics?.hardIssueCount ?? 0) > 0)) {
-    console.warn("[dev-mode-generation] §F release-gate failed, but continuing image generation for user-facing story", {
+  if (skipImageGenerationForQualityGate) {
+    console.warn("[dev-mode-generation] §F release-gate failed; skipping image generation until text is release-ready", {
       hardIssueCount: finalDiagnostics?.hardIssueCount,
       qualityGateFailureReason,
       finalQualityScore,
@@ -11158,6 +11468,11 @@ export async function generateStoryDevMode(
   // consumers can detect this.
   if (isDebugMode(input)) {
     console.warn("[dev-mode-generation] §B debug mode: skipping image generation (text-only diagnostics run)");
+  } else if (skipImageGenerationForQualityGate) {
+    console.warn("[dev-mode-generation] image pipeline skipped due to open quality gate", {
+      status: "quality_gate_failed",
+      hardIssueCount: finalDiagnostics?.hardIssueCount ?? 0,
+    });
   } else {
     try {
       devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
