@@ -2265,7 +2265,7 @@ async function generateDevModeImages(
     return allCastNames.filter((name) => lower.includes(name.toLowerCase()));
   };
 
-  const imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
+  let imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
     try {
       // Local image-prompt sanitizer: strip any named living artist/studio the
       // model still slipped in, plus any "in the style of X" pattern, and
@@ -2343,6 +2343,36 @@ async function generateDevModeImages(
       return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt };
     }
   });
+
+  const missingImageJobs = imageResults
+    .filter((result) => !result.imageUrl)
+    .map((result) => result.job);
+  if (missingImageJobs.length > 0) {
+    console.warn("[dev-mode-generation] Retrying missing image jobs with deterministic no-reference fallback prompts", {
+      missing: missingImageJobs.map((job) => `${job.kind}${job.order ? `:${job.order}` : ""}`),
+    });
+    const retryResults = await mapWithConcurrency(missingImageJobs, 2, async (job) => {
+      const retryPrompt = `${sanitizeImagePrompt(fallbackImagePrompt(job))}${styleSuffix}`;
+      try {
+        const img = await ai.generateImage({
+          prompt: retryPrompt,
+          negativePrompt: mergeNegativePrompt(undefined),
+          width: 1024,
+          height: 1024,
+          steps: 4,
+          CFGScale: 4,
+          outputFormat: "JPEG",
+        });
+        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt };
+      } catch (err) {
+        console.warn(`[dev-mode-generation] Image retry failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
+        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt };
+      }
+    });
+    const keyForJob = (job: Job) => `${job.kind}:${job.order ?? "cover"}`;
+    const retryByJob = new Map(retryResults.map((result) => [keyForJob(result.job), result]));
+    imageResults = imageResults.map((result) => result.imageUrl ? result : (retryByJob.get(keyForJob(result.job)) || result));
+  }
 
   let coverImageUrl: string | undefined;
   let imagesGenerated = 0;
@@ -6525,7 +6555,7 @@ function buildStoryPolishPrompts(
     readingPageMode ? `- Aim each reading page for ${bounds.min}-${targetMaxChars} characters only if it does not create a mini-ending.` : `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
     `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
-    readingPageMode ? `- Each reading page should have about ${paragraphBounds.min}-${paragraphBounds.max} paragraphs, but do not force a page to feel closed.` : `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
+    readingPageMode ? `- Each reading page MUST have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs in paragraphs[]. This is a release-form hard gate; split scene beats instead of returning 1-2 large blocks.` : `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
     `- No sentence may exceed ${maxSentenceChars} characters; split long clauses into child-readable beats.`,
     input.config.length === "short"
@@ -6544,6 +6574,7 @@ function buildStoryPolishPrompts(
       ? "- First reduce scope and sentence count. Keep hook, conflict, turn, payoff. Delete decorative second images, repeated reactions, and recap sentences even if they sound nice."
       : null,
     "- If a chapter is too long: cut explanatory narration first, not the core scene.",
+    readingPageMode ? "- If a reading page has too few paragraphs: split existing action, dialogue, and reaction beats into compact paragraphs. Do not pad with filler." : null,
     "- If a chapter has too many paragraphs: combine adjacent beats into fewer paragraphs.",
     "- If dialogue is low: convert explanation into short character-specific dialogue that carries action, relationship, humor, or tension.",
     "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
@@ -7876,8 +7907,29 @@ function normalizeParagraphsToMax(paragraphs: string[], maxParagraphs = DEV_MODE
   return merged;
 }
 
+function normalizeParagraphsToRange(
+  paragraphs: string[],
+  minParagraphs = DEV_MODE_MIN_PARAGRAPHS,
+  maxParagraphs = DEV_MODE_MAX_PARAGRAPHS
+): string[] {
+  let normalized = paragraphs.map((part) => String(part || "").trim()).filter(Boolean);
+  if (normalized.length > 0 && normalized.length < minParagraphs) {
+    const expanded = normalized.flatMap((paragraph) => splitLooseProseParagraphs(paragraph));
+    if (expanded.length > normalized.length) {
+      normalized = expanded;
+    }
+  }
+  if (normalized.length > 0 && normalized.length < minParagraphs) {
+    const expanded = splitLooseProseParagraphs(normalized.join(" "));
+    if (expanded.length > normalized.length) {
+      normalized = expanded;
+    }
+  }
+  return normalizeParagraphsToMax(normalized, maxParagraphs);
+}
+
 function paragraphsToContent(paragraphs: string[]): string {
-  return normalizeParagraphsToMax(paragraphs).join("\n\n").trim();
+  return normalizeParagraphsToRange(paragraphs).join("\n\n").trim();
 }
 
 function normalizeChapterContentFromModel(ch: any): string {
@@ -7890,7 +7942,7 @@ function normalizeChapterContentFromModel(ch: any): string {
 
   const content = String(ch?.content || "").trim();
   const paragraphs = splitParagraphs(content);
-  if (paragraphs.length > DEV_MODE_MAX_PARAGRAPHS) {
+  if (paragraphs.length > 0 && (paragraphs.length < DEV_MODE_MIN_PARAGRAPHS || paragraphs.length > DEV_MODE_MAX_PARAGRAPHS)) {
     return paragraphsToContent(paragraphs);
   }
   return content;
@@ -11045,6 +11097,76 @@ export async function generateStoryDevMode(
           }
         }
 
+        // Reading-page polish often improves structure while still leaving the
+        // full story too narration-heavy. Run a focused dialogue pass after
+        // polish, because the earlier repair router may have spent its one
+        // targeted pass on structure/length instead of dialogue density.
+        if (
+          finalParsed.displayMode === "reading_pages"
+          && finalDiagnostics.dialogPct < DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT
+        ) {
+          const rebalanceTargets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 4);
+          if (rebalanceTargets.length > 0) {
+            try {
+              console.warn("[dev-mode-generation] Triggering post-polish reading-page dialogue rebalance", {
+                storyDialogPct: finalDiagnostics.dialogPct,
+                targets: rebalanceTargets.map((chapter) => ({
+                  order: chapter.order,
+                  title: chapter.title,
+                })),
+              });
+
+              const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
+              const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
+                maxTokens: input.config.length === "long" ? 3200 : 2600,
+                temperature: 0.22,
+                timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
+                modelRole: "selected-story",
+              });
+              const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+              const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
+              const rebalanceImproved =
+                rebalancedDiagnostics.dialogPct >= Math.max(DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT, finalDiagnostics.dialogPct + 1)
+                && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount + 1
+                && diagnosticsSeverityScore(rebalancedDiagnostics, chapterCount, input.config)
+                  <= diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config) + 180;
+
+              if (rebalanceImproved || isDiagnosticsBetter(rebalancedDiagnostics, finalDiagnostics, chapterCount, input.config)) {
+                const dialogPctBefore = finalDiagnostics.dialogPct;
+                finalParsed = rebalancedParsed;
+                finalModelUsed = rebalanceStage.provider.modelUsed;
+                finalDiagnostics = rebalancedDiagnostics;
+                storyPolishApplied = true;
+                repairSelfReflections.push({
+                  attempt: validationAttempt + 1,
+                  modelUsed: rebalanceStage.provider.modelUsed,
+                  reason: "post-polish-dialogue-rebalance",
+                  targetOrders: rebalanceTargets.map((chapter) => chapter.order),
+                  deterministicStoryHardIssueCount: rebalancedDiagnostics.hardIssueCount,
+                  deterministicStoryDialogPct: rebalancedDiagnostics.dialogPct,
+                });
+                recordLocalStage("dialogue-rebalance", {
+                  targetOrders: rebalanceTargets.map((chapter) => chapter.order),
+                  dialogPctBefore,
+                  dialogPctAfter: rebalancedDiagnostics.dialogPct,
+                  hardIssueCount: rebalancedDiagnostics.hardIssueCount,
+                });
+              } else {
+                console.warn("[dev-mode-generation] Post-polish dialogue rebalance rejected by deterministic diagnostics", {
+                  dialogPctBefore: finalDiagnostics.dialogPct,
+                  dialogPctAfter: rebalancedDiagnostics.dialogPct,
+                  hardIssueCountBefore: finalDiagnostics.hardIssueCount,
+                  hardIssueCountAfter: rebalancedDiagnostics.hardIssueCount,
+                });
+              }
+            } catch (rebalanceError) {
+              console.warn("[dev-mode-generation] Post-polish dialogue rebalance failed; keeping polished story", {
+                error: rebalanceError instanceof Error ? rebalanceError.message : String(rebalanceError),
+              });
+            }
+          }
+        }
+
         // Post-polish targeted rescue: if the polish reduced issues but still
         // leaves chapter-localized hard fails (length, dialogue, paragraphs,
         // long sentences), run one more pass of chapter-repair on the worst
@@ -11237,7 +11359,19 @@ export async function generateStoryDevMode(
         }
         // Cleanup leading article remnants like "Der " followed by nothing.
         trimmedTitle = trimmedTitle.replace(/^(Der|Die|Das|Ein|Eine)\s+$/i, "").trim();
-        if (trimmedTitle && trimmedTitle.length >= 4 && trimmedTitle !== finalParsed.title) {
+        const trimmedTitleWords = (trimmedTitle.match(/[\p{L}]+/gu) || [])
+          .filter((word) => !/^(der|die|das|den|dem|des|ein|eine|einer|eines|und|oder|von|vom|im|in|am|an|zu|zum|zur)$/i.test(word));
+        const titleLooksBroken =
+          trimmedTitleWords.length < 2
+          || /\b(der|die|das|den|dem|des|ein|eine)\s+(der|die|das|den|dem|des|ein|eine)\b/i.test(trimmedTitle)
+          || /^(der|die|das|den|dem|des|ein|eine)\s*$/i.test(trimmedTitle);
+        if (titleLooksBroken && trimmedTitle !== finalParsed.title) {
+          console.warn("[dev-mode-generation] Deterministic title trim rejected because it would produce a broken title", {
+            before: finalParsed.title,
+            rejected: trimmedTitle,
+            missing,
+          });
+        } else if (trimmedTitle && trimmedTitle.length >= 4 && trimmedTitle !== finalParsed.title) {
           console.log("[dev-mode-generation] Deterministic title trim", { before: finalParsed.title, after: trimmedTitle, missing });
           finalParsed = { ...finalParsed, title: trimmedTitle };
           remediated = true;
@@ -11450,9 +11584,9 @@ export async function generateStoryDevMode(
 
   const sortedParsedChapters = parsed.chapters.slice().sort((a, b) => a.order - b.order);
 
-  // Image generation (cover + per-reading-page). Best-effort: a story without
-  // images still ships. Token usage is folded into the running total so the
-  // returned metadata stays accurate.
+  // Image generation (cover + per-reading-page). Text quality warnings must
+  // not suppress images in production; a completed child-facing story should
+  // remain visually complete even when releaseReady=false for editorial review.
   let devModeImages: {
     coverImageUrl?: string;
     chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
@@ -11465,12 +11599,11 @@ export async function generateStoryDevMode(
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
 
-  const skipImageGenerationForQualityGate =
-    Boolean(qualityGateFailureReason)
-    || ((finalDiagnostics?.hardIssueCount ?? 0) > 0);
+  const hasOpenQualityGate = Boolean(qualityGateFailureReason) || ((finalDiagnostics?.hardIssueCount ?? 0) > 0);
+  const skipImageGenerationForQualityGate = false;
 
-  if (skipImageGenerationForQualityGate) {
-    console.warn("[dev-mode-generation] §F release-gate failed; skipping image generation until text is release-ready", {
+  if (hasOpenQualityGate) {
+    console.warn("[dev-mode-generation] §F release-gate warning; continuing image generation for product completeness", {
       hardIssueCount: finalDiagnostics?.hardIssueCount,
       qualityGateFailureReason,
       finalQualityScore,
@@ -11482,11 +11615,6 @@ export async function generateStoryDevMode(
   // consumers can detect this.
   if (isDebugMode(input)) {
     console.warn("[dev-mode-generation] §B debug mode: skipping image generation (text-only diagnostics run)");
-  } else if (skipImageGenerationForQualityGate) {
-    console.warn("[dev-mode-generation] image pipeline skipped due to open quality gate", {
-      status: "quality_gate_failed",
-      hardIssueCount: finalDiagnostics?.hardIssueCount ?? 0,
-    });
   } else {
     try {
       devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
@@ -11611,9 +11739,8 @@ export async function generateStoryDevMode(
         && releaseDimensionFailures(finalValidatorFindings).length === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
           >= ((input.qualityMode || "premium") === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE),
-      // v12 §1: explicit hard-fail status. In premium mode any open hard
-      // gate flips this to "quality_gate_failed" so downstream PDF/image
-      // pipelines must short-circuit (see backend/story/generate.ts §F).
+      // v12 §1: explicit editorial release status. Text may be persisted and
+      // illustrated for product completeness while releaseReady remains false.
       status: ((): "ok" | "quality_gate_failed" => {
         const mode = input.qualityMode || "premium";
         const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
@@ -11627,9 +11754,9 @@ export async function generateStoryDevMode(
         return "ok";
       })(),
       hardIssueList: finalDiagnostics?.hardIssues ?? [],
-      // v12 §F: signal whether image generation was skipped due to quality
-      // gate fail. Downstream PDF/image consumers (story-experience UI,
-      // PDF builder) should treat this story as a debug candidate only.
+      // v12 §F: quality gates no longer skip production images. This flag is
+      // kept for backwards compatibility and should remain false outside
+      // debug/text-only runs.
       imagesSkippedDueToQualityGate: skipImageGenerationForQualityGate,
       qualityMode: input.qualityMode || "premium",
       debug: isDebugMode(input) ? true : undefined,
