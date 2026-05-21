@@ -107,14 +107,32 @@ export function validateBeatSheetSpecH(
       }
     }
     // Spec-H: payoff must come from plantedDetail. Cheap structural check —
-    // demand at least one shared content word.
-    const planted = String(finalPayoff.plantedDetail || "").toLowerCase();
-    const closing = String(finalPayoff.closingImage || "").toLowerCase();
+    // require shared content. We compare 5+-char word STEMS (first 5 chars,
+    // accent-folded) to forgive German morphology like
+    // "Glühwürmchen-Laterne" vs "Laterne leuchtet". The LLM tends to vary
+    // the surface form between fields even when the underlying object is
+    // the same.
+    const stemOf = (text: string): string[] => {
+      const folded = text
+        .toLowerCase()
+        .replace(/ä/g, "a")
+        .replace(/ö/g, "o")
+        .replace(/ü/g, "u")
+        .replace(/ß/g, "ss");
+      return folded
+        .split(/[^a-z]+/)
+        .filter((w) => w.length >= 5)
+        .map((w) => w.slice(0, 5));
+    };
+    const planted = String(finalPayoff.plantedDetail || "");
+    const closing = String(finalPayoff.closingImage || "");
     if (planted.length > 0 && closing.length > 0) {
-      const plantWords = planted
-        .split(/[^a-zäöüß]+/i)
-        .filter((w) => w.length >= 5);
-      const overlap = plantWords.some((w) => closing.includes(w));
+      const plantStems = new Set(stemOf(planted));
+      const closingStems = new Set(stemOf(closing));
+      let overlap = false;
+      for (const stem of plantStems) {
+        if (closingStems.has(stem)) { overlap = true; break; }
+      }
       if (!overlap) {
         issues.push("beatSheet.finalPayoff.closingImage does not echo plantedDetail");
       }

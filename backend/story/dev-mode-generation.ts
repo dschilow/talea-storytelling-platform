@@ -9583,9 +9583,26 @@ export async function generateStoryDevMode(
       }
     }
     if (beatSheetIssues.length > 0) {
-      console.warn("[dev-mode-generation] beat-sheet soft-fail after repair; continuing to prose pipeline", {
-        issues: beatSheetIssues,
-      });
+      // v12 §H tuning: the structured-sub-object checks (echo plantedDetail,
+      // structured sub-object missing, abstract visibleDamage) are stricter
+      // than the legacy regex gates and the support model (gemini-flash-lite)
+      // sometimes cannot satisfy them even after the repair pass — e.g. it
+      // varies wording between plantedDetail and closingImage. Treat the
+      // additive §H issues as advisory in the soft-fail path so a single
+      // surface-form mismatch does not derail an otherwise sound plan.
+      const advisoryPattern = /finalPayoff\.closingImage does not echo plantedDetail|structured sub-object missing|visibleDamage lacks a concrete damage signal|visibleDamage too short to be concrete/;
+      const blocking = beatSheetIssues.filter((i) => !advisoryPattern.test(i));
+      const advisory = beatSheetIssues.filter((i) => advisoryPattern.test(i));
+      if (advisory.length > 0) {
+        console.warn("[dev-mode-generation] beat-sheet §H additive checks downgraded to advisory", {
+          advisory,
+        });
+      }
+      if (blocking.length > 0) {
+        console.warn("[dev-mode-generation] beat-sheet soft-fail after repair; continuing to prose pipeline", {
+          issues: blocking,
+        });
+      }
     }
 
     const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
