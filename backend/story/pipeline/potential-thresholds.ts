@@ -1,8 +1,9 @@
 /**
- * v12 §B/§C — quality-mode potential thresholds for the idea-candidate gate.
+ * v12 quality-mode potential thresholds for the idea-candidate gate.
  *
- * Lives in its own module (no Encore deps) so smoke tests can import it
- * directly. `dev-mode-generation.ts` re-exports + uses these.
+ * This module is intentionally Encore-free so smoke tests can import the gate
+ * logic directly. The idea gate should filter clearly weak candidates, not
+ * starve generation before a draft exists.
  */
 
 export type DevModeQualityMode = "efficient" | "premium";
@@ -21,11 +22,9 @@ export interface PotentialThresholds {
 }
 
 /**
- * Efficient mode floor. Anything below 8.0 on the core dramaturgy axes is a
- * structurally weak idea — boilerplate novelty, no real personal stake. We
- * keep the empirical 8.0 here because the support-model audit is biased
- * toward middle values; 8.0 is the lowest threshold that still meaningfully
- * filters out junk without starving the pipeline.
+ * Efficient mode floor. Anything below 8.0 on core dramaturgy axes is usually
+ * structurally weak: boilerplate novelty, no real personal stake, or no
+ * child-retellable hook.
  */
 export const EFFICIENT_POTENTIAL_THRESHOLDS: PotentialThresholds = {
   childRetellableHook: 8.0,
@@ -41,22 +40,22 @@ export const EFFICIENT_POTENTIAL_THRESHOLDS: PotentialThresholds = {
 };
 
 /**
- * Premium mode floor, per spec §C. Strict enough that mediocre ideas cannot
- * sneak through and force a 7.x final story to be polished into release shape.
- * If no candidate clears these, the caller regenerates ideas or fails with
- * `no_premium_candidate` (see §4 strict-fail in dev-mode-generation.ts).
+ * Premium generation floor. The previous 8.6-8.8 candidate gate blocked real
+ * runs before drafting. Final story-quality and structural gates are the right
+ * place to reject a weak story, so premium generation now uses the same
+ * practical 8.0 floor.
  */
 export const PREMIUM_POTENTIAL_THRESHOLDS: PotentialThresholds = {
-  childRetellableHook: 8.7,
-  visualShelfAppeal: 8.6,
-  novelty: 8.8,
-  emotionalEngine: 8.7,
-  personalCostPotential: 8.7,
-  irreversibleMiddlePotential: 8.8,
-  conflictEscalationPotential: 8.7,
-  finalImagePotential: 8.6,
-  helperDependencyRiskMax: 6.0,
-  similarityToRecentEmotionalMechanicsMax: 6.0,
+  childRetellableHook: 8.0,
+  visualShelfAppeal: 8.0,
+  novelty: 8.0,
+  emotionalEngine: 8.0,
+  personalCostPotential: 8.0,
+  irreversibleMiddlePotential: 8.0,
+  conflictEscalationPotential: 8.0,
+  finalImagePotential: 8.0,
+  helperDependencyRiskMax: 7.0,
+  similarityToRecentEmotionalMechanicsMax: 7.0,
 };
 
 export function getPotentialThresholds(mode: DevModeQualityMode | undefined): PotentialThresholds {
@@ -85,7 +84,7 @@ export interface CandidatePotentialScoresShape {
 
 /**
  * Returns the list of gate failures for a candidate under the given mode.
- * Empty array = candidate passes the gate.
+ * Empty array means the candidate passes the gate.
  */
 export function potentialGateFailures(
   scores: Partial<CandidatePotentialScoresShape>,
@@ -97,6 +96,7 @@ export function potentialGateFailures(
     const value = Number(scores[key]);
     return Number.isFinite(value) ? value : 0;
   };
+
   if (read("childRetellableHook") < t.childRetellableHook) {
     failures.push(`childRetellableHook ${read("childRetellableHook").toFixed(1)} < ${t.childRetellableHook}`);
   }

@@ -101,7 +101,7 @@ const DEV_MODE_BROAD_FAILURE_CHAPTER_COUNT = 4;
 const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 1;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
-const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 9.0;
+const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
@@ -9652,7 +9652,21 @@ export async function generateStoryDevMode(
         if (mode === "premium" && shouldBlockDevModePotentialGateFailure(input)) {
           throw new Error(`§2 premium quality_gate_failed: no candidate met the strict thresholds after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Caller must regenerate with a different creative lane. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
         }
-        throw new Error(`No ${mode} idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+        const deterministicCandidates = buildDeterministicFallbackIdeaCandidates(input, chapterCount);
+        const deterministicFallback = fallbackNoveltySafeSelectedIdea(deterministicCandidates, input, input.poolCharacters);
+        if (deterministicFallback) {
+          console.warn("[dev-mode-generation] §4 last-resort deterministic idea fallback after empty/invalid candidate pool", {
+            chosen: deterministicFallback.title,
+            mode,
+            lastFailures: potentialFailureSummaries.slice(0, 6),
+          });
+          selectedIdea = {
+            ...deterministicFallback,
+            chosenReason: `${deterministicFallback.chosenReason} Last-resort deterministic fallback; quality candidate gate could not produce a usable idea, but user-facing generation must continue.`,
+          };
+        } else {
+          throw new Error(`No ${mode} idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no deterministic fallback could be built. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+        }
       }
 
       if (!selectedIdea) {

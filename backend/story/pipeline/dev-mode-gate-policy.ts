@@ -12,6 +12,5 @@ export function shouldBlockPremiumPotentialGateFailure(input: DevModeGatePolicyI
   if (mode !== "premium") return false;
   // Debug keeps failed candidates inspectable, but it is never a release lane.
   if (input.debug === true) return false;
-  if (input.strictReleaseGateMode === "warn" && input.strictQualityGates !== true) return false;
-  return true;
+  return input.strictQualityGates === true || input.strictReleaseGateMode === "block";
 }

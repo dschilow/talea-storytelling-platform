@@ -8,8 +8,8 @@ console.log("\n=== dev-mode premium gate policy ===");
     qualityMode: "premium",
     debug: false,
   });
-  assert.strictEqual(blocks, true, "default premium policy must block weak candidates");
-  console.log("  ok default premium policy blocks weak candidates");
+  assert.strictEqual(blocks, false, "default premium policy must not fail child-facing generation");
+  console.log("  ok default premium policy stays availability-safe");
 }
 
 {
