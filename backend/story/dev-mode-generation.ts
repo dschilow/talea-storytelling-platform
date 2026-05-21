@@ -113,6 +113,7 @@ const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 const DEV_MODE_MAX_SUPPORTING_CAST = 2;
 const DEV_MODE_PREFERRED_SUPPORTING_CAST = 1;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
+const DEV_MODE_IDEA_STRUCTURE_CARD_LIMIT = 4;
 // v12 §R — spec allows 8–12 surgical line replacements. Raised from 8 to 12
 // so a release-near story with multiple weak dialogue beats can still be
 // fixed in one punchup pass without the writer cherry-picking which lines
@@ -157,6 +158,11 @@ import {
   type FinalFailureClass,
   type FinalRecommendedRoute,
 } from "./pipeline/final-routing";
+import {
+  STORY_SKELETONS,
+  type StorySkeleton,
+} from "./pipeline/content-library/story-skeletons";
+import { getAntagonistArchetype } from "./pipeline/content-library/antagonist-archetypes";
 
 /**
  * Back-compat alias. Existing code reads `DEV_MODE_POTENTIAL_THRESHOLDS.<key>`
@@ -3861,6 +3867,228 @@ function buildEmotionAndVoicePromptContext(
   ].join("\n");
 }
 
+function buildDevModeIdeaStructureLibraryBlock(input: DevModeGenerationInput): string {
+  const cards = selectDevModeIdeaStructureCards(input);
+  if (cards.length === 0) return "";
+
+  return [
+    "CURATED STRUCTURE LIBRARY FOR THE IDEA LAB:",
+    "- Source: internal abstract construction cards only. This is NOT StoryDNA, NOT FairyDNA, and NOT a database of finished fairy tales.",
+    "- Do not retell, translate, modernize, or copy any finished fairy tale. Do not use Cinderella/Grimm/Andersen/etc. as plot sources.",
+    "- Use one card as hidden craft pressure per premise candidate, then mutate it with the wizard brief, novelty brief, avatars, and cast fit.",
+    "- Do not output card labels/ids as story content. The candidate must sound like a new, ownable children's-book premise.",
+    "- At least half the candidates must differ in structure card OR in how the card is concretized. No same-engine candidates with swapped nouns.",
+    input.matchedArtifact
+      ? "- The provided artifact/prop remains the only specific artifact to consider. Do not replace it with a library artifact name."
+      : "- If a candidate needs an object, invent a fresh visible object/place with a rule and a price; do not copy library artifact names.",
+    "",
+    ...cards.map((card, index) => formatDevModeIdeaStructureCard(card, index, input)),
+  ].filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function selectDevModeIdeaStructureCards(input: DevModeGenerationInput): StorySkeleton[] {
+  const signalText = buildDevModeIdeaStructureSignalText(input);
+  const seedText = [
+    input.noveltyBrief?.seed,
+    input.storyId,
+    input.config.genre,
+    input.config.setting,
+    input.config.customPrompt,
+  ].filter(Boolean).join(":") || "dev-mode-idea-structure";
+
+  return STORY_SKELETONS
+    .map((skeleton) => ({
+      skeleton,
+      score: scoreDevModeIdeaStructureCard(skeleton, input, signalText, seedText),
+    }))
+    .sort((a, b) => b.score - a.score || a.skeleton.id.localeCompare(b.skeleton.id))
+    .slice(0, DEV_MODE_IDEA_STRUCTURE_CARD_LIMIT)
+    .map((entry) => entry.skeleton);
+}
+
+function buildDevModeIdeaStructureSignalText(input: DevModeGenerationInput): string {
+  const novelty = input.noveltyBrief;
+  const values = [
+    input.config.genre,
+    input.config.setting,
+    input.config.customPrompt,
+    input.config.storySoul,
+    input.config.storyTempo,
+    ...compactStringList(input.config.hooks, 8),
+    ...compactStringList(input.config.emotionalFlavors, 8),
+    ...compactStringList(input.config.specialIngredients, 8),
+    ...(input.config.learningMode?.subjects || []),
+    ...(input.config.learningMode?.learningObjectives || []),
+    novelty?.shelfPromise,
+    novelty?.creativeLane,
+    novelty?.emotionalEngine,
+    novelty?.wonderMechanic,
+    novelty?.keyMomentLens,
+    novelty?.titleEnergy,
+    ...(novelty?.hardAvoidMotifs || []),
+  ];
+  return normalizeNoveltyText(values.filter(Boolean).join(" "));
+}
+
+function scoreDevModeIdeaStructureCard(
+  skeleton: StorySkeleton,
+  input: DevModeGenerationInput,
+  signalText: string,
+  seedText: string
+): number {
+  const genre = normalizeNoveltyText(input.config.genre || "");
+  const setting = normalizeNoveltyText(input.config.setting || "");
+  const genreAndSetting = `${genre} ${setting}`;
+  let score = 1;
+
+  const isFairyLike = devModeIdeaSignalIncludesAny(genreAndSetting, [
+    "fairy",
+    "maerchen",
+    "marchen",
+    "classic",
+    "klassisch",
+  ]);
+  const isMagicalWorldLike = devModeIdeaSignalIncludesAny(genreAndSetting, [
+    "magical",
+    "magisch",
+    "fantasy",
+    "zauber",
+    "wunder",
+    "enchanted",
+  ]);
+
+  if (isFairyLike && skeleton.genre === "classical-fairy-tales") score += 2.4;
+  if (isMagicalWorldLike && skeleton.genre === "magical-worlds") score += 2.4;
+  if (!isFairyLike && !isMagicalWorldLike) score += skeleton.genre === "magical-worlds" ? 0.4 : 0.2;
+
+  if (input.matchedArtifact && skeleton.id === "mw-01-artifact-price") score += 3.2;
+  if (input.matchedArtifact && skeleton.id === "cft-01-three-trials") score += 0.8;
+
+  if (skeleton.id === "cft-02-transformation" && devModeIdeaSignalIncludesAny(signalText, [
+    "verwandl",
+    "transformation",
+    "fluch",
+    "curse",
+    "gestalt",
+    "tausch",
+  ])) score += 3;
+
+  if (skeleton.id === "cft-03-helper-returns" && devModeIdeaSignalIncludesAny(signalText, [
+    "helfer",
+    "helper",
+    "dank",
+    "gutherzig",
+    "freundlich",
+    "rett",
+  ])) score += 3;
+
+  if (skeleton.id === "mw-01-artifact-price" && devModeIdeaSignalIncludesAny(signalText, [
+    "artefakt",
+    "artifact",
+    "objekt",
+    "object",
+    "preis",
+    "price",
+    "kosten",
+    "cost",
+    "tausch",
+    "trade",
+    "fund",
+    "find",
+  ])) score += 3;
+
+  if (skeleton.id === "mw-02-gate-to-other-world" && devModeIdeaSignalIncludesAny(signalText, [
+    "portal",
+    "tor",
+    "tuer",
+    "tur",
+    "door",
+    "threshold",
+    "schwelle",
+    "andere welt",
+    "other world",
+    "dachboden",
+    "schrank",
+  ])) score += 3;
+
+  if (skeleton.id === "mw-03-forgotten-rule" && devModeIdeaSignalIncludesAny(signalText, [
+    "regel",
+    "rule",
+    "vergess",
+    "forgotten",
+    "gemeinschaft",
+    "community",
+    "club",
+    "schule",
+    "school",
+    "bibliothek",
+    "library",
+  ])) score += 3;
+
+  if (skeleton.id === "cft-01-three-trials" && devModeIdeaSignalIncludesAny(signalText, [
+    "prufung",
+    "pruefung",
+    "trial",
+    "challenge",
+    "hindernis",
+    "wald",
+    "forest",
+    "weg",
+  ])) score += 2;
+
+  for (const typicalSetting of skeleton.typicalSettings) {
+    const normalizedSetting = normalizeNoveltyText(typicalSetting);
+    if (normalizedSetting && (setting.includes(normalizedSetting) || signalText.includes(normalizedSetting))) {
+      score += 1;
+    }
+  }
+
+  // Tiny deterministic jitter keeps equally suitable cards rotating by story/novelty seed
+  // without introducing random output or hiding the main matching reasons.
+  score += (hashString(`${seedText}:${skeleton.id}`) % 100) / 1000;
+  return score;
+}
+
+function devModeIdeaSignalIncludesAny(signalText: string, needles: ReadonlyArray<string>): boolean {
+  return needles.some((needle) => signalText.includes(normalizeNoveltyText(needle)));
+}
+
+function formatDevModeIdeaStructureCard(
+  skeleton: StorySkeleton,
+  index: number,
+  input: DevModeGenerationInput
+): string {
+  const antagonist = getAntagonistArchetype(skeleton.antagonistPattern.archetypeCategory);
+  const arcCues = skeleton.chapterHints
+    .map((hint) => `${hint.arc}: ${compactExcerpt(hint.playableHint || hint.beat, 72)}`)
+    .join(" | ");
+  const anchors = skeleton.concreteAnchorHints
+    .slice(0, 3)
+    .map((hint) => `${hint.abstractTheme} => ${hint.concreteCandidates.slice(0, 2).join(" / ")}`)
+    .join("; ");
+  const refrains = skeleton.refrainCandidates
+    .slice(0, 3)
+    .map((hint) => `\"${hint.candidate}\" (${hint.tone})`)
+    .join(" / ");
+
+  return [
+    `CARD ${index + 1}: ${skeleton.label}`,
+    `- Hidden engine to mutate: ${compactExcerpt(skeleton.description, 170)}`,
+    `- Visible irreversible middle pressure: ${compactExcerpt(skeleton.mustHaveMoment.description, 170)}`,
+    `- Child-playable progression cues: ${arcCues}`,
+    antagonist
+      ? `- Antagonist pressure: ${antagonist.label}: ${compactExcerpt(antagonist.motivePattern, 150)}`
+      : `- Antagonist pressure: ${compactExcerpt(skeleton.antagonistPattern.firstActionShape, 150)}`,
+    `- Resolution pressure: ${compactExcerpt(skeleton.antagonistPattern.defeatShape, 150)}`,
+    anchors ? `- Concrete-anchor examples to mutate: ${anchors}` : null,
+    refrains ? `- Refrain/callback model: ${refrains}` : null,
+    `- Iconic motif model: ${skeleton.iconicMotif.object}; invent a fresh recurring object/image for the candidate.`,
+    input.matchedArtifact
+      ? "- If the provided prop fits, make it create a price/choice; if not, keep it as a planted visual prop instead of forcing it."
+      : null,
+  ].filter((line): line is string => Boolean(line)).join("\n");
+}
+
 function buildIdeaCandidatePrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -3917,6 +4145,9 @@ function buildIdeaCandidatePrompts(
       : null,
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
+    "",
+    buildDevModeIdeaStructureLibraryBlock(input),
+    "",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
     `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names; pick the smallest set that genuinely serves the story.`,
     "Never recommend a cast member just to use the pool. A pool figure must create a turn, complication, joke, clue, or payoff that the main avatars could not create alone.",
