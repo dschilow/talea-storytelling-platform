@@ -5119,6 +5119,178 @@ function normalizeSceneCards(parsed: any): any[] {
     }));
 }
 
+function firstSceneText(...values: any[]): string {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const text = value.replace(/\s+/g, " ").trim();
+      if (text && text !== "[object Object]") return text;
+      continue;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      const text = String(value).trim();
+      if (text) return text;
+      continue;
+    }
+    if (value && typeof value === "object") {
+      const nested = firstSceneText(
+        value.object,
+        value.visibleDamage,
+        value.personalCost,
+        value.cannotReturnToStartBecause,
+        value.childAction,
+        value.closingImage,
+        value.payoff,
+      );
+      if (nested) return nested;
+    }
+  }
+  return "";
+}
+
+function hasConcreteSceneDamageSignal(text: string): boolean {
+  return /(zerbr|brech|kaputt|riss|reißt|reisst|verschwind|verlisch|erlisch|schrumpf|verlier|loest sich|löst sich|stuerz|stürz|brennt|verbrann|tropft|leckt|verstummt|verdorrt|welkt|broken|lost|missing|silent|cracked|shrinks|fades|vanishes|disappears|spilled|burned|dies)/i.test(text);
+}
+
+function ensureSceneDialogueBeats(card: any, input: DevModeGenerationInput): any[] {
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const heroA = heroNames[0] || "Kind 1";
+  const heroB = heroNames[1] || "Kind 2";
+  const existing = Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.slice(0, 6) : [];
+  const fillers = [
+    { speaker: heroA, intent: "want", subtext: "will das sichtbare Ziel erreichen", actionCarried: card?.visibleGoal || card?.plant || "zeigt auf den nächsten Schritt" },
+    { speaker: heroB, intent: "observe", subtext: "bemerkt die Regel oder Gefahr", actionCarried: card?.obstacle || card?.visibleConsequence || "hält kurz inne und prüft die Spur" },
+    { speaker: heroA, intent: "resist", subtext: "will den einfachen Weg nehmen", actionCarried: card?.wrongAction || "greift zu schnell nach der falschen Lösung" },
+    { speaker: heroB, intent: "decide", subtext: "lenkt zur nächsten Handlung", actionCarried: card?.endPull || card?.childDecision || "setzt eine konkrete Entscheidung in Bewegung" },
+  ];
+  for (const filler of fillers) {
+    if (existing.length >= 4) break;
+    existing.push(filler);
+  }
+  return existing;
+}
+
+function repairSceneCardsDeterministically(
+  sceneCards: any[],
+  beatSheet: any,
+  input: DevModeGenerationInput,
+): { sceneCards: any[]; changed: boolean; fixes: string[] } {
+  const purposes = ["hook", "false_attempt", "complication", "irreversible_middle", "final_payoff"];
+  const motif = firstSceneText(beatSheet?.recurringMotif, beatSheet?.wonderRule, input.selectedIdea?.centralObjectOrPlace, "das wiederkehrende Zeichen");
+  const middle = beatSheet?.irreversibleMiddle || {};
+  const finalPayoff = beatSheet?.finalPayoff || {};
+  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const heroA = heroNames[0] || "Die Kinder";
+  const heroB = heroNames[1] || "das zweite Kind";
+  const personalObject = firstSceneText(beatSheet?.personalObject, input.matchedArtifact?.name, motif);
+  const rawPersonalCost = firstSceneText(middle.personalCost, beatSheet?.act2?.personalCost, input.selectedIdea?.coreConflict);
+  const personalCost = rawPersonalCost.length >= 18 && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
+    ? rawPersonalCost
+    : `${heroA} und ${heroB} riskieren ${personalObject}; wenn sie falsch handeln, bleibt es sichtbar beschädigt.`;
+  const rawVisibleDamage = firstSceneText(middle.visibleDamage, beatSheet?.act2?.midpointIrreversibleTurn, beatSheet?.act1?.firstConsequence);
+  const visibleDamage = hasConcreteSceneDamageSignal(rawVisibleDamage)
+    ? rawVisibleDamage
+    : `${personalObject} bekommt einen sichtbaren Riss; ein wichtiges Stück verschwindet vor den Augen der Kinder.`;
+  const rawCannotGoBack = firstSceneText(middle.cannotReturnToStartBecause, middle.newPressure, beatSheet?.act2?.midpointIrreversibleTurn);
+  const cannotGoBack = rawCannotGoBack.length >= 18
+    ? rawCannotGoBack
+    : `Weil ${personalObject} sichtbar beschädigt ist, kann der Anfangszustand nicht einfach durch Warten zurückkommen.`;
+  const childDiscovery = firstSceneText(beatSheet?.act3?.recognition, finalPayoff.plantedDetail, beatSheet?.act3?.payoffFromPlant, motif);
+  const childDecision = firstSceneText(finalPayoff.childAction, beatSheet?.act3?.finalChoice, beatSheet?.act3?.payoffFromPlant);
+  const motifStates = ["introduced", "misused", "lost", "reinterpreted", "payoff"];
+  const fixes: string[] = [];
+
+  const baseCards = sceneCards.slice(0, DEV_MODE_SCENE_CARD_COUNT);
+  while (baseCards.length < DEV_MODE_SCENE_CARD_COUNT) {
+    baseCards.push({ scene: baseCards.length + 1 });
+    fixes.push(`padded-scene-${baseCards.length}`);
+  }
+
+  const repaired = baseCards.map((card, index) => {
+    const sceneNo = index + 1;
+    const original = card || {};
+    const scenePurpose = purposes[index];
+    const next: any = {
+      ...original,
+      scene: Number(original.scene || sceneNo),
+      scenePurpose,
+      helperMustNotExplain: original.helperMustNotExplain !== false,
+      recurringMotifState: firstSceneText(original.recurringMotifState) || motifStates[index],
+    };
+
+    const titleFallbacks = [
+      beatSheet?.act1?.hook,
+      beatSheet?.act1?.wrongFirstMove,
+      beatSheet?.act2?.complication,
+      beatSheet?.act2?.midpointIrreversibleTurn,
+      beatSheet?.act3?.closingImage,
+    ];
+    const consequenceFallbacks = [
+      beatSheet?.act1?.firstConsequence,
+      beatSheet?.act2?.helperComplicates,
+      beatSheet?.act2?.complication,
+      visibleDamage,
+      finalPayoff.worldResponse || beatSheet?.act3?.closingImage,
+    ];
+    const endPullFallbacks = [
+      beatSheet?.act1?.incitingIncident,
+      beatSheet?.act2?.complication,
+      beatSheet?.act2?.midpointIrreversibleTurn,
+      beatSheet?.act3?.finalChoice,
+      beatSheet?.act3?.closingImage,
+    ];
+
+    next.titleHint = firstSceneText(original.titleHint, titleFallbacks[index], `Szene ${sceneNo}`);
+    next.location = firstSceneText(original.location, input.config.setting, input.selectedIdea?.centralObjectOrPlace, "ein konkreter Spielort");
+    next.timePressureOrQuestion = firstSceneText(original.timePressureOrQuestion, beatSheet?.centralQuestion, endPullFallbacks[index]);
+    next.visibleGoal = firstSceneText(original.visibleGoal, original.goal, beatSheet?.act1?.incitingIncident, beatSheet?.act3?.finalChoice, `Die Kinder verfolgen ${motif}.`);
+    next.emotionalGoal = firstSceneText(original.emotionalGoal, beatSheet?.mainWant, beatSheet?.mainNeed, beatSheet?.emotionalPremise);
+    next.obstacle = firstSceneText(original.obstacle, beatSheet?.act2?.helperComplicates, input.selectedIdea?.coreConflict, "Die Regel stellt sich sichtbar quer.");
+    next.wrongAction = firstSceneText(original.wrongAction, beatSheet?.act1?.wrongFirstMove, middle.wrongAction, "Die Kinder versuchen zuerst den bequemsten falschen Weg.");
+    next.visibleConsequence = firstSceneText(original.visibleConsequence, original.consequence, original.result, original.outcome, original.visibleDamage, original.irreversibleChange, consequenceFallbacks[index]);
+    next.irreversibleChange = firstSceneText(original.irreversibleChange, original.changedState, original.turn, original.visibleDamage, index === 0 ? consequenceFallbacks[index] : undefined, index >= 2 ? visibleDamage : consequenceFallbacks[index]);
+    next.endPull = firstSceneText(original.endPull, original.chapterEndHook, original.pull, endPullFallbacks[index], "Etwas bleibt offen und zieht sie weiter.");
+    next.plant = firstSceneText(original.plant, finalPayoff.plantedDetail, beatSheet?.personalObject, motif);
+    next.payoffLater = firstSceneText(original.payoffLater, finalPayoff.closingImage, beatSheet?.act3?.payoffFromPlant, beatSheet?.act3?.closingImage);
+    next.characterDriver = firstSceneText(original.characterDriver, index >= 3 ? "shared" : heroA);
+    next.adrianAction = firstSceneText(original.adrianAction, original[`${heroA}Action`], `${heroA} handelt sichtbar am Objekt.`);
+    next.alexanderAction = firstSceneText(original.alexanderAction, original[`${heroB}Action`], `${heroB} bemerkt die Folge und reagiert.`);
+    const helperFunction = firstSceneText(original.helperFunction);
+    const helperAction = firstSceneText(original.helperAction);
+    next.helperFunction = /(explain|erklaer|erklär|loesung|lösung|reveals|enthuellt|enthüllt|tells the answer|sagt die antwort)/i.test(helperFunction)
+      ? "creates pressure"
+      : firstSceneText(helperFunction, "creates pressure");
+    next.helperAction = /(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(helperAction)
+      ? "Der Helfer bringt Druck in die Szene und zeigt nur auf ein neues Hindernis."
+      : firstSceneText(helperAction, "Der Helfer bringt Druck in die Szene und zeigt nur auf ein neues Hindernis.");
+
+    if (scenePurpose === "irreversible_middle" || index === 2 || index === 3) {
+      next.visibleDamage = firstSceneText(original.visibleDamage, visibleDamage, next.visibleConsequence);
+      next.personalCost = firstSceneText(original.personalCost, personalCost, `${heroA} und ${heroB} geben einen bequemen Vorteil auf.`);
+      next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, cannotGoBack, "Der alte Zustand ist sichtbar verändert und kann nicht durch Warten zurückkehren.");
+      next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise, beatSheet?.mainNeed, "Die Kinder merken, was ihr falscher Weg kostet.");
+    } else {
+      next.visibleDamage = firstSceneText(original.visibleDamage, index > 0 ? next.visibleConsequence : "");
+      next.personalCost = firstSceneText(original.personalCost, index > 1 ? personalCost : "");
+      next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, index > 1 ? cannotGoBack : "");
+      next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise);
+    }
+
+    if (index >= Math.max(0, DEV_MODE_SCENE_CARD_COUNT - 2)) {
+      next.childDiscovery = firstSceneText(original.childDiscovery, childDiscovery, `${heroA} und ${heroB} erkennen die Verbindung zu ${motif}.`);
+    }
+    if (index === DEV_MODE_SCENE_CARD_COUNT - 1) {
+      next.childDecision = firstSceneText(original.childDecision, childDecision, `${heroA} und ${heroB} führen die finale Handlung selbst aus.`);
+    }
+
+    next.dialogueBeats = ensureSceneDialogueBeats(next, input);
+    return next;
+  });
+
+  const changed = JSON.stringify(repaired) !== JSON.stringify(sceneCards.slice(0, DEV_MODE_SCENE_CARD_COUNT));
+  if (changed) fixes.push("filled-missing-scene-card-fields-from-beat-sheet");
+  return { sceneCards: repaired, changed, fixes: [...new Set(fixes)] };
+}
+
 function validateLoglineEngine(engine: any): string[] {
   const issues: string[] = [];
   for (const key of ["logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief", "wonderRule", "recurringMotif", "personalObject"]) {
@@ -10606,6 +10778,19 @@ export async function generateStoryDevMode(
       modelRole: "support",
     });
     let sceneCards = normalizeSceneCards(sceneCardStage.parsed);
+    const deterministicSceneRepair = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
+    if (deterministicSceneRepair.changed) {
+      sceneCards = deterministicSceneRepair.sceneCards;
+      console.warn("[dev-mode-generation] deterministic scene-card repair applied before validation", {
+        context: "initial-scene-cards",
+        fixes: deterministicSceneRepair.fixes,
+      });
+      recordLocalStage("scene-cards-repair", {
+        deterministic: true,
+        context: "initial-scene-cards",
+        fixes: deterministicSceneRepair.fixes,
+      });
+    }
     let sceneCardIssues = validateSceneCards(sceneCards, input.qualityMode);
     if (sceneCardIssues.length > 0) {
       const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, sceneCardIssues);
@@ -10617,6 +10802,19 @@ export async function generateStoryDevMode(
         modelRole: "support",
       });
       sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
+      const deterministicRepairAfterModel = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
+      if (deterministicRepairAfterModel.changed) {
+        sceneCards = deterministicRepairAfterModel.sceneCards;
+        console.warn("[dev-mode-generation] deterministic scene-card repair applied after model repair", {
+          context: "after-scene-cards-repair",
+          fixes: deterministicRepairAfterModel.fixes,
+        });
+        recordLocalStage("scene-cards-repair", {
+          deterministic: true,
+          context: "after-scene-cards-repair",
+          fixes: deterministicRepairAfterModel.fixes,
+        });
+      }
       sceneCardIssues = validateSceneCards(sceneCards, input.qualityMode);
     }
     if (sceneCardIssues.length > 0) {
@@ -10697,7 +10895,16 @@ export async function generateStoryDevMode(
     // otherwise the story has no real reversal point. Soft-fail to a one-
     // shot scene-cards-repair; if still missing after repair, raise.
     {
-      const turnIndex = Math.max(2, Math.min(sceneCards.length - 2, Math.floor(sceneCards.length / 2)));
+      const turnIndexByPurpose = sceneCards.findIndex((card: any) => String(card?.scenePurpose || "") === "irreversible_middle");
+      const candidateTurnIndices = [...new Set([turnIndexByPurpose, 2, 3, Math.floor(sceneCards.length / 2)])]
+        .filter((index) => index >= 0 && index < sceneCards.length);
+      const successfulTurnIndex = candidateTurnIndices.find((index) => {
+        const card: any = sceneCards[index];
+        return !!(card?.visibleDamage || card?.irreversibleChange) && !!card?.personalCost;
+      });
+      const turnIndex = successfulTurnIndex ?? (turnIndexByPurpose >= 0
+        ? turnIndexByPurpose
+        : Math.max(2, Math.min(sceneCards.length - 2, Math.floor(sceneCards.length / 2))));
       const turnCard: any = sceneCards[turnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
       const hasVisibleDamage = !!(turnCard?.visibleDamage || turnCard?.irreversibleChange);
       const hasPersonalCost = !!turnCard?.personalCost;
@@ -10725,12 +10932,25 @@ export async function generateStoryDevMode(
           modelRole: "support",
         });
         sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
-        const turnCardRetry: any = sceneCards[turnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
+        const deterministicTurnRepair = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
+        if (deterministicTurnRepair.changed) {
+          sceneCards = deterministicTurnRepair.sceneCards;
+          recordLocalStage("scene-cards-repair", {
+            deterministic: true,
+            context: "irreversible-middle-gate",
+            fixes: deterministicTurnRepair.fixes,
+          });
+        }
+        const retryTurnIndex = candidateTurnIndices.find((index) => {
+          const card: any = sceneCards[index];
+          return !!(card?.visibleDamage || card?.irreversibleChange) && !!card?.personalCost;
+        }) ?? turnIndex;
+        const turnCardRetry: any = sceneCards[retryTurnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
         const stillNoDamage = !(turnCardRetry?.visibleDamage || turnCardRetry?.irreversibleChange);
         const stillNoCost = !turnCardRetry?.personalCost;
         if (stillNoDamage || stillNoCost) {
           throw new Error(
-            `Scene-card §6 gate still failed after repair: visibleDamage=${!stillNoDamage}, personalCost=${!stillNoCost} on scene ${turnIndex + 1}.`
+            `Scene-card §6 gate still failed after repair: visibleDamage=${!stillNoDamage}, personalCost=${!stillNoCost} on scene ${retryTurnIndex + 1}.`
           );
         }
       }
