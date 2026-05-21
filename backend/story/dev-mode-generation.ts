@@ -137,6 +137,7 @@ import {
   type DevModeQualityMode,
   type PotentialThresholds,
 } from "./pipeline/potential-thresholds";
+import { shouldBlockPremiumPotentialGateFailure } from "./pipeline/dev-mode-gate-policy";
 import {
   validateBeatSheetSpecH,
   validateSceneCardsSpecI,
@@ -8706,6 +8707,15 @@ function shouldBlockDevModeQualityGateFailure(
   );
 }
 
+function shouldBlockDevModePotentialGateFailure(input: DevModeGenerationInput): boolean {
+  return shouldBlockPremiumPotentialGateFailure({
+    qualityMode: input.qualityMode,
+    strictQualityGates: input.config.strictQualityGates,
+    strictReleaseGateMode: (input.config as any).strictReleaseGateMode,
+    debug: input.debug,
+  });
+}
+
 interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
@@ -9336,10 +9346,14 @@ export async function generateStoryDevMode(
         // caller can inspect the failed run; debug uses the same best-audit
         // fallback as efficient, but annotates the bypass clearly.
         const mode = input.qualityMode || "premium";
-        const premiumStrict = mode === "premium" && !isDebugMode(input);
-        if (bestCandidate && !premiumStrict) {
-          const lane = isDebugMode(input) ? "debug" : "efficient";
-          console.warn(`[dev-mode-generation] §4 ${lane}-mode soft-fail: no candidate passed gate after ${DEV_MODE_MAX_IDEA_ROUNDS} rounds; using best-audit fallback`, {
+        const shouldBlockPotentialGate = shouldBlockDevModePotentialGateFailure(input);
+        if (bestCandidate && !shouldBlockPotentialGate) {
+          const lane = isDebugMode(input)
+            ? "debug"
+            : mode === "premium"
+              ? "premium-grace"
+              : "efficient";
+          console.warn(`[dev-mode-generation] §4 ${lane} soft-fail: no candidate passed gate after ${DEV_MODE_MAX_IDEA_ROUNDS} rounds; using best-audit fallback`, {
             chosen: bestCandidate.title,
             bestAudit: bestAuditLine,
             allFailures: potentialFailureSummaries.slice(0, 6),
@@ -9349,7 +9363,7 @@ export async function generateStoryDevMode(
             chosenReason: `§4 ${lane} soft-fail: best of ${ideaCandidates.length} candidates after ${DEV_MODE_MAX_IDEA_ROUNDS} strict rounds. ${bestAuditLine}`,
             selectedSupportingCast: resolvePoolNames(bestCandidate.recommendedSupportingCast, input.poolCharacters),
           };
-        } else if (bestCandidate && premiumStrict) {
+        } else if (bestCandidate && shouldBlockPotentialGate) {
           console.warn("[dev-mode-generation] §4 PREMIUM strict-fail: no candidate passed thresholds after 2 rounds — refusing soft-fail", {
             bestCandidateTitle: bestCandidate.title,
             bestAudit: bestAuditLine,
@@ -9359,8 +9373,28 @@ export async function generateStoryDevMode(
       }
 
       if (!selectedIdea) {
+        const emergencyCandidates = ideaCandidates.length > 0
+          ? ideaCandidates
+          : buildDeterministicFallbackIdeaCandidates(input, chapterCount);
+        const emergencyFallback = !shouldBlockDevModePotentialGateFailure(input)
+          ? fallbackNoveltySafeSelectedIdea(emergencyCandidates, input, input.poolCharacters)
+          : undefined;
+        if (emergencyFallback) {
+          console.warn("[dev-mode-generation] §4 emergency fallback: no passing idea candidate survived, but strict blocking is disabled", {
+            chosen: emergencyFallback.title,
+            candidateCount: emergencyCandidates.length,
+            mode: input.qualityMode || "premium",
+          });
+          selectedIdea = {
+            ...emergencyFallback,
+            chosenReason: `${emergencyFallback.chosenReason} Emergency fallback after premium potential gate miss; availability prioritized because strict blocking is disabled.`,
+          };
+        }
+      }
+
+      if (!selectedIdea) {
         const mode = input.qualityMode || "premium";
-        if (mode === "premium" && !isDebugMode(input)) {
+        if (mode === "premium" && shouldBlockDevModePotentialGateFailure(input)) {
           throw new Error(`§2 premium quality_gate_failed: no candidate met the strict thresholds after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Caller must regenerate with a different creative lane. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
         }
         throw new Error(`No ${mode} idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
