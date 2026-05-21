@@ -163,6 +163,10 @@ import {
   type StorySkeleton,
 } from "./pipeline/content-library/story-skeletons";
 import { getAntagonistArchetype } from "./pipeline/content-library/antagonist-archetypes";
+import {
+  buildPremiseSeedPromptBlock,
+  selectPremiseSeedsForIdeaLab,
+} from "./pipeline/content-library/premise-seeds";
 
 /**
  * Back-compat alias. Existing code reads `DEV_MODE_POTENTIAL_THRESHOLDS.<key>`
@@ -328,6 +332,8 @@ export interface DevModeGeneratedStory {
     noveltyKeyMomentLens?: string;
     ideaCandidateCount?: number;
     selectedIdeaTitle?: string;
+    selectedPremiseSeedId?: string;
+    selectedPremiseSeedMutation?: string;
     selectedSupportingCast?: string[];
     matchedArtifact?: {
       id: string;
@@ -487,6 +493,8 @@ export interface CandidatePotentialScores {
 
 interface DevModeIdeaCandidate {
   id: string;
+  premiseSeedId?: string;
+  premiseSeedMutation?: string;
   title: string;
   oneLineHook: string;
   centralObjectOrPlace: string;
@@ -2530,9 +2538,13 @@ function normalizeIdeaCandidates(parsed: any, pool?: DevModePoolCharacter[]): De
       const coreConflict = compactExcerpt(String(candidate?.coreConflict || candidate?.conflict || "").trim(), 180);
       const whyKidWantsThis = compactExcerpt(String(candidate?.whyKidWantsThis || "").trim(), 180);
       const whyDifferentFromRecent = compactExcerpt(String(candidate?.whyDifferentFromRecent || "").trim(), 180);
+      const premiseSeedId = compactExcerpt(String(candidate?.premiseSeedId || candidate?.seedId || "").trim(), 80);
+      const premiseSeedMutation = compactExcerpt(String(candidate?.premiseSeedMutation || candidate?.seedMutation || "").trim(), 220);
       if (!title || !oneLineHook || !centralObjectOrPlace || !wonderRule || !coreConflict) return null;
       return {
         id: String(candidate?.id || `idea_${index + 1}`),
+        ...(premiseSeedId ? { premiseSeedId } : {}),
+        ...(premiseSeedMutation ? { premiseSeedMutation } : {}),
         title,
         oneLineHook,
         centralObjectOrPlace,
@@ -3337,11 +3349,14 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     `- Core conflict: ${selectedIdea.coreConflict}`,
     `- Why a child wants this book: ${selectedIdea.whyKidWantsThis}`,
     `- Why different from recent stories: ${selectedIdea.whyDifferentFromRecent}`,
+    selectedIdea.premiseSeedId
+      ? `- Premise seed trace: ${selectedIdea.premiseSeedId}${selectedIdea.premiseSeedMutation ? `; mutation: ${selectedIdea.premiseSeedMutation}` : ""}. Preserve the mutated engine, but do not revert to the raw seed card.`
+      : null,
     selectedIdea.selectedSupportingCast.length > 0
       ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with one plot-necessary function each, then leave room for the main avatars.`
       : "- No pool character is mandatory for this idea; keep extra cast lean.",
     `- Selection reason: ${selectedIdea.chosenReason}`,
-  ].join("\n");
+  ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
 // --- Voice Bible ----------------------------------------------------------
@@ -4089,6 +4104,38 @@ function formatDevModeIdeaStructureCard(
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
+function buildDevModePremiseSeedLibraryBlock(
+  input: DevModeGenerationInput,
+  candidateCount: number,
+  round = 1
+): string {
+  const novelty = input.noveltyBrief;
+  const seeds = selectPremiseSeedsForIdeaLab(
+    {
+      genre: input.config.genre,
+      setting: input.config.setting,
+      ageGroup: input.config.ageGroup,
+      length: input.config.length,
+      customPrompt: input.config.customPrompt,
+      noveltySeed: novelty?.seed,
+      creativeLane: novelty?.creativeLane,
+      emotionalEngine: novelty?.emotionalEngine,
+      wonderMechanic: novelty?.wonderMechanic,
+      keyMomentLens: novelty?.keyMomentLens,
+      hardAvoidMotifs: novelty?.hardAvoidMotifs || [],
+      recentStoryTexts: (novelty?.recentStories || []).map((story) => [
+        story.title,
+        story.description,
+        story.motifKeywords.join(" "),
+      ].filter(Boolean).join(" ")),
+      matchedArtifactName: input.matchedArtifact?.name,
+      round,
+    },
+    Math.min(6, Math.max(4, candidateCount - 2))
+  );
+  return buildPremiseSeedPromptBlock(seeds, { candidateCount, round });
+}
+
 function buildIdeaCandidatePrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -4104,6 +4151,8 @@ function buildIdeaCandidatePrompts(
       '  "candidates": [',
       '    {',
       '      "id": string,',
+      '      "premiseSeedId": string,',
+      '      "premiseSeedMutation": string,',
       '      "title": string,',
       '      "oneLineHook": string,',
       '      "centralObjectOrPlace": string,',
@@ -4147,6 +4196,8 @@ function buildIdeaCandidatePrompts(
     "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
     "",
     buildDevModeIdeaStructureLibraryBlock(input),
+    "",
+    buildDevModePremiseSeedLibraryBlock(input, candidateCount, options.round || 1),
     "",
     "Use the available supporting cast only when the fit is real. If a pool character does not fit a candidate naturally, leave them out of that candidate.",
     `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names; pick the smallest set that genuinely serves the story.`,
@@ -9718,6 +9769,7 @@ export async function generateStoryDevMode(
     hardAvoidMotifCount: input.noveltyBrief?.hardAvoidMotifs.length ?? 0,
     noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
     selectedIdeaTitle: input.selectedIdea?.title,
+    selectedPremiseSeedId: input.selectedIdea?.premiseSeedId,
     selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
   });
 
@@ -11756,6 +11808,8 @@ export async function generateStoryDevMode(
         noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
         ideaCandidateCount: ideaCandidates.length,
         selectedIdeaTitle: input.selectedIdea?.title,
+        selectedPremiseSeedId: input.selectedIdea?.premiseSeedId,
+        selectedPremiseSeedMutation: input.selectedIdea?.premiseSeedMutation,
         selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
       },
       stages: stageLogs.map((stage) => ({
@@ -11897,7 +11951,17 @@ export async function generateStoryDevMode(
       }, (parsed.readingBreaks || []).map((br) => br.imagePromptScene).filter(Boolean).length > 0
         ? (parsed.readingBreaks || []).map((br) => br.imagePromptScene).filter(Boolean)
         : chapters.map((c) => c.title));
-      await recordStoryMotif(fingerprint, input.userId, DEV_MODE_PIPELINE_ID);
+      const seedTags = input.selectedIdea?.premiseSeedId
+        ? [`premise_seed:${input.selectedIdea.premiseSeedId}`]
+        : [];
+      const seedMutationKeywords = input.selectedIdea?.premiseSeedMutation
+        ? extractMotifKeywords(input.selectedIdea.premiseSeedMutation, 8)
+        : [];
+      await recordStoryMotif({
+        ...fingerprint,
+        motifTags: [...new Set([...fingerprint.motifTags, ...seedTags])],
+        motifKeywords: [...new Set([...fingerprint.motifKeywords, ...seedMutationKeywords])].slice(0, 24),
+      }, input.userId, DEV_MODE_PIPELINE_ID);
     } catch (err) {
       console.warn("[dev-mode-generation] §3 recordStoryMotif failed (non-fatal):", err instanceof Error ? err.message : String(err));
     }
@@ -12012,6 +12076,8 @@ export async function generateStoryDevMode(
       noveltyKeyMomentLens: input.noveltyBrief?.keyMomentLens,
       ideaCandidateCount: ideaCandidates.length,
       selectedIdeaTitle: input.selectedIdea?.title,
+      selectedPremiseSeedId: input.selectedIdea?.premiseSeedId,
+      selectedPremiseSeedMutation: input.selectedIdea?.premiseSeedMutation,
       selectedSupportingCast: input.selectedIdea?.selectedSupportingCast,
       characterPoolUsed: (() => {
         const selected = input.selectedIdea?.selectedSupportingCast || [];
