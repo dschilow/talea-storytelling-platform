@@ -112,32 +112,60 @@ const DEV_MODE_MIN_SUPPORTING_CAST = 1;
 const DEV_MODE_MAX_SUPPORTING_CAST = 2;
 const DEV_MODE_PREFERRED_SUPPORTING_CAST = 1;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
-const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 8;
+// v12 §R — spec allows 8–12 surgical line replacements. Raised from 8 to 12
+// so a release-near story with multiple weak dialogue beats can still be
+// fixed in one punchup pass without the writer cherry-picking which lines
+// to skip.
+const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 12;
+// v12 §R — line-punchup is only valid for release-near stories. Below this
+// score the structural repair router must run instead; punchup cannot fix
+// plot, page count, or dialogue volume.
+const DEV_MODE_LINE_PUNCHUP_MIN_SCORE = 8.6;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
 const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
 
 const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
-// v12 §2 (tuned 2026-05-20 after logs.1779275469620 showed 100% fail rate):
-// premium thresholds. The original §2 spec asks for 8.7-8.8 floors, but the
-// support model (gemini-flash-lite as idea auditor) consistently scores the
-// best candidate at 8.5-8.7 — even on healthy ideas — because of its own
-// scoring bias toward middle values. With strict 8.7-8.8 floors every run
-// died at the potential filter without producing a story.
-//
-// 8.0 is the empirical floor: anything below is a genuinely weak idea
-// (often novelty 7.0 = boilerplate, or personalCost ≤ 7.5 = no real stake).
-// 8.0+ ideas have produced shippable stories in the legacy build.
-const DEV_MODE_POTENTIAL_THRESHOLDS = {
-  novelty: 8.0,
-  emotionalEngine: 8.0,
-  personalCostPotential: 8.0,
-  irreversibleMiddlePotential: 8.0,
-  conflictEscalationPotential: 8.0,
-  finalImagePotential: 8.0,
-  helperDependencyRiskMax: 6.5,
-  similarityToRecentEmotionalMechanicsMax: 6.5,
-};
+// v12 §B/§C — premium/efficient potential thresholds live in their own
+// importsafe module so smoke tests and other tooling can read them without
+// pulling the Encore runtime. See backend/story/pipeline/potential-thresholds.ts.
+import {
+  EFFICIENT_POTENTIAL_THRESHOLDS,
+  PREMIUM_POTENTIAL_THRESHOLDS,
+  getPotentialThresholds,
+  potentialGateFailures as potentialGateFailuresShared,
+  type DevModeQualityMode,
+  type PotentialThresholds,
+} from "./pipeline/potential-thresholds";
+import {
+  validateBeatSheetSpecH,
+  validateSceneCardsSpecI,
+  isHardRejectInPremium,
+} from "./pipeline/screenplay-validators";
+import {
+  chooseRepairStrategy as chooseRepairStrategyShared,
+  isDeterministicRepairStrategy as isDeterministicRepairStrategyShared,
+  maxRepairAttemptsFor as maxRepairAttemptsForShared,
+  type DevModeRepairStrategy as RepairRouterStrategy,
+  type RepairRouterContext as RepairRouterCtx,
+} from "./pipeline/repair-router";
+import { buildStrategyDirectivesBlock as buildStrategyDirectivesBlockShared } from "./pipeline/repair-strategy-directives";
+import {
+  classifyFinalRouting,
+  type FinalFailureClass,
+  type FinalRecommendedRoute,
+} from "./pipeline/final-routing";
+
+/**
+ * Back-compat alias. Existing code reads `DEV_MODE_POTENTIAL_THRESHOLDS.<key>`
+ * in a handful of non-mode-aware spots; those default to premium thresholds.
+ * Prefer `getPotentialThresholds(mode)` for any new call site.
+ */
+const DEV_MODE_POTENTIAL_THRESHOLDS = PREMIUM_POTENTIAL_THRESHOLDS;
+// Keep `EFFICIENT_POTENTIAL_THRESHOLDS` re-export referenced so the import does
+// not get tree-shaken; it is used by potential-thresholds tests.
+void EFFICIENT_POTENTIAL_THRESHOLDS;
+void (null as unknown as PotentialThresholds);
 
 interface DevModeChapter {
   title: string;
@@ -256,6 +284,23 @@ export interface DevModeGeneratedStory {
     qualityGatePassed?: boolean;
     releaseReady?: boolean;
     qualityMode?: "efficient" | "premium";
+    /** v12 §B: true when the run was executed with the debug flag set. */
+    debug?: boolean;
+    /**
+     * v12 §S — which stage owns the failure (if any). Lets downstream
+     * dashboards route a failed run to the right repair lane without
+     * having to re-parse `hardIssueList`.
+     */
+    failureClass?: FinalFailureClass;
+    /**
+     * v12 §S — recommended next action. `release` only when releaseReady,
+     * `local_fix` for form-only failures (page count, ortho, raw JSON),
+     * `targeted_repair` for draft failures, `rewrite_from_scene_cards` for
+     * plan failures, `regenerate_idea` when the core motif is unsalvageable.
+     */
+    recommendedRoute?: FinalRecommendedRoute;
+    /** v12 §S — concrete issue strings the caller must address before release. */
+    mustFixBeforeRelease?: string[];
     qualityGateFailureReason?: string;
     // v12 §1: explicit failure status so downstream PDF/image pipelines never
     // ship a story with open hard-gates. "ok" means releaseReady can be true.
@@ -358,17 +403,33 @@ export interface DevModeGenerationInput {
   noveltyBrief?: DevModeNoveltyBrief;
   selectedIdea?: DevModeSelectedIdea;
   /**
-   * v11 §5: quality mode. `efficient` targets 8.3–8.8 with tighter word
-   * budgets; `premium` targets 8.8–9.3+ with longer chapters. When unset
+   * v11 §5 / v12 §B: quality mode. `efficient` targets 8.3–8.8 with tighter
+   * word budgets; `premium` targets 8.8–9.3+ with longer chapters. When unset
    * the legacy defaults apply (medium-length, target 9.0+).
    */
   qualityMode?: "efficient" | "premium";
+  /**
+   * v12 §B: debug flag. Inherits all premium-mode defaults (strict thresholds,
+   * longer chapters), but disables hard-throws on candidate-filter failures so
+   * callers can inspect failed runs, and skips the image pipeline entirely. Use
+   * for diagnostics — do NOT mix into the user-facing premium path.
+   */
+  debug?: boolean;
   /**
    * Artifact picked from `artifact_pool` for this story. Acts as a supporting
    * prop / red-thread candidate — NOT the main role. Selected before idea
    * candidates so the prose can plant it naturally.
    */
   matchedArtifact?: DevModeMatchedArtifact;
+}
+
+/**
+ * v12 §B: debug mode is a flag on top of premium, not a separate mode. Used to
+ * short-circuit the §4 strict-fail throw and to skip image stages. Keep this
+ * helper at module scope so it stays cheap and side-effect-free.
+ */
+function isDebugMode(input: { debug?: boolean }): boolean {
+  return input.debug === true;
 }
 
 export interface DevModeMatchedArtifact {
@@ -2492,34 +2553,19 @@ export function auditCandidate9Potential(
   };
 }
 
-function potentialGateFailures(scores: Partial<CandidatePotentialScores>): string[] {
-  const failures: string[] = [];
-  const read = (key: keyof CandidatePotentialScores): number => {
-    const value = Number(scores[key]);
-    return Number.isFinite(value) ? value : 0;
-  };
-  if (read("novelty") < DEV_MODE_POTENTIAL_THRESHOLDS.novelty) {
-    failures.push(`novelty ${read("novelty").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.novelty}`);
-  }
-  if (read("emotionalEngine") < DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine) {
-    failures.push(`emotionalEngine ${read("emotionalEngine").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine}`);
-  }
-  if (read("personalCostPotential") < DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential) {
-    failures.push(`personalCostPotential ${read("personalCostPotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential}`);
-  }
-  if (read("irreversibleMiddlePotential") < DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential) {
-    failures.push(`irreversibleMiddlePotential ${read("irreversibleMiddlePotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential}`);
-  }
-  if (read("conflictEscalationPotential") < DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential) {
-    failures.push(`conflictEscalationPotential ${read("conflictEscalationPotential").toFixed(1)} < ${DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential}`);
-  }
-  if (read("helperDependencyRisk") > DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax) {
-    failures.push(`helperDependencyRisk ${read("helperDependencyRisk").toFixed(1)} > ${DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax}`);
-  }
-  if (read("similarityToRecentEmotionalMechanics") > DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax) {
-    failures.push(`similarityToRecentEmotionalMechanics ${read("similarityToRecentEmotionalMechanics").toFixed(1)} > ${DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax}`);
-  }
-  return failures;
+/**
+ * v12 §B/§C: returns the list of potential-gate failures for the active
+ * quality mode. Empty array = candidate passes the gate.
+ *
+ * Thin wrapper over the shared implementation in
+ * `backend/story/pipeline/potential-thresholds.ts` so tests can import the
+ * gate logic without the Encore runtime.
+ */
+export function potentialGateFailures(
+  scores: Partial<CandidatePotentialScores>,
+  mode?: DevModeQualityMode,
+): string[] {
+  return potentialGateFailuresShared(scores, mode);
 }
 
 function buildFullPotentialAudit(
@@ -2569,7 +2615,7 @@ function buildFullPotentialAudit(
     merged.similarityToRecentEmotionalMechanics = Math.max(merged.similarityToRecentEmotionalMechanics, 8.5);
   }
   const rejectReasons = [
-    ...potentialGateFailures(merged),
+    ...potentialGateFailures(merged, input.qualityMode),
     ...modelRejectReasons.filter(Boolean),
   ];
   if (noveltyAudit.hardAvoidMatches.length > 0) {
@@ -3870,17 +3916,21 @@ function buildPotentialFilterPrompts(
       "}",
     ].join("\n")
   );
+  const t = getPotentialThresholds(input.qualityMode);
   const userPrompt = [
     `CALL 2: 9.0 POTENTIAL FILTER, round ${round}. Do not write prose and do not outline chapters.`,
     "Judge whether each candidate can realistically become a 9.0+ children's story after beat sheet and scene-card work.",
-    "Use these hard thresholds exactly:",
-    `- novelty >= ${DEV_MODE_POTENTIAL_THRESHOLDS.novelty}`,
-    `- emotionalEngine >= ${DEV_MODE_POTENTIAL_THRESHOLDS.emotionalEngine}`,
-    `- personalCostPotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.personalCostPotential}`,
-    `- irreversibleMiddlePotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.irreversibleMiddlePotential}`,
-    `- conflictEscalationPotential >= ${DEV_MODE_POTENTIAL_THRESHOLDS.conflictEscalationPotential}`,
-    `- helperDependencyRisk <= ${DEV_MODE_POTENTIAL_THRESHOLDS.helperDependencyRiskMax}`,
-    `- similarityToRecentEmotionalMechanics <= ${DEV_MODE_POTENTIAL_THRESHOLDS.similarityToRecentEmotionalMechanicsMax}`,
+    `Quality mode: ${input.qualityMode || "premium"}. Use these hard thresholds exactly:`,
+    `- childRetellableHook >= ${t.childRetellableHook}`,
+    `- visualShelfAppeal >= ${t.visualShelfAppeal}`,
+    `- novelty >= ${t.novelty}`,
+    `- emotionalEngine >= ${t.emotionalEngine}`,
+    `- personalCostPotential >= ${t.personalCostPotential}`,
+    `- irreversibleMiddlePotential >= ${t.irreversibleMiddlePotential}`,
+    `- conflictEscalationPotential >= ${t.conflictEscalationPotential}`,
+    `- finalImagePotential >= ${t.finalImagePotential}`,
+    `- helperDependencyRisk <= ${t.helperDependencyRiskMax}`,
+    `- similarityToRecentEmotionalMechanics <= ${t.similarityToRecentEmotionalMechanicsMax}`,
     "Reject cute but structurally soft ideas. Reject any idea whose core emotional mechanic is another version of waiting/listening/letting go unless the user explicitly requested that mechanic.",
     "If no candidate passes, set passingCandidateIds=[] and roundRecommendation='regenerate'. Do not choose the best weak candidate.",
     `If a candidate passes, choose the strongest one for exactly ${chapterCount} display chapters later and keep only supporting cast that creates a complication, clue, pressure, joke, or payoff.`,
@@ -4426,6 +4476,7 @@ function buildBeatSheetPrompts(
   repairIssues: string[] = []
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
+  const isPremium = (input.qualityMode || "premium") === "premium";
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -4439,10 +4490,12 @@ function buildBeatSheetPrompts(
       '  "falseBelief": string,',
       '  "wonderRule": string,',
       '  "recurringMotif": string,',
-      '  "personalObject": string,',
+      '  "personalObject": { "object": string, "whyPersonal": string, "risk": string, "payoff": string },',
       '  "act1": { "hook": string, "incitingIncident": string, "wrongFirstMove": string, "firstConsequence": string },',
       '  "act2": { "complication": string, "helperComplicates": string, "midpointIrreversibleTurn": string, "personalCost": string },',
-      '  "act3": { "recognition": string, "finalChoice": string, "payoffFromPlant": string, "closingImage": string }',
+      '  "act3": { "recognition": string, "finalChoice": string, "payoffFromPlant": string, "closingImage": string },',
+      '  "irreversibleMiddle": { "wrongAction": string, "visibleDamage": string, "personalCost": string, "cannotReturnToStartBecause": string, "newPressure": string },',
+      '  "finalPayoff": { "plantedDetail": string, "childAction": string, "worldResponse": string, "closingImage": string }',
       "}",
     ].join("\n")
   );
@@ -4457,6 +4510,16 @@ function buildBeatSheetPrompts(
     "- finalChoice must be executed by the main children, not by a helper or adult.",
     "- helperComplicates may confuse, pressure, fail, ask, or hand over an object. It must not explain the answer.",
     "- closingImage must be a picture/action, not a stated lesson.",
+    // v12 §H additive gates — structured sub-objects.
+    "- personalObject.object must be a NAMED thing (not 'something important'); whyPersonal explains why this specific child cares; risk states what is at stake; payoff describes what happens to the object at the end.",
+    "- irreversibleMiddle.visibleDamage must be a concrete visible change (zerbrochen, verlischt, schrumpft, weg, ...) — NOT abstract phrasing like 'alles wird schwieriger'.",
+    "- irreversibleMiddle.cannotReturnToStartBecause must give a structural reason why simply waiting cannot undo it.",
+    "- finalPayoff.plantedDetail must be a detail that was visibly planted before the midpoint.",
+    "- finalPayoff.childAction must be executed by the main children, named. NOT by a helper.",
+    "- finalPayoff.closingImage must echo finalPayoff.plantedDetail (same object / motif / location).",
+    isPremium
+      ? "PREMIUM MODE: the new structured sub-objects (irreversibleMiddle, finalPayoff, personalObject) are HARD REQUIRED. An incomplete sub-object will trigger regenerate_from_plan_or_idea, not a cosmetic repair."
+      : "EFFICIENT MODE: structured sub-objects are preferred. If you cannot fill them, the legacy flat fields (act2.midpointIrreversibleTurn, act3.payoffFromPlant) are still acceptable.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
     "",
     "LOCKED ENGINE:",
@@ -4480,6 +4543,7 @@ function buildSceneCardPrompts(
   const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
   const heroA = heroNames[0] || "main child A";
   const heroB = heroNames[1] || "main child B";
+  const isPremium = (input.qualityMode || "premium") === "premium";
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -4497,14 +4561,21 @@ function buildSceneCardPrompts(
       '      "obstacle": string,',
       '      "wrongAction": string,',
       '      "visibleConsequence": string,',
+      '      "visibleDamage": string,',
       '      "irreversibleChange": string,',
+      '      "emotionalTurn": string,',
       '      "personalCost": string,',
+      '      "cannotGoBackReason": string,',
+      '      "childDiscovery": string,',
+      '      "childDecision": string,',
       '      "characterDriver": string,',
       '      "adrianAction": string,',
       '      "alexanderAction": string,',
+      '      "helperFunction": string,',
       '      "helperAction": string,',
       '      "helperMustNotExplain": true,',
-      '      "dialogueBeats": [ { "speaker": string, "intent": string, "subtext": string } ],',
+      '      "recurringMotifState": "introduced" | "misused" | "lost" | "reinterpreted" | "payoff",',
+      '      "dialogueBeats": [ { "speaker": string, "intent": string, "subtext": string, "actionCarried": string } ],',
       '      "plant": string,',
       '      "payoffLater": string,',
       '      "endPull": string',
@@ -4522,9 +4593,17 @@ function buildSceneCardPrompts(
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
     `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
-    "Each card must already include at least 3 dialogueBeats; the next pass will expand them to 4-6.",
-    "Helpers must not explain the solution. helperAction may complicate, fail, ask, misread, pressure, or provide an object.",
+    // v12 §I additive gates.
+    "Scene 3 or 4 (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.",
+    "Scene 4 must include childDiscovery — the children find the structural connection. helperFunction must NOT explain the answer.",
+    "The last scene must include childDecision — the resolving action is executed by a named child.",
+    "recurringMotifState must progress across the 5 scenes: introduced → (misused | lost) → reinterpreted → payoff. Pick the value that matches the scene's role.",
+    "Each card needs at least 4 dialogueBeats; the next pass will expand to 4-6. Each beat must carry an actionCarried (a body action, object exchange, or pause) — never filler.",
+    "Helpers must not explain the solution. helperFunction must be one of: complicates, misreads, provides tool, creates pressure, creates comic obstacle, witnesses choice. helperAction is the in-scene line/move.",
     "Non-final endPull must not be a calm conclusion.",
+    isPremium
+      ? "PREMIUM MODE: visibleDamage on the middle scene, childDiscovery on scene 4, childDecision on the final scene, and recurringMotifState on every scene are HARD REQUIRED. Incomplete cards trigger scene_card_repair_then_rewrite."
+      : "EFFICIENT MODE: the new fields are preferred but the legacy fields (irreversibleChange, personalCost) remain the hard floor.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
     "",
     "BEAT SHEET:",
@@ -4617,10 +4696,19 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   const issues: string[] = [];
   const required = [
     "logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief",
-    "wonderRule", "recurringMotif", "personalObject",
+    "wonderRule", "recurringMotif",
   ];
   for (const key of required) {
     if (!String(beatSheet?.[key] || "").trim()) issues.push(`beatSheet.${key} missing`);
+  }
+  // v12 §H: personalObject was a string in the legacy schema, now a structured
+  // sub-object. Accept either shape here — the additive validator below
+  // checks the sub-object's leaves and adds mode-aware hard gates.
+  const personalObject = beatSheet?.personalObject;
+  const hasLegacyString = typeof personalObject === "string" && personalObject.trim().length > 0;
+  const hasStructured = typeof personalObject === "object" && personalObject !== null;
+  if (!hasLegacyString && !hasStructured) {
+    issues.push("beatSheet.personalObject missing");
   }
   const midpoint = String(beatSheet?.act2?.midpointIrreversibleTurn || "");
   if (!/(verlier|verloren|lost|lose|cannot|kann nicht|kein|keinen|keine|niemals|nie mehr|nicht mehr|endgueltig|endgültig|fuer immer|für immer|zerbr|zerbrich|zerbrochen|kaputt|broken|break|schrump|shrink|verschwind|gone|fort|weg|closed|verschlossen|locked|eingesperrt|gefangen|revealed|enthuellt|enthüllt|risk|risiko|cost|preis|opfer|sacrifice|aufgeben|muss|verlassen|geht verloren|abgeschnitten|verbrannt|ruiniert|kein zurück|kein zurueck|irreversible|irreversibel|unwiederbringlich|stirbt|tot|gestorben|verlischt|erlischt|verstummt)/i.test(midpoint)) {
@@ -4645,6 +4733,10 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   if (/(learn|lesson|moral|lernten|lehre|wahre magie|friendship is)/i.test(closingImage)) {
     issues.push("closingImage explains a moral instead of leaving an image");
   }
+  // v12 §H additive gates — structured sub-objects checked separately so the
+  // legacy gates above keep their existing behavior in efficient mode. Reuse
+  // the heroNames already computed for the legacy finalChoice check.
+  issues.push(...validateBeatSheetSpecH(beatSheet, input.qualityMode, heroNames));
   return issues;
 }
 
@@ -4695,12 +4787,17 @@ function isNegated(text: string, word: string): boolean {
   return false;
 }
 
-function validateSceneCards(sceneCards: any[]): string[] {
+function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): string[] {
   const issues: string[] = [];
   if (sceneCards.length !== DEV_MODE_SCENE_CARD_COUNT) {
     issues.push(`expected ${DEV_MODE_SCENE_CARD_COUNT} scene cards, got ${sceneCards.length}`);
   }
   const purposes = ["hook", "false_attempt", "complication", "irreversible_middle", "final_payoff"];
+  // v12 §I: bump dialogue-beat floor from 3 to 4 in premium; efficient keeps
+  // the looser legacy minimum so it does not stall the repair loop on every
+  // narrowly-three-beat card.
+  const isPremium = (mode || "premium") === "premium";
+  const minBeats = isPremium ? 4 : 3;
   sceneCards.forEach((card, index) => {
     const n = Number(card?.scene || index + 1);
     if (card?.scenePurpose !== purposes[index]) issues.push(`scene ${n} purpose should be ${purposes[index]}`);
@@ -4710,8 +4807,8 @@ function validateSceneCards(sceneCards: any[]): string[] {
     if (!String(card?.irreversibleChange || "").trim() && index > 0) {
       issues.push(`scene ${n}.irreversibleChange missing`);
     }
-    if (!Array.isArray(card?.dialogueBeats) || card.dialogueBeats.length < 3) {
-      issues.push(`scene ${n} has fewer than 3 dialogue beats`);
+    if (!Array.isArray(card?.dialogueBeats) || card.dialogueBeats.length < minBeats) {
+      issues.push(`scene ${n} has fewer than ${minBeats} dialogue beats`);
     }
     if (index < sceneCards.length - 1) {
       const endPullVal = String(card?.endPull || "").trim().toLowerCase();
@@ -4759,6 +4856,8 @@ function validateSceneCards(sceneCards: any[]): string[] {
     String(card?.irreversibleChange || "").trim().length > 0 && String(card?.personalCost || "").trim().length > 0
   );
   if (!irreversibleMiddle) issues.push("scene 3 or 4 must contain irreversibleChange plus personalCost");
+  // v12 §I additive gates.
+  issues.push(...validateSceneCardsSpecI(sceneCards, mode));
   return issues;
 }
 
@@ -6859,6 +6958,17 @@ function parseChapterRepairResult(content: string, fallbackChapter: DevModeChapt
   };
 }
 
+/**
+ * v12 §P/§Q — thin wrapper over the importsafe directives module so smoke
+ * tests can verify the strategy-specific repair wording. See
+ * `backend/story/pipeline/repair-strategy-directives.ts` for the strings.
+ */
+function buildStrategyDirectivesBlock(
+  strategy: DevModeRepairStrategy | undefined,
+): string | null {
+  return buildStrategyDirectivesBlockShared(strategy);
+}
+
 function buildChapterRepairPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -6868,7 +6978,8 @@ function buildChapterRepairPrompts(
   storyDiagnostics: DevModeStoryDiagnostics,
   blueprint: any,
   critique: any,
-  repairAttempt: number
+  repairAttempt: number,
+  routerStrategy?: DevModeRepairStrategy,
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const bounds = getChapterLengthBounds(input.config);
@@ -6915,12 +7026,15 @@ function buildChapterRepairPrompts(
     ].join("\n")
   );
 
+  const strategyDirectives = buildStrategyDirectivesBlock(routerStrategy);
   const userPrompt = [
     `CALL 3B.${repairAttempt}: TARGETED CHAPTER GATE REPAIR. Repair only chapter ${chapter.order} and keep prose in ${languageName}.`,
     "This is a mechanical gate repair first and a children's-book polish second. Do not invent a new plot, a new main character, or a new subplot.",
     "The selected story model must fix the chapter itself; do not ask for another model or a fallback.",
     "Return ONLY the repaired chapter plus the required selfReflection JSON. The final story will be assembled by the server.",
     "",
+    strategyDirectives,
+    strategyDirectives ? "" : null,
     buildLeanRepairPromptContext(input, chapterCount),
     "",
     "GLOBAL STORY DIAGNOSTICS BEFORE THIS CHAPTER REPAIR:",
@@ -8366,116 +8480,26 @@ function releaseDimensionFailures(validatorFindings: any): string[] {
     .map(([name, score]) => `${name} ${score} is below ${DEV_MODE_MIN_RELEASE_DIMENSION_SCORE}.`);
 }
 
-// --- RepairRouter (v11 Section E, light) -------------------------------
-// Classifies the deterministic diagnostics into the cheapest repair strategy
-// that could plausibly fix the remaining hard/soft gates. The router itself
-// is a pure function so it can be unit-tested independently; the orchestrator
-// logs its decision today and will fully consume it once the per-strategy
-// prompt templates land (Phase 2).
-export type DevModeRepairStrategy =
-  | "none"
-  | "metadata_sanitize"               // description-only / title-only adjective
-  | "title_promise_micro_repair"      // title concept missing in body
-  | "whole_story_compression_repair"  // multiple over-length chapters
-  | "whole_story_pull_repair"         // weak weiterlese-pull on multiple chapters
-  | "whole_story_dialog_rebalance"    // dialogPct under floor across story
-  | "targeted_chapter_repair_with_context" // exactly one chapter has hard issues
-  // v12 §11: new strategies
-  | "page_count_repair"               // chapters.length !== requiredPageCount
-  | "expansion_repair"                // totalWords < 900 — polish must expand, not compress
-  | "scene_card_repair_then_rewrite"  // irreversible-middle/personal-cost missing
-  | "whole_story_repair";             // catch-all
+// --- RepairRouter (v11 Section E + v12 §O) -----------------------------
+// The pure router lives in pipeline/repair-router.ts so smoke tests can
+// import it without the Encore runtime. This file re-exports the symbols
+// so existing call sites (and external imports) keep working.
+export type DevModeRepairStrategy = RepairRouterStrategy;
+export type RepairRouterContext = RepairRouterCtx;
 
 export function chooseRepairStrategy(
   diagnostics: DevModeStoryDiagnostics | undefined,
-  opts?: {
-    totalWordsOverMax?: boolean;
-    // v12 §11: new context for page/expansion/scene-card routing.
-    requiredPageCount?: number;
-    actualPageCount?: number;
-    totalWords?: number;
-    missingIrreversibleMiddle?: boolean;
-    missingPersonalCost?: boolean;
-  }
+  opts?: RepairRouterContext,
 ): { strategy: DevModeRepairStrategy; reason: string } {
-  if (!diagnostics) return { strategy: "none", reason: "no diagnostics" };
-  const hard = diagnostics.hardIssues || [];
-  const soft = diagnostics.softIssues || [];
-  if (hard.length === 0 && soft.length === 0) {
-    return { strategy: "none", reason: "all gates clean" };
-  }
+  return chooseRepairStrategyShared(diagnostics as any, opts);
+}
 
-  const hardIsDescriptionOnly = hard.length === 1
-    && /Verbotenes|Novelty|Wiederholungs/i.test(hard[0])
-    && !hard.some((h) => /Kapitel|chapter|dialog|Absaetze|Laenge|Lange/i.test(h));
-  const hardIsTitleOnly = hard.length === 1
-    && /Titel-Versprechen unerfuellt/i.test(hard[0]);
-  if (hardIsDescriptionOnly) {
-    return { strategy: "metadata_sanitize", reason: "only novelty/forbidden motif in description" };
-  }
-  if (hardIsTitleOnly) {
-    return { strategy: "title_promise_micro_repair", reason: "only title-promise unresolved" };
-  }
+export function isDeterministicRepairStrategy(strategy: DevModeRepairStrategy): boolean {
+  return isDeterministicRepairStrategyShared(strategy);
+}
 
-  // v12 §11 priority order (deterministic): pageCount mismatch first
-  // because every downstream calculation (words, dialog%) is per-page;
-  // then underlength expansion; then irreversible-middle scene repair.
-  if (
-    typeof opts?.requiredPageCount === "number"
-    && typeof opts?.actualPageCount === "number"
-    && opts.requiredPageCount !== opts.actualPageCount
-  ) {
-    return {
-      strategy: "page_count_repair",
-      reason: `pageCount mismatch: required=${opts.requiredPageCount}, actual=${opts.actualPageCount}`,
-    };
-  }
-  if (typeof opts?.totalWords === "number" && opts.totalWords < 900) {
-    return {
-      strategy: "expansion_repair",
-      reason: `underlength: totalWords=${opts.totalWords} < 900`,
-    };
-  }
-  if (opts?.missingIrreversibleMiddle || opts?.missingPersonalCost) {
-    return {
-      strategy: "scene_card_repair_then_rewrite",
-      reason: `missing structural anchor: irreversibleMiddle=${!!opts.missingIrreversibleMiddle}, personalCost=${!!opts.missingPersonalCost}`,
-    };
-  }
-
-  const tooLongChapters = diagnostics.chapterDiagnostics.filter(
-    (c) => c.issues.some((i) => /deutlich zu lang|zu lang/i.test(i))
-  ).length;
-  const tooShortChapters = diagnostics.chapterDiagnostics.filter(
-    (c) => c.issues.some((i) => /deutlich zu kurz|zu kurz/i.test(i))
-  ).length;
-  if (opts?.totalWordsOverMax || tooLongChapters >= 2) {
-    return { strategy: "whole_story_compression_repair", reason: `over-length: chapters=${tooLongChapters}, storyOverMax=${!!opts?.totalWordsOverMax}` };
-  }
-
-  const lowDialogChapters = diagnostics.chapterDiagnostics.filter(
-    (c) => c.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT
-  ).length;
-  if (diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT || lowDialogChapters >= 2) {
-    return { strategy: "whole_story_dialog_rebalance", reason: `dialogPct=${diagnostics.dialogPct}, lowChapters=${lowDialogChapters}` };
-  }
-
-  const weakPullCount = soft.filter((s) =>
-    /wenig Weiterlese-Sog|schwacher Pull|ohne klaren Pull|Kapitelende ohne Sog/i.test(s)
-  ).length;
-  if (weakPullCount >= 2) {
-    return { strategy: "whole_story_pull_repair", reason: `weakPullCount=${weakPullCount}` };
-  }
-
-  const hardFailChapters = diagnostics.chapterDiagnostics.filter((c) => c.issues.length > 0).length;
-  if (hardFailChapters === 1) {
-    return { strategy: "targeted_chapter_repair_with_context", reason: "single chapter with hard issues" };
-  }
-
-  return {
-    strategy: "whole_story_repair",
-    reason: `fallback: hard=${hard.length}, soft=${soft.length}, badChapters=${hardFailChapters}, tooLong=${tooLongChapters}, tooShort=${tooShortChapters}`,
-  };
+export function maxRepairAttemptsFor(mode: DevModeQualityMode | undefined): number {
+  return maxRepairAttemptsForShared(mode);
 }
 
 function calculateLocalGateScore(
@@ -8542,13 +8566,22 @@ function applyHardCaps(
     if (diagnostics.hardIssues.some((issue) => /Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|\[object Object\]/i.test(issue))) {
       score = Math.min(score, 7.8);
     }
-    // --- v11 scoring caps (whole-story-first spec) ----------------------
-    // Title promise missing -> max 8.2 (per spec). Now also a HARD gate (see
-    // collectTitlePromiseIssues), but keep the cap so even a near-miss never
-    // hits 9.0+ unless the title genuinely surfaces in the prose.
+    // --- v11/v12 scoring caps ------------------------------------------
+    // v12 §T: title promise missing → max 8.0 (compromise between the legacy
+    // 8.2 cap and the strict spec value of 7.5; the user picked 8.0).
     if (diagnostics.softIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))
         || diagnostics.hardIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue))) {
-      score = Math.min(score, 8.2);
+      score = Math.min(score, 8.0);
+    }
+    // v12 §T: raw JSON / [object Object] leaked into the prose → max 4.5.
+    // Hard ceiling because the story is literally unreadable to a child.
+    if (diagnostics.hardIssues.some((issue) => /\[object Object\]|raw JSON|RoheJSON|JSON-Fragment|brokenJson|broken JSON/i.test(issue))) {
+      score = Math.min(score, 4.5);
+    }
+    // v12 §T: page count wrong → max 7.5. The PDF layout depends on the
+    // exact required page count; a mismatch always blocks release.
+    if (diagnostics.hardIssues.some((issue) => /Seitenzahl|pageCount|page count|Restseite|Orphan|orphan page/i.test(issue))) {
+      score = Math.min(score, 7.5);
     }
     // Finale sounds like an explained moral -> max 7.5 (per spec).
     if (diagnostics.softIssues.some((issue) => /ausgesprochene Lehre|wie eine Lehre|erklaerte Moral/i.test(issue))) {
@@ -9295,21 +9328,25 @@ export async function generateStoryDevMode(
           bestAuditLine = "local-heuristic fallback";
         }
 
-        // v12 §2: premium mode no longer accepts "best of weak candidates".
-        // The previous soft-fail let an 8.5-grade idea through after 2 rounds
-        // and that idea then drove a 7.x final story. Premium must either
-        // pass the thresholds clean or fail loudly so the caller knows to
-        // regenerate candidates with a different creative lane.
-        const premiumStrict = (input.qualityMode || "premium") === "premium";
+        // v12 §2 / §B: premium mode no longer accepts "best of weak candidates"
+        // (a previous soft-fail let an 8.5-grade idea through and drove a 7.x
+        // story). Premium must either pass the thresholds clean or fail loudly.
+        //
+        // Debug is a flag on top of premium that short-circuits the throw so a
+        // caller can inspect the failed run; debug uses the same best-audit
+        // fallback as efficient, but annotates the bypass clearly.
+        const mode = input.qualityMode || "premium";
+        const premiumStrict = mode === "premium" && !isDebugMode(input);
         if (bestCandidate && !premiumStrict) {
-          console.warn("[dev-mode-generation] §4 efficient-mode soft-fail: no candidate passed 9.0 gate after 2 rounds; using best-audit fallback", {
+          const lane = isDebugMode(input) ? "debug" : "efficient";
+          console.warn(`[dev-mode-generation] §4 ${lane}-mode soft-fail: no candidate passed gate after ${DEV_MODE_MAX_IDEA_ROUNDS} rounds; using best-audit fallback`, {
             chosen: bestCandidate.title,
             bestAudit: bestAuditLine,
             allFailures: potentialFailureSummaries.slice(0, 6),
           });
           selectedIdea = {
             ...bestCandidate,
-            chosenReason: `§4 efficient soft-fail: best of ${ideaCandidates.length} candidates after 2 strict rounds. ${bestAuditLine}`,
+            chosenReason: `§4 ${lane} soft-fail: best of ${ideaCandidates.length} candidates after ${DEV_MODE_MAX_IDEA_ROUNDS} strict rounds. ${bestAuditLine}`,
             selectedSupportingCast: resolvePoolNames(bestCandidate.recommendedSupportingCast, input.poolCharacters),
           };
         } else if (bestCandidate && premiumStrict) {
@@ -9323,10 +9360,10 @@ export async function generateStoryDevMode(
 
       if (!selectedIdea) {
         const mode = input.qualityMode || "premium";
-        if (mode === "premium") {
+        if (mode === "premium" && !isDebugMode(input)) {
           throw new Error(`§2 premium quality_gate_failed: no candidate met the strict thresholds after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s). Caller must regenerate with a different creative lane. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
         }
-        throw new Error(`No 9.0-potential idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
+        throw new Error(`No ${mode} idea candidate passed after ${DEV_MODE_MAX_IDEA_ROUNDS} round(s) AND no candidates available for fallback. Last failures: ${potentialFailureSummaries.slice(0, 6).join(" | ")}`);
       }
 
       if (!selectedIdea) {
@@ -9560,7 +9597,7 @@ export async function generateStoryDevMode(
       modelRole: "support",
     });
     let sceneCards = normalizeSceneCards(sceneCardStage.parsed);
-    let sceneCardIssues = validateSceneCards(sceneCards);
+    let sceneCardIssues = validateSceneCards(sceneCards, input.qualityMode);
     if (sceneCardIssues.length > 0) {
       const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, sceneCardIssues);
       const repairedSceneCardStage = await runStage("scene-cards-repair", repairPrompts, {
@@ -9571,10 +9608,28 @@ export async function generateStoryDevMode(
         modelRole: "support",
       });
       sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
-      sceneCardIssues = validateSceneCards(sceneCards);
+      sceneCardIssues = validateSceneCards(sceneCards, input.qualityMode);
     }
     if (sceneCardIssues.length > 0) {
-      throw new Error(`Scene-card gate failed before prose: ${sceneCardIssues.join(" | ")}`);
+      // v12 §I: in efficient mode the spec-§I additive issues are advisory.
+      // Filter them out before deciding to abort so we never block a release
+      // on a missing recurringMotifState in a non-premium run. Premium keeps
+      // the hard-throw behavior — incomplete scene cards there mean the plan
+      // is not strong enough to draft from (audit recommendation).
+      const hardPremium = isHardRejectInPremium(input.qualityMode);
+      const isAdvisoryUnderEfficient = (issue: string): boolean =>
+        /scene \d+ has fewer than 4 dialogue beats|recurringMotifState|visibleDamage|emotionalTurn|cannotGoBackReason|childDiscovery|childDecision|helperFunction/i.test(issue);
+      const blockingIssues = hardPremium
+        ? sceneCardIssues
+        : sceneCardIssues.filter((issue) => !isAdvisoryUnderEfficient(issue));
+      if (blockingIssues.length > 0) {
+        throw new Error(`Scene-card gate failed before prose: ${blockingIssues.join(" | ")}`);
+      }
+      if (sceneCardIssues.length > 0) {
+        console.warn("[dev-mode-generation] §I efficient mode soft-fail on additive scene-card gates", {
+          advisoryIssues: sceneCardIssues,
+        });
+      }
     }
 
     // v12 §3: re-run forbidden-motif preflight on scene cards. The LLM can
@@ -9924,14 +9979,15 @@ export async function generateStoryDevMode(
     let bestDiagnostics = finalDiagnostics;
 
     let repairAttempt = 0;
-    while (finalDiagnostics?.needsPolish && repairAttempt < DEV_MODE_MAX_REPAIR_ATTEMPTS) {
+    // v12 §O: premium gets 2 repair attempts, efficient stays at 1.
+    const maxRepairAttempts = maxRepairAttemptsFor(input.qualityMode);
+    while (finalDiagnostics?.needsPolish && repairAttempt < maxRepairAttempts) {
       repairAttempt += 1;
-      // v11 §9 + v12 §11 RepairRouter: use the strategy to short-circuit
-      // cheap fixes. For metadata_sanitize / title_promise_micro_repair the
-      // deterministic remediation block below this loop will handle it, so
-      // skip the expensive chapter-repair LLM round entirely. v12 extends
-      // with pageCount, expansion, scene-card-rewrite strategies — see
-      // chooseRepairStrategy() priority order.
+      // v11 §9 + v12 §11/§O RepairRouter: use the strategy to short-circuit
+      // cheap fixes. Deterministic strategies (metadata_sanitize, title-promise,
+      // parse_output_repair, orthography_autofix) skip the expensive
+      // chapter-repair LLM round; the orchestrator's post-loop remediation
+      // block handles them.
       const routerActualPageCount = finalParsed?.chapters?.length ?? 0;
       const routerTotalWords = finalDiagnostics?.totalWords ?? 0;
       const routerMissingIrreversibleMiddle = !!finalDiagnostics?.softIssues?.some((s) =>
@@ -9944,12 +10000,18 @@ export async function generateStoryDevMode(
       ) || !!finalDiagnostics?.hardIssues?.some((s) =>
         /kein persönlicher Einsatz|kein persoenlicher Einsatz/i.test(s)
       );
+      // v12 §O: helper-explains is surfaced as a market-quality soft issue
+      // (see collectMarketQualitySoftIssues). Detect both common phrasings.
+      const routerHelperExplains = !!finalDiagnostics?.softIssues?.some((s) =>
+        /erklaert die Loesung|erklärt die Lösung|Helper-Explains-Gate|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(s)
+      );
       const routerDecision = chooseRepairStrategy(finalDiagnostics, {
         requiredPageCount: chapterCount,
         actualPageCount: routerActualPageCount,
         totalWords: routerTotalWords,
         missingIrreversibleMiddle: routerMissingIrreversibleMiddle,
         missingPersonalCost: routerMissingPersonalCost,
+        helperExplainsSolution: routerHelperExplains,
       });
       recordLocalStage("repair-router", {
         attempt: repairAttempt,
@@ -9958,9 +10020,12 @@ export async function generateStoryDevMode(
         hardIssueCount: finalDiagnostics?.hardIssueCount,
         softIssueCount: finalDiagnostics?.softIssueCount,
         dialogPct: finalDiagnostics?.dialogPct,
+        qualityMode: input.qualityMode || "premium",
+        attemptOf: maxRepairAttempts,
       });
-      console.log("[dev-mode-generation] §9 RepairRouter decision", {
+      console.log("[dev-mode-generation] §9/§O RepairRouter decision", {
         attempt: repairAttempt,
+        attemptOf: maxRepairAttempts,
         strategy: routerDecision.strategy,
         reason: routerDecision.reason,
         hardIssueCount: finalDiagnostics?.hardIssueCount,
@@ -9973,8 +10038,10 @@ export async function generateStoryDevMode(
         });
         break;
       }
-      if (routerDecision.strategy === "metadata_sanitize" || routerDecision.strategy === "title_promise_micro_repair") {
-        console.log("[dev-mode-generation] §9 skipping chapter-repair LLM call — deterministic remediation handles this", {
+      // v12 §O: skip the chapter-repair LLM call entirely for strategies the
+      // deterministic post-loop remediation can fix on its own.
+      if (isDeterministicRepairStrategy(routerDecision.strategy)) {
+        console.log("[dev-mode-generation] §O skipping chapter-repair LLM call — deterministic remediation handles this", {
           strategy: routerDecision.strategy,
         });
         break;
@@ -10035,7 +10102,12 @@ export async function generateStoryDevMode(
           finalDiagnostics!,
           blueprint,
           critique,
-          repairAttempt
+          repairAttempt,
+          // v12 §P/§Q: feed the router strategy into the prompt so the LLM
+          // gets strategy-specific repair restrictions (expansion may only
+          // strengthen load-bearing beats; compression must not cut the
+          // structural spine; agency repair redistributes the decisive beat).
+          routerDecision.strategy,
         );
         let chapterRepairStage: Awaited<ReturnType<typeof runStage>>;
         try {
@@ -10248,6 +10320,12 @@ export async function generateStoryDevMode(
       // by design), low dialog ratios (replaces 1:1, doesn't add lines),
       // missing paragraphs, novelty/cast-gate failures.
       // For those, fall through to the legacy full-story polish.
+      // v12 §R — line-punchup may only run when the story is RELEASE-NEAR.
+      // The new floor (>= 8.6) blocks the historical case where a 7.x story
+      // triggered punchup and silently flattened iconic prose without
+      // fixing the structural problem. Below 8.6 the router must do
+      // structural repair (scene-card, expansion, agency) first.
+      const isReleaseNear = typeof currentScore === "number" && currentScore >= DEV_MODE_LINE_PUNCHUP_MIN_SCORE;
       const onlyValidatorScoreGap =
         currentDiagnostics.hardIssueCount === 0
         && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
@@ -10256,7 +10334,7 @@ export async function generateStoryDevMode(
         currentDiagnostics.hardIssueCount === 0
         && currentDiagnostics.softIssueCount > 0
         && currentDiagnostics.dialogPct >= DEV_MODE_TARGET_DIALOG_PCT;
-      const canUseLinePunchup = onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK;
+      const canUseLinePunchup = isReleaseNear && (onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK);
       const validatorQualityRepairChapters =
         currentDiagnostics.hardIssueCount === 0
         && currentParsed.displayMode !== "reading_pages"
@@ -11023,13 +11101,21 @@ export async function generateStoryDevMode(
       finalQualityScore,
     });
   }
-  try {
-    devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
-    totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
-    totalUsage.completion += devModeImages.promptTokenUsage.completion;
-    totalUsage.total += devModeImages.promptTokenUsage.total;
-  } catch (err) {
-    console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
+  // v12 §B: debug mode skips the image pipeline entirely. The caller is
+  // running for diagnostics; image cost is wasted and would obscure the text
+  // failure mode. Story metadata still reports `debug: true` so downstream
+  // consumers can detect this.
+  if (isDebugMode(input)) {
+    console.warn("[dev-mode-generation] §B debug mode: skipping image generation (text-only diagnostics run)");
+  } else {
+    try {
+      devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
+      totalUsage.prompt += devModeImages.promptTokenUsage.prompt;
+      totalUsage.completion += devModeImages.promptTokenUsage.completion;
+      totalUsage.total += devModeImages.promptTokenUsage.total;
+    } catch (err) {
+      console.warn("[dev-mode-generation] Image generation step failed:", (err as Error)?.message || err);
+    }
   }
 
   const chapters = sortedParsedChapters.map((ch, idx) => {
@@ -11077,6 +11163,34 @@ export async function generateStoryDevMode(
       console.warn("[dev-mode-generation] §3 recordStoryMotif failed (non-fatal):", err instanceof Error ? err.message : String(err));
     }
   }
+
+  // v12 §S — classify the final outcome into a structured route the caller
+  // can act on. Computed once here so the same values feed both `metadata`
+  // and the (optional) log entry.
+  const routingDecision = (() => {
+    const mode = input.qualityMode || "premium";
+    const minScore = mode === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
+    const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+    const dimFailures = releaseDimensionFailures(finalValidatorFindings);
+    const releaseReadyComputed =
+      (finalDiagnostics?.hardIssueCount ?? 0) === 0
+      && dimFailures.length === 0
+      && releaseScore >= minScore;
+    return classifyFinalRouting({
+      releaseReady: releaseReadyComputed,
+      hardIssues: finalDiagnostics?.hardIssues ?? [],
+      softIssues: finalDiagnostics?.softIssues ?? [],
+      releaseDimensionFailures: dimFailures,
+      imagesSkipped: isDebugMode(input) || skipImageGenerationForQualityGate,
+      dimensionScores: {
+        emotionalPayoff: finalValidatorFindings?.dimensionScores?.emotionalEngine,
+        readOnPull: finalValidatorFindings?.dimensionScores?.pageTurnDrive,
+        causalChain: finalValidatorFindings?.dimensionScores?.causalChain,
+        voiceDistinctiveness: finalValidatorFindings?.dimensionScores?.voiceDistinctiveness,
+        childComprehension: finalValidatorFindings?.dimensionScores?.ageFit,
+      },
+    });
+  })();
 
   return {
     title: parsed.title,
@@ -11138,6 +11252,13 @@ export async function generateStoryDevMode(
       // PDF builder) should treat this story as a debug candidate only.
       imagesSkippedDueToQualityGate: skipImageGenerationForQualityGate,
       qualityMode: input.qualityMode || "premium",
+      debug: isDebugMode(input) ? true : undefined,
+      // v12 §S — structured final-validation routing for downstream dashboards.
+      failureClass: routingDecision.failureClass,
+      recommendedRoute: routingDecision.recommendedRoute,
+      mustFixBeforeRelease: routingDecision.mustFixBeforeRelease.length > 0
+        ? routingDecision.mustFixBeforeRelease
+        : undefined,
       // qualityGatePassed kept as alias for downstream code that still reads it.
       qualityGatePassed:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
