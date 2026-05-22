@@ -43,6 +43,31 @@ export interface PremiseSeedCard {
   antagonistPressure: string;
   finalImage: string;
   mutationAxes: ReadonlyArray<string>;
+  // ── Execution scaffolding (optional, additive) ──────────────────────────
+  // These fields let a seed carry concrete *execution* guidance, not just
+  // pitch material. When present, the dev-mode prompt builder surfaces them
+  // to the drafting model so the resulting story actually exercises the
+  // seed's wonder-rule, comic engine, and personal cost.
+  //
+  // All fields are optional — legacy seeds keep working unchanged.
+  /** Toy-like operational rule the wonderRule must always honor (cause/effect). */
+  toyeticRule?: string;
+  /** Wrong fixes the children try first (sets up false attempts / complications). */
+  wrongFixes?: ReadonlyArray<string>;
+  /** Concrete tests the children run on the rule (visible cause→effect beats). */
+  ruleTests?: ReadonlyArray<string>;
+  /** Irreversible-middle options — pick one when drafting. */
+  irreversibleMiddleOptions?: ReadonlyArray<string>;
+  /** Personal-cost options anchored to a tangible, named object. */
+  personalCostOptions?: ReadonlyArray<string>;
+  /** Humor engine notes (timing, recurring gag, comic POV). */
+  humorEngine?: string;
+  /** Per-character voice / iconic dialogue opportunities. */
+  voiceOpportunities?: ReadonlyArray<string>;
+  /** Final-action options — the child's last visible choice in the finale. */
+  finalActionOptions?: ReadonlyArray<string>;
+  /** Anti-patterns: things the drafting model must NOT do for this seed. */
+  antiPatterns?: ReadonlyArray<string>;
 }
 
 export interface SelectedPremiseSeedCard extends PremiseSeedCard {
@@ -929,19 +954,52 @@ export function buildPremiseSeedPromptBlock(
     "- Keep the seed's quality contract: comic engine + suspense engine + emotional engine + personal cost + visible irreversible middle.",
     "- If a seed overlaps the novelty/hard-avoid brief, mutate away from the overlapping motif or use another seed.",
     "",
-    ...seeds.flatMap((seed, index) => [
-      `SEED ${index + 1} (${seed.id}) — ${seed.title}`,
-      `- Shelf hook: ${compactSeedLine(seed.shelfHook)}`,
-      `- Object/place: ${compactSeedLine(seed.centralObjectOrPlace, 170)}`,
-      `- Wonder rule: ${compactSeedLine(seed.wonderRule, 190)}`,
-      `- Comedy engine: ${compactSeedLine(seed.comicEngine, 190)}`,
-      `- Suspense engine: ${compactSeedLine(seed.suspenseEngine, 190)}`,
-      `- Emotional engine: ${compactSeedLine(seed.emotionalEngine, 170)}`,
-      `- Cost + irreversible middle: ${compactSeedLine(`${seed.personalCost} / ${seed.irreversibleMiddle}`, 220)}`,
-      `- Final-image promise: ${compactSeedLine(seed.finalImage, 160)}`,
-      `- Mutation axes: ${seed.mutationAxes.slice(0, 4).join("; ")}`,
-      `- Selector notes: score ${seed.score}; ${seed.matchReasons.join(", ")}${seed.recentOverlap ? `; recentOverlap ${seed.recentOverlap}` : ""}`,
-      "",
-    ]),
+    ...seeds.flatMap((seed, index) => {
+      const baseLines = [
+        `SEED ${index + 1} (${seed.id}) — ${seed.title}`,
+        `- Shelf hook: ${compactSeedLine(seed.shelfHook)}`,
+        `- Object/place: ${compactSeedLine(seed.centralObjectOrPlace, 170)}`,
+        `- Wonder rule: ${compactSeedLine(seed.wonderRule, 190)}`,
+        `- Comedy engine: ${compactSeedLine(seed.comicEngine, 190)}`,
+        `- Suspense engine: ${compactSeedLine(seed.suspenseEngine, 190)}`,
+        `- Emotional engine: ${compactSeedLine(seed.emotionalEngine, 170)}`,
+        `- Cost + irreversible middle: ${compactSeedLine(`${seed.personalCost} / ${seed.irreversibleMiddle}`, 220)}`,
+        `- Final-image promise: ${compactSeedLine(seed.finalImage, 160)}`,
+        `- Mutation axes: ${seed.mutationAxes.slice(0, 4).join("; ")}`,
+      ];
+      // Execution scaffolding — only emitted when the seed actually carries
+      // it. Keeps the prompt small for legacy seeds while letting curated
+      // seeds (ps-026, ...) push concrete drafting guardrails into the LLM.
+      const exec: string[] = [];
+      if (seed.toyeticRule) exec.push(`- Toyetic rule: ${compactSeedLine(seed.toyeticRule, 190)}`);
+      if (seed.humorEngine) exec.push(`- Humor engine: ${compactSeedLine(seed.humorEngine, 190)}`);
+      if (seed.wrongFixes && seed.wrongFixes.length > 0) {
+        exec.push(`- Wrong fixes to try first: ${seed.wrongFixes.slice(0, 4).map((s) => compactSeedLine(s, 110)).join(" | ")}`);
+      }
+      if (seed.ruleTests && seed.ruleTests.length > 0) {
+        exec.push(`- Rule tests: ${seed.ruleTests.slice(0, 4).map((s) => compactSeedLine(s, 110)).join(" | ")}`);
+      }
+      if (seed.irreversibleMiddleOptions && seed.irreversibleMiddleOptions.length > 0) {
+        exec.push(`- Irreversible-middle options (pick one): ${seed.irreversibleMiddleOptions.slice(0, 4).map((s) => compactSeedLine(s, 130)).join(" | ")}`);
+      }
+      if (seed.personalCostOptions && seed.personalCostOptions.length > 0) {
+        exec.push(`- Personal-cost options (named, tangible): ${seed.personalCostOptions.slice(0, 4).map((s) => compactSeedLine(s, 130)).join(" | ")}`);
+      }
+      if (seed.voiceOpportunities && seed.voiceOpportunities.length > 0) {
+        exec.push(`- Voice opportunities: ${seed.voiceOpportunities.slice(0, 4).map((s) => compactSeedLine(s, 120)).join(" | ")}`);
+      }
+      if (seed.finalActionOptions && seed.finalActionOptions.length > 0) {
+        exec.push(`- Final-action options (child-led): ${seed.finalActionOptions.slice(0, 4).map((s) => compactSeedLine(s, 130)).join(" | ")}`);
+      }
+      if (seed.antiPatterns && seed.antiPatterns.length > 0) {
+        exec.push(`- DO NOT: ${seed.antiPatterns.slice(0, 4).map((s) => compactSeedLine(s, 120)).join(" | ")}`);
+      }
+      return [
+        ...baseLines,
+        ...exec,
+        `- Selector notes: score ${seed.score}; ${seed.matchReasons.join(", ")}${seed.recentOverlap ? `; recentOverlap ${seed.recentOverlap}` : ""}`,
+        "",
+      ];
+    }),
   ].join("\n");
 }

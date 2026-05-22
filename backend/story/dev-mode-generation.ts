@@ -29,6 +29,7 @@
  * (`backend/story/generate.ts`) is responsible for skipping that block.
  */
 
+import { createHash } from "crypto";
 import { secret } from "encore.dev/config";
 import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
@@ -298,6 +299,14 @@ export interface DevModeGeneratedStory {
     qualityGatePassed?: boolean;
     releaseReady?: boolean;
     qualityMode?: "efficient" | "premium";
+    /**
+     * Final-story integrity. `storyVersion` increments with each applied
+     * prose-repair pass (polish, chapter-repair). `storyContentHash` is a
+     * SHA-256 prefix over the canonical visible text accepted by the quality
+     * gate; persistence and render layers must echo it back unchanged.
+     */
+    storyVersion?: number;
+    storyContentHash?: string;
     /** v12 §B: true when the run was executed with the debug flag set. */
     debug?: boolean;
     /**
@@ -1636,6 +1645,34 @@ function getLockedCentralObject(input: DevModeGenerationInput): string {
     input.selectedIdea?.wonderRule ||
     ""
   ).trim(), 140);
+}
+
+/**
+ * Final-story version + content hash.
+ *
+ * Computes a stable hash over the canonical user-visible text: title,
+ * description, and ordered chapter (title + content). Used as a tripwire
+ * between the validator's input and what is eventually persisted / rendered:
+ * any drift indicates that the last repair was not propagated into the
+ * exported version (e.g. PDF rendering off a stale story object).
+ */
+function computeStoryContentHash(input: {
+  title: string;
+  description: string;
+  chapters: Array<{ title: string; content: string; order?: number }>;
+}): string {
+  const normalized = JSON.stringify({
+    t: String(input.title || "").trim(),
+    d: String(input.description || "").trim(),
+    c: [...input.chapters]
+      .map((ch, idx) => ({
+        o: Number(ch.order ?? idx + 1),
+        t: String(ch.title || "").trim(),
+        c: String(ch.content || "").trim(),
+      }))
+      .sort((a, b) => a.o - b.o),
+  });
+  return createHash("sha256").update(normalized, "utf8").digest("hex").slice(0, 24);
 }
 
 function artifactNameCandidates(input: DevModeGenerationInput): string[] {
@@ -5569,6 +5606,74 @@ function validateLoglineEngine(engine: any): string[] {
   return issues;
 }
 
+/**
+ * Tighter personal-cost contract used in premium runs.
+ *
+ * Returns issues when the beat-sheet declares a personal cost that does not
+ * actually risk a named, child-owned object. The 8.4-score postmortem showed
+ * that a generic personalCost ("verliert Kontrolle") passes the legacy
+ * length+verb check but produces a finale that pays nothing visible off —
+ * this helper closes that loophole before whole-story-draft runs.
+ */
+function validatePersonalCostContract(beatSheet: any): string[] {
+  const issues: string[] = [];
+  const personalCost = String(beatSheet?.act2?.personalCost || "");
+  if (!personalCost.trim()) return issues;
+
+  const vagueMoodOnly = /(verliert kontrolle|verliert die ?(kontrolle|ubersicht|übersicht|orientierung)|wird ruhig|lernt ruhig|nur innerlich|nur in sich|nur gedanklich|nur emotional|loses control|stays calm|learns calm|inner peace)/i;
+  if (vagueMoodOnly.test(personalCost)) {
+    issues.push("act2.personalCost is mood/insight only (no tangible object at risk)");
+  }
+
+  const personalObject = beatSheet?.personalObject;
+  const objectName = (() => {
+    if (typeof personalObject === "string") return personalObject.trim();
+    if (personalObject && typeof personalObject === "object") return String(personalObject.object || "").trim();
+    return "";
+  })();
+  if (!objectName) {
+    issues.push("personalObject.object is empty; personal-cost cannot anchor to anything");
+    return issues;
+  }
+
+  const folded = (text: string) => text
+    .toLowerCase()
+    .replace(/ä/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u")
+    .replace(/ß/g, "ss");
+  const stems = (text: string) => folded(text)
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 4)
+    .map((w) => w.slice(0, 4));
+  const objectStems = new Set(stems(objectName));
+  if (objectStems.size === 0) return issues;
+  const shareStem = (text: string): boolean => {
+    for (const s of stems(text)) {
+      if (objectStems.has(s)) return true;
+    }
+    return false;
+  };
+
+  if (!shareStem(personalCost)) {
+    issues.push("act2.personalCost does not name the personalObject.object (no shared stem)");
+  }
+
+  if (personalObject && typeof personalObject === "object") {
+    const risk = String(personalObject.risk || "");
+    if (risk && !shareStem(risk)) {
+      issues.push("personalObject.risk does not reference personalObject.object");
+    }
+  }
+
+  const planted = String(beatSheet?.finalPayoff?.plantedDetail || "");
+  if (planted && !shareStem(planted)) {
+    issues.push("finalPayoff.plantedDetail does not reference personalObject.object (cost is not planted)");
+  }
+
+  return issues;
+}
+
 function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): string[] {
   const issues: string[] = [];
   const required = [
@@ -5594,6 +5699,14 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   const personalCost = String(beatSheet?.act2?.personalCost || "");
   if (personalCost.length < 18 || /(learns|lernt|understands|erkennt)\b/i.test(personalCost)) {
     issues.push("personalCost is not concrete enough");
+  }
+  // Tighter personal-cost contract (premium): personalCost must name the
+  // child-owned object (or share a stem with it), must not collapse into a
+  // vague mood-only loss ("verliert Kontrolle", "wird ruhig"), and the
+  // personalObject.risk / finalPayoff.plantedDetail must reference the same
+  // named object so the cost is planted and paid off — not just asserted.
+  if ((input.qualityMode || "premium") === "premium") {
+    issues.push(...validatePersonalCostContract(beatSheet));
   }
   const helper = String(beatSheet?.act2?.helperComplicates || "");
   if (/(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(helper)) {
@@ -6472,6 +6585,13 @@ function buildWholeStoryDraftPrompts(
     `- No sentence may exceed ${maxSentenceChars} characters. Use child-readable beats.`,
     `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
+    "",
+    "FINALE-PFLICHTEN (last 25% of the story \u2014 hard requirements, not optional):",
+    `- ${heroA} (or ${heroB}) must name AT LEAST TWO concrete worries out loud before the decisive action. Not generic fears (\"ich habe Angst\") \u2014 specific things, in their own voice (\"Was, wenn der Schluckauf bleibt?\", \"Was sage ich Mama, wenn das Taschentuch zerrissen ist?\").`,
+    "- The personal object planted earlier must appear in the final scene VISIBLY DAMAGED, USED UP, or CHANGED FOR EVER. It must not be magically restored.",
+    "- The decisive final action is performed by the children, not by a helper. The helper may stand at the edge, hand over one small thing, or stay silent \u2014 they may not solve, explain, or rescue.",
+    "- The child makes a clearly conscious choice (\"Ich gebe ... her\", \"Ich lasse ... zurück\", \"Wir lassen ... so wie es ist\") \u2014 not an accidental success, not a discovery by the helper.",
+    "- Closing image must contain the damaged/used personalObject AS A VISIBLE REMAINDER and at least one sensory beat (light, sound, touch, smell). No moral, no \"sie lernten\", no narrator wrap-up.",
     "",
     "BANNED:",
     "- chapter headings, chapter numbers, scene labels, dividers (\"---\", \"***\"), or recap sentences",
@@ -9624,20 +9744,35 @@ function analyzeDevModeStoryQuality(
   }
 
   // v11 §7: pool/helper characters must not directly explain the solution.
-  // This is a soft issue (caps score at 8.2 via existing scoreCap path).
+  // Soft by default; HARD in premium when the violation appears in 2+
+  // chapters OR in any finale-adjacent chapter (last two).
   const helperNames = (input.selectedIdea?.selectedSupportingCast || []).slice();
   if (helperNames.length > 0 && languageCode === "de") {
+    const triggeredChapters: number[] = [];
+    let firstEvidence = "";
+    let firstHelper = "";
     for (const chapter of story.chapters) {
       const result = detectHelperExplainsSolution(chapter.content, helperNames);
       if (result.triggered) {
-        softIssues.push(
-          `Helper-Explains-Gate: ${result.helper} erklaert die Magieregel/Loesung direkt im Dialog (${result.evidence?.slice(0, 80) || ""}). Helfer dürfen scheitern, stören oder ein Werkzeug geben — nicht die Magieregel oder Lösung aussprechen.`
-        );
-        polishInstructions.push(
-          "Lass Helfer NICHT die Magieregel oder Lösung erklären. Stattdessen: Helfer gibt nur ein Werkzeug, Druck oder eine missverständliche Geste; die Kinder müssen die Regel selbst aus wiederholten Folgen herausfinden."
-        );
-        break;
+        triggeredChapters.push(chapter.order);
+        if (!firstEvidence) {
+          firstEvidence = result.evidence?.slice(0, 80) || "";
+          firstHelper = result.helper || helperNames[0] || "Helfer";
+        }
       }
+    }
+    if (triggeredChapters.length > 0) {
+      const finaleAdjacent = triggeredChapters.some((order) => order >= story.chapters.length - 1);
+      const isPremium = (input.qualityMode || "premium") === "premium";
+      const message = `Helper-Explains-Gate: ${firstHelper} erklaert die Magieregel/Loesung direkt im Dialog (${firstEvidence}) in Kapitel ${triggeredChapters.join(",")}. Helfer dürfen scheitern, stören oder ein Werkzeug geben — nicht die Magieregel oder Lösung aussprechen.`;
+      if (isPremium && (triggeredChapters.length >= 2 || finaleAdjacent)) {
+        hardIssues.push(message);
+      } else {
+        softIssues.push(message);
+      }
+      polishInstructions.push(
+        "Lass Helfer NICHT die Magieregel oder Lösung erklären. Stattdessen: Helfer gibt nur ein Werkzeug, Druck oder eine missverständliche Geste; die Kinder müssen die Regel selbst aus wiederholten Folgen herausfinden."
+      );
     }
   }
 
@@ -9967,7 +10102,7 @@ function extractQualityScore(parsed: any): number | null {
   return score;
 }
 
-function releaseDimensionFailures(validatorFindings: any): string[] {
+function releaseDimensionFailures(validatorFindings: any, opts?: { mode?: DevModeQualityMode }): string[] {
   const scores = validatorFindings?.dimensionScores;
   if (!scores || typeof scores !== "object") return [];
 
@@ -9982,9 +10117,71 @@ function releaseDimensionFailures(validatorFindings: any): string[] {
     )],
   ];
 
-  return checks
+  const failures = checks
     .filter(([, score]) => Number.isFinite(score) && Number(score) < DEV_MODE_MIN_RELEASE_DIMENSION_SCORE)
     .map(([name, score]) => `${name} ${score} is below ${DEV_MODE_MIN_RELEASE_DIMENSION_SCORE}.`);
+
+  // Premium-only raw per-dimension thresholds. The 8.4-score postmortem
+  // showed that paired-MIN aggregates can mask a single weak dimension
+  // (iconicCharacters 7.5 with everything else >=8.5 still ships at 8.4
+  // overall). Block premium until each of these holds independently.
+  const isPremium = (opts?.mode || "premium") === "premium";
+  if (isPremium) {
+    const premiumPerDim: Array<[string, number]> = [
+      ["emotionalEngine", 8.5],
+      ["iconicCharacters", 8.2],
+      ["voiceDistinctiveness", 8.2],
+      ["endingPayoff", 8.5],
+      ["keyMomentPayoff", 8.5],
+    ];
+    for (const [dim, floor] of premiumPerDim) {
+      const raw = Number(scores[dim] ?? NaN);
+      if (Number.isFinite(raw) && raw < floor) {
+        failures.push(`${dim} ${raw} is below premium floor ${floor}.`);
+      }
+    }
+  }
+
+  return failures;
+}
+
+/**
+ * Premium-strict structural gate. Independent of the validator's numerical
+ * scores: enforces hard floors on dialog percentage, presence of a tangible
+ * personal cost, and absence of helper-explains-solution. Returns issues
+ * only when mode === "premium".
+ */
+function releasePremiumStrictGate(
+  diagnostics: DevModeStoryDiagnostics | undefined,
+  mode: DevModeQualityMode | undefined,
+): string[] {
+  if ((mode || "premium") !== "premium") return [];
+  if (!diagnostics) return [];
+  const issues: string[] = [];
+
+  if (Number.isFinite(diagnostics.dialogPct) && diagnostics.dialogPct < 30) {
+    issues.push(`dialogPct ${diagnostics.dialogPct.toFixed(1)}% is below premium floor 30%.`);
+  }
+
+  const allIssues = [
+    ...(diagnostics.softIssues || []),
+    ...(diagnostics.hardIssues || []),
+  ];
+  const helperExplainsTriggered = allIssues.some((s) =>
+    /Helper-Explains-Gate|erklaert die Loesung|erklärt die Lösung|nimmt die finale Handlung|steht im Finale im Zentrum/i.test(s)
+  );
+  if (helperExplainsTriggered) {
+    issues.push("helperExplainsSolution detected — premium requires helpers that complicate, not solve.");
+  }
+
+  const missingPersonalCost = allIssues.some((s) =>
+    /kein persönlicher Einsatz|kein persoenlicher Einsatz|personalCost|Personal Cost/i.test(s)
+  );
+  if (missingPersonalCost) {
+    issues.push("personalCost not detected in final story — premium requires a visible, named sacrifice.");
+  }
+
+  return issues;
 }
 
 function releaseBlockingValidatorMustFixes(validatorFindings: any, mode?: DevModeQualityMode): string[] {
@@ -12899,8 +13096,9 @@ export async function generateStoryDevMode(
         `Developer-mode story market-quality score ${releaseScore} is below ${minReleaseScore} (mode=${qualityMode}).`
       );
     }
-    releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings));
+    releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings, { mode: qualityMode }));
     releaseGateFailures.push(...releaseBlockingValidatorMustFixes(finalValidatorFindings, qualityMode));
+    releaseGateFailures.push(...releasePremiumStrictGate(finalDiagnostics, qualityMode));
     if (shouldBlockDevModeQualityGateFailure(input, finalDiagnostics)) {
       throw new Error(releaseGateFailures[0] || "Developer-mode story still has open hard gates after all repair attempts.");
     }
@@ -13172,12 +13370,14 @@ export async function generateStoryDevMode(
     const mode = input.qualityMode || "premium";
     const minScore = minReleaseScoreForMode(mode);
     const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
-    const dimFailures = releaseDimensionFailures(finalValidatorFindings);
+    const dimFailures = releaseDimensionFailures(finalValidatorFindings, { mode });
     const validatorMustFixFailures = releaseBlockingValidatorMustFixes(finalValidatorFindings, mode);
+    const premiumStrictFailures = releasePremiumStrictGate(finalDiagnostics, mode);
     const releaseReadyComputed =
       (finalDiagnostics?.hardIssueCount ?? 0) === 0
       && dimFailures.length === 0
       && validatorMustFixFailures.length === 0
+      && premiumStrictFailures.length === 0
       && releaseScore >= minScore;
     return classifyFinalRouting({
       releaseReady: releaseReadyComputed,
@@ -13195,6 +13395,54 @@ export async function generateStoryDevMode(
       },
     });
   })();
+
+  // Final-story content-hash tripwire. We hash the parsed (post-repair)
+  // canonical text and the rendered chapters[] separately. If they diverge,
+  // the render path is using a stale story object — this would cause the
+  // user to see prose that was already rejected by the validator.
+  const acceptedFinalStoryTitle = String(parsed.title || "").trim();
+  const acceptedFinalStoryDescription = String(parsed.description || parsed.title || "").trim();
+  const acceptedFinalStoryHash = computeStoryContentHash({
+    title: acceptedFinalStoryTitle,
+    description: acceptedFinalStoryDescription,
+    chapters: sortedParsedChapters.map((ch, idx) => ({
+      title: ch.title,
+      content: ch.content,
+      order: idx + 1,
+    })),
+  });
+  const exportContentHash = computeStoryContentHash({
+    title: acceptedFinalStoryTitle,
+    description: acceptedFinalStoryDescription,
+    chapters: chapters.map((ch) => ({
+      title: ch.title,
+      content: ch.content,
+      order: ch.order,
+    })),
+  });
+  if (exportContentHash !== acceptedFinalStoryHash) {
+    console.error("[dev-mode-generation] FATAL: export content hash drifted from accepted final story", {
+      acceptedFinalStoryHash,
+      exportContentHash,
+      acceptedChapterCount: sortedParsedChapters.length,
+      exportChapterCount: chapters.length,
+    });
+    // Repair the divergence by re-projecting chapters from parsed; image
+    // metadata is preserved by order index. We never want to surface stale
+    // text to the renderer/PDF.
+    for (let i = 0; i < chapters.length; i++) {
+      const ch = chapters[i];
+      const source = sortedParsedChapters[i];
+      if (!source) continue;
+      ch.title = source.title;
+      ch.content = source.content;
+    }
+  }
+  // Story version increments by 1 per applied repair pass on the prose
+  // (story-polish, chapter-repair, dialogue-rebalance). 1 means no repair.
+  const storyVersion = 1
+    + (storyPolishApplied ? 1 : 0)
+    + (chapterRepairApplied ? 1 : 0);
 
   return {
     title: parsed.title,
@@ -13228,12 +13476,19 @@ export async function generateStoryDevMode(
       rawQualityScore,
       localGateScore,
       literaryValidation: finalValidatorFindings,
+      // Final-story content integrity. Persisted alongside the story so any
+      // downstream renderer (PDF, frontend, validator re-run) can verify that
+      // the bytes it is about to publish match the bytes the quality gate
+      // accepted. Mismatch is a render-pipeline bug, not a content bug.
+      storyVersion,
+      storyContentHash: acceptedFinalStoryHash,
       // v11 §1 + §5: releaseReady is true ONLY when no hard gates remain
       // AND score meets the mode-specific minimum (premium 9.0, efficient 8.3).
       releaseReady:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
-        && releaseDimensionFailures(finalValidatorFindings).length === 0
+        && releaseDimensionFailures(finalValidatorFindings, { mode: input.qualityMode }).length === 0
         && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0
+        && releasePremiumStrictGate(finalDiagnostics, input.qualityMode).length === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
           >= minReleaseScoreForMode(input.qualityMode),
       // v12 §1: explicit editorial release status. Text may be persisted and
@@ -13244,8 +13499,9 @@ export async function generateStoryDevMode(
         const minScore = minReleaseScoreForMode(mode);
         const releaseReadyComputed =
           (finalDiagnostics?.hardIssueCount ?? 0) === 0
-          && releaseDimensionFailures(finalValidatorFindings).length === 0
+          && releaseDimensionFailures(finalValidatorFindings, { mode }).length === 0
           && releaseBlockingValidatorMustFixes(finalValidatorFindings, mode).length === 0
+          && releasePremiumStrictGate(finalDiagnostics, mode).length === 0
           && releaseScore >= minScore;
         if (mode === "premium" && !releaseReadyComputed) return "quality_gate_failed";
         if ((finalDiagnostics?.hardIssueCount ?? 0) > 0) return "quality_gate_failed";
@@ -13268,8 +13524,9 @@ export async function generateStoryDevMode(
       qualityGatePassed:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0) >= minReleaseScoreForMode(input.qualityMode)
-        && releaseDimensionFailures(finalValidatorFindings).length === 0
-        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0,
+        && releaseDimensionFailures(finalValidatorFindings, { mode: input.qualityMode }).length === 0
+        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0
+        && releasePremiumStrictGate(finalDiagnostics, input.qualityMode).length === 0,
       qualityGateFailureReason,
       // Keep field for backwards compat: generation can return with warnings,
       // while releaseReady/qualityGatePassed stay false.
