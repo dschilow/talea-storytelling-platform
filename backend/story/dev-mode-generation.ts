@@ -1806,6 +1806,9 @@ function buildArtifactPropBlock(input: DevModeGenerationInput): string | null {
   lines.push(
     "- If the artifact does not fit the story idea cleanly, mention it only briefly as a small background detail; never force it. Do not put it on the cover or in the title unless it is genuinely central."
   );
+  lines.push(
+    "- ARTIFACT COMMITMENT RULE (binding for idea candidates): if you weave this artifact into a candidate, its name MUST appear in that candidate's centralObjectOrPlace OR wonderRule. Otherwise OMIT the artifact name from every field of that candidate \u2014 do NOT name it in premiseSeedMutation, oneLineHook, coreConflict, or title. Half-hearted decoration is forbidden: any candidate that names the artifact only in mutation/hook without making it load-bearing in centralObjectOrPlace/wonderRule will be scrubbed downstream and treated as a contract violation."
+  );
   return lines.join("\n");
 }
 
@@ -11108,6 +11111,31 @@ export async function generateStoryDevMode(
       }
     }
 
+    // Scrub any suppressed-pool-artifact mentions from the selected idea
+    // (notably premiseSeedMutation, which is invented by the candidate LLM
+    // and historically introduced names like "Feuerstein" that the artifact
+    // pool wanted hidden). Without this scrub, the artifact name propagates
+    // into every downstream prompt and the gate fires post-hoc.
+    if (selectedIdea && !shouldExposeDevModeArtifact(input) && input.matchedArtifact?.name) {
+      const ideaScrub = sanitizeSuppressedArtifactInValue(selectedIdea, input, "selected-idea");
+      if (ideaScrub.changed) {
+        console.warn("[dev-mode-generation] scrubbed suppressed pool artifact from selectedIdea", {
+          artifact: input.matchedArtifact?.name,
+          lockedCentralObject: getLockedCentralObject(input),
+          reason: ideaScrub.reason,
+        });
+        recordLocalStage("local-diagnostics", {
+          type: "artifact-suppression",
+          context: "selected-idea",
+          artifact: input.matchedArtifact?.name,
+          lockedCentralObject: getLockedCentralObject(input),
+          reason: ideaScrub.reason,
+        });
+        selectedIdea = ideaScrub.value as typeof selectedIdea;
+        input = { ...input, selectedIdea };
+      }
+    }
+
     let blueprint: any;
     let critique: any;
 
@@ -12639,25 +12667,31 @@ export async function generateStoryDevMode(
 
     // Emergency dialogue rebalance: if the polish loop ran but every attempt
     // was rejected by deterministic diagnostics, the dialogue hard-gate can
-    // still be open here. One last targeted rebalance pass — accepted on a
-    // looser criterion than inside the loop — gives the story a final chance
-    // to clear the floor before release gating turns the run into
-    // quality_gate_failed.
-    if (
-      finalParsed
-      && finalDiagnostics
-      && finalParsed.displayMode === "reading_pages"
-      && finalDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT
-    ) {
-      const rebalanceTargets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 5);
-      if (rebalanceTargets.length > 0) {
-        try {
-          console.warn("[dev-mode-generation] Emergency dialogue rebalance triggered (post-polish gate still open)", {
-            storyDialogPct: finalDiagnostics.dialogPct,
-            hardIssueCount: finalDiagnostics.hardIssueCount,
-            targetCount: rebalanceTargets.length,
-          });
-          const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
+    // still be open here. Up to two consecutive rebalance passes — accepted
+    // on a looser criterion than inside the loop — give the story a final
+    // chance to clear the floor before release gating turns the run into
+    // quality_gate_failed. The loop bails as soon as a pass fails to lift
+    // dialog further or the floor is cleared.
+    for (let emergencyAttempt = 0; emergencyAttempt < 2; emergencyAttempt++) {
+      if (
+        !finalParsed
+        || !finalDiagnostics
+        || finalParsed.displayMode !== "reading_pages"
+        || finalDiagnostics.dialogPct >= DEV_MODE_MIN_DIALOG_PCT
+      ) break;
+      const targetLimit = finalDiagnostics.dialogPct < DEV_MODE_MIN_CHAPTER_DIALOG_PCT
+        ? Math.max(5, finalParsed.chapters.length)
+        : 5;
+      const rebalanceTargets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, targetLimit);
+      if (rebalanceTargets.length === 0) break;
+      try {
+        console.warn("[dev-mode-generation] Emergency dialogue rebalance triggered (post-polish gate still open)", {
+          attempt: emergencyAttempt + 1,
+          storyDialogPct: finalDiagnostics.dialogPct,
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          targetCount: rebalanceTargets.length,
+        });
+        const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
           const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
             maxTokens: input.config.length === "long" ? 3200 : 2600,
             temperature: 0.22,
@@ -12696,7 +12730,6 @@ export async function generateStoryDevMode(
             error: rebalanceError instanceof Error ? rebalanceError.message : String(rebalanceError),
           });
         }
-      }
     }
 
     // Legacy: motif-list-driven scrub for cases the static sanitizer missed.
