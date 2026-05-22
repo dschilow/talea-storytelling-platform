@@ -33,6 +33,8 @@ export interface FinalRoutingInput {
   softIssues: string[];
   /** Hard issues that point to the screenplay plan, not the prose. */
   releaseDimensionFailures: string[];
+  /** Material validator must-fix findings that block premium release. */
+  validatorMustFixFailures?: string[];
   /** True if the image pipeline could not start (text gate failed first). */
   imagesSkipped: boolean;
   /** Optional: the last router strategy chosen for this run. */
@@ -97,7 +99,9 @@ function routeForStrategy(strategy: DevModeRepairStrategy | undefined): FinalRec
 
 export function classifyFinalRouting(input: FinalRoutingInput): FinalRoutingResult {
   // 1. Clean release — short-circuit.
-  if (input.releaseReady && input.hardIssues.length === 0 && input.releaseDimensionFailures.length === 0) {
+  const validatorMustFixFailures = input.validatorMustFixFailures ?? [];
+
+  if (input.releaseReady && input.hardIssues.length === 0 && input.releaseDimensionFailures.length === 0 && validatorMustFixFailures.length === 0) {
     return {
       failureClass: "none",
       recommendedRoute: "release",
@@ -110,6 +114,7 @@ export function classifyFinalRouting(input: FinalRoutingInput): FinalRoutingResu
     input.hardIssues.some(classifyIssueAsPlan)
     || input.softIssues.some(classifyIssueAsPlan)
     || input.releaseDimensionFailures.length > 0
+    || validatorMustFixFailures.some(classifyIssueAsPlan)
     || hasLowDimension(input.dimensionScores);
 
   // 3. Form failure — issues that don't change plot but block release.
@@ -125,6 +130,7 @@ export function classifyFinalRouting(input: FinalRoutingInput): FinalRoutingResu
     const mustFix = [
       ...input.hardIssues.filter(classifyIssueAsPlan),
       ...input.releaseDimensionFailures,
+      ...validatorMustFixFailures,
     ].slice(0, 6);
     return {
       failureClass: "plan_failure",
@@ -145,7 +151,7 @@ export function classifyFinalRouting(input: FinalRoutingInput): FinalRoutingResu
   // 5. Image-not-started — text gate already failed, image stage was skipped.
   // Reported as a status only when there is no underlying text problem to
   // route on; otherwise the underlying class wins.
-  if (input.imagesSkipped && input.hardIssues.length === 0 && input.releaseDimensionFailures.length === 0) {
+  if (input.imagesSkipped && input.hardIssues.length === 0 && input.releaseDimensionFailures.length === 0 && validatorMustFixFailures.length === 0) {
     return {
       failureClass: "image_not_started",
       recommendedRoute: "release",
@@ -155,12 +161,12 @@ export function classifyFinalRouting(input: FinalRoutingInput): FinalRoutingResu
 
   // 6. Draft failure — hard issues remain but neither plan nor form maps
   // cleanly. Targeted chapter repair is the right next step.
-  if (input.hardIssues.length > 0 || input.softIssues.length > 0) {
+  if (input.hardIssues.length > 0 || input.softIssues.length > 0 || validatorMustFixFailures.length > 0) {
     const route = routeForStrategy(input.routerStrategy) ?? "targeted_repair";
     return {
       failureClass: "draft_failure",
       recommendedRoute: route === "release" ? "targeted_repair" : route,
-      mustFixBeforeRelease: input.hardIssues.slice(0, 6),
+      mustFixBeforeRelease: [...input.hardIssues, ...validatorMustFixFailures].slice(0, 6),
     };
   }
 

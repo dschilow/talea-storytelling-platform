@@ -102,6 +102,7 @@ const DEV_MODE_SECOND_PASS_REPAIR_CHAPTER_LIMIT = 1;
 const DEV_MODE_CHAPTER_DIALOG_LINE_TARGET = 10;
 const DEV_MODE_CHAPTER_SPEAKER_TURN_TARGET = 4;
 const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.0;
+const DEV_MODE_PREMIUM_RELEASE_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
@@ -124,7 +125,7 @@ const DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS = 12;
 // plot, page count, or dialogue volume.
 const DEV_MODE_LINE_PUNCHUP_MIN_SCORE = 8.6;
 const DEV_MODE_LINE_PUNCHUP_MIN_LINE_CHARS = 30;
-const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 1;
+const DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT = 2;
 
 const NOVELTY_MIN_FAMILY_PREFIX_LENGTH = 6;
 
@@ -1709,6 +1710,39 @@ function buildCentralObjectContractBlock(input: DevModeGenerationInput): string 
   return lines.join("\n");
 }
 
+function buildPremiseSeedPromiseBlock(input: DevModeGenerationInput): string | null {
+  const idea = input.selectedIdea;
+  if (!idea?.premiseSeedId && !idea?.premiseSeedMutation) return null;
+  const lines = [
+    "PREMISE-SEED PROMISE (binding):",
+    idea.premiseSeedId ? `- Seed id: ${idea.premiseSeedId}.` : null,
+    idea.premiseSeedMutation ? `- Mutation to preserve causally: ${idea.premiseSeedMutation}.` : null,
+    "- The mutated seed ingredients must become plot mechanics, not only title/description decoration.",
+    "- If the seed/title promises a special system (e.g. seasons, moods, gravity, weather), the wonder rule must test that system on-page at least twice and the finale must pay it off visibly.",
+    "- Do not flatten the seed into a generic magic object + generic lesson; keep the odd, child-retellable rule that made the premise worth selecting.",
+  ];
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function buildWonderRuleConsistencyBlock(input: DevModeGenerationInput): string | null {
+  const rule = input.selectedIdea?.wonderRule?.trim();
+  if (!rule) return null;
+  const ruleLower = rule.toLowerCase();
+  const hasColorCost = /farb|color|colour|blass|grau|bleich/.test(ruleLower)
+    || /farb|color|colour|blass|grau|bleich/.test(String(input.selectedIdea?.oneLineHook || "").toLowerCase())
+    || /farb|color|colour|blass|grau|bleich/.test(String(input.selectedIdea?.premiseSeedMutation || "").toLowerCase());
+  const lines = [
+    "WONDER-RULE CONSISTENCY (binding):",
+    `- Rule to dramatize: ${rule}`,
+    "- Every deliberate use/test of the magic must show cause → visible consequence → child reaction on the same page.",
+    "- Do not have a helper explain the rule first. The children must infer it from repeated physical evidence.",
+    hasColorCost
+      ? "- Color-cost rule: each major magic use must name a specific color that fades/vanishes and what that loss changes for the child or garden. The finale may restore color only after the child's concrete restraint/sacrifice, not by automatic reset."
+      : null,
+  ];
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
+}
+
 function replaceSuppressedArtifactMentions(text: string, input: DevModeGenerationInput, replacement: string): { text: string; changed: boolean } {
   let out = String(text || "");
   const before = out;
@@ -2313,6 +2347,7 @@ async function generateDevModeImages(
   const buildManifestBlock = (sceneNames: string[]): string => {
     if (sceneNames.length === 0) return "";
     const lines: string[] = [];
+    const isFairyLike = (entry: CastEntry): boolean => /\b(fee|fairy|fluegel|flügel|wings?|zauberstab|flower crown|blumenkranz)\b/i.test(`${entry.name} ${entry.description || ""}`);
     for (const entry of cast) {
       if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
       if (entry.kind === "avatar") {
@@ -2320,11 +2355,15 @@ async function generateDevModeImages(
         lines.push(`${entry.name}: human boy, ${visual}. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
       } else {
         const visual = compactCharacterDescription(entry.description, "supporting character");
-        // v12 §13D: NO character permission for wings unless the character
-        // is explicitly a fairy in the story AND appears as a fairy in this
-        // scene. The old "Only X may wear wings" template gave non-fairy
-        // characters wings in every image.
-        lines.push(`${entry.name}: ${visual}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
+        if (isFairyLike(entry)) {
+          lines.push(`${entry.name}: fairy character, ${visual}. Keep wings, wand, flower crown, or fairy outfit only if they are part of this character's canonical look; do not transfer those features to human children.`);
+        } else {
+          // v12 §13D: NO character permission for wings unless the character
+          // is explicitly a fairy in the story AND appears as a fairy in this
+          // scene. The old "Only X may wear wings" template gave non-fairy
+          // characters wings in every image.
+          lines.push(`${entry.name}: ${visual}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
+        }
       }
     }
     return lines.length > 0 ? ` CHARACTERS: ${lines.join(" ")}` : "";
@@ -3515,6 +3554,8 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     selectedIdea.premiseSeedId
       ? `- Premise seed trace: ${selectedIdea.premiseSeedId}${selectedIdea.premiseSeedMutation ? `; mutation: ${selectedIdea.premiseSeedMutation}` : ""}. Preserve the mutated engine, but do not revert to the raw seed card.`
       : null,
+    buildPremiseSeedPromiseBlock(input),
+    buildWonderRuleConsistencyBlock(input),
     selectedIdea.selectedSupportingCast.length > 0
       ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with one plot-necessary function each, then leave room for the main avatars.`
       : "- No pool character is mandatory for this idea; keep extra cast lean.",
@@ -3842,7 +3883,6 @@ function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, com
     `- Age comprehension (${config.ageGroup}): ${ageComprehensionGuidance(config.ageGroup)}.`,
     `- Complexity: ${complexityGuidance(config.complexity)}.`,
   ];
-
   if (experience.soul) {
     lines.push(`- Story soul: ${experience.soul.label} — ${experience.soul.storyPromise}`);
   }
@@ -3887,6 +3927,10 @@ function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, com
   }
 
   return lines.join("\n");
+}
+
+function minReleaseScoreForMode(mode?: DevModeQualityMode | "efficient" | "premium"): number {
+  return (mode || "premium") === "efficient" ? 8.3 : DEV_MODE_PREMIUM_RELEASE_SCORE;
 }
 
 function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; userPrompt: string; chapterCount: number } {
@@ -4351,6 +4395,7 @@ function buildIdeaCandidatePrompts(
     "COMPLETION BUDGET IS BINDING: output complete valid JSON. Keep every string to one compact sentence. Do not exceed 850 characters per candidate. If you need to save space, shorten wording; never truncate the JSON.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "Every candidate must be capable of a visible irreversible middle and a concrete personal cost. If you cannot name those potentials, do not include the candidate.",
+    "Every distinctive word promised by the title or premise-seed mutation must become part of the wonder rule, conflict escalation, or final image. Do not use big shelf words (seasons, dreams, courage, moods, gravity, weather) as decoration only.",
     "Score potentialScores honestly from 0-10. Scores below 8.5 on emotional engine, personal cost, irreversible middle, or conflict escalation mean the premise should probably be replaced before output.",
     options.previousPotentialFailures?.length
       ? [
@@ -4512,6 +4557,7 @@ function buildPotentialFilterPrompts(
     `CALL 2: 9.0 POTENTIAL FILTER, round ${round}. Do not write prose and do not outline chapters.`,
     "Judge whether each candidate can realistically become a 9.0+ children's story after beat sheet and scene-card work.",
     "Do not trust the candidate's self-scores. Judge the evidence in the fields: a candidate without a concrete cost, irreversible middle, conflict escalation path, and final image must be rejected even if its numbers are high.",
+    "Reject or downscore any candidate whose title/seed mutation promises a system (e.g. seasons, plant moods, gravity, weather) but whose wonderRule/coreConflict only uses a generic magic object without that system becoming causal.",
     `Quality mode: ${input.qualityMode || "premium"}. Use these hard thresholds exactly:`,
     `- childRetellableHook >= ${t.childRetellableHook}`,
     `- visualShelfAppeal >= ${t.visualShelfAppeal}`,
@@ -5965,6 +6011,8 @@ function buildCompactStoryBibleForDraft(
       centralObjectOrPlace: input.selectedIdea.centralObjectOrPlace,
       wonderRule: input.selectedIdea.wonderRule,
       emotionalEngine: input.selectedIdea.emotionalEngine,
+      premiseSeedId: input.selectedIdea.premiseSeedId,
+      premiseSeedMutation: input.selectedIdea.premiseSeedMutation,
       selectedSupportingCast: input.selectedIdea.selectedSupportingCast,
     } : undefined,
     mainCharacters: (input.avatars || []).map((avatar) => ({
@@ -6138,10 +6186,12 @@ function buildCompactValidationIdeaBlock(input: DevModeGenerationInput): string 
     `- Wonder rule: ${compactExcerpt(idea.wonderRule, 160)}`,
     `- Emotional engine: ${compactExcerpt(idea.emotionalEngine, 160)}`,
     `- Core conflict: ${compactExcerpt(idea.coreConflict, 160)}`,
+    idea.premiseSeedId ? `- Premise seed: ${idea.premiseSeedId}` : null,
+    idea.premiseSeedMutation ? `- Premise seed mutation: ${compactExcerpt(idea.premiseSeedMutation, 180)}` : null,
     idea.selectedSupportingCast.length > 0
       ? `- Locked supporting cast: ${idea.selectedSupportingCast.join(", ")}`
       : "- No pool character is mandatory for this idea.",
-  ].join("\n");
+  ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
 function screenplayCritiqueForDraft(gateIssues: string[]): any {
@@ -6229,6 +6279,8 @@ function buildCompactWholeStoryDraftPrompts(
     "",
     "STORY BIBLE (binding):",
     promptJson(compactStoryBible),
+    buildPremiseSeedPromiseBlock(input) || "",
+    buildWonderRuleConsistencyBlock(input) || "",
     "",
     "SCENE PLAN (binding, do not invent a different plot):",
     promptJson(compactScenePlan),
@@ -6404,6 +6456,7 @@ function buildWholeStoryDraftPrompts(
         ].join("\n"),
     "",
       buildCentralObjectContractBlock(input) || "",
+      buildPremiseSeedPromiseBlock(input) || "",
       "",
     buildArtifactPropBlock(input) || "",
     "",
@@ -7365,7 +7418,7 @@ function buildStoryPolishPrompts(
         : null,
     `- Overall dialogue share must be at least ${DEV_MODE_MIN_DIALOG_PCT}%; repair toward ${DEV_MODE_PROMPT_DIALOG_PCT}% so the measured result safely clears the floor.`,
     readingPageMode ? "- Per-page dialogue may vary naturally; the full story must clear the dialogue floor." : `- Every chapter must have at least ${DEV_MODE_MIN_CHAPTER_DIALOG_PCT}% dialogue.`,
-    `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; anything below ${DEV_MODE_MIN_MARKET_QUALITY_SCORE}/10 needs another concrete fix, not score inflation.`,
+    `- Target market-quality score: ${DEV_MODE_TARGET_MARKET_QUALITY_SCORE}/10; release floor for this mode is ${minReleaseScoreForMode(input.qualityMode)}/10. Anything below that needs another concrete fix, not score inflation.`,
     readingPageMode ? "- No new main figures, no new subplot, no explained moral, no summary sentences at reading breaks." : "- No new main figures, no new subplot, no explained moral, no summary sentence at chapter endings.",
     "- JSON must be valid and match the schema exactly.",
     "",
@@ -7403,6 +7456,9 @@ function buildStoryPolishPrompts(
     "",
     "ROTER FADEN (red thread) UND TITEL-VERTRAG:",
     buildCentralObjectContractBlock(input) || "",
+    buildPremiseSeedPromiseBlock(input) || "",
+    buildWonderRuleConsistencyBlock(input) || "",
+    buildWonderRuleConsistencyBlock(input) || "",
     readingPageMode ? "- Identify the recurring concrete object/refrain/sound. Make sure it appears across the whole story and shifts meaning at each scene movement." : "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
     readingPageMode ? "- Every paragraph must follow causally from the previous one. If a reading page opens cold, add a bridge sentence without recap." : "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
     "- If the title promises specific words/concepts, those words must surface in the prose. If a title key word is missing, add it naturally \u2014 OR change the title to match the prose. Do not leave the title promise unredeemed.",
@@ -7838,15 +7894,15 @@ function selectValidatorQualityRepairChapters(
     ...(Array.isArray(validatorFindings?.publishabilityBlockers) ? validatorFindings.publishabilityBlockers : []),
   ].join(" ").toLowerCase();
 
+  if (/final\s+page|last\s+page|page\s+5|leseseite\s+5|ending|payoff|moral|didactic|resolution|finale|schluss|lehre|lesson/.test(findingText)) {
+    add(chapterCount);
+  }
+
   if (/chapter|page|pull|hook|cliff|weiter|sog|kapitelende/.test(findingText)) {
     for (const chapter of chapters.filter((candidate) => candidate.issues.some((issue) => /pull|weiterlese|sog/i.test(issue)))) {
       add(chapter.order);
     }
     if (selected.size === 0 && chapterCount > 1) add(Math.max(1, chapterCount - 1));
-  }
-
-  if (/ending|payoff|moral|didactic|resolution|finale|schluss|lehre|lesson/.test(findingText)) {
-    add(chapterCount);
   }
 
   if (/wonder|magic|mechanic|rule|regel|plot driver|magi/.test(findingText)) {
@@ -8313,6 +8369,9 @@ function buildValidationPrompts(
     "",
     "LOCKED WINNING IDEA FOR THIS GENERATION:",
     buildCompactValidationIdeaBlock(input),
+    buildPremiseSeedPromiseBlock(input) || "",
+    buildWonderRuleConsistencyBlock(input) || "",
+    "VALIDATOR CHECK: if the premise seed mutation is only visible as title flavor or description but not as causal on-page mechanics, cap marketQualityScore at 8.6 and list it in mustFixBefore95.",
     "",
     "LOCAL DIAGNOSTICS OF THE FINAL STORY:",
     promptJson(compactDiagnosticsForPrompt(diagnostics || null)),
@@ -9261,6 +9320,10 @@ const TITLE_PROMISE_SYNONYMS_DE: Record<string, string[]> = {
   "leise": ["leis", "still", "lautl", "ruhi"],
   "laute": ["laut", "krac", "donne", "geras"],
   "muede": ["muede", "schlaf", "matte", "ersch"],
+  "garten": ["garten", "hof", "innen", "beet", "wurz"],
+  "singend": ["sing", "sang", "lied", "klang", "melod", "musik"],
+  "singen": ["sing", "sang", "lied", "klang", "melod", "musik"],
+  "jahres": ["jahres", "frueh", "früh", "sommer", "herbst", "winter"],
 };
 
 function expandTitleWordToStems(word: string): string[] {
@@ -9318,6 +9381,50 @@ function collectTitlePromiseIssues(story: DevModeRawStory, input: DevModeGenerat
   return [
     `Titel-Versprechen unerfuellt: Kernwoerter aus dem Titel fehlen im Storytext (${missing.slice(0, 3).join(", ")}). Loese das Titelversprechen im Text ein oder schaerfe den Titel.`,
   ];
+}
+
+function normalizeTitleForIntegrity(title: string): string {
+  return String(title || "")
+    .toLowerCase()
+    .replace(/[„""''«»‚‹›()\[\]{},.:;!?—–\-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function titleLooksLikeDanglingFragment(title: string): boolean {
+  const normalized = normalizeTitleForIntegrity(title);
+  const words = normalized.split(/\s+/).filter(Boolean);
+  if (words.length < 2) return true;
+  const last = words[words.length - 1] || "";
+  if (/^(der|die|das|den|dem|des|ein|eine|einer|eines|und|oder|von|vom|im|in|am|an|zu|zum|zur)$/.test(last)) return true;
+  // German dangling participle/adjective fragments such as
+  // "Der Garten der singenden" read like a missing noun. Deterministic
+  // title repair must never ship those; prefer a model rewrite or the
+  // locked idea title instead.
+  if (/(enden|ende|ender|endes|ene|enen|ener|enes)$/.test(last) && words.length <= 4) return true;
+  return false;
+}
+
+function restoreSelectedIdeaTitleIfFragment<T extends DevModeRawStory>(story: T, input: DevModeGenerationInput): T {
+  const selectedTitle = input.selectedIdea?.title?.trim();
+  const generatedTitle = story.title?.trim();
+  if (!selectedTitle || !generatedTitle) return story;
+  const selectedNorm = normalizeTitleForIntegrity(selectedTitle);
+  const generatedNorm = normalizeTitleForIntegrity(generatedTitle);
+  if (!selectedNorm || !generatedNorm || selectedNorm === generatedNorm) return story;
+  const generatedIsSelectedPrefix = selectedNorm.startsWith(generatedNorm) && selectedNorm.length > generatedNorm.length;
+  if (!generatedIsSelectedPrefix && !titleLooksLikeDanglingFragment(generatedTitle)) return story;
+  const body = `${story.description || ""}\n${story.chapters.map((chapter) => `${chapter.title}\n${chapter.content}`).join("\n")}`;
+  const missingSelectedWords = extractTitleContentWords(selectedTitle).filter((word) => !titleWordSatisfiedByBody(word, body));
+  // Restore only when the story body already pays the selected title promise.
+  // If the body truly failed the title promise, the normal title-promise gate
+  // should repair the prose or ask the model for a complete alternative title.
+  if (missingSelectedWords.length > 0) return story;
+  console.warn("[dev-mode-generation] Restoring selected idea title after broken title fragment", {
+    generatedTitle,
+    selectedTitle,
+  });
+  return { ...story, title: selectedTitle };
 }
 
 // --- Age-vocabulary filter ------------------------------------------------
@@ -9508,10 +9615,10 @@ function analyzeDevModeStoryQuality(
       const result = detectHelperExplainsSolution(chapter.content, helperNames);
       if (result.triggered) {
         softIssues.push(
-          `Helper-Explains-Gate: ${result.helper} erklaert die Loesung direkt im Dialog (${result.evidence?.slice(0, 80) || ""}). Helfer dürfen scheitern, stören oder ein Werkzeug geben — nicht die Magieregel + Lösung in einem Satz nennen.`
+          `Helper-Explains-Gate: ${result.helper} erklaert die Magieregel/Loesung direkt im Dialog (${result.evidence?.slice(0, 80) || ""}). Helfer dürfen scheitern, stören oder ein Werkzeug geben — nicht die Magieregel oder Lösung aussprechen.`
         );
         polishInstructions.push(
-          "Lass Helfer NICHT die Magieregel + Lösung erklären. Stattdessen: Helfer gibt nur ein Werkzeug oder eine missverständliche Geste; die Kinder müssen die Regel selbst herausfinden."
+          "Lass Helfer NICHT die Magieregel oder Lösung erklären. Stattdessen: Helfer gibt nur ein Werkzeug, Druck oder eine missverständliche Geste; die Kinder müssen die Regel selbst aus wiederholten Folgen herausfinden."
         );
         break;
       }
@@ -9862,6 +9969,16 @@ function releaseDimensionFailures(validatorFindings: any): string[] {
   return checks
     .filter(([, score]) => Number.isFinite(score) && Number(score) < DEV_MODE_MIN_RELEASE_DIMENSION_SCORE)
     .map(([name, score]) => `${name} ${score} is below ${DEV_MODE_MIN_RELEASE_DIMENSION_SCORE}.`);
+}
+
+function releaseBlockingValidatorMustFixes(validatorFindings: any, mode?: DevModeQualityMode): string[] {
+  if ((mode || "premium") !== "premium") return [];
+  const mustFixes = asStringArray(validatorFindings?.mustFixBefore95, 12).map((fix) => fix.trim()).filter(Boolean);
+  if (mustFixes.length === 0) return [];
+  const materialIssuePattern = /final|ending|schluss|finale|dialog|wonder\s*rule|wunder|regel|color|farbe|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme/i;
+  return mustFixes
+    .filter((fix) => materialIssuePattern.test(fix))
+    .map((fix) => `Validator must-fix before premium release: ${fix}`);
 }
 
 // --- RepairRouter (v11 Section E + v12 §O) -----------------------------
@@ -11889,6 +12006,7 @@ export async function generateStoryDevMode(
       }
 
       const currentScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
+      const targetReleaseScore = minReleaseScoreForMode(input.qualityMode);
       const hasLocalHardIssues = (finalDiagnostics?.hardIssueCount ?? 0) > 0;
       const shouldAttemptStoryPolish =
         validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
@@ -11896,7 +12014,7 @@ export async function generateStoryDevMode(
         && Boolean(finalDiagnostics)
         && (
           hasLocalHardIssues
-          || currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+          || currentScore < targetReleaseScore
         );
 
       if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) break;
@@ -11907,7 +12025,7 @@ export async function generateStoryDevMode(
       const polishReason =
         currentDiagnostics.hardIssueCount > 0
           ? "local-hard-gates"
-          : currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+          : currentScore < targetReleaseScore
             ? "validator-market-quality"
             : "dialogue-target";
 
@@ -11930,7 +12048,7 @@ export async function generateStoryDevMode(
       const isReleaseNear = typeof currentScore === "number" && currentScore >= DEV_MODE_LINE_PUNCHUP_MIN_SCORE;
       const onlyValidatorScoreGap =
         currentDiagnostics.hardIssueCount === 0
-        && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+        && currentScore < targetReleaseScore
         && currentDiagnostics.dialogPct >= DEV_MODE_MIN_DIALOG_PCT;
       const onlySoftIssuesAndDialogueOK =
         currentDiagnostics.hardIssueCount === 0
@@ -11939,8 +12057,7 @@ export async function generateStoryDevMode(
       const canUseLinePunchup = isReleaseNear && (onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK);
       const validatorQualityRepairChapters =
         currentDiagnostics.hardIssueCount === 0
-        && currentParsed.displayMode !== "reading_pages"
-        && currentScore < DEV_MODE_MIN_MARKET_QUALITY_SCORE
+        && currentScore < targetReleaseScore
         && validatorFindings
           ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
           : [];
@@ -11961,7 +12078,7 @@ export async function generateStoryDevMode(
           console.warn("[dev-mode-generation] Triggering validator-driven chapter quality repair", {
             validationAttempt: validationAttempt + 1,
             score: currentScore,
-            targetScore: DEV_MODE_MIN_MARKET_QUALITY_SCORE,
+            targetScore: targetReleaseScore,
             chapters: validatorQualityRepairChapters.map((chapter) => ({
               order: chapter.order,
               title: chapter.title,
@@ -12544,7 +12661,13 @@ export async function generateStoryDevMode(
         const titleLooksBroken =
           trimmedTitleWords.length < 2
           || /\b(der|die|das|den|dem|des|ein|eine)\s+(der|die|das|den|dem|des|ein|eine)\b/i.test(trimmedTitle)
-          || /^(der|die|das|den|dem|des|ein|eine)\s*$/i.test(trimmedTitle);
+          || /^(der|die|das|den|dem|des|ein|eine)\s*$/i.test(trimmedTitle)
+          || titleLooksLikeDanglingFragment(trimmedTitle)
+          || Boolean(
+            input.selectedIdea?.title
+            && normalizeTitleForIntegrity(input.selectedIdea.title).startsWith(normalizeTitleForIntegrity(trimmedTitle))
+            && normalizeTitleForIntegrity(input.selectedIdea.title) !== normalizeTitleForIntegrity(trimmedTitle)
+          );
         if (titleLooksBroken && trimmedTitle !== finalParsed.title) {
           console.warn("[dev-mode-generation] Deterministic title trim rejected because it would produce a broken title", {
             before: finalParsed.title,
@@ -12556,6 +12679,11 @@ export async function generateStoryDevMode(
           finalParsed = { ...finalParsed, title: trimmedTitle };
           remediated = true;
         }
+      }
+      const restoredTitleStory = restoreSelectedIdeaTitleIfFragment(finalParsed, input);
+      if (restoredTitleStory.title !== finalParsed.title) {
+        finalParsed = restoredTitleStory;
+        remediated = true;
       }
       if (remediated) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
@@ -12569,6 +12697,18 @@ export async function generateStoryDevMode(
           localGateScore,
           finalQualityScore,
         });
+      }
+    }
+
+    if (finalParsed) {
+      const restoredTitleStory = restoreSelectedIdeaTitleIfFragment(finalParsed, input);
+      if (restoredTitleStory.title !== finalParsed.title) {
+        finalParsed = restoredTitleStory;
+        finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        rawQualityScore = undefined;
+        finalValidatorFindings = undefined;
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
       }
     }
 
@@ -12629,11 +12769,8 @@ export async function generateStoryDevMode(
     }
     // v11 §5: quality-mode-aware minimum. "efficient" mode targets 8.3+,
     // "premium" targets 9.0+. When mode is unset we keep the legacy
-    // DEV_MODE_MIN_MARKET_QUALITY_SCORE so existing callers do not change.
     const qualityMode = input.qualityMode || "premium";
-    const minReleaseScore = qualityMode === "efficient"
-      ? Math.min(8.3, DEV_MODE_MIN_MARKET_QUALITY_SCORE)
-      : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
+    const minReleaseScore = minReleaseScoreForMode(qualityMode);
     const releaseGateFailures: string[] = [];
     if (finalDiagnostics?.hardIssueCount && finalDiagnostics.hardIssueCount > 0) {
       releaseGateFailures.push(formatQualityGateFailureReason(finalDiagnostics) || "Hard local quality gates failed.");
@@ -12644,6 +12781,7 @@ export async function generateStoryDevMode(
       );
     }
     releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings));
+    releaseGateFailures.push(...releaseBlockingValidatorMustFixes(finalValidatorFindings, qualityMode));
     if (shouldBlockDevModeQualityGateFailure(input, finalDiagnostics)) {
       throw new Error(releaseGateFailures[0] || "Developer-mode story still has open hard gates after all repair attempts.");
     }
@@ -12913,18 +13051,21 @@ export async function generateStoryDevMode(
   // and the (optional) log entry.
   const routingDecision = (() => {
     const mode = input.qualityMode || "premium";
-    const minScore = mode === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
+    const minScore = minReleaseScoreForMode(mode);
     const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
     const dimFailures = releaseDimensionFailures(finalValidatorFindings);
+    const validatorMustFixFailures = releaseBlockingValidatorMustFixes(finalValidatorFindings, mode);
     const releaseReadyComputed =
       (finalDiagnostics?.hardIssueCount ?? 0) === 0
       && dimFailures.length === 0
+      && validatorMustFixFailures.length === 0
       && releaseScore >= minScore;
     return classifyFinalRouting({
       releaseReady: releaseReadyComputed,
       hardIssues: finalDiagnostics?.hardIssues ?? [],
       softIssues: finalDiagnostics?.softIssues ?? [],
       releaseDimensionFailures: dimFailures,
+      validatorMustFixFailures,
       imagesSkipped: isDebugMode(input) || skipImageGenerationForQualityGate,
       dimensionScores: {
         emotionalPayoff: finalValidatorFindings?.dimensionScores?.emotionalEngine,
@@ -12973,17 +13114,19 @@ export async function generateStoryDevMode(
       releaseReady:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && releaseDimensionFailures(finalValidatorFindings).length === 0
+        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
-          >= ((input.qualityMode || "premium") === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE),
+          >= minReleaseScoreForMode(input.qualityMode),
       // v12 §1: explicit editorial release status. Text may be persisted and
       // illustrated for product completeness while releaseReady remains false.
       status: ((): "ok" | "quality_gate_failed" => {
         const mode = input.qualityMode || "premium";
         const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
-        const minScore = mode === "efficient" ? 8.3 : DEV_MODE_MIN_MARKET_QUALITY_SCORE;
+        const minScore = minReleaseScoreForMode(mode);
         const releaseReadyComputed =
           (finalDiagnostics?.hardIssueCount ?? 0) === 0
           && releaseDimensionFailures(finalValidatorFindings).length === 0
+          && releaseBlockingValidatorMustFixes(finalValidatorFindings, mode).length === 0
           && releaseScore >= minScore;
         if (mode === "premium" && !releaseReadyComputed) return "quality_gate_failed";
         if ((finalDiagnostics?.hardIssueCount ?? 0) > 0) return "quality_gate_failed";
@@ -13005,8 +13148,9 @@ export async function generateStoryDevMode(
       // qualityGatePassed kept as alias for downstream code that still reads it.
       qualityGatePassed:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
-        && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0) >= DEV_MODE_MIN_MARKET_QUALITY_SCORE
-        && releaseDimensionFailures(finalValidatorFindings).length === 0,
+        && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0) >= minReleaseScoreForMode(input.qualityMode)
+        && releaseDimensionFailures(finalValidatorFindings).length === 0
+        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0,
       qualityGateFailureReason,
       // Keep field for backwards compat: generation can return with warnings,
       // while releaseReady/qualityGatePassed stay false.

@@ -300,7 +300,13 @@ const RULE_KEYWORDS_DE = [
   /\bdie\s+regel\s+ist\b/i,
   // "wenn ... dann ..." conditional rule structures
   /\bwenn\s+[\s\S]{0,60}?,\s*(dann|wird|kann|muss)\b/i,
+  // "Die Uhr kann wachsen lassen, doch sie kann auch erschöpfen" — helper
+  // explains the magic object's operating rule instead of letting children
+  // infer it from repeated physical consequences.
+  /\b(der|die|das)\s+[\p{L}]+\s+kann\b[\s\S]{0,90}\b(doch|aber|nur|auch|nimmt|kostet|verliert|ersch[oö]pft|ersch[oö]pfen|erschoepft|erschoepfen)\b/iu,
 ];
+
+const HELPER_RULE_DUMP_DE = /\b(regel|magie|zauber|uhr|spieluhr|ding|gegenstand)\b[\s\S]{0,100}\b(kann|nimmt|kostet|verliert|ersch[oö]pft|ersch[oö]pfen|erschoepft|erschoepfen|mag\s+keine|will\s+nicht)\b/iu;
 
 export function detectHelperExplainsSolution(
   chapterContent: string,
@@ -321,7 +327,8 @@ export function detectHelperExplainsSolution(
     for (const dialogue of dialogueMatches) {
       const hasRule = RULE_KEYWORDS_DE.some((re) => re.test(dialogue));
       const hasSolution = SOLUTION_KEYWORDS_DE.some((re) => re.test(dialogue));
-      if (hasRule && hasSolution) {
+      const hasRuleDump = hasRule && HELPER_RULE_DUMP_DE.test(dialogue);
+      if ((hasRule && hasSolution) || hasRuleDump) {
         return {
           triggered: true,
           helper: helperHit,
