@@ -6492,7 +6492,7 @@ function buildWholeStoryDraftPrompts(
       ? "PRE-EMIT SELF-CHECK (silently run before plain-text output \u2014 rewrite, do not narrate):"
       : "PRE-EMIT SELF-CHECK (silently run before JSON output \u2014 rewrite, do not narrate):",
     `1. Word count: count words in the story paragraphs. If outside ${wordBounds.targetMin}\u2013${wordBounds.targetMax}, trim descriptive subordinate clauses (NEVER cut dialogue) or expand a beat.`,
-    "2. Dialog share: count characters inside quotation marks vs. total. If below 28%, add 1\u20132 short exchanges to the narrative-heaviest segment.",
+    "2. Dialog share (HARD GATE \u2014 do NOT skip): count characters inside quotation marks (\u201E\u201C, \u00BB\u00AB, or \"...\") vs. total characters of the prose. If the dialog share is below 32%, you MUST extend two or three of the most narration-heavy paragraphs with additional 2\u20133-line dialogue exchanges (alternating speakers, each line earning subtext or action) until the share clears 32%. Stories below 27% will be rejected by the server.",
     "3. Red thread: list the recurring red-thread object/refrain by paragraph. If it is missing from a segment, weave it in.",
     titleKeyWords.length > 0
       ? `4. Title contract: confirm each of these words appears in the story paragraphs: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. If any is missing, add it naturally to a fitting paragraph.`
@@ -9313,6 +9313,8 @@ const TITLE_PROMISE_SYNONYMS_DE: Record<string, string[]> = {
   "frohli": ["frohl", "lust", "vergn", "munte"],
   "tapfe": ["tapfe", "mutig", "trau", "mut "],
   "mutig": ["mutig", "tapfe", "trau", "mut "],
+  "mut":   ["mut", "mutig", "tapfe", "trau"],
+  "mutes": ["mut", "mutig", "tapfe", "trau"],
   "neugi": ["neugi", "wunde", "forsc", "frage"],
   "kluge": ["klug", "schl", "weis", "klau"],
   "schla": ["schla", "klug", "weis", "klau"],
@@ -9329,6 +9331,17 @@ const TITLE_PROMISE_SYNONYMS_DE: Record<string, string[]> = {
 function expandTitleWordToStems(word: string): string[] {
   const normalized = word.toLowerCase();
   const stems: string[] = [normalized.slice(0, Math.min(normalized.length, 6))];
+  // German case-ending normalization: a title word in genitive/dative/plural
+  // (Mutes, Mannes, Kompasses, Kindes) must still match the nominative stem
+  // in the body. Strip common short endings and add the trimmed form so
+  // "mutes" also matches "Mut".
+  const caseTrimmed = normalized
+    .replace(/(?:esses|sses)$/u, "ss")
+    .replace(/(?:es|en|em|er|e|s)$/u, "")
+    .trim();
+  if (caseTrimmed && caseTrimmed.length >= 3 && caseTrimmed !== normalized) {
+    stems.push(caseTrimmed.slice(0, Math.min(caseTrimmed.length, 6)));
+  }
   // Find the longest matching cluster key that is a prefix of the word.
   let bestKey: string | null = null;
   for (const key of Object.keys(TITLE_PROMISE_SYNONYMS_DE)) {
@@ -12156,10 +12169,21 @@ export async function generateStoryDevMode(
 
           if (repairedAnyChapter) {
             const qualitySeverity = diagnosticsSeverityScore(qualityDiagnostics, chapterCount, input.config);
-            const locallyAcceptable =
-              qualityDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
-              && qualityDiagnostics.dialogPct >= Math.max(DEV_MODE_MIN_DIALOG_PCT, currentDiagnostics.dialogPct - 1)
-              && qualitySeverity <= currentSeverity + 180;
+            // If the dialog hard-gate is already open on the current story,
+            // accept any repair that strictly reduces hardIssueCount even if
+            // dialog drops by a few percent: removing a different hard issue
+            // (e.g. title-promise or finale weakness) is more valuable than a
+            // marginal dialog wobble, and the emergency dialogue rebalance
+            // downstream will lift dialog again if it lands below the floor.
+            const isHardGateOpen = currentDiagnostics.hardIssueCount > 0;
+            const reducedHardIssues = qualityDiagnostics.hardIssueCount < currentDiagnostics.hardIssueCount;
+            const locallyAcceptable = isHardGateOpen && reducedHardIssues
+              ? qualitySeverity <= currentSeverity + 260
+              : (
+                qualityDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
+                && qualityDiagnostics.dialogPct >= Math.max(DEV_MODE_MIN_DIALOG_PCT, currentDiagnostics.dialogPct - 1)
+                && qualitySeverity <= currentSeverity + 180
+              );
             if (locallyAcceptable) {
               finalParsed = qualityParsed;
               finalModelUsed = qualityModelUsed;
@@ -12610,6 +12634,68 @@ export async function generateStoryDevMode(
         finalValidatorFindings = undefined;
         localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
         finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+      }
+    }
+
+    // Emergency dialogue rebalance: if the polish loop ran but every attempt
+    // was rejected by deterministic diagnostics, the dialogue hard-gate can
+    // still be open here. One last targeted rebalance pass — accepted on a
+    // looser criterion than inside the loop — gives the story a final chance
+    // to clear the floor before release gating turns the run into
+    // quality_gate_failed.
+    if (
+      finalParsed
+      && finalDiagnostics
+      && finalParsed.displayMode === "reading_pages"
+      && finalDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT
+    ) {
+      const rebalanceTargets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 5);
+      if (rebalanceTargets.length > 0) {
+        try {
+          console.warn("[dev-mode-generation] Emergency dialogue rebalance triggered (post-polish gate still open)", {
+            storyDialogPct: finalDiagnostics.dialogPct,
+            hardIssueCount: finalDiagnostics.hardIssueCount,
+            targetCount: rebalanceTargets.length,
+          });
+          const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
+          const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
+            maxTokens: input.config.length === "long" ? 3200 : 2600,
+            temperature: 0.22,
+            timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
+            modelRole: "selected-story",
+          });
+          const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+          const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
+          const acceptable =
+            rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct
+            && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount;
+          if (acceptable) {
+            console.log("[dev-mode-generation] Emergency dialogue rebalance accepted", {
+              dialogPctBefore: finalDiagnostics.dialogPct,
+              dialogPctAfter: rebalancedDiagnostics.dialogPct,
+              hardIssueCountBefore: finalDiagnostics.hardIssueCount,
+              hardIssueCountAfter: rebalancedDiagnostics.hardIssueCount,
+            });
+            finalParsed = rebalancedParsed;
+            finalDiagnostics = rebalancedDiagnostics;
+            storyPolishApplied = true;
+            rawQualityScore = undefined;
+            finalValidatorFindings = undefined;
+            localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+            finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+          } else {
+            console.warn("[dev-mode-generation] Emergency dialogue rebalance rejected", {
+              dialogPctBefore: finalDiagnostics.dialogPct,
+              dialogPctAfter: rebalancedDiagnostics.dialogPct,
+              hardIssueCountBefore: finalDiagnostics.hardIssueCount,
+              hardIssueCountAfter: rebalancedDiagnostics.hardIssueCount,
+            });
+          }
+        } catch (rebalanceError) {
+          console.warn("[dev-mode-generation] Emergency dialogue rebalance failed", {
+            error: rebalanceError instanceof Error ? rebalanceError.message : String(rebalanceError),
+          });
+        }
       }
     }
 
