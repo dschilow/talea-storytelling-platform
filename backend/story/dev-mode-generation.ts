@@ -1624,6 +1624,130 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
   return lines.join("\n");
 }
 
+function escapeRegExp(text: string): string {
+  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function getLockedCentralObject(input: DevModeGenerationInput): string {
+  return compactExcerpt(String(
+    input.selectedIdea?.centralObjectOrPlace ||
+    input.selectedIdea?.title ||
+    input.selectedIdea?.wonderRule ||
+    ""
+  ).trim(), 140);
+}
+
+function artifactNameCandidates(input: DevModeGenerationInput): string[] {
+  const artifact = input.matchedArtifact;
+  if (!artifact?.name) return [];
+  const raw = [artifact.name, artifact.nameEn].filter((value): value is string => Boolean(value));
+  const firstContentWords = raw
+    .flatMap((name) => String(name).split(/\s+/))
+    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").trim())
+    .filter((word) => word.length >= 5 && !NOVELTY_STOPWORDS.has(normalizeNoveltyText(word)))
+    .slice(0, 2);
+  return [...new Set([...raw, ...firstContentWords].map((value) => value.trim()).filter(Boolean))];
+}
+
+function textMentionsArtifact(input: DevModeGenerationInput, text: unknown): boolean {
+  const normalized = normalizeNoveltyText(String(text || ""));
+  if (!normalized) return false;
+  return artifactNameCandidates(input).some((candidate) => {
+    const normalizedCandidate = normalizeNoveltyText(candidate);
+    return normalizedCandidate.length >= 5 && noveltyMotifMatches(normalized, normalizedCandidate);
+  });
+}
+
+function selectedIdeaMentionsArtifact(input: DevModeGenerationInput): boolean {
+  if (!input.selectedIdea) return false;
+  const ideaText = [
+    input.selectedIdea.title,
+    input.selectedIdea.oneLineHook,
+    input.selectedIdea.centralObjectOrPlace,
+    input.selectedIdea.wonderRule,
+    input.selectedIdea.emotionalEngine,
+    input.selectedIdea.coreConflict,
+  ].filter(Boolean).join(" ");
+  return textMentionsArtifact(input, ideaText);
+}
+
+function artifactNoveltyConflictMotifs(input: DevModeGenerationInput): string[] {
+  const artifactText = artifactNameCandidates(input).join(" ");
+  if (!artifactText || !input.noveltyBrief?.hardAvoidMotifs?.length) return [];
+  const normalizedArtifactText = normalizeNoveltyText(artifactText);
+  const conflicts: string[] = [];
+  for (const motif of input.noveltyBrief.hardAvoidMotifs) {
+    const normalizedMotif = normalizeNoveltyText(motif);
+    if (normalizedMotif.length < 5 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (noveltyMotifMatches(normalizedArtifactText, normalizedMotif)) conflicts.push(motif);
+  }
+  return [...new Set(conflicts)].slice(0, 6);
+}
+
+function shouldExposeDevModeArtifact(input: DevModeGenerationInput): boolean {
+  const artifact = input.matchedArtifact;
+  if (!artifact?.name) return false;
+  if (artifactNoveltyConflictMotifs(input).length > 0) return false;
+  // Once a 9.0-potential idea is locked, the pool artifact may only remain in
+  // planning prompts if that idea itself is about the artifact. Otherwise the
+  // support model tends to promote the pool prop into personalObject/finale,
+  // which breaks the selected premise's red thread (e.g. Umhang -> Rucksack).
+  if (input.selectedIdea && !selectedIdeaMentionsArtifact(input)) return false;
+  return true;
+}
+
+function buildCentralObjectContractBlock(input: DevModeGenerationInput): string | null {
+  const central = getLockedCentralObject(input);
+  if (!central) return null;
+  const lines = [
+    "CENTRAL OBJECT / RED-THREAD LOCK (binding):",
+    `- The selected idea's central object/place is: ${central}.`,
+    "- recurringMotif, personalObject, irreversibleMiddle.visibleDamage, and finalPayoff must all grow from this central object/place or from a child-keepsake directly tied to it.",
+    "- Do not promote any pool artifact/background prop into the personalObject, magic rule, red thread, or final payoff unless the locked winning idea itself is explicitly about that artifact.",
+    "- If a background prop conflicts with the locked central object, omit the prop entirely instead of renaming it or giving it a disguised function.",
+  ];
+  return lines.join("\n");
+}
+
+function replaceSuppressedArtifactMentions(text: string, input: DevModeGenerationInput, replacement: string): { text: string; changed: boolean } {
+  let out = String(text || "");
+  const before = out;
+  for (const candidate of artifactNameCandidates(input)) {
+    if (candidate.length < 5) continue;
+    out = out.replace(new RegExp(escapeRegExp(candidate), "gi"), replacement);
+  }
+  return { text: out, changed: out !== before };
+}
+
+function sanitizeSuppressedArtifactInValue<T>(value: T, input: DevModeGenerationInput, context: string): { value: T; changed: boolean; reason?: string } {
+  if (shouldExposeDevModeArtifact(input) || !input.matchedArtifact?.name) return { value, changed: false };
+  const central = getLockedCentralObject(input);
+  if (!central) return { value, changed: false };
+
+  const visit = (node: any): any => {
+    if (typeof node === "string") {
+      return replaceSuppressedArtifactMentions(node, input, central).text;
+    }
+    if (Array.isArray(node)) return node.map((item) => visit(item));
+    if (node && typeof node === "object") {
+      const next: Record<string, any> = {};
+      for (const [key, nested] of Object.entries(node)) {
+        next[key] = visit(nested);
+      }
+      return next;
+    }
+    return node;
+  };
+
+  const nextValue = visit(value) as T;
+  const changed = JSON.stringify(nextValue) !== JSON.stringify(value);
+  return {
+    value: nextValue,
+    changed,
+    reason: changed ? `${context}: suppressed non-central/novelty-conflicting pool artifact; locked red thread to ${central}` : undefined,
+  };
+}
+
 /**
  * Builds the artifact-from-pool block injected into idea/blueprint/draft/polish
  * prompts. The artifact is a SUPPORTING PROP and red-thread candidate, NOT the
@@ -1633,6 +1757,7 @@ function buildPoolIdeaCastingBlock(pool?: DevModePoolCharacter[]): string {
 function buildArtifactPropBlock(input: DevModeGenerationInput): string | null {
   const artifact = input.matchedArtifact;
   if (!artifact || !artifact.name) return null;
+  if (!shouldExposeDevModeArtifact(input)) return null;
   const visualWords = (artifact.visualKeywords || []).slice(0, 6).filter(Boolean).join(", ");
   const lines: string[] = [
     "ARTIFACT FROM POOL (supporting prop, NOT the main role \u2014 use as the recurring red-thread object if it fits naturally):",
@@ -1869,7 +1994,7 @@ async function generateDevModeImages(
       ].join("\n")
     : "(no reference collage \u2014 describe each character's appearance verbatim from the cast list above)";
 
-  const artifact = input.matchedArtifact;
+  const artifact = shouldExposeDevModeArtifact(input) ? input.matchedArtifact : undefined;
   const artifactBlock = artifact
     ? `Supporting prop available: ${artifact.name}${artifact.emoji ? ` ${artifact.emoji}` : ""}; visual cues: ${(artifact.visualKeywords || []).slice(0, 6).join(", ") || "(none)"}. Include it briefly on reading pages where it is on-stage.`
     : "(no supporting prop)";
@@ -3393,6 +3518,7 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     selectedIdea.selectedSupportingCast.length > 0
       ? `- Supporting cast chosen from pool for this idea: ${selectedIdea.selectedSupportingCast.join(", ")}. They must appear with one plot-necessary function each, then leave room for the main avatars.`
       : "- No pool character is mandatory for this idea; keep extra cast lean.",
+    buildCentralObjectContractBlock(input),
     `- Selection reason: ${selectedIdea.chosenReason}`,
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
@@ -4929,6 +5055,11 @@ function buildLoglineEnginePrompts(
     "LOCKED WINNING IDEA:",
     buildSelectedIdeaPromptBlock(input) || "No selected idea available.",
     "",
+    buildCentralObjectContractBlock(input) || "",
+    "PERSONAL-OBJECT RULE:",
+    "- personalObject must come from the locked idea's central object/place or a child-owned keepsake organically tied to it.",
+    "- Do NOT use a pool artifact/background prop as personalObject unless it is literally the selected idea's central object.",
+    "",
     "VOICE / CAST BRIEF:",
     buildVoiceBibleBlock(input) || "",
     buildSelectedCastIntegrationContract(input) || "",
@@ -4976,6 +5107,8 @@ function buildBeatSheetPrompts(
     "Hard gates:",
     "- midpointIrreversibleTurn must be visible and make the old situation impossible to restore by simply waiting.",
     "- personalCost must be concrete: an object, comfort, promise, status, sound, secret, or habit the child risks or gives up.",
+    "- personalObject.object, recurringMotif, irreversibleMiddle.visibleDamage, finalPayoff.plantedDetail, and finalPayoff.closingImage must share ONE red-thread object/place from the locked idea.",
+    "- Do NOT make a pool artifact/background prop the personalObject or finale engine unless it is already the selected idea's central object.",
     "- finalChoice must be executed by the main children, not by a helper or adult.",
     "- helperComplicates may confuse, pressure, fail, ask, or hand over an object. It must not explain the answer.",
     "- closingImage must be a picture/action, not a stated lesson.",
@@ -4996,6 +5129,7 @@ function buildBeatSheetPrompts(
     "",
     "LOCKED IDEA / CONTEXT:",
     buildSelectedIdeaPromptBlock(input) || "",
+    buildCentralObjectContractBlock(input) || "",
     buildSelectedCastIntegrationContract(input, true) || "",
     buildArtifactPropBlock(input) || "",
     `Future display chapters: ${chapterCount}; screenplay scene cards next: exactly ${DEV_MODE_SCENE_CARD_COUNT}.`,
@@ -5062,6 +5196,7 @@ function buildSceneCardPrompts(
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
     `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
+    "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
     // v12 §I additive gates.
     "Scene 3 or 4 (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.",
     "Scene 4 must include childDiscovery — the children find the structural connection. helperFunction must NOT explain the answer.",
@@ -5079,6 +5214,7 @@ function buildSceneCardPrompts(
     promptJson(beatSheet),
     "",
     "VOICE / CAST:",
+    buildCentralObjectContractBlock(input) || "",
     buildVoiceBibleBlock(input) || "",
     buildSelectedCastIntegrationContract(input, true) || "",
   ].filter(Boolean).join("\n");
@@ -5265,7 +5401,8 @@ function repairSceneCardsDeterministically(
   const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
   const heroA = heroNames[0] || "Die Kinder";
   const heroB = heroNames[1] || "das zweite Kind";
-  const personalObject = firstSceneText(beatSheet?.personalObject, input.matchedArtifact?.name, motif);
+  const lockedCentralObject = getLockedCentralObject(input);
+  const personalObject = firstSceneText(beatSheet?.personalObject, lockedCentralObject, motif);
   const rawPersonalCost = firstSceneText(middle.personalCost, beatSheet?.act2?.personalCost, input.selectedIdea?.coreConflict);
   const personalCost = rawPersonalCost.length >= 18 && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
     ? rawPersonalCost
@@ -5847,7 +5984,11 @@ function buildCompactStoryBibleForDraft(
         quirk: compactExcerpt(character.quirk || "", 90),
         rule: "may complicate, fail, ask, pressure, or provide an object; never explain the answer",
       })),
-    artifact: input.matchedArtifact ? {
+    centralObjectContract: getLockedCentralObject(input) ? {
+      lockedCentralObjectOrPlace: getLockedCentralObject(input),
+      rule: "personalObject, recurringMotif, visibleDamage, and finalPayoff must grow from this object/place; do not substitute background props",
+    } : undefined,
+    artifact: shouldExposeDevModeArtifact(input) && input.matchedArtifact ? {
       name: input.matchedArtifact.name,
       storyRole: compactExcerpt(input.matchedArtifact.storyRole, 110),
       visualKeywords: input.matchedArtifact.visualKeywords?.slice(0, 4),
@@ -6096,6 +6237,8 @@ function buildCompactWholeStoryDraftPrompts(
     "- one clear magic / wonder rule, tested on-page at least twice",
     "- one visible wrong action with visible consequence",
     "- irreversible middle with concrete personal cost (object, place, privilege given up)",
+    "- preserve the SCENE PLAN's irreversible visibleDamage on the page: it must leave a visible mark/change (Riss, Stein, Farbe weg, festgewachsen, verschmolzen, verloren) and not soften into 'it got heavy for a moment'",
+    "- keep ONE central red-thread object/place from the story bible and scene plan; do not swap in a backpack/bag/lock/closure or any other object-function mid-draft",
     "- if SCENE PLAN.storyCore.personalObject includes whyPersonal/risk/payoff, plant why it matters before the sacrifice and make the final choice use that same value; never reduce it to a generic useful object",
     "- no-refund payoff: a sacrificed object/status may become useful in a new place, but cannot simply be handed back unchanged by a helper",
     "- final decision performed by the children, not by helpers",
@@ -6109,6 +6252,7 @@ function buildCompactWholeStoryDraftPrompts(
     titleWords.length > 0
       ? `- redeem the title inside the prose with these exact content words or close inflections: ${titleWords.map((word) => `"${word}"`).join(", ")}`
       : null,
+    "- If a title word is abstract (Freundlichkeit, Mut, Freundschaft, Verantwortung), redeem it through concrete action/image; do not add moral/filler dialogue just to say the word.",
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures)`,
     "",
     "BANNED:",
@@ -6199,11 +6343,13 @@ function buildWholeStoryDraftPrompts(
     "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
     "6. One clear magic/wonder rule. Test it on-page at least twice before the finale; the finale uses it.",
     "7. Somewhere in the middle, something becomes irreversible (object lost, voice gone, path closed, secret revealed) so the children can't simply turn back.",
+    "7a. Preserve the screenplay plan's visibleDamage literally as a visible on-page consequence: a mark, break, color loss, stone edge, stuck/fused state, or missing piece must remain after the scene.",
     "8. No-refund payoff: if the child pays a personal cost, do not erase it by returning the object/status unchanged. Transform it, rehome it, or let the child choose a new relationship to it.",
     "9. If the screenplay plan names a personal object with whyPersonal/risk/payoff, plant that emotional value early on-page and make the final sacrifice clearly conscious. A 'last useful item' is not enough unless the child-reader knows why it hurts to give up.",
     "",
     "ROTER FADEN (causal through-line \u2014 the single most important rule):",
     "- Pick ONE concrete recurring object/sound/refrain (the red thread) and make it visible in EVERY segment of the story. Each appearance must change meaning (introduced \u2192 misused \u2192 lost \u2192 reinterpreted \u2192 redeems the finale).",
+    "- The red thread is the locked central object/place from the selected idea. Do not substitute a background prop, backpack, lock, clasp, or disguised version of a rejected object-function.",
     "- Every paragraph must answer 'why now?' from the previous paragraph. If a paragraph could be deleted without the next one missing it, REMOVE that paragraph.",
     "- No orphan scenes, no decorative side-trips. Place markers for the future payoff EARLY \u2014 a child should be able to retell the story as a chain: 'because... then... so...'.",
     "- After writing, mentally read the story to a 6-year-old. If they would ask 'wait, why did that happen?' anywhere, rewrite that bridge.",
@@ -6221,6 +6367,7 @@ function buildWholeStoryDraftPrompts(
       ? `TITEL-VERTRAG (PFLICHT): Der Storytitel ist \"${ideaTitle}\". Diese Kernwoerter MUESSEN wortgetreu (oder als enge Beugung) sichtbar im Prosatext vorkommen \u2014 verteilt ueber die Story, nicht nur einmal: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. Falls ein Wort nicht in den Prosatext passt, aendere lieber den Titel als das Versprechen zu brechen.`
       : "",
     "",
+    "ABSTRAKTE TITELWOERTER: Wenn der Titel ein Wert-Wort enthaelt (Freundlichkeit, Mut, Freundschaft, Verantwortung), loese es durch Handlung/Bild ein. Keine Dialog-Fuellsaetze, die nur das Wort erklaeren.",
     "DIALOG-VERTEILUNG (Pflicht):",
     `- Jedes Segment von 4\u20136 Paragraphen MUSS mindestens 2 echte Dialog-Wechsel enthalten (zwei oder mehr direkt aufeinander folgende quoted lines). Kein Segment darf rein narrativ sein.`,
     `- Direkte Rede insgesamt 25\u201340% des Prosatexts. Jede Zeile traegt Handlung, Beziehung, Humor, Spannung oder Subtext \u2014 keine Fueller.`,
@@ -6256,6 +6403,8 @@ function buildWholeStoryDraftPrompts(
           buildSelectedCastIntegrationContract(input),
         ].join("\n"),
     "",
+      buildCentralObjectContractBlock(input) || "",
+      "",
     buildArtifactPropBlock(input) || "",
     "",
     "LENGTH & RHYTHM:",
@@ -7190,6 +7339,7 @@ function buildStoryPolishPrompts(
     "LOCKED STORY SUMMARY TO PRESERVE:",
     promptJson({
       selectedIdea: compactStoryBible.selectedIdea,
+      centralObjectContract: compactStoryBible.centralObjectContract,
       mainCharacters: compactStoryBible.mainCharacters,
       supportingCast: compactStoryBible.supportingCast,
       titleContract: compactStoryBible.titleContract,
@@ -7232,6 +7382,7 @@ function buildStoryPolishPrompts(
     "- If dialogue is low: convert explanation into short character-specific dialogue that carries action, relationship, humor, or tension.",
     "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
     "- Keep the same title idea, central conflict, recurring motif, and closing image.",
+    "- Keep the locked central object/place as the story's causal red thread. If you remove a repeated/forbidden motif, rewrite its function; do NOT merely rename the old object (e.g. backpack -> clasp) while keeping the same backpack-like logic.",
     readingPageMode ? "- Strengthen the five scene movements through cause/effect; do not turn reading breaks into cliffhanger chapter endings." : "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
     "- Preserve child agency: replace helper/adult explanations with child noticing, child choice, and a concrete action.",
     "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
@@ -7251,10 +7402,12 @@ function buildStoryPolishPrompts(
     "- Each character may use a signature catchphrase / formulaic opener at MOST ONCE in the whole story. Across all characters, no more than 2 such formulaic openers total. Replace extra ones with body language, action, or a fresh concrete line.",
     "",
     "ROTER FADEN (red thread) UND TITEL-VERTRAG:",
+    buildCentralObjectContractBlock(input) || "",
     readingPageMode ? "- Identify the recurring concrete object/refrain/sound. Make sure it appears across the whole story and shifts meaning at each scene movement." : "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
     readingPageMode ? "- Every paragraph must follow causally from the previous one. If a reading page opens cold, add a bridge sentence without recap." : "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
     "- If the title promises specific words/concepts, those words must surface in the prose. If a title key word is missing, add it naturally \u2014 OR change the title to match the prose. Do not leave the title promise unredeemed.",
     "",
+    "- Abstract title words (Freundlichkeit, Mut, Freundschaft, Verantwortung) must be fulfilled by concrete action/image, not by moral slogans or filler lines that only say the word.",
     "KINDERVERSTAENDLICHKEIT (children ages 6-8 must follow on first read):",
     "- Replace literary/adult words (stocksteif, gravitaetisch, sondiert, etc.) with concrete child-world images (toys, animals, food, weather, family).",
     "- Split any sentence with more than one nested subordinate clause into two simpler sentences. No Bandwurmsaetze.",
@@ -7336,6 +7489,8 @@ function buildDialogueRebalancePrompts(
     "Replace narration or inner explanation with short action-bearing dialogue.",
     `Goal: whole-story dialogue ${DEV_MODE_TARGET_DIALOG_PCT}-${DEV_MODE_PROMPT_DIALOG_PCT}%; minimum accepted after this repair is ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}%.`,
     "Every new quoted line must carry action, decision, relationship, tension, clue, or a small joke.",
+    "Do not add abstract moral/title filler (e.g. lines that only say Freundlichkeit/Mut/Freundschaft). If an abstract title word appears, make the line trigger a concrete action or visible consequence.",
+    "Preserve the locked red-thread object/place; do not introduce a new object-function through dialogue.",
     "Forbidden filler: Ja. Okay. Stimmt. Gut. alone.",
     "",
     `On-stage character names only: ${onStageNames.join(", ") || "existing characters only"}.`,
@@ -7465,6 +7620,8 @@ function buildLinePunchupPrompts(
     "- Replacement should be roughly the SAME LENGTH as the original (±40 characters). Do not grow chapter length.",
     "- Replacement must use age-appropriate, concrete, sensory language. No adult abstractions, no moralizing.",
     "- Replacement must keep the same speaker if it is a dialogue line.",
+    "- Replacement must preserve the locked central object/place and may not introduce a new object-function or a disguised replacement for a removed artifact.",
+    "- If touching an abstract title word (Freundlichkeit/Mut/Freundschaft), the replacement must connect it to visible action, not a moral slogan.",
     "- Replacement may add ONE small simile from a child's world (toy, animal, food, weather) per chapter, but never replace an existing iconic simile with a blander one.",
     "- NEVER touch the refrain or any line that appears identically in multiple chapters (those are leitmotifs).",
     `- NEVER change main character names: ${heroNames.join(", ") || "(none specified)"}. NEVER change pool character names.`,
@@ -7481,6 +7638,8 @@ function buildLinePunchupPrompts(
     buildWriterVoiceAnchorBlock(input),
     "",
     "TITLE-PROMISE: if the title's central word/image is missing from the prose, AT LEAST ONE replacement must reintroduce it cleanly (in dialogue or refrain, never as forced exposition).",
+    "",
+    buildCentralObjectContractBlock(input) || "",
     "",
     buildLeanRepairPromptContext(input, chapterCount),
     "",
@@ -9333,6 +9492,10 @@ function analyzeDevModeStoryQuality(
   const noveltyIssues = collectNoveltyGateIssues(story, input);
   for (const issue of noveltyIssues.hard) hardIssues.push(issue);
   for (const issue of noveltyIssues.soft) softIssues.push(issue);
+  if (!shouldExposeDevModeArtifact(input) && input.matchedArtifact?.name && textMentionsArtifact(input, allContent)) {
+    hardIssues.push(`Unterdruecktes Pool-Artefakt "${input.matchedArtifact.name}" ist in die Prosa gerutscht; entferne es semantisch und halte den roten Faden bei "${getLockedCentralObject(input) || "dem Zentralobjekt"}".`);
+    polishInstructions.push("Pool-Artefakt nicht lexikalisch umbenennen: Funktion auf das gesperrte Zentralobjekt/Zentralort der Idee zurueckbauen.");
+  }
   for (const castIssue of collectSelectedCastIssues(story, input)) {
     hardIssues.push(castIssue);
   }
@@ -10818,6 +10981,26 @@ export async function generateStoryDevMode(
     let blueprint: any;
     let critique: any;
 
+    const applySuppressedArtifactSanitizer = <T,>(context: string, value: T): T => {
+      const result = sanitizeSuppressedArtifactInValue(value, input, context);
+      if (result.changed) {
+        console.warn("[dev-mode-generation] suppressed non-central artifact from screenplay plan", {
+          context,
+          artifact: input.matchedArtifact?.name,
+          lockedCentralObject: getLockedCentralObject(input),
+          reason: result.reason,
+        });
+        recordLocalStage("local-diagnostics", {
+          type: "artifact-suppression",
+          context,
+          artifact: input.matchedArtifact?.name,
+          lockedCentralObject: getLockedCentralObject(input),
+          reason: result.reason,
+        });
+      }
+      return result.value;
+    };
+
     const loglinePrompts = buildLoglineEnginePrompts(input, chapterCount);
     const loglineStage = await runStage("logline-emotional-engine", loglinePrompts, {
       maxTokens: 1200,
@@ -10826,7 +11009,7 @@ export async function generateStoryDevMode(
       ...supportCallOptions,
       modelRole: "support",
     });
-    const loglineEngine = loglineStage.parsed || {};
+    let loglineEngine = applySuppressedArtifactSanitizer("logline-emotional-engine", loglineStage.parsed || {});
     const loglineIssues = validateLoglineEngine(loglineEngine);
     if (loglineIssues.length > 0) {
       throw new Error(`Logline + emotional engine gate failed before prose: ${loglineIssues.join(" | ")}`);
@@ -10840,7 +11023,7 @@ export async function generateStoryDevMode(
       ...supportCallOptions,
       modelRole: "support",
     });
-    let beatSheet = unwrapBeatSheet(beatSheetStage.parsed || {});
+    let beatSheet = applySuppressedArtifactSanitizer("filmic-beat-sheet", unwrapBeatSheet(beatSheetStage.parsed || {}));
     let beatSheetIssues = validateBeatSheet(beatSheet, input);
     if (beatSheetIssues.length > 0) {
       const repairPrompts = buildBeatSheetPrompts(input, chapterCount, { ...loglineEngine, previousBeatSheet: beatSheet }, beatSheetIssues);
@@ -10851,7 +11034,7 @@ export async function generateStoryDevMode(
         ...supportCallOptions,
         modelRole: "support",
       });
-      beatSheet = unwrapBeatSheet(repairedBeatSheetStage.parsed || beatSheet);
+      beatSheet = applySuppressedArtifactSanitizer("beat-sheet-repair", unwrapBeatSheet(repairedBeatSheetStage.parsed || beatSheet));
       beatSheetIssues = validateBeatSheet(beatSheet, input);
     }
     if (beatSheetIssues.length > 0) {
@@ -10863,7 +11046,7 @@ export async function generateStoryDevMode(
           remainingIssues: repairedIssues,
           repairedClosingImage: repairedBeatSheet?.act3?.closingImage,
         });
-        beatSheet = repairedBeatSheet;
+        beatSheet = applySuppressedArtifactSanitizer("beat-sheet-deterministic-repair", repairedBeatSheet);
         beatSheetIssues = repairedIssues;
       }
     }
@@ -10898,7 +11081,7 @@ export async function generateStoryDevMode(
       ...supportCallOptions,
       modelRole: "support",
     });
-    let sceneCards = normalizeSceneCards(sceneCardStage.parsed);
+    let sceneCards = applySuppressedArtifactSanitizer("scene-cards", normalizeSceneCards(sceneCardStage.parsed));
     const deterministicSceneRepair = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
     if (deterministicSceneRepair.changed) {
       sceneCards = deterministicSceneRepair.sceneCards;
@@ -10922,7 +11105,7 @@ export async function generateStoryDevMode(
         ...supportCallOptions,
         modelRole: "support",
       });
-      sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
+      sceneCards = applySuppressedArtifactSanitizer("scene-cards-repair", normalizeSceneCards(repairedSceneCardStage.parsed));
       const deterministicRepairAfterModel = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
       if (deterministicRepairAfterModel.changed) {
         sceneCards = deterministicRepairAfterModel.sceneCards;
@@ -11052,7 +11235,7 @@ export async function generateStoryDevMode(
           ...supportCallOptions,
           modelRole: "support",
         });
-        sceneCards = normalizeSceneCards(repairedSceneCardStage.parsed);
+        sceneCards = applySuppressedArtifactSanitizer("scene-cards-irreversible-middle-repair", normalizeSceneCards(repairedSceneCardStage.parsed));
         const deterministicTurnRepair = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
         if (deterministicTurnRepair.changed) {
           sceneCards = deterministicTurnRepair.sceneCards;

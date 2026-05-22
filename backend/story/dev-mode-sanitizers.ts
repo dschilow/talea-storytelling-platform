@@ -358,7 +358,12 @@ export interface StructureSignals {
 const IRREVERSIBLE_KEYWORDS = [
   "schrumpf", "schrumpfte", "winzig", "zerbrach", "verlor", "verschwand",
   "fiel", "stürzte", "stuerzte", "riss", "kaputt", "zersprang", "irreversib",
+  "feststeck", "steckte fest", "steckt fest", "festgewachsen", "verschmolz",
+  "verschmilzt", "versteinert", "verankert", "einsinkt", "einsank",
+  "sank ein", "verwuchs", "bleiern", "klemmt", "klemmte",
 ];
+
+const IRREVERSIBLE_PATTERN = /\b(?:steck\w*\s+fest|blieb\w*\s+fest|feststeck\w*|festgewachsen|verwuchs\w*|verschm(?:o|ö)lz\w*|verschmilz\w*|versteinert\w*|verankert\w*|eins(?:a|ä)nk\w*|sank\s+ein|einsink\w*|bleiern\w*|klemm(?:t|te|en)\w*)\b/i;
 
 const SACRIFICE_KEYWORDS = [
   "opferte", "gab", "schenkte", "verschenkte", "ließ los", "liess los",
@@ -398,7 +403,8 @@ export function detectStructureSignals(
     : [sorted[Math.floor(sorted.length / 2)]];
 
   const midContent = mid.filter(Boolean).map((c) => c.content.toLowerCase()).join(" ");
-  const hasIrreversibleMiddle = IRREVERSIBLE_KEYWORDS.some((kw) => midContent.includes(kw));
+  const hasIrreversibleMiddle = IRREVERSIBLE_PATTERN.test(midContent)
+    || IRREVERSIBLE_KEYWORDS.some((kw) => midContent.includes(kw));
   const sacrificeIn = (text: string) => {
     const lower = text.toLowerCase();
     return SACRIFICE_PATTERN.test(lower) || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw));
