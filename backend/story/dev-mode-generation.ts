@@ -7650,6 +7650,8 @@ function buildDialogueRebalancePrompts(
       order: chapter.order,
       currentDialogPct: chapter.dialogPct,
       chars: chapter.chars,
+      maxCharsAfter: Math.max(900, Math.floor(chapter.chars * 0.98)),
+      targetDialogPctAfter: Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT)),
       addShortLines: Math.max(3, Math.min(8, Math.ceil((DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) / 3))),
       issues: chapter.issues,
     }));
@@ -7663,12 +7665,18 @@ function buildDialogueRebalancePrompts(
     'Schema: { "replacements": [ { "order": number, "paragraphs": string[] } ] }',
   ].join("\n");
   const userPrompt = [
-    "TASK: Increase dialogue share only in the listed reading pages.",
+    "TASK: Rewrite the listed reading pages so dialogue actually carries the page.",
+    "This is NOT an insertion task. You MUST DELETE narration paragraphs and REPLACE them with dialogue exchanges. Inserting dialog lines on top of all existing narration is forbidden — that only inflates length and is rejected.",
+    "Hard per-page constraints (all required):",
+    `  • Page total characters after rewrite must be ≤ maxCharsAfter (see targets[].maxCharsAfter). Shorter is good.`,
+    `  • Page dialogue share after rewrite must be ≥ targets[].targetDialogPctAfter (≥${Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT))}% of page characters inside German quotation marks „ … ").`,
+    "  • Keep the same scene location, same on-stage characters, same plot beats, same red-thread object.",
+    "Method: take each narration paragraph that lacks dialogue, and convert most of its action into 2-4 short exchanged lines with brief stage business (1 verb tag, no adverbs). Delete the prose sentences you replaced — do not keep both.",
     "No new plot. No new characters. No new locations. No moral. No explanatory lesson sentence.",
-    "Replace narration or inner explanation with short action-bearing dialogue.",
-    `Goal: whole-story dialogue ${DEV_MODE_TARGET_DIALOG_PCT}-${DEV_MODE_PROMPT_DIALOG_PCT}%; minimum accepted after this repair is ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}%.`,
+    `Whole-story goal after this repair: dialogue share ${DEV_MODE_TARGET_DIALOG_PCT}-${DEV_MODE_PROMPT_DIALOG_PCT}%; minimum accepted ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}%.`,
     "Every new quoted line must carry action, decision, relationship, tension, clue, or a small joke.",
     "Do not add abstract moral/title filler (e.g. lines that only say Freundlichkeit/Mut/Freundschaft). If an abstract title word appears, make the line trigger a concrete action or visible consequence.",
+    "Helper figures (sidekicks, magical guides) must NOT explain the central rule, give the answer, or summarize the moral. Their dialogue is questions, doubts, reactions, jokes — not solutions.",
     "Preserve the locked red-thread object/place; do not introduce a new object-function through dialogue.",
     "Forbidden filler: Ja. Okay. Stimmt. Gut. alone.",
     "",
@@ -7680,7 +7688,7 @@ function buildDialogueRebalancePrompts(
       targets: targetDiagnostics,
     }),
     "",
-    "Replace ONLY these reading pages; preserve their order/title and output full replacement paragraphs for each target:",
+    "Replace ONLY these reading pages; preserve their order/title and output full replacement paragraphs for each target. The replacement must be a complete rewrite of the page, not the original page with extra lines:",
     promptJson({
       title: story.title,
       description: story.description,
@@ -7707,6 +7715,7 @@ function parseDialogueRebalanceResult(content: string, currentStory: DevModeRawS
     throw new Error("dialogue-rebalance returned no replacements.");
   }
   let next = currentStory;
+  let appliedCount = 0;
   for (const raw of replacements) {
     const order = Number(raw?.order);
     if (!Number.isFinite(order)) continue;
@@ -7721,11 +7730,20 @@ function parseDialogueRebalanceResult(content: string, currentStory: DevModeRawS
       },
       Math.max(0, order - 1)
     );
+    if (parsedChapter.content.trim() === existing.content.trim()) continue;
     next = replaceStoryChapter(next, {
       ...parsedChapter,
       title: existing.title,
       order,
     });
+    appliedCount += 1;
+  }
+  if (appliedCount === 0) {
+    // v12.1 stage-merge tripwire: model returned replacements but none changed
+    // any chapter (either wrong orders, identical content, or empty paragraphs).
+    // Treat as failed stage so the caller can fall back instead of silently
+    // accepting an unchanged story.
+    throw new Error("dialogue-rebalance produced no applicable chapter changes.");
   }
   return currentStory.displayMode === "reading_pages" ? markStoryAsReadingPages(next, currentStory) : next;
 }
@@ -11939,9 +11957,16 @@ export async function generateStoryDevMode(
             });
             const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
             const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
-            const improved =
-              rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct + 0.4
-              && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount;
+            // v12.1: Dialog-rebalance is a targeted dialog repair. Accept if dialogPct rose meaningfully,
+            // even when a different hard-gate ticks up by one (e.g. helper-explains re-triggered by
+            // newly-added lines). The overall severity score still has to stay roughly comparable so
+            // we don't accept a regression in unrelated dimensions.
+            const dialogJumped = rebalancedDiagnostics.dialogPct >= finalDiagnostics.dialogPct + 1.0;
+            const dialogNudged = rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct + 0.4;
+            const hardOk = rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount + (dialogJumped ? 1 : 0);
+            const severityOk = diagnosticsSeverityScore(rebalancedDiagnostics, chapterCount, input.config)
+              <= diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config) + 180;
+            const improved = dialogNudged && hardOk && severityOk;
             repairSelfReflections.push({
               attempt: repairAttempt,
               modelUsed: rebalanceStage.provider.modelUsed,
@@ -11957,6 +11982,12 @@ export async function generateStoryDevMode(
                 afterDialogPct: rebalancedDiagnostics.dialogPct,
                 beforeHardIssueCount: finalDiagnostics.hardIssueCount,
                 afterHardIssueCount: rebalancedDiagnostics.hardIssueCount,
+                dialogJumped,
+                dialogNudged,
+                hardOk,
+                severityOk,
+                beforeSeverity: diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config),
+                afterSeverity: diagnosticsSeverityScore(rebalancedDiagnostics, chapterCount, input.config),
               });
               break;
             }
