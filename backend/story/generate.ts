@@ -30,7 +30,7 @@ import {
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
-import { buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
+import { buildImageCostEntry, buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
 import { GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { normalizeOpenRouterModel } from "./openrouter-generation";
 import {
@@ -53,6 +53,7 @@ import { enrichStoryForTTS } from "./tts-enrichment";
 import { reserveStoryGenerationCapacity } from "./generation-capacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
+const DEV_MODE_RUNWARE_400_AT_4_COST_USD = 0.0006;
 
 type AvatarDevelopmentValidationResult = {
   isValid?: boolean;
@@ -996,6 +997,25 @@ export const generate = api<GenerateStoryRequest, Story>(
             })
             .filter(Boolean)
         : [];
+      const devModeImagesGenerated = config.developerMode === true
+        ? Number(generatedStory.metadata?.imagesGenerated || 0)
+        : 0;
+      const devModeImageCostEntries = devModeImagesGenerated > 0
+        ? [buildImageCostEntry({
+            phase: "dev-mode-generation",
+            step: "runware-images",
+            provider: "runware",
+            model: "runware:400@4",
+            success: true,
+            itemCount: devModeImagesGenerated,
+            providerCostUSD: Number((devModeImagesGenerated * DEV_MODE_RUNWARE_400_AT_4_COST_USD).toFixed(6)),
+            metadata: {
+              estimated: true,
+              unitCostUSD: DEV_MODE_RUNWARE_400_AT_4_COST_USD,
+              source: "dev-mode-image-count",
+            },
+          })]
+        : [];
       const fallbackUsage = pipelineResult?.tokenUsage
         ? pipelineResult.tokenUsage
         : metadataUsage
@@ -1020,7 +1040,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         : [];
       const storyCostEntries = pipelineResult?.costEntries?.length
         ? pipelineResult.costEntries
-        : fallbackCostEntries;
+        : [...fallbackCostEntries, ...devModeImageCostEntries];
       const selectedCandidateTag = pipelineResult?.releaseReport?.selectedCandidateIndex
         ? `cand-${pipelineResult.releaseReport.selectedCandidateIndex}`
         : undefined;

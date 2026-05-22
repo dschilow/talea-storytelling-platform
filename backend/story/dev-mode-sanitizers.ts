@@ -362,8 +362,13 @@ const IRREVERSIBLE_KEYWORDS = [
 
 const SACRIFICE_KEYWORDS = [
   "opferte", "gab", "schenkte", "verschenkte", "ließ los", "liess los",
-  "gab her", "trennte sich", "gab ihn", "gab sie", "verzichtete",
+  "gab her", "gebe her", "gibt her", "geben her", "gib her", "hergeben",
+  "hergegeben", "trennte sich", "gab ihn", "gab sie", "gebe ihn", "gebe sie",
+  "verzichtete", "verzichte", "letztes stück", "letztes stueck", "letzte reserve",
+  "gehört jetzt euch", "gehoert jetzt euch", "für euch", "fuer euch",
 ];
+
+const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab|euch|dir|ihm|ihr)\b|\b(?:hergeben|hergegeben|verschenk\w*|schenk\w*|opfer\w*|verzicht\w*)\b|\b(?:letztes\s+(?:stueck|stück)|letzte\s+reserve|geh(?:oe|ö)rt\s+jetzt\s+euch|f(?:ue|ü)r\s+euch)\b/i;
 
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
@@ -394,8 +399,12 @@ export function detectStructureSignals(
 
   const midContent = mid.filter(Boolean).map((c) => c.content.toLowerCase()).join(" ");
   const hasIrreversibleMiddle = IRREVERSIBLE_KEYWORDS.some((kw) => midContent.includes(kw));
-  const hasPersonalSacrifice = SACRIFICE_KEYWORDS.some((kw) => midContent.includes(kw))
-    || sorted.slice(-2).some((c) => SACRIFICE_KEYWORDS.some((kw) => c.content.toLowerCase().includes(kw)));
+  const sacrificeIn = (text: string) => {
+    const lower = text.toLowerCase();
+    return SACRIFICE_PATTERN.test(lower) || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw));
+  };
+  const hasPersonalSacrifice = sacrificeIn(midContent)
+    || sorted.slice(-2).some((c) => sacrificeIn(c.content));
 
   const finalChapter = sorted[sorted.length - 1];
   const finalTail = finalChapter.content

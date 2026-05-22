@@ -597,7 +597,7 @@ const NOVELTY_STOPWORDS = new Set([
   "bleibt", "bleiben", "blieb", "blieben",
   // German conjunctions / adverbs
   "als", "wenn", "weil", "dass", "denn", "doch", "dann", "schon", "noch", "immer", "wieder",
-  "weiter", "jetzt", "dort", "hier", "heute", "morgen", "abend", "nacht",
+  "weiter", "jetzt", "dort", "hier", "heute", "morgen", "abend", "nacht", "zuruck", "zurueck",
   // Common content stopwords that aren't story-distinguishing
   "grosse", "große", "grossen", "großen", "klein", "kleine", "kleiner", "kleinen", "kleines", "kleinem",
   "abenteuer", "bruder", "schwester", "familie", "freund", "freunde",
@@ -1159,7 +1159,14 @@ function buildNoveltyPromptBlock(input: DevModeGenerationInput): string {
         return `${index + 1}. ${story.title || "(untitled)"}${motifs}`;
       })
     : ["No recent finished stories were available; still avoid the style-anchor concepts and generic fairy-tale defaults."];
-  const hardAvoid = brief.hardAvoidMotifs.slice(0, 18);
+  const trueHardAvoid = brief.hardAvoidMotifs
+    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter(isHardBanMotif)
+    .slice(0, 18);
+  const softAvoid = brief.hardAvoidMotifs
+    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isHardBanMotif(motif))
+    .slice(0, 18);
   return [
     "NOVELTY / LIBRARY-SHELF BRIEF:",
     `- Novelty seed: ${brief.seed}. Use it to choose a fresh direction; do not mention it in the story.`,
@@ -1172,8 +1179,9 @@ function buildNoveltyPromptBlock(input: DevModeGenerationInput): string {
     "- Before writing the blueprint, silently invent 5 premise candidates and reject any that resemble the recent stories below. Use the most specific, cover-worthy candidate.",
     "- The premise, title, central object/place, antagonist/problem, magic rule, and ending image must be different from the recent list.",
     "- Do not reuse sample/style-anchor objects as story content. Style examples are punctuation/register only, never plot material.",
-    "- Treat hard-avoid motifs as word families: if 'spiegel' is forbidden, also avoid spiegelt, Spiegelung, Spiegelwasser, etc.",
-    hardAvoid.length > 0 ? `- Hard-avoid motifs unless the user's prompt explicitly requires them: ${hardAvoid.join(", ")}.` : null,
+    "- Treat true hard-avoid motifs as word families: if 'spiegel' is forbidden, also avoid spiegelt, Spiegelung, Spiegelwasser, etc.",
+    trueHardAvoid.length > 0 ? `- True hard-avoid motifs unless the user's prompt explicitly requires them: ${trueHardAvoid.join(", ")}.` : null,
+    softAvoid.length > 0 ? `- Soft recent-story motif hints: avoid making these the title/premise/magic rule, but do not contort normal prose around incidental generic words: ${softAvoid.join(", ")}.` : null,
     "Recent stories to avoid:",
     ...recentLines,
   ].filter((line): line is string => Boolean(line)).join("\n");
@@ -1744,15 +1752,41 @@ async function generateDevModeImages(
   );
 
   type CastEntry = { kind: "avatar" | "pool"; name: string; imageUrl?: string; description?: string };
+  const safeVisualProfileDescription = (visualProfile: unknown, fallback?: string): string | undefined => {
+    if (!visualProfile || typeof visualProfile !== "object") return fallback;
+    const obj: any = visualProfile;
+    const parts: string[] = [];
+    const add = (value: unknown) => {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      if (text && text !== "null" && text !== "undefined" && text !== "[object Object]") parts.push(text);
+    };
+    if (Array.isArray(obj.visualSignature)) obj.visualSignature.slice(0, 3).forEach(add);
+    if (Array.isArray(obj.outfitLock)) obj.outfitLock.slice(0, 3).forEach(add);
+    if (Array.isArray(obj.faceLock)) obj.faceLock.slice(0, 2).forEach(add);
+    add(obj.description);
+    add(obj.hair);
+    add(obj.outfit);
+    add(obj.clothingCanonical?.outfit);
+    add(obj.clothingCanonical?.top);
+    add(obj.clothingCanonical?.bottom);
+    add(obj.distinctiveFeature || obj.distinctiveFeatures);
+    const cleaned = parts
+      .join(", ")
+      .replace(/[{}\[\]"]/g, " ")
+      .replace(/\b(?:null|undefined)\b/gi, " ")
+      .replace(/\s+,/g, ",")
+      .replace(/,\s*,/g, ",")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return cleaned || fallback;
+  };
   const cast: CastEntry[] = [];
   for (const a of input.avatars || []) {
     cast.push({
       kind: "avatar",
       name: a.name,
       imageUrl: a.imageUrl,
-      description: a.visualProfile && typeof a.visualProfile === "object"
-        ? JSON.stringify(a.visualProfile).slice(0, 400)
-        : a.description,
+      description: safeVisualProfileDescription(a.visualProfile, a.description),
     });
   }
   for (const c of selectedPoolCharacters) {
@@ -1855,8 +1889,8 @@ async function generateDevModeImages(
         "no raw JSON",
         "no slot_N text",
         "no collage terminology",
-        "no text or signs in the image",
-        "no extra background children",
+        "no readable text or signs in the image",
+        "no extra background human children",
         "no outfit transfer between characters",
       ],
     };
@@ -1925,11 +1959,11 @@ async function generateDevModeImages(
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
     "- Refer to on-stage characters by NAME plus concrete visual specifics (hair, skin, clothing colors, outfit). NEVER include slot_N or collage wording in final prompts.",
     "- If the supporting prop is on-stage on a reading page, mention it briefly with its visual cues.",
-    "- Do NOT include any text, captions, letters, signs, or written words in the imagery.",
+    "- Do NOT include readable text, captions, signs, labels, or written words in the imagery. Blank/unreadable paper is allowed only when the scene explicitly needs a note or letter.",
     "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
     "- Do NOT mention TTS markers, brackets, or technical instructions.",
     "- Do NOT reference any named living artist or studio (forbidden: Axel Scheffler, Quentin Blake, Studio Ghibli, Pixar, Disney, etc.). Describe style with neutral terms only.",
-    "- Composition constraint: state how many human children are on-stage in each scene; never imply extra background children. Each named avatar appears EXACTLY once per image.",
+    "- Composition constraint: state how many human children are on-stage in each scene; never imply extra background human children. Non-human animal families may appear only when the scene explicitly needs them. Each named avatar appears EXACTLY once per image.",
   ].join("\n");
 
   let parsedPrompts: { cover?: string; chapters?: Array<{ order?: number; prompt?: string }> } | null = null;
@@ -2020,7 +2054,7 @@ async function generateDevModeImages(
 
   if (needsCoverRefill || missingChapters.length > 0) {
     console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, readingPages=${missingChapters.map(c => c.order).join(",")}`);
-    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage child count explicitly; no extra background children.";
+    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no readable text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage human child count explicitly; no extra background human children.";
     const refillCommon = [
       `Story title: ${parsedTitle}`,
       `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
@@ -2033,7 +2067,7 @@ async function generateDevModeImages(
       artifactBlock,
       "",
       "Refer to on-stage characters by NAME and concrete visual specifics. Do NOT mention slot_N, collage, frame colors, or borders.",
-      "Do NOT include any text, captions, letters, or written words in the imagery.",
+      "Do NOT include readable text, captions, signs, labels, or written words in the imagery. Blank/unreadable paper is allowed only when the scene explicitly needs a note or letter.",
       "Reply with the ENGLISH 40-80 word prompt ONLY \u2014 no preamble, no quotes.",
     ].join("\n");
 
@@ -2096,7 +2130,7 @@ async function generateDevModeImages(
   // duplicate avatars. These constraints are the most reliable in-prompt lever
   // against the visual-QA failures we observed (text/labels, ghost children,
   // duplicate avatars, identity drift).
-  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characters, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, no text, no captions, no speech bubbles, no letters, no signs, no labels, no logos, no extra background children, no duplicate characters, no adults unless required by the scene";
+  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characters, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, no readable text, no captions, no speech bubbles, no signs, no labels, no logos, blank unreadable paper only if required by the scene, no extra background human children, no duplicate characters, no adults unless required by the scene";
 
   // v11 §12D + v12 §13C/D: per-scene character manifest is appended to the
   // prompt so the diffusion model receives explicit "NO dress on boys"
@@ -5134,9 +5168,21 @@ function firstSceneText(...values: any[]): string {
     if (value && typeof value === "object") {
       const nested = firstSceneText(
         value.object,
+        value.name,
+        value.item,
+        value.title,
+        value.description,
+        value.whyPersonal,
+        value.whyItMatters,
+        value.meaning,
+        value.emotionalValue,
+        value.risk,
+        value.whatItCostsToShare,
+        value.cost,
         value.visibleDamage,
         value.personalCost,
         value.cannotReturnToStartBecause,
+        value.finalChoice,
         value.childAction,
         value.closingImage,
         value.payoff,
@@ -5145,6 +5191,44 @@ function firstSceneText(...values: any[]): string {
     }
   }
   return "";
+}
+
+function extractPersonalObjectDetails(primary: any, fallback?: any): {
+  object: string;
+  whyPersonal: string;
+  risk: string;
+  payoff: string;
+  text: string;
+} {
+  const source = primary ?? fallback;
+  if (source && typeof source === "object") {
+    const object = firstSceneText(source.object, source.name, source.item, fallback);
+    const whyPersonal = firstSceneText(source.whyPersonal, source.whyItMatters, source.meaning, source.emotionalValue);
+    const risk = firstSceneText(source.risk, source.whatItCostsToShare, source.personalCost, source.cost);
+    const payoff = firstSceneText(source.payoff, source.finalChoice, source.childAction, source.closingImage);
+    const parts = [
+      object,
+      whyPersonal ? `why personal: ${whyPersonal}` : "",
+      risk ? `risk/cost: ${risk}` : "",
+      payoff ? `payoff: ${payoff}` : "",
+    ].filter(Boolean);
+    return { object, whyPersonal, risk, payoff, text: parts.join("; ") };
+  }
+  const text = firstSceneText(source, fallback);
+  return { object: text, whyPersonal: "", risk: "", payoff: "", text };
+}
+
+function compactPersonalObjectForPrompt(primary: any, fallback?: any, maxChars = 180): string | Record<string, string | undefined> {
+  const details = extractPersonalObjectDetails(primary, fallback);
+  if (details.whyPersonal || details.risk || details.payoff) {
+    return {
+      object: compactExcerpt(details.object || details.text, 90),
+      whyPersonal: details.whyPersonal ? compactExcerpt(details.whyPersonal, 130) : undefined,
+      risk: details.risk ? compactExcerpt(details.risk, 130) : undefined,
+      payoff: details.payoff ? compactExcerpt(details.payoff, 130) : undefined,
+    };
+  }
+  return compactExcerpt(details.text, maxChars);
 }
 
 function hasConcreteSceneDamageSignal(text: string): boolean {
@@ -5562,6 +5646,7 @@ function buildBlueprintFromScreenplayPlan(
 ): any {
   const selectedIdea = input.selectedIdea;
   const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
+  const personalObjectDetails = extractPersonalObjectDetails(beatSheet?.personalObject, loglineEngine?.personalObject);
   return {
     premise: beatSheet?.logline || loglineEngine?.logline || selectedIdea?.oneLineHook || "",
     storySpine: {
@@ -5601,11 +5686,12 @@ function buildBlueprintFromScreenplayPlan(
       nextStorySpark: beatSheet?.act3?.closingImage,
     },
     payoffEngine: {
-      personalObject: beatSheet?.personalObject || loglineEngine?.personalObject,
-      whyItMatters: beatSheet?.emotionalPremise || loglineEngine?.emotionalPremise,
-      whatItCostsToShare: beatSheet?.act2?.personalCost,
+      personalObject: personalObjectDetails.object || personalObjectDetails.text,
+      whyItMatters: personalObjectDetails.whyPersonal || beatSheet?.emotionalPremise || loglineEngine?.emotionalPremise,
+      whatItCostsToShare: personalObjectDetails.risk || beatSheet?.act2?.personalCost,
       wrongAttempt: beatSheet?.act1?.wrongFirstMove,
-      finalChoice: beatSheet?.act3?.finalChoice,
+      finalChoice: personalObjectDetails.payoff || beatSheet?.act3?.finalChoice,
+      personalObjectDetails: compactPersonalObjectForPrompt(beatSheet?.personalObject, loglineEngine?.personalObject, 260),
     },
     antagonistChangeLadder: {
       wantsToPossess: beatSheet?.act2?.complication,
@@ -5681,7 +5767,7 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
       centralQuestion: compactExcerpt(plan.loglineEngine?.centralQuestion || "", 180),
       wonderRule: compactExcerpt(plan.loglineEngine?.wonderRule || plan.beatSheet?.wonderRule || "", 220),
       recurringMotif: compactExcerpt(plan.loglineEngine?.recurringMotif || plan.beatSheet?.recurringMotif || "", 140),
-      personalObject: compactExcerpt(plan.loglineEngine?.personalObject || plan.beatSheet?.personalObject || "", 140),
+      personalObject: compactPersonalObjectForPrompt(plan.beatSheet?.personalObject, plan.loglineEngine?.personalObject, 180),
       emotionalPremise: compactExcerpt(plan.loglineEngine?.emotionalPremise || "", 200),
     },
     actPath: {
@@ -5834,7 +5920,8 @@ function compactReviewedBlueprintForRepair(reviewedBlueprint: any, chapterCount:
       : undefined,
     payoffEngine: compact.payoffEngine
       ? {
-          personalObject: compactExcerpt(compact.payoffEngine.personalObject || "", 100),
+          personalObject: compactPersonalObjectForPrompt(compact.payoffEngine.personalObjectDetails, compact.payoffEngine.personalObject, 120),
+          whyItMatters: compactExcerpt(compact.payoffEngine.whyItMatters || "", 120),
           whatItCostsToShare: compactExcerpt(compact.payoffEngine.whatItCostsToShare || "", 120),
           wrongAttempt: compactExcerpt(compact.payoffEngine.wrongAttempt || "", 120),
           finalChoice: compactExcerpt(compact.payoffEngine.finalChoice || "", 120),
@@ -5870,6 +5957,14 @@ function compactReviewedBlueprintForRepair(reviewedBlueprint: any, chapterCount:
 function buildCompactValidationNoveltyBlock(input: DevModeGenerationInput): string {
   const brief = input.noveltyBrief;
   if (!brief) return "No novelty brief available.";
+  const trueHardAvoid = brief.hardAvoidMotifs
+    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter(isHardBanMotif)
+    .slice(0, 14);
+  const softMotifHints = brief.hardAvoidMotifs
+    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isHardBanMotif(motif))
+    .slice(0, 14);
   const recent = brief.recentStories
     .slice(0, 6)
     .map((story, index) => `${index + 1}. ${story.title}${story.motifKeywords?.length ? ` motifs: ${story.motifKeywords.slice(0, 4).join(", ")}` : ""}`);
@@ -5879,8 +5974,11 @@ function buildCompactValidationNoveltyBlock(input: DevModeGenerationInput): stri
     `- Creative lane: ${compactExcerpt(brief.creativeLane, 120)}`,
     `- Emotional engine: ${compactExcerpt(brief.emotionalEngine, 120)}`,
     `- Wonder mechanic: ${compactExcerpt(brief.wonderMechanic, 120)}`,
-    brief.hardAvoidMotifs.length > 0
-      ? `- Hard-avoid motifs: ${brief.hardAvoidMotifs.slice(0, 14).join(", ")}`
+    trueHardAvoid.length > 0
+      ? `- True hard-ban motifs (score cap applies if load-bearing or repeated): ${trueHardAvoid.join(", ")}`
+      : null,
+    softMotifHints.length > 0
+      ? `- Recent-story soft motif hints (do NOT cap for one generic incidental word; only flag title/premise/magic-rule collisions): ${softMotifHints.join(", ")}`
       : null,
     recent.length > 0 ? "Recent stories to avoid:" : null,
     ...recent,
@@ -5998,6 +6096,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- one clear magic / wonder rule, tested on-page at least twice",
     "- one visible wrong action with visible consequence",
     "- irreversible middle with concrete personal cost (object, place, privilege given up)",
+    "- if SCENE PLAN.storyCore.personalObject includes whyPersonal/risk/payoff, plant why it matters before the sacrifice and make the final choice use that same value; never reduce it to a generic useful object",
     "- no-refund payoff: a sacrificed object/status may become useful in a new place, but cannot simply be handed back unchanged by a helper",
     "- final decision performed by the children, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
@@ -6101,6 +6200,7 @@ function buildWholeStoryDraftPrompts(
     "6. One clear magic/wonder rule. Test it on-page at least twice before the finale; the finale uses it.",
     "7. Somewhere in the middle, something becomes irreversible (object lost, voice gone, path closed, secret revealed) so the children can't simply turn back.",
     "8. No-refund payoff: if the child pays a personal cost, do not erase it by returning the object/status unchanged. Transform it, rehome it, or let the child choose a new relationship to it.",
+    "9. If the screenplay plan names a personal object with whyPersonal/risk/payoff, plant that emotional value early on-page and make the final sacrifice clearly conscious. A 'last useful item' is not enough unless the child-reader knows why it hurts to give up.",
     "",
     "ROTER FADEN (causal through-line \u2014 the single most important rule):",
     "- Pick ONE concrete recurring object/sound/refrain (the red thread) and make it visible in EVERY segment of the story. Each appearance must change meaning (introduced \u2192 misused \u2192 lost \u2192 reinterpreted \u2192 redeems the finale).",
@@ -7008,9 +7108,22 @@ function buildStoryPolishPrompts(
   const compactBlueprint = compactReviewedBlueprintForRepair(reviewedBlueprint, chapterCount);
   const compactStory = buildCompactPromptStory(story);
   const compactStoryBible = buildCompactStoryBibleForDraft(input, chapterCount);
+  const validatorMustFixes = asStringArray(critique?.validatorFindings?.mustFixBefore95, 10);
+  const validatorWarnings = asStringArray(critique?.validatorFindings?.warnings, 8);
+  const validatorBlock = validatorMustFixes.length > 0 || validatorWarnings.length > 0
+    ? [
+        "FINAL VALIDATOR REPAIR BRIEF (binding — fix these exact issues, do not just improve style):",
+        ...validatorMustFixes.map((issue) => `- MUST: ${issue}`),
+        ...validatorWarnings.map((issue) => `- WATCH: ${issue}`),
+      ].join("\n")
+    : "";
+  const validatorText = [...validatorMustFixes, ...validatorWarnings].join(" ");
   const hasTitlePromiseIssue = diagnostics.hardIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue));
-  const hasEndingImageIssue = diagnostics.softIssues.some((issue) => /Finale endet eher mit Erkl/i.test(issue));
-  const hasPersonalCostIssue = diagnostics.softIssues.some((issue) => /kein pers[oö]nlicher Einsatz|kein persoenlicher Einsatz/i.test(issue));
+  const hasEndingImageIssue = diagnostics.softIssues.some((issue) => /Finale endet eher mit Erkl/i.test(issue))
+    || /ending|ende|schluss|finale|moral|holding|haelt|hält|schluessel nutzt|schlüssel nutzt/i.test(validatorText);
+  const hasPersonalCostIssue = diagnostics.softIssues.some((issue) => /kein pers[oö]nlicher Einsatz|kein persoenlicher Einsatz/i.test(issue))
+    || /opfer|sacrifice|personal|wertvoll|valuable|object|gegenstand|heilkraut|cost/i.test(validatorText);
+  const hasNoveltyIssue = /forbidden|verbot|hard-avoid|novelty|wiederholungs|zurueck|zuruck|zurück/i.test(validatorText);
 
   // Build a chapter-by-chapter dialogue-deficit briefing so the polish model
   // sees EXACTLY which chapters are below 18 % / 25 % and roughly how many
@@ -7064,8 +7177,16 @@ function buildStoryPolishPrompts(
     hasPersonalCostIssue
       ? "- COST PRIORITY: make the child visibly give up, risk, or release something concrete on-page. A private insight alone does not count."
       : null,
+    hasPersonalCostIssue
+      ? "- PERSONAL-VALUE PRIORITY: if the object is useful (medicine, key, tool), add the earlier emotional reason it mattered to the child, then make the child consciously give it up."
+      : null,
+    hasNoveltyIssue
+      ? "- NOVELTY WORDING PRIORITY: remove or replace validator-listed repeated/forbidden wording if it is not load-bearing. For generic German words like 'zurück', use 'wieder', 'nach Hause', 'vorbei', or a concrete movement instead."
+      : null,
     "",
     buildLeanRepairPromptContext(input, chapterCount, { readingPageMode }),
+    validatorBlock || null,
+    validatorBlock ? "" : null,
     "LOCKED STORY SUMMARY TO PRESERVE:",
     promptJson({
       selectedIdea: compactStoryBible.selectedIdea,
@@ -12185,6 +12306,8 @@ export async function generateStoryDevMode(
 
       if (sanitized.changed || orthoFixes.length > 0) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        rawQualityScore = undefined;
+        finalValidatorFindings = undefined;
         localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
         finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
       }
@@ -12253,9 +12376,9 @@ export async function generateStoryDevMode(
       }
       if (remediated) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        rawQualityScore = undefined;
+        finalValidatorFindings = undefined;
         localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
-        // Re-apply hard caps against the LAST validator score so the release
-        // score reflects the cleaned story rather than 0.
         finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
         console.log("[dev-mode-generation] Diagnostics re-evaluated after remediation", {
           hardIssueCount: finalDiagnostics.hardIssueCount,
@@ -12263,6 +12386,50 @@ export async function generateStoryDevMode(
           localGateScore,
           finalQualityScore,
         });
+      }
+    }
+
+    // If any post-validation polish or deterministic last-mile edit changed
+    // the story, validator findings are intentionally cleared. Refresh them
+    // once here so the release score, dimension failures, and logged warnings
+    // describe the ACTUAL story returned to the child, not the pre-polish
+    // draft. This specifically prevents stale 7.x validator feedback from
+    // surviving after a final story-polish pass.
+    if (
+      finalParsed
+      && finalDiagnostics
+      && !finalValidatorFindings
+      && (finalDiagnostics.hardIssueCount ?? 0) === 0
+    ) {
+      try {
+        const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
+        const validationStage = await runStage("final-validation", validationPrompts, {
+          maxTokens: 1800,
+          temperature: 0.1,
+          timeoutMs: 120_000,
+          ...supportCallOptions,
+          modelRole: "support",
+        });
+        finalValidatorFindings = validationStage.parsed;
+        rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+        console.log("[dev-mode-generation] Refreshed final validation after post-polish changes", {
+          rawQualityScore,
+          localGateScore,
+          finalQualityScore,
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          dialogPct: finalDiagnostics.dialogPct,
+        });
+      } catch (validationError) {
+        console.warn("[dev-mode-generation] Final validation refresh failed; using deterministic local gate score", {
+          error: validationError instanceof Error ? validationError.message : String(validationError),
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          dialogPct: finalDiagnostics.dialogPct,
+        });
+        rawQualityScore = undefined;
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
       }
     }
 
