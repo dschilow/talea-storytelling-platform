@@ -378,9 +378,15 @@ const SACRIFICE_KEYWORDS = [
   "hergegeben", "trennte sich", "gab ihn", "gab sie", "gebe ihn", "gebe sie",
   "verzichtete", "verzichte", "letztes stück", "letztes stueck", "letzte reserve",
   "gehört jetzt euch", "gehoert jetzt euch", "für euch", "fuer euch",
+  // Resource-consumption sacrifice: the child consciously spends the last of
+  // a loved/needed resource on someone else (log b9994e62: Adrian uses the
+  // final chalk stub for Rosalie's bridge — "Sie braucht es dringender" — and
+  // the detector reported no sacrifice, wrongly blocking the premium gate).
+  "letzten rest", "letzter rest", "braucht es dringender",
+  "braucht ihn dringender", "braucht sie dringender",
 ];
 
-const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab|euch|dir|ihm|ihr)\b|\b(?:hergeben|hergegeben|verschenk\w*|schenk\w*|opfer\w*|verzicht\w*)\b|\b(?:letztes\s+(?:stueck|stück)|letzte\s+reserve|geh(?:oe|ö)rt\s+jetzt\s+euch|f(?:ue|ü)r\s+euch)\b/i;
+const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab|euch|dir|ihm|ihr)\b|\b(?:hergeben|hergegeben|verschenk\w*|schenk\w*|opfer\w*|verzicht\w*)\b|\b(?:letztes\s+(?:stueck|stück)|letzte\s+reserve|geh(?:oe|ö)rt\s+jetzt\s+euch|f(?:ue|ü)r\s+euch)\b|\bbrauchs?t\s+(?:es|ihn|sie|das|den|die)\s+(?:dringender|n(?:oe|ö)tiger|mehr\s+als\s+ich)\b|\bletzte[rn]?\s+rest\b|\b(?:dann\s+)?komme?\s+ich\s+nicht\s+(?:r(?:ue|ü)ber|mit|hinauf|hin(?:ue|ü)ber)\b/i;
 
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement

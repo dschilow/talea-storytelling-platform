@@ -6450,6 +6450,15 @@ function buildCompactWholeStoryDraftPrompts(
   ].join("\n");
 
   const wordsPerMovement = Math.round(wordBounds.targetMin / Math.max(1, chapterCount));
+  // Countable dialogue contract: gpt-tier models ignore percentage targets
+  // (three production drafts measured 16.6-17.2% against a "30-38%" rule) but
+  // comply with concrete counts. Derive the minimum quoted-line count from the
+  // scene plan's own dialogue beats.
+  const plannedDialogueBeats = (screenplayPlan?.sceneCards || []).reduce(
+    (sum: number, card: any) => sum + (Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.length : 0),
+    0
+  );
+  const minQuotedLines = Math.max(18, Math.min(32, plannedDialogueBeats || 20));
   const userPrompt = [
     `WHOLE STORY DRAFT — one continuous ${languageName} story for ages ${ageGroup}.`,
     "No chapter headings, no scene labels. The app technically splits later into reading pages.",
@@ -6487,6 +6496,7 @@ function buildCompactWholeStoryDraftPrompts(
     `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
     `- That is roughly ${wordsPerMovement} words per scene movement. Do NOT write a compressed summary; let each movement breathe with action, sensory consequence, and speech.`,
     "- dialogue 30–38% of the prose, measured in characters. This floor is as hard as the word count.",
+    `- COUNTABLE DIALOGUE CONTRACT: the scene plan contains ${plannedDialogueBeats || "20+"} planned dialogue beats. Realize EVERY beat as at least one quoted line — the finished prose must contain at least ${minQuotedLines} quoted lines („…“). A beat may grow into a short exchange, never shrink into narration.`,
     "- in the first half of the story, never go more than 2 paragraphs without direct speech",
     "- each scene movement needs at least 2 short quoted exchanges that change action, pressure, or relationship",
     titleWords.length > 0
@@ -6511,7 +6521,7 @@ function buildCompactWholeStoryDraftPrompts(
     "",
     "PRE-EMIT SELF-CHECK (run silently, rewrite before answering — do not narrate):",
     `1. Count the words. Below ${wordBounds.targetMin}? Expand scene movements with action + dialogue (never filler). Above ${wordBounds.targetMax}? Trim narration, never dialogue.`,
-    "2. Estimate dialogue share. Below 30%? Convert narrated beats into quoted exchanges between on-stage characters until the share is safely above 30%.",
+    `2. COUNT the quoted lines („…“) in your draft. Fewer than ${minQuotedLines}? Go back through the scene plan's dialogue beats and convert every unrealized beat into a quoted exchange. Percentages lie — count the lines.`,
     "3. Confirm the refrain appears 3 times and shifts meaning in the finale.",
     "4. Confirm every quoted line could be attributed WITHOUT its speaker tag (distinct voices).",
     "",
@@ -10244,6 +10254,31 @@ function applyGermanGrammarAutoFix(text: string): { text: string; changed: boole
       fixes.push("german-missing-verb-ich-noun");
     }
   }
+  // Typographic cleanup: stray space before a closing German quote
+  // („Er schrumpft! “ → „Er schrumpft!“) — shipped in log b9994e62.
+  const spacingFixed = out.replace(/([^\s„])\s+“/g, "$1“");
+  if (spacingFixed !== out) {
+    out = spacingFixed;
+    fixes.push("german-quote-spacing");
+  }
+  // Close a dialogue quote the model left open at paragraph end
+  // („Das Gras ist glatt! — page ended without “).
+  const parts = out.split(/(\n\s*\n)/);
+  let balanceChanged = false;
+  for (let i = 0; i < parts.length; i += 1) {
+    const part = parts[i];
+    if (!part || /^\n\s*\n$/.test(part)) continue;
+    const opens = (part.match(/„/g) || []).length;
+    const closes = (part.match(/“/g) || []).length;
+    if (opens === closes + 1 && !part.trimEnd().endsWith("“")) {
+      parts[i] = part.trimEnd() + "“";
+      balanceChanged = true;
+    }
+  }
+  if (balanceChanged) {
+    out = parts.join("");
+    fixes.push("german-unbalanced-quote-closed");
+  }
   return { text: out, changed: out !== text, fixes: [...new Set(fixes)] };
 }
 
@@ -12118,10 +12153,14 @@ export async function generateStoryDevMode(
       });
       try {
         const redraftWordBounds = getStoryWordBounds(input.config);
+        const draftQuotedLines = (finalParsed?.chapters || []).reduce(
+          (sum, ch) => sum + (String(ch.content || "").match(/„[^“]*“/g) || []).length,
+          0
+        );
         const redraftPrompts = {
           systemPrompt: wholeStoryPrompts.systemPrompt,
           userPrompt: [
-            `REDRAFT FEEDBACK (binding): your previous draft of this exact story measured only ${finalDiagnostics.dialogPct}% direct speech — far below the hard floor of ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}% and the 30–38% target. Rewrite the SAME story: same plot, same scene plan, same characters, same ${redraftWordBounds.targetMin}-${redraftWordBounds.targetMax} word budget. Keep the narration that carries action, and convert reactions, decisions, and explanations into short quoted exchanges in the characters' distinct voices. Every scene movement needs at least 2 exchanges; never go 2 paragraphs without speech in the first half. Do NOT shorten the story to raise the percentage.`,
+            `REDRAFT FEEDBACK (binding): your previous draft of this exact story measured only ${finalDiagnostics.dialogPct}% direct speech (${draftQuotedLines} quoted lines) — far below the hard floor of ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}% and the 30–38% target. Rewrite the SAME story: same plot, same scene plan, same characters, same ${redraftWordBounds.targetMin}-${redraftWordBounds.targetMax} word budget. Keep the narration that carries action, and convert reactions, decisions, and explanations into short quoted exchanges in the characters' distinct voices. Realize every dialogue beat from the scene plan as a quoted line and COUNT your quoted lines before answering. Every scene movement needs at least 2 exchanges; never go 2 paragraphs without speech in the first half. Do NOT shorten the story to raise the percentage.`,
             wholeStoryPrompts.userPrompt,
           ].join("\n\n"),
         };
