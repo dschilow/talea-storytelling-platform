@@ -13485,6 +13485,34 @@ export async function generateStoryDevMode(
       }
     }
 
+    // FINAL deterministic text autofix — runs AFTER every creative/LLM stage
+    // (validation loop, full-story polish, emergency dialogue rebalance,
+    // motif/title remediation). Those late LLM passes can re-introduce broken
+    // German grammar ("Ich Idee"), straight/unbalanced quotes, and ASCII
+    // umlaut transliterations that an earlier in-loop autofix already cleared.
+    // Production shipped „Ich Idee, ich kann Fauchi nicht beschützen." at the
+    // emotional climax (Rindenplan PDF) precisely because the grammar autofix
+    // only ran inside the loop while the emergency rebalance ran after it.
+    // This last-mile pass guarantees no grammar/quote/orthography artefact can
+    // survive into the persisted story or PDF, regardless of which stage
+    // introduced it.
+    if (finalParsed) {
+      const finalAutofix = applyDeterministicStoryTextAutofixes(finalParsed, input);
+      if (finalAutofix.changed) {
+        finalParsed = finalAutofix.story;
+        finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+        rawQualityScore = undefined;
+        finalValidatorFindings = undefined;
+        localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+        console.log("[dev-mode-generation] Final last-mile deterministic text autofix applied", {
+          fixes: finalAutofix.fixes,
+          hardIssueCount: finalDiagnostics.hardIssueCount,
+          dialogPct: finalDiagnostics.dialogPct,
+        });
+      }
+    }
+
     // If any post-validation polish or deterministic last-mile edit changed
     // the story, validator findings are intentionally cleared. Refresh them
     // once here so the release score, dimension failures, and logged warnings
