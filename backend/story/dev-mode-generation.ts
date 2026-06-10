@@ -35,7 +35,8 @@ import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
-import { isOpenRouterFamilyModel, resolveConfiguredStoryModel } from "./pipeline/model-routing";
+import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
+import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
 import type { StoryConfig, AIProvider } from "./generate";
 import { buildStoryExperienceContext, describeEmotionalFlavors, describeSpecialIngredients } from "./story-experience";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -4728,7 +4729,7 @@ function buildLeanRepairPromptContext(
       ? "Repair context is intentionally compact to reduce cost. Preserve whole-story continuity and do not make reading pages self-contained."
       : "Repair context is intentionally compact to reduce cost. Preserve continuity from the compact story map and the target chapter only.",
     "Voice contract: use the named voice/cast notes from the full prompt; do not force generic careful/lively/helper templates if they do not fit the actual characters.",
-    "Quality goal: shorter, cleaner scenes with more action-bearing dialogue; no new subplot, no rewritten story world.",
+    "Quality goal: cleaner scenes with more action-bearing dialogue; no new subplot, no rewritten story world. Tighten wording but NEVER push the whole story below its word target.",
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
@@ -6098,10 +6099,12 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
         compactExcerpt(card.helperAction || "", 90),
       ].filter(Boolean),
       dialogueBeats: Array.isArray(card.dialogueBeats)
-        ? card.dialogueBeats.slice(0, 4).map((beat: any) => ({
+        ? card.dialogueBeats.slice(0, 6).map((beat: any) => ({
             speaker: beat?.speaker,
             intent: compactExcerpt(beat?.intent || "", 40),
             subtext: compactExcerpt(beat?.subtext || "", 80),
+            draftStyle: beat?.draftStyle ? compactExcerpt(beat.draftStyle, 60) : undefined,
+            actionCarried: beat?.actionCarried ? compactExcerpt(beat.actionCarried, 60) : undefined,
           }))
         : [],
       plant: compactExcerpt(card.plant || "", 90),
@@ -6144,7 +6147,12 @@ function buildCompactStoryBibleForDraft(
       .map((character) => ({
         name: character.name,
         role: character.role,
-        speechStyle: character.speechStyle?.slice(0, 2),
+        archetype: character.archetype || undefined,
+        speechStyle: character.speechStyle?.slice(0, 3),
+        catchphrase: character.catchphrase ? compactExcerpt(character.catchphrase, 80) : undefined,
+        catchphraseContext: character.catchphraseContext ? compactExcerpt(character.catchphraseContext, 60) : undefined,
+        dominantTrait: poolCharacterDominant(character),
+        emotionalTriggers: poolCharacterTriggers(character, 2),
         quirk: compactExcerpt(character.quirk || "", 90),
         rule: "may complicate, fail, ask, pressure, or provide an object; never explain the answer",
       })),
@@ -6365,6 +6373,38 @@ function screenplayCritiqueForDraft(gateIssues: string[]): any {
  * backward compatibility and for the case where no screenplay plan is
  * available (which would leave this compact variant without anchors).
  */
+// Step 4 — Read-aloud sound craft. Real picture books and early readers live
+// on SOUND: alliteration, rhythm, onomatopoeia, refrains. The draft prompts
+// addressed rhythm but never sound-level craft, so read-aloud sparkle was left
+// to chance. Appended to BOTH whole-story-draft builders.
+function buildReadAloudSoundBlock(languageName: string): string {
+  return [
+    "KLANG & VORLESE-MELODIE (read-aloud sound craft \u2014 mandatory):",
+    `- The prose is read ALOUD. It must sound good in ${languageName}, not just look correct.`,
+    "- Per scene movement, land at least ONE deliberate sound moment: a lautmalerisches Wort (klong, platsch, knirsch, summ), a short alliteration, or an echoing word pair.",
+    "- Keep ONE recurring sound motif or refrain that returns 2\u20133 times and shifts meaning each time \u2014 a handle a child can chant along.",
+    "- Vary the sentence music: alternate very short beats (1\u20134 words) with one flowing sentence. Never three long sentences in a row.",
+    "- Read each finished paragraph in your head. If it does not invite an enthusiastic out-loud voice, rewrite it tighter and more musical.",
+  ].join("\n");
+}
+
+// Step 3 — Preschool (ages 3-5) structural craft. The pipeline previously
+// bucketed 3-5 with 6-8 and only shrank the word budget. Picture books for 3-5
+// are STRUCTURALLY different: cumulative patterns, predictable repetition, one
+// emotional beat per page, a refrain used as scaffolding rather than decoration.
+function buildPreschoolCraftBlock(languageName: string): string {
+  return [
+    "PICTURE-BOOK MODE (ages 3-5 \u2014 binding, overrides denser dramaturgy):",
+    "- This is a read-aloud picture book, NOT a chapter story. Keep ONE simple want and ONE simple problem.",
+    "- Use a strong, predictable PATTERN: a repeated structure or cumulative build the child can anticipate and say along.",
+    "- A clear REFRAIN must repeat almost word-for-word (3+ times) as the spine of the story; only a tiny, meaningful variation at the very end.",
+    "- One emotional beat per scene movement. No subplots, no second mystery, no inner low-point dramaturgy.",
+    "- Very short sentences. Concrete, familiar things only: animals, toys, food, weather, family, bedtime.",
+    "- Gentle stakes and a warm, reassuring close. No real peril, no irreversible loss.",
+    `- All prose stays in simple ${languageName} a 4-year-old hears every day.`,
+  ].join("\n");
+}
+
 function buildCompactWholeStoryDraftPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -6387,8 +6427,11 @@ function buildCompactWholeStoryDraftPrompts(
     '{ "title": string, "description": string, "paragraphs": string[] }',
     "Emit the \"paragraphs\" key EXACTLY ONCE. Do not restart it per scene; append every paragraph to the same flat array in reading order.",
     "Do not output: chapters, reading-page labels, markdown, raw JSON inside the prose, explanation notes.",
+    "",
+    getReferenceFewshotBlock(languageCodeFromName(languageName)),
   ].join("\n");
 
+  const wordsPerMovement = Math.round(wordBounds.targetMin / Math.max(1, chapterCount));
   const userPrompt = [
     `WHOLE STORY DRAFT — one continuous ${languageName} story for ages ${ageGroup}.`,
     "No chapter headings, no scene labels. The app technically splits later into reading pages.",
@@ -6400,6 +6443,9 @@ function buildCompactWholeStoryDraftPrompts(
     "",
     "SCENE PLAN (binding, do not invent a different plot):",
     promptJson(compactScenePlan),
+    "",
+    buildVoiceBibleBlock(input) || "",
+    buildWriterVoiceAnchorBlock(input) || "",
     "",
     "MANDATORY:",
     "- one clear magic / wonder rule, tested on-page at least twice",
@@ -6413,15 +6459,30 @@ function buildCompactWholeStoryDraftPrompts(
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
     "- finale uses a detail planted earlier",
     "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\".",
-    `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max})`,
-    "- dialogue 28–36% of prose",
+    "",
+    "REFRAIN CONTRACT (read-aloud magnet):",
+    "- Derive ONE short, speakable signature line from the wonder rule or the creature/object voice (ideally with internal rhyme or rhythm a 6-year-old can chant).",
+    "- It must appear at least 3 times: introduced early → repeated under pressure in the middle → TRANSFORMED in the finale (same shape, new meaning).",
+    "- The refrain belongs to a character's voice, not the narrator.",
+    "",
+    "LENGTH AND DIALOGUE (both budgets are HARD and apply TOGETHER — never fix one by breaking the other):",
+    `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
+    `- That is roughly ${wordsPerMovement} words per scene movement. Do NOT write a compressed summary; let each movement breathe with action, sensory consequence, and speech.`,
+    "- dialogue 30–38% of the prose, measured in characters. This floor is as hard as the word count.",
     "- in the first half of the story, never go more than 2 paragraphs without direct speech",
-    "- each scene movement needs at least one short quoted exchange that changes action, pressure, or relationship",
+    "- each scene movement needs at least 2 short quoted exchanges that change action, pressure, or relationship",
     titleWords.length > 0
       ? `- redeem the title inside the prose with these exact content words or close inflections: ${titleWords.map((word) => `"${word}"`).join(", ")}`
       : null,
     "- If a title word is abstract (Freundlichkeit, Mut, Freundschaft, Verantwortung), redeem it through concrete action/image; do not add moral/filler dialogue just to say the word.",
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures)`,
+    "",
+    languageCodeFromName(languageName) === "de"
+      ? "SPRACH-ECHTHEIT (Pflicht): Nur echte, gebräuchliche deutsche Wörter. KEINE erfundenen Komposita oder Kunstwörter (kein \"apfelscharf\" o.ä.). Wenn unsicher, ob ein 7-Jähriger das Wort kennt: einfacheres Wort wählen. Vergleiche aus der Kinderwelt (Spielzeug, Tiere, Essen, Wetter)."
+      : "LANGUAGE AUTHENTICITY (mandatory): only real, common words a 7-year-old knows. Never invent compound words. If unsure, choose the simpler word.",
+    "",
+    buildReadAloudSoundBlock(languageName),
+    ageGroup === "3-5" ? buildPreschoolCraftBlock(languageName) : null,
     "",
     "BANNED:",
     "- chapter headings, dividers, page labels, scene labels",
@@ -6430,8 +6491,14 @@ function buildCompactWholeStoryDraftPrompts(
     "- helpers explaining the solution",
     "- multiple competing magic rules",
     "",
+    "PRE-EMIT SELF-CHECK (run silently, rewrite before answering — do not narrate):",
+    `1. Count the words. Below ${wordBounds.targetMin}? Expand scene movements with action + dialogue (never filler). Above ${wordBounds.targetMax}? Trim narration, never dialogue.`,
+    "2. Estimate dialogue share. Below 30%? Convert narrated beats into quoted exchanges between on-stage characters until the share is safely above 30%.",
+    "3. Confirm the refrain appears 3 times and shifts meaning in the finale.",
+    "4. Confirm every quoted line could be attributed WITHOUT its speaker tag (distinct voices).",
+    "",
     `FINAL REMINDER: ONE JSON object with title, description, ONE paragraphs[] array only. Never emit duplicate \"paragraphs\" keys. All prose in ${languageName}.`,
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
   return { systemPrompt, userPrompt };
 }
@@ -6469,7 +6536,7 @@ function buildWholeStoryDraftPrompts(
   const isYoungAudience = ageGroup === "3-5" || ageGroup === "6-8";
   const plainTextDraftMode = shouldUsePlainTextWholeStoryDraft(input.config);
 
-  const systemPrompt = qualitySystemPrompt(
+  const baseSystemPrompt = qualitySystemPrompt(
     languageName,
     plainTextDraftMode
       ? [
@@ -6495,6 +6562,10 @@ function buildWholeStoryDraftPrompts(
           "Each paragraph is one paragraph of story prose. The reader should be able to read the paragraphs straight through as ONE continuous narrative.",
         ].join("\n")
   );
+  // Step 1 — anchor the writer with curated, non-copyright few-shot prose so it
+  // imitates real children's-book rhythm/concreteness while writing (not only
+  // at validation time). Appended to the cacheable SYSTEM region.
+  const systemPrompt = [baseSystemPrompt, getReferenceFewshotBlock(languageCodeFromName(languageName))].join("\n\n");
 
   const userPrompt = [
     `WHOLE STORY DRAFT \u2014 write ONE continuous children's story in ${languageName}.`,
@@ -6506,6 +6577,7 @@ function buildWholeStoryDraftPrompts(
     "CORE WRITER CONTRACT (only the rules that matter \u2014 do not over-comply, write like a real children's-book author):",
     "1. Write one continuous story, not 5 mini-stories. Every paragraph must grow out of the previous one.",
     "2. Each repetition (refrain, prop, sound, rule) must shift in meaning. Never repeat for decoration.",
+    "2a. REFRAIN CONTRACT: derive ONE short, chantable signature line from the wonder rule or creature/object voice (internal rhyme or strong rhythm). It appears at least 3 times: introduced early → repeated under pressure → TRANSFORMED in the finale. It belongs to a character's voice, never the narrator.",
     "3. The MAIN avatars must spot the crucial clue and perform the decisive action. Helpers may complicate, pressure, or hint \u2014 they may NEVER explain the solution.",
     "4. The final action must come from a detail that was planted earlier in the story.",
     "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
@@ -6556,6 +6628,10 @@ function buildWholeStoryDraftPrompts(
           "COMPACT STORY BIBLE (binding):",
           promptJson(compactStoryBible),
           "",
+          buildVoiceBibleBlock(input) || "",
+          "",
+          buildWriterVoiceAnchorBlock(input) || "",
+          "",
           "LOCKED SCREENPLAY PLAN (binding; prose may not invent a different plot):",
           promptJson(screenplayDraftPlan),
         ].join("\n")
@@ -6586,6 +6662,9 @@ function buildWholeStoryDraftPrompts(
     `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
     `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
     "",
+    buildReadAloudSoundBlock(languageName),
+    ageGroup === "3-5" ? buildPreschoolCraftBlock(languageName) : null,
+    "",
     "FINALE-PFLICHTEN (last 25% of the story \u2014 hard requirements, not optional):",
     `- ${heroA} (or ${heroB}) must name AT LEAST TWO concrete worries out loud before the decisive action. Not generic fears (\"ich habe Angst\") \u2014 specific things, in their own voice (\"Was, wenn der Schluckauf bleibt?\", \"Was sage ich Mama, wenn das Taschentuch zerrissen ist?\").`,
     "- The personal object planted earlier must appear in the final scene VISIBLY DAMAGED, USED UP, or CHANGED FOR EVER. It must not be magically restored.",
@@ -6615,7 +6694,7 @@ function buildWholeStoryDraftPrompts(
       ? "PRE-EMIT SELF-CHECK (silently run before plain-text output \u2014 rewrite, do not narrate):"
       : "PRE-EMIT SELF-CHECK (silently run before JSON output \u2014 rewrite, do not narrate):",
     `1. Word count: count words in the story paragraphs. If outside ${wordBounds.targetMin}\u2013${wordBounds.targetMax}, trim descriptive subordinate clauses (NEVER cut dialogue) or expand a beat.`,
-    "2. Dialog share (HARD GATE \u2014 do NOT skip): count characters inside quotation marks (\u201E\u201C, \u00BB\u00AB, or \"...\") vs. total characters of the prose. If the dialog share is below 32%, you MUST extend two or three of the most narration-heavy paragraphs with additional 2\u20133-line dialogue exchanges (alternating speakers, each line earning subtext or action) until the share clears 32%. Stories below 27% will be rejected by the server.",
+    "2. Dialog share (quality check, not a filler quota): scan how much of the prose is direct speech. Aim for roughly 28\u201336% across the whole story, but NEVER add filler chatter to hit a number \u2014 a quiet, atmospheric beat is allowed to breathe. If a scene movement has gone fully narrative, convert the part that would play better as a spoken line into real dialogue that carries action, relationship, or subtext. (Prose under ~25% dialogue overall tends to read flat, so do not undershoot either.)",
     "3. Red thread: list the recurring red-thread object/refrain by paragraph. If it is missing from a segment, weave it in.",
     titleKeyWords.length > 0
       ? `4. Title contract: confirm each of these words appears in the story paragraphs: ${titleKeyWords.map((w) => `\"${w}\"`).join(", ")}. If any is missing, add it naturally to a fitting paragraph.`
@@ -7407,7 +7486,6 @@ function buildStoryPolishPrompts(
   const paragraphBounds = getParagraphBounds(input.config);
   const maxSentenceChars = maxSentenceCharsForAge(input.config.ageGroup);
   const wordBounds = getStoryWordBounds(input.config);
-  const totalRepairTargetMaxChars = targetMaxChars * chapterCount;
   const overlongChapterCount = diagnostics.chapterDiagnostics.filter((chapter) => chapter.chars > bounds.max).length;
   const broadCompressionMode = overlongChapterCount >= Math.min(3, chapterCount) || diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
   const readingPageMode = story.displayMode === "reading_pages" || Array.isArray(story.readingBreaks);
@@ -7416,6 +7494,13 @@ function buildStoryPolishPrompts(
     || diagnostics.hardIssues.some((issue) => /deutlich zu kurz|too short|word count/i.test(issue));
   const wordsToAddForTarget = Math.max(0, wordBounds.targetMin - diagnostics.totalWords);
   const targetWordsPerPage = Math.ceil(wordBounds.targetMin / Math.max(1, chapterCount));
+  // Word-derived page char window (~6.2-6.5 chars/word incl. spaces in German
+  // children's prose). The legacy bounds.min-targetMaxChars window told the
+  // model to aim 800-1050 chars/page, which is mathematically BELOW the
+  // whole-story word floor at 5 pages and caused polish passes to shrink
+  // healthy 970-word drafts to ~650 words (log 734d7ae5).
+  const pageCharsLow = Math.max(bounds.min, Math.round((wordBounds.targetMin * 6.2) / Math.max(1, chapterCount)));
+  const pageCharsHigh = Math.round((wordBounds.targetMax * 6.5) / Math.max(1, chapterCount));
   const systemPrompt = [
     `You are a surgical children's-story repair editor. Repair prose in ${languageName}.`,
     "Return valid JSON only, no markdown, no commentary.",
@@ -7475,13 +7560,18 @@ function buildStoryPolishPrompts(
         ),
         "- Each quoted line must DO something (action, conflict, decision, relationship beat, joke). Forbidden filler: \"Ja.\" / \"Okay.\" / \"Stimmt.\" / \"Gut.\" alone.",
         "- Convert summary or interior thought to dialogue between the on-stage characters rather than adding new ones.",
+        `- CRITICAL COUPLING: injecting dialogue must NOT pull the whole story below the word target (${wordBounds.targetMin}-${wordBounds.targetMax} words). When the story is at or below target, ADD dialogue lines on top of the existing scene instead of replacing narration 1:1. Only replace narration when the story is over length.`,
       ].join("\n")
     : "";
 
+  const rejectedPolishFeedback = critique?.rejectedPolishFeedback;
   const userPrompt = [
     `CALL 3B: STRICT GATE REPAIR + CHILDREN'S BOOK POLISH. The repaired prose must stay in ${languageName}.`,
     "You repair an existing children's story. Do not invent a different plot, but you MUST satisfy all hard gates below.",
     "If local diagnostics and your literary preference conflict, local diagnostics win. This is a mechanical repair pass first, a style polish second.",
+    rejectedPolishFeedback
+      ? `PREVIOUS POLISH ATTEMPT WAS REJECTED — do not repeat its mistake: ${compactExcerpt(String(rejectedPolishFeedback.instruction || ""), 280)} (before: ${rejectedPolishFeedback.beforeWords ?? "?"} words / ${rejectedPolishFeedback.beforeDialogPct ?? "?"}% dialogue, rejected attempt produced: ${rejectedPolishFeedback.afterWords ?? "?"} words / ${rejectedPolishFeedback.afterDialogPct ?? "?"}% dialogue). BOTH budgets must hold simultaneously.`
+      : null,
     readingPageMode
       ? "READING-PAGE MODE: the chapters[] schema is only an app display container. Think and write as ONE continuous Vorlesegeschichte with natural reading pages. Do not create chapter arcs, chapter titles, mini-endings, recaps, or isolated page tasks."
       : null,
@@ -7489,7 +7579,7 @@ function buildStoryPolishPrompts(
       ? "BROAD COMPRESSION MODE: this is not line editing. Rewrite every chapter compactly from the current story map; each overlong chapter must become visibly shorter before any stylistic addition is allowed."
       : null,
     hardUnderlengthMode
-      ? `EXPANSION MODE: the current story has only ${diagnostics.totalWords} words. This fails the hard floor (${wordBounds.min}). Add roughly ${wordsToAddForTarget} meaningful words through action, sensory consequence, and character-specific dialogue. Do not compress.`
+      ? `EXPANSION MODE: the current story has only ${diagnostics.totalWords} words. This fails the hard floor (${wordBounds.min}). Add roughly ${wordsToAddForTarget} meaningful words through action, sensory consequence, and character-specific dialogue. Do not compress. CRITICAL COUPLING: at least one third of the words you ADD must be quoted dialogue, so the dialogue share does NOT sink while you expand. Expanding with narration-only blocks gets the result rejected.`
       : null,
     dialogBoostBlock ? "" : null,
     dialogBoostBlock || null,
@@ -7518,19 +7608,23 @@ function buildStoryPolishPrompts(
       centralObjectContract: compactStoryBible.centralObjectContract,
       mainCharacters: compactStoryBible.mainCharacters,
       supportingCast: compactStoryBible.supportingCast,
-      titleContract: compactStoryBible.titleContract,
+      // Title contract must follow the CURRENT story title, not the original
+      // idea title. After a novelty/repair rename, the stale idea-title
+      // contract instructed polish to revert the rename and reintroduce the
+      // forbidden word (log 734d7ae5: "Monster" came back, pass rejected).
+      titleContract: story.title
+        ? { title: story.title, exactWordsToRedeem: extractTitleContentWords(story.title).slice(0, 4) }
+        : compactStoryBible.titleContract,
     }),
     "",
     "HARD GATES:",
     readingPageMode ? `- Exactly ${chapterCount} reading pages in chapters[] for app compatibility.` : `- Exactly ${chapterCount} chapters.`,
-    readingPageMode ? `- Reading pages should stay roughly within ${bounds.min}-${bounds.max} characters, but story-level causality and emotional payoff outrank page symmetry.` : `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose.`,
-    readingPageMode ? `- Aim each reading page for ${bounds.min}-${targetMaxChars} characters only if it does not create a mini-ending.` : `- Aim each chapter for ${bounds.min}-${targetMaxChars} characters so the server count has margin.`,
-    `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
+    "- BUDGET COUPLING: the word target AND the dialogue floor below apply AT THE SAME TIME. Fixing one by breaking the other gets the result rejected and wastes the pass.",
     `- Whole repaired story MUST land in ${wordBounds.targetMin}-${wordBounds.targetMax} words; absolute rejection below ${wordBounds.min}. Current word count: ${diagnostics.totalWords}.`,
-    hardUnderlengthMode && readingPageMode
-      ? `- Reading-page mode underlength fix: target at least about ${targetWordsPerPage} words per reading page on average. Whole-story word count wins over display symmetry.`
-      : null,
-    `- Whole repaired story target: about ${bounds.min * chapterCount}-${totalRepairTargetMaxChars} characters across all chapters; current story has ${diagnostics.totalChars}.`,
+    readingPageMode
+      ? `- That means roughly ${targetWordsPerPage}+ words (≈ ${pageCharsLow}-${pageCharsHigh} characters) per reading page. NEVER shrink the whole story to make pages symmetrical; whole-story word count wins over display symmetry.`
+      : `- Each chapter must stay within ${bounds.min}-${bounds.max} characters of target-language prose; aim ${bounds.min}-${targetMaxChars} so the server count has margin.`,
+    `- ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     readingPageMode ? `- Each reading page MUST have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs in paragraphs[]. This is a release-form hard gate; split scene beats instead of returning 1-2 large blocks.` : `- Each chapter must have ${paragraphBounds.min}-${paragraphBounds.max} paragraphs. If there are too many paragraphs, cut or merge them.`,
     `- Aim for ${paragraphBudget.targetCount} compact paragraphs; keep each paragraph around ${paragraphBudget.maxChars} characters.`,
     `- No sentence may exceed ${maxSentenceChars} characters; split long clauses into child-readable beats.`,
@@ -7563,10 +7657,16 @@ function buildStoryPolishPrompts(
     "- Preserve child agency: replace helper/adult explanations with child noticing, child choice, and a concrete action.",
     "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
     "",
+    buildVoiceBibleBlock(input) || "",
+    "",
     "DIALOGUE VOICE CONTRACT:",
     "- Use the named VOICE BIBLE above. Do not force generic 'careful/lively/trickster/whispering' templates if they do not match the actual characters.",
     "- Each quoted line needs at least two jobs: action, relationship, tension, subtext, or humor.",
     "- If two main avatars could swap a line without anyone noticing, rewrite the line using their age, body detail, memory habit, question style, or visible gesture.",
+    "- REFRAIN PROTECTION: if the story contains a short repeated signature line (refrain), NEVER delete or flatten it. If it appears fewer than 3 times, weave it in (introduced → under pressure → transformed in the finale).",
+    languageCodeFromName(localizedLanguageName(input.config.language)) === "de"
+      ? "- SPRACH-ECHTHEIT: nur echte, gebräuchliche deutsche Wörter. Ersetze erfundene Komposita/Kunstwörter (z.B. \"apfelscharf\") durch echte kindgerechte Wörter (\"klein wie eine Erbse\")."
+      : null,
     "",
     "PAYOFF CONTRACT:",
     "- Preserve prepared payoffs from the blueprint. The finale must come from planted details, not a new solution.",
@@ -7644,13 +7744,21 @@ function buildDialogueRebalancePrompts(
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const targetOrders = new Set(targets.map((chapter) => Number(chapter.order)));
+  // When the whole story is already at/below the word target, dialogue repair
+  // must not shrink pages further (log 734d7ae5: repair passes ping-ponged
+  // between word floor and dialogue floor). Allow modest growth instead.
+  const rebalanceWordBounds = getStoryWordBounds(input.config);
+  const storyBelowWordTarget = diagnostics.totalWords < rebalanceWordBounds.targetMin;
   const targetDiagnostics = diagnostics.chapterDiagnostics
     .filter((chapter) => targetOrders.has(Number(chapter.order)))
     .map((chapter) => ({
       order: chapter.order,
       currentDialogPct: chapter.dialogPct,
       chars: chapter.chars,
-      maxCharsAfter: Math.max(900, Math.floor(chapter.chars * 0.98)),
+      minCharsAfter: storyBelowWordTarget ? chapter.chars : undefined,
+      maxCharsAfter: storyBelowWordTarget
+        ? Math.max(900, Math.ceil(chapter.chars * 1.15))
+        : Math.max(900, Math.floor(chapter.chars * 0.98)),
       targetDialogPctAfter: Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT)),
       addShortLines: Math.max(3, Math.min(8, Math.ceil((DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) / 3))),
       issues: chapter.issues,
@@ -7666,9 +7774,13 @@ function buildDialogueRebalancePrompts(
   ].join("\n");
   const userPrompt = [
     "TASK: Rewrite the listed reading pages so dialogue actually carries the page.",
-    "This is NOT an insertion task. You MUST DELETE narration paragraphs and REPLACE them with dialogue exchanges. Inserting dialog lines on top of all existing narration is forbidden — that only inflates length and is rejected.",
+    storyBelowWordTarget
+      ? `LENGTH GUARD: the whole story is currently BELOW its word target (${diagnostics.totalWords} words, target ${rebalanceWordBounds.targetMin}+). Convert narration into dialogue AND keep or slightly grow each page's length (targets[].minCharsAfter to targets[].maxCharsAfter). Do NOT compress the page.`
+      : "This is NOT an insertion task. You MUST DELETE narration paragraphs and REPLACE them with dialogue exchanges. Inserting dialog lines on top of all existing narration is forbidden — that only inflates length and is rejected.",
     "Hard per-page constraints (all required):",
-    `  • Page total characters after rewrite must be ≤ maxCharsAfter (see targets[].maxCharsAfter). Shorter is good.`,
+    storyBelowWordTarget
+      ? `  • Page total characters after rewrite must stay between minCharsAfter and maxCharsAfter (see targets[]). Never shorter than before.`
+      : `  • Page total characters after rewrite must be ≤ maxCharsAfter (see targets[].maxCharsAfter). Shorter is good.`,
     `  • Page dialogue share after rewrite must be ≥ targets[].targetDialogPctAfter (≥${Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT))}% of page characters inside German quotation marks „ … ").`,
     "  • Keep the same scene location, same on-stage characters, same plot beats, same red-thread object.",
     "Method: take each narration paragraph that lacks dialogue, and convert most of its action into 2-4 short exchanged lines with brief stage business (1 verb tag, no adverbs). Delete the prose sentences you replaced — do not keep both.",
@@ -8281,6 +8393,11 @@ function buildChapterRepairPrompts(
     ? Math.max(5, DEV_MODE_CHAPTER_DIALOG_LINE_TARGET - 2)
     : DEV_MODE_CHAPTER_DIALOG_LINE_TARGET;
   const validatorQualityRepairMode = /validator-quality|market-quality/i.test(String(critique?.polishReason || ""));
+  // Word-floor guard: when the WHOLE story is at/below its word target, a
+  // single-chapter repair must not compress that chapter further ("write
+  // shorter, not longer" caused net word loss across repair passes).
+  const repairWordBounds = getStoryWordBounds(input.config);
+  const storyAtOrBelowWordTarget = storyDiagnostics.totalWords <= repairWordBounds.targetMin;
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -8342,7 +8459,9 @@ function buildChapterRepairPrompts(
     "TARGET GATES FOR THE REPAIRED CHAPTER:",
     `- Keep order exactly ${chapter.order}.`,
     `- Keep title unless a tiny grammar fix is needed: ${chapter.title}.`,
-    `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
+    storyAtOrBelowWordTarget
+      ? `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. The whole story is at/below its word target (${storyDiagnostics.totalWords} words), so this repaired chapter must NOT get shorter than its current ${chapterDiagnostics.chars} characters; growing toward ${bounds.max} is allowed and welcome.`
+      : `- HARD LENGTH: ${bounds.min}-${bounds.max} characters of target-language prose. Aim for ${bounds.min}-${targetMaxChars}; if unsure, write shorter, not longer.`,
     `- Whole-story budget still applies: ${storyWordBudgetGuidance(input.config, chapterCount)}`,
     "- Previous repairs failed because the model under-estimated character counts. Trust the server budget, not your estimate.",
     `- No paragraph should exceed about ${targetParagraphMaxChars} characters. Long paragraphs are the main reason previous repair failed.`,
@@ -8500,6 +8619,7 @@ function buildValidationPrompts(
     "",
     "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
+    "LANGUAGE AUTHENTICITY CHECK (mandatory): scan the prose for invented/non-existent words, malformed compounds, or unidiomatic phrasing in the target language (e.g. a made-up German adjective like 'apfelscharf'). Each such word is a mustFixBefore95 entry quoting the exact word and a real-word replacement; 2+ occurrences cap marketQualityScore at 8.4.",
     "Be honest. A truthful 7.8 beats a flattering 9.2. Self-inflating the score would be a pipeline error.",
     "",
     "VALIDATION TARGET:",
@@ -10523,6 +10643,29 @@ function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
   return isOpenRouterTextCompatibilityModel(resolveSelectedOpenRouterStoryModel(config));
 }
 
+// Step 5 \u2014 Writer-model quality floor. The final whole-story draft is where
+// prose quality is won or lost, yet support stages run on a cheap lite model.
+// If the wizard-selected story model is ITSELF a weak "lite/nano/mini" tier,
+// the final prose would be capped at that quality. This floor upgrades ONLY the
+// whole-story-draft stage to the main Gemini story model (guaranteed wired up,
+// clearly stronger), while leaving explicit strong choices and the OpenRouter
+// path untouched. Opt-out via `config.upgradeWriterModel === false`.
+function resolveDevModeWriterModelFloor(
+  config: StoryConfig
+): Pick<ProviderCallOptions, "modelOverride" | "providerOverride"> | null {
+  if ((config as any)?.upgradeWriterModel === false) return null;
+  // OpenRouter model identifiers vary and a wrong swap could break generation;
+  // respect explicit OpenRouter selections exactly as configured.
+  if (config.aiProvider === "openrouter") return null;
+  const selected = String(resolveConfiguredStoryModel(config) || config.aiModel || "").toLowerCase();
+  if (!selected) return null;
+  // Already the upgrade target \u2014 nothing to do.
+  if (selected === GEMINI_MAIN_STORY_MODEL.toLowerCase()) return null;
+  const isWeakTier = /flash-lite|-lite|nano|mini|haiku/.test(selected);
+  if (!isWeakTier) return null;
+  return { modelOverride: GEMINI_MAIN_STORY_MODEL, providerOverride: "native" };
+}
+
 function openRouterReasoningForDevMode(model: string): { effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"; exclude: boolean } {
   const normalized = String(model || "").toLowerCase();
   if (/google\/gemini|gemini-pro|gemini-flash/.test(normalized)) {
@@ -10550,9 +10693,13 @@ function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, r
 }
 
 function devModeStoryPolishMaxTokens(config: StoryConfig): number {
-  if (config.length === "long") return 7800;
-  if (config.length === "short") return 2600;
-  return 3400;
+  // Expansion repairs rewrite the WHOLE story at target length (medium:
+  // 900-1200 words ≈ 2400+ tokens of German prose plus JSON scaffolding).
+  // 3400 left the model squeezed between "expand" and "stay under budget";
+  // a higher cap costs nothing unless used.
+  if (config.length === "long") return 9000;
+  if (config.length === "short") return 3200;
+  return 4600;
 }
 
 function devModeIdeaCandidateMaxTokens(config: StoryConfig, retry: boolean): number {
@@ -11829,12 +11976,20 @@ export async function generateStoryDevMode(
 
     let wholeStoryStage: Awaited<ReturnType<typeof runStage>>;
     let wholeStoryDraft: DevModeWholeStoryDraft;
+    const writerModelFloor = resolveDevModeWriterModelFloor(input.config);
+    if (writerModelFloor) {
+      console.log("[dev-mode-generation] §5 writer-model floor applied for whole-story-draft", {
+        selectedModel: resolveConfiguredStoryModel(input.config) || input.config.aiModel,
+        upgradedTo: writerModelFloor.modelOverride,
+      });
+    }
     try {
       wholeStoryStage = await runStage("whole-story-draft", wholeStoryPrompts, {
         maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, false),
         temperature: 0.82,
         timeoutMs: devModeStoryDraftTimeoutMs(input.config, false),
         modelRole: "selected-story",
+        ...(writerModelFloor || {}),
       });
       wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
     } catch (wholeStoryError) {
@@ -11850,6 +12005,7 @@ export async function generateStoryDevMode(
           temperature: 0.6,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
+          ...(writerModelFloor || {}),
         });
         wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
       } catch (retryError) {
@@ -12229,6 +12385,11 @@ export async function generateStoryDevMode(
       && ((finalDiagnostics.hardIssueCount ?? 0) > 0 || (finalDiagnostics.dialogPct ?? 0) < DEV_MODE_MIN_DIALOG_PCT)
     );
 
+    // Carries the rejection reason of a failed polish attempt into the NEXT
+    // polish prompt, so the retry knows which budget it broke instead of
+    // repeating the same mistake (log 734d7ae5: expansion pass tanked the
+    // dialogue share, got rejected, and the run shipped with failed gates).
+    let lastRejectedPolishFeedback: any = null;
     for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS; validationAttempt += 1) {
       applyCurrentStoryTextAutofixes(`validation-attempt-${validationAttempt + 1}`);
       let validatorFindings: any | undefined;
@@ -12556,6 +12717,7 @@ export async function generateStoryDevMode(
             ...critique,
             validatorFindings,
             polishReason,
+            rejectedPolishFeedback: lastRejectedPolishFeedback || undefined,
           }
         );
         const storyPolishStage = await runStage("story-polish", storyPolishPrompts, {
@@ -12565,16 +12727,45 @@ export async function generateStoryDevMode(
           modelRole: "selected-story",
         });
         const parsedPolishResult = parseAndValidate(storyPolishStage.provider.content, chapterCount);
-        const polishedParsed = currentParsed.displayMode === "reading_pages"
+        let polishedParsed = currentParsed.displayMode === "reading_pages"
           ? markStoryAsReadingPages(parsedPolishResult, currentParsed)
           : parsedPolishResult;
+        // Run deterministic autofixes (quotes, orthography) on the polish
+        // candidate BEFORE acceptance evaluation. Otherwise a substantively
+        // better polish gets rejected for a surface issue the pipeline could
+        // have fixed for free one line later.
+        const polishedAutofix = applyDeterministicStoryTextAutofixes(polishedParsed, input);
+        if (polishedAutofix.changed) {
+          polishedParsed = polishedAutofix.story;
+        }
         const polishedDiagnostics = analyzeDevModeStoryQuality(polishedParsed, input, chapterCount);
         const polishedSeverity = diagnosticsSeverityScore(polishedDiagnostics, chapterCount, input.config);
         const currentHardIssueKeys = new Set(currentDiagnostics.hardIssues.map((issue) => normalizeNoveltyText(issue)));
-        const introducedCriticalHardIssue = polishedDiagnostics.hardIssues.some((issue) => {
-          if (!/Verbotenes|Moral|ASCII|Namensfehler|Novelty|Wiederholungs|Pool-Cast|\[object Object\]/i.test(issue)) return false;
-          return !currentHardIssueKeys.has(normalizeNoveltyText(issue));
-        });
+        // Category-based regression check. Issue strings carry dynamic numbers
+        // ("zu kurz (665 Woerter...)"), so exact-string comparison would treat
+        // a persisting issue as "new". A polish result is critically regressed
+        // when it has a critical CATEGORY the pre-polish story did not have.
+        // "Story ist deutlich zu kurz/lang" + "Dialoganteil" joined the list
+        // after log 734d7ae5: polish #1 shrank a healthy 974-word draft to 652
+        // words and was still accepted; polish #2 expanded without dialogue
+        // and tanked the dialogue floor instead.
+        const criticalCategoryPatterns: RegExp[] = [
+          /Verbotenes/i,
+          /Moral/i,
+          /ASCII/i,
+          /Namensfehler/i,
+          /Novelty/i,
+          /Wiederholungs/i,
+          /Pool-Cast/i,
+          /\[object Object\]/i,
+          /Story ist deutlich zu kurz/i,
+          /Story ist deutlich zu lang/i,
+          /Dialoganteil/i,
+        ];
+        const introducedCriticalHardIssue = criticalCategoryPatterns.some((pattern) =>
+          polishedDiagnostics.hardIssues.some((issue) => pattern.test(issue))
+          && !currentDiagnostics.hardIssues.some((issue) => pattern.test(issue))
+        );
         const locallyAcceptable =
           polishedDiagnostics.hardIssueCount === 0
           || (
@@ -12607,8 +12798,39 @@ export async function generateStoryDevMode(
             dialogPctAfter: polishedDiagnostics.dialogPct,
             introducedCriticalHardIssue,
           });
+          // Do not give up the run on the first rejected polish: hand the
+          // retry the exact budget it broke. The loop bound keeps total
+          // polish attempts unchanged; this only converts a wasted exit
+          // into one informed retry (log 734d7ae5 shipped a failed-gate
+          // story while a near-release rewrite was thrown away here).
+          if (validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS) {
+            const newCriticalIssues = polishedDiagnostics.hardIssues.filter(
+              (issue) => !currentHardIssueKeys.has(normalizeNoveltyText(issue))
+            );
+            lastRejectedPolishFeedback = {
+              attempt: validationAttempt + 1,
+              beforeWords: currentDiagnostics.totalWords,
+              afterWords: polishedDiagnostics.totalWords,
+              beforeDialogPct: currentDiagnostics.dialogPct,
+              afterDialogPct: polishedDiagnostics.dialogPct,
+              instruction: newCriticalIssues.length > 0
+                ? `Your previous rewrite introduced: ${newCriticalIssues.slice(0, 3).join(" | ")}. Fix the original issues WITHOUT introducing these.`
+                : "Your previous rewrite regressed overall severity. Keep every passing gate passing while fixing the named issues.",
+            };
+            repairSelfReflections.push({
+              attempt: validationAttempt + 1,
+              reason: "full-story-polish-rejected",
+              feedbackForNextAttempt: lastRejectedPolishFeedback,
+            });
+            rawQualityScore = undefined;
+            localGateScore = undefined;
+            finalQualityScore = undefined;
+            finalValidatorFindings = undefined;
+            continue;
+          }
           break;
         }
+        lastRejectedPolishFeedback = null;
 
         finalParsed = polishedParsed;
         finalModelUsed = storyPolishStage.provider.modelUsed;
