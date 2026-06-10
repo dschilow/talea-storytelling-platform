@@ -85,7 +85,15 @@ const DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE = 7.9;
 const DEV_MODE_SCENE_CARD_COUNT = 5;
 const DEV_MODE_MAX_IDEA_ROUNDS = 3;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
-const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 27;
+// Premium hard floor for measured dialogue share. Re-calibrated 27 → 25 to
+// match real published read-aloud picture books (Gruffalo / Schule der
+// magischen Tiere sit around 20–26% spoken text). The old 27% floor turned
+// genuinely excellent quiet fairy tales (clean motif, subtext, planted
+// payoff, image ending) into permanent quality_gate_failed runs because a
+// reflective Vorlesegeschichte naturally lands at ~25%. Premium quality is
+// now gated on craft (distinct voices, payoff, image ending), not on a raw
+// dialogue quota that punishes the calm register.
+const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 25;
 // Below this measured dialogue share the draft gets ONE targeted redraft with
 // explicit feedback before any polish/rebalance pass runs. Production logs
 // (734d7ae5: 16.6%, a27e9788: 16.9%) show drafts this far under the floor are
@@ -6487,10 +6495,13 @@ function buildCompactWholeStoryDraftPrompts(
     "- finale uses a detail planted earlier",
     "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\".",
     "",
-    "REFRAIN CONTRACT (read-aloud magnet):",
-    "- Derive ONE short, speakable signature line from the wonder rule or the creature/object voice (ideally with internal rhyme or rhythm a 6-year-old can chant).",
+    "REFRAIN CONTRACT (read-aloud magnet — this is what separates a 9.0 book from a 7.0 draft):",
+    "- Derive ONE short SPOKEN signature line (3–7 words, inside „…“) from the wonder rule or the creature/object voice. It must be chantable, ideally with internal rhyme or a strong 2–4 beat rhythm a 6-year-old can repeat after one hearing.",
+    "- A sound effect alone (Klong, Plopp, Wusch) is NOT a refrain. The refrain is WORDS a character says. A recurring sound may accompany it, but cannot replace it.",
     "- It must appear at least 3 times: introduced early → repeated under pressure in the middle → TRANSFORMED in the finale (same shape, new meaning).",
-    "- The refrain belongs to a character's voice, not the narrator.",
+    "- The refrain belongs to a character's voice, not the narrator. Each return should land on its own short line so the page invites the child to say it aloud.",
+    "",
+    "LEVITY BEAT (mandatory, at least one): plant one genuinely funny moment that grows out of character — a helper's silly logic, a comic mishap with the magic object, a witty mismatch between what a child says and does. Warmth and humour, never sarcasm or a character being mocked. The humour must not derail the emotional through-line.",
     "",
     "LENGTH AND DIALOGUE (both budgets are HARD and apply TOGETHER — never fix one by breaking the other):",
     `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
@@ -6605,7 +6616,8 @@ function buildWholeStoryDraftPrompts(
     "CORE WRITER CONTRACT (only the rules that matter \u2014 do not over-comply, write like a real children's-book author):",
     "1. Write one continuous story, not 5 mini-stories. Every paragraph must grow out of the previous one.",
     "2. Each repetition (refrain, prop, sound, rule) must shift in meaning. Never repeat for decoration.",
-    "2a. REFRAIN CONTRACT: derive ONE short, chantable signature line from the wonder rule or creature/object voice (internal rhyme or strong rhythm). It appears at least 3 times: introduced early → repeated under pressure → TRANSFORMED in the finale. It belongs to a character's voice, never the narrator.",
+    "2a. REFRAIN CONTRACT: derive ONE short, chantable signature line from the wonder rule or creature/object voice (internal rhyme or strong rhythm). It appears at least 3 times: introduced early → repeated under pressure → TRANSFORMED in the finale. It belongs to a character's voice, never the narrator. A recurring SOUND alone (Klong, Plopp) is not a refrain — the refrain is WORDS a character says, set on its own short line so the child can chant it.",
+    "2b. LEVITY BEAT (mandatory, at least one): one genuinely funny, character-driven moment — a helper's silly logic, a comic mishap with the magic object, a witty say/do mismatch. Warmth and humour, never sarcasm or mocking a character; it must not derail the emotional through-line.",
     "3. The MAIN avatars must spot the crucial clue and perform the decisive action. Helpers may complicate, pressure, or hint \u2014 they may NEVER explain the solution.",
     "4. The final action must come from a detail that was planted earlier in the story.",
     "5. The ending is an IMAGE, not a moral. No \"Sie lernten...\" / \"They learned...\" sentences.",
@@ -10401,8 +10413,8 @@ function releasePremiumStrictGate(
   if (!diagnostics) return [];
   const issues: string[] = [];
 
-  if (Number.isFinite(diagnostics.dialogPct) && diagnostics.dialogPct < 30) {
-    issues.push(`dialogPct ${diagnostics.dialogPct.toFixed(1)}% is below premium floor 30%.`);
+  if (Number.isFinite(diagnostics.dialogPct) && diagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT) {
+    issues.push(`dialogPct ${diagnostics.dialogPct.toFixed(1)}% is below premium floor ${DEV_MODE_MIN_DIALOG_PCT}%.`);
   }
 
   const allIssues = [

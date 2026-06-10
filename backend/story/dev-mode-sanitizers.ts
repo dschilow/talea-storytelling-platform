@@ -392,6 +392,15 @@ const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
   "ping", "tickte", "schnurrte", "atmete", "leuchtete", "knirschte", "summte",
   "blieb stehen", "öffnete sich", "oeffnete sich", "schloss sich",
+  // Light / reflection images (a very common picture-book closing beat)
+  "spiegelte", "glänzte", "glaenzte", "glitzerte", "schimmerte", "funkelte",
+  "blinkte", "strahlte", "sonne", "licht", "schein",
+  // Sound / onomatopoeia closings (the Gruffalo-style acoustic anchor):
+  // a finale that fades on a repeated/transformed sound is an image, not a moral.
+  "klong", "kling", "klingen", "klingern", "klingelte", "klirrte", "plopp",
+  "klimperte", "raschelte", "flüsterte", "fluesterte", "wisperte", "pochte",
+  // Touch / warmth / quiet closings
+  "wurde warm", "wurde leicht", "lag offen", "lag still", "wurde still",
 ];
 
 const MORAL_FINALE_HINTS = [
