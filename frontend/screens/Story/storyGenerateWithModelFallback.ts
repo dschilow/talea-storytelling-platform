@@ -3,8 +3,14 @@ const GEMINI_PRO_PREVIEW_MODELS = new Set([
   "gemini-3.1-pro-preview",
 ]);
 const GEMINI_FLASH_PREVIEW_MODEL = "gemini-3-flash-preview";
-const GENERATION_RECOVERY_ATTEMPTS = 12;
-const GENERATION_RECOVERY_DELAY_MS = 1500;
+// A duplicate/in-flight generation (e.g. an edge-proxy retry that the backend
+// rejects with a clean "already in progress" conflict) keeps generating in the
+// background and can take a few minutes. Poll long enough to pick up that
+// completed story instead of giving up after a few seconds. The poll
+// short-circuits as soon as the story reaches a terminal "error" status, so
+// genuine failures still surface quickly.
+const GENERATION_RECOVERY_ATTEMPTS = 90;
+const GENERATION_RECOVERY_DELAY_MS = 2000;
 
 type StoryLookupClient = {
   get: (request: { id: string; profileId?: string }) => Promise<any>;
@@ -101,6 +107,13 @@ export function shouldAttemptStoryGenerationRecovery(error: unknown): boolean {
     lowered.includes("deadline") ||
     lowered.includes("internal") ||
     lowered.includes("story generation failed") ||
+    // A duplicate/in-flight generation surfaces as an "already in progress"
+    // conflict; the original request keeps generating, so poll for its result.
+    lowered.includes("already") ||
+    lowered.includes("in progress") ||
+    lowered.includes("bereits eine generierung") ||
+    lowered.includes("alreadyexists") ||
+    /\b409\b/.test(lowered) ||
     /\b50[234]\b/.test(lowered)
   );
 }
@@ -119,6 +132,11 @@ export async function recoverGeneratedStoryAfterFailure(
       const story = await storyClient.get({ id: storyId, profileId });
       if (isGeneratedStoryReady(story)) {
         return story;
+      }
+      // Stop early if the in-flight generation reached a terminal failure
+      // state — there is nothing left to wait for.
+      if (story && typeof story === "object" && story.status === "error") {
+        return null;
       }
     } catch {
       // The row may not exist yet, or the original failure may be genuine.

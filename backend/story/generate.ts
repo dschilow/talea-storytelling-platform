@@ -541,7 +541,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     await reserveStoryGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
-        await tx.exec`
+        const reserved = await tx.queryRow`
           INSERT INTO stories (
             id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
           ) VALUES (
@@ -550,7 +550,22 @@ export const generate = api<GenerateStoryRequest, Story>(
             ${config.language === "en" ? "Your story is being created..." : config.language === "fr" ? "Votre histoire est en cours de création..." : config.language === "es" ? "Tu historia está siendo creada..." : config.language === "it" ? "La tua storia è in fase di creazione..." : config.language === "nl" ? "Jouw verhaal wordt aangemaakt..." : config.language === "ru" ? "Ваша история создаётся..." : "Deine Geschichte wird erstellt..."},
             ${JSON.stringify(config)}, 'generating', ${now}, ${now}
           )
+          ON CONFLICT (id) DO NOTHING
+          RETURNING id
         `;
+        if (!reserved) {
+          // A concurrent/duplicate request already reserved this storyId
+          // (e.g. an edge/proxy retry of the same slow POST — the client
+          // itself does not retry). Without this guard the second INSERT
+          // raised a raw duplicate-key error that surfaced to the frontend
+          // as an opaque "internal error" 500 while the first request kept
+          // generating in the background. Surface a clean, recoverable
+          // conflict instead so the client polls for the in-flight story
+          // rather than double-generating.
+          throw APIError.alreadyExists(
+            "Für diese Geschichte läuft bereits eine Generierung.",
+          );
+        }
       },
     });
 
