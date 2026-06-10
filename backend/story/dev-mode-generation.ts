@@ -86,6 +86,11 @@ const DEV_MODE_SCENE_CARD_COUNT = 5;
 const DEV_MODE_MAX_IDEA_ROUNDS = 3;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 27;
+// Below this measured dialogue share the draft gets ONE targeted redraft with
+// explicit feedback before any polish/rebalance pass runs. Production logs
+// (734d7ae5: 16.6%, a27e9788: 16.9%) show drafts this far under the floor are
+// never rescued by downstream repairs — they just trade words for dialogue.
+const DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT = 24;
 const DEV_MODE_TARGET_DIALOG_PCT = 32;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
 // New range matches real children's-book dialogue density (25–40%).
@@ -234,7 +239,10 @@ type DevModePipelineStage =
   | "image-prompts"
   // v12 §4 + §11: page-count + expansion repair logging.
   | "page-count-repair"
-  | "expansion-repair";
+  | "expansion-repair"
+  // Draft-stage dialogue redraft (one retry when the draft's dialogue share
+  // collapses far below the floor).
+  | "draft-dialog-redraft";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -2133,6 +2141,16 @@ async function generateDevModeImages(
       .replace(/[^a-z0-9\s,.-]/g, " ")
       .replace(/\s{2,}/g, " ")
       .trim();
+    // German-residue guard: the tiny dictionary above only covers common
+    // props. When the source text is full German prose, the survivors form a
+    // word salad ("schrumpfte wilde wachsen weg ... flusterte zack") that
+    // FLUX-family models render as garbled speech bubbles INSIDE the image
+    // (log a27e9788 / Karren-PDF pages 2/3/5). A generic clean English line
+    // beats pseudo-German every time.
+    const germanResidue = /\b(wurde|blieb|seine?[mnrs]?|ihre?[mnrs]?|ihm|ihn|dann|noch|mehr|wenn|beim|nach|gegen|ueber|unter|wieder|dass|hatte|hatten|sagte|rief|jetzt|dort|hier|wachsen|schrumpfte?|fluester\w*|fluster\w*|zwitscher\w*|piepste?|murmelte?|kleine[rn]?|grosse[rn]?|wilde[rn]?)\b/;
+    if (germanResidue.test(out)) {
+      return compactExcerpt(fallback, maxChars);
+    }
     return compactExcerpt(out || fallback, maxChars);
   };
 
@@ -7816,7 +7834,11 @@ function buildDialogueRebalancePrompts(
   return { systemPrompt, userPrompt };
 }
 
-function parseDialogueRebalanceResult(content: string, currentStory: DevModeRawStory): DevModeRawStory {
+function parseDialogueRebalanceResult(
+  content: string,
+  currentStory: DevModeRawStory,
+  options?: { minKeepRatio?: number }
+): DevModeRawStory {
   const parsed = tryParseJson(content);
   const replacements = Array.isArray(parsed?.replacements)
     ? parsed.replacements
@@ -7843,6 +7865,22 @@ function parseDialogueRebalanceResult(content: string, currentStory: DevModeRawS
       Math.max(0, order - 1)
     );
     if (parsedChapter.content.trim() === existing.content.trim()) continue;
+    // Word-floor guard: when the caller signals the story must not shrink
+    // (minKeepRatio set), drop page replacements that compress the page —
+    // production rebalances rewrote 1600-char pages down to ~900 chars and
+    // the resulting word-count hard issue voided the whole pass.
+    if (
+      typeof options?.minKeepRatio === "number"
+      && parsedChapter.content.length < existing.content.length * options.minKeepRatio
+    ) {
+      console.warn("[dev-mode-generation] dialogue-rebalance replacement skipped: page would shrink below keep-ratio", {
+        order,
+        beforeChars: existing.content.length,
+        afterChars: parsedChapter.content.length,
+        minKeepRatio: options.minKeepRatio,
+      });
+      continue;
+    }
     next = replaceStoryChapter(next, {
       ...parsedChapter,
       title: existing.title,
@@ -10183,6 +10221,32 @@ function applyGermanDialogueQuoteAutoFix(text: string): { text: string; changed:
   };
 }
 
+// Deterministic repair for the tiny class of German grammar artefacts that
+// have exactly one correct expansion. Production shipped „Ich Idee", sagte
+// Alexander (log a27e9788) at the emotional climax — the validator pattern
+// existed but the LLM repair never ran. These cases are safe to fix without
+// a model. The lookahead (punctuation/quote/end) prevents touching sequences
+// like a miscapitalized verb ("Ich Frage mich").
+function applyGermanGrammarAutoFix(text: string): { text: string; changed: boolean; fixes: string[] } {
+  if (!text) return { text: "", changed: false, fixes: [] };
+  const fixes: string[] = [];
+  let out = text;
+  const pairs: Array<[RegExp, string]> = [
+    [/\bIch\s+Idee\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Idee"],
+    [/\bIch\s+Frage\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Frage"],
+    [/\bIch\s+Antwort\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Antwort"],
+    [/\bIch\s+Plan\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe einen Plan"],
+  ];
+  for (const [pattern, replacement] of pairs) {
+    const next = out.replace(pattern, replacement);
+    if (next !== out) {
+      out = next;
+      fixes.push("german-missing-verb-ich-noun");
+    }
+  }
+  return { text: out, changed: out !== text, fixes: [...new Set(fixes)] };
+}
+
 function applyDeterministicStoryTextAutofixes(
   story: DevModeRawStory,
   input: DevModeGenerationInput
@@ -10202,6 +10266,11 @@ function applyDeterministicStoryTextAutofixes(
       if (quotes.changed) {
         content = quotes.text;
         fixes.push(...quotes.fixes);
+      }
+      const grammar = applyGermanGrammarAutoFix(content);
+      if (grammar.changed) {
+        content = grammar.text;
+        fixes.push(...grammar.fixes);
       }
     }
 
@@ -12036,6 +12105,72 @@ export async function generateStoryDevMode(
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
     recordLocalStage("local-diagnostics", compactDiagnosticsForPrompt(finalDiagnostics));
 
+    // Draft-stage dialogue redraft: when the draft's dialogue share collapsed
+    // far below the floor, ONE redraft with explicit measured feedback at the
+    // cheapest creative stage beats the historical polish→rebalance cascade,
+    // which traded word count for dialogue and got rejected (logs 734d7ae5,
+    // a27e9788: drafts at ~17% dialogue shipped with failed gates after three
+    // wasted repair calls).
+    if (finalDiagnostics && finalDiagnostics.dialogPct < DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT) {
+      console.warn("[dev-mode-generation] Draft dialogue collapse — issuing one redraft with measured feedback", {
+        dialogPct: finalDiagnostics.dialogPct,
+        totalWords: finalDiagnostics.totalWords,
+      });
+      try {
+        const redraftWordBounds = getStoryWordBounds(input.config);
+        const redraftPrompts = {
+          systemPrompt: wholeStoryPrompts.systemPrompt,
+          userPrompt: [
+            `REDRAFT FEEDBACK (binding): your previous draft of this exact story measured only ${finalDiagnostics.dialogPct}% direct speech — far below the hard floor of ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}% and the 30–38% target. Rewrite the SAME story: same plot, same scene plan, same characters, same ${redraftWordBounds.targetMin}-${redraftWordBounds.targetMax} word budget. Keep the narration that carries action, and convert reactions, decisions, and explanations into short quoted exchanges in the characters' distinct voices. Every scene movement needs at least 2 exchanges; never go 2 paragraphs without speech in the first half. Do NOT shorten the story to raise the percentage.`,
+            wholeStoryPrompts.userPrompt,
+          ].join("\n\n"),
+        };
+        const redraftStage = await runStage("whole-story-draft", redraftPrompts, {
+          maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, true),
+          temperature: 0.7,
+          timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
+          modelRole: "selected-story",
+          ...(writerModelFloor || {}),
+        });
+        const redraft = parseWholeStoryDraft(redraftStage.provider.content);
+        const redraftParsed = applyReadingBreaksToDraft(
+          redraft,
+          chapterCount,
+          localizedLanguageName(input.config.language),
+          screenplayPlan
+        );
+        const redraftDiagnostics = analyzeDevModeStoryQuality(redraftParsed, input, chapterCount);
+        const redraftWordsOk =
+          redraftDiagnostics.totalWords >= Math.min(finalDiagnostics.totalWords, redraftWordBounds.min);
+        const redraftDialogImproved = redraftDiagnostics.dialogPct >= finalDiagnostics.dialogPct + 4;
+        recordLocalStage("draft-dialog-redraft", {
+          accepted: redraftWordsOk && redraftDialogImproved,
+          beforeDialogPct: finalDiagnostics.dialogPct,
+          afterDialogPct: redraftDiagnostics.dialogPct,
+          beforeWords: finalDiagnostics.totalWords,
+          afterWords: redraftDiagnostics.totalWords,
+        });
+        if (redraftWordsOk && redraftDialogImproved) {
+          finalParsed = redraftParsed;
+          finalModelUsed = redraftStage.provider.modelUsed;
+          finalDiagnostics = redraftDiagnostics;
+          console.log("[dev-mode-generation] Draft dialogue redraft accepted", {
+            dialogPct: redraftDiagnostics.dialogPct,
+            totalWords: redraftDiagnostics.totalWords,
+          });
+        } else {
+          console.warn("[dev-mode-generation] Draft dialogue redraft rejected; keeping original draft", {
+            redraftDialogPct: redraftDiagnostics.dialogPct,
+            redraftWords: redraftDiagnostics.totalWords,
+          });
+        }
+      } catch (redraftError) {
+        console.warn("[dev-mode-generation] Draft dialogue redraft failed; keeping original draft", {
+          error: redraftError instanceof Error ? redraftError.message : String(redraftError),
+        });
+      }
+    }
+
     let bestParsed = finalParsed;
     let bestModelUsed = finalModelUsed;
     let bestDiagnostics = finalDiagnostics;
@@ -12111,7 +12246,13 @@ export async function generateStoryDevMode(
               timeoutMs: 120_000,
               modelRole: "selected-story",
             });
-            const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+            const rebalancedParsed = parseDialogueRebalanceResult(
+              rebalanceStage.provider.content,
+              finalParsed,
+              finalDiagnostics.totalWords <= getStoryWordBounds(input.config).targetMin
+                ? { minKeepRatio: 0.95 }
+                : undefined
+            );
             const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
             // v12.1: Dialog-rebalance is a targeted dialog repair. Accept if dialogPct rose meaningfully,
             // even when a different hard-gate ticks up by one (e.g. helper-explains re-triggered by
@@ -12920,7 +13061,13 @@ export async function generateStoryDevMode(
                 timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
                 modelRole: "selected-story",
               });
-              const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+              const rebalancedParsed = parseDialogueRebalanceResult(
+                rebalanceStage.provider.content,
+                finalParsed,
+                finalDiagnostics.totalWords <= getStoryWordBounds(input.config).targetMin
+                  ? { minKeepRatio: 0.95 }
+                  : undefined
+              );
               const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
               const rebalanceImproved =
                 rebalancedDiagnostics.dialogPct >= Math.max(DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT, finalDiagnostics.dialogPct + 1)
@@ -13148,7 +13295,13 @@ export async function generateStoryDevMode(
             timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
             modelRole: "selected-story",
           });
-          const rebalancedParsed = parseDialogueRebalanceResult(rebalanceStage.provider.content, finalParsed);
+          const rebalancedParsed = parseDialogueRebalanceResult(
+            rebalanceStage.provider.content,
+            finalParsed,
+            finalDiagnostics.totalWords <= getStoryWordBounds(input.config).targetMin
+              ? { minKeepRatio: 0.95 }
+              : undefined
+          );
           const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
           const acceptable =
             rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct
