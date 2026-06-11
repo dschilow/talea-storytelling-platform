@@ -2050,7 +2050,14 @@ async function generateDevModeImages(
 
   let collageUrl: string | undefined;
   let collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
-  if (resolvedCast.length >= 2) {
+  // Identity consistency: with ≤4 cast refs, individual reference images are a
+  // STRONGER identity anchor than a collage (the ip-adapter sees each face
+  // full-size instead of a downscaled grid cell), and they keep the SAME
+  // anchor set across cover + every reading page. The collage is only worth
+  // its resolution cost when the cast outgrows Runware's reference budget.
+  // (Log 0e8c0a4e: cover used the collage, pages used filtered individual
+  // refs — the switch produced visibly different Adrian renderings.)
+  if (resolvedCast.length > 4) {
     try {
       const slots = resolvedCast.map((entry) => ({
         imageUrl: entry.resolvedUrl,
@@ -2431,8 +2438,35 @@ async function generateDevModeImages(
     for (const entry of cast) {
       if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
       if (entry.kind === "avatar") {
-        const visual = compactCharacterDescription(entry.description, "casual boy clothing");
-        lines.push(`${entry.name}: human boy, ${visual}. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
+        let visual = compactCharacterDescription(entry.description, "casual boy clothing");
+        // German avatar descriptions ("ist sehr lieber junge, hat eine große
+        // Zahnlücke") must not leak verbatim into the FLUX prompt — German
+        // tokens both dilute the prompt and invite text rendering. Extract the
+        // known VISUAL hints into English and drop the rest.
+        if (/\b(und|der|die|das|ist|sehr|kann|hat|eine[mnr]?|junge|gro(?:ss|ß)e?)\b/i.test(visual)) {
+          const englishHints: string[] = [];
+          const visualHintMap: Array<[RegExp, string]> = [
+            [/zahnl(?:ü|ue)cke/i, "big visible tooth gap in his smile"],
+            [/blonde?[mnrs]?\s*haar\w*/i, "short blond hair"],
+            [/braune?[mnrs]?\s*haar\w*/i, "short brown hair"],
+            [/rote?[mnrs]?\s*haar\w*/i, "red hair"],
+            [/lockig\w*/i, "curly hair"],
+            [/brille/i, "round glasses"],
+            [/sommersprossen/i, "freckles"],
+            [/gr(?:ü|ue)ne?[mnrs]?\s*augen/i, "green eyes"],
+            [/blaue?[mnrs]?\s*augen/i, "blue eyes"],
+            [/braune?[mnrs]?\s*augen/i, "brown eyes"],
+          ];
+          for (const [pattern, english] of visualHintMap) {
+            if (pattern.test(visual)) englishHints.push(english);
+          }
+          visual = englishHints.length > 0 ? englishHints.join(", ") : "casual boy clothing";
+        }
+        // IDENTITY LOCK: the reference image is the single source of truth for
+        // recurring heroes. Without this line the model re-rolled hair color
+        // per page whenever the avatar's text description carried no visual
+        // details (Adrian: blond on page 2, brown on page 4 — log 0e8c0a4e).
+        lines.push(`${entry.name}: human boy, ${visual}. IDENTITY: match ${entry.name}'s reference image exactly — same face, same hair color and hairstyle, same skin tone, same outfit colors as the reference, on every page. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
       } else {
         const visual = compactCharacterDescription(entry.description, "supporting character");
         if (isFairyLike(entry)) {
@@ -2477,12 +2511,23 @@ async function generateDevModeImages(
     ];
     referenceImages = avatarsFirst.slice(0, 4).map((c) => c.resolvedUrl);
   }
+  // Identity-priority weights: recurring storybook characters need the
+  // reference to win over prompt creativity. 0.68-0.74 allowed visible hair
+  // color drift across pages (Adrian blond on page 2, brown on page 4).
   const ipAdapterWeight = referenceImages.length > 0
     ? (usingCollageReference
-        ? (collagePositions.length >= 3 ? 0.72 : 0.7)
-        : (referenceImages.length >= 3 ? 0.74 : referenceImages.length === 2 ? 0.72 : 0.68))
+        ? (collagePositions.length >= 3 ? 0.74 : 0.72)
+        : (referenceImages.length >= 3 ? 0.75 : referenceImages.length === 2 ? 0.78 : 0.74))
     : undefined;
   console.log(`[dev-mode-generation] Runware reference set: count=${referenceImages.length}, collage=${usingCollageReference}, ipAdapterWeight=${ipAdapterWeight}`);
+
+  // ONE deterministic seed per story: all 6 images share seed + style + refs,
+  // which keeps face/hair/outfit rendering far more stable than per-image
+  // random seeds (log 0e8c0a4e: 6 images, 6 random seeds, Adrian's hair
+  // flipped blond/brown between pages). Scene variety still comes from the
+  // per-page prompts.
+  const storyImageSeed = (hashString(String(input.storyId || parsedTitle)) % 2_000_000_000) + 1;
+  console.log(`[dev-mode-generation] Story image seed: ${storyImageSeed}`);
 
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
@@ -2572,24 +2617,34 @@ async function generateDevModeImages(
       }
 
       // v11 §12B: filter individual references to characters actually in the
-      // scene. When using a 3-slot collage but the scene only contains 2
-      // boys, fall back to per-character refs of just those 2 boys so
-      // Rosalie's outfit cannot leak onto Adrian.
+      // scene. Runs in BOTH reference modes now — in individual-refs mode a
+      // pool character's ref would otherwise leak into pages where they are
+      // not on stage (the converse of the original Rosalie-outfit bug).
+      // Avatars are ALWAYS kept even when prompt-name matching misses them:
+      // they are the recurring heroes, and a stable avatar anchor on every
+      // page is the whole point of reference images.
       const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
       let sceneRefs = referenceImages;
       let sceneIpWeight = ipAdapterWeight;
-      if (usingCollageReference && resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
+      if (resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
         const filtered = filterReferencesForScene({
           onStageNames: sceneNames,
           availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
         });
-        if (filtered.dropped.length > 0 && filtered.references.length > 0) {
-          sceneRefs = filtered.references.slice(0, 4).map((r) => r.imageUrl);
-          sceneIpWeight = sceneRefs.length >= 3 ? 0.74 : sceneRefs.length === 2 ? 0.72 : 0.68;
+        const keptNames = new Set(filtered.references.map((r) => r.name));
+        const withAvatars = [
+          ...filtered.references,
+          ...resolvedCast
+            .filter((c) => c.kind === "avatar" && !keptNames.has(c.name))
+            .map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
+        ];
+        if (filtered.dropped.length > 0 && withAvatars.length > 0) {
+          sceneRefs = withAvatars.slice(0, 4).map((r) => r.imageUrl);
+          sceneIpWeight = sceneRefs.length >= 3 ? 0.75 : sceneRefs.length === 2 ? 0.78 : 0.74;
           console.log(`[dev-mode-generation] §12B per-scene ref filter`, {
             job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
-            kept: filtered.references.map((r) => r.name),
-            dropped: filtered.dropped,
+            kept: withAvatars.map((r) => r.name),
+            dropped: filtered.dropped.filter((name) => !withAvatars.some((r) => r.name === name)),
           });
         }
       }
@@ -2615,7 +2670,7 @@ async function generateDevModeImages(
           job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
           issues: preflight.issues,
         });
-        return { job, imageUrl: undefined as string | undefined, fullPrompt };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
       }
 
       const img = await ai.generateImage({
@@ -2628,11 +2683,12 @@ async function generateDevModeImages(
         outputFormat: "JPEG",
         referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
         ipAdapterWeight: sceneIpWeight,
+        seed: storyImageSeed,
       });
-      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt };
+      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs, sceneIpWeight };
     } catch (err) {
       console.warn(`[dev-mode-generation] Image generation failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt };
+      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
     }
   });
 
@@ -2654,11 +2710,17 @@ async function generateDevModeImages(
           steps: 4,
           CFGScale: 4,
           outputFormat: "JPEG",
+          // Keep the avatar identity anchor + story seed even on the
+          // no-frills retry, otherwise the retried page is the one page
+          // where the heroes look different.
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+          ipAdapterWeight,
+          seed: storyImageSeed + 1,
         });
-        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt };
+        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: referenceImages, sceneIpWeight: ipAdapterWeight };
       } catch (err) {
         console.warn(`[dev-mode-generation] Image retry failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
       }
     });
     const keyForJob = (job: Job) => `${job.kind}:${job.order ?? "cover"}`;
@@ -2743,6 +2805,51 @@ async function generateDevModeImages(
         console.warn(`[dev-mode-generation] §12H visual-QA flagged image for regen`, {
           job: `${entry.result.job.kind}${entry.result.job.order ? `:ch${entry.result.job.order}` : ""}`,
           reasons: entry.reasons,
+        });
+      }
+    }
+
+    // §12H-regen: actually regenerate flagged images. The previous build only
+    // logged the flag, so identity failures (wrong hair color, duplicate
+    // children) shipped to the child anyway. Capped at 2 regens per story;
+    // same prompt + same refs + bumped ip-adapter weight + offset seed.
+    const flaggedForRegen = qaSeen
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry && entry.regenerate && entry.result.imageUrl))
+      .slice(0, 2);
+    for (const entry of flaggedForRegen) {
+      const r = entry.result;
+      try {
+        const regenWeight = r.sceneRefs.length > 0
+          ? Math.min(0.85, (r.sceneIpWeight ?? 0.74) + 0.06)
+          : undefined;
+        const regen = await ai.generateImage({
+          prompt: r.fullPrompt,
+          negativePrompt: mergeNegativePrompt(undefined),
+          width: 1024,
+          height: 1024,
+          steps: 4,
+          CFGScale: 4,
+          outputFormat: "JPEG",
+          referenceImages: r.sceneRefs.length > 0 ? r.sceneRefs : undefined,
+          ipAdapterWeight: regenWeight,
+          seed: storyImageSeed + 101,
+        });
+        if (regen.imageUrl) {
+          if (r.job.kind === "cover") {
+            coverImageUrl = regen.imageUrl;
+          } else if (typeof r.job.order === "number") {
+            chapterImages.set(r.job.order, { imageUrl: regen.imageUrl, prompt: r.fullPrompt });
+          }
+          console.log(`[dev-mode-generation] §12H visual-QA regen applied`, {
+            job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
+            reasons: entry.reasons,
+            regenWeight,
+          });
+        }
+      } catch (err) {
+        console.warn(`[dev-mode-generation] §12H visual-QA regen failed; keeping original image`, {
+          job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
+          error: err instanceof Error ? err.message : String(err),
         });
       }
     }
