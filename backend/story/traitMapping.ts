@@ -16,7 +16,6 @@ export function validateTraitId(traitId: string): string | null {
     'kreativität': 'creativity',
     'empathie': 'empathy',
     'neugier': 'curiosity',
-    'teamwork': 'teamwork',
     'teamgeist': 'teamwork',
     'sozialität': 'teamwork',
     'ausdauer': 'persistence',
@@ -114,7 +113,12 @@ export const convertAvatarDevelopmentsToPersonalityChanges = (developments: any[
             if (validTraitId) {
               return {
                 trait: validTraitId,
-                change: change.change
+                change: change.change,
+                // Story-spezifische Begründung (WARUM das Trait gewachsen ist)
+                // aus der AI-Entwicklungs-Stage durchreichen.
+                description: typeof change.description === "string" && change.description.trim().length > 0
+                  ? change.description.trim()
+                  : undefined,
               };
             }
             console.warn(`⚠️ Could not validate trait ID "${change.trait}"`);

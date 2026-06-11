@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
+import { generateStoryStandardMode } from "./standard-mode-generation";
 import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -241,6 +242,11 @@ export interface StoryConfig {
   // Release pipeline mode (candidate generation + semantic critic + selective surgery).
   // Default true for Story Pipeline v2.
   releaseMode?: boolean;
+
+  // Escape hatch: route the standard path back to the old Story Pipeline v2
+  // (orchestrator). The default standard path now runs the proven dev-mode
+  // quality engine plus product features (memories, developments, artifact).
+  useLegacyPipelineV2?: boolean;
 
   // Optional override for number of story candidates in release mode (1-3).
   releaseCandidateCount?: number;
@@ -796,8 +802,8 @@ export const generate = api<GenerateStoryRequest, Story>(
         }
         // Persist chapter shape with order field consumed downstream.
         generatedStory = devResult;
-      } else if (useCharacterPool) {
-        console.log("[story.generate] Using Story Pipeline v2...");
+      } else if (config.useLegacyPipelineV2 === true && useCharacterPool) {
+        console.log("[story.generate] Using legacy Story Pipeline v2 (explicit useLegacyPipelineV2 flag)...");
         const orchestrator = new StoryPipelineOrchestrator();
 
         pipelineResult = await orchestrator.run({
@@ -916,7 +922,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               : undefined,
           },
         };
-      } else {
+      } else if (!useCharacterPool) {
         console.log("[story.generate] Using legacy story generation (no character pool)...");
         // Generate story content using AI with avatar canonical appearance
         console.log("[story.generate] Calling generateStoryContent with MCP context...");
@@ -924,6 +930,25 @@ export const generate = api<GenerateStoryRequest, Story>(
           config,
           avatarDetails,
           clerkToken,
+        });
+      } else {
+        // DEFAULT standard path: dev-mode quality engine (screenplay-first)
+        // as prose/image core + product features (memory continuity in the
+        // prompt, AI avatar developments, artifact red thread + unlock flow).
+        console.log("[story.generate] Using standard quality pipeline (dev-mode engine + product features)...");
+        generatedStory = await generateStoryStandardMode({
+          config,
+          userId: currentUserId,
+          storyId: id,
+          avatars: avatarDetails.map((a) => ({
+            id: a.id,
+            name: a.name,
+            description: a.description,
+            imageUrl: a.imageUrl,
+            visualProfile: a.visualProfile,
+            personalityTraits: a.personalityTraits,
+          })),
+          primaryProfileAge: primaryProfile.age,
         });
       }
 
@@ -947,7 +972,26 @@ export const generate = api<GenerateStoryRequest, Story>(
             throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
           }
           if (Array.isArray(validation?.normalized)) {
-            validatedDevelopments = validation.normalized as typeof validatedDevelopments;
+            // Re-attach story-specific trait descriptions that the external
+            // normalizer may strip — the WHY of each change must survive.
+            const originalDescriptions = new Map<string, string>();
+            for (const dev of validatedDevelopments) {
+              for (const traitChange of (Array.isArray(dev?.changedTraits) ? dev.changedTraits : [])) {
+                if (typeof traitChange?.description === "string" && traitChange.description.trim()) {
+                  originalDescriptions.set(`${String(dev?.name || "").toLowerCase()}|${traitChange.trait}`, traitChange.description);
+                }
+              }
+            }
+            validatedDevelopments = (validation.normalized as typeof validatedDevelopments).map((dev: any) => ({
+              ...dev,
+              changedTraits: Array.isArray(dev?.changedTraits)
+                ? dev.changedTraits.map((traitChange: any) => ({
+                    ...traitChange,
+                    description: traitChange?.description
+                      || originalDescriptions.get(`${String(dev?.name || "").toLowerCase()}|${traitChange?.trait}`),
+                  }))
+                : dev?.changedTraits,
+            }));
           }
         } catch (validationError) {
           console.warn("[story.generate] Avatar development validation warning:", validationError);
@@ -979,20 +1023,22 @@ export const generate = api<GenerateStoryRequest, Story>(
         };
       }
 
-      // Extract cost data from pipeline metadata. Developer Mode exposes one
-      // token/cost row per quality stage; the default pipeline keeps its own ledger.
+      // Extract cost data from pipeline metadata. Stage-based pipelines
+      // (developer mode AND the standard quality path) expose one token/cost
+      // row per quality stage; the legacy orchestrator keeps its own ledger.
       const metadataUsage = generatedStory.metadata?.tokensUsed;
       const devModeStages = Array.isArray(generatedStory.metadata?.devModeStages)
         ? generatedStory.metadata.devModeStages
         : [];
-      const devModeCostEntries = config.developerMode === true && devModeStages.length > 0
+      const stagePipelinePhase = config.developerMode === true ? "dev-mode-generation" : "standard-mode-generation";
+      const devModeCostEntries = devModeStages.length > 0
         ? devModeStages
             .map((stage: any) => {
               const usage = stage?.usage;
               if (!usage) return null;
               const model = stage?.modelUsed || metadataUsage?.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL;
               return buildLlmCostEntry({
-                phase: "dev-mode-generation",
+                phase: stagePipelinePhase,
                 step: String(stage?.stage || "unknown-stage"),
                 usage: {
                   promptTokens: Number(usage.prompt || 0),
@@ -1005,19 +1051,21 @@ export const generate = api<GenerateStoryRequest, Story>(
                 metadata: {
                   durationMs: stage?.durationMs,
                   score: stage?.score,
-                  pipeline: generatedStory.metadata?.devModePipeline || "adaptive-polish-cost-optimized",
+                  pipeline: generatedStory.metadata?.generationMode
+                    || generatedStory.metadata?.devModePipeline
+                    || "adaptive-polish-cost-optimized",
                   modelRole: stage?.modelRole,
                 },
               });
             })
             .filter(Boolean)
         : [];
-      const devModeImagesGenerated = config.developerMode === true
+      const devModeImagesGenerated = devModeStages.length > 0
         ? Number(generatedStory.metadata?.imagesGenerated || 0)
         : 0;
       const devModeImageCostEntries = devModeImagesGenerated > 0
         ? [buildImageCostEntry({
-            phase: "dev-mode-generation",
+            phase: stagePipelinePhase,
             step: "runware-images",
             provider: "runware",
             model: "runware:400@4",
@@ -1231,7 +1279,13 @@ export const generate = api<GenerateStoryRequest, Story>(
             changes = aiDevelopment.changedTraits.map((change: any) => {
               const adjustedChange = isParticipating ? change.change : Math.max(1, Math.floor(change.change / 2));
               const modeText = localizedModeText(config.language, isParticipating);
-              const description = localizedTraitDescription(config.language, change.trait, adjustedChange, modeText, config.genre, generatedStory.title);
+              // Prefer the AI's story-specific reason ("WHY did this trait
+              // grow") over the generic template sentence.
+              const aiDescription = typeof change.description === "string" && change.description.trim().length > 0
+                ? change.description.trim()
+                : undefined;
+              const description = aiDescription
+                ?? localizedTraitDescription(config.language, change.trait, adjustedChange, modeText, config.genre, generatedStory.title);
               return { trait: change.trait, change: adjustedChange, description };
             });
             experienceDescription = localizedExperienceDescription(config.language, isParticipating, config.genre, generatedStory.title);
