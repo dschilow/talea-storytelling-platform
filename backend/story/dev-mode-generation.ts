@@ -640,6 +640,19 @@ const NOVELTY_STOPWORDS = new Set([
   "froehlich", "fröhlich", "froehliche", "fröhliche", "froehlichen", "fröhlichen",
   "magisch", "magische", "magischen", "magisches", "magischer",
   "geheimnisvoll", "geheimnisvolle", "geheimnisvollen", "geheimnisvolles",
+  // Everyday physical adjectives — far too common in children's prose to act
+  // as story motifs (log 0e8c0a4e flagged "schweren" as a forbidden motif).
+  "schwer", "schwere", "schweren", "schweres", "schwerer", "schwerem",
+  "leicht", "leichte", "leichten", "leichtes", "leichter", "leichtem",
+  "alt", "alte", "alten", "altes", "alter", "altem",
+  "neu", "neue", "neuen", "neues", "neuer", "neuem",
+  "dunkel", "dunkle", "dunklen", "dunkles", "dunkler", "dunklem",
+  "hell", "helle", "hellen", "helles", "heller", "hellem",
+  "kalt", "kalte", "kalten", "kaltes", "kalter", "kaltem",
+  "lang", "lange", "langen", "langes", "langer", "langem",
+  "tief", "tiefe", "tiefen", "tiefes", "tiefer", "tiefem",
+  "leise", "leisen", "leises", "leiser", "leisem",
+  "laut", "laute", "lauten", "lautes", "lauter", "lautem",
   // English stopwords
   "the", "and", "with", "from", "into", "that", "this", "when", "where", "story", "chapter",
 ]);
@@ -5309,6 +5322,7 @@ function buildSceneCardPrompts(
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
     `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
+    "personalCost must name a PHYSICAL object, place, or privilege that is visibly given up, used up, broken, or left behind — NEVER an abstract feeling. Forbidden: 'verliert Zuversicht', 'muss Scham überwinden', 'loses hope'. Required shape: 'gibt den letzten X her', 'lässt Y zurück', 'Z zerbricht und bleibt zerbrochen'.",
     "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
     // v12 §I additive gates.
     "Scene 3 or 4 (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.",
@@ -5873,6 +5887,21 @@ function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): strin
     String(card?.irreversibleChange || "").trim().length > 0 && String(card?.personalCost || "").trim().length > 0
   );
   if (!irreversibleMiddle) issues.push("scene 3 or 4 must contain irreversibleChange plus personalCost");
+  // Abstract-cost gate: a personalCost that names only a feeling ("verliert
+  // Zuversicht", "muss Scham überwinden") produces a story with no visible
+  // sacrifice — the premium release gate then fails on personalCost AFTER the
+  // expensive prose stages (log 0e8c0a4e). Catch it here where repair is cheap.
+  if (isPremium) {
+    const abstractCost = /(?:verlier\w*|verlor\w*|(?:ue|ü)berwind\w*|gewinn\w*|fass\w*|find\w*)\s+(?:seine[nrs]?\s+|ihre[nrs]?\s+|den\s+|die\s+|das\s+)?(?:zuversicht|scham|angst|mut|vertrauen|hoffnung|geduld|selbstvertrauen|sicherheit|stolz|freude|ruhe|confidence|courage|hope|shame|fear|trust)\b/i;
+    sceneCards.slice(2, 4).forEach((card, idx) => {
+      const cost = String(card?.personalCost || "").trim();
+      if (cost && abstractCost.test(cost)) {
+        issues.push(
+          `scene ${idx + 3} personalCost is an abstract feeling ("${cost.slice(0, 60)}") — it must name a physical object, place, or privilege that is visibly given up, used up, broken, or left behind`
+        );
+      }
+    });
+  }
   // v12 §I additive gates.
   issues.push(...validateSceneCardsSpecI(sceneCards, mode));
   return issues;
@@ -7725,6 +7754,7 @@ function buildStoryPolishPrompts(
     readingPageMode ? "- Identify the recurring concrete object/refrain/sound. Make sure it appears across the whole story and shifts meaning at each scene movement." : "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
     readingPageMode ? "- Every paragraph must follow causally from the previous one. If a reading page opens cold, add a bridge sentence without recap." : "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
     "- If the title promises specific words/concepts, those words must surface in the prose. If a title key word is missing, add it naturally \u2014 OR change the title to match the prose. Do not leave the title promise unredeemed.",
+    "- NEVER delete an existing title-word mention while editing. If a title word appears only once in the prose, that sentence is load-bearing \u2014 rephrase around it, keep the word (log: a polish pass removed the story's only \"Umweg\" and re-opened the title gate).",
     "",
     "- Abstract title words (Freundlichkeit, Mut, Freundschaft, Verantwortung) must be fulfilled by concrete action/image, not by moral slogans or filler lines that only say the word.",
     "KINDERVERSTAENDLICHKEIT (children ages 6-8 must follow on first read):",
@@ -9679,6 +9709,12 @@ function expandTitleWordToStems(word: string): string[] {
 }
 
 function titleWordSatisfiedByBody(word: string, body: string): boolean {
+  // Exact-word check FIRST. The stem pipeline truncates to 6 chars and allows
+  // only 5 continuation chars, which made long German compounds UNSATISFIABLE:
+  // "kristalllinse" became stem "krista" and \bkrista\w{0,5}\b can never match
+  // the 13-char word itself (log 0e8c0a4e: the prose contained "Kristalllinse"
+  // five times and the gate still hard-failed, capping the run at 7.9).
+  if (word && body.toLowerCase().includes(word.toLowerCase())) return true;
   const stems = expandTitleWordToStems(word);
   for (const stem of stems) {
     const safe = stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").trim();
@@ -9688,7 +9724,10 @@ function titleWordSatisfiedByBody(word: string, body: string): boolean {
       if (body.toLowerCase().includes(safe)) return true;
       continue;
     }
-    const re = new RegExp(`\\b${safe}\\w{0,5}\\b`, "i");
+    // Long title words are usually compounds (Kristalllinse, Sockenschublade):
+    // give the suffix window enough room to cover the rest of the compound.
+    const suffixBudget = Math.max(5, word.length - stem.length + 3);
+    const re = new RegExp(`\\b${safe}\\w{0,${suffixBudget}}\\b`, "i");
     if (re.test(body)) return true;
   }
   return false;
