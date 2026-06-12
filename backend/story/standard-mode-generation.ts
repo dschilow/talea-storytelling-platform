@@ -38,6 +38,8 @@ import type { StoryConfig, StoryLanguage } from "./generate";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
+import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { logTopic } from "../log/logger";
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
 const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
@@ -217,6 +219,39 @@ export async function generateStoryStandardMode(
     total: (devResult.metadata.tokensUsed?.total || 0) + development.usage.total,
   };
 
+  // Feature-level observability: one log entry per run showing what the
+  // standard layer added around the engine (the engine publishes its own
+  // per-stage logs). Best-effort.
+  await publishWithTimeout(logTopic, {
+    source: "standard-mode-generation" as any,
+    timestamp: new Date(),
+    request: {
+      storyId,
+      pipeline: STANDARD_MODE_PIPELINE_ID,
+      avatarNames: input.avatars.map((a) => a.name),
+      memoryAnchors: Object.fromEntries(
+        input.avatars
+          .filter((a) => memoryAnchors.has(a.id))
+          .map((a) => [a.name, memoryAnchors.get(a.id)])
+      ),
+      poolCharacterNames: poolCharacters.map((c) => c.name),
+    },
+    response: {
+      title: devResult.title,
+      qualityScore: devResult.metadata.qualityScore,
+      releaseReady: devResult.metadata.releaseReady,
+      qualityGateFailureReason: devResult.metadata.qualityGateFailureReason,
+      avatarDevelopments: development.developments,
+      avatarDevelopmentUsage: development.usage,
+      matchedArtifact: devResult.metadata.matchedArtifact,
+      pendingArtifactName: pendingArtifact?.name,
+      selectedSupportingCast: devResult.metadata.selectedSupportingCast,
+      imagesGenerated: devResult.metadata.imagesGenerated,
+    },
+  }).catch((err) => {
+    console.warn("[standard-mode-generation] Failed to publish feature log:", err);
+  });
+
   return {
     title: devResult.title,
     description: devResult.description,
@@ -255,16 +290,41 @@ const MEMORY_ANCHOR_TEMPLATES: Record<StoryLanguage, (titles: string[]) => strin
   ru: (t) => `Уже пережил(а) приключения и особенно помнит ${t.map((x) => `"${x}"`).join(" и ")}.`,
 };
 
+// Ultra-short fallback used when the avatar description is long. The engine's
+// compact draft builder squeezes descriptions through compactExcerpt(110),
+// which keeps only the last ~37 characters of the tail — the anchor must fit
+// in that window INCLUDING its continuity marker, or the model just sees a
+// cryptic title fragment (verified in run 74c95422 on 2026-06-12).
+const MEMORY_ANCHOR_SHORT_TEMPLATES: Record<StoryLanguage, (title: string) => string> = {
+  de: (t) => `Held aus "${t}".`,
+  en: (t) => `Hero of "${t}".`,
+  fr: (t) => `Heros de "${t}".`,
+  es: (t) => `Heroe de "${t}".`,
+  it: (t) => `Eroe di "${t}".`,
+  nl: (t) => `Held uit "${t}".`,
+  ru: (t) => `Герой "${t}".`,
+};
+
+const MEMORY_ANCHOR_SHORT_TITLE_CHARS = 22;
+// compactExcerpt(110) keeps head(63) + " … " + tail(37). A combined
+// description at or below this budget passes through completely untruncated.
+const MEMORY_ANCHOR_FULL_BUDGET_CHARS = 100;
+
+function clipAnchorTitle(title: string, maxChars: number): string {
+  const trimmed = title.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
 /**
- * Loads the most recent memory story titles per avatar and renders one short
- * continuity sentence in the story language. Returns an empty map on any
- * failure — memories are flavor, never a blocker.
+ * Loads the most recent memory titles per avatar (stories preferred over
+ * dokus) and renders one continuity sentence in the story language. Returns an
+ * empty map on any failure — memories are flavor, never a blocker.
  */
 async function loadAvatarMemoryAnchors(
   avatarIds: string[],
   language: StoryLanguage | undefined
-): Promise<Map<string, string>> {
-  const anchors = new Map<string, string>();
+): Promise<Map<string, { full: string; short: string }>> {
+  const anchors = new Map<string, { full: string; short: string }>();
   const ids = avatarIds.filter(Boolean);
   if (ids.length === 0) return anchors;
 
@@ -272,11 +332,12 @@ async function loadAvatarMemoryAnchors(
     const rows = await avatarDB.queryAll<{
       avatar_id: string;
       story_title: string | null;
+      content_type: string | null;
     }>`
-      SELECT avatar_id, story_title
+      SELECT avatar_id, story_title, content_type
       FROM avatar_memories
       WHERE avatar_id = ANY(${ids})
-      ORDER BY created_at DESC
+      ORDER BY (CASE WHEN content_type = 'story' THEN 0 ELSE 1 END), created_at DESC
       LIMIT 60
     `;
 
@@ -290,11 +351,15 @@ async function loadAvatarMemoryAnchors(
       titlesByAvatar.set(row.avatar_id, list);
     }
 
-    const template = MEMORY_ANCHOR_TEMPLATES[language ?? "de"] ?? MEMORY_ANCHOR_TEMPLATES.de;
+    const lang = language ?? "de";
+    const fullTemplate = MEMORY_ANCHOR_TEMPLATES[lang] ?? MEMORY_ANCHOR_TEMPLATES.de;
+    const shortTemplate = MEMORY_ANCHOR_SHORT_TEMPLATES[lang] ?? MEMORY_ANCHOR_SHORT_TEMPLATES.de;
     for (const [avatarId, titles] of titlesByAvatar) {
       if (titles.length === 0) continue;
-      const anchor = template(titles.map((t) => t.slice(0, 48)));
-      anchors.set(avatarId, anchor.slice(0, 200));
+      anchors.set(avatarId, {
+        full: fullTemplate(titles.map((t) => clipAnchorTitle(t, 48))).slice(0, 200),
+        short: shortTemplate(clipAnchorTitle(titles[0], MEMORY_ANCHOR_SHORT_TITLE_CHARS)),
+      });
     }
   } catch (err) {
     console.warn("[standard-mode-generation] Loading avatar memories failed (continuing without):", err);
@@ -305,12 +370,16 @@ async function loadAvatarMemoryAnchors(
 
 function mergeDescriptionWithMemoryAnchor(
   description: string | undefined,
-  anchor: string | undefined
+  anchor: { full: string; short: string } | undefined
 ): string | undefined {
   const base = String(description || "").trim();
   if (!anchor) return base || undefined;
-  if (!base) return anchor;
-  return `${base}${/[.!?]$/.test(base) ? "" : "."} ${anchor}`;
+  if (!base) return anchor.full;
+  const joined = `${base}${/[.!?]$/.test(base) ? "" : "."} `;
+  // Long descriptions get squeezed through compactExcerpt(110) downstream;
+  // only an anchor that fits the ~37-char tail window survives readable.
+  const fitsFull = joined.length + anchor.full.length <= MEMORY_ANCHOR_FULL_BUDGET_CHARS;
+  return `${joined}${fitsFull ? anchor.full : anchor.short}`;
 }
 
 // ---------------------------------------------------------------------------

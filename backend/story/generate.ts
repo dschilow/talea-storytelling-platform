@@ -54,7 +54,9 @@ import { enrichStoryForTTS } from "./tts-enrichment";
 import { reserveStoryGenerationCapacity } from "./generation-capacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
-const DEV_MODE_RUNWARE_400_AT_4_COST_USD = 0.0006;
+// Measured from runware:400@4 responses at 1024x1024 (data.cost = 0.0013,
+// verified across log-runware-single-image entries on 2026-06-12).
+const DEV_MODE_RUNWARE_400_AT_4_COST_USD = 0.0013;
 
 type AvatarDevelopmentValidationResult = {
   isValid?: boolean;
