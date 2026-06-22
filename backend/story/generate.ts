@@ -27,6 +27,7 @@ import {
 import {
   createStructuredMemory,
   filterPersonalityChangesWithCooldown,
+  loadPersonalityShiftCooldowns,
   summarizeMemoryCategory,
   type PersonalityShiftCooldown,
 } from "./memory-categorization";
@@ -1266,10 +1267,11 @@ export const generate = api<GenerateStoryRequest, Story>(
         // Convert AI-generated avatar developments to personality changes
         const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(validatedDevelopments);
 
-        // Apply updates to ALL avatars
+        // RULE: only the avatars that actively participated in this story
+        // (config.avatarIds → selectedAvatars) receive trait updates. There is
+        // no reduced "reader" reward — non-participating avatars are untouched.
+        const modeText = localizedModeText(config.language, true);
         for (const userAvatar of selectedAvatars) {
-          const isParticipating = true;
-
           // Find AI-generated development for this avatar
           const aiDevelopment = convertedDevelopments.find(dev => dev.name === userAvatar.name);
 
@@ -1279,18 +1281,16 @@ export const generate = api<GenerateStoryRequest, Story>(
           if (aiDevelopment && aiDevelopment.changedTraits && aiDevelopment.changedTraits.length > 0) {
             // AI-generated specific trait changes for this avatar with detailed descriptions
             changes = aiDevelopment.changedTraits.map((change: any) => {
-              const adjustedChange = isParticipating ? change.change : Math.max(1, Math.floor(change.change / 2));
-              const modeText = localizedModeText(config.language, isParticipating);
               // Prefer the AI's story-specific reason ("WHY did this trait
               // grow") over the generic template sentence.
               const aiDescription = typeof change.description === "string" && change.description.trim().length > 0
                 ? change.description.trim()
                 : undefined;
               const description = aiDescription
-                ?? localizedTraitDescription(config.language, change.trait, adjustedChange, modeText, config.genre, generatedStory.title);
-              return { trait: change.trait, change: adjustedChange, description };
+                ?? localizedTraitDescription(config.language, change.trait, change.change, modeText, config.genre, generatedStory.title);
+              return { trait: change.trait, change: change.change, description };
             });
-            experienceDescription = localizedExperienceDescription(config.language, isParticipating, config.genre, generatedStory.title);
+            experienceDescription = localizedExperienceDescription(config.language, true, config.genre, generatedStory.title);
           } else {
             // Fallback: Genre-based updates when AI doesn't provide specific developments
             const baseTraits = config.genre === 'adventure' ? ['courage', 'curiosity'] :
@@ -1299,16 +1299,15 @@ export const generate = api<GenerateStoryRequest, Story>(
                   config.genre === 'friendship' ? ['empathy', 'teamwork'] :
                     ['empathy', 'curiosity'];
             changes = baseTraits.map(trait => {
-              const points = isParticipating ? 2 : 1;
-              const modeText = localizedModeText(config.language, isParticipating);
+              const points = 2;
               const description = localizedTraitDescription(config.language, trait, points, modeText, config.genre, generatedStory.title);
               return { trait, change: points, description };
             });
-            experienceDescription = localizedExperienceDescription(config.language, isParticipating, config.genre, generatedStory.title);
+            experienceDescription = localizedExperienceDescription(config.language, true, config.genre, generatedStory.title);
           }
 
           if (changes.length > 0) {
-            console.log(`[story.generate] Updating ${userAvatar.name} (${isParticipating ? 'participant' : 'reader'}):`, changes);
+            console.log(`[story.generate] Updating ${userAvatar.name} (participant):`, changes);
 
             try {
               // OPTIMIZATION v1.0: Create structured memory with categorization
@@ -1323,9 +1322,18 @@ export const generate = api<GenerateStoryRequest, Story>(
 
               console.log(`[story.generate] 📝 Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
 
-              // TODO: Fetch last personality shifts from database for cooldown check
-              // For now, we skip cooldown (all changes allowed) - implement in future iteration
-              const lastShifts: PersonalityShiftCooldown[] = [];
+              // Reconstruct this avatar's recent per-trait shifts from its
+              // stored memories so the cooldown actually enforces the 24h/72h
+              // windows (previously this was an empty stub → cooldown never fired).
+              let lastShifts: PersonalityShiftCooldown[] = [];
+              try {
+                lastShifts = await loadPersonalityShiftCooldowns(avatarDB, userAvatar.id);
+              } catch (cooldownLoadError) {
+                console.warn(
+                  `[story.generate] Failed to load cooldown history for ${userAvatar.name}; applying without cooldown`,
+                  cooldownLoadError
+                );
+              }
 
               const { allowedChanges, blockedChanges } = filterPersonalityChangesWithCooldown(
                 structuredMemory.category,

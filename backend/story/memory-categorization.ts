@@ -8,6 +8,8 @@
  * - Cooldown system: Prevents rapid personality shifts
  */
 
+import type { SQLDatabase } from "encore.dev/storage/sqldb";
+
 export type MemoryCategory = "acute" | "thematic" | "personality";
 
 export interface CategorizedMemory {
@@ -166,6 +168,63 @@ export function createStructuredMemory(
     storyTitle,
     contentType,
   };
+}
+
+/**
+ * Reconstructs the most recent personality shift per trait for an avatar from
+ * its stored memories. This is what `filterPersonalityChangesWithCooldown`
+ * needs to actually enforce the 24h/72h cooldowns — without it the cooldown
+ * check always receives an empty list and never blocks anything.
+ *
+ * `db` is injected (the avatar DB) so this module stays free of a hard DB
+ * dependency and remains easy to unit-test.
+ */
+type CooldownMemoryRow = { personality_changes: string | null; created_at: Date | string };
+
+export async function loadPersonalityShiftCooldowns(
+  db: SQLDatabase,
+  avatarId: string,
+  lookbackHours = 72
+): Promise<PersonalityShiftCooldown[]> {
+  // Only memories within the longest cooldown window can still be blocking.
+  const rows = await db.queryAll<CooldownMemoryRow>`
+    SELECT personality_changes, created_at
+    FROM avatar_memories
+    WHERE avatar_id = ${avatarId}
+      AND created_at >= NOW() - (${lookbackHours} || ' hours')::interval
+    ORDER BY created_at DESC
+  `;
+
+  const latestByTrait = new Map<string, PersonalityShiftCooldown>();
+
+  for (const row of rows) {
+    const timestamp = row.created_at instanceof Date ? row.created_at : new Date(row.created_at);
+    if (Number.isNaN(timestamp.getTime())) continue;
+
+    let changes: Array<{ trait?: unknown }> = [];
+    try {
+      const parsed = row.personality_changes ? JSON.parse(row.personality_changes) : [];
+      if (Array.isArray(parsed)) changes = parsed;
+    } catch {
+      continue;
+    }
+
+    for (const change of changes) {
+      const trait = typeof change?.trait === "string" ? change.trait : undefined;
+      if (!trait) continue;
+      // Rows are DESC, so the first time we see a trait it is the most recent.
+      if (!latestByTrait.has(trait)) {
+        latestByTrait.set(trait, {
+          avatarId,
+          trait,
+          lastShiftTimestamp: timestamp,
+          cooldownHours: lookbackHours,
+        });
+      }
+    }
+  }
+
+  return Array.from(latestByTrait.values());
 }
 
 /**

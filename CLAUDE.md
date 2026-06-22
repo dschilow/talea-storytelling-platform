@@ -150,7 +150,8 @@ Personality traits use a **hierarchical system**:
    - Calls AI to generate story content with chapters
    - AI returns `avatarDevelopments` (personality changes based on story events)
    - Validates developments via MCP validator
-   - Applies personality updates to **ALL user avatars** (participants get full points, readers get half)
+   - Applies personality updates to **participating avatars only** (the avatars in `config.avatarIds`); non-participating avatars are not touched
+   - Applies a per-trait cooldown (24h thematic / 72h personality, reconstructed from `avatar_memories`) before writing changes
    - Creates structured memories with categorization
    - Stores story and chapters in database
 3. Cost tracking via Pub/Sub to log files (not database)
@@ -247,9 +248,8 @@ When updating avatar personality traits, you MUST:
 
 **Story Generation Flow:**
 - The AI generates `avatarDevelopments` with specific trait changes based on story content
-- ALL user avatars receive updates (not just story participants)
-- Participants get full trait points, readers get 50% points
-- Memory categorization determines cooldown periods for personality shifts
+- Only participating avatars (those in `config.avatarIds`) receive updates; there is no reduced "reader" reward
+- Memory categorization determines cooldown periods for personality shifts (acute = none, thematic = 24h, personality = 72h per trait), enforced via `loadPersonalityShiftCooldowns`
 - Cost tracking is logged to files, not stored in database
 
 **Implementation Files:**
