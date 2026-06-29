@@ -42,17 +42,18 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
-  TaleaActionButton,
-  TaleaLoadingState,
-  TaleaPageBackground,
-  TaleaSectionHeading,
-  taleaBodyFont,
-  taleaChipClass,
-  taleaDisplayFont,
-  taleaInsetSurfaceClass,
-  taleaPageShellClass,
-  taleaSurfaceClass,
-} from "@/components/talea/TaleaPastelPrimitives";
+  TaleaPlayBackground,
+  TaleaPlayButton,
+  TaleaPlayLoadingState,
+  TaleaPlaySectionHeading,
+  TaleaPlayStatPill,
+  taleaPlayBodyFont,
+  taleaPlayCardClass,
+  taleaPlayChipClass,
+  taleaPlayDisplayFont,
+  taleaPlayInsetClass,
+  taleaPlayPageShellClass,
+} from "@/components/talea/TaleaPlayfulPrimitives";
 
 interface Avatar {
   id: string;
@@ -71,8 +72,8 @@ interface Doku {
   createdAt: string;
 }
 
-const headingFont = taleaDisplayFont;
-const bodyFont = taleaBodyFont;
+const headingFont = taleaPlayDisplayFont;
+const bodyFont = taleaPlayBodyFont;
 
 function formatDate(value: string, locale?: string) {
   return new Date(value).toLocaleDateString(locale || "de-DE", {
@@ -113,15 +114,15 @@ const itemVariants: Variants = {
 };
 
 const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
-  <TaleaPageBackground isDark={isDark} />
+  <TaleaPlayBackground isDark={isDark} />
 );
 
 const LoadingState: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <TaleaLoadingState
-      title={t("homeScreen.loadingTitle", "Talea richtet die Startseite neu ein")}
-      subtitle={t("homeScreen.loadingSubtitle", "Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert.")}
+    <TaleaPlayLoadingState
+      title={t("homeScreen.loadingTitle", "Talea zaubert deine Startseite")}
+      subtitle={t("homeScreen.loadingSubtitle", "Die Geschichten, Helden und Dokus hüpfen gerade in ihre Bereiche.")}
       icon={<WandSparkles className="h-9 w-9" />}
     />
   );
@@ -320,13 +321,13 @@ const StoryCard: React.FC<{
       <StoryStatusTag status={story.status} />
       {imagesSkipped ? <StoryImageSkipTag /> : null}
 
-      <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-shadow duration-500 group-hover:shadow-[0_24px_48px_-12px_rgba(var(--talea-accent-rose),0.2),0_12px_24px_-8px_rgba(var(--talea-accent-sky),0.15)] dark:group-hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.7)]")}>
+      <Card className={cn(taleaPlayCardClass, "h-full overflow-hidden border-0 transition-shadow duration-500 group-hover:shadow-[0_24px_48px_-12px_rgba(var(--talea-accent-rose),0.2),0_12px_24px_-8px_rgba(var(--talea-accent-sky),0.15)] dark:group-hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.7)]")}>
         <div className={cn("flex h-full min-w-0", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
           <div className={cn(
             "relative overflow-hidden p-2 sm:p-3", 
             isFeatured ? "sm:w-[48%] sm:p-3" : "h-56"
           )}>
-            <div className={cn(taleaInsetSurfaceClass, "h-full w-full overflow-hidden rounded-[28px] border-0 p-2")}>
+            <div className={cn(taleaPlayInsetClass, "h-full w-full overflow-hidden rounded-[28px] border-0 p-2")}>
               {story.coverImageUrl ? (
                 <img
                   src={story.coverImageUrl}
@@ -381,7 +382,7 @@ const StoryCard: React.FC<{
           <CardContent className={cn("flex flex-col justify-between p-5 sm:p-6", isFeatured ? "sm:w-[52%] sm:p-7 lg:p-8 lg:pr-10" : "")}>
             <div className="space-y-3">
               {isFeatured ? (
-                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
+                <span className={cn(taleaPlayChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
                   {/* Translated in parent via t() — static string here */}
                   Im Fokus
                 </span>
@@ -442,10 +443,10 @@ const AvatarTile: React.FC<{
         onOpen();
       }
     }}
-    className={cn(taleaSurfaceClass, "group relative flex h-[11rem] w-[8.75rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(var(--talea-accent-rose),0.2)] sm:h-56 sm:w-44 sm:p-4")}
+    className={cn(taleaPlayCardClass, "group relative flex h-[11rem] w-[8.75rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(var(--talea-accent-rose),0.2)] sm:h-56 sm:w-44 sm:p-4")}
   >
     <div className="relative mx-auto mb-3 inline-block">
-      <div className={cn(taleaInsetSurfaceClass, "h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] ring-2 ring-transparent transition-all duration-500 group-hover:ring-[var(--primary)]/30 group-hover:shadow-[0_12px_28px_-6px_rgba(123,168,156,0.3)] sm:h-28 sm:w-28")}>
+      <div className={cn(taleaPlayInsetClass, "h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full border-0 p-2 shadow-[0_8px_20px_-5px_rgba(0,0,0,0.12)] ring-2 ring-transparent transition-all duration-500 group-hover:ring-[var(--primary)]/30 group-hover:shadow-[0_12px_28px_-6px_rgba(123,168,156,0.3)] sm:h-28 sm:w-28")}>
         <img
           src={
             avatar.imageUrl ||
@@ -498,7 +499,7 @@ const DokuBentoTicket: React.FC<{
     variants={itemVariants}
     whileHover={{ y: -4, scale: 1.015, transition: { type: "spring", stiffness: 300, damping: 22 } }}
     whileTap={{ scale: 0.98 }}
-    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden border-0 p-4 transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(216,191,143,0.2)] sm:p-5")}
+    className={cn(taleaPlayCardClass, "group relative cursor-pointer overflow-hidden border-0 p-4 transition-shadow duration-500 hover:shadow-[0_20px_40px_-12px_rgba(216,191,143,0.2)] sm:p-5")}
     role="button"
     tabIndex={0}
     onClick={onRead}
@@ -510,7 +511,7 @@ const DokuBentoTicket: React.FC<{
     }}
   >
     <div className="flex items-center gap-4 sm:gap-5">
-      <div className={cn(taleaInsetSurfaceClass, "relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-[22px] border-0 p-2 sm:h-20 sm:w-20")}>
+      <div className={cn(taleaPlayInsetClass, "relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-[22px] border-0 p-2 sm:h-20 sm:w-20")}>
         {doku.coverImageUrl ? (
           <img src={doku.coverImageUrl} alt={doku.title} className="h-full w-full rounded-[16px] object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
@@ -564,30 +565,28 @@ const EmptyStateContainer: React.FC<{
   colorClass: string;
 }> = ({ title, description, icon, actionLabel, onAction, colorClass }) => (
   <motion.div variants={itemVariants}>
-    <Card className={cn(taleaSurfaceClass, "overflow-hidden border-0")}>
-      <CardContent className="p-3 sm:p-4">
-        <div className={cn(taleaInsetSurfaceClass, "flex flex-col items-center justify-center p-6 text-center sm:p-8 md:p-10")}>
-        <motion.div 
-          animate={{ y: [0, -10, 0] }}
+    <div className={cn(taleaPlayCardClass, "overflow-hidden p-3 sm:p-4")}>
+        <div className={cn(taleaPlayInsetClass, "flex flex-col items-center justify-center p-6 text-center sm:p-8 md:p-10")}>
+        <motion.div
+          animate={{ y: [0, -10, 0], rotate: [0, -4, 4, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className={cn("mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] shadow-inner sm:mb-6 sm:h-24 sm:w-24", colorClass)}
+          className={cn("mb-5 flex h-20 w-20 items-center justify-center rounded-[1.6rem] shadow-[0_10px_22px_rgba(160,120,140,0.16)] sm:mb-6 sm:h-24 sm:w-24", colorClass)}
         >
           {icon}
         </motion.div>
-        <h3 className="text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white sm:text-[2.4rem]" style={{ fontFamily: headingFont }}>
+        <h3 className="talea-play-display text-[2rem] font-bold leading-tight text-[var(--talea-text-primary)] sm:text-[2.4rem]">
           {title}
         </h3>
-        <p className="mx-auto mt-4 max-w-xl text-sm font-medium leading-7 text-slate-600 dark:text-slate-300 sm:text-base">{description}</p>
+        <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-7 text-[var(--talea-text-secondary)] sm:text-base">{description}</p>
         {actionLabel && onAction && (
           <div className="mt-7">
-            <TaleaActionButton type="button" onClick={onAction} icon={<ArrowRight className="h-4 w-4" />}>
+            <TaleaPlayButton type="button" size="lg" onClick={onAction} icon={<ArrowRight className="h-4 w-4" />}>
             {actionLabel}
-            </TaleaActionButton>
+            </TaleaPlayButton>
           </div>
         )}
         </div>
-      </CardContent>
-    </Card>
+    </div>
   </motion.div>
 );
 
@@ -602,12 +601,12 @@ const PremiumSignedOutStart: React.FC = () => {
         initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className={cn(taleaSurfaceClass, "w-full max-w-6xl overflow-hidden p-2 sm:p-3 md:p-4")}
+        className={cn(taleaPlayCardClass, "w-full max-w-6xl overflow-hidden p-2 sm:p-3 md:p-4")}
       >
         <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
+          <div className={cn(taleaPlayInsetClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
-              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
+              <span className={cn(taleaPlayChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
                 <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 rounded-2xl object-cover" />
                 Talea Kinderatelier
               </span>
@@ -626,12 +625,12 @@ const PremiumSignedOutStart: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <TaleaActionButton icon={<LogIn className="h-4 w-4" />} onClick={() => navigate("/auth")}>
+              <TaleaPlayButton icon={<LogIn className="h-4 w-4" />} onClick={() => navigate("/auth")}>
                 Zum Familienzugang
-              </TaleaActionButton>
-              <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => navigate("/auth")}>
+              </TaleaPlayButton>
+              <TaleaPlayButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => navigate("/auth")}>
                 Geschichten entdecken
-              </TaleaActionButton>
+              </TaleaPlayButton>
             </div>
           </div>
 
@@ -653,7 +652,7 @@ const PremiumSignedOutStart: React.FC = () => {
                 tone: "from-[#f3e4fb] to-[#eee1d2]",
               },
             ].map((item) => (
-              <div key={item.title} className={cn(taleaSurfaceClass, "relative overflow-hidden p-5 sm:p-6")}>
+              <div key={item.title} className={cn(taleaPlayCardClass, "relative overflow-hidden p-5 sm:p-6")}>
                 <div className={cn("absolute inset-0 bg-gradient-to-br opacity-75", item.tone)} />
                 <div className="relative z-10">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Talea</p>
@@ -725,13 +724,13 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     variants={containerVariants}
     initial="hidden"
     animate="show"
-    className={cn(taleaPageShellClass, "space-y-5 pt-2 sm:space-y-6 sm:pt-3")}
+    className={cn(taleaPlayPageShellClass, "space-y-5 pt-2 sm:space-y-6 sm:pt-3")}
   >
     {/* -- Compact Hero -- */}
-    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
+    <motion.section variants={itemVariants} className={cn(taleaPlayCardClass, "p-4 sm:p-5")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className={cn(taleaInsetSurfaceClass, "shrink-0 rounded-full p-1.5")}>
+          <div className={cn(taleaPlayInsetClass, "shrink-0 rounded-full p-1.5")}>
             <UserButton
               afterSignOutUrl="/"
               userProfileMode="navigation"
@@ -740,42 +739,27 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             />
           </div>
           <h1
-            className="text-lg font-semibold text-[var(--talea-text-primary)] sm:text-xl md:text-2xl"
-            style={{ fontFamily: headingFont }}
+            className="talea-play-display text-xl font-bold text-[var(--talea-text-primary)] sm:text-2xl md:text-[1.75rem]"
           >
             {greeting},{" "}
-            <span className="bg-gradient-to-r from-[var(--talea-accent-rose)] via-[var(--primary)] to-[var(--talea-accent-sky)] bg-clip-text text-transparent">
+            <span className="bg-[image:var(--talea-play-gradient-pink)] bg-clip-text text-transparent">
               {userName || t("homeScreen.defaultUser")}
-            </span>
+            </span>{" "}
+            <span className="talea-animate-float inline-block">👋</span>
           </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {[
-            { label: t("homeScreen.statsStories"), value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" />, tone: "from-[#f8dde8] to-[#fbead1] dark:from-[rgba(109,84,114,0.35)] dark:to-[rgba(92,76,55,0.25)]" },
-            { label: t("homeScreen.statsAvatars"), value: avatars.length, icon: <Swords className="h-3.5 w-3.5" />, tone: "from-[#dff0ff] to-[#e2f4ec] dark:from-[rgba(65,98,130,0.32)] dark:to-[rgba(47,89,79,0.22)]" },
-            { label: t("homeScreen.statsDokus"), value: dokusTotal, icon: <Library className="h-3.5 w-3.5" />, tone: "from-[#fbe9cf] to-[#efe5fb] dark:from-[rgba(92,77,52,0.32)] dark:to-[rgba(88,69,123,0.22)]" },
-          ].map((stat) => (
-            <motion.span
-              key={stat.label}
-              whileHover={{ scale: 1.06, y: -1 }}
-              className={cn(
-                "inline-flex cursor-default items-center gap-1.5 rounded-full border border-[var(--talea-border-light)] bg-gradient-to-r px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md",
-                stat.tone
-              )}
-            >
-              <span className="text-[var(--talea-text-secondary)]">{stat.icon}</span>
-              <span className="font-bold text-[var(--talea-text-primary)]">{stat.value}</span>
-              <span className="text-[var(--talea-text-tertiary)]">{stat.label}</span>
-            </motion.span>
-          ))}
+          <TaleaPlayStatPill tone="pink" icon={<ScrollText className="h-3.5 w-3.5" />} value={storiesTotal} label={t("homeScreen.statsStories")} />
+          <TaleaPlayStatPill tone="sky" icon={<Swords className="h-3.5 w-3.5" />} value={avatars.length} label={t("homeScreen.statsAvatars")} />
+          <TaleaPlayStatPill tone="sun" icon={<Library className="h-3.5 w-3.5" />} value={dokusTotal} label={t("homeScreen.statsDokus")} />
           <motion.button
             whileHover={{ rotate: 180, scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             type="button"
             onClick={onRefresh}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-secondary)] shadow-sm transition-colors hover:bg-white/90 dark:bg-[var(--talea-surface-inset)]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-[var(--talea-border-light)] bg-white/70 text-[var(--talea-text-secondary)] shadow-sm transition-colors hover:bg-white dark:bg-[var(--talea-surface-inset)]"
             aria-label={t("common.refresh")}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
@@ -784,15 +768,15 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--talea-border-light)] pt-3">
-        <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
+        <TaleaPlayButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
           {t("homeScreen.newStory")}
-        </TaleaActionButton>
-        <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
+        </TaleaPlayButton>
+        <TaleaPlayButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
           {t("homeScreen.library")}
-        </TaleaActionButton>
-        <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
+        </TaleaPlayButton>
+        <TaleaPlayButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
           {t("homeScreen.knowledgeJourney")}
-        </TaleaActionButton>
+        </TaleaPlayButton>
       </div>
     </motion.section>
     <motion.section
@@ -800,10 +784,11 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}
+      className={cn(taleaPlayCardClass, "p-4 sm:p-5 md:p-6")}
     >
       <div className="relative z-10 space-y-6">
-      <TaleaSectionHeading
+      <TaleaPlaySectionHeading
+        emoji="📚"
         eyebrow={t("homeScreen.yourStoriesEyebrow")}
         title={t("homeScreen.yourStories")}
         subtitle={t("homeScreen.yourStoriesSubtitle")}
@@ -815,8 +800,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         <EmptyStateContainer
           title={t("homeScreen.noStoriesTitle")}
           description={t("homeScreen.noStoriesDesc")}
-          icon={<BookOpen className="h-12 w-12 text-blue-500 dark:text-indigo-300" />}
-          colorClass="bg-blue-100 dark:bg-slate-700"
+          icon={<BookOpen className="h-12 w-12 text-[var(--talea-play-sky)]" />}
+          colorClass="bg-[var(--talea-play-sky-soft)]"
           actionLabel={t("homeScreen.createFirstStory")}
           onAction={() => goTo("/story")}
         />
@@ -866,7 +851,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
       className="space-y-6"
     >
-      <TaleaSectionHeading
+      <TaleaPlaySectionHeading
+        emoji="🦸"
         eyebrow={t("homeScreen.yourAvatarsEyebrow")}
         title={t("homeScreen.yourAvatars")}
         subtitle={t("homeScreen.yourAvatarsSubtitle")}
@@ -878,20 +864,28 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         <EmptyStateContainer
           title={t("homeScreen.noAvatarsTitle")}
           description={t("homeScreen.noAvatarsDesc")}
-          icon={<UserPlus className="h-12 w-12 text-pink-500 dark:text-pink-300" />}
-          colorClass="bg-pink-100 dark:bg-slate-700"
+          icon={<UserPlus className="h-12 w-12 text-[var(--talea-play-pink)]" />}
+          colorClass="bg-[var(--talea-play-pink-soft)]"
           actionLabel={t("homeScreen.createAvatar")}
           onAction={() => goTo(createAvatarPath)}
         />
       ) : (
         <div className="-mx-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
           <div className="flex gap-3.5 pb-4 sm:gap-4">
-            <button type="button" onClick={() => goTo(createAvatarPath)} className={cn(taleaSurfaceClass, "w-[8.9rem] shrink-0 p-4 text-left sm:w-44 sm:p-6")}>
-              <div className={cn(taleaInsetSurfaceClass, "flex h-full min-h-[170px] flex-col items-center justify-center gap-4 p-5 text-center sm:min-h-[180px] sm:p-6")}>
-                <Plus className="h-10 w-10 text-slate-700 dark:text-white" />
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">{t("homeScreen.newHero")}</p>
+            <motion.button
+              whileHover={{ y: -6, scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              type="button"
+              onClick={() => goTo(createAvatarPath)}
+              className="group w-[8.9rem] shrink-0 rounded-[var(--talea-play-radius)] border-[3px] border-dashed border-[var(--talea-play-pink)]/50 bg-[var(--talea-play-pink-soft)] p-4 text-left transition-colors hover:border-[var(--talea-play-pink)] sm:w-44 sm:p-6"
+            >
+              <div className="flex h-full min-h-[170px] flex-col items-center justify-center gap-4 p-5 text-center sm:min-h-[180px] sm:p-6">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[var(--talea-play-pink)] shadow-[0_8px_18px_rgba(247,168,196,0.3)] transition-transform group-hover:rotate-90 dark:bg-[var(--talea-surface-primary)]">
+                  <Plus className="h-8 w-8" />
+                </span>
+                <p className="talea-play-display text-lg font-bold text-[var(--talea-text-primary)]">{t("homeScreen.newHero")}</p>
               </div>
-            </button>
+            </motion.button>
 
             {avatars.map((avatar) => (
               <AvatarTile
@@ -913,7 +907,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
       className="space-y-6"
     >
-      <TaleaSectionHeading
+      <TaleaPlaySectionHeading
+        emoji="💡"
         eyebrow={t("homeScreen.yourDokusEyebrow")}
         title={t("homeScreen.yourDokus")}
         subtitle={t("homeScreen.yourDokusSubtitle")}
@@ -925,8 +920,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         <EmptyStateContainer
           title={t("homeScreen.noDokusTitle")}
           description={t("homeScreen.noDokusDesc")}
-          icon={<Library className="h-12 w-12 text-yellow-500 dark:text-yellow-300" />}
-          colorClass="bg-yellow-100 dark:bg-slate-700"
+          icon={<Library className="h-12 w-12 text-[var(--talea-play-sun)]" />}
+          colorClass="bg-[var(--talea-play-sun-soft)]"
           actionLabel={t("homeScreen.createFirstDoku")}
           onAction={() => goTo("/doku/create")}
         />
@@ -953,8 +948,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     </motion.section>
 
     {/* -- Cosmos -- */}
-    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "overflow-hidden p-2")}>
-      <div className={cn(taleaInsetSurfaceClass, "overflow-hidden p-0")}>
+    <motion.section variants={itemVariants} className={cn(taleaPlayCardClass, "overflow-hidden p-2")}>
+      <div className={cn(taleaPlayInsetClass, "overflow-hidden p-0")}>
         <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
       </div>
     </motion.section>

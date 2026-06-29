@@ -22,6 +22,7 @@ import { AgentProvider } from './agents';
 import { useLanguageSync } from './hooks/useLanguageSync';
 
 const HomeScreen = React.lazy(() => import('./screens/Home/TaleaHomeScreen'));
+const PlayfulHomePreview = React.lazy(() => import('./screens/Home/PlayfulHomePreview'));
 const ModernHomeScreen = React.lazy(() => import('./screens/Home/ModernHomeScreen'));
 const LandingPage = React.lazy(() => import('./screens/Landing/LandingPage'));
 const AuthScreen = React.lazy(() => import('./screens/Auth/AuthScreen'));
@@ -221,6 +222,7 @@ const RouterContent = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth" element={<AuthScreen />} />
+              <Route path="/playful-preview" element={<PlayfulHomePreview />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           ) : (
@@ -490,6 +492,16 @@ function useClerkLoadFailureDetection(onFail: () => void) {
 }
 
 export default function App() {
+  // Auth-free design preview route — renders the playful redesign without Clerk.
+  // Renders in light mode (no .dark class). Remove once the redesign is approved.
+  if (typeof window !== 'undefined' && window.location.pathname === '/playful-preview') {
+    return (
+      <React.Suspense fallback={<RouteLoadingFallback />}>
+        <PlayfulHomePreview />
+      </React.Suspense>
+    );
+  }
+
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
   const [clerkFailed, setClerkFailed] = useState(false);
 

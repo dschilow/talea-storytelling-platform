@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Caveat:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Fredoka:wght@400;500;600;700&family=Gloock&family=Manrope:wght@400;500;600;700;800&family=Nunito:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
@@ -142,6 +142,177 @@
   --sidebar-accent-foreground: #3e4c5f;
   --sidebar-border: rgba(76, 60, 48, 0.09);
   --sidebar-ring: #7ba89c;
+
+  /* ========================================
+     Playful Kids Layer (additiv, light mode)
+     Kräftigere, aber pastellige Kinder-Akzente
+     ======================================== */
+  --talea-font-display: 'Fredoka', 'Baloo 2', 'Nunito', sans-serif;
+  --talea-play-pink: #f7a8c4;
+  --talea-play-coral: #ffb088;
+  --talea-play-sun: #ffd166;
+  --talea-play-mint: #8ed7b8;
+  --talea-play-sky: #8ec5f0;
+  --talea-play-lavender: #c4b0f0;
+  --talea-play-pink-soft: #fde3ee;
+  --talea-play-coral-soft: #ffe8d8;
+  --talea-play-sun-soft: #fff1cf;
+  --talea-play-mint-soft: #dcf3e9;
+  --talea-play-sky-soft: #dcecfb;
+  --talea-play-lavender-soft: #ece4fb;
+  --talea-play-radius: 1.75rem;
+  --talea-play-radius-lg: 2.25rem;
+  --talea-play-radius-pill: 999px;
+  --talea-play-shadow: 0 16px 34px rgba(160, 120, 140, 0.16), 0 2px 0 rgba(255, 255, 255, 0.9) inset;
+  --talea-play-shadow-hover: 0 22px 46px rgba(160, 120, 140, 0.22), 0 2px 0 rgba(255, 255, 255, 0.9) inset;
+  --talea-play-shadow-pop: 0 10px 0 rgba(160, 120, 140, 0.12);
+  --talea-play-ring: rgba(247, 168, 196, 0.32);
+  --talea-play-gradient-hero: linear-gradient(135deg, #fde3ee 0%, #fff1cf 38%, #dcf3e9 72%, #dcecfb 100%);
+  --talea-play-gradient-pink: linear-gradient(135deg, #f7a8c4 0%, #ffb088 100%);
+  --talea-play-gradient-mint: linear-gradient(135deg, #8ed7b8 0%, #8ec5f0 100%);
+  --talea-play-gradient-sun: linear-gradient(135deg, #ffd166 0%, #ffb088 100%);
+  --talea-play-gradient-lavender: linear-gradient(135deg, #c4b0f0 0%, #8ec5f0 100%);
+
+  /* ============================================================
+     TALEA BRIGHT — modern editorial kids brand (light)
+     Crisp canvas, bold confident accents, generous space
+     ============================================================ */
+  --tb-font-display: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+  --tb-font-body: 'Plus Jakarta Sans', 'Manrope', sans-serif;
+
+  /* Canvas + surfaces */
+  --tb-canvas: #f4f2fb;
+  --tb-canvas-2: #efeaf9;
+  --tb-surface: #ffffff;
+  --tb-surface-2: #faf8ff;
+  --tb-ink: #1c1338;
+  --tb-ink-2: #5a5170;
+  --tb-ink-3: #8c84a3;
+  --tb-line: rgba(28, 19, 56, 0.08);
+  --tb-line-2: rgba(28, 19, 56, 0.14);
+
+  /* Brand accents — vivid but sophisticated */
+  --tb-violet: #7c4dff;
+  --tb-violet-2: #9d6bff;
+  --tb-coral: #ff6b8a;
+  --tb-coral-2: #ff8fa3;
+  --tb-amber: #ffb74d;
+  --tb-teal: #2dd4bf;
+  --tb-sky: #38bdf8;
+  --tb-lime: #a3e635;
+
+  --tb-violet-soft: #ece4ff;
+  --tb-coral-soft: #ffe4ea;
+  --tb-amber-soft: #fff0d9;
+  --tb-teal-soft: #d4f7f1;
+  --tb-sky-soft: #ddf2fe;
+
+  /* Signature gradient + mesh */
+  --tb-grad-hero: linear-gradient(135deg, #7c4dff 0%, #b14dff 38%, #ff6b8a 100%);
+  --tb-grad-violet: linear-gradient(140deg, #8b5cff 0%, #6a3dff 100%);
+  --tb-grad-coral: linear-gradient(140deg, #ff7a9c 0%, #ff5277 100%);
+  --tb-grad-amber: linear-gradient(140deg, #ffc46b 0%, #ff9d3c 100%);
+  --tb-grad-teal: linear-gradient(140deg, #3ee0cb 0%, #16b8a6 100%);
+  --tb-grad-sky: linear-gradient(140deg, #5bcbfb 0%, #2aa5e8 100%);
+
+  /* Radii + elevation — soft colored shadows */
+  --tb-r-sm: 16px;
+  --tb-r: 24px;
+  --tb-r-lg: 32px;
+  --tb-r-xl: 40px;
+  --tb-shadow-sm: 0 4px 14px rgba(70, 50, 130, 0.08);
+  --tb-shadow: 0 12px 30px rgba(70, 50, 130, 0.1), 0 2px 6px rgba(70, 50, 130, 0.06);
+  --tb-shadow-lg: 0 24px 60px rgba(70, 50, 130, 0.16), 0 4px 12px rgba(70, 50, 130, 0.08);
+  --tb-shadow-violet: 0 16px 40px rgba(124, 77, 255, 0.34);
+  --tb-shadow-coral: 0 16px 40px rgba(255, 107, 138, 0.32);
+  --tb-ring: rgba(124, 77, 255, 0.4);
+
+  /* ============================================================
+     TALEA EDITORIAL — warm illustrated magazine (light)
+     One disciplined palette · 8pt rhythm · real type scale
+     ============================================================ */
+  --ed-serif: 'Fraunces', 'Cormorant Garamond', serif;
+  --ed-sans: 'Plus Jakarta Sans', 'Manrope', sans-serif;
+
+  /* Paper & ink — warm, almost monochrome */
+  --ed-paper: #f5f0e6;          /* warm cream canvas */
+  --ed-paper-2: #efe8d8;        /* recessed areas */
+  --ed-card: #fbf8f1;           /* slightly lifted card */
+  --ed-card-2: #f3ecdd;         /* tinted card */
+  --ed-ink: #2b2620;            /* near-black warm ink */
+  --ed-ink-2: #6b6358;          /* secondary text */
+  --ed-ink-3: #9a9183;          /* meta / muted */
+  --ed-line: #e2d8c4;           /* hairline rules */
+  --ed-line-2: #d3c6ad;         /* stronger rule */
+
+  /* ONE accent: terracotta. Plus two quiet supporting tones for covers. */
+  --ed-accent: #b8552f;         /* terracotta — the single brand accent */
+  --ed-accent-deep: #95421f;
+  --ed-accent-soft: #ecdac9;
+  --ed-clay: #c97b54;           /* cover tone */
+  --ed-sage: #7d8a6a;           /* cover tone */
+  --ed-ochre: #c79a3e;          /* cover tone */
+  --ed-slate: #5f6b75;          /* cover tone */
+  --ed-plum: #7a5566;           /* cover tone */
+
+  /* Restrained elevation — paper doesn't float much */
+  --ed-shadow-sm: 0 1px 2px rgba(60, 48, 28, 0.06);
+  --ed-shadow: 0 2px 8px rgba(60, 48, 28, 0.07), 0 12px 24px -16px rgba(60, 48, 28, 0.18);
+  --ed-shadow-lift: 0 4px 12px rgba(60, 48, 28, 0.1), 0 20px 40px -22px rgba(60, 48, 28, 0.26);
+
+  /* Radii — modest, consistent */
+  --ed-r: 8px;
+  --ed-r-lg: 14px;
+
+  /* ========================================
+     Storybook / Märchenbuch Layer (light)
+     Pergament, Tinte, Aquarell, handgezeichnet
+     ======================================== */
+  --tale-font-title: 'Gloock', 'Fraunces', serif;
+  --tale-font-serif: 'Fraunces', 'Cormorant Garamond', serif;
+  --tale-font-hand: 'Caveat', cursive;
+
+  /* Pergament / Papier */
+  --tale-paper: #f6ead2;
+  --tale-paper-warm: #f3e3c3;
+  --tale-paper-deep: #ecdab8;
+  --tale-paper-edge: #d8c39a;
+  --tale-page-fold: rgba(120, 92, 54, 0.14);
+
+  /* Tinte */
+  --tale-ink: #3a2a18;
+  --tale-ink-soft: #6b5436;
+  --tale-ink-faint: #9a8359;
+  --tale-ink-line: rgba(80, 58, 32, 0.22);
+
+  /* Aquarell-Akzente (gedämpft, wie ausgewaschen) */
+  --tale-rose: #c97b6f;
+  --tale-rose-wash: rgba(201, 123, 111, 0.18);
+  --tale-teal: #5f8c7d;
+  --tale-teal-wash: rgba(95, 140, 125, 0.18);
+  --tale-gold: #c79248;
+  --tale-gold-wash: rgba(199, 146, 72, 0.2);
+  --tale-plum: #8a6a93;
+  --tale-plum-wash: rgba(138, 106, 147, 0.18);
+  --tale-sky: #6f93b8;
+  --tale-sky-wash: rgba(111, 147, 184, 0.18);
+
+  --tale-gilt: linear-gradient(135deg, #e7c878 0%, #c79248 50%, #a9722e 100%);
+
+  /* Texturen */
+  --tale-paper-grain:
+    radial-gradient(circle at 18% 22%, rgba(255, 252, 240, 0.55) 0%, transparent 45%),
+    radial-gradient(circle at 82% 14%, rgba(210, 180, 130, 0.16) 0%, transparent 40%),
+    radial-gradient(circle at 70% 84%, rgba(190, 158, 108, 0.14) 0%, transparent 46%),
+    repeating-linear-gradient(95deg, rgba(150, 120, 70, 0.025) 0px, rgba(150, 120, 70, 0.025) 1px, transparent 1px, transparent 4px),
+    linear-gradient(170deg, #f8eed8 0%, #f3e4c6 55%, #eddbb9 100%);
+  --tale-page-vignette:
+    radial-gradient(120% 120% at 50% 0%, transparent 55%, rgba(90, 66, 34, 0.1) 100%),
+    radial-gradient(120% 120% at 50% 100%, transparent 55%, rgba(90, 66, 34, 0.12) 100%);
+
+  --tale-shadow-page: 0 18px 40px rgba(86, 62, 30, 0.18), 0 2px 0 rgba(255, 250, 235, 0.7) inset, 0 -1px 0 rgba(120, 90, 50, 0.08) inset;
+  --tale-shadow-page-lift: 0 28px 60px rgba(86, 62, 30, 0.26), 0 2px 0 rgba(255, 250, 235, 0.8) inset;
+  --tale-shadow-deboss: inset 0 2px 6px rgba(90, 66, 34, 0.16);
 }
 
 .dark {
@@ -239,6 +410,132 @@
   --talea-progress-track: rgba(137, 156, 184, 0.26);
   --talea-slider-thumb: #d7e4f9;
   --talea-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+
+  /* Playful Kids Layer (dark mode) */
+  --talea-play-pink: #e89ab5;
+  --talea-play-coral: #f0a47e;
+  --talea-play-sun: #f0c66a;
+  --talea-play-mint: #86c9ac;
+  --talea-play-sky: #88bce6;
+  --talea-play-lavender: #b6a4e6;
+  --talea-play-pink-soft: rgba(232, 154, 181, 0.16);
+  --talea-play-coral-soft: rgba(240, 164, 126, 0.16);
+  --talea-play-sun-soft: rgba(240, 198, 106, 0.16);
+  --talea-play-mint-soft: rgba(134, 201, 172, 0.16);
+  --talea-play-sky-soft: rgba(136, 188, 230, 0.16);
+  --talea-play-lavender-soft: rgba(182, 164, 230, 0.16);
+  --talea-play-shadow: 0 18px 38px rgba(0, 0, 0, 0.32), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  --talea-play-shadow-hover: 0 24px 50px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  --talea-play-shadow-pop: 0 10px 0 rgba(0, 0, 0, 0.28);
+  --talea-play-ring: rgba(232, 154, 181, 0.3);
+  --talea-play-gradient-hero: linear-gradient(135deg, rgba(232, 154, 181, 0.18) 0%, rgba(240, 198, 106, 0.14) 38%, rgba(134, 201, 172, 0.16) 72%, rgba(136, 188, 230, 0.16) 100%);
+  --talea-play-gradient-pink: linear-gradient(135deg, #e89ab5 0%, #f0a47e 100%);
+  --talea-play-gradient-mint: linear-gradient(135deg, #86c9ac 0%, #88bce6 100%);
+  --talea-play-gradient-sun: linear-gradient(135deg, #f0c66a 0%, #f0a47e 100%);
+  --talea-play-gradient-lavender: linear-gradient(135deg, #b6a4e6 0%, #88bce6 100%);
+
+  /* TALEA BRIGHT (dark — deep indigo night, accents glow) */
+  --tb-canvas: #14101f;
+  --tb-canvas-2: #100c1a;
+  --tb-surface: #1e1830;
+  --tb-surface-2: #251d3a;
+  --tb-ink: #f3efff;
+  --tb-ink-2: #b6acce;
+  --tb-ink-3: #8278a0;
+  --tb-line: rgba(255, 255, 255, 0.08);
+  --tb-line-2: rgba(255, 255, 255, 0.14);
+
+  --tb-violet: #9d6bff;
+  --tb-violet-2: #b48bff;
+  --tb-coral: #ff7e9b;
+  --tb-coral-2: #ff9db2;
+  --tb-amber: #ffc46b;
+  --tb-teal: #3ee0cb;
+  --tb-sky: #5bcbfb;
+  --tb-lime: #b6ef5a;
+
+  --tb-violet-soft: rgba(157, 107, 255, 0.16);
+  --tb-coral-soft: rgba(255, 126, 155, 0.16);
+  --tb-amber-soft: rgba(255, 196, 107, 0.16);
+  --tb-teal-soft: rgba(62, 224, 203, 0.16);
+  --tb-sky-soft: rgba(91, 203, 251, 0.16);
+
+  --tb-grad-hero: linear-gradient(135deg, #8b5cff 0%, #b14dff 38%, #ff6b8a 100%);
+  --tb-grad-violet: linear-gradient(140deg, #9d6bff 0%, #7c4dff 100%);
+  --tb-grad-coral: linear-gradient(140deg, #ff8fa3 0%, #ff6b8a 100%);
+  --tb-grad-amber: linear-gradient(140deg, #ffc46b 0%, #ff9d3c 100%);
+  --tb-grad-teal: linear-gradient(140deg, #3ee0cb 0%, #16b8a6 100%);
+  --tb-grad-sky: linear-gradient(140deg, #5bcbfb 0%, #2aa5e8 100%);
+
+  --tb-shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.4);
+  --tb-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  --tb-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --tb-shadow-violet: 0 16px 44px rgba(124, 77, 255, 0.45);
+  --tb-shadow-coral: 0 16px 44px rgba(255, 107, 138, 0.4);
+  --tb-ring: rgba(157, 107, 255, 0.5);
+
+  /* TALEA EDITORIAL (dark — warm reading-lamp, espresso paper) */
+  --ed-paper: #1c1813;
+  --ed-paper-2: #161310;
+  --ed-card: #252019;
+  --ed-card-2: #2b251d;
+  --ed-ink: #f0e9da;
+  --ed-ink-2: #b9ad99;
+  --ed-ink-3: #837a69;
+  --ed-line: #363026;
+  --ed-line-2: #463f32;
+
+  --ed-accent: #e0a980;
+  --ed-accent-deep: #d4946a;
+  --ed-accent-soft: #3a2c20;
+  --ed-clay: #d68b62;
+  --ed-sage: #98a585;
+  --ed-ochre: #d9b25e;
+  --ed-slate: #8593a0;
+  --ed-plum: #a87f90;
+
+  --ed-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ed-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 12px 24px -16px rgba(0, 0, 0, 0.6);
+  --ed-shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.5), 0 20px 40px -22px rgba(0, 0, 0, 0.7);
+
+  /* Storybook / Märchenbuch Layer (dark — Nachttisch-Lampe & altes Leder) */
+  --tale-paper: #2a2118;
+  --tale-paper-warm: #322619;
+  --tale-paper-deep: #241c14;
+  --tale-paper-edge: #4a3a26;
+  --tale-page-fold: rgba(0, 0, 0, 0.4);
+
+  --tale-ink: #f0e3cb;
+  --tale-ink-soft: #cbb389;
+  --tale-ink-faint: #9b8762;
+  --tale-ink-line: rgba(220, 190, 140, 0.22);
+
+  --tale-rose: #d99186;
+  --tale-rose-wash: rgba(217, 145, 134, 0.16);
+  --tale-teal: #82b3a2;
+  --tale-teal-wash: rgba(130, 179, 162, 0.16);
+  --tale-gold: #e0b86a;
+  --tale-gold-wash: rgba(224, 184, 106, 0.18);
+  --tale-plum: #b292bb;
+  --tale-plum-wash: rgba(178, 146, 187, 0.16);
+  --tale-sky: #8fb0d4;
+  --tale-sky-wash: rgba(143, 176, 212, 0.16);
+
+  --tale-gilt: linear-gradient(135deg, #f0d189 0%, #d4a85f 50%, #b8843a 100%);
+
+  --tale-paper-grain:
+    radial-gradient(circle at 18% 22%, rgba(90, 70, 44, 0.4) 0%, transparent 45%),
+    radial-gradient(circle at 82% 14%, rgba(60, 46, 28, 0.5) 0%, transparent 40%),
+    radial-gradient(circle at 70% 84%, rgba(50, 38, 22, 0.4) 0%, transparent 46%),
+    repeating-linear-gradient(95deg, rgba(255, 230, 180, 0.015) 0px, rgba(255, 230, 180, 0.015) 1px, transparent 1px, transparent 4px),
+    linear-gradient(170deg, #2e2419 0%, #271e15 55%, #211a12 100%);
+  --tale-page-vignette:
+    radial-gradient(120% 120% at 50% 0%, transparent 50%, rgba(0, 0, 0, 0.35) 100%),
+    radial-gradient(120% 120% at 50% 100%, transparent 50%, rgba(0, 0, 0, 0.4) 100%);
+
+  --tale-shadow-page: 0 18px 40px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 220, 160, 0.06) inset;
+  --tale-shadow-page-lift: 0 28px 60px rgba(0, 0, 0, 0.62), 0 1px 0 rgba(255, 220, 160, 0.08) inset;
+  --tale-shadow-deboss: inset 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
@@ -383,6 +680,337 @@
   .talea-reading-prose p {
     max-width: 70ch;
   }
+
+  /* ========================================
+     Playful Kids Utilities
+     ======================================== */
+  .talea-play-display {
+    font-family: var(--talea-font-display);
+    letter-spacing: -0.01em;
+  }
+
+  .talea-play-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--talea-play-radius);
+    border: 2px solid var(--talea-border-light);
+    background: var(--talea-surface-primary);
+    box-shadow: var(--talea-play-shadow);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .talea-play-inset {
+    border-radius: var(--talea-play-radius);
+    border: 2px solid var(--talea-border-light);
+    background: var(--talea-surface-inset);
+  }
+
+  .talea-play-gradient-text {
+    background-image: var(--talea-play-gradient-pink);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  @keyframes talea-wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+  }
+
+  @keyframes talea-float-soft {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .talea-animate-wiggle:hover {
+    animation: talea-wiggle 0.5s ease-in-out;
+  }
+
+  .talea-animate-float {
+    animation: talea-float-soft 3.5s ease-in-out infinite;
+  }
+
+  /* ========================================
+     Storybook / Märchenbuch Utilities
+     ======================================== */
+  .tale-page {
+    background-color: var(--tale-paper);
+    background-image: var(--tale-page-vignette), var(--tale-paper-grain);
+    background-attachment: fixed;
+    color: var(--tale-ink);
+  }
+
+  .tale-title {
+    font-family: var(--tale-font-title);
+    color: var(--tale-ink);
+    letter-spacing: 0.005em;
+    line-height: 1.04;
+  }
+
+  .tale-serif {
+    font-family: var(--tale-font-serif);
+    color: var(--tale-ink-soft);
+  }
+
+  .tale-hand {
+    font-family: var(--tale-font-hand);
+    color: var(--tale-ink-soft);
+  }
+
+  /* Aufgeschlagene Buchseite — Karte mit Papierkante & Knickschatten */
+  .tale-card {
+    position: relative;
+    background-color: var(--tale-paper-warm);
+    background-image:
+      radial-gradient(circle at 80% 0%, rgba(255, 250, 235, 0.5) 0%, transparent 40%),
+      var(--tale-paper-grain);
+    border: 1px solid var(--tale-paper-edge);
+    border-radius: 14px 18px 16px 20px;
+    box-shadow: var(--tale-shadow-page);
+  }
+
+  /* gerissene/genähte Innenkante einer Buchseite */
+  .tale-card::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid var(--tale-ink-line);
+    border-radius: 10px 12px 11px 13px;
+    pointer-events: none;
+    opacity: 0.55;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(180deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  }
+
+  /* Aquarell-Wasserfleck (dekorativ, hinter Inhalt) */
+  .tale-wash {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(28px);
+    opacity: 0.7;
+    pointer-events: none;
+    mix-blend-mode: multiply;
+  }
+  .dark .tale-wash {
+    mix-blend-mode: screen;
+    opacity: 0.5;
+  }
+
+  /* Vergoldeter Text (Buchtitel-Prägung) */
+  .tale-gilt-text {
+    background-image: var(--tale-gilt);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 1px 0 rgba(120, 80, 20, 0.25));
+  }
+
+  /* Zierlinie mit Mittel-Ornament */
+  .tale-rule {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--tale-ink-faint);
+  }
+  .tale-rule::before,
+  .tale-rule::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, transparent, var(--tale-ink-line), transparent);
+  }
+
+  /* Schmuck-Initiale */
+  .tale-dropcap::first-letter {
+    font-family: var(--tale-font-title);
+    font-size: 3.2em;
+    line-height: 0.78;
+    float: left;
+    margin: 0.06em 0.12em 0 0;
+    color: var(--tale-rose);
+  }
+
+  @keyframes tale-page-sway {
+    0%, 100% { transform: translateY(0) rotate(-0.2deg); }
+    50% { transform: translateY(-6px) rotate(0.2deg); }
+  }
+  @keyframes tale-quill {
+    0%, 100% { transform: translateY(0) rotate(-4deg); }
+    50% { transform: translateY(-5px) rotate(4deg); }
+  }
+  @keyframes tale-ink-in {
+    from { opacity: 0; filter: blur(3px); transform: translateY(8px); }
+    to { opacity: 1; filter: blur(0); transform: translateY(0); }
+  }
+  @keyframes tale-twinkle-soft {
+    0%, 100% { opacity: 0.25; transform: scale(0.85); }
+    50% { opacity: 0.9; transform: scale(1.1); }
+  }
+
+  .tale-animate-sway { animation: tale-page-sway 6s ease-in-out infinite; }
+  .tale-animate-quill { animation: tale-quill 4s ease-in-out infinite; }
+  .tale-animate-ink { animation: tale-ink-in 0.7s ease-out both; }
+
+  /* ============================================================
+     TALEA BRIGHT utilities
+     ============================================================ */
+  .tb-display { font-family: var(--tb-font-display); letter-spacing: -0.02em; }
+  .tb-body { font-family: var(--tb-font-body); }
+
+  .tb-page {
+    background-color: var(--tb-canvas);
+    color: var(--tb-ink);
+  }
+
+  /* Soft animated mesh — sits behind everything */
+  .tb-mesh {
+    background:
+      radial-gradient(40% 50% at 12% 8%, rgba(124, 77, 255, 0.22) 0%, transparent 60%),
+      radial-gradient(38% 46% at 92% 6%, rgba(255, 107, 138, 0.2) 0%, transparent 60%),
+      radial-gradient(46% 50% at 84% 92%, rgba(45, 212, 191, 0.16) 0%, transparent 62%),
+      radial-gradient(40% 44% at 8% 88%, rgba(255, 183, 77, 0.16) 0%, transparent 60%);
+  }
+  .dark .tb-mesh {
+    background:
+      radial-gradient(40% 50% at 12% 8%, rgba(124, 77, 255, 0.3) 0%, transparent 60%),
+      radial-gradient(38% 46% at 92% 6%, rgba(255, 107, 138, 0.22) 0%, transparent 60%),
+      radial-gradient(46% 50% at 84% 92%, rgba(45, 212, 191, 0.18) 0%, transparent 62%),
+      radial-gradient(40% 44% at 8% 88%, rgba(255, 183, 77, 0.16) 0%, transparent 60%);
+  }
+
+  .tb-grad-text {
+    background-image: var(--tb-grad-hero);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  .tb-card {
+    background: var(--tb-surface);
+    border: 1px solid var(--tb-line);
+    border-radius: var(--tb-r);
+    box-shadow: var(--tb-shadow);
+  }
+
+  /* Fine dotted grid texture, masked to fade out */
+  .tb-dots {
+    background-image: radial-gradient(var(--tb-line-2) 1px, transparent 1px);
+    background-size: 22px 22px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 0%, #000 30%, transparent 75%);
+  }
+
+  @keyframes tb-float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-12px) } }
+  @keyframes tb-float-slow { 0%,100% { transform: translateY(0) rotate(0) } 50% { transform: translateY(-18px) rotate(3deg) } }
+  @keyframes tb-blob { 0%,100% { transform: translate(0,0) scale(1) } 33% { transform: translate(18px,-14px) scale(1.06) } 66% { transform: translate(-14px,12px) scale(0.96) } }
+  @keyframes tb-spin-slow { to { transform: rotate(360deg) } }
+  @keyframes tb-rise { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: translateY(0) } }
+  @keyframes tb-pop { 0% { opacity: 0; transform: scale(0.9) } 60% { opacity: 1; transform: scale(1.03) } 100% { transform: scale(1) } }
+  @keyframes tb-marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }
+
+  .tb-animate-float { animation: tb-float 5s ease-in-out infinite; }
+  .tb-animate-float-slow { animation: tb-float-slow 8s ease-in-out infinite; }
+  .tb-animate-blob { animation: tb-blob 16s ease-in-out infinite; }
+  .tb-animate-spin-slow { animation: tb-spin-slow 24s linear infinite; }
+  .tb-marquee-track { animation: tb-marquee 26s linear infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tb-animate-float, .tb-animate-float-slow, .tb-animate-blob,
+    .tb-animate-spin-slow, .tb-marquee-track { animation: none !important; }
+  }
+
+  /* ============================================================
+     TALEA EDITORIAL utilities
+     ============================================================ */
+  .ed-page { background-color: var(--ed-paper); color: var(--ed-ink); }
+  .ed-serif { font-family: var(--ed-serif); }
+  .ed-sans { font-family: var(--ed-sans); }
+
+  /* Subtle paper grain — barely-there, like printed stock */
+  .ed-grain {
+    background-image:
+      repeating-linear-gradient(0deg, rgba(120, 96, 50, 0.018) 0, rgba(120, 96, 50, 0.018) 1px, transparent 1px, transparent 3px),
+      repeating-linear-gradient(90deg, rgba(120, 96, 50, 0.014) 0, rgba(120, 96, 50, 0.014) 1px, transparent 1px, transparent 3px);
+  }
+
+  .ed-card {
+    background: var(--ed-card);
+    border: 1px solid var(--ed-line);
+    border-radius: var(--ed-r-lg);
+    box-shadow: var(--ed-shadow);
+  }
+
+  /* Hairline rule */
+  .ed-rule { height: 1px; background: var(--ed-line); }
+
+  /* Small caps meta label */
+  .ed-eyebrow {
+    font-family: var(--ed-sans);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ed-ink-3);
+  }
+
+  /* Index number (editorial "01 / 02") */
+  .ed-index {
+    font-family: var(--ed-serif);
+    font-variant-numeric: tabular-nums;
+    color: var(--ed-accent);
+  }
+
+  /* ---- Geometric cover system ----
+     Each cover composes flat shapes over a tinted ground.
+     Designed, not random: consistent grammar across the set. */
+  .ed-cover { position: relative; overflow: hidden; border-radius: calc(var(--ed-r-lg) - 2px); }
+  .ed-cover::after {
+    content: "";
+    position: absolute; inset: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  @keyframes ed-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .ed-animate-rise { animation: ed-rise 0.6s cubic-bezier(0.22,1,0.36,1) both; }
+
+  /* refined accents */
+  .ed-rule-grad { height: 1px; background: linear-gradient(90deg, transparent, var(--ed-line-2) 18%, var(--ed-line-2) 82%, transparent); }
+
+  /* multi-layer lifted card surface with inset top highlight */
+  .ed-card-fine {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.6), transparent 18%),
+      var(--ed-card);
+    border: 1px solid var(--ed-line);
+    border-radius: var(--ed-r-lg);
+    box-shadow: var(--ed-shadow), inset 0 1px 0 rgba(255,255,255,0.5);
+  }
+  .dark .ed-card-fine {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 18%), var(--ed-card);
+    box-shadow: var(--ed-shadow), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  /* soft accent glow halo */
+  .ed-glow { box-shadow: 0 0 0 1px var(--ed-accent), 0 8px 30px -8px color-mix(in srgb, var(--ed-accent) 55%, transparent); }
+
+  /* accent button with animated sheen */
+  .ed-btn-accent {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ed-accent) 92%, white), var(--ed-accent));
+    box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 8px 20px -8px color-mix(in srgb, var(--ed-accent) 70%, transparent);
+  }
+
+  /* tabular figures for stats */
+  .ed-nums { font-variant-numeric: tabular-nums; }
+
+  /* hover lift utility for cover wrappers */
+  .ed-cover-hover { transition: transform 0.5s cubic-bezier(0.16,1,0.3,1); }
+  .group:hover .ed-cover-hover { transform: scale(1.04); }
 }
 
 /* ========================================
