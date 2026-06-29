@@ -383,120 +383,168 @@ export const listElevenLabsVoices = api(
   }
 );
 
+export interface SynthesizeDialogueOptions {
+  script: string;
+  speakerVoiceMap: Record<string, string>;
+  modelId?: string;
+  /**
+   * ElevenLabs output_format. Defaults to studio MP3. For server-side mastering pass a
+   * lossless raw PCM format (e.g. "pcm_44100") to avoid any MP3 transcoding before the mix.
+   */
+  outputFormat?: string;
+}
+
+export interface SynthesizeDialogueResult {
+  /** Raw audio bytes. For pcm_* formats this is headerless signed 16-bit little-endian PCM. */
+  audio: Buffer;
+  mimeType: string;
+  turns: number;
+  speakers: string[];
+}
+
+/**
+ * Core ElevenLabs text-to-dialogue synthesis used by both the public dialogue endpoint and
+ * the server-side audio-doku master. Performs no auth — the caller is responsible for it.
+ */
+export async function synthesizeDialogue(
+  options: SynthesizeDialogueOptions
+): Promise<SynthesizeDialogueResult> {
+  const apiKey = getElevenLabsApiKey();
+
+  if (!options.speakerVoiceMap || Object.keys(options.speakerVoiceMap).length === 0) {
+    throw APIError.invalidArgument("speakerVoiceMap is required.");
+  }
+
+  const turns = parseDialogueScript(options.script);
+  const missingSpeakers = new Set<string>();
+
+  const inputs: ElevenLabsDialogueInput[] = turns.map((turn) => {
+    const voiceId = resolveVoiceId(turn.speaker, options.speakerVoiceMap);
+    if (!voiceId) {
+      missingSpeakers.add(turn.speaker);
+    }
+    return {
+      text: turn.text,
+      voice_id: voiceId || "",
+    };
+  });
+
+  if (missingSpeakers.size > 0) {
+    const speakers = [...missingSpeakers].join(", ");
+    throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${speakers}`);
+  }
+
+  const modelId = options.modelId?.trim() || DEFAULT_MODEL_ID;
+  const outputFormat = options.outputFormat?.trim() || DEFAULT_OUTPUT_FORMAT;
+  const isPcm = outputFormat.startsWith("pcm_");
+  const totalTextLength = getDialogueTextLength(inputs);
+  const inputBatches = chunkDialogueInputsForElevenLabs(inputs, ELEVENLABS_TARGET_CHUNK_LENGTH);
+
+  if (inputBatches.length > 1) {
+    log.info(
+      `[ElevenLabs] Splitting dialogue request into ${inputBatches.length} chunk(s) (${totalTextLength} chars total).`
+    );
+  }
+
+  const generateBatch = async (batchedInputs: ElevenLabsDialogueInput[], chunkNumber: number) => {
+    let response: Response;
+    try {
+      response = await fetch(`${ELEVENLABS_API_BASE}/text-to-dialogue`, {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: isPcm ? "application/octet-stream" : "audio/mpeg",
+        },
+        body: JSON.stringify({
+          model_id: modelId,
+          output_format: outputFormat,
+          inputs: batchedInputs,
+        }),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error(`[ElevenLabs] dialogue request failed before response (chunk ${chunkNumber}): ${message}`);
+      throw APIError.unavailable("ElevenLabs dialogue generation failed before a response was received.");
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      log.error(`[ElevenLabs] dialogue generation failed (${response.status}, chunk ${chunkNumber}): ${errText}`);
+      throwElevenLabsApiError(response.status, errText);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const bytes = Buffer.from(arrayBuffer);
+    if (!bytes.length) {
+      throw APIError.unavailable("ElevenLabs returned an empty audio response.");
+    }
+
+    return {
+      bytes,
+      mimeType: (response.headers.get("content-type") || (isPcm ? "audio/pcm" : "audio/mpeg"))
+        .split(";")[0]
+        .trim(),
+    };
+  };
+
+  const audioParts: Buffer[] = [];
+  let detectedMimeType = "";
+
+  for (let index = 0; index < inputBatches.length; index += 1) {
+    const result = await generateBatch(inputBatches[index], index + 1);
+    audioParts.push(result.bytes);
+    if (!detectedMimeType) {
+      detectedMimeType = result.mimeType || (isPcm ? "audio/pcm" : "audio/mpeg");
+    } else if (result.mimeType && result.mimeType !== detectedMimeType) {
+      log.warn(
+        `[ElevenLabs] Mixed mime types across dialogue chunks: ${detectedMimeType} vs ${result.mimeType}.`
+      );
+    } else {
+      detectedMimeType = result.mimeType || detectedMimeType;
+    }
+  }
+
+  // Raw PCM is headerless, so chunks concatenate directly. WAV needs header stitching.
+  const combinedAudio = isPcm
+    ? Buffer.concat(audioParts)
+    : concatenateAudioBuffers(audioParts, detectedMimeType);
+  if (!combinedAudio.length) {
+    throw APIError.unavailable("ElevenLabs returned no audio data.");
+  }
+
+  return {
+    audio: combinedAudio,
+    mimeType: detectedMimeType,
+    turns: turns.length,
+    speakers: [...new Set(turns.map((turn) => turn.speaker))],
+  };
+}
+
 export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest, GenerateElevenLabsDialogueResponse>(
   { expose: true, method: "POST", path: "/tts/elevenlabs/dialogue", auth: true },
   async (req) => {
     ensureAdmin();
-    const apiKey = getElevenLabsApiKey();
 
-    if (!req.speakerVoiceMap || Object.keys(req.speakerVoiceMap).length === 0) {
-      throw APIError.invalidArgument("speakerVoiceMap is required.");
-    }
-
-    const turns = parseDialogueScript(req.script);
-    const missingSpeakers = new Set<string>();
-
-    const inputs: ElevenLabsDialogueInput[] = turns.map((turn) => {
-      const voiceId = resolveVoiceId(turn.speaker, req.speakerVoiceMap);
-      if (!voiceId) {
-        missingSpeakers.add(turn.speaker);
-      }
-      return {
-        text: turn.text,
-        voice_id: voiceId || "",
-      };
+    const result = await synthesizeDialogue({
+      script: req.script,
+      speakerVoiceMap: req.speakerVoiceMap,
+      modelId: req.modelId,
+      outputFormat: req.outputFormat,
     });
-
-    if (missingSpeakers.size > 0) {
-      const speakers = [...missingSpeakers].join(", ");
-      throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${speakers}`);
-    }
-
-    const modelId = req.modelId?.trim() || DEFAULT_MODEL_ID;
-    const outputFormat = req.outputFormat?.trim() || DEFAULT_OUTPUT_FORMAT;
-    const totalTextLength = getDialogueTextLength(inputs);
-    const inputBatches = chunkDialogueInputsForElevenLabs(inputs, ELEVENLABS_TARGET_CHUNK_LENGTH);
-
-    if (inputBatches.length > 1) {
-      log.info(
-        `[ElevenLabs] Splitting dialogue request into ${inputBatches.length} chunk(s) (${totalTextLength} chars total).`
-      );
-    }
-
-    const generateVariant = async (batchedInputs: ElevenLabsDialogueInput[], chunkNumber: number) => {
-      let response: Response;
-      try {
-        response = await fetch(`${ELEVENLABS_API_BASE}/text-to-dialogue`, {
-          method: "POST",
-          headers: {
-            "xi-api-key": apiKey,
-            "Content-Type": "application/json",
-            Accept: "audio/mpeg",
-          },
-          body: JSON.stringify({
-            model_id: modelId,
-            output_format: outputFormat,
-            inputs: batchedInputs,
-          }),
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        log.error(`[ElevenLabs] dialogue request failed before response (chunk ${chunkNumber}): ${message}`);
-        throw APIError.unavailable("ElevenLabs dialogue generation failed before a response was received.");
-      }
-
-      if (!response.ok) {
-        const errText = await response.text();
-        log.error(`[ElevenLabs] dialogue generation failed (${response.status}, chunk ${chunkNumber}): ${errText}`);
-        throwElevenLabsApiError(response.status, errText);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const bytes = Buffer.from(arrayBuffer);
-      if (!bytes.length) {
-        throw APIError.unavailable("ElevenLabs returned an empty audio response.");
-      }
-
-      return {
-        bytes,
-        mimeType: (response.headers.get("content-type") || "audio/mpeg").split(";")[0].trim(),
-      };
-    };
-
-    const audioParts: Buffer[] = [];
-    let detectedMimeType = "";
-
-    for (let index = 0; index < inputBatches.length; index += 1) {
-      const result = await generateVariant(inputBatches[index], index + 1);
-      audioParts.push(result.bytes);
-      if (!detectedMimeType) {
-        detectedMimeType = result.mimeType || "audio/mpeg";
-      } else if (result.mimeType && result.mimeType !== detectedMimeType) {
-        log.warn(
-          `[ElevenLabs] Mixed mime types across dialogue chunks: ${detectedMimeType} vs ${result.mimeType}.`
-        );
-      } else {
-        detectedMimeType = result.mimeType || detectedMimeType;
-      }
-    }
-
-    const combinedAudio = concatenateAudioBuffers(audioParts, detectedMimeType);
-    if (!combinedAudio.length) {
-      throw APIError.unavailable("ElevenLabs returned no audio data.");
-    }
 
     const variants: GenerateElevenLabsDialogueResponse["variants"] = [
       {
         id: "variant-1",
-        audioData: `data:${detectedMimeType};base64,${combinedAudio.toString("base64")}`,
-        mimeType: detectedMimeType,
+        audioData: `data:${result.mimeType};base64,${result.audio.toString("base64")}`,
+        mimeType: result.mimeType,
       },
     ];
 
     return {
       variants,
-      turns: turns.length,
-      speakers: [...new Set(turns.map((turn) => turn.speaker))],
+      turns: result.turns,
+      speakers: result.speakers,
     };
   }
 );
@@ -527,6 +575,95 @@ interface GenerateElevenLabsSoundEffectResponse {
 const ELEVENLABS_SOUND_MIN_DURATION = 0.5;
 const ELEVENLABS_SOUND_MAX_DURATION = 30;
 
+export interface SynthesizeSoundEffectOptions {
+  prompt: string;
+  durationSeconds: number;
+  mode?: "loop" | "oneshot";
+  promptInfluence?: number;
+  /** ElevenLabs output_format. Pass "pcm_44100" for lossless server-side mixing. */
+  outputFormat?: string;
+}
+
+export interface SynthesizeSoundEffectResult {
+  audio: Buffer;
+  mimeType: string;
+  durationSeconds: number;
+}
+
+/**
+ * Core ElevenLabs sound-generation used by both the public sound-effect endpoint and the
+ * server-side audio-doku master. Performs no auth — the caller is responsible for it.
+ */
+export async function synthesizeSoundEffect(
+  options: SynthesizeSoundEffectOptions
+): Promise<SynthesizeSoundEffectResult> {
+  const apiKey = getElevenLabsApiKey();
+
+  const promptText = (options.prompt || "").trim();
+  if (!promptText) {
+    throw APIError.invalidArgument("prompt is required");
+  }
+
+  const requestedDuration = Number(options.durationSeconds);
+  if (!Number.isFinite(requestedDuration)) {
+    throw APIError.invalidArgument("durationSeconds must be a number");
+  }
+  const durationSeconds = Math.max(
+    ELEVENLABS_SOUND_MIN_DURATION,
+    Math.min(ELEVENLABS_SOUND_MAX_DURATION, requestedDuration),
+  );
+
+  const promptInfluence = Number.isFinite(Number(options.promptInfluence))
+    ? Math.max(0, Math.min(1, Number(options.promptInfluence)))
+    : 0.4;
+
+  const loop = options.mode !== "oneshot";
+  const outputFormat = options.outputFormat?.trim() || "mp3_44100_128";
+  const isPcm = outputFormat.startsWith("pcm_");
+
+  const body = {
+    text: promptText,
+    duration_seconds: durationSeconds,
+    prompt_influence: promptInfluence,
+    loop,
+    output_format: outputFormat,
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(`${ELEVENLABS_API_BASE}/sound-generation`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        "Content-Type": "application/json",
+        Accept: isPcm ? "application/octet-stream" : "audio/mpeg",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error(`[ElevenLabs] sound-effect request failed before response: ${message}`);
+    throw APIError.unavailable("ElevenLabs sound generation failed before a response was received.");
+  }
+
+  if (!response.ok) {
+    const errText = await response.text();
+    log.error(`[ElevenLabs] sound-effect generation failed (${response.status}): ${errText}`);
+    throwElevenLabsApiError(response.status, errText);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const bytes = Buffer.from(arrayBuffer);
+  if (!bytes.length) {
+    throw APIError.unavailable("ElevenLabs returned an empty sound-effect response.");
+  }
+
+  const mimeType = (response.headers.get("content-type") || (isPcm ? "audio/pcm" : "audio/mpeg"))
+    .split(";")[0]
+    .trim();
+  return { audio: bytes, mimeType, durationSeconds };
+}
+
 export const generateElevenLabsSoundEffect = api<
   GenerateElevenLabsSoundEffectRequest,
   GenerateElevenLabsSoundEffectResponse
@@ -534,69 +671,18 @@ export const generateElevenLabsSoundEffect = api<
   { expose: true, method: "POST", path: "/tts/elevenlabs/sound-effect", auth: true },
   async (req) => {
     ensureAdmin();
-    const apiKey = getElevenLabsApiKey();
 
-    const promptText = (req.prompt || "").trim();
-    if (!promptText) {
-      throw APIError.invalidArgument("prompt is required");
-    }
+    const result = await synthesizeSoundEffect({
+      prompt: req.prompt,
+      durationSeconds: req.durationSeconds,
+      mode: req.mode,
+      promptInfluence: req.promptInfluence,
+    });
 
-    const requestedDuration = Number(req.durationSeconds);
-    if (!Number.isFinite(requestedDuration)) {
-      throw APIError.invalidArgument("durationSeconds must be a number");
-    }
-    const durationSeconds = Math.max(
-      ELEVENLABS_SOUND_MIN_DURATION,
-      Math.min(ELEVENLABS_SOUND_MAX_DURATION, requestedDuration),
-    );
-
-    const promptInfluence = Number.isFinite(Number(req.promptInfluence))
-      ? Math.max(0, Math.min(1, Number(req.promptInfluence)))
-      : 0.4;
-
-    const loop = req.mode !== "oneshot";
-
-    const body = {
-      text: promptText,
-      duration_seconds: durationSeconds,
-      prompt_influence: promptInfluence,
-      loop,
-    };
-
-    let response: Response;
-    try {
-      response = await fetch(`${ELEVENLABS_API_BASE}/sound-generation`, {
-        method: "POST",
-        headers: {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-          Accept: "audio/mpeg",
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      log.error(`[ElevenLabs] sound-effect request failed before response: ${message}`);
-      throw APIError.unavailable("ElevenLabs sound generation failed before a response was received.");
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      log.error(`[ElevenLabs] sound-effect generation failed (${response.status}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText);
-    }
-
-    const arrayBuffer = await response.arrayBuffer();
-    const bytes = Buffer.from(arrayBuffer);
-    if (!bytes.length) {
-      throw APIError.unavailable("ElevenLabs returned an empty sound-effect response.");
-    }
-
-    const mimeType = (response.headers.get("content-type") || "audio/mpeg").split(";")[0].trim();
     return {
-      audioData: `data:${mimeType};base64,${bytes.toString("base64")}`,
-      mimeType,
-      durationSeconds,
+      audioData: `data:${result.mimeType};base64,${result.audio.toString("base64")}`,
+      mimeType: result.mimeType,
+      durationSeconds: result.durationSeconds,
     };
   },
 );

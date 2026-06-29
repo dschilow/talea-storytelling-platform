@@ -43,13 +43,15 @@ RUN mkdir -p ./output
 FROM node:20-bookworm-slim
 
 # Cache buster - change this to force rebuild
-ENV CACHE_BUST=2025-10-16-v1-with-caddy-and-frontend
+ENV CACHE_BUST=2026-06-29-v2-with-ffmpeg
 
 WORKDIR /app
 
-# Install runtime dependencies plus Encore CLI, Caddy, and PostgreSQL client
+# Install runtime dependencies plus Encore CLI, Caddy, PostgreSQL client, and ffmpeg
+# ffmpeg powers the server-side audio-doku mastering (sidechain ducking, loudnorm/EBU R128,
+# true-peak limiting, intro/outro crossfades and a single high-quality final encode).
 RUN apt-get update && \
-    apt-get install -y curl ca-certificates debian-keyring debian-archive-keyring apt-transport-https postgresql-client && \
+    apt-get install -y curl ca-certificates debian-keyring debian-archive-keyring apt-transport-https postgresql-client ffmpeg && \
     # Install Caddy
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg && \
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list && \

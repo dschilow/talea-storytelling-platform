@@ -1129,6 +1129,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [ambientStatus, setAmbientStatus] = useState<string | null>(null);
   const [voicesLoading, setVoicesLoading] = useState(false);
   const [dialogueLoading, setDialogueLoading] = useState(false);
+  const [serverMasterLoading, setServerMasterLoading] = useState(false);
   const [dialogueStatus, setDialogueStatus] = useState<string | null>(null);
   const [dialogueStatusType, setDialogueStatusType] = useState<'success' | 'error' | null>(null);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedDialogueVariant[]>([]);
@@ -1832,6 +1833,135 @@ const CreateAudioDokuScreen: React.FC = () => {
       setError(message);
     } finally {
       setDialogueLoading(false);
+    }
+  };
+
+  // Server-side studio master: ElevenLabs PCM dialogue + ambient bed are mixed and
+  // mastered on the backend with ffmpeg (sidechain ducking, EBU R128 loudness, true-peak
+  // limiting, intro/outro crossfade, single 320k encode). Replaces the browser mix.
+  const handleGenerateServerMaster = async () => {
+    setError(null);
+    setDialogueStatus(null);
+    setDialogueStatusType(null);
+
+    if (ttsProvider !== 'elevenlabs') {
+      const message = 'Der Studio-Master läuft aktuell nur mit ElevenLabs.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+    if (!dialogueScript.trim()) {
+      const message = 'Bitte gib zuerst ein Dialogskript ein.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+    if (dialogueValidationIssues.length > 0) {
+      const message = dialogueValidationIssues[0].message;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      setError(message);
+      return;
+    }
+    if (unmappedScriptSpeakers.length > 0) {
+      const message = `Diese Sprecher sind im Script, aber nicht in der Sprecherliste: ${unmappedScriptSpeakers.join(', ')}`;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    const parsedSpeakerNames = Array.from(new Set(detectedSpeakers));
+    const missingVoiceAssignments = parsedSpeakerNames.filter((speaker) => {
+      const profile = speakerProfiles.find(
+        (item) => item.name.trim().toLowerCase() === speaker.toLowerCase(),
+      );
+      return !profile?.voiceId.trim();
+    });
+    if (missingVoiceAssignments.length > 0) {
+      const message = `Bitte Voice-ID eintragen fuer: ${missingVoiceAssignments.join(', ')}`;
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      return;
+    }
+
+    try {
+      setServerMasterLoading(true);
+      setGeneratedVariants([]);
+      setSelectedVariantId(null);
+      setDialogueStatus('Studio-Master wird auf dem Server gerendert (Stimmen, Ambient, Mastering)…');
+      setDialogueStatusType('success');
+
+      const token = await getToken();
+      const response = await fetch(`${getBackendUrl()}/doku/audio-render/master`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          script: dialogueScript,
+          speakerVoiceMap,
+          screenplay: enableAmbient
+            ? screenplay.map((scene) => ({
+                index: scene.index,
+                startLine: scene.startLine,
+                endLine: scene.endLine,
+                ambientPrompt: scene.ambientPrompt,
+                ambientVolume: scene.ambientVolume,
+                durationSeconds: getAmbientSceneDurationSeconds(scene),
+              }))
+            : [],
+          enableAmbient,
+          includeBranding: true,
+          title: title.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+      }
+
+      const payload = (await response.json()) as {
+        audioData?: string;
+        mimeType?: string;
+        durationSeconds?: number;
+        scenesWithAmbient?: number;
+        turns?: number;
+        speakers?: string[];
+      };
+      if (!payload.audioData) {
+        throw new Error('Server hat keine Audiodaten zurückgegeben.');
+      }
+
+      const blob = await (await fetch(payload.audioData)).blob();
+      const file = new File([blob], `studio-master-${Date.now()}.mp3`, { type: 'audio/mpeg' });
+      const variant: GeneratedDialogueVariant = {
+        id: 'server-master',
+        audioData: payload.audioData,
+        mimeType: payload.mimeType || 'audio/mpeg',
+        file,
+      };
+
+      setGeneratedVariants([variant]);
+      applyGeneratedVariant(variant);
+
+      const durationLabel =
+        typeof payload.durationSeconds === 'number'
+          ? `${Math.round(payload.durationSeconds)}s`
+          : '—';
+      setDialogueStatus(
+        `Studio-Master fertig: ${durationLabel} Sprache, ${payload.scenesWithAmbient ?? 0} Ambient-Szene(n), ${payload.turns ?? 0} Sprecherblöcke, EBU-R128-gemastert inkl. Talea Intro/Outro.`,
+      );
+      setDialogueStatusType('success');
+    } catch (err) {
+      console.error('[AudioDoku] server master failed:', err);
+      const message = (err as Error).message || 'Studio-Master konnte nicht erstellt werden.';
+      setDialogueStatus(message);
+      setDialogueStatusType('error');
+      setError(message);
+    } finally {
+      setServerMasterLoading(false);
     }
   };
 
@@ -2949,17 +3079,29 @@ const CreateAudioDokuScreen: React.FC = () => {
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => void handleGenerateDialogueAudio()}
-                        disabled={dialogueLoading || detectedSpeakers.length === 0 || dialogueValidationIssues.length > 0}
+                        onClick={() => void handleGenerateServerMaster()}
+                        disabled={serverMasterLoading || dialogueLoading || ttsProvider !== 'elevenlabs' || detectedSpeakers.length === 0 || dialogueValidationIssues.length > 0}
                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                         style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                        title="Stimmen, Ambient und Mastering laufen auf dem Server (ffmpeg, EBU R128). Empfohlen für Studio-Qualität."
+                      >
+                        {serverMasterLoading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                        {serverMasterLoading ? 'Studio-Master wird gerendert…' : 'Studio-Master erzeugen (Server)'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleGenerateDialogueAudio()}
+                        disabled={serverMasterLoading || dialogueLoading || detectedSpeakers.length === 0 || dialogueValidationIssues.length > 0}
+                        className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.text }}
+                        title="Browser-Mix (Fallback): mischt und kodiert lokal im Browser."
                       >
                         {dialogueLoading ? <RefreshCw size={16} className="animate-spin" /> : <Mic2 size={16} />}
-                        {dialogueLoading ? 'Generiere Audio...' : `${providerLabel} Audio erzeugen`}
+                        {dialogueLoading ? 'Generiere Audio...' : `${providerLabel} Audio (Browser-Mix)`}
                       </button>
                     </div>
 
-                    {dialogueLoading && (
+                    {(dialogueLoading || serverMasterLoading) && (
                       <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-indigo-100">
                         <motion.div
                           className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400"
