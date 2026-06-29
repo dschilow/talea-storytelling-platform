@@ -9,30 +9,39 @@ import { getAuthData } from "~encore/auth";
 import { ensureAdmin } from "../admin/authz";
 import {
   synthesizeDialogue,
+  synthesizeDialogueWithTimestamps,
   synthesizeSoundEffect,
+  type DialogueTurnSpan,
+  type DialogueWord,
 } from "../tts/elevenlabs-dialogue";
+import {
+  generateSoundCues,
+  moodToMusicPrompt,
+  type SoundCue,
+  type CueType,
+} from "./sound-cues";
 
 // ============================================================
-// Server-side studio master for audio dokus.
+// Audio Director: server-side studio master for audio dokos.
 //
-// Pipeline (no MP3 transcoding before the final encode):
-//   1. ElevenLabs dialogue rendered straight to lossless PCM (pcm_44100, mono s16le).
-//   2. Per active screenplay scene, an ambient sound clip (MP3 container so ffmpeg can
-//      decode it without us having to guess channel counts).
-//   3. A single ffmpeg graph does the actual engineering:
-//        - place + loop + fade each ambient into its (char-estimated) scene window
-//        - sidechain-duck the combined ambient bed under the voice
-//        - crossfade the Talea intro/outro around the body
-//        - EBU R128 loudness normalize (-16 LUFS) + true-peak limit
-//        - encode ONCE to 320 kbps MP3
+// Treats the doku like film post-production on a real timeline:
+//   1. Dialogue is rendered to lossless PCM WITH a word-level timeline
+//      (ElevenLabs with-timestamps), so sounds can land on specific words.
+//   2. A "sound director" AI produces a cue sheet (spot SFX anchored to words,
+//      ambience beds, a music underscore that follows the narrative beats,
+//      transition whooshes).
+//   3. Each cue is generated (ElevenLabs sound-generation; music from mood beds).
+//   4. ONE ffmpeg graph places every cue at its exact time and layers three
+//      sidechain-ducked buses (music deep, ambience medium, sfx light) under the
+//      voice, crossfades the Talea intro/outro, EBU R128 loudness-normalizes,
+//      true-peak limits, and encodes once to 320k MP3.
 //
-// This replaces the browser-side Web Audio + lamejs mix, which transcoded MP3 multiple
-// times and used a hand-rolled ducking/limiter.
+// The legacy per-scene "screenplay" beds are unified into this pipeline as plain
+// ambience cues, so soundDesign=false still works through the same mixer.
 // ============================================================
 
 const SAMPLE_RATE = 44100;
-/** ElevenLabs dialogue output: raw signed 16-bit little-endian PCM, mono, 44.1 kHz. */
-const DIALOGUE_OUTPUT_FORMAT = "pcm_44100";
+const DIALOGUE_OUTPUT_FORMAT = "pcm_44100"; // raw s16le mono 44.1 kHz
 const DIALOGUE_BYTES_PER_SAMPLE = 2;
 
 const AMBIENT_SKIP_VOLUME = 0.01;
@@ -42,15 +51,25 @@ const AMBIENT_MIN_SECONDS = 0.5;
 const AMBIENT_MAX_SECONDS = 30;
 const AMBIENT_DEFAULT_SECONDS = 10;
 const MAX_SCENES = 24;
-// Loop-buffer cap for ffmpeg aloop, in samples. Ambient clips are <= AMBIENT_MAX_SECONDS,
-// so this comfortably holds one full clip without an oversized allocation.
+// Loop-buffer cap for ffmpeg aloop, in samples (one full clip, no oversized alloc).
 const AMBIENT_LOOP_BUFFER_SAMPLES = (AMBIENT_MAX_SECONDS + 4) * SAMPLE_RATE;
 
+// Cost/time guards for cue asset generation.
+const MAX_GENERATED_ASSETS = 26;
+const SFX_ANTICIPATION_SEC = 0.25; // start a spot effect slightly before its word
+
 // Mastering targets.
-const LOUDNORM_I = -16; // integrated loudness (LUFS), stereo podcast/doc standard
-const LOUDNORM_TP = -1.5; // max true peak (dBTP)
-const LOUDNORM_LRA = 11; // loudness range
+const LOUDNORM_I = -16;
+const LOUDNORM_TP = -1.5;
+const LOUDNORM_LRA = 11;
 const MP3_BITRATE = "320k";
+
+// Per-bus sidechain ducking character.
+const BUS_DUCK: Record<"music" | "ambience" | "sfx", string> = {
+  music: "threshold=0.03:ratio=12:attack=5:release=300",
+  ambience: "threshold=0.05:ratio=6:attack=8:release=250",
+  sfx: "threshold=0.1:ratio=3:attack=2:release=150",
+};
 
 const INTRO_CANDIDATES = [
   "frontend/dist/audio-doku/Talea_intro.mp3",
@@ -77,22 +96,37 @@ interface RenderScene {
 interface RenderAudioDokuMasterRequest {
   script: string;
   speakerVoiceMap: Record<string, string>;
+  /** Full sound design (word-anchored SFX + music + ambience + transitions). Default true. */
+  soundDesign?: boolean;
+  /** Legacy per-scene ambience beds (used when soundDesign === false). */
   screenplay?: RenderScene[];
   modelId?: string;
   enableAmbient?: boolean;
   includeBranding?: boolean;
   title?: string;
+  ageFrom?: number;
+  ageTo?: number;
 }
 
 interface RenderAudioDokuMasterResponse {
-  /** Base64 data URL of the finished, mastered MP3. */
-  audioData: string;
+  audioData: string; // base64 data URL of the mastered MP3
   mimeType: string;
   durationSeconds: number;
-  scenesWithAmbient: number;
+  mode: "director" | "screenplay";
+  hasWordTiming: boolean;
+  cueCounts: Record<CueType, number>;
+  generatedAssets: number;
   turns: number;
   speakers: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const dbToLinear = (db: number): number => Math.pow(10, db / 20);
+
+const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
 
 const isAmbientPromptSkip = (prompt: string): boolean => {
   const p = (prompt || "").trim().toLowerCase();
@@ -114,54 +148,13 @@ const isAmbientPromptSkip = (prompt: string): boolean => {
 const clampAmbientDuration = (value: unknown): number => {
   const n = Number(value);
   if (!Number.isFinite(n)) return AMBIENT_DEFAULT_SECONDS;
-  return Math.max(AMBIENT_MIN_SECONDS, Math.min(AMBIENT_MAX_SECONDS, n));
+  return clamp(n, AMBIENT_MIN_SECONDS, AMBIENT_MAX_SECONDS);
 };
 
 const clampAmbientVolume = (value: unknown): number => {
   const n = Number(value);
   if (!Number.isFinite(n)) return AMBIENT_DEFAULT_VOLUME;
-  return Math.max(0, Math.min(AMBIENT_MAX_VOLUME, n));
-};
-
-type SceneWindow = {
-  scene: RenderScene;
-  startSec: number;
-  endSec: number;
-};
-
-/**
- * Estimates a per-scene time window from the character weight of the lines each scene
- * covers. Approximate (TTS speed varies) but reliable without per-line timestamps.
- */
-const estimateSceneWindows = (
-  scriptLines: string[],
-  scenes: RenderScene[],
-  totalDurationSec: number,
-): SceneWindow[] => {
-  if (scenes.length === 0 || totalDurationSec <= 0) return [];
-
-  const weights = scriptLines.map((line) => {
-    const stripped = line
-      .replace(/\[[^\]]*\]/g, "")
-      .replace(/^[^:]{1,80}:\s*/, "")
-      .trim();
-    return Math.max(1, stripped.length);
-  });
-  const totalWeight = weights.reduce((s, w) => s + w, 0) || 1;
-  const secPerWeight = totalDurationSec / totalWeight;
-
-  const cumulative: number[] = [0];
-  for (const w of weights) cumulative.push(cumulative[cumulative.length - 1] + w);
-
-  return scenes.map((scene) => {
-    const sIdx = Math.max(1, Math.min(scriptLines.length, scene.startLine)) - 1;
-    const eIdx = Math.max(sIdx + 1, Math.max(1, Math.min(scriptLines.length, scene.endLine)));
-    return {
-      scene,
-      startSec: cumulative[sIdx] * secPerWeight,
-      endSec: cumulative[eIdx] * secPerWeight,
-    };
-  });
+  return clamp(n, 0, AMBIENT_MAX_VOLUME);
 };
 
 const resolveStaticAsset = async (candidates: string[]): Promise<string | null> => {
@@ -171,7 +164,7 @@ const resolveStaticAsset = async (candidates: string[]): Promise<string | null> 
       await fs.access(abs);
       return abs;
     } catch {
-      // try next candidate
+      // try next
     }
   }
   return null;
@@ -185,21 +178,115 @@ const runFfmpeg = (args: string[]): Promise<void> =>
       stderr += chunk.toString();
       if (stderr.length > 40000) stderr = stderr.slice(-40000);
     });
-    proc.on("error", (err) => {
-      reject(
-        new Error(
-          `ffmpeg konnte nicht gestartet werden (ist ffmpeg installiert?): ${err.message}`,
-        ),
-      );
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-      reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-2000)}`));
-    });
+    proc.on("error", (err) =>
+      reject(new Error(`ffmpeg konnte nicht gestartet werden (installiert?): ${err.message}`)),
+    );
+    proc.on("close", (code) =>
+      code === 0 ? resolve() : reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-2000)}`)),
+    );
   });
+
+const normalizeWord = (w: string): string => w.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+/**
+ * Snaps a spot-SFX cue to the exact time of its anchor word (nearest occurrence to the cue's
+ * approximate start), starting slightly early for natural anticipation.
+ */
+const snapCueToWords = (cue: SoundCue, words: DialogueWord[]): SoundCue => {
+  if (cue.type !== "sfx" || !cue.anchor || words.length === 0) return cue;
+  const target = normalizeWord(cue.anchor);
+  if (!target) return cue;
+
+  let best: DialogueWord | null = null;
+  let bestDist = Infinity;
+  for (const w of words) {
+    const nw = normalizeWord(w.word);
+    if (!nw) continue;
+    if (nw === target || nw.includes(target) || target.includes(nw)) {
+      const dist = Math.abs(w.start - cue.start);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = w;
+      }
+    }
+  }
+  if (!best) return cue;
+  return { ...cue, start: Math.max(0, best.start - SFX_ANTICIPATION_SEC) };
+};
+
+/**
+ * Builds char-weighted turn spans when word timing is unavailable (fallback path), so the
+ * cue AI still has per-line time windows to work with.
+ */
+const estimateTurnSpans = (scriptLines: string[], durationSec: number): DialogueTurnSpan[] => {
+  const parsed = scriptLines
+    .map((line) => {
+      const m = line.match(/^\s*([^:\n]{1,80}):\s*(.*)$/);
+      if (!m) return null;
+      return { speaker: m[1].replace(/\s+/g, " ").trim(), text: m[2].trim() };
+    })
+    .filter((x): x is { speaker: string; text: string } => x !== null && x.text.length > 0);
+
+  if (parsed.length === 0) return [];
+  const weights = parsed.map((p) => Math.max(1, p.text.replace(/\[[^\]]*\]/g, "").trim().length));
+  const total = weights.reduce((s, w) => s + w, 0) || 1;
+  const secPerWeight = durationSec / total;
+
+  const spans: DialogueTurnSpan[] = [];
+  let cursor = 0;
+  parsed.forEach((p, i) => {
+    const start = cursor;
+    cursor += weights[i] * secPerWeight;
+    spans.push({ index: i + 1, speaker: p.speaker, text: p.text, start, end: cursor });
+  });
+  return spans;
+};
+
+/** Converts legacy screenplay scenes into ambience SoundCues (legacy path). */
+const screenplayToCues = (
+  scenes: RenderScene[],
+  turnSpans: DialogueTurnSpan[],
+  durationSec: number,
+): SoundCue[] => {
+  const lineStart = (line: number): number => {
+    const span = turnSpans[clamp(Math.floor(line) - 1, 0, turnSpans.length - 1)];
+    return span ? span.start : 0;
+  };
+  const lineEnd = (line: number): number => {
+    const span = turnSpans[clamp(Math.floor(line) - 1, 0, turnSpans.length - 1)];
+    return span ? span.end : durationSec;
+  };
+
+  const cues: SoundCue[] = [];
+  for (const scene of scenes.slice(0, MAX_SCENES)) {
+    const vol = clampAmbientVolume(scene.ambientVolume);
+    if (vol <= AMBIENT_SKIP_VOLUME || isAmbientPromptSkip(scene.ambientPrompt)) continue;
+    const start = lineStart(scene.startLine);
+    const end = Math.max(start + 1, lineEnd(scene.endLine));
+    cues.push({
+      type: "ambience",
+      start,
+      duration: end - start,
+      // Map the legacy 0..0.25 linear volume onto a dB gain.
+      gainDb: clamp(20 * Math.log10(Math.max(0.0001, vol)), -32, -16),
+      behavior: "loop",
+      fadeIn: 1.2,
+      fadeOut: 1.2,
+      pan: 0,
+      prompt: scene.ambientPrompt,
+    });
+  }
+  return cues;
+};
+
+const busOf = (type: CueType): "music" | "ambience" | "sfx" =>
+  type === "music" ? "music" : type === "ambience" ? "ambience" : "sfx";
+
+type PlacedCue = { cue: SoundCue; inputIndex: number; isLoop: boolean; atrimWindow: number };
+
+// ---------------------------------------------------------------------------
+// Endpoint
+// ---------------------------------------------------------------------------
 
 export const renderAudioDokuMaster = api<
   RenderAudioDokuMasterRequest,
@@ -209,158 +296,235 @@ export const renderAudioDokuMaster = api<
   async (req) => {
     ensureAdmin();
     const auth = getAuthData();
-    if (!auth?.userID) {
-      throw APIError.unauthenticated("Login required");
-    }
+    if (!auth?.userID) throw APIError.unauthenticated("Login required");
 
     const script = (req.script || "").trim();
-    if (!script) {
-      throw APIError.invalidArgument("script is required");
-    }
+    if (!script) throw APIError.invalidArgument("script is required");
     if (!req.speakerVoiceMap || Object.keys(req.speakerVoiceMap).length === 0) {
       throw APIError.invalidArgument("speakerVoiceMap is required");
     }
 
-    const enableAmbient = req.enableAmbient !== false;
+    const wantSoundDesign = req.soundDesign !== false;
     const includeBranding = req.includeBranding !== false;
+    const ageFrom = clamp(Math.floor(req.ageFrom || 6), 2, 18);
+    const ageTo = clamp(Math.floor(req.ageTo || 8), ageFrom, 18);
 
-    // --- 1) Dialogue → lossless PCM -----------------------------------------
-    const dialogue = await synthesizeDialogue({
-      script,
-      speakerVoiceMap: req.speakerVoiceMap,
-      modelId: req.modelId,
-      outputFormat: DIALOGUE_OUTPUT_FORMAT,
-    });
-    const dialoguePcm = dialogue.audio;
-    const dialogueDurationSec =
-      dialoguePcm.length / DIALOGUE_BYTES_PER_SAMPLE / SAMPLE_RATE;
+    // --- 1) Dialogue → PCM (+ word timeline when possible) ------------------
+    let dialoguePcm: Buffer;
+    let words: DialogueWord[] = [];
+    let turnSpans: DialogueTurnSpan[] = [];
+    let turns = 0;
+    let speakers: string[] = [];
+    let hasWordTiming = false;
+
+    if (wantSoundDesign) {
+      try {
+        const timed = await synthesizeDialogueWithTimestamps({
+          script,
+          speakerVoiceMap: req.speakerVoiceMap,
+          modelId: req.modelId,
+        });
+        dialoguePcm = timed.audio;
+        words = timed.words;
+        turnSpans = timed.turnSpans;
+        turns = timed.turns;
+        speakers = timed.speakers;
+        hasWordTiming = words.length > 0;
+      } catch (err) {
+        log.warn(
+          `[AudioDokuMaster] timed synthesis failed, falling back to plain dialogue: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        const plain = await synthesizeDialogue({
+          script,
+          speakerVoiceMap: req.speakerVoiceMap,
+          modelId: req.modelId,
+          outputFormat: DIALOGUE_OUTPUT_FORMAT,
+        });
+        dialoguePcm = plain.audio;
+        turns = plain.turns;
+        speakers = plain.speakers;
+      }
+    } else {
+      const plain = await synthesizeDialogue({
+        script,
+        speakerVoiceMap: req.speakerVoiceMap,
+        modelId: req.modelId,
+        outputFormat: DIALOGUE_OUTPUT_FORMAT,
+      });
+      dialoguePcm = plain.audio;
+      turns = plain.turns;
+      speakers = plain.speakers;
+    }
+
+    const dialogueDurationSec = dialoguePcm.length / DIALOGUE_BYTES_PER_SAMPLE / SAMPLE_RATE;
     if (dialogueDurationSec <= 0) {
       throw APIError.unavailable("ElevenLabs returned no usable dialogue audio.");
     }
 
-    // --- 2) Resolve active ambient scenes -----------------------------------
     const scriptLines = script.replace(/\r\n/g, "\n").split("\n");
-    const rawScenes = Array.isArray(req.screenplay) ? req.screenplay.slice(0, MAX_SCENES) : [];
-    const windows = enableAmbient
-      ? estimateSceneWindows(scriptLines, rawScenes, dialogueDurationSec)
-      : [];
+    if (turnSpans.length === 0) {
+      turnSpans = estimateTurnSpans(scriptLines, dialogueDurationSec);
+    }
 
-    const activeWindows = windows.filter((w) => {
-      const vol = clampAmbientVolume(w.scene.ambientVolume);
-      return vol > AMBIENT_SKIP_VOLUME && !isAmbientPromptSkip(w.scene.ambientPrompt);
-    });
+    // --- 2) Cue sheet -------------------------------------------------------
+    const mode: "director" | "screenplay" = wantSoundDesign ? "director" : "screenplay";
+    let cues: SoundCue[] = [];
+
+    if (wantSoundDesign) {
+      const raw = await generateSoundCues({
+        script,
+        durationSec: dialogueDurationSec,
+        ageFrom,
+        ageTo,
+        turnSpans,
+        words,
+      });
+      cues = raw.map((c) => snapCueToWords(c, words));
+    } else if (req.enableAmbient !== false && Array.isArray(req.screenplay)) {
+      cues = screenplayToCues(req.screenplay, turnSpans, dialogueDurationSec);
+    }
+
+    // Keep cues inside the timeline.
+    cues = cues.filter((c) => c.start < dialogueDurationSec + 0.5);
 
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "audiodoku-"));
     try {
-      // Write dialogue PCM to disk for ffmpeg.
       const voicePath = path.join(tmpDir, "voice.pcm");
       await fs.writeFile(voicePath, dialoguePcm);
 
-      // Generate + write each ambient clip (MP3 container).
-      const ambientPaths: Array<{ filePath: string; window: SceneWindow }> = [];
-      for (const w of activeWindows) {
-        try {
-          const durationSeconds = clampAmbientDuration(w.scene.durationSeconds);
-          const sound = await synthesizeSoundEffect({
-            prompt: w.scene.ambientPrompt,
-            durationSeconds,
-            mode: "loop",
-            promptInfluence: 0.65,
-            // MP3 container → ffmpeg decodes channels/rate reliably.
-          });
-          const filePath = path.join(tmpDir, `ambient-${w.scene.index}.mp3`);
-          await fs.writeFile(filePath, sound.audio);
-          ambientPaths.push({ filePath, window: w });
-        } catch (err) {
-          log.warn(
-            `[AudioDokuMaster] Ambient for scene ${w.scene.index} failed, skipping: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
+      // --- 3) Generate cue assets (dedupe + cap) --------------------------
+      const inputArgs: string[] = [
+        "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", voicePath,
+      ];
+      let nextInputIndex = 1;
+      const assetCache = new Map<string, number>(); // cacheKey -> input index
+      const placed: PlacedCue[] = [];
+      let generatedAssets = 0;
+
+      for (const cue of cues) {
+        if (generatedAssets >= MAX_GENERATED_ASSETS) break;
+
+        const isLoop = cue.behavior === "loop";
+        const genDur = isLoop
+          ? clamp(Math.min(cue.duration, 18), 6, 24)
+          : clamp(cue.duration, 0.5, 6);
+        const atrimWindow = isLoop
+          ? clamp(cue.duration, 0.5, dialogueDurationSec - cue.start + 2)
+          : genDur;
+
+        const prompt = cue.type === "music" ? moodToMusicPrompt(cue.mood || "calm") : cue.prompt || "";
+        if (!prompt.trim()) continue;
+
+        const cacheKey = `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
+        let inputIndex = assetCache.get(cacheKey) ?? -1;
+
+        if (inputIndex < 0) {
+          try {
+            const sound = await synthesizeSoundEffect({
+              prompt,
+              durationSeconds: genDur,
+              mode: isLoop ? "loop" : "oneshot",
+              promptInfluence: cue.type === "sfx" ? 0.7 : 0.55,
+            });
+            const filePath = path.join(tmpDir, `cue-${nextInputIndex}.mp3`);
+            await fs.writeFile(filePath, sound.audio);
+            inputIndex = nextInputIndex++;
+            inputArgs.push("-i", filePath);
+            assetCache.set(cacheKey, inputIndex);
+            generatedAssets += 1;
+          } catch (err) {
+            log.warn(
+              `[AudioDokuMaster] cue asset (${cue.type}) failed, skipping: ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+            continue;
+          }
         }
+
+        placed.push({ cue, inputIndex, isLoop, atrimWindow });
       }
 
-      // Resolve branding assets (skip gracefully if not found on disk).
+      // --- 4) Build the multi-bus ffmpeg graph ---------------------------
+      const filters: string[] = [];
+      const busCues: Record<"music" | "ambience" | "sfx", string[]> = {
+        music: [],
+        ambience: [],
+        sfx: [],
+      };
+
+      placed.forEach((p, k) => {
+        const { cue, inputIndex, isLoop, atrimWindow } = p;
+        const startMs = Math.max(0, Math.round(cue.start * 1000));
+        const win = Math.max(0.3, atrimWindow);
+        const fin = clamp(cue.fadeIn, 0, win / 2);
+        const fout = clamp(cue.fadeOut, 0, win / 2);
+        const gain = dbToLinear(cue.gainDb).toFixed(4);
+        const label = `[cue${k}]`;
+
+        const chain = [`[${inputIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo`];
+        if (isLoop) chain.push(`aloop=loop=-1:size=${AMBIENT_LOOP_BUFFER_SAMPLES}`);
+        chain.push(`atrim=0:${win.toFixed(3)}`);
+        if (fin > 0.01) chain.push(`afade=t=in:st=0:d=${fin.toFixed(3)}`);
+        if (fout > 0.01) chain.push(`afade=t=out:st=${(win - fout).toFixed(3)}:d=${fout.toFixed(3)}`);
+        chain.push(`volume=${gain}`);
+        if (Math.abs(cue.pan) > 0.05) {
+          const lGain = cue.pan > 0 ? (1 - cue.pan).toFixed(3) : "1";
+          const rGain = cue.pan < 0 ? (1 + cue.pan).toFixed(3) : "1";
+          chain.push(`pan=stereo|c0=${lGain}*c0|c1=${rGain}*c1`);
+        }
+        chain.push(`adelay=${startMs}|${startMs}`);
+        filters.push(`${chain.join(",")}${label}`);
+        busCues[busOf(cue.type)].push(label);
+      });
+
+      const activeBuses = (Object.keys(busCues) as Array<"music" | "ambience" | "sfx">).filter(
+        (b) => busCues[b].length > 0,
+      );
+
+      // Split the voice into one main copy + one sidechain key per active bus.
+      if (activeBuses.length > 0) {
+        const keyLabels = activeBuses.map((b) => `[vk_${b}]`).join("");
+        filters.push(
+          `[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,asplit=${
+            activeBuses.length + 1
+          }[vmain]${keyLabels}`,
+        );
+      } else {
+        filters.push(`[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[vmain]`);
+      }
+
+      const mixInputs: string[] = ["[vmain]"];
+      for (const bus of activeBuses) {
+        const labels = busCues[bus];
+        let busRaw: string;
+        if (labels.length === 1) {
+          busRaw = labels[0];
+        } else {
+          busRaw = `[${bus}raw]`;
+          filters.push(`${labels.join("")}amix=inputs=${labels.length}:normalize=0${busRaw}`);
+        }
+        const busOut = `[${bus}bus]`;
+        filters.push(`${busRaw}[vk_${bus}]sidechaincompress=${BUS_DUCK[bus]}${busOut}`);
+        mixInputs.push(busOut);
+      }
+
+      let bodyLabel = "[vmain]";
+      if (mixInputs.length > 1) {
+        filters.push(`${mixInputs.join("")}amix=inputs=${mixInputs.length}:normalize=0[body]`);
+        bodyLabel = "[body]";
+      }
+
+      // --- 5) Branding crossfade + master tail ---------------------------
       let introPath: string | null = null;
       let outroPath: string | null = null;
       if (includeBranding) {
         introPath = await resolveStaticAsset(INTRO_CANDIDATES);
         outroPath = await resolveStaticAsset(OUTRO_CANDIDATES);
-        if (!introPath || !outroPath) {
-          log.warn(
-            `[AudioDokuMaster] Branding asset(s) not found (intro=${Boolean(
-              introPath,
-            )}, outro=${Boolean(outroPath)}); rendering without missing branding.`,
-          );
-        }
       }
 
-      // --- 3) Build the ffmpeg filter graph ---------------------------------
-      const inputArgs: string[] = [
-        "-f",
-        "s16le",
-        "-ar",
-        String(SAMPLE_RATE),
-        "-ac",
-        "1",
-        "-i",
-        voicePath,
-      ];
-      let nextInputIndex = 1;
-      const filters: string[] = [];
-      const hasBeds = ambientPaths.length > 0;
-
-      // Voice → stereo. Split into a main + sidechain-key copy only when we need ducking.
-      if (hasBeds) {
-        filters.push(
-          `[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,asplit=2[voicemain][voicekey]`,
-        );
-      } else {
-        filters.push(`[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[voicemain]`);
-      }
-
-      const bedLabels: string[] = [];
-      ambientPaths.forEach(({ filePath, window }, k) => {
-        const inputIndex = nextInputIndex++;
-        inputArgs.push("-i", filePath);
-
-        const startMs = Math.max(0, Math.round(window.startSec * 1000));
-        const winLen = Math.max(0.5, window.endSec - window.startSec);
-        const fade = Math.min(0.8, winLen / 3);
-        const vol = clampAmbientVolume(window.scene.ambientVolume);
-        const label = `[bed${k}]`;
-        bedLabels.push(label);
-
-        filters.push(
-          `[${inputIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,` +
-            `aloop=loop=-1:size=${AMBIENT_LOOP_BUFFER_SAMPLES},atrim=0:${winLen.toFixed(3)},` +
-            `afade=t=in:st=0:d=${fade.toFixed(3)},` +
-            `afade=t=out:st=${(winLen - fade).toFixed(3)}:d=${fade.toFixed(3)},` +
-            `volume=${vol.toFixed(3)},adelay=${startMs}|${startMs}${label}`,
-        );
-      });
-
-      let bodyLabel = "[voicemain]";
-      if (hasBeds) {
-        let bedMixLabel: string;
-        if (bedLabels.length === 1) {
-          bedMixLabel = bedLabels[0];
-        } else {
-          bedMixLabel = "[bedmix]";
-          filters.push(
-            `${bedLabels.join("")}amix=inputs=${bedLabels.length}:normalize=0${bedMixLabel}`,
-          );
-        }
-        // Duck the ambient bed under the voice (real sidechain compression).
-        filters.push(
-          `${bedMixLabel}[voicekey]sidechaincompress=threshold=0.05:ratio=6:attack=5:release=250[duckbed]`,
-        );
-        // Mix voice + ducked bed without auto-normalization (loudnorm handles levels).
-        filters.push(`[voicemain][duckbed]amix=inputs=2:normalize=0[body]`);
-        bodyLabel = "[body]";
-      }
-
-      // Crossfade intro/outro branding around the body.
       let progLabel = bodyLabel;
       if (introPath) {
         const introIndex = nextInputIndex++;
@@ -381,10 +545,8 @@ export const renderAudioDokuMaster = api<
         progLabel = "[pouter]";
       }
 
-      // Final mastering: EBU R128 loudness + true-peak safety limiter.
       filters.push(
-        `${progLabel}loudnorm=I=${LOUDNORM_I}:TP=${LOUDNORM_TP}:LRA=${LOUDNORM_LRA},` +
-          `alimiter=limit=0.97[out]`,
+        `${progLabel}loudnorm=I=${LOUDNORM_I}:TP=${LOUDNORM_TP}:LRA=${LOUDNORM_LRA},alimiter=limit=0.97[out]`,
       );
 
       const outputPath = path.join(tmpDir, "master.mp3");
@@ -405,24 +567,30 @@ export const renderAudioDokuMaster = api<
       ];
 
       log.info(
-        `[AudioDokuMaster] ffmpeg render: voice=${dialogueDurationSec.toFixed(
-          1,
-        )}s, beds=${ambientPaths.length}, branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
+        `[AudioDokuMaster] mode=${mode} voice=${dialogueDurationSec.toFixed(1)}s wordTiming=${hasWordTiming} cues=${cues.length} assets=${generatedAssets} buses=${activeBuses.join("+") || "none"} branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
       );
       await runFfmpeg(args);
 
       const masterBuffer = await fs.readFile(outputPath);
-      if (!masterBuffer.length) {
-        throw APIError.internal("ffmpeg produced an empty master file.");
-      }
+      if (!masterBuffer.length) throw APIError.internal("ffmpeg produced an empty master file.");
+
+      const cueCounts: Record<CueType, number> = {
+        music: cues.filter((c) => c.type === "music").length,
+        ambience: cues.filter((c) => c.type === "ambience").length,
+        sfx: cues.filter((c) => c.type === "sfx").length,
+        transition: cues.filter((c) => c.type === "transition").length,
+      };
 
       return {
         audioData: `data:audio/mpeg;base64,${masterBuffer.toString("base64")}`,
         mimeType: "audio/mpeg",
         durationSeconds: dialogueDurationSec,
-        scenesWithAmbient: ambientPaths.length,
-        turns: dialogue.turns,
-        speakers: dialogue.speakers,
+        mode,
+        hasWordTiming,
+        cueCounts,
+        generatedAssets,
+        turns,
+        speakers,
       };
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});

@@ -1902,6 +1902,10 @@ const CreateAudioDokuScreen: React.FC = () => {
         body: JSON.stringify({
           script: dialogueScript,
           speakerVoiceMap,
+          // Director mode: the backend designs the full sound (word-anchored SFX, music
+          // dramaturgy, ambience, transitions). The screenplay is kept as a fallback bed
+          // source for soundDesign=false.
+          soundDesign: true,
           screenplay: enableAmbient
             ? screenplay.map((scene) => ({
                 index: scene.index,
@@ -1915,6 +1919,8 @@ const CreateAudioDokuScreen: React.FC = () => {
           enableAmbient,
           includeBranding: true,
           title: title.trim() || undefined,
+          ageFrom: paramAgeFrom,
+          ageTo: paramAgeTo,
         }),
       });
 
@@ -1926,7 +1932,10 @@ const CreateAudioDokuScreen: React.FC = () => {
         audioData?: string;
         mimeType?: string;
         durationSeconds?: number;
-        scenesWithAmbient?: number;
+        mode?: 'director' | 'screenplay';
+        hasWordTiming?: boolean;
+        cueCounts?: { music?: number; ambience?: number; sfx?: number; transition?: number };
+        generatedAssets?: number;
         turns?: number;
         speakers?: string[];
       };
@@ -1950,8 +1959,10 @@ const CreateAudioDokuScreen: React.FC = () => {
         typeof payload.durationSeconds === 'number'
           ? `${Math.round(payload.durationSeconds)}s`
           : '—';
+      const c = payload.cueCounts || {};
+      const timingLabel = payload.hasWordTiming ? 'Wort-Timing ✓' : 'Timing geschätzt';
       setDialogueStatus(
-        `Studio-Master fertig: ${durationLabel} Sprache, ${payload.scenesWithAmbient ?? 0} Ambient-Szene(n), ${payload.turns ?? 0} Sprecherblöcke, EBU-R128-gemastert inkl. Talea Intro/Outro.`,
+        `Studio-Doku fertig: ${durationLabel} Sprache · ${c.music ?? 0}× Musik, ${c.ambience ?? 0}× Atmo, ${c.sfx ?? 0}× Effekt, ${c.transition ?? 0}× Übergang · ${payload.generatedAssets ?? 0} Sounds erzeugt · ${timingLabel} · EBU-R128-gemastert inkl. Talea Intro/Outro.`,
       );
       setDialogueStatusType('success');
     } catch (err) {
@@ -3083,10 +3094,10 @@ const CreateAudioDokuScreen: React.FC = () => {
                         disabled={serverMasterLoading || dialogueLoading || ttsProvider !== 'elevenlabs' || detectedSpeakers.length === 0 || dialogueValidationIssues.length > 0}
                         className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                         style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
-                        title="Stimmen, Ambient und Mastering laufen auf dem Server (ffmpeg, EBU R128). Empfohlen für Studio-Qualität."
+                        title="Voller Audio-Director auf dem Server: wort-genaue Effekte, Musik-Dramaturgie, Atmo, Übergänge, ffmpeg-Mastering (EBU R128). Empfohlen für Studio-Qualität."
                       >
                         {serverMasterLoading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        {serverMasterLoading ? 'Studio-Master wird gerendert…' : 'Studio-Master erzeugen (Server)'}
+                        {serverMasterLoading ? 'Studio-Doku wird gerendert…' : 'Studio-Doku erzeugen (Sounddesign)'}
                       </button>
                       <button
                         type="button"

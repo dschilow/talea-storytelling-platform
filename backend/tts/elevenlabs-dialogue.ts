@@ -521,6 +521,203 @@ export async function synthesizeDialogue(
   };
 }
 
+export interface DialogueWord {
+  word: string;
+  /** Global start time in seconds across the whole concatenated dialogue. */
+  start: number;
+  end: number;
+  speaker: string;
+}
+
+export interface DialogueTurnSpan {
+  /** 1-based turn index (≈ script line). */
+  index: number;
+  speaker: string;
+  text: string;
+  start: number;
+  end: number;
+}
+
+export interface SynthesizeDialogueTimedResult {
+  /** Concatenated raw PCM (s16le, mono, 44.1 kHz). */
+  audio: Buffer;
+  /** Word-level timeline anchored to the concatenated audio. */
+  words: DialogueWord[];
+  /** Per-turn (≈ per-line) time windows in the concatenated audio. */
+  turnSpans: DialogueTurnSpan[];
+  turns: number;
+  speakers: string[];
+  durationSec: number;
+}
+
+const TIMED_SAMPLE_RATE = 44100;
+const TIMED_BYTES_PER_SAMPLE = 2;
+
+type ElevenLabsAlignment = {
+  characters?: string[];
+  character_start_times_seconds?: number[];
+  character_end_times_seconds?: number[];
+};
+
+/**
+ * Reconstructs words from ElevenLabs character-level alignment, skipping audio-tag
+ * spans like "[excited]" (the bracket content is a v3 directive, not spoken text).
+ */
+const buildWordsFromAlignment = (
+  alignment: ElevenLabsAlignment,
+  offsetSec: number,
+  speaker: string,
+): DialogueWord[] => {
+  const chars = alignment.characters ?? [];
+  const starts = alignment.character_start_times_seconds ?? [];
+  const ends = alignment.character_end_times_seconds ?? [];
+  if (chars.length === 0) return [];
+
+  const words: DialogueWord[] = [];
+  let cur = "";
+  let curStart = -1;
+  let curEnd = -1;
+  let depth = 0;
+
+  const flush = () => {
+    if (cur && curStart >= 0) {
+      words.push({ word: cur, start: curStart + offsetSec, end: curEnd + offsetSec, speaker });
+    }
+    cur = "";
+    curStart = -1;
+    curEnd = -1;
+  };
+
+  for (let i = 0; i < chars.length; i += 1) {
+    const c = chars[i];
+    if (c === "[") {
+      flush();
+      depth += 1;
+      continue;
+    }
+    if (c === "]") {
+      if (depth > 0) depth -= 1;
+      continue;
+    }
+    if (depth > 0) continue;
+    if (/\s/.test(c)) {
+      flush();
+      continue;
+    }
+    if (curStart < 0) curStart = Number.isFinite(starts[i]) ? starts[i] : curStart;
+    if (Number.isFinite(ends[i])) curEnd = ends[i];
+    cur += c;
+  }
+  flush();
+
+  return words
+    .map((w) => ({ ...w, word: w.word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "") }))
+    .filter((w) => w.word.length > 0 && Number.isFinite(w.start) && Number.isFinite(w.end));
+};
+
+/**
+ * Renders the dialogue turn-by-turn via ElevenLabs text-to-speech "with-timestamps", so we
+ * get a precise global word timeline (the basis for word-anchored sound design) plus exact
+ * per-turn boundaries. Each turn is one voice; PCM is concatenated and timestamps are shifted
+ * by the accumulated offset. No auth — the caller is responsible for it.
+ */
+export async function synthesizeDialogueWithTimestamps(options: {
+  script: string;
+  speakerVoiceMap: Record<string, string>;
+  modelId?: string;
+}): Promise<SynthesizeDialogueTimedResult> {
+  const apiKey = getElevenLabsApiKey();
+  if (!options.speakerVoiceMap || Object.keys(options.speakerVoiceMap).length === 0) {
+    throw APIError.invalidArgument("speakerVoiceMap is required.");
+  }
+
+  const turns = parseDialogueScript(options.script);
+  const missingSpeakers = new Set<string>();
+  for (const turn of turns) {
+    if (!resolveVoiceId(turn.speaker, options.speakerVoiceMap)) missingSpeakers.add(turn.speaker);
+  }
+  if (missingSpeakers.size > 0) {
+    throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${[...missingSpeakers].join(", ")}`);
+  }
+
+  const modelId = options.modelId?.trim() || DEFAULT_MODEL_ID;
+  const audioParts: Buffer[] = [];
+  const words: DialogueWord[] = [];
+  const turnSpans: DialogueTurnSpan[] = [];
+  let offsetSec = 0;
+
+  for (let t = 0; t < turns.length; t += 1) {
+    const turn = turns[t];
+    const turnStart = offsetSec;
+    const voiceId = resolveVoiceId(turn.speaker, options.speakerVoiceMap)!;
+    let response: Response;
+    try {
+      response = await fetch(
+        `${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=pcm_44100`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({ text: turn.text, model_id: modelId }),
+        },
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error(`[ElevenLabs] with-timestamps request failed before response: ${message}`);
+      throw APIError.unavailable("ElevenLabs timed synthesis failed before a response was received.");
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      log.error(`[ElevenLabs] with-timestamps failed (${response.status}): ${errText}`);
+      throwElevenLabsApiError(response.status, errText);
+    }
+
+    const payload = (await response.json()) as {
+      audio_base64?: string;
+      alignment?: ElevenLabsAlignment;
+      normalized_alignment?: ElevenLabsAlignment;
+    };
+    const audioBase64 = payload.audio_base64;
+    if (!audioBase64) {
+      throw APIError.unavailable("ElevenLabs with-timestamps returned no audio.");
+    }
+    const turnPcm = Buffer.from(audioBase64, "base64");
+    audioParts.push(turnPcm);
+
+    const alignment = payload.alignment ?? payload.normalized_alignment;
+    if (alignment) {
+      words.push(...buildWordsFromAlignment(alignment, offsetSec, turn.speaker));
+    }
+
+    offsetSec += turnPcm.length / TIMED_BYTES_PER_SAMPLE / TIMED_SAMPLE_RATE;
+    turnSpans.push({
+      index: t + 1,
+      speaker: turn.speaker,
+      text: turn.text,
+      start: turnStart,
+      end: offsetSec,
+    });
+  }
+
+  const audio = Buffer.concat(audioParts);
+  if (!audio.length) {
+    throw APIError.unavailable("ElevenLabs returned no audio data.");
+  }
+
+  return {
+    audio,
+    words,
+    turnSpans,
+    turns: turns.length,
+    speakers: [...new Set(turns.map((t) => t.speaker))],
+    durationSec: audio.length / TIMED_BYTES_PER_SAMPLE / TIMED_SAMPLE_RATE,
+  };
+}
+
 export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest, GenerateElevenLabsDialogueResponse>(
   { expose: true, method: "POST", path: "/tts/elevenlabs/dialogue", auth: true },
   async (req) => {
