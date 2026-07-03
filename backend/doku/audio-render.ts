@@ -622,7 +622,16 @@ export const renderAudioDokuMaster = api<
       log.info(
         `[AudioDokuMaster] mode=${mode} voice=${dialogueDurationSec.toFixed(1)}s segments=${voiceFiles.length} wordTiming=${hasWordTiming} cues=${cues.length} assets=${generatedAssets} buses=${activeBuses.join("+") || "none"} branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
       );
-      await runFfmpeg(args);
+      try {
+        await runFfmpeg(args);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        // Surface the real ffmpeg failure in the logs AND to the (admin-only) client —
+        // a bare "request failed" is undebuggable in production.
+        log.error(`[AudioDokuMaster] ffmpeg master render failed: ${message}`);
+        log.error(`[AudioDokuMaster] filtergraph was: ${filters.join(";")}`);
+        throw APIError.internal(`Studio-Master fehlgeschlagen (ffmpeg): ${message.slice(0, 500)}`);
+      }
 
       const masterBuffer = await fs.readFile(outputPath);
       if (!masterBuffer.length) throw APIError.internal("ffmpeg produced an empty master file.");
