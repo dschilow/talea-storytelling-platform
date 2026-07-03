@@ -22,11 +22,14 @@ import {
 } from "./sound-cues";
 
 // ============================================================
-// Audio Director: server-side studio master for audio dokos.
+// Audio Director: server-side studio master for audio dokus.
 //
 // Treats the doku like film post-production on a real timeline:
-//   1. Dialogue is rendered to lossless PCM WITH a word-level timeline
-//      (ElevenLabs with-timestamps), so sounds can land on specific words.
+//   1. Dialogue is rendered turn-by-turn WITH a word-level timeline
+//      (ElevenLabs with-timestamps, MP3 — raw PCM formats are Pro-tier-only).
+//      Each turn's REAL decoded duration is measured via ffprobe and the voice
+//      track is concatenated in the decoded domain, so word anchors stay
+//      sample-accurate with zero cumulative MP3-frame drift.
 //   2. A "sound director" AI produces a cue sheet (spot SFX anchored to words,
 //      ambience beds, a music underscore that follows the narrative beats,
 //      transition whooshes).
@@ -41,8 +44,6 @@ import {
 // ============================================================
 
 const SAMPLE_RATE = 44100;
-const DIALOGUE_OUTPUT_FORMAT = "pcm_44100"; // raw s16le mono 44.1 kHz
-const DIALOGUE_BYTES_PER_SAMPLE = 2;
 
 const AMBIENT_SKIP_VOLUME = 0.01;
 const AMBIENT_MAX_VOLUME = 0.25;
@@ -186,6 +187,25 @@ const runFfmpeg = (args: string[]): Promise<void> =>
     );
   });
 
+/** Reads an audio file's real decoded duration (seconds) via ffprobe. Returns 0 on failure. */
+const getAudioDurationViaFfprobe = (filePath: string): Promise<number> =>
+  new Promise((resolve) => {
+    const proc = spawn(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", filePath],
+      { stdio: ["ignore", "pipe", "ignore"] },
+    );
+    let out = "";
+    proc.stdout.on("data", (chunk: Buffer) => {
+      out += chunk.toString();
+    });
+    proc.on("error", () => resolve(0));
+    proc.on("close", () => {
+      const n = Number(out.trim());
+      resolve(Number.isFinite(n) && n > 0 ? n : 0);
+    });
+  });
+
 const normalizeWord = (w: string): string => w.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
 /**
@@ -309,96 +329,116 @@ export const renderAudioDokuMaster = api<
     const ageFrom = clamp(Math.floor(req.ageFrom || 6), 2, 18);
     const ageTo = clamp(Math.floor(req.ageTo || 8), ageFrom, 18);
 
-    // --- 1) Dialogue → PCM (+ word timeline when possible) ------------------
-    let dialoguePcm: Buffer;
-    let words: DialogueWord[] = [];
-    let turnSpans: DialogueTurnSpan[] = [];
-    let turns = 0;
-    let speakers: string[] = [];
-    let hasWordTiming = false;
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "audiodoku-"));
+    try {
+      // --- 1) Dialogue → MP3 voice files (+ word timeline when possible) ----
+      // Voice segments are kept as separate MP3 files and concatenated by ffmpeg in the
+      // DECODED domain: MP3 frames are padded to a ~26 ms grid, so byte-concatenation
+      // would accumulate drift and word anchors late in the doku would land off-word.
+      const voiceFiles: string[] = [];
+      const words: DialogueWord[] = [];
+      let turnSpans: DialogueTurnSpan[] = [];
+      let turns = 0;
+      let speakers: string[] = [];
+      let hasWordTiming = false;
+      let dialogueDurationSec = 0;
 
-    if (wantSoundDesign) {
-      try {
-        const timed = await synthesizeDialogueWithTimestamps({
-          script,
-          speakerVoiceMap: req.speakerVoiceMap,
-          modelId: req.modelId,
-        });
-        dialoguePcm = timed.audio;
-        words = timed.words;
-        turnSpans = timed.turnSpans;
-        turns = timed.turns;
-        speakers = timed.speakers;
-        hasWordTiming = words.length > 0;
-      } catch (err) {
-        log.warn(
-          `[AudioDokuMaster] timed synthesis failed, falling back to plain dialogue: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+      const renderPlainDialogue = async (): Promise<void> => {
         const plain = await synthesizeDialogue({
           script,
           speakerVoiceMap: req.speakerVoiceMap,
           modelId: req.modelId,
-          outputFormat: DIALOGUE_OUTPUT_FORMAT,
+          // Default studio MP3 — raw PCM formats are ElevenLabs-Pro-only and 403 otherwise.
         });
-        dialoguePcm = plain.audio;
+        const filePath = path.join(tmpDir, "voice.mp3");
+        await fs.writeFile(filePath, plain.audio);
+        voiceFiles.push(filePath);
         turns = plain.turns;
         speakers = plain.speakers;
+        dialogueDurationSec = await getAudioDurationViaFfprobe(filePath);
+      };
+
+      if (wantSoundDesign) {
+        try {
+          const timed = await synthesizeDialogueWithTimestamps({
+            script,
+            speakerVoiceMap: req.speakerVoiceMap,
+            modelId: req.modelId,
+          });
+          turns = timed.turns;
+          speakers = timed.speakers;
+
+          let offset = 0;
+          for (const seg of timed.segments) {
+            const filePath = path.join(tmpDir, `turn-${seg.index}.mp3`);
+            await fs.writeFile(filePath, seg.audio);
+            voiceFiles.push(filePath);
+            // Real decoded duration beats the alignment estimate: it is exactly what the
+            // concat filter will contribute to the mixed timeline.
+            const probed = await getAudioDurationViaFfprobe(filePath);
+            const segDur = probed > 0 ? probed : seg.alignmentDurationSec;
+            for (const w of seg.words) {
+              words.push({ ...w, start: w.start + offset, end: w.end + offset });
+            }
+            turnSpans.push({
+              index: seg.index,
+              speaker: seg.speaker,
+              text: seg.text,
+              start: offset,
+              end: offset + segDur,
+            });
+            offset += segDur;
+          }
+          dialogueDurationSec = offset;
+          hasWordTiming = words.length > 0;
+        } catch (err) {
+          log.warn(
+            `[AudioDokuMaster] timed synthesis failed, falling back to plain dialogue: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          voiceFiles.length = 0;
+          await renderPlainDialogue();
+        }
+      } else {
+        await renderPlainDialogue();
       }
-    } else {
-      const plain = await synthesizeDialogue({
-        script,
-        speakerVoiceMap: req.speakerVoiceMap,
-        modelId: req.modelId,
-        outputFormat: DIALOGUE_OUTPUT_FORMAT,
-      });
-      dialoguePcm = plain.audio;
-      turns = plain.turns;
-      speakers = plain.speakers;
-    }
 
-    const dialogueDurationSec = dialoguePcm.length / DIALOGUE_BYTES_PER_SAMPLE / SAMPLE_RATE;
-    if (dialogueDurationSec <= 0) {
-      throw APIError.unavailable("ElevenLabs returned no usable dialogue audio.");
-    }
+      if (voiceFiles.length === 0 || dialogueDurationSec <= 0) {
+        throw APIError.unavailable("ElevenLabs returned no usable dialogue audio.");
+      }
 
-    const scriptLines = script.replace(/\r\n/g, "\n").split("\n");
-    if (turnSpans.length === 0) {
-      turnSpans = estimateTurnSpans(scriptLines, dialogueDurationSec);
-    }
+      const scriptLines = script.replace(/\r\n/g, "\n").split("\n");
+      if (turnSpans.length === 0) {
+        turnSpans = estimateTurnSpans(scriptLines, dialogueDurationSec);
+      }
 
-    // --- 2) Cue sheet -------------------------------------------------------
-    const mode: "director" | "screenplay" = wantSoundDesign ? "director" : "screenplay";
-    let cues: SoundCue[] = [];
+      // --- 2) Cue sheet ------------------------------------------------------
+      const mode: "director" | "screenplay" = wantSoundDesign ? "director" : "screenplay";
+      let cues: SoundCue[] = [];
 
-    if (wantSoundDesign) {
-      const raw = await generateSoundCues({
-        script,
-        durationSec: dialogueDurationSec,
-        ageFrom,
-        ageTo,
-        turnSpans,
-        words,
-      });
-      cues = raw.map((c) => snapCueToWords(c, words));
-    } else if (req.enableAmbient !== false && Array.isArray(req.screenplay)) {
-      cues = screenplayToCues(req.screenplay, turnSpans, dialogueDurationSec);
-    }
+      if (wantSoundDesign) {
+        const raw = await generateSoundCues({
+          script,
+          durationSec: dialogueDurationSec,
+          ageFrom,
+          ageTo,
+          turnSpans,
+          words,
+        });
+        cues = raw.map((c) => snapCueToWords(c, words));
+      } else if (req.enableAmbient !== false && Array.isArray(req.screenplay)) {
+        cues = screenplayToCues(req.screenplay, turnSpans, dialogueDurationSec);
+      }
 
-    // Keep cues inside the timeline.
-    cues = cues.filter((c) => c.start < dialogueDurationSec + 0.5);
+      // Keep cues inside the timeline.
+      cues = cues.filter((c) => c.start < dialogueDurationSec + 0.5);
 
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "audiodoku-"));
-    try {
-      const voicePath = path.join(tmpDir, "voice.pcm");
-      await fs.writeFile(voicePath, dialoguePcm);
+      // --- 3) Generate cue assets (dedupe + cap) -----------------------------
+      const inputArgs: string[] = [];
+      for (const filePath of voiceFiles) inputArgs.push("-i", filePath);
+      let nextInputIndex = voiceFiles.length;
 
-      // --- 3) Generate cue assets (dedupe + cap) --------------------------
-      const inputArgs: string[] = [
-        "-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", "1", "-i", voicePath,
-      ];
-      let nextInputIndex = 1;
       const assetCache = new Map<string, number>(); // cacheKey -> input index
       const placed: PlacedCue[] = [];
       let generatedAssets = 0;
@@ -447,8 +487,25 @@ export const renderAudioDokuMaster = api<
         placed.push({ cue, inputIndex, isLoop, atrimWindow });
       }
 
-      // --- 4) Build the multi-bus ffmpeg graph ---------------------------
+      // --- 4) Build the multi-bus ffmpeg graph -------------------------------
       const filters: string[] = [];
+
+      // Voice source: sample-accurate concat of the turn segments in the decoded domain.
+      if (voiceFiles.length === 1) {
+        filters.push(`[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[vsrc]`);
+      } else {
+        const segLabels: string[] = [];
+        for (let i = 0; i < voiceFiles.length; i += 1) {
+          filters.push(
+            `[${i}:a]aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=mono[seg${i}]`,
+          );
+          segLabels.push(`[seg${i}]`);
+        }
+        filters.push(
+          `${segLabels.join("")}concat=n=${voiceFiles.length}:v=0:a=1,aformat=channel_layouts=stereo[vsrc]`,
+        );
+      }
+
       const busCues: Record<"music" | "ambience" | "sfx", string[]> = {
         music: [],
         ambience: [],
@@ -485,18 +542,14 @@ export const renderAudioDokuMaster = api<
       );
 
       // Split the voice into one main copy + one sidechain key per active bus.
+      let voiceMain = "[vsrc]";
       if (activeBuses.length > 0) {
         const keyLabels = activeBuses.map((b) => `[vk_${b}]`).join("");
-        filters.push(
-          `[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo,asplit=${
-            activeBuses.length + 1
-          }[vmain]${keyLabels}`,
-        );
-      } else {
-        filters.push(`[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[vmain]`);
+        filters.push(`[vsrc]asplit=${activeBuses.length + 1}[vmain]${keyLabels}`);
+        voiceMain = "[vmain]";
       }
 
-      const mixInputs: string[] = ["[vmain]"];
+      const mixInputs: string[] = [voiceMain];
       for (const bus of activeBuses) {
         const labels = busCues[bus];
         let busRaw: string;
@@ -511,13 +564,13 @@ export const renderAudioDokuMaster = api<
         mixInputs.push(busOut);
       }
 
-      let bodyLabel = "[vmain]";
+      let bodyLabel = voiceMain;
       if (mixInputs.length > 1) {
         filters.push(`${mixInputs.join("")}amix=inputs=${mixInputs.length}:normalize=0[body]`);
         bodyLabel = "[body]";
       }
 
-      // --- 5) Branding crossfade + master tail ---------------------------
+      // --- 5) Branding crossfade + master tail -------------------------------
       let introPath: string | null = null;
       let outroPath: string | null = null;
       if (includeBranding) {
@@ -567,7 +620,7 @@ export const renderAudioDokuMaster = api<
       ];
 
       log.info(
-        `[AudioDokuMaster] mode=${mode} voice=${dialogueDurationSec.toFixed(1)}s wordTiming=${hasWordTiming} cues=${cues.length} assets=${generatedAssets} buses=${activeBuses.join("+") || "none"} branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
+        `[AudioDokuMaster] mode=${mode} voice=${dialogueDurationSec.toFixed(1)}s segments=${voiceFiles.length} wordTiming=${hasWordTiming} cues=${cues.length} assets=${generatedAssets} buses=${activeBuses.join("+") || "none"} branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
       );
       await runFfmpeg(args);
 

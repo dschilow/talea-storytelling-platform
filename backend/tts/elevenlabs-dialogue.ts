@@ -538,20 +538,34 @@ export interface DialogueTurnSpan {
   end: number;
 }
 
-export interface SynthesizeDialogueTimedResult {
-  /** Concatenated raw PCM (s16le, mono, 44.1 kHz). */
+export interface TimedDialogueSegment {
+  /** 1-based turn index (≈ script line). */
+  index: number;
+  speaker: string;
+  text: string;
+  /** MP3 audio for this single turn (mp3_44100_128, one voice). */
   audio: Buffer;
-  /** Word-level timeline anchored to the concatenated audio. */
+  /** Word timings relative to THIS segment's own audio start. */
   words: DialogueWord[];
-  /** Per-turn (≈ per-line) time windows in the concatenated audio. */
-  turnSpans: DialogueTurnSpan[];
-  turns: number;
-  speakers: string[];
-  durationSec: number;
+  /**
+   * Spoken duration per the ElevenLabs alignment (last character end time).
+   * 0 when the response carried no alignment — callers should then measure the
+   * decoded audio themselves (e.g. via ffprobe).
+   */
+  alignmentDurationSec: number;
 }
 
-const TIMED_SAMPLE_RATE = 44100;
-const TIMED_BYTES_PER_SAMPLE = 2;
+export interface SynthesizeDialogueTimedResult {
+  /**
+   * One segment per dialogue turn. Deliberately NOT pre-concatenated: MP3 frames are
+   * padded to a 26 ms grid, so byte-concatenation would accumulate timing drift across
+   * turns. The renderer measures each segment's real decoded duration and concatenates
+   * in the decoded domain (sample-accurate word anchors).
+   */
+  segments: TimedDialogueSegment[];
+  turns: number;
+  speakers: string[];
+}
 
 type ElevenLabsAlignment = {
   characters?: string[];
@@ -617,9 +631,9 @@ const buildWordsFromAlignment = (
 
 /**
  * Renders the dialogue turn-by-turn via ElevenLabs text-to-speech "with-timestamps", so we
- * get a precise global word timeline (the basis for word-anchored sound design) plus exact
- * per-turn boundaries. Each turn is one voice; PCM is concatenated and timestamps are shifted
- * by the accumulated offset. No auth — the caller is responsible for it.
+ * get a precise word timeline per turn (the basis for word-anchored sound design). Audio is
+ * requested as mp3_44100_128 — raw PCM output formats require the ElevenLabs Pro tier and
+ * would 403 on lower tiers. No auth — the caller is responsible for it.
  */
 export async function synthesizeDialogueWithTimestamps(options: {
   script: string;
@@ -641,19 +655,15 @@ export async function synthesizeDialogueWithTimestamps(options: {
   }
 
   const modelId = options.modelId?.trim() || DEFAULT_MODEL_ID;
-  const audioParts: Buffer[] = [];
-  const words: DialogueWord[] = [];
-  const turnSpans: DialogueTurnSpan[] = [];
-  let offsetSec = 0;
+  const segments: TimedDialogueSegment[] = [];
 
   for (let t = 0; t < turns.length; t += 1) {
     const turn = turns[t];
-    const turnStart = offsetSec;
     const voiceId = resolveVoiceId(turn.speaker, options.speakerVoiceMap)!;
     let response: Response;
     try {
       response = await fetch(
-        `${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=pcm_44100`,
+        `${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=mp3_44100_128`,
         {
           method: "POST",
           headers: {
@@ -685,36 +695,34 @@ export async function synthesizeDialogueWithTimestamps(options: {
     if (!audioBase64) {
       throw APIError.unavailable("ElevenLabs with-timestamps returned no audio.");
     }
-    const turnPcm = Buffer.from(audioBase64, "base64");
-    audioParts.push(turnPcm);
 
     const alignment = payload.alignment ?? payload.normalized_alignment;
-    if (alignment) {
-      words.push(...buildWordsFromAlignment(alignment, offsetSec, turn.speaker));
+    if (!alignment) {
+      log.warn(`[ElevenLabs] with-timestamps returned no alignment for turn ${t + 1}; word anchors unavailable for it.`);
     }
+    const endTimes = alignment?.character_end_times_seconds ?? [];
+    const alignmentDurationSec = endTimes.length > 0 ? Math.max(...endTimes) : 0;
 
-    offsetSec += turnPcm.length / TIMED_BYTES_PER_SAMPLE / TIMED_SAMPLE_RATE;
-    turnSpans.push({
+    segments.push({
       index: t + 1,
       speaker: turn.speaker,
       text: turn.text,
-      start: turnStart,
-      end: offsetSec,
+      audio: Buffer.from(audioBase64, "base64"),
+      // Offset 0: word times stay relative to this segment; the renderer shifts them by
+      // each segment's real decoded start once measured.
+      words: alignment ? buildWordsFromAlignment(alignment, 0, turn.speaker) : [],
+      alignmentDurationSec,
     });
   }
 
-  const audio = Buffer.concat(audioParts);
-  if (!audio.length) {
+  if (segments.length === 0 || segments.every((s) => s.audio.length === 0)) {
     throw APIError.unavailable("ElevenLabs returned no audio data.");
   }
 
   return {
-    audio,
-    words,
-    turnSpans,
+    segments,
     turns: turns.length,
     speakers: [...new Set(turns.map((t) => t.speaker))],
-    durationSec: audio.length / TIMED_BYTES_PER_SAMPLE / TIMED_SAMPLE_RATE,
   };
 }
 
