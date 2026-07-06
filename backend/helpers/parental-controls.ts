@@ -145,7 +145,6 @@ const BLOCKED_TERM_SAFE_REPLACEMENTS: Record<string, string> = {
   beleidigung: "Gemeinheit",
   ausgrenzung: "Ausschluss",
   religion: "Tradition",
-  glaube: "Idee",
   kirche: "Gebaeude",
   politik: "Regeln",
   krieg: "Streit",
@@ -164,6 +163,40 @@ const BLOCKED_TERM_SAFE_REPLACEMENTS: Record<string, string> = {
   hass: "Wut",
   zerstoeren: "kaputtmachen",
   verletzen: "wehtun",
+};
+
+// Blocked terms that collide with everyday German words need grammar-aware
+// replacement instead of the blind token swap. "glaube" is the critical case:
+// lowercase it is almost always the verb "ich glaube" (= think, no religious
+// meaning), and the old noun swap shipped broken prose like "Ich Idee, ihr
+// habt heute genug Kellerluft geatmet." in released stories. Verb forms map
+// onto matching "denken" forms; only the capitalized noun gets a
+// faith-adjacent noun replacement.
+const TERM_GRAMMAR_AWARE_PATTERNS: Record<
+  string,
+  Array<{ pattern: RegExp; replacement: string }>
+> = {
+  glaube: [
+    // Verb + dative object ("glaub mir/dir/...") maps onto "vertrauen",
+    // which takes the same dative ("vertrau mir"). Must run BEFORE the
+    // generic verb rules, which map onto "denken" (no dative object).
+    { pattern: /\bglaubst (mir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "vertraust $1" },
+    { pattern: /\bGlaubst (mir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "Vertraust $1" },
+    { pattern: /\bglaubt (mir|dir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "vertraut $1" },
+    { pattern: /\bGlaubt (mir|dir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "Vertraut $1" },
+    { pattern: /\bglauben (mir|dir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "vertrauen $1" },
+    { pattern: /\bglaube? (mir|dir|ihm|ihr|euch|ihnen)\b/g, replacement: "vertraue $1" },
+    { pattern: /\bGlaube? (mir|dir|ihm|ihr|uns|euch|ihnen)\b/g, replacement: "Vertrau $1" },
+    { pattern: /\bglaubst\b/g, replacement: "denkst" },
+    { pattern: /\bglaubt\b/g, replacement: "denkt" },
+    { pattern: /\bglauben\b/g, replacement: "denken" },
+    { pattern: /\bglaube\b/g, replacement: "denke" },
+    { pattern: /\bGlaubst\b/g, replacement: "Denkst" },
+    { pattern: /\bGlaubt\b/g, replacement: "Denkt" },
+    { pattern: /\bGlaubens\b/g, replacement: "Vertrauens" },
+    { pattern: /\bGlauben\b/g, replacement: "Vertrauen" },
+    { pattern: /\bGlaube\b/g, replacement: "Vertrauen" },
+  ],
 };
 
 function applyCaseTemplate(source: string, replacement: string): string {
@@ -257,6 +290,16 @@ export function sanitizeTextWithBlockedTerms(
     const normalized = normalizeKeyword(term);
     const escaped = escapeRegExp(normalized);
     if (!escaped) continue;
+    const grammarAwareRules = TERM_GRAMMAR_AWARE_PATTERNS[normalized];
+    if (grammarAwareRules) {
+      for (const rule of grammarAwareRules) {
+        next = next.replace(rule.pattern, (_match, ...groups) => {
+          replacements += 1;
+          return rule.replacement.replace(/\$(\d)/g, (_s, idx) => String(groups[Number(idx) - 1] ?? ""));
+        });
+      }
+      continue;
+    }
     const replacement = resolveSafeReplacement(normalized);
     const isSingleToken = /^[\p{L}\p{N}_-]+$/u.test(normalized);
     const pattern = isSingleToken

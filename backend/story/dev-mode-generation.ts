@@ -6622,6 +6622,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- one clear magic / wonder rule, tested on-page at least twice",
     "- one visible wrong action with visible consequence",
     "- irreversible middle with concrete personal cost (object, place, privilege given up)",
+    "- the sacrifice must HURT on the page: one line of hesitation/pang BEFORE letting go (a swallow, a last look, a gripped fist) and one line AFTER naming what is now missing. A sacrifice without a visible pang reads as a mere tool-use and fails the quality gate.",
     "- preserve the SCENE PLAN's irreversible visibleDamage on the page: it must leave a visible mark/change (Riss, Stein, Farbe weg, festgewachsen, verschmolzen, verloren) and not soften into 'it got heavy for a moment'",
     "- keep ONE central red-thread object/place from the story bible and scene plan; do not swap in a backpack/bag/lock/closure or any other object-function mid-draft",
     "- if SCENE PLAN.storyCore.personalObject includes whyPersonal/risk/payoff, plant why it matters before the sacrifice and make the final choice use that same value; never reduce it to a generic useful object",
@@ -6629,7 +6630,8 @@ function buildCompactWholeStoryDraftPrompts(
     "- final decision performed by the children, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
     "- finale uses a detail planted earlier",
-    "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\".",
+    "- the wonder rule is tested ONE final time inside the finale: a child knowingly applies the learned rule and the effect is visible on the page (this cements the causal loop)",
+    "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\". Also no as-if moral similes (\"als wäre er klüger geworden\", \"as if it had grown wiser\") — the last sentence shows one concrete object, sound, or motion in the scene.",
     "",
     "REFRAIN CONTRACT (read-aloud magnet — this is what separates a 9.0 book from a 7.0 draft):",
     "- Derive ONE short SPOKEN signature line (3–7 words, inside „…“) from the wonder rule or the creature/object voice. It must be chantable, ideally with internal rhyme or a strong 2–4 beat rhythm a 6-year-old can repeat after one hearing.",
@@ -10908,23 +10910,43 @@ function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
 // Step 5 \u2014 Writer-model quality floor. The final whole-story draft is where
 // prose quality is won or lost, yet support stages run on a cheap lite model.
 // If the wizard-selected story model is ITSELF a weak "lite/nano/mini" tier,
-// the final prose would be capped at that quality. This floor upgrades ONLY the
-// whole-story-draft stage to the main Gemini story model (guaranteed wired up,
-// clearly stronger), while leaving explicit strong choices and the OpenRouter
-// path untouched. Opt-out via `config.upgradeWriterModel === false`.
+// the final prose would be capped at that quality. This floor upgrades every
+// writer stage (modelRole "selected-story": draft, redraft, polish, chapter
+// repair, rebalance, punchup) to a clearly stronger model, so a strong draft
+// is not flattened again by a mini-tier polish pass. Explicit strong choices
+// stay untouched. Opt-out via `config.upgradeWriterModel === false`.
+//
+// OpenRouter user path: run 93129526 ("Der Stock, der gerne staunte")
+// measured ~openai/gpt-mini-latest at 22.9% dialogue, interchangeable hero
+// voices (voiceDistinctiveness 6.5-7.5) and a didactic ending despite the
+// countable dialogue contract \u2014 mini-tier writers cap the premium gate at
+// ~8.3. The standard (user-facing) path therefore gets a stronger writer;
+// developer mode keeps the exact wizard selection for model experiments.
+const DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL = "~anthropic/claude-sonnet-latest";
+
+// "mini" must not match "gemini" or "minimax": require a non-'e' character
+// (or string start) before it and a word boundary or hyphen after it.
+function isWeakWriterTierModelId(modelId: string): boolean {
+  return /flash-lite|-lite\b|nano|haiku|(?:^|[^e])mini(?:-|\b)/.test(modelId.toLowerCase());
+}
+
 function resolveDevModeWriterModelFloor(
   config: StoryConfig
-): Pick<ProviderCallOptions, "modelOverride" | "providerOverride"> | null {
+): Pick<ProviderCallOptions, "modelOverride" | "providerOverride" | "openRouterModelOverride"> | null {
   if ((config as any)?.upgradeWriterModel === false) return null;
-  // OpenRouter model identifiers vary and a wrong swap could break generation;
-  // respect explicit OpenRouter selections exactly as configured.
-  if (config.aiProvider === "openrouter") return null;
+  if (config.aiProvider === "openrouter") {
+    // Developer mode exists to test explicit model choices \u2014 never override.
+    if ((config as any)?.developerMode === true) return null;
+    const selected = resolveSelectedOpenRouterStoryModel(config).toLowerCase();
+    if (!selected || !isWeakWriterTierModelId(selected)) return null;
+    if (selected === DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL.toLowerCase()) return null;
+    return { openRouterModelOverride: DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL };
+  }
   const selected = String(resolveConfiguredStoryModel(config) || config.aiModel || "").toLowerCase();
   if (!selected) return null;
   // Already the upgrade target \u2014 nothing to do.
   if (selected === GEMINI_MAIN_STORY_MODEL.toLowerCase()) return null;
-  const isWeakTier = /flash-lite|-lite|nano|mini|haiku/.test(selected);
-  if (!isWeakTier) return null;
+  if (!isWeakWriterTierModelId(selected)) return null;
   return { modelOverride: GEMINI_MAIN_STORY_MODEL, providerOverride: "native" };
 }
 
@@ -11192,6 +11214,16 @@ export async function generateStoryDevMode(
   const supportProvider = resolveDevModeSupportProvider(input.config);
   const supportModel = resolveDevModeSupportModel(input.config);
   const supportCallOptions = buildDevModeSupportCallOptions(input.config);
+  // §5 writer-model floor: resolved once, then applied by runStage to EVERY
+  // "selected-story" stage (draft, redraft, polish, chapter repair, rebalance,
+  // punchup) so a strong draft is never degraded by a weaker repair model.
+  const writerModelFloor = resolveDevModeWriterModelFloor(input.config);
+  if (writerModelFloor) {
+    console.log("[dev-mode-generation] §5 writer-model floor active for all writer stages", {
+      selectedModel: resolveConfiguredStoryModel(input.config) || input.config.aiModel,
+      upgradedTo: writerModelFloor.modelOverride || writerModelFloor.openRouterModelOverride,
+    });
+  }
   const recentStoryFingerprints = input.noveltyBrief?.recentStories || await loadRecentDevModeStoryFingerprints(input);
   input = {
     ...input,
@@ -11222,8 +11254,14 @@ export async function generateStoryDevMode(
   const runStage = async (
     stage: DevModePipelineStage,
     prompts: { systemPrompt: string; userPrompt: string },
-    options: ProviderCallOptions
+    rawOptions: ProviderCallOptions
   ): Promise<{ provider: ProviderResult; parsed?: any; parseError?: string }> => {
+    // §5: every writer stage gets the floor model; explicit per-stage
+    // overrides do not exist on the writer path, so floor-last is safe.
+    const options: ProviderCallOptions =
+      rawOptions.modelRole === "selected-story" && writerModelFloor
+        ? { ...rawOptions, ...writerModelFloor }
+        : rawOptions;
     const stageStartedAt = Date.now();
     const logEntry: DevModeStageLog = {
       stage,
@@ -12238,20 +12276,14 @@ export async function generateStoryDevMode(
 
     let wholeStoryStage: Awaited<ReturnType<typeof runStage>>;
     let wholeStoryDraft: DevModeWholeStoryDraft;
-    const writerModelFloor = resolveDevModeWriterModelFloor(input.config);
-    if (writerModelFloor) {
-      console.log("[dev-mode-generation] §5 writer-model floor applied for whole-story-draft", {
-        selectedModel: resolveConfiguredStoryModel(input.config) || input.config.aiModel,
-        upgradedTo: writerModelFloor.modelOverride,
-      });
-    }
+    // §5 writer-model floor is applied centrally inside runStage for every
+    // modelRole "selected-story" call.
     try {
       wholeStoryStage = await runStage("whole-story-draft", wholeStoryPrompts, {
         maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, false),
         temperature: 0.82,
         timeoutMs: devModeStoryDraftTimeoutMs(input.config, false),
         modelRole: "selected-story",
-        ...(writerModelFloor || {}),
       });
       wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
     } catch (wholeStoryError) {
@@ -12267,7 +12299,6 @@ export async function generateStoryDevMode(
           temperature: 0.6,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
-          ...(writerModelFloor || {}),
         });
         wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
       } catch (retryError) {
@@ -12327,7 +12358,6 @@ export async function generateStoryDevMode(
           temperature: 0.7,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
-          ...(writerModelFloor || {}),
         });
         const redraft = parseWholeStoryDraft(redraftStage.provider.content);
         const redraftParsed = applyReadingBreaksToDraft(
@@ -12427,7 +12457,18 @@ export async function generateStoryDevMode(
         dialogPct: finalDiagnostics?.dialogPct,
       });
       if (finalParsed?.displayMode === "reading_pages") {
-        if (routerDecision.strategy === "whole_story_dialog_rebalance") {
+        // Reading-page mode implements exactly ONE local repair: the dialogue
+        // rebalance. Historically a structural router pick (e.g.
+        // scene_card_repair_then_rewrite for a missing personal cost) hit the
+        // break below and the open dialogue hard gate survived into the
+        // validation loop, where it blocked the validator chapter rescue (run
+        // 93129526). When dialogue is under the floor, run the rebalance
+        // regardless of which non-deterministic strategy won the router.
+        const dialogUnderFloor = finalDiagnostics.dialogPct < DEV_MODE_MIN_DIALOG_PCT;
+        const shouldRunReadingPageRebalance =
+          routerDecision.strategy === "whole_story_dialog_rebalance"
+          || (dialogUnderFloor && !isDeterministicRepairStrategy(routerDecision.strategy));
+        if (shouldRunReadingPageRebalance) {
           const targets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 2);
           if (targets.length === 0) {
             console.warn("[dev-mode-generation] dialogue-rebalance selected but no target pages were found", {
@@ -12823,8 +12864,19 @@ export async function generateStoryDevMode(
         && currentDiagnostics.softIssueCount > 0
         && currentDiagnostics.dialogPct >= DEV_MODE_TARGET_DIALOG_PCT;
       const canUseLinePunchup = isReleaseNear && (onlyValidatorScoreGap || onlySoftIssuesAndDialogueOK);
+      // v12.2: the rescue used to require hardIssueCount === 0, which starved
+      // exactly the runs that need it — an open dialogue hard gate routed
+      // every attempt into full-story polish instead (run 93129526: the
+      // validator's finale must-fixes were never applied; two whole-story
+      // polish passes even regressed the market score 7.8 → 7.2). Chapter
+      // rescue prompts couple dialogue injection with the validator brief and
+      // the emergency dialogue rebalance still runs downstream, so dialog-only
+      // hard gates no longer disqualify the rescue.
+      const nonDialogHardIssueCount = (currentDiagnostics.hardIssues || []).filter(
+        (issue) => !/Dialoganteil|dialog/i.test(issue)
+      ).length;
       const validatorQualityRepairChapters =
-        currentDiagnostics.hardIssueCount === 0
+        nonDialogHardIssueCount === 0
         && currentScore < targetReleaseScore
         && validatorFindings
           ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
@@ -12932,11 +12984,18 @@ export async function generateStoryDevMode(
             // downstream will lift dialog again if it lands below the floor.
             const isHardGateOpen = currentDiagnostics.hardIssueCount > 0;
             const reducedHardIssues = qualityDiagnostics.hardIssueCount < currentDiagnostics.hardIssueCount;
+            // When the dialogue hard gate is already open, requiring the
+            // absolute 25% floor here would reject structural rescues that
+            // merely keep dialogue stable — non-regression is enough, the
+            // emergency rebalance downstream lifts dialogue afterwards.
+            const dialogFloorForAcceptance = isHardGateOpen
+              ? currentDiagnostics.dialogPct - 1
+              : Math.max(DEV_MODE_MIN_DIALOG_PCT, currentDiagnostics.dialogPct - 1);
             const locallyAcceptable = isHardGateOpen && reducedHardIssues
               ? qualitySeverity <= currentSeverity + 260
               : (
                 qualityDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
-                && qualityDiagnostics.dialogPct >= Math.max(DEV_MODE_MIN_DIALOG_PCT, currentDiagnostics.dialogPct - 1)
+                && qualityDiagnostics.dialogPct >= dialogFloorForAcceptance
                 && qualitySeverity <= currentSeverity + 180
               );
             if (locallyAcceptable) {
