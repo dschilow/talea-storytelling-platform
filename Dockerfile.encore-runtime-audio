@@ -5,8 +5,8 @@ FROM debian:bookworm-slim AS audio-tools
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends ffmpeg ca-certificates; \
-    mkdir -p /audio-root/usr/local/bin /audio-root/opt/ffmpeg/lib; \
-    cp /usr/bin/ffmpeg /usr/bin/ffprobe /audio-root/usr/local/bin/; \
+    mkdir -p /audio-root/usr/bin /audio-root/opt/ffmpeg/lib; \
+    cp /usr/bin/ffmpeg /usr/bin/ffprobe /audio-root/usr/bin/; \
     ldd /usr/bin/ffmpeg /usr/bin/ffprobe \
       | awk '/=> \// { print $3 } /^\// && $1 !~ /:$/ { print $1 }' \
       | sort -u \
@@ -18,5 +18,5 @@ FROM ${BASE_IMAGE}
 
 COPY --from=audio-tools /audio-root/ /
 
-ENV PATH="/usr/local/bin:/usr/bin:${PATH}"
+ENV PATH="/usr/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/ffmpeg/lib"
