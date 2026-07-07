@@ -10960,13 +10960,17 @@ function openRouterReasoningForDevMode(model: string): { effort?: "none" | "mini
   if (/google\/gemini|gemini-pro|gemini-flash/.test(normalized)) {
     return { effort: "minimal", exclude: true };
   }
-  // Anthropic via OpenRouter: sending a reasoning object WITHOUT
-  // enabled:false switches extended thinking ON with a default budget that
-  // consumes nearly the whole max_tokens window. Run a5059aef (2026-07-07)
-  // produced 4200 completion tokens of hidden thinking and ~500 chars of
-  // truncated JSON, then an entirely empty retry (finish_reason=length).
-  // Writer stages need plain prose — disable thinking explicitly.
-  if (/anthropic|claude/.test(normalized)) {
+  // Hybrid-thinking models (Anthropic, Kimi/Moonshot, GLM, Qwen, DeepSeek,
+  // MiniMax & co.) switch extended thinking ON whenever OpenRouter receives
+  // a reasoning object WITHOUT enabled:false — `exclude:true` only hides the
+  // thinking from the response, it does not disable it. The hidden thinking
+  // then consumes the entire max_tokens window: run a5059aef (claude) and run
+  // 38b65185 (kimi-k2.6) both burned minutes of generation and returned an
+  // EMPTY completion with finish_reason=length. Writer stages need plain
+  // prose — disable thinking explicitly for every family that supports the
+  // toggle. Only plain OpenAI gpt-* models keep the legacy `exclude`-only
+  // shape, which is proven in production.
+  if (isOpenRouterTextCompatibilityModel(normalized)) {
     return { enabled: false, exclude: true };
   }
   return { exclude: true };
@@ -12312,38 +12316,56 @@ export async function generateStoryDevMode(
       wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
     } catch (wholeStoryError) {
       const reason = wholeStoryError instanceof Error ? wholeStoryError.message : String(wholeStoryError);
+      // finish_reason=length with empty/truncated content = the provider
+      // spent the completion budget on hidden thinking tokens (kimi run
+      // 38b65185, claude run a5059aef) or unusually verbose output. The
+      // reasoning toggle in openRouterReasoningForDevMode is the primary
+      // fix; the escalated budget below is the belt-and-suspenders for
+      // providers that ignore `reasoning.enabled=false`. Unused budget
+      // costs nothing.
+      const firstAttemptLengthFailure = /finish_reason=length|finish_reason=max_tokens|empty response/i.test(reason);
       console.warn("[dev-mode-generation] Whole-story draft failed; retrying once with stricter prompt", {
         model: selectedOpenRouterStoryModel,
         error: reason,
+        escalatedTokenBudget: firstAttemptLengthFailure,
       });
       const retryPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
+      const baseRetryMaxTokens = devModeStoryDraftMaxTokens(input.config, true, true);
       try {
         wholeStoryStage = await runStage("whole-story-draft", retryPrompts, {
-          maxTokens: devModeStoryDraftMaxTokens(input.config, true, true),
+          maxTokens: firstAttemptLengthFailure ? Math.max(baseRetryMaxTokens, 12000) : baseRetryMaxTokens,
           temperature: 0.6,
           timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
           modelRole: "selected-story",
         });
         wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
       } catch (retryError) {
-        // §5 fallback: when the writer-model FLOOR is the thing that failed
-        // twice (run a5059aef: claude thinking ate the whole token budget),
-        // fall back to the originally selected wizard model instead of
-        // failing the entire generation. A weaker finished story still goes
-        // through every quality gate; a thrown error reaches the child.
-        if (!writerModelFloor) {
+        const retryReason = retryError instanceof Error ? retryError.message : String(retryError);
+        const retryLengthFailure = /finish_reason=length|finish_reason=max_tokens|empty response/i.test(retryReason);
+        // Final third attempt, two flavors:
+        //  a) §5 floor active → the FLOOR model failed twice; fall back to
+        //     the originally selected wizard model (run a5059aef).
+        //  b) no floor, but both attempts died on length/empty → same model
+        //     one last time with the maximum completion budget, so even a
+        //     provider that force-enables thinking can finish its content.
+        // A weaker or slower finished story still passes every quality gate;
+        // a thrown error reaches the child.
+        if (!writerModelFloor && !retryLengthFailure) {
           throw new Error(
-            `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
+            `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${retryReason}`
           );
         }
-        console.warn("[dev-mode-generation] §5 floored writer failed twice; final draft attempt on the originally selected model", {
-          flooredModel: writerModelFloor.openRouterModelOverride || writerModelFloor.modelOverride,
+        console.warn("[dev-mode-generation] Whole-story draft failed twice; launching final fallback attempt", {
+          mode: writerModelFloor ? "original-model-without-floor" : "same-model-max-budget",
+          flooredModel: writerModelFloor?.openRouterModelOverride || writerModelFloor?.modelOverride,
           selectedModel: selectedOpenRouterStoryModel,
-          error: retryError instanceof Error ? retryError.message : String(retryError),
+          error: retryReason,
         });
         try {
           wholeStoryStage = await runStage("whole-story-draft", wholeStoryPrompts, {
-            maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, true),
+            maxTokens: writerModelFloor
+              ? devModeStoryDraftMaxTokens(input.config, compactDraftMode, true)
+              : 16000,
             temperature: 0.7,
             timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
             modelRole: "selected-story",
