@@ -13020,7 +13020,15 @@ export async function generateStoryDevMode(
                 modelRole: "selected-story",
               });
               const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
-              qualityParsed = replaceStoryChapter(qualityParsed, repairResult.chapter);
+              // Reading pages carry neutral "Leseseite N" titles; a repair
+              // model that invents a real chapter title leaks it into the PDF
+              // header — run a75b53af shipped "Der Weg in den Garten" on page
+              // 5 (with a novelty-forbidden motif) while pages 1-4 stayed
+              // generic. Keep the original page title in reading-page mode.
+              const repairedChapter = qualityParsed.displayMode === "reading_pages"
+                ? { ...repairResult.chapter, title: currentChapter.title }
+                : repairResult.chapter;
+              qualityParsed = replaceStoryChapter(qualityParsed, repairedChapter);
               qualityModelUsed = chapterRepairStage.provider.modelUsed;
               qualityDiagnostics = analyzeDevModeStoryQuality(qualityParsed, input, chapterCount);
               repairedAnyChapter = true;

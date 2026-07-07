@@ -388,6 +388,17 @@ const SACRIFICE_KEYWORDS = [
 
 const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab|euch|dir|ihm|ihr)\b|\b(?:hergeben|hergegeben|verschenk\w*|schenk\w*|opfer\w*|verzicht\w*)\b|\b(?:letztes\s+(?:stueck|stück)|letzte\s+reserve|geh(?:oe|ö)rt\s+jetzt\s+euch|f(?:ue|ü)r\s+euch)\b|\bbrauchs?t\s+(?:es|ihn|sie|das|den|die)\s+(?:dringender|n(?:oe|ö)tiger|mehr\s+als\s+ich)\b|\bletzte[rn]?\s+rest\b|\b(?:dann\s+)?komme?\s+ich\s+nicht\s+(?:r(?:ue|ü)ber|mit|hinauf|hin(?:ue|ü)ber)\b/i;
 
+// Placement-style sacrifice (run a75b53af "Das Labyrinth der zwei Wege":
+// "Dann legte er den Kompass in den Spalt. […] Aber der Kompass war fort."
+// — the child wedges/leaves a loved object behind to hold the world
+// together; no give/gift/sacrifice verb appears, so the detector reported
+// "kein persönlicher Einsatz" and wrongly capped the premium score at 8.4).
+// Both signals must appear in the SAME chapter window to stay precise:
+// a placement verb with a container preposition AND an explicit loss
+// confirmation.
+const SACRIFICE_PLACEMENT_PATTERN = /\b(?:legte|steckte|stopfte|schob|klemmte)\b.{0,80}\b(?:in|zwischen|unter)\b/i;
+const SACRIFICE_LOSS_CONFIRMATION_PATTERN = /\b(?:war|ist|blieb)\s+(?:fort|weg|verloren)\b|\bleere[nr]?\s+hand\b|\bnie\s+wieder\b|\bkam\s+nicht\s+(?:wieder|zur(?:ue|ü)ck)\b/i;
+
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
   "ping", "tickte", "schnurrte", "atmete", "leuchtete", "knirschte", "summte",
@@ -429,7 +440,9 @@ export function detectStructureSignals(
     || IRREVERSIBLE_KEYWORDS.some((kw) => midContent.includes(kw));
   const sacrificeIn = (text: string) => {
     const lower = text.toLowerCase();
-    return SACRIFICE_PATTERN.test(lower) || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw));
+    return SACRIFICE_PATTERN.test(lower)
+      || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw))
+      || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower));
   };
   const hasPersonalSacrifice = sacrificeIn(midContent)
     || sorted.slice(-2).some((c) => sacrificeIn(c.content));
