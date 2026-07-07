@@ -4,13 +4,15 @@ FROM debian:bookworm-slim AS audio-tools
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends ffmpeg ca-certificates; \
+    apt-get install -y --no-install-recommends ffmpeg ca-certificates patchelf; \
     mkdir -p /audio-root/usr/bin /audio-root/opt/ffmpeg/lib; \
     cp /usr/bin/ffmpeg /usr/bin/ffprobe /audio-root/usr/bin/; \
     ldd /usr/bin/ffmpeg /usr/bin/ffprobe \
-      | awk '/=> \// { print $3 } /^\// && $1 !~ /:$/ { print $1 }' \
+      | awk '/=> \// { print $3 } $1 ~ /^\// && $1 !~ /:$/ { print $1 }' \
       | sort -u \
       | xargs -r -I '{}' cp -L '{}' /audio-root/opt/ffmpeg/lib/; \
+    patchelf --set-interpreter /opt/ffmpeg/lib/ld-linux-x86-64.so.2 --set-rpath /opt/ffmpeg/lib /audio-root/usr/bin/ffmpeg; \
+    patchelf --set-interpreter /opt/ffmpeg/lib/ld-linux-x86-64.so.2 --set-rpath /opt/ffmpeg/lib /audio-root/usr/bin/ffprobe; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
@@ -19,4 +21,3 @@ FROM ${BASE_IMAGE}
 COPY --from=audio-tools /audio-root/ /
 
 ENV PATH="/usr/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/opt/ffmpeg/lib"
