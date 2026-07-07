@@ -13,6 +13,10 @@ RUN set -eux; \
       | xargs -r -I '{}' cp -L '{}' /audio-root/opt/ffmpeg/lib/; \
     patchelf --set-interpreter /opt/ffmpeg/lib/ld-linux-x86-64.so.2 --set-rpath /opt/ffmpeg/lib /audio-root/usr/bin/ffmpeg; \
     patchelf --set-interpreter /opt/ffmpeg/lib/ld-linux-x86-64.so.2 --set-rpath /opt/ffmpeg/lib /audio-root/usr/bin/ffprobe; \
+    for lib in /audio-root/opt/ffmpeg/lib/*.so*; do \
+      case "$lib" in */ld-linux*) continue ;; esac; \
+      patchelf --set-rpath /opt/ffmpeg/lib "$lib" 2>/dev/null || true; \
+    done; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
