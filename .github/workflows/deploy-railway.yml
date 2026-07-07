@@ -171,15 +171,28 @@ jobs:
             exit $STATUS
           done
 
+      - name: Add audio runtime tools
+        run: |
+          docker build \
+            -f Dockerfile.encore-runtime-audio \
+            --build-arg BASE_IMAGE=myapp \
+            -t myapp-audio \
+            .
+
+      - name: Verify audio runtime tools
+        run: |
+          docker run --rm --entrypoint /usr/bin/ffmpeg myapp-audio -version
+          docker run --rm --entrypoint /usr/bin/ffprobe myapp-audio -version
+
       - name: Tag Docker image for GitHub Container Registry
         run: |
           # Tag with branch name for feature branches
           BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
-          docker tag myapp ghcr.io/${{ github.repository }}:${BRANCH_NAME}
-          docker tag myapp ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker tag myapp-audio ghcr.io/${{ github.repository }}:${BRANCH_NAME}
+          docker tag myapp-audio ghcr.io/${{ github.repository }}:${{ github.sha }}
           # Only tag as 'latest' if on main branch
           if [ "${{ github.ref_name }}" = "main" ]; then
-            docker tag myapp ghcr.io/${{ github.repository }}:latest
+            docker tag myapp-audio ghcr.io/${{ github.repository }}:latest
           fi
 
       - name: Push Docker images
