@@ -56,7 +56,7 @@ const MODEL_CONFIGS: ModelConfig[] = [
 ];
 
 const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
-  { id: 'moonshotai/kimi-k2.6', title: 'Kimi K2.6', provider: 'Moonshot AI', cost: '$0.15 in / $0.45 out' },
+  { id: 'moonshotai/kimi-k2.6', title: '⭐ Kimi K2.6 — Empfohlen (beste Story-Qualität/Preis)', provider: 'Moonshot AI', cost: '$0.15 in / $0.45 out' },
   { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.75 in / $3.50 out' },
   { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.44 in / $2.00 out' },
   { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
@@ -66,7 +66,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },
   { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$0.50 in / $3 out' },
   { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest', provider: 'Anthropic', cost: '$3 in / $15 out' },
-  { id: '~openai/gpt-mini-latest', title: 'GPT Mini Latest', provider: 'OpenAI', cost: '$0.75 in / $4.50 out' },
+  { id: '~openai/gpt-mini-latest', title: 'GPT Mini Latest ⚠ schwächere Story-Qualität', provider: 'OpenAI', cost: '$0.75 in / $4.50 out' },
   { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
   { id: 'qwen/qwen3.6-max-preview', title: 'Qwen 3.6 Max', provider: 'Qwen', cost: '$1.04 in / $6.24 out' },
 ];

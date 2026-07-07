@@ -6630,6 +6630,8 @@ function buildCompactWholeStoryDraftPrompts(
     "- final decision performed by the children, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
     "- finale uses a detail planted earlier",
+    "- CONTINUITY: no object, place, or magic effect may appear at the moment it is needed without being introduced earlier. Plant everything the finale uses; pay off everything you plant (a planted object that never returns confuses the child).",
+    "- ORIENTATION: after every scene change, the first sentence must let a listening 6-year-old know WHERE the heroes are and WHAT they want right now. Never jump locations between paragraphs without a visible transition (a door, a path, a fall, a pull).",
     "- the wonder rule is tested ONE final time inside the finale: a child knowingly applies the learned rule and the effect is visible on the page (this cements the causal loop)",
     "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\". Also no as-if moral similes (\"als wäre er klüger geworden\", \"as if it had grown wiser\") — the last sentence shows one concrete object, sound, or motion in the scene.",
     "",
@@ -10847,6 +10849,13 @@ interface ProviderCallOptions {
   openRouterModelOverride?: string;
   openRouterResponseFormat?: "json_object" | "text";
   modelRole?: "support" | "selected-story";
+  /**
+   * Last-resort escape hatch: run this writer stage on the ORIGINALLY
+   * selected model even when the §5 writer-model floor is active. Used by
+   * the draft fallback after the floor model failed twice — a finished
+   * story on the weaker model always beats a failed generation.
+   */
+  skipWriterModelFloor?: boolean;
 }
 
 function extractChatChoiceContent(choice: any): string {
@@ -10916,14 +10925,15 @@ function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
 // is not flattened again by a mini-tier polish pass. Explicit strong choices
 // stay untouched. Opt-out via `config.upgradeWriterModel === false`.
 //
-// OpenRouter user path: run 93129526 ("Der Stock, der gerne staunte")
-// measured ~openai/gpt-mini-latest at 22.9% dialogue, interchangeable hero
-// voices (voiceDistinctiveness 6.5-7.5) and a didactic ending despite the
-// countable dialogue contract \u2014 mini-tier writers cap the premium gate at
-// ~8.3. The standard (user-facing) path therefore gets a stronger writer;
-// developer mode keeps the exact wizard selection for model experiments.
-const DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL = "~anthropic/claude-sonnet-latest";
-
+// OpenRouter path: the wizard exposes a full model picker (normal AND dev
+// mode), so an explicit OpenRouter selection is ALWAYS respected \u2014 the user
+// controls quality/cost directly in the wizard. The wizard's default and
+// recommendation is moonshotai/kimi-k2.6 (strong creative prose, $0.15/$0.45
+// per 1M \u2014 ~7x cheaper than gpt-mini). Weak-tier picks like gpt-mini write
+// measurably flat stories (runs 93129526, cc6a80eb: 22.9% dialogue, 616
+// words, interchangeable voices) \u2014 that trade-off now lives in the wizard,
+// not in a silent backend override (which broke run a5059aef).
+//
 // "mini" must not match "gemini" or "minimax": require a non-'e' character
 // (or string start) before it and a word boundary or hyphen after it.
 function isWeakWriterTierModelId(modelId: string): boolean {
@@ -10934,14 +10944,9 @@ function resolveDevModeWriterModelFloor(
   config: StoryConfig
 ): Pick<ProviderCallOptions, "modelOverride" | "providerOverride" | "openRouterModelOverride"> | null {
   if ((config as any)?.upgradeWriterModel === false) return null;
-  if (config.aiProvider === "openrouter") {
-    // Developer mode exists to test explicit model choices \u2014 never override.
-    if ((config as any)?.developerMode === true) return null;
-    const selected = resolveSelectedOpenRouterStoryModel(config).toLowerCase();
-    if (!selected || !isWeakWriterTierModelId(selected)) return null;
-    if (selected === DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL.toLowerCase()) return null;
-    return { openRouterModelOverride: DEV_MODE_OPENROUTER_WRITER_FLOOR_MODEL };
-  }
+  // Explicit OpenRouter selections come straight from the wizard picker \u2014
+  // never overridden (see block comment above).
+  if (config.aiProvider === "openrouter") return null;
   const selected = String(resolveConfiguredStoryModel(config) || config.aiModel || "").toLowerCase();
   if (!selected) return null;
   // Already the upgrade target \u2014 nothing to do.
@@ -10950,10 +10955,19 @@ function resolveDevModeWriterModelFloor(
   return { modelOverride: GEMINI_MAIN_STORY_MODEL, providerOverride: "native" };
 }
 
-function openRouterReasoningForDevMode(model: string): { effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"; exclude: boolean } {
+function openRouterReasoningForDevMode(model: string): { effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh"; exclude: boolean; enabled?: boolean } {
   const normalized = String(model || "").toLowerCase();
   if (/google\/gemini|gemini-pro|gemini-flash/.test(normalized)) {
     return { effort: "minimal", exclude: true };
+  }
+  // Anthropic via OpenRouter: sending a reasoning object WITHOUT
+  // enabled:false switches extended thinking ON with a default budget that
+  // consumes nearly the whole max_tokens window. Run a5059aef (2026-07-07)
+  // produced 4200 completion tokens of hidden thinking and ~500 chars of
+  // truncated JSON, then an entirely empty retry (finish_reason=length).
+  // Writer stages need plain prose — disable thinking explicitly.
+  if (/anthropic|claude/.test(normalized)) {
+    return { enabled: false, exclude: true };
   }
   return { exclude: true };
 }
@@ -11258,10 +11272,20 @@ export async function generateStoryDevMode(
   ): Promise<{ provider: ProviderResult; parsed?: any; parseError?: string }> => {
     // §5: every writer stage gets the floor model; explicit per-stage
     // overrides do not exist on the writer path, so floor-last is safe.
-    const options: ProviderCallOptions =
-      rawOptions.modelRole === "selected-story" && writerModelFloor
-        ? { ...rawOptions, ...writerModelFloor }
-        : rawOptions;
+    // The floored model may tokenize German prose differently and larger
+    // models write slightly longer JSON — grant ~30% completion headroom so
+    // a floor upgrade can never turn into a finish_reason=length truncation.
+    const applyWriterFloor =
+      rawOptions.modelRole === "selected-story"
+      && Boolean(writerModelFloor)
+      && rawOptions.skipWriterModelFloor !== true;
+    const options: ProviderCallOptions = applyWriterFloor
+      ? {
+          ...rawOptions,
+          ...writerModelFloor,
+          maxTokens: Math.min(16000, Math.round((rawOptions.maxTokens ?? 4200) * 1.3)),
+        }
+      : rawOptions;
     const stageStartedAt = Date.now();
     const logEntry: DevModeStageLog = {
       stage,
@@ -12302,9 +12326,35 @@ export async function generateStoryDevMode(
         });
         wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
       } catch (retryError) {
-        throw new Error(
-          `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
-        );
+        // §5 fallback: when the writer-model FLOOR is the thing that failed
+        // twice (run a5059aef: claude thinking ate the whole token budget),
+        // fall back to the originally selected wizard model instead of
+        // failing the entire generation. A weaker finished story still goes
+        // through every quality gate; a thrown error reaches the child.
+        if (!writerModelFloor) {
+          throw new Error(
+            `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${retryError instanceof Error ? retryError.message : String(retryError)}`
+          );
+        }
+        console.warn("[dev-mode-generation] §5 floored writer failed twice; final draft attempt on the originally selected model", {
+          flooredModel: writerModelFloor.openRouterModelOverride || writerModelFloor.modelOverride,
+          selectedModel: selectedOpenRouterStoryModel,
+          error: retryError instanceof Error ? retryError.message : String(retryError),
+        });
+        try {
+          wholeStoryStage = await runStage("whole-story-draft", wholeStoryPrompts, {
+            maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, true),
+            temperature: 0.7,
+            timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
+            modelRole: "selected-story",
+            skipWriterModelFloor: true,
+          });
+          wholeStoryDraft = parseWholeStoryDraft(wholeStoryStage.provider.content);
+        } catch (fallbackError) {
+          throw new Error(
+            `Selected story model could not produce a usable whole-story draft (${selectedOpenRouterStoryModel}): ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+          );
+        }
       }
     }
 
