@@ -31,6 +31,8 @@ interface GenerateElevenLabsDialogueResponse {
   speakers: string[];
 }
 
+type DialogueAudioVariant = GenerateElevenLabsDialogueResponse['variants'][number];
+
 interface ElevenLabsVoice {
   voiceId: string;
   name: string;
@@ -657,7 +659,7 @@ export async function synthesizeDialogue(
 const buildDialogueAudioVariant = async (
   result: SynthesizeDialogueResult,
   cacheKey?: string,
-): Promise<GenerateElevenLabsDialogueResponse["variants"][number]> => {
+): Promise<DialogueAudioVariant> => {
   const inlineMaxBytes = getInlineAudioMaxBytes();
   if (result.audio.length <= inlineMaxBytes) {
     return {
@@ -703,7 +705,7 @@ const buildDialogueAudioVariant = async (
 const buildCachedDialogueAudioVariant = async (
   cacheKey: string,
   mimeType: string,
-): Promise<GenerateElevenLabsDialogueResponse["variants"][number] | null> => {
+): Promise<DialogueAudioVariant | null> => {
   if (!(await bucketObjectExists(cacheKey))) {
     return null;
   }
@@ -719,6 +721,33 @@ const buildCachedDialogueAudioVariant = async (
     audioUrl,
     mimeType,
   };
+};
+
+const inFlightDialogueAudioJobs = new Map<string, Promise<DialogueAudioVariant>>();
+
+const getOrStartDialogueAudioJob = (
+  cacheKey: string,
+  createResult: () => Promise<SynthesizeDialogueResult>,
+): Promise<DialogueAudioVariant> => {
+  const existingJob = inFlightDialogueAudioJobs.get(cacheKey);
+  if (existingJob) {
+    return existingJob;
+  }
+
+  const job = (async () => {
+    const result = await createResult();
+    return buildDialogueAudioVariant(result, cacheKey);
+  })();
+
+  inFlightDialogueAudioJobs.set(cacheKey, job);
+  const cleanup = () => {
+    if (inFlightDialogueAudioJobs.get(cacheKey) === job) {
+      inFlightDialogueAudioJobs.delete(cacheKey);
+    }
+  };
+  job.then(cleanup, cleanup);
+
+  return job;
 };
 
 export interface DialogueWord {
@@ -953,21 +982,19 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
       };
     }
 
-    const result = await synthesizeDialogue({
-      script: req.script,
-      speakerVoiceMap: req.speakerVoiceMap,
-      modelId,
-      outputFormat,
-    });
-
-    const variants: GenerateElevenLabsDialogueResponse["variants"] = [
-      await buildDialogueAudioVariant(result, cacheKey),
-    ];
+    const variant = await getOrStartDialogueAudioJob(cacheKey, () =>
+      synthesizeDialogue({
+        script: req.script,
+        speakerVoiceMap: req.speakerVoiceMap,
+        modelId,
+        outputFormat,
+      }),
+    );
 
     return {
-      variants,
-      turns: result.turns,
-      speakers: result.speakers,
+      variants: [variant],
+      turns: metadata.turns,
+      speakers: metadata.speakers,
     };
   }
 );
