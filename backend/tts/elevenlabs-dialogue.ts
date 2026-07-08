@@ -29,7 +29,20 @@ interface GenerateElevenLabsDialogueResponse {
   }>;
   turns: number;
   speakers: string[];
+  /**
+   * "ready" when variants carry audio, "pending" when the synthesis is still
+   * running in the background (long dialogues exceed the Railway edge's ~60s
+   * request budget → 502). On "pending" the client polls the same endpoint
+   * with the identical payload; the in-flight job keeps running server-side
+   * and lands in the bucket cache, so a follow-up call returns "ready".
+   */
+  status: "ready" | "pending";
 }
+
+// Server-side budget for the synchronous wait. Kept safely under the Railway
+// edge proxy's ~60s cutoff so we return a structured "pending" instead of a
+// 502 the browser reports as an opaque CORS failure.
+const DIALOGUE_SYNC_WAIT_BUDGET_MS = 45_000;
 
 type DialogueAudioVariant = GenerateElevenLabsDialogueResponse['variants'][number];
 
@@ -979,10 +992,13 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
         variants: [cachedVariant],
         turns: metadata.turns,
         speakers: metadata.speakers,
+        status: "ready",
       };
     }
 
-    const variant = await getOrStartDialogueAudioJob(cacheKey, () =>
+    // The job runs in the background and keeps running even if THIS request
+    // returns "pending" — it lands in the bucket cache for the next poll.
+    const job = getOrStartDialogueAudioJob(cacheKey, () =>
       synthesizeDialogue({
         script: req.script,
         speakerVoiceMap: req.speakerVoiceMap,
@@ -991,10 +1007,45 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
       }),
     );
 
+    // Race the synthesis against the sync-wait budget. A long dialogue that
+    // would otherwise blow the edge timeout resolves to a structured
+    // "pending" the client can poll on, instead of a 502/CORS error.
+    const pendingSentinel = Symbol("dialogue-pending");
+    const raced = await Promise.race([
+      job,
+      new Promise<typeof pendingSentinel>((resolve) =>
+        setTimeout(() => resolve(pendingSentinel), DIALOGUE_SYNC_WAIT_BUDGET_MS),
+      ),
+    ]);
+
+    if (raced === pendingSentinel) {
+      // Swallow late rejection so an unhandled promise rejection cannot crash
+      // the worker; the next poll re-invokes synthesizeDialogue on a miss.
+      job.catch((err) => {
+        log.warn(
+          `[ElevenLabs] Background dialogue job for ${cacheKey} failed after client received pending: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
+      log.info(
+        `[ElevenLabs] Dialogue synthesis exceeded ${Math.round(
+          DIALOGUE_SYNC_WAIT_BUDGET_MS / 1000,
+        )}s sync budget; returning pending for ${cacheKey}. Client should poll.`,
+      );
+      return {
+        variants: [],
+        turns: metadata.turns,
+        speakers: metadata.speakers,
+        status: "pending",
+      };
+    }
+
     return {
-      variants: [variant],
+      variants: [raced],
       turns: metadata.turns,
       speakers: metadata.speakers,
+      status: "ready",
     };
   }
 );

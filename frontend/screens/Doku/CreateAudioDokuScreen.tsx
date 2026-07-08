@@ -152,6 +152,7 @@ type ElevenLabsDialogueResponse = {
   }>;
   turns: number;
   speakers: string[];
+  status?: 'ready' | 'pending';
 };
 
 type QwenDialogueResponse = {
@@ -1735,24 +1736,61 @@ const CreateAudioDokuScreen: React.FC = () => {
         const token = await getToken();
         payload = await generateQwenDialogueViaBatchFallback(dialogueScript, resolvedSpeakerVoiceMap, token);
       } else {
-        const token = await getToken();
-        const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            script: dialogueScript,
-            speakerVoiceMap: resolvedSpeakerVoiceMap,
-          }),
-        });
+        // Long dialogues exceed the Railway edge's ~60s request budget. The
+        // backend now runs the synthesis in the background and returns
+        // status:"pending" once it passes its own sync-wait; we poll the same
+        // payload (which hits the in-flight job's bucket cache) until ready.
+        const requestDialogueOnce = async (): Promise<ElevenLabsDialogueResponse> => {
+          const token = await getToken();
+          const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              script: dialogueScript,
+              speakerVoiceMap: resolvedSpeakerVoiceMap,
+            }),
+          });
+          if (!response.ok) {
+            throw new Error(await readErrorMessage(response));
+          }
+          return (await response.json()) as ElevenLabsDialogueResponse;
+        };
 
-        if (!response.ok) {
-          throw new Error(await readErrorMessage(response));
+        // A 14-minute doku splits into ~4-5 ElevenLabs chunks and can take
+        // 2-4 min of real synthesis. Ceiling generously above that so the
+        // background job's bucket cache is reached before we give up.
+        const DIALOGUE_MAX_POLLS = 48; // ~48 * 15s ≈ 12 min ceiling
+        const DIALOGUE_POLL_DELAY_MS = 15_000;
+        let elevenLabsPayload = await requestDialogueOnce();
+        let pollCount = 0;
+        while (
+          elevenLabsPayload.status === 'pending' &&
+          (!elevenLabsPayload.variants || elevenLabsPayload.variants.length === 0) &&
+          pollCount < DIALOGUE_MAX_POLLS
+        ) {
+          pollCount += 1;
+          setDialogueStatus(
+            `Audio wird im Hintergrund erzeugt... (Versuch ${pollCount}, lange Dokus koennen einige Minuten dauern - bitte das Fenster offen lassen)`,
+          );
+          setDialogueStatusType('success');
+          await new Promise((resolve) => setTimeout(resolve, DIALOGUE_POLL_DELAY_MS));
+          elevenLabsPayload = await requestDialogueOnce();
         }
-        payload = (await response.json()) as ElevenLabsDialogueResponse;
+
+        if (
+          elevenLabsPayload.status === 'pending' &&
+          (!elevenLabsPayload.variants || elevenLabsPayload.variants.length === 0)
+        ) {
+          throw new Error(
+            'Die Audio-Erzeugung dauert ungewoehnlich lange. Bitte versuche es in einer Minute erneut - bereits erzeugte Teile werden wiederverwendet.',
+          );
+        }
+
+        payload = elevenLabsPayload;
       }
 
       const payloadData = payload as DialogueGenerationPayload;
