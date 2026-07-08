@@ -29,7 +29,12 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
   "~openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
   "deepseek/deepseek-v4-pro": { inputCostPer1M: 0.435, outputCostPer1M: 0.87 },
+  "deepseek/deepseek-v4-flash": { inputCostPer1M: 0.15, outputCostPer1M: 0.4 },
   "qwen/qwen3.6-max-preview": { inputCostPer1M: 1.04, outputCostPer1M: 6.24 },
+  "qwen/qwen3.7-max": { inputCostPer1M: 1.2, outputCostPer1M: 6.0 },
+  "qwen/qwen3.7-plus": { inputCostPer1M: 0.5, outputCostPer1M: 2.0 },
+  "minimax/minimax-m3": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
+  "z-ai/glm-5.2": { inputCostPer1M: 0.8, outputCostPer1M: 2.5 },
 };
 
 export interface OpenRouterChatCompletionResult {

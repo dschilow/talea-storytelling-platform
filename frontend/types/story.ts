@@ -15,6 +15,12 @@ export type OpenRouterStoryModel =
   | '~moonshotai/kimi-latest'
   | 'moonshotai/kimi-k2.5'
   | 'minimax/minimax-m2.7'
+  | 'minimax/minimax-m3'
+  | 'z-ai/glm-5.2'
+  | 'qwen/qwen3.7-max'
+  | 'qwen/qwen3.7-plus'
+  | 'deepseek/deepseek-v4-pro'
+  | 'deepseek/deepseek-v4-flash'
   | 'x-ai/grok-4.3'
   | 'openrouter/owl-alpha'
   | 'google/gemini-3.5-flash'
@@ -22,7 +28,6 @@ export type OpenRouterStoryModel =
   | '~google/gemini-flash-latest'
   | '~anthropic/claude-sonnet-latest'
   | '~openai/gpt-mini-latest'
-  | 'deepseek/deepseek-v4-pro'
   | 'qwen/qwen3.6-max-preview';
 
 export const DEFAULT_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'moonshotai/kimi-k2.6';
