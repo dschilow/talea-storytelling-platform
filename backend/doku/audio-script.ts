@@ -3,6 +3,7 @@ import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { dokuDB } from "./db";
 
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5.4-mini";
@@ -15,8 +16,27 @@ export interface AudioDokuTopicsRequest {
   direction?: string;
 }
 
+export interface AudioDokuExtraSpeakerSuggestion {
+  /** Kurzer Sprechername in Großbuchstaben, z.B. "PROFESSOR KAUZ" */
+  name: string;
+  /** Kurze Rollenbeschreibung, z.B. "schrulliger Tiefsee-Experte" */
+  role: string;
+}
+
+export interface AudioDokuTopicSuggestion {
+  topic: string;
+  /** Empfohlene Gesamtzahl Sprecher (inkl. TAVI & LUMI) fuer dieses Thema */
+  recommendedSpeakerCount: number;
+  /** Zusaetzliche Gast-Personas neben TAVI & LUMI */
+  extraSpeakers: AudioDokuExtraSpeakerSuggestion[];
+  /** Kurze Begruendung, warum diese Besetzung das Thema unterhaltsamer macht */
+  castingReason: string;
+}
+
 export interface AudioDokuTopicsResponse {
   topics: string[];
+  /** Detaillierte Vorschlaege inkl. Besetzungs-Empfehlung, parallel zu topics */
+  suggestions: AudioDokuTopicSuggestion[];
 }
 
 export interface AudioDokuScriptRequest {
@@ -122,27 +142,68 @@ export const generateAudioDokuTopics = api<AudioDokuTopicsRequest, AudioDokuTopi
       ? `Themenrichtung des Nutzers: "${direction}". Schlage 10 unterschiedliche, konkrete Doku-Themen vor, die zu dieser Richtung passen.`
       : `Es wurde keine Themenrichtung angegeben. Schlage 10 spannende, abwechslungsreiche Doku-Themen frei aus verschiedenen Bereichen vor (Natur, Weltall, Geschichte, Technik, Tiere, Erfindungen, Mensch & Körper, Erde & Klima, Kunst & Kultur, Mysterien).`;
 
-    const system = `Du bist ein Redakteur für eine erstklassige Kinder-Audio-Doku-Reihe (Stil: Checker Tobi / WDR Maus / Galileo für Kinder).
-Deine Aufgabe: konkrete, neugierig machende Doku-Themen für eine Audio-Doku zu erstellen.
+    // Existierende Dokus laden, damit keine Wiederholungen vorgeschlagen werden.
+    const existingTitles: string[] = [];
+    try {
+      const rows = dokuDB.query<{ title: string }>`
+        SELECT title FROM audio_dokus
+        WHERE user_id = ${auth.userID} OR is_public = true
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+      const seen = new Set<string>();
+      for await (const row of rows) {
+        const title = (row.title || "").trim();
+        if (!title) continue;
+        const key = title.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        existingTitles.push(title);
+      }
+    } catch (err) {
+      console.warn("[AudioDokuTopics] Konnte existierende Dokus nicht laden:", err);
+    }
 
-REGELN:
+    const existingTitlesText =
+      existingTitles.length > 0
+        ? existingTitles.map((t) => `- ${t}`).join("\n")
+        : "- (noch keine)";
+
+    const system = `Du bist Chefredakteur für eine erstklassige Kinder-Audio-Doku-Reihe (Stil: Checker Tobi / WDR Maus / Galileo für Kinder).
+Feste Moderatoren der Reihe: TAVI (erwachsener Erzähler) und LUMI (neugieriges Kind). Pro Doku können zusätzliche Gast-Sprecher dazukommen.
+Deine Aufgabe: 10 Doku-Themen vorschlagen, die Kinder SOFORT hören wollen — plus eine Besetzungs-Empfehlung pro Thema.
+
+REGELN FÜR THEMEN:
 - Jedes Thema ist EIN kurzer, packender Titel (max 8 Wörter).
 - KEINE generischen Titel wie "Alles über Tiere" oder "Die Welt der...".
-- Nutze Formulierungen wie "Warum...", "Wie...", "Das geheime Leben von...", "Das verrückte Geheimnis...".
+- Jedes Thema braucht einen konkreten AHA-Kern: eine überraschende Frage, ein Rätsel, einen Rekord oder ein Geheimnis ("Warum...", "Wie...", "Das geheime Leben von...", "Was wäre wenn...").
+- Nutze, was Kinder magisch anzieht: Rekorde & Extreme, Ekliges & Kurioses (Kacka, Schleim, Pupse — wahr und altersgerecht), Verborgenes & Geheimes, ungefährlich erzählte Gefahr, "Was wäre wenn"-Szenarien, Alltagsdinge mit überraschendem Twist.
+- Mindestens 3 der 10 Themen haben einen lustigen oder kuriosen Dreh (Stil: "Warum Wombats würfelförmig kacken", "Der Fisch, der auf Bäume klettert").
 - Themen müssen für die angegebene Altersgruppe passend sein.
 - Themen müssen für eine Audio-Doku der angegebenen Dauer realistisch erzählbar sein.
-- KEINE doppelten oder zu ähnlichen Themen.
-- Themen sind kindgerecht, sicher, faszinierend.
+- KEINE doppelten oder zu ähnlichen Themen — auch NICHT ähnlich zu den bereits existierenden Dokus aus der Nutzer-Nachricht. Schlage bewusst Neues vor.
+- Themen sind kindgerecht, sicher, faszinierend, faktisch wahr.
 
-Antworte AUSSCHLIESSLICH als JSON: { "topics": ["Thema 1", "Thema 2", ...] }`;
+BESETZUNGS-EMPFEHLUNG PRO THEMA:
+- recommendedSpeakerCount: Gesamtzahl Sprecher (2-4), inkl. TAVI und LUMI.
+- 2 = nur TAVI & LUMI (guter Default für die meisten Themen).
+- 3-4 nur, wenn das Thema wirklich davon profitiert: schrulliger EXPERTE bei Wissenschafts-/Detailthemen, REPORTER VOR ORT bei Expeditionen und Ereignissen, SKEPTIKER bei Mythen und "Stimmt das wirklich?"-Themen, QUIZMASTER bei Rekord-Themen.
+- extraSpeakers: pro Gast-Sprecher ein kurzer Name in GROSSBUCHSTABEN (z.B. "PROFESSOR KAUZ", "REPORTERIN PIA") und eine Rolle in 3-8 Wörtern.
+- castingReason: 1 kurzer Satz, warum diese Besetzung das Thema unterhaltsamer macht.
+
+Antworte AUSSCHLIESSLICH als JSON:
+{ "topics": [ { "topic": "Thema 1", "recommendedSpeakerCount": 2, "extraSpeakers": [], "castingReason": "..." }, { "topic": "Thema 2", "recommendedSpeakerCount": 3, "extraSpeakers": [{ "name": "PROFESSOR KAUZ", "role": "schrulliger Vulkan-Experte" }], "castingReason": "..." } ] }`;
 
     const user = `Zielgruppe: ${ageFrom}-${ageTo} Jahre
 Geplante Dauer der Audio-Doku: ${durationMinutes} Minuten
-Anzahl Sprecher im Dialog: ${speakerCount}
+Aktuell konfigurierte Sprecher: ${speakerCount}
 
 ${directionInstruction}
 
-Liefere genau 10 Themenvorschläge.`;
+BEREITS EXISTIERENDE DOKUS (nicht wiederholen, auch nichts sehr Ähnliches):
+${existingTitlesText}
+
+Liefere genau 10 Themenvorschläge mit Besetzungs-Empfehlung.`;
 
     const payload: Record<string, unknown> = {
       model: MODEL,
@@ -151,7 +212,8 @@ Liefere genau 10 Themenvorschläge.`;
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 4000,
+      // Reasoning-Tokens zaehlen bei gpt-5.4-mini mit; Objekt-Antworten (Besetzung) brauchen mehr Platz.
+      max_completion_tokens: 8000,
       reasoning_effort: "low",
     };
 
@@ -169,18 +231,114 @@ Liefere genau 10 Themenvorschläge.`;
     }
 
     const rawTopics = Array.isArray(parsed.topics) ? parsed.topics : [];
-    const topics = rawTopics
-      .map((t) => (typeof t === "string" ? t.trim() : ""))
-      .filter((t) => t.length > 0)
-      .slice(0, 10);
+    const topics: string[] = [];
+    const suggestions: AudioDokuTopicSuggestion[] = [];
+
+    for (const entry of rawTopics) {
+      if (topics.length >= 10) break;
+
+      // Altes Format: reiner Themen-String.
+      if (typeof entry === "string") {
+        const topic = entry.trim();
+        if (!topic) continue;
+        topics.push(topic);
+        suggestions.push({ topic, recommendedSpeakerCount: 2, extraSpeakers: [], castingReason: "" });
+        continue;
+      }
+
+      if (!entry || typeof entry !== "object") continue;
+      const obj = entry as Record<string, unknown>;
+      const topic = typeof obj.topic === "string" ? obj.topic.trim() : "";
+      if (!topic) continue;
+
+      const extraRaw = Array.isArray(obj.extraSpeakers) ? obj.extraSpeakers : [];
+      const extraSpeakers: AudioDokuExtraSpeakerSuggestion[] = [];
+      for (const extra of extraRaw) {
+        if (extraSpeakers.length >= 2) break;
+        if (!extra || typeof extra !== "object") continue;
+        const eo = extra as Record<string, unknown>;
+        const name = typeof eo.name === "string" ? eo.name.trim().toUpperCase() : "";
+        const role = typeof eo.role === "string" ? eo.role.trim() : "";
+        if (!name) continue;
+        extraSpeakers.push({ name, role });
+      }
+
+      const castingReason =
+        typeof obj.castingReason === "string" ? obj.castingReason.trim() : "";
+
+      topics.push(topic);
+      suggestions.push({
+        topic,
+        // Konsistent aus den Gast-Sprechern abgeleitet (2 feste + Extras, max 4).
+        recommendedSpeakerCount: Math.min(4, 2 + extraSpeakers.length),
+        extraSpeakers,
+        castingReason,
+      });
+    }
 
     if (topics.length === 0) {
       throw new Error("Keine Themen generiert");
     }
 
-    return { topics };
+    return { topics, suggestions };
   },
 );
+
+// Feste Personas der Reihe: TAVI (erwachsener Erzähler) und LUMI (neugieriges Kind).
+const FIXED_SPEAKER_ROLES: Record<string, string> = {
+  TAVI: "MODERATOR & ERZÄHLER (Erwachsener): warm, begeistert, führt durch die Doku und erklärt bildhaft — gerät aber selbst ins Staunen und lässt sich vom Team überraschen.",
+  LUMI: "KIND & SIDEKICK: frech und neugierig, stellt die Fragen, die Kinder wirklich stellen würden, rät vor Auflösungen wild drauflos (meist herrlich falsch) und feiert jeden Wow-Fakt lautstark.",
+};
+
+// Rollen-Pool für zusätzliche Gast-Sprecher (Zuweisung in dieser Reihenfolge).
+const EXTRA_SPEAKER_ROLES = [
+  "EXPERTE/EXPERTIN (schrullig): liebt Details über alles, platzt mit verrückten Zusatzfakten heraus, redet manchmal zu kompliziert und wird liebevoll gestoppt ('Auf Kinderdeutsch, bitte!').",
+  "REPORTER/REPORTERIN VOR ORT: meldet sich dramatisch mitten aus dem Geschehen ([whispers], wenn es nah dran ist), übertreibt gern und wird vom Team charmant eingebremst.",
+  "SKEPTIKER/SKEPTIKERIN: glaubt erst mal gar nichts ('Das habt ihr euch ausgedacht!') und wird Stück für Stück von den Fakten überzeugt — perfekt für Wow-Momente.",
+  "QUIZMASTER/IN: stellt dem Team und den Hörern Schätzfragen und zählt genüsslich mit, wer am häufigsten daneben liegt.",
+  "JUNIOR-ENTDECKER/IN: das jüngste Teammitglied, stellt herrlich einfache Fragen und hat am Ende oft die klügste Idee.",
+  "GESCHICHTENERZÄHLER/IN: verpackt Fakten in kleine Kopfkino-Momente und sorgt für Gänsehaut.",
+];
+
+const FIXED_SPEAKER_VISUALS: Record<string, string> = {
+  TAVI: "adult male science host, friendly explorer style with simple goggles and warm jacket, holding a prop related to the topic",
+  LUMI: "curious young girl sidekick in a colorful jacket with a small backpack, wide-eyed and excited",
+};
+
+// Cover-Beschreibungen für Gast-Sprecher — gleiche Reihenfolge wie EXTRA_SPEAKER_ROLES,
+// damit Skript-Rolle und Cover-Figur zusammenpassen.
+const EXTRA_SPEAKER_VISUALS = [
+  "quirky professor with wild hair, oversized glasses and a lab coat full of pens, proudly holding a magnifying glass",
+  "adventurous field reporter with headset, microphone and utility vest, caught mid-action",
+  "skeptical kid with crossed arms, raised eyebrow and a half-smile",
+  "cheerful quizmaster holding a stack of colorful question cards",
+  "young junior explorer with binoculars and a slightly-too-big expedition hat",
+  "warm storyteller with a cozy scarf and a small glowing lantern",
+];
+
+type SpeakerCastingEntry = { name: string; role: string; visual: string };
+
+const buildSpeakerCasting = (speakers: string[]): SpeakerCastingEntry[] => {
+  let extraIdx = 0;
+  return speakers.map((name, idx) => {
+    const upper = name.toUpperCase();
+    if (FIXED_SPEAKER_ROLES[upper]) {
+      return { name, role: FIXED_SPEAKER_ROLES[upper], visual: FIXED_SPEAKER_VISUALS[upper] };
+    }
+    if (idx === 0) return { name, role: FIXED_SPEAKER_ROLES.TAVI, visual: FIXED_SPEAKER_VISUALS.TAVI };
+    if (idx === 1) return { name, role: FIXED_SPEAKER_ROLES.LUMI, visual: FIXED_SPEAKER_VISUALS.LUMI };
+    const poolIdx = extraIdx;
+    extraIdx += 1;
+    return {
+      name,
+      role:
+        EXTRA_SPEAKER_ROLES[poolIdx] ??
+        "GAST-CO-HOST: eigene, klar erkennbare Marotte, die das Team ergänzt.",
+      visual:
+        EXTRA_SPEAKER_VISUALS[poolIdx] ?? "cheerful cartoon co-host in a distinctive colorful outfit",
+    };
+  });
+};
 
 export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScriptResponse>(
   { expose: true, method: "POST", path: "/doku/audio-script/generate", auth: true },
@@ -215,8 +373,9 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
     const minLines = Math.round(durationMinutes * 11);
     const approxLines = Math.max(10, minLines);
 
-    const speakerListText = cleanedSpeakers
-      .map((name, idx) => `${idx + 1}. ${name}`)
+    const casting = buildSpeakerCasting(cleanedSpeakers);
+    const speakerListText = casting
+      .map((entry, idx) => `${idx + 1}. ${entry.name} — ${entry.role}`)
       .join("\n");
 
     const system = `Du bist ein erstklassiger Autor und Sound-Designer für hochspannende, professionell produzierte Kinder-Audio-Dokus im Stil von Checker Tobi, Galileo, BBC Earth und National Geographic Kids.
@@ -240,12 +399,46 @@ TEIL 1 — STRENGES SKRIPT-FORMAT
 EMOTION-TAGS (verändern die Stimme — am Zeilenanfang):
 [excited] [curious] [thoughtful] [warm] [dramatic] [serious] [awe]
 [surprised] [whispers] [calmly] [nervous] [confused] [proudly]
+[mischievously] [giggles] [laughs] [shouts] [sighs]
+Nutze die lebendigen Tags [laughs], [giggles], [mischievously], [shouts] genau dort, wo im Dialog wirklich gelacht, gefrotzelt oder laut gestaunt wird.
 
 INLINE-SOUND-FX-TAGS:
 - Erlaubt als punktuelle ElevenLabs-Regie, nicht als Daueratmosphaere.
 - Verwende solche Tags bewusst als Akzente: mehrere pro Doku sind erwünscht, aber nie mehrere direkt hintereinander.
 - Gute Einsaetze: [gasp] fuer eine echte Ueberraschung, [heartbeat] fuer einen kurzen Koerper-Moment, [bubbles] beim konkreten Abtauchen, [applause] nur als echtes Finale.
 - Keine Tags nur wegen Witz oder Dekoration. Wenn ein Effekt nicht punktgenau passt, weglassen.
+
+============================================================
+TEIL 1B — SPRECHER-ROLLEN (CHARAKTERE)
+============================================================
+Die Sprecher sind keine austauschbaren Stimmen, sondern ein eingespieltes Show-Team.
+Das feste Duo der Reihe: ein erwachsener Moderator/Erzähler (TAVI) und ein neugieriges Kind als Sidekick (LUMI).
+Alle weiteren Sprecher sind Gast-Personas mit eigener Rolle.
+Die konkrete Rollen-Zuordnung pro Sprecher steht in der Nutzer-Nachricht — halte dich exakt daran.
+
+REGELN FÜR DAS TEAM:
+- Jeder Sprecher hat eine eigene, klar erkennbare Sprechweise und Marotte.
+- KEIN Sprecher ist Dekoration: jeder kommt regelmäßig zu Wort und bekommt mindestens einen eigenen Highlight-Moment (eigener Witz, eigener Wow-Fakt oder eine eigene Mini-Szene).
+- Interaktion läuft kreuz und quer, nicht nur Moderator ↔ Rest: das Kind zieht den Experten auf, die Reporterin unterbricht den Moderator, zwei Sprecher schließen eine Wette ab.
+- Liebevolles Necken, kleine Wetten und Mini-Wettstreits zwischen den Sprechern sind ausdrücklich erwünscht — nie gemein, immer warmherzig.
+
+============================================================
+TEIL 1C — HUMOR & ENTERTAINMENT (genauso wichtig wie die Fakten)
+============================================================
+Die Doku soll Kinder zum Lachen UND zum Staunen bringen. Baue gezielt ein:
+- MINDESTENS 3 absurde, aber wahre Vergleiche aus der Kinderwelt ("Ein Blauwal-Herz ist so groß wie ein Kleinwagen — da könntest du reinklettern. Bitte nicht machen.").
+- GENAU 1 altersgerechten Ekel- oder Kurios-Fakt (Kinder lieben wahre Kacka-, Schleim- und Pups-Fakten — dosiert und faktisch korrekt).
+- 1-2 direkte Hörer-Ansprachen mit Schätzfrage oder Mini-Quiz: "Rate mal: Wie viele Zähne verbraucht ein Hai in seinem Leben? ... Mehr. ... Noch mehr. ... DREISSIGTAUSEND!"
+- Vor mindestens 2 Auflösungen rät ein Sprecher wild und herrlich falsch drauflos (bei nur 1 Sprecher: die Hörer raten lassen).
+- Vor jedem Szenenwechsel ein kurzer Cliffhanger-Satz ("Aber was die Forscher dann fanden, hat selbst die Profis umgehauen...").
+- HUMOR NACH ALTER: 2-5 Jahre: Quatsch-Wörter, Geräuschwörter, Wiederholungen. 6-9 Jahre: Ekel-Fakten, absurde Vergleiche, Falsch-Raten. Ab 10: Wortwitz, leichte Ironie, verrückte "Was wäre wenn"-Gedankenspiele.
+- Witze gehen NIE auf Kosten der Fakten (alles bleibt wahr) und NIE auf Kosten eines Kindes oder einer Gruppe.
+
+SO SOLL DAS KLINGEN (nur Ton-Beispiel — verwende die echten Sprechernamen aus der Liste):
+MODERATOR: [excited] Und jetzt festhalten: Dieser Fisch kann etwas, das kein Fisch können sollte.
+KIND: [mischievously] Fahrrad fahren!
+MODERATOR: [laughs] Nein! Aber fast genauso verrückt: Er klettert auf Bäume!
+KIND: [shouts] WAS?!
 
 ============================================================
 TEIL 2 — DREHBUCH (SZENEN MIT HINTERGRUND-AMBIENT)
@@ -297,14 +490,14 @@ DRAMATURGIE:
 1. Starker Hook in den ersten 2-3 Zeilen.
 2. Klare Hauptfrage / Thema-Einführung.
 3. Spannender Verlauf mit Wow-Fakten, Vergleichen aus dem Kinderalltag, Aha-Momenten.
-4. Mindestens 1 Twist / Überraschung.
+4. Mindestens 1 Twist / Überraschung — und in JEDER Szene mindestens 1 Wow- oder Lach-Moment, damit die Energie nie abfällt.
 5. Emotional starkes Finale: Der erste Sprecher fasst in 1-2 Sätzen zusammen was die Expedition/das Abenteuer bedeutet hat — themenspezifisch und emotional. Beispiel: "Mission geschafft. Wir waren dort, wo kein Sonnenlicht hinkommt… und haben trotzdem Licht gefunden." Das Skript endet HIER. Keine Verabschiedung, kein "Bis zum nächsten Mal" — das kommt automatisch danach.
 
 INHALT:
 - Faktisch korrekt, kindgerecht erklärt, niemals belehrend.
 - Bildhafte Sprache, kurze Sätze, viel Kopfkino.
-- Dialog mit echtem Wechselspiel: Fragen, Reaktionen, Staunen, kleine Witze (nicht zu viele).
-- Natürliche Mischung aller Sprecher: jeder Sprecher kommt regelmäßig zu Wort.
+- Dialog mit echtem Wechselspiel: Fragen, Reaktionen, Staunen, Necken, echte Lacher (siehe TEIL 1C).
+- Natürliche Mischung aller Sprecher: jeder bleibt in seiner Rolle (TEIL 1B), kommt regelmäßig zu Wort und bekommt eigene Highlight-Momente.
 
 ZUSÄTZLICH erzeugst du Metadaten:
 
@@ -318,9 +511,9 @@ ZUSÄTZLICH erzeugst du Metadaten:
 
 - category: Eine der Kategorien Abenteuer, Wissen, Natur, Tiere, Geschichte, Entspannung.
 
-- coverPrompt: ENGLISCH, exakt im folgenden Format als ein zusammenhängender Absatz. PFLICHT: Die beiden Moderatoren-Figuren MÜSSEN im Vordergrund sichtbar sein!
-  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene with environment, atmosphere, lighting, foreground subjects, background details, sound visualized as particles/wind/etc>. Foreground: two cheerful cartoon hosts (<description of host 1: adult male presenter, e.g. warm parka, goggles, scientific equipment> and <description of host 2: curious young girl sidekick, e.g. colorful jacket, backpack>) standing amazed and pointing toward the scene. <Additional wildlife/detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
-  Der Moderator (TAVI) ist ein erwachsener, freundlicher Männer-Presenter. Das Mädchen (LUMI) ist eine neugierige junge Sidekick. Beide MÜSSEN erkennbar im Bild sein.
+- coverPrompt: ENGLISCH, exakt im folgenden Format als ein zusammenhängender Absatz. PFLICHT: ALLE Moderatoren-Figuren MÜSSEN im Vordergrund sichtbar sein!
+  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene with environment, atmosphere, lighting, foreground subjects, background details, sound visualized as particles/wind/etc>. Foreground: the show's cheerful cartoon hosts (<one short visual description per host, exactly as provided in the user message>) standing amazed and pointing toward the scene. <Additional wildlife/detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
+  Der Moderator (TAVI) ist ein erwachsener, freundlicher Männer-Presenter. Das Mädchen (LUMI) ist eine neugierige junge Sidekick. Nutze für alle weiteren Sprecher die Host-Beschreibungen aus der Nutzer-Nachricht. ALLE Sprecher-Figuren MÜSSEN erkennbar im Bild sein.
 
 - description: 2-3 Sätze auf Deutsch, die neben dem Player als Beschreibung erscheinen.
 
@@ -331,6 +524,7 @@ Ziel ist eine echte, professionelle Wissens-Doku, nicht ein Hoerspiel mit Dauer-
 Die Sprache bleibt immer die Hauptspur. Sound darf nur helfen, wenn er den Inhalt wirklich klarer macht.
 
 SPRECHER-TEXT:
+- Verbaler Humor ist ausdrücklich erwünscht (TEIL 1C). Die Zurückhaltung in diesem Teil gilt für Sound-Effekte und Ambient — nicht für Witz, Necken und Lachen im gesprochenen Text.
 - Nutze Emotion-Tags sparsam. Nicht jede Zeile braucht ein Tag.
 - Erlaubt sind nur zur Stimme passende Start-Tags wie [excited], [curious], [thoughtful], [warm], [serious], [awe], [calmly], [proudly], [confused], [nervous].
 - Inline-Sound-FX-Tags wie [heartbeat], [gasp], [applause] oder [bubbles] sind erlaubt, aber nur als einzelne kurze Akzente an eindeutig passenden Stellen.
@@ -377,12 +571,8 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
   ]
 }`;
 
-    // Build speaker descriptions for cover prompt
-    const hostDesc = cleanedSpeakers.length >= 2
-      ? `${cleanedSpeakers[0]} (adult male science host, friendly explorer style with simple goggles and warm jacket, holding a prop related to the topic) and ${cleanedSpeakers[1]} (curious young girl sidekick in a colorful jacket with a small backpack, wide-eyed and excited)`
-      : cleanedSpeakers.length === 1
-        ? `${cleanedSpeakers[0]} (friendly adult male science host, explorer style with goggles and warm jacket)`
-        : "two cheerful cartoon hosts (adult male explorer/science host with simple goggles and warm jacket, and a curious young girl sidekick in a colorful jacket)";
+    // Build speaker descriptions for cover prompt — one visual per speaker so ALL hosts land on the cover.
+    const hostDesc = casting.map((entry) => `${entry.name} (${entry.visual})`).join(", ");
 
     const user = `THEMA DER AUDIO-DOKU: "${topic}"
 
@@ -391,10 +581,10 @@ Geplante Audio-Dauer: ${durationMinutes} Minuten (≈ ${approxWords} gesprochene
 PFLICHT: Das Skript MUSS MINDESTENS ${approxLines} Zeilen haben. Kürzer ist ein Fehler!
 Anzahl Sprecher: ${speakerCount}
 
-SPRECHER (in dieser Reihenfolge und exakt mit diesen Namen verwenden, alle Großbuchstaben):
+SPRECHER-TEAM (exakt diese Namen in Großbuchstaben verwenden; jeder spielt konsequent seine Rolle aus TEIL 1B):
 ${speakerListText}
 
-COVER-PROMPT PFLICHT: Beide Sprecher MÜSSEN im Vordergrund sichtbar sein.
+COVER-PROMPT PFLICHT: ALLE Sprecher MÜSSEN im Vordergrund sichtbar sein.
 Sprecher-Beschreibung für Cover: ${hostDesc}
 
 Erstelle das vollständige Skript jetzt nach den oben genannten Regeln.
@@ -407,6 +597,8 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Sprechernamen exakt wie vorgegeben in Großbuchstaben? -> Wenn nein, korrigieren.
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?
 - Ist der Hook stark, gibt es einen Twist, ist das Finale stark?
+- Spielt JEDER Sprecher seine Rolle aus dem SPRECHER-TEAM und hat mindestens einen eigenen Highlight-Moment? -> Wenn nein, Zeilen umverteilen.
+- Sind die Humor-Pflichtelemente aus TEIL 1C drin (mind. 3 absurde Vergleiche, 1 Ekel-/Kurios-Fakt, 1-2 Hörer-Schätzfragen, Falsch-Rate-Momente, Cliffhanger vor Szenenwechseln)? -> Wenn nein, ergänzen.
 - Enthält das Skript Inline-Sound-FX-Tags nur selten und punktgenau passend? -> Wenn nein, reduzieren oder entfernen.
 - Hat jede aktive Szene im screenplay einen deutschen ambientPrompt ohne Stimmen? Bei unsicherem Kontext: ambientVolume 0 und "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
 - Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?

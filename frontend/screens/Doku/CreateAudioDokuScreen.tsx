@@ -1071,6 +1071,21 @@ const createSpeakerDraft = (): DialogueSpeaker => ({
   voiceId: '',
 });
 
+// Festes Moderations-Duo der Reihe: TAVI (erwachsener Erzähler) + LUMI (neugieriges Kind).
+const createDefaultSpeakerProfiles = (): DialogueSpeaker[] => [
+  { id: 'speaker-tavi', name: 'TAVI', voiceId: '8tJgFGd1nr7H5KLTvjjt' },
+  { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
+];
+
+type TopicExtraSpeaker = { name: string; role: string };
+
+type TopicCasting = {
+  topic: string;
+  recommendedSpeakerCount: number;
+  extraSpeakers: TopicExtraSpeaker[];
+  castingReason: string;
+};
+
 const CreateAudioDokuScreen: React.FC = () => {
   const { t } = useTranslation();
   const { getToken } = useAuth();
@@ -1101,10 +1116,9 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [dialogueScript, setDialogueScript] = useState('');
   // Qwen wurde deaktiviert - nur ElevenLabs wird aktuell unterstützt.
   const [ttsProvider, setTtsProvider] = useState<TTSProvider>('elevenlabs');
-  const [speakerProfiles, setSpeakerProfiles] = useState<DialogueSpeaker[]>([
-    { id: 'speaker-tavi', name: 'TAVI', voiceId: '8tJgFGd1nr7H5KLTvjjt' },
-    { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
-  ]);
+  const [speakerProfiles, setSpeakerProfiles] = useState<DialogueSpeaker[]>(() =>
+    createDefaultSpeakerProfiles(),
+  );
   const [providerVoices, setProviderVoices] = useState<ProviderVoiceOption[]>([]);
 
   // Doku-Parameter (neu)
@@ -1116,6 +1130,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   // Themen-Generator (neu)
   const [topicDirection, setTopicDirection] = useState<string>('');
   const [topicSuggestions, setTopicSuggestions] = useState<string[]>([]);
+  const [topicCastings, setTopicCastings] = useState<Record<string, TopicCasting>>({});
   const [selectedTopic, setSelectedTopic] = useState<string>('');
   const [topicsLoading, setTopicsLoading] = useState<boolean>(false);
   const [scriptGenerating, setScriptGenerating] = useState<boolean>(false);
@@ -1239,6 +1254,10 @@ const CreateAudioDokuScreen: React.FC = () => {
   const dialogueLineNumbers = useMemo(
     () => Array.from({ length: dialogueLineCount }, (_, index) => index + 1),
     [dialogueLineCount],
+  );
+  const selectedCasting = useMemo(
+    () => topicCastings[selectedTopic.trim()] ?? null,
+    [topicCastings, selectedTopic],
   );
   const providerLabel = ttsProvider === 'qwen' ? 'Qwen TTS' : 'ElevenLabs';
   const voiceInputPlaceholder =
@@ -2152,6 +2171,27 @@ const CreateAudioDokuScreen: React.FC = () => {
         direction: topicDirection.trim() || undefined,
       });
       setTopicSuggestions(response.topics || []);
+
+      // Besetzungs-Empfehlungen pro Thema (TAVI & LUMI + optionale Gast-Personas).
+      const castings: Record<string, TopicCasting> = {};
+      const rawSuggestions = Array.isArray(response.suggestions) ? response.suggestions : [];
+      for (const suggestion of rawSuggestions) {
+        const topic = (suggestion?.topic || '').trim();
+        if (!topic) continue;
+        const extraSpeakers = Array.isArray(suggestion.extraSpeakers)
+          ? suggestion.extraSpeakers
+              .filter((extra) => Boolean(extra?.name?.trim()))
+              .map((extra) => ({ name: extra.name.trim().toUpperCase(), role: (extra.role || '').trim() }))
+          : [];
+        castings[topic] = {
+          topic,
+          recommendedSpeakerCount: Math.min(4, 2 + extraSpeakers.length),
+          extraSpeakers,
+          castingReason: (suggestion.castingReason || '').trim(),
+        };
+      }
+      setTopicCastings(castings);
+
       if (response.topics && response.topics.length > 0) {
         setSelectedTopic(response.topics[0]);
       }
@@ -2161,6 +2201,23 @@ const CreateAudioDokuScreen: React.FC = () => {
     } finally {
       setTopicsLoading(false);
     }
+  };
+
+  const applyRecommendedCast = (casting: TopicCasting) => {
+    setSpeakerProfiles([
+      ...createDefaultSpeakerProfiles(),
+      ...casting.extraSpeakers.map((extra, idx) => ({
+        id: `speaker-extra-${Date.now()}-${idx}`,
+        name: extra.name,
+        voiceId: '',
+      })),
+    ]);
+    setDialogueStatus(
+      casting.extraSpeakers.length > 0
+        ? `Besetzung übernommen: TAVI, LUMI + ${casting.extraSpeakers.map((e) => e.name).join(', ')}. Bitte den Gast-Sprechern unten noch Stimmen zuweisen.`
+        : 'Besetzung übernommen: TAVI & LUMI.',
+    );
+    setDialogueStatusType('success');
   };
 
   const handleGenerateDokuScript = async () => {
@@ -2217,10 +2274,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     setSavedAudio(null);
     setDialogueScript('');
     setTtsProvider('elevenlabs');
-    setSpeakerProfiles([
-      { id: 'speaker-tavi', name: 'TAVI', voiceId: '8tJgFGd1nr7H5KLTvjjt' },
-      { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
-    ]);
+    setSpeakerProfiles(createDefaultSpeakerProfiles());
     setDialogueStatus(null);
     setDialogueStatusType(null);
     setGeneratedVariants([]);
@@ -2229,6 +2283,7 @@ const CreateAudioDokuScreen: React.FC = () => {
     setVoiceTargetSpeakerId('speaker-tavi');
     setTopicDirection('');
     setTopicSuggestions([]);
+    setTopicCastings({});
     setSelectedTopic('');
     setTopicError(null);
     setScreenplay([]);
@@ -2508,6 +2563,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                       <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-2">
                         {topicSuggestions.map((topic, idx) => {
                           const isSelected = selectedTopic === topic;
+                          const casting = topicCastings[topic];
                           return (
                             <button
                               key={`${idx}-${topic}`}
@@ -2522,6 +2578,18 @@ const CreateAudioDokuScreen: React.FC = () => {
                               }}
                             >
                               {idx + 1}. {topic}
+                              {casting && casting.recommendedSpeakerCount > 2 && (
+                                <span
+                                  className="ml-2 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold align-middle"
+                                  style={{
+                                    borderColor: isSelected ? palette.primaryText : palette.panelBorder,
+                                    color: isSelected ? palette.primaryText : palette.muted,
+                                  }}
+                                >
+                                  <Mic2 size={10} />
+                                  {casting.recommendedSpeakerCount} Sprecher
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -2541,6 +2609,47 @@ const CreateAudioDokuScreen: React.FC = () => {
                         style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
                       />
                     </div>
+
+                    {/* Besetzungs-Empfehlung für das ausgewählte Thema */}
+                    {selectedCasting && (
+                      <div
+                        className="mt-3 rounded-lg border px-3 py-2.5"
+                        style={{ borderColor: palette.panelBorder, background: palette.panel }}
+                      >
+                        <div className="text-xs font-semibold" style={{ color: palette.text }}>
+                          💡 Empfohlene Besetzung: {selectedCasting.recommendedSpeakerCount} Sprecher — TAVI &amp; LUMI
+                          {selectedCasting.extraSpeakers.length > 0 && (
+                            <>
+                              {' + '}
+                              {selectedCasting.extraSpeakers
+                                .map((extra) => (extra.role ? `${extra.name} (${extra.role})` : extra.name))
+                                .join(', ')}
+                            </>
+                          )}
+                        </div>
+                        {selectedCasting.castingReason && (
+                          <p className="mt-1 text-xs" style={{ color: palette.muted }}>
+                            {selectedCasting.castingReason}
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => applyRecommendedCast(selectedCasting)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                            style={{ borderColor: palette.panelBorder, background: palette.primary, color: palette.primaryText }}
+                          >
+                            <Mic2 size={12} />
+                            Besetzung übernehmen
+                          </button>
+                          {selectedCasting.extraSpeakers.length > 0 && (
+                            <span className="text-[11px]" style={{ color: palette.muted }}>
+                              Gast-Sprechern danach unten eine Stimme zuweisen.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Doku generieren */}
                     <div className="mt-4 flex flex-wrap items-center gap-3">

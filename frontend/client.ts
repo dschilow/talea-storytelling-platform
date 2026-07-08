@@ -871,6 +871,7 @@ import {
     listAudioDokus as api_doku_audio_doku_listAudioDokus,
     updateAudioDoku as api_doku_audio_doku_updateAudioDoku
 } from "~backend/doku/audio-doku";
+import { renderAudioDokuMaster as api_doku_audio_render_renderAudioDokuMaster } from "~backend/doku/audio-render";
 import {
     generateAudioDokuScript as api_doku_audio_script_generateAudioDokuScript,
     generateAudioDokuTopics as api_doku_audio_script_generateAudioDokuTopics
@@ -911,6 +912,7 @@ export namespace doku {
             this.listDokus = this.listDokus.bind(this)
             this.listPublicDokus = this.listPublicDokus.bind(this)
             this.markRead = this.markRead.bind(this)
+            this.renderAudioDokuMaster = this.renderAudioDokuMaster.bind(this)
             this.runMigrationSql = this.runMigrationSql.bind(this)
             this.submitDokuQuizResult = this.submitDokuQuizResult.bind(this)
             this.updateAudioDoku = this.updateAudioDoku.bind(this)
@@ -1048,6 +1050,12 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/mark-read`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_markRead_markRead>
+        }
+
+        public async renderAudioDokuMaster(params: RequestType<typeof api_doku_audio_render_renderAudioDokuMaster>): Promise<ResponseType<typeof api_doku_audio_render_renderAudioDokuMaster>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/doku/audio-render/master`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_render_renderAudioDokuMaster>
         }
 
         public async runMigrationSql(params: RequestType<typeof api_doku_run_migration_sql_runMigrationSql>): Promise<ResponseType<typeof api_doku_run_migration_sql_runMigrationSql>> {
