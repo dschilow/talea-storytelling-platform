@@ -464,9 +464,12 @@ export async function exportStoryAsPDF(
           const imageResult = await loadImageAsDataUrl(chapter.imageUrl);
 
           if (imageResult.success && imageResult.dataUrl) {
-            // Calculate dimensions (max width, maintain aspect ratio)
+            // Calculate dimensions (max width, maintain aspect ratio).
+            // Cap height at 80mm (was 100mm) so a full reading page of text
+            // still fits under the image on the same A4 page, which prevents
+            // the orphan overflow page after long reading pages.
             const maxImageWidth = contentWidth;
-            const maxImageHeight = 100; // Max height for chapter images
+            const maxImageHeight = 80; // Max height for chapter images
 
             let imageWidth = maxImageWidth;
             let imageHeight = maxImageHeight;
@@ -489,7 +492,7 @@ export async function exportStoryAsPDF(
             const imageX = (pageWidth - imageWidth) / 2;
 
             doc.addImage(imageResult.dataUrl, 'JPEG', imageX, yPos, imageWidth, imageHeight);
-            yPos += imageHeight + 10;
+            yPos += imageHeight + 8;
           }
         }
 
@@ -503,15 +506,49 @@ export async function exportStoryAsPDF(
         const displayChapterContent = stripTtsEmotionMarkersForDisplay(chapter.content || '');
         const paragraphs = displayChapterContent.split('\n').filter(p => p.trim().length > 0);
 
+        const lineHeight = 7;
+        const paragraphGap = 5;
+        const bottomLimit = pageHeight - 20; // leave room for the footer
+
         for (const paragraph of paragraphs) {
-          // Check if we need a new page
-          if (yPos > pageHeight - 30) {
+          // Pre-measure the paragraph so a long block does not get split into
+          // a 1-line orphan on the next page. When the whole paragraph does not
+          // fit in the remaining space AND it fits on a fresh page, move it to
+          // the next page as one unit; only genuinely page-spanning paragraphs
+          // are allowed to break mid-way.
+          const wrapped = doc.splitTextToSize(paragraph, contentWidth) as string[];
+          const blockHeight = wrapped.length * lineHeight;
+          const remaining = bottomLimit - yPos;
+          const fitsOnFreshPage = blockHeight <= bottomLimit - margin;
+
+          if (remaining < blockHeight && fitsOnFreshPage) {
+            doc.addPage();
+            yPos = margin;
+          } else if (yPos > bottomLimit) {
             doc.addPage();
             yPos = margin;
           }
 
-          yPos = addWrappedText(doc, paragraph, margin, yPos, contentWidth, 7);
-          yPos += 5; // Space between paragraphs
+          // Render line-by-line so a paragraph too tall for any single page
+          // still flows, but never leaves a single trailing line orphaned.
+          for (let li = 0; li < wrapped.length; li += 1) {
+            const linesLeftAfter = wrapped.length - li - 1;
+            // Avoid a lone widow: if this is the second-to-last line and the
+            // final line would spill to a new page, break one line early.
+            if (yPos + lineHeight > bottomLimit) {
+              doc.addPage();
+              yPos = margin;
+            } else if (
+              linesLeftAfter === 1 &&
+              yPos + 2 * lineHeight > bottomLimit
+            ) {
+              doc.addPage();
+              yPos = margin;
+            }
+            doc.text(wrapped[li], margin, yPos);
+            yPos += lineHeight;
+          }
+          yPos += paragraphGap; // Space between paragraphs
         }
 
         updateProgress();

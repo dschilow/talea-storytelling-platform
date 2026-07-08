@@ -3952,13 +3952,33 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
     lines.push(`- ${voiceForPoolCharacter(character)}`);
   }
   if (lines.length === 0) return null;
+
+  // Contrast contract for the two heroes. The recurring validator finding
+  // across runs was "hero B is a mirror of hero A" (voiceDistinctiveness
+  // stuck at 7.5). When both avatars carry similar/empty traits, the derived
+  // voices above are too close, so we assign COMPLEMENTARY dialogue ROLES the
+  // model must keep distinct regardless of trait data.
+  const heroNames = (input.avatars || []).map((a) => a?.name).filter(Boolean) as string[];
+  const contrastBlock = heroNames.length >= 2
+    ? [
+        "",
+        `HERO CONTRAST CONTRACT (binding \u2014 ${heroNames[0]} and ${heroNames[1]} must never be interchangeable):`,
+        `- ${heroNames[0]} DRIVES: acts first, wants to fix/try/grab, speaks in short decisive statements and commands.`,
+        `- ${heroNames[1]} STEADIES: notices, questions, slows things down, speaks in gentle questions and small observations.`,
+        "- In EVERY dialogue exchange the two play different beats: one pushes, the other checks \u2014 never two agreeing echoes in a row.",
+        `- Distinct RHYTHM (not a repeated phrase): ${heroNames[0]} clipped and blunt, ${heroNames[1]} softer with a trailing question. A reader must name the speaker from the rhythm alone.`,
+        "- At least once, let them openly DISAGREE about what to do next before they act \u2014 friction is what makes two voices feel real.",
+      ].join("\n")
+    : "";
+
   return [
     "VOICE BIBLE (binding \u2014 every quoted line must sound unmistakably like the named character):",
     ...lines,
     "- A reader should often identify the speaker WITHOUT tags. If two characters could say a line interchangeably, rewrite one of them.",
     "- CATCHPHRASE RULE: any fixed signature line for a character (e.g. \"Du bist traurig, oder?\", \"Ich hab mir gemerkt...\", \"Warte, ich hab da noch eine Frage!\") may appear AT MOST ONCE in the whole story. Prefer showing the character\u2019s voice through fresh, varied phrasings, gestures, and concrete actions \u2014 not by repeating catchphrases.",
     "- Voice should come from rhythm, vocabulary, body, and reaction style \u2014 not from formulaic openers. Two lines starting with the same fixed phrase = rewrite one.",
-  ].join("\n");
+    contrastBlock,
+  ].filter(Boolean).join("\n");
 }
 
 // --- Writer voice anchor --------------------------------------------------
