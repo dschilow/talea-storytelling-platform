@@ -1,8 +1,9 @@
+import crypto from "crypto";
 import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 
 import { ensureAdmin } from "../admin/authz";
-import { resolveObjectUrlForClient, uploadBufferToBucket } from "../helpers/bucket-storage";
+import { bucketObjectExists, resolveObjectKeyUrlForClient, resolveObjectUrlForClient, uploadBufferToBucket, uploadBufferToBucketKey } from "../helpers/bucket-storage";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 const DEFAULT_MODEL_ID = "eleven_v3";
@@ -136,6 +137,80 @@ const resolveVoiceId = (speaker: string, speakerVoiceMap: Record<string, string>
 
 const getDialogueTextLength = (inputs: ElevenLabsDialogueInput[]): number =>
   inputs.reduce((sum, input) => sum + input.text.length, 0);
+
+type DialogueMetadata = {
+  turns: number;
+  speakers: string[];
+};
+
+const getDialogueMetadata = (
+  script: string,
+  speakerVoiceMap: Record<string, string>,
+): DialogueMetadata => {
+  if (!speakerVoiceMap || Object.keys(speakerVoiceMap).length === 0) {
+    throw APIError.invalidArgument("speakerVoiceMap is required.");
+  }
+
+  const turns = parseDialogueScript(script);
+  const missingSpeakers = new Set<string>();
+  for (const turn of turns) {
+    if (!resolveVoiceId(turn.speaker, speakerVoiceMap)) {
+      missingSpeakers.add(turn.speaker);
+    }
+  }
+
+  if (missingSpeakers.size > 0) {
+    throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${[...missingSpeakers].join(", ")}`);
+  }
+
+  return {
+    turns: turns.length,
+    speakers: [...new Set(turns.map((turn) => turn.speaker))],
+  };
+};
+
+const sortRecord = (record: Record<string, string>): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(record)
+      .map(([key, value]) => [key.trim().toLowerCase(), value.trim()] as const)
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
+
+const outputExtensionFromFormat = (outputFormat: string): string => {
+  const normalized = outputFormat.toLowerCase();
+  if (normalized.startsWith("pcm_")) return "pcm";
+  if (normalized.includes("wav")) return "wav";
+  return "mp3";
+};
+
+const mimeTypeFromOutputFormat = (outputFormat: string): string => {
+  const normalized = outputFormat.toLowerCase();
+  if (normalized.startsWith("pcm_")) return "audio/pcm";
+  if (normalized.includes("wav")) return "audio/wav";
+  return "audio/mpeg";
+};
+
+const buildDialogueCacheKey = (options: {
+  script: string;
+  speakerVoiceMap: Record<string, string>;
+  modelId: string;
+  outputFormat: string;
+}): string => {
+  const hash = crypto
+    .createHash("sha256")
+    .update(
+      JSON.stringify({
+        version: 1,
+        script: options.script.replace(/\r\n/g, "\n").trim(),
+        speakerVoiceMap: sortRecord(options.speakerVoiceMap),
+        modelId: options.modelId,
+        outputFormat: options.outputFormat,
+      }),
+    )
+    .digest("hex");
+
+  return `audio/generated/elevenlabs-dialogue-${hash}.${outputExtensionFromFormat(options.outputFormat)}`;
+};
 
 const readPositiveIntEnv = (name: string, fallback: number): number => {
   const raw = process.env[name]?.trim();
@@ -581,6 +656,7 @@ export async function synthesizeDialogue(
 
 const buildDialogueAudioVariant = async (
   result: SynthesizeDialogueResult,
+  cacheKey?: string,
 ): Promise<GenerateElevenLabsDialogueResponse["variants"][number]> => {
   const inlineMaxBytes = getInlineAudioMaxBytes();
   if (result.audio.length <= inlineMaxBytes) {
@@ -591,10 +667,12 @@ const buildDialogueAudioVariant = async (
     };
   }
 
-  const uploaded = await uploadBufferToBucket(result.audio, result.mimeType, {
-    prefix: "audio/generated",
-    filenameHint: "elevenlabs-dialogue",
-  });
+  const uploaded = cacheKey
+    ? await uploadBufferToBucketKey(result.audio, result.mimeType, cacheKey)
+    : await uploadBufferToBucket(result.audio, result.mimeType, {
+        prefix: "audio/generated",
+        filenameHint: "elevenlabs-dialogue",
+      });
 
   if (!uploaded) {
     log.error(
@@ -619,6 +697,27 @@ const buildDialogueAudioVariant = async (
     id: "variant-1",
     audioUrl,
     mimeType: result.mimeType,
+  };
+};
+
+const buildCachedDialogueAudioVariant = async (
+  cacheKey: string,
+  mimeType: string,
+): Promise<GenerateElevenLabsDialogueResponse["variants"][number] | null> => {
+  if (!(await bucketObjectExists(cacheKey))) {
+    return null;
+  }
+
+  const audioUrl = await resolveObjectKeyUrlForClient(cacheKey);
+  if (!audioUrl || audioUrl.startsWith("bucket://")) {
+    return null;
+  }
+
+  log.info(`[ElevenLabs] Reusing cached dialogue audio from ${cacheKey}.`);
+  return {
+    id: "variant-1",
+    audioUrl,
+    mimeType,
   };
 };
 
@@ -832,15 +931,37 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
   async (req) => {
     ensureAdmin();
 
+    const modelId = req.modelId?.trim() || DEFAULT_MODEL_ID;
+    const outputFormat = req.outputFormat?.trim() || DEFAULT_OUTPUT_FORMAT;
+    const metadata = getDialogueMetadata(req.script, req.speakerVoiceMap);
+    const cacheKey = buildDialogueCacheKey({
+      script: req.script,
+      speakerVoiceMap: req.speakerVoiceMap,
+      modelId,
+      outputFormat,
+    });
+
+    const cachedVariant = await buildCachedDialogueAudioVariant(
+      cacheKey,
+      mimeTypeFromOutputFormat(outputFormat),
+    );
+    if (cachedVariant) {
+      return {
+        variants: [cachedVariant],
+        turns: metadata.turns,
+        speakers: metadata.speakers,
+      };
+    }
+
     const result = await synthesizeDialogue({
       script: req.script,
       speakerVoiceMap: req.speakerVoiceMap,
-      modelId: req.modelId,
-      outputFormat: req.outputFormat,
+      modelId,
+      outputFormat,
     });
 
     const variants: GenerateElevenLabsDialogueResponse["variants"] = [
-      await buildDialogueAudioVariant(result),
+      await buildDialogueAudioVariant(result, cacheKey),
     ];
 
     return {

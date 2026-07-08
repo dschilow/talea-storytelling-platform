@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutBucketCorsCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutBucketCorsCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
 
@@ -522,6 +522,77 @@ export async function uploadBufferToBucket(
   if (!config || config.uploadMode === "off") return null;
   await ensureBucketCorsOnce(config);
   return await uploadBuffer(config, buffer, contentType, options);
+}
+
+export async function uploadBufferToBucketKey(
+  buffer: Buffer,
+  contentType: string,
+  key: string
+): Promise<BucketUploadResult | null> {
+  if (!buffer || buffer.length === 0) return null;
+  const normalizedKey = key.replace(/^\/+|\/+$|\.\./g, "").replace(/\/+/g, "/");
+  if (!normalizedKey) return null;
+
+  const config = await pickConfig();
+  if (!config || config.uploadMode === "off") return null;
+  await ensureBucketCorsOnce(config);
+
+  try {
+    const client = getClient(config);
+    await client.send(new PutObjectCommand({
+      Bucket: config.bucket,
+      Key: normalizedKey,
+      Body: buffer,
+      ContentType: contentType,
+    }));
+    const url = buildStoredUrl(config, normalizedKey);
+    console.log(`[Bucket] Uploaded object to ${normalizedKey}`);
+    return { url, key: normalizedKey };
+  } catch (error) {
+    console.warn("[Bucket] Keyed upload failed:", error);
+    return null;
+  }
+}
+
+export async function bucketObjectExists(key: string): Promise<boolean> {
+  const normalizedKey = key.replace(/^\/+|\/+$|\.\./g, "").replace(/\/+/g, "/");
+  if (!normalizedKey) return false;
+
+  const config = await pickConfig();
+  if (!config || config.uploadMode === "off") return false;
+
+  try {
+    const client = getClient(config);
+    await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: normalizedKey }));
+    return true;
+  } catch (error) {
+    const statusCode = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+    if (statusCode === 404 || statusCode === 403) return false;
+    console.warn("[Bucket] Head object failed:", error);
+    return false;
+  }
+}
+
+export async function resolveObjectKeyUrlForClient(
+  key: string,
+  ttlSeconds?: number
+): Promise<string | null> {
+  const normalizedKey = key.replace(/^\/+|\/+$|\.\./g, "").replace(/\/+/g, "/");
+  if (!normalizedKey) return null;
+
+  const config = await pickConfig();
+  if (!config) return null;
+
+  if (config.accessMode === "public") {
+    return buildPublicUrl(config, normalizedKey);
+  }
+
+  try {
+    return await signObjectUrl(config, normalizedKey, ttlSeconds);
+  } catch (error) {
+    console.warn("[Bucket] Failed to sign keyed URL:", error);
+    return null;
+  }
 }
 
 export async function createPresignedUploadUrl(
