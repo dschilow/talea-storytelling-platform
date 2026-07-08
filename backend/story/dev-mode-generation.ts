@@ -1950,6 +1950,38 @@ function pickDevModeArtifactCategory(config: StoryConfig): ArtifactCategory | un
  * caller treats this as best-effort: a story without images is still a valid
  * dev-mode result.
  */
+// Picks the single most action/emotion-loaded sentence of a reading page so
+// the image director can build the illustration around a concrete peak moment.
+// Scores sentences by motion verbs, exclamation, dialogue and sensory cues;
+// falls back to the longest sentence. German motion/emotion lexicon (the story
+// prose is German; the director translates the beat into an English prompt).
+function extractDramaticBeat(content: string): string {
+  const text = String(content || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentences = text.match(/[^.!?…]+[.!?…]+["'“”»)\]]*/g) || [text];
+  const MOTION = /\b(rann?te?|sprang|sprin[gt]|stürzt|sturzt|fiel|riss|zog|schoss|kletter|hüpft|huepft|packte|griff|schleuderte?|warf|drückte|druckte|stemmte|zerriss|flatter|wirbelt|schob|duckte|rutschte|kroch|klammerte|hielt fest|rannte)\w*/i;
+  const EMOTION = /\b(schrie|rief|flüsterte|fluesterte|lachte|weinte|zitterte|keuchte|staunte|erschrak|jubelte|schluckte|starrte|strahlte)\w*/i;
+  const SENSE = /\b(leuchtet|glänzt|glanzt|funkelt|schimmert|knistert|blitzt|strahlt|glüht|gluht|sprüht|spruht|wirbelt|stiebt)\w*/i;
+  let best = sentences[0];
+  let bestScore = -1;
+  for (const raw of sentences) {
+    const s = raw.trim();
+    if (s.length < 12) continue;
+    let score = 0;
+    if (MOTION.test(s)) score += 3;
+    if (EMOTION.test(s)) score += 2;
+    if (SENSE.test(s)) score += 2;
+    if (/[!?]/.test(s)) score += 1;
+    if (/[„"»].+[""«]/.test(s)) score += 1; // spoken line
+    score += Math.min(2, Math.floor(s.length / 90)); // richer sentences
+    if (score > bestScore) {
+      bestScore = score;
+      best = s;
+    }
+  }
+  return compactExcerpt(best.trim(), 220);
+}
+
 async function generateDevModeImages(
   input: DevModeGenerationInput,
   parsedTitle: string,
@@ -2121,6 +2153,10 @@ async function generateDevModeImages(
       onStageNames,
       humanChildCount: onStageNames.filter((name) => (input.avatars || []).some((avatar) => avatar.name === name)).length,
       sceneSummary: compactExcerpt(chapter.content.replace(/\s+/g, " "), 520),
+      // v13: hand the director the single most action-loaded sentence of the
+      // page so it can build the illustration around a real peak moment
+      // instead of a static average of the whole page.
+      dramaticBeat: extractDramaticBeat(chapter.content),
       mustAvoid: [
         "no raw JSON",
         "no slot_N text",
@@ -2182,7 +2218,11 @@ async function generateDevModeImages(
     return compactExcerpt(out || fallback, maxChars);
   };
 
-  const systemPrompt = "You are an image-prompt director for a children's picture book. Output STRICT JSON only \u2014 no commentary, no markdown fences.";
+  const systemPrompt = [
+    "You are an award-winning picture-book illustration director (think of the liveliness of the best modern children's books).",
+    "Every prompt you write must capture a single DRAMATIC PEAK MOMENT \u2014 a character mid-action, mid-gesture, mid-emotion \u2014 never a static line-up or a calm portrait.",
+    "Output STRICT JSON only \u2014 no commentary, no markdown fences.",
+  ].join(" ");
   const userPrompt = [
     `Story title: ${parsedTitle}`,
     `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
@@ -2195,6 +2235,7 @@ async function generateDevModeImages(
     artifactBlock,
     "",
     "IMAGE SCENE PLAN (use this, not raw prose snippets):",
+    "Each page carries a `dramaticBeat` — the single most action/emotion-loaded moment of that page. BUILD the illustration around that beat: that is the frozen instant the picture must show.",
     promptJson(imageScenePlan),
     "",
     "TASK:",
@@ -2203,8 +2244,16 @@ async function generateDevModeImages(
     "- Cover: ONE iconic single-scene illustration prompt that captures the story's heart (the main heroes plus at least one supporting cast member if applicable).",
     "- Exactly one prompt per reading page, single scene, picture-book composition. The JSON key stays chapters for app compatibility.",
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
+    "",
+    "LIVELINESS (this is what separates a flat AI image from a real picture book \u2014 every prompt MUST include):",
+    "- PEAK MOMENT: pick the single most dramatic or emotional beat of that reading page (the leap, the fall, the discovery, the gasp) and freeze the characters mid-motion \u2014 running, reaching, tumbling, pointing, ducking, hugging. Never standing still and posing.",
+    "- EXPRESSION: name each character's clear facial emotion and body language (wide-eyed wonder, gritted-teeth effort, open-mouthed laugh, shrinking back in fear). Show the feeling, don't just place the body.",
+    "- DYNAMIC CAMERA: choose a lively angle that fits the beat \u2014 low hero angle, high looking-down, close-up on a face and hands, or an over-the-shoulder view into danger. Avoid the flat eye-level group shot.",
+    "- MOTION & ATMOSPHERE: add 1-2 concrete moving details that bring the world alive (dust swirling, papers flying, hair and clothes blown, light streaming, sparks, splashes) and describe the light/mood (warm morning glow, tense blue shadows, magical shimmer).",
+    "- COMPOSITION: depth and overlap \u2014 a clear foreground subject, midground action, and a hint of background, so the scene feels roomy and three-dimensional, not pasted flat.",
+    "",
     "- Refer to on-stage characters by NAME plus concrete visual specifics (hair, skin, clothing colors, outfit). NEVER include slot_N or collage wording in final prompts.",
-    "- If the supporting prop is on-stage on a reading page, mention it briefly with its visual cues.",
+    "- If the supporting prop is on-stage on a reading page, mention it briefly with its visual cues, ideally caught in the action.",
     "- Do NOT include readable text, captions, signs, labels, or written words in the imagery. Blank/unreadable paper is allowed only when the scene explicitly needs a note or letter.",
     "- Do NOT mention frame colors, borders, or technical reference markers in the prompt.",
     "- Do NOT mention TTS markers, brackets, or technical instructions.",
@@ -2300,7 +2349,7 @@ async function generateDevModeImages(
 
   if (needsCoverRefill || missingChapters.length > 0) {
     console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, readingPages=${missingChapters.map(c => c.order).join(",")}`);
-    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Picture-book composition, single scene, no readable text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage human child count explicitly; no extra background human children.";
+    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Build the image around the page's most DRAMATIC peak moment: characters caught mid-action with clear facial expressions and dynamic poses, a lively camera angle, motion details (flying dust/papers/hair, streaming light) and depth. Never a static line-up or calm portrait. Picture-book composition, single scene, no readable text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage human child count explicitly; no extra background human children.";
     const refillCommon = [
       `Story title: ${parsedTitle}`,
       `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
@@ -2572,12 +2621,18 @@ async function generateDevModeImages(
     const sceneNames = (job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly;
     const chapterNames = sceneNames.slice(0, 3).join(", ") || "the heroes";
     const scenePlan = typeof job.order === "number" ? imageScenePlanByOrder.get(job.order) : undefined;
-    const actionHint = englishVisualHint(scenePlan?.sceneSummary, `a concrete action around ${storyAnchor}`, 180);
+    // Prefer the extracted dramatic beat over the flat page summary so even
+    // the deterministic fallback prompt shows a lively peak moment.
+    const actionHint = englishVisualHint(
+      (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary,
+      `a concrete action around ${storyAnchor}`,
+      180
+    );
     const childCount = sceneNames.filter((name) => avatarNamesOnly.includes(name)).length;
     const countHint = childCount > 0
       ? `exactly ${childCount} named human child${childCount === 1 ? "" : "ren"}`
       : "only the named on-stage characters";
-    return `Picture-book illustration with ${chapterNames}, ${countHint}. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings, one cohesive moment, no text.`;
+    return `Lively picture-book illustration: ${chapterNames} caught mid-action at the story's peak moment, ${countHint}, with clear facial expressions and dynamic body poses. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings with depth, motion, and warm dramatic light. Single cohesive moment, no text.`;
   };
   const coverPrompt = String(parsedPrompts?.cover || "").trim();
   jobs.push({ kind: "cover", prompt: looksLikeEnglishPrompt(coverPrompt) ? coverPrompt : fallbackImagePrompt({ kind: "cover" }) });
@@ -9465,6 +9520,113 @@ function paragraphsToContent(paragraphs: string[]): string {
   return normalizeParagraphsToRange(paragraphs).join("\n\n").trim();
 }
 
+// v13 — reading-page layout rebalancer. Runs on the FINAL reading-page story
+// (after all repair/polish passes) so the PDF and reader do not render orphan
+// mini-pages next to bloated pages. Run a75b53af ("Das Labyrinth der zwei
+// Wege") shipped a 9-page PDF from 5 reading pages: pages with 8 paragraphs
+// and one 1703-char page overflowed while a single-sentence beat sat alone.
+//
+// Deterministic, meaning-preserving: it only (1) merges an under-length page
+// into its shorter neighbour and (2) moves whole paragraphs from an
+// over-length page onto a neighbour. It never rewrites, splits, or drops
+// prose, and it keeps the page COUNT fixed (chapterCount) so the reading-page
+// contract and image count stay intact.
+function rebalanceReadingPageLayout(
+  chapters: DevModeChapter[],
+  config: StoryConfig,
+): { chapters: DevModeChapter[]; changed: boolean } {
+  if (chapters.length <= 1) return { chapters, changed: false };
+
+  const bounds = getChapterLengthBounds(config);
+  const paragraphBounds = getParagraphBounds(config);
+  const sorted = chapters.slice().sort((a, b) => a.order - b.order);
+
+  // Work on a paragraph-array-per-page model; reassemble at the end.
+  const pages: string[][] = sorted.map((ch) => splitParagraphs(ch.content));
+  const charsOf = (paras: string[]) => paras.reduce((sum, p) => sum + p.length, 0);
+  const MIN_PAGE_CHARS = Math.round(bounds.min * 0.55); // orphan threshold
+  let changed = false;
+
+  // Pass 1: rescue orphan pages (too few chars) by pulling one paragraph from
+  // the longest adjacent neighbour, longest-page-first, bounded so we never
+  // create a new orphan.
+  for (let guard = 0; guard < pages.length * 2; guard += 1) {
+    const orphanIdx = pages.findIndex(
+      (paras) => charsOf(paras) < MIN_PAGE_CHARS && paras.length < paragraphBounds.max,
+    );
+    if (orphanIdx === -1) break;
+    const leftIdx = orphanIdx - 1;
+    const rightIdx = orphanIdx + 1;
+    const leftDonor = leftIdx >= 0 && pages[leftIdx].length > paragraphBounds.min ? leftIdx : -1;
+    const rightDonor = rightIdx < pages.length && pages[rightIdx].length > paragraphBounds.min ? rightIdx : -1;
+    let donorIdx = -1;
+    if (leftDonor !== -1 && rightDonor !== -1) {
+      donorIdx = charsOf(pages[leftDonor]) >= charsOf(pages[rightDonor]) ? leftDonor : rightDonor;
+    } else if (leftDonor !== -1) donorIdx = leftDonor;
+    else if (rightDonor !== -1) donorIdx = rightDonor;
+    if (donorIdx === -1) break; // no donor can spare a paragraph
+    // Move the paragraph adjacent to the orphan so reading order is preserved.
+    if (donorIdx < orphanIdx) {
+      pages[orphanIdx].unshift(pages[donorIdx].pop() as string);
+    } else {
+      pages[orphanIdx].push(pages[donorIdx].shift() as string);
+    }
+    changed = true;
+  }
+
+  // Pass 2: relieve char-over-length pages by pushing the boundary paragraph
+  // onto the neighbour with more char room.
+  for (let guard = 0; guard < pages.length * 3; guard += 1) {
+    const overIdx = pages.findIndex((paras) => charsOf(paras) > bounds.max && paras.length > 1);
+    if (overIdx === -1) break;
+    const leftIdx = overIdx - 1;
+    const rightIdx = overIdx + 1;
+    const leftRoom = leftIdx >= 0 && pages[leftIdx].length < paragraphBounds.max
+      ? bounds.max - charsOf(pages[leftIdx]) : -1;
+    const rightRoom = rightIdx < pages.length && pages[rightIdx].length < paragraphBounds.max
+      ? bounds.max - charsOf(pages[rightIdx]) : -1;
+    if (leftRoom < 0 && rightRoom < 0) break; // no neighbour has room
+    if (rightRoom >= leftRoom) {
+      pages[rightIdx].unshift(pages[overIdx].pop() as string);
+    } else {
+      pages[leftIdx].push(pages[overIdx].shift() as string);
+    }
+    changed = true;
+  }
+
+  // Pass 3: reduce paragraph COUNT on pages that exceed the paragraph ceiling
+  // even though their char count is fine. Over-fine granulation (8 short
+  // paragraphs on one page) is what pushes the PDF into overflow pages. Merge
+  // the two shortest ADJACENT paragraphs in-page until the ceiling is met.
+  // This preserves reading order and text; it only removes a blank-line break.
+  for (let pageIdx = 0; pageIdx < pages.length; pageIdx += 1) {
+    let safety = 0;
+    while (pages[pageIdx].length > paragraphBounds.max && safety < 20) {
+      safety += 1;
+      const paras = pages[pageIdx];
+      let mergeAt = 0;
+      let shortestPair = Number.POSITIVE_INFINITY;
+      for (let i = 0; i < paras.length - 1; i += 1) {
+        const pair = paras[i].length + paras[i + 1].length;
+        if (pair < shortestPair) {
+          shortestPair = pair;
+          mergeAt = i;
+        }
+      }
+      paras.splice(mergeAt, 2, `${paras[mergeAt]} ${paras[mergeAt + 1]}`.trim());
+      changed = true;
+    }
+  }
+
+  if (!changed) return { chapters, changed: false };
+
+  const rebalanced = sorted.map((ch, idx) => ({
+    ...ch,
+    content: pages[idx].join("\n\n").trim(),
+  }));
+  return { chapters: rebalanced, changed: true };
+}
+
 function normalizeChapterContentFromModel(ch: any): string {
   const paragraphArray = Array.isArray(ch?.paragraphs)
     ? ch.paragraphs.map((part: any) => String(part || "").trim()).filter(Boolean)
@@ -13589,7 +13751,26 @@ export async function generateStoryDevMode(
           : { ...finalParsed, chapters: fixedChapters };
       }
 
-      if (sanitized.changed || orthoFixes.length > 0) {
+      // v13: reading-page layout rebalance (orphan-merge + overflow-relief).
+      // Deterministic and meaning-preserving; keeps the PDF/reader from
+      // rendering tiny orphan pages next to bloated pages (run a75b53af).
+      let layoutRebalanced = false;
+      if (finalParsed.displayMode === "reading_pages") {
+        const rebalance = rebalanceReadingPageLayout(finalParsed.chapters, input.config);
+        if (rebalance.changed) {
+          layoutRebalanced = true;
+          finalParsed = markStoryAsReadingPages(
+            { ...finalParsed, chapters: rebalance.chapters },
+            finalParsed,
+          );
+          console.log("[dev-mode-generation] §13 reading-page layout rebalanced", {
+            pageParagraphCounts: rebalance.chapters.map((c) => splitParagraphs(c.content).length),
+            pageChars: rebalance.chapters.map((c) => c.content.length),
+          });
+        }
+      }
+
+      if (sanitized.changed || orthoFixes.length > 0 || layoutRebalanced) {
         finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
         rawQualityScore = undefined;
         finalValidatorFindings = undefined;
