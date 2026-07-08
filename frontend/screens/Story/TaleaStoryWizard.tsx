@@ -278,7 +278,11 @@ export default function TaleaStoryWizard() {
     surpriseEnd: false,
     customWish: customTags ? `Thema: ${customTags}` : '',
     aiModel: 'gemini-3.1-pro-preview',
-    aiProvider: 'native',
+    // Release default: OpenRouter + Kimi K2.6 — best measured story
+    // quality/cost writer (run a75b53af: $0.010 writer cost, 997 words,
+    // 30.7% dialogue vs gpt-mini runs at ~25% with missing sacrifices).
+    // The picker in Step 3 still lets the user change this freely.
+    aiProvider: 'openrouter',
     openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
     developerMode: false,
   });

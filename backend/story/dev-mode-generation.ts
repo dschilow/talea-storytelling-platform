@@ -2250,7 +2250,12 @@ async function generateDevModeImages(
     "- EXPRESSION: name each character's clear facial emotion and body language (wide-eyed wonder, gritted-teeth effort, open-mouthed laugh, shrinking back in fear). Show the feeling, don't just place the body.",
     "- DYNAMIC CAMERA: choose a lively angle that fits the beat \u2014 low hero angle, high looking-down, close-up on a face and hands, or an over-the-shoulder view into danger. Avoid the flat eye-level group shot.",
     "- MOTION & ATMOSPHERE: add 1-2 concrete moving details that bring the world alive (dust swirling, papers flying, hair and clothes blown, light streaming, sparks, splashes) and describe the light/mood (warm morning glow, tense blue shadows, magical shimmer).",
-    "- COMPOSITION: depth and overlap \u2014 a clear foreground subject, midground action, and a hint of background, so the scene feels roomy and three-dimensional, not pasted flat.",
+    "- COMPOSITION: depth comes from the ENVIRONMENT (a foreground prop, midground action, background scenery) \u2014 NEVER from stacking characters in front of each other.",
+    "",
+    "CHARACTER SEPARATION (HARD RULE \u2014 AI renderers blend features between overlapping figures):",
+    "- Every character stands in their OWN clear space with visible air between all silhouettes. No character directly in front of, behind, or touching another (a hand on a shoulder is fine; bodies never overlap).",
+    "- Winged, fairy, or non-human characters are placed to the SIDE or clearly ABOVE the children, never layered over them. Mention their wings/crown/tail only right next to THAT character's name, never in the same clause as a child's name.",
+    "- The dramatic energy must come from each character's own pose and expression, not from crowding them together.",
     "",
     "- Refer to on-stage characters by NAME plus concrete visual specifics (hair, skin, clothing colors, outfit). NEVER include slot_N or collage wording in final prompts.",
     "- If the supporting prop is on-stage on a reading page, mention it briefly with its visual cues, ideally caught in the action.",
@@ -2349,7 +2354,7 @@ async function generateDevModeImages(
 
   if (needsCoverRefill || missingChapters.length > 0) {
     console.log(`[dev-mode-generation] Image-prompts refill needed: cover=${needsCoverRefill}, readingPages=${missingChapters.map(c => c.order).join(",")}`);
-    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Build the image around the page's most DRAMATIC peak moment: characters caught mid-action with clear facial expressions and dynamic poses, a lively camera angle, motion details (flying dust/papers/hair, streaming light) and depth. Never a static line-up or calm portrait. Picture-book composition, single scene, no readable text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage human child count explicitly; no extra background human children.";
+    const refillSystem = "You are an image-prompt director for an English-language children's picture book. Output ONE single-paragraph English prompt of 40-80 words \u2014 NO JSON, NO markdown, NO commentary. Build the image around the page's most DRAMATIC peak moment: characters caught mid-action with clear facial expressions and dynamic poses, a lively camera angle, and motion details (flying dust/papers/hair, streaming light). Never a static line-up or calm portrait. HARD RULE: every character stands in their own clear space with visible air between silhouettes \u2014 bodies never overlap, and winged/fairy/non-human characters are placed to the side or clearly above the children, never layered over them; mention wings/crown/tail only right next to that character's own name. Depth comes from the environment, never from stacking characters. Picture-book composition, single scene, no readable text in image, no named living artist or studio (no Axel Scheffler, no Pixar, no Ghibli). State the on-stage human child count explicitly; no extra background human children.";
     const refillCommon = [
       `Story title: ${parsedTitle}`,
       `Genre: ${input.config.genre} / Setting: ${input.config.setting} / Age group: ${input.config.ageGroup}`,
@@ -2632,7 +2637,7 @@ async function generateDevModeImages(
     const countHint = childCount > 0
       ? `exactly ${childCount} named human child${childCount === 1 ? "" : "ren"}`
       : "only the named on-stage characters";
-    return `Lively picture-book illustration: ${chapterNames} caught mid-action at the story's peak moment, ${countHint}, with clear facial expressions and dynamic body poses. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings with depth, motion, and warm dramatic light. Single cohesive moment, no text.`;
+    return `Lively picture-book illustration: ${chapterNames} caught mid-action at the story's peak moment, ${countHint}, with clear facial expressions and dynamic body poses. Every character in their own clear space, bodies never overlapping. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings with environmental depth, motion, and warm dramatic light. Single cohesive moment, no text.`;
   };
   const coverPrompt = String(parsedPrompts?.cover || "").trim();
   jobs.push({ kind: "cover", prompt: looksLikeEnglishPrompt(coverPrompt) ? coverPrompt : fallbackImagePrompt({ kind: "cover" }) });
@@ -2651,6 +2656,22 @@ async function generateDevModeImages(
   // characters that are not actually on stage. Names are matched
   // case-insensitively against the reading-page prompt body.
   const allCastNames = cast.map((c) => c.name);
+
+  // v13 §12I: winged/fairy/creature POOL references visibly bleed onto the
+  // child avatars when the renderer blends multiple ip-adapter references at
+  // 4 steps / CFG 4 (run e09199a3: Adrian rendered with Rosalie's wings).
+  // Whenever an avatar reference is in the same reference set, drop the
+  // winged pool reference — the prompt still carries that character's
+  // canonical look as text, and the children's identity anchors stay clean.
+  const wingedPoolRefUrls = new Set(
+    resolvedCast
+      .filter((entry) => {
+        if (entry.kind !== "pool") return false;
+        const description = cast.find((c) => c.name === entry.name)?.description || "";
+        return /fee\b|fairy|elfe|drache|dragon|fl(?:ü|ue)gel|wing/i.test(`${entry.name} ${description}`);
+      })
+      .map((entry) => entry.resolvedUrl)
+  );
   const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
     if (job.kind === "cover") return allCastNames; // cover may show everyone
     const lower = job.prompt.toLowerCase();
@@ -2701,6 +2722,27 @@ async function generateDevModeImages(
             kept: withAvatars.map((r) => r.name),
             dropped: filtered.dropped.filter((name) => !withAvatars.some((r) => r.name === name)),
           });
+        }
+      }
+
+      // v13 §12I: strip winged/creature pool refs whenever a child avatar ref
+      // is in the same set (identity priority: the heroes must never inherit
+      // wings/crowns from a blended reference).
+      if (wingedPoolRefUrls.size > 0 && sceneRefs.length > 1) {
+        const hasAvatarRef = sceneRefs.some((url) =>
+          resolvedCast.some((c) => c.kind === "avatar" && c.resolvedUrl === url)
+        );
+        const cleanedRefs = hasAvatarRef
+          ? sceneRefs.filter((url) => !wingedPoolRefUrls.has(url))
+          : sceneRefs;
+        if (cleanedRefs.length > 0 && cleanedRefs.length < sceneRefs.length) {
+          console.log("[dev-mode-generation] §12I winged pool ref dropped (avatar identity priority)", {
+            job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
+            before: sceneRefs.length,
+            after: cleanedRefs.length,
+          });
+          sceneRefs = cleanedRefs;
+          sceneIpWeight = cleanedRefs.length >= 3 ? 0.75 : cleanedRefs.length === 2 ? 0.78 : 0.74;
         }
       }
 
