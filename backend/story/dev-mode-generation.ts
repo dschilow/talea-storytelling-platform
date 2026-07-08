@@ -103,6 +103,10 @@ const DEV_MODE_TARGET_DIALOG_PCT = 32;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
 // New range matches real children's-book dialogue density (25–40%).
 const DEV_MODE_PROMPT_DIALOG_PCT = 35;
+// Upper soft cap. Kimi/Moonshot overshoots badly (run 3db9b3b0: 49% overall,
+// 58-67% on chapters 1-3) — a story that is almost all talk loses the sensory
+// narration, action beats and read-aloud rhythm a picture book needs.
+const DEV_MODE_MAX_DIALOG_PCT = 45;
 const DEV_MODE_MIN_CHAPTER_DIALOG_PCT = 18;
 const DEV_MODE_MIN_PARAGRAPHS = 4;
 const DEV_MODE_MAX_PARAGRAPHS = 8;
@@ -2008,9 +2012,27 @@ async function generateDevModeImages(
   const selectedSupportingNames = new Set(
     (input.selectedIdea?.selectedSupportingCast || []).map((n) => normalizePoolName(String(n)))
   );
-  const selectedPoolCharacters = (input.poolCharacters || []).filter((c) =>
-    selectedSupportingNames.size === 0 ? true : selectedSupportingNames.has(normalizePoolName(c.name))
-  );
+  // Robustness net: the writer occasionally introduces a pool character that
+  // was NOT in the locked cast (run 3db9b3b0: "Mia Neugier" appeared in every
+  // chapter although the idea's locked cast was "Hexe Kräuterweis"). Such a
+  // character would then have NO reference image and vanish from the filtered
+  // chapter illustrations. So we also include any pool character whose name
+  // actually appears in the final prose — they must get a reference anchor.
+  const storyProseForCast = parsedChapters.map((ch) => ch.content || "").join(" ").toLowerCase();
+  const appearsInProse = (name: string): boolean => {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) return false;
+    // Match the full name or its first token (e.g. "Mia" from "Mia Neugier").
+    const firstToken = trimmed.split(/\s+/)[0];
+    return (
+      storyProseForCast.includes(trimmed.toLowerCase()) ||
+      (firstToken.length >= 3 && storyProseForCast.includes(firstToken.toLowerCase()))
+    );
+  };
+  const selectedPoolCharacters = (input.poolCharacters || []).filter((c) => {
+    if (selectedSupportingNames.size === 0) return appearsInProse(c.name);
+    return selectedSupportingNames.has(normalizePoolName(c.name)) || appearsInProse(c.name);
+  });
 
   type CastEntry = { kind: "avatar" | "pool"; name: string; imageUrl?: string; description?: string };
   const safeVisualProfileDescription = (visualProfile: unknown, fallback?: string): string | undefined => {
@@ -2246,9 +2268,10 @@ async function generateDevModeImages(
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
     "",
     "LIVELINESS (this is what separates a flat AI image from a real picture book \u2014 every prompt MUST include):",
-    "- PEAK MOMENT: pick the single most dramatic or emotional beat of that reading page (the leap, the fall, the discovery, the gasp) and freeze the characters mid-motion \u2014 running, reaching, tumbling, pointing, ducking, hugging. Never standing still and posing.",
+    "- PEAK MOMENT: pick the single most dramatic or emotional beat of that reading page and show the characters clearly in motion \u2014 running, reaching, pointing, ducking, hugging, leaning in. Never standing still and posing.",
+    "- READABLE ANATOMY (critical): keep every pose natural and anatomically clean \u2014 two arms, two legs, two hands per child, all clearly visible and correctly attached. Prefer a strong CLEAR silhouette over an extreme acrobatic contortion. Do NOT twist torsos all the way around, do NOT cross many limbs, do NOT hide hands in a tangle. A calm, clearly readable action beats a dynamic but broken body.",
     "- EXPRESSION: name each character's clear facial emotion and body language (wide-eyed wonder, gritted-teeth effort, open-mouthed laugh, shrinking back in fear). Show the feeling, don't just place the body.",
-    "- DYNAMIC CAMERA: choose a lively angle that fits the beat \u2014 low hero angle, high looking-down, close-up on a face and hands, or an over-the-shoulder view into danger. Avoid the flat eye-level group shot.",
+    "- DYNAMIC CAMERA: choose a lively but simple angle that fits the beat \u2014 a gentle low hero angle, a slight high view, or a clear close-up on faces and hands. Avoid both the flat eye-level group shot AND wild foreshortening that distorts limbs.",
     "- MOTION & ATMOSPHERE: add 1-2 concrete moving details that bring the world alive (dust swirling, papers flying, hair and clothes blown, light streaming, sparks, splashes) and describe the light/mood (warm morning glow, tense blue shadows, magical shimmer).",
     "- COMPOSITION: depth comes from the ENVIRONMENT (a foreground prop, midground action, background scenery) \u2014 NEVER from stacking characters in front of each other.",
     "",
@@ -6592,8 +6615,8 @@ function buildCompactValidationIdeaBlock(input: DevModeGenerationInput): string 
     idea.premiseSeedId ? `- Premise seed: ${idea.premiseSeedId}` : null,
     idea.premiseSeedMutation ? `- Premise seed mutation: ${compactExcerpt(idea.premiseSeedMutation, 180)}` : null,
     idea.selectedSupportingCast.length > 0
-      ? `- Locked supporting cast: ${idea.selectedSupportingCast.join(", ")}`
-      : "- No pool character is mandatory for this idea.",
+      ? `- Locked supporting cast: ${idea.selectedSupportingCast.join(", ")}. Use ONLY the heroes plus these exact named characters. Do NOT introduce any other named side character (no character from a different idea, no invented friend). Every non-hero who speaks or acts must be one of the locked names.`
+      : "- No pool character is mandatory for this idea. Do NOT invent a named side character; keep the cast to the heroes (plus a nameless, non-speaking background figure only if a scene truly needs one).",
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
@@ -6763,7 +6786,7 @@ function buildCompactWholeStoryDraftPrompts(
     "LENGTH AND DIALOGUE (both budgets are HARD and apply TOGETHER — never fix one by breaking the other):",
     `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
     `- That is roughly ${wordsPerMovement} words per scene movement. Do NOT write a compressed summary; let each movement breathe with action, sensory consequence, and speech.`,
-    "- dialogue 30–38% of the prose, measured in characters. This floor is as hard as the word count.",
+    "- dialogue 30–38% of the prose, measured in characters. This floor is as hard as the word count. Do NOT exceed ~45%: a page that is almost all quoted speech loses the sensory narration and action a picture book needs. Keep description, movement and inner perception between the lines of dialogue.",
     `- COUNTABLE DIALOGUE CONTRACT: the scene plan contains ${plannedDialogueBeats || "20+"} planned dialogue beats. Realize EVERY beat as at least one quoted line — the finished prose must contain at least ${minQuotedLines} quoted lines („…“). A beat may grow into a short exchange, never shrink into narration.`,
     "- in the first half of the story, never go more than 2 paragraphs without direct speech",
     "- each scene movement needs at least 2 short quoted exchanges that change action, pressure, or relationship",
@@ -10423,6 +10446,8 @@ function analyzeDevModeStoryQuality(
     hardIssues.push(`Dialoganteil ist mit ${dialogPct}% zu niedrig; Minimum ${minDialogPct}%, Soft-Ziel ${DEV_MODE_TARGET_DIALOG_PCT}%, Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
   } else if (dialogPct < DEV_MODE_TARGET_DIALOG_PCT) {
     softIssues.push(`Dialoganteil ist mit ${dialogPct}% knapp unter Soft-Zielwert ${DEV_MODE_TARGET_DIALOG_PCT}% trotz Prompt-Ziel ${DEV_MODE_PROMPT_DIALOG_PCT}%.`);
+  } else if (dialogPct > DEV_MODE_MAX_DIALOG_PCT) {
+    softIssues.push(`Dialoganteil ist mit ${dialogPct}% zu hoch (Obergrenze ${DEV_MODE_MAX_DIALOG_PCT}%); ersetze einen Teil der wörtlichen Rede durch sinnliche Erzählung, Handlung und innere Wahrnehmung, damit die Vorlese-Melodie nicht in reinem Geplauder untergeht.`);
   }
 
   if (totalWords > wordBounds.max) {
@@ -10638,6 +10663,42 @@ function applyGermanGrammarAutoFix(text: string): { text: string; changed: boole
     if (next !== out) {
       out = next;
       fixes.push("german-missing-verb-ich-noun");
+    }
+  }
+  // ASCII → German typographic quotes. Kimi/Moonshot frequently emits
+  // straight double quotes (or mixes them with „…“), which trips the hard
+  // gate `ASCII-Anfuehrungszeichen in Storytext gefunden` and caps the score
+  // at 7.8 (run 3db9b3b0). Convert every remaining straight double quote by
+  // alternating opener/closer across the whole text, and normalise any
+  // stray lone curly-close used as an opener. Deterministic and safe: the
+  // gate only cares that no ASCII " survives in non-English prose.
+  if (/"|„[^“]*„/.test(out)) {
+    // Convert each straight double quote to the correct German mark by
+    // tracking open/closed state across ALL quote characters (so mixed
+    // „…“ + "…" prose stays balanced). A straight quote while a dialogue is
+    // open becomes a closer, otherwise an opener; existing curly marks just
+    // update the state. Also repairs doubled openers („…„).
+    let quoteOpen = false;
+    let converted = "";
+    for (const ch of out) {
+      if (ch === "„") {
+        // A second opener while a dialogue is already open is Kimi using „
+        // where a closer belongs (run 3db9b3b0: `komm her!„ Alexander`).
+        converted += quoteOpen ? "“" : "„";
+        quoteOpen = !quoteOpen;
+      } else if (ch === "“") {
+        quoteOpen = false;
+        converted += ch;
+      } else if (ch === '"') {
+        converted += quoteOpen ? "“" : "„";
+        quoteOpen = !quoteOpen;
+      } else {
+        converted += ch;
+      }
+    }
+    if (converted !== out) {
+      out = converted;
+      fixes.push("ascii-to-german-quotes");
     }
   }
   // Typographic cleanup: stray space before a closing German quote

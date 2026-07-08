@@ -399,6 +399,12 @@ const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab
 const SACRIFICE_PLACEMENT_PATTERN = /\b(?:legte|steckte|stopfte|schob|klemmte)\b.{0,80}\b(?:in|zwischen|unter)\b/i;
 const SACRIFICE_LOSS_CONFIRMATION_PATTERN = /\b(?:war|ist|blieb)\s+(?:fort|weg|verloren)\b|\bleere[nr]?\s+hand\b|\bnie\s+wieder\b|\bkam\s+nicht\s+(?:wieder|zur(?:ue|ü)ck)\b/i;
 
+// Throw-away sacrifice (run 3db9b3b0 "Bibliothek der beinahe ausgesprochenen
+// Geheimnisse": "Dann warf er den Notizblock. Weit in die Dunkelheit." — the
+// child hurls a beloved object away to distract the threat; no give/place
+// verb, so the detector missed it and capped the score at 7.8).
+const SACRIFICE_THROW_PATTERN = /\b(?:warf|wirft|schleuderte|schmiss)\b.{0,60}\b(?:weg|fort|in\s+die\s+(?:dunkelheit|tiefe|nacht|ferne)|hinein|hinaus|davon)\b/i;
+
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
   "ping", "tickte", "schnurrte", "atmete", "leuchtete", "knirschte", "summte",
@@ -442,7 +448,8 @@ export function detectStructureSignals(
     const lower = text.toLowerCase();
     return SACRIFICE_PATTERN.test(lower)
       || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw))
-      || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower));
+      || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower))
+      || SACRIFICE_THROW_PATTERN.test(lower);
   };
   const hasPersonalSacrifice = sacrificeIn(midContent)
     || sorted.slice(-2).some((c) => sacrificeIn(c.content));

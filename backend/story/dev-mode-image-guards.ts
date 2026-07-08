@@ -170,6 +170,14 @@ export const CANONICAL_NEGATIVE_PACK = [
   "no forest unless the scene is outdoors",
   "no character not listed in the scene",
   "no floating unrelated props",
+  // v13 §12J: anatomy guards. Fast 4-step Runware renders mangle limbs when
+  // the positive prompt pushes extreme mid-motion poses (run 3db9b3b0:
+  // children with three hands / missing legs). These negatives are cheap
+  // insurance regardless of pose intensity.
+  "extra fingers", "extra hands", "three hands", "extra arms", "extra legs",
+  "missing limbs", "missing legs", "missing arms", "fused fingers",
+  "deformed hands", "malformed hands", "mutated hands", "distorted anatomy",
+  "bad anatomy", "disproportionate limbs", "floating limbs", "detached limbs",
 ];
 
 export function mergeNegativePrompt(existing: string | undefined | null): string {
