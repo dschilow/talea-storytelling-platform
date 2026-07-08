@@ -146,7 +146,8 @@ type ElevenLabsVoicesResponse = {
 type ElevenLabsDialogueResponse = {
   variants: Array<{
     id: string;
-    audioData: string;
+    audioData?: string;
+    audioUrl?: string;
     mimeType: string;
   }>;
   turns: number;
@@ -165,13 +166,15 @@ type QwenDialogueResponse = {
 
 type DialogueVariantPayload = {
   id?: string;
-  audioData: string;
+  audioData?: string;
+  audioUrl?: string;
   mimeType?: string;
 };
 
 type DialogueGenerationPayload = {
   variants?: DialogueVariantPayload[];
   audioData?: string;
+  audioUrl?: string;
   mimeType?: string;
   turns?: number;
   speakers?: string[];
@@ -474,6 +477,18 @@ const blobToDataUrl = (blob: Blob): Promise<string> =>
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
+
+const fetchAudioSourceBlob = async (source: string): Promise<Blob> => {
+  const response = await fetch(source);
+  if (!response.ok) {
+    throw new Error(`Audioquelle konnte nicht geladen werden (HTTP ${response.status}).`);
+  }
+  const blob = await response.blob();
+  if (!blob.size) {
+    throw new Error('Audioquelle ist leer.');
+  }
+  return blob;
+};
 
 const createAudioContext = (): AudioContext => {
   const AudioCtxCtor =
@@ -1745,11 +1760,17 @@ const CreateAudioDokuScreen: React.FC = () => {
         Array.isArray(payloadData.variants) && payloadData.variants.length > 0
           ? payloadData.variants.filter(
               (variant): variant is DialogueVariantPayload =>
-                Boolean(variant && typeof variant.audioData === 'string' && variant.audioData.trim()),
+                Boolean(
+                  variant &&
+                    ((typeof variant.audioData === 'string' && variant.audioData.trim()) ||
+                      (typeof variant.audioUrl === 'string' && variant.audioUrl.trim())),
+                ),
             )
           : typeof payloadData.audioData === 'string' && payloadData.audioData.trim()
             ? [{ id: 'variant-1', audioData: payloadData.audioData, mimeType: payloadData.mimeType || 'audio/mpeg' }]
-            : [];
+            : typeof payloadData.audioUrl === 'string' && payloadData.audioUrl.trim()
+              ? [{ id: 'variant-1', audioUrl: payloadData.audioUrl, mimeType: payloadData.mimeType || 'audio/mpeg' }]
+              : [];
 
       if (rawVariants.length === 0) {
         throw new Error(`Keine Audiodaten von ${providerLabel} erhalten.`);
@@ -1757,9 +1778,14 @@ const CreateAudioDokuScreen: React.FC = () => {
 
       const preparedVariants: GeneratedDialogueVariant[] = await Promise.all(
         rawVariants.map(async (variant, index) => {
-          const sourceBlob = await (await fetch(variant.audioData)).blob();
+          const source = variant.audioData?.trim() || variant.audioUrl?.trim();
+          if (!source) {
+            throw new Error(`Keine Audiodaten von ${providerLabel} erhalten.`);
+          }
+          const sourceBlob = await fetchAudioSourceBlob(source);
           let finalBlob = sourceBlob;
-          let mimeType = variant.mimeType || sourceBlob.type || 'audio/mpeg';
+          const sourceMimeType = variant.mimeType || sourceBlob.type || 'audio/mpeg';
+          let mimeType = sourceMimeType;
 
           // 1) Optional: Hintergrund-Ambient unter den Dialog mischen
           if (enableAmbient && screenplay.length > 0) {
@@ -1813,10 +1839,8 @@ const CreateAudioDokuScreen: React.FC = () => {
           }
 
           const extension = mimeType.includes('wav') ? 'wav' : 'mp3';
-          const audioData =
-            finalBlob === sourceBlob && mimeType === (variant.mimeType || sourceBlob.type || 'audio/mpeg')
-              ? variant.audioData
-              : await blobToDataUrl(finalBlob);
+          const shouldReuseInlineData = Boolean(variant.audioData) && finalBlob === sourceBlob && mimeType === sourceMimeType;
+          const audioData = shouldReuseInlineData ? variant.audioData! : await blobToDataUrl(finalBlob);
           const file = new File([finalBlob], `dialogue-variant-${index + 1}-${Date.now()}.${extension}`, {
             type: mimeType,
           });

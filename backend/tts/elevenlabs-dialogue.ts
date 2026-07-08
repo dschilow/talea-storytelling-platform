@@ -2,12 +2,15 @@ import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 
 import { ensureAdmin } from "../admin/authz";
+import { resolveObjectUrlForClient, uploadBufferToBucket } from "../helpers/bucket-storage";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
 const DEFAULT_MODEL_ID = "eleven_v3";
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_192";
 const ELEVENLABS_MAX_TEXT_LENGTH = 5000;
 const ELEVENLABS_TARGET_CHUNK_LENGTH = 4800;
+const DEFAULT_INLINE_AUDIO_MAX_BYTES = 1_500_000;
+const DEFAULT_DIALOGUE_CHUNK_CONCURRENCY = 3;
 
 interface GenerateElevenLabsDialogueRequest {
   script: string;
@@ -19,7 +22,8 @@ interface GenerateElevenLabsDialogueRequest {
 interface GenerateElevenLabsDialogueResponse {
   variants: Array<{
     id: string;
-    audioData: string;
+    audioData?: string;
+    audioUrl?: string;
     mimeType: string;
   }>;
   turns: number;
@@ -132,6 +136,47 @@ const resolveVoiceId = (speaker: string, speakerVoiceMap: Record<string, string>
 
 const getDialogueTextLength = (inputs: ElevenLabsDialogueInput[]): number =>
   inputs.reduce((sum, input) => sum + input.text.length, 0);
+
+const readPositiveIntEnv = (name: string, fallback: number): number => {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const getInlineAudioMaxBytes = (): number =>
+  readPositiveIntEnv("ELEVENLABS_INLINE_AUDIO_MAX_BYTES", DEFAULT_INLINE_AUDIO_MAX_BYTES);
+
+const getDialogueChunkConcurrency = (): number =>
+  Math.max(
+    1,
+    Math.min(
+      5,
+      readPositiveIntEnv("ELEVENLABS_DIALOGUE_CHUNK_CONCURRENCY", DEFAULT_DIALOGUE_CHUNK_CONCURRENCY),
+    ),
+  );
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const workerCount = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (nextIndex < items.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(items[index], index);
+      }
+    }),
+  );
+
+  return results;
+}
 
 const findLastPatternIndex = (text: string, pattern: RegExp): number => {
   let lastIndex = -1;
@@ -488,17 +533,30 @@ export async function synthesizeDialogue(
     };
   };
 
+  const chunkConcurrency = getDialogueChunkConcurrency();
+  if (inputBatches.length > 1) {
+    log.info(
+      `[ElevenLabs] Generating ${inputBatches.length} dialogue chunk(s) with concurrency=${Math.min(
+        chunkConcurrency,
+        inputBatches.length,
+      )}.`,
+    );
+  }
+
+  const batchResults = await mapWithConcurrency(inputBatches, chunkConcurrency, (batch, index) =>
+    generateBatch(batch, index + 1),
+  );
+
   const audioParts: Buffer[] = [];
   let detectedMimeType = "";
 
-  for (let index = 0; index < inputBatches.length; index += 1) {
-    const result = await generateBatch(inputBatches[index], index + 1);
+  for (const result of batchResults) {
     audioParts.push(result.bytes);
     if (!detectedMimeType) {
       detectedMimeType = result.mimeType || (isPcm ? "audio/pcm" : "audio/mpeg");
     } else if (result.mimeType && result.mimeType !== detectedMimeType) {
       log.warn(
-        `[ElevenLabs] Mixed mime types across dialogue chunks: ${detectedMimeType} vs ${result.mimeType}.`
+        `[ElevenLabs] Mixed mime types across dialogue chunks: ${detectedMimeType} vs ${result.mimeType}.`,
       );
     } else {
       detectedMimeType = result.mimeType || detectedMimeType;
@@ -520,6 +578,49 @@ export async function synthesizeDialogue(
     speakers: [...new Set(turns.map((turn) => turn.speaker))],
   };
 }
+
+const buildDialogueAudioVariant = async (
+  result: SynthesizeDialogueResult,
+): Promise<GenerateElevenLabsDialogueResponse["variants"][number]> => {
+  const inlineMaxBytes = getInlineAudioMaxBytes();
+  if (result.audio.length <= inlineMaxBytes) {
+    return {
+      id: "variant-1",
+      audioData: `data:${result.mimeType};base64,${result.audio.toString("base64")}`,
+      mimeType: result.mimeType,
+    };
+  }
+
+  const uploaded = await uploadBufferToBucket(result.audio, result.mimeType, {
+    prefix: "audio/generated",
+    filenameHint: "elevenlabs-dialogue",
+  });
+
+  if (!uploaded) {
+    log.error(
+      `[ElevenLabs] dialogue audio is ${result.audio.length} bytes, above inline limit ${inlineMaxBytes}, but bucket upload is unavailable.`,
+    );
+    throw APIError.failedPrecondition(
+      "Generated dialogue audio is too large to return inline and bucket upload is not available.",
+    );
+  }
+
+  const audioUrl = await resolveObjectUrlForClient(uploaded.url);
+  if (!audioUrl || audioUrl.startsWith("bucket://")) {
+    log.error(`[ElevenLabs] dialogue audio uploaded to ${uploaded.key}, but no browser URL could be resolved.`);
+    throw APIError.failedPrecondition("Generated dialogue audio could not be exposed to the browser.");
+  }
+
+  log.info(
+    `[ElevenLabs] Uploaded dialogue audio (${result.audio.length} bytes) to ${uploaded.key}; returning URL instead of inline base64.`,
+  );
+
+  return {
+    id: "variant-1",
+    audioUrl,
+    mimeType: result.mimeType,
+  };
+};
 
 export interface DialogueWord {
   word: string;
@@ -739,11 +840,7 @@ export const generateElevenLabsDialogue = api<GenerateElevenLabsDialogueRequest,
     });
 
     const variants: GenerateElevenLabsDialogueResponse["variants"] = [
-      {
-        id: "variant-1",
-        audioData: `data:${result.mimeType};base64,${result.audio.toString("base64")}`,
-        mimeType: result.mimeType,
-      },
+      await buildDialogueAudioVariant(result),
     ];
 
     return {

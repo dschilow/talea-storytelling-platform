@@ -520,6 +520,7 @@ export async function uploadBufferToBucket(
   if (!buffer || buffer.length === 0) return null;
   const config = await pickConfig();
   if (!config || config.uploadMode === "off") return null;
+  await ensureBucketCorsOnce(config);
   return await uploadBuffer(config, buffer, contentType, options);
 }
 
