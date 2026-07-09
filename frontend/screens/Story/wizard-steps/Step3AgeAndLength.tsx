@@ -59,22 +59,25 @@ const MODEL_CONFIGS: ModelConfig[] = [
 // (the relevant benchmark for children's stories — NOT coding scores).
 // Kimi K2.6 = 1753 (top open-weight), GLM-5.2 = 1657. Newer MiniMax/Qwen/
 // DeepSeek releases lead on coding/agentic/reasoning, not creative prose.
+// Prices verified against the live OpenRouter /api/v1/models catalog on
+// 2026-07-09 — several had drifted from OpenRouter's real current pricing
+// (e.g. kimi-k2.6 was shown at $0.45/1M out, actual is $3.41/1M).
 const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
-  { id: 'moonshotai/kimi-k2.6', title: '⭐ Kimi K2.6 — Empfohlen (beste Story-Qualität/Preis)', provider: 'Moonshot AI', cost: '$0.15 in / $0.45 out' },
-  { id: 'z-ai/glm-5.2', title: 'GLM-5.2 — sehr gute Story-Qualität', provider: 'Z.ai', cost: '$0.80 in / $2.50 out' },
-  { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest — Top-Qualität, teuer', provider: 'Anthropic', cost: '$3 in / $15 out' },
-  { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.75 in / $3.50 out' },
-  { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.44 in / $2.00 out' },
+  { id: 'moonshotai/kimi-k2.6', title: '⭐ Kimi K2.6 — Empfohlen (beste Story-Qualität/Preis)', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
+  { id: 'z-ai/glm-5.2', title: 'GLM-5.2 — sehr gute Story-Qualität', provider: 'Z.ai', cost: '$0.90 in / $3.08 out' },
+  { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest — Top-Qualität, teuer', provider: 'Anthropic', cost: '$2 in / $10 out' },
+  { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
+  { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.38 in / $2.03 out' },
   { id: 'minimax/minimax-m3', title: 'MiniMax M3 (neu, eher Agent/Multimodal)', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
-  { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
-  { id: 'qwen/qwen3.7-max', title: 'Qwen 3.7 Max (neu, eher Reasoning/Coding)', provider: 'Qwen', cost: '$1.20 in / $6.00 out' },
-  { id: 'qwen/qwen3.7-plus', title: 'Qwen 3.7 Plus (neu)', provider: 'Qwen', cost: '$0.50 in / $2.00 out' },
+  { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7 — günstig', provider: 'MiniMax', cost: '$0.18 in / $0.72 out' },
+  { id: 'qwen/qwen3.7-max', title: 'Qwen 3.7 Max (neu, eher Reasoning/Coding)', provider: 'Qwen', cost: '$1.25 in / $3.75 out' },
+  { id: 'qwen/qwen3.7-plus', title: 'Qwen 3.7 Plus (neu)', provider: 'Qwen', cost: '$0.32 in / $1.28 out' },
   { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro (eher Coding/Algorithmik)', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
-  { id: 'deepseek/deepseek-v4-flash', title: 'DeepSeek V4 Flash (neu, günstig)', provider: 'DeepSeek', cost: '$0.15 in / $0.40 out' },
+  { id: 'deepseek/deepseek-v4-flash', title: 'DeepSeek V4 Flash (neu, sehr günstig)', provider: 'DeepSeek', cost: '$0.09 in / $0.18 out' },
   { id: 'x-ai/grok-4.3', title: 'Grok 4.3', provider: 'xAI', cost: '$1.25 in / $2.50 out' },
   { id: 'google/gemini-3.5-flash', title: 'Gemini 3.5 Flash', provider: 'Google', cost: '$1.50 in / $9 out' },
   { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },
-  { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$0.50 in / $3 out' },
+  { id: '~google/gemini-flash-latest', title: 'Gemini Flash Latest', provider: 'Google', cost: '$1.50 in / $9 out' },
   { id: 'openrouter/owl-alpha', title: 'Owl Alpha (gratis)', provider: 'OpenRouter', cost: 'FREE' },
   { id: '~openai/gpt-mini-latest', title: 'GPT Mini Latest ⚠ schwächere Story-Qualität', provider: 'OpenAI', cost: '$0.75 in / $4.50 out' },
   { id: 'qwen/qwen3.6-max-preview', title: 'Qwen 3.6 Max (alt)', provider: 'Qwen', cost: '$1.04 in / $6.24 out' },

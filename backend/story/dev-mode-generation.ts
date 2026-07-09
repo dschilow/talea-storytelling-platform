@@ -11244,11 +11244,14 @@ function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
 // OpenRouter path: the wizard exposes a full model picker (normal AND dev
 // mode), so an explicit OpenRouter selection is ALWAYS respected \u2014 the user
 // controls quality/cost directly in the wizard. The wizard's default and
-// recommendation is moonshotai/kimi-k2.6 (strong creative prose, $0.15/$0.45
-// per 1M \u2014 ~7x cheaper than gpt-mini). Weak-tier picks like gpt-mini write
-// measurably flat stories (runs 93129526, cc6a80eb: 22.9% dialogue, 616
-// words, interchangeable voices) \u2014 that trade-off now lives in the wizard,
-// not in a silent backend override (which broke run a5059aef).
+// recommendation is moonshotai/kimi-k2.6 for prose quality (EQ-Bench
+// Creative 1753, top open-weight). Its OpenRouter price is $0.65/$3.41 per 1M
+// (verified live 2026-07-09) \u2014 comparable to, not dramatically cheaper than,
+// gpt-mini ($0.75/$4.50); the earlier $0.15/$0.45 figure quoted here was
+// wrong and overstated the savings by ~7x. Weak-tier picks like gpt-mini
+// still write measurably flat stories (runs 93129526, cc6a80eb: 22.9%
+// dialogue, 616 words, interchangeable voices) \u2014 that trade-off now lives in
+// the wizard, not in a silent backend override (which broke run a5059aef).
 //
 // "mini" must not match "gemini" or "minimax": require a non-'e' character
 // (or string start) before it and a word boundary or hyphen after it.

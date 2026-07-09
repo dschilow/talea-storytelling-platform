@@ -10,31 +10,37 @@ type OpenRouterPricing = {
   outputCostPer1M: number;
 };
 
+// Verified against the live OpenRouter /api/v1/models catalog on 2026-07-09.
+// Several entries had drifted significantly from OpenRouter's actual current
+// pricing (e.g. kimi-k2.6 output was hardcoded at $0.45/1M vs the real
+// $3.41/1M — a 7.6x understatement that skewed every cost comparison and
+// model recommendation made from tracked story costs). Re-verify periodically;
+// OpenRouter prices change without notice and this table has no live fallback.
 const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
-  "moonshotai/kimi-k2.6": { inputCostPer1M: 0.15, outputCostPer1M: 0.45 },
-  "~moonshotai/kimi-latest": { inputCostPer1M: 0.75, outputCostPer1M: 3.5 },
-  "moonshotai/kimi-k2.5": { inputCostPer1M: 0.44, outputCostPer1M: 2.0 },
-  "minimax/minimax-m2.7": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
+  "moonshotai/kimi-k2.6": { inputCostPer1M: 0.65, outputCostPer1M: 3.41 },
+  "~moonshotai/kimi-latest": { inputCostPer1M: 0.65, outputCostPer1M: 3.41 },
+  "moonshotai/kimi-k2.5": { inputCostPer1M: 0.375, outputCostPer1M: 2.025 },
+  "minimax/minimax-m2.7": { inputCostPer1M: 0.18, outputCostPer1M: 0.72 },
   "x-ai/grok-4.3": { inputCostPer1M: 1.25, outputCostPer1M: 2.5 },
   "openrouter/owl-alpha": { inputCostPer1M: 0, outputCostPer1M: 0 },
   "google/gemini-3.5-flash": { inputCostPer1M: 1.5, outputCostPer1M: 9.0 },
   "google/gemini-3.1-flash-lite": { inputCostPer1M: 0.25, outputCostPer1M: 1.5 },
   "google/gemini-3.1-flash-lite-preview": { inputCostPer1M: 0.25, outputCostPer1M: 1.5 },
   "~google/gemini-pro-latest": { inputCostPer1M: 2.0, outputCostPer1M: 12.0 },
-  "~google/gemini-flash-latest": { inputCostPer1M: 0.5, outputCostPer1M: 3.0 },
-  "~anthropic/claude-sonnet-latest": { inputCostPer1M: 3.0, outputCostPer1M: 15.0 },
+  "~google/gemini-flash-latest": { inputCostPer1M: 1.5, outputCostPer1M: 9.0 },
+  "~anthropic/claude-sonnet-latest": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   "~openai/gpt-mini-latest": { inputCostPer1M: 0.75, outputCostPer1M: 4.5 },
   "openai/gpt-5.4-mini": { inputCostPer1M: 0.75, outputCostPer1M: 4.5 },
   "~openai/gpt-5.4-mini": { inputCostPer1M: 0.75, outputCostPer1M: 4.5 },
   "openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
   "~openai/gpt-5.4-nano": { inputCostPer1M: 0.2, outputCostPer1M: 1.25 },
   "deepseek/deepseek-v4-pro": { inputCostPer1M: 0.435, outputCostPer1M: 0.87 },
-  "deepseek/deepseek-v4-flash": { inputCostPer1M: 0.15, outputCostPer1M: 0.4 },
+  "deepseek/deepseek-v4-flash": { inputCostPer1M: 0.09, outputCostPer1M: 0.18 },
   "qwen/qwen3.6-max-preview": { inputCostPer1M: 1.04, outputCostPer1M: 6.24 },
-  "qwen/qwen3.7-max": { inputCostPer1M: 1.2, outputCostPer1M: 6.0 },
-  "qwen/qwen3.7-plus": { inputCostPer1M: 0.5, outputCostPer1M: 2.0 },
+  "qwen/qwen3.7-max": { inputCostPer1M: 1.25, outputCostPer1M: 3.75 },
+  "qwen/qwen3.7-plus": { inputCostPer1M: 0.32, outputCostPer1M: 1.28 },
   "minimax/minimax-m3": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
-  "z-ai/glm-5.2": { inputCostPer1M: 0.8, outputCostPer1M: 2.5 },
+  "z-ai/glm-5.2": { inputCostPer1M: 0.9, outputCostPer1M: 3.08 },
 };
 
 export interface OpenRouterChatCompletionResult {
