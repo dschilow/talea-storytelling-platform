@@ -405,6 +405,16 @@ const SACRIFICE_LOSS_CONFIRMATION_PATTERN = /\b(?:war|ist|blieb)\s+(?:fort|weg|v
 // verb, so the detector missed it and capped the score at 7.8).
 const SACRIFICE_THROW_PATTERN = /\b(?:warf|wirft|schleuderte|schmiss)\b.{0,60}\b(?:weg|fort|in\s+die\s+(?:dunkelheit|tiefe|nacht|ferne)|hinein|hinaus|davon)\b/i;
 
+// Destruction sacrifice (run 67d63377 "Die Stiefel, die den mutigen Schritt
+// verlangten": Adrian pries the magic boots that gave him every power off his
+// own feet — "Die Stiefel brachen auf. […] Sie fielen zu Boden. Grau. Leblos."
+// — consciously destroying a loved/powerful object to regain himself. No
+// give/throw/place verb, so the detector reported no sacrifice and capped the
+// otherwise strong story at 8.4). A destruction verb plus a confirmation that
+// the object is now broken/dead/left behind, in the same chapter window.
+const SACRIFICE_DESTROY_PATTERN = /\b(?:brach\w*\s+auf|zerbrach\w*|zerriss\w*|zerst(?:ö|oe)rte\w*|riss\b.{0,30}\b(?:ab|auf|los)|stemmte\s+sich\s+dagegen|drückte\s+.{0,30}\b(?:zwischen|gegen))\b/i;
+const SACRIFICE_DESTROY_CONFIRMATION_PATTERN = /\b(?:fielen?\s+(?:zu\s+boden|ab)|leblos|zerbrochen|kaputt|in\s+st(?:ü|ue)cke|grau\s+und\s+spr(?:ö|oe)de|spr(?:ö|oe)de|barfu(?:ß|ss))\b/i;
+
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
   "ping", "tickte", "schnurrte", "atmete", "leuchtete", "knirschte", "summte",
@@ -449,7 +459,8 @@ export function detectStructureSignals(
     return SACRIFICE_PATTERN.test(lower)
       || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw))
       || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower))
-      || SACRIFICE_THROW_PATTERN.test(lower);
+      || SACRIFICE_THROW_PATTERN.test(lower)
+      || (SACRIFICE_DESTROY_PATTERN.test(lower) && SACRIFICE_DESTROY_CONFIRMATION_PATTERN.test(lower));
   };
   const hasPersonalSacrifice = sacrificeIn(midContent)
     || sorted.slice(-2).some((c) => sacrificeIn(c.content));

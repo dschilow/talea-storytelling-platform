@@ -9683,17 +9683,25 @@ function rebalanceReadingPageLayout(
   }
 
   // Pass 2: relieve char-over-length pages by pushing the boundary paragraph
-  // onto the neighbour with more char room.
-  for (let guard = 0; guard < pages.length * 3; guard += 1) {
+  // onto the neighbour with more char room. Room is measured in CHARACTERS,
+  // not paragraph count: run 67d63377 (GLM "Die Stiefel…") had pages 1+2 at
+  // 1506/1587 chars but already at the 6-paragraph ceiling, so the old
+  // paragraph-count guard treated both neighbours as "full" and left the
+  // overflow (→ 8-page PDF). Paragraph count is repaired afterwards by pass 3.
+  for (let guard = 0; guard < pages.length * 4; guard += 1) {
     const overIdx = pages.findIndex((paras) => charsOf(paras) > bounds.max && paras.length > 1);
     if (overIdx === -1) break;
     const leftIdx = overIdx - 1;
     const rightIdx = overIdx + 1;
-    const leftRoom = leftIdx >= 0 && pages[leftIdx].length < paragraphBounds.max
+    // A neighbour has room if it would stay at/under bounds.max after taking
+    // the boundary paragraph. Prefer the neighbour with more char headroom.
+    const boundaryLeftLen = pages[overIdx][pages[overIdx].length - 1]?.length ?? 0;
+    const boundaryRightLen = pages[overIdx][0]?.length ?? 0;
+    const leftRoom = leftIdx >= 0 && charsOf(pages[leftIdx]) + boundaryLeftLen <= bounds.max
       ? bounds.max - charsOf(pages[leftIdx]) : -1;
-    const rightRoom = rightIdx < pages.length && pages[rightIdx].length < paragraphBounds.max
+    const rightRoom = rightIdx < pages.length && charsOf(pages[rightIdx]) + boundaryRightLen <= bounds.max
       ? bounds.max - charsOf(pages[rightIdx]) : -1;
-    if (leftRoom < 0 && rightRoom < 0) break; // no neighbour has room
+    if (leftRoom < 0 && rightRoom < 0) break; // no neighbour has char room
     if (rightRoom >= leftRoom) {
       pages[rightIdx].unshift(pages[overIdx].pop() as string);
     } else {
