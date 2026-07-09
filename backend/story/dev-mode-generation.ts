@@ -132,6 +132,27 @@ const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
 // already reads as a solid shelf book does not pay for a third or fourth
 // repair pass chasing the last half-point.
 const DEV_MODE_DIMINISHING_RETURNS_SCORE = 8.5;
+
+// Abstract-personalCost detector. A personalCost that names only a feeling
+// ("Alexander verliert das Vertrauen in seine Faehigkeit", "muss Scham
+// ueberwinden") means the story has no VISIBLE sacrifice, which the premium
+// scene-card gate rejects. Shared between the gate (validateSceneCards) and the
+// deterministic repair (repairSceneCardsDeterministically) so the repair can
+// force-replace an abstract cost with a concrete one instead of the gate
+// throwing an unrecoverable error at the user (log 2026-07-09: standard-mode
+// story died on scenes 3+4 because the repair only FILLED a missing cost, it
+// never OVERWROTE an abstract one).
+const ABSTRACT_COST_FEELING = "(?:zuversicht|scham|angst|mut|vertrauen|hoffnung|geduld|selbstvertrauen|sicherheit|stolz|freude|ruhe|wuerde|würde|confidence|courage|hope|shame|fear|trust|pride|patience|dignity)";
+const ABSTRACT_COST_ARTICLE = "(?:seine[nrs]?\\s+|ihre[nrs]?\\s+|den\\s+|die\\s+|das\\s+|the\\s+|his\\s+|her\\s+|their\\s+)?";
+const ABSTRACT_COST_VERB = "(?:verlier\\w*|verlor\\w*|(?:ue|ü)berwind\\w*|gewinn\\w*|fass\\w*|find\\w*|loses?|lose|losing|gains?|overcome\\w*|regains?)";
+const ABSTRACT_PERSONAL_COST_PATTERN = new RegExp(
+  // verb → (article) → feeling   (e.g. "verliert seinen Mut", "loses hope")
+  `(?:${ABSTRACT_COST_VERB}\\s+${ABSTRACT_COST_ARTICLE}${ABSTRACT_COST_FEELING}\\b)`
+  // OR feeling → verb   (German word order, e.g. "muss Scham überwinden")
+  + `|(?:${ABSTRACT_COST_FEELING}\\s+(?:\\w+\\s+){0,2}?(?:(?:ue|ü)berwind\\w*|verlier\\w*|verlor\\w*|fass\\w*|zu\\s+(?:ue|ü)berwinden))`,
+  "i"
+);
+
 const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 // v12 §8: short children's stories (900-1200 words) collapse under 4 supporting
 // characters. Cap at 2 and bias the cast-selection toward 1 unless both are
@@ -5872,10 +5893,15 @@ function repairSceneCardsDeterministically(
   const heroB = heroNames[1] || "das zweite Kind";
   const lockedCentralObject = getLockedCentralObject(input);
   const personalObject = firstSceneText(beatSheet?.personalObject, lockedCentralObject, motif);
+  // Concrete fallback cost, guaranteed to pass the abstract-cost gate (names a
+  // physical object that is given up / left behind, no feeling-noun).
+  const concretePersonalCost = `${heroA} und ${heroB} geben ${personalObject} her und lassen es sichtbar zurück.`;
   const rawPersonalCost = firstSceneText(middle.personalCost, beatSheet?.act2?.personalCost, input.selectedIdea?.coreConflict);
-  const personalCost = rawPersonalCost.length >= 18 && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
+  const personalCost = rawPersonalCost.length >= 18
+    && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
+    && !ABSTRACT_PERSONAL_COST_PATTERN.test(rawPersonalCost)
     ? rawPersonalCost
-    : `${heroA} und ${heroB} riskieren ${personalObject}; wenn sie falsch handeln, bleibt es sichtbar beschädigt.`;
+    : concretePersonalCost;
   const rawVisibleDamage = firstSceneText(middle.visibleDamage, beatSheet?.act2?.midpointIrreversibleTurn, beatSheet?.act1?.firstConsequence);
   const visibleDamage = hasConcreteSceneDamageSignal(rawVisibleDamage)
     ? rawVisibleDamage
@@ -5953,14 +5979,21 @@ function repairSceneCardsDeterministically(
       ? "Der Helfer bringt Druck in die Szene und zeigt nur auf ein neues Hindernis."
       : firstSceneText(helperAction, "Der Helfer bringt Druck in die Szene und zeigt nur auf ein neues Hindernis.");
 
+    // An abstract personalCost ("verliert das Vertrauen …") on a middle scene
+    // must be REPLACED, not kept — otherwise the premium gate rejects it and
+    // the whole generation throws. firstSceneText keeps the first non-empty
+    // value, so we pre-clear an abstract original before falling back.
+    const safeOriginalCost = ABSTRACT_PERSONAL_COST_PATTERN.test(String(original.personalCost || ""))
+      ? ""
+      : original.personalCost;
     if (scenePurpose === "irreversible_middle" || index === 2 || index === 3) {
       next.visibleDamage = firstSceneText(original.visibleDamage, visibleDamage, next.visibleConsequence);
-      next.personalCost = firstSceneText(original.personalCost, personalCost, `${heroA} und ${heroB} geben einen bequemen Vorteil auf.`);
+      next.personalCost = firstSceneText(safeOriginalCost, personalCost, concretePersonalCost);
       next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, cannotGoBack, "Der alte Zustand ist sichtbar verändert und kann nicht durch Warten zurückkehren.");
       next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise, beatSheet?.mainNeed, "Die Kinder merken, was ihr falscher Weg kostet.");
     } else {
       next.visibleDamage = firstSceneText(original.visibleDamage, index > 0 ? next.visibleConsequence : "");
-      next.personalCost = firstSceneText(original.personalCost, index > 1 ? personalCost : "");
+      next.personalCost = firstSceneText(safeOriginalCost, index > 1 ? personalCost : "");
       next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, index > 1 ? cannotGoBack : "");
       next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise);
     }
@@ -6234,10 +6267,9 @@ function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): strin
   // sacrifice — the premium release gate then fails on personalCost AFTER the
   // expensive prose stages (log 0e8c0a4e). Catch it here where repair is cheap.
   if (isPremium) {
-    const abstractCost = /(?:verlier\w*|verlor\w*|(?:ue|ü)berwind\w*|gewinn\w*|fass\w*|find\w*)\s+(?:seine[nrs]?\s+|ihre[nrs]?\s+|den\s+|die\s+|das\s+)?(?:zuversicht|scham|angst|mut|vertrauen|hoffnung|geduld|selbstvertrauen|sicherheit|stolz|freude|ruhe|confidence|courage|hope|shame|fear|trust)\b/i;
     sceneCards.slice(2, 4).forEach((card, idx) => {
       const cost = String(card?.personalCost || "").trim();
-      if (cost && abstractCost.test(cost)) {
+      if (cost && ABSTRACT_PERSONAL_COST_PATTERN.test(cost)) {
         issues.push(
           `scene ${idx + 3} personalCost is an abstract feeling ("${cost.slice(0, 60)}") — it must name a physical object, place, or privilege that is visibly given up, used up, broken, or left behind`
         );
