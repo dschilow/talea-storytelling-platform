@@ -125,6 +125,13 @@ const DEV_MODE_PREMIUM_RELEASE_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
+// See "Diminishing-returns brake" at the validation-polish loop: once a
+// story clears all hard gates and scores at/above this, further validation
+// rounds are skipped even though the premium target (9.0) is technically
+// unmet. Chosen just above the "market-quality" floor (8.0) so a story that
+// already reads as a solid shelf book does not pay for a third or fourth
+// repair pass chasing the last half-point.
+const DEV_MODE_DIMINISHING_RETURNS_SCORE = 8.5;
 const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 // v12 §8: short children's stories (900-1200 words) collapse under 4 supporting
 // characters. Cap at 2 and bias the cast-selection toward 1 unless both are
@@ -13174,6 +13181,15 @@ export async function generateStoryDevMode(
       const currentScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
       const targetReleaseScore = minReleaseScoreForMode(input.qualityMode);
       const hasLocalHardIssues = (finalDiagnostics?.hardIssueCount ?? 0) > 0;
+      // Diminishing-returns brake: a full-story-polish or chapter-repair
+      // round can take 60-170s (run 849cb6a9: one chapter-repair call alone
+      // took 168s against Kimi). Once every hard gate is clean and the score
+      // already reads "good enough" for a shelf book, the marginal 0.2-0.4
+      // points from a further round rarely justify tripling generation time
+      // for cost- and latency-sensitive production traffic. Only the FIRST
+      // validation round always runs (it is often what clears the hard
+      // gates in the first place); attempt 2+ needs a real reason.
+      const goodEnoughToStop = !hasLocalHardIssues && currentScore >= DEV_MODE_DIMINISHING_RETURNS_SCORE;
       const shouldAttemptStoryPolish =
         validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
         && Boolean(finalParsed)
@@ -13181,9 +13197,19 @@ export async function generateStoryDevMode(
         && (
           hasLocalHardIssues
           || currentScore < targetReleaseScore
-        );
+        )
+        && !(validationAttempt >= 1 && goodEnoughToStop);
 
-      if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) break;
+      if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) {
+        if (goodEnoughToStop && validationAttempt >= 1) {
+          console.log("[dev-mode-generation] Diminishing-returns brake: stopping polish loop early", {
+            validationAttempt,
+            currentScore,
+            hardIssueCount: finalDiagnostics?.hardIssueCount,
+          });
+        }
+        break;
+      }
 
       const currentParsed: DevModeRawStory = finalParsed;
       const currentDiagnostics: DevModeStoryDiagnostics = finalDiagnostics;
