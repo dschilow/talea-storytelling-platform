@@ -3998,6 +3998,24 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
       ].join("\n")
     : "";
 
+  // Helper anti-solve contract. Both "Der Schl\u00fcssel zu gestern und morgen"
+  // (Hexe Kr\u00e4uterweis: "Fange den Duft des Jetzt", "Jede Wurzel kennt ein
+  // Gegenmittel") and "Der Weg der stickigen Umwege" (Troll Grummel steering
+  // the sorting task) tripped the validator with "helper borders on solving
+  // the problem" \u2014 the single point that kept the Kimi run off the 9.0 gate.
+  // Knowledge/wise archetypes (witch, wizard, sage, detective) are the worst
+  // offenders because "knowing the answer" is their nature.
+  const selectedCastForHelper = input.selectedIdea?.selectedSupportingCast || [];
+  const helperBlock = selectedCastForHelper.length > 0
+    ? [
+        "",
+        "HELPER ANTI-SOLVE CONTRACT (binding \u2014 supporting cast must COMPLICATE, never SOLVE):",
+        "- A helper may pressure, misread, ask a sharp question, hand over a plain object, or create a comic obstacle. A helper may NEVER name the cure, state the rule, or tell the children what to do.",
+        "- Wise/knowing archetypes (Hexe, Zauberer, weise Figur, Detektiv) are especially at risk: give them mood, smell, gesture, and ONE cryptic half-line at most \u2014 never a working instruction like \"Fange den Duft des Jetzt\" or \"Jede Wurzel kennt ein Gegenmittel\".",
+        "- The decisive insight (\"the key eats my memories\", \"running is what drains the colour\") and the decisive action MUST come from the child avatars, on the page, in their own words.",
+      ].join("\n")
+    : "";
+
   return [
     "VOICE BIBLE (binding \u2014 every quoted line must sound unmistakably like the named character):",
     ...lines,
@@ -4005,6 +4023,7 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
     "- CATCHPHRASE RULE: any fixed signature line for a character (e.g. \"Du bist traurig, oder?\", \"Ich hab mir gemerkt...\", \"Warte, ich hab da noch eine Frage!\") may appear AT MOST ONCE in the whole story. Prefer showing the character\u2019s voice through fresh, varied phrasings, gestures, and concrete actions \u2014 not by repeating catchphrases.",
     "- Voice should come from rhythm, vocabulary, body, and reaction style \u2014 not from formulaic openers. Two lines starting with the same fixed phrase = rewrite one.",
     contrastBlock,
+    helperBlock,
   ].filter(Boolean).join("\n");
 }
 
