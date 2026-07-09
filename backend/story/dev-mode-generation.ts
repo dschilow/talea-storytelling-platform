@@ -2512,10 +2512,43 @@ async function generateDevModeImages(
     return trimmed.replace(/\s{2,}/g, " ").slice(0, 220);
   };
 
-  const buildManifestBlock = (sceneNames: string[]): string => {
+  // Maps a character name to its slot position + frame color inside the sprite
+  // collage so the prompt can tell the diffusion model WHICH framed face in the
+  // reference strip belongs to which character. Without this anchor the model
+  // sees one image with N framed people and blends their faces together
+  // (distorted/wrong faces — the whole point of the collage is lost).
+  const ORDINAL_WORDS = ["first (leftmost)", "second", "third", "fourth", "fifth"];
+  const collageAnchorForName = (name: string): { ordinal: string; color: string } | null => {
+    const pos = collagePositions.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+        || p.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(p.name.toLowerCase())
+    );
+    if (!pos) return null;
+    return {
+      ordinal: ORDINAL_WORDS[pos.index] || `${pos.index + 1}th`,
+      color: pos.colorName,
+    };
+  };
+
+  const buildManifestBlock = (sceneNames: string[], useCollage: boolean): string => {
     if (sceneNames.length === 0) return "";
     const lines: string[] = [];
     const isFairyLike = (entry: CastEntry): boolean => /\b(fee|fairy|fluegel|flügel|wings?|zauberstab|flower crown|blumenkranz)\b/i.test(`${entry.name} ${entry.description || ""}`);
+    // In collage mode the identity source is a specific framed cell in the
+    // reference strip, not "the reference image" as a whole. Build a per-name
+    // anchor ("the boy in the 1st (leftmost) purple-framed cell") so the model
+    // can map each name onto the correct face.
+    const identityAnchor = (name: string): string => {
+      if (!useCollage) {
+        return `match ${name}'s reference image exactly`;
+      }
+      const anchor = collageAnchorForName(name);
+      if (!anchor) {
+        return `match ${name}'s reference face exactly`;
+      }
+      return `match the identity of the ${anchor.ordinal} character (the one inside the ${anchor.color}-bordered cell) in the reference strip`;
+    };
     for (const entry of cast) {
       if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
       if (entry.kind === "avatar") {
@@ -2547,21 +2580,27 @@ async function generateDevModeImages(
         // recurring heroes. Without this line the model re-rolled hair color
         // per page whenever the avatar's text description carried no visual
         // details (Adrian: blond on page 2, brown on page 4 — log 0e8c0a4e).
-        lines.push(`${entry.name}: human boy, ${visual}. IDENTITY: match ${entry.name}'s reference image exactly — same face, same hair color and hairstyle, same skin tone, same outfit colors as the reference, on every page. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
+        lines.push(`${entry.name}: human boy, ${visual}. IDENTITY: ${identityAnchor(entry.name)} — same face, same hair color and hairstyle, same skin tone, same outfit colors, on every page. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
       } else {
         const visual = compactCharacterDescription(entry.description, "supporting character");
         if (isFairyLike(entry)) {
-          lines.push(`${entry.name}: fairy character, ${visual}. Keep wings, wand, flower crown, or fairy outfit only if they are part of this character's canonical look; do not transfer those features to human children.`);
+          lines.push(`${entry.name}: fairy character, ${visual}. IDENTITY: ${identityAnchor(entry.name)}. Keep wings, wand, flower crown, or fairy outfit only if they are part of this character's canonical look; do not transfer those features to human children.`);
         } else {
           // v12 §13D: NO character permission for wings unless the character
           // is explicitly a fairy in the story AND appears as a fairy in this
           // scene. The old "Only X may wear wings" template gave non-fairy
           // characters wings in every image.
-          lines.push(`${entry.name}: ${visual}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
+          lines.push(`${entry.name}: ${visual}. IDENTITY: ${identityAnchor(entry.name)}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
         }
       }
     }
-    return lines.length > 0 ? ` CHARACTERS: ${lines.join(" ")}` : "";
+    if (lines.length === 0) return "";
+    // When the reference is the sprite collage, describe the strip up front and
+    // forbid the model from reproducing the strip/frames/borders in its output.
+    const collageIntro = useCollage
+      ? ` REFERENCE STRIP: the reference image is ONE horizontal strip of ${collagePositions.length} separate character portraits, each inside a colored border, ordered left to right. Use it ONLY to copy each character's identity onto the scene below; do NOT draw the strip, the cells, the borders, or any colored frame in the final image, and do NOT arrange the characters in a row.`
+      : "";
+    return `${collageIntro} CHARACTERS: ${lines.join(" ")}`;
   };
 
   // -----------------------------------------------------------------------
@@ -2729,6 +2768,10 @@ async function generateDevModeImages(
       const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
       let sceneRefs = referenceImages;
       let sceneIpWeight = ipAdapterWeight;
+      // Tracks whether THIS job still renders against the sprite collage. The
+      // per-scene filters below can swap the collage for individual refs; when
+      // they do, the manifest must stop describing a reference strip.
+      let jobUsesCollage = usingCollageReference;
       if (usingCollageReference && resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
         const filtered = filterReferencesForScene({
           onStageNames: sceneNames,
@@ -2744,6 +2787,7 @@ async function generateDevModeImages(
         if (filtered.dropped.length > 0 && withAvatars.length > 0) {
           sceneRefs = withAvatars.slice(0, 4).map((r) => r.imageUrl);
           sceneIpWeight = sceneRefs.length >= 3 ? 0.75 : sceneRefs.length === 2 ? 0.78 : 0.74;
+          jobUsesCollage = false;
           console.log(`[dev-mode-generation] §12B per-scene ref filter`, {
             job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
             kept: withAvatars.map((r) => r.name),
@@ -2770,6 +2814,7 @@ async function generateDevModeImages(
           });
           sceneRefs = cleanedRefs;
           sceneIpWeight = cleanedRefs.length >= 3 ? 0.75 : cleanedRefs.length === 2 ? 0.78 : 0.74;
+          jobUsesCollage = false;
         }
       }
 
@@ -2778,7 +2823,9 @@ async function generateDevModeImages(
       const negativePrompt = mergeNegativePrompt(undefined);
 
       // v11 §12D: append character manifest with explicit attribute locks.
-      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames);
+      // When rendering against the sprite collage, the manifest anchors each
+      // character to its framed cell + border color in the reference strip.
+      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames, jobUsesCollage);
       const fullPrompt = `${sanitizedPrompt}${manifestBlock}${styleSuffix}`;
 
       // v11 §12 preflight: assert prompt is well-formed before sending.
