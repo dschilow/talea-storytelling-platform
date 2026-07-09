@@ -2111,14 +2111,11 @@ async function generateDevModeImages(
 
   let collageUrl: string | undefined;
   let collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
-  // Identity consistency: with ≤4 cast refs, individual reference images are a
-  // STRONGER identity anchor than a collage (the ip-adapter sees each face
-  // full-size instead of a downscaled grid cell), and they keep the SAME
-  // anchor set across cover + every reading page. The collage is only worth
-  // its resolution cost when the cast outgrows Runware's reference budget.
-  // (Log 0e8c0a4e: cover used the collage, pages used filtered individual
-  // refs — the switch produced visibly different Adrian renderings.)
-  if (resolvedCast.length > 4) {
+  // Always build the sprite collage for 2+ cast refs — same approach as the
+  // standard pipeline (single collage image, characters listed in a sprite
+  // and referenced by slot in the prompt), instead of passing separate
+  // individual reference images to Runware.
+  if (resolvedCast.length >= 2) {
     try {
       const slots = resolvedCast.map((entry) => ({
         imageUrl: entry.resolvedUrl,
@@ -2723,16 +2720,16 @@ async function generateDevModeImages(
       }
 
       // v11 §12B: filter individual references to characters actually in the
-      // scene. Runs in BOTH reference modes now — in individual-refs mode a
-      // pool character's ref would otherwise leak into pages where they are
-      // not on stage (the converse of the original Rosalie-outfit bug).
+      // scene. When using a collage but the scene only contains a subset of
+      // the cast, fall back to per-character refs of just those on-stage
+      // characters so an off-stage character's outfit cannot leak in.
       // Avatars are ALWAYS kept even when prompt-name matching misses them:
       // they are the recurring heroes, and a stable avatar anchor on every
       // page is the whole point of reference images.
       const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
       let sceneRefs = referenceImages;
       let sceneIpWeight = ipAdapterWeight;
-      if (resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
+      if (usingCollageReference && resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
         const filtered = filterReferencesForScene({
           onStageNames: sceneNames,
           availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
