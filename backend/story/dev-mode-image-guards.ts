@@ -180,7 +180,37 @@ export const CANONICAL_NEGATIVE_PACK = [
   "bad anatomy", "disproportionate limbs", "floating limbs", "detached limbs",
 ];
 
-export function mergeNegativePrompt(existing: string | undefined | null): string {
+/**
+ * Collage-only negatives. When the reference image is the horizontal sprite
+ * strip, the fast 4-step Runware render tends to PAINT the strip (framed
+ * portrait cells, colored borders, panel gutters) into the output instead of
+ * only borrowing the identities from it (cover of story "Karte der Wege": the
+ * 3-cell purple/green/blue strip was reproduced across the top of the cover).
+ * These are appended ONLY in collage mode so single-scene pages are never
+ * pushed away from legitimate in-scene framing (windows, doorways, etc.).
+ * Mirrors backend/story/pipeline/constants.ts COLLAGE_MODE_NEGATIVES.
+ */
+export const COLLAGE_STRIP_NEGATIVES = [
+  "reference strip visible in the image",
+  "portrait strip",
+  "character lineup strip",
+  "row of framed portraits",
+  "framed portrait cells",
+  "collage", "grid", "strip layout", "panels", "storyboard",
+  "split screen", "split-screen", "triptych", "diptych", "multi-panel",
+  "comic panels", "divided image", "separate scenes", "multiple scenes",
+  "white gutters", "gutter", "quadrants",
+  "picture frame", "framed cells", "colored rectangles", "colored borders",
+  "colored outlines", "colored frame around a character",
+  "colored halo", "halo behind head", "face badge", "head badge",
+  "avatar frame", "profile badge", "headshot inset", "face bubble",
+  "colored shape behind head", "multiple images", "inset portraits",
+];
+
+export function mergeNegativePrompt(
+  existing: string | undefined | null,
+  options?: { collageMode?: boolean }
+): string {
   const tokens = new Set<string>();
   if (existing) {
     for (const part of existing.split(/,\s*/)) {
@@ -189,6 +219,9 @@ export function mergeNegativePrompt(existing: string | undefined | null): string
     }
   }
   for (const token of CANONICAL_NEGATIVE_PACK) tokens.add(token);
+  if (options?.collageMode) {
+    for (const token of COLLAGE_STRIP_NEGATIVES) tokens.add(token);
+  }
   return [...tokens].join(", ");
 }
 

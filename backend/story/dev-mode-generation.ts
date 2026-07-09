@@ -2237,8 +2237,12 @@ async function generateDevModeImages(
     // FLUX-family models render as garbled speech bubbles INSIDE the image
     // (log a27e9788 / Karren-PDF pages 2/3/5). A generic clean English line
     // beats pseudo-German every time.
-    const germanResidue = /\b(wurde|blieb|seine?[mnrs]?|ihre?[mnrs]?|ihm|ihn|dann|noch|mehr|wenn|beim|nach|gegen|ueber|unter|wieder|dass|hatte|hatten|sagte|rief|jetzt|dort|hier|wachsen|schrumpfte?|fluester\w*|fluster\w*|zwitscher\w*|piepste?|murmelte?|kleine[rn]?|grosse[rn]?|wilde[rn]?)\b/;
-    if (germanResidue.test(out)) {
+    const germanResidue = /\b(wurde|blieb|seine?[mnrs]?|ihre?[mnrs]?|ihm|ihn|dann|noch|mehr|wenn|beim|nach|gegen|ueber|unter|wieder|dass|hatte|hatten|sagte|rief|jetzt|dort|hier|wachsen|schrumpfte?|fluester\w*|fluster\w*|zwitscher\w*|piepste?|murmelte?|kleine[rn]?|grosse[rn]?|wilde[rn]?|lebendige?[rn]?|jede[rmn]?|enge[rn]?|umzukehren|leitet|bei)\b/;
+    // German content-noun morphology the dictionary above doesn't translate
+    // (pergamentkarte, sackgasse, wunsch, …) — drop to the clean English
+    // fallback rather than shipping salad into the FLUX prompt.
+    const germanMorphology = /\b\w{3,}(ung|keit|heit|chen|lich|isch|karte|gasse|strasse|wunsch)\b/i;
+    if (germanResidue.test(out) || germanMorphology.test(out)) {
       return compactExcerpt(fallback, maxChars);
     }
     return compactExcerpt(out || fallback, maxChars);
@@ -2328,7 +2332,14 @@ async function generateDevModeImages(
     // and lack German diacritics. If we detect German-specific characters or
     // common German short words, treat as not-English and refill.
     if (/[\u00e4\u00f6\u00fc\u00df\u00c4\u00d6\u00dc]/.test(t)) return false;
-    if (/\b(der|die|das|und|nicht|ist|war|sich|nach|sie|ihn|aber)\b/i.test(t)) return false;
+    // Expanded German-function-word list. The old set (der/die/das/\u2026) missed
+    // umlaut-free German content nouns/verbs, so salad like "lebendige
+    // pergamentkarte, alexander bei jedem wunsch, umzukehren, engere sackgasse
+    // leitet" slipped through and reached Runware (cover of "Karte der Wege").
+    if (/\b(der|die|das|den|dem|des|ein|eine|einen|einem|einer|und|oder|nicht|ist|war|sind|sich|nach|sie|ihn|ihm|ihr|aber|bei|mit|von|vom|zum|zur|auf|aus|durch|gegen|ohne|um|zu|im|am|jeder|jedem|jeden|wenn|dann|noch|nur|auch|sehr|schon|immer|wieder|hier|dort)\b/i.test(t)) return false;
+    // German morphology: words ending in -ung/-keit/-heit/-chen/-lich/-isch or
+    // typical German digraphs mid-word (sch/tsch) that English prompts avoid.
+    if (/\b\w{3,}(ung|keit|heit|chen|lich|isch|karte|gasse|strasse|wunsch)\b/i.test(t)) return false;
     return true;
   };
 
@@ -2595,12 +2606,23 @@ async function generateDevModeImages(
       }
     }
     if (lines.length === 0) return "";
-    // When the reference is the sprite collage, describe the strip up front and
-    // forbid the model from reproducing the strip/frames/borders in its output.
-    const collageIntro = useCollage
-      ? ` REFERENCE STRIP: the reference image is ONE horizontal strip of ${collagePositions.length} separate character portraits, each inside a colored border, ordered left to right. Use it ONLY to copy each character's identity onto the scene below; do NOT draw the strip, the cells, the borders, or any colored frame in the final image, and do NOT arrange the characters in a row.`
+    // When the reference is the sprite collage, describe the strip up front so
+    // each name maps to the right cell, and forbid the model from reproducing
+    // the strip/frames/borders (log "Karte der Wege": the 3-cell strip was
+    // painted across the top of the cover). The closing SINGLE ILLUSTRATED
+    // SCENE line sits near the very end of the prompt for maximum weight.
+    if (!useCollage) {
+      return ` CHARACTERS: ${lines.join(" ")}`;
+    }
+    // The strip may hold MORE characters than this scene shows (e.g. a 3-cell
+    // strip on a 2-hero page). Tell the model to use ONLY the named cells and
+    // leave the rest out, so an off-stage character does not wander into frame.
+    const subsetNote = lines.length < collagePositions.length
+      ? ` This scene shows ONLY ${lines.length} of the ${collagePositions.length} characters in the strip — use just the cells named below and do NOT add the other characters from the strip.`
       : "";
-    return `${collageIntro} CHARACTERS: ${lines.join(" ")}`;
+    const collageIntro = ` REFERENCE IMAGE NOTE: the attached reference is a technical identity sheet — ONE horizontal strip of ${collagePositions.length} separate character portraits, each inside a colored border, left to right. It is NOT part of the artwork.${subsetNote} Read each named character's face, hair, skin and outfit from their cell, then paint them fresh into the single scene described. The colored borders and cell layout are invisible guides only.`;
+    const collageOutro = ` OUTPUT FORMAT: render ONE single illustrated storybook scene only. Do NOT draw, copy, or include the reference strip, the framed cells, the colored borders, the portrait lineup, or any panels/grid/inset thumbnails anywhere in the image. The characters must be inside the scene, interacting — never lined up as framed portraits.`;
+    return `${collageIntro} CHARACTERS: ${lines.join(" ")}${collageOutro}`;
   };
 
   // -----------------------------------------------------------------------
@@ -2718,9 +2740,9 @@ async function generateDevModeImages(
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
-  // v11 §12B: build a per-scene name list so reference filtering can drop
-  // characters that are not actually on stage. Names are matched
-  // case-insensitively against the reading-page prompt body.
+  // Full cast name list. Per-scene on-stage names (matched case-insensitively
+  // against the page prompt body) decide which characters the manifest names /
+  // anchors to their collage cell; this list is the cover's default (everyone).
   const allCastNames = cast.map((c) => c.name);
 
   // v13 §12I: winged/fairy/creature POOL references visibly bleed onto the
@@ -2758,69 +2780,60 @@ async function generateDevModeImages(
         sanitizedPrompt = fallbackImagePrompt(job);
       }
 
-      // v11 §12B: filter individual references to characters actually in the
-      // scene. When using a collage but the scene only contains a subset of
-      // the cast, fall back to per-character refs of just those on-stage
-      // characters so an off-stage character's outfit cannot leak in.
-      // Avatars are ALWAYS kept even when prompt-name matching misses them:
-      // they are the recurring heroes, and a stable avatar anchor on every
-      // page is the whole point of reference images.
+      // On-stage names drive which characters the manifest NAMES (and thus
+      // which collage cells the model is told to use). Off-stage characters are
+      // simply not named, so their outfit cannot leak in — we keep the SAME
+      // collage reference image for cover + every page (consistent identities),
+      // instead of swapping to a per-scene individual-ref set.
       const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
       let sceneRefs = referenceImages;
       let sceneIpWeight = ipAdapterWeight;
-      // Tracks whether THIS job still renders against the sprite collage. The
-      // per-scene filters below can swap the collage for individual refs; when
-      // they do, the manifest must stop describing a reference strip.
+      // Tracks whether THIS job still renders against the sprite collage. Only
+      // the §12I winged-creature safety net below can force an individual-ref
+      // fallback; when it does, the manifest must stop describing a strip.
       let jobUsesCollage = usingCollageReference;
-      if (usingCollageReference && resolvedCast.length >= 2 && sceneNames.length > 0 && sceneNames.length < resolvedCast.length) {
-        const filtered = filterReferencesForScene({
-          onStageNames: sceneNames,
-          availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
-        });
-        const keptNames = new Set(filtered.references.map((r) => r.name));
-        const withAvatars = [
-          ...filtered.references,
-          ...resolvedCast
-            .filter((c) => c.kind === "avatar" && !keptNames.has(c.name))
-            .map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
-        ];
-        if (filtered.dropped.length > 0 && withAvatars.length > 0) {
-          sceneRefs = withAvatars.slice(0, 4).map((r) => r.imageUrl);
-          sceneIpWeight = sceneRefs.length >= 3 ? 0.75 : sceneRefs.length === 2 ? 0.78 : 0.74;
-          jobUsesCollage = false;
-          console.log(`[dev-mode-generation] §12B per-scene ref filter`, {
-            job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
-            kept: withAvatars.map((r) => r.name),
-            dropped: filtered.dropped.filter((name) => !withAvatars.some((r) => r.name === name)),
-          });
-        }
-      }
 
-      // v13 §12I: strip winged/creature pool refs whenever a child avatar ref
-      // is in the same set (identity priority: the heroes must never inherit
-      // wings/crowns from a blended reference).
-      if (wingedPoolRefUrls.size > 0 && sceneRefs.length > 1) {
-        const hasAvatarRef = sceneRefs.some((url) =>
-          resolvedCast.some((c) => c.kind === "avatar" && c.resolvedUrl === url)
+      // v13 §12I: a winged/fairy/creature cell baked into the collage can bleed
+      // wings or a crown onto the human heroes (the collage is one flat image,
+      // so we cannot drop a single cell from it). When such a pool character is
+      // in the collage AND avatars are present, fall back to individual refs of
+      // just the on-stage characters for THIS scene so the heroes stay clean.
+      if (usingCollageReference && wingedPoolRefUrls.size > 0) {
+        const collageHasWinged = resolvedCast.some(
+          (c) => c.kind === "pool" && wingedPoolRefUrls.has(c.resolvedUrl)
         );
-        const cleanedRefs = hasAvatarRef
-          ? sceneRefs.filter((url) => !wingedPoolRefUrls.has(url))
-          : sceneRefs;
-        if (cleanedRefs.length > 0 && cleanedRefs.length < sceneRefs.length) {
-          console.log("[dev-mode-generation] §12I winged pool ref dropped (avatar identity priority)", {
-            job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
-            before: sceneRefs.length,
-            after: cleanedRefs.length,
+        const collageHasAvatar = resolvedCast.some((c) => c.kind === "avatar");
+        if (collageHasWinged && collageHasAvatar) {
+          const filtered = filterReferencesForScene({
+            onStageNames: sceneNames,
+            availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
           });
-          sceneRefs = cleanedRefs;
-          sceneIpWeight = cleanedRefs.length >= 3 ? 0.75 : cleanedRefs.length === 2 ? 0.78 : 0.74;
-          jobUsesCollage = false;
+          const keptNames = new Set(filtered.references.map((r) => r.name));
+          const withAvatars = [
+            ...filtered.references,
+            ...resolvedCast
+              .filter((c) => c.kind === "avatar" && !keptNames.has(c.name))
+              .map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
+          ];
+          // Drop winged pool refs so their wings/crown cannot bleed onto kids.
+          const safeRefs = withAvatars.filter((r) => !wingedPoolRefUrls.has(r.imageUrl));
+          if (safeRefs.length > 0) {
+            sceneRefs = safeRefs.slice(0, 4).map((r) => r.imageUrl);
+            sceneIpWeight = sceneRefs.length >= 3 ? 0.75 : sceneRefs.length === 2 ? 0.78 : 0.74;
+            jobUsesCollage = false;
+            console.log("[dev-mode-generation] §12I winged-collage fallback to individual refs", {
+              job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
+              kept: safeRefs.map((r) => r.name),
+            });
+          }
         }
       }
 
       // v11 §12F: merge canonical negative-prompt pack (no dress on boys,
-      // no wings, no flower crown, no outfit swap, no text, etc.).
-      const negativePrompt = mergeNegativePrompt(undefined);
+      // no wings, no flower crown, no outfit swap, no text, etc.). In collage
+      // mode also add the anti-strip negatives so the model does not paint the
+      // reference strip / framed cells / colored borders into the scene.
+      const negativePrompt = mergeNegativePrompt(undefined, { collageMode: jobUsesCollage });
 
       // v11 §12D: append character manifest with explicit attribute locks.
       // When rendering against the sprite collage, the manifest anchors each
@@ -2871,11 +2884,18 @@ async function generateDevModeImages(
       missing: missingImageJobs.map((job) => `${job.kind}${job.order ? `:${job.order}` : ""}`),
     });
     const retryResults = await mapWithConcurrency(missingImageJobs, 2, async (job) => {
-      const retryPrompt = `${sanitizeImagePrompt(fallbackImagePrompt(job))}${styleSuffix}`;
+      // The deterministic fallback prompt carries no character manifest, so when
+      // the retry still references the collage we must re-attach the anti-strip
+      // guard + collage negatives, otherwise the retried image is exactly the
+      // one that paints the reference strip back in.
+      const retryCollageGuard = usingCollageReference
+        ? " OUTPUT FORMAT: render ONE single illustrated storybook scene only. Do NOT draw or include the reference strip, framed cells, colored borders, portrait lineup, panels, grid, or inset thumbnails anywhere. Read identities from the reference and paint the characters fresh inside the scene."
+        : "";
+      const retryPrompt = `${sanitizeImagePrompt(fallbackImagePrompt(job))}${retryCollageGuard}${styleSuffix}`;
       try {
         const img = await ai.generateImage({
           prompt: retryPrompt,
-          negativePrompt: mergeNegativePrompt(undefined),
+          negativePrompt: mergeNegativePrompt(undefined, { collageMode: usingCollageReference }),
           width: 1024,
           height: 1024,
           steps: 4,
@@ -2993,9 +3013,14 @@ async function generateDevModeImages(
         const regenWeight = r.sceneRefs.length > 0
           ? Math.min(0.85, (r.sceneIpWeight ?? 0.74) + 0.06)
           : undefined;
+        // This job rendered against the collage iff its refs are exactly the
+        // single collage reference — carry the anti-strip negatives into regen.
+        const regenUsesCollage = usingCollageReference
+          && r.sceneRefs.length === referenceImages.length
+          && r.sceneRefs.every((url, i) => url === referenceImages[i]);
         const regen = await ai.generateImage({
           prompt: r.fullPrompt,
-          negativePrompt: mergeNegativePrompt(undefined),
+          negativePrompt: mergeNegativePrompt(undefined, { collageMode: regenUsesCollage }),
           width: 1024,
           height: 1024,
           steps: 4,
