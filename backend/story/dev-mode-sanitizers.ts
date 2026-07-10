@@ -480,3 +480,73 @@ export function detectStructureSignals(
     finaleEndsInImage: endsInImage,
   };
 }
+// ---------------------------------------------------------------------------
+// Last-mile serialization integrity gate
+// ---------------------------------------------------------------------------
+
+export interface StorySerializationArtifactResult {
+  detected: boolean;
+  issues: string[];
+  samples: string[];
+}
+
+/**
+ * Detect JSON/object envelopes that have leaked into user-facing story prose.
+ *
+ * This deliberately does not attempt to "clean" the text. Once structural
+ * fields such as title/description/paragraphs are interleaved with prose, a
+ * local cleanup can silently lose or reorder narrative content. The safe
+ * behavior is to reject the payload and retry the writer stage.
+ */
+export function detectStorySerializationArtifacts(story: {
+  title?: string | null;
+  description?: string | null;
+  chapters?: Array<{ title?: string | null; content?: string | null }> | null;
+}): StorySerializationArtifactResult {
+  const fields: Array<{ label: string; value: string }> = [
+    { label: "title", value: String(story.title || "") },
+    { label: "description", value: String(story.description || "") },
+    ...((story.chapters || []).flatMap((chapter, index) => [
+      { label: `chapter[${index + 1}].title`, value: String(chapter.title || "") },
+      { label: `chapter[${index + 1}].content`, value: String(chapter.content || "") },
+    ])),
+  ];
+
+  const patterns: Array<{ label: string; pattern: RegExp }> = [
+    {
+      label: "JSON story envelope",
+      pattern: /(?:^|\n)\s*\{\s*["„“]?(?:title|description|chapters|paragraphs|storyText)["„“]?\s*:/i,
+    },
+    {
+      label: "serialized story field",
+      pattern: /["„“](?:title|description|chapters|paragraphs|content|order)["„“]\s*:\s*(?:["„“]|\[|\{|\d)/i,
+    },
+    {
+      label: "paragraph array syntax",
+      pattern: /["„“]?paragraphs["„“]?\s*:\s*\[/i,
+    },
+    {
+      label: "chapter object syntax",
+      pattern: /\}\s*,\s*\{\s*["„“]?(?:title|order|content|paragraphs)["„“]?\s*:/i,
+    },
+  ];
+
+  const issues: string[] = [];
+  const samples: string[] = [];
+  for (const field of fields) {
+    for (const detector of patterns) {
+      const match = field.value.match(detector.pattern);
+      if (!match) continue;
+      issues.push(`${detector.label} in ${field.label}`);
+      const start = Math.max(0, (match.index || 0) - 30);
+      samples.push(field.value.slice(start, start + 150).replace(/\s+/g, " ").trim());
+      break;
+    }
+  }
+
+  return {
+    detected: issues.length > 0,
+    issues: [...new Set(issues)],
+    samples: [...new Set(samples)].slice(0, 4),
+  };
+}

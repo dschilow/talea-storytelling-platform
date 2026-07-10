@@ -213,23 +213,6 @@ export interface FilteredReferences {
   dropped: string[];
 }
 
-function normalizeCharacterName(value: string): string {
-  return String(value || "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-}
-
-function isSingleTokenAlias(left: string, right: string): boolean {
-  const a = normalizeCharacterName(left).split(" ").filter(Boolean);
-  const b = normalizeCharacterName(right).split(" ").filter(Boolean);
-  if (a.length === 0 || b.length === 0) return false;
-  const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-  return shorter.length === 1 && shorter[0].length >= 3 && longer.includes(shorter[0]);
-}
-
 /**
  * Drop reference images for characters that are NOT in the scene. Prevents
  * off-stage traits from leaking onto visible characters.
@@ -240,11 +223,26 @@ function isSingleTokenAlias(left: string, right: string): boolean {
  * are never treated as the same name.
  */
 export function filterReferencesForScene(scene: SceneCast): FilteredReferences {
+  const normalized = (value: string): string => value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  const tokenAlias = (left: string, right: string): boolean => {
+    const a = normalized(left).split(" ").filter(Boolean);
+    const b = normalized(right).split(" ").filter(Boolean);
+    if (a.length === 0 || b.length === 0) return false;
+    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
+    if (shorter.length !== 1 || shorter[0].length < 3) return false;
+    return longer.includes(shorter[0]);
+  };
+
   const kept = new Set<number>();
   for (const onStageName of scene.onStageNames) {
     const exactMatches = scene.availableRefs
       .map((ref, index) => ({ ref, index }))
-      .filter(({ ref }) => normalizeCharacterName(ref.name) === normalizeCharacterName(onStageName));
+      .filter(({ ref }) => normalized(ref.name) === normalized(onStageName));
     if (exactMatches.length === 1) {
       kept.add(exactMatches[0].index);
       continue;
@@ -252,7 +250,7 @@ export function filterReferencesForScene(scene: SceneCast): FilteredReferences {
     if (exactMatches.length > 1) continue;
     const aliasMatches = scene.availableRefs
       .map((ref, index) => ({ ref, index }))
-      .filter(({ ref }) => isSingleTokenAlias(ref.name, onStageName));
+      .filter(({ ref }) => tokenAlias(ref.name, onStageName));
     if (aliasMatches.length === 1) kept.add(aliasMatches[0].index);
   }
 
@@ -261,44 +259,6 @@ export function filterReferencesForScene(scene: SceneCast): FilteredReferences {
     .filter((ref) => !references.includes(ref))
     .map((ref) => ref.name);
   return { references, dropped };
-}
-
-/** Select the authoritative cast for one frame without exceeding the image
- * model's native reference limit. Explicit scene-card names stay prioritized;
- * larger groups rotate deterministically across pages so every character gets
- * visual coverage instead of silently disappearing from all later images. */
-export function selectFrameCastForReferenceLimit(args: {
-  allNames: string[];
-  priorityNames?: string[];
-  pageOrder: number;
-  maxReferences?: number;
-}): string[] {
-  const maxReferences = Math.max(0, Math.floor(args.maxReferences ?? 4));
-  if (maxReferences === 0) return [];
-  const unique = (names: string[]): string[] => {
-    const seen = new Set<string>();
-    return names.filter((name) => {
-      const key = normalizeCharacterName(name);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-  const available = unique(args.allNames);
-  const priorities = unique(args.priorityNames || []).filter((name) =>
-    available.some((candidate) => normalizeCharacterName(candidate) === normalizeCharacterName(name))
-  );
-  const rotate = (names: string[], count: number): string[] => {
-    if (names.length <= count) return names.slice();
-    const safePageOrder = Math.max(1, Number(args.pageOrder) || 1);
-    const offset = ((safePageOrder - 1) * Math.max(1, count)) % names.length;
-    return Array.from({ length: count }, (_value, index) => names[(offset + index) % names.length]);
-  };
-  if (priorities.length >= maxReferences) return rotate(priorities, maxReferences);
-  const remaining = available.filter((name) =>
-    !priorities.some((priority) => normalizeCharacterName(priority) === normalizeCharacterName(name))
-  );
-  return [...priorities, ...rotate(remaining, maxReferences - priorities.length)].slice(0, maxReferences);
 }
 
 /** Minimal visual source used to classify a character without assuming that
@@ -359,8 +319,7 @@ export function deriveVisualEntityType(source: VisualEntitySource): string {
 
 /** Render one authoritative, entity-agnostic cast contract. */
 export function renderSceneCastContract(characters: SceneCastCharacterContract[]): string {
-  const noun = characters.length === 1 ? "character" : "characters";
-  const lines = [`EXPECTED CAST: EXACTLY ${characters.length} named ${noun} total.`];
+  const lines = [`EXPECTED CAST: EXACTLY ${characters.length} named characters total.`];
   characters.forEach((character, index) => {
     const reference = character.referenceIndex
       ? `; canonical identity = attached reference image ${character.referenceIndex}`
@@ -424,7 +383,7 @@ export function preflightImagePrompt(args: {
     issues.push({ code: "json_wrapper", detail: 'positivePrompt starts with `{"prompt":` envelope' });
   }
 
-  if (!/\bEXPECTED CAST:\s*EXACTLY\s+\d+\s+named characters? total\b/i.test(positivePrompt)) {
+  if (!/\bEXPECTED CAST:\s*EXACTLY\s+\d+\s+named characters total\b/i.test(positivePrompt)) {
     issues.push({
       code: "missing_count_contract",
       detail: "positivePrompt has no deterministic generic cast contract",

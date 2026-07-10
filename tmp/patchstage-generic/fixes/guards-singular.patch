@@ -1,0 +1,23 @@
+diff --git a/backend/story/dev-mode-image-guards.ts "b/C:\\MyProjects\\Talea\\talea-storytelling-platform\\tmp\\patchstage-generic\\fixes\\dev-mode-image-guards.ts"
+index fdde683..de31a99 100644
+--- a/backend/story/dev-mode-image-guards.ts
++++ "b/C:\\MyProjects\\Talea\\talea-storytelling-platform\\tmp\\patchstage-generic\\fixes\\dev-mode-image-guards.ts"
+@@ -319,7 +319,8 @@ export function deriveVisualEntityType(source: VisualEntitySource): string {
+ 
+ /** Render one authoritative, entity-agnostic cast contract. */
+ export function renderSceneCastContract(characters: SceneCastCharacterContract[]): string {
+-  const lines = [`EXPECTED CAST: EXACTLY ${characters.length} named characters total.`];
++  const noun = characters.length === 1 ? "character" : "characters";
++  const lines = [`EXPECTED CAST: EXACTLY ${characters.length} named ${noun} total.`];
+   characters.forEach((character, index) => {
+     const reference = character.referenceIndex
+       ? `; canonical identity = attached reference image ${character.referenceIndex}`
+@@ -383,7 +384,7 @@ export function preflightImagePrompt(args: {
+     issues.push({ code: "json_wrapper", detail: 'positivePrompt starts with `{"prompt":` envelope' });
+   }
+ 
+-  if (!/\bEXPECTED CAST:\s*EXACTLY\s+\d+\s+named characters total\b/i.test(positivePrompt)) {
++  if (!/\bEXPECTED CAST:\s*EXACTLY\s+\d+\s+named characters? total\b/i.test(positivePrompt)) {
+     issues.push({
+       code: "missing_count_contract",
+       detail: "positivePrompt has no deterministic generic cast contract",

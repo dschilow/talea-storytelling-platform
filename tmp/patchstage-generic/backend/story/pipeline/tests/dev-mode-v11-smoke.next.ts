@@ -27,7 +27,6 @@ import {
   filterReferencesForScene,
   CANONICAL_NEGATIVE_PACK,
   deriveVisualEntityType,
-  selectFrameCastForReferenceLimit,
   renderSceneCastContract,
   stripModelCastCountClaims,
 } from "../../dev-mode-image-guards";
@@ -472,20 +471,6 @@ console.log("\n[11] Cast contract is mixed-entity and count safe");
   ]);
   check("single-character contract works", /EXACTLY 1 named character total/.test(single) && /walking teapot/.test(single), single);
 
-  const largeCast = ["Ari", "Bela", "Cato", "Doro", "Eli", "Fina"];
-  const frame1 = selectFrameCastForReferenceLimit({ allNames: largeCast, pageOrder: 1, maxReferences: 4 });
-  const frame2 = selectFrameCastForReferenceLimit({ allNames: largeCast, pageOrder: 2, maxReferences: 4 });
-  check("large cast never exceeds native limit", frame1.length === 4 && frame2.length === 4);
-  check("large cast rotates across pages", new Set([...frame1, ...frame2]).size === largeCast.length, `${frame1.join(",")} / ${frame2.join(",")}`);
-
-  const priorityFrame = selectFrameCastForReferenceLimit({
-    allNames: largeCast,
-    priorityNames: ["Eli", "Fina"],
-    pageOrder: 2,
-    maxReferences: 4,
-  });
-  check("explicit scene-card cast remains prioritized", priorityFrame[0] === "Eli" && priorityFrame[1] === "Fina", priorityFrame.join(","));
-
   const stripped = stripModelCastCountClaims("Three children and two robots crowd around a chair while Mina points.");
   check("model-invented mixed counts removed", !/three children|two robots/i.test(stripped.prompt) && stripped.removedClaims.length === 2, stripped.prompt);
 
@@ -497,8 +482,7 @@ console.log("\n[11] Cast contract is mixed-entity and count safe");
   check("generic mixed contract passes preflight", cleanPreflight.ok, JSON.stringify(cleanPreflight.issues));
 }
 
-// -----------------------------------------------------------------------------
-// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
+// -----------------------------------------------------------------------------`n// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
 // detectHelperExplainsSolution + detectStructureSignals + classifyNoveltyHit.
 // -----------------------------------------------------------------------------
 console.log("\n[12] Story-structure detectors fire as expected");

@@ -1,0 +1,345 @@
+/**
+ * TTS Enrichment Phase
+ *
+ * After the story text is finalized, this module uses AI to analyze each
+ * chapter and insert xAI TTS expression tags for more natural, emotional
+ * audio narration.
+ *
+ * The enriched text is stored in `chapters.tts_text` and used ONLY for
+ * TTS generation — the regular `content` field stays clean for display.
+ */
+
+import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
+import { generateWithRunwareText, isRunwareConfigured } from "./runware-text-generation";
+import { storyDB } from "./db";
+import { callChatCompletion } from "./pipeline/llm-client";
+import { GPT_54_MINI_MODEL } from "./pipeline/model-routing";
+
+// ── xAI TTS Expression Tags ──────────────────────────────────────────────
+
+/**
+ * Complete reference of all xAI TTS expression tags.
+ * These are inserted by AI into story text before sending to xAI TTS.
+ */
+
+// Inline tags — inserted where the expression should occur
+export const XAI_INLINE_TAGS = {
+  // Pauses
+  pause: "[pause]",
+  longPause: "[long-pause]",
+  humTune: "[hum-tune]",
+
+  // Laughter & crying
+  laugh: "[laugh]",
+  chuckle: "[chuckle]",
+  giggle: "[giggle]",
+  cry: "[cry]",
+
+  // Mouth sounds
+  tsk: "[tsk]",
+  tongueClick: "[tongue-click]",
+  lipSmack: "[lip-smack]",
+
+  // Breathing
+  breath: "[breath]",
+  inhale: "[inhale]",
+  exhale: "[exhale]",
+  sigh: "[sigh]",
+} as const;
+
+// Wrapping tags — wrap text to change delivery style
+export const XAI_WRAPPING_TAGS = {
+  // Volume & intensity
+  soft: { open: "<soft>", close: "</soft>" },
+  whisper: { open: "<whisper>", close: "</whisper>" },
+  loud: { open: "<loud>", close: "</loud>" },
+  buildIntensity: { open: "<build-intensity>", close: "</build-intensity>" },
+  decreaseIntensity: { open: "<decrease-intensity>", close: "</decrease-intensity>" },
+
+  // Pitch & speed
+  higherPitch: { open: "<higher-pitch>", close: "</higher-pitch>" },
+  lowerPitch: { open: "<lower-pitch>", close: "</lower-pitch>" },
+  slow: { open: "<slow>", close: "</slow>" },
+  fast: { open: "<fast>", close: "</fast>" },
+
+  // Vocal style
+  singSong: { open: "<sing-song>", close: "</sing-song>" },
+  singing: { open: "<singing>", close: "</singing>" },
+  laughSpeak: { open: "<laugh-speak>", close: "</laugh-speak>" },
+  emphasis: { open: "<emphasis>", close: "</emphasis>" },
+} as const;
+
+// All valid tag names for validation
+const VALID_INLINE_TAGS: Set<string> = new Set(Object.values(XAI_INLINE_TAGS));
+const VALID_OPEN_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.open));
+const VALID_CLOSE_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.close));
+const XAI_UNSTABLE_WRAPPING_TAG_PATTERN =
+  /<\/?(?:higher-pitch|lower-pitch)>/g;
+
+// ── AI Enrichment ────────────────────────────────────────────────────────
+
+const ENRICHMENT_SYSTEM_PROMPT = `Add sparse xAI expression tags to a children's audiobook script.
+
+ALLOWED INLINE TAGS:
+[pause] [long-pause] [hum-tune] [laugh] [chuckle] [giggle] [cry] [tsk] [tongue-click] [lip-smack] [breath] [inhale] [exhale] [sigh]
+
+ALLOWED WRAPPERS:
+<soft>...</soft> <whisper>...</whisper> <loud>...</loud> <build-intensity>...</build-intensity> <decrease-intensity>...</decrease-intensity> <slow>...</slow> <fast>...</fast> <sing-song>...</sing-song> <singing>...</singing> <laugh-speak>...</laugh-speak> <emphasis>...</emphasis>
+
+HARD RULES:
+- Return only the annotated source text: no JSON, array, title, heading, markdown, or explanation.
+- Preserve every original word and punctuation mark in the same order. Only insert valid tags.
+- Use tags sparingly at real emotional turns, dialogue reactions, suspense, humour, and scene transitions.
+- Prefer pauses and delivery wrappers. Never use higher-pitch/lower-pitch; they cause narrator identity drift.
+- Keep the performance warm, clear, and age-appropriate.`;
+
+const ENRICHMENT_USER_PROMPT_TEMPLATE = `Annotate this children's story chapter with xAI TTS expression tags for natural, emotional narration.
+
+Chapter title: {TITLE}
+Chapter {ORDER} of {TOTAL}
+
+Story text:
+---
+{TEXT}
+---
+
+Return ONLY the enriched text with tags inserted. Do not change any words.`;
+
+// ── Enrichment Model Selection ───────────────────────────────────────────
+
+const ENRICHMENT_MODEL = "gemini-3.1-flash-lite-preview";
+const ENRICHMENT_MAX_TOKENS = 8192;
+const ENRICHMENT_TEMPERATURE = 0.4;
+
+// ── Core Function ────────────────────────────────────────────────────────
+
+export interface EnrichmentResult {
+  chapterId: string;
+  chapterOrder: number;
+  ttsText: string;
+  originalLength: number;
+  enrichedLength: number;
+  tagsInserted: number;
+}
+
+/**
+ * Enriches a single chapter's text with xAI TTS expression tags.
+ */
+export async function enrichChapterForTTS(input: {
+  chapterId: string;
+  chapterOrder: number;
+  chapterTitle: string;
+  text: string;
+  totalChapters: number;
+  aiModel?: string;
+}): Promise<EnrichmentResult> {
+  const userPrompt = ENRICHMENT_USER_PROMPT_TEMPLATE
+    .replace("{TITLE}", input.chapterTitle)
+    .replace("{ORDER}", String(input.chapterOrder))
+    .replace("{TOTAL}", String(input.totalChapters))
+    .replace("{TEXT}", input.text);
+
+  let enrichedText: string;
+
+  // Side-jobs for MiniMax stories should run on GPT-5.4-mini, not on MiniMax itself.
+  const model = input.aiModel?.startsWith("minimax-")
+    ? GPT_54_MINI_MODEL
+    : ENRICHMENT_MODEL;
+
+  if (model.startsWith("minimax-") && isRunwareConfigured()) {
+    const result = await generateWithRunwareText({
+      systemPrompt: ENRICHMENT_SYSTEM_PROMPT,
+      userPrompt,
+      model,
+      maxTokens: ENRICHMENT_MAX_TOKENS,
+      temperature: ENRICHMENT_TEMPERATURE,
+    });
+    enrichedText = result.content;
+  } else if (model.startsWith("gpt-")) {
+    const result = await callChatCompletion({
+      model,
+      fallbackModels: ["gpt-5.4-nano"],
+      messages: [
+        { role: "system", content: ENRICHMENT_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      responseFormat: "text",
+      maxTokens: ENRICHMENT_MAX_TOKENS,
+      temperature: ENRICHMENT_TEMPERATURE,
+      reasoningEffort: "none",
+      context: "tts-enrichment",
+      logSource: "tts-enrichment-llm",
+      logMetadata: {
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+      },
+    });
+    enrichedText = result.content;
+  } else if (isGeminiConfigured()) {
+    const result = await generateWithGemini({
+      systemPrompt: ENRICHMENT_SYSTEM_PROMPT,
+      userPrompt,
+      model: ENRICHMENT_MODEL,
+      maxTokens: ENRICHMENT_MAX_TOKENS,
+      temperature: ENRICHMENT_TEMPERATURE,
+    });
+    enrichedText = result.content;
+  } else {
+    // No AI available — return original text
+    console.warn(`[tts-enrichment] No AI model available for enrichment, skipping chapter ${input.chapterOrder}`);
+    return {
+      chapterId: input.chapterId,
+      chapterOrder: input.chapterOrder,
+      ttsText: input.text,
+      originalLength: input.text.length,
+      enrichedLength: input.text.length,
+      tagsInserted: 0,
+    };
+  }
+
+  // Clean up: remove markdown code fences if AI wrapped response
+  enrichedText = enrichedText
+    .replace(/^```[a-z]*\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+
+  enrichedText = stabilizeXaiNarrationText(enrichedText);
+
+  // The model is allowed to INSERT tags only. Production logs contained JSON
+  // arrays, reading-page headings, and altered wording despite that contract.
+  // Never persist a corrupted audiobook script: compare the complete source
+  // after stripping tags and fall back to the exact display text on mismatch.
+  const normalizedOriginal = normalizeTtsIntegrityText(input.text);
+  const normalizedEnrichedWords = normalizeTtsIntegrityText(stripTTSTags(enrichedText));
+  if (normalizedEnrichedWords !== normalizedOriginal) {
+    console.warn(`[tts-enrichment] Integrity mismatch in chapter ${input.chapterOrder}; using exact original text`, {
+      originalPreview: normalizedOriginal.slice(0, 140),
+      enrichedPreview: normalizedEnrichedWords.slice(0, 140),
+    });
+    enrichedText = input.text;
+  }
+
+  const tagsInserted = countTTSTags(enrichedText);
+
+  console.log(
+    `[tts-enrichment] Chapter ${input.chapterOrder} enriched: ` +
+    `${input.text.length} → ${enrichedText.length} chars, ${tagsInserted} tags inserted`
+  );
+
+  return {
+    chapterId: input.chapterId,
+    chapterOrder: input.chapterOrder,
+    ttsText: enrichedText,
+    originalLength: input.text.length,
+    enrichedLength: enrichedText.length,
+    tagsInserted,
+  };
+}
+
+/**
+ * Enriches all chapters of a story and saves tts_text to database.
+ */
+export async function enrichStoryForTTS(input: {
+  storyId: string;
+  chapters: Array<{
+    id: string;
+    title: string;
+    content: string;
+    order: number;
+  }>;
+  aiModel?: string;
+}): Promise<EnrichmentResult[]> {
+  const totalChapters = input.chapters.length;
+  if (totalChapters === 0) return [];
+
+  console.log(
+    `[tts-enrichment] Starting TTS enrichment for story ${input.storyId} (${totalChapters} chapters)`
+  );
+
+  const results: EnrichmentResult[] = [];
+
+  // Process chapters sequentially to avoid rate limits
+  for (const chapter of input.chapters) {
+    try {
+      const result = await enrichChapterForTTS({
+        chapterId: chapter.id,
+        chapterOrder: chapter.order,
+        chapterTitle: chapter.title,
+        text: chapter.content,
+        totalChapters,
+        aiModel: input.aiModel,
+      });
+
+      // Save tts_text to database
+      await storyDB.exec`
+        UPDATE chapters
+        SET tts_text = ${result.ttsText}
+        WHERE id = ${chapter.id}
+      `;
+
+      results.push(result);
+    } catch (error) {
+      console.error(
+        `[tts-enrichment] Failed to enrich chapter ${chapter.order}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      // Continue with remaining chapters — don't let one failure block all
+      results.push({
+        chapterId: chapter.id,
+        chapterOrder: chapter.order,
+        ttsText: chapter.content,
+        originalLength: chapter.content.length,
+        enrichedLength: chapter.content.length,
+        tagsInserted: 0,
+      });
+    }
+  }
+
+  const totalTags = results.reduce((sum, r) => sum + r.tagsInserted, 0);
+  console.log(
+    `[tts-enrichment] Story ${input.storyId} enrichment complete: ${totalTags} tags across ${totalChapters} chapters`
+  );
+
+  return results;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+function countTTSTags(text: string): number {
+  // Count inline tags like [pause], [laugh], etc.
+  const inlineMatches = text.match(/\[[a-z-]+\]/g) || [];
+  const validInline = inlineMatches.filter((tag) => VALID_INLINE_TAGS.has(tag));
+
+  // Count opening wrapping tags like <soft>, <whisper>, etc.
+  const openMatches = text.match(/<[a-z-]+>/g) || [];
+  const validOpen = openMatches.filter((tag) => VALID_OPEN_TAGS.has(tag));
+
+  return validInline.length + validOpen.length;
+}
+
+function normalizeTtsIntegrityText(text: string): string {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function stabilizeXaiNarrationText(text: string): string {
+  return String(text || "")
+    // Pitch shifts are the main source of narrator-identity drift in xAI TTS.
+    .replace(XAI_UNSTABLE_WRAPPING_TAG_PATTERN, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .trim();
+}
+
+/**
+ * Strips all xAI TTS tags from text (for display purposes).
+ * This is a safety function in case tts_text is accidentally shown.
+ */
+export function stripTTSTags(text: string): string {
+  return text
+    // Remove inline tags
+    .replace(/\[(pause|long-pause|hum-tune|laugh|chuckle|giggle|cry|tsk|tongue-click|lip-smack|breath|inhale|exhale|sigh)\]/g, "")
+    // Remove wrapping tags (open + close)
+    .replace(/<\/?(soft|whisper|loud|build-intensity|decrease-intensity|higher-pitch|lower-pitch|slow|fast|sing-song|singing|laugh-speak|emphasis)>/g, "")
+    // Clean up extra whitespace left behind
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}

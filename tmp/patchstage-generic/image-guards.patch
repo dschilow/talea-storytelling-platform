@@ -1,0 +1,74 @@
+diff --git a/backend/story/dev-mode-image-guards.ts b/backend/story/dev-mode-image-guards.ts
+index ac0a4d6..fdde683 100644
+--- a/backend/story/dev-mode-image-guards.ts
++++ b/backend/story/dev-mode-image-guards.ts
+@@ -6,10 +6,10 @@
+  *
+  *   - LLM occasionally emits `{"prompt":"..."}` as the prompt body,
+  *     which Runware then tokenises literally.
+- *   - Sprite-collage references mix Adrian + Alexander + Fee Rosalie,
+- *     and the diffusion model copies Rosalie's dress / wings onto Adrian.
+- *   - Prompt text sometimes claims "3 on-stage children" when the scene
+- *     contains 2 boys + 1 fairy.
++ *   - Multi-character references can make the diffusion model copy one
++ *     character's traits onto another.
++ *   - Prompt text can invent a cast count or entity type that contradicts
++ *     the authoritative scene plan.
+  *
+  * Each guard is pure and side-effect free so it can be unit-tested.
+  */
+@@ -215,17 +215,46 @@ export interface FilteredReferences {
+ 
+ /**
+  * Drop reference images for characters that are NOT in the scene. Prevents
+- * Rosalie's wings from leaking onto Adrian when she is not even present.
++ * off-stage traits from leaking onto visible characters.
+  *
+- * Name matching is case-insensitive substring match in both directions so
+- * "Fee Rosalie" matches "Rosalie" and vice versa.
++ * Name matching prefers exact names. A shortened token alias such as
++ * "Rosalie" -> "Fee Rosalie" is accepted only when it resolves to exactly
++ * one available reference. Prefix collisions such as "Alex"/"Alexander"
++ * are never treated as the same name.
+  */
+ export function filterReferencesForScene(scene: SceneCast): FilteredReferences {
+-  const onStageNorm = scene.onStageNames.map((n) => n.toLowerCase().trim());
+-  const references = scene.availableRefs.filter((ref) => {
+-    const refLower = ref.name.toLowerCase().trim();
+-    return onStageNorm.some((on) => on.includes(refLower) || refLower.includes(on));
+-  });
++  const normalized = (value: string): string => value
++    .normalize("NFKC")
++    .toLowerCase()
++    .replace(/[^\p{L}\p{N}]+/gu, " ")
++    .trim()
++    .replace(/\s+/g, " ");
++  const tokenAlias = (left: string, right: string): boolean => {
++    const a = normalized(left).split(" ").filter(Boolean);
++    const b = normalized(right).split(" ").filter(Boolean);
++    if (a.length === 0 || b.length === 0) return false;
++    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
++    if (shorter.length !== 1 || shorter[0].length < 3) return false;
++    return longer.includes(shorter[0]);
++  };
++
++  const kept = new Set<number>();
++  for (const onStageName of scene.onStageNames) {
++    const exactMatches = scene.availableRefs
++      .map((ref, index) => ({ ref, index }))
++      .filter(({ ref }) => normalized(ref.name) === normalized(onStageName));
++    if (exactMatches.length === 1) {
++      kept.add(exactMatches[0].index);
++      continue;
++    }
++    if (exactMatches.length > 1) continue;
++    const aliasMatches = scene.availableRefs
++      .map((ref, index) => ({ ref, index }))
++      .filter(({ ref }) => tokenAlias(ref.name, onStageName));
++    if (aliasMatches.length === 1) kept.add(aliasMatches[0].index);
++  }
++
++  const references = scene.availableRefs.filter((_ref, index) => kept.has(index));
+   const dropped = scene.availableRefs
+     .filter((ref) => !references.includes(ref))
+     .map((ref) => ref.name);

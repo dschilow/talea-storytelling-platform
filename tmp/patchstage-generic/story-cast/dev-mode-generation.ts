@@ -4060,6 +4060,56 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
+function getMainAvatarNames(input: DevModeGenerationInput): string[] {
+  const seen = new Set<string>();
+  return (input.avatars || [])
+    .map((avatar) => String(avatar.name || "").trim())
+    .filter((name) => {
+      const key = name.toLocaleLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatNameList(names: string[], fallback: string): string {
+  const clean = names.map((name) => String(name || "").trim()).filter(Boolean);
+  if (clean.length === 0) return fallback;
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")}, and ${clean[clean.length - 1]}`;
+}
+
+function mainAvatarVoiceInstruction(input: DevModeGenerationInput): string {
+  const names = getMainAvatarNames(input);
+  if (names.length >= 2) {
+    return `Every main avatar (${formatNameList(names, "the main cast")}) must have a distinct speaking rhythm, vocabulary, first reaction, and recurring physical behavior. No two lines may be freely swappable.`;
+  }
+  if (names.length === 1) {
+    return `${names[0]} must keep one specific, recognizable voice and behavior pattern throughout; never invent a second co-protagonist.`;
+  }
+  return "The story's named protagonist must keep one specific, recognizable voice and behavior pattern throughout; never invent an unplanned co-protagonist.";
+}
+
+function germanMainAvatarSubject(input: DevModeGenerationInput): { subject: string; give: string; leave: string; recognize: string; perform: string } {
+  const names = getMainAvatarNames(input);
+  const subject = names.length === 0
+    ? "Die Hauptfigur"
+    : names.length === 1
+      ? names[0]
+      : names.length === 2
+        ? `${names[0]} und ${names[1]}`
+        : `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]}`;
+  const plural = names.length > 1;
+  return {
+    subject,
+    give: plural ? "geben" : "gibt",
+    leave: plural ? "lassen" : "lässt",
+    recognize: plural ? "erkennen" : "erkennt",
+    perform: plural ? "führen" : "führt",
+  };
+}
+
 // --- Voice Bible ----------------------------------------------------------
 // Renders a single-line "voice tic" rule per main character + selected pool
 // cast member. The goal is to prevent voice-blur (validator-flagged failure
@@ -5731,9 +5781,11 @@ function buildSceneCardPrompts(
   repairIssues: string[] = []
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
-  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
-  const heroA = heroNames[0] || "main child A";
-  const heroB = heroNames[1] || "main child B";
+  const heroNames = getMainAvatarNames(input);
+  const primaryHero = heroNames[0] || "the named main protagonist";
+  const driverOptions = heroNames.length > 0
+    ? heroNames.map((name) => `"${name}"`).join(", ")
+    : 'the named main protagonist';
   const isPremium = (input.qualityMode || "premium") === "premium";
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -5760,8 +5812,7 @@ function buildSceneCardPrompts(
       '      "childDiscovery": string,',
       '      "childDecision": string,',
       '      "characterDriver": string,',
-      '      "adrianAction": string,',
-      '      "alexanderAction": string,',
+      '      "characterActions": { "[exact character name]": string },',
       '      "helperFunction": string,',
       '      "helperAction": string,',
       '      "helperMustNotExplain": true,',
@@ -5782,7 +5833,7 @@ function buildSceneCardPrompts(
     `Create exactly ${DEV_MODE_SCENE_CARD_COUNT} scene cards. These are cinematic story functions, not display chapters.`,
     "Required purposes, in order: hook, false_attempt, complication, irreversible_middle, final_payoff.",
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
-    `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
+    `Use characterDriver as one of ${driverOptions}, or "shared". characterActions must contain one entry for EVERY named main avatar: ${heroNames.join(", ") || "the named main protagonist"}. Never invent a second protagonist.`,
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
     "personalCost must name a PHYSICAL object, place, or privilege that is visibly given up, used up, broken, or left behind — NEVER an abstract feeling. Forbidden: 'verliert Zuversicht', 'muss Scham überwinden', 'loses hope'. Required shape: 'gibt den letzten X her', 'lässt Y zurück', 'Z zerbricht und bleibt zerbrochen'.",
     "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
@@ -5839,7 +5890,7 @@ function buildDialogueIntentPrompts(
       : "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
     "Plan dialogue function before drafting. This is not a quota pass; every beat must carry action, relationship, tension, humor, or subtext.",
     "For each of the 5 scenes, produce 4-6 dialogue beats. Hard minimum is 4 beats per scene.",
-    "Make the main children sound different through rhythm, word choice, first reaction, and body action.",
+    mainAvatarVoiceInstruction(input),
     "No filler acknowledgements. No helper explaining the magic rule or final answer.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
     repairIssues.length > 0 && previousDialoguePlan

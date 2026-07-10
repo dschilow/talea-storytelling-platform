@@ -60,7 +60,6 @@ import {
   preflightImagePrompt,
   filterReferencesForScene,
   deriveVisualEntityType,
-  selectFrameCastForReferenceLimit,
   renderSceneCastContract,
   stripModelCastCountClaims,
   type SceneCastCharacterContract,
@@ -2177,9 +2176,10 @@ async function generateDevModeImages(
   const maxNativeReferences = 4;
   // FLUX.2 [klein] accepts up to four native reference images. Larger story
   // casts are rotated across pages; no single image silently exceeds this cap.
-  // A multi-character sprite sheet makes the model infer which identity belongs
-  // to which name and encourages attribute blending, so dev mode passes the
-  // individual canonical references directly and scopes them per scene below.
+  // A multi-person
+  // sprite sheet makes the model infer which face belongs to which name and
+  // encourages identity/outfit blending, so dev mode now passes the individual
+  // canonical references directly and scopes them per scene below.
   const collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
 
   // -----------------------------------------------------------------------
@@ -2188,49 +2188,8 @@ async function generateDevModeImages(
   //    standard pipeline uses (slot_1, slot_2, \u2026). Without a collage we fall
   //    back to plain descriptive prompts.
   // -----------------------------------------------------------------------
-  const allCastNames = cast.map((entry) => entry.name);
-  const avatarNamesOnly = cast.filter((entry) => entry.kind === "avatar").map((entry) => entry.name);
-  const primaryCoverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : allCastNames).slice(0, maxNativeReferences);
-  const normalizeCharacterName = (value: string): string => String(value || "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-  const isSingleTokenAlias = (left: string, right: string): boolean => {
-    const a = normalizeCharacterName(left).split(" ").filter(Boolean);
-    const b = normalizeCharacterName(right).split(" ").filter(Boolean);
-    if (a.length === 0 || b.length === 0) return false;
-    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-    return shorter.length === 1 && shorter[0].length >= 3 && longer.includes(shorter[0]);
-  };
-  const resolveUniqueNamedEntry = <T extends { name: string }>(name: string, entries: T[]): T | undefined => {
-    const exact = entries.filter((entry) => normalizeCharacterName(entry.name) === normalizeCharacterName(name));
-    if (exact.length === 1) return exact[0];
-    if (exact.length > 1) return undefined;
-    const aliases = entries.filter((entry) => isSingleTokenAlias(entry.name, name));
-    return aliases.length === 1 ? aliases[0] : undefined;
-  };
-  const textMentionsCharacter = (text: string, name: string): boolean => {
-    const escaped = String(name || "")
-      .normalize("NFKC")
-      .trim()
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-      .replace(/\s+/g, "\\s+");
-    if (!escaped) return false;
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "iu").test(String(text || "").normalize("NFKC"));
-  };
-  const uniqueNames = (names: string[]): string[] => {
-    const seen = new Set<string>();
-    return names.filter((name) => {
-      const key = normalizeCharacterName(name);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-
   const castDescriptors = cast
+    .slice(0, 6)
     .map((entry) => {
       const desc = entry.description ? `: ${entry.description.slice(0, 700)}` : "";
       const entityType = deriveVisualEntityType(entry);
@@ -2252,14 +2211,12 @@ async function generateDevModeImages(
     : "(no supporting prop)";
 
   const imageScenePlan = parsedChapters.map((chapter) => {
+    const contentLower = chapter.content.toLowerCase();
     const proseNames = cast
       .filter((entry) => {
-        const firstName = entry.name.trim().split(/\s+/)[0] || "";
-        const firstNameIsUnique = firstName.length >= 3 && cast.filter((candidate) =>
-          normalizeCharacterName(candidate.name).split(" ")[0] === normalizeCharacterName(firstName)
-        ).length === 1;
-        return textMentionsCharacter(chapter.content, entry.name)
-          || (firstNameIsUnique && textMentionsCharacter(chapter.content, firstName));
+        const fullName = entry.name.toLowerCase();
+        const firstName = fullName.split(/\s+/)[0];
+        return contentLower.includes(fullName) || (firstName.length >= 3 && contentLower.includes(firstName));
       })
       .map((entry) => entry.name);
     const screenplayCard = ((screenplayPlan?.sceneCards as any[] | undefined) || []).find((card) =>
@@ -2272,21 +2229,14 @@ async function generateDevModeImages(
         : [])
       .map((name: unknown) => String(name || "").trim())
       .filter((name: string) => name.length > 0 && name.length <= 80);
-    const allDetectedNames = uniqueNames([...declaredNames, ...proseNames]);
-    const onStageNames = selectFrameCastForReferenceLimit({
-      allNames: allDetectedNames,
-      priorityNames: declaredNames,
-      pageOrder: Number(chapter.order),
-      maxReferences: maxNativeReferences,
-    });
+    const allDetectedNames = [...new Set([...declaredNames, ...proseNames])];
+    const onStageNames = allDetectedNames.slice(0, maxNativeReferences);
     return {
       order: chapter.order,
       title: chapter.title,
       onStageNames,
       visibleCharacterCount: onStageNames.length,
-      omittedFromThisFrame: allDetectedNames.filter((name) =>
-        !onStageNames.some((selected) => normalizeCharacterName(selected) === normalizeCharacterName(name))
-      ),
+      omittedFromThisFrame: allDetectedNames.slice(maxNativeReferences),
       sceneSummary: compactExcerpt(chapter.content.replace(/\s+/g, " "), 520),
       dramaticBeat: extractDramaticBeat(chapter.content),
       mustAvoid: [
@@ -2298,8 +2248,7 @@ async function generateDevModeImages(
         "no identity, species, anatomy, age, or attribute transfer",
       ],
     };
-  });
-  const imageScenePlanByOrder = new Map(imageScenePlan.map((scene) => [Number(scene.order), scene]));
+  });  const imageScenePlanByOrder = new Map(imageScenePlan.map((scene) => [Number(scene.order), scene]));
 
   const englishVisualHint = (raw: unknown, fallback: string, maxChars = 180): string => {
     let out = String(raw || "")
@@ -2395,7 +2344,7 @@ async function generateDevModeImages(
     "TASK:",
     "Return JSON with this exact shape:",
     "{ \"cover\": \"<cover prompt>\", \"chapters\": [{\"order\": 1, \"prompt\": \"<prompt>\"}, ...] }",
-    `- Cover: ONE iconic single-scene illustration centered on the central story object and EXACTLY this visible primary cast: ${primaryCoverNames.join(", ") || "none"}. Avatars may have any entity type. Rotate larger avatar casts across interior pages.`,
+    `- Cover: ONE iconic single-scene illustration centered on the primary avatars and central story object. Avatars may be human, animal, fantasy, robot, plant, object, or anything else. Show at most ${maxNativeReferences} primary avatars; rotate larger avatar casts across interior pages.`,
     "- Exactly one prompt per reading page, single scene, picture-book composition. The JSON key stays chapters for app compatibility.",
     "- ENGLISH ONLY. 40\u201380 words per prompt.",
     "",
@@ -2528,7 +2477,7 @@ async function generateDevModeImages(
       "",
       artifactBlock,
       "",
-      "Refer to on-stage characters by NAME and entity-appropriate visual specifics. Never infer entity type from avatar/pool source. Do NOT mention slot_N, collage, frame colors, or borders.",
+      "Refer to on-stage characters by NAME and concrete visual specifics. Do NOT mention slot_N, collage, frame colors, or borders.",
       "Do NOT include readable text, captions, signs, labels, or written words in the imagery. Blank/unreadable paper is allowed only when the scene explicitly needs a note or letter.",
       "Reply with the ENGLISH 40-80 word prompt ONLY \u2014 no preamble, no quotes.",
     ].join("\n");
@@ -2538,15 +2487,14 @@ async function generateDevModeImages(
     if (needsCoverRefill) {
       refillJobs.push({
         kind: "cover",
-        instruction: `${refillCommon}\n\nAUTHORITATIVE VISIBLE CAST FOR THIS FRAME: EXACTLY ${primaryCoverNames.length} named characters: ${primaryCoverNames.join(", ") || "none"}. Omit every other character.\nTASK: Write the COVER illustration prompt \u2014 one iconic single-scene image capturing the story's heart and central object.`,
+        instruction: `${refillCommon}\n\nTASK: Write the COVER illustration prompt \u2014 one iconic single-scene image capturing the story's heart, featuring only the primary avatars selected for the cover and the central object.`,
       });
     }
     for (const ch of missingChapters) {
-      const frameCast = imageScenePlanByOrder.get(Number(ch.order))?.onStageNames || [];
       refillJobs.push({
         kind: "chapter",
         order: ch.order,
-        instruction: `${refillCommon}\n\nAUTHORITATIVE VISIBLE CAST FOR THIS FRAME: EXACTLY ${frameCast.length} named characters: ${frameCast.join(", ") || "none"}. Omit every other character.\nTASK: Write the picture-book prompt for reading page ${ch.order}. The page title is only an app label: "${ch.title}". Base the visual on this German reading-page content, but depict only the authoritative visible cast above (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
+        instruction: `${refillCommon}\n\nTASK: Write the picture-book prompt for reading page ${ch.order}. The page title is only an app label: \"${ch.title}\". Base the visual on this German reading-page content (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
       });
     }
 
@@ -2590,12 +2538,15 @@ async function generateDevModeImages(
   // Style suffix: deliberately NOT referencing any named living artist. Runware
   // ip-adapter handles identity via the collage reference, so we describe style
   // generically and append hard constraints against text, extra characters, and
-  // duplicate characters. These constraints guard text, ghost figures, type drift, and identity drift.
+  // duplicate avatars. These constraints are the most reliable in-prompt lever
+  // against the visual-QA failures we observed (text/labels, ghost children,
+  // duplicate avatars, identity drift).
   const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characterization, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, entity-appropriate anatomy, no readable text, no captions, no speech bubbles, no signs, no labels, no logos, blank unreadable paper only if required by the scene, no extra or duplicate characters of any type";
 
-  // Generic per-scene manifest: source kind never implies entity type. The
-  // manifest carries canonical per-character attributes and is added before
-  // the style suffix so identity constraints are never truncated.
+  // v11 §12D + v12 §13C/D: per-scene character manifest is appended to the
+  // prompt so the diffusion model receives explicit "NO dress on boys"
+  // constraints rather than relying on the negative prompt alone. The
+  // manifest is added BEFORE the styleSuffix so it never gets truncated.
   //
   // v12 fixes three bugs from log-runware-single-image-3b8eedfe:
   //   1. JSON fragments: `entry.description` can be a stringified character
@@ -2652,7 +2603,11 @@ async function generateDevModeImages(
   // (distorted/wrong faces — the whole point of the collage is lost).
   const ORDINAL_WORDS = ["first (leftmost)", "second", "third", "fourth", "fifth"];
   const collageAnchorForName = (name: string): { ordinal: string; color: string } | null => {
-    const pos = resolveUniqueNamedEntry(name, collagePositions);
+    const pos = collagePositions.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+        || p.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(p.name.toLowerCase())
+    );
     if (!pos) return null;
     return {
       ordinal: ORDINAL_WORDS[pos.index] || `${pos.index + 1}th`,
@@ -2663,63 +2618,94 @@ async function generateDevModeImages(
   const buildManifestBlock = (sceneNames: string[], useCollage: boolean, directReferenceNames: string[] = []): string => {
     if (sceneNames.length === 0) return "";
     const lines: string[] = [];
+    const isFairyLike = (entry: CastEntry): boolean => /\b(fee|fairy|fluegel|flügel|wings?|zauberstab|flower crown|blumenkranz)\b/i.test(`${entry.name} ${entry.description || ""}`);
+    // In collage mode the identity source is a specific framed cell in the
+    // reference strip, not "the reference image" as a whole. Build a per-name
+    // anchor ("the boy in the 1st (leftmost) purple-framed cell") so the model
+    // can map each name onto the correct face.
     const identityAnchor = (name: string): string => {
       if (!useCollage) {
-        const directReference = resolveUniqueNamedEntry(
-          name,
-          directReferenceNames.map((referenceName) => ({ name: referenceName }))
+        const directIndex = directReferenceNames.findIndex((referenceName) =>
+          referenceName.toLowerCase() === name.toLowerCase()
+            || referenceName.toLowerCase().includes(name.toLowerCase())
+            || name.toLowerCase().includes(referenceName.toLowerCase())
         );
-        const directIndex = directReference
-          ? directReferenceNames.findIndex((referenceName) =>
-              normalizeCharacterName(referenceName) === normalizeCharacterName(directReference.name)
-            )
-          : -1;
         return directIndex >= 0
           ? `match attached reference image ${directIndex + 1} for ${name} exactly`
-          : `match ${name}'s canonical metadata and description exactly`;
+          : `match ${name}'s canonical description exactly`;
       }
       const anchor = collageAnchorForName(name);
-      return anchor
-        ? `match the identity of the ${anchor.ordinal} character inside the ${anchor.color}-bordered reference cell`
-        : `match ${name}'s canonical reference exactly`;
-    };
-
-    const resolvedSceneEntries = new Set(
-      sceneNames.map((name) => resolveUniqueNamedEntry(name, cast)).filter(Boolean)
-    );
-    for (const entry of cast) {
-      if (!resolvedSceneEntries.has(entry)) continue;
-      let visual = compactCharacterDescription(entry.description, "use the canonical reference/profile for every visible feature");
-      if (/\b(und|der|die|das|ist|sehr|kann|hat|eine[mnr]?|junge|mädchen|maedchen|gro(?:ss|ß)e?)\b/i.test(visual)) {
-        const englishHints: string[] = [];
-        const visualHintMap: Array<[RegExp, string]> = [
-          [/zahnl(?:ü|ue)cke/i, "visible front tooth gap"],
-          [/blonde?[mnrs]?\s*haar\w*/i, "blond hair"],
-          [/braune?[mnrs]?\s*haar\w*/i, "brown hair"],
-          [/rote?[mnrs]?\s*haar\w*/i, "red hair"],
-          [/lockig\w*/i, "curly hair or fur"],
-          [/brille/i, "glasses"],
-          [/sommersprossen/i, "freckles"],
-          [/gr(?:ü|ue)ne?[mnrs]?\s*augen/i, "green eyes"],
-          [/blaue?[mnrs]?\s*augen/i, "blue eyes"],
-          [/braune?[mnrs]?\s*augen/i, "brown eyes"],
-          [/abstehend\w*\s*ohr\w*/i, "distinctive protruding ears"],
-          [/flügel|fluegel/i, "canonical wings"],
-          [/fell/i, "canonical fur pattern"],
-          [/schwanz/i, "canonical tail"],
-          [/räder|raeder/i, "canonical wheels"],
-        ];
-        for (const [pattern, english] of visualHintMap) if (pattern.test(visual)) englishHints.push(english);
-        visual = englishHints.length > 0 ? englishHints.join(", ") : "use the canonical reference/profile for every visible feature";
+      if (!anchor) {
+        return `match ${name}'s reference face exactly`;
       }
-      const entityType = deriveVisualEntityType(entry);
-      lines.push(`${entry.name}: ${entityType}. CANONICAL APPEARANCE: ${visual}. IDENTITY: ${identityAnchor(entry.name)}. Preserve this character's own species, anatomy, apparent age, gender presentation, face/head shape, hair/fur/skin/material, markings, colors, clothing, and accessories when present. Add nothing from another character and transfer none of these attributes elsewhere.`);
+      return `match the identity of the ${anchor.ordinal} character (the one inside the ${anchor.color}-bordered cell) in the reference strip`;
+    };
+    for (const entry of cast) {
+      if (!sceneNames.some((n) => n.toLowerCase().includes(entry.name.toLowerCase()) || entry.name.toLowerCase().includes(n.toLowerCase()))) continue;
+      if (entry.kind === "avatar") {
+        let visual = compactCharacterDescription(entry.description, "casual boy clothing");
+        // German avatar descriptions ("ist sehr lieber junge, hat eine große
+        // Zahnlücke") must not leak verbatim into the FLUX prompt — German
+        // tokens both dilute the prompt and invite text rendering. Extract the
+        // known VISUAL hints into English and drop the rest.
+        if (/\b(und|der|die|das|ist|sehr|kann|hat|eine[mnr]?|junge|gro(?:ss|ß)e?)\b/i.test(visual)) {
+          const englishHints: string[] = [];
+          const visualHintMap: Array<[RegExp, string]> = [
+            [/zahnl(?:ü|ue)cke/i, "big visible tooth gap in his smile"],
+            [/blonde?[mnrs]?\s*haar\w*/i, "short blond hair"],
+            [/braune?[mnrs]?\s*haar\w*/i, "short brown hair"],
+            [/rote?[mnrs]?\s*haar\w*/i, "red hair"],
+            [/lockig\w*/i, "curly hair"],
+            [/brille/i, "round glasses"],
+            [/sommersprossen/i, "freckles"],
+            [/gr(?:ü|ue)ne?[mnrs]?\s*augen/i, "green eyes"],
+            [/blaue?[mnrs]?\s*augen/i, "blue eyes"],
+            [/braune?[mnrs]?\s*augen/i, "brown eyes"],
+            [/abstehend\w*\s*ohr\w*/i, "distinctive protruding ears"],
+          ];
+          for (const [pattern, english] of visualHintMap) {
+            if (pattern.test(visual)) englishHints.push(english);
+          }
+          visual = englishHints.length > 0 ? englishHints.join(", ") : "casual boy clothing";
+        }
+        // IDENTITY LOCK: the reference image is the single source of truth for
+        // recurring heroes. Without this line the model re-rolled hair color
+        // per page whenever the avatar's text description carried no visual
+        // details (Adrian: blond on page 2, brown on page 4 — log 0e8c0a4e).
+        lines.push(`${entry.name}: human boy, ${visual}. IDENTITY: ${identityAnchor(entry.name)} — same face, same hair color and hairstyle, same skin tone, same outfit colors, on every page. No dress, no skirt, no fairy wings, no flower crown, no pink fairy outfit.`);
+      } else {
+        const visual = compactCharacterDescription(entry.description, "supporting character");
+        if (isFairyLike(entry)) {
+          lines.push(`${entry.name}: fairy character, ${visual}. IDENTITY: ${identityAnchor(entry.name)}. Keep wings, wand, flower crown, or fairy outfit only if they are part of this character's canonical look; do not transfer those features to human children.`);
+        } else {
+          // v12 §13D: NO character permission for wings unless the character
+          // is explicitly a fairy in the story AND appears as a fairy in this
+          // scene. The old "Only X may wear wings" template gave non-fairy
+          // characters wings in every image.
+          lines.push(`${entry.name}: ${visual}. IDENTITY: ${identityAnchor(entry.name)}. No fairy wings, no fairy dress, no flower crown, unless explicitly required by this scene.`);
+        }
+      }
     }
     if (lines.length === 0) return "";
-    if (!useCollage) return ` CHARACTER MANIFEST: ${lines.join(" ")}`;
-    const subsetNote = lines.length < collagePositions.length ? ` Use only these ${lines.length} named reference cells; omit all other cells.` : "";
-    return ` REFERENCE IMAGE NOTE: the attached strip is an identity guide, never part of the artwork.${subsetNote} CHARACTER MANIFEST: ${lines.join(" ")} OUTPUT: one cohesive scene only; no strip, frames, borders, lineup, grid, panels, or inset portraits.`;
+    // When the reference is the sprite collage, describe the strip up front so
+    // each name maps to the right cell, and forbid the model from reproducing
+    // the strip/frames/borders (log "Karte der Wege": the 3-cell strip was
+    // painted across the top of the cover). The closing SINGLE ILLUSTRATED
+    // SCENE line sits near the very end of the prompt for maximum weight.
+    if (!useCollage) {
+      return ` CHARACTERS: ${lines.join(" ")}`;
+    }
+    // The strip may hold MORE characters than this scene shows (e.g. a 3-cell
+    // strip on a 2-hero page). Tell the model to use ONLY the named cells and
+    // leave the rest out, so an off-stage character does not wander into frame.
+    const subsetNote = lines.length < collagePositions.length
+      ? ` This scene shows ONLY ${lines.length} of the ${collagePositions.length} characters in the strip — use just the cells named below and do NOT add the other characters from the strip.`
+      : "";
+    const collageIntro = ` REFERENCE IMAGE NOTE: the attached reference is a technical identity sheet — ONE horizontal strip of ${collagePositions.length} separate character portraits, each inside a colored border, left to right. It is NOT part of the artwork.${subsetNote} Read each named character's face, hair, skin and outfit from their cell, then paint them fresh into the single scene described. The colored borders and cell layout are invisible guides only.`;
+    const collageOutro = ` OUTPUT FORMAT: render ONE single illustrated storybook scene only. Do NOT draw, copy, or include the reference strip, the framed cells, the colored borders, the portrait lineup, or any panels/grid/inset thumbnails anywhere in the image. The characters must be inside the scene, interacting — never lined up as framed portraits.`;
+    return `${collageIntro} CHARACTERS: ${lines.join(" ")}${collageOutro}`;
   };
+
   // -----------------------------------------------------------------------
   // 4) Render via Runware. Prefer the resolved collage URL as the single
   //    reference image (same approach as standard pipeline). When the collage
@@ -2731,7 +2717,7 @@ async function generateDevModeImages(
     ...resolvedCast.filter((c) => c.kind === "avatar"),
     ...resolvedCast.filter((c) => c.kind === "pool"),
   ];
-  console.log(`[dev-mode-generation] Runware native reference set: available=${referenceEntries.length}, perSceneLimit=${maxNativeReferences}, collage=false`);
+  console.log(`[dev-mode-generation] Runware native reference set: available=${referenceEntries.length}, perSceneLimit=4, collage=false`);
 
   // ONE deterministic seed per story: all 6 images share seed + style + refs,
   // which keeps face/hair/outfit rendering far more stable than per-image
@@ -2755,7 +2741,7 @@ async function generateDevModeImages(
   // override. Scene cards use `scene` (not `order`), which the old lookup
   // missed and therefore fell back to both avatars on every page.
   for (const scene of imageScenePlan) {
-    sceneCharsByChapter.set(Number(scene.order), scene.onStageNames.slice(0, maxNativeReferences));
+    sceneCharsByChapter.set(Number(scene.order), scene.onStageNames.slice(0, 4));
   }
   for (const card of (screenplayPlan?.sceneCards as any[] | undefined) || []) {
     const order = Number((card && (card.scene ?? card.order ?? card.chapter)) ?? NaN);
@@ -2765,21 +2751,22 @@ async function generateDevModeImages(
       : Array.isArray(card?.onStageCharacters) && card.onStageCharacters.length > 0
         ? card.onStageCharacters
         : [];
-    const cardText = JSON.stringify(card);
-    const inferredNames = cast.filter((entry) => textMentionsCharacter(cardText, entry.name)).map((entry) => entry.name);
+    const cardText = JSON.stringify(card).toLowerCase();
+    const inferredNames = cast.filter((entry) => cardText.includes(entry.name.toLowerCase())).map((entry) => entry.name);
     const existingNames = sceneCharsByChapter.get(order) || [];
-    // Explicit screenplay cast wins; prose-derived canonical names only fill remaining native-reference slots.
-    const normalizedExplicitNames = explicitNames
-      .map((name: any) => String(name || "").trim())
-      .filter((name: string): name is string => Boolean(name));
-    const names = uniqueNames([...normalizedExplicitNames, ...existingNames, ...inferredNames]);
-    sceneCharsByChapter.set(order, selectFrameCastForReferenceLimit({
-      allNames: names,
-      priorityNames: normalizedExplicitNames,
-      pageOrder: order,
-      maxReferences: maxNativeReferences,
-    }));
+    // Union prose-derived cast with the explicit screenplay cast. The previous
+    // preference for existingNames silently dropped named non-pool antagonists
+    // (e.g. Eis-König), so the renderer turned them into an unexplained third boy.
+    const names = [...new Set([...explicitNames, ...existingNames, ...inferredNames])];
+    sceneCharsByChapter.set(
+      order,
+      names
+        .map((n: any) => String(n || "").trim())
+        .filter((n: string): n is string => Boolean(n))
+        .slice(0, maxNativeReferences)
+    );
   }
+  const avatarNamesOnly = cast.filter((c) => c.kind === "avatar").map((c) => c.name);
   const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
     const storyAnchor = englishVisualHint(
       input.selectedIdea?.centralObjectOrPlace || input.matchedArtifact?.name || input.selectedIdea?.wonderRule,
@@ -2805,7 +2792,7 @@ async function generateDevModeImages(
       // Cover stays iconic and identity-safe: primary avatars of any entity type.
       const coverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : cast.map((e) => e.name))
         .slice(0, maxNativeReferences)
-        .join(", ") || "the primary characters";
+        .join(", ") || "the heroes";
       return `Single picture-book cover scene with ${coverNames}, centered on ${storyAnchor} in ${settingHint}. Show one specific magical problem, warm child-friendly tension, exactly the named characters, no text.`;
     }
     const sceneNames = ((job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly).slice(0, maxNativeReferences);
@@ -2813,11 +2800,8 @@ async function generateDevModeImages(
     const scenePlan = typeof job.order === "number" ? imageScenePlanByOrder.get(job.order) : undefined;
     // Prefer the extracted dramatic beat over the flat page summary so even
     // the deterministic fallback prompt shows a lively peak moment.
-    const actionSource = scenePlan?.omittedFromThisFrame?.length
-      ? `the named cast taking one focused action around ${storyAnchor}`
-      : (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary;
     const actionHint = englishVisualHint(
-      actionSource,
+      (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary,
       `a concrete action around ${storyAnchor}`,
       180
     );
@@ -2837,14 +2821,19 @@ async function generateDevModeImages(
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
-  // The final prose/scene plan decides which canonical references are attached per image.
+  // Full cast name list. The final prose/scene plan decides which individual
+  // canonical references are attached to each image; this is the cover fallback.
+  const allCastNames = cast.map((c) => c.name);
+  const primaryCoverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : allCastNames).slice(0, maxNativeReferences);
 
   const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
     if (job.kind === "cover") return primaryCoverNames;
-    if (typeof job.order === "number" && sceneCharsByChapter.has(job.order)) {
-      return (sceneCharsByChapter.get(job.order) || []).slice(0, maxNativeReferences);
+    if (typeof job.order === "number") {
+      const planned = sceneCharsByChapter.get(job.order) || [];
+      if (planned.length > 0) return planned.slice(0, maxNativeReferences);
     }
-    const mentioned = allCastNames.filter((name) => textMentionsCharacter(job.prompt, name));
+    const lower = job.prompt.toLowerCase();
+    const mentioned = allCastNames.filter((name) => lower.includes(name.toLowerCase()));
     return (mentioned.length > 0 ? mentioned : avatarNamesOnly).slice(0, maxNativeReferences);
   };
 
@@ -2852,13 +2841,16 @@ async function generateDevModeImages(
     sceneNames: string[],
     directEntries: Array<{ name: string; imageUrl: string; kind: "avatar" | "pool" }>,
   ): SceneCastCharacterContract[] => sceneNames.slice(0, maxNativeReferences).map((name) => {
-    const entry = resolveUniqueNamedEntry(name, cast);
-    const reference = resolveUniqueNamedEntry(name, directEntries);
-    const referenceIndex = reference
-      ? directEntries.findIndex((candidate) =>
-          normalizeCharacterName(candidate.name) === normalizeCharacterName(reference.name)
-        )
-      : -1;
+    const entry = cast.find((candidate) =>
+      candidate.name.toLowerCase() === name.toLowerCase()
+        || candidate.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(candidate.name.toLowerCase())
+    );
+    const referenceIndex = directEntries.findIndex((reference) =>
+      reference.name.toLowerCase() === name.toLowerCase()
+        || reference.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(reference.name.toLowerCase())
+    );
     return {
       name,
       entityType: entry
@@ -2907,8 +2899,8 @@ async function generateDevModeImages(
       });
       const directEntries = filteredReferences.references.slice(0, maxNativeReferences);
       const sceneRefs = directEntries.map((entry) => entry.imageUrl);
-      // Merge the entity-generic negative pack: no extra cast, identity/type
-      // swaps, attribute transfer, malformed anatomy, or text. In collage
+      // v11 §12F: merge canonical negative-prompt pack (no dress on boys,
+      // no wings, no flower crown, no outfit swap, no text, etc.). In collage
       // mode also add the anti-strip negatives so the model does not paint the
       // reference strip / framed cells / colored borders into the scene.
       const negativePrompt = mergeNegativePrompt(undefined, { collageMode: false });
@@ -2916,12 +2908,11 @@ async function generateDevModeImages(
       // v11 §12D: append character manifest with explicit attribute locks.
       // When rendering against the sprite collage, the manifest anchors each
       // character to its framed cell + border color in the reference strip.
-      const directReferenceNames = directEntries.map((entry) => entry.name);
-      const manifestBlock = buildManifestBlock(sceneNames, false, directReferenceNames);
+      const directReferenceNames = sceneRefs.map((url) => resolvedCast.find((entry) => entry.resolvedUrl === url)?.name).filter((name): name is string => Boolean(name));
+      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames, false, directReferenceNames);
       const sceneCastCharacters = buildSceneCastCharacters(sceneNames, directEntries);
-      const castContract = renderSceneCastContract(sceneCastCharacters);
-      const identityContract = directEntries.map((entry, index) => {
-        const canonical = resolveUniqueNamedEntry(entry.name, cast);
+      const castContract = renderSceneCastContract(sceneCastCharacters);      const identityContract = directEntries.map((entry, index) => {
+        const canonical = cast.find((candidate) => candidate.name === entry.name);
         const knownVisual = compactCharacterDescription(canonical?.description, "use every visible canonical feature from the attached reference");
         return `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Canonical identity has priority over scene wording. Reproduce ${entry.name}'s exact entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories as applicable. Keep every canonical trait unchanged. Borrow nothing from another reference. Known visual cue: ${knownVisual}.`;
       }).join("\n");
@@ -2940,7 +2931,7 @@ async function generateDevModeImages(
       const preflight = preflightImagePrompt({
         positivePrompt: fullPrompt,
         references: directReferenceNames.map((name) => ({ name })),
-        onStageNames: sceneNames,
+        onStageNames: sceneNames.length > 0 ? sceneNames : allCastNames,
       });
       if (!preflight.ok && preflight.issues.some((i) => i.code === "json_wrapper" || i.code === "missing_count_contract")) {
         // Hard issue — refuse to ship a JSON-wrapped prompt to Runware. This
@@ -2997,8 +2988,7 @@ async function generateDevModeImages(
         `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Preserve the exact canonical entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories. Never swap or transfer attributes.`
       ).join("\n");
       const retryScenePrompt = stripModelCastCountClaims(sanitizeImagePrompt(fallbackImagePrompt(job))).prompt;
-      const retryPrompt = [retryIdentityContract, retryCastContract, retryScenePrompt, retryManifest, styleSuffix].filter(Boolean).join("\n");
-      try {
+      const retryPrompt = [retryIdentityContract, retryCastContract, retryScenePrompt, retryManifest, styleSuffix].filter(Boolean).join("\n");      try {
         const img = await ai.generateImage({
           prompt: retryPrompt,
           model: DEV_MODE_IMAGE_MODEL,
@@ -3077,7 +3067,7 @@ async function generateDevModeImages(
           ],
           model: qaModel,
           responseFormat: "json_object",
-          imageInputs: [r.imageUrl!, ...r.sceneRefs.slice(0, maxNativeReferences)],
+          imageInputs: [r.imageUrl!, ...r.sceneRefs.slice(0, 4)],
           temperature: 0,
           maxTokens: 900,
         });

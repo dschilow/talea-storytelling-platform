@@ -60,7 +60,6 @@ import {
   preflightImagePrompt,
   filterReferencesForScene,
   deriveVisualEntityType,
-  selectFrameCastForReferenceLimit,
   renderSceneCastContract,
   stripModelCastCountClaims,
   type SceneCastCharacterContract,
@@ -2177,9 +2176,10 @@ async function generateDevModeImages(
   const maxNativeReferences = 4;
   // FLUX.2 [klein] accepts up to four native reference images. Larger story
   // casts are rotated across pages; no single image silently exceeds this cap.
-  // A multi-character sprite sheet makes the model infer which identity belongs
-  // to which name and encourages attribute blending, so dev mode passes the
-  // individual canonical references directly and scopes them per scene below.
+  // A multi-person
+  // sprite sheet makes the model infer which face belongs to which name and
+  // encourages identity/outfit blending, so dev mode now passes the individual
+  // canonical references directly and scopes them per scene below.
   const collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
 
   // -----------------------------------------------------------------------
@@ -2191,45 +2191,6 @@ async function generateDevModeImages(
   const allCastNames = cast.map((entry) => entry.name);
   const avatarNamesOnly = cast.filter((entry) => entry.kind === "avatar").map((entry) => entry.name);
   const primaryCoverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : allCastNames).slice(0, maxNativeReferences);
-  const normalizeCharacterName = (value: string): string => String(value || "")
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .replace(/\s+/g, " ");
-  const isSingleTokenAlias = (left: string, right: string): boolean => {
-    const a = normalizeCharacterName(left).split(" ").filter(Boolean);
-    const b = normalizeCharacterName(right).split(" ").filter(Boolean);
-    if (a.length === 0 || b.length === 0) return false;
-    const [shorter, longer] = a.length <= b.length ? [a, b] : [b, a];
-    return shorter.length === 1 && shorter[0].length >= 3 && longer.includes(shorter[0]);
-  };
-  const resolveUniqueNamedEntry = <T extends { name: string }>(name: string, entries: T[]): T | undefined => {
-    const exact = entries.filter((entry) => normalizeCharacterName(entry.name) === normalizeCharacterName(name));
-    if (exact.length === 1) return exact[0];
-    if (exact.length > 1) return undefined;
-    const aliases = entries.filter((entry) => isSingleTokenAlias(entry.name, name));
-    return aliases.length === 1 ? aliases[0] : undefined;
-  };
-  const textMentionsCharacter = (text: string, name: string): boolean => {
-    const escaped = String(name || "")
-      .normalize("NFKC")
-      .trim()
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-      .replace(/\s+/g, "\\s+");
-    if (!escaped) return false;
-    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "iu").test(String(text || "").normalize("NFKC"));
-  };
-  const uniqueNames = (names: string[]): string[] => {
-    const seen = new Set<string>();
-    return names.filter((name) => {
-      const key = normalizeCharacterName(name);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  };
-
   const castDescriptors = cast
     .map((entry) => {
       const desc = entry.description ? `: ${entry.description.slice(0, 700)}` : "";
@@ -2252,14 +2213,12 @@ async function generateDevModeImages(
     : "(no supporting prop)";
 
   const imageScenePlan = parsedChapters.map((chapter) => {
+    const contentLower = chapter.content.toLowerCase();
     const proseNames = cast
       .filter((entry) => {
-        const firstName = entry.name.trim().split(/\s+/)[0] || "";
-        const firstNameIsUnique = firstName.length >= 3 && cast.filter((candidate) =>
-          normalizeCharacterName(candidate.name).split(" ")[0] === normalizeCharacterName(firstName)
-        ).length === 1;
-        return textMentionsCharacter(chapter.content, entry.name)
-          || (firstNameIsUnique && textMentionsCharacter(chapter.content, firstName));
+        const fullName = entry.name.toLowerCase();
+        const firstName = fullName.split(/\s+/)[0];
+        return contentLower.includes(fullName) || (firstName.length >= 3 && contentLower.includes(firstName));
       })
       .map((entry) => entry.name);
     const screenplayCard = ((screenplayPlan?.sceneCards as any[] | undefined) || []).find((card) =>
@@ -2272,21 +2231,14 @@ async function generateDevModeImages(
         : [])
       .map((name: unknown) => String(name || "").trim())
       .filter((name: string) => name.length > 0 && name.length <= 80);
-    const allDetectedNames = uniqueNames([...declaredNames, ...proseNames]);
-    const onStageNames = selectFrameCastForReferenceLimit({
-      allNames: allDetectedNames,
-      priorityNames: declaredNames,
-      pageOrder: Number(chapter.order),
-      maxReferences: maxNativeReferences,
-    });
+    const allDetectedNames = [...new Set([...declaredNames, ...proseNames])];
+    const onStageNames = allDetectedNames.slice(0, maxNativeReferences);
     return {
       order: chapter.order,
       title: chapter.title,
       onStageNames,
       visibleCharacterCount: onStageNames.length,
-      omittedFromThisFrame: allDetectedNames.filter((name) =>
-        !onStageNames.some((selected) => normalizeCharacterName(selected) === normalizeCharacterName(name))
-      ),
+      omittedFromThisFrame: allDetectedNames.slice(maxNativeReferences),
       sceneSummary: compactExcerpt(chapter.content.replace(/\s+/g, " "), 520),
       dramaticBeat: extractDramaticBeat(chapter.content),
       mustAvoid: [
@@ -2538,15 +2490,14 @@ async function generateDevModeImages(
     if (needsCoverRefill) {
       refillJobs.push({
         kind: "cover",
-        instruction: `${refillCommon}\n\nAUTHORITATIVE VISIBLE CAST FOR THIS FRAME: EXACTLY ${primaryCoverNames.length} named characters: ${primaryCoverNames.join(", ") || "none"}. Omit every other character.\nTASK: Write the COVER illustration prompt \u2014 one iconic single-scene image capturing the story's heart and central object.`,
+        instruction: `${refillCommon}\n\nTASK: Write the COVER illustration prompt \u2014 one iconic single-scene image capturing the story's heart, featuring only the primary avatars selected for the cover and the central object.`,
       });
     }
     for (const ch of missingChapters) {
-      const frameCast = imageScenePlanByOrder.get(Number(ch.order))?.onStageNames || [];
       refillJobs.push({
         kind: "chapter",
         order: ch.order,
-        instruction: `${refillCommon}\n\nAUTHORITATIVE VISIBLE CAST FOR THIS FRAME: EXACTLY ${frameCast.length} named characters: ${frameCast.join(", ") || "none"}. Omit every other character.\nTASK: Write the picture-book prompt for reading page ${ch.order}. The page title is only an app label: "${ch.title}". Base the visual on this German reading-page content, but depict only the authoritative visible cast above (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
+        instruction: `${refillCommon}\n\nTASK: Write the picture-book prompt for reading page ${ch.order}. The page title is only an app label: \"${ch.title}\". Base the visual on this German reading-page content (translate the action into English imagery):\n\n${ch.content.slice(0, 1200)}`,
       });
     }
 
@@ -2593,9 +2544,10 @@ async function generateDevModeImages(
   // duplicate characters. These constraints guard text, ghost figures, type drift, and identity drift.
   const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characterization, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, entity-appropriate anatomy, no readable text, no captions, no speech bubbles, no signs, no labels, no logos, blank unreadable paper only if required by the scene, no extra or duplicate characters of any type";
 
-  // Generic per-scene manifest: source kind never implies entity type. The
-  // manifest carries canonical per-character attributes and is added before
-  // the style suffix so identity constraints are never truncated.
+  // Generic per-scene manifest: source kind never implies entity type.
+  // prompt so the diffusion model receives explicit "NO dress on boys"
+  // constraints rather than relying on the negative prompt alone. The
+  // manifest is added BEFORE the styleSuffix so it never gets truncated.
   //
   // v12 fixes three bugs from log-runware-single-image-3b8eedfe:
   //   1. JSON fragments: `entry.description` can be a stringified character
@@ -2652,7 +2604,11 @@ async function generateDevModeImages(
   // (distorted/wrong faces — the whole point of the collage is lost).
   const ORDINAL_WORDS = ["first (leftmost)", "second", "third", "fourth", "fifth"];
   const collageAnchorForName = (name: string): { ordinal: string; color: string } | null => {
-    const pos = resolveUniqueNamedEntry(name, collagePositions);
+    const pos = collagePositions.find(
+      (p) => p.name.toLowerCase() === name.toLowerCase()
+        || p.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(p.name.toLowerCase())
+    );
     if (!pos) return null;
     return {
       ordinal: ORDINAL_WORDS[pos.index] || `${pos.index + 1}th`,
@@ -2665,15 +2621,11 @@ async function generateDevModeImages(
     const lines: string[] = [];
     const identityAnchor = (name: string): string => {
       if (!useCollage) {
-        const directReference = resolveUniqueNamedEntry(
-          name,
-          directReferenceNames.map((referenceName) => ({ name: referenceName }))
+        const directIndex = directReferenceNames.findIndex((referenceName) =>
+          referenceName.toLowerCase() === name.toLowerCase()
+            || referenceName.toLowerCase().includes(name.toLowerCase())
+            || name.toLowerCase().includes(referenceName.toLowerCase())
         );
-        const directIndex = directReference
-          ? directReferenceNames.findIndex((referenceName) =>
-              normalizeCharacterName(referenceName) === normalizeCharacterName(directReference.name)
-            )
-          : -1;
         return directIndex >= 0
           ? `match attached reference image ${directIndex + 1} for ${name} exactly`
           : `match ${name}'s canonical metadata and description exactly`;
@@ -2684,11 +2636,12 @@ async function generateDevModeImages(
         : `match ${name}'s canonical reference exactly`;
     };
 
-    const resolvedSceneEntries = new Set(
-      sceneNames.map((name) => resolveUniqueNamedEntry(name, cast)).filter(Boolean)
-    );
     for (const entry of cast) {
-      if (!resolvedSceneEntries.has(entry)) continue;
+      const inScene = sceneNames.some((name) =>
+        name.toLowerCase().includes(entry.name.toLowerCase())
+          || entry.name.toLowerCase().includes(name.toLowerCase())
+      );
+      if (!inScene) continue;
       let visual = compactCharacterDescription(entry.description, "use the canonical reference/profile for every visible feature");
       if (/\b(und|der|die|das|ist|sehr|kann|hat|eine[mnr]?|junge|mädchen|maedchen|gro(?:ss|ß)e?)\b/i.test(visual)) {
         const englishHints: string[] = [];
@@ -2755,7 +2708,7 @@ async function generateDevModeImages(
   // override. Scene cards use `scene` (not `order`), which the old lookup
   // missed and therefore fell back to both avatars on every page.
   for (const scene of imageScenePlan) {
-    sceneCharsByChapter.set(Number(scene.order), scene.onStageNames.slice(0, maxNativeReferences));
+    sceneCharsByChapter.set(Number(scene.order), scene.onStageNames.slice(0, 4));
   }
   for (const card of (screenplayPlan?.sceneCards as any[] | undefined) || []) {
     const order = Number((card && (card.scene ?? card.order ?? card.chapter)) ?? NaN);
@@ -2765,20 +2718,18 @@ async function generateDevModeImages(
       : Array.isArray(card?.onStageCharacters) && card.onStageCharacters.length > 0
         ? card.onStageCharacters
         : [];
-    const cardText = JSON.stringify(card);
-    const inferredNames = cast.filter((entry) => textMentionsCharacter(cardText, entry.name)).map((entry) => entry.name);
+    const cardText = JSON.stringify(card).toLowerCase();
+    const inferredNames = cast.filter((entry) => cardText.includes(entry.name.toLowerCase())).map((entry) => entry.name);
     const existingNames = sceneCharsByChapter.get(order) || [];
     // Explicit screenplay cast wins; prose-derived canonical names only fill remaining native-reference slots.
-    const normalizedExplicitNames = explicitNames
-      .map((name: any) => String(name || "").trim())
-      .filter((name: string): name is string => Boolean(name));
-    const names = uniqueNames([...normalizedExplicitNames, ...existingNames, ...inferredNames]);
-    sceneCharsByChapter.set(order, selectFrameCastForReferenceLimit({
-      allNames: names,
-      priorityNames: normalizedExplicitNames,
-      pageOrder: order,
-      maxReferences: maxNativeReferences,
-    }));
+    const names = [...new Set([...explicitNames, ...existingNames, ...inferredNames])];
+    sceneCharsByChapter.set(
+      order,
+      names
+        .map((n: any) => String(n || "").trim())
+        .filter((n: string): n is string => Boolean(n))
+        .slice(0, maxNativeReferences)
+    );
   }
   const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
     const storyAnchor = englishVisualHint(
@@ -2813,11 +2764,8 @@ async function generateDevModeImages(
     const scenePlan = typeof job.order === "number" ? imageScenePlanByOrder.get(job.order) : undefined;
     // Prefer the extracted dramatic beat over the flat page summary so even
     // the deterministic fallback prompt shows a lively peak moment.
-    const actionSource = scenePlan?.omittedFromThisFrame?.length
-      ? `the named cast taking one focused action around ${storyAnchor}`
-      : (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary;
     const actionHint = englishVisualHint(
-      actionSource,
+      (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary,
       `a concrete action around ${storyAnchor}`,
       180
     );
@@ -2841,10 +2789,12 @@ async function generateDevModeImages(
 
   const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
     if (job.kind === "cover") return primaryCoverNames;
-    if (typeof job.order === "number" && sceneCharsByChapter.has(job.order)) {
-      return (sceneCharsByChapter.get(job.order) || []).slice(0, maxNativeReferences);
+    if (typeof job.order === "number") {
+      const planned = sceneCharsByChapter.get(job.order) || [];
+      if (planned.length > 0) return planned.slice(0, maxNativeReferences);
     }
-    const mentioned = allCastNames.filter((name) => textMentionsCharacter(job.prompt, name));
+    const lower = job.prompt.toLowerCase();
+    const mentioned = allCastNames.filter((name) => lower.includes(name.toLowerCase()));
     return (mentioned.length > 0 ? mentioned : avatarNamesOnly).slice(0, maxNativeReferences);
   };
 
@@ -2852,13 +2802,16 @@ async function generateDevModeImages(
     sceneNames: string[],
     directEntries: Array<{ name: string; imageUrl: string; kind: "avatar" | "pool" }>,
   ): SceneCastCharacterContract[] => sceneNames.slice(0, maxNativeReferences).map((name) => {
-    const entry = resolveUniqueNamedEntry(name, cast);
-    const reference = resolveUniqueNamedEntry(name, directEntries);
-    const referenceIndex = reference
-      ? directEntries.findIndex((candidate) =>
-          normalizeCharacterName(candidate.name) === normalizeCharacterName(reference.name)
-        )
-      : -1;
+    const entry = cast.find((candidate) =>
+      candidate.name.toLowerCase() === name.toLowerCase()
+        || candidate.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(candidate.name.toLowerCase())
+    );
+    const referenceIndex = directEntries.findIndex((reference) =>
+      reference.name.toLowerCase() === name.toLowerCase()
+        || reference.name.toLowerCase().includes(name.toLowerCase())
+        || name.toLowerCase().includes(reference.name.toLowerCase())
+    );
     return {
       name,
       entityType: entry
@@ -2916,12 +2869,12 @@ async function generateDevModeImages(
       // v11 §12D: append character manifest with explicit attribute locks.
       // When rendering against the sprite collage, the manifest anchors each
       // character to its framed cell + border color in the reference strip.
-      const directReferenceNames = directEntries.map((entry) => entry.name);
-      const manifestBlock = buildManifestBlock(sceneNames, false, directReferenceNames);
+      const directReferenceNames = sceneRefs.map((url) => resolvedCast.find((entry) => entry.resolvedUrl === url)?.name).filter((name): name is string => Boolean(name));
+      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames, false, directReferenceNames);
       const sceneCastCharacters = buildSceneCastCharacters(sceneNames, directEntries);
       const castContract = renderSceneCastContract(sceneCastCharacters);
       const identityContract = directEntries.map((entry, index) => {
-        const canonical = resolveUniqueNamedEntry(entry.name, cast);
+        const canonical = cast.find((candidate) => candidate.name === entry.name);
         const knownVisual = compactCharacterDescription(canonical?.description, "use every visible canonical feature from the attached reference");
         return `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Canonical identity has priority over scene wording. Reproduce ${entry.name}'s exact entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories as applicable. Keep every canonical trait unchanged. Borrow nothing from another reference. Known visual cue: ${knownVisual}.`;
       }).join("\n");
@@ -2940,7 +2893,7 @@ async function generateDevModeImages(
       const preflight = preflightImagePrompt({
         positivePrompt: fullPrompt,
         references: directReferenceNames.map((name) => ({ name })),
-        onStageNames: sceneNames,
+        onStageNames: sceneNames.length > 0 ? sceneNames : allCastNames,
       });
       if (!preflight.ok && preflight.issues.some((i) => i.code === "json_wrapper" || i.code === "missing_count_contract")) {
         // Hard issue — refuse to ship a JSON-wrapped prompt to Runware. This

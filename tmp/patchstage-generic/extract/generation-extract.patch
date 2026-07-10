@@ -1,0 +1,68 @@
+diff --git a/backend/story/dev-mode-generation.ts b/backend/story/dev-mode-generation.ts
+index fe81123..00de515 100644
+--- a/backend/story/dev-mode-generation.ts
++++ b/backend/story/dev-mode-generation.ts
+@@ -60,6 +60,7 @@ import {
+   preflightImagePrompt,
+   filterReferencesForScene,
+   deriveVisualEntityType,
++  selectFrameCastForReferenceLimit,
+   renderSceneCastContract,
+   stripModelCastCountClaims,
+   type SceneCastCharacterContract,
+@@ -2228,26 +2229,7 @@ async function generateDevModeImages(
+       return true;
+     });
+   };
+-  const rotateNames = (names: string[], order: number, count: number): string[] => {
+-    if (names.length <= count) return names.slice();
+-    const safeOrder = Math.max(1, Number(order) || 1);
+-    const offset = ((safeOrder - 1) * Math.max(1, count)) % names.length;
+-    return Array.from({ length: count }, (_value, index) => names[(offset + index) % names.length]);
+-  };
+-  const selectFrameCast = (allNames: string[], priorityNames: string[], order: number): string[] => {
+-    const available = uniqueNames(allNames);
+-    const priorities = uniqueNames(priorityNames).filter((name) =>
+-      available.some((candidate) => normalizeCharacterName(candidate) === normalizeCharacterName(name))
+-    );
+-    if (priorities.length >= maxNativeReferences) {
+-      return rotateNames(priorities, order, maxNativeReferences);
+-    }
+-    const remaining = available.filter((name) =>
+-      !priorities.some((priority) => normalizeCharacterName(priority) === normalizeCharacterName(name))
+-    );
+-    const slots = maxNativeReferences - priorities.length;
+-    return [...priorities, ...rotateNames(remaining, order, slots)].slice(0, maxNativeReferences);
+-  };
++
+   const castDescriptors = cast
+     .map((entry) => {
+       const desc = entry.description ? `: ${entry.description.slice(0, 700)}` : "";
+@@ -2291,7 +2273,12 @@ async function generateDevModeImages(
+       .map((name: unknown) => String(name || "").trim())
+       .filter((name: string) => name.length > 0 && name.length <= 80);
+     const allDetectedNames = uniqueNames([...declaredNames, ...proseNames]);
+-    const onStageNames = selectFrameCast(allDetectedNames, declaredNames, Number(chapter.order));
++    const onStageNames = selectFrameCastForReferenceLimit({
++      allNames: allDetectedNames,
++      priorityNames: declaredNames,
++      pageOrder: Number(chapter.order),
++      maxReferences: maxNativeReferences,
++    });
+     return {
+       order: chapter.order,
+       title: chapter.title,
+@@ -2786,7 +2773,12 @@ async function generateDevModeImages(
+       .map((name: any) => String(name || "").trim())
+       .filter((name: string): name is string => Boolean(name));
+     const names = uniqueNames([...normalizedExplicitNames, ...existingNames, ...inferredNames]);
+-    sceneCharsByChapter.set(order, selectFrameCast(names, normalizedExplicitNames, order));
++    sceneCharsByChapter.set(order, selectFrameCastForReferenceLimit({
++      allNames: names,
++      priorityNames: normalizedExplicitNames,
++      pageOrder: order,
++      maxReferences: maxNativeReferences,
++    }));
+   }
+   const fallbackImagePrompt = (job: { kind: "cover" | "chapter"; order?: number }): string => {
+     const storyAnchor = englishVisualHint(

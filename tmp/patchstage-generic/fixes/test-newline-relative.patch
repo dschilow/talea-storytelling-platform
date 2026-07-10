@@ -1,0 +1,14 @@
+diff --git a/backend/story/pipeline/tests/dev-mode-v11-smoke.ts b/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
+index 0e8a081..96510c8 100644
+--- a/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
++++ b/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
+@@ -482,7 +482,8 @@ console.log("\n[11] Cast contract is mixed-entity and count safe");
+   check("generic mixed contract passes preflight", cleanPreflight.ok, JSON.stringify(cleanPreflight.issues));
+ }
+ 
+-// -----------------------------------------------------------------------------`n// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
++// -----------------------------------------------------------------------------
++// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
+ // detectHelperExplainsSolution + detectStructureSignals + classifyNoveltyHit.
+ // -----------------------------------------------------------------------------
+ console.log("\n[12] Story-structure detectors fire as expected");

@@ -1,0 +1,196 @@
+diff --git a/backend/story/pipeline/tests/dev-mode-v11-smoke.ts b/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
+index fc52fa1..0e8a081 100644
+--- a/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
++++ b/backend/story/pipeline/tests/dev-mode-v11-smoke.ts
+@@ -26,8 +26,9 @@ import {
+   preflightImagePrompt,
+   filterReferencesForScene,
+   CANONICAL_NEGATIVE_PACK,
+-  renderCountContract,
+-  stripHumanChildCountClaims,
++  deriveVisualEntityType,
++  renderSceneCastContract,
++  stripModelCastCountClaims,
+ } from "../../dev-mode-image-guards";
+ 
+ import {
+@@ -354,86 +355,134 @@ console.log("\n[8] Image-prompt JSON wrapper is detected and unwrapped");
+ }
+ 
+ // -----------------------------------------------------------------------------
+-// Test 9 — Visual QA flags a boy in fairy clothes (§14.9)
++// Test 9 — Visual QA is entity-generic and catches mixed-cast failures
+ // -----------------------------------------------------------------------------
+-console.log("\n[9] Visual QA triggers regenerate when boy has dress/wings/crown");
++console.log("\n[9] Visual QA catches type drift, extra cast, and attribute bleed");
+ {
+   const reportJson = JSON.stringify({
+-    adrianPresent: true,
+-    alexanderPresent: true,
+-    feePresent: true,
+-    extraCharacters: 0,
+-    boysCount: 1,
+-    girlsCount: 0,
+-    boyInDress: true,
+-    boyWithWings: false,
+-    boyWithFlowerCrown: false,
++    presentCharacterNames: ["Mina", "Keks"],
++    missingCharacterNames: [],
++    unexpectedCharacterDescriptions: ["unlisted third human child"],
++    duplicateCharacterNames: [],
++    typeMismatches: ["Keks rendered as a human child instead of an orange tabby cat"],
++    appearanceMismatches: ["Mina's round glasses are missing"],
++    extraCharacters: 1,
++    attributeBleed: true,
+     textVisible: false,
+     speechBubbleVisible: false,
++    anatomyClean: true,
++    furnitureIntersection: false,
+     sceneMatchesPrompt: 0.9,
+     identityConfidence: 0.85,
+     pass: false,
+-    failureReasons: ["boy is wearing a pink dress"],
++    failureReasons: ["wrong entity type and one unlisted character"],
+   });
+   const parsed = parseVisualQaReport(reportJson);
+   const decision = shouldRegenerateImage(parsed);
+   check("regenerate=true", decision.regenerate, decision.reasons.join(","));
+-  check("reason mentions boyInDress", decision.reasons.includes("boyInDress"));
++  check("type mismatch retained", decision.reasons.some((reason) => reason.startsWith("typeMismatch=")), decision.reasons.join(","));
++  check("extra cast retained", decision.reasons.includes("extraCharacters=1"), decision.reasons.join(","));
++  check("attribute bleed retained", decision.reasons.includes("attributeBleed"), decision.reasons.join(","));
+ }
+ 
+ // -----------------------------------------------------------------------------
+-// Test 10 — Reference contamination: scene without Fee drops Fee ref (§14.10)
++// Test 10 — Reference selection uses exact or unambiguous token aliases
+ // -----------------------------------------------------------------------------
+-console.log("\n[10] Reference filter drops refs for absent characters");
++console.log("\n[10] Reference filter is generic and collision-safe");
+ {
+   const filtered = filterReferencesForScene({
+-    onStageNames: ["Adrian", "Alexander"],
++    onStageNames: ["Mina", "Keks"],
+     availableRefs: [
+-      { name: "Adrian", imageUrl: "url-a", kind: "avatar" },
+-      { name: "Alexander", imageUrl: "url-b", kind: "avatar" },
+-      { name: "Fee Rosalie", imageUrl: "url-c", kind: "pool" },
++      { name: "Mina", imageUrl: "url-a", kind: "avatar" },
++      { name: "Keks", imageUrl: "url-b", kind: "avatar" },
++      { name: "R0", imageUrl: "url-c", kind: "pool" },
+     ],
+   });
+-  check("Fee dropped", filtered.dropped.includes("Fee Rosalie"));
+-  check("Adrian kept", filtered.references.some((r) => r.name === "Adrian"));
+-  check("Alexander kept", filtered.references.some((r) => r.name === "Alexander"));
++  check("off-stage robot dropped", filtered.dropped.includes("R0"));
++  check("human avatar kept", filtered.references.some((ref) => ref.name === "Mina"));
++  check("animal avatar kept", filtered.references.some((ref) => ref.name === "Keks"));
+   check("only 2 refs left", filtered.references.length === 2);
+ 
+-  // Preflight should detect ref-for-absent-character if we send Fee anyway
++  const uniqueAlias = filterReferencesForScene({
++    onStageNames: ["Rosalie"],
++    availableRefs: [{ name: "Fee Rosalie", imageUrl: "url-f", kind: "pool" }],
++  });
++  check("unique whole-token alias resolves", uniqueAlias.references.length === 1);
++
++  const prefixCollision = filterReferencesForScene({
++    onStageNames: ["Alex"],
++    availableRefs: [{ name: "Alexander", imageUrl: "url-x", kind: "avatar" }],
++  });
++  check("prefix collision does not resolve", prefixCollision.references.length === 0);
++
++  const ambiguousAlias = filterReferencesForScene({
++    onStageNames: ["Mia"],
++    availableRefs: [
++      { name: "Mia Mut", imageUrl: "url-m1", kind: "pool" },
++      { name: "Mia Mond", imageUrl: "url-m2", kind: "pool" },
++    ],
++  });
++  check("ambiguous short alias resolves to no reference", ambiguousAlias.references.length === 0);
++
+   const preflight = preflightImagePrompt({
+-    positivePrompt: "Single scene with Adrian and Alexander in the clock tower.",
+-    references: [{ name: "Adrian" }, { name: "Fee Rosalie" }],
+-    onStageNames: ["Adrian", "Alexander"],
++    positivePrompt: "EXPECTED CAST: EXACTLY 2 named characters total. Mina and Keks in one scene.",
++    references: [{ name: "Mina" }, { name: "R0" }],
++    onStageNames: ["Mina", "Keks"],
+   });
+-  check("preflight flags Fee ref", !preflight.ok && preflight.issues.some((i) => i.code === "ref_for_absent_character"));
++  check("preflight flags off-stage robot ref", !preflight.ok && preflight.issues.some((issue) => issue.code === "ref_for_absent_character"));
+ }
+ 
+ // -----------------------------------------------------------------------------
+-// Test 11 — Character count contract (§14.11) — covered by negative pack +
+-// count contract render. Spot-check negative-pack merging.
++// Test 11 — Generic cast contract supports mixed entity types and any count
+ // -----------------------------------------------------------------------------
+-console.log("\n[11] Negative-prompt pack merges and is non-empty");
++console.log("\n[11] Cast contract is mixed-entity and count safe");
+ {
+   const merged = mergeNegativePrompt("custom token, no rain");
+   check("custom token preserved", /custom token/.test(merged));
+-  check("canonical 'no dress on boys' included", /no dress on boys/.test(merged));
++  check("generic identity-swap guard included", /no identity swap/.test(merged));
++  check("generic attribute-transfer guard included", /do not transfer hair, fur, skin/i.test(merged));
+   check("dedup applied", (merged.match(/no text/g) || []).length === 1);
+-  check("CANONICAL_NEGATIVE_PACK has generic cross-attribute guards", CANONICAL_NEGATIVE_PACK.some((t) => /non-human character clothing onto human children/i.test(t)));
+-  check("negative pack is not coupled to sample character names", CANONICAL_NEGATIVE_PACK.every((t) => !/Adrian|Alexander|Fee Rosalie/i.test(t)));
+-
+-  const contract = renderCountContract(
+-    { boysCount: 2, fairyCount: 0, otherHumansCount: 0 },
+-    ["Adrian", "Alexander"],
+-    [],
+-  );
+-  check("count contract fixes exactly two named human children", /EXACTLY 2 named human children: Adrian and Alexander/.test(contract), contract);
+-  check("count contract does not forbid a named adult antagonist", !/No adults/i.test(contract), contract);
+-  const stripped = stripHumanChildCountClaims("Three children crowd around a chair while Adrian points.");
+-  check("model-invented three-child claim removed", !/three children/i.test(stripped.prompt) && stripped.removedClaims.length === 1, stripped.prompt);
++  check("negative pack has no sample names", CANONICAL_NEGATIVE_PACK.every((token) => !/Mina|Keks|R0|Adrian|Alexander|Rosalie/i.test(token)));
++
++  const childType = deriveVisualEntityType({
++    visualProfile: { characterType: "human", speciesCategory: "human", ageNumeric: 8 },
++  });
++  const catType = deriveVisualEntityType({
++    visualProfile: { characterType: "orange tabby cat", speciesCategory: "animal" },
++  });
++  const robotType = deriveVisualEntityType({
++    visualProfile: { characterType: "small brass robot", speciesCategory: "robot" },
++  });
++  check("human child derived from metadata", childType === "human child", childType);
++  check("animal type preserved verbatim", catType === "orange tabby cat", catType);
++  check("robot type preserved verbatim", robotType === "small brass robot", robotType);
++
++  const contract = renderSceneCastContract([
++    { name: "Mina", entityType: childType, sourceKind: "avatar", referenceIndex: 1 },
++    { name: "Keks", entityType: catType, sourceKind: "avatar", referenceIndex: 2 },
++    { name: "R0", entityType: robotType, sourceKind: "pool", referenceIndex: 3 },
++  ]);
++  check("contract fixes exactly three named characters", /EXPECTED CAST: EXACTLY 3 named characters total/.test(contract), contract);
++  check("all mixed types retained", /human child/.test(contract) && /orange tabby cat/.test(contract) && /small brass robot/.test(contract), contract);
++  check("no invented boy/fairy category", !/\bboy\b|\bfairy\b/i.test(contract), contract);
++
++  const single = renderSceneCastContract([
++    { name: "Tilda", entityType: "walking teapot", sourceKind: "story" },
++  ]);
++  check("single-character contract works", /EXACTLY 1 named character total/.test(single) && /walking teapot/.test(single), single);
++
++  const stripped = stripModelCastCountClaims("Three children and two robots crowd around a chair while Mina points.");
++  check("model-invented mixed counts removed", !/three children|two robots/i.test(stripped.prompt) && stripped.removedClaims.length === 2, stripped.prompt);
++
++  const cleanPreflight = preflightImagePrompt({
++    positivePrompt: `${contract}\nSingle cohesive scene around a glowing map, no text.`,
++    references: [{ name: "Mina" }, { name: "Keks" }, { name: "R0" }],
++    onStageNames: ["Mina", "Keks", "R0"],
++  });
++  check("generic mixed contract passes preflight", cleanPreflight.ok, JSON.stringify(cleanPreflight.issues));
+ }
+ 
+-// -----------------------------------------------------------------------------
+-// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
++// -----------------------------------------------------------------------------`n// Test 12 — Slot swap detection via structure signals (§14.12) — covered by
+ // detectHelperExplainsSolution + detectStructureSignals + classifyNoveltyHit.
+ // -----------------------------------------------------------------------------
+ console.log("\n[12] Story-structure detectors fire as expected");
