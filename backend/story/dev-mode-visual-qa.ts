@@ -13,6 +13,8 @@ export interface VisualQaInput {
   imageUrl: string;
   expectedBoyNames: string[];
   expectedFairyNames: string[];
+  /** Names for canonical reference images 2..N, in attachment order. */
+  referenceNames?: string[];
   scenePrompt: string;
 }
 
@@ -39,7 +41,9 @@ export interface VisualQaReport {
  */
 export function buildVisualQaPrompt(input: VisualQaInput): string {
   return `You are a strict picture-book illustration QA assistant.
-Inspect the image at the URL and report what you see, NOT what you expect.
+The FIRST attached image is the generated illustration to inspect. Any later attached images are canonical character references, in this order: ${input.referenceNames?.join(", ") || "(none attached)"}.
+Compare face shape, hair color/style, skin tone, and outfit colors against those canonical references when assigning identityConfidence. Do not infer identityConfidence from the text prompt alone.
+Report what you see, NOT what you expect.
 The scene prompt the artist received was:
 
 ${input.scenePrompt}

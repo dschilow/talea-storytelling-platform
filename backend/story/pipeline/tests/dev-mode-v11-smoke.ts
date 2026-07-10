@@ -410,7 +410,8 @@ console.log("\n[11] Negative-prompt pack merges and is non-empty");
   check("custom token preserved", /custom token/.test(merged));
   check("canonical 'no dress on boys' included", /no dress on boys/.test(merged));
   check("dedup applied", (merged.match(/no text/g) || []).length === 1);
-  check("CANONICAL_NEGATIVE_PACK has cross-attribute guards", CANONICAL_NEGATIVE_PACK.some((t) => /Fee Rosalie/i.test(t)));
+  check("CANONICAL_NEGATIVE_PACK has generic cross-attribute guards", CANONICAL_NEGATIVE_PACK.some((t) => /non-human character clothing onto human children/i.test(t)));
+  check("negative pack is not coupled to sample character names", CANONICAL_NEGATIVE_PACK.every((t) => !/Adrian|Alexander|Fee Rosalie/i.test(t)));
 }
 
 // -----------------------------------------------------------------------------

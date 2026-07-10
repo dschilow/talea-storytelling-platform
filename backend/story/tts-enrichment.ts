@@ -78,63 +78,20 @@ const XAI_UNSTABLE_WRAPPING_TAG_PATTERN =
 
 // ── AI Enrichment ────────────────────────────────────────────────────────
 
-const ENRICHMENT_SYSTEM_PROMPT = `You are an expert audio director and voice-over script annotator.
-Your job is to take children's story text and insert xAI TTS expression tags
-to make the narration sound natural, emotional, and engaging — like a
-professional audiobook narrator.
+const ENRICHMENT_SYSTEM_PROMPT = `Add sparse xAI expression tags to a children's audiobook script.
 
-AVAILABLE INLINE TAGS (insert at exact position):
-[pause] — brief dramatic pause
-[long-pause] — longer pause (scene transitions, suspense)
-[hum-tune] — humming
-[laugh] — laughter
-[chuckle] — soft laugh
-[giggle] — child-like giggle
-[cry] — crying
-[tsk] — disapproval sound
-[tongue-click] — click sound
-[lip-smack] — lip smack
-[breath] — audible breath
-[inhale] — breathing in
-[exhale] — breathing out
-[sigh] — sighing
+ALLOWED INLINE TAGS:
+[pause] [long-pause] [hum-tune] [laugh] [chuckle] [giggle] [cry] [tsk] [tongue-click] [lip-smack] [breath] [inhale] [exhale] [sigh]
 
-AVAILABLE WRAPPING TAGS (wrap around phrases):
-<soft>text</soft> — gentle/quiet delivery
-<whisper>text</whisper> — whispered
-<loud>text</loud> — shouting/loud
-<build-intensity>text</build-intensity> — gradually getting louder/more intense
-<decrease-intensity>text</decrease-intensity> — gradually getting quieter
-<higher-pitch>text</higher-pitch> — higher voice (excitement, children)
-<lower-pitch>text</lower-pitch> — deeper voice (authority, mystery)
-<slow>text</slow> — slower delivery (emphasis, suspense)
-<fast>text</fast> — faster delivery (excitement, urgency)
-<sing-song>text</sing-song> — melodic/playful delivery
-<singing>text</singing> — actual singing
-<laugh-speak>text</laugh-speak> — speaking while laughing
-<emphasis>text</emphasis> — stressed/emphasized words
+ALLOWED WRAPPERS:
+<soft>...</soft> <whisper>...</whisper> <loud>...</loud> <build-intensity>...</build-intensity> <decrease-intensity>...</decrease-intensity> <slow>...</slow> <fast>...</fast> <sing-song>...</sing-song> <singing>...</singing> <laugh-speak>...</laugh-speak> <emphasis>...</emphasis>
 
-RULES:
-1. Return ONLY the enriched text — no explanations, no markdown, no code blocks
-2. Keep ALL original text exactly as-is — only ADD tags, never remove or change words
-3. Use tags TASTEFULLY — not every sentence needs them. Aim for natural narration
-4. Inline tags go between sentences or at natural speech pauses
-5. Wrapping tags should wrap COMPLETE phrases, not individual words (unless for emphasis)
-6. You CAN nest wrapping tags: <slow><soft>text</soft></slow>
-7. Use [pause] at scene transitions, after dramatic moments, before reveals
-8. Use [long-pause] sparingly — only for major scene changes or cliffhangers
-9. Use <whisper> for secrets, suspense, quiet moments
-10. Use <soft> for tender, gentle moments
-11. Use <loud> for shouts, exclamations, surprises
-12. Use <emphasis> for key story words, names on first mention
-13. Use <higher-pitch> for children's dialogue, excitement
-14. Use <lower-pitch> for villains, authority figures, mystery
-15. Use [sigh], [breath] for emotional moments
-16. Use [chuckle], [giggle], [laugh] for humorous moments
-17. Use <build-intensity> for climactic scenes
-18. Use <slow> for suspense and important reveals
-19. For dialogue: match expression tags to the speaker's emotion
-20. This is a CHILDREN'S story — keep expressions warm, fun, and age-appropriate`;
+HARD RULES:
+- Return only the annotated source text: no JSON, array, title, heading, markdown, or explanation.
+- Preserve every original word and punctuation mark in the same order. Only insert valid tags.
+- Use tags sparingly at real emotional turns, dialogue reactions, suspense, humour, and scene transitions.
+- Prefer pauses and delivery wrappers. Never use higher-pitch/lower-pitch; they cause narrator identity drift.
+- Keep the performance warm, clear, and age-appropriate.`;
 
 const ENRICHMENT_USER_PROMPT_TEMPLATE = `Annotate this children's story chapter with xAI TTS expression tags for natural, emotional narration.
 
@@ -248,7 +205,20 @@ export async function enrichChapterForTTS(input: {
 
   enrichedText = stabilizeXaiNarrationText(enrichedText);
 
-  // Validate: enriched text should contain original words
+  // The model is allowed to INSERT tags only. Production logs contained JSON
+  // arrays, reading-page headings, and altered wording despite that contract.
+  // Never persist a corrupted audiobook script: compare the complete source
+  // after stripping tags and fall back to the exact display text on mismatch.
+  const normalizedOriginal = normalizeTtsIntegrityText(input.text);
+  const normalizedEnrichedWords = normalizeTtsIntegrityText(stripTTSTags(enrichedText));
+  if (normalizedEnrichedWords !== normalizedOriginal) {
+    console.warn(`[tts-enrichment] Integrity mismatch in chapter ${input.chapterOrder}; using exact original text`, {
+      originalPreview: normalizedOriginal.slice(0, 140),
+      enrichedPreview: normalizedEnrichedWords.slice(0, 140),
+    });
+    enrichedText = input.text;
+  }
+
   const tagsInserted = countTTSTags(enrichedText);
 
   console.log(
@@ -344,6 +314,10 @@ function countTTSTags(text: string): number {
   const validOpen = openMatches.filter((tag) => VALID_OPEN_TAGS.has(tag));
 
   return validInline.length + validOpen.length;
+}
+
+function normalizeTtsIntegrityText(text: string): string {
+  return String(text || "").replace(/\s+/g, " ").trim();
 }
 
 function stabilizeXaiNarrationText(text: string): string {

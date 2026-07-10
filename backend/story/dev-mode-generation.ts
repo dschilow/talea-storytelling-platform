@@ -45,7 +45,6 @@ import { storyDB } from "./db";
 import { artifactMatcher, recordStoryArtifact } from "./artifact-matcher";
 import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory } from "./types";
 import { mapWithConcurrency } from "../helpers/asyncPool";
-import { buildSpriteCollage } from "./pipeline/sprite-collage";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import {
   sanitizeDescription,
@@ -1813,12 +1812,13 @@ function buildPremiseSeedPromiseBlock(input: DevModeGenerationInput): string | n
   const idea = input.selectedIdea;
   if (!idea?.premiseSeedId && !idea?.premiseSeedMutation) return null;
   const lines = [
-    "PREMISE-SEED PROMISE (binding):",
+    "PREMISE-SEED PROVENANCE:",
     idea.premiseSeedId ? `- Seed id: ${idea.premiseSeedId}.` : null,
-    idea.premiseSeedMutation ? `- Mutation to preserve causally: ${idea.premiseSeedMutation}.` : null,
-    "- The mutated seed ingredients must become plot mechanics, not only title/description decoration.",
-    "- If the seed/title promises a special system (e.g. seasons, moods, gravity, weather), the wonder rule must test that system on-page at least twice and the finale must pay it off visibly.",
-    "- Do not flatten the seed into a generic magic object + generic lesson; keep the odd, child-retellable rule that made the premise worth selecting.",
+    // premiseSeedMutation is idea-lab provenance generated before the winning
+    // wonder rule is locked. Repeating both can inject two contradictory rule
+    // systems into every later prompt, so the selected wonderRule wins.
+    "- The locked central object and locked wonder rule are the single source of truth. Earlier seed-mutation wording is provenance only and must never introduce a second rule.",
+    "- Keep the odd, child-retellable mechanic concrete; test the locked rule on-page at least twice and pay it off visibly in the finale.",
   ];
   return lines.filter((line): line is string => Boolean(line)).join("\n");
 }
@@ -2130,37 +2130,11 @@ async function generateDevModeImages(
   }
   console.log(`[dev-mode-generation] Reference images resolved: ${resolvedCast.length} (avatars=${resolvedCast.filter(c => c.kind === "avatar").length}, pool=${resolvedCast.filter(c => c.kind === "pool").length})`);
 
-  let collageUrl: string | undefined;
-  let collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
-  // Always build the sprite collage for 2+ cast refs — same approach as the
-  // standard pipeline (single collage image, characters listed in a sprite
-  // and referenced by slot in the prompt), instead of passing separate
-  // individual reference images to Runware.
-  if (resolvedCast.length >= 2) {
-    try {
-      const slots = resolvedCast.map((entry) => ({
-        imageUrl: entry.resolvedUrl,
-        displayName: entry.name,
-      }));
-      const collageResult = await buildSpriteCollage(slots);
-      if (collageResult?.collageUrl) {
-        collageUrl = collageResult.collageUrl;
-        const kindByName = new Map(resolvedCast.map((c) => [c.name, c.kind]));
-        collagePositions = collageResult.positions.map((pos) => ({
-          index: pos.index,
-          name: pos.displayName,
-          colorName: pos.color.name,
-          colorHex: pos.color.hex,
-          kind: kindByName.get(pos.displayName) || "avatar",
-        }));
-        console.log(`[dev-mode-generation] Sprite collage built with ${collagePositions.length} slots, url=${collageUrl}`);
-      } else {
-        console.warn("[dev-mode-generation] buildSpriteCollage returned null \u2014 falling back to individual refs");
-      }
-    } catch (err) {
-      console.warn("[dev-mode-generation] Sprite collage build failed:", (err as Error)?.message || err);
-    }
-  }
+  // FLUX.2 [klein] accepts up to four native reference images. A multi-person
+  // sprite sheet makes the model infer which face belongs to which name and
+  // encourages identity/outfit blending, so dev mode now passes the individual
+  // canonical references directly and scopes them per scene below.
+  const collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
 
   // -----------------------------------------------------------------------
   // 3) Generate the prompts. When we have a collage, instruct the model to
@@ -2192,7 +2166,11 @@ async function generateDevModeImages(
   const imageScenePlan = parsedChapters.map((chapter) => {
     const contentLower = chapter.content.toLowerCase();
     const onStageNames = cast
-      .filter((entry) => contentLower.includes(entry.name.toLowerCase()))
+      .filter((entry) => {
+        const fullName = entry.name.toLowerCase();
+        const firstName = fullName.split(/\s+/)[0];
+        return contentLower.includes(fullName) || (firstName.length >= 3 && contentLower.includes(firstName));
+      })
       .map((entry) => entry.name);
     return {
       order: chapter.order,
@@ -2225,7 +2203,7 @@ async function generateDevModeImages(
       [/\bsesselbezug\b/g, "armchair seam"],
       [/\bsessel\b/g, "armchair"],
       [/\bamulett\b/g, "amulet"],
-      [/\bkette\b/g, "necklace"],
+      [/\bkette\b/g, "metal chain"],
       [/\bwohnzimmer\b/g, "living room"],
       [/\bkuche\b/g, "kitchen"],
       [/\bflur\b/g, "hallway"],
@@ -2563,7 +2541,7 @@ async function generateDevModeImages(
     };
   };
 
-  const buildManifestBlock = (sceneNames: string[], useCollage: boolean): string => {
+  const buildManifestBlock = (sceneNames: string[], useCollage: boolean, directReferenceNames: string[] = []): string => {
     if (sceneNames.length === 0) return "";
     const lines: string[] = [];
     const isFairyLike = (entry: CastEntry): boolean => /\b(fee|fairy|fluegel|flügel|wings?|zauberstab|flower crown|blumenkranz)\b/i.test(`${entry.name} ${entry.description || ""}`);
@@ -2573,7 +2551,14 @@ async function generateDevModeImages(
     // can map each name onto the correct face.
     const identityAnchor = (name: string): string => {
       if (!useCollage) {
-        return `match ${name}'s reference image exactly`;
+        const directIndex = directReferenceNames.findIndex((referenceName) =>
+          referenceName.toLowerCase() === name.toLowerCase()
+            || referenceName.toLowerCase().includes(name.toLowerCase())
+            || name.toLowerCase().includes(referenceName.toLowerCase())
+        );
+        return directIndex >= 0
+          ? `match attached reference image ${directIndex + 1} for ${name} exactly`
+          : `match ${name}'s canonical description exactly`;
       }
       const anchor = collageAnchorForName(name);
       if (!anchor) {
@@ -2653,36 +2638,11 @@ async function generateDevModeImages(
   //    to passing that single character image directly so Runware still gets
   //    an identity reference.
   // -----------------------------------------------------------------------
-  let referenceImages: string[] = [];
-  let usingCollageReference = false;
-  if (collageUrl) {
-    try {
-      const resolved = await resolveImageUrlForClient(collageUrl);
-      if (resolved) {
-        referenceImages = [resolved];
-        usingCollageReference = true;
-      }
-    } catch (err) {
-      console.warn("[dev-mode-generation] Failed to resolve collage URL, will fall back to individual refs:", (err as Error)?.message || err);
-    }
-  }
-  if (referenceImages.length === 0 && resolvedCast.length > 0) {
-    // Individual references mode: pass up to 4 already-resolved URLs (avatars first).
-    const avatarsFirst = [
-      ...resolvedCast.filter((c) => c.kind === "avatar"),
-      ...resolvedCast.filter((c) => c.kind === "pool"),
-    ];
-    referenceImages = avatarsFirst.slice(0, 4).map((c) => c.resolvedUrl);
-  }
-  // Identity-priority weights: recurring storybook characters need the
-  // reference to win over prompt creativity. 0.68-0.74 allowed visible hair
-  // color drift across pages (Adrian blond on page 2, brown on page 4).
-  const ipAdapterWeight = referenceImages.length > 0
-    ? (usingCollageReference
-        ? (collagePositions.length >= 3 ? 0.74 : 0.72)
-        : (referenceImages.length >= 3 ? 0.75 : referenceImages.length === 2 ? 0.78 : 0.74))
-    : undefined;
-  console.log(`[dev-mode-generation] Runware reference set: count=${referenceImages.length}, collage=${usingCollageReference}, ipAdapterWeight=${ipAdapterWeight}`);
+  const referenceEntries = [
+    ...resolvedCast.filter((c) => c.kind === "avatar"),
+    ...resolvedCast.filter((c) => c.kind === "pool"),
+  ];
+  console.log(`[dev-mode-generation] Runware native reference set: available=${referenceEntries.length}, perSceneLimit=4, collage=false`);
 
   // ONE deterministic seed per story: all 6 images share seed + style + refs,
   // which keeps face/hair/outfit rendering far more stable than per-image
@@ -2701,20 +2661,31 @@ async function generateDevModeImages(
   // scene plan so the diffusion model is not asked to render 4 characters in
   // a kitchen/hallway scene that only contains 2.
   const sceneCharsByChapter = new Map<number, string[]>();
+  // Final prose is the most reliable source of who is visible on a reading
+  // page. Seed the map from it, then let an explicit scene-card onStage list
+  // override. Scene cards use `scene` (not `order`), which the old lookup
+  // missed and therefore fell back to both avatars on every page.
+  for (const scene of imageScenePlan) {
+    sceneCharsByChapter.set(Number(scene.order), scene.onStageNames.slice(0, 4));
+  }
   for (const card of (screenplayPlan?.sceneCards as any[] | undefined) || []) {
-    const order = Number((card && (card.order ?? card.chapter)) ?? NaN);
+    const order = Number((card && (card.scene ?? card.order ?? card.chapter)) ?? NaN);
     if (!Number.isFinite(order)) continue;
-    const names = Array.isArray(card?.onStage) && card.onStage.length > 0
+    const explicitNames = Array.isArray(card?.onStage) && card.onStage.length > 0
       ? card.onStage
       : Array.isArray(card?.onStageCharacters) && card.onStageCharacters.length > 0
         ? card.onStageCharacters
-        : (cast.filter((c) => c.kind === "avatar").map((c) => c.name));
+        : [];
+    const cardText = JSON.stringify(card).toLowerCase();
+    const inferredNames = cast.filter((entry) => cardText.includes(entry.name.toLowerCase())).map((entry) => entry.name);
+    const existingNames = sceneCharsByChapter.get(order) || [];
+    const names = existingNames.length > 0 ? existingNames : (explicitNames.length > 0 ? explicitNames : inferredNames);
     sceneCharsByChapter.set(
       order,
       names
         .map((n: any) => String(n || "").trim())
         .filter((n: string): n is string => Boolean(n))
-        .slice(0, 3) // never more than 3 characters in one picture-book scene
+        .slice(0, 4)
     );
   }
   const avatarNamesOnly = cast.filter((c) => c.kind === "avatar").map((c) => c.name);
@@ -2724,7 +2695,21 @@ async function generateDevModeImages(
       "the story's central object",
       120
     );
-    const settingHint = englishVisualHint(input.config.setting || input.config.genre, "cozy story setting", 80);
+    const sceneText = job.kind === "chapter" && typeof job.order === "number"
+      ? String(imageScenePlanByOrder.get(job.order)?.sceneSummary || "").toLowerCase()
+      : "";
+    const concreteSettingFallback = /mensa|kantine|schulspeisung|tablett/.test(sceneText)
+      ? "a bright school cafeteria with serving counter, trays and long tables"
+      : /schule|klassenzimmer|schulhof/.test(sceneText)
+        ? "a lively school interior"
+        : /wald|baum|eichel|eichhorn/.test(sceneText)
+          ? "a leafy woodland clearing"
+          : "a concrete child-scale story setting";
+    const settingHint = englishVisualHint(
+      sceneText || input.config.setting || input.config.genre,
+      concreteSettingFallback,
+      110
+    );
     if (job.kind === "cover") {
       // Cover can show the full hero set, but capped at 3 to avoid clutter.
       const coverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : cast.map((e) => e.name))
@@ -2761,30 +2746,19 @@ async function generateDevModeImages(
     jobs.push({ kind: "chapter", order: ch.order, prompt: promptText });
   }
 
-  // Full cast name list. Per-scene on-stage names (matched case-insensitively
-  // against the page prompt body) decide which characters the manifest names /
-  // anchors to their collage cell; this list is the cover's default (everyone).
+  // Full cast name list. The final prose/scene plan decides which individual
+  // canonical references are attached to each image; this is the cover fallback.
   const allCastNames = cast.map((c) => c.name);
 
-  // v13 §12I: winged/fairy/creature POOL references visibly bleed onto the
-  // child avatars when the renderer blends multiple ip-adapter references at
-  // 4 steps / CFG 4 (run e09199a3: Adrian rendered with Rosalie's wings).
-  // Whenever an avatar reference is in the same reference set, drop the
-  // winged pool reference — the prompt still carries that character's
-  // canonical look as text, and the children's identity anchors stay clean.
-  const wingedPoolRefUrls = new Set(
-    resolvedCast
-      .filter((entry) => {
-        if (entry.kind !== "pool") return false;
-        const description = cast.find((c) => c.name === entry.name)?.description || "";
-        return /fee\b|fairy|elfe|drache|dragon|fl(?:ü|ue)gel|wing/i.test(`${entry.name} ${description}`);
-      })
-      .map((entry) => entry.resolvedUrl)
-  );
   const onStageForJob = (job: { kind: "cover" | "chapter"; order?: number; prompt: string }): string[] => {
-    if (job.kind === "cover") return allCastNames; // cover may show everyone
+    if (job.kind === "cover") return allCastNames.slice(0, 4); // native reference limit
+    if (typeof job.order === "number") {
+      const planned = sceneCharsByChapter.get(job.order) || [];
+      if (planned.length > 0) return planned.slice(0, 4);
+    }
     const lower = job.prompt.toLowerCase();
-    return allCastNames.filter((name) => lower.includes(name.toLowerCase()));
+    const mentioned = allCastNames.filter((name) => lower.includes(name.toLowerCase()));
+    return (mentioned.length > 0 ? mentioned : avatarNamesOnly).slice(0, 4);
   };
 
   let imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
@@ -2807,65 +2781,38 @@ async function generateDevModeImages(
       // collage reference image for cover + every page (consistent identities),
       // instead of swapping to a per-scene individual-ref set.
       const sceneNames = onStageForJob({ ...job, prompt: sanitizedPrompt });
-      let sceneRefs = referenceImages;
-      let sceneIpWeight = ipAdapterWeight;
-      // Tracks whether THIS job still renders against the sprite collage. Only
-      // the §12I winged-creature safety net below can force an individual-ref
-      // fallback; when it does, the manifest must stop describing a strip.
-      let jobUsesCollage = usingCollageReference;
-
-      // v13 §12I: a winged/fairy/creature cell baked into the collage can bleed
-      // wings or a crown onto the human heroes (the collage is one flat image,
-      // so we cannot drop a single cell from it). When such a pool character is
-      // in the collage AND avatars are present, fall back to individual refs of
-      // just the on-stage characters for THIS scene so the heroes stay clean.
-      if (usingCollageReference && wingedPoolRefUrls.size > 0) {
-        const collageHasWinged = resolvedCast.some(
-          (c) => c.kind === "pool" && wingedPoolRefUrls.has(c.resolvedUrl)
-        );
-        const collageHasAvatar = resolvedCast.some((c) => c.kind === "avatar");
-        if (collageHasWinged && collageHasAvatar) {
-          const filtered = filterReferencesForScene({
-            onStageNames: sceneNames,
-            availableRefs: resolvedCast.map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
-          });
-          const keptNames = new Set(filtered.references.map((r) => r.name));
-          const withAvatars = [
-            ...filtered.references,
-            ...resolvedCast
-              .filter((c) => c.kind === "avatar" && !keptNames.has(c.name))
-              .map((c) => ({ name: c.name, imageUrl: c.resolvedUrl, kind: c.kind })),
-          ];
-          // Drop winged pool refs so their wings/crown cannot bleed onto kids.
-          const safeRefs = withAvatars.filter((r) => !wingedPoolRefUrls.has(r.imageUrl));
-          if (safeRefs.length > 0) {
-            sceneRefs = safeRefs.slice(0, 4).map((r) => r.imageUrl);
-            sceneIpWeight = sceneRefs.length >= 3 ? 0.75 : sceneRefs.length === 2 ? 0.78 : 0.74;
-            jobUsesCollage = false;
-            console.log("[dev-mode-generation] §12I winged-collage fallback to individual refs", {
-              job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
-              kept: safeRefs.map((r) => r.name),
-            });
-          }
-        }
-      }
-
+      const filteredReferences = filterReferencesForScene({
+        onStageNames: sceneNames,
+        availableRefs: referenceEntries.map((entry) => ({
+          name: entry.name,
+          imageUrl: entry.resolvedUrl,
+          kind: entry.kind,
+        })),
+      });
+      const directEntries = filteredReferences.references.length > 0
+        ? filteredReferences.references
+        : referenceEntries
+            .filter((entry) => entry.kind === "avatar")
+            .slice(0, 2)
+            .map((entry) => ({ name: entry.name, imageUrl: entry.resolvedUrl, kind: entry.kind }));
+      const sceneRefs = directEntries.slice(0, 4).map((entry) => entry.imageUrl);
       // v11 §12F: merge canonical negative-prompt pack (no dress on boys,
       // no wings, no flower crown, no outfit swap, no text, etc.). In collage
       // mode also add the anti-strip negatives so the model does not paint the
       // reference strip / framed cells / colored borders into the scene.
-      const negativePrompt = mergeNegativePrompt(undefined, { collageMode: jobUsesCollage });
+      const negativePrompt = mergeNegativePrompt(undefined, { collageMode: false });
 
       // v11 §12D: append character manifest with explicit attribute locks.
       // When rendering against the sprite collage, the manifest anchors each
       // character to its framed cell + border color in the reference strip.
-      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames, jobUsesCollage);
+      const directReferenceNames = sceneRefs.map((url) => resolvedCast.find((entry) => entry.resolvedUrl === url)?.name).filter((name): name is string => Boolean(name));
+      const manifestBlock = buildManifestBlock(sceneNames.length > 0 ? sceneNames : allCastNames, false, directReferenceNames);
       const fullPrompt = `${sanitizedPrompt}${manifestBlock}${styleSuffix}`;
 
       // v11 §12 preflight: assert prompt is well-formed before sending.
       const preflight = preflightImagePrompt({
         positivePrompt: fullPrompt,
-        references: sceneRefs.map((_, i) => ({ name: `slot_${i + 1}` })),
+        references: directReferenceNames.map((name) => ({ name })),
         onStageNames: sceneNames.length > 0 ? sceneNames : allCastNames,
       });
       if (!preflight.ok && preflight.issues.some((i) => i.code === "json_wrapper")) {
@@ -2875,7 +2822,7 @@ async function generateDevModeImages(
           job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
           issues: preflight.issues,
         });
-        return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[] };
       }
 
       const img = await ai.generateImage({
@@ -2887,13 +2834,12 @@ async function generateDevModeImages(
         CFGScale: 4,
         outputFormat: "JPEG",
         referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
-        ipAdapterWeight: sceneIpWeight,
         seed: storyImageSeed,
       });
-      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs, sceneIpWeight };
+      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs };
     } catch (err) {
       console.warn(`[dev-mode-generation] Image generation failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
+      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[] };
     }
   });
 
@@ -2905,34 +2851,41 @@ async function generateDevModeImages(
       missing: missingImageJobs.map((job) => `${job.kind}${job.order ? `:${job.order}` : ""}`),
     });
     const retryResults = await mapWithConcurrency(missingImageJobs, 2, async (job) => {
-      // The deterministic fallback prompt carries no character manifest, so when
-      // the retry still references the collage we must re-attach the anti-strip
-      // guard + collage negatives, otherwise the retried image is exactly the
-      // one that paints the reference strip back in.
-      const retryCollageGuard = usingCollageReference
-        ? " OUTPUT FORMAT: render ONE single illustrated storybook scene only. Do NOT draw or include the reference strip, framed cells, colored borders, portrait lineup, panels, grid, or inset thumbnails anywhere. Read identities from the reference and paint the characters fresh inside the scene."
-        : "";
-      const retryPrompt = `${sanitizeImagePrompt(fallbackImagePrompt(job))}${retryCollageGuard}${styleSuffix}`;
+      const retrySceneNames = onStageForJob({ ...job, prompt: fallbackImagePrompt(job) });
+      const retrySelection = filterReferencesForScene({
+        onStageNames: retrySceneNames,
+        availableRefs: referenceEntries.map((entry) => ({
+          name: entry.name,
+          imageUrl: entry.resolvedUrl,
+          kind: entry.kind,
+        })),
+      });
+      const retryEntries = retrySelection.references.length > 0
+        ? retrySelection.references
+        : referenceEntries
+            .filter((entry) => entry.kind === "avatar")
+            .slice(0, 2)
+            .map((entry) => ({ name: entry.name, imageUrl: entry.resolvedUrl, kind: entry.kind }));
+      const retryRefs = retryEntries.slice(0, 4).map((entry) => entry.imageUrl);
+      const retryNames = retryEntries.slice(0, 4).map((entry) => entry.name);
+      const retryManifest = buildManifestBlock(retrySceneNames, false, retryNames);
+      const retryPrompt = `${sanitizeImagePrompt(fallbackImagePrompt(job))}${retryManifest}${styleSuffix}`;
       try {
         const img = await ai.generateImage({
           prompt: retryPrompt,
-          negativePrompt: mergeNegativePrompt(undefined, { collageMode: usingCollageReference }),
+          negativePrompt: mergeNegativePrompt(undefined, { collageMode: false }),
           width: 1024,
           height: 1024,
           steps: 4,
           CFGScale: 4,
           outputFormat: "JPEG",
-          // Keep the avatar identity anchor + story seed even on the
-          // no-frills retry, otherwise the retried page is the one page
-          // where the heroes look different.
-          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-          ipAdapterWeight,
+          referenceImages: retryRefs.length > 0 ? retryRefs : undefined,
           seed: storyImageSeed + 1,
         });
-        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: referenceImages, sceneIpWeight: ipAdapterWeight };
+        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: retryRefs };
       } catch (err) {
         console.warn(`[dev-mode-generation] Image retry failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[], sceneIpWeight: undefined as number | undefined };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[] };
       }
     });
     const keyForJob = (job: Job) => `${job.kind}:${job.order ?? "cover"}`;
@@ -2970,10 +2923,17 @@ async function generateDevModeImages(
     const qaModel = DEV_MODE_SUPPORT_MODEL; // Gemini Flash supports vision
     const qaSeen = await mapWithConcurrency(qaJobs, 2, async ({ result: r }) => {
       try {
+        const expectedSceneNames = onStageForJob({ ...r.job, prompt: r.fullPrompt });
+        const expectedBoyNames = boyNames.filter((name) => expectedSceneNames.includes(name));
+        const expectedFairyNames = fairyNames.filter((name) => expectedSceneNames.includes(name));
+        const referenceNames = r.sceneRefs
+          .map((url) => resolvedCast.find((entry) => entry.resolvedUrl === url)?.name)
+          .filter((name): name is string => Boolean(name));
         const qaPrompt = buildVisualQaPrompt({
           imageUrl: r.imageUrl!,
-          expectedBoyNames: boyNames,
-          expectedFairyNames: fairyNames,
+          expectedBoyNames,
+          expectedFairyNames,
+          referenceNames,
           scenePrompt: r.fullPrompt,
         });
         const qaRes = await callOpenRouterChatCompletion({
@@ -2983,7 +2943,7 @@ async function generateDevModeImages(
           ],
           model: qaModel,
           responseFormat: "json_object",
-          imageInputs: [r.imageUrl!],
+          imageInputs: [r.imageUrl!, ...r.sceneRefs.slice(0, 4)],
           temperature: 0,
           maxTokens: 600,
         });
@@ -3024,31 +2984,22 @@ async function generateDevModeImages(
     // §12H-regen: actually regenerate flagged images. The previous build only
     // logged the flag, so identity failures (wrong hair color, duplicate
     // children) shipped to the child anyway. Capped at 2 regens per story;
-    // same prompt + same refs + bumped ip-adapter weight + offset seed.
+    // same prompt + same native references + offset seed.
     const flaggedForRegen = qaSeen
       .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry && entry.regenerate && entry.result.imageUrl))
       .slice(0, 2);
     for (const entry of flaggedForRegen) {
       const r = entry.result;
       try {
-        const regenWeight = r.sceneRefs.length > 0
-          ? Math.min(0.85, (r.sceneIpWeight ?? 0.74) + 0.06)
-          : undefined;
-        // This job rendered against the collage iff its refs are exactly the
-        // single collage reference — carry the anti-strip negatives into regen.
-        const regenUsesCollage = usingCollageReference
-          && r.sceneRefs.length === referenceImages.length
-          && r.sceneRefs.every((url, i) => url === referenceImages[i]);
         const regen = await ai.generateImage({
           prompt: r.fullPrompt,
-          negativePrompt: mergeNegativePrompt(undefined, { collageMode: regenUsesCollage }),
+          negativePrompt: mergeNegativePrompt(undefined, { collageMode: false }),
           width: 1024,
           height: 1024,
           steps: 4,
           CFGScale: 4,
           outputFormat: "JPEG",
           referenceImages: r.sceneRefs.length > 0 ? r.sceneRefs : undefined,
-          ipAdapterWeight: regenWeight,
           seed: storyImageSeed + 101,
         });
         if (regen.imageUrl) {
@@ -3060,7 +3011,6 @@ async function generateDevModeImages(
           console.log(`[dev-mode-generation] §12H visual-QA regen applied`, {
             job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
             reasons: entry.reasons,
-            regenWeight,
           });
         }
       } catch (err) {
@@ -3956,7 +3906,7 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     `- Why a child wants this book: ${selectedIdea.whyKidWantsThis}`,
     `- Why different from recent stories: ${selectedIdea.whyDifferentFromRecent}`,
     selectedIdea.premiseSeedId
-      ? `- Premise seed trace: ${selectedIdea.premiseSeedId}${selectedIdea.premiseSeedMutation ? `; mutation: ${selectedIdea.premiseSeedMutation}` : ""}. Preserve the mutated engine, but do not revert to the raw seed card.`
+      ? `- Premise seed trace: ${selectedIdea.premiseSeedId}. Treat it as provenance; the locked wonder rule above is authoritative.`
       : null,
     buildPremiseSeedPromiseBlock(input),
     buildWonderRuleConsistencyBlock(input),
@@ -5531,6 +5481,7 @@ function buildLoglineEnginePrompts(
       '  "falseBelief": string,',
       '  "wonderRule": string,',
       '  "recurringMotif": string,',
+      '  "refrainLine": string,',
       '  "personalObject": string',
       "}",
     ].join("\n")
@@ -5539,6 +5490,7 @@ function buildLoglineEnginePrompts(
     "CALL 3: LOGLINE + EMOTIONAL ENGINE. Do not write prose, chapters, or scene summaries.",
     "Turn the locked 9.0-potential idea into a compact story engine a screenwriter could build from.",
     "The engine must make child agency, personal cost, and the wonder rule concrete. No moral wording.",
+    "Create refrainLine as one original, chantable 3-7 word spoken line in the target language. It must express the rule through rhythm or wordplay, and it must NOT reuse a pool character catchphrase.",
     `Future display chapters: ${chapterCount}. Scene cards will be exactly ${DEV_MODE_SCENE_CARD_COUNT}.`,
     "",
     "LOCKED WINNING IDEA:",
@@ -5579,6 +5531,7 @@ function buildBeatSheetPrompts(
       '  "falseBelief": string,',
       '  "wonderRule": string,',
       '  "recurringMotif": string,',
+      '  "refrainLine": string,',
       '  "personalObject": { "object": string, "whyPersonal": string, "risk": string, "payoff": string },',
       '  "act1": { "hook": string, "incitingIncident": string, "wrongFirstMove": string, "firstConsequence": string },',
       '  "act2": { "complication": string, "helperComplicates": string, "midpointIrreversibleTurn": string, "personalCost": string },',
@@ -5597,6 +5550,7 @@ function buildBeatSheetPrompts(
     "- midpointIrreversibleTurn must be visible and make the old situation impossible to restore by simply waiting.",
     "- personalCost must be concrete: an object, comfort, promise, status, sound, secret, or habit the child risks or gives up.",
     "- personalObject.object, recurringMotif, irreversibleMiddle.visibleDamage, finalPayoff.plantedDetail, and finalPayoff.closingImage must share ONE red-thread object/place from the locked idea.",
+    "- Carry refrainLine from the locked engine forward verbatim. It is a separate story refrain, not a pool-character catchphrase.",
     "- Do NOT make a pool artifact/background prop the personalObject or finale engine unless it is already the selected idea's central object.",
     "- finalChoice must be executed by the main children, not by a helper or adult.",
     "- helperComplicates may confuse, pressure, fail, ask, or hand over an object. It must not explain the answer.",
@@ -5914,6 +5868,15 @@ function repairSceneCardsDeterministically(
   const childDecision = firstSceneText(finalPayoff.childAction, beatSheet?.act3?.finalChoice, beatSheet?.act3?.payoffFromPlant);
   const motifStates = ["introduced", "misused", "lost", "reinterpreted", "payoff"];
   const fixes: string[] = [];
+  const selectedSupportingNames = new Set(
+    (input.selectedIdea?.selectedSupportingCast || []).map((name) => normalizePoolName(String(name)))
+  );
+  const finalAntagonist = (input.poolCharacters || []).find((character) =>
+    selectedSupportingNames.has(normalizePoolName(character.name))
+      && /antagon|villain|gegner|widersacher|stoer|rival|ordentlich/i.test(
+        `${character.role || ""} ${character.archetype || ""} ${character.name || ""}`
+      )
+  );
 
   const baseCards = sceneCards.slice(0, DEV_MODE_SCENE_CARD_COUNT);
   while (baseCards.length < DEV_MODE_SCENE_CARD_COUNT) {
@@ -6009,6 +5972,27 @@ function repairSceneCardsDeterministically(
     return next;
   });
 
+  if (finalAntagonist && repaired.length > 0) {
+    const finalCard = repaired[repaired.length - 1];
+    finalCard.supportingCastPayoff = `${finalAntagonist.name} falls back into the old habit once, then chooses one concrete useful new task without explaining the rule or becoming instantly friendly.`;
+    finalCard.helperAction = `${finalAntagonist.name} tries the old order reflex once, sees its visible consequence, and takes over a specific useful task in a new way.`;
+    const existingOnStage = Array.isArray(finalCard.onStage) ? finalCard.onStage : [];
+    finalCard.onStage = [...new Set([...existingOnStage, finalAntagonist.name])].slice(0, 4);
+    const beats = Array.isArray(finalCard.dialogueBeats) ? finalCard.dialogueBeats.slice(0, 6) : [];
+    if (!beats.some((beat: any) => normalizePoolName(String(beat?.speaker || "")) === normalizePoolName(finalAntagonist.name))) {
+      const antagonistBeat = {
+        speaker: finalAntagonist.name,
+        intent: "decide",
+        subtext: "the old reflex collides with the children's costly choice",
+        actionCarried: "relapses once, then chooses a concrete useful new task without stating the lesson",
+      };
+      if (beats.length >= 6) beats[beats.length - 1] = antagonistBeat;
+      else beats.push(antagonistBeat);
+      finalCard.dialogueBeats = beats;
+    }
+    fixes.push("restored-antagonist-payoff-in-final-scene");
+  }
+
   const changed = JSON.stringify(repaired) !== JSON.stringify(sceneCards.slice(0, DEV_MODE_SCENE_CARD_COUNT));
   if (changed) fixes.push("filled-missing-scene-card-fields-from-beat-sheet");
   return { sceneCards: repaired, changed, fixes: [...new Set(fixes)] };
@@ -6016,7 +6000,7 @@ function repairSceneCardsDeterministically(
 
 function validateLoglineEngine(engine: any): string[] {
   const issues: string[] = [];
-  for (const key of ["logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief", "wonderRule", "recurringMotif", "personalObject"]) {
+  for (const key of ["logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief", "wonderRule", "recurringMotif", "refrainLine", "personalObject"]) {
     if (!String(engine?.[key] || "").trim()) issues.push(`loglineEngine.${key} missing`);
   }
   return issues;
@@ -6094,7 +6078,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   const issues: string[] = [];
   const required = [
     "logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief",
-    "wonderRule", "recurringMotif",
+    "wonderRule", "recurringMotif", "refrainLine",
   ];
   for (const key of required) {
     if (!String(beatSheet?.[key] || "").trim()) issues.push(`beatSheet.${key} missing`);
@@ -6407,7 +6391,7 @@ function buildBlueprintFromScreenplayPlan(
       endingImage: beatSheet?.act3?.closingImage,
     },
     readerMagnet: {
-      refrainLine: "",
+      refrainLine: beatSheet?.refrainLine || loglineEngine?.refrainLine || "",
       iconicMotif: beatSheet?.recurringMotif || loglineEngine?.recurringMotif,
       callbackLadder: sceneCards.map((card) => card.plant).filter(Boolean),
       activeUseByChapter: sceneCards.map((card) => card.payoffLater || card.plant).filter(Boolean),
@@ -6496,6 +6480,7 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
       centralQuestion: compactExcerpt(plan.loglineEngine?.centralQuestion || "", 180),
       wonderRule: compactExcerpt(plan.loglineEngine?.wonderRule || plan.beatSheet?.wonderRule || "", 220),
       recurringMotif: compactExcerpt(plan.loglineEngine?.recurringMotif || plan.beatSheet?.recurringMotif || "", 140),
+      refrainLine: compactExcerpt(plan.beatSheet?.refrainLine || plan.loglineEngine?.refrainLine || "", 90),
       personalObject: compactPersonalObjectForPrompt(plan.beatSheet?.personalObject, plan.loglineEngine?.personalObject, 180),
       emotionalPremise: compactExcerpt(plan.loglineEngine?.emotionalPremise || "", 200),
     },
@@ -6560,7 +6545,6 @@ function buildCompactStoryBibleForDraft(
       wonderRule: input.selectedIdea.wonderRule,
       emotionalEngine: input.selectedIdea.emotionalEngine,
       premiseSeedId: input.selectedIdea.premiseSeedId,
-      premiseSeedMutation: input.selectedIdea.premiseSeedMutation,
       selectedSupportingCast: input.selectedIdea.selectedSupportingCast,
     } : undefined,
     mainCharacters: (input.avatars || []).map((avatar) => ({
@@ -6740,7 +6724,6 @@ function buildCompactValidationIdeaBlock(input: DevModeGenerationInput): string 
     `- Emotional engine: ${compactExcerpt(idea.emotionalEngine, 160)}`,
     `- Core conflict: ${compactExcerpt(idea.coreConflict, 160)}`,
     idea.premiseSeedId ? `- Premise seed: ${idea.premiseSeedId}` : null,
-    idea.premiseSeedMutation ? `- Premise seed mutation: ${compactExcerpt(idea.premiseSeedMutation, 180)}` : null,
     idea.selectedSupportingCast.length > 0
       ? `- Locked supporting cast: ${idea.selectedSupportingCast.join(", ")}. Use ONLY the heroes plus these exact named characters. Do NOT introduce any other named side character (no character from a different idea, no invented friend). Every non-hero who speaks or acts must be one of the locked names.`
       : "- No pool character is mandatory for this idea. Do NOT invent a named side character; keep the cast to the heroes (plus a nameless, non-speaking background figure only if a scene truly needs one).",
@@ -6870,6 +6853,7 @@ function buildCompactWholeStoryDraftPrompts(
     0
   );
   const minQuotedLines = Math.max(18, Math.min(32, plannedDialogueBeats || 20));
+  const plannedRefrain = String(screenplayPlan?.beatSheet?.refrainLine || screenplayPlan?.loglineEngine?.refrainLine || "").trim();
   const userPrompt = [
     `WHOLE STORY DRAFT — one continuous ${languageName} story for ages ${ageGroup}.`,
     "No chapter headings, no scene labels. The app technically splits later into reading pages.",
@@ -6903,7 +6887,9 @@ function buildCompactWholeStoryDraftPrompts(
     "- ending is an IMAGE, not a moral. No \"sie lernten...\" / \"they learned...\". Also no as-if moral similes (\"als wäre er klüger geworden\", \"as if it had grown wiser\") — the last sentence shows one concrete object, sound, or motion in the scene.",
     "",
     "REFRAIN CONTRACT (read-aloud magnet — this is what separates a 9.0 book from a 7.0 draft):",
-    "- Derive ONE short SPOKEN signature line (3–7 words, inside „…“) from the wonder rule or the creature/object voice. It must be chantable, ideally with internal rhyme or a strong 2–4 beat rhythm a 6-year-old can repeat after one hearing.",
+    plannedRefrain
+      ? `- Use this EXACT planned refrain verbatim: "${plannedRefrain}". Do not invent a second refrain.`
+      : "- Derive ONE short SPOKEN signature line (3-7 words) from the wonder rule or the creature/object voice. It must be chantable and easy to repeat after one hearing.",
     "- A sound effect alone (Klong, Plopp, Wusch) is NOT a refrain. The refrain is WORDS a character says. A recurring sound may accompany it, but cannot replace it.",
     "- It must appear at least 3 times: introduced early → repeated under pressure in the middle → TRANSFORMED in the finale (same shape, new meaning).",
     "- The refrain belongs to a character's voice, not the narrator. Each return should land on its own short line so the page invites the child to say it aloud.",
@@ -8127,7 +8113,6 @@ function buildStoryPolishPrompts(
     "ROTER FADEN (red thread) UND TITEL-VERTRAG:",
     buildCentralObjectContractBlock(input) || "",
     buildPremiseSeedPromiseBlock(input) || "",
-    buildWonderRuleConsistencyBlock(input) || "",
     buildWonderRuleConsistencyBlock(input) || "",
     readingPageMode ? "- Identify the recurring concrete object/refrain/sound. Make sure it appears across the whole story and shifts meaning at each scene movement." : "- Identify the recurring concrete object/refrain/sound. Make sure it appears in EVERY chapter and shifts meaning each time. If a chapter is missing it, weave it in.",
     readingPageMode ? "- Every paragraph must follow causally from the previous one. If a reading page opens cold, add a bridge sentence without recap." : "- Every paragraph must follow causally from the previous one. If a chapter opens cold without a bridge from the previous chapter's last image/question, add one bridge sentence.",
@@ -10870,6 +10855,13 @@ function applyDeterministicStoryTextAutofixes(
 ): { story: DevModeRawStory; changed: boolean; fixes: string[] } {
   const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
   const fixes: string[] = [];
+  let fixedDescription = story.description;
+  const sanitizedDescription = sanitizeDescription(story.description || "");
+  if (sanitizedDescription.changed && sanitizedDescription.description.length >= 10) {
+    fixedDescription = sanitizedDescription.description;
+    fixes.push("description-metadata-sanitized");
+  }
+
   const fixedChapters = story.chapters.map((chapter) => {
     let content = chapter.content;
     const ortho = applyOrthographyAutoFix(content);
@@ -10896,8 +10888,8 @@ function applyDeterministicStoryTextAutofixes(
 
   if (fixes.length === 0) return { story, changed: false, fixes: [] };
   const fixedStory = story.displayMode === "reading_pages"
-    ? markStoryAsReadingPages({ ...story, chapters: fixedChapters }, story)
-    : { ...story, chapters: fixedChapters };
+    ? markStoryAsReadingPages({ ...story, description: fixedDescription, chapters: fixedChapters }, story)
+    : { ...story, description: fixedDescription, chapters: fixedChapters };
   return { story: fixedStory, changed: true, fixes: [...new Set(fixes)] };
 }
 
@@ -12531,16 +12523,17 @@ export async function generateStoryDevMode(
       }
     }
 
-    const dialogueIntentPrompts = buildDialogueIntentPrompts(input, sceneCards);
-    const dialogueIntentStage = await runStage("dialogue-intent", dialogueIntentPrompts, {
-      maxTokens: 2200,
-      temperature: 0.28,
-      timeoutMs: 90_000,
-      ...supportCallOptions,
-      modelRole: "support",
-    });
-    let dialoguePlan = normalizeDialoguePlan(dialogueIntentStage.parsed || {});
+    // Scene cards already contain the same 4-6 functional dialogue beats this
+    // stage used to ask a second LLM call to restate. Reuse the validated plan
+    // deterministically; only pay for a repair call if the local plan is still
+    // incomplete after padding.
+    let dialoguePlan = padDialoguePlanFromSceneCards({ sceneDialogue: [] }, sceneCards);
     let dialogueIssues = validateDialoguePlan(dialoguePlan);
+    recordLocalStage("dialogue-intent", {
+      source: "validated-scene-cards",
+      savedSupportCall: dialogueIssues.length === 0,
+      ...dialoguePlan,
+    });
     if (dialogueIssues.length > 0) {
       const repairPrompts = buildDialogueIntentPrompts(input, sceneCards, dialogueIssues, dialoguePlan);
       const repairedDialogueStage = await runStage("dialogue-intent-repair", repairPrompts, {

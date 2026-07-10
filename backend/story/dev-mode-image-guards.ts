@@ -114,7 +114,7 @@ export function renderCharacterManifest(manifests: CharacterManifest[]): string 
 
 /**
  * Canonical boy-on-stage clothing constraints used by the
- * `whole-story-first-v11` cast (Adrian / Alexander). Centralised so a
+ * `whole-story-first-v11` human-child cast. Centralised so a
  * future cast change only edits one place.
  */
 export const BOY_FORBIDDEN_ATTRIBUTES = [
@@ -148,12 +148,12 @@ export const FAIRY_EXCLUSIVE_ATTRIBUTES = [
 export const CANONICAL_NEGATIVE_PACK = [
   "no text", "no captions", "no speech bubbles", "no letters", "no signs",
   "no labels", "no logos",
-  "no extra children", "no duplicate characters", "no third boy",
+  "no extra children", "no duplicate characters", "no unplanned human child",
   "no girl replacing a boy", "no extra background children",
   "no dress on boys", "no skirt on boys", "no fairy wings on boys",
-  "no flower crown on boys", "no pink fairy outfit on Adrian",
-  "no pink dress on Adrian", "no fairy dress on Alexander",
-  "do not copy Fee Rosalie clothing onto boys",
+  "no flower crown on boys", "no pink fairy outfit on human children",
+  "no pink dress on human children", "no fairy dress on human children",
+  "do not copy non-human character clothing onto human children",
   "do not swap character outfits", "do not merge fairy with boy",
   "no gender swap",
   // v12 §13D/F: log-runware-single-image-3b8eedfe contained raw JSON +
