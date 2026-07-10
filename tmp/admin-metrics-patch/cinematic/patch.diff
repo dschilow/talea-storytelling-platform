@@ -1,0 +1,49 @@
+diff --git a/frontend/screens/Story/CinematicStoryViewer.tsx b/frontend/screens/Story/CinematicStoryViewer.tsx
+index 242b22c..2f7ac0a 100644
+--- a/frontend/screens/Story/CinematicStoryViewer.tsx
++++ b/frontend/screens/Story/CinematicStoryViewer.tsx
+@@ -12,8 +12,10 @@ import type { Story, Chapter } from '../../types/story';
+ import type { InventoryItem } from '../../types/avatar';
+ import { cn } from '../../lib/utils';
+ import { StoryAudioActions } from '../../components/story/StoryAudioActions';
++import { AdminGenerationMetrics } from '../../components/story/AdminGenerationMetrics';
+ import { useTheme } from '../../contexts/ThemeContext';
+ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
++import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+ import { extractStoryParticipantIds } from '../../utils/storyParticipants';
+ import { getOfflineStory } from '../../utils/offlineDb';
+ import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
+@@ -100,6 +102,7 @@ const CinematicStoryViewer: React.FC = () => {
+   const backend = useBackend();
+   const { getToken } = useAuth();
+   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
++  const { isAdmin } = useOptionalUserAccess();
+   const { resolvedTheme } = useTheme();
+ 
+   const containerRef = useRef<HTMLDivElement>(null);
+@@ -130,7 +133,7 @@ const CinematicStoryViewer: React.FC = () => {
+ 
+   useEffect(() => {
+     if (storyId) void loadStory();
+-  }, [storyId, activeProfileId]);
++  }, [storyId, activeProfileId, isAdmin]);
+ 
+   useEffect(() => {
+     if (!currentArtifact && artifactQueue.length > 0) {
+@@ -145,7 +148,7 @@ const CinematicStoryViewer: React.FC = () => {
+     try {
+       setLoading(true);
+       setError(null);
+-      let rawStory: any = await getOfflineStory(storyId);
++      let rawStory: any = isAdmin ? null : await getOfflineStory(storyId);
+       if (!rawStory) {
+         const storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
+         rawStory = storyData as any;
+@@ -485,6 +488,7 @@ const CinematicStoryViewer: React.FC = () => {
+           </section>
+         )}
+ 
++        {isAdmin && <AdminGenerationMetrics metadata={story.metadata} />}
+         {/* ── Finale ── */}
+         <section className="sr-finale">
+           <motion.div

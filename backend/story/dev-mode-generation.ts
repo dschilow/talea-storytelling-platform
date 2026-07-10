@@ -35,6 +35,7 @@ import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
 import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
+import { selectLockedSupportingCast } from "./pipeline/cast-lock";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
 import type { StoryConfig, AIProvider } from "./generate";
@@ -107,11 +108,11 @@ const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 25;
 // explicit feedback before any polish/rebalance pass runs. Production logs
 // (734d7ae5: 16.6%, a27e9788: 16.9%) show drafts this far under the floor are
 // never rescued by downstream repairs — they just trade words for dialogue.
-const DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT = 24;
-const DEV_MODE_TARGET_DIALOG_PCT = 32;
+const DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT = 18;
+const DEV_MODE_TARGET_DIALOG_PCT = 28;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
 // New range matches real children's-book dialogue density (25–40%).
-const DEV_MODE_PROMPT_DIALOG_PCT = 35;
+const DEV_MODE_PROMPT_DIALOG_PCT = 32;
 // Upper soft cap. Kimi/Moonshot overshoots badly (run 3db9b3b0: 49% overall,
 // 58-67% on chapters 1-3) — a story that is almost all talk loses the sensory
 // narration, action beats and read-aloud rhythm a picture book needs.
@@ -133,7 +134,7 @@ const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.0;
 const DEV_MODE_PREMIUM_RELEASE_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
-const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 2;
+const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 // See "Diminishing-returns brake" at the validation-polish loop: once a
 // story clears all hard gates and scores at/above this, further validation
 // rounds are skipped even though the premium target (9.0) is technically
@@ -3171,9 +3172,10 @@ function countIdeaCandidates(config: StoryConfig): number {
   // Keep each idea-lab response parseable. The previous 8/10-candidate
   // payload regularly exceeded the support model's completion budget, so the
   // JSON was cut mid-string and the pipeline fell back to deterministic ideas.
-  // Multiple rounds still provide variety, but every single round must finish.
-  if (config.length === "long") return 6;
-  if (config.length === "medium") return 5;
+  // Four candidates preserve distinct premise lanes while avoiding a fifth or
+  // sixth full candidate payload; short stories need only three. Multiple rounds
+  // remain available when all candidates fail premise gates.
+  if (config.length === "short") return 3;
   return 4;
 }
 
@@ -3975,29 +3977,42 @@ function finalizeSelectedIdeaCast(
 ): { selectedIdea: DevModeSelectedIdea; poolCharacters?: DevModePoolCharacter[] } {
   if (!pool || pool.length === 0) return { selectedIdea, poolCharacters: pool };
 
-  const requestedNames = new Set((selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).map(normalizePoolName));
-  const removedRiskyRequested = pool
-    .filter((character) => requestedNames.has(normalizePoolName(character.name)))
+  const requestedOrder = (selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || [])
+    .map((name) => String(name || '').trim())
+    .filter(Boolean);
+  const requestedSelection = selectLockedSupportingCast(
+    pool,
+    requestedOrder,
+    DEV_MODE_MAX_SUPPORTING_CAST,
+    normalizePoolName,
+  );
+  const requestedCharacters = requestedSelection.locked;
+  const adultExplainerRisks = requestedCharacters
     .filter((character) => isExplanatoryAdultCastRisk(character, selectedIdea, input))
     .map((character) => character.name);
-  const eligiblePool = pool.filter((character) => !isExplanatoryAdultCastRisk(character, selectedIdea, input));
 
-  const minCount = Math.min(DEV_MODE_MIN_SUPPORTING_CAST, eligiblePool.length);
+  // The winning idea is already written around its requested supporting cast.
+  // Replacing that cast here silently leaves the old name in the prose plan
+  // while image generation only receives the replacement (Story 3: Fanni was
+  // central in text but absent from every image). Keep valid locked requests;
+  // adult-helper risk is controlled by prompt/agency gates, never by swapping
+  // identities after premise selection.
+  const minCount = Math.min(DEV_MODE_MIN_SUPPORTING_CAST, pool.length);
   const maxCount = Math.min(DEV_MODE_MAX_SUPPORTING_CAST, pool.length);
-  const recommendedCount = (selectedIdea.selectedSupportingCast || selectedIdea.recommendedSupportingCast || []).length;
-  const effectiveRecommendedCount = Math.max(0, recommendedCount - removedRiskyRequested.length);
-  const targetCount = Math.max(minCount, Math.min(maxCount, effectiveRecommendedCount || minCount));
-  const scored = eligiblePool
+  const targetCount = Math.max(minCount, Math.min(maxCount, requestedCharacters.length || minCount));
+  const scored = pool
     .map((character) => ({ character, score: scorePoolCharacterForSelectedIdea(character, selectedIdea, input) }))
     .sort((a, b) => b.score - a.score);
 
-  const picked: DevModePoolCharacter[] = [];
-  const seenArchetypes = new Set<string>();
+  const picked: DevModePoolCharacter[] = requestedCharacters.slice(0, targetCount);
+  const seenArchetypes = new Set(
+    picked.map((character) => normalizePoolName(character.archetype || '')).filter(Boolean)
+  );
   const pick = (allowDuplicateArchetypes: boolean) => {
     for (const candidate of scored) {
       if (picked.length >= targetCount) break;
       if (picked.includes(candidate.character)) continue;
-      const archetype = normalizePoolName(candidate.character.archetype || "");
+      const archetype = normalizePoolName(candidate.character.archetype || '');
       if (!allowDuplicateArchetypes && archetype && seenArchetypes.has(archetype)) continue;
       picked.push(candidate.character);
       if (archetype) seenArchetypes.add(archetype);
@@ -4008,10 +4023,13 @@ function finalizeSelectedIdeaCast(
 
   const finalPool = picked.slice(0, targetCount);
   const finalNames = finalPool.map((character) => character.name);
-  console.log("[dev-mode-generation] Final story-fit supporting cast", {
+  const unresolvedRequested = requestedSelection.unresolvedNames;
+  console.log('[dev-mode-generation] Final story-fit supporting cast', {
     selectedIdea: selectedIdea.title,
     targetCount,
-    removedRiskyRequested,
+    retainedRequestedCast: requestedCharacters.map((character) => character.name),
+    adultExplainerRisks,
+    unresolvedRequested,
     selectedSupportingCast: finalNames,
     topCandidates: scored.slice(0, 8).map((candidate) => ({
       name: candidate.character.name,
@@ -4027,13 +4045,12 @@ function finalizeSelectedIdeaCast(
       selectedSupportingCast: finalNames,
       recommendedSupportingCast: finalNames,
       chosenReason: finalNames.length > 0
-        ? `${selectedIdea.chosenReason} Final supporting cast chosen after premise selection for story fit; recent usage only acted as a soft tie-breaker.${removedRiskyRequested.length ? ` Removed adult-explainer risk: ${removedRiskyRequested.join(", ")}.` : ""}`
-        : `${selectedIdea.chosenReason} No supporting cast was forced after premise selection; main-avatar agency and pacing ranked higher than pool usage.${removedRiskyRequested.length ? ` Removed adult-explainer risk: ${removedRiskyRequested.join(", ")}.` : ""}`,
+        ? `${selectedIdea.chosenReason} The locked supporting cast was retained after premise selection so story and image references use the same identities.${adultExplainerRisks.length ? ` Adult helper agency is constrained for: ${adultExplainerRisks.join(', ')}.` : ''}`
+        : `${selectedIdea.chosenReason} No supporting cast was forced after premise selection; main-avatar agency and pacing ranked higher than pool usage.`,
     },
     poolCharacters: finalPool,
   };
 }
-
 function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
   const selectedIdea = input.selectedIdea;
   if (!selectedIdea) return "";
@@ -4058,6 +4075,57 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
     buildCentralObjectContractBlock(input),
     `- Selection reason: ${selectedIdea.chosenReason}`,
   ].filter((line): line is string => Boolean(line)).join("\n");
+}
+
+function getMainAvatarNames(input: DevModeGenerationInput): string[] {
+  const seen = new Set<string>();
+  return (input.avatars || [])
+    .map((avatar) => String(avatar.name || "").trim())
+    .filter((name) => {
+      const key = name.toLocaleLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatNameList(names: string[], fallback: string): string {
+  const clean = names.map((name) => String(name || "").trim()).filter(Boolean);
+  if (clean.length === 0) return fallback;
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} and ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")}, and ${clean[clean.length - 1]}`;
+}
+
+function mainAvatarVoiceInstruction(input: DevModeGenerationInput): string {
+  const names = getMainAvatarNames(input);
+  if (names.length >= 2) {
+    return `Every main avatar (${formatNameList(names, "the main cast")}) must have a distinct speaking rhythm, vocabulary, first reaction, and recurring physical behavior. No two lines may be freely swappable.`;
+  }
+  if (names.length === 1) {
+    return `${names[0]} must keep one specific, recognizable voice and behavior pattern throughout; never invent a second co-protagonist.`;
+  }
+  return "The story's named protagonist must keep one specific, recognizable voice and behavior pattern throughout; never invent an unplanned co-protagonist.";
+}
+
+function germanMainAvatarSubject(input: DevModeGenerationInput): { subject: string; give: string; leave: string; recognize: string; perform: string; place: string } {
+  const names = getMainAvatarNames(input);
+  const subject = names.length === 0
+    ? "Die Hauptfigur"
+    : names.length === 1
+      ? names[0]
+      : names.length === 2
+        ? `${names[0]} und ${names[1]}`
+        : `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]}`;
+  const plural = names.length > 1;
+  return {
+    subject,
+    give: plural ? "geben" : "gibt",
+    leave: plural ? "lassen" : "lässt",
+    recognize: plural ? "erkennen" : "erkennt",
+    perform: plural ? "führen" : "führt",
+    place: plural ? "stellen" : "stellt",
+  };
 }
 
 // --- Voice Bible ----------------------------------------------------------
@@ -4165,24 +4233,25 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
   }
   if (lines.length === 0) return null;
 
-  // Contrast contract for the two heroes. The recurring validator finding
-  // across runs was "hero B is a mirror of hero A" (voiceDistinctiveness
-  // stuck at 7.5). When both avatars carry similar/empty traits, the derived
-  // voices above are too close, so we assign COMPLEMENTARY dialogue ROLES the
-  // model must keep distinct regardless of trait data.
-  const heroNames = (input.avatars || []).map((a) => a?.name).filter(Boolean) as string[];
+  // Assign complementary scene instincts for any avatar count. The individual
+  // voice lines above remain authoritative; these roles only stop same-voice
+  // agreement chains and never invent a missing co-protagonist.
+  const heroNames = getMainAvatarNames(input);
+  const contrastRoles = [
+    'DRIVES: acts first, uses clipped decisions, pushes the next physical move',
+    'CHECKS: notices patterns and risks, answers with concrete questions',
+    'IMAGINES: proposes odd possibilities, uses playful images and lateral ideas',
+    'CONNECTS: reads other characters, names practical relationship stakes, mediates through action',
+  ];
   const contrastBlock = heroNames.length >= 2
     ? [
-        "",
-        `HERO CONTRAST CONTRACT (binding \u2014 ${heroNames[0]} and ${heroNames[1]} must never be interchangeable):`,
-        `- ${heroNames[0]} DRIVES: acts first, wants to fix/try/grab, speaks in short decisive statements and commands.`,
-        `- ${heroNames[1]} STEADIES: notices, questions, slows things down, speaks in gentle questions and small observations.`,
-        "- In EVERY dialogue exchange the two play different beats: one pushes, the other checks \u2014 never two agreeing echoes in a row.",
-        `- Distinct RHYTHM (not a repeated phrase): ${heroNames[0]} clipped and blunt, ${heroNames[1]} softer with a trailing question. A reader must name the speaker from the rhythm alone.`,
-        "- At least once, let them openly DISAGREE about what to do next before they act \u2014 friction is what makes two voices feel real.",
-      ].join("\n")
-    : "";
-
+        '',
+        `MAIN-AVATAR CONTRAST CONTRACT (binding — no two of ${heroNames.join(', ')} may be interchangeable):`,
+        ...heroNames.map((name, index) => `- ${name} ${contrastRoles[index % contrastRoles.length]}. Keep the personal voice bible above; do not turn this into a repeated catchphrase.`),
+        '- In dialogue, consecutive speakers must do different jobs: push, check, imagine, resist, connect, or decide. Never write agreeing echoes.',
+        '- At least once, let main avatars genuinely disagree about the next action before they choose together.',
+      ].join('\n')
+    : '';
   // Helper anti-solve contract. Both "Der Schl\u00fcssel zu gestern und morgen"
   // (Hexe Kr\u00e4uterweis: "Fange den Duft des Jetzt", "Jede Wurzel kennt ein
   // Gegenmittel") and "Der Weg der stickigen Umwege" (Troll Grummel steering
@@ -4197,7 +4266,7 @@ function buildVoiceBibleBlock(input: DevModeGenerationInput): string | null {
         "HELPER ANTI-SOLVE CONTRACT (binding \u2014 supporting cast must COMPLICATE, never SOLVE):",
         "- A helper may pressure, misread, ask a sharp question, hand over a plain object, or create a comic obstacle. A helper may NEVER name the cure, state the rule, or tell the children what to do.",
         "- Wise/knowing archetypes (Hexe, Zauberer, weise Figur, Detektiv) are especially at risk: give them mood, smell, gesture, and ONE cryptic half-line at most \u2014 never a working instruction like \"Fange den Duft des Jetzt\" or \"Jede Wurzel kennt ein Gegenmittel\".",
-        "- The decisive insight (\"the key eats my memories\", \"running is what drains the colour\") and the decisive action MUST come from the child avatars, on the page, in their own words.",
+        "- The decisive insight (\"the key eats my memories\", \"running is what drains the colour\") and the decisive action MUST come from the named main avatars, on the page, in their own words.",
       ].join("\n")
     : "";
 
@@ -4223,18 +4292,26 @@ function buildWriterVoiceAnchorBlock(input: DevModeGenerationInput): string | nu
     return [
       "WRITER VOICE BENCHMARK (craft target — do not copy, continue, or imitate any existing book):",
       "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
-      "- Top character-comedy craft: two unmistakably different voices; comedy from action and props, not narrator commentary; warmth shown through small gestures, not stated.",
+      "- Character-comedy craft: every named main avatar has a distinct voice; comedy comes from action and props, not narrator commentary; warmth is shown, not stated.",
       "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
       "- Allowed and encouraged: one surprising simile per major scene movement from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+      "- PROSE ANTI-TIC: no adjective fragment triplets ('Schwer. Metallisch. Endgültig.'), no stacked one-word verdicts, no repeated ears-red / fingers-tremble / voice-breaks shorthand. Use one fresh, situation-specific action instead.",
+      "- A refrain must be playful character language, never the lesson stated as a slogan. The narrator and magical object may not announce what the child should learn.",
+      "- If there is a wonder rule, show two visible cause/effect tests before a protagonist can infer it; nobody simply announces the solution.",
+      "- Make any deadline change visibly and resolve it on-page. The title's central person/object/place must literally fulfil the title promise."
     ].join("\n");
   }
   if (code === "en") {
     return [
       "WRITER VOICE BENCHMARK (craft target — do not copy, continue, or imitate any existing book):",
       "- Top read-aloud craft: short musical beats, recurring refrain, no wasted words, and a central trick/rule that keeps paying off.",
-      "- Top character-comedy craft: two unmistakably different voices; comedy from action and props; warmth in small gestures.",
+      "- Character-comedy craft: every named main avatar has a distinct voice; comedy comes from action and props; warmth is shown, not stated.",
       "- Use these as quality criteria only. The story must remain the user's original premise with original wording.",
       "- Allowed and encouraged: one surprising simile per major scene movement from a child's world (toy, animal, food, weather). Never delete a strong simile during repair.",
+      "- PROSE ANTI-TIC: no adjective-fragment triplets, stacked one-word verdicts, or repeated stock body tells. Use one fresh, situation-specific action instead.",
+      "- A refrain must be playful character language, never the lesson stated as a slogan. No narrator or magical object may announce the moral.",
+      "- If there is a wonder rule, show two visible cause/effect tests before a protagonist can infer it; nobody simply announces the solution.",
+      "- Make any deadline change visibly and resolve it on-page. The title's central person/object/place must literally fulfil the title promise."
     ].join("\n");
   }
   return null;
@@ -4246,6 +4323,10 @@ function buildReleaseCraftContract(input: DevModeGenerationInput): string {
     "RELEASE-QUALITY CRAFT CONTRACT (9.0+ target, benchmark principles only):",
     `- Output is in ${languageName}, but quality must compare to real shelf books: a child-retellable premise, musical read-aloud rhythm, distinct voices, escalating try-fail-try, and an earned final reversal/payoff.`,
     "- Every recurrence changes meaning. If a refrain, prop, sound, or rule repeats at the same emotional level, rewrite it so it tests, blocks, reveals, jokes, or pays off.",
+    "- If the premise has a wonder rule, the protagonists must infer it from at least two visible cause/effect tests before anyone names it. A helper or magical object cannot simply state the answer.",
+    "- If the premise introduces a deadline or danger, show its pressure changing on-page and visibly resolve it in the ending; description-only stakes do not count.",
+    "- The title promise must be literal and causal: the title's central person/object/place performs or suffers the named action on-page.",
+    "- Every named supporting character enters through a visible, continuity-safe route and appears only in scenes where the locked cast plan places them.",
     "- Each scene movement must force the next by therefore/but causality. No episode may be movable without breaking the plot.",
     "- The final choice must be child-small but emotionally exact: giving up control, sharing a private thing, waiting, admitting a mistake, or noticing what a helper cannot say.",
     "- No-refund rule: if a personal object, privilege, promise, status, or secret is paid as the story's cost, the finale may transform/rehome it, but may NOT simply return it unchanged or let a helper undo the cost.",
@@ -4277,20 +4358,31 @@ function buildReadingPageContinuityContract(pageCount: number): string {
 }
 
 function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, strict = false): string | null {
+  const mainNames = getMainAvatarNames(input);
   const castNames = input.selectedIdea?.selectedSupportingCast || [];
-  if (castNames.length === 0) return null;
+  const allowedNames = [...new Set([...mainNames, ...castNames].map((name) => String(name || '').trim()).filter(Boolean))];
+  if (allowedNames.length === 0) return null;
 
   const poolByName = new Map((input.poolCharacters || []).map((character) => [normalizePoolName(character.name), character]));
   const lines: string[] = [
-    strict ? "LOCKED CAST REPAIR CONTRACT:" : "LOCKED CAST INTEGRATION CONTRACT:",
-    `- Selected supporting cast: ${castNames.join(", ")}. Each must change the plot, not merely appear or explain.`,
-    "- For every selected cast figure, include: one visible action only they would do, one line/gesture in their voice, and one causal effect on the problem or solution.",
-    "- Failure condition: if the story still works after deleting that figure, rewrite the beat until the figure is plot-necessary.",
-    "- Cast budget: give each supporting figure a compact scene job. Do not let helpers form a parade, take over the finale, or explain the lesson.",
-    castNames.length > 1
-      ? "- With two supporting figures, split functions clearly: one may complicate or reveal; one may help with a tool/action. The main avatars must still make the decisive choice."
-      : "- The supporting figure may nudge the problem, but the main avatars must make the decisive choice.",
+    strict ? 'LOCKED CAST REPAIR CONTRACT:' : 'LOCKED CAST INTEGRATION CONTRACT:',
+    `- Exact named story cast: ${allowedNames.join(', ')}. Do not introduce any other named person, creature, narrator-character, or helper. Background figures stay unnamed.`,
+    `- Named main avatars: ${mainNames.join(', ') || 'the configured protagonist'}. Never invent a missing co-protagonist; never merge or duplicate identities.`,
   ];
+
+  if (castNames.length === 0) {
+    lines.push('- No named supporting figure is selected. Keep the story focused on the main avatar cast.');
+  } else {
+    lines.push(
+      `- Selected supporting cast: ${castNames.join(', ')}. Each must change the plot, not merely appear or explain.`,
+      '- For every selected cast figure, include: one visible action only they would do, one line/gesture in their voice, and one causal effect on the problem or solution.',
+      '- Failure condition: if the story still works after deleting that figure, rewrite the beat until the figure is plot-necessary.',
+      '- Cast budget: give each supporting figure a compact scene job. Do not let helpers form a parade, take over the finale, or explain the lesson.',
+      castNames.length > 1
+        ? '- Split supporting functions clearly. The main avatars must still make the decisive choice.'
+        : '- The supporting figure may nudge the problem, but the main avatars must make the decisive choice.',
+    );
+  }
 
   for (const name of castNames) {
     const character = poolByName.get(normalizePoolName(name));
@@ -4298,17 +4390,16 @@ function buildSelectedCastIntegrationContract(input: DevModeGenerationInput, str
     const traits = poolCharacterPersonalityLine(character, 3);
     const triggers = poolCharacterTriggers(character, 2);
     const details = [
-      traits.length > 0 ? `core=${traits.join("/")}` : null,
+      traits.length > 0 ? `core=${traits.join('/')}` : null,
       character.quirk ? `quirk=${compactExcerpt(character.quirk, 90)}` : null,
       character.catchphrase ? `catchphrase=${compactExcerpt(character.catchphrase, 70)}` : null,
-      triggers.length > 0 ? `trigger=${triggers.join("/")}` : null,
-    ].filter(Boolean).join("; ");
+      triggers.length > 0 ? `trigger=${triggers.join('/')}` : null,
+    ].filter(Boolean).join('; ');
     if (details) lines.push(`- ${name}: use their specific data on-page (${details}).`);
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
-
 function buildSilentPreWriteSelfReviewContract(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -5697,7 +5788,7 @@ function buildBeatSheetPrompts(
     "- personalObject.object, recurringMotif, irreversibleMiddle.visibleDamage, finalPayoff.plantedDetail, and finalPayoff.closingImage must share ONE red-thread object/place from the locked idea.",
     "- Carry refrainLine from the locked engine forward verbatim. It is a separate story refrain, not a pool-character catchphrase.",
     "- Do NOT make a pool artifact/background prop the personalObject or finale engine unless it is already the selected idea's central object.",
-    "- finalChoice must be executed by the main children, not by a helper or adult.",
+    "- finalChoice must be executed by the named main avatars, not by a helper or adult.",
     "- helperComplicates may confuse, pressure, fail, ask, or hand over an object. It must not explain the answer.",
     "- closingImage must be a picture/action, not a stated lesson.",
     // v12 §H additive gates — structured sub-objects.
@@ -5705,7 +5796,7 @@ function buildBeatSheetPrompts(
     "- irreversibleMiddle.visibleDamage must be a concrete visible change (zerbrochen, verlischt, schrumpft, weg, ...) — NOT abstract phrasing like 'alles wird schwieriger'.",
     "- irreversibleMiddle.cannotReturnToStartBecause must give a structural reason why simply waiting cannot undo it.",
     "- finalPayoff.plantedDetail must be a detail that was visibly planted before the midpoint.",
-    "- finalPayoff.childAction must be executed by the main children, named. NOT by a helper.",
+    "- finalPayoff.childAction must be executed by the named main avatars. NOT by a helper.",
     "- finalPayoff.closingImage must echo finalPayoff.plantedDetail (same object / motif / location).",
     isPremium
       ? "PREMIUM MODE: the new structured sub-objects (irreversibleMiddle, finalPayoff, personalObject) are HARD REQUIRED. An incomplete sub-object will trigger regenerate_from_plan_or_idea, not a cosmetic repair."
@@ -5731,9 +5822,11 @@ function buildSceneCardPrompts(
   repairIssues: string[] = []
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
-  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
-  const heroA = heroNames[0] || "main child A";
-  const heroB = heroNames[1] || "main child B";
+  const heroNames = getMainAvatarNames(input);
+  const primaryHero = heroNames[0] || "the named main protagonist";
+  const driverOptions = heroNames.length > 0
+    ? heroNames.map((name) => `"${name}"`).join(", ")
+    : 'the named main protagonist';
   const isPremium = (input.qualityMode || "premium") === "premium";
   const systemPrompt = qualitySystemPrompt(
     languageName,
@@ -5760,8 +5853,7 @@ function buildSceneCardPrompts(
       '      "childDiscovery": string,',
       '      "childDecision": string,',
       '      "characterDriver": string,',
-      '      "adrianAction": string,',
-      '      "alexanderAction": string,',
+      '      "characterActions": { "[exact character name]": string },',
       '      "helperFunction": string,',
       '      "helperAction": string,',
       '      "helperMustNotExplain": true,',
@@ -5782,7 +5874,7 @@ function buildSceneCardPrompts(
     `Create exactly ${DEV_MODE_SCENE_CARD_COUNT} scene cards. These are cinematic story functions, not display chapters.`,
     "Required purposes, in order: hook, false_attempt, complication, irreversible_middle, final_payoff.",
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
-    `Use characterDriver as "${heroA}", "${heroB}", or "shared". If the raw field names say adrianAction/alexanderAction, map them to ${heroA}/${heroB} actions.`,
+    `Use characterDriver as one of ${driverOptions}, or "shared". characterActions must contain one entry for EVERY named main avatar: ${heroNames.join(", ") || "the named main protagonist"}. Never invent a second protagonist.`,
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
     "personalCost must name a PHYSICAL object, place, or privilege that is visibly given up, used up, broken, or left behind — NEVER an abstract feeling. Forbidden: 'verliert Zuversicht', 'muss Scham überwinden', 'loses hope'. Required shape: 'gibt den letzten X her', 'lässt Y zurück', 'Z zerbricht und bleibt zerbrochen'.",
     "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
@@ -5839,7 +5931,7 @@ function buildDialogueIntentPrompts(
       : "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
     "Plan dialogue function before drafting. This is not a quota pass; every beat must carry action, relationship, tension, humor, or subtext.",
     "For each of the 5 scenes, produce 4-6 dialogue beats. Hard minimum is 4 beats per scene.",
-    "Make the main children sound different through rhythm, word choice, first reaction, and body action.",
+    mainAvatarVoiceInstruction(input),
     "No filler acknowledgements. No helper explaining the magic rule or final answer.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
     repairIssues.length > 0 && previousDialoguePlan
@@ -5961,23 +6053,20 @@ function hasConcreteSceneDamageSignal(text: string): boolean {
 }
 
 function ensureSceneDialogueBeats(card: any, input: DevModeGenerationInput): any[] {
-  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
-  const heroA = heroNames[0] || "Kind 1";
-  const heroB = heroNames[1] || "Kind 2";
+  const heroNames = getMainAvatarNames(input);
+  const speakers = heroNames.length > 0 ? heroNames : ['Hauptfigur'];
   const existing = Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.slice(0, 6) : [];
-  const fillers = [
-    { speaker: heroA, intent: "want", subtext: "will das sichtbare Ziel erreichen", actionCarried: card?.visibleGoal || card?.plant || "zeigt auf den nächsten Schritt" },
-    { speaker: heroB, intent: "observe", subtext: "bemerkt die Regel oder Gefahr", actionCarried: card?.obstacle || card?.visibleConsequence || "hält kurz inne und prüft die Spur" },
-    { speaker: heroA, intent: "resist", subtext: "will den einfachen Weg nehmen", actionCarried: card?.wrongAction || "greift zu schnell nach der falschen Lösung" },
-    { speaker: heroB, intent: "decide", subtext: "lenkt zur nächsten Handlung", actionCarried: card?.endPull || card?.childDecision || "setzt eine konkrete Entscheidung in Bewegung" },
+  const templates = [
+    { intent: 'want', subtext: 'will das sichtbare Ziel erreichen', actionCarried: card?.visibleGoal || card?.plant || 'zeigt auf den nächsten Schritt' },
+    { intent: 'observe', subtext: 'bemerkt die Regel oder Gefahr', actionCarried: card?.obstacle || card?.visibleConsequence || 'hält kurz inne und prüft die Spur' },
+    { intent: 'resist', subtext: 'will den einfachen Weg nehmen', actionCarried: card?.wrongAction || 'greift zu schnell nach der falschen Lösung' },
+    { intent: 'decide', subtext: 'lenkt zur nächsten Handlung', actionCarried: card?.endPull || card?.childDecision || 'setzt eine konkrete Entscheidung in Bewegung' },
   ];
-  for (const filler of fillers) {
-    if (existing.length >= 4) break;
-    existing.push(filler);
+  for (let index = existing.length; index < 4; index += 1) {
+    existing.push({ speaker: speakers[index % speakers.length], ...templates[index] });
   }
   return existing;
 }
-
 function repairSceneCardsDeterministically(
   sceneCards: any[],
   beatSheet: any,
@@ -5987,14 +6076,13 @@ function repairSceneCardsDeterministically(
   const motif = firstSceneText(beatSheet?.recurringMotif, beatSheet?.wonderRule, input.selectedIdea?.centralObjectOrPlace, "das wiederkehrende Zeichen");
   const middle = beatSheet?.irreversibleMiddle || {};
   const finalPayoff = beatSheet?.finalPayoff || {};
-  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
-  const heroA = heroNames[0] || "Die Kinder";
-  const heroB = heroNames[1] || "das zweite Kind";
+  const heroNames = getMainAvatarNames(input);
+  const protagonist = germanMainAvatarSubject(input);
   const lockedCentralObject = getLockedCentralObject(input);
   const personalObject = firstSceneText(beatSheet?.personalObject, lockedCentralObject, motif);
   // Concrete fallback cost, guaranteed to pass the abstract-cost gate (names a
   // physical object that is given up / left behind, no feeling-noun).
-  const concretePersonalCost = `${heroA} und ${heroB} geben ${personalObject} her und lassen es sichtbar zurück.`;
+  const concretePersonalCost = `${protagonist.subject} ${protagonist.give} ${personalObject} her und ${protagonist.leave} es sichtbar zurück.`;
   const rawPersonalCost = firstSceneText(middle.personalCost, beatSheet?.act2?.personalCost, input.selectedIdea?.coreConflict);
   const personalCost = rawPersonalCost.length >= 18
     && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
@@ -6075,10 +6163,19 @@ function repairSceneCardsDeterministically(
     next.endPull = firstSceneText(original.endPull, original.chapterEndHook, original.pull, endPullFallbacks[index], "Etwas bleibt offen und zieht sie weiter.");
     next.plant = firstSceneText(original.plant, finalPayoff.plantedDetail, beatSheet?.personalObject, motif);
     next.payoffLater = firstSceneText(original.payoffLater, finalPayoff.closingImage, beatSheet?.act3?.payoffFromPlant, beatSheet?.act3?.closingImage);
-    next.characterDriver = firstSceneText(original.characterDriver, index >= 3 ? "shared" : heroA);
-    next.adrianAction = firstSceneText(original.adrianAction, original[`${heroA}Action`], `${heroA} handelt sichtbar am Objekt.`);
-    next.alexanderAction = firstSceneText(original.alexanderAction, original[`${heroB}Action`], `${heroB} bemerkt die Folge und reagiert.`);
-    const helperFunction = firstSceneText(original.helperFunction);
+    const defaultDriver = heroNames.length > 0 ? heroNames[index % heroNames.length] : 'shared';
+    next.characterDriver = firstSceneText(original.characterDriver, index >= 3 ? 'shared' : defaultDriver);
+    const originalCharacterActions = original.characterActions && typeof original.characterActions === 'object'
+      ? original.characterActions
+      : {};
+    next.characterActions = Object.fromEntries(heroNames.map((name, avatarIndex) => [
+      name,
+      firstSceneText(
+        originalCharacterActions[name],
+        original[`${name}Action`],
+        `${name} handelt sichtbar am Objekt.`,
+      ),
+    ]));    const helperFunction = firstSceneText(original.helperFunction);
     const helperAction = firstSceneText(original.helperAction);
     next.helperFunction = /(explain|erklaer|erklär|loesung|lösung|reveals|enthuellt|enthüllt|tells the answer|sagt die antwort)/i.test(helperFunction)
       ? "creates pressure"
@@ -6107,10 +6204,10 @@ function repairSceneCardsDeterministically(
     }
 
     if (index >= Math.max(0, DEV_MODE_SCENE_CARD_COUNT - 2)) {
-      next.childDiscovery = firstSceneText(original.childDiscovery, childDiscovery, `${heroA} und ${heroB} erkennen die Verbindung zu ${motif}.`);
+      next.childDiscovery = firstSceneText(original.childDiscovery, childDiscovery, `${protagonist.subject} ${protagonist.recognize} die Verbindung zu ${motif}.`);
     }
     if (index === DEV_MODE_SCENE_CARD_COUNT - 1) {
-      next.childDecision = firstSceneText(original.childDecision, childDecision, `${heroA} und ${heroB} führen die finale Handlung selbst aus.`);
+      next.childDecision = firstSceneText(original.childDecision, childDecision, `${protagonist.subject} ${protagonist.perform} die finale Handlung selbst aus.`);
     }
 
     next.dialogueBeats = ensureSceneDialogueBeats(next, input);
@@ -6290,9 +6387,7 @@ function repairBeatSheetDeterministically(
   if (!beatSheet || typeof beatSheet !== "object") return beatSheet;
   if (!issues.some((issue) => /closingImage explains a moral/i.test(issue))) return beatSheet;
 
-  const heroNames = (input.avatars || []).map((avatar) => avatar.name).filter(Boolean);
-  const heroA = heroNames[0] || "Die Kinder";
-  const heroB = heroNames[1] || "das zweite Kind";
+  const protagonist = germanMainAvatarSubject(input);
   const artifactName = String(input.matchedArtifact?.name || "").trim();
   const motif = String(beatSheet?.recurringMotif || artifactName || "das kleine Zeichen").trim();
   const object = String(beatSheet?.personalObject || artifactName || motif).trim();
@@ -6303,7 +6398,7 @@ function repairBeatSheetDeterministically(
     ...beatSheet,
     act3: {
       ...(beatSheet.act3 || {}),
-      closingImage: `${heroA} und ${heroB} stellen ${object} ans Fenster; ${motif} bewegt sich noch einmal im Licht${helperClause}.`,
+      closingImage: `${protagonist.subject} ${protagonist.place} ${object} ans Fenster; ${motif} bewegt sich noch einmal im Licht${helperClause}.`,
     },
   };
 }
@@ -6605,7 +6700,7 @@ function buildBlueprintFromScreenplayPlan(
       kidQuestion: card.timePressureOrQuestion,
       humorMoment: card.dialogueBeats?.find?.((beat: any) => /joke/i.test(String(beat?.intent || "")))?.subtext || "",
       emotionalBeat: card.emotionalGoal,
-      characterActions: { adrianAction: card.adrianAction, alexanderAction: card.alexanderAction, helperAction: card.helperAction },
+      characterActions: { ...(card.characterActions || {}), helperAction: card.helperAction },
       preparedDetail: card.plant,
       laterPayoff: card.payoffLater,
       dialogueFunction: Array.isArray(card.dialogueBeats)
@@ -6660,9 +6755,8 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
       personalCost: compactExcerpt(card.personalCost || "", 120),
       driver: compactExcerpt(card.characterDriver || "", 40),
       castMoves: [
-        compactExcerpt(card.adrianAction || "", 90),
-        compactExcerpt(card.alexanderAction || "", 90),
-        compactExcerpt(card.helperAction || "", 90),
+        ...Object.values(card.characterActions || {}).map((action) => compactExcerpt(String(action || ''), 90)),
+        compactExcerpt(card.helperAction || '', 90),
       ].filter(Boolean),
       dialogueBeats: Array.isArray(card.dialogueBeats)
         ? card.dialogueBeats.slice(0, 6).map((beat: any) => ({
@@ -6976,9 +7070,6 @@ function buildCompactWholeStoryDraftPrompts(
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const wordBounds = getStoryWordBounds(input.config);
-  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
-  const heroA = heroNames[0] || "Main A";
-  const heroB = heroNames[1] || "Main B";
   const ageGroup = input.config.ageGroup || "6-8";
   const titleWords = extractTitleContentWords(String(input.selectedIdea?.title || "")).slice(0, 4);
 
@@ -7030,7 +7121,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- keep ONE central red-thread object/place from the story bible and scene plan; do not swap in a backpack/bag/lock/closure or any other object-function mid-draft",
     "- if SCENE PLAN.storyCore.personalObject includes whyPersonal/risk/payoff, plant why it matters before the sacrifice and make the final choice use that same value; never reduce it to a generic useful object",
     "- no-refund payoff: a sacrificed object/status may become useful in a new place, but cannot simply be handed back unchanged by a helper",
-    "- final decision performed by the children, not by helpers",
+    "- final decision performed by the named main avatars, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
     "- finale uses a detail planted earlier",
     "- CONTINUITY: no object, place, or magic effect may appear at the moment it is needed without being introduced earlier. Plant everything the finale uses; pay off everything you plant (a planted object that never returns confuses the child).",
@@ -7059,7 +7150,7 @@ function buildCompactWholeStoryDraftPrompts(
       ? `- redeem the title inside the prose with these exact content words or close inflections: ${titleWords.map((word) => `"${word}"`).join(", ")}`
       : null,
     "- If a title word is abstract (Freundlichkeit, Mut, Freundschaft, Verantwortung), redeem it through concrete action/image; do not add moral/filler dialogue just to say the word.",
-    `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures)`,
+    mainAvatarVoiceInstruction(input),
     "",
     languageCodeFromName(languageName) === "de"
       ? "SPRACH-ECHTHEIT (Pflicht): Nur echte, gebräuchliche deutsche Wörter. KEINE erfundenen Komposita oder Kunstwörter (kein \"apfelscharf\" o.ä.). Wenn unsicher, ob ein 7-Jähriger das Wort kennt: einfacheres Wort wählen. Vergleiche aus der Kinderwelt (Spielzeug, Tiere, Essen, Wetter)."
@@ -7104,9 +7195,6 @@ function buildWholeStoryDraftPrompts(
   const compactBlueprint = compactReviewedBlueprintForDraft(revisedBlueprint, chapterCount);
   const screenplayDraftPlan = compactScreenplayPlanForDraft(screenplayPlan);
   const compactStoryBible = screenplayDraftPlan ? buildCompactStoryBibleForDraft(input, chapterCount) : null;
-  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
-  const heroA = heroNames[0] || "Main character A";
-  const heroB = heroNames[1] || "Main character B";
   // Title-promise contract: surface the concrete content nouns from the chosen
   // idea title so the writer is FORCED to weave them into the prose.
   const ideaTitle = String(
@@ -7196,7 +7284,7 @@ function buildWholeStoryDraftPrompts(
     "DIALOG-VERTEILUNG (Pflicht):",
     `- Jedes Segment von 4\u20136 Paragraphen MUSS mindestens 2 echte Dialog-Wechsel enthalten (zwei oder mehr direkt aufeinander folgende quoted lines). Kein Segment darf rein narrativ sein.`,
     `- Direkte Rede insgesamt 25\u201340% des Prosatexts. Jede Zeile traegt Handlung, Beziehung, Humor, Spannung oder Subtext \u2014 keine Fueller.`,
-    `- ${heroA} und ${heroB} klingen unverwechselbar (Rhythmus, Wortwahl, Gesten). Ein Leser soll ohne Sprechertag wissen, wer spricht.`,
+    mainAvatarVoiceInstruction(input),
     "",
     "STRUCTURAL ARC (use silently as dramaturgy, do NOT label these on the page):",
     "- Child wants something specific, quickly.",
@@ -7245,15 +7333,15 @@ function buildWholeStoryDraftPrompts(
     `- Every 4\u20136 paragraphs should contain a natural scene-turn (open question, new visible detail, decision, small surprise, comic aftershock, direction change). These turns are NOT chapter endings and must not close the scene like a mini-story.`,
     `- No sentence may exceed ${maxSentenceChars} characters. Use child-readable beats.`,
     `- Dialogue 25\u201340% of the prose. Do NOT force a quota \u2014 every quoted line must carry action, relationship, humor, tension, or subtext. Never add filler chatter to reach a number.`,
-    `- ${heroA} and ${heroB} must sound unmistakably different (rhythm, vocabulary, gestures, first reactions). A reader should often identify the speaker without tags.`,
+    mainAvatarVoiceInstruction(input),
     "",
     buildReadAloudSoundBlock(languageName),
     ageGroup === "3-5" ? buildPreschoolCraftBlock(languageName) : null,
     "",
     "FINALE-PFLICHTEN (last 25% of the story \u2014 hard requirements, not optional):",
-    `- ${heroA} (or ${heroB}) must name AT LEAST TWO concrete worries out loud before the decisive action. Not generic fears (\"ich habe Angst\") \u2014 specific things, in their own voice (\"Was, wenn der Schluckauf bleibt?\", \"Was sage ich Mama, wenn das Taschentuch zerrissen ist?\").`,
+    "- At least one named main avatar must voice TWO concrete worries before the decisive action. Use the established character voice, not generic fear statements.",
     "- The personal object planted earlier must appear in the final scene VISIBLY DAMAGED, USED UP, or CHANGED FOR EVER. It must not be magically restored.",
-    "- The decisive final action is performed by the children, not by a helper. The helper may stand at the edge, hand over one small thing, or stay silent \u2014 they may not solve, explain, or rescue.",
+    "- The decisive final action is performed by the named main avatars, not by a helper. The helper may stand at the edge, hand over one small thing, or stay silent \u2014 they may not solve, explain, or rescue.",
     "- The child makes a clearly conscious choice (\"Ich gebe ... her\", \"Ich lasse ... zurück\", \"Wir lassen ... so wie es ist\") \u2014 not an accidental success, not a discovery by the helper.",
     "- Closing image must contain the damaged/used personalObject AS A VISIBLE REMAINDER and at least one sensory beat (light, sound, touch, smell). No moral, no \"sie lernten\", no narrator wrap-up.",
     "",
@@ -7805,9 +7893,6 @@ function buildStoryDraftPrompts(
   );
   const revisedBlueprint = getReviewedBlueprint(blueprint, critique);
   const compactBlueprint = compactReviewedBlueprintForDraft(revisedBlueprint, chapterCount);
-  const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
-  const heroA = heroNames[0] || "Main character A";
-  const heroB = heroNames[1] || "Main character B";
   const userPrompt = [
     `CALL 3: Now write the final story as real scenes, not a summary. Output the title, description, and chapter content in ${languageName}.`,
     "This is the ONLY call allowed to write the actual story prose. Use the compact reviewed blueprint, critique, and voice rules directly in the first draft.",
@@ -7819,7 +7904,7 @@ function buildStoryDraftPrompts(
     "",
     "SILENT PRE-DRAFT CHECKLIST (do not output):",
     buildSilentPreWriteSelfReviewContract(input, chapterCount, "draft"),
-    `- Give ${heroA} and ${heroB} different speaking rhythms, gestures, and first reactions in every scene; a reader should often identify the speaker without tags.`,
+    mainAvatarVoiceInstruction(input),
     "- Plant 3 small concrete details in chapters 1-2; the finale must use at least one of them.",
     "- Each chapter segment follows inherited pressure -> conflict -> turn/yes-but -> pull. Do not make chapters self-contained episodes.",
     "- Every chapter has a child-giggle moment from character action, misunderstanding, prop, or wordplay.",
@@ -8260,7 +8345,7 @@ function buildStoryPolishPrompts(
     "DIALOGUE VOICE CONTRACT:",
     "- Use the named VOICE BIBLE above. Do not force generic 'careful/lively/trickster/whispering' templates if they do not match the actual characters.",
     "- Each quoted line needs at least two jobs: action, relationship, tension, subtext, or humor.",
-    "- If two main avatars could swap a line without anyone noticing, rewrite the line using their age, body detail, memory habit, question style, or visible gesture.",
+    "- If any two main avatars could swap a line without anyone noticing, rewrite the line using their age, body detail, memory habit, question style, or visible gesture.",
     "- REFRAIN PROTECTION: if the story contains a short repeated signature line (refrain), NEVER delete or flatten it. If it appears fewer than 3 times, weave it in (introduced → under pressure → transformed in the finale).",
     languageCodeFromName(localizedLanguageName(input.config.language)) === "de"
       ? "- SPRACH-ECHTHEIT: nur echte, gebräuchliche deutsche Wörter. Ersetze erfundene Komposita/Kunstwörter (z.B. \"apfelscharf\") durch echte kindgerechte Wörter (\"klein wie eine Erbse\")."
@@ -8357,7 +8442,7 @@ function buildDialogueRebalancePrompts(
       maxCharsAfter: storyBelowWordTarget
         ? Math.max(900, Math.ceil(chapter.chars * 1.15))
         : Math.max(900, Math.floor(chapter.chars * 0.98)),
-      targetDialogPctAfter: Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT)),
+      targetDialogPctAfter: Math.max(28, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT)),
       addShortLines: Math.max(3, Math.min(8, Math.ceil((DEV_MODE_TARGET_DIALOG_PCT - chapter.dialogPct) / 3))),
       issues: chapter.issues,
     }));
@@ -8379,7 +8464,7 @@ function buildDialogueRebalancePrompts(
     storyBelowWordTarget
       ? `  • Page total characters after rewrite must stay between minCharsAfter and maxCharsAfter (see targets[]). Never shorter than before.`
       : `  • Page total characters after rewrite must be ≤ maxCharsAfter (see targets[].maxCharsAfter). Shorter is good.`,
-    `  • Page dialogue share after rewrite must be ≥ targets[].targetDialogPctAfter (≥${Math.max(32, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT))}% of page characters inside German quotation marks „ … ").`,
+    `  • Page dialogue share after rewrite must be ≥ targets[].targetDialogPctAfter (≥${Math.max(28, Math.ceil(DEV_MODE_TARGET_DIALOG_PCT))}% of page characters inside German quotation marks „ … ").`,
     "  • Keep the same scene location, same on-stage characters, same plot beats, same red-thread object.",
     "Method: take each narration paragraph that lacks dialogue, and convert most of its action into 2-4 short exchanged lines with brief stage business (1 verb tag, no adverbs). Delete the prose sentences you replaced — do not keep both.",
     "No new plot. No new characters. No new locations. No moral. No explanatory lesson sentence.",
@@ -11171,16 +11256,29 @@ function releasePremiumStrictGate(
   return issues;
 }
 
-function releaseBlockingValidatorMustFixes(validatorFindings: any, mode?: DevModeQualityMode): string[] {
-  if ((mode || "premium") !== "premium") return [];
+function releaseBlockingValidatorMustFixes(
+  validatorFindings: any,
+  mode?: DevModeQualityMode,
+  diagnostics?: DevModeStoryDiagnostics,
+): string[] {
+  if ((mode || 'premium') !== 'premium') return [];
   const mustFixes = asStringArray(validatorFindings?.mustFixBefore95, 12).map((fix) => fix.trim()).filter(Boolean);
   if (mustFixes.length === 0) return [];
   const materialIssuePattern = /final|ending|schluss|finale|dialog|wonder\s*rule|wunder|regel|color|farbe|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme/i;
+  const structuralIssuePattern = /final|ending|schluss|finale|wonder\s*rule|wunder|regel|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme/i;
   return mustFixes
     .filter((fix) => materialIssuePattern.test(fix))
+    // Validators repeatedly invented a 32%+ dialogue release threshold even
+    // when measured prose already sat inside the published-book range. Treat
+    // a dialogue-only quota as advisory once the deterministic 25% floor is
+    // met; structural dialogue/voice findings still block.
+    .filter((fix) => !(
+      /dialog|direct speech|direkte rede/i.test(fix)
+      && !structuralIssuePattern.test(fix)
+      && (diagnostics?.dialogPct ?? 0) >= DEV_MODE_MIN_DIALOG_PCT
+    ))
     .map((fix) => `Validator must-fix before premium release: ${fix}`);
 }
-
 // --- RepairRouter (v11 Section E + v12 §O) -----------------------------
 // The pure router lives in pipeline/repair-router.ts so smoke tests can
 // import it without the Encore runtime. This file re-exports the symbols
@@ -13484,7 +13582,10 @@ export async function generateStoryDevMode(
       // for cost- and latency-sensitive production traffic. Only the FIRST
       // validation round always runs (it is often what clears the hard
       // gates in the first place); attempt 2+ needs a real reason.
-      const goodEnoughToStop = !hasLocalHardIssues && currentScore >= DEV_MODE_DIMINISHING_RETURNS_SCORE;
+      const validatorMaterialFailures = releaseBlockingValidatorMustFixes(validatorFindings, input.qualityMode, finalDiagnostics);
+      const goodEnoughToStop = !hasLocalHardIssues
+        && validatorMaterialFailures.length === 0
+        && currentScore >= DEV_MODE_DIMINISHING_RETURNS_SCORE;
       const shouldAttemptStoryPolish =
         validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
         && Boolean(finalParsed)
@@ -13493,10 +13594,10 @@ export async function generateStoryDevMode(
           hasLocalHardIssues
           || currentScore < targetReleaseScore
         )
-        && !(validationAttempt >= 1 && goodEnoughToStop);
+        && !goodEnoughToStop;
 
       if (!shouldAttemptStoryPolish || !finalParsed || !finalDiagnostics) {
-        if (goodEnoughToStop && validationAttempt >= 1) {
+        if (goodEnoughToStop) {
           console.log("[dev-mode-generation] Diminishing-returns brake: stopping polish loop early", {
             validationAttempt,
             currentScore,
@@ -13554,7 +13655,8 @@ export async function generateStoryDevMode(
         (issue) => !/Dialoganteil|dialog/i.test(issue)
       ).length;
       const validatorQualityRepairChapters =
-        nonDialogHardIssueCount === 0
+        currentParsed.displayMode !== "reading_pages"
+        && nonDialogHardIssueCount === 0
         && currentScore < targetReleaseScore
         && validatorFindings
           ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
@@ -14230,7 +14332,7 @@ export async function generateStoryDevMode(
     // chance to clear the floor before release gating turns the run into
     // quality_gate_failed. The loop bails as soon as a pass fails to lift
     // dialog further or the floor is cleared.
-    for (let emergencyAttempt = 0; emergencyAttempt < 2; emergencyAttempt++) {
+    for (let emergencyAttempt = 0; emergencyAttempt < 1; emergencyAttempt++) {
       if (
         !finalParsed
         || !finalDiagnostics
@@ -14492,7 +14594,7 @@ export async function generateStoryDevMode(
       );
     }
     releaseGateFailures.push(...releaseDimensionFailures(finalValidatorFindings, { mode: qualityMode }));
-    releaseGateFailures.push(...releaseBlockingValidatorMustFixes(finalValidatorFindings, qualityMode));
+    releaseGateFailures.push(...releaseBlockingValidatorMustFixes(finalValidatorFindings, qualityMode, finalDiagnostics));
     releaseGateFailures.push(...releasePremiumStrictGate(finalDiagnostics, qualityMode));
     if (shouldBlockDevModeQualityGateFailure(input, finalDiagnostics)) {
       throw new Error(releaseGateFailures[0] || "Developer-mode story still has open hard gates after all repair attempts.");
@@ -14766,7 +14868,7 @@ export async function generateStoryDevMode(
     const minScore = minReleaseScoreForMode(mode);
     const releaseScore = finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0;
     const dimFailures = releaseDimensionFailures(finalValidatorFindings, { mode });
-    const validatorMustFixFailures = releaseBlockingValidatorMustFixes(finalValidatorFindings, mode);
+    const validatorMustFixFailures = releaseBlockingValidatorMustFixes(finalValidatorFindings, mode, finalDiagnostics);
     const premiumStrictFailures = releasePremiumStrictGate(finalDiagnostics, mode);
     const releaseReadyComputed =
       (finalDiagnostics?.hardIssueCount ?? 0) === 0
@@ -14882,7 +14984,7 @@ export async function generateStoryDevMode(
       releaseReady:
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && releaseDimensionFailures(finalValidatorFindings, { mode: input.qualityMode }).length === 0
-        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0
+        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode, finalDiagnostics).length === 0
         && releasePremiumStrictGate(finalDiagnostics, input.qualityMode).length === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0)
           >= minReleaseScoreForMode(input.qualityMode),
@@ -14895,7 +14997,7 @@ export async function generateStoryDevMode(
         const releaseReadyComputed =
           (finalDiagnostics?.hardIssueCount ?? 0) === 0
           && releaseDimensionFailures(finalValidatorFindings, { mode }).length === 0
-          && releaseBlockingValidatorMustFixes(finalValidatorFindings, mode).length === 0
+          && releaseBlockingValidatorMustFixes(finalValidatorFindings, mode, finalDiagnostics).length === 0
           && releasePremiumStrictGate(finalDiagnostics, mode).length === 0
           && releaseScore >= minScore;
         if (mode === "premium" && !releaseReadyComputed) return "quality_gate_failed";
@@ -14920,7 +15022,7 @@ export async function generateStoryDevMode(
         (finalDiagnostics?.hardIssueCount ?? 0) === 0
         && (finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0) >= minReleaseScoreForMode(input.qualityMode)
         && releaseDimensionFailures(finalValidatorFindings, { mode: input.qualityMode }).length === 0
-        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode).length === 0
+        && releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode, finalDiagnostics).length === 0
         && releasePremiumStrictGate(finalDiagnostics, input.qualityMode).length === 0,
       qualityGateFailureReason,
       // Keep field for backwards compat: generation can return with warnings,

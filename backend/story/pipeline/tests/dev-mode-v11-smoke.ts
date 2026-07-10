@@ -42,6 +42,8 @@ import {
   shouldRegenerateImage,
 } from "../../dev-mode-visual-qa";
 
+import { selectLockedSupportingCast } from "../cast-lock";
+
 // motif-memory module imports `storyDB` which needs Encore runtime, so we
 // inline minimal versions of compareFingerprints / findMotifReuse /
 // buildFingerprintFromBlueprint for the smoke test. The shapes match the
@@ -436,6 +438,21 @@ console.log("\n[10] Reference filter is generic and collision-safe");
 // -----------------------------------------------------------------------------
 // Test 11 — Generic cast contract supports mixed entity types and any count
 // -----------------------------------------------------------------------------
+console.log("\n[10b] Locked supporting cast never gets silently substituted");
+{
+  const pool = [
+    { name: "Fanni", kind: "human" },
+    { name: "Robo Rudi", kind: "robot" },
+    { name: "Kater Momo", kind: "animal" },
+  ];
+  const result = selectLockedSupportingCast(pool, ["Fanni", "Fanni", "Nicht im Pool"], 4);
+  check("requested Fanni retained exactly once", result.locked.length === 1 && result.locked[0].name === "Fanni");
+  check("higher-scored alternatives cannot substitute", !result.locked.some((character) => character.name === "Robo Rudi"));
+  check("unresolved requested name reported", result.unresolvedNames.length === 1 && result.unresolvedNames[0] === "Nicht im Pool");
+
+  const single = selectLockedSupportingCast(pool, ["Kater Momo"], 1);
+  check("single mixed-entity support works", single.locked.length === 1 && single.locked[0].kind === "animal");
+}
 console.log("\n[11] Cast contract is mixed-entity and count safe");
 {
   const merged = mergeNegativePrompt("custom token, no rain");

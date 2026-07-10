@@ -1,0 +1,66 @@
+diff --git a/backend/story/generate.ts b/backend/story/generate.ts
+index 0eea7ae..81aa9d4 100644
+--- a/backend/story/generate.ts
++++ b/backend/story/generate.ts
+@@ -1167,9 +1167,61 @@ export const generate = api<GenerateStoryRequest, Story>(
+         },
+       });
+ 
++      const persistedStages = Array.isArray(generatedStory.metadata?.devModeStages)
++        ? generatedStory.metadata.devModeStages
++        : [];
++      const pipelineDurationMs = persistedStages.reduce(
++        (sum: number, stage: any) => sum + Math.max(0, Number(stage?.durationMs || 0)),
++        0,
++      );
++      const toAdminMetricRows = (rows: any[] = []) => rows.map((row: any) => ({
++        key: String(row?.key || "unknown"),
++        calls: Number(row?.calls || 0),
++        inputTokens: Number(row?.inputTokens || 0),
++        outputTokens: Number(row?.outputTokens || 0),
++        totalTokens: Number(row?.totalTokens || 0),
++        totalCostUSD: Number(((row?.totalCostUSD || 0) + (row?.providerCostUSD || 0)).toFixed(6)),
++      }));
++      const adminGenerationMetrics = {
++        version: 1 as const,
++        currency: "USD" as const,
++        calculatedAt: new Date().toISOString(),
++        tokens: {
++          input: costSummary.totals.llm.inputTokens || tokensUsed.prompt || 0,
++          cachedInput: costSummary.totals.llm.cachedInputTokens || 0,
++          output: costSummary.totals.llm.outputTokens || tokensUsed.completion || 0,
++          total: costSummary.totals.llm.totalTokens || tokensUsed.total || 0,
++        },
++        costs: {
++          cachedInputUSD: costSummary.totals.llm.cachedInputCostUSD || 0,
++          inputUSD: inputCost,
++          outputUSD: outputCost,
++          storyUSD: costSummary.totals.llm.totalCostUSD || 0,
++          imagesUSD: costSummary.totals.images.providerCostUSD || 0,
++          totalUSD: totalCost,
++          imageCredits: costSummary.totals.images.providerCostCredits || 0,
++        },
++        calls: {
++          llm: costSummary.totals.llm.calls || 0,
++          images: costSummary.totals.images.successCount || costSummary.totals.images.calls || 0,
++        },
++        durationMs: pipelineDurationMs,
++        imageCostEstimated: (storyCostEntries as any[]).some(
++          (entry: any) => entry?.kind === "image" && entry?.metadata?.estimated === true,
++        ),
++        stages: toAdminMetricRows(costSummary.breakdown.byStep),
++        models: toAdminMetricRows(costSummary.breakdown.byModel),
++      };
+       // 🎁 Add artifact metadata so it's persisted and returned to frontend
+       const enrichedMetadata = {
+         ...generatedStory.metadata,
++        processingTime: generatedStory.metadata?.processingTime || pipelineDurationMs,
++        totalCost: {
++          text: adminGenerationMetrics.costs.storyUSD,
++          images: adminGenerationMetrics.costs.imagesUSD,
++          total: adminGenerationMetrics.costs.totalUSD,
++        },
++        adminGenerationMetrics,
+         newArtifact: generatedStory.newArtifact || undefined,
+         pendingArtifact: generatedStory.pendingArtifact || undefined,
+         parentalFilters:

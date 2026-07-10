@@ -1,0 +1,29 @@
+diff --git a/backend/story/get.ts b/backend/story/get.ts
+index 7f25ee2..87c6622 100644
+--- a/backend/story/get.ts
++++ b/backend/story/get.ts
+@@ -5,6 +5,7 @@ import { storyDB } from "./db";
+ import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+ import { buildStoryChapterImageUrlForClient } from "../helpers/image-proxy";
+ import { resolveRequestedProfileId } from "../helpers/profiles";
++import { storyMetadataForViewer } from "./metadata-visibility";
+ 
+ interface GetStoryParams {
+   id: string;
+@@ -211,6 +212,7 @@ export const get = api<GetStoryParams, Story>(
+     `;
+ 
+     const parsedMetadata = parseJsonObject(storyRow.metadata);
++    const visibleMetadata = storyMetadataForViewer(parsedMetadata, auth.role === "admin");
+     const chapterVisuals = (parsedMetadata?.chapterVisuals && typeof parsedMetadata.chapterVisuals === "object")
+       ? parsedMetadata.chapterVisuals as Record<string, { scenicImageUrl?: string; scenicImagePrompt?: string }>
+       : {};
+@@ -241,7 +243,7 @@ export const get = api<GetStoryParams, Story>(
+       coverImageUrl,
+       config: JSON.parse(storyRow.config),
+       avatarDevelopments: storyRow.avatar_developments ? JSON.parse(storyRow.avatar_developments) : undefined,
+-      metadata: parsedMetadata || undefined,
++      metadata: visibleMetadata || undefined,
+       profileState: profileState
+         ? {
+             profileId: activeProfileId,

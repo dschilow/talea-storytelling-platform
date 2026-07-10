@@ -1,0 +1,56 @@
+diff --git a/frontend/types/story.ts b/frontend/types/story.ts
+index 99eddd4..4c7ad34 100644
+--- a/frontend/types/story.ts
++++ b/frontend/types/story.ts
+@@ -66,6 +66,35 @@ export interface Chapter {
+   order: number;
+ }
+ 
++export interface AdminGenerationMetricRow {
++  key: string;
++  calls: number;
++  inputTokens: number;
++  outputTokens: number;
++  totalTokens: number;
++  totalCostUSD: number;
++}
++
++export interface AdminGenerationMetricsData {
++  version: 1;
++  currency: 'USD';
++  calculatedAt: string;
++  tokens: { input: number; cachedInput: number; output: number; total: number };
++  costs: {
++    cachedInputUSD: number;
++    inputUSD: number;
++    outputUSD: number;
++    storyUSD: number;
++    imagesUSD: number;
++    totalUSD: number;
++    imageCredits: number;
++  };
++  calls: { llm: number; images: number };
++  durationMs: number;
++  imageCostEstimated: boolean;
++  stages: AdminGenerationMetricRow[];
++  models: AdminGenerationMetricRow[];
++}
+ export interface Story {
+   id: string;
+   userId: string;
+@@ -98,6 +127,15 @@ export interface Story {
+     qualityGateFailureReason?: string;
+     returnedWithQualityGateWarnings?: boolean;
+     hardIssueList?: string[];
++    devModeStages?: Array<{
++      stage: string;
++      usage?: { prompt: number; completion: number; total: number };
++      modelUsed?: string;
++      modelRole?: 'support' | 'selected-story';
++      durationMs?: number;
++      score?: number;
++    }>;
++    adminGenerationMetrics?: AdminGenerationMetricsData;
+     totalCost?: {
+       text: number;
+       images: number;

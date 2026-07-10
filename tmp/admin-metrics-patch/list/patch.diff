@@ -1,0 +1,21 @@
+diff --git a/backend/story/list.ts b/backend/story/list.ts
+index 9371fdd..00b6355 100644
+--- a/backend/story/list.ts
++++ b/backend/story/list.ts
+@@ -6,6 +6,7 @@ import { avatarDB } from "../avatar/db";
+ import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+ import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
+ import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
++import { storyMetadataForViewer } from "./metadata-visibility";
+ 
+ interface ListStoriesRequest {
+   limit?: number;
+@@ -365,7 +366,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
+                 lastPlayedAt: profileState.last_played_at ?? undefined,
+               }
+             : undefined,
+-          metadata: (metadata || undefined) as any,
++          metadata: (storyMetadataForViewer(metadata, auth.role === "admin") || undefined) as any,
+           status: storyRow.status,
+           isPublic: storyRow.is_public,
+           createdAt: storyRow.created_at,
