@@ -7198,6 +7198,19 @@ function extractProseFallback(
     /^\s*(?:ch|kap|chapter|kapitel)\s*\d+\s*[:.\-]/im.test(body) ||
     /^\s*\*\s+\*\s+/m.test(body);
   if (looksLikeMetaAnalysis) return null;
+  // A malformed/duplicated JSON envelope (two truncated {"title":...} attempts
+  // concatenated, or an unparseable-but-JSON-shaped blob) must NEVER fall
+  // through to the prose recovery path — it produces literal JSON syntax
+  // baked into every reading page (PDF "Die Sanduhr der vertauschten Farben":
+  // `{„title":…,"description"` and a stray trailing `]"` shipped as prose).
+  // The title/description field-strip above only removes the FIRST match; a
+  // second truncated or duplicated envelope still carries unmistakable JSON
+  // structure markers that real prose never contains together.
+  const looksLikeBrokenJsonEnvelope =
+    /"paragraphs"\s*:\s*\[/i.test(body) ||
+    /(?:^|\n)\s*\{\s*["„“]?(?:title|description|paragraphs)["„“]?\s*:/i.test(body) ||
+    /\]\s*["“”]?\s*$/.test(body.trim());
+  if (looksLikeBrokenJsonEnvelope) return null;
   const rawParagraphs = splitLooseProseParagraphs(body)
     .map((p) =>
       p
