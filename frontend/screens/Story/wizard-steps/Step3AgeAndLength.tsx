@@ -81,6 +81,8 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'openrouter/owl-alpha', title: 'Owl Alpha (gratis)', provider: 'OpenRouter', cost: 'FREE' },
   { id: '~openai/gpt-mini-latest', title: 'GPT Mini Latest ⚠ schwächere Story-Qualität', provider: 'OpenAI', cost: '$0.75 in / $4.50 out' },
   { id: 'qwen/qwen3.6-max-preview', title: 'Qwen 3.6 Max (alt)', provider: 'Qwen', cost: '$1.04 in / $6.24 out' },
+  { id: 'openai/gpt-5.6-luna', title: 'GPT-5.6 Luna 🧪 Test', provider: 'OpenAI', cost: 'unbekannt' },
+  { id: 'openai/gpt-5.6-terra', title: 'GPT-5.6 Terra 🧪 Test', provider: 'OpenAI', cost: 'unbekannt' },
 ];
 
 function SelectionBadge() {

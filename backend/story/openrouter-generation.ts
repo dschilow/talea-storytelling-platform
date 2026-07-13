@@ -41,6 +41,8 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "qwen/qwen3.7-plus": { inputCostPer1M: 0.32, outputCostPer1M: 1.28 },
   "minimax/minimax-m3": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
   "z-ai/glm-5.2": { inputCostPer1M: 0.9, outputCostPer1M: 3.08 },
+  "openai/gpt-5.6-luna": { inputCostPer1M: 1.0, outputCostPer1M: 6.0 },
+  "openai/gpt-5.6-terra": { inputCostPer1M: 2.5, outputCostPer1M: 15.0 },
 };
 
 export interface OpenRouterChatCompletionResult {

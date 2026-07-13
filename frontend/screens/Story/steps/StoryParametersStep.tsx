@@ -179,6 +179,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     { key: '~openai/gpt-mini-latest', label: 'GPT Mini Latest', description: 'OpenAI - $0.75 in / $4.50 out' },
     { key: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', description: 'DeepSeek - $0.44 in / $0.87 out' },
     { key: 'qwen/qwen3.6-max-preview', label: 'Qwen 3.6 Max', description: 'Qwen - $1.04 in / $6.24 out' },
+    { key: 'openai/gpt-5.6-luna', label: 'GPT-5.6 Luna', description: 'OpenAI - Test-Modell' },
+    { key: 'openai/gpt-5.6-terra', label: 'GPT-5.6 Terra', description: 'OpenAI - Test-Modell' },
   ];
 
   const renderParameterSection = (
