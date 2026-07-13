@@ -49,7 +49,9 @@ import { mapWithConcurrency } from "../helpers/asyncPool";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import {
   sanitizeDescription,
+  sanitizeStoryHeaderText,
   applyOrthographyAutoFix,
+  applyGermanDialoguePunctuationAutoFix,
   validateGermanGrammar,
   detectHelperExplainsSolution,
   detectStructureSignals,
@@ -81,6 +83,10 @@ import {
   type VisualQaReport,
 } from "./dev-mode-visual-qa";
 
+import { acceptedGeneratedImageUrl } from "../helpers/imageResultGuard";
+import { looksLikeEnglishImagePrompt, buildEntityNeutralCompositionPrompt } from "./dev-mode-image-prompt-quality";
+import { selectAdaptiveVisualQaCandidates } from "./dev-mode-visual-qa-selection";
+
 const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
@@ -106,11 +112,11 @@ const DEV_MODE_MIN_DIALOG_PCT = 25;
 // now gated on craft (distinct voices, payoff, image ending), not on a raw
 // dialogue quota that punishes the calm register.
 const DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT = 25;
-// Below this measured dialogue share the draft gets ONE targeted redraft with
+// Below this measured dialogue share the draft gets ONE targeted page-level rebalance with
 // explicit feedback before any polish/rebalance pass runs. Production logs
 // (734d7ae5: 16.6%, a27e9788: 16.9%) show drafts this far under the floor are
 // never rescued by downstream repairs — they just trade words for dialogue.
-const DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT = 18;
+const DEV_MODE_BROAD_DIALOG_REPAIR_PCT = 18;
 const DEV_MODE_TARGET_DIALOG_PCT = 28;
 // Writer-side target. Was 50% (caused filler chatter and compliance prose).
 // New range matches real children's-book dialogue density (25–40%).
@@ -199,7 +205,14 @@ import {
   type DevModeQualityMode,
   type PotentialThresholds,
 } from "./pipeline/potential-thresholds";
-import { shouldBlockPremiumPotentialGateFailure } from "./pipeline/dev-mode-gate-policy";
+import {
+  decideIllustrationEligibility,
+  shouldBlockPremiumPotentialGateFailure,
+} from "./pipeline/dev-mode-gate-policy";
+import {
+  compareValidatedStorySignals,
+  type ValidatedStorySignals,
+} from "./pipeline/validated-story-selection";
 import {
   validateBeatSheetSpecH,
   validateSceneCardsSpecI,
@@ -293,9 +306,7 @@ type DevModePipelineStage =
   // v12 §4 + §11: page-count + expansion repair logging.
   | "page-count-repair"
   | "expansion-repair"
-  // Draft-stage dialogue redraft (one retry when the draft's dialogue share
-  // collapses far below the floor).
-  | "draft-dialog-redraft";
+  | "text-autofix";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -342,6 +353,7 @@ export interface DevModeGeneratedStory {
     supportModel?: string;
     storyModel?: string;
     imagesGenerated: number;
+    imageCalls?: number;
     imageCostUSD?: number;
     developerMode: true;
     devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-first-v11" | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
@@ -839,12 +851,19 @@ function normalizeNoveltyText(value: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+const NORMALIZED_NOVELTY_STOPWORDS = new Set(
+  [...NOVELTY_STOPWORDS].map((word) => normalizeNoveltyText(word)),
+);
+
+function isNoveltyStopword(value: string): boolean {
+  return NORMALIZED_NOVELTY_STOPWORDS.has(normalizeNoveltyText(value));
+}
 
 function extractMotifKeywords(text: string, limit = 8): string[] {
   const words = normalizeNoveltyText(text)
     .split(/\s+/)
     .map((word) => word.trim())
-    .filter((word) => word.length >= 5 && !NOVELTY_STOPWORDS.has(word));
+    .filter((word) => word.length >= 5 && !isNoveltyStopword(word));
   return [...new Set(words)].slice(0, limit);
 }
 
@@ -1101,7 +1120,7 @@ function characterNameMotifAliases(name: string): string[] {
   const parts = normalized
     .split(/\s+/)
     .map((part) => part.trim())
-    .filter((part) => part.length >= 4 && !NOVELTY_STOPWORDS.has(part));
+    .filter((part) => part.length >= 4 && !isNoveltyStopword(part));
   return [...new Set([normalized, ...parts])];
 }
 
@@ -1250,11 +1269,11 @@ function buildNoveltyPromptBlock(input: DevModeGenerationInput): string {
       })
     : ["No recent finished stories were available; still avoid the style-anchor concepts and generic fairy-tale defaults."];
   const trueHardAvoid = brief.hardAvoidMotifs
-    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isNoveltyStopword(normalizeNoveltyText(motif)))
     .filter(isHardBanMotif)
     .slice(0, 18);
   const softAvoid = brief.hardAvoidMotifs
-    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isNoveltyStopword(normalizeNoveltyText(motif)))
     .filter((motif) => !isHardBanMotif(motif))
     .slice(0, 18);
   return [
@@ -1762,7 +1781,7 @@ function artifactNameCandidates(input: DevModeGenerationInput): string[] {
   const firstContentWords = raw
     .flatMap((name) => String(name).split(/\s+/))
     .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").trim())
-    .filter((word) => word.length >= 5 && !NOVELTY_STOPWORDS.has(normalizeNoveltyText(word)))
+    .filter((word) => word.length >= 5 && !isNoveltyStopword(normalizeNoveltyText(word)))
     .slice(0, 2);
   return [...new Set([...raw, ...firstContentWords].map((value) => value.trim()).filter(Boolean))];
 }
@@ -1796,7 +1815,7 @@ function artifactNoveltyConflictMotifs(input: DevModeGenerationInput): string[] 
   const conflicts: string[] = [];
   for (const motif of input.noveltyBrief.hardAvoidMotifs) {
     const normalizedMotif = normalizeNoveltyText(motif);
-    if (normalizedMotif.length < 5 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (normalizedMotif.length < 5 || isNoveltyStopword(normalizedMotif)) continue;
     if (noveltyMotifMatches(normalizedArtifactText, normalizedMotif)) conflicts.push(motif);
   }
   return [...new Set(conflicts)].slice(0, 6);
@@ -2045,6 +2064,7 @@ async function generateDevModeImages(
   coverImageUrl?: string;
   chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
   imagesGenerated: number;
+  imageCalls: number;
   imageCostUSD: number;
   promptTokenUsage: { prompt: number; completion: number; total: number };
 }> {
@@ -2436,6 +2456,7 @@ async function generateDevModeImages(
   try {
     const res = await callProvider(input.config, systemPrompt, userPrompt, {
       stage: "image-prompt-compiler",
+      ...buildDevModeSupportCallOptions(input.config),
       maxTokens: 1800,
       temperature: 0.35,
       openRouterResponseFormat: "json_object",
@@ -2457,27 +2478,7 @@ async function generateDevModeImages(
   //     prompt. This eliminates the "raw German story text used as image
   //     prompt" regression we saw in production.
   // ---------------------------------------------------------------------
-  const looksLikeEnglishPrompt = (s: string): boolean => {
-    const t = String(s || "").trim();
-    if (t.length < 30) return false;
-    if (/^\s*[\[{]/.test(t)) return false;
-    if (/"error"\s*:|developer instruction requires|can't provide|cannot provide|requested json|plain single-paragraph prompt|no json/i.test(t)) {
-      return false;
-    }
-    // Heuristic: English picture-book prompts overwhelmingly use ASCII Latin-1
-    // and lack German diacritics. If we detect German-specific characters or
-    // common German short words, treat as not-English and refill.
-    if (/[\u00e4\u00f6\u00fc\u00df\u00c4\u00d6\u00dc]/.test(t)) return false;
-    // Expanded German-function-word list. The old set (der/die/das/\u2026) missed
-    // umlaut-free German content nouns/verbs, so salad like "lebendige
-    // pergamentkarte, alexander bei jedem wunsch, umzukehren, engere sackgasse
-    // leitet" slipped through and reached Runware (cover of "Karte der Wege").
-    if (/\b(der|die|das|den|dem|des|ein|eine|einen|einem|einer|und|oder|nicht|ist|war|sind|sich|nach|sie|ihn|ihm|ihr|aber|bei|mit|von|vom|zum|zur|auf|aus|durch|gegen|ohne|um|zu|im|am|jeder|jedem|jeden|wenn|dann|noch|nur|auch|sehr|schon|immer|wieder|hier|dort)\b/i.test(t)) return false;
-    // German morphology: words ending in -ung/-keit/-heit/-chen/-lich/-isch or
-    // typical German digraphs mid-word (sch/tsch) that English prompts avoid.
-    if (/\b\w{3,}(ung|keit|heit|chen|lich|isch|karte|gasse|strasse|wunsch)\b/i.test(t)) return false;
-    return true;
-  };
+  const looksLikeEnglishPrompt = looksLikeEnglishImagePrompt;
 
   // Strip forbidden style references from any image prompt (whether produced
   // by the director, the refill, or the fallback). Pattern includes any "in
@@ -2566,6 +2567,7 @@ async function generateDevModeImages(
       try {
         const r = await callProvider(input.config, refillSystem, job.instruction, {
           stage: "image-prompt-compiler",
+          ...buildDevModeSupportCallOptions(input.config),
           maxTokens: 400,
           temperature: 0.7,
           openRouterResponseFormat: "text",
@@ -2885,6 +2887,7 @@ async function generateDevModeImages(
     };
   });
 
+  let imageCalls = 0;
   let imageResults = await mapWithConcurrency(jobs, 3, async (job) => {
     try {
       // Local image-prompt sanitizer: strip any named living artist/studio the
@@ -2948,7 +2951,7 @@ async function generateDevModeImages(
         "CAST AND REFERENCE LOCK:",
         castContract,
         identityContract,
-        "COMPOSITION: one coherent moment; waist-up or knees-up framing; every listed head, face and neck fully inside the frame; bodies remain outside chairs and furniture; separate figures with clear space; environmental magic is faceless and non-humanoid.",
+        buildEntityNeutralCompositionPrompt(sceneCastCharacters),
         styleSuffix,
       ].filter(Boolean).join("\n");
 
@@ -2968,6 +2971,7 @@ async function generateDevModeImages(
         return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[], providerCostUSD: 0 };
       }
 
+      imageCalls += 1;
       const img = await ai.generateImage({
         prompt: fullPrompt,
         model: DEV_MODE_IMAGE_MODEL,
@@ -2980,18 +2984,33 @@ async function generateDevModeImages(
         referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
         seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed, kind: job.kind, order: job.order }),
       });
-      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs, providerCostUSD: providerImageCostUSD(img) };
+      const imageUrl = acceptedGeneratedImageUrl(img);
+      return { job, imageUrl, fullPrompt, sceneRefs, providerCostUSD: providerImageCostUSD(img) };
     } catch (err) {
       console.warn(`[dev-mode-generation] Image generation failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
       return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[], providerCostUSD: 0 };
     }
   });
 
+  const seenGeneratedImageUrls = new Set<string>();
+  imageResults = imageResults.map((result) => {
+    if (!result.imageUrl) return result;
+    const key = result.imageUrl.trim();
+    if (seenGeneratedImageUrls.has(key)) {
+      console.warn("[dev-mode-generation] Duplicate generated image URL detected; retrying the later slot", {
+        job: `${result.job.kind}${result.job.order ? `:${result.job.order}` : ""}`,
+      });
+      return { ...result, imageUrl: undefined };
+    }
+    seenGeneratedImageUrls.add(key);
+    return result;
+  });
+
   const missingImageJobs = imageResults
     .filter((result) => !result.imageUrl)
     .map((result) => result.job);
   if (missingImageJobs.length > 0) {
-    console.warn("[dev-mode-generation] Retrying missing image jobs with deterministic no-reference fallback prompts", {
+    console.warn("[dev-mode-generation] Retrying missing image jobs with deterministic identity-safe fallback prompts", {
       missing: missingImageJobs.map((job) => `${job.kind}${job.order ? `:${job.order}` : ""}`),
     });
     const retryResults = await mapWithConcurrency(missingImageJobs, 2, async (job) => {
@@ -3009,12 +3028,14 @@ async function generateDevModeImages(
       const retryNames = retryEntries.map((entry) => entry.name);
       const retryManifest = buildManifestBlock(retrySceneNames, false, retryNames);
       const retryCastContract = renderSceneCastContract(buildSceneCastCharacters(retrySceneNames, retryEntries));
+      const retryComposition = buildEntityNeutralCompositionPrompt(buildSceneCastCharacters(retrySceneNames, retryEntries));
       const retryIdentityContract = retryEntries.map((entry, index) =>
         `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Preserve the exact canonical entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories. Never swap or transfer attributes.`
       ).join("\n");
       const retryScenePrompt = stripModelCastCountClaims(sanitizeImagePrompt(fallbackImagePrompt(job))).prompt;
-      const retryPrompt = [retryIdentityContract, retryCastContract, retryScenePrompt, retryManifest, styleSuffix].filter(Boolean).join("\n");
+      const retryPrompt = [retryIdentityContract, retryCastContract, retryComposition, retryScenePrompt, retryManifest, styleSuffix].filter(Boolean).join("\n");
       try {
+        imageCalls += 1;
         const img = await ai.generateImage({
           prompt: retryPrompt,
           model: DEV_MODE_IMAGE_MODEL,
@@ -3027,7 +3048,8 @@ async function generateDevModeImages(
           referenceImages: retryRefs.length > 0 ? retryRefs : undefined,
           seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 1, kind: job.kind, order: job.order }),
         });
-        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: retryRefs, providerCostUSD: providerImageCostUSD(img) };
+        const imageUrl = acceptedGeneratedImageUrl(img);
+        return { job, imageUrl, fullPrompt: retryPrompt, sceneRefs: retryRefs, providerCostUSD: providerImageCostUSD(img) };
       } catch (err) {
         console.warn(`[dev-mode-generation] Image retry failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
         return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[], providerCostUSD: 0 };
@@ -3035,7 +3057,31 @@ async function generateDevModeImages(
     });
     const keyForJob = (job: Job) => `${job.kind}:${job.order ?? "cover"}`;
     const retryByJob = new Map(retryResults.map((result) => [keyForJob(result.job), result]));
-    imageResults = imageResults.map((result) => result.imageUrl ? result : (retryByJob.get(keyForJob(result.job)) || result));
+    imageResults = imageResults.map((result) => {
+      if (result.imageUrl) return result;
+      const retry = retryByJob.get(keyForJob(result.job));
+      if (!retry) return result;
+      const combinedCostUSD = Number((result.providerCostUSD + retry.providerCostUSD).toFixed(6));
+      const retryUrl = retry.imageUrl?.trim();
+      if (retryUrl) {
+        if (seenGeneratedImageUrls.has(retryUrl)) {
+          console.warn("[dev-mode-generation] Retry returned a duplicate image URL; leaving the slot empty", {
+            job: keyForJob(result.job),
+          });
+          return {
+            ...retry,
+            imageUrl: undefined,
+            providerCostUSD: combinedCostUSD,
+          };
+        }
+        seenGeneratedImageUrls.add(retryUrl);
+      }
+      return {
+        ...retry,
+        imageUrl: retryUrl,
+        providerCostUSD: combinedCostUSD,
+      };
+    });
   }
 
   let coverImageUrl: string | undefined;
@@ -3051,25 +3097,26 @@ async function generateDevModeImages(
   }
 
   // Adaptive visual QA is default for premium: inspect only the cover plus
-  // crowded/high-risk scenes (max 3 calls). Set DEV_MODE_VISUAL_QA_ENABLED=1
+  // crowded/high-risk scenes (max 2 calls). Set DEV_MODE_VISUAL_QA_ENABLED=1
   // for every image or =0 to disable. This catches the expensive failures
   // children notice first without doubling the image-pipeline token bill.
   const visualQaSetting = String(process.env.DEV_MODE_VISUAL_QA_ENABLED || "adaptive").toLowerCase();
   const visualQaEnabled = visualQaSetting !== "0" && (input.qualityMode || "premium") === "premium";
   const qaReports: Array<{ kind: "cover" | "chapter"; order?: number; report: VisualQaReport; regenerate: boolean; reasons: string[] }> = [];
   if (visualQaEnabled && imagesGenerated > 0) {
-    const allQaJobs = imageResults
-      .filter((r) => Boolean(r.imageUrl))
-      .map((r) => ({ result: r }));
+    const allQaCandidates = imageResults
+      .filter((result) => Boolean(result.imageUrl))
+      .map((result) => ({
+        result,
+        kind: result.job.kind,
+        order: result.job.order,
+        expectedCharacterCount: onStageForJob({ ...result.job, prompt: result.fullPrompt }).length,
+        referenceCount: result.sceneRefs.length,
+        scenePrompt: result.fullPrompt,
+      }));
     const qaJobs = visualQaSetting === "1"
-      ? allQaJobs
-      : allQaJobs
-          .filter(({ result }) => {
-            if (result.job.kind === "cover") return true;
-            const expected = onStageForJob({ ...result.job, prompt: result.fullPrompt });
-            return expected.length > 2 || result.sceneRefs.length > 2;
-          })
-          .slice(0, 3);
+      ? allQaCandidates.map(({ result }) => ({ result }))
+      : selectAdaptiveVisualQaCandidates(allQaCandidates, 2).map(({ result }) => ({ result }));
 
     const qaModel = DEV_MODE_SUPPORT_MODEL; // Gemini Flash supports vision
     const qaSeen = await mapWithConcurrency(qaJobs, 2, async ({ result: r }) => {
@@ -3142,6 +3189,7 @@ async function generateDevModeImages(
     for (const entry of flaggedForRegen) {
       const r = entry.result;
       try {
+        imageCalls += 1;
         const regen = await ai.generateImage({
           prompt: `${r.fullPrompt}\nCORRECTION PASS: ${entry.reasons.join(", ")}. Fix every named issue while preserving the canonical reference identities and exact cast count.`,
           model: DEV_MODE_IMAGE_MODEL,
@@ -3154,15 +3202,25 @@ async function generateDevModeImages(
           referenceImages: r.sceneRefs.length > 0 ? r.sceneRefs : undefined,
           seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 101, kind: r.job.kind, order: r.job.order }),
         });
-        if (regen.imageUrl) {
-          // Count paid regeneration calls as generated images so downstream
-          // cost tracking reflects actual Runware spend, not only final slots.
-          imagesGenerated += 1;
-          imageCostUSD = Number((imageCostUSD + providerImageCostUSD(regen)).toFixed(6));
+        const regeneratedImageUrl = acceptedGeneratedImageUrl(regen);
+        imageCostUSD = Number((imageCostUSD + providerImageCostUSD(regen)).toFixed(6));
+        const currentImageUrl = r.imageUrl?.trim();
+        const duplicateRegeneration = Boolean(
+          regeneratedImageUrl
+          && (regeneratedImageUrl === currentImageUrl || seenGeneratedImageUrls.has(regeneratedImageUrl)),
+        );
+        if (duplicateRegeneration) {
+          console.warn("[dev-mode-generation] Visual-QA regeneration returned a duplicate URL; keeping the original", {
+            job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
+          });
+        }
+        if (regeneratedImageUrl && !duplicateRegeneration) {
+          if (currentImageUrl) seenGeneratedImageUrls.delete(currentImageUrl);
+          seenGeneratedImageUrls.add(regeneratedImageUrl);
           if (r.job.kind === "cover") {
-            coverImageUrl = regen.imageUrl;
+            coverImageUrl = regeneratedImageUrl;
           } else if (typeof r.job.order === "number") {
-            chapterImages.set(r.job.order, { imageUrl: regen.imageUrl, prompt: r.fullPrompt });
+            chapterImages.set(r.job.order, { imageUrl: regeneratedImageUrl, prompt: r.fullPrompt });
           }
           console.log(`[dev-mode-generation] §12H visual-QA regen applied`, {
             job: `${r.job.kind}${r.job.order ? `:ch${r.job.order}` : ""}`,
@@ -3182,7 +3240,7 @@ async function generateDevModeImages(
     (chapterImages as any).__qaReports = qaReports;
   }
 
-  return { coverImageUrl, chapterImages, imagesGenerated, imageCostUSD, promptTokenUsage };
+  return { coverImageUrl, chapterImages, imagesGenerated, imageCalls, imageCostUSD, promptTokenUsage };
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
@@ -3542,7 +3600,7 @@ function auditIdeaCandidateNovelty(candidate: DevModeIdeaCandidate, input: DevMo
   const hardAvoidMatches: string[] = [];
   for (const motif of brief?.hardAvoidMotifs || []) {
     const normalizedMotif = normalizeNoveltyText(motif);
-    if (normalizedMotif.length < 6 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (normalizedMotif.length < 6 || isNoveltyStopword(normalizedMotif)) continue;
     if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) continue;
     if (noveltyMotifMatches(normalizedCandidateText, normalizedMotif)) hardAvoidMatches.push(motif);
@@ -6128,6 +6186,7 @@ function repairSceneCardsDeterministically(
   const personalCost = rawPersonalCost.length >= 18
     && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
     && !ABSTRACT_PERSONAL_COST_PATTERN.test(rawPersonalCost)
+    && referencesPersonalObject(rawPersonalCost)
     ? rawPersonalCost
     : concretePersonalCost;
   const rawVisibleDamage = firstSceneText(middle.visibleDamage, beatSheet?.act2?.midpointIrreversibleTurn, beatSheet?.act1?.firstConsequence);
@@ -6432,22 +6491,95 @@ function repairBeatSheetDeterministically(
   issues: string[]
 ): any {
   if (!beatSheet || typeof beatSheet !== "object") return beatSheet;
-  if (!issues.some((issue) => /closingImage explains a moral/i.test(issue))) return beatSheet;
-
   const protagonist = germanMainAvatarSubject(input);
   const artifactName = String(input.matchedArtifact?.name || "").trim();
   const motif = String(beatSheet?.recurringMotif || artifactName || "das kleine Zeichen").trim();
-  const object = String(beatSheet?.personalObject || artifactName || motif).trim();
+  const objectDetails = extractPersonalObjectDetails(beatSheet?.personalObject, artifactName || motif);
+  const objectName = firstSceneText(objectDetails.object, artifactName, motif, "der persoenliche Gegenstand");
   const helper = String((input.selectedIdea as any)?.selectedSupportingCast?.[0] || "").trim();
   const helperClause = helper ? `, waehrend ${helper} daneben einen letzten, leisen Handgriff macht` : "";
+  let repaired = { ...beatSheet };
 
-  return {
-    ...beatSheet,
-    act3: {
-      ...(beatSheet.act3 || {}),
-      closingImage: `${protagonist.subject} ${protagonist.place} ${object} ans Fenster; ${motif} bewegt sich noch einmal im Licht${helperClause}.`,
-    },
-  };
+  const personalContractIssue = issues.some((issue) =>
+    /personalObject|personalCost|finalPayoff\.plantedDetail|irreversibleMiddle\.personalCost/i.test(issue)
+  );
+  if (personalContractIssue) {
+    const objectTokens = normalizeNoveltyText(objectName)
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length >= 4)
+      .map((token) => token.slice(0, 4));
+    const referencesObject = (value: unknown): boolean => {
+      const normalized = normalizeNoveltyText(String(value || ""));
+      return objectTokens.length === 0 || objectTokens.some((token) => normalized.includes(token));
+    };
+    const keepAnchored = (value: unknown, fallback: string): string => {
+      const text = String(value || "").trim();
+      return text && referencesObject(text) ? text : fallback;
+    };
+
+    const concreteCost = `${protagonist.subject} ${protagonist.give} ${objectName} her und ${protagonist.leave} den Gegenstand sichtbar zurueck.`;
+    const concreteRisk = `${objectName} kann dabei sichtbar beschaedigt werden oder endgueltig zurueckbleiben.`;
+    const concretePayoff = `${protagonist.subject} ${protagonist.place} ${objectName} im Finale selbst an den vorbereiteten Platz.`;
+    const plantedDetail = `${objectName} mit seinem schon frueh sichtbaren Merkmal.`;
+    const visibleDamage = `${objectName} bekommt einen sichtbaren Riss und kann nicht mehr in den Anfangszustand zurueckkehren.`;
+    const shouldReplaceAct2Cost = issues.some((issue) =>
+      /act2\.personalCost|personalCost is not concrete|mood\/insight/i.test(issue)
+    );
+
+    const currentPersonalObject = beatSheet.personalObject && typeof beatSheet.personalObject === "object"
+      ? beatSheet.personalObject
+      : {};
+    const currentAct2Cost = String(beatSheet?.act2?.personalCost || "");
+    const currentMiddleCost = String(beatSheet?.irreversibleMiddle?.personalCost || "");
+    const safeAct2Cost = shouldReplaceAct2Cost || ABSTRACT_PERSONAL_COST_PATTERN.test(currentAct2Cost)
+      ? concreteCost
+      : keepAnchored(currentAct2Cost, concreteCost);
+    const safeMiddleCost = ABSTRACT_PERSONAL_COST_PATTERN.test(currentMiddleCost)
+      ? concreteCost
+      : keepAnchored(currentMiddleCost, safeAct2Cost);
+
+    repaired = {
+      ...repaired,
+      personalObject: {
+        ...currentPersonalObject,
+        object: objectName,
+        whyPersonal: firstSceneText(currentPersonalObject.whyPersonal, objectDetails.whyPersonal, `${objectName} ist fuer die Kinder persoenlich unersetzlich.`),
+        risk: keepAnchored(currentPersonalObject.risk, concreteRisk),
+        payoff: keepAnchored(currentPersonalObject.payoff, concretePayoff),
+      },
+      act2: {
+        ...(beatSheet.act2 || {}),
+        midpointIrreversibleTurn: keepAnchored(beatSheet?.act2?.midpointIrreversibleTurn, visibleDamage),
+        personalCost: safeAct2Cost,
+      },
+      irreversibleMiddle: {
+        ...(beatSheet.irreversibleMiddle || {}),
+        visibleDamage: keepAnchored(beatSheet?.irreversibleMiddle?.visibleDamage, visibleDamage),
+        personalCost: safeMiddleCost,
+      },
+      finalPayoff: {
+        ...(beatSheet.finalPayoff || {}),
+        plantedDetail: keepAnchored(beatSheet?.finalPayoff?.plantedDetail, plantedDetail),
+        closingImage: keepAnchored(beatSheet?.finalPayoff?.closingImage, concretePayoff),
+      },
+      act3: {
+        ...(beatSheet.act3 || {}),
+        payoffFromPlant: keepAnchored(beatSheet?.act3?.payoffFromPlant, concretePayoff),
+      },
+    };
+  }
+
+  if (issues.some((issue) => /closingImage explains a moral/i.test(issue))) {
+    repaired = {
+      ...repaired,
+      act3: {
+        ...(repaired.act3 || {}),
+        closingImage: `${protagonist.subject} ${protagonist.place} ${objectName} ans Fenster; ${motif} bewegt sich noch einmal im Licht${helperClause}.`,
+      },
+    };
+  }
+
+  return repaired;
 }
 
 function isNegated(text: string, word: string): boolean {
@@ -6800,12 +6932,24 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
       wrongAction: compactExcerpt(card.wrongAction || "", 110),
       consequence: compactExcerpt(card.visibleConsequence || "", 120),
       irreversibleChange: compactExcerpt(card.irreversibleChange || "", 120),
+      visibleDamage: compactExcerpt(card.visibleDamage || "", 120),
       personalCost: compactExcerpt(card.personalCost || "", 120),
+      cannotGoBackReason: compactExcerpt(card.cannotGoBackReason || "", 140),
+      emotionalTurn: compactExcerpt(card.emotionalTurn || "", 120),
+      childDiscovery: compactExcerpt(card.childDiscovery || "", 140),
+      childDecision: compactExcerpt(card.childDecision || "", 140),
+      recurringMotifState: card.recurringMotifState,
       driver: compactExcerpt(card.characterDriver || "", 40),
-      castMoves: [
-        ...Object.values(card.characterActions || {}).map((action) => compactExcerpt(String(action || ''), 90)),
-        compactExcerpt(card.helperAction || '', 90),
-      ].filter(Boolean),
+      castMoves: {
+        ...Object.fromEntries(
+          Object.entries(card.characterActions || {})
+            .map(([name, action]) => [name, compactExcerpt(String(action || ""), 90)])
+            .filter(([, action]) => Boolean(action)),
+        ),
+        ...(card.helperAction
+          ? { supportingCharacter: compactExcerpt(card.helperAction, 90) }
+          : {}),
+      },
       dialogueBeats: Array.isArray(card.dialogueBeats)
         ? card.dialogueBeats.slice(0, 6).map((beat: any) => ({
             speaker: beat?.speaker,
@@ -6978,11 +7122,11 @@ function buildCompactValidationNoveltyBlock(input: DevModeGenerationInput): stri
   const brief = input.noveltyBrief;
   if (!brief) return "No novelty brief available.";
   const trueHardAvoid = brief.hardAvoidMotifs
-    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isNoveltyStopword(normalizeNoveltyText(motif)))
     .filter(isHardBanMotif)
     .slice(0, 14);
   const softMotifHints = brief.hardAvoidMotifs
-    .filter((motif) => !NOVELTY_STOPWORDS.has(normalizeNoveltyText(motif)))
+    .filter((motif) => !isNoveltyStopword(normalizeNoveltyText(motif)))
     .filter((motif) => !isHardBanMotif(motif))
     .slice(0, 14);
   const recent = brief.recentStories
@@ -8879,9 +9023,11 @@ function selectValidatorQualityRepairChapters(
   chapterCount: number
 ): DevModeChapterDiagnostic[] {
   const selected = new Map<number, DevModeChapterDiagnostic>();
+  const continuityFindings = asStringArray(validatorFindings?.continuityBreaks, 10);
+  const selectionLimit = continuityFindings.length > 0 ? 3 : DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT;
   const chapters = diagnostics.chapterDiagnostics.slice().sort((a, b) => a.order - b.order);
   const add = (order: number | undefined) => {
-    if (!order || selected.size >= DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT) return;
+    if (!order || selected.size >= selectionLimit) return;
     const chapter = chapters.find((candidate) => Number(candidate.order) === Number(order));
     if (chapter) selected.set(Number(chapter.order), chapter);
   };
@@ -8897,7 +9043,23 @@ function selectValidatorQualityRepairChapters(
     ...(Array.isArray(validatorFindings?.warnings) ? validatorFindings.warnings : []),
     ...(Array.isArray(validatorFindings?.mustFixBefore95) ? validatorFindings.mustFixBefore95 : []),
     ...(Array.isArray(validatorFindings?.publishabilityBlockers) ? validatorFindings.publishabilityBlockers : []),
+    ...continuityFindings,
   ].join(" ").toLowerCase();
+
+  for (const finding of continuityFindings) {
+    const pageNumbers = [...finding.matchAll(/(?:page|reading page|leseseite|chapter|kapitel)\s*(\d+)/gi)]
+      .map((match) => Number(match[1]))
+      .filter((order) => order >= 1 && order <= chapterCount);
+    if (pageNumbers.length > 0) add(Math.max(...pageNumbers));
+  }
+  for (const match of findingText.matchAll(/(?:page|reading page|leseseite|chapter|kapitel)\s*(\d+)/gi)) {
+    add(Number(match[1]));
+  }
+  if (/continuity|location|teleport|holder|possession|reunion|separat|object state|anschluss|ort|besitz|wiedervereinig/.test(findingText) && selected.size === 0) {
+    add(Math.min(chapterCount, Math.max(2, Math.ceil(chapterCount / 2))));
+    add(Math.min(chapterCount, Math.max(2, Math.ceil(chapterCount / 2) + 1)));
+  }
+
 
   if (/final\s+page|last\s+page|page\s+5|leseseite\s+5|ending|payoff|moral|didactic|resolution|finale|schluss|lehre|lesson/.test(findingText)) {
     add(chapterCount);
@@ -8925,7 +9087,7 @@ function selectValidatorQualityRepairChapters(
     add(chapterCount);
   }
 
-  return [...selected.values()].slice(0, DEV_MODE_VALIDATOR_QUALITY_REPAIR_LIMIT);
+  return [...selected.values()].slice(0, selectionLimit);
 }
 
 function replaceStoryChapter(story: DevModeRawStory, repairedChapter: DevModeChapter): DevModeRawStory {
@@ -8983,6 +9145,8 @@ function compactCritiqueForDraft(critique: any): any {
           errors: Array.isArray(critique.validatorFindings.errors) ? critique.validatorFindings.errors.slice(0, 8) : [],
           warnings: Array.isArray(critique.validatorFindings.warnings) ? critique.validatorFindings.warnings.slice(0, 6) : [],
           mustFixBefore95: Array.isArray(critique.validatorFindings.mustFixBefore95) ? critique.validatorFindings.mustFixBefore95.slice(0, 8) : [],
+          publishabilityBlockers: asStringArray(critique.validatorFindings.publishabilityBlockers, 8),
+          continuityBreaks: asStringArray(critique.validatorFindings.continuityBreaks, 8),
         }
       : undefined,
     polishReason: critique?.polishReason || undefined,
@@ -9294,6 +9458,7 @@ function buildValidationPrompts(
     "{",
     '  "isValid": boolean,',
     '  "marketQualityScore": number,',
+    '  "correctedTitle": string | null,',
     '  "dimensionScores": {',
     '    "emotionalEngine": number,',
     '    "iconicCharacters": number,',
@@ -9315,6 +9480,7 @@ function buildValidationPrompts(
     '  "errors": string[],',
     '  "warnings": string[],',
     '  "publishabilityBlockers": string[],',
+    '  "continuityBreaks": string[],',
     '  "mustFixBefore95": string[]',
     "}",
   ].join("\n");
@@ -9368,6 +9534,13 @@ function buildValidationPrompts(
     "- Uses hard-avoid motifs without explicit user request: max 7.0.",
     "- Selected pool cast is missing from the story or reduced to decorative cameo: max 8.4.",
     "- More than 2 forbidden phrases in any language ('they learned...', 'true magic in the heart...', 'with courage and togetherness...'): max 6.5.",
+    "",
+    "CHRONOLOGY LEDGER (mandatory): read every page in order before scoring.",
+    "- Track each named character location/group, every important physical object holder/state, every separation/reunion, and every magic state/trigger/cost from page to page.",
+    "- A character may not teleport across a barrier; separated characters must visibly reunite. An object may not change holder before an on-page transfer. Every payoff tool or repeated-again reference needs an earlier setup.",
+    "- Put every impossible location jump, holder reversal, unexplained reunion, unplanted solution, or contradictory magic state in continuityBreaks and publishabilityBlockers with exact page numbers; cap marketQualityScore at 6.9 until fixed.",
+    "- correctedTitle is null unless the current title has a mechanical spelling/encoding error. Never creatively retitle the book.",
+    "- For German prose, also flag malformed direct-speech punctuation such as a missing comma in: direct speech + reporting verb.",
     "",
     "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
@@ -10333,7 +10506,7 @@ function collectNoveltyGateIssues(
   for (const motif of brief.hardAvoidMotifs) {
     const normalizedMotif = normalizeNoveltyText(motif);
     if (normalizedMotif.length < 6) continue;
-    if (NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+    if (isNoveltyStopword(normalizedMotif)) continue;
     if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
     if (explicitSoundRequest && /gloeckchen|glocke|bell|sound|klang|geraeusch|stille|lautlos/.test(normalizedMotif)) {
       continue;
@@ -11161,11 +11334,24 @@ function applyDeterministicStoryTextAutofixes(
 ): { story: DevModeRawStory; changed: boolean; fixes: string[] } {
   const languageCode = languageCodeFromName(localizedLanguageName(input.config.language));
   const fixes: string[] = [];
+  let fixedTitle = story.title;
+  const sanitizedTitle = sanitizeStoryHeaderText(story.title || "");
+  if (sanitizedTitle.changed && sanitizedTitle.text.length >= 2) {
+    fixedTitle = sanitizedTitle.text;
+    fixes.push(...sanitizedTitle.fixes);
+  }
   let fixedDescription = story.description;
   const sanitizedDescription = sanitizeDescription(story.description || "");
   if (sanitizedDescription.changed && sanitizedDescription.description.length >= 10) {
     fixedDescription = sanitizedDescription.description;
     fixes.push("description-metadata-sanitized");
+  }
+
+
+  const sanitizedDescriptionHeader = sanitizeStoryHeaderText(fixedDescription || "");
+  if (sanitizedDescriptionHeader.changed && sanitizedDescriptionHeader.text.length >= 10) {
+    fixedDescription = sanitizedDescriptionHeader.text;
+    fixes.push(...sanitizedDescriptionHeader.fixes.map((fix) => `description-${fix}`));
   }
 
   const fixedChapters = story.chapters.map((chapter) => {
@@ -11187,6 +11373,11 @@ function applyDeterministicStoryTextAutofixes(
         content = grammar.text;
         fixes.push(...grammar.fixes);
       }
+      const punctuation = applyGermanDialoguePunctuationAutoFix(content);
+      if (punctuation.changed) {
+        content = punctuation.text;
+        fixes.push(...punctuation.fixes);
+      }
     }
 
     return content !== chapter.content ? { ...chapter, content } : chapter;
@@ -11194,8 +11385,8 @@ function applyDeterministicStoryTextAutofixes(
 
   if (fixes.length === 0) return { story, changed: false, fixes: [] };
   const fixedStory = story.displayMode === "reading_pages"
-    ? markStoryAsReadingPages({ ...story, description: fixedDescription, chapters: fixedChapters }, story)
-    : { ...story, description: fixedDescription, chapters: fixedChapters };
+    ? markStoryAsReadingPages({ ...story, title: fixedTitle, description: fixedDescription, chapters: fixedChapters }, story)
+    : { ...story, title: fixedTitle, description: fixedDescription, chapters: fixedChapters };
   return { story: fixedStory, changed: true, fixes: [...new Set(fixes)] };
 }
 
@@ -11223,6 +11414,47 @@ function extractQualityScore(parsed: any): number | null {
   if (score > 10 && score <= 100) return score / 10;
   return score;
 }
+
+function titleEditDistance(left: string, right: string): number {
+  const a = Array.from(left);
+  const b = Array.from(right);
+  const row = Array.from({ length: b.length + 1 }, (_value, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    let previous = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const saved = row[j];
+      row[j] = Math.min(
+        row[j] + 1,
+        row[j - 1] + 1,
+        previous + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      previous = saved;
+    }
+  }
+  return row[b.length];
+}
+
+function applySafeValidatorCorrectedTitle(story: DevModeRawStory, validatorFindings: any): DevModeRawStory {
+  const candidate = sanitizeStoryHeaderText(String(validatorFindings?.correctedTitle || "")).text;
+  const current = sanitizeStoryHeaderText(story.title || "").text;
+  if (!candidate || candidate === current) return current !== story.title ? { ...story, title: current } : story;
+  const normalize = (value: string) => value
+    .toLocaleLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+  const currentWords = normalize(current).split(/\s+/).filter(Boolean);
+  const candidateWords = normalize(candidate).split(/\s+/).filter(Boolean);
+  if (Math.abs(currentWords.length - candidateWords.length) > 1) return story;
+  const currentCompact = currentWords.join("");
+  const candidateCompact = candidateWords.join("");
+  const allowedDistance = Math.max(2, Math.ceil(Math.max(currentCompact.length, candidateCompact.length) * 0.12));
+  if (titleEditDistance(currentCompact, candidateCompact) > allowedDistance) return story;
+  return { ...story, title: candidate };
+}
+
 
 function releaseDimensionFailures(validatorFindings: any, opts?: { mode?: DevModeQualityMode }): string[] {
   const scores = validatorFindings?.dimensionScores;
@@ -11312,10 +11544,15 @@ function releaseBlockingValidatorMustFixes(
   diagnostics?: DevModeStoryDiagnostics,
 ): string[] {
   if ((mode || 'premium') !== 'premium') return [];
-  const mustFixes = asStringArray(validatorFindings?.mustFixBefore95, 12).map((fix) => fix.trim()).filter(Boolean);
+  const mustFixes = [...new Set([
+    ...asStringArray(validatorFindings?.mustFixBefore95, 12),
+    ...asStringArray(validatorFindings?.publishabilityBlockers, 12),
+    ...asStringArray(validatorFindings?.continuityBreaks, 12),
+    ...asStringArray(validatorFindings?.errors, 8),
+  ].map((fix) => fix.trim()).filter(Boolean))].slice(0, 24);
   if (mustFixes.length === 0) return [];
-  const materialIssuePattern = /final|ending|schluss|finale|dialog|wonder\s*rule|wunder|regel|color|farbe|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme/i;
-  const structuralIssuePattern = /final|ending|schluss|finale|wonder\s*rule|wunder|regel|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme/i;
+  const materialIssuePattern = /final|ending|schluss|finale|dialog|wonder\s*rule|wunder|regel|color|farbe|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme|continuity|location|teleport|holder|possession|reunion|separat|object\s*state|anschluss|ortssprung|besitz|wiedervereinig|unplanted|setup/i;
+  const structuralIssuePattern = /final|ending|schluss|finale|wonder\s*rule|wunder|regel|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme|continuity|location|teleport|holder|possession|reunion|separat|object\s*state|anschluss|ortssprung|besitz|wiedervereinig|unplanted|setup/i;
   return mustFixes
     .filter((fix) => materialIssuePattern.test(fix))
     // Validators repeatedly invented a 32%+ dialogue release threshold even
@@ -12155,6 +12392,43 @@ export async function generateStoryDevMode(
   let selectedIdea: DevModeSelectedIdea | undefined;
   let screenplayPlan: DevModeScreenplayPlan | undefined;
 
+  type ValidatedStorySnapshot = {
+    story: DevModeRawStory;
+    diagnostics: DevModeStoryDiagnostics;
+    findings: any;
+    rawScore?: number;
+    localScore?: number;
+    finalScore?: number;
+    modelUsed: string;
+    signals: ValidatedStorySignals;
+  };
+  let bestValidatedSnapshot: ValidatedStorySnapshot | undefined;
+  const considerValidatedSnapshot = () => {
+    if (!finalParsed || !finalDiagnostics || !finalValidatorFindings) return;
+    const signals: ValidatedStorySignals = {
+      hardIssueCount: finalDiagnostics.hardIssueCount ?? 0,
+      errorCount: asStringArray(finalValidatorFindings.errors, 20).length,
+      blockerCount: asStringArray(finalValidatorFindings.publishabilityBlockers, 20).length
+        + asStringArray(finalValidatorFindings.continuityBreaks, 20).length,
+      releaseFailureCount: releaseDimensionFailures(finalValidatorFindings, { mode: input.qualityMode }).length
+        + releaseBlockingValidatorMustFixes(finalValidatorFindings, input.qualityMode, finalDiagnostics).length,
+      score: finalQualityScore ?? rawQualityScore ?? localGateScore ?? 0,
+    };
+    const candidate: ValidatedStorySnapshot = {
+      story: finalParsed,
+      diagnostics: finalDiagnostics,
+      findings: finalValidatorFindings,
+      rawScore: rawQualityScore,
+      localScore: localGateScore,
+      finalScore: finalQualityScore,
+      modelUsed: finalModelUsed,
+      signals,
+    };
+    if (!bestValidatedSnapshot || compareValidatedStorySignals(signals, bestValidatedSnapshot.signals) > 0) {
+      bestValidatedSnapshot = candidate;
+    }
+  };
+
   try {
     const ideaCandidatePrompts = buildIdeaCandidatePrompts(input, chapterCount);
     const ideaCandidatesStage = await runStage("idea-candidates", ideaCandidatePrompts, {
@@ -12679,9 +12953,7 @@ export async function generateStoryDevMode(
         });
       }
       if (blocking.length > 0) {
-        console.warn("[dev-mode-generation] beat-sheet soft-fail after repair; continuing to prose pipeline", {
-          issues: blocking,
-        });
+        throw new Error(`Beat-sheet gate failed before prose: ${blocking.join(" | ")}`);
       }
     }
 
@@ -13159,81 +13431,17 @@ export async function generateStoryDevMode(
 
     const storyStage = wholeStoryStage;
     finalParsed = parsedStoryDraft;
+    const initialTextAutofix = applyDeterministicStoryTextAutofixes(finalParsed, input);
+    if (initialTextAutofix.changed) {
+      finalParsed = initialTextAutofix.story;
+      recordLocalStage("text-autofix", { fixes: initialTextAutofix.fixes });
+    }
     finalModelUsed = storyStage.provider.modelUsed;
     // Suppress unused-variable warnings for legacy compact-draft helpers
     // that are still referenced elsewhere (compatibility retry paths).
     void compactDraftMode;
     finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
     recordLocalStage("local-diagnostics", compactDiagnosticsForPrompt(finalDiagnostics));
-
-    // Draft-stage dialogue redraft: when the draft's dialogue share collapsed
-    // far below the floor, ONE redraft with explicit measured feedback at the
-    // cheapest creative stage beats the historical polish→rebalance cascade,
-    // which traded word count for dialogue and got rejected (logs 734d7ae5,
-    // a27e9788: drafts at ~17% dialogue shipped with failed gates after three
-    // wasted repair calls).
-    if (finalDiagnostics && finalDiagnostics.dialogPct < DEV_MODE_DRAFT_REDRAFT_DIALOG_PCT) {
-      console.warn("[dev-mode-generation] Draft dialogue collapse — issuing one redraft with measured feedback", {
-        dialogPct: finalDiagnostics.dialogPct,
-        totalWords: finalDiagnostics.totalWords,
-      });
-      try {
-        const redraftWordBounds = getStoryWordBounds(input.config);
-        const draftQuotedLines = (finalParsed?.chapters || []).reduce(
-          (sum, ch) => sum + (String(ch.content || "").match(/„[^“]*“/g) || []).length,
-          0
-        );
-        const redraftPrompts = {
-          systemPrompt: wholeStoryPrompts.systemPrompt,
-          userPrompt: [
-            `REDRAFT FEEDBACK (binding): your previous draft of this exact story measured only ${finalDiagnostics.dialogPct}% direct speech (${draftQuotedLines} quoted lines) — far below the hard floor of ${DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT}% and the 30–38% target. Rewrite the SAME story: same plot, same scene plan, same characters, same ${redraftWordBounds.targetMin}-${redraftWordBounds.targetMax} word budget. Keep the narration that carries action, and convert reactions, decisions, and explanations into short quoted exchanges in the characters' distinct voices. Realize every dialogue beat from the scene plan as a quoted line and COUNT your quoted lines before answering. Every scene movement needs at least 2 exchanges; never go 2 paragraphs without speech in the first half. Do NOT shorten the story to raise the percentage.`,
-            wholeStoryPrompts.userPrompt,
-          ].join("\n\n"),
-        };
-        const redraftStage = await runStage("whole-story-draft", redraftPrompts, {
-          maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, true),
-          temperature: 0.7,
-          timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
-          modelRole: "selected-story",
-        });
-        const redraft = parseWholeStoryDraft(redraftStage.provider.content);
-        const redraftParsed = applyReadingBreaksToDraft(
-          redraft,
-          chapterCount,
-          localizedLanguageName(input.config.language),
-          screenplayPlan
-        );
-        const redraftDiagnostics = analyzeDevModeStoryQuality(redraftParsed, input, chapterCount);
-        const redraftWordsOk =
-          redraftDiagnostics.totalWords >= Math.min(finalDiagnostics.totalWords, redraftWordBounds.min);
-        const redraftDialogImproved = redraftDiagnostics.dialogPct >= finalDiagnostics.dialogPct + 4;
-        recordLocalStage("draft-dialog-redraft", {
-          accepted: redraftWordsOk && redraftDialogImproved,
-          beforeDialogPct: finalDiagnostics.dialogPct,
-          afterDialogPct: redraftDiagnostics.dialogPct,
-          beforeWords: finalDiagnostics.totalWords,
-          afterWords: redraftDiagnostics.totalWords,
-        });
-        if (redraftWordsOk && redraftDialogImproved) {
-          finalParsed = redraftParsed;
-          finalModelUsed = redraftStage.provider.modelUsed;
-          finalDiagnostics = redraftDiagnostics;
-          console.log("[dev-mode-generation] Draft dialogue redraft accepted", {
-            dialogPct: redraftDiagnostics.dialogPct,
-            totalWords: redraftDiagnostics.totalWords,
-          });
-        } else {
-          console.warn("[dev-mode-generation] Draft dialogue redraft rejected; keeping original draft", {
-            redraftDialogPct: redraftDiagnostics.dialogPct,
-            redraftWords: redraftDiagnostics.totalWords,
-          });
-        }
-      } catch (redraftError) {
-        console.warn("[dev-mode-generation] Draft dialogue redraft failed; keeping original draft", {
-          error: redraftError instanceof Error ? redraftError.message : String(redraftError),
-        });
-      }
-    }
 
     let bestParsed = finalParsed;
     let bestModelUsed = finalModelUsed;
@@ -13306,7 +13514,10 @@ export async function generateStoryDevMode(
           routerDecision.strategy === "whole_story_dialog_rebalance"
           || (dialogUnderFloor && !isDeterministicRepairStrategy(routerDecision.strategy));
         if (shouldRunReadingPageRebalance) {
-          const targets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, 2);
+          const targetLimit = finalDiagnostics.dialogPct < DEV_MODE_BROAD_DIALOG_REPAIR_PCT
+            ? finalParsed.chapters.length
+            : 2;
+          const targets = selectDialogueRebalanceTargets(finalParsed, finalDiagnostics, targetLimit);
           if (targets.length === 0) {
             console.warn("[dev-mode-generation] dialogue-rebalance selected but no target pages were found", {
               dialogPct: finalDiagnostics.dialogPct,
@@ -13316,9 +13527,9 @@ export async function generateStoryDevMode(
           try {
             const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, targets);
             const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-              maxTokens: 1800,
+              maxTokens: targetLimit > 2 ? (input.config.length === "long" ? 3200 : 2600) : 1800,
               temperature: 0.22,
-              timeoutMs: 120_000,
+              timeoutMs: targetLimit > 2 ? (input.config.length === "long" ? 220_000 : 180_000) : 120_000,
               modelRole: "selected-story",
             });
             const rebalancedParsed = parseDialogueRebalanceResult(
@@ -13629,6 +13840,12 @@ export async function generateStoryDevMode(
           validatorFindings = validationStage.parsed;
           finalValidatorFindings = validatorFindings;
           rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+          const titleCorrectedStory = applySafeValidatorCorrectedTitle(finalParsed!, validatorFindings);
+          if (titleCorrectedStory.title !== finalParsed!.title) {
+            finalParsed = titleCorrectedStory;
+            finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+            console.log("[dev-mode-generation] Applied validator mechanical title correction", { title: finalParsed.title });
+          }
         } catch (validationError) {
           console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
             error: validationError instanceof Error ? validationError.message : String(validationError),
@@ -13640,6 +13857,7 @@ export async function generateStoryDevMode(
       }
       localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
       finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+      considerValidatedSnapshot();
 
       if (typeof rawQualityScore === "number" && typeof finalQualityScore === "number" && finalQualityScore < rawQualityScore) {
         console.warn("[dev-mode-generation] Validator score capped by local gates", {
@@ -13735,8 +13953,7 @@ export async function generateStoryDevMode(
         (issue) => !/Dialoganteil|dialog/i.test(issue)
       ).length;
       const validatorQualityRepairChapters =
-        currentParsed.displayMode !== "reading_pages"
-        && nonDialogHardIssueCount === 0
+        nonDialogHardIssueCount === 0
         && currentScore < targetReleaseScore
         && validatorFindings
           ? selectValidatorQualityRepairChapters(currentDiagnostics, validatorFindings, chapterCount)
@@ -14488,7 +14705,7 @@ export async function generateStoryDevMode(
         const normalizedBody = normalizeNoveltyText(allChapterContent);
         for (const motif of brief.hardAvoidMotifs) {
           const normalizedMotif = normalizeNoveltyText(motif);
-          if (normalizedMotif.length < 4 || NOVELTY_STOPWORDS.has(normalizedMotif)) continue;
+          if (normalizedMotif.length < 4 || isNoveltyStopword(normalizedMotif)) continue;
           if (isCurrentCharacterNameMotif(normalizedMotif, input)) continue;
           // Only strip from description if the motif is NOT a load-bearing
           // story element (i.e. not also in the chapter body / chapter titles).
@@ -14628,8 +14845,15 @@ export async function generateStoryDevMode(
         });
         finalValidatorFindings = validationStage.parsed;
         rawQualityScore = extractQualityScore(validationStage.parsed) ?? undefined;
+        const titleCorrectedStory = applySafeValidatorCorrectedTitle(finalParsed, finalValidatorFindings);
+        if (titleCorrectedStory.title !== finalParsed.title) {
+          finalParsed = titleCorrectedStory;
+          finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+          console.log("[dev-mode-generation] Applied final validator mechanical title correction", { title: finalParsed.title });
+        }
         localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
         finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+        considerValidatedSnapshot();
         console.log("[dev-mode-generation] Refreshed final validation after post-polish changes", {
           rawQualityScore,
           localGateScore,
@@ -14647,6 +14871,17 @@ export async function generateStoryDevMode(
         localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
         finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
       }
+    }
+
+    if (bestValidatedSnapshot) {
+      finalParsed = bestValidatedSnapshot.story;
+      finalDiagnostics = bestValidatedSnapshot.diagnostics;
+      finalValidatorFindings = bestValidatedSnapshot.findings;
+      rawQualityScore = bestValidatedSnapshot.rawScore;
+      localGateScore = bestValidatedSnapshot.localScore;
+      finalQualityScore = bestValidatedSnapshot.finalScore;
+      finalModelUsed = bestValidatedSnapshot.modelUsed;
+      console.log("[dev-mode-generation] Selected best validated story snapshot", bestValidatedSnapshot.signals);
     }
 
     // v11 §1 + §13: derive a STRICT release score. If hard gates are still
@@ -14849,26 +15084,41 @@ export async function generateStoryDevMode(
     coverImageUrl?: string;
     chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
     imagesGenerated: number;
+    imageCalls: number;
     imageCostUSD: number;
     promptTokenUsage: { prompt: number; completion: number; total: number };
   } = {
     coverImageUrl: undefined,
     chapterImages: new Map(),
     imagesGenerated: 0,
+    imageCalls: 0,
     imageCostUSD: 0,
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
 
-  const hasOpenQualityGate = Boolean(qualityGateFailureReason) || ((finalDiagnostics?.hardIssueCount ?? 0) > 0);
-  const skipImageGenerationForQualityGate = hasOpenQualityGate;
+  const illustrationEligibility = decideIllustrationEligibility({
+    debug: isDebugMode(input),
+    strictTextGateBlocked: shouldBlockDevModeQualityGateFailure(input, finalDiagnostics),
+    hardIssues: finalDiagnostics?.hardIssues,
+    actualPageCount: sortedParsedChapters.length,
+    expectedPageCount: chapterCount,
+  });
+  const skipImageGenerationForQualityGate = !illustrationEligibility.eligible;
 
-  if (hasOpenQualityGate) {
-    console.warn("[dev-mode-generation] §F release gate open: skipping paid images until the text passes", {
+  if (!illustrationEligibility.eligible) {
+    console.warn("[dev-mode-generation] Illustration pipeline suppressed for a render-safety reason", {
+      reason: illustrationEligibility.reason,
       hardIssueCount: finalDiagnostics?.hardIssueCount,
       qualityGateFailureReason,
       finalQualityScore,
     });
+  } else if (qualityGateFailureReason) {
+    console.warn("[dev-mode-generation] Editorial text gate remains open; illustrations will still be generated", {
+      qualityGateFailureReason,
+      finalQualityScore,
+    });
   }
+
   // v12 §B: debug mode skips the image pipeline entirely. The caller is
   // running for diagnostics; image cost is wasted and would obscure the text
   // failure mode. Story metadata still reports `debug: true` so downstream
@@ -14876,7 +15126,7 @@ export async function generateStoryDevMode(
   if (isDebugMode(input)) {
     console.warn("[dev-mode-generation] §B debug mode: skipping image generation (text-only diagnostics run)");
   } else if (skipImageGenerationForQualityGate) {
-    console.warn("[dev-mode-generation] §F quality gate: skipping image generation to avoid charging for rejected prose");
+    console.warn(`[dev-mode-generation] Illustration generation skipped: ${illustrationEligibility.reason}`);
   } else {
     try {
       devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
@@ -15045,6 +15295,7 @@ export async function generateStoryDevMode(
       supportModel,
       storyModel: finalModelUsed,
       imagesGenerated: devModeImages.imagesGenerated,
+      imageCalls: devModeImages.imageCalls,
       imageCostUSD: devModeImages.imageCostUSD,
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,

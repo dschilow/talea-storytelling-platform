@@ -178,7 +178,7 @@ export function summarizeStoryCostEntries(
         totalCostUSD: llmTotals.totalCostUSD,
       },
       images: {
-        calls: imageEntries.length,
+        calls: countProviderCalls(imageEntries),
         successCount: imageEntries.filter(entry => entry.success !== false).length,
         providerCostUSD: trackedImageCostUSD,
         providerCostCredits: imageTotals.providerCostCredits,
@@ -303,6 +303,14 @@ export function extractRunwareCostMetrics(payload: any): {
   };
 }
 
+function countProviderCalls(entries: StoryCostEntry[]): number {
+  return entries.reduce((sum, entry) => {
+    if (entry.kind !== "image") return sum + 1;
+    const itemCount = Math.trunc(toNumber(entry.itemCount));
+    return sum + (itemCount > 0 ? itemCount : 1);
+  }, 0);
+}
+
 function aggregateGrouped(
   entries: StoryCostEntry[],
   getKey: (entry: StoryCostEntry) => string,
@@ -321,7 +329,7 @@ function aggregateGrouped(
       return {
         key,
         kind: groupEntries[0]?.kind,
-        calls: groupEntries.length,
+        calls: countProviderCalls(groupEntries),
         successCount: groupEntries.filter(entry => entry.success !== false).length,
         inputTokens: totals.promptTokens,
         cachedInputTokens: (totals as any).cachedPromptTokens,
@@ -358,9 +366,9 @@ function buildSectionSummary(
   return {
     label,
     selectedCandidateTag: options?.selectedCandidateTag || null,
-    calls: entries.length,
+    calls: countProviderCalls(entries),
     llmCalls: llmEntries.length,
-    imageCalls: imageEntries.length,
+    imageCalls: countProviderCalls(imageEntries),
     successCount: entries.filter(entry => entry.success !== false).length,
     inputTokens: totals.promptTokens,
     cachedInputTokens: (totals as any).cachedPromptTokens,

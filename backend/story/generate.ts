@@ -34,6 +34,11 @@ import {
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import { buildImageCostEntry, buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
 import { GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
+import {
+  calculateGenerationUsageResidual,
+  normalizeGeneratedImageCount,
+  resolveAdminImageCallCount,
+} from "./generation-cost-residual";
 import { normalizeOpenRouterModel } from "./openrouter-generation";
 import {
   assertProfilesBelongToUser,
@@ -325,6 +330,7 @@ export interface Story {
     model?: string;
     processingTime?: number;
     imagesGenerated?: number;
+    imageCalls?: number;
     imageCostUSD?: number;
     totalCost?: {
       text: number;
@@ -1067,21 +1073,24 @@ export const generate = api<GenerateStoryRequest, Story>(
             })
             .filter(Boolean)
         : [];
-      const devModeImagesGenerated = devModeStages.length > 0
-        ? Number(generatedStory.metadata?.imagesGenerated || 0)
+      const reportedImageCount = generatedStory.metadata?.imagesGenerated;
+      const reportedImagesGenerated = normalizeGeneratedImageCount(reportedImageCount);
+      const reportedImageCalls = normalizeGeneratedImageCount(generatedStory.metadata?.imageCalls);
+      const devModeImageCalls = devModeStages.length > 0
+        ? (reportedImageCalls ?? reportedImagesGenerated ?? 0)
         : 0;
       const measuredImageCostUSD = Number(generatedStory.metadata?.imageCostUSD || 0);
       const billedImageCostUSD = measuredImageCostUSD > 0
         ? measuredImageCostUSD
-        : Number((devModeImagesGenerated * DEV_MODE_IMAGE_COST_USD).toFixed(6));
-      const devModeImageCostEntries = devModeImagesGenerated > 0
+        : Number((devModeImageCalls * DEV_MODE_IMAGE_COST_USD).toFixed(6));
+      const devModeImageCostEntries = devModeImageCalls > 0 || measuredImageCostUSD > 0
         ? [buildImageCostEntry({
             phase: stagePipelinePhase,
             step: "runware-images",
             provider: "runware",
             model: DEV_MODE_IMAGE_MODEL,
-            success: true,
-            itemCount: devModeImagesGenerated,
+            success: (reportedImagesGenerated ?? 0) > 0,
+            itemCount: devModeImageCalls,
             providerCostUSD: billedImageCostUSD,
             metadata: {
               estimated: measuredImageCostUSD <= 0,
@@ -1090,6 +1099,34 @@ export const generate = api<GenerateStoryRequest, Story>(
             },
           })]
         : [];
+      const residualModel =
+        generatedStory.metadata?.supportModel
+        || metadataUsage?.modelUsed
+        || config.aiModel
+        || GEMINI_MAIN_STORY_MODEL;
+      const devModeResidualUsage = devModeCostEntries.length > 0
+        ? calculateGenerationUsageResidual({
+            metadataUsage,
+            trackedEntries: devModeCostEntries as any[],
+            residualModel,
+          })
+        : null;
+      const devModeResidualCostEntry = devModeResidualUsage
+        ? buildLlmCostEntry({
+            phase: stagePipelinePhase,
+            step: "image-prompt-and-vision-qa",
+            usage: devModeResidualUsage,
+            fallbackModel: residualModel,
+            success: true,
+            metadata: {
+              source: "metadata-minus-dev-mode-stages",
+              pipeline: generatedStory.metadata?.generationMode
+                || generatedStory.metadata?.devModePipeline
+                || "adaptive-polish-cost-optimized",
+            },
+          })
+        : null;
+
       const fallbackUsage = pipelineResult?.tokenUsage
         ? pipelineResult.tokenUsage
         : metadataUsage
@@ -1101,7 +1138,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             }
           : undefined;
       const fallbackCostEntries = devModeCostEntries.length > 0
-        ? devModeCostEntries
+        ? [...devModeCostEntries, ...(devModeResidualCostEntry ? [devModeResidualCostEntry] : [])]
         : fallbackUsage
         ? [
             buildLlmCostEntry({
@@ -1121,6 +1158,15 @@ export const generate = api<GenerateStoryRequest, Story>(
       const costSummary = summarizeStoryCostEntries((storyCostEntries.filter(Boolean) as any[]), {
         selectedCandidateTag,
       });
+      const hasImageLedgerEntries = (storyCostEntries as any[]).some((entry: any) => entry?.kind === "image");
+      const adminImageCalls = resolveAdminImageCallCount({
+        reportedImageCalls,
+        ledgerImageCalls: costSummary.totals.images.calls,
+        ledgerImageSuccessCount: costSummary.totals.images.successCount,
+        reportedImagesGenerated,
+        hasImageLedgerEntries,
+      });
+
       const tokensUsed = generatedStory.metadata?.tokensUsed || { prompt: 0, completion: 0, total: 0 };
       const inputCost = costSummary.totals.llm.inputCostUSD || 0;
       const outputCost = costSummary.totals.llm.outputCostUSD || 0;
@@ -1207,7 +1253,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         },
         calls: {
           llm: costSummary.totals.llm.calls || 0,
-          images: costSummary.totals.images.successCount || costSummary.totals.images.calls || 0,
+          images: adminImageCalls,
         },
         durationMs: pipelineDurationMs,
         imageCostEstimated: (storyCostEntries as any[]).some(

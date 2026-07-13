@@ -14,6 +14,8 @@ import {
   sanitizeDescription,
   classifyNoveltyHit,
   applyOrthographyAutoFix,
+  sanitizeStoryHeaderText,
+  applyGermanDialoguePunctuationAutoFix,
   validateGermanGrammar,
   detectHelperExplainsSolution,
   detectStructureSignals,
@@ -320,6 +322,20 @@ console.log("\n[6] Orthography autofix turns transliterated forms into proper Ge
   check("höher instead of hoeher", /höher/.test(r.text) && !/hoeher\b/.test(r.text), r.text);
   check("Flügel instead of Fluegel", /Flügel/.test(r.text) && !/Fluegel/.test(r.text), r.text);
   check("Zauberstäbe instead of Zauberstaebe", /Zauberstäbe/.test(r.text) && !/Zauberstaebe/.test(r.text), r.text);
+}
+
+console.log("\n[6b] Header and German dialogue cleanup stays deterministic");
+{
+  const header = sanitizeStoryHeaderText("{\"title\":\"Das Amulett \\uD83E\\uDDED\"}");
+  check("JSON title extracted", header.text === "Das Amulett", header.text);
+  const punctuation = applyGermanDialoguePunctuationAutoFix(
+    "\u201EWarte!\u201C rief Adrian. \u201EIch komme.\u201C sagte Alexander. \u201ENa gut!\u201C grinste Adrian.",
+  );
+  check("exclamation reporting tag gets comma", punctuation.text.includes("!\u201C, rief"), punctuation.text);
+  check("inner period before reporting tag removed", punctuation.text.includes("komme\u201C, sagte"), punctuation.text);
+  check("action clause becomes a sentence", punctuation.text.includes("!\u201C Adrian grinste"), punctuation.text);
+  const stuck = applyOrthographyAutoFix("Festklemmt!");
+  check("Festklemmt repaired", stuck.text === "Klemmt fest!", stuck.text);
 }
 
 // -----------------------------------------------------------------------------

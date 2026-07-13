@@ -15,7 +15,7 @@ export interface ExpectedVisualCharacter {
 export interface VisualQaInput {
   imageUrl: string;
   expectedCharacters: ExpectedVisualCharacter[];
-  /** Names for canonical reference images 2..N, in attachment order. */
+  /** Names for canonical references, attachment #2 onward (#1 is the generated image). */
   referenceNames?: string[];
   scenePrompt: string;
 }
@@ -42,12 +42,13 @@ export interface VisualQaReport {
 export function buildVisualQaPrompt(input: VisualQaInput): string {
   const expectedCast = input.expectedCharacters.length > 0
     ? input.expectedCharacters.map((character, index) =>
-        `${index + 1}. ${character.name} — ${character.entityType}${character.referenceIndex ? ` — canonical reference image ${character.referenceIndex}` : " — no attached reference"}`
+        `${index + 1}. ${character.name} — ${character.entityType}${character.referenceIndex ? ` — canonical reference #${character.referenceIndex} = attachment #${character.referenceIndex + 1}` : " — no attached reference"}`
       ).join("\n")
     : "(no visible characters expected)";
 
   return `You are a strict picture-book illustration QA assistant.
-The FIRST attached image is the generated illustration to inspect. Any later attached images are canonical character references, in this order: ${input.referenceNames?.join(", ") || "(none attached)"}.
+Attachment #1 is the generated illustration to inspect, never a character reference. Canonical reference #1 is attachment #2, canonical reference #2 is attachment #3, and so on.
+Canonical reference names in attachment order: ${input.referenceNames?.join(", ") || "(none attached)"}.
 The cast may contain any mix of human children, human adults, animals, fantasy beings, robots, plants, objects, or other entities. Never assume that an avatar is human or that a supporting character is non-human.
 Compare each referenced character's face or head shape, species/anatomy, apparent age, hair/fur/skin/material, markings, colors, clothing, and accessories against the matching canonical reference. Detect attributes copied from one character onto another.
 Report only what is visibly present. Do not infer correctness from the text prompt alone.

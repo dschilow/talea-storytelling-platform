@@ -186,7 +186,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
         debugInfo.processingTime = Date.now() - startTime;
         console.error("[Runware] API error:", debugInfo.errorMessage);
         return {
-          imageUrl: generatePlaceholderImage(req.prompt),
+          imageUrl: "",
           seed: requestBody.seed,
           debugInfo,
         };
@@ -210,7 +210,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       debugInfo.errorMessage = "No image data found in Runware response";
       console.warn("[Runware] No image data extracted from response");
       return {
-        imageUrl: generatePlaceholderImage(req.prompt),
+        imageUrl: "",
         seed: requestBody.seed,
         debugInfo,
       };
@@ -234,7 +234,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       debugInfo.processingTime = Date.now() - startTime;
       console.warn("[Runware] Missing image payload");
       return {
-        imageUrl: generatePlaceholderImage(req.prompt),
+        imageUrl: "",
         seed: requestBody.seed,
         debugInfo,
       };
@@ -269,7 +269,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       processingTime: Date.now() - startTime,
     };
     return {
-      imageUrl: generatePlaceholderImage(req.prompt),
+      imageUrl: "",
       seed: req.seed || 0,
       debugInfo: dbg,
     };
@@ -345,7 +345,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       console.error("[Runware] Batch API error:", responseText);
       return {
         images: req.images.map((img, i) => ({
-          imageUrl: generatePlaceholderImage(img.prompt),
+          imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
             requestSent: sanitized[i],
@@ -377,7 +377,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       if (!extracted) {
         console.warn(`[Runware] No image data found for batch item ${idx}`);
         return {
-          imageUrl: generatePlaceholderImage(img.prompt),
+          imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
             requestSent: sanitized[idx],
@@ -404,7 +404,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       if (!imageUrl) {
         console.warn(`[Runware] Missing image payload for batch item ${idx}`);
         return {
-          imageUrl: generatePlaceholderImage(img.prompt),
+          imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
             requestSent: sanitized[idx],
@@ -458,7 +458,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     console.error("[Runware] Batch call failed:", err);
     return {
       images: (req.images ?? []).map((img) => ({
-        imageUrl: generatePlaceholderImage(img.prompt),
+        imageUrl: "",
         seed: img.seed ?? 0,
         debugInfo: {
           requestSent: null,

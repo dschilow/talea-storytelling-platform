@@ -1,19 +1,14 @@
 /**
  * TTS Enrichment Phase
  *
- * After the story text is finalized, this module uses AI to analyze each
- * chapter and insert xAI TTS expression tags for more natural, emotional
- * audio narration.
+ * After the story text is finalized, this module deterministically inserts
+ * sparse xAI TTS expression tags for natural, emotional audio narration.
  *
  * The enriched text is stored in `chapters.tts_text` and used ONLY for
  * TTS generation — the regular `content` field stays clean for display.
  */
 
-import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
-import { generateWithRunwareText, isRunwareConfigured } from "./runware-text-generation";
 import { storyDB } from "./db";
-import { callChatCompletion } from "./pipeline/llm-client";
-import { GPT_54_MINI_MODEL } from "./pipeline/model-routing";
 
 // ── xAI TTS Expression Tags ──────────────────────────────────────────────
 
@@ -73,43 +68,10 @@ export const XAI_WRAPPING_TAGS = {
 const VALID_INLINE_TAGS: Set<string> = new Set(Object.values(XAI_INLINE_TAGS));
 const VALID_OPEN_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.open));
 const VALID_CLOSE_TAGS: Set<string> = new Set(Object.values(XAI_WRAPPING_TAGS).map((t) => t.close));
-const XAI_UNSTABLE_WRAPPING_TAG_PATTERN =
-  /<\/?(?:higher-pitch|lower-pitch)>/g;
 
-// ── AI Enrichment ────────────────────────────────────────────────────────
+// Deterministic enrichment
 
-const ENRICHMENT_SYSTEM_PROMPT = `Add sparse xAI expression tags to a children's audiobook script.
 
-ALLOWED INLINE TAGS:
-[pause] [long-pause] [hum-tune] [laugh] [chuckle] [giggle] [cry] [tsk] [tongue-click] [lip-smack] [breath] [inhale] [exhale] [sigh]
-
-ALLOWED WRAPPERS:
-<soft>...</soft> <whisper>...</whisper> <loud>...</loud> <build-intensity>...</build-intensity> <decrease-intensity>...</decrease-intensity> <slow>...</slow> <fast>...</fast> <sing-song>...</sing-song> <singing>...</singing> <laugh-speak>...</laugh-speak> <emphasis>...</emphasis>
-
-HARD RULES:
-- Return only the annotated source text: no JSON, array, title, heading, markdown, or explanation.
-- Preserve every original word and punctuation mark in the same order. Only insert valid tags.
-- Use tags sparingly at real emotional turns, dialogue reactions, suspense, humour, and scene transitions.
-- Prefer pauses and delivery wrappers. Never use higher-pitch/lower-pitch; they cause narrator identity drift.
-- Keep the performance warm, clear, and age-appropriate.`;
-
-const ENRICHMENT_USER_PROMPT_TEMPLATE = `Annotate this children's story chapter with xAI TTS expression tags for natural, emotional narration.
-
-Chapter title: {TITLE}
-Chapter {ORDER} of {TOTAL}
-
-Story text:
----
-{TEXT}
----
-
-Return ONLY the enriched text with tags inserted. Do not change any words.`;
-
-// ── Enrichment Model Selection ───────────────────────────────────────────
-
-const ENRICHMENT_MODEL = "gemini-3.1-flash-lite-preview";
-const ENRICHMENT_MAX_TOKENS = 8192;
-const ENRICHMENT_TEMPERATURE = 0.4;
 
 // ── Core Function ────────────────────────────────────────────────────────
 
@@ -133,88 +95,18 @@ export async function enrichChapterForTTS(input: {
   totalChapters: number;
   aiModel?: string;
 }): Promise<EnrichmentResult> {
-  const userPrompt = ENRICHMENT_USER_PROMPT_TEMPLATE
-    .replace("{TITLE}", input.chapterTitle)
-    .replace("{ORDER}", String(input.chapterOrder))
-    .replace("{TOTAL}", String(input.totalChapters))
-    .replace("{TEXT}", input.text);
+  // Keep the async API (and aiModel input) compatible with existing callers,
+  // but deliberately perform no network/model call here.
+  let enrichedText = enrichTtsTextDeterministically(input.text);
 
-  let enrichedText: string;
-
-  // Side-jobs for MiniMax stories should run on GPT-5.4-mini, not on MiniMax itself.
-  const model = input.aiModel?.startsWith("minimax-")
-    ? GPT_54_MINI_MODEL
-    : ENRICHMENT_MODEL;
-
-  if (model.startsWith("minimax-") && isRunwareConfigured()) {
-    const result = await generateWithRunwareText({
-      systemPrompt: ENRICHMENT_SYSTEM_PROMPT,
-      userPrompt,
-      model,
-      maxTokens: ENRICHMENT_MAX_TOKENS,
-      temperature: ENRICHMENT_TEMPERATURE,
-    });
-    enrichedText = result.content;
-  } else if (model.startsWith("gpt-")) {
-    const result = await callChatCompletion({
-      model,
-      fallbackModels: ["gpt-5.4-nano"],
-      messages: [
-        { role: "system", content: ENRICHMENT_SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      responseFormat: "text",
-      maxTokens: ENRICHMENT_MAX_TOKENS,
-      temperature: ENRICHMENT_TEMPERATURE,
-      reasoningEffort: "none",
-      context: "tts-enrichment",
-      logSource: "tts-enrichment-llm",
-      logMetadata: {
-        chapterId: input.chapterId,
-        chapterOrder: input.chapterOrder,
-      },
-    });
-    enrichedText = result.content;
-  } else if (isGeminiConfigured()) {
-    const result = await generateWithGemini({
-      systemPrompt: ENRICHMENT_SYSTEM_PROMPT,
-      userPrompt,
-      model: ENRICHMENT_MODEL,
-      maxTokens: ENRICHMENT_MAX_TOKENS,
-      temperature: ENRICHMENT_TEMPERATURE,
-    });
-    enrichedText = result.content;
-  } else {
-    // No AI available — return original text
-    console.warn(`[tts-enrichment] No AI model available for enrichment, skipping chapter ${input.chapterOrder}`);
-    return {
-      chapterId: input.chapterId,
-      chapterOrder: input.chapterOrder,
-      ttsText: input.text,
-      originalLength: input.text.length,
-      enrichedLength: input.text.length,
-      tagsInserted: 0,
-    };
-  }
-
-  // Clean up: remove markdown code fences if AI wrapped response
-  enrichedText = enrichedText
-    .replace(/^```[a-z]*\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
-
-  enrichedText = stabilizeXaiNarrationText(enrichedText);
-
-  // The model is allowed to INSERT tags only. Production logs contained JSON
-  // arrays, reading-page headings, and altered wording despite that contract.
-  // Never persist a corrupted audiobook script: compare the complete source
-  // after stripping tags and fall back to the exact display text on mismatch.
-  const normalizedOriginal = normalizeTtsIntegrityText(input.text);
-  const normalizedEnrichedWords = normalizeTtsIntegrityText(stripTTSTags(enrichedText));
-  if (normalizedEnrichedWords !== normalizedOriginal) {
+  // The transform may INSERT known tags only. Validate against the exact
+  // source (including whitespace), not merely normalized words. This protects
+  // the audiobook from fragments or altered prose.
+  const restoredSource = stripTTSTagsPreservingLayout(enrichedText);
+  if (restoredSource !== input.text) {
     console.warn(`[tts-enrichment] Integrity mismatch in chapter ${input.chapterOrder}; using exact original text`, {
-      originalPreview: normalizedOriginal.slice(0, 140),
-      enrichedPreview: normalizedEnrichedWords.slice(0, 140),
+      originalPreview: input.text.slice(0, 140),
+      enrichedPreview: restoredSource.slice(0, 140),
     });
     enrichedText = input.text;
   }
@@ -316,17 +208,58 @@ function countTTSTags(text: string): number {
   return validInline.length + validOpen.length;
 }
 
-function normalizeTtsIntegrityText(text: string): string {
-  return String(text || "").replace(/\s+/g, " ").trim();
+const DETERMINISTIC_WHISPER_CUE = /\b(?:fl(?:u|\u00fc)ster\w*|wisper\w*|haucht\w*|whisper\w*|murmur\w*|hushed)\b/i;
+const DETERMINISTIC_LOUD_CUE = /\b(?:rief(?:en)?|schr(?:ie|ien|eit|eist)|br(?:u|\u00fc)ll\w*|donner\w*|shout\w*|yell\w*|roar\w*)\b/i;
+const DETERMINISTIC_DIALOGUE_QUOTE_PATTERNS = [
+  /\u201e[^\u201c\r\n]+\u201c/g,
+  /\u201c[^\u201d\r\n]+\u201d/g,
+  /"[^"\r\n]+"/g,
+];
+
+export function enrichTtsTextDeterministically(text: string): string {
+  const source = String(text || "");
+  if (!source || stripTTSTagsPreservingLayout(source) !== source) return source;
+
+  const dialogueSpans: Array<{ start: number; end: number; wrapper: "whisper" | "loud" }> = [];
+  for (const pattern of DETERMINISTIC_DIALOGUE_QUOTE_PATTERNS) {
+    pattern.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(source)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const before = source.slice(Math.max(0, start - 80), start).split(/[.!?\r\n]/).pop() || "";
+      const after = source.slice(end, Math.min(source.length, end + 80)).split(/[.!?\r\n]/)[0] || "";
+      const cueContext = `${before} ${after}`;
+      const wrapper = DETERMINISTIC_WHISPER_CUE.test(cueContext)
+        ? "whisper"
+        : DETERMINISTIC_LOUD_CUE.test(cueContext)
+          ? "loud"
+          : null;
+      if (wrapper) dialogueSpans.push({ start, end, wrapper });
+    }
+  }
+
+  // Insert from the end so source offsets remain stable. Ignore overlapping
+  // quote syntaxes, for example ASCII quotes nested in typographic quotes.
+  let enriched = source;
+  let earliestWrappedStart = source.length + 1;
+  for (const span of dialogueSpans.sort((left, right) => right.start - left.start)) {
+    if (span.end > earliestWrappedStart) continue;
+    const tags = XAI_WRAPPING_TAGS[span.wrapper];
+    enriched = `${enriched.slice(0, span.start)}${tags.open}${enriched.slice(span.start, span.end)}${tags.close}${enriched.slice(span.end)}`;
+    earliestWrappedStart = span.start;
+  }
+
+  // Blank lines are reliable narration breaks. Keep their exact bytes.
+  enriched = enriched.replace(/(?<!\[long-pause\])((?:\r?\n)[\t ]*(?:\r?\n)+)/g, `${XAI_INLINE_TAGS.longPause}$1`);
+
+  return stripTTSTagsPreservingLayout(enriched) === source ? enriched : source;
 }
 
-function stabilizeXaiNarrationText(text: string): string {
+export function stripTTSTagsPreservingLayout(text: string): string {
   return String(text || "")
-    // Pitch shifts are the main source of narrator-identity drift in xAI TTS.
-    .replace(XAI_UNSTABLE_WRAPPING_TAG_PATTERN, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([,.!?;:])/g, "$1")
-    .trim();
+    .replace(/\[(?:pause|long-pause|hum-tune|laugh|chuckle|giggle|cry|tsk|tongue-click|lip-smack|breath|inhale|exhale|sigh)\]/g, "")
+    .replace(/<\/?(?:soft|whisper|loud|build-intensity|decrease-intensity|higher-pitch|lower-pitch|slow|fast|sing-song|singing|laugh-speak|emphasis)>/g, "");
 }
 
 /**

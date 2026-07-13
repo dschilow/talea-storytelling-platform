@@ -101,6 +101,58 @@ export function sanitizeDescription(description: string): DescriptionSanitizeRes
   };
 }
 
+export interface StoryHeaderSanitizeResult {
+  text: string;
+  changed: boolean;
+  fixes: string[];
+}
+
+/**
+ * Keeps user-facing story headers printable and renderer-safe. In particular,
+ * generated emoji and broken JSON wrappers must never become visible content.
+ */
+export function sanitizeStoryHeaderText(value: string): StoryHeaderSanitizeResult {
+  const source = String(value || "");
+  if (!source) return { text: "", changed: false, fixes: [] };
+
+  const fixes: string[] = [];
+  let cleaned = source.trim();
+  const withoutFences = cleaned
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+  if (withoutFences !== cleaned) fixes.push("header-code-fence");
+  cleaned = withoutFences;
+
+  if (/^\s*\{/.test(cleaned)) {
+    try {
+      const parsed = JSON.parse(cleaned);
+      const extracted = parsed?.title ?? parsed?.description;
+      if (typeof extracted === "string" && extracted.trim()) {
+        cleaned = extracted.trim();
+        fixes.push("header-json-wrapper");
+      }
+    } catch {
+      // The serialization gate handles malformed JSON; keep only safe text here.
+    }
+  }
+
+  const withoutEmoji = cleaned.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, " ");
+  if (withoutEmoji !== cleaned) fixes.push("header-emoji");
+  const withoutMojibakeSuffix = withoutEmoji.replace(/\s+(?:\u00D8\S*|(?:\u00C3.|\u00C2.|\u00E2\S*)+|\uFFFD+)\s*$/u, "");
+  if (withoutMojibakeSuffix !== withoutEmoji) fixes.push("header-mojibake");
+  cleaned = withoutMojibakeSuffix
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+    .replace(/^\s*["']|["']\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return {
+    text: cleaned,
+    changed: cleaned !== source,
+    fixes: [...new Set(fixes)],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // §2 helper: classify a single hard-issue string by severity tier
 // ---------------------------------------------------------------------------
@@ -190,6 +242,7 @@ const ORTHOGRAPHY_AUTOFIX: Array<[RegExp, string, string]> = [
   [/\bweiss\b/g, "weiß", "weiss"],
   // Common ae/oe/ue inside words that almost-never have a non-umlaut variant
   [/\bschoen(e[mnrs]?)?\b/g, (_m: string, infl: string = "") => `schön${infl}`, "schoen"] as unknown as [RegExp, string, string],
+  [/\bFestklemmt\b/g, "Klemmt fest", "Festklemmt"],
   [/\bwuetend\b/g, "wütend", "wuetend"],
 ];
 
@@ -216,6 +269,52 @@ export function applyOrthographyAutoFix(text: string): OrthographyFixResult {
   }
   return { text: out, changed: out !== text, fixes: [...new Set(fixes)] };
 }
+
+export interface DialoguePunctuationFixResult {
+  text: string;
+  changed: boolean;
+  fixes: string[];
+}
+
+/** Repairs only high-confidence German direct-speech punctuation errors. */
+export function applyGermanDialoguePunctuationAutoFix(text: string): DialoguePunctuationFixResult {
+  if (!text) return { text: "", changed: false, fixes: [] };
+  const fixes: string[] = [];
+  let out = text;
+  const reportingVerb =
+    "(?:sagte|rief|fragte|fl\u00FCsterte|fluesterte|murmelte|hauchte|wisperte|keuchte|antwortete|erwiderte|widersprach|beharrte|meinte|erkl\u00E4rte|erklaerte|warnte|versprach)";
+
+  const commaAfterExclamation = new RegExp(`([!?])\u201C\\s+(${reportingVerb})\\b`, "giu");
+  const withComma = out.replace(commaAfterExclamation, "$1\u201C, $2");
+  if (withComma !== out) {
+    out = withComma;
+    fixes.push("german-dialogue-tag-comma");
+  }
+
+  const periodBeforeReporting = new RegExp(`\\.\u201C\\s*,?\\s*(${reportingVerb})\\b`, "giu");
+  const withoutInnerPeriod = out.replace(periodBeforeReporting, "\u201C, $1");
+  if (withoutInnerPeriod !== out) {
+    out = withoutInnerPeriod;
+    fixes.push("german-dialogue-tag-period");
+  }
+
+  const actionVerb =
+    "(grinste|lachte|nickte|zog|winkte|sch\u00FCttelte|schuettelte|zuckte|stolperte|zeigte|deutete|lief|rannte|sprang)";
+  const actionClause = new RegExp(
+    `([.!?])\u201C\\s+${actionVerb}\\s+([A-Z\u00C4\u00D6\u00DC][\\p{L}\x27\u2019-]*)`,
+    "gu",
+  );
+  const reordered = out.replace(actionClause, (_match, punctuation, verb, subject) =>
+    `${punctuation}\u201C ${subject} ${verb}`
+  );
+  if (reordered !== out) {
+    out = reordered;
+    fixes.push("german-dialogue-action-clause");
+  }
+
+  return { text: out, changed: out !== text, fixes: [...new Set(fixes)] };
+}
+
 
 // ---------------------------------------------------------------------------
 // §8 Grammar hard-fail patterns (need LLM repair, NOT auto-fix)

@@ -5,6 +5,7 @@ import type { CastSet, ImageGenerator, ImageSpec, NormalizedRequest, SceneDirect
 import { extractRunwareCostMetrics } from "./cost-ledger";
 import { buildReferenceImages, selectReferenceSlots } from "./reference-images";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
+import { acceptedGeneratedImageUrl } from "../../helpers/imageResultGuard";
 
 const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
 const KNOWN_TTS_TAGS = new Set<string>([
@@ -147,12 +148,13 @@ export class RunwareImageGenerator implements ImageGenerator {
   }
 }
 
-async function generateWithRetry(input: {
+export async function generateWithRetry(input: {
   prompt: string;
   negativePrompt: string;
   referenceImages: string[];
   useCollageReference?: boolean;
   maxRetries: number;
+  retryDelayMs?: number;
   steps?: number;
   cfgScale?: number;
   logContext?: { storyId?: string; phase?: string; chapter?: number };
@@ -164,10 +166,16 @@ async function generateWithRetry(input: {
 }> {
   let attempt = 0;
   let lastError: unknown;
+  let attemptsMade = 0;
+  let rejectedImageResults = 0;
+  let accumulatedProviderCostUSD: number | null = null;
+  let accumulatedProviderCostCredits: number | null = null;
+  const accumulatedCostMatches: Array<{ path: string; key: string; value: number; attempt: number }> = [];
   const logSource = resolveImageLogSource(input.logContext?.phase);
   const ipAdapterWeight = resolveIpAdapterWeight(input.referenceImages.length, Boolean(input.useCollageReference));
   while (attempt <= input.maxRetries) {
     try {
+      attemptsMade += 1;
       const response = await ai.generateImage({
         prompt: input.prompt,
         negativePrompt: input.negativePrompt,
@@ -179,6 +187,15 @@ async function generateWithRetry(input: {
         CFGScale: input.cfgScale,
       });
       const providerCosts = extractRunwareCostMetrics(response?.debugInfo?.responseReceived ?? response);
+      if (providerCosts.providerCostUSD !== null) {
+        accumulatedProviderCostUSD = Number(((accumulatedProviderCostUSD ?? 0) + providerCosts.providerCostUSD).toFixed(6));
+      }
+      if (providerCosts.providerCostCredits !== null) {
+        accumulatedProviderCostCredits = Number(((accumulatedProviderCostCredits ?? 0) + providerCosts.providerCostCredits).toFixed(6));
+      }
+      accumulatedCostMatches.push(
+        ...providerCosts.matches.map((match) => ({ ...match, attempt })),
+      );
       await publishWithTimeout(logTopic as any, {
         source: logSource,
         timestamp: new Date(),
@@ -194,12 +211,24 @@ async function generateWithRetry(input: {
         response,
         metadata: input.logContext ?? null,
       });
+      const imageUrl = acceptedGeneratedImageUrl(response);
+      if (!imageUrl) {
+        rejectedImageResults += 1;
+        lastError = new Error(String(response?.debugInfo?.errorMessage || "Provider returned no usable raster image"));
+        attempt += 1;
+        if (attempt <= input.maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, input.retryDelayMs ?? 1500));
+        }
+        continue;
+      }
       return {
-        imageUrl: response.imageUrl,
-        providerCostUSD: providerCosts.providerCostUSD,
-        providerCostCredits: providerCosts.providerCostCredits,
+        imageUrl,
+        providerCostUSD: accumulatedProviderCostUSD,
+        providerCostCredits: accumulatedProviderCostCredits,
         metadata: {
-          costMatches: providerCosts.matches,
+          costMatches: accumulatedCostMatches,
+          attempts: attemptsMade,
+          rejectedImageResults,
           steps: input.steps,
           cfgScale: input.cfgScale,
           referenceCount: input.referenceImages.length,
@@ -223,16 +252,22 @@ async function generateWithRetry(input: {
         metadata: input.logContext ?? null,
       });
       attempt += 1;
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (attempt <= input.maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, input.retryDelayMs ?? 1500));
+      }
     }
   }
 
   console.error("[pipeline] Image generation failed", lastError);
   return {
     imageUrl: undefined,
-    providerCostUSD: null,
-    providerCostCredits: null,
+    providerCostUSD: accumulatedProviderCostUSD,
+    providerCostCredits: accumulatedProviderCostCredits,
     metadata: {
+      costMatches: accumulatedCostMatches,
+      attempts: attemptsMade,
+      rejectedImageResults,
+      rejectedImageResult: rejectedImageResults > 0,
       steps: input.steps,
       cfgScale: input.cfgScale,
       referenceCount: input.referenceImages.length,

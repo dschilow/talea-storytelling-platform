@@ -1696,6 +1696,7 @@ export class StoryPipelineOrchestrator {
             providerCostUSD: coverImage.providerCostUSD,
             providerCostCredits: coverImage.providerCostCredits,
             referenceCount: coverImage.referenceCount,
+            itemCount: Math.max(1, Math.trunc(Number(coverImage.metadata?.attempts) || 1)),
             metadata: coverImage.metadata,
           }));
         }
@@ -1730,6 +1731,7 @@ export class StoryPipelineOrchestrator {
             providerCostUSD: image.providerCostUSD,
             providerCostCredits: image.providerCostCredits,
             referenceCount: image.referenceCount,
+            itemCount: Math.max(1, Math.trunc(Number(image.metadata?.attempts) || 1)),
             metadata: image.metadata,
           }));
         }
@@ -1764,6 +1766,7 @@ export class StoryPipelineOrchestrator {
               providerCostUSD: image.providerCostUSD,
               providerCostCredits: image.providerCostCredits,
               referenceCount: image.referenceCount,
+              itemCount: Math.max(1, Math.trunc(Number(image.metadata?.attempts) || 1)),
               metadata: image.metadata,
             }));
           }
@@ -1849,6 +1852,7 @@ export class StoryPipelineOrchestrator {
               providerCostUSD: image.providerCostUSD,
               providerCostCredits: image.providerCostCredits,
               referenceCount: image.referenceCount,
+              itemCount: Math.max(1, Math.trunc(Number(image.metadata?.attempts) || 1)),
               metadata: image.metadata,
             }));
           }

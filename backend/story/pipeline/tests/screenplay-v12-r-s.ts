@@ -15,6 +15,9 @@ import {
 } from "../final-routing";
 
 console.log("\n═══ screenplay-v12 §R/§S smoke ═══");
+import { decideIllustrationEligibility } from "../dev-mode-gate-policy";
+import { compareValidatedStorySignals } from "../validated-story-selection";
+
 
 // ─── §R: line-punchup must not run below score 8.6 ──────────────────────────
 // Verified by recomputing the orchestrator's gate predicate at the string
@@ -220,6 +223,50 @@ console.log("\n═══ screenplay-v12 §R/§S smoke ═══");
   });
   assert.ok(r.mustFixBeforeRelease.length <= 6, `mustFixBeforeRelease must cap at 6, got ${r.mustFixBeforeRelease.length}`);
   console.log("  ✓ §S mustFixBeforeRelease capped at 6 entries");
+}
+
+// Illustration eligibility is independent from subjective editorial score.
+{
+  assert.deepStrictEqual(
+    decideIllustrationEligibility({ actualPageCount: 5, expectedPageCount: 5, hardIssues: [] }),
+    { eligible: true, reason: "eligible" },
+  );
+  assert.strictEqual(
+    decideIllustrationEligibility({
+      actualPageCount: 5,
+      expectedPageCount: 5,
+      hardIssues: ["Dialoganteil und Ende brauchen redaktionelle Arbeit"],
+    }).eligible,
+    true,
+    "editorial warnings must not suppress paid illustrations",
+  );
+  assert.strictEqual(
+    decideIllustrationEligibility({ actualPageCount: 4, expectedPageCount: 5 }).eligible,
+    false,
+  );
+  assert.strictEqual(
+    decideIllustrationEligibility({
+      actualPageCount: 5,
+      expectedPageCount: 5,
+      hardIssues: ["[object Object] in story content"],
+    }).eligible,
+    false,
+  );
+  assert.strictEqual(
+    decideIllustrationEligibility({ debug: true, actualPageCount: 5, expectedPageCount: 5 }).eligible,
+    false,
+  );
+  console.log("  ok illustration gate separates renderability from editorial score");
+}
+
+// A later rewrite may not replace a cleaner validated version.
+{
+  const first = { hardIssueCount: 0, errorCount: 0, blockerCount: 1, releaseFailureCount: 1, score: 8.4 };
+  const regressed = { hardIssueCount: 0, errorCount: 0, blockerCount: 2, releaseFailureCount: 2, score: 8.8 };
+  const improved = { hardIssueCount: 0, errorCount: 0, blockerCount: 1, releaseFailureCount: 1, score: 8.6 };
+  assert.ok(compareValidatedStorySignals(regressed, first) < 0);
+  assert.ok(compareValidatedStorySignals(improved, first) > 0);
+  console.log("  ok validated snapshot comparator prefers fewer blockers before score");
 }
 
 console.log("\n✓ All §R/§S smoke tests passed.");
