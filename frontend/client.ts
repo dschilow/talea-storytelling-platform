@@ -1989,8 +1989,9 @@ export namespace story {
             await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {query, method: "DELETE", body: undefined})
         }
 
-        public async dumpStoryLogs(params: { storyId: string }): Promise<void> {
-            await this.baseClient.callTypedAPI(`/story/debug-logs/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
+        public async dumpStoryLogs(params: { storyId: string }): Promise<{ logs: unknown[] }> {
+            const resp = await this.baseClient.callTypedAPI(`/story/debug-logs/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as { logs: unknown[] }
         }
 
         /**

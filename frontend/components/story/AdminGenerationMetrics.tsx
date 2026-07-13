@@ -1,9 +1,12 @@
-import React, { useMemo } from 'react';
-import { ChevronDown, Clock3, Coins, Cpu, Image as ImageIcon } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, ChevronDown, Clock3, Coins, Cpu, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
 
 import type { AdminGenerationMetricsData, Story } from '../../types/story';
+import { useBackend } from '../../hooks/useBackend';
 
 type Props = {
+  storyId: string;
+  storyTitle: string;
   metadata?: Story['metadata'];
 };
 
@@ -70,11 +73,48 @@ function legacyMetrics(metadata?: Story['metadata']): AdminGenerationMetricsData
   };
 }
 
-export const AdminGenerationMetrics: React.FC<Props> = ({ metadata }) => {
+function safeFilename(value: string): string {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+    .slice(0, 70) || 'talea-story';
+}
+
+export const AdminGenerationMetrics: React.FC<Props> = ({ metadata, storyId, storyTitle }) => {
+
   const metrics = useMemo(
     () => metadata?.adminGenerationMetrics || legacyMetrics(metadata),
     [metadata],
   );
+  const backend = useBackend();
+  const [downloadState, setDownloadState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleDownloadLogs = async () => {
+    if (!storyId || downloadState === 'loading') return;
+    setDownloadState('loading');
+    try {
+      const payload = await backend.story.dumpStoryLogs({ storyId });
+      const document = {
+        storyId,
+        downloadedAt: new Date().toISOString(),
+        logs: payload.logs,
+      };
+      const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeFilename(storyTitle)}-${storyId.slice(0, 8)}-logs.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      setDownloadState('success');
+    } catch (error) {
+      console.error('[AdminGenerationMetrics] Story logs download failed', error);
+      setDownloadState('error');
+    }
+  };
 
   if (!metrics) return null;
 
@@ -121,6 +161,23 @@ export const AdminGenerationMetrics: React.FC<Props> = ({ metadata }) => {
             </MetricGroup>
           </div>
 
+          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-slate-100">Story-Logs</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Alle zu dieser Story gespeicherten Pipeline-Logs als JSON herunterladen.</p>
+              {downloadState === 'error' && <p className="mt-1 text-xs text-rose-300" role="alert">Download fehlgeschlagen. Bitte erneut versuchen.</p>}
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleDownloadLogs()}
+              disabled={downloadState === 'loading'}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-300/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-300/30 disabled:cursor-wait disabled:opacity-60"
+              aria-label="Alle Story-Logs herunterladen"
+            >
+              {downloadState === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : downloadState === 'success' ? <Check className="h-4 w-4" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
+              {downloadState === 'loading' ? 'Wird vorbereitet...' : downloadState === 'success' ? 'Logs heruntergeladen' : 'Alle Logs herunterladen'}
+            </button>
+          </div>
           {stageRows.length > 0 && (
             <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
               <div className="border-b border-white/10 bg-white/[0.04] px-4 py-3">

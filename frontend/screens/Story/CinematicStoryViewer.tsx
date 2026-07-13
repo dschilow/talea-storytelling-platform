@@ -488,7 +488,7 @@ const CinematicStoryViewer: React.FC = () => {
           </section>
         )}
 
-        {isAdmin && <AdminGenerationMetrics metadata={story.metadata} />}
+        {isAdmin && <AdminGenerationMetrics metadata={story.metadata} storyId={story.id} storyTitle={story.title} />}
         {/* ── Finale ── */}
         <section className="sr-finale">
           <motion.div
