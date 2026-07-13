@@ -97,10 +97,12 @@ export const AdminGenerationMetrics: React.FC<Props> = ({ metadata, storyId, sto
     setDownloadState('loading');
     try {
       const payload = await backend.story.dumpStoryLogs({ storyId });
+      const warning = (payload as { warning?: unknown }).warning;
       const downloadDocument = {
         storyId,
         downloadedAt: new Date().toISOString(),
         logs: payload.logs,
+        ...(typeof warning === 'string' ? { warning } : {}),
       };
       const blob = new Blob([JSON.stringify(downloadDocument, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);

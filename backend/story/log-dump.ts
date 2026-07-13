@@ -51,7 +51,14 @@ export const dumpStoryLogs = api(
                 storyId: req.storyId,
                 error: error instanceof Error ? error.message : String(error),
             });
-            throw APIError.internal("Story logs could not be prepared");
+            // Log export is an administrator diagnostic tool. A missing legacy
+            // log table must not turn this endpoint into an empty non-JSON
+            // response, because the generated client cannot parse that error.
+            // Return a valid export document and retain the diagnostic inside it.
+            return {
+                logs: [],
+                warning: "Stored pipeline logs are currently unavailable. See the server log for details.",
+            };
         }
     }
 );

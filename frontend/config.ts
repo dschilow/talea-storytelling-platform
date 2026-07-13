@@ -36,15 +36,35 @@ export const clerkPublishableKey = getClerkPublishableKey();
 // Auto-detect the backend API URL based on the current environment.
 // In Leap.dev, the backend API is at a different subdomain.
 // -----------------------------------------------------------------------------
+const PRODUCTION_BACKEND_URL = 'https://backend-2-production-3de1.up.railway.app';
+const RETIRED_PRODUCTION_BACKEND_HOST = 'talea-backend-production.up.railway.app';
+
+/**
+ * The former Railway service remains reachable, but it no longer receives the
+ * application releases. Keep this compatibility guard at the configuration
+ * boundary so a stale VITE_BACKEND_URL cannot silently route the app to it.
+ */
+function normalizeBackendUrl(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  try {
+    if (new URL(trimmed).hostname === RETIRED_PRODUCTION_BACKEND_HOST) {
+      return PRODUCTION_BACKEND_URL;
+    }
+  } catch {
+    // Keep local and custom development URLs unchanged.
+  }
+  return trimmed;
+}
+
 export function getBackendUrl(): string {
   // 1. Check runtime config (window.ENV) - set by docker-entrypoint.sh
   if (typeof window !== 'undefined' && (window as any).ENV?.BACKEND_URL) {
-    return (window as any).ENV.BACKEND_URL;
+    return normalizeBackendUrl((window as any).ENV.BACKEND_URL);
   }
 
   // 2. Check build-time env var
   if (import.meta.env.VITE_CLIENT_TARGET) {
-    return import.meta.env.VITE_CLIENT_TARGET;
+    return normalizeBackendUrl(import.meta.env.VITE_CLIENT_TARGET);
   }
 
   // 3. Auto-detect based on hostname
@@ -53,7 +73,7 @@ export function getBackendUrl(): string {
 
     // Check for talea.website domain (production on Railway)
     if (hostname === 'talea.website' || hostname === 'www.talea.website') {
-      return 'https://talea-backend-production.up.railway.app';
+      return PRODUCTION_BACKEND_URL;
     }
 
     if (hostname.includes('.lp.dev')) {
