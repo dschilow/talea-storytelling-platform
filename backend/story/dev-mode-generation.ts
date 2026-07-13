@@ -2835,16 +2835,33 @@ async function generateDevModeImages(
     const sceneNames = ((job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly).slice(0, maxNativeReferences);
     const chapterNames = sceneNames.join(", ") || "the environment";
     const scenePlan = typeof job.order === "number" ? imageScenePlanByOrder.get(job.order) : undefined;
-    // Prefer the extracted dramatic beat over the flat page summary so even
-    // the deterministic fallback prompt shows a lively peak moment.
-    const actionSource = scenePlan?.omittedFromThisFrame?.length
-      ? `the named cast taking one focused action around ${storyAnchor}`
-      : (scenePlan as any)?.dramaticBeat || scenePlan?.sceneSummary;
-    const actionHint = englishVisualHint(
-      actionSource,
-      `a concrete action around ${storyAnchor}`,
-      180
-    );
+    // A scene can mention an off-frame character in its prose. The old guard
+    // then discarded its dramatic beat altogether and emitted the exact same
+    // generic fallback for several pages. Keep off-frame names out of the
+    // cast, but retain a name-free, concrete action cue so every illustration
+    // still depicts its own moment without another prompt-model call.
+    const actionSource = `${(scenePlan as any)?.dramaticBeat || ""} ${scenePlan?.sceneSummary || ""}`.toLowerCase();
+    const sceneActionHint =
+      /riss|rei(?:ss|\u00DF)t|platz|zerrei/.test(actionSource)
+        ? `the ${storyAnchor} tears open and releases a burst of light`
+        : /schrumpf|kleiner|zwerghaft/.test(actionSource)
+          ? `a threatening presence visibly shrinks as the ${storyAnchor} glows`
+          : /wachs|gro(?:ss|\u00DF)er|riesig/.test(actionSource)
+            ? `the ${storyAnchor} flares while the danger suddenly grows`
+            : /stolper|fall|fiel|rutsch|purzel/.test(actionSource)
+              ? `a sudden slip turns the search around ${storyAnchor} into urgent action`
+              : /band|fessel|wickel|gefangen/.test(actionSource)
+                ? `one character struggles free from a magical binding beside ${storyAnchor}`
+                : /such|find|hinweis|entdeck/.test(actionSource)
+                  ? `the named cast discovers a decisive clue beside ${storyAnchor}`
+                  : /renn|flieh|jag|verfolg/.test(actionSource)
+                    ? `the named cast rushes through the setting to protect ${storyAnchor}`
+                    : englishVisualHint(
+                      actionSource,
+                      `one decisive action changes the situation around ${storyAnchor}`,
+                      180
+                    );
+    const actionHint = sceneActionHint || `one decisive action changes the situation around ${storyAnchor}`;
     const countHint = `exactly ${sceneNames.length} named visible character${sceneNames.length === 1 ? "" : "s"}: ${sceneNames.join(", ") || "none"}`;
     return `Lively picture-book illustration: ${chapterNames} caught mid-action at the story's peak moment, ${countHint}, with clear expressions and entity-appropriate dynamic poses. Every character in a separate clear silhouette, bodies never overlapping. Action focus: ${actionHint}. Visual anchor: ${storyAnchor}. ${settingHint} surroundings with environmental depth, motion, and warm dramatic light. Single cohesive moment, no text.`;
   };
@@ -12121,6 +12138,20 @@ function isRecoverableStoryDraftFailure(error: unknown): boolean {
     || message.includes("timeout");
 }
 
+/**
+ * A provider that has already exhausted its completion window will not become
+ * more reliable when we send the same chapter-repair JSON prompt again. Keep
+ * this separate from general recoverable failures: malformed JSON can benefit
+ * from a retry, whereas an empty `finish_reason=length` response needs a
+ * smaller, independent repair lane.
+ */
+function isCompletionLengthFailure(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error ?? "")).toLowerCase();
+  return message.includes("finish_reason=length")
+    || message.includes("finish_reason=max_tokens")
+    || message.includes("empty response from openrouter");
+}
+
 function devModeStoryDraftMaxTokens(config: StoryConfig, compactMode: boolean, retry: boolean): number {
   if (config.length === "long") return retry ? 12000 : compactMode ? 9800 : 9200;
   if (config.length === "short") return retry ? 4200 : compactMode ? 3400 : 3200;
@@ -13637,6 +13668,46 @@ export async function generateStoryDevMode(
         }
       }
     }
+    // Once the selected writer has returned an empty completion because it hit
+    // its output ceiling, chapter-repair retries on that same writer are pure
+    // latency/cost with no new prose. Route the current and later scoped
+    // repairs through the inexpensive support model instead. A repair remains
+    // bounded to one chapter and still has to pass the deterministic gates.
+    let selectedStoryChapterRepairLengthFailure: string | undefined;
+    const runChapterRepairStage = async (
+      prompts: { systemPrompt: string; userPrompt: string },
+      options: Pick<ProviderCallOptions, "maxTokens" | "temperature" | "timeoutMs">
+    ) => {
+      const runSupportRepair = () => runStage("chapter-repair", prompts, {
+        ...options,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+
+      if (selectedStoryChapterRepairLengthFailure) {
+        console.warn("[dev-mode-generation] Routing chapter repair to support model after selected-writer length failure", {
+          selectedWriterError: selectedStoryChapterRepairLengthFailure,
+          supportModel,
+        });
+        return runSupportRepair();
+      }
+
+      try {
+        return await runStage("chapter-repair", prompts, {
+          ...options,
+          modelRole: "selected-story",
+        });
+      } catch (error) {
+        if (!isCompletionLengthFailure(error)) throw error;
+        selectedStoryChapterRepairLengthFailure = error instanceof Error ? error.message : String(error);
+        console.warn("[dev-mode-generation] Selected writer exhausted chapter-repair completion; using one bounded support repair", {
+          error: selectedStoryChapterRepairLengthFailure,
+          supportModel,
+        });
+        return runSupportRepair();
+      }
+    };
+
 
     const parsedStoryDraft = applyReadingBreaksToDraft(
       wholeStoryDraft,
@@ -13887,11 +13958,10 @@ export async function generateStoryDevMode(
         let chapterRepairStage: Awaited<ReturnType<typeof runStage>>;
         try {
           const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
-          chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+          chapterRepairStage = await runChapterRepairStage(chapterRepairPrompts, {
             maxTokens: repairMaxTokens,
             temperature: repairAttempt === 1 ? 0.38 : 0.24,
             timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
-            modelRole: "selected-story",
           });
         } catch (repairCallError) {
           const error = repairCallError instanceof Error ? repairCallError.message : String(repairCallError);
@@ -14239,11 +14309,10 @@ export async function generateStoryDevMode(
 
             try {
               const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
-              const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+              const chapterRepairStage = await runChapterRepairStage(chapterRepairPrompts, {
                 maxTokens: repairMaxTokens,
                 temperature: 0.3,
                 timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
-                modelRole: "selected-story",
               });
               const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
               // Reading pages carry neutral "Leseseite N" titles; a repair
@@ -14722,11 +14791,10 @@ export async function generateStoryDevMode(
 
               try {
                 const repairMaxTokens = input.config.length === "long" ? 4200 : input.config.length === "short" ? 1700 : 2100;
-                const chapterRepairStage = await runStage("chapter-repair", chapterRepairPrompts, {
+                const chapterRepairStage = await runChapterRepairStage(chapterRepairPrompts, {
                   maxTokens: repairMaxTokens,
                   temperature: 0.24,
                   timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
-                  modelRole: "selected-story",
                 });
                 const repairResult = parseChapterRepairResult(chapterRepairStage.provider.content, currentChapter);
                 rescueParsed = replaceStoryChapter(rescueParsed, repairResult.chapter);
