@@ -31,16 +31,15 @@ export interface IllustrationEligibilityDecision {
  * Editorial quality and illustration safety are deliberately separate.
  * A complete 8.x story may still need editorial work, but returning it to a
  * child without any pictures is worse product behaviour and wastes the whole
- * generation. Only debug runs, explicit strict-mode rejection, structurally
- * incomplete output, or serialization corruption may suppress illustrations.
+ * generation. Only debug runs, structurally incomplete output, or
+ * serialization corruption may suppress illustrations. A strict editorial
+ * release gate controls publication state, not whether a completed child
+ * receives the illustrations that were requested and paid for.
  */
 export function decideIllustrationEligibility(
   input: IllustrationEligibilityInput,
 ): IllustrationEligibilityDecision {
   if (input.debug === true) return { eligible: false, reason: "debug" };
-  if (input.strictTextGateBlocked === true) {
-    return { eligible: false, reason: "strict_text_gate" };
-  }
 
   const actual = Number(input.actualPageCount ?? 0);
   const expected = Number(input.expectedPageCount ?? 0);

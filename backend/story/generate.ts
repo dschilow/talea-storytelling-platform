@@ -248,6 +248,10 @@ export interface StoryConfig {
   // Default false to avoid hard failures for recoverable narrative quality issues.
   strictQualityGates?: boolean;
 
+
+  // Optional release-gate behavior. Customer generation keeps this in warn
+  // mode; block is reserved for explicit editorial workflows.
+  strictReleaseGateMode?: "warn" | "block";
   // Release pipeline mode (candidate generation + semantic critic + selective surgery).
   // Default true for Story Pipeline v2.
   releaseMode?: boolean;

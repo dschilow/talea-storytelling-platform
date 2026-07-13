@@ -1866,9 +1866,11 @@ function buildWonderRuleConsistencyBlock(input: DevModeGenerationInput): string 
   const rule = input.selectedIdea?.wonderRule?.trim();
   if (!rule) return null;
   const ruleLower = rule.toLowerCase();
+  // The selected wonder rule is authoritative. A seed or hook may mention a
+  // visual motif, but must never smuggle in a second magical price. This used
+  // to fabricate a lost-colour rule for otherwise unrelated baking stories.
   const hasColorCost = /farb|color|colour|blass|grau|bleich/.test(ruleLower)
-    || /farb|color|colour|blass|grau|bleich/.test(String(input.selectedIdea?.oneLineHook || "").toLowerCase())
-    || /farb|color|colour|blass|grau|bleich/.test(String(input.selectedIdea?.premiseSeedMutation || "").toLowerCase());
+    && /preis|kostet|kosten|opfer|verlier|verblasst|verschwind|schwindet|fades|vanish|loss/.test(ruleLower);
   const lines = [
     "WONDER-RULE CONSISTENCY (binding):",
     `- Rule to dramatize: ${rule}`,
@@ -4239,20 +4241,11 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
   ].filter(Boolean).join(" "));
   const age = Number(avatar.age ?? 0);
 
-  // Compute dominant trait (handle the 0-only baseline by falling back to a
-  // gentle observer voice instead of inventing personality).
-  const sorted = STORY_TRAIT_KEYS.slice().sort((a, b) => v[b] - v[a]);
-  const top = sorted[0];
-  const topVal = v[top] ?? 0;
-  if (topVal < 5) {
-    return `${avatar.name}: warm observer; short sentences, asks simple "und dann?" questions, reacts with one concrete action per scene (no abstract opinions).`;
-  }
-
   const fragments: string[] = [];
   if (/zahnluecke|zahnlucke|zahnluecken|pfeif|tanzen|tanzt/.test(profileText)) {
     fragments.push(`younger, body-first voice: short warm questions, tiny foot/dance beats, occasionally a quiet whistle through the tooth gap (NOT every line); empathy through action, not slogans`);
   }
-  if (/schlau|gedaechtnis|gedachtnis|merkt|schnell|ohren|abstehend/.test(profileText)) {
+  if (/schlau|klug|clever|intelligent|gedaechtnis|gedachtnis|erinner|merkt|schnell|ohren|abstehend/.test(profileText)) {
     fragments.push(`older, pattern-noticing voice: counts and compares, dry sachlich humor, shows uncertainty through small physical tells (ears flush, notebook held tighter, sentence breaks); avoid fixed memory-openers as a default reflex`);
   }
   if (age > 0 && age <= 6) {
@@ -4282,10 +4275,33 @@ function voiceForAvatar(avatar: DevModeAvatar): string {
     fragments.push(`speaks simply; short clear words; no literary metaphors`);
   }
 
-  const tic = fragments.slice(0, 3).join("; ") || `concrete, age-appropriate phrasing; no adult abstractions`;
+  const tic = fragments.slice(0, 3).join("; ")
+    || `warm observer; short sentences, asks simple "und dann?" questions, reacts with one concrete action per scene (no abstract opinions)`;
   return `${avatar.name}: ${tic}.`;
 }
 
+
+// The compact whole-story prompt deliberately avoids the full voice bible to
+// protect token budget. It still needs concrete profile-derived contrast: a
+// generic "distinct voices" reminder was not enough when new avatars had not
+// accumulated personality points yet.
+function buildCompactMainAvatarVoiceLock(input: DevModeGenerationInput): string | null {
+  const avatars = (input.avatars || []).filter((avatar) => Boolean(avatar?.name)).slice(0, 4);
+  if (avatars.length === 0) return null;
+  const roles = [
+    "DRIVES: takes the next physical step with a clipped decision",
+    "CHECKS: spots a concrete pattern or risk before acting",
+    "IMAGINES: offers one playful, lateral possibility",
+    "CONNECTS: reads another person's feeling and changes the group action",
+  ];
+  return [
+    "MAIN-AVATAR VOICE LOCK (binding):",
+    ...avatars.map((avatar, index) => `- ${voiceForAvatar(avatar)} Scene instinct: ${roles[index % roles.length]}.`),
+    avatars.length >= 2
+      ? "- Consecutive main-avatar lines must do different jobs. Include one brief, real disagreement about the next action before they decide together; never write agreement echoes."
+      : "- Keep this voice specific in every quoted line; never invent an unplanned co-protagonist.",
+  ].join("\n");
+}
 function voiceForPoolCharacter(character: DevModePoolCharacter): string {
   const bits: string[] = [];
   if (character.catchphrase) {
@@ -7348,12 +7364,13 @@ function buildCompactWholeStoryDraftPrompts(
     buildPremiseSeedPromiseBlock(input) || "",
     buildWonderRuleConsistencyBlock(input) || "",
     "",
+    buildCompactMainAvatarVoiceLock(input) || "",
     "SCENE PLAN (binding, do not invent a different plot):",
     promptJson(compactScenePlan),
     "",
-    // The compact scene plan already carries character voice beats; repeating
-    // two full voice bibles here inflated every draft request and diluted the
-    // binding plot rules. Keep only the concise avatar voice instruction below.
+    // The compact scene plan already carries character voice beats. The small
+    // lock above preserves profile-derived contrast without repeating the full
+    // voice bible on every draft request.
     "",
     "MANDATORY:",
     "- one clear magic / wonder rule, tested on-page at least twice",

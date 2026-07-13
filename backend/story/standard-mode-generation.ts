@@ -160,11 +160,17 @@ export async function generateStoryStandardMode(
     avatarsWithMemoryAnchor: engineAvatars.filter((a) => memoryAnchors.has(a.id || "")).length,
   });
 
-  // 3) Prose + images via the proven quality engine. Premium mode targets the
-  //    highest release bar; gate misses degrade to warnings (no hard throw)
-  //    because strictQualityGates stays unset on the user path.
+  // 3) Prose + images via the proven quality engine. Editorial release review
+  //    is always warning-only on the customer path: a renderable story must
+  //    still receive its requested illustrations even when the critic wants
+  //    further prose work. This also prevents stale/admin strict flags from
+  //    silently turning a completed book into a text-only result.
   const devResult = await generateStoryDevMode({
-    config,
+    config: {
+      ...config,
+      strictQualityGates: false,
+      strictReleaseGateMode: "warn",
+    },
     userId,
     storyId,
     avatars: engineAvatars,

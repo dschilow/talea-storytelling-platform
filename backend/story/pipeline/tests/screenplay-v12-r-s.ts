@@ -235,6 +235,16 @@ import { compareValidatedStorySignals } from "../validated-story-selection";
     decideIllustrationEligibility({
       actualPageCount: 5,
       expectedPageCount: 5,
+      strictTextGateBlocked: true,
+      hardIssues: ["Stimmen brauchen redaktionelle Arbeit"],
+    }).eligible,
+    true,
+    "a strict editorial review must not skip illustrations for a renderable story",
+  );
+  assert.strictEqual(
+    decideIllustrationEligibility({
+      actualPageCount: 5,
+      expectedPageCount: 5,
       hardIssues: ["Dialoganteil und Ende brauchen redaktionelle Arbeit"],
     }).eligible,
     true,
