@@ -14,6 +14,7 @@ import "./analyze-phase-logs";
 import "./run-migration-sql";
 import "./debug-last-error";
 import "./debug-recent-stories";
+import "./log-dump";
 import "./proxy-image";
 import "./audio-cache";
 import "./audio-library";

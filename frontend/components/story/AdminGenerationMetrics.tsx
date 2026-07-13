@@ -97,18 +97,21 @@ export const AdminGenerationMetrics: React.FC<Props> = ({ metadata, storyId, sto
     setDownloadState('loading');
     try {
       const payload = await backend.story.dumpStoryLogs({ storyId });
-      const document = {
+      const downloadDocument = {
         storyId,
         downloadedAt: new Date().toISOString(),
         logs: payload.logs,
       };
-      const blob = new Blob([JSON.stringify(document, null, 2)], { type: 'application/json;charset=utf-8' });
+      const blob = new Blob([JSON.stringify(downloadDocument, null, 2)], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const anchor = window.document.createElement('a');
       anchor.href = url;
       anchor.download = `${safeFilename(storyTitle)}-${storyId.slice(0, 8)}-logs.json`;
+      anchor.style.display = 'none';
+      window.document.body.appendChild(anchor);
       anchor.click();
-      URL.revokeObjectURL(url);
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
       setDownloadState('success');
     } catch (error) {
       console.error('[AdminGenerationMetrics] Story logs download failed', error);
