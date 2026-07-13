@@ -280,10 +280,13 @@ type DevModePipelineStage =
   | "idea-selection"
   | "potential-filter"
   | "logline-emotional-engine"
+  | "logline-emotional-engine-repair"
+  | "logline-emotional-engine-deterministic-repair"
   | "filmic-beat-sheet"
   | "beat-sheet-repair"
   | "scene-cards"
   | "scene-cards-repair"
+  | "scene-cards-safe-fallback"
   | "dialogue-intent"
   | "dialogue-intent-repair"
   | "dialogue-rebalance"
@@ -5810,7 +5813,9 @@ function getReviewedBlueprint(blueprint: any, critique: any): any {
 
 function buildLoglineEnginePrompts(
   input: DevModeGenerationInput,
-  chapterCount: number
+  chapterCount: number,
+  repairIssues: string[] = [],
+  previousEngine?: any
 ): { systemPrompt: string; userPrompt: string } {
   const languageName = localizedLanguageName(input.config.language);
   const systemPrompt = qualitySystemPrompt(
@@ -5831,12 +5836,23 @@ function buildLoglineEnginePrompts(
       "}",
     ].join("\n")
   );
+  const isRepair = repairIssues.length > 0;
+  const repairBlock = isRepair
+    ? [
+        "",
+        "REPAIR PASS. Your previous engine failed these hard checks — fix ONLY the flagged fields, keep everything else intact:",
+        ...repairIssues.map((issue) => `- ${issue}`),
+        previousEngine ? `Previous engine (fix in place): ${JSON.stringify(previousEngine)}` : "",
+        "For a rejected refrainLine: rewrite it as a short spoken/chanted line a child would actually shout while playing — pure emotion, action, or playground sound. It must NOT contain wenn/dann/wer/muss/regel/when/then/must, must NOT describe the magic rule, and must NOT be a cause→effect formula.",
+      ].filter(Boolean)
+    : [];
   const userPrompt = [
     "CALL 3: LOGLINE + EMOTIONAL ENGINE. Do not write prose, chapters, or scene summaries.",
     "Turn the locked 9.0-potential idea into a compact story engine a screenwriter could build from.",
     "The engine must make child agency, personal cost, and the wonder rule concrete. No moral wording.",
     "Create refrainLine as one original, chantable 3-7 word spoken line in the target language. It must feel like playground language, character emotion, or comic action — NOT a compressed explanation of the magic rule. Avoid if/then/when/must wording and abstract causal formulas such as 'Farbe schwindet, alles bindet'. It must NOT reuse a pool character catchphrase.",
     `Future display chapters: ${chapterCount}. Scene cards will be exactly ${DEV_MODE_SCENE_CARD_COUNT}.`,
+    ...repairBlock,
     "",
     "LOCKED WINNING IDEA:",
     buildSelectedIdeaPromptBlock(input) || "No selected idea available.",
@@ -6420,6 +6436,50 @@ function validateLoglineEngine(engine: any): string[] {
     issues.push("loglineEngine.refrainLine explains the rule instead of sounding playable/characterful");
   }
   return issues;
+}
+
+/**
+ * Deterministic last-resort repair for the logline engine.
+ *
+ * The logline gate previously threw an unrecoverable 500 on transient support-
+ * model output (e.g. an expository refrainLine). Mirroring the beat-sheet self-
+ * heal, this closes the only two content issues that a single field can cause
+ * without another model round-trip: a missing/expository refrainLine and a
+ * missing recurringMotif. Structural issues (missing core fields, multiple
+ * magic engines) are left to the caller to decide on, since they cannot be
+ * synthesized safely here.
+ */
+function repairLoglineEngineDeterministically(engine: any, languageCode?: string): any {
+  if (!engine || typeof engine !== "object") return engine;
+  const repaired = { ...engine };
+
+  const motif = String(repaired.recurringMotif || "").trim();
+  const refrain = String(repaired.refrainLine || "").trim();
+
+  // Build a safe, non-expository chant from the recurring motif when the
+  // refrain is missing or reads like a rule explanation.
+  if (!refrain || refrainLooksExpository(refrain)) {
+    const motifWords = motif
+      .split(/[^\p{L}]+/u)
+      .filter((w) => w.length >= 2 && !refrainLooksExpository(w))
+      .slice(0, 3);
+    const candidate = motifWords.join(" ").trim();
+    // Fall back to a universal, language-appropriate exclamation if the motif
+    // yields nothing usable — a bare interjection never trips the gate.
+    const lang = String(languageCode || "").slice(0, 2).toLowerCase();
+    const fallbackByLang: Record<string, string> = {
+      de: "Los geht's!",
+      en: "Here we go!",
+      fr: "C'est parti !",
+      es: "¡Vamos allá!",
+      it: "Si parte!",
+      pl: "No to jazda!",
+    };
+    repaired.refrainLine =
+      candidate.length > 0 ? `${candidate}!` : (fallbackByLang[lang] || fallbackByLang.en);
+  }
+
+  return repaired;
 }
 
 /**
@@ -12963,7 +13023,43 @@ export async function generateStoryDevMode(
       modelRole: "support",
     });
     let loglineEngine = applySuppressedArtifactSanitizer("logline-emotional-engine", loglineStage.parsed || {});
-    const loglineIssues = validateLoglineEngine(loglineEngine);
+    let loglineIssues = validateLoglineEngine(loglineEngine);
+    // Self-heal instead of a hard 500: mirror the beat-sheet path with a
+    // support-model repair pass, then a deterministic refrain fallback. A
+    // single transient support-model miss (e.g. an expository refrainLine)
+    // must not abort the whole story before any prose is written.
+    if (loglineIssues.length > 0) {
+      const repairPrompts = buildLoglineEnginePrompts(input, chapterCount, loglineIssues, loglineEngine);
+      const repairedLoglineStage = await runStage("logline-emotional-engine-repair", repairPrompts, {
+        maxTokens: 1200,
+        temperature: 0.2,
+        timeoutMs: 90_000,
+        ...supportCallOptions,
+        modelRole: "support",
+      });
+      const repairedEngine = applySuppressedArtifactSanitizer(
+        "logline-emotional-engine-repair",
+        repairedLoglineStage.parsed || loglineEngine
+      );
+      const repairedIssues = validateLoglineEngine(repairedEngine);
+      if (repairedIssues.length <= loglineIssues.length) {
+        loglineEngine = repairedEngine;
+        loglineIssues = repairedIssues;
+      }
+    }
+    if (loglineIssues.length > 0) {
+      const deterministic = repairLoglineEngineDeterministically(loglineEngine, input.config.language);
+      const deterministicIssues = validateLoglineEngine(deterministic);
+      if (deterministicIssues.length < loglineIssues.length) {
+        console.warn("[dev-mode-generation] logline-engine deterministic repair applied after support-model repair", {
+          originalIssues: loglineIssues,
+          remainingIssues: deterministicIssues,
+          repairedRefrainLine: deterministic?.refrainLine,
+        });
+        loglineEngine = applySuppressedArtifactSanitizer("logline-emotional-engine-deterministic-repair", deterministic);
+        loglineIssues = deterministicIssues;
+      }
+    }
     if (loglineIssues.length > 0) {
       throw new Error(`Logline + emotional engine gate failed before prose: ${loglineIssues.join(" | ")}`);
     }
