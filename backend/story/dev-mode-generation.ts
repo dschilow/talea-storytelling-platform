@@ -6629,7 +6629,10 @@ function repairBeatSheetDeterministically(
   const personalContractIssue = issues.some((issue) =>
     /personalObject|personalCost|finalPayoff\.plantedDetail|irreversibleMiddle\.personalCost/i.test(issue)
   );
-  if (personalContractIssue) {
+  const midpointIrreversibilityIssue = issues.some((issue) =>
+    /midpointIrreversibleTurn is not visibly irreversible/i.test(issue)
+  );
+  if (personalContractIssue || midpointIrreversibilityIssue) {
     const objectTokens = normalizeNoveltyText(objectName)
       .split(/[^a-z0-9]+/)
       .filter((token) => token.length >= 4)
@@ -6675,7 +6678,9 @@ function repairBeatSheetDeterministically(
       },
       act2: {
         ...(beatSheet.act2 || {}),
-        midpointIrreversibleTurn: keepAnchored(beatSheet?.act2?.midpointIrreversibleTurn, visibleDamage),
+        midpointIrreversibleTurn: midpointIrreversibilityIssue
+          ? visibleDamage
+          : keepAnchored(beatSheet?.act2?.midpointIrreversibleTurn, visibleDamage),
         personalCost: safeAct2Cost,
       },
       irreversibleMiddle: {
