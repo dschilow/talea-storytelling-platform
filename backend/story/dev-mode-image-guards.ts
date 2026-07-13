@@ -301,6 +301,21 @@ export function selectFrameCastForReferenceLimit(args: {
   return [...priorities, ...rotate(remaining, maxReferences - priorities.length)].slice(0, maxReferences);
 }
 
+/** Derive a stable but distinct seed for every image slot in a story.
+ * Reusing one seed for cover and all reading pages caused providers to return
+ * byte-identical images even when the scene prompt changed. */
+export function deriveStoryImageJobSeed(args: {
+  storySeed: number;
+  kind: "cover" | "chapter";
+  order?: number;
+}): number {
+  const maxSeed = 2_147_483_646;
+  const normalizedBase = Math.max(1, Math.floor(Math.abs(args.storySeed)) % maxSeed);
+  const slot = args.kind === "cover" ? 0 : Math.max(1, Math.floor(args.order || 1));
+  const offset = args.kind === "cover" ? 104_729 : (slot * 130_363) + 17_389;
+  return ((normalizedBase + offset - 1) % maxSeed) + 1;
+}
+
 /** Minimal visual source used to classify a character without assuming that
  * avatars are human or that pool figures are animals/fairies. */
 export interface VisualEntitySource {

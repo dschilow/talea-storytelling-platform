@@ -54,6 +54,7 @@ import {
   detectHelperExplainsSolution,
   detectStructureSignals,
   detectStorySerializationArtifacts,
+  detectRepeatedSceneCardFields,
 } from "./dev-mode-sanitizers";
 import {
   unwrapJsonPrompt,
@@ -64,6 +65,7 @@ import {
   selectFrameCastForReferenceLimit,
   renderSceneCastContract,
   stripModelCastCountClaims,
+  deriveStoryImageJobSeed,
   type SceneCastCharacterContract,
 } from "./dev-mode-image-guards";
 import {
@@ -83,10 +85,10 @@ const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-// 9B keeps the same four-step latency profile and native multi-reference input
-// as the previous 4B model, but has materially more capacity for identity and
-// multi-character prompt fidelity. The per-image delta is only $0.00018.
-const DEV_MODE_IMAGE_MODEL = "runware:400@2";
+// The 9B variant regressed badly with multiple portrait references (merged
+// bodies, missing heads and duplicated scenes). The proven 4B checkpoint is
+// more reliable for this four-step illustrated-book workflow.
+const DEV_MODE_IMAGE_MODEL = "runware:400@4";
 // v12 - "screenplay-first": lock idea potential and scene function before prose,
 // then draft a continuous narrative and derive display-only reading pages.
 const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
@@ -340,6 +342,7 @@ export interface DevModeGeneratedStory {
     supportModel?: string;
     storyModel?: string;
     imagesGenerated: number;
+    imageCostUSD?: number;
     developerMode: true;
     devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-first-v11" | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
@@ -2042,10 +2045,19 @@ async function generateDevModeImages(
   coverImageUrl?: string;
   chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
   imagesGenerated: number;
+  imageCostUSD: number;
   promptTokenUsage: { prompt: number; completion: number; total: number };
 }> {
   const chapterImages = new Map<number, { imageUrl?: string; prompt: string }>();
   const promptTokenUsage = { prompt: 0, completion: 0, total: 0 };
+  const providerImageCostUSD = (result: any): number => {
+    const response = result?.debugInfo?.responseReceived;
+    const rows = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
+    return Number(rows.reduce((sum: number, row: any) => {
+      const cost = Number(row?.cost || 0);
+      return sum + (Number.isFinite(cost) && cost > 0 ? cost : 0);
+    }, 0).toFixed(6));
+  };
 
   // -----------------------------------------------------------------------
   // 1) Build the on-stage cast for the whole story (avatars + selected
@@ -2175,12 +2187,10 @@ async function generateDevModeImages(
   }
   console.log(`[dev-mode-generation] Reference images resolved: ${resolvedCast.length} (avatars=${resolvedCast.filter(c => c.kind === "avatar").length}, pool=${resolvedCast.filter(c => c.kind === "pool").length})`);
 
-  const maxNativeReferences = 4;
-  // FLUX.2 [klein] accepts up to four native reference images. Larger story
-  // casts are rotated across pages; no single image silently exceeds this cap.
-  // A multi-character sprite sheet makes the model infer which identity belongs
-  // to which name and encourages attribute blending, so dev mode passes the
-  // individual canonical references directly and scopes them per scene below.
+  // Two independent portrait references are the reliable ceiling for this
+  // checkpoint. Larger casts still work generically: the deterministic frame
+  // selector rotates them across reading pages instead of blending identities.
+  const maxNativeReferences = 2;
   const collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
 
   // -----------------------------------------------------------------------
@@ -2426,8 +2436,9 @@ async function generateDevModeImages(
   try {
     const res = await callProvider(input.config, systemPrompt, userPrompt, {
       stage: "image-prompt-compiler",
-      maxTokens: 6000,
-      temperature: 0.7,
+      maxTokens: 1800,
+      temperature: 0.35,
+      openRouterResponseFormat: "json_object",
     });
     promptTokenUsage.prompt += res.usage.prompt;
     promptTokenUsage.completion += res.usage.completion;
@@ -2734,13 +2745,11 @@ async function generateDevModeImages(
   ];
   console.log(`[dev-mode-generation] Runware native reference set: available=${referenceEntries.length}, perSceneLimit=${maxNativeReferences}, collage=false`);
 
-  // ONE deterministic seed per story: all 6 images share seed + style + refs,
-  // which keeps face/hair/outfit rendering far more stable than per-image
-  // random seeds (log 0e8c0a4e: 6 images, 6 random seeds, Adrian's hair
-  // flipped blond/brown between pages). Scene variety still comes from the
-  // per-page prompts.
+  // Keep one stable story seed, then derive a different deterministic seed per
+  // image slot. One identical seed caused the provider to return the same byte
+  // sequence for four different pages in story 1.
   const storyImageSeed = (hashString(String(input.storyId || parsedTitle)) % 2_000_000_000) + 1;
-  console.log(`[dev-mode-generation] Story image seed: ${storyImageSeed}`);
+  console.log(`[dev-mode-generation] Story image seed base: ${storyImageSeed}`);
 
   type Job = { kind: "cover" | "chapter"; order?: number; prompt: string };
   const jobs: Job[] = [];
@@ -2769,14 +2778,20 @@ async function generateDevModeImages(
     const cardText = JSON.stringify(card);
     const inferredNames = cast.filter((entry) => textMentionsCharacter(cardText, entry.name)).map((entry) => entry.name);
     const existingNames = sceneCharsByChapter.get(order) || [];
-    // Explicit screenplay cast wins; prose-derived canonical names only fill remaining native-reference slots.
     const normalizedExplicitNames = explicitNames
       .map((name: any) => String(name || "").trim())
       .filter((name: string): name is string => Boolean(name));
-    const names = uniqueNames([...normalizedExplicitNames, ...existingNames, ...inferredNames]);
+    // Final prose is authoritative. Scene-card JSON contains off-stage names in
+    // planning fields, so it may only fill an empty prose result.
+    const proseOrFallbackNames = existingNames.length > 0 ? existingNames : inferredNames;
+    const proseKeys = new Set(proseOrFallbackNames.map(normalizeCharacterName));
+    const safeExplicitNames = normalizedExplicitNames.filter((name: string) =>
+      proseKeys.has(normalizeCharacterName(name))
+    );
+    const names = uniqueNames([...safeExplicitNames, ...proseOrFallbackNames]);
     sceneCharsByChapter.set(order, selectFrameCastForReferenceLimit({
       allNames: names,
-      priorityNames: normalizedExplicitNames,
+      priorityNames: safeExplicitNames,
       pageOrder: order,
       maxReferences: maxNativeReferences,
     }));
@@ -2891,6 +2906,11 @@ async function generateDevModeImages(
         });
       }
       sanitizedPrompt = strippedCounts.prompt;
+      // Prevent magical darkness from becoming a malformed extra person.
+      sanitizedPrompt = sanitizedPrompt
+        .replace(/\b(?:human|humanoid|person-shaped)\s+(?:shadow|silhouette)\b/gi, "faceless non-humanoid shadow cloud")
+        .replace(/\bshadowy\s+(?:person|figure|child|boy|girl)\b/gi, "faceless non-humanoid shadow cloud")
+        .slice(0, 700);
 
       // On-stage names drive which characters the manifest NAMES (and thus
       // which collage cells the model is told to use). Off-stage characters are
@@ -2914,26 +2934,21 @@ async function generateDevModeImages(
       // reference strip / framed cells / colored borders into the scene.
       const negativePrompt = mergeNegativePrompt(undefined, { collageMode: false });
 
-      // v11 §12D: append character manifest with explicit attribute locks.
-      // When rendering against the sprite collage, the manifest anchors each
-      // character to its framed cell + border color in the reference strip.
       const directReferenceNames = directEntries.map((entry) => entry.name);
-      const manifestBlock = buildManifestBlock(sceneNames, false, directReferenceNames);
       const sceneCastCharacters = buildSceneCastCharacters(sceneNames, directEntries);
       const castContract = renderSceneCastContract(sceneCastCharacters);
       const identityContract = directEntries.map((entry, index) => {
         const canonical = resolveUniqueNamedEntry(entry.name, cast);
-        const knownVisual = compactCharacterDescription(canonical?.description, "use every visible canonical feature from the attached reference");
-        return `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Canonical identity has priority over scene wording. Reproduce ${entry.name}'s exact entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories as applicable. Keep every canonical trait unchanged. Borrow nothing from another reference. Known visual cue: ${knownVisual}.`;
+        const knownVisual = compactCharacterDescription(canonical?.description, "match the attached reference exactly").slice(0, 150);
+        return `REFERENCE ${index + 1} is ${entry.name} only: match the same face, head, hair/fur/skin, age, body type, clothing and colors. Do not borrow traits from another reference. Cue: ${knownVisual}.`;
       }).join("\n");
       const fullPrompt = [
-        "HIGHEST-PRIORITY REFERENCE AND CAST LOCK:",
-        identityContract,
-        castContract,
         "SCENE TO ILLUSTRATE:",
         sanitizedPrompt,
-        manifestBlock,
-        "COMPOSITION LOCK: preserve entity-appropriate anatomy; every complete body stays visibly outside furniture, with clean air between silhouettes.",
+        "CAST AND REFERENCE LOCK:",
+        castContract,
+        identityContract,
+        "COMPOSITION: one coherent moment; waist-up or knees-up framing; every listed head, face and neck fully inside the frame; bodies remain outside chairs and furniture; separate figures with clear space; environmental magic is faceless and non-humanoid.",
         styleSuffix,
       ].filter(Boolean).join("\n");
 
@@ -2950,7 +2965,7 @@ async function generateDevModeImages(
           job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
           issues: preflight.issues,
         });
-        return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[] };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt, sceneRefs: [] as string[], providerCostUSD: 0 };
       }
 
       const img = await ai.generateImage({
@@ -2963,12 +2978,12 @@ async function generateDevModeImages(
         CFGScale: 4,
         outputFormat: "JPEG",
         referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
-        seed: storyImageSeed,
+        seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed, kind: job.kind, order: job.order }),
       });
-      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs };
+      return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt, sceneRefs, providerCostUSD: providerImageCostUSD(img) };
     } catch (err) {
       console.warn(`[dev-mode-generation] Image generation failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[] };
+      return { job, imageUrl: undefined as string | undefined, fullPrompt: job.prompt, sceneRefs: [] as string[], providerCostUSD: 0 };
     }
   });
 
@@ -3010,12 +3025,12 @@ async function generateDevModeImages(
           CFGScale: 4,
           outputFormat: "JPEG",
           referenceImages: retryRefs.length > 0 ? retryRefs : undefined,
-          seed: storyImageSeed + 1,
+          seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 1, kind: job.kind, order: job.order }),
         });
-        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: retryRefs };
+        return { job, imageUrl: img.imageUrl as string | undefined, fullPrompt: retryPrompt, sceneRefs: retryRefs, providerCostUSD: providerImageCostUSD(img) };
       } catch (err) {
         console.warn(`[dev-mode-generation] Image retry failed for ${job.kind}${job.order ? ` ch${job.order}` : ""}:`, (err as Error)?.message || err);
-        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[] };
+        return { job, imageUrl: undefined as string | undefined, fullPrompt: retryPrompt, sceneRefs: [] as string[], providerCostUSD: 0 };
       }
     });
     const keyForJob = (job: Job) => `${job.kind}:${job.order ?? "cover"}`;
@@ -3025,6 +3040,7 @@ async function generateDevModeImages(
 
   let coverImageUrl: string | undefined;
   let imagesGenerated = 0;
+  let imageCostUSD = Number(imageResults.reduce((sum, result) => sum + result.providerCostUSD, 0).toFixed(6));
   for (const r of imageResults) {
     if (r.imageUrl) imagesGenerated += 1;
     if (r.job.kind === "cover") {
@@ -3136,12 +3152,13 @@ async function generateDevModeImages(
           CFGScale: 4,
           outputFormat: "JPEG",
           referenceImages: r.sceneRefs.length > 0 ? r.sceneRefs : undefined,
-          seed: storyImageSeed + 101,
+          seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 101, kind: r.job.kind, order: r.job.order }),
         });
         if (regen.imageUrl) {
           // Count paid regeneration calls as generated images so downstream
           // cost tracking reflects actual Runware spend, not only final slots.
           imagesGenerated += 1;
+          imageCostUSD = Number((imageCostUSD + providerImageCostUSD(regen)).toFixed(6));
           if (r.job.kind === "cover") {
             coverImageUrl = regen.imageUrl;
           } else if (typeof r.job.order === "number") {
@@ -3165,7 +3182,7 @@ async function generateDevModeImages(
     (chapterImages as any).__qaReports = qaReports;
   }
 
-  return { coverImageUrl, chapterImages, imagesGenerated, promptTokenUsage };
+  return { coverImageUrl, chapterImages, imagesGenerated, imageCostUSD, promptTokenUsage };
 }
 
 function countIdeaCandidates(config: StoryConfig): number {
@@ -3446,6 +3463,23 @@ function potentialAuditScore(audit: Candidate9Audit): number {
   ];
   const positive = scoreKeys.reduce((sum, key) => sum + Number(audit[key] ?? 0), 0) / scoreKeys.length;
   return positive - Math.max(0, Number(audit.helperDependencyRisk ?? 0) - 4) * 0.6 - Math.max(0, Number(audit.similarityToRecentEmotionalMechanics ?? 0) - 3) * 0.4;
+}
+
+function hasStrongLocalPotentialMargin(audit: Candidate9Audit): boolean {
+  const positiveScores = [
+    audit.childRetellableHook,
+    audit.visualShelfAppeal,
+    audit.novelty,
+    audit.emotionalEngine,
+    audit.personalCostPotential,
+    audit.irreversibleMiddlePotential,
+    audit.conflictEscalationPotential,
+    audit.finalImagePotential,
+  ].map(Number);
+  return !audit.reject
+    && positiveScores.every((score) => Number.isFinite(score) && score >= 8.5)
+    && Number(audit.helperDependencyRisk) <= 5.0
+    && Number(audit.similarityToRecentEmotionalMechanics) <= 5.0;
 }
 
 function selectPotentialFilterCandidates(
@@ -5878,6 +5912,7 @@ function buildSceneCardPrompts(
     "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
     "personalCost must name a PHYSICAL object, place, or privilege that is visibly given up, used up, broken, or left behind — NEVER an abstract feeling. Forbidden: 'verliert Zuversicht', 'muss Scham überwinden', 'loses hope'. Required shape: 'gibt den letzten X her', 'lässt Y zurück', 'Z zerbricht und bleibt zerbrochen'.",
     "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
+    "Scene progression must be specific: visibleGoal, obstacle, wrongAction, visibleConsequence, and endPull must change from scene to scene. Never copy the same sentence into three cards.",
     // v12 §I additive gates.
     "Scene 3 or 4 (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.",
     "Scene 4 must include childDiscovery — the children find the structural connection. helperFunction must NOT explain the answer.",
@@ -6079,11 +6114,17 @@ function repairSceneCardsDeterministically(
   const heroNames = getMainAvatarNames(input);
   const protagonist = germanMainAvatarSubject(input);
   const lockedCentralObject = getLockedCentralObject(input);
-  const personalObject = firstSceneText(beatSheet?.personalObject, lockedCentralObject, motif);
+  const personalObjectDetails = extractPersonalObjectDetails(beatSheet?.personalObject, lockedCentralObject || motif);
+  const personalObject = firstSceneText(personalObjectDetails.object, lockedCentralObject, motif);
+  const personalObjectTokens = personalObject.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 4);
+  const referencesPersonalObject = (value: unknown): boolean => {
+    const normalized = String(value || "").toLowerCase();
+    return personalObjectTokens.length === 0 || personalObjectTokens.some((token) => normalized.includes(token.slice(0, 4)));
+  };
   // Concrete fallback cost, guaranteed to pass the abstract-cost gate (names a
   // physical object that is given up / left behind, no feeling-noun).
   const concretePersonalCost = `${protagonist.subject} ${protagonist.give} ${personalObject} her und ${protagonist.leave} es sichtbar zurück.`;
-  const rawPersonalCost = firstSceneText(middle.personalCost, beatSheet?.act2?.personalCost, input.selectedIdea?.coreConflict);
+  const rawPersonalCost = firstSceneText(beatSheet?.act2?.personalCost, middle.personalCost, input.selectedIdea?.coreConflict);
   const personalCost = rawPersonalCost.length >= 18
     && !/(learns|lernt|understands|versteht|erkennt)\b/i.test(rawPersonalCost)
     && !ABSTRACT_PERSONAL_COST_PATTERN.test(rawPersonalCost)
@@ -6189,6 +6230,7 @@ function repairSceneCardsDeterministically(
     // the whole generation throws. firstSceneText keeps the first non-empty
     // value, so we pre-clear an abstract original before falling back.
     const safeOriginalCost = ABSTRACT_PERSONAL_COST_PATTERN.test(String(original.personalCost || ""))
+      || !referencesPersonalObject(original.personalCost)
       ? ""
       : original.personalCost;
     if (scenePurpose === "irreversible_middle" || index === 2 || index === 3) {
@@ -6315,6 +6357,11 @@ function validatePersonalCostContract(beatSheet: any): string[] {
     }
   }
 
+  const middleCost = String(beatSheet?.irreversibleMiddle?.personalCost || "");
+  if (middleCost && !shareStem(middleCost)) {
+    issues.push("irreversibleMiddle.personalCost swaps to a different object than personalObject.object");
+  }
+
   const planted = String(beatSheet?.finalPayoff?.plantedDetail || "");
   if (planted && !shareStem(planted)) {
     issues.push("finalPayoff.plantedDetail does not reference personalObject.object (cost is not planted)");
@@ -6426,6 +6473,7 @@ function isNegated(text: string, word: string): boolean {
 
 function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): string[] {
   const issues: string[] = [];
+  issues.push(...detectRepeatedSceneCardFields(sceneCards));
   if (sceneCards.length !== DEV_MODE_SCENE_CARD_COUNT) {
     issues.push(`expected ${DEV_MODE_SCENE_CARD_COUNT} scene cards, got ${sceneCards.length}`);
   }
@@ -7109,8 +7157,9 @@ function buildCompactWholeStoryDraftPrompts(
     "SCENE PLAN (binding, do not invent a different plot):",
     promptJson(compactScenePlan),
     "",
-    buildVoiceBibleBlock(input) || "",
-    buildWriterVoiceAnchorBlock(input) || "",
+    // The compact scene plan already carries character voice beats; repeating
+    // two full voice bibles here inflated every draft request and diluted the
+    // binding plot rules. Keep only the concise avatar voice instruction below.
     "",
     "MANDATORY:",
     "- one clear magic / wonder rule, tested on-page at least twice",
@@ -11029,6 +11078,7 @@ function applyGermanGrammarAutoFix(text: string): { text: string; changed: boole
   const fixes: string[] = [];
   let out = text;
   const pairs: Array<[RegExp, string]> = [
+    [/\bSchritte\s+crunched\s+im\s+Gras\b/gi, "Schritte knirschten im Gras"],
     [/\bIch\s+Idee\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Idee"],
     [/\bIch\s+Frage\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Frage"],
     [/\bIch\s+Antwort\b(?=\s*[,.!?…"“”‘’]|$)/g, "Ich habe eine Antwort"],
@@ -12161,6 +12211,36 @@ export async function generateStoryDevMode(
             auditedTitles: potentialFilterCandidates.map((candidate) => candidate.title),
           });
         }
+        // A clearly strong local audit makes the second LLM judge redundant.
+        // Ambiguous or borderline candidates still go through the semantic
+        // potential-filter call, preserving the premium safety net.
+        const localPotentialFilter = normalizePotentialFilterResult(
+          {},
+          potentialFilterCandidates,
+          input,
+          input.poolCharacters,
+        );
+        const localChosenAudit = localPotentialFilter.candidateAudits.find(
+          (audit) => audit.id === localPotentialFilter.chosenIdeaId
+        );
+        if (localChosenAudit && hasStrongLocalPotentialMargin(localChosenAudit.scores)) {
+          screenplayPlan = { ...(screenplayPlan || {}), potentialFilter: localPotentialFilter };
+          selectedIdea = selectedIdeaFromPotentialFilter(localPotentialFilter, ideaCandidates, input.poolCharacters);
+          recordLocalStage("potential-filter", {
+            round: ideaRound,
+            localHighConfidenceFastPath: true,
+            chosenIdeaId: localPotentialFilter.chosenIdeaId,
+            audit: auditSummaryLine(localChosenAudit),
+            savedRemoteJudgeCall: true,
+          });
+          console.log("[dev-mode-generation] 9.0 potential filter: high-confidence local fast path", {
+            round: ideaRound,
+            chosen: selectedIdea?.title,
+            audit: auditSummaryLine(localChosenAudit),
+          });
+          break;
+        }
+
         const potentialFilterPrompts = buildPotentialFilterPrompts(input, chapterCount, potentialFilterCandidates, ideaRound);
         const potentialFilterStage = await runStage("potential-filter", potentialFilterPrompts, {
           maxTokens: 2200,
@@ -14769,19 +14849,21 @@ export async function generateStoryDevMode(
     coverImageUrl?: string;
     chapterImages: Map<number, { imageUrl?: string; prompt: string }>;
     imagesGenerated: number;
+    imageCostUSD: number;
     promptTokenUsage: { prompt: number; completion: number; total: number };
   } = {
     coverImageUrl: undefined,
     chapterImages: new Map(),
     imagesGenerated: 0,
+    imageCostUSD: 0,
     promptTokenUsage: { prompt: 0, completion: 0, total: 0 },
   };
 
   const hasOpenQualityGate = Boolean(qualityGateFailureReason) || ((finalDiagnostics?.hardIssueCount ?? 0) > 0);
-  const skipImageGenerationForQualityGate = false;
+  const skipImageGenerationForQualityGate = hasOpenQualityGate;
 
   if (hasOpenQualityGate) {
-    console.warn("[dev-mode-generation] §F release-gate warning; continuing image generation for product completeness", {
+    console.warn("[dev-mode-generation] §F release gate open: skipping paid images until the text passes", {
       hardIssueCount: finalDiagnostics?.hardIssueCount,
       qualityGateFailureReason,
       finalQualityScore,
@@ -14793,6 +14875,8 @@ export async function generateStoryDevMode(
   // consumers can detect this.
   if (isDebugMode(input)) {
     console.warn("[dev-mode-generation] §B debug mode: skipping image generation (text-only diagnostics run)");
+  } else if (skipImageGenerationForQualityGate) {
+    console.warn("[dev-mode-generation] §F quality gate: skipping image generation to avoid charging for rejected prose");
   } else {
     try {
       devModeImages = await generateDevModeImages(input, parsed.title, sortedParsedChapters, screenplayPlan);
@@ -14961,6 +15045,7 @@ export async function generateStoryDevMode(
       supportModel,
       storyModel: finalModelUsed,
       imagesGenerated: devModeImages.imagesGenerated,
+      imageCostUSD: devModeImages.imageCostUSD,
       developerMode: true,
       devModePipeline: DEV_MODE_PIPELINE_ID,
       displayMode: parsed.displayMode,
@@ -15005,9 +15090,7 @@ export async function generateStoryDevMode(
         return "ok";
       })(),
       hardIssueList: finalDiagnostics?.hardIssues ?? [],
-      // v12 §F: quality gates no longer skip production images. This flag is
-      // kept for backwards compatibility and should remain false outside
-      // debug/text-only runs.
+      // Paid images are generated only after the text is release-ready.
       imagesSkippedDueToQualityGate: skipImageGenerationForQualityGate,
       qualityMode: input.qualityMode || "premium",
       debug: isDebugMode(input) ? true : undefined,

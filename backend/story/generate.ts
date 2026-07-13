@@ -55,11 +55,10 @@ import { enrichStoryForTTS } from "./tts-enrichment";
 import { reserveStoryGenerationCapacity } from "./generation-capacity";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
-// FLUX.2 [klein] 9B distilled: same four-step/native-reference workflow as
-// 4B, but higher prompt and identity capacity. The $0.00018/image delta is a
-// deliberate release-quality trade: six images add only $0.00108 per story.
-const DEV_MODE_IMAGE_MODEL = "runware:400@2";
-const DEV_MODE_IMAGE_COST_USD = 0.00078;
+// Keep cost reporting aligned with the reliable checkpoint used by the image
+// pipeline. The old estimate understated the six observed provider charges.
+const DEV_MODE_IMAGE_MODEL = "runware:400@4";
+const DEV_MODE_IMAGE_COST_USD = 0.00151;
 
 type AvatarDevelopmentValidationResult = {
   isValid?: boolean;
@@ -326,6 +325,7 @@ export interface Story {
     model?: string;
     processingTime?: number;
     imagesGenerated?: number;
+    imageCostUSD?: number;
     totalCost?: {
       text: number;
       images: number;
@@ -1070,6 +1070,10 @@ export const generate = api<GenerateStoryRequest, Story>(
       const devModeImagesGenerated = devModeStages.length > 0
         ? Number(generatedStory.metadata?.imagesGenerated || 0)
         : 0;
+      const measuredImageCostUSD = Number(generatedStory.metadata?.imageCostUSD || 0);
+      const billedImageCostUSD = measuredImageCostUSD > 0
+        ? measuredImageCostUSD
+        : Number((devModeImagesGenerated * DEV_MODE_IMAGE_COST_USD).toFixed(6));
       const devModeImageCostEntries = devModeImagesGenerated > 0
         ? [buildImageCostEntry({
             phase: stagePipelinePhase,
@@ -1078,11 +1082,11 @@ export const generate = api<GenerateStoryRequest, Story>(
             model: DEV_MODE_IMAGE_MODEL,
             success: true,
             itemCount: devModeImagesGenerated,
-            providerCostUSD: Number((devModeImagesGenerated * DEV_MODE_IMAGE_COST_USD).toFixed(6)),
+            providerCostUSD: billedImageCostUSD,
             metadata: {
-              estimated: true,
-              unitCostUSD: DEV_MODE_IMAGE_COST_USD,
-              source: "dev-mode-image-count",
+              estimated: measuredImageCostUSD <= 0,
+              unitCostUSD: measuredImageCostUSD > 0 ? undefined : DEV_MODE_IMAGE_COST_USD,
+              source: measuredImageCostUSD > 0 ? "runware-response" : "dev-mode-image-count-fallback",
             },
           })]
         : [];

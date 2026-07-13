@@ -224,6 +224,8 @@ export function applyOrthographyAutoFix(text: string): OrthographyFixResult {
 const GRAMMAR_HARD_FAIL_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   // "Ich Idee" — missing verb between subject and noun
   { pattern: /\bIch\s+(Idee|Plan|Frage|Antwort)\b/i, reason: "Ich + Substantiv ohne Verb" },
+  // Common English narrative verbs must never leak into German prose.
+  { pattern: /\b(crunched|whispered|muttered|shouted|stared|looked|smiled|walked|jumped|nodded|shrugged|gasped)\b/i, reason: "englisches Erzählverb im deutschen Storytext" },
   // "Der ist silberne" — adjective in wrong position with article.
   // Keep this deliberately narrow; broad "\w+e" patterns misclassify valid
   // openings such as "Das ist wie ..." or "Der ist hier ...".
@@ -231,6 +233,34 @@ const GRAMMAR_HARD_FAIL_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   // "Sie ist silberne" with adjective ending requiring article
   { pattern: /\b(Sie|Er|Es)\s+ist\s+silberne[rns]?\b/i, reason: "Pronomen + ist + Adjektiv mit falscher Endung" },
 ];
+
+export function detectRepeatedSceneCardFields(
+  sceneCards: Array<Record<string, unknown>>,
+  fields: string[] = ["visibleGoal", "obstacle", "wrongAction", "visibleConsequence", "endPull"],
+): string[] {
+  if (!Array.isArray(sceneCards) || sceneCards.length < 3) return [];
+  const normalize = (value: unknown): string => String(value || "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const threshold = Math.max(3, Math.ceil(sceneCards.length * 0.6));
+  const issues: string[] = [];
+  for (const field of fields) {
+    const counts = new Map<string, number>();
+    for (const card of sceneCards) {
+      const value = normalize(card?.[field]);
+      if (value.length < 18) continue;
+      counts.set(value, (counts.get(value) || 0) + 1);
+    }
+    const repeated = Math.max(0, ...counts.values());
+    if (repeated >= threshold) {
+      issues.push(`sceneCards.${field} repeats verbatim across ${repeated}/${sceneCards.length} scenes`);
+    }
+  }
+  return issues;
+}
 
 export interface GrammarValidationResult {
   hardIssues: string[];

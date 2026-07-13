@@ -18,6 +18,7 @@ import {
   detectHelperExplainsSolution,
   detectStructureSignals,
   detectStorySerializationArtifacts,
+  detectRepeatedSceneCardFields,
 } from "../../dev-mode-sanitizers";
 
 import {
@@ -30,6 +31,7 @@ import {
   selectFrameCastForReferenceLimit,
   renderSceneCastContract,
   stripModelCastCountClaims,
+  deriveStoryImageJobSeed,
 } from "../../dev-mode-image-guards";
 
 import {
@@ -331,6 +333,18 @@ console.log("\n[7] Grammar gate catches 'Ich Idee' and 'Der ist silberne'");
   check("'Der ist silberne' flagged", b.hardIssues.length > 0, JSON.stringify(b.hardIssues));
   const c = validateGermanGrammar("Der silberne Löffel glänzt.");
   check("Clean sentence passes", c.hardIssues.length === 0);
+  const repeatedCards = Array.from({ length: 5 }, (_value, index) => ({
+    visibleGoal: `Ziel ${index}`,
+    obstacle: index < 3 ? "Dieselbe Hecke versperrt unverändert den Weg." : `Neues Hindernis ${index}`,
+    wrongAction: `Versuch ${index}`,
+    visibleConsequence: `Folge ${index}`,
+    endPull: `Zug ${index}`,
+  }));
+  const repeatedFields = detectRepeatedSceneCardFields(repeatedCards);
+  check("repeated scene-card obstacle is blocked", repeatedFields.some((issue) => issue.includes("obstacle")), JSON.stringify(repeatedFields));
+  check("short generic goal is not over-flagged", !repeatedFields.some((issue) => issue.includes("visibleGoal")), JSON.stringify(repeatedFields));
+  const languageLeak = validateGermanGrammar("Schritte crunched im Gras.");
+  check("English narrative verb is blocked", languageLeak.hardIssues.length > 0, JSON.stringify(languageLeak.hardIssues));
 }
 
 // -----------------------------------------------------------------------------
@@ -494,6 +508,18 @@ console.log("\n[11] Cast contract is mixed-entity and count safe");
   const frame2 = selectFrameCastForReferenceLimit({ allNames: largeCast, pageOrder: 2, maxReferences: 4 });
   check("large cast never exceeds native limit", frame1.length === 4 && frame2.length === 4);
   check("large cast rotates across pages", new Set([...frame1, ...frame2]).size === largeCast.length, `${frame1.join(",")} / ${frame2.join(",")}`);
+
+  const twoRefFrames = [1, 2, 3].map((pageOrder) =>
+    selectFrameCastForReferenceLimit({ allNames: largeCast, pageOrder, maxReferences: 2 })
+  );
+  check("two-reference frames cover a generic six-character cast", new Set(twoRefFrames.flat()).size === 6, JSON.stringify(twoRefFrames));
+
+  const slotSeeds = [
+    deriveStoryImageJobSeed({ storySeed: 12345, kind: "cover" }),
+    ...[1, 2, 3, 4, 5].map((order) => deriveStoryImageJobSeed({ storySeed: 12345, kind: "chapter", order })),
+  ];
+  check("cover and reading pages use distinct deterministic seeds", new Set(slotSeeds).size === slotSeeds.length, slotSeeds.join(","));
+  check("image slot seeds stay in provider range", slotSeeds.every((seed) => seed >= 1 && seed <= 2_147_483_646), slotSeeds.join(","));
 
   const priorityFrame = selectFrameCastForReferenceLimit({
     allNames: largeCast,
