@@ -6178,6 +6178,26 @@ function hasConcreteSceneDamageSignal(text: string): boolean {
   return /(zerbr|brech|kaputt|riss|reißt|reisst|verschwind|verlisch|erlisch|schrumpf|verlier|loest sich|löst sich|stuerz|stürz|brennt|verbrann|tropft|leckt|verstummt|verdorrt|welkt|broken|lost|missing|silent|cracked|shrinks|fades|vanishes|disappears|spilled|burned|dies)/i.test(text);
 }
 
+function hasClosedSceneEndPull(value: unknown): boolean {
+  const endPull = String(value || "").trim().toLowerCase();
+  if (/\b(calm|peaceful|closed|resolved)\b/i.test(endPull)) {
+    return !["calm", "peaceful", "closed", "resolved"].some((word) => isNegated(endPull, word));
+  }
+  if (/\b(alles gut|gel\u00F6st)\b/i.test(endPull)) {
+    return !["alles gut", "gel\u00F6st"].some((word) => isNegated(endPull, word));
+  }
+  if (/\bruhig\b/i.test(endPull)) {
+    return !/\bunruhig\b/i.test(endPull) && !isNegated(endPull, "ruhig");
+  }
+  if (/\bfertig\b/i.test(endPull)) {
+    return !(/\bunfertig\b/i.test(endPull)
+      || /\bfertig\s+(f\u00FCr|zum|mit\s+den\s+nerven)\b/i.test(endPull)
+      || /\bmach(e|t|en|te|ten)?\s+fertig\b/i.test(endPull)
+      || isNegated(endPull, "fertig"));
+  }
+  return false;
+}
+
 function ensureSceneDialogueBeats(card: any, input: DevModeGenerationInput): any[] {
   const heroNames = getMainAvatarNames(input);
   const speakers = heroNames.length > 0 ? heroNames : ['Hauptfigur'];
@@ -6295,6 +6315,16 @@ function repairSceneCardsDeterministically(
     next.irreversibleChange = firstSceneText(original.irreversibleChange, original.changedState, original.turn, original.visibleDamage, index === 0 ? consequenceFallbacks[index] : undefined, index >= 2 ? visibleDamage : consequenceFallbacks[index]);
     next.endPull = firstSceneText(original.endPull, original.chapterEndHook, original.pull, endPullFallbacks[index], "Etwas bleibt offen und zieht sie weiter.");
     next.plant = firstSceneText(original.plant, finalPayoff.plantedDetail, beatSheet?.personalObject, motif);
+    if (index < DEV_MODE_SCENE_CARD_COUNT - 1 && hasClosedSceneEndPull(next.endPull)) {
+      const openPulls = [
+        "Eine neue Spur taucht auf, und die Kinder m\u00FCssen ihr sofort folgen.",
+        "Bevor sie den n\u00E4chsten Schritt pr\u00FCfen k\u00F6nnen, verschiebt sich das Hindernis erneut.",
+        "Die Gefahr w\u00E4chst sichtbar; die Kinder m\u00FCssen jetzt einen anderen Weg finden.",
+        "Die Zeit wird knapp: Nur eine schwierige Entscheidung kann verhindern, dass der Schaden gr\u00F6\u00DFer wird.",
+      ];
+      next.endPull = openPulls[index];
+      fixes.push(`reopened-scene-${sceneNo}-end-pull`);
+    }
     next.payoffLater = firstSceneText(original.payoffLater, finalPayoff.closingImage, beatSheet?.act3?.payoffFromPlant, beatSheet?.act3?.closingImage);
     const defaultDriver = heroNames.length > 0 ? heroNames[index % heroNames.length] : 'shared';
     next.characterDriver = firstSceneText(original.characterDriver, index >= 3 ? 'shared' : defaultDriver);
