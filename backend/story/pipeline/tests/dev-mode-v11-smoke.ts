@@ -21,6 +21,7 @@ import {
   detectStructureSignals,
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
+  diversifyRepeatedSceneCardFields,
 } from "../../dev-mode-sanitizers";
 
 import {
@@ -363,6 +364,28 @@ console.log("\n[7] Grammar gate catches 'Ich Idee' and 'Der ist silberne'");
   check("English narrative verb is blocked", languageLeak.hardIssues.length > 0, JSON.stringify(languageLeak.hardIssues));
 }
 
+console.log("\n[7b] Repeated scene-card placeholders get a token-free deterministic repair");
+{
+  const repeatedCards = Array.from({ length: 5 }, (_value, index) => ({
+    scene: index + 1,
+    visibleGoal: "Alle verfolgen in jeder Szene genau dasselbe sichtbare Ziel.",
+    obstacle: "In jeder Szene steht dasselbe Hindernis unveraendert im Weg.",
+    wrongAction: "In jeder Szene waehlen alle genau denselben falschen Versuch.",
+    visibleConsequence: "In jeder Szene tritt genau dieselbe sichtbare Folge ein.",
+    endPull: "In jeder Szene zieht genau dieselbe offene Frage weiter.",
+  }));
+  const fields = ["visibleGoal", "obstacle", "wrongAction", "visibleConsequence", "endPull"];
+  const replacements = Object.fromEntries(fields.map((field) => [
+    field,
+    Array.from({ length: 5 }, (_unused, index) =>
+      `Szene ${index + 1} erhaelt fuer ${field} eine eigene konkrete und ausreichend lange Handlung.`
+    ),
+  ]));
+  const repaired = diversifyRepeatedSceneCardFields(repeatedCards, replacements);
+  check("repair changed the repeated cards", repaired.changed);
+  check("all five repeated fields were repaired", repaired.fields.length === 5, JSON.stringify(repaired.fields));
+  check("repaired cards pass repetition detection", detectRepeatedSceneCardFields(repaired.sceneCards).length === 0, JSON.stringify(detectRepeatedSceneCardFields(repaired.sceneCards)));
+}
 // -----------------------------------------------------------------------------
 // Test 8 — Image JSON wrapper rejected/unwrapped (§14.8)
 // -----------------------------------------------------------------------------

@@ -361,6 +361,48 @@ export function detectRepeatedSceneCardFields(
   return issues;
 }
 
+/**
+ * Replaces only scene-card fields that the repetition gate identifies.
+ * The caller supplies story-specific values so the repair remains generic and
+ * deterministic without spending another model call.
+ */
+export function diversifyRepeatedSceneCardFields(
+  sceneCards: Array<Record<string, any>>,
+  replacementsByField: Record<string, string[]>,
+): { sceneCards: Array<Record<string, any>>; changed: boolean; fields: string[] } {
+  const repeatedFields = detectRepeatedSceneCardFields(sceneCards)
+    .map((issue) => issue.match(/^sceneCards\.([^.\s]+)/)?.[1])
+    .filter((field): field is string => Boolean(field));
+  if (repeatedFields.length === 0) {
+    return { sceneCards, changed: false, fields: [] };
+  }
+
+  const repaired = sceneCards.map((card) => ({ ...card }));
+  const repairedFields: string[] = [];
+  for (const field of repeatedFields) {
+    const replacements = replacementsByField[field] || [];
+    if (replacements.length < repaired.length || replacements.some((value) => !String(value || "").trim())) {
+      continue;
+    }
+    const previousValues = repaired.map((card) => card[field]);
+    repaired.forEach((card, index) => {
+      card[field] = String(replacements[index]).trim();
+    });
+    const stillRepeated = detectRepeatedSceneCardFields(repaired, [field]).length > 0;
+    if (stillRepeated) {
+      repaired.forEach((card, index) => { card[field] = previousValues[index]; });
+      continue;
+    }
+    repairedFields.push(field);
+  }
+
+  return {
+    sceneCards: repaired,
+    changed: repairedFields.length > 0,
+    fields: repairedFields,
+  };
+}
+
 export interface GrammarValidationResult {
   hardIssues: string[];
   matched: Array<{ pattern: string; reason: string; sample: string }>;

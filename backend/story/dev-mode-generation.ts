@@ -57,6 +57,7 @@ import {
   detectStructureSignals,
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
+  diversifyRepeatedSceneCardFields,
 } from "./dev-mode-sanitizers";
 import {
   unwrapJsonPrompt,
@@ -6334,6 +6335,55 @@ function repairSceneCardsDeterministically(
       finalCard.dialogueBeats = beats;
     }
     fixes.push("restored-antagonist-payoff-in-final-scene");
+  }
+
+  // Model repairs occasionally return the same generic placeholder for every
+  // scene. Replace only the fields caught by the repetition gate with
+  // story-grounded, scene-specific beats. This is deterministic and costs no
+  // additional tokens.
+  const sceneSpecificFields: Record<string, string[]> = {
+    visibleGoal: [
+      `Am Anfang will ${protagonist.subject} ${motif} am Ausgangsort untersuchen.`,
+      `Beim ersten Versuch will ${protagonist.subject} die sichtbare Spur von ${motif} praktisch nutzen.`,
+      `Unter wachsendem Druck sucht ${protagonist.subject} einen neuen Zugang zum Konflikt um ${personalObject}.`,
+      `Nach dem unumkehrbaren Schaden versucht ${protagonist.subject}, ${personalObject} noch rechtzeitig zu sichern.`,
+      `Im Finale f\u00FChrt ${protagonist.subject} die entscheidende Handlung an ${motif} selbst aus.`,
+    ],
+    obstacle: [
+      `Die erste sichtbare Regel von ${motif} sperrt den direkten Weg.`,
+      `Der bequeme Fehlversuch versch\u00E4rft den Widerstand rund um ${personalObject}.`,
+      `Die neue Komplikation setzt ${protagonist.subject} am Schauplatz unmittelbar unter Druck.`,
+      `Der sichtbare Schaden an ${personalObject} macht eine R\u00FCckkehr zum Anfang unm\u00F6glich.`,
+      `Im Finale verlangt der Konflikt eine konkrete Wahl, die niemand f\u00FCr ${protagonist.subject} treffen kann.`,
+    ],
+    wrongAction: [
+      `${protagonist.subject} deutet das erste Zeichen zu schnell und greift nach der naheliegenden Abk\u00FCrzung.`,
+      `${protagonist.subject} wiederholt den bequemen Plan, obwohl ${motif} bereits sichtbar dagegenh\u00E4lt.`,
+      `${protagonist.subject} versucht die wachsende Komplikation allein mit mehr Kraft zu \u00FCberwinden.`,
+      `${protagonist.subject} will den Preis umgehen und ${personalObject} zugleich festhalten.`,
+      `Kurz vor der Entscheidung erw\u00E4gt ${protagonist.subject} noch einmal den alten, folgenlosen Ausweg.`,
+    ],
+    visibleConsequence: [
+      `Das erste Zeichen an ${motif} ver\u00E4ndert sich sichtbar und setzt die Handlung in Gang.`,
+      `Der Fehlversuch verschiebt ${personalObject} und macht das n\u00E4chste Hindernis gr\u00F6\u00DFer.`,
+      `Die Komplikation hinterl\u00E4sst am Schauplatz eine neue sichtbare Spur.`,
+      `${visibleDamage}`,
+      `Die Welt reagiert sichtbar auf die selbst getroffene Entscheidung von ${protagonist.subject}.`,
+    ],
+    endPull: [
+      `Hinter dem ersten Zeichen erscheint eine zweite Spur, der ${protagonist.subject} sofort folgen muss.`,
+      `Der Fehlversuch l\u00F6st eine neue Bewegung aus, bevor ${protagonist.subject} eingreifen kann.`,
+      `Am Rand des Schauplatzes beginnt ${personalObject} sich sichtbar zu ver\u00E4ndern.`,
+      `Jetzt bleibt nur die konkrete Wahl aus dem Finale, und die Zeit daf\u00FCr wird knapp.`,
+      `Das Schlussbild zeigt die sichtbare Folge der Entscheidung rund um ${motif}.`,
+    ],
+  };
+  const diversityRepair = diversifyRepeatedSceneCardFields(repaired, sceneSpecificFields);
+  if (diversityRepair.changed) {
+    diversityRepair.sceneCards.forEach((card, index) => {
+      repaired[index] = card;
+    });
+    fixes.push(...diversityRepair.fields.map((field) => `diversified-repeated-${field}`));
   }
 
   const changed = JSON.stringify(repaired) !== JSON.stringify(sceneCards.slice(0, DEV_MODE_SCENE_CARD_COUNT));
@@ -13006,11 +13056,11 @@ export async function generateStoryDevMode(
       sceneCardIssues = validateSceneCards(sceneCards, input.qualityMode);
     }
     if (sceneCardIssues.length > 0) {
-      // v12 §I: in efficient mode the spec-§I additive issues are advisory.
-      // Filter them out before deciding to abort so we never block a release
-      // on a missing recurringMotifState in a non-premium run. Premium keeps
-      // the hard-throw behavior — incomplete scene cards there mean the plan
-      // is not strong enough to draft from (audit recommendation).
+      // v12 §I: efficient mode keeps additive issues advisory. Premium still
+      // classifies every issue as blocking, but malformed provider output is
+      // rebuilt once from the validated beat sheet before an internal
+      // invariant can abort the run.
+      //
       const hardPremium = isHardRejectInPremium(input.qualityMode);
       const isAdvisoryUnderEfficient = (issue: string): boolean =>
         /scene \d+ has fewer than 4 dialogue beats|recurringMotifState|visibleDamage|emotionalTurn|cannotGoBackReason|childDiscovery|childDecision|helperFunction/i.test(issue);
@@ -13018,7 +13068,30 @@ export async function generateStoryDevMode(
         ? sceneCardIssues
         : sceneCardIssues.filter((issue) => !isAdvisoryUnderEfficient(issue));
       if (blockingIssues.length > 0) {
-        throw new Error(`Scene-card gate failed before prose: ${blockingIssues.join(" | ")}`);
+        const originalSceneCardIssues = [...sceneCardIssues];
+        const safeFallback = repairSceneCardsDeterministically([], beatSheet, input);
+        const safeFallbackIssues = validateSceneCards(safeFallback.sceneCards, input.qualityMode);
+        const safeFallbackBlocking = hardPremium
+          ? safeFallbackIssues
+          : safeFallbackIssues.filter((issue) => !isAdvisoryUnderEfficient(issue));
+        if (safeFallbackBlocking.length > 0) {
+          throw new Error(
+            `Scene-card internal fallback invariant failed: ${safeFallbackBlocking.join(" | ")}; original model issues: ${blockingIssues.join(" | ")}`
+          );
+        }
+        console.warn("[dev-mode-generation] scene-card model output replaced by deterministic safe fallback", {
+          originalIssues: originalSceneCardIssues,
+          fallbackAdvisoryIssues: safeFallbackIssues,
+          fixes: safeFallback.fixes,
+        });
+        sceneCards = safeFallback.sceneCards;
+        sceneCardIssues = safeFallbackIssues;
+        recordLocalStage("scene-cards-safe-fallback", {
+          deterministic: true,
+          originalIssues: originalSceneCardIssues,
+          fallbackAdvisoryIssues: safeFallbackIssues,
+          fixes: safeFallback.fixes,
+        });
       }
       if (sceneCardIssues.length > 0) {
         console.warn("[dev-mode-generation] §I efficient mode soft-fail on additive scene-card gates", {
