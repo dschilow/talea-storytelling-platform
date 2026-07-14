@@ -4,6 +4,24 @@ import { getAuthData } from "~encore/auth";
 import { logDB } from "../log/db";
 import { getLogTableInfo } from "../log/table-resolver";
 
+interface DumpStoryLogsRequest {
+  storyId: string;
+}
+
+interface StoryLogEntry {
+  id: string;
+  source: string;
+  timestamp: Date;
+  request: any;
+  response: any;
+  metadata?: any;
+}
+
+interface DumpStoryLogsResponse {
+  logs: StoryLogEntry[];
+  warning?: string;
+}
+
 function parseStoredJson(value: unknown): unknown {
     if (typeof value !== "string") return value;
     const trimmed = value.trim();
@@ -15,9 +33,13 @@ function parseStoredJson(value: unknown): unknown {
     }
 }
 
-export const dumpStoryLogs = api(
+// The response type must stay explicitly annotated: with an inferred return
+// type Encore compiled this endpoint's schema as `{ logs: unknown[] }` and the
+// runtime then sent HTTP 200 with a zero-byte body (edge log: tx=0B), which the
+// generated client failed to JSON.parse.
+export const dumpStoryLogs = api<DumpStoryLogsRequest, DumpStoryLogsResponse>(
     { expose: true, method: "GET", path: "/story/debug-logs/:storyId", auth: true },
-    async (req: { storyId: string }) => {
+    async (req) => {
         const auth = getAuthData();
         if (!auth) throw APIError.unauthenticated("authentication required");
         if (auth.role !== "admin") throw APIError.permissionDenied("admin access required");

@@ -3006,6 +3006,7 @@ async function generateDevModeImages(
         outputFormat: "JPEG",
         referenceImages: sceneRefs.length > 0 ? sceneRefs : undefined,
         seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed, kind: job.kind, order: job.order }),
+        logContext: { storyId: input.storyId, stage: `image-${job.kind}`, chapter: job.order },
       });
       const imageUrl = acceptedGeneratedImageUrl(img);
       return { job, imageUrl, fullPrompt, sceneRefs, providerCostUSD: providerImageCostUSD(img) };
@@ -3070,6 +3071,7 @@ async function generateDevModeImages(
           outputFormat: "JPEG",
           referenceImages: retryRefs.length > 0 ? retryRefs : undefined,
           seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 1, kind: job.kind, order: job.order }),
+          logContext: { storyId: input.storyId, stage: `image-retry-${job.kind}`, chapter: job.order },
         });
         const imageUrl = acceptedGeneratedImageUrl(img);
         return { job, imageUrl, fullPrompt: retryPrompt, sceneRefs: retryRefs, providerCostUSD: providerImageCostUSD(img) };
@@ -3224,6 +3226,7 @@ async function generateDevModeImages(
           outputFormat: "JPEG",
           referenceImages: r.sceneRefs.length > 0 ? r.sceneRefs : undefined,
           seed: deriveStoryImageJobSeed({ storySeed: storyImageSeed + 101, kind: r.job.kind, order: r.job.order }),
+          logContext: { storyId: input.storyId, stage: `image-qa-regen-${r.job.kind}`, chapter: r.job.order },
         });
         const regeneratedImageUrl = acceptedGeneratedImageUrl(regen);
         imageCostUSD = Number((imageCostUSD + providerImageCostUSD(regen)).toFixed(6));
@@ -12500,6 +12503,9 @@ export async function generateStoryDevMode(
           modelRole: options.modelRole,
           individualStage: true,
           failed: Boolean(extra?.error),
+          // The admin story-log export finds rows by searching for the storyId,
+          // so every stage log must carry it (standard mode always passes one).
+          storyId: input.storyId,
         },
       }).catch((logErr) => {
         console.warn(`[dev-mode-generation] Failed to publish stage log for ${stage}:`, logErr);
@@ -15262,7 +15268,7 @@ export async function generateStoryDevMode(
         })),
         durationMs: Date.now() - startedAt,
       },
-      metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "failed", failed: true },
+      metadata: { devMode: true, pipeline: DEV_MODE_PIPELINE_ID, stage: "failed", failed: true, storyId: input.storyId },
     }).catch((logErr) => {
       console.warn("[dev-mode-generation] Failed to publish failure log:", logErr);
     });
@@ -15359,6 +15365,7 @@ export async function generateStoryDevMode(
       devMode: true,
       pipeline: DEV_MODE_PIPELINE_ID,
       stage: qualityGateFailureReason ? "quality_gate_failed" : "complete",
+      storyId: input.storyId,
     },
   }).catch((logErr) => {
     console.warn("[dev-mode-generation] Failed to publish success log:", logErr);

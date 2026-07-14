@@ -20,6 +20,16 @@ export interface ImageGenerationRequest {
   referenceImages?: string[];
   /** IP-Adapter weight (0.0-1.0) - higher = more similar to reference */
   ipAdapterWeight?: number;
+  /**
+   * Caller context persisted as log metadata. The admin story-log export
+   * (/story/debug-logs/:storyId) finds log rows by searching for the storyId,
+   * so image logs are only attributable to a story when callers pass it here.
+   */
+  logContext?: {
+    storyId?: string;
+    stage?: string;
+    chapter?: number;
+  };
 }
 
 export interface DebugInfo {
@@ -171,6 +181,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
         timestamp: new Date(),
         request: requestBody,
         response: data,
+        metadata: req.logContext ?? null,
       });
 
       // Handle 504 Gateway Timeout with retry logic

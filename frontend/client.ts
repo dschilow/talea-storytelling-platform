@@ -1989,9 +1989,16 @@ export namespace story {
             await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}`, {query, method: "DELETE", body: undefined})
         }
 
-        public async dumpStoryLogs(params: { storyId: string }): Promise<{ logs: unknown[] }> {
+        /**
+         * The response type must stay explicitly annotated: with an inferred return
+         * type Encore compiled this endpoint's schema as `{ logs: unknown[] }` and the
+         * runtime then sent HTTP 200 with a zero-byte body (edge log: tx=0B), which the
+         * generated client failed to JSON.parse.
+         */
+        public async dumpStoryLogs(params: { storyId: string }): Promise<ResponseType<typeof api_story_log_dump_dumpStoryLogs>> {
+            // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/debug-logs/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as { logs: unknown[] }
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_log_dump_dumpStoryLogs>
         }
 
         /**

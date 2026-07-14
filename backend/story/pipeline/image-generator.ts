@@ -185,6 +185,9 @@ export async function generateWithRetry(input: {
         ipAdapterWeight,
         steps: input.steps,
         CFGScale: input.cfgScale,
+        logContext: input.logContext
+          ? { storyId: input.logContext.storyId, stage: input.logContext.phase, chapter: input.logContext.chapter }
+          : undefined,
       });
       const providerCosts = extractRunwareCostMetrics(response?.debugInfo?.responseReceived ?? response);
       if (providerCosts.providerCostUSD !== null) {
