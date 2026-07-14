@@ -72,6 +72,18 @@ console.log("\n[prompt-quality] English detection and entity-neutral framing");
   check("German prompt is rejected", !looksLikeEnglishImagePrompt(
     "In der warmen Kueche betrachten die Kinder eine geheimnisvolle Karte."
   ));
+  check("umlaut cast name no longer disqualifies an English prompt", looksLikeEnglishImagePrompt(
+    "Hexe Kräuterweis lifts her amber lantern while Adrian tugs the heavy leather satchel out of a puddle.",
+    ["Hexe Kräuterweis", "Adrian"]
+  ));
+  check("German prose is still rejected when a cast name is whitelisted", !looksLikeEnglishImagePrompt(
+    "Hexe Kräuterweis hebt ihre Laterne und Adrian zieht den schweren Ranzen aus der Pfütze.",
+    ["Hexe Kräuterweis", "Adrian"]
+  ));
+  check("function words inside cast names are never masked", !looksLikeEnglishImagePrompt(
+    "Der letzte Wehmueter steht in der Halle und die Kinder folgen ihm langsam.",
+    ["Der Letzte Wehmueter"]
+  ));
   const composition = buildEntityNeutralCompositionPrompt([
     { name: "Ari", entityType: "human child", sourceKind: "avatar", referenceIndex: 1 },
     { name: "Momo", entityType: "orange tabby cat", sourceKind: "pool", referenceIndex: 2 },

@@ -6,13 +6,39 @@ const GERMAN_MORPHOLOGY = /\b\w{3,}(?:ung|keit|heit|lich|isch|karte|gasse|strass
 /**
  * Cheap language guard for image prompts. The old blanket "-chen" suffix
  * rule rejected ordinary English prompts containing "kitchen".
+ *
+ * `allowedProperNouns` are canonical character names that legitimately carry
+ * umlauts or German morphology ("Hexe Kr\u00E4uterweis", "B\u00E4cker Bruno" \u2014 most of
+ * the pool cast). Prompts must keep those names verbatim, so they are masked
+ * before the language checks run. Without this, EVERY director and refill
+ * prompt that names such a character is rejected and the pipeline degrades to
+ * the generic fallback illustration (log e8cad1bf, reading page 2: cauldron
+ * scene instead of the belt-and-puddle beat).
  */
-export function looksLikeEnglishImagePrompt(value: string): boolean {
-  const text = String(value || "").trim();
+export function looksLikeEnglishImagePrompt(value: string, allowedProperNouns: string[] = []): boolean {
+  let text = String(value || "").trim();
   if (text.length < 30) return false;
   if (/^\s*[\[{]/.test(text)) return false;
   if (/"error"\s*:|developer instruction requires|can't provide|cannot provide|requested json|plain single-paragraph prompt|no json/i.test(text)) {
     return false;
+  }
+  for (const noun of allowedProperNouns) {
+    const full = String(noun || "").trim();
+    if (full.length < 3) continue;
+    const parts = new Set<string>([full]);
+    for (const word of full.split(/\s+/)) {
+      // Never mask standalone German function words ("K\u00F6nig Karl der Weise"
+      // must not whitelist "der"), otherwise real German prose slips through.
+      if (word.length >= 3 && !GERMAN_FUNCTION_WORD.test(word)) parts.add(word);
+    }
+    for (const part of parts) {
+      const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // \b only works next to ASCII word chars; fall back to a plain global
+      // replace when the name starts/ends with a non-ASCII letter.
+      const useBoundary = /^[A-Za-z0-9]/.test(part) && /[A-Za-z0-9]$/.test(part);
+      const pattern = useBoundary ? `\\b${escaped}\\b` : escaped;
+      text = text.replace(new RegExp(pattern, "gi"), " ");
+    }
   }
   if (/[\u00E4\u00F6\u00FC\u00DF\u00C4\u00D6\u00DC]/.test(text)) return false;
   if (GERMAN_FUNCTION_WORD.test(text)) return false;

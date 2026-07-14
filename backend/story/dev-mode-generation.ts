@@ -2484,7 +2484,13 @@ async function generateDevModeImages(
   //     prompt. This eliminates the "raw German story text used as image
   //     prompt" regression we saw in production.
   // ---------------------------------------------------------------------
-  const looksLikeEnglishPrompt = looksLikeEnglishImagePrompt;
+  // Canonical cast names ("Hexe Kräuterweis", "Bäcker Bruno") legitimately
+  // carry umlauts/German morphology and MUST appear verbatim in prompts, so
+  // they are masked before the English-language guard runs. Otherwise every
+  // prompt naming such a character fails the guard and the pipeline degrades
+  // to the generic fallback illustration for those pages (log e8cad1bf).
+  const castProperNouns = cast.map((entry) => entry.name).filter((name) => !!name && name.trim().length >= 3);
+  const looksLikeEnglishPrompt = (text: string): boolean => looksLikeEnglishImagePrompt(text, castProperNouns);
 
   // Strip forbidden style references from any image prompt (whether produced
   // by the director, the refill, or the fallback). Pattern includes any "in
@@ -14182,7 +14188,17 @@ export async function generateStoryDevMode(
         && validatorMaterialFailures.length === 0
         && currentScore >= DEV_MODE_DIMINISHING_RETURNS_SCORE;
       const shouldAttemptStoryPolish =
-        validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
+        (
+          validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
+          // A rejected polish prepares `lastRejectedPolishFeedback` for one
+          // informed retry — but with the attempt cap at 1 that retry could
+          // never run and the pipeline shipped the unpolished draft with
+          // failed gates (log e8cad1bf: 1378 words kept although the retry
+          // knew both broken budgets). Grant exactly the one informed retry;
+          // the rejection branch below stops preparing feedback once the cap
+          // is reached, so this cannot loop.
+          || lastRejectedPolishFeedback !== null
+        )
         && Boolean(finalParsed)
         && Boolean(finalDiagnostics)
         && (
