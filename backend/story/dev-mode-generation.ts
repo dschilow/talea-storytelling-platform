@@ -6626,6 +6626,7 @@ function validatePersonalCostContract(beatSheet: any): string[] {
 
 function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): string[] {
   const issues: string[] = [];
+  const isCharacterLifeStory = input.config.contentType === "character_life";
   const required = [
     "logline", "emotionalPremise", "centralQuestion", "mainWant", "mainNeed", "falseBelief",
     "wonderRule", "recurringMotif", "refrainLine",
@@ -6666,7 +6667,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   const heroNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const heroSubjectHint = /(child|children|kid|kids|kinder|jungen|junge|maedchen|mädchen|freunde|freundinnen|geschwister|beide|die zwei|die zwoo|sie zusammen|gemeinsam|zusammen entscheid|together they|both of them|the two)/i.test(finalChoice);
   const namedHero = heroNames.some((name) => finalChoice.toLowerCase().includes(name.toLowerCase()));
-  if (!heroSubjectHint && !namedHero) {
+  if (!isCharacterLifeStory && !heroSubjectHint && !namedHero) {
     issues.push("finalChoice is not clearly executed by the children");
   }
   const closingImage = String(beatSheet?.act3?.closingImage || "");
@@ -6676,7 +6677,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   // v12 §H additive gates — structured sub-objects checked separately so the
   // legacy gates above keep their existing behavior in efficient mode. Reuse
   // the heroNames already computed for the legacy finalChoice check.
-  issues.push(...validateBeatSheetSpecH(beatSheet, input.qualityMode, heroNames));
+  issues.push(...validateBeatSheetSpecH(beatSheet, input.qualityMode, heroNames, !isCharacterLifeStory));
   return issues;
 }
 

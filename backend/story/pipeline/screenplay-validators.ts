@@ -37,6 +37,7 @@ export function validateBeatSheetSpecH(
   beatSheet: any,
   mode: DevModeQualityMode | undefined,
   heroNames: string[],
+  enforceChildHeroActions = true,
 ): string[] {
   const issues: string[] = [];
   const isPremium = (mode || "premium") === "premium";
@@ -91,7 +92,7 @@ export function validateBeatSheetSpecH(
     }
     // Spec-H: childAction must be executed by a hero, not by a helper.
     const childAction = String(finalPayoff.childAction || "").toLowerCase();
-    if (childAction.length > 0) {
+    if (enforceChildHeroActions && childAction.length > 0) {
       const heroMatches = heroNames.some((name) => childAction.includes(name.toLowerCase()));
       const heroPronoun = /\b(kinder|die zwei|die beiden|beide|sie zusammen|gemeinsam|die freunde|the children|the kids|both of them|together they)\b/i.test(childAction);
       if (!heroMatches && !heroPronoun) {
