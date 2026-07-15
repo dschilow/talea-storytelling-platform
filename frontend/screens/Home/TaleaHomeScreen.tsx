@@ -323,23 +323,35 @@ const StoryCard: React.FC<{
       <Card className={cn(taleaSurfaceClass, "h-full overflow-hidden border-0 transition-shadow duration-500 group-hover:shadow-[0_24px_48px_-12px_rgba(var(--talea-accent-rose),0.2),0_12px_24px_-8px_rgba(var(--talea-accent-sky),0.15)] dark:group-hover:shadow-[0_28px_56px_-16px_rgba(0,0,0,0.7)]")}>
         <div className={cn("flex h-full min-w-0", isFeatured ? "flex-col sm:flex-row" : "flex-col")}>
           <div className={cn(
-            "relative overflow-hidden p-2 sm:p-3", 
-            isFeatured ? "sm:w-[48%] sm:p-3" : "h-56"
+            "relative overflow-hidden p-2 sm:p-3",
+            isFeatured && "sm:w-[48%] sm:p-3"
           )}>
-            <div className={cn(taleaInsetSurfaceClass, "h-full w-full overflow-hidden rounded-[28px] border-0 p-2")}>
+            <div className={cn(taleaInsetSurfaceClass, "relative w-full overflow-hidden rounded-[28px] border-0 p-2", isFeatured ? "aspect-[4/3] sm:aspect-auto sm:h-full" : "aspect-square")}>
               {story.coverImageUrl ? (
-                <img
-                  src={story.coverImageUrl}
-                  alt={story.title}
-                  className="h-full w-full rounded-[20px] object-cover transition-transform duration-700 group-hover:scale-105"
-                />
+                // Cover ist quadratisch generiert: Blur-Fill dahinter, Bild
+                // selbst vollständig sichtbar (kein Crop).
+                <div className="relative h-full w-full overflow-hidden rounded-[20px]">
+                  <img
+                    src={story.coverImageUrl}
+                    alt=""
+                    loading={index < 3 ? "eager" : "lazy"}
+                    decoding="async"
+                    aria-hidden
+                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-75 blur-xl"
+                  />
+                  <img
+                    src={story.coverImageUrl}
+                    alt={story.title}
+                    loading={index < 3 ? "eager" : "lazy"}
+                    decoding="async"
+                    className="relative h-full w-full object-contain transition-transform duration-700 group-hover:scale-[1.03]"
+                  />
+                </div>
               ) : (
                 <div className="flex h-full w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#f7dfe9_0%,#dff0ff_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(92,68,97,0.48)_0%,rgba(53,82,116,0.4)_100%)] dark:text-slate-100">
                   <BookOpen className="h-16 w-16" />
                 </div>
               )}
-              
-              <div className="absolute inset-2 rounded-[20px] bg-gradient-to-t from-slate-900/50 via-slate-900/5 to-transparent" />
             </div>
 
             <div className="absolute bottom-4 left-4 z-10 flex items-center gap-2 sm:bottom-6 sm:left-6">

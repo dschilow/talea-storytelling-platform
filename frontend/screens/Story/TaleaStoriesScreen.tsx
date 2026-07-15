@@ -175,6 +175,48 @@ const LoadingState: React.FC = () => {
   );
 };
 
+/**
+ * Cover-Darstellung ohne Crop: Die Story-Cover werden quadratisch (1024x1024)
+ * generiert. Statt sie in flache Container zu quetschen (object-cover schnitt
+ * Köpfe ab), zeigt das Bild sich vollständig (object-contain) über einer
+ * unscharfen Version seiner selbst, die den Container füllt.
+ */
+const StoryCoverMedia: React.FC<{
+  src?: string | null;
+  alt: string;
+  loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
+  revealDelayMs?: number;
+  fallbackIconClassName?: string;
+}> = ({ src, alt, loading = "lazy", fetchPriority = "auto", revealDelayMs = 0, fallbackIconClassName = "h-12 w-12" }) => (
+  <div className="relative h-full w-full overflow-hidden rounded-[18px]">
+    {src ? (
+      <img
+        src={src}
+        alt=""
+        loading={loading}
+        decoding="async"
+        aria-hidden
+        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-75 blur-xl"
+      />
+    ) : null}
+    <ProgressiveImage
+      src={src}
+      alt={alt}
+      loading={loading}
+      fetchPriority={fetchPriority}
+      revealDelayMs={revealDelayMs}
+      containerClassName="relative h-full w-full"
+      imageClassName="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+      fallback={
+        <div className="flex h-full w-full items-center justify-center bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)]">
+          <BookOpen className={fallbackIconClassName} />
+        </div>
+      }
+    />
+  </div>
+);
+
 const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; label: string; allLabel?: string }> = ({ value, onChange, options, label, allLabel }) => (
   <select
     value={value}
@@ -237,23 +279,16 @@ const GridStoryCard: React.FC<{
       )}
       onClick={onRead}
     >
-      <div className={cn("relative w-full shrink-0 p-2", isFeatured ? "h-64 lg:h-auto lg:w-[44%]" : "h-56")}>
-        <div className={cn(taleaInsetSurfaceClass, "relative h-full w-full overflow-hidden rounded-[26px] border-0 p-2")}>
-          <ProgressiveImage
+      <div className={cn("relative w-full shrink-0 p-2", isFeatured && "lg:w-[44%]")}>
+        <div className={cn(taleaInsetSurfaceClass, "relative w-full overflow-hidden rounded-[26px] border-0 p-2", isFeatured ? "aspect-[4/3] lg:aspect-auto lg:h-full" : "aspect-square")}>
+          <StoryCoverMedia
             src={story.coverImageUrl}
             alt={story.title}
             loading={index < 3 ? "eager" : "lazy"}
             fetchPriority={isFeatured ? "high" : "auto"}
             revealDelayMs={index * 35}
-            containerClassName="w-full h-full"
-            imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-            fallback={
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)] dark:bg-[var(--talea-gradient-nature)] dark:text-[var(--talea-text-tertiary)]">
-                <BookOpen className="h-14 w-14" />
-              </div>
-            }
+            fallbackIconClassName="h-14 w-14"
           />
-          <div className="absolute inset-2 rounded-[18px] bg-gradient-to-t from-black/40 via-black/10 to-transparent opacity-80" />
         </div>
 
         <div className="absolute left-4 top-4">
@@ -347,18 +382,12 @@ const ListStoryRow: React.FC<{
       className="group cursor-pointer"
     >
       <div className="flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] p-1.5 transition-all duration-300 hover:border-transparent hover:shadow-lg sm:flex-row sm:p-2">
-        <div className={cn(taleaInsetSurfaceClass, "relative h-44 shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:h-auto sm:w-56 lg:w-64")}>
-          <ProgressiveImage
+        <div className={cn(taleaInsetSurfaceClass, "relative aspect-[4/3] shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:aspect-auto sm:h-auto sm:w-56 lg:w-64")}>
+          <StoryCoverMedia
             src={story.coverImageUrl}
             alt={story.title}
             revealDelayMs={index * 30}
-            containerClassName="w-full h-full"
-            imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
-            fallback={
-              <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)] dark:bg-[var(--talea-gradient-nature)] dark:text-[var(--talea-text-tertiary)]">
-                <BookOpen className="h-10 w-10" />
-              </div>
-            }
+            fallbackIconClassName="h-10 w-10"
           />
         </div>
 
