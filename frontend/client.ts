@@ -1675,6 +1675,7 @@ import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/stor
 import {
     generateCharacterLifeStory as api_story_character_life_story_api_generateCharacterLifeStory,
     getCharacterLifeStory as api_story_character_life_story_api_getCharacterLifeStory,
+    listPublishedCharacterLifeStories as api_story_character_life_story_api_listPublishedCharacterLifeStories,
     setCharacterLifeStoryStatus as api_story_character_life_story_api_setCharacterLifeStoryStatus,
     updateCharacterLifeStory as api_story_character_life_story_api_updateCharacterLifeStory
 } from "~backend/story/character-life-story-api";
@@ -1797,6 +1798,7 @@ export namespace story {
             this.listCharacters = this.listCharacters.bind(this)
             this.listGeneratedAudio = this.listGeneratedAudio.bind(this)
             this.listGeneratedAudioBySource = this.listGeneratedAudioBySource.bind(this)
+            this.listPublishedCharacterLifeStories = this.listPublishedCharacterLifeStories.bind(this)
             this.listStudioCharacters = this.listStudioCharacters.bind(this)
             this.listStudioEpisodeScenes = this.listStudioEpisodeScenes.bind(this)
             this.listStudioEpisodes = this.listStudioEpisodes.bind(this)
@@ -2261,6 +2263,12 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/audio-library/by-source`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_listGeneratedAudioBySource>
+        }
+
+        public async listPublishedCharacterLifeStories(): Promise<ResponseType<typeof api_story_character_life_story_api_listPublishedCharacterLifeStories>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-life-stories`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_listPublishedCharacterLifeStories>
         }
 
         public async listStudioCharacters(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioCharacters>> {

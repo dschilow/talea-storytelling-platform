@@ -35,6 +35,7 @@ import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
+import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   TaleaActionButton,
@@ -55,7 +56,7 @@ const bodyFont = taleaBodyFont;
 
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
-type ContentTab = "stories" | "studio";
+type ContentTab = "stories" | "characters" | "studio";
 type TranslateFn = TFunction;
 
 const statusMeta: Record<Story["status"], { className: string }> = {
@@ -624,6 +625,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
               {t("storiesScreen.storiesTab")}
             </button>
+            <button type="button" role="tab" aria-selected={contentTab === "characters"} onClick={() => setContentTab("characters")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "characters" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+              Charaktere
+            </button>
             {isAdmin ? (
               <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
                 {t("storiesScreen.studioTab")}
@@ -647,7 +651,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
         </div>
       </div>
 
-      {!isStudioTabActive ? (
+      {contentTab === "characters" ? (
+        <CharacterOriginsScreen />
+      ) : !isStudioTabActive ? (
         <div className="flex flex-col gap-6 sm:gap-8 xl:flex-row xl:items-start">
           <div className="w-full xl:w-[18.5rem] xl:shrink-0 xl:sticky xl:top-24">
             <div className="flex items-center gap-3 xl:hidden">

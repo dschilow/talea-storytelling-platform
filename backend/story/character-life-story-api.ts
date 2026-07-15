@@ -84,6 +84,19 @@ interface GetCharacterLifeStoryRequest {
 interface GetCharacterLifeStoryResponse {
   story?: CharacterLifeStory;
 }
+export interface PublishedCharacterLifeStorySummary {
+  id: string;
+  characterId: string;
+  characterName: string;
+  characterRole: string;
+  characterArchetype: string;
+  characterImageUrl?: string;
+  title: string;
+  description: string;
+  coverImageUrl?: string;
+  wordCount: number;
+  chapterCount: number;
+}
 
 interface GenerateCharacterLifeStoryRequest {
   characterId: string;
@@ -312,6 +325,65 @@ export const getCharacterLifeStory = api<GetCharacterLifeStoryRequest, GetCharac
   }
 );
 
+export const listPublishedCharacterLifeStories = api<
+  void,
+  { stories: PublishedCharacterLifeStorySummary[] }
+>(
+  { expose: true, method: "GET", path: "/story/character-life-stories", auth: true },
+  async () => {
+    const rows = await storyDB.queryAll<{
+      id: string;
+      character_id: string;
+      character_name: string;
+      character_role: string;
+      character_archetype: string;
+      character_image_url: string | null;
+      title: string;
+      description: string;
+      cover_image_url: string | null;
+      word_count: number;
+      chapter_count: number;
+    }>`
+      SELECT
+        life.id,
+        life.character_id,
+        character.name AS character_name,
+        character.role AS character_role,
+        character.archetype AS character_archetype,
+        character.image_url AS character_image_url,
+        life.title,
+        life.description,
+        life.cover_image_url,
+        life.word_count,
+        COUNT(chapter.id)::int AS chapter_count
+      FROM character_life_stories life
+      JOIN character_pool character ON character.id = life.character_id
+      LEFT JOIN character_life_story_chapters chapter ON chapter.life_story_id = life.id
+      WHERE life.status = 'published'
+      GROUP BY
+        life.id, life.character_id, character.name, character.role,
+        character.archetype, character.image_url, life.title,
+        life.description, life.cover_image_url, life.word_count
+      ORDER BY character.name ASC
+    `;
+
+    return {
+      stories: await Promise.all(rows.map(async (row) => ({
+        id: row.id,
+        characterId: row.character_id,
+        characterName: row.character_name,
+        characterRole: row.character_role,
+        characterArchetype: row.character_archetype,
+        characterImageUrl: (await resolveImageUrlForClient(row.character_image_url || undefined)) || row.character_image_url || undefined,
+        title: row.title,
+        description: row.description,
+        coverImageUrl: (await resolveImageUrlForClient(row.cover_image_url || undefined)) || row.cover_image_url || undefined,
+        wordCount: row.word_count,
+        chapterCount: row.chapter_count,
+      }))),
+    };
+  }
+);
 export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest, CharacterLifeStory>(
   { expose: true, method: "POST", path: "/story/character-pool/:characterId/life-story/generate", auth: true },
   async (req) => {

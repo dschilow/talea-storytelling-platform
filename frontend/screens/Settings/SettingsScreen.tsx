@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProfilesSettingsPanel from './ProfilesSettingsPanel';
+import CharacterOriginsScreen from '../CharacterPool/CharacterOriginsScreen';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import {
   getAllOfflineGeneratedAudios,
@@ -1768,6 +1769,13 @@ export default function SettingsScreen() {
               <ProfilesSettingsPanel />
             </UserProfile.Page>
 
+            <UserProfile.Page
+              label={t('settings.characterOriginsPanel', 'Charaktergeschichten')}
+              labelIcon={<BookOpen className="w-4 h-4" />}
+              url="characters"
+            >
+              <CharacterOriginsScreen />
+            </UserProfile.Page>
             <UserProfile.Page
               label={t('settings.audioLibraryPanel', 'Audio-Bibliothek')}
               labelIcon={<Headphones className="w-4 h-4" />}

@@ -1,12 +1,13 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Edit, Eye, Plus, Search, Share2, Sparkles, Trash2, User } from "lucide-react";
+import { BookOpen, Edit, Eye, Plus, Search, Share2, Sparkles, Trash2, User } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useBackend } from "../../hooks/useBackend";
+import CharacterProfilesPanel from "../CharacterPool/CharacterProfilesPanel";
 import type { Avatar } from "../../types/avatar";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -23,6 +24,8 @@ import {
   taleaSurfaceClass,
   taleaToolbarClass,
 } from "@/components/talea/TaleaPastelPrimitives";
+
+type AvatarContentTab = "avatars" | "characters";
 
 type Palette = {
   pageGradient: string;
@@ -255,6 +258,7 @@ const TaleaAvatarsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeControl, setActiveControl] = useState<string | null>(null);
+  const [contentTab, setContentTab] = useState<AvatarContentTab>("avatars");
   const needsChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
 
   const openCreateAvatar = (mode: "child" | "companion" = "companion") => {
@@ -360,17 +364,17 @@ const TaleaAvatarsScreen: React.FC = () => {
                     className="text-[1.85rem] font-semibold leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.15rem]"
                     style={{ fontFamily: headingFont }}
                   >
-                    {t("avatarScreen.title")}
+{contentTab === "characters" ? "Charaktere" : t("avatarScreen.title")}
                   </h1>
 
                   <div className="flex flex-wrap gap-2 xl:justify-end">
-                    <TaleaActionButton
+                    {contentTab === "avatars" ? <TaleaActionButton
                       type="button"
                       onClick={() => openCreateAvatar(needsChildAvatar ? "child" : "companion")}
                       icon={<Plus className="h-4 w-4" />}
                     >
                       {needsChildAvatar ? t("avatarScreen.createChildAvatar") : t("avatar.create", "Neuer Avatar")}
-                    </TaleaActionButton>
+                    </TaleaActionButton> : null}
                   </div>
                 </div>
               </div>
@@ -390,7 +394,16 @@ const TaleaAvatarsScreen: React.FC = () => {
               </div>
             </div>
 
-            <div className={cn(taleaToolbarClass, "mt-4")}>
+            <div className="mt-4 flex rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10" role="tablist" aria-label="Avatar-Bereiche">
+              <button type="button" role="tab" aria-selected={contentTab === "avatars"} onClick={() => setContentTab("avatars")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "avatars" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+                Meine Avatare
+              </button>
+              <button type="button" role="tab" aria-selected={contentTab === "characters"} onClick={() => setContentTab("characters")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "characters" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+                <BookOpen className="mr-1.5 inline h-4 w-4" aria-hidden="true" />Charaktere
+              </button>
+            </div>
+
+            {contentTab === "avatars" ? <div className={cn(taleaToolbarClass, "mt-3")}>
               <motion.label
                 className="relative min-w-0 flex-1"
                 whileHover={controlHover}
@@ -414,10 +427,12 @@ const TaleaAvatarsScreen: React.FC = () => {
                   className={cn(taleaInputClass, "pl-10")}
                 />
               </motion.label>
-            </div>
+            </div> : null}
           </header>
 
-          {isLoading ? (
+          {contentTab === "characters" ? (
+            <CharacterProfilesPanel />
+          ) : isLoading ? (
             <LoadingSkeleton palette={palette} />
           ) : filteredAvatars.length === 0 && avatars.length === 0 ? (
             <EmptyAvatars
