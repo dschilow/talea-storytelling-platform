@@ -1534,118 +1534,101 @@ function BillingPanel() {
         </div>
       ) : billing ? (
         <>
+          {/* Dein Plan: Status, Inklusiv-Leistungen und Trial-Hinweis in EINER Karte */}
           <div className="relative overflow-hidden rounded-2xl border border-border bg-card/70 backdrop-blur-lg p-5">
             <div className={`absolute -top-14 -right-10 h-32 w-32 rounded-full blur-2xl opacity-40 bg-gradient-to-br ${currentPlanMeta.gradient}`} />
-            <div className="relative flex items-start justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${currentPlanMeta.gradient}`}>
-                  <CurrentPlanIcon className="h-5 w-5 text-white" />
-                </span>
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">{t('settings.billingCurrentPlan', 'Aktueller Plan')}</p>
-                  <h3 className="text-xl font-bold text-foreground">{currentPlanMeta.title}</h3>
-                  <p className="text-xs text-muted-foreground">{t('settings.billingPeriod', 'Abrechnungsmonat')}: {periodStartLabel}</p>
+            <div className="relative">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${currentPlanMeta.gradient}`}>
+                    <CurrentPlanIcon className="h-5 w-5 text-white" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('settings.billingCurrentPlan', 'Dein Plan')}</p>
+                    <h3 className="text-xl font-bold text-foreground">{currentPlanMeta.title}</h3>
+                    <p className="text-xs text-muted-foreground">{t('settings.billingPeriod', 'Abrechnungsmonat')}: {periodStartLabel}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2 flex-wrap">
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-                  {billing.permissions.canReadCommunityDokus ? t('settings.billingCommunityActive', 'Community: aktiv') : t('settings.billingCommunityLocked', 'Community: gesperrt')}
-                </span>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-                  {billing.permissions.canUseAudioDokus ? t('settings.billingAudioActive', 'Audio: aktiv') : t('settings.billingAudioLocked', 'Audio: gesperrt')}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {currentPlan === 'free' && (
-            <div
-              className={`rounded-2xl border p-4 text-sm ${
-                billing.permissions.freeTrialActive
-                  ? 'border-[#A989F2]/30 bg-[#A989F2]/10 text-foreground'
-                  : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200'
-              }`}
-            >
-              {billing.permissions.freeTrialActive ? (
-                <div className="flex items-center gap-2">
-                  <Clock3 className="w-4 h-4" />
-                  <span>
-                    {t('settings.billingTrialActive', 'Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.', { days: billing.permissions.freeTrialDaysRemaining })}
+                <div className="flex gap-2 flex-wrap">
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
+                    {billing.permissions.canReadCommunityDokus ? t('settings.billingCommunityActive', 'Community: aktiv') : t('settings.billingCommunityLocked', 'Community: gesperrt')}
+                  </span>
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
+                    {billing.permissions.canUseAudioDokus ? t('settings.billingAudioActive', 'Audio: aktiv') : t('settings.billingAudioLocked', 'Audio: gesperrt')}
                   </span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Clock3 className="w-4 h-4" />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-4">
+                {[
+                  { label: t('settings.billingIncludedStories', 'Stories'), value: currentPlanMeta.storyLimit },
+                  { label: t('settings.billingIncludedDokus', 'Dokus'), value: currentPlanMeta.dokuLimit },
+                  { label: t('settings.billingIncludedAudio', 'Audio'), value: currentPlanMeta.audioLimit },
+                  { label: t('settings.billingIncludedCommunity', 'Community'), value: currentPlanMeta.community },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl bg-[var(--talea-surface-inset)]/70 px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                    <p className="mt-0.5 text-sm font-semibold text-foreground">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {currentPlan === 'free' && (
+                <div
+                  className={`mt-4 flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm ${
+                    billing.permissions.freeTrialActive
+                      ? 'border-[#A989F2]/30 bg-[#A989F2]/10 text-foreground'
+                      : 'border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-200'
+                  }`}
+                >
+                  <Clock3 className="h-4 w-4 shrink-0" />
                   <span>
-                    {t('settings.billingTrialExpired', 'Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.')}
+                    {billing.permissions.freeTrialActive
+                      ? t('settings.billingTrialActive', 'Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.', { days: billing.permissions.freeTrialDaysRemaining })
+                      : t('settings.billingTrialExpired', 'Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.')}
                   </span>
                 </div>
               )}
             </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <UsageCard
-              title="StoryCredits"
-              subtitle="1 Story = 1 Credit"
-              usage={billing.storyCredits}
-              icon={<BookOpen className="w-4 h-4 text-white" />}
-              accentClass="bg-gradient-to-br from-[#A989F2] to-[#7C6BE3]"
-            />
-            <UsageCard
-              title="DokuCredits"
-              subtitle="1 Doku = 1 Credit"
-              usage={billing.dokuCredits}
-              icon={<FileText className="w-4 h-4 text-white" />}
-              accentClass="bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9]"
-            />
-            <UsageCard
-              title="AudioCredits"
-              subtitle="1 Audio-Doku = 1 Credit"
-              usage={billing.audioCredits}
-              icon={<Headphones className="w-4 h-4 text-white" />}
-              accentClass="bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D]"
-            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            {(Object.keys(PLAN_META) as SubscriptionPlan[]).map((plan) => {
-              const meta = PLAN_META[plan];
-              const PlanIcon = meta.icon;
-              const active = currentPlan === plan;
-              return (
-                <div
-                  key={plan}
-                  className={`relative rounded-2xl border p-4 ${
-                    active
-                      ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
-                      : 'border-border bg-card/70'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br ${meta.gradient}`}>
-                        <PlanIcon className="h-4 w-4 text-white" />
-                      </span>
-                      <p className="text-sm font-bold text-foreground">{meta.title}</p>
-                    </div>
-                    {active && <span className="text-[10px] font-bold uppercase tracking-wider text-[#A989F2]">{t('settings.billingPlanActive', 'Aktiv')}</span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Story: {meta.storyLimit}</p>
-                  <p className="text-xs text-muted-foreground">Doku: {meta.dokuLimit}</p>
-                  <p className="text-xs text-muted-foreground">Audio: {meta.audioLimit}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Community: {meta.community}</p>
-                </div>
-              );
-            })}
+          {/* Verbrauch im aktuellen Monat */}
+          <div>
+            <h3 className="mb-3 text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              {t('settings.billingUsageTitle', 'Dein Verbrauch diesen Monat')}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <UsageCard
+                title="StoryCredits"
+                subtitle="1 Story = 1 Credit"
+                usage={billing.storyCredits}
+                icon={<BookOpen className="w-4 h-4 text-white" />}
+                accentClass="bg-gradient-to-br from-[#A989F2] to-[#7C6BE3]"
+              />
+              <UsageCard
+                title="DokuCredits"
+                subtitle="1 Doku = 1 Credit"
+                usage={billing.dokuCredits}
+                icon={<FileText className="w-4 h-4 text-white" />}
+                accentClass="bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9]"
+              />
+              <UsageCard
+                title="AudioCredits"
+                subtitle="1 Audio-Doku = 1 Credit"
+                usage={billing.audioCredits}
+                icon={<Headphones className="w-4 h-4 text-white" />}
+                accentClass="bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D]"
+              />
+            </div>
           </div>
 
+          {/* Plan vergleichen & wechseln: einzige Stelle, an der alle Pläne gelistet sind */}
           <div id="billing-plan-switcher" className="rounded-2xl border border-[#A989F2]/30 bg-card/70 backdrop-blur-lg p-4 md:p-5">
             <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                  {t('settings.billingPlanSwitchTitle', 'Plan in Clerk Billing wechseln')}
+                  {t('settings.billingPlanSwitchTitle', 'Plan vergleichen & wechseln')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
                   {t('settings.billingPlanSwitchDesc', "Der Checkout öffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf 'Aktualisieren' klicken.")}
