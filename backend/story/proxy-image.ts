@@ -268,7 +268,9 @@ async function streamFromSignedUrl(signedUrl: string): Promise<StreamResult> {
   return {
     status: 200,
     contentType,
-    cacheControl: "public, max-age=3600",
+    // Bucket keys contain a UUID and are never rewritten, so the bytes behind
+    // a given URL are immutable — browsers and the Railway edge may cache hard.
+    cacheControl: "public, max-age=31536000, immutable",
     body: buffer,
   };
 }

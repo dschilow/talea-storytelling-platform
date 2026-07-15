@@ -20,7 +20,6 @@ import {
   RefreshCw,
   Filter,
   LogIn,
-  X
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
@@ -41,10 +40,10 @@ import {
   TaleaActionButton,
   TaleaLoadingState,
   TaleaPageBackground,
-  TaleaSectionHeading,
   taleaBodyFont,
   taleaChipClass,
   taleaDisplayFont,
+  taleaGlassPanelClass,
   taleaInputClass,
   taleaInsetSurfaceClass,
   taleaPageShellClass,
@@ -165,42 +164,6 @@ const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <TaleaPageBackground isDark={isDark} />
 );
 
-const PlayfulButton: React.FC<{
-  children: React.ReactNode;
-  onClick?: (e?: any) => void;
-  className?: string;
-  variant?: "primary" | "secondary" | "accent" | "ghost";
-  disabled?: boolean;
-}> = ({ children, onClick, className, variant = "primary", disabled }) => {
-  const baseClasses = "relative inline-flex items-center justify-center font-bold transition-all outline-none pb-2 active:pb-0 active:translate-y-2 select-none overflow-hidden";
-  
-  const variants = {
-    primary: "bg-indigo-500 text-white border-indigo-700 border-b-[6px] active:border-b-0 rounded-[1.5rem]",
-    secondary: "bg-white text-slate-700 border-slate-200 border-b-[6px] active:border-b-0 rounded-[1.5rem] dark:bg-slate-800 dark:border-slate-900 dark:text-white",
-    accent: "bg-pink-400 text-white border-pink-600 border-b-[6px] active:border-b-0 rounded-[1.5rem]",
-    ghost: "bg-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 rounded-[1.5rem] active:translate-y-0 pb-0",
-  };
-
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className={cn(baseClasses, variants[variant], className, disabled && "opacity-50 cursor-not-allowed active:pb-2 active:translate-y-0")}>
-      <div className="px-5 py-2.5 w-full flex items-center justify-center gap-2 relative z-10">
-        {children}
-      </div>
-      {variant !== "ghost" && (
-        <div className="absolute inset-0 bg-white/20 opacity-0 hover:opacity-100 transition-opacity rounded-t-[1.3rem]" />
-      )}
-    </button>
-  );
-};
-
-const BouncingLoader: React.FC = () => (
-  <div className="flex justify-center items-center gap-2">
-    {[0, 1, 2].map((i) => (
-      <motion.div key={i} animate={{ y: [0, -10, 0] }} transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1, ease: "easeOut" }} className="w-3 h-3 rounded-full bg-indigo-400" />
-    ))}
-  </div>
-);
-
 const LoadingState: React.FC = () => {
   const { t } = useTranslation();
   return (
@@ -209,20 +172,6 @@ const LoadingState: React.FC = () => {
       subtitle={t("storiesScreen.loadingSubtitle")}
       icon={<BookOpen className="h-9 w-9" />}
     />
-  );
-};
-
-const BentoBox: React.FC<{ children: React.ReactNode; className?: string; delay?: number; }> = ({ children, className, delay = 0 }) => {
-  const reduceMotion = useReducedMotion();
-  return (
-    <motion.div
-      initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.4, delay, ease: [0.23, 1, 0.32, 1] }}
-      className={cn("rounded-[2rem] p-6 bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl border-4 border-white/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.06)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]", className)}
-    >
-      {children}
-    </motion.div>
   );
 };
 
@@ -293,6 +242,8 @@ const GridStoryCard: React.FC<{
           <ProgressiveImage
             src={story.coverImageUrl}
             alt={story.title}
+            loading={index < 3 ? "eager" : "lazy"}
+            fetchPriority={isFeatured ? "high" : "auto"}
             revealDelayMs={index * 35}
             containerClassName="w-full h-full"
             imageClassName="rounded-[18px] object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -613,57 +564,51 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const showFilterPanel = isDesktop || showFilters;
 
   return (
-    <div className={cn(taleaPageShellClass, "flex flex-col gap-6 pb-6 pt-4 sm:gap-8 sm:pb-8 sm:pt-6 md:pt-8")}>
-      <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6 lg:p-8")}>
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_17rem]">
-          <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5 md:p-6")}>
-            <div className="flex flex-wrap items-start justify-between gap-6">
-              <div className="max-w-3xl">
-                <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-                  Story Stream
-                </span>
-                <h1 className="mt-5 text-[2.85rem] font-semibold leading-[0.98] text-slate-900 dark:text-white md:text-[4.2rem]" style={{ fontFamily: headingFont }}>
-                  {t("story.myStories")}
-                </h1>
-                <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                  {t("homeScreen.yourStoriesSubtitle")}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2.5 sm:gap-3">
-                <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh}>
-                  {t("common.refresh")}
-                </TaleaActionButton>
-                <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
-                  {t("homeScreen.newStory")}
-                </TaleaActionButton>
-              </div>
-            </div>
-
-            <div className="mt-8 flex flex-wrap gap-2.5 sm:gap-3">
-              <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "stories" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-                {t("storiesScreen.storiesTab")}
-              </button>
-              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2.5 text-sm font-semibold transition sm:px-5 sm:py-3", contentTab === "studio" ? "bg-[var(--primary)]/10 text-[var(--primary)] shadow-sm dark:bg-[var(--primary)]/15 dark:text-[var(--primary)]" : "border border-white/80 bg-white/86 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300")}>
-                {t("storiesScreen.studioTab")}
-              </button>
-            </div>
+    <div className={cn(taleaPageShellClass, "flex flex-col gap-5 pb-6 pt-4 sm:gap-6 sm:pb-8 sm:pt-6")}>
+      <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:px-7 md:py-6")}>
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-tertiary)]">
+              Story Stream
+            </p>
+            <h1 className="mt-1 text-[1.9rem] font-semibold leading-[1.05] text-slate-900 dark:text-white sm:text-[2.3rem]" style={{ fontFamily: headingFont }}>
+              {t("story.myStories")}
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
+              {t("homeScreen.yourStoriesSubtitle")}
+            </p>
           </div>
 
-          <div className="grid gap-3">
+          <div className="flex items-center gap-2">
+            <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh} aria-label={t("common.refresh")}>
+              <span className="hidden sm:inline">{t("common.refresh")}</span>
+            </TaleaActionButton>
+            <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
+              {t("homeScreen.newStory")}
+            </TaleaActionButton>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10">
+          <div className="flex rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
+            <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+              {t("storiesScreen.storiesTab")}
+            </button>
+            <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+              {t("storiesScreen.studioTab")}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             {[
-              { label: t("common.total"), value: total, accent: "from-[var(--talea-accent-mint)]/15 to-[var(--talea-accent-sky)]/10" },
-              { label: t("storiesScreen.status.complete"), value: completeCount, accent: "from-[var(--talea-accent-mint)]/20 to-[var(--talea-accent-mint)]/5" },
-              { label: t("storiesScreen.status.generating"), value: generatingCount, accent: "from-[var(--talea-accent-peach)]/20 to-[var(--talea-accent-gold)]/10" },
+              { label: t("common.total"), value: total, dot: "bg-[var(--primary)]" },
+              { label: t("storiesScreen.status.complete"), value: completeCount, dot: "bg-emerald-400" },
+              { label: t("storiesScreen.status.generating"), value: generatingCount, dot: "bg-amber-400" },
             ].map((item) => (
-              <div key={item.label} className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-                <div className="flex items-start justify-between gap-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{item.label}</p>
-                  <div className={cn("h-10 w-10 rounded-full bg-gradient-to-br opacity-80", item.accent)} />
-                </div>
-                <p className="mt-4 text-[2.25rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
-                  {item.value}
-                </p>
+              <div key={item.label} className="inline-flex items-center gap-2 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1.5 dark:border-white/10">
+                <span className={cn("h-2 w-2 rounded-full", item.dot)} aria-hidden />
+                <span className="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{item.value}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</span>
               </div>
             ))}
           </div>
@@ -709,33 +654,24 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t("common.search")} className={cn(taleaInputClass, "pl-11 pr-4")} />
-                </div>
-                <div className="hidden xl:flex gap-1 rounded-full border border-white/80 bg-white/86 p-1 dark:border-white/10 dark:bg-white/5">
-                  <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-[var(--primary)]/10 text-[var(--primary)] dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
+            <div className={cn(taleaGlassPanelClass, "flex flex-col gap-3 p-3 lg:flex-row lg:items-center")}>
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t("common.search")} className={cn(taleaInputClass, "pl-11 pr-4")} />
+              </div>
+              <div className="hidden items-center gap-3 xl:flex">
+                <span className="whitespace-nowrap text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {filteredStories.length} Titel
+                </span>
+                <div className="flex gap-1 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
+                  <button type="button" aria-label="Rasteransicht" onClick={() => setViewMode("grid")} className={cn("rounded-full p-2.5", viewMode === "grid" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}><Grid3X3 className="h-4 w-4" /></button>
+                  <button type="button" aria-label="Listenansicht" onClick={() => setViewMode("list")} className={cn("rounded-full p-2.5", viewMode === "list" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}><LayoutList className="h-4 w-4" /></button>
                 </div>
               </div>
             </div>
 
-            <div className={cn(taleaSurfaceClass, "mt-6 p-4 sm:p-5 md:p-6")} role="status" aria-live="polite">
-              {featuredStory ? (
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
-                  <TaleaSectionHeading eyebrow={t("common.inFocus")} title={featuredStory.title} subtitle={getStoryPreviewText(featuredStory) || t("storiesScreen.noSummary")} />
-                  <div className={cn(taleaInsetSurfaceClass, "p-4 sm:p-5")}>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--talea-text-secondary)]">Bibliothek</p>
-                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
-                      {filteredStories.length} Titel bereit zum Weiterlesen, Entdecken und Vorlesen.
-                    </p>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className={featuredStory ? "mt-6" : ""}>
+            <div className="mt-5" role="status" aria-live="polite">
+              <div>
                 {loading ? (
                   <LoadingState />
                 ) : filteredStories.length === 0 ? (
@@ -854,7 +790,6 @@ const TaleaStoriesScreen: React.FC = () => {
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
-  const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
   const isDesktop = useMediaQuery("(min-width: 1280px)");
 
@@ -1077,167 +1012,6 @@ const TaleaStoriesScreen: React.FC = () => {
           }}
           goTo={navigate}
         />
-        {false && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 flex flex-col gap-8">
-          
-          {/* Header Bento */}
-          <BentoBox className="relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-indigo-950/50 border-none !p-0">
-             <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-300/30 rounded-full blur-3xl pointer-events-none" />
-             
-             <div className="p-8 sm:p-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-               <div>
-                 <div className="inline-flex items-center gap-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-4 py-1.5 rounded-full font-bold text-xs uppercase tracking-wider mb-4 shadow-sm">
-                   <img src={taleaLogo} alt="Talea Logo" className="w-5 h-5 rounded-md" />
-                   Bibliothek
-                 </div>
-                 <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-800 dark:text-white" style={{ fontFamily: headingFont }}>
-                   {contentTab === "stories" ? "Deine Magischen Geschichten" : "Talea Studio Serien"}
-                 </h1>
-                 <p className="text-lg font-semibold text-slate-600 dark:text-slate-300 mt-4 max-w-xl">
-                    {contentTab === "stories" ? "Stöbere durch all deine kreativen Werke. Filtern, Lesen und Genießen." : "Plane Serien, verwalte Charaktere und behalte den Überblick in deinem Studio."}
-                 </p>
-
-                 {/* Segmented Control */}
-                 <div className="mt-8 flex bg-white/60 dark:bg-slate-900/60 p-1.5 rounded-[1.5rem] w-fit border-2 border-slate-100 dark:border-slate-700">
-                    <button onClick={() => setContentTab("stories")} className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all", contentTab === "stories" ? "bg-indigo-500 text-white shadow-md" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white")}>Meine Stories</button>
-                    <button onClick={() => setContentTab("studio")} className={cn("px-6 py-2.5 rounded-xl font-bold text-sm transition-all", contentTab === "studio" ? "bg-indigo-500 text-white shadow-md" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white")}>Talea Studio</button>
-                 </div>
-               </div>
-
-               {contentTab === "stories" && (
-                 <PlayfulButton onClick={() => navigate("/story")} className="shrink-0 w-full md:w-auto text-lg py-4 px-6 shadow-xl shadow-indigo-500/20">
-                   <Plus className="w-6 h-6 mr-1 font-bold" /> Neue Story
-                 </PlayfulButton>
-               )}
-             </div>
-          </BentoBox>
-
-          {contentTab === "stories" && (
-            <div className="flex flex-col xl:flex-row gap-8 items-start">
-              {/* Left sidebar / Filters */}
-              <div className="w-full xl:w-80 shrink-0 flex flex-col gap-6 xl:sticky xl:top-24">
-                <BentoBox className="!p-5 bg-indigo-50 dark:bg-slate-800 flex justify-between xl:justify-start xl:flex-col gap-4 text-center xl:text-left border-indigo-100 dark:border-slate-700">
-                   <div>
-                     <span className="block text-xs font-bold uppercase text-indigo-500 mb-1">Geschichten</span>
-                     <span className="block text-4xl font-extrabold text-slate-800 dark:text-white">{total}</span>
-                   </div>
-                   <div className="hidden xl:block w-full h-[2px] bg-indigo-200/50 dark:bg-slate-700" />
-                   <div className="flex xl:flex-col gap-4 xl:gap-2">
-                     <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                       <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{completeCount} Fertig</span>
-                     </div>
-                     <div className="flex items-center gap-2">
-                       <div className="w-3 h-3 rounded-full bg-amber-400" />
-                       <span className="text-sm font-bold text-slate-600 dark:text-slate-300">{generatingCount} In Arbeit</span>
-                     </div>
-                   </div>
-                </BentoBox>
-
-                <div className="flex items-center gap-2 xl:hidden w-full">
-                   <button onClick={() => setShowFilters(!showFilters)} className="flex-1 bg-white/80 dark:bg-slate-800/80 border-4 border-white dark:border-slate-700 rounded-[1.5rem] p-3 text-center font-bold text-slate-700 dark:text-slate-200 flex justify-center items-center gap-2 shadow-sm transition-all focus:outline-none focus:ring-4 focus:ring-indigo-100">
-                     <Filter className="w-5 h-5" /> Filter {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-rose-500 relative -top-2 -left-1" />}
-                   </button>
-                   <div className="flex bg-white/80 dark:bg-slate-800/80 p-1.5 rounded-[1.5rem] border-4 border-white dark:border-slate-700 shadow-sm shrink-0">
-                      <button onClick={() => setViewMode("grid")} className={cn("p-2 rounded-xl transition-colors", viewMode==="grid" ? "bg-indigo-100 text-indigo-600 shadow-sm" : "text-slate-400")}><Grid3X3 className="w-5 h-5"/></button>
-                      <button onClick={() => setViewMode("list")} className={cn("p-2 rounded-xl transition-colors", viewMode==="list" ? "bg-indigo-100 text-indigo-600 shadow-sm" : "text-slate-400")}><LayoutList className="w-5 h-5"/></button>
-                   </div>
-                </div>
-
-                <AnimatePresence>
-                  {(showFilters || window.innerWidth >= 1280) && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="w-full overflow-hidden xl:!h-auto xl:!opacity-100">
-                      <BentoBox className="!p-5 flex flex-col gap-4">
-                        <div className="flex items-center justify-between xl:pb-2">
-                          <h3 className="font-bold text-slate-800 dark:text-slate-200">Suche & Filter</h3>
-                          <div className="hidden xl:flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[1.25rem] border-2 border-slate-200 dark:border-slate-800">
-                            <button onClick={() => setViewMode("grid")} className={cn("p-1.5 rounded-xl transition-colors", viewMode==="grid" ? "bg-white dark:bg-slate-700 shadow-sm flex" : "text-slate-400")}><Grid3X3 className="w-4 h-4"/></button>
-                            <button onClick={() => setViewMode("list")} className={cn("p-1.5 rounded-xl transition-colors", viewMode==="list" ? "bg-white dark:bg-slate-700 shadow-sm flex" : "text-slate-400")}><LayoutList className="w-4 h-4"/></button>
-                          </div>
-                        </div>
-
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Suchen..." className="w-full pl-10 pr-4 py-3 rounded-2xl border-4 border-white/80 dark:border-slate-700 bg-white/60 dark:bg-slate-800/60 font-bold text-sm text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-300 dark:focus:border-indigo-500 shadow-sm transition-all" />
-                        </div>
-                        
-                        <div className="h-[2px] bg-slate-100 dark:bg-slate-700/50 my-2" />
-
-                        <FilterSelect label="Sortierung" value={sortMode} onChange={(v) => setSortMode(v as SortMode)} options={[ {value:"newest",label:"Neueste zuerst"}, {value:"oldest",label:"Älteste zuerst"}, {value:"title",label:"Titel A-Z"} ]} />
-                        <FilterSelect label="Kategorie / Genre" value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} />
-                        <FilterSelect label="Altersgruppe" value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} />
-                        <FilterSelect label="Spiellänge" value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} />
-                        <FilterSelect label="Teilnehmer" value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} />
-
-                        {hasActiveFilters && (
-                          <button onClick={() => { setSearchQuery(""); setGenreFilter("all"); setAgeGroupFilter("all"); setLengthFilter("all"); setAvatarFilter("all"); }} className="mt-2 text-sm font-bold text-rose-500 bg-rose-50 border-2 border-rose-100 dark:border-rose-900/50 dark:bg-rose-900/30 py-3 rounded-2xl hover:bg-rose-100 transition-colors shadow-sm">
-                            Filter zurücksetzen
-                          </button>
-                        )}
-                      </BentoBox>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Stories Grid */}
-              <div className="flex-1 w-full min-w-0 pb-10">
-                {loading ? (
-                  <LoadingState />
-                ) : filteredStories.length === 0 ? (
-                  <BentoBox className="text-center py-20 !border-dashed border-4 border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-800/40 mt-0">
-                    <div className="mx-auto w-24 h-24 bg-indigo-100 dark:bg-slate-700 text-indigo-400 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
-                       {hasActiveFilters ? <Search className="w-12 h-12" /> : <Sparkles className="w-12 h-12" />}
-                    </div>
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: headingFont }}>{hasActiveFilters ? "Keine Treffer gefunden" : "Noch keine Geschichten"}</h3>
-                    <p className="text-slate-500 font-semibold max-w-sm mx-auto mt-3 mb-8">{hasActiveFilters ? "Wir konnten keine Geschichten finden, die zu deinen Filtern passen." : "Starte jetzt mit deiner allerersten Geschichte!"}</p>
-                    <PlayfulButton onClick={() => { if (hasActiveFilters) { setSearchQuery(""); setGenreFilter("all"); setAgeGroupFilter("all"); setLengthFilter("all"); setAvatarFilter("all"); } else navigate("/story"); }} className="px-8 py-3 text-lg">
-                       {hasActiveFilters ? "Filter zurücksetzen" : "Erste Story zaubern"}
-                    </PlayfulButton>
-                  </BentoBox>
-                ) : (
-                  <div className={cn(viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-6" : "flex flex-col gap-6")}>
-                    {filteredStories.map((story, index) => (
-                      viewMode === "grid" ? (
-                        <GridStoryCard
-                          key={story.id} index={index} story={story}
-                          onRead={() => navigate(`/story-reader/${story.id}`)}
-                          onDelete={() => handleDeleteStory(story.id, story.title)} canDownload={isAdmin} onDownloadPdf={(e) => handleDownloadPdf(story.id, story.status, e)} isDownloading={downloadingStoryId === story.id} canSaveOffline={canUseOffline} isSavedOffline={isStorySaved(story.id)} isSavingOffline={isSaving(story.id)} onToggleOffline={(e) => { e.stopPropagation(); toggleStory(story.id); }}
-                        />
-                      ) : (
-                        <ListStoryRow
-                          key={story.id} index={index} story={story}
-                          onRead={() => navigate(`/story-reader/${story.id}`)}
-                          onDelete={() => handleDeleteStory(story.id, story.title)} canDownload={isAdmin} onDownloadPdf={(e) => handleDownloadPdf(story.id, story.status, e)} isDownloading={downloadingStoryId === story.id} canSaveOffline={canUseOffline} isSavedOffline={isStorySaved(story.id)} isSavingOffline={isSaving(story.id)} onToggleOffline={(e) => { e.stopPropagation(); toggleStory(story.id); }}
-                        />
-                      )
-                    ))}
-                  </div>
-                )}
-
-                {hasMore && !loading && (
-                  <div ref={observerTarget} className="mt-16 flex justify-center">
-                    {loadingMore ? (
-                      <div className="inline-flex items-center gap-3 bg-white dark:bg-slate-800 px-8 py-4 rounded-full border-4 border-slate-100 dark:border-slate-700 shadow-md text-indigo-500 font-bold">
-                        <Clock3 className="w-5 h-5 animate-spin" /> Mehr Stories laden...
-                      </div>
-                    ) : (
-                      <div className="h-10" />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {contentTab === "studio" && (
-             <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}}>
-                <TaleaStudioWorkspace />
-             </motion.div>
-          )}
-
-        </div>
-        )}
       </SignedIn>
     </div>
   );

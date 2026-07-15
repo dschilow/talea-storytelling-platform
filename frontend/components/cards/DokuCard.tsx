@@ -26,6 +26,7 @@ interface DokuCardProps {
   onRead: (doku: Doku) => void;
   onDelete?: (dokuId: string, dokuTitle: string) => void;
   onTogglePublic?: (dokuId: string, currentIsPublic: boolean) => void;
+  imageLoading?: 'lazy' | 'eager';
 }
 
 type Palette = {
@@ -81,7 +82,7 @@ function buildDokuNarrationText(doku: DokuNarrationInput): string {
 const ICON_BTN =
   'inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-all hover:scale-105 active:scale-95';
 
-export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic }) => {
+export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic, imageLoading = 'lazy' }) => {
   const [hovered, setHovered] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isAddingToPlaylist, setIsAddingToPlaylist] = useState(false);
@@ -189,15 +190,16 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
               'linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 60%, color-mix(in srgb, var(--talea-accent-sky) 14%, var(--talea-surface-inset)) 100%)',
           }}
         >
-          {/* Verschwommenes Bild als organischer Hintergrund (füllt die Card-Form) */}
+          {/* Verschwommenes Bild als organischer Hintergrund (füllt die Card-Form).
+              Als <img> statt CSS-Background, damit lazy loading greift und nicht
+              alle Cover sofort parallel laden. */}
           {doku.coverImageUrl && (
-            <div
-              className="absolute inset-0 scale-110 opacity-60 blur-2xl"
-              style={{
-                backgroundImage: `url(${doku.coverImageUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }}
+            <img
+              src={doku.coverImageUrl}
+              alt=""
+              loading={imageLoading}
+              decoding="async"
+              className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl"
               aria-hidden
             />
           )}
@@ -207,6 +209,8 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             <ProgressiveImage
               src={doku.coverImageUrl}
               alt={doku.title}
+              loading={imageLoading}
+              fetchPriority={imageLoading === 'eager' ? 'high' : 'auto'}
               containerClassName="h-full w-full overflow-hidden rounded-[1.25rem] shadow-[0_14px_30px_rgba(0,0,0,0.18)]"
               imageClassName="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
               skeletonClassName="bg-[var(--talea-media-skeleton)]"

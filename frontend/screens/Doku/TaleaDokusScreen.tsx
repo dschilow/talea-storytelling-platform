@@ -196,15 +196,14 @@ const AudioDokuCard: React.FC<{
             'linear-gradient(135deg, color-mix(in srgb, var(--talea-accent-lavender) 26%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 55%, color-mix(in srgb, var(--talea-accent-rose) 18%, var(--talea-surface-inset)) 100%)',
         }}
       >
-        {/* Blurred background fill */}
+        {/* Blurred background fill — als <img>, damit lazy loading greift */}
         {doku.coverImageUrl && (
-          <div
-            className="absolute inset-0 scale-110 opacity-65 blur-2xl"
-            style={{
-              backgroundImage: `url(${doku.coverImageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
+          <img
+            src={doku.coverImageUrl}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-65 blur-2xl"
             aria-hidden
           />
         )}
@@ -1355,10 +1354,11 @@ const TaleaDokusScreen: React.FC = () => {
                         />
                       ) : (
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                          {filteredMyDokus.map((doku) => (
+                          {filteredMyDokus.map((doku, index) => (
                             <DokuCard
                               key={doku.id}
                               doku={doku}
+                              imageLoading={index < 4 ? 'eager' : 'lazy'}
                               onRead={(item) => navigate(`/doku-reader/${item.id}`)}
                               onDelete={handleDeleteDoku}
                               onTogglePublic={handleTogglePublic}
@@ -1399,8 +1399,8 @@ const TaleaDokusScreen: React.FC = () => {
                         />
                       ) : (
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                          {filteredPublicDokus.map((doku) => (
-                            <DokuCard key={doku.id} doku={doku} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
+                          {filteredPublicDokus.map((doku, index) => (
+                            <DokuCard key={doku.id} doku={doku} imageLoading={index < 4 ? 'eager' : 'lazy'} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
                           ))}
                         </div>
                       )}

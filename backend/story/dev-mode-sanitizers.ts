@@ -663,6 +663,67 @@ export function detectStructureSignals(
     finaleEndsInImage: endsInImage,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Chapter-seam duplicate guard
+// ---------------------------------------------------------------------------
+
+export interface ChapterSeamDuplicate {
+  previousOrder: number;
+  order: number;
+  sentences: string[];
+}
+
+/**
+ * Chapter-repair rewrites one page in isolation and occasionally re-narrates
+ * the previous page's closing beat verbatim (run 4c0e2169 "Der Turm der
+ * zögernden Zahnräder": "Die Zahnräder drehten sich schneller. […] Wie ein
+ * langsamer Walzer." ends reading page 4 AND opens page 5). A printed book
+ * never repeats its sentences across a page turn.
+ *
+ * Flags a seam when 2+ distinct sentences of 4+ words from the tail of one
+ * chapter reappear verbatim in the head of the next. Short lines are ignored
+ * so intentional refrains ("Nicht hektisch.") never trigger, and a single
+ * repeated sentence is tolerated as a stylistic echo.
+ */
+export function detectChapterSeamDuplicates(
+  chapters: Array<{ order: number; content: string }>,
+): ChapterSeamDuplicate[] {
+  const sorted = chapters.slice().sort((a, b) => a.order - b.order);
+  const results: ChapterSeamDuplicate[] = [];
+  const normalize = (s: string) => s
+    .toLowerCase()
+    .replace(/["„“”»«'‚‘’\s]+/g, " ")
+    .trim();
+  const sentencesOf = (text: string) => String(text || "")
+    .split(/(?<=[.!?…])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  for (let i = 1; i < sorted.length; i += 1) {
+    const prev = sorted[i - 1];
+    const next = sorted[i];
+    const tailSentences = new Set(
+      sentencesOf(String(prev.content || "").slice(-400))
+        .map(normalize)
+        .filter((s) => s.split(" ").length >= 4)
+    );
+    if (tailSentences.size === 0) continue;
+    const duplicated: string[] = [];
+    const seen = new Set<string>();
+    for (const sentence of sentencesOf(String(next.content || "").slice(0, 400))) {
+      const norm = normalize(sentence);
+      if (norm.split(" ").length < 4) continue;
+      if (tailSentences.has(norm) && !seen.has(norm)) {
+        seen.add(norm);
+        duplicated.push(sentence);
+      }
+    }
+    if (duplicated.length >= 2) {
+      results.push({ previousOrder: prev.order, order: next.order, sentences: duplicated.slice(0, 3) });
+    }
+  }
+  return results;
+}
 // ---------------------------------------------------------------------------
 // Last-mile serialization integrity gate
 // ---------------------------------------------------------------------------

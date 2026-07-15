@@ -55,6 +55,7 @@ import {
   validateGermanGrammar,
   detectHelperExplainsSolution,
   detectStructureSignals,
+  detectChapterSeamDuplicates,
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
   diversifyRepeatedSceneCardFields,
@@ -11185,6 +11186,20 @@ function analyzeDevModeStoryQuality(
       softIssues.push("Finale endet eher mit Erklärung als mit Bild/Handlung; baue konkrete Schlussbeobachtung ein.");
     }
   }
+
+  // Chapter-seam duplicate guard: a page must not reopen with the sentences
+  // the previous page closed on (chapter-repair artifact, run 4c0e2169 —
+  // a visible print defect in the PDF, so it must cost score until polished).
+  for (const seam of detectChapterSeamDuplicates(
+    story.chapters.map((c) => ({ order: c.order, content: c.content }))
+  )) {
+    softIssues.push(
+      `Naht-Duplikat: Leseseite ${seam.order} beginnt mit denselben Sätzen, mit denen Leseseite ${seam.previousOrder} endet ("${seam.sentences[0]}"). Entferne die Wiederholung am Seitenanfang.`
+    );
+    polishInstructions.push(
+      "Entferne wortgleiche Satzwiederholungen an Seitengrenzen: Ein Seitenanfang darf die Schlusssätze der vorherigen Seite nicht erneut erzählen; formuliere den Anschluss als neue Bewegung."
+    );
+  }
   for (const titleIssue of collectTitlePromiseIssues(story, input)) {
     // Title-promise is a HARD gate: if the title makes a concrete promise and
     // the prose never redeems it, the book misleads the child reader. Polish
@@ -11752,6 +11767,24 @@ function releaseBlockingValidatorMustFixes(
       && !structuralIssuePattern.test(fix)
       && (diagnostics?.dialogPct ?? 0) >= DEV_MODE_MIN_DIALOG_PCT
     ))
+    // Validators occasionally demand that the story's value/lesson be named
+    // MORE explicitly (run 4c0e2169: "sollte im Text noch expliziter als
+    // 'selbstlos' verankert werden"). That is the exact opposite of the
+    // no-explained-moral rules the local gates enforce — following it would
+    // moralize a clean story, and blocking on it fails a good story for a
+    // non-defect. Such notes still reach the polish prompt as advice via the
+    // unfiltered validator findings; they just never block a release.
+    .filter((fix) => {
+      const demandsExplicitness = /\b(explizit\w*|w(ö|oe)rtlich\w*|ausdr(ü|ue)cklich\w*|deutlicher|klarer|st(ä|ae)rker)\b.{0,80}\b(veranker\w*|benenn\w*|benannt|ausgesprochen|aussprechen|formulier\w*|nennen|genannt|machen|sagen)\b/i;
+      const namesAValue = /\b(selbstlos\w*|moral\w*|lehre|lektion|botschaft|werte?\b|freundschaft|ehrlichkeit|mut|zusammenhalt|teilen|hilfsbereit\w*)\b/i;
+      const asksToMoralize = demandsExplicitness.test(fix) && namesAValue.test(fix);
+      if (asksToMoralize) {
+        console.log("[dev-mode-generation] Dropping moralizing validator must-fix from release blockers", {
+          fix: fix.slice(0, 160),
+        });
+      }
+      return !asksToMoralize;
+    })
     .map((fix) => `Validator must-fix before premium release: ${fix}`);
 }
 // --- RepairRouter (v11 Section E + v12 §O) -----------------------------

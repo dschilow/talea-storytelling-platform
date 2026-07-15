@@ -12,6 +12,7 @@ type ProgressiveImageProps = {
   fallback?: React.ReactNode;
   revealDelayMs?: number;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
 };
 
 export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
@@ -23,6 +24,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   fallback,
   revealDelayMs = 0,
   loading = 'lazy',
+  fetchPriority = 'auto',
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -43,9 +45,11 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
           src={src ?? undefined}
           alt={alt}
           loading={loading}
+          decoding="async"
+          fetchPriority={fetchPriority}
           initial={{ opacity: 0, scale: 1.03 }}
           animate={loaded ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 1.03 }}
-          transition={{ duration: 0.35, ease: 'easeOut', delay: revealDelayMs / 1000 }}
+          transition={{ duration: 0.35, ease: 'easeOut', delay: loaded ? 0 : revealDelayMs / 1000 }}
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
           className={cn('h-full w-full object-cover', imageClassName)}

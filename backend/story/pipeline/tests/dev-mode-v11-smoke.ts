@@ -19,6 +19,7 @@ import {
   validateGermanGrammar,
   detectHelperExplainsSolution,
   detectStructureSignals,
+  detectChapterSeamDuplicates,
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
   diversifyRepeatedSceneCardFields,
@@ -630,6 +631,22 @@ console.log("\n[12] Story-structure detectors fire as expected");
   ];
   const idiomSig = detectStructureSignals(idiomChapters);
   check("body-part idiom is not a sacrifice", !idiomSig.hasPersonalSacrifice, JSON.stringify(idiomSig));
+
+  // Chapter-seam duplicates (run 4c0e2169: page 5 reopened with page 4's
+  // closing sentences after an isolated chapter-repair).
+  const seamChapters = [
+    { order: 4, content: "„Mein Schlüssel hält“, murmelte Adrian. Die Zahnräder drehten sich schneller. Nicht hektisch. Im Takt der Stimme. Wie ein langsamer Walzer. Die Wand bebte noch einmal. Dann stand sie still." },
+    { order: 5, content: "Die Zahnräder drehten sich schneller. Nicht hektisch. Im Takt. Wie ein langsamer Walzer. „Hörst du?“, fragte Fauchi. Er legte den Kopf schief." },
+  ];
+  const seams = detectChapterSeamDuplicates(seamChapters);
+  check("seam duplicate detected", seams.length === 1 && seams[0].order === 5, JSON.stringify(seams));
+
+  // A single repeated refrain line across the seam is a stylistic echo, not a defect.
+  const refrainChapters = [
+    { order: 1, content: "Adrian lachte laut. Ein Klick, ein Ruck, das Ende rückt. Dann wurde es still im Turm." },
+    { order: 2, content: "Ein Klick, ein Ruck, das Ende rückt. Alexander öffnete das schwere Buch und begann zu lesen." },
+  ];
+  check("single refrain line is not flagged", detectChapterSeamDuplicates(refrainChapters).length === 0, JSON.stringify(detectChapterSeamDuplicates(refrainChapters)));
 
   // classifyNoveltyHit
   const cls = classifyNoveltyHit("marchengeschichte", "Eine warme Märchengeschichte über Helden.", ["Kapitel 1"], ["Adrian ging zur Brücke."]);
