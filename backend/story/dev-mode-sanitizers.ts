@@ -586,6 +586,17 @@ const SACRIFICE_THROW_PATTERN = /\b(?:warf|wirft|schleuderte|schmiss)\b.{0,60}\b
 const SACRIFICE_DESTROY_PATTERN = /\b(?:brach\w*\s+auf|zerbrach\w*|zerriss\w*|zerst(?:ö|oe)rte\w*|riss\b.{0,30}\b(?:ab|auf|los)|stemmte\s+sich\s+dagegen|drückte\s+.{0,30}\b(?:zwischen|gegen))\b/i;
 const SACRIFICE_DESTROY_CONFIRMATION_PATTERN = /\b(?:fielen?\s+(?:zu\s+boden|ab)|leblos|zerbrochen|kaputt|in\s+st(?:ü|ue)cke|grau\s+und\s+spr(?:ö|oe)de|spr(?:ö|oe)de|barfu(?:ß|ss))\b/i;
 
+// Submersion/relinquish sacrifice (run a611384d "Die Karte der steinigen
+// Schritte": "Alexander ließ die Karte sinken. In die Pfütze […] Sie
+// blubberte auf. Versank." — the child deliberately lets a beloved object
+// sink/go under; no give/place/throw/destroy verb matched, so the detector
+// reported "kein persönlicher Einsatz", the premium score was capped
+// 8.8→8.4 and two chapter-repair rounds chased a sacrifice that was already
+// on the page). Body-part idioms ("ließ den Kopf sinken") are excluded, and
+// a loss confirmation must appear in the same chapter window.
+const SACRIFICE_RELEASE_PATTERN = /\blie(?:ß|ss)\s+(?!den\s+kopf|die\s+h(?:a|ä)nde?|die\s+arme|die\s+schultern|die\s+stimme|den\s+blick|die\s+mundwinkel)(?:\w+\s+){0,4}?(?:sinken|fallen|zur(?:ue|ü)ck)\b|\bversenkte?\w*\b/i;
+const SACRIFICE_RELEASE_CONFIRMATION_PATTERN = /\b(?:versank\w*|versunken|ging\s+unter|blubberte|unbrauchbar|war\s+(?:fort|weg|verloren)|blieb\s+(?:fort|unten|verschwunden)|nie\s+wieder)\b/i;
+
 const IMAGE_FINALE_HINTS = [
   // Ends in a concrete sensory image rather than a moral statement
   "ping", "tickte", "schnurrte", "atmete", "leuchtete", "knirschte", "summte",
@@ -631,7 +642,8 @@ export function detectStructureSignals(
       || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw))
       || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower))
       || SACRIFICE_THROW_PATTERN.test(lower)
-      || (SACRIFICE_DESTROY_PATTERN.test(lower) && SACRIFICE_DESTROY_CONFIRMATION_PATTERN.test(lower));
+      || (SACRIFICE_DESTROY_PATTERN.test(lower) && SACRIFICE_DESTROY_CONFIRMATION_PATTERN.test(lower))
+      || (SACRIFICE_RELEASE_PATTERN.test(lower) && SACRIFICE_RELEASE_CONFIRMATION_PATTERN.test(lower));
   };
   const hasPersonalSacrifice = sacrificeIn(midContent)
     || sorted.slice(-2).some((c) => sacrificeIn(c.content));

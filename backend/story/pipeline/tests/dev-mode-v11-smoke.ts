@@ -608,6 +608,29 @@ console.log("\n[12] Story-structure detectors fire as expected");
   check("personal sacrifice detected", sig.hasPersonalSacrifice);
   check("finale ends in image", sig.finaleEndsInImage);
 
+  // Submersion sacrifice (run a611384d: "ließ die Karte sinken … Versank."
+  // was reported as "kein persönlicher Einsatz" and capped the score).
+  const submersionChapters = [
+    { order: 1, title: "A", content: "Alexander fand die Karte." },
+    { order: 2, title: "B", content: "Der Weg wurde schlammig." },
+    { order: 3, title: "C", content: "Die Karte riss quer durch." },
+    { order: 4, title: "D", content: "Alexander ließ die Karte sinken. In die Pfütze vor der Tür. Sie blubberte auf. Versank." },
+    { order: 5, title: "E", content: "Draußen glitzerte das Pergamentstück im Mondlicht." },
+  ];
+  const subSig = detectStructureSignals(submersionChapters);
+  check("submersion sacrifice detected", subSig.hasPersonalSacrifice, JSON.stringify(subSig));
+
+  // Body-part idiom must NOT count as a sacrifice even next to a loss word.
+  const idiomChapters = [
+    { order: 1, title: "A", content: "Adrian ging los." },
+    { order: 2, title: "B", content: "Er suchte weiter." },
+    { order: 3, title: "C", content: "Adrian ließ den Kopf sinken. Der Schlüssel war fort." },
+    { order: 4, title: "D", content: "Sie suchten gemeinsam." },
+    { order: 5, title: "E", content: "Die Lampe leuchtete still." },
+  ];
+  const idiomSig = detectStructureSignals(idiomChapters);
+  check("body-part idiom is not a sacrifice", !idiomSig.hasPersonalSacrifice, JSON.stringify(idiomSig));
+
   // classifyNoveltyHit
   const cls = classifyNoveltyHit("marchengeschichte", "Eine warme Märchengeschichte über Helden.", ["Kapitel 1"], ["Adrian ging zur Brücke."]);
   check("metadata-only motif classified as metadata_only", cls === "metadata_only", `got ${cls}`);
