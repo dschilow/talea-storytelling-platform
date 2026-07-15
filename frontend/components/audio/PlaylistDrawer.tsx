@@ -204,15 +204,11 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     (item) => item.conversionStatus === 'pending' || item.conversionStatus === 'converting',
   ).length;
   const errorCount = playlist.filter((item) => item.conversionStatus === 'error').length;
-  const nextItem =
-    playlist
-      .slice(currentIndex >= 0 ? currentIndex + 1 : 0)
-      .find((item) => item.conversionStatus !== 'error') || null;
   const summaryTitle =
     currentItem?.parentStoryTitle ||
     currentItem?.parentDokuTitle ||
     currentItem?.title ||
-    'Warteschlange';
+    'Playlist';
   const summaryDetail = currentItem?.description || 'Waehle einen Titel oder starte direkt die naechste Folge.';
 
   const surfaceStyle = {
@@ -548,7 +544,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)]">
-              Warteschlange
+              Playlist
             </p>
             <h3
               className="mt-2 text-[1.6rem] font-semibold text-[var(--talea-text-primary)]"
@@ -606,35 +602,11 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[
-              { label: 'Bereit', value: readyCount },
-              { label: 'Laden', value: convertingCount },
-              { label: 'Fehler', value: errorCount },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-[1rem] px-3 py-2"
-                style={{ background: 'var(--talea-surface-inset)' }}
-              >
-                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-                  {item.label}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-[1rem] border px-3 py-2.5" style={{ borderColor: 'var(--talea-border-light)' }}>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-              Als naechstes
-            </p>
-            <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">
-              {nextItem?.title || 'Noch nichts geplant'}
-            </p>
-          </div>
+          <p className="mt-3 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+            {readyCount} von {playlist.length} bereit
+            {convertingCount > 0 ? ` · ${convertingCount} in Vorbereitung` : ''}
+            {errorCount > 0 ? ` · ${errorCount} fehlgeschlagen` : ''}
+          </p>
         </div>
 
         {playlist.length > 0 ? (
@@ -711,10 +683,10 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
             >
               <Sparkles className="h-8 w-8 text-[var(--primary)]" />
               <p className="mt-4 text-lg font-semibold text-[var(--talea-text-primary)]">
-                Noch keine Titel in der Queue
+                Deine Playlist ist noch leer
               </p>
               <p className="mt-2 text-sm font-medium text-[var(--talea-text-secondary)]">
-                Fuege Stories oder Dokus hinzu, damit sie hier direkt weiterlaufen koennen.
+                Füge Stories oder Dokus über das Kopfhörer-Symbol hinzu — sie laufen dann automatisch nacheinander.
               </p>
             </div>
           ) : activeTab === 'stories' ? (

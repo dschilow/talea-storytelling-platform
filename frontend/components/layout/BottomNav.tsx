@@ -3,6 +3,7 @@ import {
   Bot,
   BookOpen,
   Brain,
+  ChevronUp,
   FlaskConical,
   Home,
   ListMusic,
@@ -45,13 +46,6 @@ const NAV_ITEMS: NavItem[] = [
     },
   },
 ];
-
-const formatTime = (value: number) => {
-  if (!Number.isFinite(value) || value < 0) return '0:00';
-  const minutes = Math.floor(value / 60);
-  const seconds = Math.floor(value % 60);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
 
 const BottomNav: React.FC = () => {
   const { t } = useTranslation();
@@ -170,21 +164,32 @@ const BottomNav: React.FC = () => {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 14, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-                className="mx-2 mb-1 mt-2 overflow-hidden rounded-[1.6rem] border"
+                className="mx-2 mb-1 mt-2 overflow-hidden rounded-[1.5rem] border"
                 style={{
                   borderColor: 'var(--talea-border-light)',
                   background:
                     'linear-gradient(180deg, color-mix(in srgb, var(--talea-surface-primary) 94%, white) 0%, color-mix(in srgb, var(--talea-surface-inset) 92%, transparent) 100%)',
                 }}
               >
-                <button
-                  type="button"
+                {/* Header: div statt <button>, weil verschachtelte Buttons
+                    (Play/Chevron im Header) invalides HTML sind und das
+                    Ein-/Ausklappen unzuverlässig machten. */}
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setPlayerExpanded((value) => !value)}
-                  className="w-full cursor-pointer px-3 pb-2 pt-3 text-left"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setPlayerExpanded((value) => !value);
+                    }
+                  }}
+                  className="w-full cursor-pointer select-none px-3 py-2.5 text-left"
+                  aria-expanded={playerExpanded}
                   aria-label={playerExpanded ? 'Player einklappen' : 'Player ausklappen'}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
+                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[0.9rem] border border-white/10 bg-[var(--talea-surface-inset)]">
                       {waitingForConversion && !track ? (
                         <div className="flex h-full w-full items-center justify-center">
                           <Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" />
@@ -192,7 +197,7 @@ const BottomNav: React.FC = () => {
                       ) : currentItem?.coverImageUrl || track?.coverImageUrl ? (
                         <img
                           src={currentItem?.coverImageUrl || track?.coverImageUrl}
-                          alt={currentItem?.title || track?.title || 'Talea Audio'}
+                          alt=""
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -200,45 +205,26 @@ const BottomNav: React.FC = () => {
                           <Volume2 className="h-4 w-4 text-[var(--talea-text-secondary)]" />
                         </div>
                       )}
+                      {isPlaying ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/28">
+                          <WaveformEqualizer isPlaying isWaiting={false} isDark={isDark} size="sm" />
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--primary)]">
-                          Now Playing
-                        </p>
+                      <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
+                        {waitingForConversion && !track ? 'Audio wird vorbereitet' : currentItem?.title || track?.title}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] font-medium text-[var(--talea-text-secondary)]">
                         {queueLabel ? (
-                          <span className="rounded-full bg-[var(--talea-surface-inset)] px-2 py-0.5 text-[10px] font-semibold text-[var(--talea-text-secondary)]">
+                          <span className="shrink-0 rounded-full bg-[var(--talea-surface-inset)] px-1.5 py-px text-[9px] font-semibold text-[var(--talea-text-tertiary)]">
                             {queueLabel}
                           </span>
                         ) : null}
-                      </div>
-                      <p className="mt-1 truncate text-sm font-semibold text-[var(--talea-text-primary)]">
-                        {waitingForConversion && !track ? 'Audio wird vorbereitet' : currentItem?.title || track?.title}
-                      </p>
-                      <p className="truncate text-[11px] font-medium text-[var(--talea-text-secondary)]">
-                        {subtitle}
+                        <span className="truncate">{subtitle}</span>
                       </p>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (isPlaylistActive && playlist.length > 0) {
-                          togglePlaylistDrawer();
-                        }
-                      }}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border"
-                      style={{
-                        borderColor: 'var(--talea-border-soft)',
-                        background: 'var(--talea-surface-primary)',
-                        color: 'var(--talea-text-secondary)',
-                      }}
-                      aria-label="Queue oeffnen"
-                    >
-                      <ListMusic className="h-4 w-4" />
-                    </button>
 
                     <button
                       type="button"
@@ -247,7 +233,11 @@ const BottomNav: React.FC = () => {
                         togglePlay();
                       }}
                       disabled={waitingForConversion && !track}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)] text-white disabled:opacity-50"
+                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md disabled:opacity-50"
+                      style={{
+                        background:
+                          'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 74%, white) 100%)',
+                      }}
                       aria-label={isPlaying ? 'Pause' : 'Play'}
                     >
                       {waitingForConversion && !track ? (
@@ -258,25 +248,32 @@ const BottomNav: React.FC = () => {
                         <Play className="ml-[1px] h-4 w-4" />
                       )}
                     </button>
-                  </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <WaveformEqualizer
-                        isPlaying={isPlaying}
-                        isWaiting={waitingForConversion}
-                        isDark={isDark}
-                        size="sm"
-                      />
-                      <span className="text-[11px] font-medium text-[var(--talea-text-secondary)]">
-                        {formatTime(currentTime)} / {formatTime(duration || 0)}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-                      {nextItem ? 'Up Next bereit' : 'Queue ansehen'}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setPlayerExpanded((value) => !value);
+                      }}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
+                      style={{
+                        borderColor: 'var(--talea-border-soft)',
+                        background: 'var(--talea-surface-primary)',
+                        color: 'var(--talea-text-secondary)',
+                      }}
+                      aria-expanded={playerExpanded}
+                      aria-label={playerExpanded ? 'Player einklappen' : 'Player ausklappen'}
+                    >
+                      <motion.span
+                        animate={{ rotate: playerExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.22, ease: 'easeOut' }}
+                        className="flex"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </motion.span>
+                    </button>
                   </div>
-                </button>
+                </div>
 
                 <div className="h-[3px] overflow-hidden bg-[var(--talea-progress-track)]">
                   <motion.div
@@ -292,73 +289,46 @@ const BottomNav: React.FC = () => {
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.22, ease: 'easeOut' }}
+                      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                       className="overflow-hidden border-t"
                       style={{ borderColor: 'var(--talea-border-light)' }}
                     >
-                      <div className="space-y-4 px-3 pb-3 pt-3">
-                        <div className="rounded-[1.25rem] border p-3" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-primary)' }}>
-                          <div className="flex items-start gap-3">
-                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[1rem] border border-white/10 bg-[var(--talea-surface-inset)]">
-                              {currentItem?.coverImageUrl || track?.coverImageUrl ? (
-                                <img
-                                  src={currentItem?.coverImageUrl || track?.coverImageUrl}
-                                  alt={currentItem?.title || track?.title || 'Talea Audio'}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center">
-                                  <Volume2 className="h-5 w-5 text-[var(--talea-text-tertiary)]" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--primary)]">
-                                {currentItem?.type === 'doku'
-                                  ? 'Doku'
-                                  : currentItem?.type === 'audio-doku'
-                                    ? 'Audio'
-                                    : 'Story'}
-                              </p>
-                              <p className="mt-2 text-base font-semibold text-[var(--talea-text-primary)]">
-                                {currentItem?.title || track?.title}
-                              </p>
-                              <p className="mt-1 text-[12px] font-medium leading-5 text-[var(--talea-text-secondary)]">
-                                {currentItem?.description || 'Direkt weiterhoeren oder zur Queue springen.'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
+                      <div className="space-y-4 px-4 pb-4 pt-3.5">
                         <AudioPlaybackControls
-                          variant="full"
+                          variant="streaming"
                           showClose
                           showNavigation={isPlaylistActive && playlist.length > 1}
-                          onQueueClick={isPlaylistActive ? togglePlaylistDrawer : undefined}
+                          onQueueClick={playlist.length > 0 ? togglePlaylistDrawer : undefined}
                         />
 
                         {nextItem ? (
                           <button
                             type="button"
                             onClick={togglePlaylistDrawer}
-                            className="flex w-full items-center justify-between rounded-[1.2rem] border px-4 py-3 text-left"
+                            className="flex w-full items-center gap-3 rounded-[1.1rem] border px-3 py-2.5 text-left"
                             style={{
                               borderColor: 'var(--talea-border-light)',
                               background: 'var(--talea-surface-primary)',
                             }}
                           >
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-                                Up Next
+                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.8rem] bg-[var(--talea-surface-inset)]">
+                              {nextItem.coverImageUrl ? (
+                                <img src={nextItem.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center">
+                                  <Volume2 className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
+                                Als Nächstes
                               </p>
-                              <p className="mt-1 text-sm font-semibold text-[var(--talea-text-primary)]">
+                              <p className="mt-0.5 truncate text-sm font-semibold text-[var(--talea-text-primary)]">
                                 {nextItem.title}
                               </p>
                             </div>
-                            <span className="text-[11px] font-medium text-[var(--talea-text-secondary)]">
-                              Queue oeffnen
-                            </span>
+                            <ListMusic className="h-4 w-4 shrink-0 text-[var(--talea-text-tertiary)]" />
                           </button>
                         ) : null}
                       </div>
