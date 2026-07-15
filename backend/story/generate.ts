@@ -289,6 +289,11 @@ export interface StoryConfig {
   // memory inserts. Output is still persisted as a normal story so it can be
   // read in the reader.
   developerMode?: boolean;
+
+  // Editorial content rendered by the normal reader but stored outside the
+  // user-story progression system.
+  contentType?: "standard" | "character_life";
+  characterId?: string;
 }
 
 export interface LearningMode {

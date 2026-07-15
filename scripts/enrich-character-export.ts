@@ -7,10 +7,11 @@ type CharacterRecord = Record<string, unknown> & {
   dominantPersonality?: string;
   secondaryTraits?: string[];
   physical_description?: string;
-  visualProfile?: { description?: string };
+  visualProfile?: { description?: string; imagePrompt?: string };
 };
 
 type Enrichment = {
+  name?: string;
   backstory: string;
   profession_tags: string[];
   age_category: "child" | "teenager" | "young_adult" | "adult" | "elder" | "ageless" | "any";
@@ -19,6 +20,7 @@ type Enrichment = {
   size_category: "tiny" | "small" | "medium" | "large" | "giant" | "any";
   social_class: "royalty" | "nobility" | "merchant" | "craftsman" | "commoner" | "outcast" | "any";
   physical_description?: string;
+  imagePrompt?: string;
 };
 
 const sourcePath = resolve("Logs/talea-characters-2026-04-27T11-17-53-120Z.json");
@@ -137,7 +139,8 @@ const enrichments: Record<string, Enrichment> = {
     profession_tags: ["explorer", "student", "mapmaker", "investigator"], age_category: "child", gender: "female", species_category: "human", size_category: "medium", social_class: "commoner",
   },
   "b1a2c001-1111-4b01-8001-000000000003": {
-    backstory: "Morbus liebte einst Farben, Speisen und Menschen so heftig, dass jeder Verlust schmerzte. Um sich zu schützen, beschloss er, nichts mehr wichtig zu finden, und sein Umhang begann die Welt um ihn herum auszubleichen. Lieblingsdinge machen ihn wütend und neugierig zugleich, weil sie an das erinnern, was er aufgegeben hat.",
+    name: "Graumund der Gleichgültige",
+    backstory: "Graumund liebte einst Farben, Speisen und Menschen so heftig, dass jeder Verlust schmerzte. Um sich zu schützen, beschloss er, nichts mehr wichtig zu finden, und sein Umhang begann die Welt um ihn herum auszubleichen. Lieblingsdinge machen ihn wütend und neugierig zugleich, weil sie an das erinnern, was er aufgegeben hat.",
     profession_tags: ["color_drain", "tempter", "magical_outcast"], age_category: "ageless", gender: "male", species_category: "magical_creature", size_category: "medium", social_class: "outcast",
     physical_description: "Schlanke Gestalt mit hellen Augen und einem langen grauen Umhang, dessen Saum Farben aus dem Boden zieht und als blasse Fäden hinter sich herträgt.",
   },
@@ -176,7 +179,9 @@ const enrichments: Record<string, Enrichment> = {
     physical_description: "Schmaler Junge mit dunklem Umhang und wachem, misstrauischem Blick. Sein auffallend dunkler Schatten bewegt sich stets eine halbe Sekunde später als er selbst.",
   },
   "4dd05b89-affe-49ce-b9d5-53cd0496bcee": {
-    backstory: "Der Schwarzmagier nannte sich einst Meister Vardun und war ein begabter Hüter kleiner Lichtzauber. Als andere mehr Applaus bekamen, wandte er sich Schattenmagie zu und gab sich den Namen Morbus, um gefürchtet zu werden. Macht ist für ihn der Versuch, nie wieder übersehen zu werden; aufrichtiges Licht macht ihn deshalb besonders wütend.",
+    name: "Schwarzmagier Vardun",
+    backstory: "Vardun war einst ein begabter Hüter kleiner Lichtzauber. Als andere mehr Applaus bekamen, wandte er sich Schattenmagie zu und suchte immer größere Macht, um nie wieder übersehen zu werden. Aufrichtiges Licht macht ihn besonders wütend, weil es ihn an das Talent erinnert, das er für Anerkennung aufgegeben hat.",
+    imagePrompt: "Portrait of Dark Mage Vardun, wearing soot-black robes with glowing violet runes, pale skin, holding a staff with a dark purple crystal, theatrical shadow magic, child-safe European storybook illustration.",
     profession_tags: ["dark_wizard", "sorcerer", "ruler", "strategist"], age_category: "adult", gender: "male", species_category: "human", size_category: "medium", social_class: "outcast",
   },
   "b1a2c001-1111-4b01-8001-000000000010": {
@@ -213,7 +218,7 @@ const enriched = characters.map((character) => {
 
   const physicalDescription = enrichment.physical_description ?? character.physical_description;
   const visualProfile = character.visualProfile && physicalDescription
-    ? { ...character.visualProfile, description: physicalDescription }
+    ? { ...character.visualProfile, description: physicalDescription, imagePrompt: enrichment.imagePrompt ?? character.visualProfile.imagePrompt }
     : character.visualProfile;
 
   return {

@@ -110,7 +110,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
       return;
     }
 
-    updateState({ selectedAvatars: preferredIds.slice(0, 3) });
+    updateState({ selectedAvatars: preferredIds.slice(0, 1) });
   }, [activeProfile, orderedAvatars, state.selectedAvatars.length, updateState]);
 
   const selectedLabel = useMemo(() => {

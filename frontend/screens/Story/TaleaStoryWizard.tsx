@@ -299,7 +299,7 @@ export default function TaleaStoryWizard() {
 
     lastAppliedProfileRef.current = activeProfile.id;
     const defaultAgeGroup = ageToAgeGroup(activeProfile.age);
-    const defaultAvatarIds = getPreferredAvatarIds(activeProfile).slice(0, 3);
+    const defaultAvatarIds = getPreferredAvatarIds(activeProfile).slice(0, 1);
 
     setState((prev) => ({
       ...prev,

@@ -23,8 +23,13 @@ const DokuScrollReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const targetAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ?? null;
   const queryDomainHint = new URLSearchParams(location.search).get('domain');
 
   const [doku, setDoku] = useState<Doku | null>(null);
@@ -70,7 +75,7 @@ const DokuScrollReaderScreen: React.FC = () => {
   };
 
   const handleDokuCompletion = async () => {
-    console.log('📚 Doku completed - triggering personality updates for all eligible avatars');
+    console.log('📚 Doku completed - updating its selected avatar');
     if (!doku || !dokuId || dokuCompleted) {
       console.log('Doku completion aborted - missing requirements or already completed');
       return;
@@ -95,6 +100,7 @@ const DokuScrollReaderScreen: React.FC = () => {
           topic: doku.topic,
           perspective: doku.metadata?.configSnapshot?.perspective,
           profileId: activeProfileId || undefined,
+          avatarId: targetAvatarId ?? undefined,
           domainId:
             (queryDomainHint ? queryDomainHint : undefined) ||
             doku.metadata?.configSnapshot?.domainId,
@@ -107,7 +113,7 @@ const DokuScrollReaderScreen: React.FC = () => {
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
-              avatarId: mapAvatarId ?? undefined,
+              avatarId: targetAvatarId ?? undefined,
               refreshProgression: true,
               source: 'doku',
               updatedAt: new Date().toISOString(),
@@ -341,6 +347,7 @@ const DokuScrollReaderScreen: React.FC = () => {
                           <QuizComponent
                             section={section}
                             dokuTitle={doku.title}
+                            avatarId={targetAvatarId ?? undefined}
                             dokuId={dokuId}
                             dokuTopic={doku.topic}
                             dokuMetadata={doku.metadata}

@@ -2,7 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
-import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { assertProfilesBelongToUser, getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import {
   buildTopicId,
@@ -201,22 +201,31 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
       userAvatars = [{ id: specificAvatar.id, name: specificAvatar.name }];
     } else {
-      userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT a.id, a.name
-        FROM avatars a
-        WHERE a.user_id = ${userId}
-          AND (
-            a.profile_id IS NULL
-            OR a.profile_id = ${activeProfileId}
-            OR EXISTS (
-              SELECT 1
-              FROM avatar_profile_links apl
-              WHERE apl.avatar_id = a.id
-                AND apl.user_id = ${userId}
-                AND apl.profile_id = ${activeProfileId}
+      const activeProfile = await getProfileForUser({ userId, profileId: activeProfileId });
+      const fallbackAvatarId = activeProfile.childAvatarId || activeProfile.preferredAvatarIds[0];
+      if (fallbackAvatarId) {
+        const fallbackAvatar = await avatarDB.queryRow<{ id: string; name: string }>`
+          SELECT a.id, a.name
+          FROM avatars a
+          WHERE a.id = ${fallbackAvatarId}
+            AND a.user_id = ${userId}
+            AND (
+              a.profile_id IS NULL
+              OR a.profile_id = ${activeProfileId}
+              OR EXISTS (
+                SELECT 1
+                FROM avatar_profile_links apl
+                WHERE apl.avatar_id = a.id
+                  AND apl.user_id = ${userId}
+                  AND apl.profile_id = ${activeProfileId}
+              )
             )
-          )
-      `;
+          LIMIT 1
+        `;
+        if (fallbackAvatar) {
+          userAvatars = [fallbackAvatar];
+        }
+      }
     }
 
     if (userAvatars.length === 0) {

@@ -78,7 +78,8 @@ const CinematicDokuViewer: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
   const { resolvedTheme } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -96,6 +97,10 @@ const CinematicDokuViewer: React.FC = () => {
     () => new URLSearchParams(location.search).get('mapAvatarId'),
     [location.search],
   );
+  const targetAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ?? null;
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const openMode = query.get('open');
   const autoJumpDoneRef = useRef(false);
@@ -185,6 +190,7 @@ const CinematicDokuViewer: React.FC = () => {
           perspective: doku.metadata?.configSnapshot?.perspective,
           profileId: activeProfileId || undefined,
           domainId: domainHint,
+          avatarId: targetAvatarId ?? undefined,
         }),
       });
       if (response.ok) {
@@ -193,7 +199,7 @@ const CinematicDokuViewer: React.FC = () => {
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
-              avatarId: mapAvatarId ?? undefined,
+              avatarId: targetAvatarId ?? undefined,
               refreshProgression: true,
               source: 'doku',
               updatedAt: new Date().toISOString(),
@@ -383,6 +389,7 @@ const CinematicDokuViewer: React.FC = () => {
               total={sections.length}
               dokuTitle={doku.title}
               dokuId={dokuId || ''}
+              avatarId={targetAvatarId ?? undefined}
               dokuTopic={doku.topic}
               dokuMetadata={doku.metadata}
               coverImageUrl={doku.coverImageUrl}
@@ -438,6 +445,7 @@ const SectionView: React.FC<{
   index: number;
   total: number;
   dokuTitle: string;
+  avatarId?: string;
   dokuId: string;
   dokuTopic?: string;
   dokuMetadata?: {
@@ -451,7 +459,7 @@ const SectionView: React.FC<{
   onComplete?: () => void;
   isCompleted?: boolean;
   onBecomeActive: () => void;
-}> = ({ section, index, total, dokuTitle, dokuId, dokuTopic, dokuMetadata, coverImageUrl, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
+}> = ({ section, index, total, dokuTitle, dokuId, dokuTopic, dokuMetadata, avatarId, coverImageUrl, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
 
@@ -507,6 +515,7 @@ const SectionView: React.FC<{
             section={section}
             dokuTitle={dokuTitle}
             dokuId={dokuId}
+            avatarId={avatarId}
             dokuTopic={dokuTopic}
             dokuMetadata={dokuMetadata}
             variant="inline"

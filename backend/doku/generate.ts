@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { secret } from "encore.dev/config";
-import { ai, avatar } from "~encore/clients";
+import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { normalizeLanguage } from "../story/avatar-image-optimization";
@@ -549,80 +549,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         console.warn("Failed to register generated doku domain for cosmos", domainSyncError);
       }
 
-      // Apply personality & memory updates for ALL user avatars based on Doku topic
-      try {
-        const knowledgeTrait = inferKnowledgeSubcategory(config.topic, config.perspective);
-        const basePoints = 2
-          + (config.depth === "standard" ? 1 : 0)
-          + (config.depth === "deep" ? 2 : 0)
-          + (config.length === "long" ? 1 : 0);
-        const knowledgePoints = Math.max(1, Math.min(10, basePoints));
-
-        // Build changes with detailed descriptions
-        const subjectName = config.topic;
-        const changes = [
-          {
-            trait: knowledgeTrait,
-            change: knowledgePoints,
-            description: `+${knowledgePoints} ${knowledgeTrait.split('.')[1]} durch Doku "${parsed.title}" über ${subjectName}`
-          },
-          {
-            trait: "curiosity",
-            change: 1,
-            description: `+1 Neugier durch Doku-Lektüre über ${subjectName}`
-          },
-        ];
-
-        // Load avatars scoped to participant profiles
-        const userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-          SELECT a.id, a.name
-          FROM avatars a
-          WHERE a.user_id = ${currentUserId}
-            AND (
-              a.profile_id IS NULL
-              OR a.profile_id = ANY(${participantProfileIds})
-              OR EXISTS (
-                SELECT 1
-                FROM avatar_profile_links apl
-                WHERE apl.avatar_id = a.id
-                  AND apl.user_id = ${currentUserId}
-                  AND apl.profile_id = ANY(${participantProfileIds})
-              )
-            )
-        `;
-
-        for (const a of userAvatars) {
-          try {
-            await avatar.updatePersonality({
-              id: a.id,
-              changes,
-              storyId: id,
-              contentTitle: parsed.title,
-              contentType: 'doku'
-            });
-
-            // Create detailed development description
-            const developmentSummary = changes
-              .map(c => c.description || `${c.trait}: +${c.change}`)
-              .join(', ');
-
-            await avatar.addMemory({
-              id: a.id,
-              storyId: id,
-              storyTitle: parsed.title,
-              experience: `Ich habe die Doku "${parsed.title}" gelesen. Thema: ${config.topic}.`,
-              emotionalImpact: "positive",
-              personalityChanges: changes,
-              developmentDescription: `Wissensentwicklung: ${developmentSummary}`,
-              contentType: 'doku'
-            });
-          } catch (e) {
-            console.warn("Failed to update avatar from doku:", a.id, e);
-          }
-        }
-      } catch (applyErr) {
-        console.warn("Applying doku personality/memory updates failed:", applyErr);
-      }
+      // Avatar growth is awarded only after this doku is actually completed.
+      // The mark-read endpoint resolves one explicit avatar target and never broadcasts.
 
       const resolvedCoverImageUrl = await resolveImageUrlForClient(coverImageUrl);
 
@@ -1296,24 +1224,4 @@ ${imagePromptRules}`,
   };
 
   return prompts[language];
-}
-
-// Infer a knowledge subcategory ID from topic/perspective
-function inferKnowledgeSubcategory(topic: string, perspective?: string): string {
-  const t = `${topic} ${perspective ?? ""}`.toLowerCase();
-  const map: Array<{ keywords: string[]; id: string }> = [
-    { keywords: ["bio", "tier", "pflanz", "zoo", "mensch", "körper"], id: "knowledge.biology" },
-    { keywords: ["geschichte", "histor", "antike", "mittelalter", "krieg"], id: "knowledge.history" },
-    { keywords: ["physik", "kraft", "energie", "bewegung", "elektr", "licht"], id: "knowledge.physics" },
-    { keywords: ["erde", "karte", "kontinent", "geografie", "ocean", "meer"], id: "knowledge.geography" },
-    { keywords: ["stern", "planet", "weltall", "galax", "kosmos", "astronom"], id: "knowledge.astronomy" },
-    { keywords: ["mathe", "zahl", "rechnen", "geometr", "bruch"], id: "knowledge.mathematics" },
-    { keywords: ["chemie", "stoff", "reaktion", "element", "molekül"], id: "knowledge.chemistry" },
-  ];
-
-  for (const entry of map) {
-    if (entry.keywords.some(k => t.includes(k))) return entry.id;
-  }
-  // Default to general knowledge
-  return "knowledge.history";
 }

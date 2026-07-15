@@ -11,7 +11,6 @@ import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import Button from '../../components/common/Button';
 import type { Doku, DokuSection } from '../../types/doku';
-import type { Avatar } from '../../types/avatar';
 import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
@@ -45,8 +44,13 @@ const DokuReaderScreen: React.FC = () => {
   const backend = useBackend();
   const { getToken } = useAuth();
   const { isAdmin } = useOptionalUserAccess();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const targetAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ?? null;
   const queryDomainHint = new URLSearchParams(location.search).get('domain');
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -61,7 +65,6 @@ const DokuReaderScreen: React.FC = () => {
   const [animationDirection, setAnimationDirection] = useState(1);
 
   // Avatar-Integration (nur für UI-Notifications, keine Auswahl mehr nötig)
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null);
   const [personalityChanges, setPersonalityChanges] = useState<Array<{ trait: string; change: number }>>([]);
   const [showPersonalityNotification, setShowPersonalityNotification] = useState(false);
 
@@ -224,7 +227,7 @@ const DokuReaderScreen: React.FC = () => {
   const handleDokuCompletion = async () => {
     if (!doku || !dokuId) return;
 
-    console.log('📖 Doku completed - triggering personality updates for all eligible avatars');
+    console.log('📖 Doku completed - updating its selected avatar');
 
     try {
       // Get auth token and make direct API call
@@ -245,10 +248,11 @@ const DokuReaderScreen: React.FC = () => {
           topic: doku.topic,
           perspective: doku.metadata?.configSnapshot?.perspective,
           profileId: activeProfileId || undefined,
+          avatarId: targetAvatarId ?? undefined,
           domainId:
             (queryDomainHint ? queryDomainHint : undefined) ||
             doku.metadata?.configSnapshot?.domainId,
-          // No avatarId = update all eligible avatars
+          // Progress is awarded only to this doku's selected avatar.
         })
       });
 
@@ -259,7 +263,7 @@ const DokuReaderScreen: React.FC = () => {
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
-              avatarId: mapAvatarId ?? undefined,
+              avatarId: targetAvatarId ?? undefined,
               refreshProgression: true,
               source: 'doku',
               updatedAt: new Date().toISOString(),
@@ -382,7 +386,7 @@ const DokuReaderScreen: React.FC = () => {
         return (
           <QuizComponent
             section={section.originalSection}
-            avatarId={selectedAvatar?.id}
+            avatarId={targetAvatarId ?? undefined}
             dokuTitle={doku?.title}
             dokuId={dokuId}
             dokuTopic={doku?.topic}

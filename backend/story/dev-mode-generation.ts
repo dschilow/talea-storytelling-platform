@@ -530,6 +530,12 @@ export interface DevModeGenerationInput {
    * candidates so the prose can plant it naturally.
    */
   matchedArtifact?: DevModeMatchedArtifact;
+  /** Internal editorial override for fixed-format content such as character life stories. */
+  chapterCountOverride?: number;
+  /** Prevent automatic artifact selection for editorial content with its own canonical premise. */
+  disableArtifactSelection?: boolean;
+  /** Skip motif/artifact persistence while still keeping generation and stage logging intact. */
+  disablePersistenceSideEffects?: boolean;
 }
 
 /**
@@ -808,6 +814,12 @@ function deriveChapterCount(length: StoryConfig["length"]): number {
     default:
       return 5;
   }
+}
+
+function resolveDevModeChapterCount(input: DevModeGenerationInput): number {
+  const override = Number(input.chapterCountOverride);
+  if (Number.isFinite(override)) return Math.max(3, Math.min(8, Math.trunc(override)));
+  return deriveChapterCount(input.config.length);
 }
 
 function localizedLanguageName(language?: string): string {
@@ -1973,7 +1985,7 @@ async function selectDevModeArtifact(
     requiredAbility: undefined,
     contextHint: "Dev-mode whole-story-first: prefer a graspable child-readable prop usable as a red-thread object.",
     discoveryChapter: 2,
-    usageChapter: Math.max(3, deriveChapterCount(input.config.length) - 1),
+    usageChapter: Math.max(3, resolveDevModeChapterCount(input) - 1),
     importance: "medium",
   };
   const recentIds = (recentFingerprints || []).map((entry) => entry.id).filter(Boolean);
@@ -4700,7 +4712,7 @@ function minReleaseScoreForMode(mode?: DevModeQualityMode | "efficient" | "premi
 
 function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; userPrompt: string; chapterCount: number } {
   const { config, avatars, poolCharacters, primaryProfileAge } = input;
-  const chapterCount = deriveChapterCount(config.length);
+  const chapterCount = resolveDevModeChapterCount(input);
   const languageName = localizedLanguageName(config.language);
   const code = languageCodeFromName(languageName);
 
@@ -12429,7 +12441,7 @@ async function callProvider(
 export async function generateStoryDevMode(
   input: DevModeGenerationInput
 ): Promise<DevModeGeneratedStory> {
-  const chapterCount = deriveChapterCount(input.config.length);
+  const chapterCount = resolveDevModeChapterCount(input);
   const avatarNames = (input.avatars || []).map((a) => a.name).filter(Boolean);
   const poolNames = (input.poolCharacters || []).map((c) => c.name);
   const stageLogs: DevModeStageLog[] = [];
@@ -12458,7 +12470,7 @@ export async function generateStoryDevMode(
   // prop can act as the red-thread object across the whole pipeline (idea,
   // blueprint, draft, polish). Failure must NEVER block story generation \u2014
   // dev-mode is also used for cold-start / smoke runs without artifact_pool.
-  if (!input.matchedArtifact) {
+  if (!input.matchedArtifact && !input.disableArtifactSelection) {
     try {
       const matched = await selectDevModeArtifact(input, recentStoryFingerprints);
       if (matched) {
@@ -15500,7 +15512,7 @@ export async function generateStoryDevMode(
   // Best-effort: record the artifact assignment so usage counters and recent
   // history work the same way as in the standard pipeline. Failure here must
   // never break the generated story.
-  if (input.matchedArtifact?.id && input.storyId) {
+  if (!input.disablePersistenceSideEffects && input.matchedArtifact?.id && input.storyId) {
     try {
       await recordStoryArtifact(input.storyId, input.matchedArtifact.id, 2, Math.max(3, chapters.length - 1));
     } catch (err) {
@@ -15510,7 +15522,7 @@ export async function generateStoryDevMode(
 
   // v11 §3: record this story's motif fingerprint so future generations can
   // compare against it. Best-effort — a DB failure must never break delivery.
-  if (input.storyId && input.userId) {
+  if (!input.disablePersistenceSideEffects && input.storyId && input.userId) {
     try {
       const fingerprint = buildFingerprintFromBlueprint(input.storyId, {
         title: parsed.title,
