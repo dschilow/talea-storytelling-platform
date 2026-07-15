@@ -591,6 +591,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const featuredStory = filteredStories[0];
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
   const showFilterPanel = isDesktop || showFilters;
+  const isStudioTabActive = isAdmin && contentTab === "studio";
 
   return (
     <div className={cn(taleaPageShellClass, "flex flex-col gap-5 pb-6 pt-4 sm:gap-6 sm:pb-8 sm:pt-6")}>
@@ -623,9 +624,11 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
               {t("storiesScreen.storiesTab")}
             </button>
-            <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
-              {t("storiesScreen.studioTab")}
-            </button>
+            {isAdmin ? (
+              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+                {t("storiesScreen.studioTab")}
+              </button>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -644,7 +647,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
         </div>
       </div>
 
-      {contentTab === "stories" ? (
+      {!isStudioTabActive ? (
         <div className="flex flex-col gap-6 sm:gap-8 xl:flex-row xl:items-start">
           <div className="w-full xl:w-[18.5rem] xl:shrink-0 xl:sticky xl:top-24">
             <div className="flex items-center gap-3 xl:hidden">

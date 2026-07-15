@@ -82,6 +82,21 @@ interface StoryChange {
   description: string;
 }
 
+function toInventoryItemType(category: string): InventoryItem["type"] {
+  const normalized = category.trim().toLowerCase();
+
+  if (normalized === "weapon" || normalized === "armor") {
+    return "WEAPON";
+  }
+  if (normalized === "book" || normalized === "map" || normalized === "knowledge") {
+    return "KNOWLEDGE";
+  }
+  if (normalized === "companion") {
+    return "COMPANION";
+  }
+  return "TOOL";
+}
+
 export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
   { expose: true, method: "POST", path: "/story/mark-read", auth: true },
   async (req) => {
@@ -374,7 +389,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
       if (artifact) {
         const resolvedArtifactImageUrl = await buildArtifactImageUrlForClient(artifact.id, artifact.imageUrl);
-        unlockedArtifact = {
+        const artifactPayload: NonNullable<MarkStoryReadResponse["unlockedArtifact"]> = {
           id: artifact.id,
           name: artifact.name.de,
           description: artifact.description.de,
@@ -384,21 +399,22 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           visualKeywords: artifact.visualKeywords,
           imageUrl: resolvedArtifactImageUrl ?? artifact.imageUrl,
         };
+        let grantedToAtLeastOneAvatar = false;
 
         for (const userAvatar of userAvatars) {
           try {
             const inventoryItem: InventoryItem = {
               id: `artifact_${artifact.id}_${userAvatar.id}`,
-              name: unlockedArtifact.name,
-              type: artifact.category.toUpperCase() as InventoryItem["type"],
+              name: artifactPayload.name,
+              type: toInventoryItemType(artifact.category),
               level: 1,
               sourceStoryId: req.storyId,
-              description: unlockedArtifact.description,
+              description: artifactPayload.description,
               visualPrompt: artifact.visualKeywords.join(", "),
               tags: [artifact.category, artifact.rarity],
               acquiredAt: new Date().toISOString(),
               storyEffect: artifact.storyRole,
-              imageUrl: unlockedArtifact.imageUrl,
+              imageUrl: artifactPayload.imageUrl,
             };
 
             const avatarRow = await avatarDB.queryRow<{ inventory: string }>`
@@ -412,7 +428,10 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             }
 
             const inventory: InventoryItem[] = JSON.parse(avatarRow.inventory || "[]");
-            const alreadyHas = inventory.some((item) => item.id === inventoryItem.id);
+            const alreadyHas = inventory.some(
+              (item) =>
+                item.id === inventoryItem.id || item.sourceStoryId === req.storyId
+            );
 
             if (!alreadyHas) {
               inventory.push(inventoryItem);
@@ -422,10 +441,15 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ${userAvatar.id}
               `;
+              grantedToAtLeastOneAvatar = true;
             }
           } catch (inventoryError) {
             console.error(`Failed to add unlocked artifact for ${userAvatar.name}`, inventoryError);
           }
+        }
+
+        if (grantedToAtLeastOneAvatar) {
+          unlockedArtifact = artifactPayload;
         }
       }
     } catch (artifactError) {

@@ -556,16 +556,20 @@ export async function recordStoryArtifact(
  */
 export async function unlockStoryArtifact(storyId: string): Promise<ArtifactTemplate | null> {
   try {
-    // Get the artifact for this story
+    // The assignment belongs to the story, while ownership belongs to an avatar.
+    // Return the artifact even if another reader already unlocked the story marker;
+    // markRead performs the per-avatar duplicate check.
     const rows = await storyDB.queryAll<any>`
       SELECT ap.*, sa.discovery_chapter, sa.usage_chapter
       FROM story_artifacts sa
       JOIN artifact_pool ap ON sa.artifact_id = ap.id
-      WHERE sa.story_id = ${storyId} AND sa.is_unlocked = FALSE
+      WHERE sa.story_id = ${storyId}
+      ORDER BY sa.created_at ASC
+      LIMIT 1
     `;
 
     if (rows.length === 0) {
-      console.log("[ArtifactMatcher] No locked artifact found for story:", storyId);
+      console.log("[ArtifactMatcher] No artifact assignment found for story:", storyId);
       return null;
     }
 
@@ -575,7 +579,7 @@ export async function unlockStoryArtifact(storyId: string): Promise<ArtifactTemp
     await storyDB.exec`
       UPDATE story_artifacts
       SET is_unlocked = TRUE, unlocked_at = NOW()
-      WHERE story_id = ${storyId}
+      WHERE story_id = ${storyId} AND is_unlocked = FALSE
     `;
 
     return rowToArtifactTemplate(row);

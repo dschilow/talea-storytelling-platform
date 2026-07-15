@@ -128,6 +128,7 @@ export interface AvatarShareRecipient {
 
 export interface Avatar {
   id: string;
+  profileId?: string;
   userId: string;
   name: string;
   description?: string;

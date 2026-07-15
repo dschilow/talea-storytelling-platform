@@ -27,7 +27,7 @@ const LandingPage = React.lazy(() => import('./screens/Landing/LandingPage'));
 const AuthScreen = React.lazy(() => import('./screens/Auth/AuthScreen'));
 const AvatarsScreen = React.lazy(() => import('./screens/Avatar/TaleaAvatarsScreen'));
 const AvatarWizardScreen = React.lazy(() => import('./screens/Avatar/AvatarWizardScreen'));
-const AvatarDetailScreen = React.lazy(() => import('./screens/Avatar/AvatarDetailScreen'));
+const AvatarDetailScreen = React.lazy(() => import('./screens/Avatar/AvatarProfileScreen'));
 const EditAvatarScreen = React.lazy(() => import('./screens/Avatar/EditAvatarScreen'));
 const StoryWizardScreen = React.lazy(() => import('./screens/Story/StoryWizardScreen'));
 const ModernStoryWizard = React.lazy(() => import('./screens/Story/TaleaStoryWizard'));
