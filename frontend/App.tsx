@@ -238,6 +238,7 @@ const RouterContent = () => {
                 <Route path="/story/fairytale-selection" element={<FairyTaleSelectionScreen />} />
                 <Route path="/story/fairytale/:taleId/map-characters" element={<CharacterMappingScreen />} />
                 <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
                 <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
                 <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
                 <Route path="/stories" element={<StoriesScreen />} />
@@ -431,6 +432,7 @@ const OfflineApp = () => (
             <React.Suspense fallback={<RouteLoadingFallback />}>
               <Routes>
                 <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
                 <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
                 <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
                 <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />

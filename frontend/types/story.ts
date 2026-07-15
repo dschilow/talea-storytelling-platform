@@ -43,6 +43,8 @@ export interface StoryConfig {
   characters?: Character[];
   aiProvider?: AIProvider;
   openRouterModel?: string;
+  contentType?: 'standard' | 'character_life';
+  characterId?: string;
 }
 
 export interface Avatar {

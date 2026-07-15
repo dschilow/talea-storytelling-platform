@@ -397,6 +397,9 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
     if (req.updates.quirk !== undefined) {
       await storyDB.exec`UPDATE character_pool SET quirk = ${req.updates.quirk || null}, updated_at = ${now} WHERE id = ${req.id}`;
     }
+    if (req.updates.backstory !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET backstory = ${req.updates.backstory || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
 
     console.log("[CharacterPool] Character updated:", req.id);
 

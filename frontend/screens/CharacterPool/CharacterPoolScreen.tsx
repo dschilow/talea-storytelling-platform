@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import CharacterLifeStoryPanel from './CharacterLifeStoryPanel';
 import { useBackend } from '../../hooks/useBackend';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
@@ -44,6 +45,7 @@ interface CharacterTemplate {
   speechStyle?: string[];
   emotionalTriggers?: string[];
   quirk?: string;
+  backstory?: string;
 }
 
 type CharacterIdentifier = string | CharacterTemplate | { id?: string } | { value?: string } | null | undefined;
@@ -94,6 +96,7 @@ interface CharacterFormState {
   catchphraseContext: string;
   quirk: string;
   emotionalTriggers: string;
+  backstory: string;
 }
 
 const containerStyle: React.CSSProperties = {
@@ -680,6 +683,20 @@ const CharacterPoolScreen: React.FC = () => {
                   </div>
 
                   <div>
+                    <label style={inputLabelStyle} htmlFor="backstory">Kanonische Vorgeschichte</label>
+                    <textarea
+                      id="backstory"
+                      style={{ ...textAreaStyle, minHeight: 150 }}
+                      value={formState.backstory}
+                      onChange={(event) => setFormState({ ...formState, backstory: event.target.value })}
+                      placeholder="Die verbindlichen Ereignisse, Beziehungen und Wendepunkte vor den normalen Talea-Geschichten."
+                    />
+                    <p style={{ marginTop: spacing.xs, color: colors.text.secondary, fontSize: 12 }}>
+                      Diese Grundlage steuert die generierte Lebensgeschichte.
+                    </p>
+                  </div>
+
+                  <div>
                     <span style={sectionTitleStyle}>Charakter-Persoenlichkeit</span>
                     <div style={twoColumnStyle}>
                       <div>
@@ -870,6 +887,14 @@ const CharacterPoolScreen: React.FC = () => {
               </div>
             </div>
 
+            {!isNewCharacter && editingCharacter && resolveCharacterId(editingCharacter) && (
+              <CharacterLifeStoryPanel
+                characterId={resolveCharacterId(editingCharacter)!}
+                characterName={formState.name || editingCharacter.name}
+                characterImageUrl={formState.imageUrl}
+              />
+            )}
+
             <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
               {!isNewCharacter && editingCharacter && (
                 <Button
@@ -927,6 +952,7 @@ function mapCharacterToForm(character: CharacterTemplate): CharacterFormState {
     catchphraseContext: character.catchphraseContext ?? '',
     quirk: character.quirk ?? '',
     emotionalTriggers: (character.emotionalTriggers ?? []).join(', '),
+    backstory: character.backstory ?? '',
   };
 }
 
@@ -955,6 +981,7 @@ function createEmptyFormState(): CharacterFormState {
     catchphraseContext: '',
     quirk: '',
     emotionalTriggers: '',
+    backstory: '',
   };
 }
 
@@ -1015,6 +1042,7 @@ function buildCreatePayload(form: CharacterFormState): Omit<CharacterTemplate, "
     catchphraseContext: form.catchphraseContext.trim() || undefined,
     quirk: form.quirk.trim() || undefined,
     emotionalTriggers: parseCommaList(form.emotionalTriggers),
+    backstory: form.backstory.trim() || undefined,
   };
 }
 
@@ -1113,6 +1141,11 @@ function buildUpdatePayload(original: CharacterTemplate, form: CharacterFormStat
   const newEmotionalTriggers = parseCommaList(form.emotionalTriggers);
   if (JSON.stringify(newEmotionalTriggers) !== JSON.stringify(original.emotionalTriggers ?? [])) {
     updates.emotionalTriggers = newEmotionalTriggers;
+  }
+
+  const newBackstory = form.backstory.trim();
+  if (newBackstory !== (original.backstory ?? '')) {
+    updates.backstory = newBackstory;
   }
 
   return updates;

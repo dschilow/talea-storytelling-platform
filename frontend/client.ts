@@ -1673,6 +1673,12 @@ import {
 } from "~backend/story/audio-library";
 import { autoTest as api_story_auto_test_endpoint_autoTest } from "~backend/story/auto-test-endpoint";
 import {
+    generateCharacterLifeStory as api_story_character_life_story_api_generateCharacterLifeStory,
+    getCharacterLifeStory as api_story_character_life_story_api_getCharacterLifeStory,
+    setCharacterLifeStoryStatus as api_story_character_life_story_api_setCharacterLifeStoryStatus,
+    updateCharacterLifeStory as api_story_character_life_story_api_updateCharacterLifeStory
+} from "~backend/story/character-life-story-api";
+import {
     addCharacter as api_story_character_pool_api_addCharacter,
     batchRegenerateCharacterImages as api_story_character_pool_api_batchRegenerateCharacterImages,
     deleteCharacter as api_story_character_pool_api_deleteCharacter,
@@ -1768,6 +1774,7 @@ export namespace story {
             this.generate = this.generate.bind(this)
             this.generateArtifactImage = this.generateArtifactImage.bind(this)
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
+            this.generateCharacterLifeStory = this.generateCharacterLifeStory.bind(this)
             this.generateFromFairyTale = this.generateFromFairyTale.bind(this)
             this.generateStoryContent = this.generateStoryContent.bind(this)
             this.generateStudioEpisodeImages = this.generateStudioEpisodeImages.bind(this)
@@ -1776,6 +1783,7 @@ export namespace story {
             this.get = this.get.bind(this)
             this.getArtifact = this.getArtifact.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
+            this.getCharacterLifeStory = this.getCharacterLifeStory.bind(this)
             this.getCharacterStats = this.getCharacterStats.bind(this)
             this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this)
             this.getStoryAudio = this.getStoryAudio.bind(this)
@@ -1809,6 +1817,7 @@ export namespace story {
             this.runTest = this.runTest.bind(this)
             this.saveGeneratedAudio = this.saveGeneratedAudio.bind(this)
             this.seedPool = this.seedPool.bind(this)
+            this.setCharacterLifeStoryStatus = this.setCharacterLifeStoryStatus.bind(this)
             this.showArtifacts = this.showArtifacts.bind(this)
             this.splitStudioEpisodeScenes = this.splitStudioEpisodeScenes.bind(this)
             this.submitStoryQuizResult = this.submitStoryQuizResult.bind(this)
@@ -1816,6 +1825,7 @@ export namespace story {
             this.update = this.update.bind(this)
             this.updateArtifact = this.updateArtifact.bind(this)
             this.updateCharacter = this.updateCharacter.bind(this)
+            this.updateCharacterLifeStory = this.updateCharacterLifeStory.bind(this)
             this.updateStoryProfileState = this.updateStoryProfileState.bind(this)
             this.updateStudioCharacter = this.updateStudioCharacter.bind(this)
             this.updateStudioEpisodeScene = this.updateStudioEpisodeScene.bind(this)
@@ -2050,6 +2060,20 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_generateCharacterImage>
         }
 
+        public async generateCharacterLifeStory(params: RequestType<typeof api_story_character_life_story_api_generateCharacterLifeStory>): Promise<ResponseType<typeof api_story_character_life_story_api_generateCharacterLifeStory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                ageGroup:        params.ageGroup,
+                aiModel:         params.aiModel,
+                aiProvider:      params.aiProvider,
+                openRouterModel: params.openRouterModel,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.characterId)}/life-story/generate`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_generateCharacterLifeStory>
+        }
+
         /**
          * Generate a personalized story from a fairy tale template
          * This replaces the old 4-phase generation system
@@ -2125,6 +2149,12 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_getCharacter>
+        }
+
+        public async getCharacterLifeStory(params: { characterId: string }): Promise<ResponseType<typeof api_story_character_life_story_api_getCharacterLifeStory>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.characterId)}/life-story`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_getCharacterLifeStory>
         }
 
         public async getCharacterStats(params: { id: string }): Promise<ResponseType<typeof api_story_character_pool_api_getCharacterStats>> {
@@ -2377,6 +2407,17 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_seedPool>
         }
 
+        public async setCharacterLifeStoryStatus(params: RequestType<typeof api_story_character_life_story_api_setCharacterLifeStoryStatus>): Promise<ResponseType<typeof api_story_character_life_story_api_setCharacterLifeStoryStatus>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                status: params.status,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.characterId)}/life-story/status`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_setCharacterLifeStoryStatus>
+        }
+
         /**
          * Show comprehensive artifact pool data
          * Public endpoint (no auth) to verify database contents
@@ -2463,6 +2504,19 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_updateCharacter>
+        }
+
+        public async updateCharacterLifeStory(params: RequestType<typeof api_story_character_life_story_api_updateCharacterLifeStory>): Promise<ResponseType<typeof api_story_character_life_story_api_updateCharacterLifeStory>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                chapters:    params.chapters,
+                description: params.description,
+                title:       params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.characterId)}/life-story`, {method: "PATCH", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_updateCharacterLifeStory>
         }
 
         public async updateStoryProfileState(params: RequestType<typeof api_story_profile_state_updateStoryProfileState>): Promise<ResponseType<typeof api_story_profile_state_updateStoryProfileState>> {

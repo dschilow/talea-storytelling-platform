@@ -99,6 +99,7 @@ const CinematicStoryViewer: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const isCharacterLifeRoute = location.pathname.startsWith('/character-life-story/');
   const backend = useBackend();
   const { getToken } = useAuth();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
@@ -120,6 +121,9 @@ const CinematicStoryViewer: React.FC = () => {
   const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
   const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
   const { showCompletionResults } = usePostStoryFlow();
+  const isCharacterLifeStory = isCharacterLifeRoute || story?.config.contentType === 'character_life';
+  const returnPath = isCharacterLifeStory && isAdmin ? '/characters' : '/stories';
+  const returnLabel = returnPath === '/characters' ? 'Zurück zu den Charakteren' : 'Zurück zu Geschichten';
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getStoryPalette(isDark), [isDark]);
@@ -148,7 +152,7 @@ const CinematicStoryViewer: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      let rawStory: any = isAdmin ? null : await getOfflineStory(storyId);
+      let rawStory: any = isAdmin || isCharacterLifeRoute ? null : await getOfflineStory(storyId);
       if (!rawStory) {
         const storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
         rawStory = storyData as any;
@@ -190,6 +194,7 @@ const CinematicStoryViewer: React.FC = () => {
     if (!story || !storyId || storyCompleted) return;
     try {
       setStoryCompleted(true);
+      if (isCharacterLifeStory) return;
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
       const target = getBackendUrl();
@@ -302,8 +307,8 @@ const CinematicStoryViewer: React.FC = () => {
         <p style={{ fontFamily: 'var(--sr-font-heading)', fontSize: '1.4rem', color: palette.title }}>
           {error || 'Geschichte wurde nicht gefunden.'}
         </p>
-        <button type="button" onClick={() => navigate('/stories')} className="sr-finale-btn" style={{ marginTop: '1rem' }}>
-          Zurueck zu Geschichten
+        <button type="button" onClick={() => navigate(returnPath)} className="sr-finale-btn" style={{ marginTop: '1rem' }}>
+          {returnLabel}
         </button>
       </div>
     );
@@ -341,10 +346,10 @@ const CinematicStoryViewer: React.FC = () => {
       >
         <button
           type="button"
-          onClick={() => navigate('/stories')}
+          onClick={() => navigate(returnPath)}
           className="inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors"
           style={{ color: palette.sub }}
-          aria-label="Zurueck zu Geschichten"
+          aria-label={returnLabel}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
@@ -418,7 +423,7 @@ const CinematicStoryViewer: React.FC = () => {
               <ChevronDown className="h-4 w-4" />
             </motion.button>
 
-            {chapters.length > 0 && (
+            {chapters.length > 0 && !isCharacterLifeStory && (
               <div className="mt-4">
                 <StoryAudioActions
                   storyId={story.id}
@@ -508,11 +513,11 @@ const CinematicStoryViewer: React.FC = () => {
               Ende der Geschichte
             </h2>
             <p className="sr-finale-text" style={{ color: palette.body }}>
-              Du kannst zur Uebersicht zurueckkehren oder direkt die naechste Geschichte lesen.
+              {isCharacterLifeStory ? 'Du kennst nun ein wichtiges Kapitel aus diesem Charakterleben.' : 'Du kannst zur Übersicht zurückkehren oder direkt die nächste Geschichte lesen.'}
             </p>
             <button
               type="button"
-              onClick={() => navigate('/stories')}
+              onClick={() => navigate(returnPath)}
               className="sr-finale-btn"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -523,7 +528,7 @@ const CinematicStoryViewer: React.FC = () => {
       </div>
 
       {/* ── Agent Result Feed — contextual completion cards ── */}
-      {storyCompleted && (
+      {storyCompleted && !isCharacterLifeStory && (
         <div className="fixed bottom-6 right-4 z-30 w-80 max-h-[50vh] overflow-y-auto">
           <AgentResultFeed
             onAction={(action, payload) => {

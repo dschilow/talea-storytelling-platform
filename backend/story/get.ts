@@ -6,6 +6,7 @@ import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { storyMetadataForViewer } from "./metadata-visibility";
+import { findCharacterLifeStoryForViewer } from "./character-life-story-api";
 
 interface GetStoryParams {
   id: string;
@@ -46,6 +47,9 @@ export const get = api<GetStoryParams, Story>(
     `;
 
     if (!storyRow) {
+      const characterLifeStory = await findCharacterLifeStoryForViewer(requestedId, auth.role === "admin");
+      if (characterLifeStory) return characterLifeStory;
+
       const studioEpisodeId = studioPrefixedEpisodeId || requestedId;
       const studioRow = await storyDB.queryRow<{
         id: string;
