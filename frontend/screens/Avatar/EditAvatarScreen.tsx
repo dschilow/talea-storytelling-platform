@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Save, Scan, Sparkles } from 'lucide-react';
 
 import { useBackend } from '../../hooks/useBackend';
@@ -11,6 +10,8 @@ import { PersonalityRadarChart } from '../../components/avatar/PersonalityRadarC
 import {
   AvatarVisualProfileRecord,
   AvatarFormData,
+  AvatarFormField,
+  AVATAR_VISUAL_FORM_FIELDS,
   BODY_BUILDS,
   CHARACTER_TYPES,
   DEFAULT_AVATAR_FORM_DATA,
@@ -21,9 +22,8 @@ import {
   SKIN_TONES_HUMAN,
   CharacterTypeId,
   formDataToDescription,
-  getAvatarVisualPromptSignature,
   inferSpecialFeaturesFromVisualProfile,
-  mergeVisualProfileWithForm,
+  mergeVisualProfileForEditor,
   isHumanCharacter,
   isAnimalCharacter,
 } from '../../types/avatarForm';
@@ -201,10 +201,131 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   return formData;
 }
 
+const EDITABLE_FORM_FIELDS: readonly AvatarFormField[] = [
+  'name',
+  ...AVATAR_VISUAL_FORM_FIELDS,
+];
+
+function toCompleteFormData(data: Partial<AvatarFormData>): AvatarFormData {
+  return {
+    ...DEFAULT_AVATAR_FORM_DATA,
+    ...data,
+    specialFeatures: Array.isArray(data.specialFeatures)
+      ? [...data.specialFeatures]
+      : [],
+  };
+}
+
+function normalizedFormFieldValue(
+  formData: AvatarFormData,
+  field: AvatarFormField
+): unknown {
+  const value = formData[field];
+  if (field === 'specialFeatures') {
+    return [...formData.specialFeatures].sort();
+  }
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return value ?? null;
+}
+
+function getDirtyFormFields(
+  formData: AvatarFormData,
+  initialFormData: AvatarFormData | null
+): Set<AvatarFormField> {
+  if (!initialFormData) return new Set();
+
+  return new Set(
+    EDITABLE_FORM_FIELDS.filter((field) =>
+      JSON.stringify(normalizedFormFieldValue(formData, field)) !==
+      JSON.stringify(normalizedFormFieldValue(initialFormData, field))
+    )
+  );
+}
+
+function uniqueProfileValues(values: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const signature = typeof value === 'string'
+      ? value.trim().toLowerCase()
+      : JSON.stringify(value);
+    if (!signature || seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
+}
+
+function mergeAnalyzedVisualProfile(
+  existingProfile: AvatarVisualProfileRecord | null | undefined,
+  analyzedProfile: AvatarVisualProfileRecord | null | undefined
+): AvatarVisualProfileRecord {
+  const existing = existingProfile && typeof existingProfile === 'object'
+    ? existingProfile
+    : {};
+  const analyzed = analyzedProfile && typeof analyzedProfile === 'object'
+    ? analyzedProfile
+    : {};
+
+  const result: AvatarVisualProfileRecord = {
+    ...existing,
+    ...analyzed,
+    skin: { ...(existing.skin || {}), ...(analyzed.skin || {}) },
+    hair: { ...(existing.hair || {}), ...(analyzed.hair || {}) },
+    eyes: { ...(existing.eyes || {}), ...(analyzed.eyes || {}) },
+    face: { ...(existing.face || {}), ...(analyzed.face || {}) },
+    palette: { ...(existing.palette || {}), ...(analyzed.palette || {}) },
+  };
+
+  ['accessories', 'bodyFeatures', 'mustIncludeFeatures', 'forbiddenFeatures', 'consistentDescriptors'].forEach((key) => {
+    const existingValues = Array.isArray(existing[key]) ? existing[key] : [];
+    const analyzedValues = Array.isArray(analyzed[key]) ? analyzed[key] : [];
+    if (existingValues.length > 0 || analyzedValues.length > 0) {
+      result[key] = uniqueProfileValues([...existingValues, ...analyzedValues]);
+    }
+  });
+  result.skin.distinctiveFeatures = uniqueProfileValues([
+    ...(Array.isArray(existing.skin?.distinctiveFeatures)
+      ? existing.skin.distinctiveFeatures
+      : []),
+    ...(Array.isArray(analyzed.skin?.distinctiveFeatures)
+      ? analyzed.skin.distinctiveFeatures
+      : []),
+  ]);
+  result.face.otherFeatures = uniqueProfileValues([
+    ...(Array.isArray(existing.face?.otherFeatures) ? existing.face.otherFeatures : []),
+    ...(Array.isArray(analyzed.face?.otherFeatures) ? analyzed.face.otherFeatures : []),
+  ]);
+  result.palette.primary = uniqueProfileValues([
+    ...(Array.isArray(existing.palette?.primary) ? existing.palette.primary : []),
+    ...(Array.isArray(analyzed.palette?.primary) ? analyzed.palette.primary : []),
+  ]);
+  result.palette.secondary = uniqueProfileValues([
+    ...(Array.isArray(existing.palette?.secondary) ? existing.palette.secondary : []),
+    ...(Array.isArray(analyzed.palette?.secondary) ? analyzed.palette.secondary : []),
+  ]);
+
+  Object.keys(existing).forEach((key) => {
+    if (/(canonical|marker|invariant)/i.test(key)) {
+      result[key] = existing[key];
+    }
+  });
+
+  if (
+    existing.clothingCanonical &&
+    typeof existing.clothingCanonical === 'object'
+  ) {
+    result.clothingCanonical = existing.clothingCanonical;
+  }
+
+  return result;
+}
+
 function formDataToBackendFormat(
   formData: AvatarFormData,
   isChildAvatar: boolean,
-  existingVisualProfile?: AvatarVisualProfileRecord
+  existingVisualProfile: AvatarVisualProfileRecord | undefined,
+  dirtyFields: ReadonlySet<AvatarFormField>
 ) {
   const characterType = CHARACTER_TYPES.find((entry) => entry.id === formData.characterType);
   const description = formDataToDescription(formData);
@@ -221,29 +342,54 @@ function formDataToBackendFormat(
           : characterType?.labelEn || 'human',
       appearance: description,
     },
-    visualProfile: mergeVisualProfileWithForm(existingVisualProfile, formData),
+    visualProfile: mergeVisualProfileForEditor(existingVisualProfile, formData, dirtyFields),
   };
 }
 
 const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const backend = useBackend();
   const childProfiles = useOptionalChildProfiles();
-  const activeProfileId = childProfiles?.activeProfileId || undefined;
+  const requestedProfileId = searchParams.get('profileId')?.trim() || null;
+  const profiles = childProfiles?.profiles ?? [];
+  const linkedChildProfile = useMemo(
+    () => profiles.find((profile) => profile.childAvatarId === avatarId) ?? null,
+    [avatarId, profiles]
+  );
+  const resolvedProfileId =
+    requestedProfileId ||
+    linkedChildProfile?.id ||
+    childProfiles?.activeProfileId ||
+    undefined;
+  const resolvedProfile = resolvedProfileId
+    ? profiles.find((profile) => profile.id === resolvedProfileId) ?? null
+    : null;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
   const [avatar, setAvatar] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regeneratingImage, setRegeneratingImage] = useState(false);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const initialFormDataRef = useRef<AvatarFormData | null>(null);
+  const initialImageUrlRef = useRef<string | undefined>();
 
   useEffect(() => {
+    if (childProfiles?.isLoading) return;
+
     if (!avatarId) {
+      setLoadError('Avatar-ID fehlt.');
+      setLoading(false);
+      return;
+    }
+    if (!resolvedProfileId || (requestedProfileId && !resolvedProfile)) {
+      setLoadError('Das ausgewaehlte Kinderprofil ist nicht verfuegbar.');
       setLoading(false);
       return;
     }
@@ -253,19 +399,50 @@ const EditAvatarScreen: React.FC = () => {
     const loadAvatar = async () => {
       try {
         setLoading(true);
-        const avatarData = await backend.avatar.get({ id: avatarId, profileId: activeProfileId });
+        setLoadError(null);
+        const avatarData = await backend.avatar.get({
+          id: avatarId,
+          profileId: resolvedProfileId,
+        });
 
         if (!alive) return;
+
+        const avatarProfile = profiles.find(
+          (profile) => profile.id === (avatarData as any).profileId
+        ) ?? null;
+        const isChildAvatar = (avatarData as any).avatarRole === 'child';
+        if (isChildAvatar && (!avatarProfile || avatarProfile.age == null)) {
+          setAvatar(null);
+          setLoadError(
+            avatarProfile
+              ? `Bitte trage zuerst das Alter im Kinderprofil von ${avatarProfile.name} ein.`
+              : 'Die Profilverknuepfung dieses Kind-Avatars ist nicht eindeutig.'
+          );
+          return;
+        }
+
+        const converted = toCompleteFormData(avatarToFormData(avatarData));
+        initialFormDataRef.current = converted;
+        initialImageUrlRef.current = (avatarData as any).imageUrl;
         setAvatar(avatarData);
         setPreviewUrl((avatarData as any).imageUrl);
-        const converted = avatarToFormData(avatarData);
-        if ((avatarData as any).avatarRole === 'child') {
-          converted.characterType = 'human';
-        }
-        setFormData((previous) => ({ ...previous, ...converted }));
+        setFormData(
+          isChildAvatar && avatarProfile && avatarProfile.age != null
+            ? {
+                ...converted,
+                name: avatarProfile.name,
+                age: avatarProfile.age,
+                characterType: 'human',
+                customCharacterType: undefined,
+              }
+            : converted
+        );
       } catch (error) {
         console.error('Could not load avatar for editing:', error);
-        navigate('/avatar');
+        if (alive) {
+          setAvatar(null);
+          setLoadError('Der Avatar konnte fuer dieses Kinderprofil nicht geladen werden.');
+        }
       } finally {
         if (alive) {
           setLoading(false);
@@ -278,11 +455,56 @@ const EditAvatarScreen: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, [activeProfileId, avatarId, backend.avatar, navigate]);
+  }, [
+    avatarId,
+    backend.avatar,
+    childProfiles?.isLoading,
+    profiles,
+    requestedProfileId,
+    resolvedProfile,
+    resolvedProfileId,
+  ]);
+
+  const avatarProfile = useMemo(
+    () => profiles.find((profile) => profile.id === avatar?.profileId) ?? null,
+    [avatar?.profileId, profiles]
+  );
+  const isChildAvatar = avatar?.avatarRole === 'child';
+
+  useEffect(() => {
+    if (!isChildAvatar || !avatarProfile || avatarProfile.age == null) return;
+    setFormData((previous) => ({
+      ...previous,
+      name: avatarProfile.name,
+      age: avatarProfile.age,
+      characterType: 'human',
+      customCharacterType: undefined,
+    }));
+  }, [avatarProfile, isChildAvatar]);
+
+  const dirtyFields = useMemo(
+    () => getDirtyFormFields(formData, initialFormDataRef.current),
+    [formData]
+  );
+  const hasVisualChanges = AVATAR_VISUAL_FORM_FIELDS.some((field) =>
+    dirtyFields.has(field)
+  );
+  const hasImageChanges = previewUrl !== initialImageUrlRef.current;
+  const hasChanges = dirtyFields.size > 0 || hasImageChanges;
 
   const handleFormChange = useCallback((data: AvatarFormData) => {
+    if (isChildAvatar && avatarProfile?.age != null) {
+      setFormData({
+        ...data,
+        name: avatarProfile.name,
+        age: avatarProfile.age,
+        characterType: 'human',
+        customCharacterType: undefined,
+      });
+      return;
+    }
     setFormData(data);
-  }, []);
+  }, [avatarProfile, isChildAvatar]);
 
   const handleGeneratePreview = async (data: AvatarFormData, referenceImageUrl?: string) => {
     try {
@@ -304,7 +526,6 @@ const EditAvatarScreen: React.FC = () => {
 
       setPreviewUrl(result.imageUrl);
 
-      setAvatar((previous: any) => ({ ...previous, imageUrl: result.imageUrl }));
 
       const { showSuccessToast } = await import('../../utils/toastUtils');
       showSuccessToast('Neues Avatar-Bild generiert.');
@@ -330,30 +551,28 @@ const EditAvatarScreen: React.FC = () => {
         hints: { name: formData.name },
       });
 
-      const characterType = CHARACTER_TYPES.find((type) => type.id === formData.characterType);
-      const mergedVisualProfile = {
-        ...analysis.visualProfile,
-        characterType:
-          formData.characterType === 'other' && formData.customCharacterType
-            ? formData.customCharacterType
-            : characterType?.labelEn || 'human',
-        speciesCategory: isHumanCharacter(formData.characterType)
-          ? 'human'
-          : isAnimalCharacter(formData.characterType)
-          ? 'animal'
-          : 'fantasy',
-        locomotion: isAnimalCharacter(formData.characterType) ? 'quadruped' : 'bipedal',
-        ageApprox: `${formData.age} years old`,
-        ageNumeric: formData.age,
-        gender: formData.gender === 'male' ? 'male' : 'female',
-        heightCm: isHumanCharacter(formData.characterType) ? formData.height : undefined,
-        bodyBuild: isHumanCharacter(formData.characterType) ? formData.bodyBuild : undefined,
-      };
+      const analyzedWithCanonicalData = mergeAnalyzedVisualProfile(
+        avatar.visualProfile,
+        analysis.visualProfile
+      );
+      const identityFields = new Set<AvatarFormField>([
+        'characterType',
+        'customCharacterType',
+        'age',
+        'gender',
+        'height',
+        'bodyBuild',
+      ]);
+      const mergedVisualProfile = mergeVisualProfileForEditor(
+        analyzedWithCanonicalData,
+        formData,
+        identityFields
+      );
 
       await backend.avatar.update({
         id: avatarId,
         visualProfile: mergedVisualProfile,
-        profileId: activeProfileId,
+        profileId: resolvedProfileId,
       });
 
       setAvatar((previous: any) => ({
@@ -373,20 +592,44 @@ const EditAvatarScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!avatarId || !formData.name.trim()) {
+    if (!avatarId || !resolvedProfileId || !formData.name.trim()) {
+      return;
+    }
+    if (!hasChanges) {
+      const { showWarningToast } = await import('../../utils/toastUtils');
+      showWarningToast('Es gibt keine neuen Aenderungen.');
       return;
     }
 
     try {
       setSaving(true);
-      const payload = formDataToBackendFormat(formData, avatar?.avatarRole === 'child');
-
-      await backend.avatar.update({
+      const updateRequest: Parameters<typeof backend.avatar.update>[0] = {
         id: avatarId,
-        ...payload,
-        imageUrl: previewUrl,
-        profileId: activeProfileId,
-      });
+        profileId: resolvedProfileId,
+      };
+
+      if (dirtyFields.has('name')) {
+        updateRequest.name = formData.name.trim();
+      }
+      if (hasVisualChanges) {
+        const payload = formDataToBackendFormat(
+          formData,
+          isChildAvatar,
+          avatar?.visualProfile,
+          dirtyFields
+        );
+        updateRequest.physicalTraits = payload.physicalTraits;
+        updateRequest.visualProfile = payload.visualProfile;
+        if (dirtyFields.has('additionalDescription')) {
+          updateRequest.description = payload.description;
+        }
+      }
+      if (hasImageChanges) {
+        updateRequest.imageUrl = previewUrl;
+      }
+
+      await backend.avatar.update(updateRequest);
+      childProfiles?.setActiveProfileId(resolvedProfileId);
 
       const { showSuccessToast } = await import('../../utils/toastUtils');
       showSuccessToast(`Avatar "${formData.name}" wurde gespeichert.`);
@@ -431,15 +674,20 @@ const EditAvatarScreen: React.FC = () => {
           }}
         >
           <h2 className="text-xl font-semibold" style={{ color: isDark ? '#e8effb' : '#213247' }}>
-            Avatar nicht gefunden
+            {loadError ? 'Profilzuordnung pruefen' : 'Avatar nicht gefunden'}
           </h2>
+          {loadError && (
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
+              {loadError}
+            </p>
+          )}
           <button
             type="button"
-            onClick={() => navigate('/avatar')}
+            onClick={() => navigate(loadError ? '/settings' : '/avatar')}
             className="mt-4 rounded-full border px-4 py-2 text-sm font-semibold"
             style={{ borderColor: isDark ? '#3b5168' : '#d7c9b7', color: isDark ? '#c5d5e8' : '#4b6078' }}
           >
-            Zurueck zur Avatar-Liste
+            {loadError ? 'Kinderprofile oeffnen' : 'Zurueck zur Avatar-Liste'}
           </button>
         </div>
       </div>
@@ -480,7 +728,7 @@ const EditAvatarScreen: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !formData.name.trim()}
+            disabled={saving || !formData.name.trim() || !hasChanges}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             style={{
               borderColor: isDark ? '#425a74' : 'var(--primary)',
@@ -489,7 +737,7 @@ const EditAvatarScreen: React.FC = () => {
             }}
           >
             {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Speichern
+            {hasChanges ? 'Speichern' : 'Gespeichert'}
           </button>
         </header>
 
@@ -509,6 +757,8 @@ const EditAvatarScreen: React.FC = () => {
               isGeneratingPreview={regeneratingImage}
               mode="edit"
               childMode={avatar?.avatarRole === 'child'}
+              lockedName={isChildAvatar ? avatarProfile?.name : undefined}
+              lockedAge={isChildAvatar ? avatarProfile?.age : undefined}
             />
           </section>
 
@@ -623,7 +873,7 @@ const EditAvatarScreen: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !formData.name.trim()}
+            disabled={saving || !formData.name.trim() || !hasChanges}
             className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
             style={{
               borderColor: 'transparent',
@@ -632,7 +882,7 @@ const EditAvatarScreen: React.FC = () => {
             }}
           >
             {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Aenderungen speichern
+            {hasChanges ? 'Aenderungen speichern' : 'Alles gespeichert'}
           </button>
         </footer>
       </div>

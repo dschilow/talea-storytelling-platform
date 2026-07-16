@@ -508,7 +508,7 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Pro
     )
     SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
     FROM ranked
-    WHERE recent_rank = 1 OR important_rank = 1
+    WHERE recent_rank = 1 OR (recent_rank <> 1 AND important_rank <= 2)
     ORDER BY CASE WHEN recent_rank = 1 THEN 0 ELSE 1 END, important_rank
     LIMIT ${limit}
   `;
@@ -516,6 +516,27 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Pro
   const memoryRows: any[] = [];
   for await (const row of memoryRowsGenerator) {
     memoryRows.push(row);
+  }
+
+  for (const memory of memoryRows) {
+    try {
+      await avatarDB.exec`
+        UPDATE avatar_memories
+        SET recall_count = COALESCE(recall_count, 0) + 1,
+            last_recalled_at = CURRENT_TIMESTAMP,
+            memory_tier = CASE
+              WHEN memory_tier = 'working' AND COALESCE(recall_count, 0) + 1 >= 2
+                THEN 'episodic'
+              WHEN memory_tier = 'episodic' AND importance >= 4
+                   AND COALESCE(recall_count, 0) + 1 >= 3
+                THEN 'core'
+              ELSE memory_tier
+            END
+        WHERE id = ${memory.id} AND avatar_id = ${avatarId}
+      `;
+    } catch (recallError) {
+      console.warn("[ai-generation] Could not update memory recall metadata", recallError);
+    }
   }
 
   return memoryRows.map(row => ({

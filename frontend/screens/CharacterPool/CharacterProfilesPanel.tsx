@@ -1,17 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { BookOpen, LoaderCircle, Quote, RefreshCw, Sparkles, Tag, UserRound } from "lucide-react";
+import { AnimatePresence, motion, useDragControls, useReducedMotion, type PanInfo } from "framer-motion";
+import { BookOpen, LoaderCircle, Quote, RefreshCw, Sparkles, Tag, UserRound, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useBackend } from "../../hooks/useBackend";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   TaleaActionButton,
   taleaChipClass,
@@ -40,6 +33,173 @@ type CharacterProfile = {
 };
 
 type PublishedOrigin = { id: string; characterId: string };
+
+const characterDetailText = (character: CharacterProfile) =>
+  character.physical_description || character.visualProfile?.description || character.backstory || "Ein wiederkehrender Charakter aus der Talea-Welt.";
+
+const CharacterDetailSheet: React.FC<{
+  character: CharacterProfile;
+  originStoryId?: string;
+  onClose: () => void;
+  onReadLifeStory: (storyId: string) => void;
+}> = ({ character, originStoryId, onClose, onReadLifeStory }) => {
+  const reduceMotion = useReducedMotion();
+  const dragControls = useDragControls();
+
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
+  const handleDragEnd = (_event: unknown, info: PanInfo) => {
+    if (info.offset.y > 110 || info.velocity.y > 600) {
+      onClose();
+    }
+  };
+
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Profil von ${character.name}`}
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[2rem] border border-b-0 border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[0_-18px_48px_rgba(18,28,39,0.35)]"
+        initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+        animate={reduceMotion ? { opacity: 1 } : { y: 0 }}
+        exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+        transition={{ type: "spring", stiffness: 320, damping: 34 }}
+        drag={reduceMotion ? false : "y"}
+        dragListener={false}
+        dragControls={dragControls}
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.7 }}
+        onDragEnd={handleDragEnd}
+      >
+        <div
+          className="relative shrink-0 cursor-grab touch-none select-none active:cursor-grabbing"
+          onPointerDown={(event) => {
+            if (!reduceMotion) dragControls.start(event);
+          }}
+        >
+          <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-3" aria-hidden="true">
+            <div className="h-1.5 w-12 rounded-full bg-white/80 shadow-sm dark:bg-white/45" />
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            onPointerDown={(event) => event.stopPropagation()}
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
+            aria-label="Schließen"
+          >
+            <X className="h-4.5 w-4.5" />
+          </button>
+
+          <div className="relative max-h-[46vh] overflow-hidden bg-[var(--talea-surface-inset)]">
+            {character.imageUrl ? (
+              <>
+                <img
+                  src={character.imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl opacity-60"
+                  draggable={false}
+                />
+                <img
+                  src={character.imageUrl}
+                  alt={character.name}
+                  className="relative mx-auto max-h-[46vh] w-auto max-w-full object-contain"
+                  draggable={false}
+                />
+              </>
+            ) : (
+              <div className="flex h-48 items-center justify-center sm:h-64">
+                <UserRound className="h-16 w-16 text-[var(--talea-text-tertiary)]" aria-hidden="true" />
+              </div>
+            )}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent px-6 pb-5 pt-16 sm:px-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">
+                {character.role} · {character.archetype}
+              </p>
+              <h3 className="mt-1.5 text-3xl font-semibold text-white sm:text-4xl" style={{ fontFamily: taleaDisplayFont }}>
+                {character.name}
+              </h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-8">
+          <p className="text-base leading-7 text-[var(--talea-text-secondary)]">{characterDetailText(character)}</p>
+
+          {character.backstory ? (
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Vorgeschichte</p>
+              <p className="mt-2 leading-7 text-[var(--talea-text-secondary)]">{character.backstory}</p>
+            </section>
+          ) : null}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Persönlichkeit</p>
+              <p className="mt-2 font-semibold text-[var(--talea-text-primary)]">
+                {character.dominantPersonality || character.emotionalNature?.dominant || "Vielschichtig"}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-[var(--talea-text-secondary)]">
+                {(character.secondaryTraits || character.emotionalNature?.secondary || []).join(" · ") || "Entfaltet sich in jeder Geschichte neu."}
+              </p>
+            </section>
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Besonderheit</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--talea-text-secondary)]">
+                {character.quirk || character.visualProfile?.species || "Eine unverwechselbare Figur der Talea-Welt."}
+              </p>
+            </section>
+          </div>
+
+          {(character.personality_keywords || []).length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {character.personality_keywords?.map((keyword) => (
+                <span key={keyword} className={cn(taleaChipClass, "inline-flex items-center gap-1")}>
+                  <Tag className="h-3 w-3" aria-hidden="true" />
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {character.catchphrase ? (
+            <blockquote className={cn(taleaInsetSurfaceClass, "flex gap-3 p-4 text-[var(--talea-text-secondary)]")}>
+              <Quote className="h-5 w-5 shrink-0 text-[var(--primary)]" aria-hidden="true" />
+              <span>„{character.catchphrase}“</span>
+            </blockquote>
+          ) : null}
+
+          {originStoryId ? (
+            <TaleaActionButton type="button" icon={<BookOpen className="h-4 w-4" />} onClick={() => onReadLifeStory(originStoryId)}>
+              Lebensgeschichte lesen
+            </TaleaActionButton>
+          ) : null}
+        </div>
+      </motion.div>
+    </>
+  );
+};
 
 const CharacterProfilesPanel: React.FC = () => {
   const backend = useBackend();
@@ -111,9 +271,6 @@ const CharacterProfilesPanel: React.FC = () => {
     [characters]
   );
 
-  const detailText = (character: CharacterProfile) =>
-    character.physical_description || character.visualProfile?.description || character.backstory || "Ein wiederkehrender Charakter aus der Talea-Welt.";
-
   return (
     <section className="space-y-5" aria-label="Charakterprofile">
       <div className={cn(taleaSurfaceClass, "flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6")}>
@@ -165,7 +322,7 @@ const CharacterProfilesPanel: React.FC = () => {
               onClick={() => setSelectedCharacter(character)}
               className="group overflow-hidden rounded-3xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-left shadow-[0_12px_28px_rgba(33,44,62,0.1)] transition-shadow hover:shadow-[0_18px_34px_rgba(33,44,62,0.15)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[color-mix(in_srgb,var(--primary)_26%,transparent)]"
             >
-              <div className="relative aspect-[16/10] overflow-hidden bg-[var(--talea-surface-inset)]">
+              <div className="relative aspect-[4/5] overflow-hidden bg-[var(--talea-surface-inset)]">
                 {character.imageUrl ? (
                   <img src={character.imageUrl} alt={character.name} className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.04]" />
                 ) : (
@@ -177,7 +334,7 @@ const CharacterProfilesPanel: React.FC = () => {
                 </div>
               </div>
               <div className="p-4">
-                <p className="line-clamp-2 text-sm font-medium leading-6 text-[var(--talea-text-secondary)]">{detailText(character)}</p>
+                <p className="line-clamp-2 text-sm font-medium leading-6 text-[var(--talea-text-secondary)]">{characterDetailText(character)}</p>
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--primary)]"><Sparkles className="h-4 w-4" aria-hidden="true" />Profil öffnen</span>
                   {originsByCharacterId[character.id] ? <BookOpen className="h-4 w-4 text-[var(--talea-text-tertiary)]" aria-label="Lebensgeschichte verfügbar" /> : null}
@@ -188,38 +345,17 @@ const CharacterProfilesPanel: React.FC = () => {
         </div>
       )}
 
-      <Dialog open={Boolean(selectedCharacter)} onOpenChange={(open) => !open && setSelectedCharacter(null)}>
+      <AnimatePresence>
         {selectedCharacter ? (
-          <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-0">
-            <div className="relative min-h-48 overflow-hidden bg-[var(--talea-surface-inset)] sm:min-h-64">
-              {selectedCharacter.imageUrl ? <img src={selectedCharacter.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-top" /> : null}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-              <DialogHeader className="absolute inset-x-0 bottom-0 p-6 text-left sm:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">{selectedCharacter.role} · {selectedCharacter.archetype}</p>
-                <DialogTitle className="mt-2 text-3xl font-semibold text-white sm:text-4xl" style={{ fontFamily: taleaDisplayFont }}>{selectedCharacter.name}</DialogTitle>
-                <DialogDescription className="sr-only">Profil von {selectedCharacter.name}</DialogDescription>
-              </DialogHeader>
-            </div>
-            <div className="space-y-6 p-6 sm:p-8">
-              <p className="text-base leading-7 text-[var(--talea-text-secondary)]">{detailText(selectedCharacter)}</p>
-
-              {selectedCharacter.backstory ? (
-                <section><p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Vorgeschichte</p><p className="mt-2 leading-7 text-[var(--talea-text-secondary)]">{selectedCharacter.backstory}</p></section>
-              ) : null}
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <section><p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Persönlichkeit</p><p className="mt-2 font-semibold text-[var(--talea-text-primary)]">{selectedCharacter.dominantPersonality || selectedCharacter.emotionalNature?.dominant || "Vielschichtig"}</p><p className="mt-1 text-sm leading-6 text-[var(--talea-text-secondary)]">{(selectedCharacter.secondaryTraits || selectedCharacter.emotionalNature?.secondary || []).join(" · ") || "Entfaltet sich in jeder Geschichte neu."}</p></section>
-                <section><p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">Besonderheit</p><p className="mt-2 text-sm leading-6 text-[var(--talea-text-secondary)]">{selectedCharacter.quirk || selectedCharacter.visualProfile?.species || "Eine unverwechselbare Figur der Talea-Welt."}</p></section>
-              </div>
-
-              {(selectedCharacter.personality_keywords || []).length > 0 ? <div className="flex flex-wrap gap-2">{selectedCharacter.personality_keywords?.map((keyword) => <span key={keyword} className={cn(taleaChipClass, "inline-flex items-center gap-1")}><Tag className="h-3 w-3" aria-hidden="true" />{keyword}</span>)}</div> : null}
-              {selectedCharacter.catchphrase ? <blockquote className={cn(taleaInsetSurfaceClass, "flex gap-3 p-4 text-[var(--talea-text-secondary)]")}><Quote className="h-5 w-5 shrink-0 text-[var(--primary)]" aria-hidden="true" /><span>„{selectedCharacter.catchphrase}“</span></blockquote> : null}
-
-              {originsByCharacterId[selectedCharacter.id] ? <TaleaActionButton type="button" icon={<BookOpen className="h-4 w-4" />} onClick={() => navigate(`/character-life-story/${originsByCharacterId[selectedCharacter.id]}`)}>Lebensgeschichte lesen</TaleaActionButton> : null}
-            </div>
-          </DialogContent>
+          <CharacterDetailSheet
+            key={selectedCharacter.id}
+            character={selectedCharacter}
+            originStoryId={originsByCharacterId[selectedCharacter.id]}
+            onClose={() => setSelectedCharacter(null)}
+            onReadLifeStory={(storyId) => navigate(`/character-life-story/${storyId}`)}
+          />
         ) : null}
-      </Dialog>
+      </AnimatePresence>
     </section>
   );
 };

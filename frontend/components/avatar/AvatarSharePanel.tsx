@@ -75,6 +75,8 @@ const formatCopyDate = (value?: string): string => {
   }).format(date);
 };
 
+const ACCOUNT_SHARING_ENABLED = false;
+
 const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
   avatarId,
   avatarName,
@@ -366,10 +368,10 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
         <div>
           <h2 className="inline-flex items-center gap-2 text-xl font-semibold" style={{ color: isDark ? "#e7effb" : "#223347" }}>
             <UsersRound className="h-5 w-5" />
-            Avatar teilen
+            Profilkopie erstellen
           </h2>
           <p className="mt-1 text-sm" style={{ color: isDark ? "#9eb1ca" : "#697d95" }}>
-            Übernimm „{avatarName}“ in weitere Profile oder sende eine unabhängige Kopie an vertraute Personen.
+            Übernimm „{avatarName}“ in ein weiteres Kinderprofil. Jede Kopie entwickelt sich dort unabhängig.
           </p>
         </div>
         <button
@@ -431,6 +433,8 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
         )}
       </div>
 
+      {ACCOUNT_SHARING_ENABLED ? (
+        <>
       <div
         className="relative mt-4 rounded-2xl border p-3"
         style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
@@ -628,6 +632,18 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
               );
             })}
           </AnimatePresence>
+        </div>
+      )}
+        </>
+      ) : (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}>
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" style={{ color: isDark ? "#a9d4bf" : "#4f8a62" }} aria-hidden="true" />
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>Externe Freigaben folgen geschützt</h3>
+            <p className="mt-1 text-xs leading-relaxed" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
+              Kopien an andere Accounts werden erst wieder angeboten, wenn die empfangende Person ausdrücklich annehmen oder ablehnen kann. Für deine Kinderprofile nutzt du die sichere Profilkopie oben.
+            </p>
+          </div>
         </div>
       )}
     </section>

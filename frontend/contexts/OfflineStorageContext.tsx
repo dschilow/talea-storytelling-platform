@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { useOfflineStorage } from '../hooks/useOfflineStorage';
+import { OfflineScopeProvider } from './OfflineScopeContext';
 
 type OfflineStorageContextValue = ReturnType<typeof useOfflineStorage>;
 
@@ -8,9 +9,11 @@ const OfflineStorageContext = createContext<OfflineStorageContextValue | undefin
 export const OfflineStorageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const offlineStorage = useOfflineStorage();
   return (
-    <OfflineStorageContext.Provider value={offlineStorage}>
-      {children}
-    </OfflineStorageContext.Provider>
+    <OfflineScopeProvider scope={offlineStorage.scope}>
+      <OfflineStorageContext.Provider value={offlineStorage}>
+        {children}
+      </OfflineStorageContext.Provider>
+    </OfflineScopeProvider>
   );
 };
 

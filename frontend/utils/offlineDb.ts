@@ -4,7 +4,79 @@ import type { Doku } from '../types/doku';
 import type { AudioDoku } from '../types/audio-doku';
 import type { GeneratedAudioLibraryEntry } from '../types/generated-audio';
 
+export type OfflineCacheScope = {
+  userId: string;
+  profileId: string;
+};
+
+const LAST_OFFLINE_SCOPE_KEY = 'talea.offline.lastScope.v1';
+
+function isValidScope(value: unknown): value is OfflineCacheScope {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<OfflineCacheScope>;
+  return (
+    typeof candidate.userId === 'string' &&
+    candidate.userId.trim().length > 0 &&
+    typeof candidate.profileId === 'string' &&
+    candidate.profileId.trim().length > 0
+  );
+}
+
+function assertScope(scope: OfflineCacheScope): OfflineCacheScope {
+  if (!isValidScope(scope)) {
+    throw new Error('[Offline] A user and child profile scope is required');
+  }
+  return {
+    userId: scope.userId.trim(),
+    profileId: scope.profileId.trim(),
+  };
+}
+
+export function storeLastOfflineScope(scope: OfflineCacheScope): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const normalized = assertScope(scope);
+    window.localStorage.setItem(LAST_OFFLINE_SCOPE_KEY, JSON.stringify(normalized));
+  } catch {
+    // IndexedDB remains usable even when browser privacy settings block localStorage.
+  }
+}
+
+export function getLastOfflineScope(): OfflineCacheScope | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LAST_OFFLINE_SCOPE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return isValidScope(parsed)
+      ? { userId: parsed.userId.trim(), profileId: parsed.profileId.trim() }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function createCacheKey(scope: OfflineCacheScope, contentId: string): string {
+  const normalized = assertScope(scope);
+  const normalizedContentId = contentId.trim();
+  if (!normalizedContentId) {
+    throw new Error('[Offline] A content id is required');
+  }
+  return JSON.stringify([normalized.userId, normalized.profileId, normalizedContentId]);
+}
+
+function isEntryInScope(
+  entry: { userId?: unknown; profileId?: unknown },
+  scope: OfflineCacheScope,
+): boolean {
+  const normalized = assertScope(scope);
+  return entry.userId === normalized.userId && entry.profileId === normalized.profileId;
+}
+
 interface OfflineBlobEntry {
+  cacheKey: string;
+  userId: string;
+  profileId: string;
   url: string;
   blob: Blob;
   mimeType: string;
@@ -12,24 +84,36 @@ interface OfflineBlobEntry {
 }
 
 interface OfflineStoryEntry {
+  cacheKey: string;
+  userId: string;
+  profileId: string;
   id: string;
   story: Story;
   savedAt: number;
 }
 
 interface OfflineDokuEntry {
+  cacheKey: string;
+  userId: string;
+  profileId: string;
   id: string;
   doku: Doku;
   savedAt: number;
 }
 
 interface OfflineAudioDokuEntry {
+  cacheKey: string;
+  userId: string;
+  profileId: string;
   id: string;
   audioDoku: AudioDoku;
   savedAt: number;
 }
 
 interface OfflineGeneratedAudioEntry {
+  cacheKey: string;
+  userId: string;
+  profileId: string;
   id: string;
   generatedAudio: GeneratedAudioLibraryEntry;
   savedAt: number;
@@ -59,7 +143,7 @@ interface TaleaOfflineDB extends DBSchema {
 }
 
 const DB_NAME = 'talea-offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const DB_OPEN_TIMEOUT_MS = 1200;
 const DB_READ_TIMEOUT_MS = 1500;
 const DB_WRITE_TIMEOUT_MS = 3000;
@@ -244,21 +328,32 @@ async function withDbWriteFallback(
 
 async function openOfflineDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
   const db = await openDB<TaleaOfflineDB>(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('offline-stories')) {
-        db.createObjectStore('offline-stories', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('offline-dokus')) {
-        db.createObjectStore('offline-dokus', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('offline-audio-dokus')) {
-        db.createObjectStore('offline-audio-dokus', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('offline-generated-audios')) {
-        db.createObjectStore('offline-generated-audios', { keyPath: 'id' });
-      }
-      if (!db.objectStoreNames.contains('offline-blobs')) {
-        db.createObjectStore('offline-blobs', { keyPath: 'url' });
+    upgrade(db, oldVersion) {
+      if (oldVersion < 3) {
+        // Version 1/2 entries only used the content id. They cannot be assigned
+        // safely to a user or child profile, so the migration intentionally
+        // removes them instead of guessing and risking cross-profile access.
+        if (db.objectStoreNames.contains('offline-stories')) {
+          db.deleteObjectStore('offline-stories');
+        }
+        if (db.objectStoreNames.contains('offline-dokus')) {
+          db.deleteObjectStore('offline-dokus');
+        }
+        if (db.objectStoreNames.contains('offline-audio-dokus')) {
+          db.deleteObjectStore('offline-audio-dokus');
+        }
+        if (db.objectStoreNames.contains('offline-generated-audios')) {
+          db.deleteObjectStore('offline-generated-audios');
+        }
+        if (db.objectStoreNames.contains('offline-blobs')) {
+          db.deleteObjectStore('offline-blobs');
+        }
+
+        db.createObjectStore('offline-stories', { keyPath: 'cacheKey' });
+        db.createObjectStore('offline-dokus', { keyPath: 'cacheKey' });
+        db.createObjectStore('offline-audio-dokus', { keyPath: 'cacheKey' });
+        db.createObjectStore('offline-generated-audios', { keyPath: 'cacheKey' });
+        db.createObjectStore('offline-blobs', { keyPath: 'cacheKey' });
       }
     },
     blocked() {
@@ -341,12 +436,15 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
 
 async function fetchAndStoreBlob(
   url: string,
+  scope: OfflineCacheScope,
   db?: IDBPDatabase<TaleaOfflineDB>
 ): Promise<void> {
   if (!url || dbDisabled) return;
+  const normalizedScope = assertScope(scope);
+  const cacheKey = createCacheKey(normalizedScope, url);
 
   const writeBlob = async (database: IDBPDatabase<TaleaOfflineDB>) => {
-    const existing = await database.get('offline-blobs', url);
+    const existing = await database.get('offline-blobs', cacheKey);
     if (existing) return;
 
     try {
@@ -354,6 +452,9 @@ async function fetchAndStoreBlob(
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       await database.put('offline-blobs', {
+        cacheKey,
+        userId: normalizedScope.userId,
+        profileId: normalizedScope.profileId,
         url,
         blob,
         mimeType: blob.type,
@@ -412,164 +513,214 @@ function collectGeneratedAudioUrls(entry: GeneratedAudioLibraryEntry): string[] 
   return urls;
 }
 
-export async function saveStoryOffline(story: Story): Promise<void> {
+export async function saveStoryOffline(scope: OfflineCacheScope, story: Story): Promise<void> {
+  const normalizedScope = assertScope(scope);
   await withDbWriteFallback(async (db) => {
     await db.put('offline-stories', {
+      cacheKey: createCacheKey(normalizedScope, story.id),
+      userId: normalizedScope.userId,
+      profileId: normalizedScope.profileId,
       id: story.id,
       story,
       savedAt: Date.now(),
     });
 
     const urls = collectStoryUrls(story);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
   });
 }
 
-export async function saveDokuOffline(doku: Doku): Promise<void> {
+export async function saveDokuOffline(scope: OfflineCacheScope, doku: Doku): Promise<void> {
+  const normalizedScope = assertScope(scope);
   await withDbWriteFallback(async (db) => {
     await db.put('offline-dokus', {
+      cacheKey: createCacheKey(normalizedScope, doku.id),
+      userId: normalizedScope.userId,
+      profileId: normalizedScope.profileId,
       id: doku.id,
       doku,
       savedAt: Date.now(),
     });
 
     const urls = collectDokuUrls(doku);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
   });
 }
 
-export async function saveAudioDokuOffline(audioDoku: AudioDoku): Promise<void> {
+export async function saveAudioDokuOffline(
+  scope: OfflineCacheScope,
+  audioDoku: AudioDoku,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
   await withDbWriteFallback(async (db) => {
     await db.put('offline-audio-dokus', {
+      cacheKey: createCacheKey(normalizedScope, audioDoku.id),
+      userId: normalizedScope.userId,
+      profileId: normalizedScope.profileId,
       id: audioDoku.id,
       audioDoku,
       savedAt: Date.now(),
     });
 
     const urls = collectAudioDokuUrls(audioDoku);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
   });
 }
 
-export async function saveGeneratedAudioOffline(entry: GeneratedAudioLibraryEntry): Promise<void> {
+export async function saveGeneratedAudioOffline(
+  scope: OfflineCacheScope,
+  entry: GeneratedAudioLibraryEntry,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
   await withDbWriteFallback(async (db) => {
     await db.put('offline-generated-audios', {
+      cacheKey: createCacheKey(normalizedScope, entry.id),
+      userId: normalizedScope.userId,
+      profileId: normalizedScope.profileId,
       id: entry.id,
       generatedAudio: entry,
       savedAt: Date.now(),
     });
 
     const urls = collectGeneratedAudioUrls(entry);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, db)));
+    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
   });
 }
 
-export async function removeStoryOffline(storyId: string): Promise<void> {
+export async function removeStoryOffline(
+  scope: OfflineCacheScope,
+  storyId: string,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
+  const cacheKey = createCacheKey(normalizedScope, storyId);
   await withDbWriteFallback(async (db) => {
-    const entry = await db.get('offline-stories', storyId);
-    if (!entry) return;
+    const entry = await db.get('offline-stories', cacheKey);
+    if (!entry || !isEntryInScope(entry, normalizedScope)) return;
 
     const urls = collectStoryUrls(entry.story);
-    await db.delete('offline-stories', storyId);
-    await cleanupOrphanedBlobs(urls);
+    await db.delete('offline-stories', cacheKey);
+    await cleanupOrphanedBlobs(db, normalizedScope, urls);
   });
 }
 
-export async function removeDokuOffline(dokuId: string): Promise<void> {
+export async function removeDokuOffline(
+  scope: OfflineCacheScope,
+  dokuId: string,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
+  const cacheKey = createCacheKey(normalizedScope, dokuId);
   await withDbWriteFallback(async (db) => {
-    const entry = await db.get('offline-dokus', dokuId);
-    if (!entry) return;
+    const entry = await db.get('offline-dokus', cacheKey);
+    if (!entry || !isEntryInScope(entry, normalizedScope)) return;
 
     const urls = collectDokuUrls(entry.doku);
-    await db.delete('offline-dokus', dokuId);
-    await cleanupOrphanedBlobs(urls);
+    await db.delete('offline-dokus', cacheKey);
+    await cleanupOrphanedBlobs(db, normalizedScope, urls);
   });
 }
 
-export async function removeAudioDokuOffline(audioDokuId: string): Promise<void> {
+export async function removeAudioDokuOffline(
+  scope: OfflineCacheScope,
+  audioDokuId: string,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
+  const cacheKey = createCacheKey(normalizedScope, audioDokuId);
   await withDbWriteFallback(async (db) => {
-    const entry = await db.get('offline-audio-dokus', audioDokuId);
-    if (!entry) return;
+    const entry = await db.get('offline-audio-dokus', cacheKey);
+    if (!entry || !isEntryInScope(entry, normalizedScope)) return;
 
     const urls = collectAudioDokuUrls(entry.audioDoku);
-    await db.delete('offline-audio-dokus', audioDokuId);
-    await cleanupOrphanedBlobs(urls);
+    await db.delete('offline-audio-dokus', cacheKey);
+    await cleanupOrphanedBlobs(db, normalizedScope, urls);
   });
 }
 
-export async function removeGeneratedAudioOffline(entryId: string): Promise<void> {
+export async function removeGeneratedAudioOffline(
+  scope: OfflineCacheScope,
+  entryId: string,
+): Promise<void> {
+  const normalizedScope = assertScope(scope);
+  const cacheKey = createCacheKey(normalizedScope, entryId);
   await withDbWriteFallback(async (db) => {
-    const entry = await db.get('offline-generated-audios', entryId);
-    if (!entry) return;
+    const entry = await db.get('offline-generated-audios', cacheKey);
+    if (!entry || !isEntryInScope(entry, normalizedScope)) return;
 
     const urls = collectGeneratedAudioUrls(entry.generatedAudio);
-    await db.delete('offline-generated-audios', entryId);
-    await cleanupOrphanedBlobs(urls);
+    await db.delete('offline-generated-audios', cacheKey);
+    await cleanupOrphanedBlobs(db, normalizedScope, urls);
   });
 }
 
-async function cleanupOrphanedBlobs(urls: string[]): Promise<void> {
+async function cleanupOrphanedBlobs(
+  db: IDBPDatabase<TaleaOfflineDB>,
+  scope: OfflineCacheScope,
+  urls: string[],
+): Promise<void> {
   if (urls.length === 0) return;
-  await withDbWriteFallback(async (db) => {
-    const allUsedUrls = new Set<string>();
+  const allUsedUrls = new Set<string>();
 
-    const stories = await db.getAll('offline-stories');
-    for (const s of stories) {
-      for (const u of collectStoryUrls(s.story)) allUsedUrls.add(u);
-    }
+  const stories = await db.getAll('offline-stories');
+  for (const entry of stories.filter((item) => isEntryInScope(item, scope))) {
+    for (const url of collectStoryUrls(entry.story)) allUsedUrls.add(url);
+  }
 
-    const dokus = await db.getAll('offline-dokus');
-    for (const d of dokus) {
-      for (const u of collectDokuUrls(d.doku)) allUsedUrls.add(u);
-    }
+  const dokus = await db.getAll('offline-dokus');
+  for (const entry of dokus.filter((item) => isEntryInScope(item, scope))) {
+    for (const url of collectDokuUrls(entry.doku)) allUsedUrls.add(url);
+  }
 
-    const audioDokus = await db.getAll('offline-audio-dokus');
-    for (const a of audioDokus) {
-      for (const u of collectAudioDokuUrls(a.audioDoku)) allUsedUrls.add(u);
-    }
+  const audioDokus = await db.getAll('offline-audio-dokus');
+  for (const entry of audioDokus.filter((item) => isEntryInScope(item, scope))) {
+    for (const url of collectAudioDokuUrls(entry.audioDoku)) allUsedUrls.add(url);
+  }
 
-    const generatedAudios = await db.getAll('offline-generated-audios');
-    for (const g of generatedAudios) {
-      for (const u of collectGeneratedAudioUrls(g.generatedAudio)) allUsedUrls.add(u);
-    }
+  const generatedAudios = await db.getAll('offline-generated-audios');
+  for (const entry of generatedAudios.filter((item) => isEntryInScope(item, scope))) {
+    for (const url of collectGeneratedAudioUrls(entry.generatedAudio)) allUsedUrls.add(url);
+  }
 
-    for (const url of urls) {
-      if (!allUsedUrls.has(url)) {
-        await db.delete('offline-blobs', url).catch(() => {});
-      }
+  for (const url of urls) {
+    if (!allUsedUrls.has(url)) {
+      await db.delete('offline-blobs', createCacheKey(scope, url)).catch(() => {});
     }
-  });
+  }
 }
 
-export async function isStorySaved(storyId: string): Promise<boolean> {
+export async function isStorySaved(scope: OfflineCacheScope, storyId: string): Promise<boolean> {
   return withDbReadFallback(false, async (db) => {
-    const entry = await db.get('offline-stories', storyId);
-    return !!entry;
+    const entry = await db.get('offline-stories', createCacheKey(scope, storyId));
+    return !!entry && isEntryInScope(entry, scope);
   });
 }
 
-export async function isDokuSaved(dokuId: string): Promise<boolean> {
+export async function isDokuSaved(scope: OfflineCacheScope, dokuId: string): Promise<boolean> {
   return withDbReadFallback(false, async (db) => {
-    const entry = await db.get('offline-dokus', dokuId);
-    return !!entry;
+    const entry = await db.get('offline-dokus', createCacheKey(scope, dokuId));
+    return !!entry && isEntryInScope(entry, scope);
   });
 }
 
-export async function isAudioDokuSaved(audioDokuId: string): Promise<boolean> {
+export async function isAudioDokuSaved(
+  scope: OfflineCacheScope,
+  audioDokuId: string,
+): Promise<boolean> {
   return withDbReadFallback(false, async (db) => {
-    const entry = await db.get('offline-audio-dokus', audioDokuId);
-    return !!entry;
+    const entry = await db.get('offline-audio-dokus', createCacheKey(scope, audioDokuId));
+    return !!entry && isEntryInScope(entry, scope);
   });
 }
 
-export async function isGeneratedAudioSaved(entryId: string): Promise<boolean> {
+export async function isGeneratedAudioSaved(
+  scope: OfflineCacheScope,
+  entryId: string,
+): Promise<boolean> {
   return withDbReadFallback(false, async (db) => {
-    const entry = await db.get('offline-generated-audios', entryId);
-    return !!entry;
+    const entry = await db.get('offline-generated-audios', createCacheKey(scope, entryId));
+    return !!entry && isEntryInScope(entry, scope);
   });
 }
 
-export async function getAllSavedIds(): Promise<{
+export async function getAllSavedIds(scope: OfflineCacheScope): Promise<{
   stories: string[];
   dokus: string[];
   audioDokus: string[];
@@ -578,75 +729,93 @@ export async function getAllSavedIds(): Promise<{
     { stories: [], dokus: [], audioDokus: [] },
     async (db) => {
       const [stories, dokus, audioDokus] = await Promise.all([
-        db.getAllKeys('offline-stories'),
-        db.getAllKeys('offline-dokus'),
-        db.getAllKeys('offline-audio-dokus'),
+        db.getAll('offline-stories'),
+        db.getAll('offline-dokus'),
+        db.getAll('offline-audio-dokus'),
       ]);
       return {
-        stories: stories as string[],
-        dokus: dokus as string[],
-        audioDokus: audioDokus as string[],
+        stories: stories.filter((entry) => isEntryInScope(entry, scope)).map((entry) => entry.id),
+        dokus: dokus.filter((entry) => isEntryInScope(entry, scope)).map((entry) => entry.id),
+        audioDokus: audioDokus
+          .filter((entry) => isEntryInScope(entry, scope))
+          .map((entry) => entry.id),
       };
     }
   );
 }
 
-export async function getAllOfflineStories(): Promise<Story[]> {
+export async function getAllOfflineStories(scope: OfflineCacheScope): Promise<Story[]> {
   return withDbReadFallback([], async (db) => {
     const entries = await db.getAll('offline-stories');
-    return entries.map((e) => e.story);
+    return entries
+      .filter((entry) => isEntryInScope(entry, scope))
+      .map((entry) => entry.story);
   });
 }
 
-export async function getAllOfflineDokus(): Promise<Doku[]> {
+export async function getAllOfflineDokus(scope: OfflineCacheScope): Promise<Doku[]> {
   return withDbReadFallback([], async (db) => {
     const entries = await db.getAll('offline-dokus');
-    return entries.map((e) => e.doku);
+    return entries
+      .filter((entry) => isEntryInScope(entry, scope))
+      .map((entry) => entry.doku);
   });
 }
 
-export async function getAllOfflineAudioDokus(): Promise<AudioDoku[]> {
+export async function getAllOfflineAudioDokus(scope: OfflineCacheScope): Promise<AudioDoku[]> {
   return withDbReadFallback([], async (db) => {
     const entries = await db.getAll('offline-audio-dokus');
-    return entries.map((e) => e.audioDoku);
+    return entries
+      .filter((entry) => isEntryInScope(entry, scope))
+      .map((entry) => entry.audioDoku);
   });
 }
 
-export async function getAllOfflineGeneratedAudios(): Promise<GeneratedAudioLibraryEntry[]> {
+export async function getAllOfflineGeneratedAudios(
+  scope: OfflineCacheScope,
+): Promise<GeneratedAudioLibraryEntry[]> {
   return withDbReadFallback([], async (db) => {
     const entries = await db.getAll('offline-generated-audios');
     return entries
+      .filter((entry) => isEntryInScope(entry, scope))
       .sort((a, b) => b.savedAt - a.savedAt)
       .map((entry) => entry.generatedAudio);
   });
 }
 
-export async function getBlobUrl(originalUrl: string): Promise<string | null> {
+export async function getBlobUrl(
+  scope: OfflineCacheScope,
+  originalUrl: string,
+): Promise<string | null> {
   return withDbReadFallback(null, async (db) => {
-    return getBlobUrlForDb(db, originalUrl);
+    return getBlobUrlForDb(db, scope, originalUrl);
   });
 }
 
 async function getBlobUrlForDb(
   db: IDBPDatabase<TaleaOfflineDB>,
-  originalUrl: string
+  scope: OfflineCacheScope,
+  originalUrl: string,
 ): Promise<string | null> {
-  const entry = await db.get('offline-blobs', originalUrl);
-  if (!entry) return null;
+  const entry = await db.get('offline-blobs', createCacheKey(scope, originalUrl));
+  if (!entry || !isEntryInScope(entry, scope)) return null;
   return URL.createObjectURL(entry.blob);
 }
 
-export async function getOfflineStory(storyId: string): Promise<Story | null> {
+export async function getOfflineStory(
+  scope: OfflineCacheScope,
+  storyId: string,
+): Promise<Story | null> {
   return withDbReadFallback(null, async (db) => {
-    const entry = await db.get('offline-stories', storyId);
-    if (!entry) return null;
+    const entry = await db.get('offline-stories', createCacheKey(scope, storyId));
+    if (!entry || !isEntryInScope(entry, scope)) return null;
 
     // Replace image URLs with blob URLs
     const story = { ...entry.story };
 
     // Replace cover image
     if (story.coverImageUrl) {
-      const blobUrl = await getBlobUrlForDb(db, story.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, scope, story.coverImageUrl);
       if (blobUrl) story.coverImageUrl = blobUrl;
     }
 
@@ -655,12 +824,12 @@ export async function getOfflineStory(storyId: string): Promise<Story | null> {
     for (let i = 0; i < items.length; i++) {
       const imageUrl = items[i]?.imageUrl;
       if (imageUrl) {
-        const blobUrl = await getBlobUrlForDb(db, imageUrl);
+        const blobUrl = await getBlobUrlForDb(db, scope, imageUrl);
         if (blobUrl) items[i] = { ...items[i], imageUrl: blobUrl };
       }
       const scenicImageUrl = items[i]?.scenicImageUrl;
       if (scenicImageUrl) {
-        const scenicBlobUrl = await getBlobUrlForDb(db, scenicImageUrl);
+        const scenicBlobUrl = await getBlobUrlForDb(db, scope, scenicImageUrl);
         if (scenicBlobUrl) items[i] = { ...items[i], scenicImageUrl: scenicBlobUrl };
       }
     }
@@ -669,16 +838,19 @@ export async function getOfflineStory(storyId: string): Promise<Story | null> {
   });
 }
 
-export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
+export async function getOfflineDoku(
+  scope: OfflineCacheScope,
+  dokuId: string,
+): Promise<Doku | null> {
   return withDbReadFallback(null, async (db) => {
-    const entry = await db.get('offline-dokus', dokuId);
-    if (!entry) return null;
+    const entry = await db.get('offline-dokus', createCacheKey(scope, dokuId));
+    if (!entry || !isEntryInScope(entry, scope)) return null;
 
     const doku = { ...entry.doku };
 
     // Replace cover image
     if (doku.coverImageUrl) {
-      const blobUrl = await getBlobUrlForDb(db, doku.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, scope, doku.coverImageUrl);
       if (blobUrl) doku.coverImageUrl = blobUrl;
     }
 
@@ -688,7 +860,7 @@ export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
       for (const section of doku.content.sections) {
         const newSection = { ...section };
         if (newSection.imageUrl) {
-          const blobUrl = await getBlobUrlForDb(db, newSection.imageUrl);
+          const blobUrl = await getBlobUrlForDb(db, scope, newSection.imageUrl);
           if (blobUrl) newSection.imageUrl = blobUrl;
         }
         sections.push(newSection);
@@ -700,22 +872,25 @@ export async function getOfflineDoku(dokuId: string): Promise<Doku | null> {
   });
 }
 
-export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDoku | null> {
+export async function getOfflineAudioDoku(
+  scope: OfflineCacheScope,
+  audioDokuId: string,
+): Promise<AudioDoku | null> {
   return withDbReadFallback(null, async (db) => {
-    const entry = await db.get('offline-audio-dokus', audioDokuId);
-    if (!entry) return null;
+    const entry = await db.get('offline-audio-dokus', createCacheKey(scope, audioDokuId));
+    if (!entry || !isEntryInScope(entry, scope)) return null;
 
     const audioDoku = { ...entry.audioDoku };
 
     // Replace cover image
     if (audioDoku.coverImageUrl) {
-      const blobUrl = await getBlobUrlForDb(db, audioDoku.coverImageUrl);
+      const blobUrl = await getBlobUrlForDb(db, scope, audioDoku.coverImageUrl);
       if (blobUrl) audioDoku.coverImageUrl = blobUrl;
     }
 
     // Replace audio URL
     if (audioDoku.audioUrl) {
-      const blobUrl = await getBlobUrlForDb(db, audioDoku.audioUrl);
+      const blobUrl = await getBlobUrlForDb(db, scope, audioDoku.audioUrl);
       if (blobUrl) audioDoku.audioUrl = blobUrl;
     }
 
@@ -723,18 +898,21 @@ export async function getOfflineAudioDoku(audioDokuId: string): Promise<AudioDok
   });
 }
 
-export async function getOfflineGeneratedAudio(entryId: string): Promise<GeneratedAudioLibraryEntry | null> {
+export async function getOfflineGeneratedAudio(
+  scope: OfflineCacheScope,
+  entryId: string,
+): Promise<GeneratedAudioLibraryEntry | null> {
   return withDbReadFallback(null, async (db) => {
-    const entry = await db.get('offline-generated-audios', entryId);
-    if (!entry) return null;
+    const entry = await db.get('offline-generated-audios', createCacheKey(scope, entryId));
+    if (!entry || !isEntryInScope(entry, scope)) return null;
 
     const generatedAudio = { ...entry.generatedAudio };
     if (generatedAudio.coverImageUrl) {
-      const coverBlob = await getBlobUrlForDb(db, generatedAudio.coverImageUrl);
+      const coverBlob = await getBlobUrlForDb(db, scope, generatedAudio.coverImageUrl);
       if (coverBlob) generatedAudio.coverImageUrl = coverBlob;
     }
     if (generatedAudio.audioUrl) {
-      const audioBlob = await getBlobUrlForDb(db, generatedAudio.audioUrl);
+      const audioBlob = await getBlobUrlForDb(db, scope, generatedAudio.audioUrl);
       if (audioBlob) generatedAudio.audioUrl = audioBlob;
     }
 

@@ -22,3 +22,4 @@ describe("avatar journey level", () => {
     });
     expect(progression.overallLevel).toBe(1);
   });
+});

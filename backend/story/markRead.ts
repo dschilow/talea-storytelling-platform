@@ -60,6 +60,8 @@ interface MarkStoryReadRequest {
 interface MarkStoryReadResponse {
   success: boolean;
   updatedAvatars: number;
+  memorySaved: boolean;
+  memoriesCreated: number;
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
@@ -122,6 +124,29 @@ function parseStoredDevelopments(value: unknown): unknown[] {
     return [];
   }
 }
+function buildStoryMemoryExperience(params: {
+  avatarName: string;
+  storyTitle: string;
+  genre?: string;
+  changes: StoryChange[];
+}): string {
+  const details = Array.from(
+    new Set(
+      params.changes
+        .map((change) => String(change.description || "").replace(/\s+/g, " ").trim())
+        .filter(Boolean),
+    ),
+  )
+    .slice(0, 2)
+    .join(" ")
+    .slice(0, 320);
+  if (details) {
+    return `${params.avatarName} erinnert sich an "${params.storyTitle}": ${details}`;
+  }
+  const genreHint = params.genre ? ` (${params.genre})` : "";
+  return `${params.avatarName} hat die Geschichte "${params.storyTitle}"${genreHint} erlebt.`;
+}
+
 
 
 export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
@@ -250,6 +275,8 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         success: true,
         updatedAvatars: 0,
         personalityChanges: [],
+        memorySaved: false,
+        memoriesCreated: 0,
       };
     }
     const developmentEligibleAvatars = userAvatars.map(({ id: avatarId, name }) => ({
@@ -262,15 +289,6 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
     for (const userAvatar of userAvatars) {
       try {
-        const alreadyRead = await avatarDB.queryRow<{ id: string }>`
-          SELECT id
-          FROM avatar_story_read
-          WHERE avatar_id = ${userAvatar.id} AND story_id = ${req.storyId}
-        `;
-
-        if (alreadyRead) {
-          continue;
-        }
 
         const avatarRow = await avatarDB.queryRow<{ personality_traits: string; inventory: string }>`
           SELECT personality_traits, inventory
@@ -306,6 +324,30 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         });
 
         if (progression.status === "duplicate") {
+          await avatarDB.exec`
+            INSERT INTO avatar_story_read (avatar_id, story_id, story_title)
+            VALUES (${userAvatar.id}, ${req.storyId}, ${req.storyTitle})
+            ON CONFLICT (avatar_id, story_id) DO NOTHING
+          `;
+          try {
+            await avatar.addMemory({
+              id: userAvatar.id,
+              storyId: req.storyId,
+              storyTitle: req.storyTitle,
+              experience: buildStoryMemoryExperience({
+                avatarName: userAvatar.name,
+                storyTitle: req.storyTitle,
+                genre: req.genre,
+                changes,
+              }),
+              emotionalImpact: "positive",
+              personalityChanges: changes,
+              developmentDescription: `Persoenlichkeitsentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+              contentType: "story",
+            });
+          } catch (memoryError) {
+            console.warn(`Failed to repair story memory for ${userAvatar.name}`, memoryError);
+          }
           continue;
         }
 
@@ -322,7 +364,12 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             id: userAvatar.id,
             storyId: req.storyId,
             storyTitle: req.storyTitle,
-            experience: `Ich habe die Geschichte "${req.storyTitle}" gelesen. Genre: ${req.genre || "Unbekannt"}.`,
+            experience: buildStoryMemoryExperience({
+              avatarName: userAvatar.name,
+              storyTitle: req.storyTitle,
+              genre: req.genre,
+              changes,
+            }),
             emotionalImpact: "positive",
             personalityChanges: changes,
             developmentDescription: `Persoenlichkeitsentwicklung: ${changes.map((item) => item.description).join(", ")}`,
@@ -357,7 +404,14 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
         let rewards: MarkStoryReadResponse["personalityChanges"][number]["rewards"] | undefined = undefined;
         try {
-          const inventory: InventoryItem[] = JSON.parse(avatarRow?.inventory || "[]");
+          await using rewardTx = await avatarDB.begin();
+          const lockedAvatar = await rewardTx.queryRow<{ inventory: string }>`
+            SELECT inventory FROM avatars WHERE id = ${userAvatar.id} FOR UPDATE
+          `;
+          if (!lockedAvatar) {
+            throw APIError.notFound("Avatar not found while updating rewards");
+          }
+          const inventory: InventoryItem[] = JSON.parse(lockedAvatar.inventory || "[]");
           const storyTags = req.genre ? [req.genre.toLowerCase()] : ["adventure"];
           const upgradedItems: InventoryItem[] = [];
 
@@ -375,7 +429,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           }
 
           if (upgradedItems.length > 0) {
-            await avatarDB.exec`
+            await rewardTx.exec`
               UPDATE avatars
               SET inventory = ${JSON.stringify(inventory)},
                   updated_at = CURRENT_TIMESTAMP
@@ -388,6 +442,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
               newSkills: [],
             };
           }
+          await rewardTx.commit();
         } catch (rewardError) {
           console.error(`Failed reward update for ${userAvatar.name}`, rewardError);
         }
@@ -434,6 +489,33 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
     }
 
     let unlockedArtifact: MarkStoryReadResponse["unlockedArtifact"] | undefined;
+    let memoriesCreated = 0;
+    for (const userAvatar of userAvatars) {
+      try {
+        const memory = await avatarDB.queryRow<{ id: string }>`
+          SELECT id FROM avatar_memories
+          WHERE avatar_id = ${userAvatar.id}
+            AND content_type = 'story'
+            AND story_id = ${req.storyId}
+          LIMIT 1
+        `;
+
+        if (memory) memoriesCreated += 1;
+      } catch (memoryCheckError) {
+        console.warn("Could not confirm stored story memory", memoryCheckError);
+      }
+    }
+
+    if (updatedCount === 0 && memoriesCreated === 0) {
+      return {
+        success: false,
+        updatedAvatars: 0,
+        memorySaved: false,
+        memoriesCreated: 0,
+        personalityChanges: [],
+      };
+    }
+
     try {
       const artifact = await unlockStoryArtifact(req.storyId);
 
@@ -459,10 +541,12 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
               storyId: req.storyId,
               imageUrl: artifactPayload.imageUrl,
             });
-            const avatarRow = await avatarDB.queryRow<{ inventory: string }>`
+            await using inventoryTx = await avatarDB.begin();
+            const avatarRow = await inventoryTx.queryRow<{ inventory: string }>`
               SELECT inventory
               FROM avatars
               WHERE id = ${userAvatar.id}
+              FOR UPDATE
             `;
 
             if (!avatarRow) {
@@ -473,7 +557,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             const reward = appendArtifactReward(currentInventory, inventoryItem);
 
             if (reward.added) {
-              await avatarDB.exec`
+              await inventoryTx.exec`
                 UPDATE avatars
                 SET inventory = ${JSON.stringify(reward.inventory)},
                     updated_at = CURRENT_TIMESTAMP
@@ -481,6 +565,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
               `;
               grantedToAtLeastOneAvatar = true;
             }
+            await inventoryTx.commit();
           } catch (inventoryError) {
             console.error(`Failed to add unlocked artifact for ${userAvatar.name}`, inventoryError);
           }
@@ -525,6 +610,8 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       updatedAvatars: updatedCount,
       personalityChanges,
       unlockedArtifact,
+      memorySaved: memoriesCreated > 0,
+      memoriesCreated,
     };
   }
 );

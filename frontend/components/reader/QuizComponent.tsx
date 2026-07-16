@@ -207,7 +207,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     setQuizCompleted(false);
     setIsSubmitting(false);
     setSelectedAnswers(Array(questions.length).fill(null));
-  }, [questions.length, section.title]);
+  }, [activeChildId, effectiveAvatarId, questions.length, section.title]);
 
   if (!quiz?.enabled || questions.length === 0) {
     return null;
@@ -355,7 +355,10 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     }
 
     try {
-      const avatar = await backend.avatar.get({ id: effectiveAvatarId });
+      const avatar = await backend.avatar.get({
+        id: effectiveAvatarId,
+        profileId: activeChildId || undefined,
+      });
       if (!avatar) {
         setIsSubmitting(false);
         return;

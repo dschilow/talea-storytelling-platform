@@ -1,18 +1,46 @@
+// @bun
+var __using = (stack, value, async) => {
+  if (value != null) {
+    if (typeof value !== "object" && typeof value !== "function")
+      throw TypeError('Object expected to be assigned to "using" declaration');
+    let dispose;
+    if (async)
+      dispose = value[Symbol.asyncDispose];
+    if (dispose === undefined)
+      dispose = value[Symbol.dispose];
+    if (typeof dispose !== "function")
+      throw TypeError("Object not disposable");
+    stack.push([async, dispose, value]);
+  } else if (async) {
+    stack.push([async]);
+  }
+  return value;
+};
+var __callDispose = (stack, error, hasError) => {
+  let fail = (e) => error = hasError ? new SuppressedError(e, error, "An error was suppressed during disposal") : (hasError = true, e), next = (it) => {
+    while (it = stack.pop()) {
+      try {
+        var result = it[1] && it[1].call(it[2]);
+        if (it[0])
+          return Promise.resolve(result).then(next, (e) => (fail(e), next()));
+      } catch (e) {
+        fail(e);
+      }
+    }
+    if (hasError)
+      throw error;
+  };
+  return next();
+};
+
+// backend/avatar/cosmos-mvp-service.ts
 import { APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { avatarDB } from "./db";
 import { ensureCosmosMvpSchema } from "./cosmos-mvp-schema";
 import {
-  AgeBand,
-  CanonicalTopicCandidate,
   CORE_DOMAIN_IDS,
-  CosmosDomainId,
   DEFAULT_TOPIC_STATS,
-  SkillAccuracyStat,
-  SkillType,
-  TopicKind,
-  TopicStage,
-  TopicStatsState,
   buildLongTailTopicId,
   applyConfidenceDecay,
   computeMasteryDelta,
@@ -29,142 +57,25 @@ import {
   rollingAvg,
   sanitizeTopicStats,
   toAgeBandFromAge,
-  updateRollingWindow,
+  updateRollingWindow
 } from "./cosmos-mvp-logic";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-
-const userDB = SQLDatabase.named("user");
-const dokuDB = SQLDatabase.named("doku");
-const storyDB = SQLDatabase.named("story");
-
-const FIXED_DOMAINS: CosmosDomainId[] = [...CORE_DOMAIN_IDS];
-
-const ALLOWED_QUESTION_TYPES = new Set([
+var userDB = SQLDatabase.named("user");
+var dokuDB = SQLDatabase.named("doku");
+var storyDB = SQLDatabase.named("story");
+var FIXED_DOMAINS = [...CORE_DOMAIN_IDS];
+var ALLOWED_QUESTION_TYPES = new Set([
   "mc_single",
   "mc_multi",
   "true_false",
   "order",
   "match",
-  "cause_effect",
+  "cause_effect"
 ]);
-
-type QuestionType =
-  | "mc_single"
-  | "mc_multi"
-  | "true_false"
-  | "order"
-  | "match"
-  | "cause_effect";
-
-interface RawContentPackageTopic {
-  topicId?: string;
-  topicTitle?: string;
-  topicKind?: TopicKind;
-  aliases?: string[];
-  sourceTitle?: string;
-}
-
-export interface ContentIngestRequest {
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  userId: string;
-  contentType?: "doku" | "story";
-  contentPackage: Record<string, unknown>;
-}
-
-export interface QuizAnswerInput {
-  questionId?: string;
-  skillType?: string;
-  questionType?: string;
-  correct?: boolean;
-  difficulty?: number;
-}
-
-export interface QuizSubmitRequest {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  contentId?: string;
-  sourceContentId?: string;
-  sourceContentType?: "doku" | "story";
-  domainId: string;
-  topicId?: string;
-  topicTitle?: string;
-  answers: QuizAnswerInput[];
-}
-
-export interface RecallSubmitRequest {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  recallTaskId: string;
-  answers: Array<{ questionId?: string; correct?: boolean }>;
-}
-
-export interface ReadActivityRequest {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  sourceContentId: string;
-  sourceContentType: "doku" | "story";
-  domainId: string;
-  topicId?: string;
-  topicTitle?: string;
-  contentTitle?: string;
-  summary?: string;
-}
-
-export interface TopicIslandDTO {
-  topicId: string;
-  topicTitle: string;
-  topicKind: TopicKind;
-  stage: TopicStage;
-  mastery: number;
-  confidence: number;
-  masteryLabel: string;
-  confidenceLabel: string;
-  lastActivityAt: string | null;
-  recallDueAt: string | null;
-  lat: number;
-  lon: number;
-  docsCount: number;
-}
-
-export interface CosmosStateDomainDTO {
-  domainId: CosmosDomainId;
-  evolutionIndex: number;
-  planetLevel: number;
-  stage: TopicStage;
-  masteryScore: number;
-  confidenceScore: number;
-  masteryText: string;
-  confidenceText: string;
-  evidence: string;
-  lastActivityAt: string | null;
-  activeTopicCount: number;
-}
-
-export interface CosmosStateResponseDTO {
-  childId: string;
-  domains: CosmosStateDomainDTO[];
-  totalStoriesRead: number;
-  totalDokusRead: number;
-  selectedDomain?: {
-    domainId: CosmosDomainId;
-    activeIslands: TopicIslandDTO[];
-    moreTopicsCount: number;
-  };
-}
-
-function uuid(prefix: string): string {
+function uuid(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
-
-const DOMAIN_META: Record<string, { title: string; icon: string }> = {
+var DOMAIN_META = {
   space: { title: "Weltraum", icon: "space" },
   nature: { title: "Natur & Tiere", icon: "nature" },
   history: { title: "Geschichte & Kulturen", icon: "history" },
@@ -172,24 +83,15 @@ const DOMAIN_META: Record<string, { title: string; icon: string }> = {
   body: { title: "Mensch & Koerper", icon: "body" },
   earth: { title: "Erde & Klima", icon: "earth" },
   arts: { title: "Kunst & Musik", icon: "arts" },
-  logic: { title: "Logik & Raetsel", icon: "logic" },
+  logic: { title: "Logik & Raetsel", icon: "logic" }
 };
-
-function toDomainLabel(domainId: string): string {
+function toDomainLabel(domainId) {
   const normalized = normalizeDomainId(domainId);
-  if (DOMAIN_META[normalized]?.title) return DOMAIN_META[normalized].title;
-  return normalized
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ")
-    .slice(0, 64) || "Neue Lernwelt";
+  if (DOMAIN_META[normalized]?.title)
+    return DOMAIN_META[normalized].title;
+  return normalized.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim().split(" ").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ").slice(0, 64) || "Neue Lernwelt";
 }
-
-async function ensureDomainExists(domainId: CosmosDomainId): Promise<void> {
+async function ensureDomainExists(domainId) {
   const normalized = normalizeDomainId(domainId);
   const meta = DOMAIN_META[normalized];
   await avatarDB.exec`
@@ -203,132 +105,118 @@ async function ensureDomainExists(domainId: CosmosDomainId): Promise<void> {
     ON CONFLICT (domain_id) DO NOTHING
   `;
 }
-
-function parseAliases(value: unknown): string[] {
+function parseAliases(value) {
   if (Array.isArray(value)) {
-    return value
-      .filter((item): item is string => typeof item === "string")
-      .map((item) => item.trim())
-      .filter((item) => item.length > 0)
-      .slice(0, 20);
+    return value.filter((item) => typeof item === "string").map((item) => item.trim()).filter((item) => item.length > 0).slice(0, 20);
   }
   return [];
 }
-
-function normalizeSkillType(input: unknown): SkillType {
+function normalizeSkillType(input) {
   const value = String(input || "").trim().toLowerCase();
   if (value === "remember" || value === "understand" || value === "compare" || value === "apply" || value === "transfer") {
     return value;
   }
-  if (value === "explain") return "understand";
+  if (value === "explain")
+    return "understand";
   return "remember";
 }
-
-function normalizeQuestionType(input: unknown): QuestionType {
+function normalizeQuestionType(input) {
   const value = String(input || "").trim().toLowerCase().replace("-", "_");
   if (ALLOWED_QUESTION_TYPES.has(value)) {
-    return value as QuestionType;
+    return value;
   }
-  if (value === "mc") return "mc_single";
-  if (value === "causeeffect") return "cause_effect";
+  if (value === "mc")
+    return "mc_single";
+  if (value === "causeeffect")
+    return "cause_effect";
   return "mc_single";
 }
-
-function toNumber(value: unknown, fallback = 0): number {
+function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
-
-function clamp(value: number, min: number, max: number): number {
+function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
-
-function isValidTopicId(value: string): boolean {
+function isValidTopicId(value) {
   return /^[a-z0-9][a-z0-9_-]{1,39}_[a-z0-9][a-z0-9_\-]{2,72}$/i.test(value);
 }
-
-function topicTitleFromTopicId(topicId: string): string {
+function topicTitleFromTopicId(topicId) {
   const suffix = String(topicId || "").split("_").slice(1).join(" ").trim();
   const normalized = suffix.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!normalized) return "Allgemeines Thema";
+  if (!normalized)
+    return "Allgemeines Thema";
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
-
-function normalizeTopicDisplayTitle(rawTitle: string | null | undefined, topicId: string): string {
+function normalizeTopicDisplayTitle(rawTitle, topicId) {
   const raw = String(rawTitle || "").trim();
   if (!raw || raw === topicId) {
     return topicTitleFromTopicId(topicId);
   }
   const normalized = raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!normalized) return topicTitleFromTopicId(topicId);
+  if (!normalized)
+    return topicTitleFromTopicId(topicId);
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
-
-function normalizeDomainForStorage(value: string | null | undefined): CosmosDomainId {
+function normalizeDomainForStorage(value) {
   return normalizeDomainId(String(value || "").trim());
 }
-
-function mapStageToRank(stage: TopicStage): number {
-  if (stage === "retained") return 3;
-  if (stage === "apply") return 2;
-  if (stage === "understood") return 1;
+function mapStageToRank(stage) {
+  if (stage === "retained")
+    return 3;
+  if (stage === "apply")
+    return 2;
+  if (stage === "understood")
+    return 1;
   return 0;
 }
-
-function parseDomainFromTopicId(topicId: string): CosmosDomainId | null {
+function parseDomainFromTopicId(topicId) {
   const prefix = String(topicId || "").split("_")[0];
-  if (!prefix) return null;
+  if (!prefix)
+    return null;
   return normalizeDomainId(prefix);
 }
-
-function hashString(value: string): number {
+function hashString(value) {
   let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
+  for (let index = 0;index < value.length; index += 1) {
     hash = (hash << 5) - hash + value.charCodeAt(index);
     hash |= 0;
   }
   return Math.abs(hash);
 }
-
-function islandLatLon(topicId: string): { lat: number; lon: number } {
+function islandLatLon(topicId) {
   const latSeed = hashString(`${topicId}:lat`);
   const lonSeed = hashString(`${topicId}:lon`);
-  const lat = -60 + (latSeed % 12000) / 100;
-  const lon = (lonSeed % 36000) / 100;
+  const lat = -60 + latSeed % 12000 / 100;
+  const lon = lonSeed % 36000 / 100;
   return { lat, lon };
 }
-
-function extractRecallEntryFromPackage(contentPackage: unknown): { afterDays: number; questionCount: number } {
-  const source = contentPackage && typeof contentPackage === "object" ? (contentPackage as Record<string, unknown>) : {};
-  const recallPlan = source.recallPlan && typeof source.recallPlan === "object" ? (source.recallPlan as Record<string, unknown>) : {};
+function extractRecallEntryFromPackage(contentPackage) {
+  const source = contentPackage && typeof contentPackage === "object" ? contentPackage : {};
+  const recallPlan = source.recallPlan && typeof source.recallPlan === "object" ? source.recallPlan : {};
   const entries = Array.isArray(recallPlan.entries) ? recallPlan.entries : [];
-  const first = entries[0] && typeof entries[0] === "object" ? (entries[0] as Record<string, unknown>) : {};
+  const first = entries[0] && typeof entries[0] === "object" ? entries[0] : {};
   const afterDays = clamp(Math.floor(toNumber(first.afterDays, 5)), 3, 7);
   const questionCount = clamp(Math.floor(toNumber(first.questionCount, 4)), 3, 5);
   return { afterDays, questionCount };
 }
-
-function extractRecallQuestionsFromPackage(contentPackage: unknown, count: number): Array<Record<string, unknown>> {
-  const source = contentPackage && typeof contentPackage === "object" ? (contentPackage as Record<string, unknown>) : {};
-  const quiz = source.quiz && typeof source.quiz === "object" ? (source.quiz as Record<string, unknown>) : {};
+function extractRecallQuestionsFromPackage(contentPackage, count) {
+  const source = contentPackage && typeof contentPackage === "object" ? contentPackage : {};
+  const quiz = source.quiz && typeof source.quiz === "object" ? source.quiz : {};
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
-  const limited = questions
-    .filter((question) => question && typeof question === "object")
-    .slice(0, count)
-    .map((question, index) => {
-      const q = question as Record<string, unknown>;
-      return {
-        id: String(q.id || `rq_${index}`),
-        prompt: String(q.prompt || ""),
-        type: String(q.type || "mc_single"),
-        choices: Array.isArray(q.choices) ? q.choices : [],
-        correct: q.correct ?? null,
-      };
-    });
+  const limited = questions.filter((question) => question && typeof question === "object").slice(0, count).map((question, index) => {
+    const q = question;
+    return {
+      id: String(q.id || `rq_${index}`),
+      prompt: String(q.prompt || ""),
+      type: String(q.type || "mc_single"),
+      choices: Array.isArray(q.choices) ? q.choices : [],
+      correct: q.correct ?? null
+    };
+  });
   return limited;
 }
-
-async function ensureBaseRowsForChild(childId: string): Promise<void> {
+async function ensureBaseRowsForChild(childId) {
   for (const domainId of FIXED_DOMAINS) {
     await ensureDomainExists(domainId);
     await avatarDB.exec`
@@ -338,13 +226,8 @@ async function ensureBaseRowsForChild(childId: string): Promise<void> {
     `;
   }
 }
-
-async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
-  const contentRows = await avatarDB.queryAll<{
-    content_id: string;
-    domain_id: string;
-    topic_id: string | null;
-  }>`
+async function syncDokuDomainMappingsForChild(childId) {
+  const contentRows = await avatarDB.queryAll`
     SELECT content_id, domain_id, topic_id
     FROM content_items
     WHERE child_id = ${childId}
@@ -352,14 +235,12 @@ async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
     ORDER BY created_at DESC
     LIMIT 300
   `;
-  if (contentRows.length === 0) return;
-
-  const dokuIds = Array.from(
-    new Set(contentRows.map((row) => row.content_id).filter(Boolean))
-  );
-  if (dokuIds.length === 0) return;
-
-  const dokuRows = await dokuDB.queryAll<{ id: string; domain_id: string | null }>`
+  if (contentRows.length === 0)
+    return;
+  const dokuIds = Array.from(new Set(contentRows.map((row) => row.content_id).filter(Boolean)));
+  if (dokuIds.length === 0)
+    return;
+  const dokuRows = await dokuDB.queryAll`
     SELECT
       id,
       COALESCE(
@@ -369,17 +250,17 @@ async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
     FROM dokus
     WHERE id = ANY(${dokuIds})
   `;
-  const dokuDomainMap = new Map<string, CosmosDomainId>();
+  const dokuDomainMap = new Map;
   for (const row of dokuRows) {
     const rawDomain = String(row.domain_id || "").trim();
-    if (!rawDomain) continue;
+    if (!rawDomain)
+      continue;
     dokuDomainMap.set(row.id, normalizeDomainForStorage(rawDomain));
   }
-
   for (const row of contentRows) {
     const targetDomain = dokuDomainMap.get(row.content_id);
-    if (!targetDomain) continue;
-
+    if (!targetDomain)
+      continue;
     const currentDomain = normalizeDomainForStorage(row.domain_id);
     let nextTopicId = row.topic_id;
     const parsedTopicDomain = row.topic_id ? parseDomainFromTopicId(row.topic_id) : null;
@@ -391,16 +272,13 @@ async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
         domainId: targetDomain,
         topicKind: "longTail",
         topicTitle: topicTitleFromTopicId(suffix || row.topic_id),
-        aliases: [],
+        aliases: []
       });
       nextTopicId = remappedTopicId;
     }
-
-    const needsUpdate =
-      currentDomain !== targetDomain ||
-      (nextTopicId && nextTopicId !== row.topic_id);
-    if (!needsUpdate) continue;
-
+    const needsUpdate = currentDomain !== targetDomain || nextTopicId && nextTopicId !== row.topic_id;
+    if (!needsUpdate)
+      continue;
     await avatarDB.exec`
       UPDATE content_items
       SET domain_id = ${targetDomain},
@@ -418,9 +296,8 @@ async function syncDokuDomainMappingsForChild(childId: string): Promise<void> {
     `;
   }
 }
-
-async function getChildAgeBand(childId: string): Promise<AgeBand> {
-  const row = await userDB.queryRow<{ age: number | null }>`
+async function getChildAgeBand(childId) {
+  const row = await userDB.queryRow`
     SELECT age
     FROM child_profiles
     WHERE id = ${childId}
@@ -428,82 +305,53 @@ async function getChildAgeBand(childId: string): Promise<AgeBand> {
   `;
   return toAgeBandFromAge(row?.age);
 }
-
-export async function resolveChildIdForCosmos(params: {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-}): Promise<string> {
+async function resolveChildIdForCosmos(params) {
   const direct = params.childId?.trim() || params.profileId?.trim();
-  const requestedProfileId = direct
-    ? await resolveRequestedProfileId({
-        userId: params.userId,
-        requestedProfileId: direct,
-        fallbackName: undefined,
-      })
-    : undefined;
-
+  const requestedProfileId = direct ? await resolveRequestedProfileId({
+    userId: params.userId,
+    requestedProfileId: direct,
+    fallbackName: undefined
+  }) : undefined;
   if (params.avatarId) {
-    const avatar = await avatarDB.queryRow<{ profile_id: string | null }>`
+    const avatar = await avatarDB.queryRow`
       SELECT profile_id
       FROM avatars
       WHERE id = ${params.avatarId}
         AND user_id = ${params.userId}
       LIMIT 1
     `;
-
     if (!avatar) {
       throw APIError.notFound("Avatar not found");
     }
-
-    const avatarProfileId = avatar.profile_id
-      ? await resolveRequestedProfileId({
-          userId: params.userId,
-          requestedProfileId: avatar.profile_id,
-        })
-      : (await ensureDefaultProfileForUser(params.userId)).id;
-
+    const avatarProfileId = avatar.profile_id ? await resolveRequestedProfileId({
+      userId: params.userId,
+      requestedProfileId: avatar.profile_id
+    }) : (await ensureDefaultProfileForUser(params.userId)).id;
     if (requestedProfileId && avatarProfileId !== requestedProfileId) {
       throw APIError.permissionDenied("Avatar does not belong to the selected child profile");
     }
-
     return requestedProfileId || avatarProfileId;
   }
-
-  if (requestedProfileId) return requestedProfileId;
-
+  if (requestedProfileId)
+    return requestedProfileId;
   const profile = await ensureDefaultProfileForUser(params.userId);
   return profile.id;
 }
-
-async function fetchCanonicalTopics(domainId: CosmosDomainId): Promise<CanonicalTopicCandidate[]> {
-  const rows = await avatarDB.queryAll<{
-    topic_id: string;
-    title: string;
-    aliases: unknown;
-  }>`
+async function fetchCanonicalTopics(domainId) {
+  const rows = await avatarDB.queryAll`
     SELECT topic_id, title, aliases
     FROM topics
     WHERE domain_id = ${domainId}
       AND kind = 'canonical'
     ORDER BY created_at ASC
   `;
-
   return rows.map((row) => ({
     topicId: row.topic_id,
     title: row.title,
-    aliases: parseAliases(row.aliases),
+    aliases: parseAliases(row.aliases)
   }));
 }
-
-async function ensureTopicExists(params: {
-  topicId: string;
-  domainId: CosmosDomainId;
-  topicKind: TopicKind;
-  topicTitle: string;
-  aliases?: string[];
-}): Promise<void> {
+async function ensureTopicExists(params) {
   await avatarDB.exec`
     INSERT INTO topics (topic_id, domain_id, kind, title, aliases, created_at)
     VALUES (
@@ -525,85 +373,52 @@ async function ensureTopicExists(params: {
       END
   `;
 }
-
-async function resolveTopic(params: {
-  domainId: CosmosDomainId;
-  topic: RawContentPackageTopic | undefined;
-  fallbackTitle: string;
-}): Promise<{
-  topicId: string;
-  topicTitle: string;
-  topicKind: TopicKind;
-  sourceTitle: string;
-}> {
+async function resolveTopic(params) {
   await ensureDomainExists(params.domainId);
   const topic = params.topic || {};
   const explicitTopicId = String(topic.topicId || "").trim();
   const topicTitle = String(topic.topicTitle || "").trim() || params.fallbackTitle || "Neues Thema";
   const topicKind = topic.topicKind === "canonical" || topic.topicKind === "longTail" ? topic.topicKind : undefined;
-
   if (explicitTopicId && isValidTopicId(explicitTopicId)) {
     const explicitDomain = parseDomainFromTopicId(explicitTopicId) || params.domainId;
-    const fixedTopicKind: TopicKind = topicKind || "longTail";
+    const fixedTopicKind = topicKind || "longTail";
     await ensureTopicExists({
       topicId: explicitTopicId,
       domainId: explicitDomain,
       topicKind: fixedTopicKind,
       topicTitle,
-      aliases: parseAliases(topic.aliases),
+      aliases: parseAliases(topic.aliases)
     });
     return {
       topicId: explicitTopicId,
       topicTitle,
       topicKind: fixedTopicKind,
-      sourceTitle: String(topic.sourceTitle || topicTitle),
+      sourceTitle: String(topic.sourceTitle || topicTitle)
     };
   }
-
   const candidates = await fetchCanonicalTopics(params.domainId);
   const matched = matchTopicV1({
     domainId: params.domainId,
     requestedTitle: topicTitle,
     candidates,
-    threshold: 0.72,
+    threshold: 0.72
   });
-
   await ensureTopicExists({
     topicId: matched.topicId,
     domainId: params.domainId,
     topicKind: matched.topicKind,
     topicTitle: matched.topicTitle,
-    aliases: parseAliases(topic.aliases),
+    aliases: parseAliases(topic.aliases)
   });
-
   return {
     topicId: matched.topicId,
     topicTitle: matched.topicTitle,
     topicKind: matched.topicKind,
-    sourceTitle: matched.sourceTitle,
+    sourceTitle: matched.sourceTitle
   };
 }
-
-interface LoadedTopicState {
-  topicId: string;
-  domainId: CosmosDomainId;
-  mastery: number;
-  confidence: number;
-  stage: TopicStage;
-  stats: TopicStatsState;
-  lastActivityAt: string | null;
-}
-
-async function loadTopicState(childId: string, topicId: string): Promise<LoadedTopicState | null> {
-  const row = await avatarDB.queryRow<{
-    topic_id: string;
-    domain_id: string;
-    mastery: number;
-    confidence: number;
-    stage: TopicStage;
-    stats: unknown;
-    last_activity_at: string | null;
-  }>`
+async function loadTopicState(childId, topicId) {
+  const row = await avatarDB.queryRow`
     SELECT
       t.topic_id,
       t.domain_id,
@@ -619,8 +434,8 @@ async function loadTopicState(childId: string, topicId: string): Promise<LoadedT
     WHERE t.topic_id = ${topicId}
     LIMIT 1
   `;
-
-  if (!row) return null;
+  if (!row)
+    return null;
   return {
     topicId: row.topic_id,
     domainId: normalizeDomainId(row.domain_id),
@@ -628,12 +443,11 @@ async function loadTopicState(childId: string, topicId: string): Promise<LoadedT
     confidence: toNumber(row.confidence, 0),
     stage: row.stage || "discovered",
     stats: sanitizeTopicStats(row.stats),
-    lastActivityAt: row.last_activity_at || null,
+    lastActivityAt: row.last_activity_at || null
   };
 }
-
-async function getOverdueWeeks(childId: string, topicId: string): Promise<number> {
-  const row = await avatarDB.queryRow<{ oldest_due: string | null }>`
+async function getOverdueWeeks(childId, topicId) {
+  const row = await avatarDB.queryRow`
     SELECT MIN(due_at) AS oldest_due
     FROM recall_tasks
     WHERE child_id = ${childId}
@@ -641,21 +455,14 @@ async function getOverdueWeeks(childId: string, topicId: string): Promise<number
       AND status = 'pending'
       AND due_at < CURRENT_TIMESTAMP
   `;
-
-  if (!row?.oldest_due) return 0;
+  if (!row?.oldest_due)
+    return 0;
   const diffMs = Date.now() - new Date(row.oldest_due).getTime();
-  if (!Number.isFinite(diffMs) || diffMs <= 0) return 0;
+  if (!Number.isFinite(diffMs) || diffMs <= 0)
+    return 0;
   return Math.max(0, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)));
 }
-
-async function upsertTopicState(params: {
-  childId: string;
-  topicId: string;
-  mastery: number;
-  confidence: number;
-  stage: TopicStage;
-  stats: TopicStatsState;
-}): Promise<void> {
+async function upsertTopicState(params) {
   await avatarDB.exec`
     INSERT INTO tracking_topic_state (
       child_id,
@@ -687,20 +494,14 @@ async function upsertTopicState(params: {
       updated_at = CURRENT_TIMESTAMP
   `;
 }
-
-async function incrementDomainEvolution(params: {
-  childId: string;
-  domainId: CosmosDomainId;
-  delta: number;
-}): Promise<{ evolutionIndex: number; planetLevel: number }> {
+async function incrementDomainEvolution(params) {
   await ensureDomainExists(params.domainId);
   await avatarDB.exec`
     INSERT INTO tracking_domain_state (child_id, domain_id, evolution_index, planet_level, updated_at)
     VALUES (${params.childId}, ${params.domainId}, 0, 1, CURRENT_TIMESTAMP)
     ON CONFLICT (child_id, domain_id) DO NOTHING
   `;
-
-  const row = await avatarDB.queryRow<{ evolution_index: number }>`
+  const row = await avatarDB.queryRow`
     SELECT evolution_index
     FROM tracking_domain_state
     WHERE child_id = ${params.childId}
@@ -710,7 +511,6 @@ async function incrementDomainEvolution(params: {
   const current = Math.max(0, Math.floor(toNumber(row?.evolution_index, 0)));
   const next = Math.max(0, current + Math.max(0, Math.floor(params.delta)));
   const level = derivePlanetLevel(next);
-
   await avatarDB.exec`
     UPDATE tracking_domain_state
     SET
@@ -721,22 +521,9 @@ async function incrementDomainEvolution(params: {
     WHERE child_id = ${params.childId}
       AND domain_id = ${params.domainId}
   `;
-
   return { evolutionIndex: next, planetLevel: level };
 }
-
-async function logEvidence(params: {
-  childId: string;
-  domainId: CosmosDomainId;
-  topicId: string;
-  eventType: "quiz" | "recall" | "doku_read" | "story_read";
-  score: number;
-  maxScore: number;
-  sourceContentId?: string;
-  sourceContentType?: "doku" | "story";
-  summary: string;
-  payload?: Record<string, unknown>;
-}): Promise<void> {
+async function logEvidence(params) {
   await avatarDB.exec`
     INSERT INTO evidence_events (
       id,
@@ -763,44 +550,34 @@ async function logEvidence(params: {
       ${params.score},
       ${params.maxScore},
       ${JSON.stringify({
-        summary: params.summary,
-        ...(params.payload || {}),
-      })}::jsonb,
+    summary: params.summary,
+    ...params.payload || {}
+  })}::jsonb,
       ${params.sourceContentId ?? null},
       ${params.sourceContentType ?? null}
     )
   `;
 }
-
-export async function ingestContentPackage(params: ContentIngestRequest): Promise<{
-  childId: string;
-  contentId: string;
-  domainId: CosmosDomainId;
-  topicId: string;
-  topicKind: TopicKind;
-}> {
+async function ingestContentPackage(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
-
   const pkg = params.contentPackage || {};
   const domainId = normalizeDomainId(String(pkg.domainId || ""));
-  const topic = pkg.topic && typeof pkg.topic === "object" ? (pkg.topic as RawContentPackageTopic) : undefined;
+  const topic = pkg.topic && typeof pkg.topic === "object" ? pkg.topic : undefined;
   const title = String(pkg.title || pkg.contentTitle || "Lerninhalt");
   const topicResolved = await resolveTopic({
     domainId,
     topic,
-    fallbackTitle: topic?.topicTitle || title,
+    fallbackTitle: topic?.topicTitle || title
   });
-
   const contentId = String(pkg.contentId || "").trim() || uuid("cnt");
   const contentType = params.contentType || (String(pkg.contentType || "doku").trim().toLowerCase() === "story" ? "story" : "doku");
-
   await avatarDB.exec`
     INSERT INTO content_items (
       content_id,
@@ -828,62 +605,49 @@ export async function ingestContentPackage(params: ContentIngestRequest): Promis
       type = EXCLUDED.type,
       package_json = EXCLUDED.package_json
   `;
-
   return {
     childId,
     contentId,
     domainId,
     topicId: topicResolved.topicId,
-    topicKind: topicResolved.topicKind,
+    topicKind: topicResolved.topicKind
   };
 }
-
-function computeSkillStats(answers: QuizAnswerInput[]): {
-  bySkill: Partial<Record<SkillType, SkillAccuracyStat>>;
-  overallAccuracy: number;
-  correctCount: number;
-  totalCount: number;
-  understandAccuracy: number;
-  applyTransferAccuracy: number;
-  applyTransferSessionsCount: number;
-} {
-  const bySkill: Partial<Record<SkillType, SkillAccuracyStat>> = {};
+function computeSkillStats(answers) {
+  const bySkill = {};
   let totalCount = 0;
   let correctCount = 0;
-
   let understandTotal = 0;
   let understandCorrect = 0;
   let applyTransferTotal = 0;
   let applyTransferCorrect = 0;
-
   for (const answer of answers) {
     const skillType = normalizeSkillType(answer.skillType);
     const correct = Boolean(answer.correct);
     totalCount += 1;
-    if (correct) correctCount += 1;
-
+    if (correct)
+      correctCount += 1;
     if (!bySkill[skillType]) {
       bySkill[skillType] = { correct: 0, total: 0 };
     }
-    bySkill[skillType]!.total += 1;
+    bySkill[skillType].total += 1;
     if (correct) {
-      bySkill[skillType]!.correct += 1;
+      bySkill[skillType].correct += 1;
     }
-
     if (skillType === "understand") {
       understandTotal += 1;
-      if (correct) understandCorrect += 1;
+      if (correct)
+        understandCorrect += 1;
     }
     if (skillType === "apply" || skillType === "transfer") {
       applyTransferTotal += 1;
-      if (correct) applyTransferCorrect += 1;
+      if (correct)
+        applyTransferCorrect += 1;
     }
   }
-
   const overallAccuracy = totalCount > 0 ? correctCount / totalCount : 0;
   const understandAccuracy = understandTotal > 0 ? understandCorrect / understandTotal : 0;
   const applyTransferAccuracy = applyTransferTotal > 0 ? applyTransferCorrect / applyTransferTotal : 0;
-
   return {
     bySkill,
     overallAccuracy,
@@ -891,17 +655,10 @@ function computeSkillStats(answers: QuizAnswerInput[]): {
     totalCount,
     understandAccuracy,
     applyTransferAccuracy,
-    applyTransferSessionsCount: applyTransferTotal > 0 ? 1 : 0,
+    applyTransferSessionsCount: applyTransferTotal > 0 ? 1 : 0
   };
 }
-
-async function resolveTopicFromQuizInput(params: {
-  childId: string;
-  domainId: CosmosDomainId;
-  topicId?: string;
-  topicTitle?: string;
-  sourceContentId?: string;
-}): Promise<string> {
+async function resolveTopicFromQuizInput(params) {
   await ensureDomainExists(params.domainId);
   const explicitTopicId = String(params.topicId || "").trim();
   const explicitTitle = String(params.topicTitle || "").trim();
@@ -909,18 +666,13 @@ async function resolveTopicFromQuizInput(params: {
     const explicitDomain = parseDomainFromTopicId(explicitTopicId);
     if (explicitDomain && explicitDomain !== params.domainId) {
       const explicitSuffix = explicitTopicId.split("_").slice(1).join("_");
-      const remappedTopicId = buildLongTailTopicId(
-        params.domainId,
-        explicitSuffix || explicitTopicId
-      );
+      const remappedTopicId = buildLongTailTopicId(params.domainId, explicitSuffix || explicitTopicId);
       await ensureTopicExists({
         topicId: remappedTopicId,
         domainId: params.domainId,
         topicKind: "longTail",
-        topicTitle:
-          explicitTitle ||
-          topicTitleFromTopicId(explicitSuffix || explicitTopicId),
-        aliases: [],
+        topicTitle: explicitTitle || topicTitleFromTopicId(explicitSuffix || explicitTopicId),
+        aliases: []
       });
       return remappedTopicId;
     }
@@ -929,50 +681,38 @@ async function resolveTopicFromQuizInput(params: {
       domainId: params.domainId,
       topicKind: "longTail",
       topicTitle: explicitTitle || topicTitleFromTopicId(explicitTopicId),
-      aliases: [],
+      aliases: []
     });
     return explicitTopicId;
   }
-
   if (params.sourceContentId) {
-    const content = await avatarDB.queryRow<{ topic_id: string; domain_id: string }>`
+    const content = await avatarDB.queryRow`
       SELECT topic_id, domain_id
       FROM content_items
       WHERE child_id = ${params.childId}
         AND content_id = ${params.sourceContentId}
       LIMIT 1
     `;
-    if (
-      content?.topic_id &&
-      normalizeDomainId(content.domain_id) === params.domainId
-    ) {
+    if (content?.topic_id && normalizeDomainId(content.domain_id) === params.domainId) {
       return content.topic_id;
     }
   }
-
   const fallbackTopicId = `${params.domainId}_general`;
   await ensureTopicExists({
     topicId: fallbackTopicId,
     domainId: params.domainId,
     topicKind: "longTail",
     topicTitle: "Allgemeines Thema",
-    aliases: [],
+    aliases: []
   });
   return fallbackTopicId;
 }
-
-async function resolveDomainFromSourceContent(params: {
-  childId: string;
-  requestedDomainId: string;
-  sourceContentId?: string;
-  sourceContentType?: "doku" | "story";
-}): Promise<CosmosDomainId> {
+async function resolveDomainFromSourceContent(params) {
   const requestedRaw = String(params.requestedDomainId || "").trim();
   const hasExplicitRequested = requestedRaw.length > 0;
   const requested = normalizeDomainForStorage(params.requestedDomainId);
-
   if (params.sourceContentType === "doku" && params.sourceContentId) {
-    const dokuRow = await dokuDB.queryRow<{ domain_id: string | null }>`
+    const dokuRow = await dokuDB.queryRow`
       SELECT COALESCE(
         (metadata::jsonb)->'configSnapshot'->>'domainId',
         (metadata::jsonb)->>'domainId'
@@ -985,16 +725,13 @@ async function resolveDomainFromSourceContent(params: {
       return normalizeDomainForStorage(dokuRow.domain_id);
     }
   }
-
   if (hasExplicitRequested) {
     return requested;
   }
-
   if (!params.sourceContentId) {
     return requested;
   }
-
-  const contentRow = await avatarDB.queryRow<{ domain_id: string | null }>`
+  const contentRow = await avatarDB.queryRow`
     SELECT domain_id
     FROM content_items
     WHERE child_id = ${params.childId}
@@ -1004,59 +741,41 @@ async function resolveDomainFromSourceContent(params: {
   if (contentRow?.domain_id) {
     return normalizeDomainForStorage(contentRow.domain_id);
   }
-
   return requested;
 }
-
-async function loadContentPackageByContentId(childId: string, contentId: string | undefined): Promise<Record<string, unknown> | null> {
-  if (!contentId) return null;
-  const row = await avatarDB.queryRow<{ package_json: unknown }>`
+async function loadContentPackageByContentId(childId, contentId) {
+  if (!contentId)
+    return null;
+  const row = await avatarDB.queryRow`
     SELECT package_json
     FROM content_items
     WHERE child_id = ${childId}
       AND content_id = ${contentId}
     LIMIT 1
   `;
-  return row?.package_json && typeof row.package_json === "object"
-    ? (row.package_json as Record<string, unknown>)
-    : null;
+  return row?.package_json && typeof row.package_json === "object" ? row.package_json : null;
 }
-
-export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
-  childId: string;
-  topicId: string;
-  domainId: CosmosDomainId;
-  stage: TopicStage;
-  mastery: number;
-  confidence: number;
-  masteryDelta: number;
-  confidenceDelta: number;
-  recallTaskId: string;
-  recallDueAt: string;
-  evolutionIndex: number;
-  planetLevel: number;
-}> {
+async function submitQuizForCosmos(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
-
   const domainId = await resolveDomainFromSourceContent({
     childId,
     requestedDomainId: params.domainId,
     sourceContentId: params.sourceContentId || params.contentId,
-    sourceContentType: params.sourceContentType,
+    sourceContentType: params.sourceContentType
   });
   const topicId = await resolveTopicFromQuizInput({
     childId,
     domainId,
     topicId: params.topicId,
     topicTitle: params.topicTitle,
-    sourceContentId: params.sourceContentId || params.contentId,
+    sourceContentId: params.sourceContentId || params.contentId
   });
   const resolvedContentId = params.sourceContentId || params.contentId;
   if (resolvedContentId) {
@@ -1077,13 +796,13 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
         ${topicId},
         ${params.sourceContentType ?? "doku"},
         ${JSON.stringify({
-          contentId: resolvedContentId,
-          contentType: params.sourceContentType ?? "doku",
-          domainId,
-          title: resolvedContentId,
-          topic: { topicId, topicTitle: topicId, topicKind: "longTail" },
-          metadata: { source: "quiz_submit" },
-        })}::jsonb,
+      contentId: resolvedContentId,
+      contentType: params.sourceContentType ?? "doku",
+      domainId,
+      title: resolvedContentId,
+      topic: { topicId, topicTitle: topicId, topicKind: "longTail" },
+      metadata: { source: "quiz_submit" }
+    })}::jsonb,
         CURRENT_TIMESTAMP
       )
       ON CONFLICT (content_id)
@@ -1094,67 +813,45 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
         type = EXCLUDED.type
     `;
   }
-
-  const normalizedAnswers = (Array.isArray(params.answers) ? params.answers : [])
-    .map((answer, index) => ({
-      questionId: String(answer.questionId || `q_${index}`),
-      skillType: normalizeSkillType(answer.skillType),
-      questionType: normalizeQuestionType(answer.questionType),
-      correct: Boolean(answer.correct),
-      difficulty: clamp(Math.round(toNumber(answer.difficulty, 1)), 1, 5),
-    }))
-    .filter((answer) => answer.questionId.length > 0);
-
+  const normalizedAnswers = (Array.isArray(params.answers) ? params.answers : []).map((answer, index) => ({
+    questionId: String(answer.questionId || `q_${index}`),
+    skillType: normalizeSkillType(answer.skillType),
+    questionType: normalizeQuestionType(answer.questionType),
+    correct: Boolean(answer.correct),
+    difficulty: clamp(Math.round(toNumber(answer.difficulty, 1)), 1, 5)
+  })).filter((answer) => answer.questionId.length > 0);
   if (normalizedAnswers.length === 0) {
     throw APIError.invalidArgument("No quiz answers provided");
   }
-
   const topicState = await loadTopicState(childId, topicId);
   if (!topicState) {
     throw APIError.notFound("Topic not found");
   }
-
   const ageBand = await getChildAgeBand(childId);
   const overdueWeeks = await getOverdueWeeks(childId, topicId);
   const baseConfidence = applyConfidenceDecay(topicState.confidence, overdueWeeks);
-
   const metrics = computeSkillStats(normalizedAnswers);
   const masteryDelta = computeMasteryDelta({
     mastery: topicState.mastery,
     overallAccuracy: metrics.overallAccuracy,
-    skillStats: metrics.bySkill,
+    skillStats: metrics.bySkill
   });
   const confidenceDelta = computeQuizConfidenceDelta(metrics.overallAccuracy);
-
   const nextMastery = clamp(topicState.mastery + masteryDelta, 0, 100);
   const nextConfidence = clamp(baseConfidence + confidenceDelta, 0, 100);
-
-  const nextStats: TopicStatsState = {
+  const nextStats = {
     ...DEFAULT_TOPIC_STATS,
-    ...topicState.stats,
+    ...topicState.stats
   };
   nextStats.quizSessionsCount = Math.max(0, nextStats.quizSessionsCount) + 1;
-
   if (metrics.bySkill.understand && metrics.bySkill.understand.total > 0) {
-    nextStats.understandAccWindow = updateRollingWindow(
-      nextStats.understandAccWindow,
-      metrics.understandAccuracy,
-      5
-    );
-    nextStats.understandStreak =
-      metrics.understandAccuracy >= 0.7 ? nextStats.understandStreak + 1 : 0;
+    nextStats.understandAccWindow = updateRollingWindow(nextStats.understandAccWindow, metrics.understandAccuracy, 5);
+    nextStats.understandStreak = metrics.understandAccuracy >= 0.7 ? nextStats.understandStreak + 1 : 0;
   }
-
   if (metrics.applyTransferSessionsCount > 0) {
-    nextStats.applyTransferAccWindow = updateRollingWindow(
-      nextStats.applyTransferAccWindow,
-      metrics.applyTransferAccuracy,
-      5
-    );
-    nextStats.applyStreak =
-      metrics.applyTransferAccuracy >= 0.7 ? nextStats.applyStreak + 1 : 0;
+    nextStats.applyTransferAccWindow = updateRollingWindow(nextStats.applyTransferAccWindow, metrics.applyTransferAccuracy, 5);
+    nextStats.applyStreak = metrics.applyTransferAccuracy >= 0.7 ? nextStats.applyStreak + 1 : 0;
   }
-
   const understandRollingAvg = rollingAvg(nextStats.understandAccWindow);
   const applyTransferRollingAvg = rollingAvg(nextStats.applyTransferAccWindow);
   const nextStage = computeTopicStage({
@@ -1165,30 +862,27 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
     applyTransferRollingAvg,
     recallPassedCount: nextStats.recallPassedCount,
     confidence: nextConfidence,
-    hasAnyActivity: true,
+    hasAnyActivity: true
   });
-
   await upsertTopicState({
     childId,
     topicId,
     mastery: nextMastery,
     confidence: nextConfidence,
     stage: nextStage,
-    stats: nextStats,
+    stats: nextStats
   });
-
   const stageBonus = computeStageTransitionEvolutionBonus({
     previousStage: topicState.stage,
     nextStage,
-    ageBand,
+    ageBand
   });
   const evolutionDelta = computeQuizEvolutionDelta(metrics.overallAccuracy) + stageBonus;
   const domainState = await incrementDomainEvolution({
     childId,
     domainId,
-    delta: evolutionDelta,
+    delta: evolutionDelta
   });
-
   await avatarDB.exec`
     INSERT INTO quiz_attempts (
       id,
@@ -1208,14 +902,13 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
       ${domainId},
       ${JSON.stringify(normalizedAnswers)}::jsonb,
       ${JSON.stringify({
-        overallAccuracy: metrics.overallAccuracy,
-        correctCount: metrics.correctCount,
-        totalCount: metrics.totalCount,
-      })}::jsonb,
+    overallAccuracy: metrics.overallAccuracy,
+    correctCount: metrics.correctCount,
+    totalCount: metrics.totalCount
+  })}::jsonb,
       CURRENT_TIMESTAMP
     )
   `;
-
   await logEvidence({
     childId,
     domainId,
@@ -1230,16 +923,14 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
       overallAccuracy: metrics.overallAccuracy,
       masteryDelta,
       confidenceDelta,
-      stage: nextStage,
-    },
+      stage: nextStage
+    }
   });
-
   const contentPackage = await loadContentPackageByContentId(childId, params.contentId ?? params.sourceContentId);
   const recallPlan = extractRecallEntryFromPackage(contentPackage);
   const recallQuestions = extractRecallQuestionsFromPackage(contentPackage, recallPlan.questionCount);
   const dueAt = new Date(Date.now() + recallPlan.afterDays * 24 * 60 * 60 * 1000);
   const recallTaskId = uuid("recall");
-
   await avatarDB.exec`
     INSERT INTO recall_tasks (
       id,
@@ -1269,13 +960,12 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
       'pending',
       ${JSON.stringify(recallQuestions)}::jsonb,
       ${JSON.stringify({
-        questions: recallQuestions,
-        afterDays: recallPlan.afterDays,
-      })}::jsonb,
+    questions: recallQuestions,
+    afterDays: recallPlan.afterDays
+  })}::jsonb,
       CURRENT_TIMESTAMP
     )
   `;
-
   return {
     childId,
     topicId,
@@ -1288,41 +978,19 @@ export async function submitQuizForCosmos(params: QuizSubmitRequest): Promise<{
     recallTaskId,
     recallDueAt: dueAt.toISOString(),
     evolutionIndex: domainState.evolutionIndex,
-    planetLevel: domainState.planetLevel,
+    planetLevel: domainState.planetLevel
   };
 }
-
-export async function submitRecallForCosmos(params: RecallSubmitRequest): Promise<{
-  childId: string;
-  topicId: string;
-  domainId: CosmosDomainId;
-  stage: TopicStage;
-  mastery: number;
-  confidence: number;
-  confidenceDelta: number;
-  evolutionIndex: number;
-  planetLevel: number;
-  passed: boolean;
-}> {
+async function submitRecallForCosmos(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
-
-  const task = await avatarDB.queryRow<{
-    id: string;
-    domain_id: string;
-    topic_id: string;
-    status: string;
-    child_id: string | null;
-    profile_id: string | null;
-    source_content_id: string | null;
-    source_content_type: "doku" | "story" | null;
-  }>`
+  const task = await avatarDB.queryRow`
     SELECT
       id,
       domain_id,
@@ -1340,50 +1008,40 @@ export async function submitRecallForCosmos(params: RecallSubmitRequest): Promis
       )
     LIMIT 1
   `;
-
   if (!task) {
     throw APIError.notFound("Recall task not found");
   }
   if (task.status !== "pending") {
     throw APIError.invalidArgument("Recall task is not pending");
   }
-
-  const answers = (Array.isArray(params.answers) ? params.answers : [])
-    .map((answer, index) => ({
-      questionId: String(answer.questionId || `rq_${index}`),
-      correct: Boolean(answer.correct),
-    }))
-    .filter((answer) => answer.questionId.length > 0);
-
+  const answers = (Array.isArray(params.answers) ? params.answers : []).map((answer, index) => ({
+    questionId: String(answer.questionId || `rq_${index}`),
+    correct: Boolean(answer.correct)
+  })).filter((answer) => answer.questionId.length > 0);
   if (answers.length === 0) {
     throw APIError.invalidArgument("No recall answers provided");
   }
-
   const totalCount = answers.length;
   const correctCount = answers.filter((answer) => answer.correct).length;
   const overallAccuracy = totalCount > 0 ? correctCount / totalCount : 0;
   const passed = overallAccuracy >= 0.7;
-
   const topicId = task.topic_id;
   const domainId = normalizeDomainId(task.domain_id);
   const topicState = await loadTopicState(childId, topicId);
   if (!topicState) {
     throw APIError.notFound("Topic state not found");
   }
-
   const ageBand = await getChildAgeBand(childId);
   const overdueWeeks = await getOverdueWeeks(childId, topicId);
   const baseConfidence = applyConfidenceDecay(topicState.confidence, overdueWeeks);
   const confidenceDelta = computeRecallConfidenceDelta(overallAccuracy);
   const nextConfidence = clamp(baseConfidence + confidenceDelta, 0, 100);
   const nextMastery = clamp(topicState.mastery, 0, 100);
-
-  const nextStats: TopicStatsState = {
+  const nextStats = {
     ...DEFAULT_TOPIC_STATS,
     ...topicState.stats,
-    recallPassedCount: topicState.stats.recallPassedCount + (passed ? 1 : 0),
+    recallPassedCount: topicState.stats.recallPassedCount + (passed ? 1 : 0)
   };
-
   const nextStage = computeTopicStage({
     ageBand,
     quizSessionsCount: nextStats.quizSessionsCount,
@@ -1392,30 +1050,27 @@ export async function submitRecallForCosmos(params: RecallSubmitRequest): Promis
     applyTransferRollingAvg: rollingAvg(nextStats.applyTransferAccWindow),
     recallPassedCount: nextStats.recallPassedCount,
     confidence: nextConfidence,
-    hasAnyActivity: true,
+    hasAnyActivity: true
   });
-
   await upsertTopicState({
     childId,
     topicId,
     mastery: nextMastery,
     confidence: nextConfidence,
     stage: nextStage,
-    stats: nextStats,
+    stats: nextStats
   });
-
   const stageBonus = computeStageTransitionEvolutionBonus({
     previousStage: topicState.stage,
     nextStage,
-    ageBand,
+    ageBand
   });
   const evolutionDelta = (passed ? 6 : 0) + stageBonus;
   const domainState = await incrementDomainEvolution({
     childId,
     domainId,
-    delta: evolutionDelta,
+    delta: evolutionDelta
   });
-
   await avatarDB.exec`
     UPDATE recall_tasks
     SET
@@ -1424,12 +1079,11 @@ export async function submitRecallForCosmos(params: RecallSubmitRequest): Promis
       completed_at = CURRENT_TIMESTAMP,
       score = ${Math.round(overallAccuracy * 100)},
       payload = COALESCE(payload, '{}'::jsonb) || ${JSON.stringify({
-        submittedAnswers: answers,
-        overallAccuracy,
-      })}::jsonb
+    submittedAnswers: answers,
+    overallAccuracy
+  })}::jsonb
     WHERE id = ${params.recallTaskId}
   `;
-
   await logEvidence({
     childId,
     domainId,
@@ -1444,10 +1098,9 @@ export async function submitRecallForCosmos(params: RecallSubmitRequest): Promis
       overallAccuracy,
       confidenceDelta,
       stage: nextStage,
-      passed,
-    },
+      passed
+    }
   });
-
   return {
     childId,
     topicId,
@@ -1458,43 +1111,28 @@ export async function submitRecallForCosmos(params: RecallSubmitRequest): Promis
     confidenceDelta,
     evolutionIndex: domainState.evolutionIndex,
     planetLevel: domainState.planetLevel,
-    passed,
+    passed
   };
 }
-
-export async function recordReadActivity(params: ReadActivityRequest): Promise<{
-  childId: string;
-  topicId: string;
-  domainId: CosmosDomainId;
-  stage: TopicStage;
-  evolutionIndex: number;
-  planetLevel: number;
-}> {
+async function recordReadActivity(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
-
   const domainId = normalizeDomainId(params.domainId);
   const topicId = await resolveTopicFromQuizInput({
     childId,
     domainId,
     topicId: params.topicId,
     topicTitle: params.topicTitle || params.contentTitle,
-    sourceContentId: params.sourceContentId,
+    sourceContentId: params.sourceContentId
   });
-
-  const derivedContentTitle =
-    String(params.contentTitle || "").trim() ||
-    String(params.topicTitle || "").trim() ||
-    `${params.sourceContentType === "doku" ? "Doku" : "Story"} ${params.sourceContentId}`;
-  const topicTitle =
-    String(params.topicTitle || "").trim() ||
-    derivedContentTitle;
+  const derivedContentTitle = String(params.contentTitle || "").trim() || String(params.topicTitle || "").trim() || `${params.sourceContentType === "doku" ? "Doku" : "Story"} ${params.sourceContentId}`;
+  const topicTitle = String(params.topicTitle || "").trim() || derivedContentTitle;
   const contentPackage = {
     contentId: params.sourceContentId,
     contentType: params.sourceContentType,
@@ -1504,14 +1142,13 @@ export async function recordReadActivity(params: ReadActivityRequest): Promise<{
     topic: {
       topicId,
       topicTitle,
-      topicKind: "longTail",
+      topicKind: "longTail"
     },
     metadata: {
       source: "read_activity",
-      summary: params.summary || null,
-    },
+      summary: params.summary || null
+    }
   };
-
   await avatarDB.exec`
     INSERT INTO content_items (
       content_id,
@@ -1539,17 +1176,15 @@ export async function recordReadActivity(params: ReadActivityRequest): Promise<{
       type = EXCLUDED.type,
       package_json = EXCLUDED.package_json
   `;
-
   const topicState = await loadTopicState(childId, topicId);
   if (!topicState) {
     throw APIError.notFound("Topic not found");
   }
-
   const ageBand = await getChildAgeBand(childId);
-  const nextStats: TopicStatsState = {
+  const nextStats = {
     ...DEFAULT_TOPIC_STATS,
     ...topicState.stats,
-    dokuCompletedCount: topicState.stats.dokuCompletedCount + 1,
+    dokuCompletedCount: topicState.stats.dokuCompletedCount + 1
   };
   const nextStage = computeTopicStage({
     ageBand,
@@ -1559,29 +1194,26 @@ export async function recordReadActivity(params: ReadActivityRequest): Promise<{
     applyTransferRollingAvg: rollingAvg(nextStats.applyTransferAccWindow),
     recallPassedCount: nextStats.recallPassedCount,
     confidence: topicState.confidence,
-    hasAnyActivity: true,
+    hasAnyActivity: true
   });
-
   await upsertTopicState({
     childId,
     topicId,
     mastery: topicState.mastery,
     confidence: topicState.confidence,
     stage: nextStage,
-    stats: nextStats,
+    stats: nextStats
   });
-
   const stageBonus = computeStageTransitionEvolutionBonus({
     previousStage: topicState.stage,
     nextStage,
-    ageBand,
+    ageBand
   });
   const domainState = await incrementDomainEvolution({
     childId,
     domainId,
-    delta: 1 + stageBonus,
+    delta: 1 + stageBonus
   });
-
   await logEvidence({
     childId,
     domainId,
@@ -1591,57 +1223,36 @@ export async function recordReadActivity(params: ReadActivityRequest): Promise<{
     maxScore: 100,
     sourceContentId: params.sourceContentId,
     sourceContentType: params.sourceContentType,
-    summary:
-      params.summary ||
-      `${params.sourceContentType === "doku" ? "Doku" : "Story"} abgeschlossen`,
+    summary: params.summary || `${params.sourceContentType === "doku" ? "Doku" : "Story"} abgeschlossen`
   });
-
   return {
     childId,
     topicId,
     domainId,
     stage: nextStage,
     evolutionIndex: domainState.evolutionIndex,
-    planetLevel: domainState.planetLevel,
+    planetLevel: domainState.planetLevel
   };
 }
-
-type DomainTopicRow = {
-  topic_id: string;
-  title: string;
-  kind: TopicKind;
-  mastery: number;
-  confidence: number;
-  stage: TopicStage;
-  last_activity_at: string | null;
-  stats: unknown;
-  recall_due_at: string | null;
-  docs_count: number;
-};
-
-function sortTopicRows(rows: DomainTopicRow[]): DomainTopicRow[] {
+function sortTopicRows(rows) {
   return [...rows].sort((a, b) => {
     const aRecall = a.recall_due_at ? new Date(a.recall_due_at).getTime() : Number.POSITIVE_INFINITY;
     const bRecall = b.recall_due_at ? new Date(b.recall_due_at).getTime() : Number.POSITIVE_INFINITY;
-    if (aRecall !== bRecall) return aRecall - bRecall;
-
+    if (aRecall !== bRecall)
+      return aRecall - bRecall;
     const aActivity = a.last_activity_at ? new Date(a.last_activity_at).getTime() : 0;
     const bActivity = b.last_activity_at ? new Date(b.last_activity_at).getTime() : 0;
-    if (aActivity !== bActivity) return bActivity - aActivity;
-
+    if (aActivity !== bActivity)
+      return bActivity - aActivity;
     const aRetained = a.stage === "retained" ? 1 : 0;
     const bRetained = b.stage === "retained" ? 1 : 0;
-    if (aRetained !== bRetained) return aRetained - bRetained;
-
+    if (aRetained !== bRetained)
+      return aRetained - bRetained;
     return a.title.localeCompare(b.title);
   });
 }
-
-async function loadDomainTopicRows(params: {
-  childId: string;
-  domainId: CosmosDomainId;
-}): Promise<DomainTopicRow[]> {
-  const rows = await avatarDB.queryAll<DomainTopicRow>`
+async function loadDomainTopicRows(params) {
+  const rows = await avatarDB.queryAll`
     WITH candidate_topics AS (
       SELECT DISTINCT tts.topic_id
       FROM tracking_topic_state tts
@@ -1740,37 +1351,22 @@ async function loadDomainTopicRows(params: {
     ) AS topic_title_source ON TRUE
     ORDER BY tts.updated_at DESC NULLS LAST
   `;
-
   return rows;
 }
-
-export async function getDomainTopicsForChild(params: {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  domainId: string;
-}): Promise<{
-  childId: string;
-  domainId: CosmosDomainId;
-  activeIslands: TopicIslandDTO[];
-  otherTopics: TopicIslandDTO[];
-}> {
+async function getDomainTopicsForChild(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
-
   const domainId = normalizeDomainId(params.domainId);
   const rows = sortTopicRows(await loadDomainTopicRows({ childId, domainId }));
   const active = rows.slice(0, 20);
   const rest = rows.slice(20);
-
-  const mapRow = (row: DomainTopicRow): TopicIslandDTO => {
+  const mapRow = (row) => {
     const { lat, lon } = islandLatLon(row.topic_id);
     const confidence = toNumber(row.confidence, 0);
     return {
@@ -1786,21 +1382,20 @@ export async function getDomainTopicsForChild(params: {
       recallDueAt: row.recall_due_at || null,
       lat,
       lon,
-      docsCount: Math.max(0, toNumber(row.docs_count, 0)),
+      docsCount: Math.max(0, toNumber(row.docs_count, 0))
     };
   };
-
   return {
     childId,
     domainId,
     activeIslands: active.map(mapRow),
-    otherTopics: rest.map(mapRow),
+    otherTopics: rest.map(mapRow)
   };
 }
-
-function stageFromDomainRows(rows: DomainTopicRow[]): TopicStage {
-  if (rows.length === 0) return "discovered";
-  let stage: TopicStage = "discovered";
+function stageFromDomainRows(rows) {
+  if (rows.length === 0)
+    return "discovered";
+  let stage = "discovered";
   for (const row of rows) {
     if (mapStageToRank(row.stage) > mapStageToRank(stage)) {
       stage = row.stage;
@@ -1808,20 +1403,13 @@ function stageFromDomainRows(rows: DomainTopicRow[]): TopicStage {
   }
   return stage;
 }
-
-export async function getCosmosStateForChild(params: {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  selectedDomainId?: string;
-}): Promise<CosmosStateResponseDTO> {
+async function getCosmosStateForChild(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
   await ensureBaseRowsForChild(childId);
   try {
@@ -1829,13 +1417,7 @@ export async function getCosmosStateForChild(params: {
   } catch (error) {
     console.warn("[cosmos-mvp] failed to sync doku domain mappings", error);
   }
-
-  const domainRows = await avatarDB.queryAll<{
-    domain_id: string;
-    evolution_index: number;
-    planet_level: number;
-    last_activity_at: string | null;
-  }>`
+  const domainRows = await avatarDB.queryAll`
     SELECT
       d.domain_id,
       COALESCE(tds.evolution_index, 0) AS evolution_index,
@@ -1876,11 +1458,7 @@ export async function getCosmosStateForChild(params: {
       COALESCE(tds.last_activity_at, d.created_at) DESC,
       d.domain_id
   `;
-
-  const contentTotals = await avatarDB.queryRow<{
-    total_stories_read: number;
-    total_dokus_read: number;
-  }>`
+  const contentTotals = await avatarDB.queryRow`
     WITH content_totals AS (
       SELECT
         COALESCE(COUNT(*) FILTER (WHERE type = 'story'), 0)::int AS stories_count,
@@ -1904,47 +1482,37 @@ export async function getCosmosStateForChild(params: {
       GREATEST(content_totals.dokus_count, evidence_totals.dokus_count) AS total_dokus_read
     FROM content_totals, evidence_totals
   `;
-
-  const dokuProfileTotals = await dokuDB.queryRow<{ total_dokus_read: number }>`
+  const dokuProfileTotals = await dokuDB.queryRow`
     SELECT COALESCE(COUNT(*), 0)::int AS total_dokus_read
     FROM doku_profile_state
     WHERE profile_id = ${childId}
       AND completion_state = 'completed'
   `;
-  const dokuParticipantTotals = await dokuDB.queryRow<{ total_dokus_known: number }>`
+  const dokuParticipantTotals = await dokuDB.queryRow`
     SELECT COALESCE(COUNT(DISTINCT doku_id), 0)::int AS total_dokus_known
     FROM doku_participants
     WHERE profile_id = ${childId}
   `;
-  const storyProfileTotals = await storyDB.queryRow<{ total_stories_read: number }>`
+  const storyProfileTotals = await storyDB.queryRow`
     SELECT COALESCE(COUNT(*), 0)::int AS total_stories_read
     FROM story_profile_state
     WHERE profile_id = ${childId}
       AND completion_state = 'completed'
   `;
-  const storyParticipantTotals = await storyDB.queryRow<{ total_stories_known: number }>`
+  const storyParticipantTotals = await storyDB.queryRow`
     SELECT COALESCE(COUNT(DISTINCT story_id), 0)::int AS total_stories_known
     FROM story_participants
     WHERE profile_id = ${childId}
   `;
-
-  const domains: CosmosStateDomainDTO[] = [];
+  const domains = [];
   for (const row of domainRows) {
     const domainId = normalizeDomainId(row.domain_id);
     const topicRows = await loadDomainTopicRows({ childId, domainId });
     const activeTopicCount = topicRows.length;
     const stage = stageFromDomainRows(topicRows);
-
-    const avgMastery =
-      topicRows.length > 0
-        ? topicRows.reduce((sum, item) => sum + toNumber(item.mastery, 0), 0) / topicRows.length
-        : 0;
-    const avgConfidence =
-      topicRows.length > 0
-        ? topicRows.reduce((sum, item) => sum + toNumber(item.confidence, 0), 0) / topicRows.length
-        : 0;
-
-    const evidence = await avatarDB.queryRow<{ summary: string | null }>`
+    const avgMastery = topicRows.length > 0 ? topicRows.reduce((sum, item) => sum + toNumber(item.mastery, 0), 0) / topicRows.length : 0;
+    const avgConfidence = topicRows.length > 0 ? topicRows.reduce((sum, item) => sum + toNumber(item.confidence, 0), 0) / topicRows.length : 0;
+    const evidence = await avatarDB.queryRow`
       SELECT payload->>'summary' AS summary
       FROM evidence_events
       WHERE profile_id = ${childId}
@@ -1952,7 +1520,6 @@ export async function getCosmosStateForChild(params: {
       ORDER BY created_at DESC
       LIMIT 1
     `;
-
     domains.push({
       domainId,
       evolutionIndex: Math.max(0, Math.floor(toNumber(row.evolution_index, 0))),
@@ -1964,88 +1531,40 @@ export async function getCosmosStateForChild(params: {
       confidenceText: confidenceLabel(avgConfidence),
       evidence: evidence?.summary || "Neue Lernspur gesammelt.",
       lastActivityAt: row.last_activity_at || null,
-      activeTopicCount,
+      activeTopicCount
     });
   }
-
-  let selectedDomain: CosmosStateResponseDTO["selectedDomain"] | undefined;
+  let selectedDomain;
   if (params.selectedDomainId) {
     const selected = normalizeDomainId(params.selectedDomainId);
     const topics = await getDomainTopicsForChild({
       userId: params.userId,
       childId,
-      domainId: selected,
+      domainId: selected
     });
     selectedDomain = {
       domainId: selected,
       activeIslands: topics.activeIslands,
-      moreTopicsCount: topics.otherTopics.length,
+      moreTopicsCount: topics.otherTopics.length
     };
   }
-
   return {
     childId,
     domains,
-    totalStoriesRead: Math.max(
-      0,
-      toNumber(contentTotals?.total_stories_read, 0),
-      toNumber(storyProfileTotals?.total_stories_read, 0),
-      toNumber(storyParticipantTotals?.total_stories_known, 0)
-    ),
-    totalDokusRead: Math.max(
-      0,
-      toNumber(contentTotals?.total_dokus_read, 0),
-      toNumber(dokuProfileTotals?.total_dokus_read, 0),
-      toNumber(dokuParticipantTotals?.total_dokus_known, 0)
-    ),
-    selectedDomain,
+    totalStoriesRead: Math.max(0, toNumber(contentTotals?.total_stories_read, 0), toNumber(storyProfileTotals?.total_stories_read, 0), toNumber(storyParticipantTotals?.total_stories_known, 0)),
+    totalDokusRead: Math.max(0, toNumber(contentTotals?.total_dokus_read, 0), toNumber(dokuProfileTotals?.total_dokus_read, 0), toNumber(dokuParticipantTotals?.total_dokus_known, 0)),
+    selectedDomain
   };
 }
-
-export async function getTopicTimelineForChild(params: {
-  userId: string;
-  childId?: string;
-  profileId?: string;
-  avatarId?: string;
-  topicId: string;
-}): Promise<{
-  childId: string;
-  topicId: string;
-  docs: Array<{
-    contentId: string;
-    type: "doku" | "story";
-    title: string;
-    createdAt: string;
-  }>;
-  quizAttempts: Array<{
-    id: string;
-    accuracy: number;
-    correctCount: number;
-    totalCount: number;
-    createdAt: string;
-  }>;
-  recallTasks: Array<{
-    id: string;
-    dueAt: string;
-    status: string;
-    score: number | null;
-    doneAt: string | null;
-  }>;
-}> {
+async function getTopicTimelineForChild(params) {
   await ensureCosmosMvpSchema();
   const childId = await resolveChildIdForCosmos({
     userId: params.userId,
     childId: params.childId,
     profileId: params.profileId,
-    avatarId: params.avatarId,
+    avatarId: params.avatarId
   });
-
-  const docs = await avatarDB.queryAll<{
-    content_id: string;
-    type: "doku" | "story";
-    package_json: unknown;
-    created_at: string;
-  }>`
+  const docs = await avatarDB.queryAll`
     SELECT content_id, type, package_json, created_at
     FROM content_items
     WHERE child_id = ${childId}
@@ -2053,13 +1572,7 @@ export async function getTopicTimelineForChild(params: {
     ORDER BY created_at DESC
     LIMIT 5
   `;
-
-  const fallbackDocs = await avatarDB.queryAll<{
-    source_content_id: string;
-    source_content_type: string | null;
-    event_type: string;
-    created_at: string;
-  }>`
+  const fallbackDocs = await avatarDB.queryAll`
     SELECT
       source_content_id,
       source_content_type,
@@ -2073,95 +1586,57 @@ export async function getTopicTimelineForChild(params: {
     ORDER BY created_at DESC
     LIMIT 20
   `;
-
   const contentTimelineDocs = docs.map((doc) => {
-    const pkg = doc.package_json && typeof doc.package_json === "object"
-      ? (doc.package_json as Record<string, unknown>)
-      : {};
+    const pkg = doc.package_json && typeof doc.package_json === "object" ? doc.package_json : {};
     return {
       contentId: doc.content_id,
       type: doc.type,
       rawTitle: String(pkg.title || pkg.contentTitle || "").trim(),
-      createdAt: doc.created_at,
+      createdAt: doc.created_at
     };
   });
-
   const knownDocIds = new Set(contentTimelineDocs.map((doc) => doc.contentId));
-  const fallbackDocCandidates: Array<{
-    contentId: string;
-    type: "doku" | "story";
-    createdAt: string;
-  }> = [];
+  const fallbackDocCandidates = [];
   for (const row of fallbackDocs) {
     const contentId = String(row.source_content_id || "").trim();
-    if (!contentId || knownDocIds.has(contentId)) continue;
-    const type = row.source_content_type === "story" || row.event_type === "story_read"
-      ? "story"
-      : "doku";
+    if (!contentId || knownDocIds.has(contentId))
+      continue;
+    const type = row.source_content_type === "story" || row.event_type === "story_read" ? "story" : "doku";
     fallbackDocCandidates.push({
       contentId,
       type,
-      createdAt: row.created_at,
+      createdAt: row.created_at
     });
     knownDocIds.add(contentId);
   }
-
   const titleLookupDocs = [
-    ...contentTimelineDocs.filter(
-      (entry) => !entry.rawTitle || entry.rawTitle === entry.contentId
-    ).map((entry) => ({ contentId: entry.contentId, type: entry.type })),
+    ...contentTimelineDocs.filter((entry) => !entry.rawTitle || entry.rawTitle === entry.contentId).map((entry) => ({ contentId: entry.contentId, type: entry.type })),
     ...fallbackDocCandidates.map((entry) => ({
       contentId: entry.contentId,
-      type: entry.type,
-    })),
+      type: entry.type
+    }))
   ];
-  const dokuIds = Array.from(
-    new Set(
-      titleLookupDocs
-        .filter((entry) => entry.type === "doku")
-        .map((entry) => entry.contentId)
-    )
-  );
-  const storyIds = Array.from(
-    new Set(
-      titleLookupDocs
-        .filter((entry) => entry.type === "story")
-        .map((entry) => entry.contentId)
-    )
-  );
-
-  const dokuTitleRows = dokuIds.length
-    ? await dokuDB.queryAll<{ id: string; title: string }>`
+  const dokuIds = Array.from(new Set(titleLookupDocs.filter((entry) => entry.type === "doku").map((entry) => entry.contentId)));
+  const storyIds = Array.from(new Set(titleLookupDocs.filter((entry) => entry.type === "story").map((entry) => entry.contentId)));
+  const dokuTitleRows = dokuIds.length ? await dokuDB.queryAll`
         SELECT id, title
         FROM dokus
         WHERE id = ANY(${dokuIds})
-      `
-    : [];
-  const storyTitleRows = storyIds.length
-    ? await storyDB.queryAll<{ id: string; title: string }>`
+      ` : [];
+  const storyTitleRows = storyIds.length ? await storyDB.queryAll`
         SELECT id, title
         FROM stories
         WHERE id = ANY(${storyIds})
-      `
-    : [];
+      ` : [];
   const dokuTitleMap = new Map(dokuTitleRows.map((row) => [row.id, row.title]));
   const storyTitleMap = new Map(storyTitleRows.map((row) => [row.id, row.title]));
-
   const fallbackTimelineDocs = fallbackDocCandidates.map((entry) => ({
     contentId: entry.contentId,
     type: entry.type,
-    title:
-      (entry.type === "doku"
-        ? dokuTitleMap.get(entry.contentId)
-        : storyTitleMap.get(entry.contentId)) || entry.contentId,
-    createdAt: entry.createdAt,
+    title: (entry.type === "doku" ? dokuTitleMap.get(entry.contentId) : storyTitleMap.get(entry.contentId)) || entry.contentId,
+    createdAt: entry.createdAt
   }));
-
-  const quizAttempts = await avatarDB.queryAll<{
-    id: string;
-    score: unknown;
-    created_at: string;
-  }>`
+  const quizAttempts = await avatarDB.queryAll`
     SELECT id, score, created_at
     FROM quiz_attempts
     WHERE child_id = ${childId}
@@ -2169,15 +1644,7 @@ export async function getTopicTimelineForChild(params: {
     ORDER BY created_at DESC
     LIMIT 10
   `;
-
-  const recallTasks = await avatarDB.queryAll<{
-    id: string;
-    due_at: string;
-    status: string;
-    score: number | null;
-    done_at: string | null;
-    completed_at: string | null;
-  }>`
+  const recallTasks = await avatarDB.queryAll`
     SELECT
       id,
       due_at,
@@ -2191,40 +1658,25 @@ export async function getTopicTimelineForChild(params: {
     ORDER BY created_at DESC
     LIMIT 10
   `;
-
   const contentDocsWithResolvedTitles = contentTimelineDocs.map((entry) => ({
     contentId: entry.contentId,
     type: entry.type,
-    title:
-      entry.rawTitle ||
-      (entry.type === "doku"
-        ? dokuTitleMap.get(entry.contentId)
-        : storyTitleMap.get(entry.contentId)) ||
-      entry.contentId,
-    createdAt: entry.createdAt,
+    title: entry.rawTitle || (entry.type === "doku" ? dokuTitleMap.get(entry.contentId) : storyTitleMap.get(entry.contentId)) || entry.contentId,
+    createdAt: entry.createdAt
   }));
-
-  const mergedDocs = [...contentDocsWithResolvedTitles, ...fallbackTimelineDocs]
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    )
-    .slice(0, 5);
-
+  const mergedDocs = [...contentDocsWithResolvedTitles, ...fallbackTimelineDocs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
   return {
     childId,
     topicId: params.topicId,
     docs: mergedDocs,
     quizAttempts: quizAttempts.map((attempt) => {
-      const score = attempt.score && typeof attempt.score === "object"
-        ? (attempt.score as Record<string, unknown>)
-        : {};
+      const score = attempt.score && typeof attempt.score === "object" ? attempt.score : {};
       return {
         id: attempt.id,
         accuracy: clamp(toNumber(score.overallAccuracy, 0), 0, 1),
         correctCount: Math.max(0, Math.floor(toNumber(score.correctCount, 0))),
         totalCount: Math.max(0, Math.floor(toNumber(score.totalCount, 0))),
-        createdAt: attempt.created_at,
+        createdAt: attempt.created_at
       };
     }),
     recallTasks: recallTasks.map((task) => ({
@@ -2232,16 +1684,11 @@ export async function getTopicTimelineForChild(params: {
       dueAt: task.due_at,
       status: task.status,
       score: task.score != null ? toNumber(task.score, 0) : null,
-      doneAt: task.done_at || task.completed_at || null,
-    })),
+      doneAt: task.done_at || task.completed_at || null
+    }))
   };
 }
-
-export async function resolveDomainTopicForLegacy(params: {
-  domainId: string;
-  topicId?: string;
-  topicTitle?: string;
-}): Promise<{ domainId: CosmosDomainId; topicId: string }> {
+async function resolveDomainTopicForLegacy(params) {
   await ensureCosmosMvpSchema();
   const domainId = normalizeDomainId(params.domainId);
   const topicId = String(params.topicId || "").trim();
@@ -2251,21 +1698,30 @@ export async function resolveDomainTopicForLegacy(params: {
       domainId,
       topicKind: "longTail",
       topicTitle: params.topicTitle || topicId,
-      aliases: [],
+      aliases: []
     });
     return { domainId, topicId };
   }
-
   const resolved = await resolveTopic({
     domainId,
     topic: {
-      topicTitle: params.topicTitle || `${domainId}_topic`,
+      topicTitle: params.topicTitle || `${domainId}_topic`
     },
-    fallbackTitle: params.topicTitle || `${domainId} Thema`,
+    fallbackTitle: params.topicTitle || `${domainId} Thema`
   });
   return { domainId, topicId: resolved.topicId };
 }
-
-function roundOne(value: number): number {
+function roundOne(value) {
   return Math.round(toNumber(value, 0) * 10) / 10;
 }
+export {
+  submitRecallForCosmos,
+  submitQuizForCosmos,
+  resolveDomainTopicForLegacy,
+  resolveChildIdForCosmos,
+  recordReadActivity,
+  ingestContentPackage,
+  getTopicTimelineForChild,
+  getDomainTopicsForChild,
+  getCosmosStateForChild
+};

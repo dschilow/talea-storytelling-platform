@@ -242,7 +242,10 @@ const ProfilesSettingsPanel: React.FC = () => {
 
   const openChildAvatarFlow = (profileId: string, childAvatarId?: string) => {
     setActiveProfileId(profileId);
-    if (childAvatarId) { navigate(`/avatar/edit/${childAvatarId}`); return; }
+    if (childAvatarId) {
+      navigate(`/avatar/edit/${childAvatarId}?profileId=${encodeURIComponent(profileId)}`);
+      return;
+    }
     navigate(`/avatar/create?mode=child&profileId=${encodeURIComponent(profileId)}`);
   };
 

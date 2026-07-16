@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, ImageOff, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, ImageOff, LoaderCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { wereStoryImagesSkipped } from '../../utils/storyQualityGate';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
@@ -42,8 +43,15 @@ const StoryReaderScreen: React.FC = () => {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { isAdmin } = useOptionalUserAccess();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const progressAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ??
+    null;
   const isDark = resolvedTheme === 'dark';
 
   const [story, setStory] = useState<Story | null>(null);
@@ -57,6 +65,8 @@ const StoryReaderScreen: React.FC = () => {
 
   // Lese-Status
   const [storyCompleted, setStoryCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   // Gamification / Rewards
   const [rewardQueue, setRewardQueue] = useState<Array<{ item?: InventoryItem, skill?: Skill, type: 'new_item' | 'item_upgrade' | 'new_skill' | 'skill_upgrade' }>>([]);
@@ -78,14 +88,34 @@ const StoryReaderScreen: React.FC = () => {
   const { showCompletionResults } = usePostStoryFlow();
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (storyId) {
-      loadStory();
-    }
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    setStory(null);
+    setStoryCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
+    setIsReading(false);
+    setCurrentChapterIndex(0);
+    setRewardQueue([]);
+    setArtifactQueue([]);
+    setCurrentReward(null);
+    setCurrentArtifact(null);
+    setPoolArtifact(null);
+    setShowPoolArtifactModal(false);
+    if (storyId) void loadStory(requestId);
 
-    // Keine Avatar-Auswahl mehr nötig – Updates erfolgen serverseitig bei Generierung
-  }, [storyId, activeProfileId, location.state]);
+    return () => {
+      if (loadRequestRef.current === requestId) loadRequestRef.current += 1;
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+    };
+  }, [storyId, activeProfileId, location.state, offlineScope]);
 
   useEffect(() => {
     const contentEl = contentRef.current;
@@ -163,14 +193,14 @@ const StoryReaderScreen: React.FC = () => {
     }
   };
 
-  const loadStory = async () => {
+  const loadStory = async (requestId: number) => {
     if (!storyId) return;
     try {
       setLoading(true);
       setError(null);
 
       // Try to load from offline storage first
-      let storyData: any = await getOfflineStory(storyId);
+      let storyData: any = offlineScope ? await getOfflineStory(offlineScope, storyId) : null;
 
       // If not found offline, fetch from backend
       if (!storyData) {
@@ -179,12 +209,14 @@ const StoryReaderScreen: React.FC = () => {
         console.log('[StoryReaderScreen] Loaded story from offline storage');
       }
 
+      if (loadRequestRef.current !== requestId) return;
       setStory(storyData as unknown as Story);
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading story:', err);
       setError(t('story.reader.notFound'));
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -195,7 +227,7 @@ const StoryReaderScreen: React.FC = () => {
     setShowNav(false);
   };
 
-  const goToChapter = async (index: number) => {
+  const goToChapter = (index: number) => {
     console.log('🔄 goToChapter called:', {
       index,
       totalChapters: story?.chapters?.length,
@@ -208,24 +240,21 @@ const StoryReaderScreen: React.FC = () => {
     setAnimationDirection(index > currentChapterIndex ? 1 : -1);
     setCurrentChapterIndex(index);
     setShowNav(false);
-
-    // Check if story is completed (reached last chapter)
-    if (index === story.chapters!.length - 1 && !storyCompleted) {
-      console.log('🎯 Last chapter reached! Calling handleStoryCompletion...');
-      await handleStoryCompletion();
-    }
   };
 
   const handleStoryCompletion = async () => {
     console.log('📖 Story completed - triggering personality updates for all eligible avatars');
-    if (!story || !storyId) {
+    if (!story || !storyId || storyCompleted || completionInFlightRef.current) {
       console.log('Story completion aborted - missing requirements');
       return;
     }
 
-    try {
-      setStoryCompleted(true);
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
 
+    try {
       // Get auth token and call story markRead endpoint to apply personality updates
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
@@ -251,17 +280,23 @@ const StoryReaderScreen: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
+        if (result?.success !== true) {
+          throw new Error('Story completion was not confirmed by the server.');
+        }
+        if (completionAttemptRef.current !== attemptId) return;
+        setStoryCompleted(true);
+
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
-              avatarId: mapAvatarId ?? undefined,
+              avatarId: progressAvatarId ?? undefined,
               refreshProgression: true,
               source: 'story',
               updatedAt: new Date().toISOString(),
             },
           })
         );
-        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
+        emitMapProgress({ avatarId: progressAvatarId, source: 'story' });
         console.log('✅ Personality updates applied:', result);
         console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
 
@@ -400,32 +435,27 @@ const StoryReaderScreen: React.FC = () => {
 
         // 🌟 Show agent result feed (contextual completion cards)
         showCompletionResults({
-          hasMemory: true,
+          hasMemory: result?.memorySaved === true || Number(result?.memoriesCreated) > 0,
           artifactName: collectedArtifacts.length > 0 ? collectedArtifacts[0].item.name : undefined,
           storyId,
         });
 
       } else {
-        const errorText = await response.text();
-        console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
-
-        // Show error notification but still show completion
-        import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-          showErrorToast(t('story.reader.toast.error'));
-          showStoryCompletionToast(story.title);
-        });
+        throw new Error(`Story completion failed with status ${response.status}`);
       }
 
     } catch (error) {
       console.error('❌ Error during story completion processing:', error);
-      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
-
-      // Show error notification but still show completion
-      import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-        showErrorToast(t('story.reader.toast.networkError'));
-        showStoryCompletionToast(story.title);
-      });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Fortschritt konnte noch nicht gespeichert werden. Bitte versuche es erneut.';
+      setCompletionError(message);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+        setCompletionPending(false);
+      }
     }
   };
 
@@ -716,17 +746,25 @@ const StoryReaderScreen: React.FC = () => {
                         handleStoryCompletion();
                       }
                     }}
-                    disabled={storyCompleted}
+                    disabled={storyCompleted || completionPending || !showNav}
+                    aria-busy={completionPending}
                     className={`rounded-full border px-5 py-3 text-sm font-bold transition ${
                       storyCompleted
                         ? 'border-transparent bg-[#7daf99] text-white dark:bg-[#7fa3c8]'
                         : 'border-white/75 bg-[linear-gradient(135deg,#f2d8e4_0%,#f9e9ca_46%,#dfeefc_100%)] text-[#334257] dark:border-white/10 dark:bg-[linear-gradient(135deg,rgba(111,84,114,0.54)_0%,rgba(65,96,131,0.44)_100%)] dark:text-white'
                       }`}
-                    whileHover={!storyCompleted ? { scale: 1.05 } : {}}
-                    whileTap={!storyCompleted ? { scale: 0.95 } : {}}
+                    whileHover={!storyCompleted && !completionPending && showNav ? { scale: 1.05 } : {}}
+                    whileTap={!storyCompleted && !completionPending && showNav ? { scale: 0.95 } : {}}
                     animate={{ opacity: showNav ? 1 : 0.7 }}
                   >
-                    {storyCompleted ? t('story.reader.completed') : t('story.reader.finish')}
+                    {completionPending && <LoaderCircle className="mr-2 inline h-4 w-4 animate-spin" aria-hidden="true" />}
+                    {storyCompleted
+                      ? t('story.reader.completed')
+                      : completionPending
+                        ? 'Fortschritt wird gespeichert ...'
+                        : completionError
+                          ? 'Speichern erneut versuchen'
+                          : t('story.reader.finish')}
                   </motion.button>
                 ) : (
                   // Regular "Next Chapter" button
@@ -741,6 +779,11 @@ const StoryReaderScreen: React.FC = () => {
                   </motion.button>
                 )}
                   </div>
+                  {completionError && !storyCompleted && (
+                    <p role="alert" className="mt-3 text-center text-sm font-medium text-red-700 dark:text-red-300">
+                      {completionError}
+                    </p>
+                  )}
                 </TaleaSurface>
               </div>
             </div>

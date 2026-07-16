@@ -48,6 +48,7 @@ import {
   saveGeneratedAudioOffline,
   saveStoryOffline,
 } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
@@ -1037,6 +1038,7 @@ function AudioLibraryPanel() {
   const backend = useBackend();
   const audioPlayer = useAudioPlayer();
   const { getToken } = useAuth();
+  const offlineScope = useOfflineScope();
   const backendUrl = getBackendUrl();
   const [items, setItems] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1107,13 +1109,17 @@ function AudioLibraryPanel() {
   }, [callAudioLibraryApi, sourceFilter, sort]);
 
   const loadOfflineSaved = useCallback(async () => {
+    if (!offlineScope) {
+      setOfflineSavedIds(new Set());
+      return;
+    }
     try {
-      const offlineItems = await getAllOfflineGeneratedAudios();
+      const offlineItems = await getAllOfflineGeneratedAudios(offlineScope);
       setOfflineSavedIds(new Set(offlineItems.map((entry) => entry.id)));
     } catch (error) {
       console.error('Failed to load offline audio library state:', error);
     }
-  }, []);
+  }, [offlineScope]);
 
   useEffect(() => {
     void loadItems();
@@ -1203,7 +1209,13 @@ function AudioLibraryPanel() {
           ),
         );
 
-        await Promise.all(group.items.map((entry) => removeGeneratedAudioOffline(entry.id).catch(() => undefined)));
+        if (offlineScope) {
+          await Promise.all(
+            group.items.map((entry) =>
+              removeGeneratedAudioOffline(offlineScope, entry.id).catch(() => undefined),
+            ),
+          );
+        }
 
         setItems((prev) =>
           prev.filter(
@@ -1225,7 +1237,7 @@ function AudioLibraryPanel() {
         setDeletingKey(null);
       }
     },
-    [callAudioLibraryApi],
+    [callAudioLibraryApi, offlineScope],
   );
 
   const handlePlayGroup = useCallback(
@@ -1257,12 +1269,16 @@ function AudioLibraryPanel() {
 
   const handleToggleOffline = useCallback(
     async (group: GroupedGeneratedAudio) => {
+      if (!offlineScope) {
+        toast.error(t('settings.audioLibraryOfflineFailed', 'Offline-Speicherung fehlgeschlagen.'));
+        return;
+      }
       try {
         setOfflineBusyId(group.key);
         const allSaved = group.items.length > 0 && group.items.every((item) => offlineSavedIds.has(item.id));
 
         if (allSaved) {
-          await Promise.all(group.items.map((item) => removeGeneratedAudioOffline(item.id)));
+          await Promise.all(group.items.map((item) => removeGeneratedAudioOffline(offlineScope, item.id)));
           setOfflineSavedIds((prev) => {
             const next = new Set(prev);
             for (const item of group.items) {
@@ -1274,19 +1290,25 @@ function AudioLibraryPanel() {
           return;
         }
 
-        await Promise.all(group.items.map((item) => saveGeneratedAudioOffline(item)));
+        await Promise.all(group.items.map((item) => saveGeneratedAudioOffline(offlineScope, item)));
 
         if (group.sourceType === 'story') {
           try {
-            const story = await backend.story.get({ id: group.sourceId });
-            await saveStoryOffline(story as any);
+            const story = await backend.story.get({
+              id: group.sourceId,
+              profileId: offlineScope.profileId,
+            });
+            await saveStoryOffline(offlineScope, story as any);
           } catch (error) {
             console.warn('[AudioLibrary] Story offline save failed:', error);
           }
         } else {
           try {
-            const doku = await backend.doku.getDoku({ id: group.sourceId });
-            await saveDokuOffline(doku as any);
+            const doku = await backend.doku.getDoku({
+              id: group.sourceId,
+              profileId: offlineScope.profileId,
+            });
+            await saveDokuOffline(offlineScope, doku as any);
           } catch (error) {
             console.warn('[AudioLibrary] Doku offline save failed:', error);
           }
@@ -1307,7 +1329,7 @@ function AudioLibraryPanel() {
         setOfflineBusyId(null);
       }
     },
-    [backend, offlineSavedIds],
+    [backend, offlineSavedIds, offlineScope],
   );
 
   return (

@@ -15513,7 +15513,7 @@ export async function generateStoryDevMode(
   // Best-effort: record the artifact assignment so usage counters and recent
   // history work the same way as in the standard pipeline. Failure here must
   // never break the generated story.
-  if (!input.disablePersistenceSideEffects && input.matchedArtifact?.id && input.storyId) {
+  if (!input.disablePersistenceSideEffects && shouldExposeDevModeArtifact(input) && input.matchedArtifact?.id && input.storyId) {
     try {
       await recordStoryArtifact(input.storyId, input.matchedArtifact.id, 2, Math.max(3, chapters.length - 1));
     } catch (err) {
@@ -15738,7 +15738,7 @@ export async function generateStoryDevMode(
           .map((c) => ({ characterId: c.id, characterName: c.name }));
         return used.length > 0 ? used : undefined;
       })(),
-      matchedArtifact: input.matchedArtifact
+      matchedArtifact: shouldExposeDevModeArtifact(input) && input.matchedArtifact
         ? {
             id: input.matchedArtifact.id,
             name: input.matchedArtifact.name,

@@ -880,3 +880,140 @@ export function mergeVisualProfileWithForm(
   };
 }
 
+export type AvatarFormField = keyof AvatarFormData;
+
+export const AVATAR_VISUAL_FORM_FIELDS: readonly AvatarFormField[] = [
+  'characterType',
+  'customCharacterType',
+  'age',
+  'gender',
+  'height',
+  'bodyBuild',
+  'hairColor',
+  'hairStyle',
+  'eyeColor',
+  'skinTone',
+  'specialFeatures',
+  'additionalDescription',
+] as const;
+
+function hasOwnVisualField(source: AvatarVisualProfileRecord, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+/**
+ * Editor-safe visual profile merge.
+ *
+ * Form controls intentionally cover only a subset of the canonical visual
+ * profile. Untouched canonical clothing, invariants, image markers and
+ * uneditable nested fields therefore stay byte-for-byte equivalent.
+ */
+export function mergeVisualProfileForEditor(
+  existingProfile: AvatarVisualProfileRecord | null | undefined,
+  data: AvatarFormData,
+  dirtyFields: ReadonlySet<AvatarFormField>
+): AvatarVisualProfileRecord {
+  const existing = existingProfile && typeof existingProfile === 'object'
+    ? existingProfile
+    : {};
+  const hasExisting = Object.keys(existing).length > 0;
+  const generated = formDataToVisualProfile(data);
+  const result = mergeVisualProfileWithForm(existing, data);
+  const isDirty = (...fields: AvatarFormField[]) =>
+    !hasExisting || fields.some((field) => dirtyFields.has(field));
+  const assignRoot = (keys: string[], fields: AvatarFormField[]) => {
+    keys.forEach((key) => {
+      if (isDirty(...fields) || !hasOwnVisualField(existing, key)) {
+        result[key] = generated[key];
+      } else {
+        result[key] = existing[key];
+      }
+    });
+  };
+
+  assignRoot(
+    ['characterType', 'speciesCategory', 'locomotion'],
+    ['characterType', 'customCharacterType']
+  );
+  assignRoot(
+    ['ageApprox', 'ageNumeric', 'ageDescription'],
+    ['age']
+  );
+  assignRoot(['gender'], ['gender']);
+  assignRoot(['heightCm'], ['height']);
+  assignRoot(['heightDescription'], ['height', 'age']);
+  assignRoot(['bodyBuild'], ['bodyBuild']);
+
+  const existingSkin = existing.skin && typeof existing.skin === 'object' ? existing.skin : {};
+  const generatedSkin = generated.skin && typeof generated.skin === 'object' ? generated.skin : {};
+  const mergedSkin = result.skin && typeof result.skin === 'object' ? result.skin : {};
+  result.skin = { ...existingSkin };
+  result.skin.tone =
+    isDirty('skinTone') || existingSkin.tone === undefined
+      ? generatedSkin.tone
+      : existingSkin.tone;
+  result.skin.distinctiveFeatures =
+    isDirty('specialFeatures', 'additionalDescription') ||
+    existingSkin.distinctiveFeatures === undefined
+      ? mergedSkin.distinctiveFeatures
+      : existingSkin.distinctiveFeatures;
+
+  const existingHair = existing.hair && typeof existing.hair === 'object' ? existing.hair : {};
+  const generatedHair = generated.hair && typeof generated.hair === 'object' ? generated.hair : {};
+  result.hair = { ...existingHair };
+  result.hair.color =
+    isDirty('hairColor') || existingHair.color === undefined
+      ? generatedHair.color
+      : existingHair.color;
+  ['type', 'length', 'style'].forEach((key) => {
+    result.hair[key] =
+      isDirty('hairStyle') || existingHair[key] === undefined
+        ? generatedHair[key]
+        : existingHair[key];
+  });
+
+  const existingEyes = existing.eyes && typeof existing.eyes === 'object' ? existing.eyes : {};
+  const generatedEyes = generated.eyes && typeof generated.eyes === 'object' ? generated.eyes : {};
+  result.eyes = { ...existingEyes };
+  result.eyes.color =
+    isDirty('eyeColor') || existingEyes.color === undefined
+      ? generatedEyes.color
+      : existingEyes.color;
+
+  const featureFields: AvatarFormField[] = ['specialFeatures', 'additionalDescription'];
+  if (!isDirty(...featureFields)) {
+    ['accessories', 'bodyFeatures', 'mustIncludeFeatures', 'forbiddenFeatures'].forEach((key) => {
+      if (hasOwnVisualField(existing, key)) result[key] = existing[key];
+    });
+    if (existing.face && typeof existing.face === 'object') {
+      result.face = { ...existing.face };
+    }
+    if (existingSkin.distinctiveFeatures !== undefined) {
+      result.skin.distinctiveFeatures = existingSkin.distinctiveFeatures;
+    }
+  }
+
+  if (!isDirty('additionalDescription') && hasOwnVisualField(existing, 'additionalNotes')) {
+    result.additionalNotes = existing.additionalNotes;
+  }
+
+  const hasAnyVisualChange = AVATAR_VISUAL_FORM_FIELDS.some((field) => dirtyFields.has(field));
+  if (!hasAnyVisualChange) {
+    ['consistentDescriptors', 'palette'].forEach((key) => {
+      if (hasOwnVisualField(existing, key)) result[key] = existing[key];
+    });
+  }
+
+  if (existing.clothingCanonical && typeof existing.clothingCanonical === 'object') {
+    result.clothingCanonical = existing.clothingCanonical;
+  }
+
+  Object.keys(existing).forEach((key) => {
+    if (/(canonical|marker|invariant)/i.test(key) && key !== 'consistentDescriptors') {
+      result[key] = existing[key];
+    }
+  });
+
+  return result;
+}
+

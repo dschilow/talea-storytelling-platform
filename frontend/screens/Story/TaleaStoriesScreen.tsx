@@ -280,8 +280,8 @@ const GridStoryCard: React.FC<{
       )}
       onClick={onRead}
     >
-      <div className={cn("relative w-full shrink-0 p-2", isFeatured && "lg:w-[44%]")}>
-        <div className={cn(taleaInsetSurfaceClass, "relative w-full overflow-hidden rounded-[26px] border-0 p-2", isFeatured ? "aspect-[4/3] lg:aspect-auto lg:h-full" : "aspect-square")}>
+      <div className={cn("relative w-full shrink-0 p-2", isFeatured && "lg:w-[44%] lg:self-center")}>
+        <div className={cn(taleaInsetSurfaceClass, "relative aspect-square w-full overflow-hidden rounded-[26px] border-0 p-2")}>
           <StoryCoverMedia
             src={story.coverImageUrl}
             alt={story.title}

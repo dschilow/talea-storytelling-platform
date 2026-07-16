@@ -10,7 +10,6 @@ import {
   isValidEmail,
   normalizeEmail,
   resolveUserByEmail,
-  searchUsersByEmail,
 } from "./sharing";
 
 interface ShareContact {
@@ -297,14 +296,15 @@ export const suggestShareContacts = api<SuggestShareContactsQuery, SuggestShareC
   { expose: true, method: "GET", path: "/avatar/share/suggestions", auth: true },
   async (req) => {
     const auth = await authWithSharingSchema();
-    const normalizedQuery = req.q.trim().toLowerCase();
+    const exactEmail = normalizeEmail(req.q);
     const limit = Math.min(Math.max(req.limit ?? 8, 1), 20);
 
-    if (normalizedQuery.length < 2) {
+    // Never expose a global account autocomplete. A full, exact email address
+    // is required so partial input cannot enumerate registered families.
+    if (!exactEmail || !isValidEmail(exactEmail)) {
       return { suggestions: [] };
     }
 
-    const contactPattern = `%${normalizedQuery}%`;
     const trustedMatches = await avatarDB.queryAll<{
       id: string;
       contact_email: string;
@@ -314,16 +314,15 @@ export const suggestShareContacts = api<SuggestShareContactsQuery, SuggestShareC
       SELECT id, contact_email, display_name, target_user_id
       FROM avatar_share_contacts
       WHERE owner_user_id = ${auth.userID}
-        AND (contact_email LIKE ${contactPattern} OR lower(display_name) LIKE ${contactPattern})
+        AND contact_email = ${exactEmail}
       ORDER BY display_name ASC
       LIMIT ${limit}
     `;
 
-    const userMatches = await searchUsersByEmail({
-      query: normalizedQuery,
-      excludeUserId: auth.userID,
-      limit,
-    });
+    const exactUser = await resolveUserByEmail(exactEmail);
+    const userMatches = exactUser && exactUser.id !== auth.userID
+      ? [exactUser]
+      : [];
 
     const userMap = new Map(userMatches.map((entry) => [entry.email, entry]));
     const suggestions: ShareSuggestion[] = [];
@@ -468,6 +467,11 @@ export const listAvatarShares = api<ListAvatarSharesParams, ListAvatarSharesResp
 export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest, ShareAvatarResponse>(
   { expose: true, method: "POST", path: "/avatar/:id/share", auth: true },
   async (req) => {
+    throw APIError.failedPrecondition(
+      "Sharing to another account requires recipient acceptance and is not enabled yet. " +
+      "Create an independent copy in another child profile instead.",
+    );
+
     const auth = await authWithSharingSchema();
     const sourceAvatar = await loadOwnedAvatarForCopy(req.id, auth.userID);
 

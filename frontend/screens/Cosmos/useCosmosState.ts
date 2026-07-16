@@ -168,12 +168,37 @@ export function useCosmosState() {
 
   const selectedAvatar = useMemo(() => {
     if (!Array.isArray(avatars) || avatars.length === 0) return null;
+    const profileAvatarIds = new Set([
+      childProfiles?.activeProfile?.childAvatarId,
+      ...(childProfiles?.activeProfile?.preferredAvatarIds ?? []),
+    ].filter(Boolean));
     if (mapAvatarId) {
       const mapped = avatars.find((avatar: any) => avatar.id === mapAvatarId);
       if (mapped) return mapped;
     }
-    return avatars[0];
-  }, [avatars, mapAvatarId]);
+    const preferred = avatars.find((avatar: any) => profileAvatarIds.has(avatar.id));
+    if (preferred) return preferred;
+    const scoped = avatars.find((avatar: any) =>
+      !activeProfileId ||
+      avatar.profileId === activeProfileId ||
+      avatar.profile_id === activeProfileId
+    );
+    return scoped ?? null;
+  }, [
+    activeProfileId,
+    avatars,
+    childProfiles?.activeProfile?.childAvatarId,
+    childProfiles?.activeProfile?.preferredAvatarIds,
+    mapAvatarId,
+  ]);
+
+  const selectedAvatarId =
+    mapAvatarId ??
+    childProfiles?.activeProfile?.childAvatarId ??
+    childProfiles?.activeProfile?.preferredAvatarIds?.[0] ??
+    selectedAvatar?.id ??
+    null;
+
 
   const refresh = useCallback(() => {
     setReloadTick((value) => value + 1);
@@ -195,25 +220,26 @@ export function useCosmosState() {
     async function load() {
       if (!mounted) return;
       setIsLoading(true);
+      setAvatarData(null);
+      setRemoteDomains(null);
+      setRemoteTotals(null);
       try {
-        if (!selectedAvatar) {
+        if (!selectedAvatarId) {
           if (!mounted) return;
-          setAvatarData(null);
-          setRemoteDomains(null);
-          setRemoteTotals(null);
           return;
         }
 
-        let detail = selectedAvatar;
-        if (!detail.personalityTraits || !detail.progression) {
-          try {
-            detail = await backend.avatar.get({
-              id: selectedAvatar.id,
-              profileId: activeProfileId || undefined,
-            });
-          } catch {
-            // Keep lightweight avatar from Redux if detailed fetch fails.
+        let detail: any;
+        try {
+          detail = await backend.avatar.get({
+            id: selectedAvatarId,
+            profileId: activeProfileId || undefined,
+          });
+        } catch (avatarError) {
+          if (mounted) {
+            console.warn("[useCosmosState] Failed to load profile-scoped avatar", avatarError);
           }
+          return;
         }
         if (!mounted) return;
         setAvatarData(detail);
@@ -263,7 +289,7 @@ export function useCosmosState() {
     isSignedIn,
     refresh,
     reloadTick,
-    selectedAvatar,
+    selectedAvatarId,
     user?.id,
   ]);
 
@@ -311,7 +337,7 @@ export function useCosmosState() {
   return {
     cosmosState,
     isLoading,
-    activeAvatarId: selectedAvatar?.id ?? null,
+    activeAvatarId: avatarData?.id ?? null,
     activeChildId: activeProfileId ?? null,
     refresh,
   };

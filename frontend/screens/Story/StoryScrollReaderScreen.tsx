@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, LoaderCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 
@@ -12,6 +12,7 @@ import type { Story, Chapter } from '../../types/story';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
@@ -21,8 +22,15 @@ const StoryScrollReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
+  const progressAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ??
+    null;
 
   const [story, setStory] = useState<Story | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,21 +38,38 @@ const StoryScrollReaderScreen: React.FC = () => {
 
   const [isReading, setIsReading] = useState(false);
   const [storyCompleted, setStoryCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (storyId) {
-      loadStory();
-    }
-  }, [storyId, activeProfileId]);
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    setStory(null);
+    setStoryCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
+    setIsReading(false);
+    if (storyId) void loadStory(requestId);
 
-  const loadStory = async () => {
+    return () => {
+      if (loadRequestRef.current === requestId) loadRequestRef.current += 1;
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+    };
+  }, [storyId, activeProfileId, offlineScope]);
+
+  const loadStory = async (requestId: number) => {
     if (!storyId) return;
     try {
       setLoading(true);
       setError(null);
 
       // Try to load from offline storage first
-      let storyData: any = await getOfflineStory(storyId);
+      let storyData: any = offlineScope ? await getOfflineStory(offlineScope, storyId) : null;
 
       // If not found offline, fetch from backend
       if (!storyData) {
@@ -53,12 +78,14 @@ const StoryScrollReaderScreen: React.FC = () => {
         console.log('[StoryScrollReaderScreen] Loaded story from offline storage');
       }
 
+      if (loadRequestRef.current !== requestId) return;
       setStory(storyData as unknown as Story);
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading story:', err);
       setError('Geschichte konnte nicht geladen werden.');
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -68,14 +95,17 @@ const StoryScrollReaderScreen: React.FC = () => {
 
   const handleStoryCompletion = async () => {
     console.log('📖 Story completed - triggering personality updates for all eligible avatars');
-    if (!story || !storyId || storyCompleted) {
+    if (!story || !storyId || storyCompleted || completionInFlightRef.current) {
       console.log('Story completion aborted - missing requirements or already completed');
       return;
     }
 
-    try {
-      setStoryCompleted(true);
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
 
+    try {
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
       const target = getBackendUrl();
@@ -100,18 +130,24 @@ const StoryScrollReaderScreen: React.FC = () => {
 
       if (response.ok) {
         const result = await response.json();
+        if (result?.success !== true) {
+          throw new Error('Story completion was not confirmed by the server.');
+        }
+        if (completionAttemptRef.current !== attemptId) return;
+        setStoryCompleted(true);
+
         console.log('✅ Personality updates applied:', result);
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
             detail: {
-              avatarId: mapAvatarId ?? undefined,
+              avatarId: progressAvatarId ?? undefined,
               refreshProgression: true,
               source: 'story',
               updatedAt: new Date().toISOString(),
             },
           }),
         );
-        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
+        emitMapProgress({ avatarId: progressAvatarId, source: 'story' });
 
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
@@ -129,24 +165,21 @@ const StoryScrollReaderScreen: React.FC = () => {
           showSuccessToast(message.trim());
         });
       } else {
-        const errorText = await response.text();
-        console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
-
-        import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-          showErrorToast('❌ Fehler bei der Persönlichkeitsentwicklung');
-          showStoryCompletionToast(story.title);
-        });
+        throw new Error(`Story completion failed with status ${response.status}`);
       }
 
     } catch (error) {
       console.error('❌ Error during story completion processing:', error);
-      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
-
-      import('../../utils/toastUtils').then(({ showErrorToast, showStoryCompletionToast }) => {
-        showErrorToast('❌ Netzwerkfehler bei der Persönlichkeitsentwicklung');
-        showStoryCompletionToast(story.title);
-      });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Fortschritt konnte noch nicht gespeichert werden. Bitte versuche es erneut.';
+      setCompletionError(message);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+        setCompletionPending(false);
+      }
     }
   };
 
@@ -353,16 +386,29 @@ const StoryScrollReaderScreen: React.FC = () => {
                   <div className="flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600">
                     <motion.button
                       onClick={handleStoryCompletion}
-                      disabled={storyCompleted}
+                      disabled={storyCompleted || completionPending}
+                      aria-busy={completionPending}
                       className={`px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${storyCompleted
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600 cursor-default'
                         : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-amber-500/50 hover:scale-105'
                         }`}
-                      whileHover={!storyCompleted ? { scale: 1.05 } : {}}
-                      whileTap={!storyCompleted ? { scale: 0.95 } : {}}
+                      whileHover={!storyCompleted && !completionPending ? { scale: 1.05 } : {}}
+                      whileTap={!storyCompleted && !completionPending ? { scale: 0.95 } : {}}
                     >
-                      {storyCompleted ? '🎉 Geschichte abgeschlossen!' : '🏁 Geschichte abschließen'}
+                      {completionPending && <LoaderCircle className="mr-2 inline h-5 w-5 animate-spin" aria-hidden="true" />}
+                      {storyCompleted
+                        ? 'Geschichte abgeschlossen'
+                        : completionPending
+                          ? 'Fortschritt wird gespeichert ...'
+                          : completionError
+                            ? 'Speichern erneut versuchen'
+                            : 'Geschichte abschliessen'}
                     </motion.button>
+                    {completionError && !storyCompleted && (
+                      <p role="alert" className="mt-4 max-w-xl text-center text-sm font-medium text-red-600 dark:text-red-300">
+                        {completionError}
+                      </p>
+                    )}
                     {storyCompleted && (
                       <motion.p
                         initial={{ opacity: 0, y: 10 }}

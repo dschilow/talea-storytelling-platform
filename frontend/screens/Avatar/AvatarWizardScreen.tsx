@@ -142,9 +142,13 @@ const AvatarWizardScreen: React.FC = () => {
     { key: 'preview', label: t('avatar.wizard.steps.done', 'Fertig!') },
   ], [t]);
   const childMode = searchParams.get('mode') === 'child';
-  const requestedProfileId = searchParams.get('profileId');
-  const targetProfileId = requestedProfileId || activeProfile?.id;
-  const targetProfile = targetProfileId ? childProfiles?.profiles.find((profile) => profile.id === targetProfileId) ?? null : null;
+  const requestedProfileId = searchParams.get('profileId')?.trim() || null;
+  const targetProfileId = childMode
+    ? requestedProfileId
+    : requestedProfileId || activeProfile?.id || null;
+  const targetProfile = targetProfileId
+    ? childProfiles?.profiles.find((profile) => profile.id === targetProfileId) ?? null
+    : null;
   const effectiveChildMode = childMode;
   const backTarget = '/avatar';
 
@@ -180,9 +184,9 @@ const AvatarWizardScreen: React.FC = () => {
       const newData = { ...prev, ...updates };
 
       if (effectiveChildMode) {
-        if (targetProfile) {
+        if (targetProfile && targetProfile.age != null) {
           newData.name = targetProfile.name;
-          if (targetProfile.age != null) newData.age = targetProfile.age;
+          newData.age = targetProfile.age;
         }
         newData.characterType = 'human';
         newData.customCharacterType = undefined;
@@ -201,14 +205,14 @@ const AvatarWizardScreen: React.FC = () => {
   }, [effectiveChildMode, targetProfile]);
 
   React.useEffect(() => {
-    if (!effectiveChildMode || !targetProfile) {
+    if (!effectiveChildMode || !targetProfile || targetProfile.age == null) {
       return;
     }
 
     setFormData((prev) => ({
       ...prev,
       name: targetProfile.name,
-      age: targetProfile.age ?? prev.age,
+      age: targetProfile.age,
       characterType: 'human',
       customCharacterType: undefined,
       skinTone: prev.skinTone || 'medium',
@@ -248,6 +252,7 @@ const AvatarWizardScreen: React.FC = () => {
 
   const canProceed = useMemo(() => {
     if ((requestedProfileId || effectiveChildMode) && !targetProfile) return false;
+    if (effectiveChildMode && targetProfile?.age == null) return false;
     if (activeStep === 0) return formData.name.trim().length > 0;
     return true;
   }, [activeStep, effectiveChildMode, formData.name, requestedProfileId, targetProfile]);
@@ -304,13 +309,19 @@ const AvatarWizardScreen: React.FC = () => {
       });
       return;
     }
+    if (effectiveChildMode && targetProfile?.age == null) {
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Bitte trage zuerst das Alter im Kinderprofil ein.');
+      });
+      return;
+    }
 
     const createFormData: AvatarFormData =
-      effectiveChildMode && targetProfile
+      effectiveChildMode && targetProfile && targetProfile.age != null
         ? {
             ...formData,
             name: targetProfile.name,
-            age: targetProfile.age ?? formData.age,
+            age: targetProfile.age,
             characterType: 'human',
             customCharacterType: undefined,
           }
@@ -386,8 +397,11 @@ const AvatarWizardScreen: React.FC = () => {
   const isProfileUnavailable = Boolean(
     profileIsRequired && !childProfiles?.isLoading && !targetProfile
   );
+  const isProfileIncomplete = Boolean(
+    effectiveChildMode && targetProfile && targetProfile.age == null
+  );
 
-  if (isResolvingProfile || isProfileUnavailable) {
+  if (isResolvingProfile || isProfileUnavailable || isProfileIncomplete) {
     return (
       <div className="relative min-h-screen">
         <WizardBackground palette={palette} />
@@ -404,21 +418,27 @@ const AvatarWizardScreen: React.FC = () => {
               </div>
             )}
             <h2 className="mt-4 text-xl font-semibold" style={{ color: palette.text }}>
-              {isResolvingProfile ? 'Kinderprofil wird geladen' : 'Kinderprofil nicht gefunden'}
+              {isResolvingProfile
+                ? 'Kinderprofil wird geladen'
+                : isProfileIncomplete
+                  ? 'Alter im Kinderprofil fehlt'
+                  : 'Kinderprofil nicht gefunden'}
             </h2>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: palette.muted }}>
               {isResolvingProfile
                 ? 'Einen Moment bitte. Der Avatar wird gleich dem richtigen Profil zugeordnet.'
-                : 'Der Avatar kann ohne ein eindeutiges Kinderprofil nicht angelegt werden.'}
+                : isProfileIncomplete
+                  ? `Bitte ergaenze zuerst das Alter von ${targetProfile?.name || 'dem Kind'}. Name und Alter des Kind-Avatars kommen immer direkt aus diesem Profil.`
+                  : 'Der Avatar kann ohne ein eindeutiges Kinderprofil nicht angelegt werden.'}
             </p>
             {!isResolvingProfile && (
               <button
                 type="button"
-                onClick={() => navigate(backTarget)}
+                onClick={() => navigate(isProfileIncomplete ? '/settings' : backTarget)}
                 className="mt-5 rounded-full border px-4 py-2 text-sm font-semibold"
                 style={{ borderColor: palette.border, color: palette.text }}
               >
-                Zur Avatar-Uebersicht
+                {isProfileIncomplete ? 'Kinderprofil bearbeiten' : 'Zur Avatar-Uebersicht'}
               </button>
             )}
           </div>

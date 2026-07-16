@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { storyDB } from "../story/db";
 import { avatarDB } from "../avatar/db";
 import { fairytalesDB } from "../fairytales/db";
+import { userDB } from "../user/db";
 import fs from "fs";
 import path from "path";
 import { compareMigrationFiles, splitMigrationStatements } from "./migration-order";
@@ -11,6 +12,17 @@ export interface MigrationResponse {
   message: string;
   migrationsRun: string[];
   errors: string[];
+}
+
+function isExpectedIdempotencyError(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string };
+  if (["42P07", "42701", "23505"].includes(candidate?.code || "")) return true;
+  const message = String(candidate?.message || "").toLowerCase();
+  return (
+    message.includes("already exists") ||
+    message.includes("duplicate column") ||
+    message.includes("duplicate key")
+  );
 }
 
 /**
@@ -40,8 +52,14 @@ export const runMigrations = api(
               try {
                 await db.exec(statement + ";");
               } catch (stmtErr: any) {
-                // Log but continue - some statements might already exist
-                console.log(`  ⚠️  Statement warning: ${stmtErr.message.substring(0, 100)}`);
+                if (isExpectedIdempotencyError(stmtErr)) {
+                  console.log(`  Migration statement already applied: ${String(stmtErr.message).substring(0, 100)}`);
+                  continue;
+                }
+                // A real statement failure means the migration file did not run.
+                // Propagate it so the endpoint cannot report a false success.
+                throw stmtErr;
+
               }
             }
           }
@@ -58,7 +76,7 @@ export const runMigrations = api(
       // Get base path
       const basePath = process.cwd();
 
-      // 1. User migrations (use avatarDB since user doesn't have separate DB)
+      // 1. User migrations run against the dedicated user service database.
       console.log("👤 Running user migrations...");
       const userMigrationsPath = path.join(basePath, "user", "migrations");
       if (fs.existsSync(userMigrationsPath)) {
@@ -67,7 +85,7 @@ export const runMigrations = api(
           .filter((f) => f.endsWith(".up.sql"))
           .sort(compareMigrationFiles);
         for (const file of userFiles) {
-          await runSqlFile(path.join(userMigrationsPath, file), avatarDB);
+          await runSqlFile(path.join(userMigrationsPath, file), userDB);
         }
       }
 

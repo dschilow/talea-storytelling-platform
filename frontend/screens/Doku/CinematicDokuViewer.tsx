@@ -14,6 +14,7 @@ import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import '../Story/CinematicStoryViewer.css';
 
@@ -80,6 +81,7 @@ const CinematicDokuViewer: React.FC = () => {
   const { getToken } = useAuth();
   const childProfileContext = useOptionalChildProfiles();
   const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const { resolvedTheme } = useTheme();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,6 +134,9 @@ const CinematicDokuViewer: React.FC = () => {
     autoJumpDoneRef.current = false;
     setDokuCompleted(false);
     setCompletionPending(false);
+    setStarted(false);
+    setActiveSection(0);
+
     setCompletionError(null);
     setDoku(null);
 
@@ -142,7 +147,7 @@ const CinematicDokuViewer: React.FC = () => {
       completionAttemptRef.current += 1;
       completionInFlightRef.current = false;
     };
-  }, [dokuId, activeProfileId]);
+  }, [dokuId, activeProfileId, offlineScope]);
 
   useEffect(() => {
     if (!doku) return;
@@ -169,7 +174,7 @@ const CinematicDokuViewer: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      let dokuData: any = await getOfflineDoku(dokuId);
+      let dokuData: any = offlineScope ? await getOfflineDoku(offlineScope, dokuId) : null;
       if (!dokuData) {
         dokuData = await backend.doku.getDoku({
           id: dokuId,
@@ -244,7 +249,7 @@ const CinematicDokuViewer: React.FC = () => {
           },
         }),
       );
-      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
+      emitMapProgress({ avatarId: targetAvatarId, source: 'doku' });
     } catch (error) {
       console.error('Error completing doku:', error);
       if (completionAttemptRef.current !== attemptId) return;

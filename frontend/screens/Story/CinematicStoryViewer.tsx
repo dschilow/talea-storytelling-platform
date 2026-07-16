@@ -18,6 +18,7 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import { usePostStoryFlow, AgentResultFeed } from '../../agents';
@@ -102,7 +103,9 @@ const CinematicStoryViewer: React.FC = () => {
   const isCharacterLifeRoute = location.pathname.startsWith('/character-life-story/');
   const backend = useBackend();
   const { getToken } = useAuth();
-  const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
+  const childProfileContext = useOptionalChildProfiles();
+  const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const { isAdmin } = useOptionalUserAccess();
   const { resolvedTheme } = useTheme();
 
@@ -138,12 +141,25 @@ const CinematicStoryViewer: React.FC = () => {
   );
 
   const { scrollYProgress } = useScroll({ container: containerRef });
+  const progressAvatarId =
+    mapAvatarId ??
+    childProfileContext?.activeProfile?.childAvatarId ??
+    childProfileContext?.activeProfile?.preferredAvatarIds?.[0] ??
+    null;
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
 
   useEffect(() => {
     const requestId = ++loadRequestRef.current;
     completionAttemptRef.current += 1;
     completionInFlightRef.current = false;
+    setStory(null);
+    setStarted(false);
+    setActiveChapter(0);
+    setArtifactQueue([]);
+    setCurrentArtifact(null);
+    setPoolArtifact(null);
+    setShowPoolArtifactModal(false);
+
     setStoryCompleted(false);
     setCompletionPending(false);
     setCompletionError(null);
@@ -157,7 +173,7 @@ const CinematicStoryViewer: React.FC = () => {
       completionAttemptRef.current += 1;
       completionInFlightRef.current = false;
     };
-  }, [storyId, activeProfileId, isAdmin]);
+  }, [storyId, activeProfileId, isAdmin, offlineScope]);
 
   useEffect(() => {
     if (!currentArtifact && artifactQueue.length > 0) {
@@ -172,7 +188,10 @@ const CinematicStoryViewer: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      let rawStory: any = isAdmin || isCharacterLifeRoute ? null : await getOfflineStory(storyId);
+      let rawStory: any =
+        isAdmin || isCharacterLifeRoute || !offlineScope
+          ? null
+          : await getOfflineStory(offlineScope, storyId);
       if (!rawStory) {
         const storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
         if (loadRequestRef.current !== requestId) return;
@@ -265,7 +284,7 @@ const CinematicStoryViewer: React.FC = () => {
       window.dispatchEvent(
         new CustomEvent('personalityUpdated', {
           detail: {
-            avatarId: mapAvatarId ?? undefined,
+            avatarId: progressAvatarId ?? undefined,
             refreshProgression: true,
             source: 'story',
             updatedAt: new Date().toISOString(),
@@ -317,7 +336,7 @@ const CinematicStoryViewer: React.FC = () => {
         storyId,
       });
 
-      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
+      emitMapProgress({ avatarId: progressAvatarId, source: 'story' });
     } catch (error) {
       console.error('Error completing story:', error);
       if (completionAttemptRef.current !== attemptId) return;

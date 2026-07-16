@@ -15,8 +15,10 @@ import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import { ChildProfilesProvider } from './contexts/ChildProfilesContext';
 import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
+import { OfflineScopeProvider } from './contexts/OfflineScopeContext';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 import { parseHapticIntent, triggerHaptic } from './utils/haptics';
+import { getLastOfflineScope } from './utils/offlineDb';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
@@ -437,20 +439,22 @@ const OfflineApp = () => (
     <Router>
       <OfflineClerkProvider>
         <OfflineThemeProvider>
-          <AudioPlayerProvider>
-            <React.Suspense fallback={<RouteLoadingFallback />}>
-              <Routes>
-                <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-                <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
-                <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-                <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-                <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-                <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-                <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
-                <Route path="*" element={<OfflineContentScreen />} />
-              </Routes>
-            </React.Suspense>
-          </AudioPlayerProvider>
+          <OfflineScopeProvider scope={getLastOfflineScope()}>
+            <AudioPlayerProvider>
+              <React.Suspense fallback={<RouteLoadingFallback />}>
+                <Routes>
+                  <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                  <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
+                  <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+                  <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+                  <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+                  <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+                  <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
+                  <Route path="*" element={<OfflineContentScreen />} />
+                </Routes>
+              </React.Suspense>
+            </AudioPlayerProvider>
+          </OfflineScopeProvider>
         </OfflineThemeProvider>
       </OfflineClerkProvider>
     </Router>
@@ -546,11 +550,13 @@ export default function App() {
             <AudioPlayerProvider>
               <UserAccessProvider>
                 <ChildProfilesProvider>
-                  <OfflineStorageProvider>
-                    <AgentProvider>
-                      <AppContent />
-                    </AgentProvider>
-                  </OfflineStorageProvider>
+                  <OfflineScopeProvider>
+                    <OfflineStorageProvider>
+                      <AgentProvider>
+                        <AppContent />
+                      </AgentProvider>
+                    </OfflineStorageProvider>
+                  </OfflineScopeProvider>
                 </ChildProfilesProvider>
               </UserAccessProvider>
             </AudioPlayerProvider>

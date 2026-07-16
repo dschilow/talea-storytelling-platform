@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, FlaskConical, LoaderCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ import { PersonalityChangeNotification } from '../../components/common/Personali
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
@@ -46,6 +47,7 @@ const DokuReaderScreen: React.FC = () => {
   const { isAdmin } = useOptionalUserAccess();
   const childProfileContext = useOptionalChildProfiles();
   const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
   const targetAvatarId =
     mapAvatarId ??
@@ -58,6 +60,9 @@ const DokuReaderScreen: React.FC = () => {
   const [doku, setDoku] = useState<Doku | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dokuCompleted, setDokuCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   const [isReading, setIsReading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -112,6 +117,9 @@ const DokuReaderScreen: React.FC = () => {
     completionAttemptRef.current += 1;
     completionInFlightRef.current = false;
     completionConfirmedRef.current = false;
+    setDokuCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
     setDoku(null);
     setIsReading(false);
     setCurrentIndex(0);
@@ -123,7 +131,7 @@ const DokuReaderScreen: React.FC = () => {
       completionInFlightRef.current = false;
       completionConfirmedRef.current = false;
     };
-  }, [dokuId, activeProfileId]);
+  }, [dokuId, activeProfileId, offlineScope]);
 
   // Keine Avatar-Auswahl mehr erforderlich – Updates erfolgen serverseitig
 
@@ -153,7 +161,7 @@ const DokuReaderScreen: React.FC = () => {
       setError(null);
 
       // Try to load from offline storage first
-      let dokuData: any = await getOfflineDoku(dokuId);
+      let dokuData: any = offlineScope ? await getOfflineDoku(offlineScope, dokuId) : null;
 
       // If not found offline, fetch from backend
       if (!dokuData) {
@@ -188,11 +196,6 @@ const DokuReaderScreen: React.FC = () => {
       setAnimationDirection(index > currentIndex ? 1 : -1);
       setCurrentIndex(index);
       setShowNav(false);
-
-      // Check if user finished reading the doku
-      if (index === displayableSections.length - 1) {
-        handleDokuCompletion();
-      }
     }
   };
 
@@ -244,9 +247,11 @@ const DokuReaderScreen: React.FC = () => {
 
   // WICHTIG: Backend-Call für Persönlichkeitsentwicklung beim Doku-Lesen
   const handleDokuCompletion = async () => {
-    if (!doku || !dokuId || completionConfirmedRef.current || completionInFlightRef.current) return;
+    if (!doku || !dokuId || dokuCompleted || completionConfirmedRef.current || completionInFlightRef.current) return;
     const attemptId = ++completionAttemptRef.current;
     completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
 
     console.log('📖 Doku completed - updating its selected avatar');
 
@@ -287,6 +292,7 @@ const DokuReaderScreen: React.FC = () => {
       if (completionAttemptRef.current !== attemptId) return;
 
       completionConfirmedRef.current = true;
+      setDokuCompleted(true);
         console.log('✅ Personality updates applied:', result);
 
         window.dispatchEvent(
@@ -299,7 +305,7 @@ const DokuReaderScreen: React.FC = () => {
             },
           })
         );
-        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
+        emitMapProgress({ avatarId: targetAvatarId, source: 'doku' });
 
         // Show success notification with compact personality changes
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
@@ -364,24 +370,17 @@ const DokuReaderScreen: React.FC = () => {
 
           return names[mainTrait.toLowerCase()] || trait;
         }
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-
-        // Show error notification
-        import('../../utils/toastUtils').then(({ showErrorToast }) => {
-          showErrorToast(t('errors.generic'));
-        });
-      }
     } catch (error) {
       console.error('❌ Error applying personality updates:', error);
       if (completionAttemptRef.current !== attemptId) return;
       const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Kehre kurz zurueck und versuche es erneut.';
+      setCompletionError(message);
       const { showErrorToast } = await import('../../utils/toastUtils');
       showErrorToast(message);
     } finally {
       if (completionAttemptRef.current === attemptId) {
         completionInFlightRef.current = false;
+        setCompletionPending(false);
       }
     }
   };
@@ -587,10 +586,40 @@ const DokuReaderScreen: React.FC = () => {
                         <span>{displayableSections.length || 1}</span>
                       </div>
                     </div>
-                <motion.button onClick={() => goToIndex(currentIndex + 1)} disabled={currentIndex === displayableSections.length - 1} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition disabled:opacity-35 dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav || currentIndex < displayableSections.length - 1 ? 1 : 0 }}>
-                    <ChevronRight className="h-6 w-6" />
-                </motion.button>
+                    {currentIndex === displayableSections.length - 1 ? (
+                      <motion.button
+                        type="button"
+                        onClick={handleDokuCompletion}
+                        disabled={dokuCompleted || completionPending || !showNav}
+                        aria-busy={completionPending}
+                        className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#dcefe8] dark:focus-visible:ring-[#29483f] ${
+                          dokuCompleted
+                            ? 'border-transparent bg-[#7daf99] text-white'
+                            : 'border-white/75 bg-[linear-gradient(135deg,#d9eee7_0%,#e2edf9_100%)] text-[#334257] dark:border-white/10 dark:bg-white/10 dark:text-white'
+                        }`}
+                        whileHover={!dokuCompleted && !completionPending && showNav ? { scale: 1.03 } : {}}
+                        whileTap={!dokuCompleted && !completionPending && showNav ? { scale: 0.97 } : {}}
+                      >
+                        {completionPending && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                        {dokuCompleted
+                          ? 'Gespeichert'
+                          : completionPending
+                            ? 'Wird gespeichert ...'
+                            : completionError
+                              ? 'Erneut speichern'
+                              : 'Doku abschliessen'}
+                      </motion.button>
+                    ) : (
+                      <motion.button onClick={() => goToIndex(currentIndex + 1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav ? 1 : 0.7 }} aria-label="Naechster Abschnitt">
+                        <ChevronRight className="h-6 w-6" />
+                      </motion.button>
+                    )}
                   </div>
+                  {completionError && !dokuCompleted && (
+                    <p role="alert" className="mt-3 text-center text-sm font-medium text-red-700 dark:text-red-300">
+                      {completionError}
+                    </p>
+                  )}
                 </TaleaSurface>
               </div>
             </div>

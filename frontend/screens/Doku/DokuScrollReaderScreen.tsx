@@ -14,6 +14,7 @@ import { QuizComponent } from '../../components/reader/QuizComponent';
 import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { getOfflineDoku } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 
 const DokuScrollReaderScreen: React.FC = () => {
@@ -25,6 +26,7 @@ const DokuScrollReaderScreen: React.FC = () => {
   const { getToken } = useAuth();
   const childProfileContext = useOptionalChildProfiles();
   const activeProfileId = childProfileContext?.activeProfileId;
+  const offlineScope = useOfflineScope();
   const mapAvatarId = new URLSearchParams(location.search).get('mapAvatarId');
   const targetAvatarId =
     mapAvatarId ??
@@ -49,6 +51,7 @@ const DokuScrollReaderScreen: React.FC = () => {
     completionAttemptRef.current += 1;
     completionInFlightRef.current = false;
     setDoku(null);
+    setIsReading(false);
     setDokuCompleted(false);
     setCompletionPending(false);
     setCompletionError(null);
@@ -59,7 +62,7 @@ const DokuScrollReaderScreen: React.FC = () => {
       completionAttemptRef.current += 1;
       completionInFlightRef.current = false;
     };
-  }, [dokuId, activeProfileId]);
+  }, [dokuId, activeProfileId, offlineScope]);
 
   const loadDoku = async (requestId: number) => {
     if (!dokuId) return;
@@ -68,7 +71,7 @@ const DokuScrollReaderScreen: React.FC = () => {
       setError(null);
 
       // Try to load from offline storage first
-      let dokuData: any = await getOfflineDoku(dokuId);
+      let dokuData: any = offlineScope ? await getOfflineDoku(offlineScope, dokuId) : null;
 
       // If not found offline, fetch from backend
       if (!dokuData) {
@@ -151,7 +154,7 @@ const DokuScrollReaderScreen: React.FC = () => {
             },
           }),
         );
-        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
+        emitMapProgress({ avatarId: targetAvatarId, source: 'doku' });
 
         import('../../utils/toastUtils').then(({ showSuccessToast }) => {
           let message = `📚 ${t('doku.readDoku')} ${t('common.finish')}! ${result.updatedAvatars} ${t('avatar.title')}.\n\n`;
@@ -168,14 +171,6 @@ const DokuScrollReaderScreen: React.FC = () => {
 
           showSuccessToast(message.trim());
         });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-
-        import('../../utils/toastUtils').then(({ showErrorToast }) => {
-          showErrorToast(t('errors.generic'));
-        });
-      }
 
     } catch (error) {
       console.error('❌ Error during doku completion processing:', error);
@@ -413,7 +408,13 @@ const DokuScrollReaderScreen: React.FC = () => {
                       {completionPending && (
                         <LoaderCircle className="mr-2 inline h-5 w-5 animate-spin" aria-hidden="true" />
                       )}
-                      {dokuCompleted ? `🎉 ${t('doku.readDoku')} ${t('common.finish')}!` : `🏁 ${t('doku.readDoku')} ${t('common.finish')}`}
+                      {dokuCompleted
+                        ? 'Gespeichert'
+                        : completionPending
+                          ? 'Fortschritt wird gespeichert ...'
+                          : completionError
+                            ? 'Speichern erneut versuchen'
+                            : `${t('doku.readDoku')} ${t('common.finish')}`}
                     </motion.button>
                     {completionError && !dokuCompleted && (
                       <p role="alert" className="mt-4 max-w-xl text-center text-sm font-medium text-red-600 dark:text-red-300">
@@ -426,7 +427,7 @@ const DokuScrollReaderScreen: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-4 text-gray-600 dark:text-gray-300 text-center"
                       >
-                        Deine Avatare haben neues Wissen erlangt! ✨
+                        Der ausgewaehlte Avatar hat neues Wissen erlangt.
                       </motion.p>
                     )}
                   </div>

@@ -364,6 +364,18 @@ const MIGRATION_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_studio_episode_scenes_episode_id ON studio_episode_scenes(episode_id)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS idx_studio_episode_scenes_episode_order_unique ON studio_episode_scenes(episode_id, scene_order)`,
+
+  // 25. Metered AI usage (chat/image/tts quotas) - mirrors user/migrations/11_add_metered_ai_usage
+  `CREATE TABLE IF NOT EXISTS metered_usage (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    period_start DATE NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('chat', 'image', 'tts')),
+    units BIGINT NOT NULL DEFAULT 0 CHECK (units >= 0),
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, period_start, kind)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_metered_usage_user_period
+    ON metered_usage(user_id, period_start)`,
 ];
 
 /**
@@ -396,10 +408,18 @@ export const initializeDatabaseMigrations = api(
           AND table_name = 'studio_episode_scenes'
         );
       `;
+      const meteredUsageResult = await storyDB.queryRow<{ exists: boolean }>`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'metered_usage'
+        );
+      `;
 
       const characterPoolExists = Boolean(characterPoolResult?.exists);
       const studioTablesExist = Boolean(studioScenesResult?.exists);
-      const tablesExist = characterPoolExists && studioTablesExist;
+      const meteredUsageExists = Boolean(meteredUsageResult?.exists);
+      const tablesExist = characterPoolExists && studioTablesExist && meteredUsageExists;
 
       if (tablesExist) {
         console.log("[Init] Latest schema already present (including Talea Studio tables) - skipping table migrations");

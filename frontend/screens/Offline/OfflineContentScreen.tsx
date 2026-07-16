@@ -13,9 +13,11 @@ import {
   getAllOfflineGeneratedAudios,
   getBlobUrl,
 } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 
 const OfflineContentScreen: React.FC = () => {
   const navigate = useNavigate();
+  const scope = useOfflineScope();
   const [stories, setStories] = useState<Story[]>([]);
   const [dokus, setDokus] = useState<Doku[]>([]);
   const [audioDokus, setAudioDokus] = useState<AudioDoku[]>([]);
@@ -25,15 +27,24 @@ const OfflineContentScreen: React.FC = () => {
 
   useEffect(() => {
     loadContent();
-  }, []);
+  }, [scope]);
 
   const loadContent = async () => {
+    if (!scope) {
+      setStories([]);
+      setDokus([]);
+      setAudioDokus([]);
+      setGeneratedAudios([]);
+      setCoverUrls({});
+      setLoading(false);
+      return;
+    }
     try {
       const [s, d, a, g] = await Promise.all([
-        getAllOfflineStories(),
-        getAllOfflineDokus(),
-        getAllOfflineAudioDokus(),
-        getAllOfflineGeneratedAudios(),
+        getAllOfflineStories(scope),
+        getAllOfflineDokus(scope),
+        getAllOfflineAudioDokus(scope),
+        getAllOfflineGeneratedAudios(scope),
       ]);
       setStories(s);
       setDokus(d);
@@ -43,7 +54,7 @@ const OfflineContentScreen: React.FC = () => {
       for (const entry of g) {
         const next: GeneratedAudioLibraryEntry = { ...entry };
         if (next.audioUrl) {
-          const offlineAudioBlob = await getBlobUrl(next.audioUrl);
+          const offlineAudioBlob = await getBlobUrl(scope, next.audioUrl);
           if (offlineAudioBlob) next.audioUrl = offlineAudioBlob;
         }
         resolvedGenerated.push(next);
@@ -54,25 +65,25 @@ const OfflineContentScreen: React.FC = () => {
       const urls: Record<string, string> = {};
       for (const story of s) {
         if (story.coverImageUrl) {
-          const blobUrl = await getBlobUrl(story.coverImageUrl);
+          const blobUrl = await getBlobUrl(scope, story.coverImageUrl);
           if (blobUrl) urls[story.id] = blobUrl;
         }
       }
       for (const doku of d) {
         if (doku.coverImageUrl) {
-          const blobUrl = await getBlobUrl(doku.coverImageUrl);
+          const blobUrl = await getBlobUrl(scope, doku.coverImageUrl);
           if (blobUrl) urls[doku.id] = blobUrl;
         }
       }
       for (const ad of a) {
         if (ad.coverImageUrl) {
-          const blobUrl = await getBlobUrl(ad.coverImageUrl);
+          const blobUrl = await getBlobUrl(scope, ad.coverImageUrl);
           if (blobUrl) urls[ad.id] = blobUrl;
         }
       }
       for (const ga of g) {
         if (ga.coverImageUrl) {
-          const blobUrl = await getBlobUrl(ga.coverImageUrl);
+          const blobUrl = await getBlobUrl(scope, ga.coverImageUrl);
           if (blobUrl) urls[ga.id] = blobUrl;
         }
       }

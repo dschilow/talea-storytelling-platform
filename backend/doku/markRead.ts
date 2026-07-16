@@ -51,6 +51,8 @@ interface MarkDokuReadRequest {
 interface MarkDokuReadResponse {
   success: boolean;
   updatedAvatars: number;
+  memorySaved: boolean;
+  memoriesCreated: number;
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
@@ -87,6 +89,27 @@ interface DokuChange {
   trait: string;
   change: number;
   description: string;
+}
+
+function buildDokuMemoryExperience(params: {
+  avatarName: string;
+  dokuTitle: string;
+  topic: string;
+  changes: DokuChange[];
+}): string {
+  const details = Array.from(
+    new Set(
+      params.changes
+        .map((change) => String(change.description || "").replace(/\s+/g, " ").trim())
+        .filter(Boolean),
+    ),
+  )
+    .slice(0, 2)
+    .join(" ")
+    .slice(0, 320);
+  return details
+    ? `${params.avatarName} erinnert sich aus der Doku "${params.dokuTitle}": ${details}`
+    : `${params.avatarName} hat in "${params.dokuTitle}" etwas über ${params.topic} gelernt.`;
 }
 
 function normalizeDomainId(value: string | null | undefined): string {
@@ -297,6 +320,8 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         success: true,
         updatedAvatars: 0,
         personalityChanges: [],
+        memorySaved: false,
+        memoriesCreated: 0,
       };
     }
 
@@ -305,15 +330,6 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
     for (const userAvatar of userAvatars) {
       try {
-        const alreadyRead = await avatarDB.queryRow<{ id: string }>`
-          SELECT id
-          FROM avatar_doku_read
-          WHERE avatar_id = ${userAvatar.id} AND doku_id = ${req.dokuId}
-        `;
-
-        if (alreadyRead) {
-          continue;
-        }
 
         const avatarRow = await avatarDB.queryRow<{ personality_traits: string }>`
           SELECT personality_traits
@@ -340,6 +356,30 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         });
 
         if (progression.status === "duplicate") {
+          await avatarDB.exec`
+            INSERT INTO avatar_doku_read (avatar_id, doku_id, doku_title)
+            VALUES (${userAvatar.id}, ${req.dokuId}, ${req.dokuTitle})
+            ON CONFLICT (avatar_id, doku_id) DO NOTHING
+          `;
+          try {
+            await avatar.addMemory({
+              id: userAvatar.id,
+              storyId: req.dokuId,
+              storyTitle: req.dokuTitle,
+              experience: buildDokuMemoryExperience({
+                avatarName: userAvatar.name,
+                dokuTitle: req.dokuTitle,
+                topic: req.topic,
+                changes,
+              }),
+              emotionalImpact: "positive",
+              personalityChanges: changes,
+              developmentDescription: `Wissensentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+              contentType: "doku",
+            });
+          } catch (memoryError) {
+            console.warn(`Failed to repair doku memory for ${userAvatar.name}`, memoryError);
+          }
           continue;
         }
 
@@ -356,7 +396,12 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
             id: userAvatar.id,
             storyId: req.dokuId,
             storyTitle: req.dokuTitle,
-            experience: `Ich habe die Doku "${req.dokuTitle}" gelesen. Thema: ${req.topic}.`,
+            experience: buildDokuMemoryExperience({
+              avatarName: userAvatar.name,
+              dokuTitle: req.dokuTitle,
+              topic: req.topic,
+              changes,
+            }),
             emotionalImpact: "positive",
             personalityChanges: changes,
             developmentDescription: `Wissensentwicklung: ${changes.map((item) => item.description).join(", ")}`,
@@ -428,6 +473,32 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       }
     }
 
+    let memoriesCreated = 0;
+    for (const userAvatar of userAvatars) {
+      try {
+        const memory = await avatarDB.queryRow<{ id: string }>`
+          SELECT id FROM avatar_memories
+          WHERE avatar_id = ${userAvatar.id}
+            AND content_type = 'doku'
+            AND story_id = ${req.dokuId}
+          LIMIT 1
+        `;
+        if (memory) memoriesCreated += 1;
+      } catch (memoryCheckError) {
+        console.warn("Could not confirm stored doku memory", memoryCheckError);
+      }
+    }
+
+    if (updatedCount === 0 && memoriesCreated === 0) {
+      return {
+        success: false,
+        updatedAvatars: 0,
+        memorySaved: false,
+        memoriesCreated: 0,
+        personalityChanges: [],
+      };
+    }
+
     for (const profileId of targetProfileIds) {
       await dokuDB.exec`
         INSERT INTO doku_profile_state (
@@ -458,6 +529,8 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       success: true,
       updatedAvatars: updatedCount,
       personalityChanges,
+      memorySaved: memoriesCreated > 0,
+      memoriesCreated,
     };
   }
 );

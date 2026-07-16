@@ -1,98 +1,93 @@
-/**
- * cosmos-recall-submit.ts - Submit recall check answers.
- *
- * POST /avatar/cosmos-recall-submit
- * Updates confidence more strongly than mastery.
- */
+// @bun
+var __using = (stack, value, async) => {
+  if (value != null) {
+    if (typeof value !== "object" && typeof value !== "function")
+      throw TypeError('Object expected to be assigned to "using" declaration');
+    let dispose;
+    if (async)
+      dispose = value[Symbol.asyncDispose];
+    if (dispose === undefined)
+      dispose = value[Symbol.dispose];
+    if (typeof dispose !== "function")
+      throw TypeError("Object not disposable");
+    stack.push([async, dispose, value]);
+  } else if (async) {
+    stack.push([async]);
+  }
+  return value;
+};
+var __callDispose = (stack, error, hasError) => {
+  let fail = (e) => error = hasError ? new SuppressedError(e, error, "An error was suppressed during disposal") : (hasError = true, e), next = (it) => {
+    while (it = stack.pop()) {
+      try {
+        var result = it[1] && it[1].call(it[2]);
+        if (it[0])
+          return Promise.resolve(result).then(next, (e) => (fail(e), next()));
+      } catch (e) {
+        fail(e);
+      }
+    }
+    if (hasError)
+      throw error;
+  };
+  return next();
+};
 
+// backend/avatar/cosmos-recall-submit.ts
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { ensureCosmosTrackingSchema } from "./cosmos-schema";
 import { assertAvatarOwnedByCurrentUser } from "./authz";
 import { ensureDefaultProfileForUser, getProfileForUser } from "../helpers/profiles";
-
-interface RecallAnswer {
-  questionId: string;
-  correct: boolean;
-}
-
-interface RecallSubmitRequest {
-  avatarId: string;
-  profileId?: string;
-  recallTaskId: string;
-  answers: RecallAnswer[];
-}
-
-interface RecallSubmitResponse {
-  success: boolean;
-  confidenceDelta: number;
-  masteryDelta: number;
-  newStage: string;
-}
-
-export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>(
-  { expose: true, method: "POST", path: "/avatar/cosmos-recall-submit", auth: true },
-  async (req) => {
+var cosmosRecallSubmit = api({ expose: true, method: "POST", path: "/avatar/cosmos-recall-submit", auth: true }, async (req) => {
+  try {
+    let __stack = [];
     try {
       const auth = getAuthData();
-      if (!auth) throw APIError.unauthenticated("Unauthorized");
-
+      if (!auth)
+        throw APIError.unauthenticated("Unauthorized");
       await ensureCosmosTrackingSchema().catch((schemaError) => {
         console.warn("[avatar] cosmos schema ensure skipped in recall submit", schemaError);
       });
-
       if (!req.avatarId || !req.recallTaskId) {
         throw APIError.invalidArgument("Missing required fields");
       }
-
       await assertAvatarOwnedByCurrentUser(req.avatarId);
-      const avatarScope = await avatarDB.queryRow<{ profile_id: string | null }>`
+      const avatarScope = await avatarDB.queryRow`
         SELECT profile_id FROM avatars WHERE id = ${req.avatarId} LIMIT 1
       `;
-      if (!avatarScope) throw APIError.notFound("Avatar not found");
-
-      const profile = req.profileId
-        ? await getProfileForUser({ userId: auth.userID, profileId: req.profileId })
-        : avatarScope.profile_id
-          ? await getProfileForUser({ userId: auth.userID, profileId: avatarScope.profile_id })
-          : await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
-      const belongsToProfile =
-        avatarScope.profile_id === profile.id ||
-        (avatarScope.profile_id === null && profile.isDefault);
+      if (!avatarScope)
+        throw APIError.notFound("Avatar not found");
+      const profile = req.profileId ? await getProfileForUser({ userId: auth.userID, profileId: req.profileId }) : avatarScope.profile_id ? await getProfileForUser({ userId: auth.userID, profileId: avatarScope.profile_id }) : await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
+      const belongsToProfile = avatarScope.profile_id === profile.id || avatarScope.profile_id === null && profile.isDefault;
       if (!belongsToProfile) {
         throw APIError.permissionDenied("Avatar belongs to another child profile");
       }
       const effectiveProfileId = profile.id;
-
-      await using tx = await avatarDB.begin();
+      const tx = __using(__stack, await avatarDB.begin(), 1);
       const task = await tx.queryRow`
         SELECT id, domain_id, topic_id, source_content_id, source_content_type, status, created_at
         FROM recall_tasks
         WHERE id = ${req.recallTaskId} AND avatar_id = ${req.avatarId}
         FOR UPDATE
       `;
-
-      if (!task) throw APIError.notFound("Recall task not found");
-      if (task.status !== "pending") throw APIError.invalidArgument("Recall task already completed");
-
-      const answers = Array.isArray(req.answers)
-        ? req.answers.map((answer, index) => ({
-            questionId: String(answer?.questionId || `q_${index}`),
-            correct: Boolean(answer?.correct),
-          }))
-        : [];
+      if (!task)
+        throw APIError.notFound("Recall task not found");
+      if (task.status !== "pending")
+        throw APIError.invalidArgument("Recall task already completed");
+      const answers = Array.isArray(req.answers) ? req.answers.map((answer, index) => ({
+        questionId: String(answer?.questionId || `q_${index}`),
+        correct: Boolean(answer?.correct)
+      })) : [];
       if (answers.length === 0) {
         throw APIError.invalidArgument("No recall answers provided");
       }
-
       const totalQuestions = answers.length;
       const correctAnswers = answers.filter((answer) => answer.correct).length;
-      const score = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
-
-      const confidenceDelta = Math.round((score / 100) * 10 * 10) / 10;
-      const masteryDelta = Math.round((score / 100) * 2 * 10) / 10;
-
+      const score = totalQuestions > 0 ? correctAnswers / totalQuestions * 100 : 0;
+      const confidenceDelta = Math.round(score / 100 * 10 * 10) / 10;
+      const masteryDelta = Math.round(score / 100 * 2 * 10) / 10;
       const existing = await tx.queryRow`
         SELECT mastery, confidence FROM competency_state
         WHERE avatar_id = ${req.avatarId}
@@ -100,15 +95,12 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
           AND COALESCE(topic_id, '') = ${task.topic_id || ""}
           AND skill_type = 'REMEMBER'
       `;
-
       const currentMastery = existing ? Number(existing.mastery) : 0;
       const currentConfidence = existing ? Number(existing.confidence) : 0;
       const newMastery = Math.min(100, currentMastery + masteryDelta);
       const newConfidence = Math.min(100, currentConfidence + confidenceDelta);
       const newStage = computeStage(newMastery, newConfidence);
-
       const id = `cs_${req.avatarId}_${task.domain_id}_${task.topic_id || "general"}_overall`;
-
       await tx.exec`
         INSERT INTO competency_state (id, avatar_id, profile_id, domain_id, topic_id, skill_type, mastery, confidence, stage, last_activity_at, updated_at)
         VALUES (${id}, ${req.avatarId}, ${effectiveProfileId}, ${task.domain_id}, ${task.topic_id ?? null}, 'REMEMBER', ${newMastery}, ${newConfidence}, ${newStage}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -120,13 +112,11 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
           last_activity_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
       `;
-
       await tx.exec`
         UPDATE recall_tasks
         SET status = 'completed', completed_at = CURRENT_TIMESTAMP, score = ${score}
         WHERE id = ${req.recallTaskId}
       `;
-
       const eventId = `ev_recall_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       await tx.exec`
         INSERT INTO evidence_events (id, avatar_id, profile_id, domain_id, topic_id, event_type, skill_type, score, max_score, payload, source_content_id, source_content_type)
@@ -141,47 +131,55 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
           ${score},
           ${100},
           ${JSON.stringify({
-            answers: totalQuestions,
-            correct: correctAnswers,
-            daysAfterLearning: Math.round((Date.now() - new Date(task.created_at || Date.now()).getTime()) / 86400000),
-            summary: `Recall: ${correctAnswers}/${totalQuestions}`,
-          })},
+        answers: totalQuestions,
+        correct: correctAnswers,
+        daysAfterLearning: Math.round((Date.now() - new Date(task.created_at || Date.now()).getTime()) / 86400000),
+        summary: `Recall: ${correctAnswers}/${totalQuestions}`
+      })},
           ${task.source_content_id},
           ${task.source_content_type}
         )
       `;
-
       await tx.commit();
       return {
-
         success: true,
         confidenceDelta,
         masteryDelta,
-        newStage,
+        newStage
       };
-    } catch (error: any) {
-      const message = error?.message || String(error);
-      console.error("[avatar] cosmos-recall-submit failed", {
-        avatarId: req.avatarId,
-        recallTaskId: req.recallTaskId,
-        message,
-      });
-      if (error instanceof APIError) {
-        throw error;
-      }
-      return {
-        success: false,
-        confidenceDelta: 0,
-        masteryDelta: 0,
-        newStage: "discovered",
-      };
+    } catch (_catch) {
+      var _err = _catch, _hasErr = 1;
+    } finally {
+      var _promise = __callDispose(__stack, _err, _hasErr);
+      _promise && await _promise;
     }
+  } catch (error) {
+    const message = error?.message || String(error);
+    console.error("[avatar] cosmos-recall-submit failed", {
+      avatarId: req.avatarId,
+      recallTaskId: req.recallTaskId,
+      message
+    });
+    if (error instanceof APIError) {
+      throw error;
+    }
+    return {
+      success: false,
+      confidenceDelta: 0,
+      masteryDelta: 0,
+      newStage: "discovered"
+    };
   }
-);
-
-function computeStage(mastery: number, confidence: number): string {
-  if (mastery >= 80 && confidence >= 65) return "mastered";
-  if (mastery >= 55 && confidence >= 40) return "can_explain";
-  if (mastery >= 25 && confidence >= 15) return "understood";
+});
+function computeStage(mastery, confidence) {
+  if (mastery >= 80 && confidence >= 65)
+    return "mastered";
+  if (mastery >= 55 && confidence >= 40)
+    return "can_explain";
+  if (mastery >= 25 && confidence >= 15)
+    return "understood";
   return "discovered";
 }
+export {
+  cosmosRecallSubmit
+};
