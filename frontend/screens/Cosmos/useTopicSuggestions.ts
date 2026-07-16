@@ -61,12 +61,12 @@ function mergeUniqueItems(
   next: TopicSuggestionItemDTO
 ): TopicSuggestionItemDTO[] {
   const dedupe = new Map<string, TopicSuggestionItemDTO>();
-  for (const item of current) {
+  // Put the freshly generated idea first so it is immediately visible in
+  // capped grids (the Doku wizard intentionally shows only the first 12).
+  for (const item of [next, ...current]) {
     const key = `${item.topicSlug}|${item.topicTitle.toLowerCase()}`;
-    dedupe.set(key, item);
+    if (!dedupe.has(key)) dedupe.set(key, item);
   }
-  const nextKey = `${next.topicSlug}|${next.topicTitle.toLowerCase()}`;
-  dedupe.set(nextKey, next);
   return Array.from(dedupe.values());
 }
 
@@ -152,7 +152,7 @@ export function useTopicSuggestions(options: UseTopicSuggestionsOptions): UseTop
 
     setSuggestions((prev) => {
       if (!prev) return prev;
-      return { ...prev, items: [...prev.items, optimisticItem] };
+      return { ...prev, items: [optimisticItem, ...prev.items] };
     });
 
     try {
