@@ -8,9 +8,10 @@ import { useTheme } from '../../../contexts/ThemeContext';
 interface Step2AgeBodyProps {
   formData: AvatarFormData;
   updateFormData: (updates: Partial<AvatarFormData>) => void;
+  childMode?: boolean;
 }
 
-export default function Step2AgeBody({ formData, updateFormData }: Step2AgeBodyProps) {
+export default function Step2AgeBody({ formData, updateFormData, childMode = false }: Step2AgeBodyProps) {
   const isHuman = isHumanCharacter(formData.characterType);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -33,6 +34,7 @@ export default function Step2AgeBody({ formData, updateFormData }: Step2AgeBodyP
         characterType={formData.characterType}
         onAgeChange={(age) => updateFormData({ age })}
         onHeightChange={(height) => updateFormData({ height })}
+        ageReadOnly={childMode}
         darkMode={isDark}
       />
 

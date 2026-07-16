@@ -821,11 +821,11 @@ export namespace avatar {
         public async update(params: RequestType<typeof api_avatar_update_update>): Promise<ResponseType<typeof api_avatar_update_update>> {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
+                avatarRole:        params.avatarRole,
                 description:       params.description,
                 imageUrl:          params.imageUrl,
                 isPublic:          params.isPublic,
                 name:              params.name,
-                personalityTraits: params.personalityTraits,
                 physicalTraits:    params.physicalTraits,
                 profileId:         params.profileId,
                 visualProfile:     params.visualProfile,

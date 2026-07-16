@@ -5,7 +5,6 @@ import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureAvatarSharingTables } from "./sharing";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable } from "./profile-links";
 import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface ListAvatarsRequest {
@@ -35,20 +34,20 @@ type AvatarListRow = {
   original_avatar_id: string | null;
   created_at: Date;
   updated_at: Date;
+  inventory: string | null;
+  skills: string | null;
   share_count?: number;
   shared_by_user_id?: string | null;
   shared_at?: Date | null;
 };
 
-// Retrieves avatars owned by the authenticated user for the active profile
-// (directly assigned or shared into the profile via avatar_profile_links).
+// Retrieves profile-local avatars. A mutable avatar instance never crosses child-profile boundaries.
 export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
   { expose: true, method: "GET", path: "/avatars", auth: true },
   async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarColumns();
     await ensureAvatarSharingTables();
-    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.profileId,
@@ -75,19 +74,14 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.original_avatar_id,
         a.created_at,
         a.updated_at,
+        a.inventory,
+        a.skills,
         COUNT(s.id)::int AS share_count
       FROM avatars a
       LEFT JOIN avatar_shares s ON s.avatar_id = a.id AND s.owner_user_id = a.user_id
       WHERE a.user_id = ${auth.userID}
         AND (
           a.profile_id = ${activeProfileId}
-          OR EXISTS (
-            SELECT 1
-            FROM avatar_profile_links apl
-            WHERE apl.avatar_id = a.id
-              AND apl.user_id = ${auth.userID}
-              AND apl.profile_id = ${activeProfileId}
-          )
           OR (${includeLegacyUnscoped} AND a.profile_id IS NULL)
         )
       GROUP BY
@@ -107,7 +101,9 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.source_avatar_id,
         a.original_avatar_id,
         a.created_at,
-        a.updated_at
+        a.updated_at,
+        a.inventory,
+        a.skills
       ORDER BY a.created_at DESC
     `;
 
@@ -133,8 +129,8 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         originalAvatarId: row.original_avatar_id || undefined,
         createdAt: row.created_at.toISOString(),
         updatedAt: row.updated_at.toISOString(),
-        inventory: [],
-        skills: [],
+        inventory: row.inventory ? JSON.parse(row.inventory) : [],
+        skills: row.skills ? JSON.parse(row.skills) : [],
       }))
     );
     return { avatars: ownAvatars };

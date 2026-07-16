@@ -3,8 +3,7 @@ import { motion } from 'framer-motion';
 import { CircleHelp, Compass, Crown, Sparkles, Target, Trophy } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import type { AvatarMemory, AvatarProgression } from '../../types/avatar';
-import AvatarLearningWorldMap from './AvatarLearningWorldMap';
+import type { AvatarProgression } from '../../types/avatar';
 
 export interface PersonalityBoardTrait {
   id: string;
@@ -16,7 +15,6 @@ export interface PersonalityBoardTrait {
 interface PersonalityProgressBoardProps {
   traits: PersonalityBoardTrait[];
   progression?: AvatarProgression | null;
-  memories?: AvatarMemory[];
 }
 
 interface TraitCardData {
@@ -240,7 +238,6 @@ const QuestDial: React.FC<{
 export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> = ({
   traits,
   progression,
-  memories = [],
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -303,7 +300,6 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
         )}
       </section>
 
-      <AvatarLearningWorldMap memories={memories} progression={progression} isDark={isDark} />
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {traitCards.map((trait, index) => {

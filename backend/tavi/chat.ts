@@ -8,7 +8,6 @@ import { storyDB } from "../story/db";
 import { dokuDB } from "../doku/db";
 import type { DokuConfig } from "../doku/generate";
 import type { StoryConfig } from "../story/generate";
-import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import {
   ageToAgeGroup,
   buildDokuProfilePrompt,
@@ -18,6 +17,7 @@ import {
 import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { TAVI_TOOLS } from "./tavi-tools";
 import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
+import { claimMeteredUsage } from "../helpers/billing";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,6 +124,9 @@ interface OpenAIChatResponse {
 
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["de", "en", "fr", "es", "it", "nl", "ru"];
 const MAX_HISTORY_MESSAGES = 10;
+const MAX_MESSAGE_CHARS = 2_000;
+const MAX_HISTORY_MESSAGE_CHARS = 1_500;
+const MAX_HISTORY_TOTAL_CHARS = 8_000;
 const TAVI_OPENROUTER_MODEL = "google/gemini-3.1-flash-lite";
 
 // ---------------------------------------------------------------------------
@@ -222,10 +225,10 @@ function escapeRegex(value: string): string {
 async function loadProfileScopedAvatars(params: {
   userId: string;
   profileId: string;
+  includeLegacyUnscoped: boolean;
   childAvatarId?: string;
   preferredAvatarIds?: string[];
 }): Promise<Array<{ id: string; name: string; imageUrl?: string }>> {
-  await ensureAvatarProfileLinksTable();
   const rows = await avatarDB.queryAll<{
     id: string;
     name: string;
@@ -238,12 +241,7 @@ async function loadProfileScopedAvatars(params: {
     WHERE a.user_id = ${params.userId}
       AND (
         a.profile_id = ${params.profileId}
-        OR EXISTS (
-          SELECT 1 FROM avatar_profile_links apl
-          WHERE apl.avatar_id = a.id
-            AND apl.user_id = ${params.userId}
-            AND apl.profile_id = ${params.profileId}
-        )
+        OR (a.profile_id IS NULL AND ${params.includeLegacyUnscoped})
       )
     ORDER BY a.created_at DESC
   `;
@@ -435,8 +433,10 @@ async function handleCreateAvatar(params: {
 
 async function handleGenerateImage(params: {
   args: Record<string, any>;
+  userId: string;
+  clerkToken?: string;
 }): Promise<TaviChatAction> {
-  const { args } = params;
+  const { args, userId, clerkToken } = params;
 
   let prompt = args.prompt || "";
   const style = args.style || "disney";
@@ -448,6 +448,16 @@ async function handleGenerateImage(params: {
     prompt = `Anime illustration style. ${prompt}. Vibrant colors, detailed, clean lines, high quality.`;
   }
   // realistic: use prompt as-is
+  if (!prompt.trim() || prompt.length > 2_000) {
+    throw new Error("INVALID_IMAGE_PROMPT");
+  }
+
+  await claimMeteredUsage({
+    userId,
+    kind: "image",
+    units: 1,
+    clerkToken,
+  });
 
   const imageResult = await ai.generateImage({
     prompt,
@@ -468,8 +478,9 @@ async function handleListContent(params: {
   args: Record<string, any>;
   userId: string;
   profileId: string;
+  includeLegacyUnscoped: boolean;
 }): Promise<TaviChatAction> {
-  const { args, userId, profileId } = params;
+  const { args, userId, profileId, includeLegacyUnscoped } = params;
   const contentType = args.contentType as "avatars" | "stories" | "dokus";
   const limit = Math.min(args.limit || 5, 10);
 
@@ -487,12 +498,7 @@ async function handleListContent(params: {
       WHERE a.user_id = ${userId}
         AND (
           a.profile_id = ${profileId}
-          OR EXISTS (
-            SELECT 1 FROM avatar_profile_links apl
-            WHERE apl.avatar_id = a.id
-              AND apl.user_id = ${userId}
-              AND apl.profile_id = ${profileId}
-          )
+          OR (a.profile_id IS NULL AND ${includeLegacyUnscoped})
         )
       ORDER BY a.created_at DESC
       LIMIT ${limit}
@@ -650,12 +656,13 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
   async ({ message, history, context }) => {
     const auth = getAuthData()!;
 
-    // Validate
-    const wordCount = message.trim().split(/\s+/).length;
-    if (wordCount > 100) {
+    // Validate and bound all user-controlled prompt input before it reaches OpenRouter.
+    const normalizedMessage = message.trim();
+    const wordCount = normalizedMessage.split(/\s+/).length;
+    if (wordCount > 100 || normalizedMessage.length > MAX_MESSAGE_CHARS) {
       throw new Error("Nachricht zu lang! Bitte halte deine Frage unter 100 Woertern.");
     }
-    if (!message.trim()) {
+    if (!normalizedMessage) {
       throw new Error("Bitte stelle eine Frage!");
     }
 
@@ -678,6 +685,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     const avatars = await loadProfileScopedAvatars({
       userId: auth.userID,
       profileId: activeProfileId,
+      includeLegacyUnscoped: activeProfile.isDefault,
       childAvatarId: activeProfile.childAvatarId,
       preferredAvatarIds: activeProfile.preferredAvatarIds,
     });
@@ -694,24 +702,38 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       },
     ];
 
-    // Add conversation history (last N messages)
+    // Add bounded conversation history (last N messages).
     if (history && history.length > 0) {
-      const trimmedHistory = history.slice(-MAX_HISTORY_MESSAGES);
-      for (const msg of trimmedHistory) {
-        messages.push({
+      const boundedHistory: HistoryMessage[] = [];
+      let totalChars = 0;
+      for (const msg of history.slice(-MAX_HISTORY_MESSAGES).reverse()) {
+        const content = String(msg.content || "").trim().slice(0, MAX_HISTORY_MESSAGE_CHARS);
+        if (!content || totalChars + content.length > MAX_HISTORY_TOTAL_CHARS) continue;
+        totalChars += content.length;
+        boundedHistory.unshift({
           role: msg.role === "user" ? "user" : "assistant",
-          content: msg.content,
+          content,
         });
+      }
+      for (const msg of boundedHistory) {
+        messages.push(msg);
       }
     }
 
     // Add current message
-    messages.push({ role: "user", content: message });
+    messages.push({ role: "user", content: normalizedMessage });
 
     console.log(
       `Tavi processing message from user ${auth.userID}:`,
       message.substring(0, 100)
     );
+
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
 
     try {
       const openRouterResult = await callOpenRouterChatCompletion({
@@ -813,7 +835,11 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
                 break;
               }
               case "generate_image": {
-                const action = await handleGenerateImage({ args });
+                const action = await handleGenerateImage({
+                  args,
+                  userId: auth.userID,
+                  clerkToken: auth.clerkToken,
+                });
                 actions.push(action);
                 if (!textResponse) {
                   textResponse = "Hier ist dein Bild!";
@@ -825,6 +851,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
                   args,
                   userId: auth.userID,
                   profileId: activeProfileId,
+                  includeLegacyUnscoped: activeProfile.isDefault,
                 });
                 actions.push(action);
                 if (!textResponse) {

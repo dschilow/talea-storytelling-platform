@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, useScroll, useSpring, useInView } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Sparkles, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Sparkles, BookOpen, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 
@@ -89,7 +89,12 @@ const CinematicDokuViewer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [dokuCompleted, setDokuCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState(0);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getDokuPalette(isDark), [isDark]);
@@ -121,8 +126,23 @@ const CinematicDokuViewer: React.FC = () => {
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
 
   useEffect(() => {
-    if (dokuId) void loadDoku();
-  }, [dokuId]);
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    autoJumpDoneRef.current = false;
+    setDokuCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
+    setDoku(null);
+
+    if (dokuId) void loadDoku(requestId);
+
+    return () => {
+      if (loadRequestRef.current === requestId) loadRequestRef.current += 1;
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+    };
+  }, [dokuId, activeProfileId]);
 
   useEffect(() => {
     if (!doku) return;
@@ -144,21 +164,26 @@ const CinematicDokuViewer: React.FC = () => {
     }, 160);
   }, [doku, openMode]);
 
-  const loadDoku = async () => {
+  const loadDoku = async (requestId: number) => {
     if (!dokuId) return;
     try {
       setLoading(true);
       setError(null);
       let dokuData: any = await getOfflineDoku(dokuId);
       if (!dokuData) {
-        dokuData = await backend.doku.getDoku({ id: dokuId });
+        dokuData = await backend.doku.getDoku({
+          id: dokuId,
+          profileId: activeProfileId || undefined,
+        });
       }
+      if (loadRequestRef.current !== requestId) return;
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading doku:', err);
       setError('Doku konnte nicht geladen werden.');
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -171,9 +196,13 @@ const CinematicDokuViewer: React.FC = () => {
   };
 
   const handleDokuCompletion = async () => {
-    if (!doku || !dokuId || dokuCompleted) return;
+    if (!doku || !dokuId || dokuCompleted || completionInFlightRef.current) return;
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
+
     try {
-      setDokuCompleted(true);
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
       const target = getBackendUrl();
@@ -193,24 +222,41 @@ const CinematicDokuViewer: React.FC = () => {
           avatarId: targetAvatarId ?? undefined,
         }),
       });
-      if (response.ok) {
-        const { showSuccessToast } = await import('../../utils/toastUtils');
-        showSuccessToast('Doku abgeschlossen. Wissen erweitert.');
-        window.dispatchEvent(
-          new CustomEvent('personalityUpdated', {
-            detail: {
-              avatarId: targetAvatarId ?? undefined,
-              refreshProgression: true,
-              source: 'doku',
-              updatedAt: new Date().toISOString(),
-            },
-          }),
-        );
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(`Doku completion failed with status ${response.status}`);
       }
+      if (result?.success !== true) {
+        throw new Error('Doku completion was not confirmed by the server.');
+      }
+      if (completionAttemptRef.current !== attemptId) return;
+
+      setDokuCompleted(true);
+      const { showSuccessToast } = await import('../../utils/toastUtils');
+      showSuccessToast('Doku abgeschlossen. Wissen erweitert.');
+      window.dispatchEvent(
+        new CustomEvent('personalityUpdated', {
+          detail: {
+            avatarId: targetAvatarId ?? undefined,
+            refreshProgression: true,
+            source: 'doku',
+            updatedAt: new Date().toISOString(),
+          },
+        }),
+      );
       emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
     } catch (error) {
       console.error('Error completing doku:', error);
-      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Bitte versuche es erneut.';
+      setCompletionError(message);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+        setCompletionPending(false);
+      }
     }
   };
 
@@ -397,6 +443,8 @@ const CinematicDokuViewer: React.FC = () => {
               isDark={isDark}
               onComplete={index === sections.length - 1 ? handleDokuCompletion : undefined}
               isCompleted={dokuCompleted}
+              isCompleting={completionPending}
+              completionError={completionError}
               onBecomeActive={() => setActiveSection(index)}
             />
           </React.Fragment>
@@ -458,8 +506,10 @@ const SectionView: React.FC<{
   isDark: boolean;
   onComplete?: () => void;
   isCompleted?: boolean;
+  isCompleting?: boolean;
+  completionError?: string | null;
   onBecomeActive: () => void;
-}> = ({ section, index, total, dokuTitle, dokuId, dokuTopic, dokuMetadata, avatarId, coverImageUrl, palette, isDark, onComplete, isCompleted, onBecomeActive }) => {
+}> = ({ section, index, total, dokuTitle, dokuId, dokuTopic, dokuMetadata, avatarId, coverImageUrl, palette, isDark, onComplete, isCompleted, isCompleting, completionError, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
 
@@ -538,13 +588,29 @@ const SectionView: React.FC<{
             <button
               type="button"
               onClick={onComplete}
-              disabled={isCompleted}
+              disabled={isCompleted || isCompleting}
+              aria-busy={isCompleting}
               className={cn('sr-complete-btn', isCompleted ? 'sr-complete-btn--done' : 'sr-complete-btn--default')}
               style={!isCompleted ? { borderColor: `${palette.accent}40`, background: `${palette.accent}14`, color: palette.accent } : {}}
             >
-              <Sparkles className="h-4 w-4" />
-              {isCompleted ? 'Abgeschlossen' : 'Doku abschliessen'}
+              {isCompleting ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+              )}
+              {isCompleted
+                ? 'Abgeschlossen'
+                : isCompleting
+                  ? 'Fortschritt wird gespeichert ...'
+                  : completionError
+                    ? 'Speichern erneut versuchen'
+                    : 'Doku abschliessen'}
             </button>
+            {completionError && !isCompleted && (
+              <p role="alert" className="mt-3 text-center text-sm" style={{ color: palette.body }}>
+                {completionError}
+              </p>
+            )}
           </motion.div>
         )}
       </div>

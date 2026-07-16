@@ -27,9 +27,9 @@ export const generatePortrait = api<
   PortraitRequest,
   PortraitResponse
 >(
-  { expose: true, method: "POST", path: "/avatar/generate-portrait" },
+  { expose: false, method: "POST", path: "/avatar/generate-portrait", auth: true },
   async (req) => {
-    console.log(`[portrait-api] Generating portrait for ${req.avatar} (${req.emotion}, ${req.pose})`);
+    console.info("[portrait-api] Building legacy portrait prompt", { emotion: req.emotion, pose: req.pose });
 
     try {
       const prompt = generatePortraitPrompt(req.avatar, req.emotion, req.pose);
@@ -41,9 +41,9 @@ export const generatePortrait = api<
         pose: req.pose
       };
 
-    } catch (error) {
-      console.error("[portrait-api] Error generating portrait:", error);
-      throw new Error(`Failed to generate portrait: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (error: any) {
+      console.error("[portrait-api] Portrait prompt failed", { errorName: error?.name });
+      throw new Error("Failed to generate portrait prompt.");
     }
   }
 );

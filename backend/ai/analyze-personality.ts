@@ -1,7 +1,9 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
+import { getAuthData } from "~encore/auth";
+import { claimMeteredUsage } from "../helpers/billing";
 
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5.4-mini";
@@ -81,8 +83,19 @@ export interface PersonalityAnalysisResponse {
 }
 
 export const analyzePersonalityDevelopment = api<PersonalityAnalysisRequest, PersonalityAnalysisResponse>(
-  { expose: true, method: "POST", path: "/ai/analyze-personality" },
+  { expose: true, method: "POST", path: "/ai/analyze-personality", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (JSON.stringify(req).length > 50_000) {
+      throw APIError.invalidArgument("Personality analysis request is too large.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
+
     const startTime = Date.now();
     
     try {

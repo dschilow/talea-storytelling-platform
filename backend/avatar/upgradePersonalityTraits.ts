@@ -59,7 +59,7 @@ function upgradePersonalityTraits(existingTraits: Record<string, RawTraitValue>)
 
 // API zum Upgrade aller Avatare (für Migration)
 export const upgradeAllPersonalityTraits = api(
-  { expose: true, method: "POST", path: "/avatar/upgrade-traits", auth: true },
+  { expose: false, method: "POST", path: "/avatar/upgrade-traits", auth: true },
   async (): Promise<{ updated: number }> => {
     console.log("🔄 Starting personality traits upgrade for all avatars...");
 

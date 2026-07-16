@@ -26,7 +26,7 @@ export interface DatabaseStatusResponse {
  * Shows which tables exist and basic counts
  */
 export const dbStatus = api(
-  { expose: true, method: "GET", path: "/health/db-status", auth: false },
+  { expose: false, method: "GET", path: "/health/db-status", auth: false },
   async (): Promise<DatabaseStatusResponse> => {
     const tables = {
       stories: false,

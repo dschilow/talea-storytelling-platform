@@ -10,6 +10,7 @@ import {
   PencilLine,
   RotateCcw,
   Share2,
+  ShieldCheck,
   Sparkles,
   User,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ import AvatarSharePanel from '../../components/avatar/AvatarSharePanel';
 import AvatarTreasureRoom from '../../components/gamification/AvatarTreasureRoom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBackend } from '../../hooks/useBackend';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import type { Avatar, AvatarMemory, AvatarProgression } from '../../types/avatar';
 
 type ProfileTab = 'growth' | 'diary' | 'treasure';
@@ -81,10 +83,19 @@ const normalizeTraits = (rawTraits: Record<string, unknown> | null): GrowthTrait
 const isProfileTab = (value: string | null): value is ProfileTab =>
   value === 'growth' || value === 'diary' || value === 'treasure';
 
+const isInternalVisualDescription = (value?: string | null) => {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  const visualTokens = ['average height', 'human,', 'build,', 'skin,', ' eyes,', ' hair,'];
+  return visualTokens.filter((token) => normalized.includes(token)).length >= 3;
+};
+
 const AvatarProfileScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
   const backend = useBackend();
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId || undefined;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const reduceMotion = useReducedMotion();
@@ -99,12 +110,15 @@ const AvatarProfileScreen: React.FC = () => {
   const [memoriesLoading, setMemoriesLoading] = useState(true);
   const [memoriesError, setMemoriesError] = useState<string | null>(null);
   const [deletingMemoryId, setDeletingMemoryId] = useState<string | null>(null);
+  const avatarRequestRef = React.useRef(0);
+  const memoriesRequestRef = React.useRef(0);
 
   const activeTab: ProfileTab = isProfileTab(searchParams.get('tab'))
     ? searchParams.get('tab') as ProfileTab
     : 'growth';
 
   const loadAvatar = useCallback(async () => {
+    const requestId = ++avatarRequestRef.current;
     if (!avatarId) {
       setProfileError('Die Avatar-ID fehlt.');
       setLoading(false);
@@ -114,20 +128,23 @@ const AvatarProfileScreen: React.FC = () => {
     setLoading(true);
     setProfileError(null);
     try {
-      const result = await backend.avatar.get({ id: avatarId });
+      const result = await backend.avatar.get({ id: avatarId, profileId: activeProfileId });
+      if (requestId !== avatarRequestRef.current) return;
       const nextAvatar = result as Avatar;
       setAvatar(nextAvatar);
       setRawTraits((nextAvatar.personalityTraits as Record<string, unknown>) || null);
       setProgression(nextAvatar.progression || null);
     } catch (error) {
+      if (requestId !== avatarRequestRef.current) return;
       console.error('Could not load avatar profile:', error);
       setProfileError('Das Profil ist gerade nicht erreichbar. Bitte versuche es noch einmal.');
     } finally {
-      setLoading(false);
+      if (requestId === avatarRequestRef.current) setLoading(false);
     }
-  }, [avatarId, backend.avatar]);
+  }, [activeProfileId, avatarId, backend.avatar]);
 
   const loadMemories = useCallback(async () => {
+    const requestId = ++memoriesRequestRef.current;
     if (!avatarId) {
       setMemoriesLoading(false);
       return;
@@ -137,18 +154,28 @@ const AvatarProfileScreen: React.FC = () => {
     setMemoriesError(null);
     try {
       const result = await backend.avatar.getMemories({ id: avatarId });
+      if (requestId !== memoriesRequestRef.current) return;
       setMemories((result.memories || []) as AvatarMemory[]);
     } catch (error) {
+      if (requestId !== memoriesRequestRef.current) return;
       console.error('Could not load avatar diary:', error);
       setMemoriesError('Die Erinnerungen konnten nicht geladen werden.');
     } finally {
-      setMemoriesLoading(false);
+      if (requestId === memoriesRequestRef.current) setMemoriesLoading(false);
     }
-  }, [avatarId, backend.avatar]);
+  }, [activeProfileId, avatarId, backend.avatar]);
 
   useEffect(() => {
+    setAvatar(null);
+    setRawTraits(null);
+    setProgression(null);
+    setMemories([]);
     void loadAvatar();
     void loadMemories();
+    return () => {
+      avatarRequestRef.current += 1;
+      memoriesRequestRef.current += 1;
+    };
   }, [loadAvatar, loadMemories]);
 
   useEffect(() => {
@@ -181,9 +208,6 @@ const AvatarProfileScreen: React.FC = () => {
         throw new Error('Delete failed');
       }
       setMemories((current) => current.filter((memory) => memory.id !== memoryId));
-      if (result.recalculatedTraits) {
-        setRawTraits(result.recalculatedTraits as Record<string, unknown>);
-      }
       await loadAvatar();
     } catch (error) {
       console.error('Could not delete avatar memory:', error);
@@ -197,7 +221,19 @@ const AvatarProfileScreen: React.FC = () => {
   const canManage = avatar?.isOwnedByCurrentUser ?? true;
   const inventoryCount = avatar?.inventory?.length || 0;
 
+  const activeProfile = childProfiles?.profiles.find((profile) => profile.id === activeProfileId) || null;
+  const isChildAvatar = avatar?.avatarRole === 'child' || activeProfile?.childAvatarId === avatar?.id;
+  const isProfileCopy = avatar?.sourceType === 'clone' || Boolean(avatar?.sourceAvatarId || avatar?.originalAvatarId);
+  const profileName = activeProfile?.name || 'dieses Kindes';
+  const roleLabel = isChildAvatar
+    ? `Kind-Avatar von ${profileName}`
+    : isProfileCopy
+      ? `Eigene Profilkopie für ${profileName}`
+      : `Begleiter in ${profileName}s Geschichten`;
+  const publicDescription = !isInternalVisualDescription(avatar?.description) ? avatar?.description : null;
+
   const pageBackground = isDark
+
     ? 'radial-gradient(900px 500px at 5% -10%, rgba(82,123,112,0.20), transparent 58%), radial-gradient(800px 520px at 100% 5%, rgba(109,91,130,0.18), transparent 60%), #131d2b'
     : 'radial-gradient(900px 500px at 5% -10%, #dfece6, transparent 58%), radial-gradient(800px 520px at 100% 5%, #eee4f0, transparent 60%), #f0efeb';
 
@@ -307,8 +343,14 @@ const AvatarProfileScreen: React.FC = () => {
                 {progression?.headline ? progression.headline.replaceAll('ae', '\u00e4').replaceAll('oe', '\u00f6').replaceAll('ue', '\u00fc') : 'Auf Entdeckungsreise'}
               </p>
               <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl" style={{ color: isDark ? '#f0f5fc' : '#203449' }}>{avatar.name}</h1>
+              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#b9d5cc' : '#41675a' }}>
+                {isChildAvatar ? <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> : isProfileCopy ? <Share2 className="h-3.5 w-3.5" aria-hidden="true" /> : <User className="h-3.5 w-3.5" aria-hidden="true" />}
+                {roleLabel}
+              </span>
               <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed md:mx-0" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
-                {avatar.description || 'Jedes abgeschlossene Abenteuer hinterl\u00e4sst Erinnerungen, st\u00e4rkt F\u00e4higkeiten und kann neue Sch\u00e4tze bringen.'}
+                {publicDescription || (isChildAvatar
+                  ? `${avatar.name} ist der persönliche Kind-Avatar dieses Profils. Er erlebt Geschichten mit und entwickelt dabei seine eigene Reise.`
+                  : 'Jedes abgeschlossene Abenteuer hinterlässt Erinnerungen, stärkt Fähigkeiten und kann neue Schätze bringen.')}
               </p>
               {!canManage && avatar.sharedBy ? (
                 <p className="mt-2 text-xs font-semibold" style={{ color: isDark ? '#9cb3ca' : '#6c8298' }}>
@@ -325,14 +367,14 @@ const AvatarProfileScreen: React.FC = () => {
           </div>
         </motion.section>
 
-        {canManage ? (
+        {canManage && !isChildAvatar ? (
           <details className="group rounded-2xl border" style={panel}>
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]">
               <span className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: isDark ? '#c5d3e2' : '#536a81' }}>
                 <Share2 className="h-4 w-4" />
-                Profil teilen und verwalten
+                Kopien und Freigaben
               </span>
-              <span className="text-xs" style={{ color: isDark ? '#8599af' : '#7a8b9d' }}>{avatar.sharedWithCount || 0} Freigaben</span>
+              <span className="text-xs" style={{ color: isDark ? '#8599af' : '#7a8b9d' }}>{avatar.sharedWithCount || 0} externe Freigaben</span>
             </summary>
             <div className="border-t p-3" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc' }}>
               <AvatarSharePanel
@@ -344,6 +386,14 @@ const AvatarProfileScreen: React.FC = () => {
               />
             </div>
           </details>
+        ) : canManage && isChildAvatar ? (
+          <div className="flex min-h-12 items-center gap-3 rounded-2xl border px-4 py-3" style={panel}>
+            <ShieldCheck className="h-4 w-4 shrink-0" style={{ color: isDark ? '#9bc4b9' : '#527b70' }} aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: isDark ? '#cfe0ed' : '#405970' }}>Privater Kind-Avatar</p>
+              <p className="text-xs leading-relaxed" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Dieser Avatar bleibt bei {profileName}. Familienfiguren kannst du stattdessen als unabhängige Profilkopie übernehmen.</p>
+            </div>
+          </div>
         ) : null}
 
         <nav className="rounded-[24px] border p-1.5" style={panel} aria-label="Avatar-Profil Bereiche">
@@ -387,6 +437,7 @@ const AvatarProfileScreen: React.FC = () => {
           {activeTab === 'diary' ? (
             <div id="avatar-diary-panel" role="tabpanel" aria-label="Tagebuch">
               <AvatarDiary
+                avatarName={avatar.name}
                 memories={memories}
                 loading={memoriesLoading}
                 error={memoriesError}
@@ -400,7 +451,7 @@ const AvatarProfileScreen: React.FC = () => {
 
           {activeTab === 'treasure' ? (
             <div id="avatar-treasure-panel" role="tabpanel" aria-label="Schatzkammer">
-              <AvatarTreasureRoom items={avatar.inventory || []} />
+              <AvatarTreasureRoom avatarName={avatar.name} items={avatar.inventory || []} />
             </div>
           ) : null}
         </main>

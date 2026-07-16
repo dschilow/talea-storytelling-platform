@@ -572,7 +572,7 @@ export function buildAvatarProgressionSummary(input: ProgressionInput): AvatarPr
     Math.max(1, traitMastery.length);
   const overallLevel = Math.max(
     1,
-    Math.round(averageTier * 7 + completedQuests * 3 + unlockedPerks * 0.6)
+    1 + Math.round(Math.max(0, averageTier - 1) * 7 + completedQuests * 3 + unlockedPerks * 0.6)
   );
 
   const topKnowledgeDomains = Object.entries(knowledgeSubcategories)

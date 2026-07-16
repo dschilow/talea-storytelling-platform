@@ -4,6 +4,7 @@ import { getAuthData } from "~encore/auth";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { dokuDB } from "./db";
+import { claimMeteredUsage } from "../helpers/billing";
 
 const openAIKey = secret("OpenAIKey");
 const MODEL = "gpt-5.4-mini";
@@ -137,6 +138,15 @@ export const generateAudioDokuTopics = api<AudioDokuTopicsRequest, AudioDokuTopi
     const durationMinutes = Math.max(1, Math.min(60, Math.floor(req.durationMinutes || 5)));
     const speakerCount = Math.max(1, Math.min(8, Math.floor(req.speakerCount || 2)));
     const direction = (req.direction || "").trim();
+    if (direction.length > 500) {
+      throw APIError.invalidArgument("direction is too long");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
 
     const directionInstruction = direction
       ? `Themenrichtung des Nutzers: "${direction}". Schlage 10 unterschiedliche, konkrete Doku-Themen vor, die zu dieser Richtung passen.`
@@ -352,6 +362,9 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
     if (!topic) {
       throw APIError.invalidArgument("topic is required");
     }
+    if (topic.length > 200) {
+      throw APIError.invalidArgument("topic is too long");
+    }
 
     const ageFrom = Math.max(2, Math.min(18, Math.floor(req.ageFrom || 6)));
     const ageTo = Math.max(ageFrom, Math.min(18, Math.floor(req.ageTo || 8)));
@@ -364,6 +377,16 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
     if (cleanedSpeakers.length < 1) {
       throw APIError.invalidArgument("At least one speaker name is required");
     }
+    if (cleanedSpeakers.length > 8 || cleanedSpeakers.some((name) => name.length > 80)) {
+      throw APIError.invalidArgument("Too many speakers or speaker name too long");
+    }
+
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: Math.max(1, Math.ceil(durationMinutes / 5)),
+      clerkToken: auth.clerkToken,
+    });
 
     const speakerCount = cleanedSpeakers.length;
 

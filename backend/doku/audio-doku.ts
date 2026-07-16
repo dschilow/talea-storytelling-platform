@@ -11,7 +11,11 @@ import {
   createPresignedUploadUrl,
   uploadBufferToBucket,
 } from "../helpers/bucket-storage";
-import { assertAudioDokuAccess, claimGenerationUsage } from "../helpers/billing";
+import {
+  assertAudioDokuAccess,
+  claimGenerationUsage,
+  claimMeteredUsage,
+} from "../helpers/billing";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 
 const dokuDB = SQLDatabase.named("doku");
@@ -279,6 +283,12 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     let coverImageUrl: string | undefined = req.coverImageUrl?.trim() || undefined;
     if (!coverImageUrl) {
       try {
+        await claimMeteredUsage({
+          userId: auth.userID,
+          kind: "image",
+          units: 1,
+          clerkToken: auth.clerkToken,
+        });
         const prompt = buildCoverPrompt(coverDescription, title);
         const img = await ai.generateImage({
           prompt,
@@ -399,8 +409,19 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
       throw APIError.invalidArgument("Cover description is required.");
     }
 
+    if (coverDescription.length > 2000) {
+      throw APIError.invalidArgument("Cover description is too long.");
+    }
+
     const title = req.title?.trim() || "Audio Doku";
     const prompt = buildCoverPrompt(coverDescription, title);
+
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "image",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
 
     try {
       const img = await ai.generateImage({

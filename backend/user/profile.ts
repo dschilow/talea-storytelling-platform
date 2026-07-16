@@ -177,8 +177,6 @@ async function buildUserProfile(userId: string, clerkToken?: string | null): Pro
 interface CreateUserRequest {
   email: string;
   name: string;
-  subscription?: "free" | "starter" | "familie" | "premium";
-  role?: "admin" | "user";
   preferredLanguage?: SupportedLanguage;
   theme?: Theme;
 }
@@ -187,33 +185,45 @@ interface GetUserParams {
   id: string;
 }
 
-// Creates a new user profile.
+// Creates or updates the authenticated user's basic profile.
+// Subscription and role are never accepted from the client.
 export const create = api<CreateUserRequest, UserProfile>(
-  { expose: true, method: "POST", path: "/user" },
+  { expose: true, method: "POST", path: "/user", auth: true },
   async (req) => {
-    const id = crypto.randomUUID();
+    const auth = getAuthData()!;
     const now = new Date();
+    const name = req.name?.trim();
 
     await ensurePreferenceColumns();
-    
+    await ensureUserRowForAuth(auth);
+
     await userDB.exec`
-      INSERT INTO users (id, email, name, subscription, role, preferred_language, theme, created_at, updated_at)
-      VALUES (${id}, ${req.email}, ${req.name}, ${req.subscription || "free"}, ${req.role || "user"}, ${req.preferredLanguage || "de"}, ${req.theme || "system"}, ${now}, ${now})
+      UPDATE users
+      SET name = CASE WHEN ${name} <> '' THEN ${name} ELSE name END,
+          email = COALESCE(${auth.email}, email),
+          preferred_language = COALESCE(${req.preferredLanguage}, preferred_language),
+          theme = COALESCE(${req.theme}, theme),
+          updated_at = ${now}
+      WHERE id = ${auth.userID}
     `;
 
-    return buildUserProfile(id);
+    return buildUserProfile(auth.userID, auth.clerkToken);
   }
 );
 
-// Retrieves a user profile by ID.
+// Retrieves the authenticated user's profile, or another profile for admins.
 export const get = api<GetUserParams, UserProfile>(
-  { expose: true, method: "GET", path: "/user/:id" },
+  { expose: true, method: "GET", path: "/user/:id", auth: true },
   async ({ id }) => {
+    const auth = getAuthData()!;
+    if (id !== auth.userID && auth.role !== "admin") {
+      throw APIError.permissionDenied("You may only access your own user profile.");
+    }
+
     await ensurePreferenceColumns();
-    return buildUserProfile(id);
+    return buildUserProfile(id, id === auth.userID ? auth.clerkToken : undefined);
   }
 );
-
 // Returns the authenticated user's profile.
 // The auth handler ensures the user exists in the database.
 export const me = api<void, UserProfile>(

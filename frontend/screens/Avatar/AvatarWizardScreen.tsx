@@ -8,6 +8,7 @@ import {
   AvatarFormData,
   DEFAULT_AVATAR_FORM_DATA,
   formDataToVisualProfile,
+  getAvatarVisualPromptSignature,
   formDataToDescription,
   CHARACTER_TYPES,
   isHumanCharacter,
@@ -141,10 +142,11 @@ const AvatarWizardScreen: React.FC = () => {
     { key: 'preview', label: t('avatar.wizard.steps.done', 'Fertig!') },
   ], [t]);
   const childMode = searchParams.get('mode') === 'child';
-  const requiresChildAvatar = Boolean(activeProfile && !activeProfile.childAvatarId);
-  const effectiveChildMode = childMode || requiresChildAvatar;
-  const targetProfileId = searchParams.get('profileId') || activeProfile?.id;
-  const backTarget = childMode ? '/settings' : '/avatar';
+  const requestedProfileId = searchParams.get('profileId');
+  const targetProfileId = requestedProfileId || activeProfile?.id;
+  const targetProfile = targetProfileId ? childProfiles?.profiles.find((profile) => profile.id === targetProfileId) ?? null : null;
+  const effectiveChildMode = childMode;
+  const backTarget = '/avatar';
 
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
@@ -152,12 +154,36 @@ const AvatarWizardScreen: React.FC = () => {
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | undefined>();
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const taviPrefillAppliedRef = React.useRef(false);
+  const latestPromptSignatureRef = React.useRef('');
+  const generatedPreviewSignatureRef = React.useRef<string | undefined>();
+  const visualPromptSignature = useMemo(
+    () => getAvatarVisualPromptSignature(formData, referenceImageUrl),
+    [formData, referenceImageUrl]
+  );
+
+  React.useEffect(() => {
+    latestPromptSignatureRef.current = visualPromptSignature;
+    if (
+      previewUrl &&
+      generatedPreviewSignatureRef.current &&
+      generatedPreviewSignatureRef.current !== visualPromptSignature
+    ) {
+      generatedPreviewSignatureRef.current = undefined;
+      setPreviewUrl(undefined);
+    }
+  }, [previewUrl, visualPromptSignature]);
+
 
   const updateFormData = useCallback((updates: Partial<AvatarFormData>) => {
     setFormData((prev) => {
       const newData = { ...prev, ...updates };
 
       if (effectiveChildMode) {
+        if (targetProfile) {
+          newData.name = targetProfile.name;
+          if (targetProfile.age != null) newData.age = targetProfile.age;
+        }
         newData.characterType = 'human';
         newData.customCharacterType = undefined;
       } else if (updates.characterType) {
@@ -172,31 +198,33 @@ const AvatarWizardScreen: React.FC = () => {
 
       return newData;
     });
-  }, [effectiveChildMode]);
+  }, [effectiveChildMode, targetProfile]);
 
   React.useEffect(() => {
-    if (!effectiveChildMode || !activeProfile) {
+    if (!effectiveChildMode || !targetProfile) {
       return;
     }
 
     setFormData((prev) => ({
       ...prev,
-      name: prev.name || activeProfile.name,
-      age: activeProfile.age ?? prev.age,
+      name: targetProfile.name,
+      age: targetProfile.age ?? prev.age,
       characterType: 'human',
       customCharacterType: undefined,
       skinTone: prev.skinTone || 'medium',
     }));
-  }, [activeProfile, effectiveChildMode]);
+  }, [effectiveChildMode, targetProfile]);
 
   // Tavi prefill: apply wizard data from Tavi chat
   React.useEffect(() => {
     const taviPrefill = (location.state as any)?.taviPrefill;
     if (!taviPrefill) return;
+    if (taviPrefillAppliedRef.current) return;
+    taviPrefillAppliedRef.current = true;
 
     const updates: Partial<AvatarFormData> = {};
-    if (taviPrefill.name) updates.name = taviPrefill.name;
-    if (taviPrefill.characterType) {
+    if (!effectiveChildMode && taviPrefill.name) updates.name = taviPrefill.name;
+    if (!effectiveChildMode && taviPrefill.characterType) {
       const known = CHARACTER_TYPES.find(
         (ct) => ct.id === taviPrefill.characterType || ct.labelEn?.toLowerCase() === taviPrefill.characterType?.toLowerCase()
       );
@@ -216,12 +244,13 @@ const AvatarWizardScreen: React.FC = () => {
 
     // Clear the navigation state to prevent re-applying on re-render
     window.history.replaceState({}, document.title);
-  }, [location.state]);
+  }, [effectiveChildMode, location.state, updateFormData]);
 
   const canProceed = useMemo(() => {
+    if ((requestedProfileId || effectiveChildMode) && !targetProfile) return false;
     if (activeStep === 0) return formData.name.trim().length > 0;
     return true;
-  }, [activeStep, formData.name]);
+  }, [activeStep, effectiveChildMode, formData.name, requestedProfileId, targetProfile]);
 
   const handleNext = () => {
     if (canProceed && activeStep < WIZARD_STEPS.length - 1) setActiveStep((s) => s + 1);
@@ -232,6 +261,7 @@ const AvatarWizardScreen: React.FC = () => {
   };
 
   const handleGeneratePreview = async () => {
+    const requestSignature = visualPromptSignature;
     try {
       setIsGeneratingPreview(true);
       const description = formDataToDescription(formData);
@@ -248,6 +278,11 @@ const AvatarWizardScreen: React.FC = () => {
         referenceImageUrl,
       });
 
+      if (latestPromptSignatureRef.current !== requestSignature) {
+        return;
+      }
+
+      generatedPreviewSignatureRef.current = requestSignature;
       setPreviewUrl(result.imageUrl);
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
         showSuccessToast(t('avatar.wizard.previewSuccess', 'Dein Avatar-Bild ist fertig!'));
@@ -263,7 +298,25 @@ const AvatarWizardScreen: React.FC = () => {
   };
 
   const handleCreateAvatar = async () => {
-    if (!formData.name.trim()) {
+    if ((requestedProfileId || effectiveChildMode) && !targetProfile) {
+      import('../../utils/toastUtils').then(({ showErrorToast }) => {
+        showErrorToast('Das ausgewaehlte Kinderprofil ist noch nicht verfuegbar.');
+      });
+      return;
+    }
+
+    const createFormData: AvatarFormData =
+      effectiveChildMode && targetProfile
+        ? {
+            ...formData,
+            name: targetProfile.name,
+            age: targetProfile.age ?? formData.age,
+            characterType: 'human',
+            customCharacterType: undefined,
+          }
+        : formData;
+
+    if (!createFormData.name.trim()) {
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
         showErrorToast(t('avatar.wizard.nameRequired', 'Dein Avatar braucht noch einen Namen!'));
       });
@@ -273,43 +326,9 @@ const AvatarWizardScreen: React.FC = () => {
     try {
       setIsCreating(true);
 
-      const description = formDataToDescription(formData);
-      const characterType = CHARACTER_TYPES.find((t) => t.id === formData.characterType);
-      let visualProfile = formDataToVisualProfile(formData);
-
-      if (previewUrl) {
-        try {
-          const analysis = await backend.ai.analyzeAvatarImage({
-            imageUrl: previewUrl,
-            hints: {
-              name: formData.name,
-              expectedType: isHumanCharacter(formData.characterType) ? 'human' : 'animal',
-            },
-          });
-          if (analysis.visualProfile) {
-            visualProfile = {
-              ...analysis.visualProfile,
-              characterType:
-                formData.characterType === 'other' && formData.customCharacterType
-                  ? formData.customCharacterType
-                  : characterType?.labelEn || 'human',
-              speciesCategory: isHumanCharacter(formData.characterType)
-                ? 'human'
-                : isAnimalCharacter(formData.characterType)
-                ? 'animal'
-                : 'fantasy',
-              locomotion: isAnimalCharacter(formData.characterType) ? 'quadruped' : 'bipedal',
-              ageApprox: `${formData.age} years old`,
-              ageNumeric: formData.age,
-              gender: formData.gender === 'male' ? 'male' : 'female',
-              heightCm: isHumanCharacter(formData.characterType) ? formData.height : undefined,
-              bodyBuild: isHumanCharacter(formData.characterType) ? formData.bodyBuild : undefined,
-            };
-          }
-        } catch (err) {
-          console.warn('Image analysis failed, using form-based visual profile:', err);
-        }
-      }
+      const description = formDataToDescription(createFormData);
+      const characterType = CHARACTER_TYPES.find((t) => t.id === createFormData.characterType);
+      const visualProfile = formDataToVisualProfile(createFormData);
 
       const neutralPersonality = {
         knowledge: { value: 0 },
@@ -325,13 +344,13 @@ const AvatarWizardScreen: React.FC = () => {
 
       const createRequest = {
         profileId: targetProfileId || undefined,
-        name: formData.name.trim(),
-        description: formData.additionalDescription || description,
+        name: createFormData.name.trim(),
+        description: createFormData.additionalDescription?.trim() || (effectiveChildMode ? `Das ist ${createFormData.name.trim()}. Dieser Avatar stellt das Kind selbst in Geschichten dar.` : `${createFormData.name.trim()} ist ein Begleiter in gemeinsamen Geschichten.`),
         physicalTraits: {
           characterType:
-            formData.characterType === 'other' && formData.customCharacterType
-              ? formData.customCharacterType
-              : characterType?.labelDe || 'Mensch',
+            createFormData.characterType === 'other' && createFormData.customCharacterType
+              ? createFormData.customCharacterType
+              : characterType?.labelEn || 'human',
           appearance: description,
         },
         personalityTraits: neutralPersonality,
@@ -349,11 +368,7 @@ const AvatarWizardScreen: React.FC = () => {
         showAvatarCreatedToast(formData.name);
         showSuccessToast(t('avatar.wizard.createSuccess', '{{name}} ist da! Viel Spaß mit deinem Avatar!', { name: formData.name }));
       });
-      if (childMode) {
-        navigate('/settings');
-      } else {
-        navigate('/avatar', { state: { refresh: true } });
-      }
+      navigate('/avatar', { state: { refresh: true } });
     } catch (error) {
       console.error('Error creating avatar:', error);
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
@@ -364,6 +379,54 @@ const AvatarWizardScreen: React.FC = () => {
     }
   };
 
+  const profileIsRequired = Boolean(requestedProfileId || effectiveChildMode);
+  const isResolvingProfile = Boolean(
+    profileIsRequired && childProfiles?.isLoading && !targetProfile
+  );
+  const isProfileUnavailable = Boolean(
+    profileIsRequired && !childProfiles?.isLoading && !targetProfile
+  );
+
+  if (isResolvingProfile || isProfileUnavailable) {
+    return (
+      <div className="relative min-h-screen">
+        <WizardBackground palette={palette} />
+        <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
+          <div
+            className="w-full max-w-md rounded-3xl border p-6 text-center"
+            style={{ background: palette.panel, borderColor: palette.border }}
+          >
+            {isResolvingProfile ? (
+              <Loader2 className="mx-auto h-8 w-8 animate-spin" style={{ color: ACCENT }} />
+            ) : (
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold" style={{ borderColor: palette.border, color: palette.muted }}>
+                !
+              </div>
+            )}
+            <h2 className="mt-4 text-xl font-semibold" style={{ color: palette.text }}>
+              {isResolvingProfile ? 'Kinderprofil wird geladen' : 'Kinderprofil nicht gefunden'}
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: palette.muted }}>
+              {isResolvingProfile
+                ? 'Einen Moment bitte. Der Avatar wird gleich dem richtigen Profil zugeordnet.'
+                : 'Der Avatar kann ohne ein eindeutiges Kinderprofil nicht angelegt werden.'}
+            </p>
+            {!isResolvingProfile && (
+              <button
+                type="button"
+                onClick={() => navigate(backTarget)}
+                className="mt-5 rounded-full border px-4 py-2 text-sm font-semibold"
+                style={{ borderColor: palette.border, color: palette.text }}
+              >
+                Zur Avatar-Uebersicht
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isCreating) {
     return <CreatingAnimation name={formData.name} palette={palette} />;
   }
@@ -373,7 +436,7 @@ const AvatarWizardScreen: React.FC = () => {
       case 0:
         return <Step1Basics formData={formData} updateFormData={updateFormData} childMode={effectiveChildMode} />;
       case 1:
-        return <Step2AgeBody formData={formData} updateFormData={updateFormData} />;
+        return <Step2AgeBody formData={formData} updateFormData={updateFormData} childMode={effectiveChildMode} />;
       case 2:
         return <Step3Appearance formData={formData} updateFormData={updateFormData} />;
       case 3:

@@ -57,7 +57,7 @@ interface GetStoryAudioResponse {
 // ── Pre-Generate Endpoint ──────────────────────────────────────────
 
 export const preGenerateStoryAudio = api<PreGenerateRequest, PreGenerateResponse>(
-  { expose: true, method: "POST", path: "/story/pre-generate-audio" },
+  { expose: true, method: "POST", path: "/story/pre-generate-audio", auth: true },
   async (req) => {
     const auth = getAuthData();
     if (!auth?.userID) {
@@ -253,7 +253,7 @@ export const preGenerateStoryAudio = api<PreGenerateRequest, PreGenerateResponse
 // ── Get Cached Audio Endpoint ──────────────────────────────────────
 
 export const getStoryAudio = api<{ storyId: string }, GetStoryAudioResponse>(
-  { expose: true, method: "GET", path: "/story/audio/:storyId" },
+  { expose: true, method: "GET", path: "/story/audio/:storyId", auth: true },
   async (req) => {
     const auth = getAuthData();
     if (!auth?.userID) {

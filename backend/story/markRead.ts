@@ -4,17 +4,48 @@ import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { unlockStoryArtifact } from "./artifact-matcher";
+import {
+  appendArtifactReward,
+  buildArtifactInventoryItem,
+  extractStoredAvatarIds,
+  extractStoryConfigAvatarIds,
+  resolveCompletionAvatarIds,
+} from "./artifact-reward-utils";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
-import { assertProfilesBelongToUser, getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
+import {
+  assertProfilesBelongToUser,
+  ensureDefaultProfileForUser,
+  getProfileForUser,
+  resolveRequestedProfileId,
+} from "../helpers/profiles";
 import {
   buildTopicId,
   inferDomainFromStoryGenre,
   trackCosmosReadEvent,
 } from "../helpers/cosmos-tracking";
+import { runWithCompletionClaim } from "../helpers/completion-claim";
+import { getAssignedDevelopmentForAvatar } from "./avatar-development-assignment";
 
 const avatarDB = SQLDatabase.named("avatar");
 const storyDB = SQLDatabase.named("story");
+async function claimStoryProgression(avatarId: string, storyId: string): Promise<boolean> {
+  const claim = await avatarDB.queryRow<{ id: string }>`
+    INSERT INTO avatar_completion_reward_claims (avatar_id, content_type, content_id)
+    VALUES (${avatarId}, 'story', ${storyId})
+    ON CONFLICT (avatar_id, content_type, content_id) DO NOTHING
+    RETURNING id
+  `;
+  return Boolean(claim);
+}
+
+async function releaseStoryProgressionClaim(avatarId: string, storyId: string): Promise<void> {
+  await avatarDB.exec`
+    DELETE FROM avatar_completion_reward_claims
+    WHERE avatar_id = ${avatarId}
+      AND content_type = 'story'
+      AND content_id = ${storyId}
+  `;
+}
 
 interface MarkStoryReadRequest {
   storyId: string;
@@ -81,33 +112,29 @@ interface StoryChange {
   change: number;
   description: string;
 }
-
-function toInventoryItemType(category: string): InventoryItem["type"] {
-  const normalized = category.trim().toLowerCase();
-
-  if (normalized === "weapon" || normalized === "armor") {
-    return "WEAPON";
+function parseStoredDevelopments(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
-  if (normalized === "book" || normalized === "map" || normalized === "knowledge") {
-    return "KNOWLEDGE";
-  }
-  if (normalized === "companion") {
-    return "COMPANION";
-  }
-  return "TOOL";
 }
+
 
 export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
   { expose: true, method: "POST", path: "/story/mark-read", auth: true },
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
-    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId,
       requestedProfileId: req.profileId,
       fallbackName: auth.email ?? undefined,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(userId, auth.email ?? undefined);
     const extraProfiles = Array.from(
       new Set(
         (req.participantProfileIds || [])
@@ -125,12 +152,20 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
     const storyOwner = await storyDB.queryRow<{
       user_id: string;
       is_public: boolean;
+      config: unknown;
+      avatar_developments: string | null;
     }>`
-      SELECT user_id, is_public
+      SELECT user_id, is_public, config, avatar_developments
       FROM stories
       WHERE id = ${req.storyId}
       LIMIT 1
     `;
+    if (!storyOwner) {
+      throw APIError.notFound("Story not found.");
+    }
+    const storedAvatarDevelopments = storyOwner.user_id === userId
+      ? parseStoredDevelopments(storyOwner.avatar_developments)
+      : [];
     if (storyOwner && storyOwner.user_id !== userId && auth.role !== "admin" && !storyOwner.is_public) {
       throw APIError.permissionDenied("You do not have permission to update this story.");
     }
@@ -154,84 +189,62 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
     console.log(`Story finished by user ${userId}: "${req.storyTitle}"`);
 
-    let userAvatars: { id: string; name: string }[] = [];
-    const requestedAvatarIds = Array.from(
-      new Set((req.avatarIds || []).filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))
+    let userAvatars: { id: string; name: string; profile_id: string | null }[] = [];
+    const clientRequestedAvatarIds = Array.from(
+      new Set([
+        ...(req.avatarIds || []),
+        ...(req.avatarId ? [req.avatarId] : []),
+      ].filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))
     );
+    const participantRowsForTargets = await storyDB.queryAll<{ avatar_ids: unknown }>`
+      SELECT avatar_ids
+      FROM story_participants
+      WHERE story_id = ${req.storyId}
+        AND profile_id = ANY(${targetProfileIds})
+      ORDER BY created_at ASC
+    `;
+    const participantAvatarIds = participantRowsForTargets.flatMap((row) =>
+      extractStoredAvatarIds(row.avatar_ids)
+    );
+    const completionAvatarIds = resolveCompletionAvatarIds({
+      requestedAvatarIds: clientRequestedAvatarIds,
+      participantAvatarIds,
+      configAvatarIds: extractStoryConfigAvatarIds(storyOwner.config),
+      hasParticipantRecord: participantRowsForTargets.length > 0,
+    });
 
-    if (requestedAvatarIds.length > 0) {
-      userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT a.id, a.name
+    const includeLegacyUnscoped = profileIdsForAvatarSelection.includes(defaultProfile.id);
+    if (completionAvatarIds.length > 0) {
+      userAvatars = await avatarDB.queryAll<{ id: string; name: string; profile_id: string | null }>`
+        SELECT a.id, a.name, a.profile_id
         FROM avatars a
         WHERE a.user_id = ${userId}
-          AND a.id = ANY(${requestedAvatarIds})
+          AND a.id = ANY(${completionAvatarIds})
           AND (
-            a.profile_id IS NULL
-            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
-            OR EXISTS (
-              SELECT 1
-              FROM avatar_profile_links apl
-              WHERE apl.avatar_id = a.id
-                AND apl.user_id = ${userId}
-                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
-            )
+            a.profile_id = ANY(${profileIdsForAvatarSelection})
+            OR (${includeLegacyUnscoped} AND a.profile_id IS NULL)
           )
       `;
-    } else if (req.avatarId) {
-      const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
-        SELECT a.id, a.name, a.user_id
-        FROM avatars a
-        WHERE a.id = ${req.avatarId}
-          AND a.user_id = ${userId}
-          AND (
-            a.profile_id IS NULL
-            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
-            OR EXISTS (
-              SELECT 1
-              FROM avatar_profile_links apl
-              WHERE apl.avatar_id = a.id
-                AND apl.user_id = ${userId}
-                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
-            )
-          )
-      `;
+    }
 
-      if (!specificAvatar) {
-        return {
-          success: false,
-          updatedAvatars: 0,
-          personalityChanges: [],
-        };
-      }
-      userAvatars = [{ id: specificAvatar.id, name: specificAvatar.name }];
-    } else {
+    if (userAvatars.length === 0) {
       const activeProfile = await getProfileForUser({ userId, profileId: activeProfileId });
       const fallbackAvatarId = activeProfile.childAvatarId || activeProfile.preferredAvatarIds[0];
       if (fallbackAvatarId) {
-        const fallbackAvatar = await avatarDB.queryRow<{ id: string; name: string }>`
-          SELECT a.id, a.name
+        const fallbackAvatar = await avatarDB.queryRow<{ id: string; name: string; profile_id: string | null }>`
+          SELECT a.id, a.name, a.profile_id
           FROM avatars a
           WHERE a.id = ${fallbackAvatarId}
             AND a.user_id = ${userId}
             AND (
-              a.profile_id IS NULL
-              OR a.profile_id = ${activeProfileId}
-              OR EXISTS (
-                SELECT 1
-                FROM avatar_profile_links apl
-                WHERE apl.avatar_id = a.id
-                  AND apl.user_id = ${userId}
-                  AND apl.profile_id = ${activeProfileId}
-              )
+              a.profile_id = ${activeProfileId}
+              OR (${activeProfileId === defaultProfile.id} AND a.profile_id IS NULL)
             )
           LIMIT 1
         `;
-        if (fallbackAvatar) {
-          userAvatars = [fallbackAvatar];
-        }
+        if (fallbackAvatar) userAvatars = [fallbackAvatar];
       }
     }
-
     if (userAvatars.length === 0) {
       return {
         success: true,
@@ -239,6 +252,10 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         personalityChanges: [],
       };
     }
+    const developmentEligibleAvatars = userAvatars.map(({ id: avatarId, name }) => ({
+      id: avatarId,
+      name,
+    }));
 
     const personalityChanges: MarkStoryReadResponse["personalityChanges"] = [];
     let updatedCount = 0;
@@ -261,35 +278,59 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           WHERE id = ${userAvatar.id}
         `;
 
-        const changes = buildStoryReadChanges(req, userAvatar.id, avatarRow?.personality_traits ?? "{}");
+        const assignedDevelopment = getAssignedDevelopmentForAvatar({
+          developments: storedAvatarDevelopments,
+          eligibleAvatars: developmentEligibleAvatars,
+          avatarId: userAvatar.id,
+        });
+        const changes: StoryChange[] = assignedDevelopment?.changedTraits.length
+          ? assignedDevelopment.changedTraits
+          : buildStoryReadChanges(
+              req, userAvatar.id, avatarRow?.personality_traits ?? "{}",
+            );
         if (changes.length === 0) {
           continue;
         }
 
-        const personalityResult = await avatar.updatePersonality({
-          id: userAvatar.id,
-          changes,
-          storyId: req.storyId,
-          contentTitle: req.storyTitle,
-          contentType: "story",
+        const progression = await runWithCompletionClaim({
+          claim: () => claimStoryProgression(userAvatar.id, req.storyId),
+          apply: () =>
+            avatar.updatePersonality({
+              id: userAvatar.id,
+              changes,
+              storyId: req.storyId,
+              contentTitle: req.storyTitle,
+              contentType: "story",
+            }),
+          release: () => releaseStoryProgressionClaim(userAvatar.id, req.storyId),
         });
 
-        await avatar.addMemory({
-          id: userAvatar.id,
-          storyId: req.storyId,
-          storyTitle: req.storyTitle,
-          experience: `Ich habe die Geschichte "${req.storyTitle}" gelesen. Genre: ${req.genre || "Unbekannt"}.`,
-          emotionalImpact: "positive",
-          personalityChanges: changes,
-          developmentDescription: `Persoenlichkeitsentwicklung: ${changes.map((item) => item.description).join(", ")}`,
-          contentType: "story",
-        });
+        if (progression.status === "duplicate") {
+          continue;
+        }
+
+        const personalityResult = progression.value;
 
         await avatarDB.exec`
           INSERT INTO avatar_story_read (avatar_id, story_id, story_title)
           VALUES (${userAvatar.id}, ${req.storyId}, ${req.storyTitle})
           ON CONFLICT (avatar_id, story_id) DO NOTHING
         `;
+
+        try {
+          await avatar.addMemory({
+            id: userAvatar.id,
+            storyId: req.storyId,
+            storyTitle: req.storyTitle,
+            experience: `Ich habe die Geschichte "${req.storyTitle}" gelesen. Genre: ${req.genre || "Unbekannt"}.`,
+            emotionalImpact: "positive",
+            personalityChanges: changes,
+            developmentDescription: `Persoenlichkeitsentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+            contentType: "story",
+          });
+        } catch (memoryError) {
+          console.warn(`Failed to store story memory for ${userAvatar.name}`, memoryError);
+        }
 
         try {
           const domainId = inferDomainFromStoryGenre(req.genre);
@@ -301,7 +342,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           });
           await trackCosmosReadEvent({
             avatarId: userAvatar.id,
-            profileId: activeProfileId,
+            profileId: userAvatar.profile_id || defaultProfile.id,
             sourceContentId: req.storyId,
             sourceContentType: "story",
             domainId,
@@ -412,20 +453,12 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
         for (const userAvatar of userAvatars) {
           try {
-            const inventoryItem: InventoryItem = {
-              id: `artifact_${artifact.id}_${userAvatar.id}`,
-              name: artifactPayload.name,
-              type: toInventoryItemType(artifact.category),
-              level: 1,
-              sourceStoryId: req.storyId,
-              description: artifactPayload.description,
-              visualPrompt: artifact.visualKeywords.join(", "),
-              tags: [artifact.category, artifact.rarity],
-              acquiredAt: new Date().toISOString(),
-              storyEffect: artifact.storyRole,
+            const inventoryItem = buildArtifactInventoryItem({
+              artifact,
+              avatarId: userAvatar.id,
+              storyId: req.storyId,
               imageUrl: artifactPayload.imageUrl,
-            };
-
+            });
             const avatarRow = await avatarDB.queryRow<{ inventory: string }>`
               SELECT inventory
               FROM avatars
@@ -436,17 +469,13 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
               continue;
             }
 
-            const inventory: InventoryItem[] = JSON.parse(avatarRow.inventory || "[]");
-            const alreadyHas = inventory.some(
-              (item) =>
-                item.id === inventoryItem.id || item.sourceStoryId === req.storyId
-            );
+            const currentInventory: InventoryItem[] = JSON.parse(avatarRow.inventory || "[]");
+            const reward = appendArtifactReward(currentInventory, inventoryItem);
 
-            if (!alreadyHas) {
-              inventory.push(inventoryItem);
+            if (reward.added) {
               await avatarDB.exec`
                 UPDATE avatars
-                SET inventory = ${JSON.stringify(inventory)},
+                SET inventory = ${JSON.stringify(reward.inventory)},
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ${userAvatar.id}
               `;

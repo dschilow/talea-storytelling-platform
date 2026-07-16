@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
+import { claimGenerationUsage, claimMeteredUsage } from "../helpers/billing";
 import { storyDB } from "./db";
 import { runwareGenerateImage } from "../ai/image-generation";
 import {
@@ -1334,6 +1335,13 @@ export const createStudioCharacter = api<CreateStudioCharacterRequest, StudioCha
 
     let imageUrl: string | undefined;
     if (req.autoGenerateImage !== false) {
+      const auth = getAuthData()!;
+      await claimMeteredUsage({
+        userId,
+        kind: "image",
+        units: 1,
+        clerkToken: auth.clerkToken,
+      });
       const generated = await runwareGenerateImage({
         prompt: imagePrompt,
         negativePrompt:
@@ -1437,6 +1445,13 @@ export const updateStudioCharacter = api<UpdateStudioCharacterRequest, StudioCha
 
     let nextImageUrl = existing.image_url;
     if (req.regenerateImage) {
+      const auth = getAuthData()!;
+      await claimMeteredUsage({
+        userId,
+        kind: "image",
+        units: 1,
+        clerkToken: auth.clerkToken,
+      });
       const regeneratedPrompt = nextImagePrompt || nextGenerationPrompt;
       const generated = await runwareGenerateImage({
         prompt: regeneratedPrompt,
@@ -1616,6 +1631,13 @@ export const generateStudioEpisodeText = api<GenerateStudioEpisodeTextRequest, S
     await assertCharactersBelongToSeries(req.seriesId, selectedCharacterIds);
 
     const selectedCharacters = await getSelectedCharactersForEpisode(req.seriesId, selectedCharacterIds);
+    const auth = getAuthData()!;
+    await claimGenerationUsage({
+      userId,
+      kind: "story",
+      contentRef: req.episodeId,
+      clerkToken: auth.clerkToken,
+    });
 
     let generatedText: string;
     try {
@@ -1725,6 +1747,13 @@ export const splitStudioEpisodeScenes = api<
     const minSceneCount = clamp(Math.floor(req.minSceneCount ?? 10), 4, 20);
     const maxSceneCount = clamp(Math.floor(req.maxSceneCount ?? 12), minSceneCount, 24);
     const targetSceneCount = clamp(Math.floor(req.targetSceneCount ?? 10), minSceneCount, maxSceneCount);
+    const auth = getAuthData()!;
+    await claimMeteredUsage({
+      userId,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
 
     let drafts: GeneratedSceneDraft[];
     try {
@@ -1896,6 +1925,14 @@ export const generateStudioEpisodeSceneImage = api<
       .filter(Boolean)
       .join(" ");
 
+    const auth = getAuthData()!;
+    await claimMeteredUsage({
+      userId,
+      kind: "image",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
+
     let imageUrl: string;
     try {
       const generated = await runwareGenerateImage({
@@ -1960,11 +1997,20 @@ export const generateStudioEpisodeImages = api<
       req.seriesId,
       normalizeIds(episode.selected_character_ids)
     );
+    const scenesToGenerate = sceneRows.filter(
+      (scene) => req.forceRegenerate || !scene.image_url
+    );
+    if (scenesToGenerate.length > 0) {
+      const auth = getAuthData()!;
+      await claimMeteredUsage({
+        userId,
+        kind: "image",
+        units: scenesToGenerate.length,
+        clerkToken: auth.clerkToken,
+      });
+    }
 
-    for (const scene of sceneRows) {
-      if (!req.forceRegenerate && scene.image_url) {
-        continue;
-      }
+    for (const scene of scenesToGenerate) {
 
       const participantCharacterIds = normalizeIds(scene.participant_character_ids);
       const fallbackPrompt = buildFallbackSceneImagePrompt({

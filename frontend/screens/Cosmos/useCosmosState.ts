@@ -207,7 +207,10 @@ export function useCosmosState() {
         let detail = selectedAvatar;
         if (!detail.personalityTraits || !detail.progression) {
           try {
-            detail = await backend.avatar.get({ id: selectedAvatar.id });
+            detail = await backend.avatar.get({
+              id: selectedAvatar.id,
+              profileId: activeProfileId || undefined,
+            });
           } catch {
             // Keep lightweight avatar from Redux if detailed fetch fails.
           }

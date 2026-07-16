@@ -3,7 +3,7 @@ import { api } from "encore.dev/api";
 import { fairytalesDB } from "../fairytales/db";
 
 export const fixUsageCountColumn = api(
-  { expose: true, method: "POST", path: "/health/fix-usage-count-column" },
+  { expose: false, method: "POST", path: "/health/fix-usage-count-column" },
   async (): Promise<{ 
     success: boolean; 
     steps: { step: string; success: boolean; error?: string }[];

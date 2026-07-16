@@ -11,6 +11,7 @@
  */
 
 import { api } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { avatarDB } from "./db";
 import { validateAndNormalizeVisualProfile, detectNonEnglishFields } from "./validateAndNormalize";
 import type { AvatarVisualProfile } from "./avatar";
@@ -31,6 +32,7 @@ export const migrateToEnglish = api(
     path: "/avatar/migrate-to-english",
   },
   async (): Promise<MigrationResult> => {
+    ensureAdmin();
     console.log('[migrateToEnglish] 🌍 Starting migration of avatars to English...');
 
     const result: MigrationResult = {

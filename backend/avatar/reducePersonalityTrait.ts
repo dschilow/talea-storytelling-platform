@@ -22,7 +22,7 @@ export interface ReducePersonalityTraitResponse {
 
 // Manually reduce personality trait points (for corrections/deletions)
 export const reducePersonalityTrait = api(
-  { expose: true, method: "POST", path: "/avatar/:avatarId/reduce-trait", auth: true },
+  { expose: false, method: "POST", path: "/avatar/:avatarId/reduce-trait", auth: true },
   async (req: ReducePersonalityTraitRequest): Promise<ReducePersonalityTraitResponse> => {
     const auth = getAuthData()!;
     const { avatarId, trait, amount, reason } = req;

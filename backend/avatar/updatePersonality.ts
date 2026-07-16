@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import type { PersonalityTraits } from "./avatar";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
@@ -107,8 +108,9 @@ function mergeDuplicateChanges(changes: TraitChange[]): TraitChange[] {
 }
 
 export const updatePersonality = api(
-  { expose: true, method: "POST", path: "/avatar/personality" },
+  { expose: false, method: "POST", path: "/avatar/personality", auth: true },
   async (req: UpdatePersonalityRequest): Promise<UpdatePersonalityResponse> => {
+    const auth = getAuthData()!;
     const { id } = req;
     const mergedChanges = mergeDuplicateChanges(req.changes || []);
 
@@ -116,17 +118,24 @@ export const updatePersonality = api(
       throw APIError.invalidArgument("No valid trait changes provided.");
     }
 
-    const existingAvatar = await avatarDB.queryRow<{
+    await using tx = await avatarDB.begin();
+    const existingAvatar = await tx.queryRow<{
       id: string;
+      user_id: string;
       personality_traits: string;
     }>`
-      SELECT id, personality_traits FROM avatars WHERE id = ${id}
+      SELECT id, user_id, personality_traits FROM avatars WHERE id = ${id}
+      FOR UPDATE
     `;
 
     if (!existingAvatar) {
       throw APIError.notFound("Avatar not found");
     }
 
+
+    if (existingAvatar.user_id !== auth.userID && auth.role !== "admin") {
+      throw APIError.permissionDenied("You do not have permission to update this avatar.");
+    }
     const currentTraitsRaw = JSON.parse(existingAvatar.personality_traits);
     const currentTraits = upgradePersonalityTraits(currentTraitsRaw);
     const previousTraits = JSON.parse(JSON.stringify(currentTraits)) as PersonalityTraits;
@@ -226,14 +235,14 @@ export const updatePersonality = api(
       }
     }
 
-    await avatarDB.exec`
+    await tx.exec`
       UPDATE avatars
       SET personality_traits = ${JSON.stringify(updatedTraits)},
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `;
 
-    const rawStats = await avatarDB.queryRow<{
+    const rawStats = await tx.queryRow<{
       stories_read: number;
       dokus_read: number;
       memory_count: number;
@@ -259,6 +268,8 @@ export const updatePersonality = api(
       previousStats,
       nextStats,
     });
+
+    await tx.commit();
 
     return {
       success: true,

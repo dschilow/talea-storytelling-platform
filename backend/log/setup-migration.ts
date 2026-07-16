@@ -1,5 +1,6 @@
 // Manual migration endpoint for creating logs table on Railway
 import { api } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { logDB } from "./db";
 import { listAvailableLogSchemas, resetLogTableCache } from "./table-resolver";
 
@@ -15,6 +16,7 @@ const PUBLIC_LOG_TABLE = `"public"."logs"`;
 export const runMigration = api<void, MigrationResponse>(
   { expose: true, method: "POST", path: "/log/run-migration", auth: true },
   async () => {
+    ensureAdmin();
     console.log("[log/run-migration] Running logs table migration...");
     const steps: string[] = [];
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, Gem, PackageOpen, Shield, Sparkles, Users } from 'lucide-react';
+import { BookOpen, Gem, PackageOpen, Shield, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTheme } from '../../contexts/ThemeContext';
@@ -7,6 +7,7 @@ import type { InventoryItem } from '../../types/avatar';
 import ArtifactDetailModal from './ArtifactDetailModal';
 
 interface AvatarTreasureRoomProps {
+  avatarName: string;
   items: InventoryItem[];
 }
 
@@ -24,7 +25,7 @@ const getKind = (item: InventoryItem): TreasureKind => {
 
 const KIND_META: Record<
   TreasureKind,
-  { label: string; icon: React.ComponentType<{ className?: string }>; color: string; soft: string }
+  { label: string; icon: LucideIcon; color: string; soft: string }
 > = {
   magic: { label: 'Zauberfunde', icon: Sparkles, color: '#8a6ca8', soft: '#efe8f6' },
   gear: { label: 'Ausr\u00fcstung', icon: Shield, color: '#9b7138', soft: '#f3eadc' },
@@ -50,7 +51,7 @@ const formatDate = (value: string) => {
   return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const AvatarTreasureRoom: React.FC<AvatarTreasureRoomProps> = ({ items }) => {
+const AvatarTreasureRoom: React.FC<AvatarTreasureRoomProps> = ({ avatarName, items }) => {
   const navigate = useNavigate();
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -87,9 +88,9 @@ const AvatarTreasureRoom: React.FC<AvatarTreasureRoomProps> = ({ items }) => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#d0b690' : '#9b7138' }}>Fundst&uuml;cke</p>
-            <h2 className="mt-1 text-2xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Meine Schatzkammer</h2>
+            <h2 className="mt-1 text-2xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Schatzkammer von {avatarName}</h2>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
-              Lies eine Geschichte bis zum Ende. Das Fundst&uuml;ck aus dem Abenteuer wird dann automatisch hier abgelegt.
+              Artefakte sind Belohnungen aus vollst&auml;ndig gelesenen Geschichten. Dokus st&auml;rken Wissen und Entwicklung, legen aber kein Artefakt ab.
             </p>
           </div>
           <span className="inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: isDark ? '#5b513f' : '#ddccb0', background: isDark ? 'rgba(96,76,43,0.2)' : '#f8f0e3', color: isDark ? '#e0c79f' : '#85612f' }}>
@@ -106,7 +107,7 @@ const AvatarTreasureRoom: React.FC<AvatarTreasureRoomProps> = ({ items }) => {
           </span>
           <h3 className="mt-4 text-xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Noch wartet der erste Schatz</h3>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
-            W&auml;hle eine Geschichte, lies sie vollst&auml;ndig und schlie&szlig;e sie ab. Danach erscheint das gefundene Artefakt genau hier.
+            W&auml;hle eine Geschichte, lies sie vollst&auml;ndig und schlie&szlig;e sie ab. Dokus sammeln stattdessen Wissen und Erinnerungen.
           </p>
           <button
             type="button"

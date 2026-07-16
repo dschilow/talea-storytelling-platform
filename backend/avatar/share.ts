@@ -124,6 +124,7 @@ type AvatarOwnerRow = {
   image_url: string | null;
   visual_profile: string | null;
   creation_type: "ai-generated" | "photo-upload";
+  avatar_role: string | null;
   source_type: string | null;
   source_avatar_id: string | null;
   original_avatar_id: string | null;
@@ -161,6 +162,7 @@ async function loadOwnedAvatarForCopy(avatarId: string, ownerUserId: string): Pr
       image_url,
       visual_profile,
       creation_type,
+      avatar_role,
       source_type,
       source_avatar_id,
       original_avatar_id
@@ -175,6 +177,10 @@ async function loadOwnedAvatarForCopy(avatarId: string, ownerUserId: string): Pr
 
   if (row.user_id !== ownerUserId) {
     throw APIError.permissionDenied("You do not have permission to share this avatar");
+  }
+
+  if (row.avatar_role === "child") {
+    throw APIError.failedPrecondition("A dedicated child avatar cannot be shared with another account.");
   }
 
   return row;

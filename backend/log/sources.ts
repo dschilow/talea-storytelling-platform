@@ -1,4 +1,5 @@
 import { api } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { logDB } from "./db";
 import { getLogTableInfo } from "./table-resolver";
 
@@ -14,8 +15,9 @@ interface GetLogSourcesResponse {
 
 // Gets available log sources with statistics from PostgreSQL.
 export const getSources = api<void, GetLogSourcesResponse>(
-  { expose: true, method: "GET", path: "/log/getSources" },
+  { expose: true, method: "GET", path: "/log/getSources", auth: true },
   async () => {
+    ensureAdmin();
     try {
       console.log("[log/getSources] Fetching sources...");
 

@@ -27,7 +27,7 @@ function splitStatements(sql: string): string[] {
 }
 
 export const runMigrationSQL = api(
-  { expose: true, method: "POST", path: "/avatar/run-migration-sql", auth: false },
+  { expose: false, method: "POST", path: "/avatar/run-migration-sql", auth: false },
   async (req: RunMigrationSQLRequest): Promise<RunMigrationSQLResponse> => {
     const { migrationSql, migrationName } = req;
 

@@ -10,6 +10,7 @@ import {
 
 export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
 export type UsageKind = "story" | "doku" | "audio";
+export type MeteredUsageKind = "chat" | "image" | "tts";
 type UserRole = "admin" | "user";
 
 export type PlanQuota = {
@@ -22,7 +23,22 @@ export const PLAN_QUOTAS: Record<SubscriptionPlan, PlanQuota> = {
   free: { stories: 3, dokus: 3, audio: 1 },
   starter: { stories: 10, dokus: 10, audio: 2 },
   familie: { stories: 25, dokus: 25, audio: 10 },
-  premium: { stories: 50, dokus: 50, audio: null },
+  premium: { stories: 50, dokus: 50, audio: 30 },
+};
+
+export type MeteredPlanQuota = {
+  chat: number;
+  image: number;
+  tts: number;
+};
+
+// Monthly hard limits. TTS is measured in input characters, images per output,
+// and chat per model request. Paid plans are intentionally finite to cap spend.
+export const PLAN_METERED_QUOTAS: Record<SubscriptionPlan, MeteredPlanQuota> = {
+  free: { chat: 50, image: 10, tts: 20_000 },
+  starter: { chat: 300, image: 50, tts: 150_000 },
+  familie: { chat: 1_000, image: 200, tts: 600_000 },
+  premium: { chat: 3_000, image: 500, tts: 1_500_000 },
 };
 
 const PLAN_PRIORITY: SubscriptionPlan[] = ["premium", "familie", "starter", "free"];
@@ -772,6 +788,12 @@ type UsageCounts = {
   audio_count: number;
 };
 
+type MeteredUsageCounts = {
+  chat: number;
+  image: number;
+  tts: number;
+};
+
 type UserPlanContext = {
   plan: SubscriptionPlan;
   createdAt: Date;
@@ -890,6 +912,25 @@ async function readUsageCounts(userId: string, periodStart: Date): Promise<Usage
   };
 }
 
+async function readMeteredUsageCounts(
+  userId: string,
+  periodStart: Date
+): Promise<MeteredUsageCounts> {
+  const rows = await userDB.queryAll<{ kind: MeteredUsageKind; units: number }>`
+    SELECT kind, units::int AS units
+    FROM metered_usage
+    WHERE user_id = ${userId} AND period_start = ${periodStart}
+  `;
+
+  const counts: MeteredUsageCounts = { chat: 0, image: 0, tts: 0 };
+  for (const row of rows) {
+    if (row.kind === "chat" || row.kind === "image" || row.kind === "tts") {
+      counts[row.kind] = row.units;
+    }
+  }
+  return counts;
+}
+
 type UsageBucket = {
   limit: number | null;
   used: number;
@@ -912,6 +953,9 @@ export type BillingOverview = {
   storyCredits: UsageBucket;
   dokuCredits: UsageBucket;
   audioCredits: UsageBucket;
+  chatCredits: UsageBucket;
+  imageCredits: UsageBucket;
+  ttsCharacterCredits: UsageBucket;
   permissions: {
     canReadCommunityDokus: boolean;
     canUseAudioDokus: boolean;
@@ -934,6 +978,7 @@ export async function getBillingOverview(params: {
     doku_count: 0,
     audio_count: 0,
   };
+  let meteredUsage: MeteredUsageCounts = { chat: 0, image: 0, tts: 0 };
 
   try {
     usage = await readUsageCounts(params.userId, periodStart);
@@ -944,12 +989,30 @@ export async function getBillingOverview(params: {
     });
   }
 
+  try {
+    meteredUsage = await readMeteredUsageCounts(params.userId, periodStart);
+  } catch (error) {
+    console.warn("[billing.getBillingOverview] Failed to read metered usage counters.", {
+      userId: params.userId,
+      error,
+    });
+  }
+
+  const meteredLimits: Record<MeteredUsageKind, number | null> = context.isAdmin
+    ? { chat: null, image: null, tts: null }
+    : context.plan === "free" && !policy.freeTrialActive
+      ? { chat: 0, image: 0, tts: 0 }
+      : PLAN_METERED_QUOTAS[context.plan];
+
   return {
     plan: context.plan,
     periodStart,
     storyCredits: buildUsageBucket(policy.limits.stories, usage.story_count),
     dokuCredits: buildUsageBucket(policy.limits.dokus, usage.doku_count),
     audioCredits: buildUsageBucket(policy.limits.audio, usage.audio_count),
+    chatCredits: buildUsageBucket(meteredLimits.chat, meteredUsage.chat),
+    imageCredits: buildUsageBucket(meteredLimits.image, meteredUsage.image),
+    ttsCharacterCredits: buildUsageBucket(meteredLimits.tts, meteredUsage.tts),
     permissions: {
       canReadCommunityDokus: policy.canReadCommunityDokus,
       canUseAudioDokus: policy.canUseAudioDokus,
@@ -1364,6 +1427,99 @@ export async function claimGenerationUsage(params: {
     usedByProfile: usedByProfileBefore + 1,
     softCapReached,
     usedFamilyReserve,
+    periodStart,
+  };
+}
+
+export type MeteredUsageClaim = {
+  plan: SubscriptionPlan;
+  kind: MeteredUsageKind;
+  units: number;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  periodStart: Date;
+};
+
+function meteredLimitLabel(kind: MeteredUsageKind): string {
+  if (kind === "chat") return "Tavi-Chat-Anfragen";
+  if (kind === "image") return "KI-Bilder";
+  return "Textzeichen fuer Sprachausgabe";
+}
+
+export async function claimMeteredUsage(params: {
+  userId: string;
+  kind: MeteredUsageKind;
+  units?: number;
+  clerkToken?: string | null;
+}): Promise<MeteredUsageClaim> {
+  const units = Math.floor(params.units ?? 1);
+  if (!Number.isFinite(units) || units < 1 || units > 5_000_000) {
+    throw APIError.invalidArgument("Invalid metered usage amount");
+  }
+
+  const now = new Date();
+  const periodStart = startOfMonthUTC(now);
+  const context = await resolveUserPlanContext(params.userId, params.clerkToken);
+  const policy = computePlanPolicy(context.plan, context.createdAt, now, context.isAdmin);
+  const limit: number | null = context.isAdmin
+    ? null
+    : context.plan === "free" && !policy.freeTrialActive
+      ? 0
+      : PLAN_METERED_QUOTAS[context.plan][params.kind];
+
+  if (limit !== null && (limit <= 0 || units > limit)) {
+    throw APIError.permissionDenied(
+      context.plan === "free" && !policy.freeTrialActive
+        ? "Abo-Limit erreicht: Deine Free-Testphase ist abgelaufen."
+        : `Abo-Limit erreicht: ${limit} ${meteredLimitLabel(params.kind)} pro Monat.`
+    );
+  }
+
+  try {
+    await userDB.exec`
+      INSERT INTO metered_usage (user_id, period_start, kind, units, updated_at)
+      VALUES (${params.userId}, ${periodStart}, ${params.kind}, 0, ${now})
+      ON CONFLICT (user_id, period_start, kind) DO NOTHING
+    `;
+  } catch {
+    throw APIError.failedPrecondition(
+      "Billing-Datenbank nicht bereit. Bitte User-Migration 11_add_metered_ai_usage ausfuehren."
+    );
+  }
+
+  const row = limit === null
+    ? await userDB.queryRow<{ units: number }>`
+        UPDATE metered_usage
+        SET units = units + ${units}, updated_at = ${now}
+        WHERE user_id = ${params.userId}
+          AND period_start = ${periodStart}
+          AND kind = ${params.kind}
+        RETURNING units::int AS units
+      `
+    : await userDB.queryRow<{ units: number }>`
+        UPDATE metered_usage
+        SET units = units + ${units}, updated_at = ${now}
+        WHERE user_id = ${params.userId}
+          AND period_start = ${periodStart}
+          AND kind = ${params.kind}
+          AND units + ${units} <= ${limit}
+        RETURNING units::int AS units
+      `;
+
+  if (!row) {
+    throw APIError.permissionDenied(
+      `Abo-Limit erreicht: ${limit} ${meteredLimitLabel(params.kind)} pro Monat. Bitte Abo upgraden.`
+    );
+  }
+
+  return {
+    plan: context.plan,
+    kind: params.kind,
+    units,
+    used: row.units,
+    limit,
+    remaining: limit === null ? null : Math.max(0, limit - row.units),
     periodStart,
   };
 }

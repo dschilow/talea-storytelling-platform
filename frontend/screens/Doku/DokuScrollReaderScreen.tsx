@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { ArrowLeft, BookOpen, LoaderCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
@@ -38,14 +38,30 @@ const DokuScrollReaderScreen: React.FC = () => {
 
   const [isReading, setIsReading] = useState(false);
   const [dokuCompleted, setDokuCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (dokuId) {
-      loadDoku();
-    }
-  }, [dokuId]);
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    setDoku(null);
+    setDokuCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
+    if (dokuId) void loadDoku(requestId);
 
-  const loadDoku = async () => {
+    return () => {
+      if (loadRequestRef.current === requestId) loadRequestRef.current += 1;
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+    };
+  }, [dokuId, activeProfileId]);
+
+  const loadDoku = async (requestId: number) => {
     if (!dokuId) return;
     try {
       setLoading(true);
@@ -56,17 +72,22 @@ const DokuScrollReaderScreen: React.FC = () => {
 
       // If not found offline, fetch from backend
       if (!dokuData) {
-        dokuData = await backend.doku.getDoku({ id: dokuId });
+        dokuData = await backend.doku.getDoku({
+          id: dokuId,
+          profileId: activeProfileId || undefined,
+        });
       } else {
         console.log('[DokuScrollReaderScreen] Loaded doku from offline storage');
       }
 
+      if (loadRequestRef.current !== requestId) return;
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading doku:', err);
       setError((err as Error).message || t('errors.generic'));
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -76,14 +97,16 @@ const DokuScrollReaderScreen: React.FC = () => {
 
   const handleDokuCompletion = async () => {
     console.log('📚 Doku completed - updating its selected avatar');
-    if (!doku || !dokuId || dokuCompleted) {
+    if (!doku || !dokuId || dokuCompleted || completionInFlightRef.current) {
       console.log('Doku completion aborted - missing requirements or already completed');
       return;
     }
 
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
     try {
-      setDokuCompleted(true);
-
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
       const target = getBackendUrl();
@@ -107,8 +130,16 @@ const DokuScrollReaderScreen: React.FC = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(`Doku completion failed with status ${response.status}`);
+      }
+      if (result?.success !== true) {
+        throw new Error('Doku completion was not confirmed by the server.');
+      }
+      if (completionAttemptRef.current !== attemptId) return;
+
+      setDokuCompleted(true);
         console.log('✅ Personality updates applied:', result);
         window.dispatchEvent(
           new CustomEvent('personalityUpdated', {
@@ -137,10 +168,9 @@ const DokuScrollReaderScreen: React.FC = () => {
 
           showSuccessToast(message.trim());
         });
-      } else {
+      if (!response.ok) {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         import('../../utils/toastUtils').then(({ showErrorToast }) => {
           showErrorToast(t('errors.generic'));
@@ -149,11 +179,16 @@ const DokuScrollReaderScreen: React.FC = () => {
 
     } catch (error) {
       console.error('❌ Error during doku completion processing:', error);
-      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
-
-      import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast(t('errors.networkError'));
-      });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Bitte versuche es erneut.';
+      setCompletionError(message);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+        setCompletionPending(false);
+      }
     }
   };
 
@@ -366,16 +401,25 @@ const DokuScrollReaderScreen: React.FC = () => {
                   <div className="flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600">
                     <motion.button
                       onClick={handleDokuCompletion}
-                      disabled={dokuCompleted}
+                      disabled={dokuCompleted || completionPending}
+                      aria-busy={completionPending}
                       className={`px-12 py-5 rounded-full font-bold text-xl text-white transition-all shadow-2xl ${dokuCompleted
                           ? 'bg-gradient-to-r from-green-500 to-emerald-600 cursor-default'
                           : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:shadow-teal-500/50 hover:scale-105'
                         }`}
-                      whileHover={!dokuCompleted ? { scale: 1.05 } : {}}
-                      whileTap={!dokuCompleted ? { scale: 0.95 } : {}}
+                      whileHover={!dokuCompleted && !completionPending ? { scale: 1.05 } : {}}
+                      whileTap={!dokuCompleted && !completionPending ? { scale: 0.95 } : {}}
                     >
+                      {completionPending && (
+                        <LoaderCircle className="mr-2 inline h-5 w-5 animate-spin" aria-hidden="true" />
+                      )}
                       {dokuCompleted ? `🎉 ${t('doku.readDoku')} ${t('common.finish')}!` : `🏁 ${t('doku.readDoku')} ${t('common.finish')}`}
                     </motion.button>
+                    {completionError && !dokuCompleted && (
+                      <p role="alert" className="mt-4 max-w-xl text-center text-sm font-medium text-red-600 dark:text-red-300">
+                        {completionError}
+                      </p>
+                    )}
                     {dokuCompleted && (
                       <motion.p
                         initial={{ opacity: 0, y: 10 }}

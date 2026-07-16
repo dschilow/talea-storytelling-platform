@@ -2,6 +2,7 @@
 // Endpoints for managing the artifact pool
 
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { storyDB } from "./db";
 import type { ArtifactCategory, ArtifactRarity, ArtifactTemplate } from "./types";
 import { runwareGenerateImage } from "../ai/image-generation";
@@ -186,6 +187,7 @@ interface AddArtifactRequest {
 export const addArtifact = api<AddArtifactRequest, ArtifactTemplate>(
   { expose: true, method: "POST", path: "/story/artifact-pool", auth: true },
   async (req): Promise<ArtifactTemplate> => {
+    ensureAdmin();
     const id = crypto.randomUUID();
     const now = new Date();
 
@@ -273,6 +275,7 @@ interface UpdateArtifactRequest {
 export const updateArtifact = api<UpdateArtifactRequest, ArtifactTemplate>(
   { expose: true, method: "PUT", path: "/story/artifact-pool/:id", auth: true },
   async (req): Promise<ArtifactTemplate> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Updating artifact:", req.id);
 
     await ensureImageUrlColumn();
@@ -376,6 +379,7 @@ interface GenerateArtifactImageResponse {
 export const generateArtifactImage = api<GenerateArtifactImageRequest, GenerateArtifactImageResponse>(
   { expose: true, method: "POST", path: "/story/artifact-pool/:id/generate-image", auth: true },
   async (req): Promise<GenerateArtifactImageResponse> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Generating image for artifact:", req.id);
 
     const artifact = await getArtifact({ id: req.id });
@@ -417,6 +421,7 @@ interface DeleteArtifactRequest {
 export const deleteArtifact = api<DeleteArtifactRequest, { success: boolean }>(
   { expose: true, method: "DELETE", path: "/story/artifact-pool/:id", auth: true },
   async (req): Promise<{ success: boolean }> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Soft deleting artifact:", req.id);
 
     await storyDB.exec`
@@ -435,6 +440,7 @@ export const deleteArtifact = api<DeleteArtifactRequest, { success: boolean }>(
 export const exportArtifacts = api(
   { expose: true, method: "GET", path: "/story/artifact-pool/export", auth: true },
   async (): Promise<{ artifacts: ArtifactTemplate[] }> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Exporting all artifacts");
     const artifacts = await fetchAllArtifacts();
     console.log(`[ArtifactPool] Export payload size: ${artifacts.length} artifacts`);
@@ -481,6 +487,7 @@ async function runWithConcurrency<T, R>(
 export const batchRegenerateArtifactImages = api<{}, BatchRegenerateImagesResponse>(
   { expose: true, method: "POST", path: "/story/artifact-pool/batch-regenerate-images", auth: true },
   async (): Promise<BatchRegenerateImagesResponse> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Starting batch regeneration of all artifact images");
 
     const artifacts = await fetchAllArtifacts();
@@ -568,6 +575,7 @@ interface ImportArtifactsRequest {
 export const importArtifacts = api<ImportArtifactsRequest, { success: boolean; imported: number }>(
   { expose: true, method: "POST", path: "/story/artifact-pool/import", auth: true },
   async (req): Promise<{ success: boolean; imported: number }> => {
+    ensureAdmin();
     console.log("[ArtifactPool] Importing artifacts");
 
     if (!Array.isArray(req.artifacts) || req.artifacts.length === 0) {

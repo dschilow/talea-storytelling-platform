@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Eye, Wand2 } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import {
   DEFAULT_AVATAR_FORM_DATA,
   CharacterTypeId,
   formDataToDescription,
+  getAvatarVisualPromptSignature,
   isAnimalCharacter,
   isHumanCharacter,
 } from '../../types/avatarForm';
@@ -32,9 +33,30 @@ interface AvatarFormProps {
   isGeneratingPreview?: boolean;
   mode?: 'create' | 'edit';
   compact?: boolean;
+  childMode?: boolean;
+  lockedName?: string;
+  lockedAge?: number;
+  onPreviewInvalidated?: () => void;
 }
 
 type SectionKey = 'identity' | 'body' | 'reference' | 'appearance' | 'features' | 'notes' | 'preview';
+
+function enforceChildIdentity(
+  data: AvatarFormData,
+  childMode: boolean,
+  lockedName?: string,
+  lockedAge?: number
+): AvatarFormData {
+  if (!childMode) return data;
+
+  return {
+    ...data,
+    name: lockedName ?? data.name,
+    age: Number.isFinite(lockedAge) ? Number(lockedAge) : data.age,
+    characterType: 'human',
+    customCharacterType: undefined,
+  };
+}
 
 export const AvatarForm: React.FC<AvatarFormProps> = ({
   initialData,
@@ -43,14 +65,22 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   previewUrl,
   isGeneratingPreview = false,
   compact = false,
+  childMode = false,
+  lockedName,
+  lockedAge,
+  onPreviewInvalidated,
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const [formData, setFormData] = useState<AvatarFormData>({
-    ...DEFAULT_AVATAR_FORM_DATA,
-    ...initialData,
-  });
+  const [formData, setFormData] = useState<AvatarFormData>(() =>
+    enforceChildIdentity(
+      { ...DEFAULT_AVATAR_FORM_DATA, ...initialData },
+      childMode,
+      lockedName,
+      lockedAge
+    )
+  );
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | undefined>();
   const [showDescription, setShowDescription] = useState(false);
   const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
@@ -63,21 +93,53 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
     preview: true,
   });
 
+  const promptSignature = useMemo(
+    () => getAvatarVisualPromptSignature(formData, referenceImageUrl),
+    [formData, referenceImageUrl]
+  );
+  const previewSnapshotRef = useRef<{ url?: string; signature?: string }>({});
+
+  useEffect(() => {
+    if (!previewUrl) {
+      previewSnapshotRef.current = {};
+      return;
+    }
+
+    if (previewSnapshotRef.current.url !== previewUrl) {
+      previewSnapshotRef.current = { url: previewUrl, signature: promptSignature };
+      return;
+    }
+
+    if (
+      previewSnapshotRef.current.signature &&
+      previewSnapshotRef.current.signature !== promptSignature
+    ) {
+      onPreviewInvalidated?.();
+    }
+  }, [onPreviewInvalidated, previewUrl, promptSignature]);
+
   useEffect(() => {
     if (initialData) {
-      setFormData((previous) => ({ ...previous, ...initialData }));
+      setFormData((previous) =>
+        enforceChildIdentity(
+          { ...previous, ...initialData },
+          childMode,
+          lockedName,
+          lockedAge
+        )
+      );
     }
-  }, [initialData]);
+  }, [childMode, initialData, lockedAge, lockedName]);
 
   const updateFormData = useCallback(
     (updates: Partial<AvatarFormData>) => {
       setFormData((previous) => {
-        const next = { ...previous, ...updates };
+        const next = enforceChildIdentity({ ...previous, ...updates }, childMode, lockedName, lockedAge);
         onChange?.(next);
         return next;
       });
     },
-    [onChange]
+    [childMode, lockedAge, lockedName, onChange]
   );
 
   const handleCharacterTypeChange = useCallback(
@@ -112,38 +174,46 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
-          Name des Avatars
+        <label htmlFor="avatar-name" className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+          {childMode ? 'Name aus dem Kinderprofil' : 'Name des Avatars'}
         </label>
         <input
+          id="avatar-name"
+          readOnly={childMode}
           type="text"
           value={formData.name}
           onChange={(event) => updateFormData({ name: event.target.value })}
           placeholder="Wie soll dein Avatar heissen?"
-          className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2"
+          className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2 read-only:cursor-not-allowed read-only:opacity-80"
           style={{
             borderColor: isDark ? '#3a5068' : '#d7c9b8',
-            background: isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)',
+            background: childMode ? (isDark ? 'rgba(31,61,54,0.55)' : '#edf7f2') : (isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)'),
             color: isDark ? '#e9f0fb' : '#24364b',
             boxShadow: 'none',
           }}
         />
+        {childMode && (
+          <p className="text-xs leading-relaxed" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+            Name und Alter werden im Kinderprofil gepflegt und bleiben hier geschÅtzt.
+          </p>
+        )}
       </div>
 
       <FormSection
-        title="Charaktertyp"
+        title={childMode ? "Rolle im Profil" : "Charaktertyp"}
         icon="Typ"
         isExpanded={expanded.identity}
         onToggle={() => toggleSection('identity')}
         isDark={isDark}
       >
-        <CharacterTypeSelector
-          value={formData.characterType}
-          onChange={handleCharacterTypeChange}
-          customValue={formData.customCharacterType}
-          onCustomChange={(value) => updateFormData({ customCharacterType: value })}
-          darkMode={isDark}
-        />
+        {childMode ? (
+          <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: isDark ? '#416057' : '#c5d9d0', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#c6ddd5' : '#45695d' }}>
+            <p className="font-semibold">Privater Kind-Avatar</p>
+            <p className="mt-1 text-xs leading-relaxed">Dieser Avatar stellt das Kind selbst dar. Deshalb bleibt der Charaktertyp Mensch.</p>
+          </div>
+        ) : (
+          <CharacterTypeSelector value={formData.characterType} onChange={handleCharacterTypeChange} customValue={formData.customCharacterType} onCustomChange={(value) => updateFormData({ customCharacterType: value })} darkMode={isDark} />
+        )}
       </FormSection>
 
       <FormSection
@@ -167,6 +237,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             characterType={formData.characterType}
             onAgeChange={(age) => updateFormData({ age })}
             onHeightChange={(height) => updateFormData({ height })}
+            ageReadOnly={childMode}
             darkMode={isDark}
           />
 
@@ -246,12 +317,12 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         isDark={isDark}
       >
         <p className="mb-2 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
-          Optional: Besondere Details, die im Profil sichtbar bleiben sollen.
+          Beschreibe nur bleibende sichtbare Details. Sie werden fÅr konsistente Bilder gespeichert.
         </p>
         <textarea
           value={formData.additionalDescription || ''}
           onChange={(event) => updateFormData({ additionalDescription: event.target.value })}
-          placeholder="Beispiel: Trifft immer ruhige Entscheidungen und traegt einen roten Schal."
+          placeholder="Beispiel: kleine ZahnlÅcke vorne, roter Schal und ein Muttermal auf der Wange."
           rows={3}
           className="w-full resize-none rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2"
           style={{

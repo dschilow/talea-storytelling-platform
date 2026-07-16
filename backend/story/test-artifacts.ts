@@ -15,7 +15,7 @@ interface TestArtifactsResponse {
  * Test endpoint to verify artifact_pool table exists and has data
  */
 export const testArtifacts = api<void, TestArtifactsResponse>(
-  { expose: true, method: "GET", path: "/story/test-artifacts", auth: false },
+  { expose: false, method: "GET", path: "/story/test-artifacts", auth: false },
   async () => {
     try {
       // Count total artifacts

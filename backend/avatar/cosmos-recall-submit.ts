@@ -9,6 +9,8 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { ensureCosmosTrackingSchema } from "./cosmos-schema";
+import { assertAvatarOwnedByCurrentUser } from "./authz";
+import { ensureDefaultProfileForUser, getProfileForUser } from "../helpers/profiles";
 
 interface RecallAnswer {
   questionId: string;
@@ -30,7 +32,7 @@ interface RecallSubmitResponse {
 }
 
 export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>(
-  { expose: true, method: "POST", path: "/avatar/cosmos-recall-submit" },
+  { expose: true, method: "POST", path: "/avatar/cosmos-recall-submit", auth: true },
   async (req) => {
     try {
       const auth = getAuthData();
@@ -43,6 +45,25 @@ export const cosmosRecallSubmit = api<RecallSubmitRequest, RecallSubmitResponse>
       if (!req.avatarId || !req.recallTaskId) {
         throw APIError.invalidArgument("Missing required fields");
       }
+
+      await assertAvatarOwnedByCurrentUser(req.avatarId);
+      const avatarScope = await avatarDB.queryRow<{ profile_id: string | null }>`
+        SELECT profile_id FROM avatars WHERE id = ${req.avatarId} LIMIT 1
+      `;
+      if (!avatarScope) throw APIError.notFound("Avatar not found");
+
+      const profile = req.profileId
+        ? await getProfileForUser({ userId: auth.userID, profileId: req.profileId })
+        : avatarScope.profile_id
+          ? await getProfileForUser({ userId: auth.userID, profileId: avatarScope.profile_id })
+          : await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
+      const belongsToProfile =
+        avatarScope.profile_id === profile.id ||
+        (avatarScope.profile_id === null && profile.isDefault);
+      if (!belongsToProfile) {
+        throw APIError.permissionDenied("Avatar belongs to another child profile");
+      }
+      const effectiveProfileId = profile.id;
 
       const task = await avatarDB.queryRow`
         SELECT id, domain_id, topic_id, source_content_id, source_content_type, status, created_at

@@ -15,6 +15,7 @@ export interface LogEvent {
     | "openai-audio-doku-script"
     | "openai-audio-doku-sound-cues"
     | "openai-tavi-chat"
+    | "openrouter-tavi-chat"
     | "openai-story-generation-mcp"
     | "phase0.5-fairy-tale-selection"
     | "phase0-normalization"

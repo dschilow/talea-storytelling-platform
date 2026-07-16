@@ -6,8 +6,7 @@ import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { buildAvatarProgressionSummary } from "./progression";
 import { ensureAvatarSharingTables } from "./sharing";
-import { resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface GetAvatarParams {
@@ -23,11 +22,11 @@ export const get = api<GetAvatarParams, Avatar>(
       const auth = getAuthData()!;
       await ensureAvatarColumns();
       await ensureAvatarSharingTables();
-      await ensureAvatarProfileLinksTable();
       const activeProfileId = await resolveRequestedProfileId({
         userId: auth.userID,
         requestedProfileId: profileId,
       });
+      const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
       const row = await avatarDB.queryRow<{
         id: string;
         user_id: string;
@@ -58,15 +57,9 @@ export const get = api<GetAvatarParams, Avatar>(
 
       const isOwner = row.user_id === auth.userID;
 
-      if (isOwner && row.profile_id && row.profile_id !== activeProfileId && auth.role !== "admin") {
-        const linkedToActive = await hasAvatarProfileLink({
-          avatarId: id,
-          userId: auth.userID,
-          profileId: activeProfileId,
-        });
-        if (!linkedToActive) {
-          throw APIError.permissionDenied("Avatar belongs to another child profile.");
-        }
+      const ownerProfileId = row.profile_id || defaultProfile.id;
+      if (isOwner && ownerProfileId !== activeProfileId && auth.role !== "admin") {
+        throw APIError.permissionDenied("Avatar belongs to another child profile.");
       }
 
       if (!isOwner && auth.role !== "admin" && !row.is_public) {
@@ -170,7 +163,7 @@ export const get = api<GetAvatarParams, Avatar>(
       return {
         id: row.id,
         userId: row.user_id,
-        profileId: isOwner ? activeProfileId : row.profile_id || undefined,
+        profileId: isOwner ? ownerProfileId : row.profile_id || undefined,
         name: row.name,
         description: row.description || undefined,
         physicalTraits: parsedPhysicalTraits,

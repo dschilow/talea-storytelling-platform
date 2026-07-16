@@ -1,8 +1,10 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
 import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { translateToEnglish } from "./translate";
+import { getAuthData } from "~encore/auth";
+import { claimMeteredUsage } from "../helpers/billing";
 
 interface GenerateAvatarImageRequest {
   characterType: string;
@@ -18,20 +20,42 @@ interface GenerateAvatarImageResponse {
   prompt: string;
   debugInfo?: any;
 }
+function isStructuredEnglishVisualText(value: string): boolean {
+  const text = String(value || "").trim();
+  return /^[\x20-\x7E]+$/.test(text) &&
+    /\b(human|child|boy|girl|man|woman|animal|cat|dog|robot|creature|eyes|hair|skin|fur|build|old|bald|wearing|has|character)\b/i.test(text) &&
+    !/\b(und|oder|mit|ist|hat|mensch|kind|junge|maedchen|auge|augen|haar|haare|haut)\b/i.test(text);
+}
+
 
 // Generates an avatar image based on physical and personality traits.
 export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvatarImageResponse>(
-  { expose: true, method: "POST", path: "/ai/generate-avatar" },
+  { expose: true, method: "POST", path: "/ai/generate-avatar", auth: true },
   async (req) => {
-    // CRITICAL: Validate and translate user input to English using OpenAI for Runware compatibility
-    console.log("🌐 Translating user input to English using OpenAI GPT-5-mini...");
-    const translatedCharacterType = await translateToEnglish(req.characterType || "");
-    const translatedAppearance = await translateToEnglish(req.appearance || "");
+    const auth = getAuthData()!;
+    if ((req.characterType || "").length > 120 || (req.appearance || "").length > 2_000) {
+      throw APIError.invalidArgument("Avatar description is too long.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "image",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
 
-    console.log("Original character type:", req.characterType);
-    console.log("Translated character type:", translatedCharacterType);
-    console.log("Original appearance:", req.appearance);
-    console.log("Translated appearance:", translatedAppearance);
+    // Structured profiles are already English; only free-form localized fields need translation.
+    const rawCharacterType = req.characterType || "";
+    const rawAppearance = req.appearance || "";
+    const characterIsEnglish = isStructuredEnglishVisualText(rawCharacterType);
+    const appearanceIsEnglish = isStructuredEnglishVisualText(rawAppearance);
+    console.info("[ai.avatar-generation] Preparing visual prompt", {
+      characterTranslationNeeded: !characterIsEnglish,
+      appearanceTranslationNeeded: !appearanceIsEnglish,
+    });
+    const [translatedCharacterType, translatedAppearance] = await Promise.all([
+      characterIsEnglish ? rawCharacterType : translateToEnglish(rawCharacterType),
+      appearanceIsEnglish ? rawAppearance : translateToEnglish(rawAppearance),
+    ]);
 
     const prompt = buildAvatarPrompt(
       translatedCharacterType,
@@ -40,12 +64,11 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       req.style
     );
 
-    console.log("🎨 Generating avatar with translated prompt:", prompt);
-    console.log("👤 Character Type:", translatedCharacterType);
-    console.log("🎨 Appearance:", translatedAppearance);
-    console.log("🧠 Personality traits:", JSON.stringify(req.personalityTraits, null, 2));
-    console.log("🎭 Style:", req.style);
-    console.log("📷 Reference Image:", req.referenceImageUrl ? "YES" : "NO");
+    console.info("[ai.avatar-generation] Requesting image", {
+      style: req.style || "disney",
+      hasReferenceImage: Boolean(req.referenceImageUrl),
+      promptLength: prompt.length,
+    });
 
     // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
     // FEATURE: Support reference image for character consistency
@@ -59,11 +82,11 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       referenceImages: req.referenceImageUrl ? [req.referenceImageUrl] : undefined,
     });
 
-    console.log("🖼️ Image generation result:");
-    console.log("✅ Success:", imageResult.debugInfo?.success);
-    console.log("📏 Image URL length:", imageResult.imageUrl?.length);
-    console.log("🔍 Extracted from:", imageResult.debugInfo?.extractedFromPath);
-    console.log("🔍 Content-Type:", imageResult.debugInfo?.contentType);
+    console.info("[ai.avatar-generation] Image generation completed", {
+      success: Boolean(imageResult.debugInfo?.success),
+      hasImage: Boolean(imageResult.imageUrl),
+      contentType: imageResult.debugInfo?.contentType,
+    });
 
     let finalImageUrl = imageResult.imageUrl;
     if (finalImageUrl) {
@@ -97,7 +120,7 @@ function buildAvatarPrompt(
   const styleDescriptor = getStyleDescriptor(style);
 
   const sections = [
-    "Axel Scheffler watercolor storybook portrait illustration",
+    "Hand-inked European children's storybook watercolor portrait",
     `SUBJECT ${subject} (${speciesTag})`,
     personalityDescriptor ? `PERSONALITY cues ${personalityDescriptor}` : "",
     appearanceDetails ? `APPEARANCE ${appearanceDetails}` : "",
@@ -145,12 +168,12 @@ function inferSpeciesTag(characterType?: string, appearance?: string): string {
 function getStyleDescriptor(style: string | undefined): string {
   switch (style) {
     case "anime":
-      return "Axel Scheffler inspired watercolor with playful anime energy, crisp ink contours, vibrant palettes";
+      return "hand-inked watercolor storybook style with playful animation energy, crisp contours, vibrant palettes";
     case "realistic":
-      return "Axel Scheffler inspired watercolor realism, gentle shading, authentic proportions, handcrafted texture";
+      return "hand-inked watercolor storybook realism, gentle shading, authentic proportions, handcrafted texture";
     case "disney":
     default:
-      return "Axel Scheffler inspired watercolor charm, expressive storybook features, cozy color harmony";
+      return "classic hand-inked watercolor storybook charm, expressive features, cozy color harmony";
   }
 }
 

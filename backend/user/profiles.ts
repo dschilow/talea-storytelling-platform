@@ -1,5 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
+import { avatarDB } from "../avatar/db";
 import { resolvePlanForUser } from "../helpers/billing";
 import { cleanupProfileContent } from "../helpers/content-cleanup";
 import {
@@ -18,6 +19,179 @@ import {
   type ProfileBudgetPolicy,
 } from "../helpers/profiles";
 import { userDB } from "./db";
+
+type ChildAvatarProfileRow = {
+  id: string;
+  name: string;
+  child_avatar_id: string | null;
+  is_default: boolean;
+};
+
+type ChildAvatarRow = {
+  id: string;
+  name: string;
+  profile_id: string | null;
+  avatar_role: string | null;
+  is_public: boolean;
+  created_at: Date;
+};
+
+let childAvatarReconciliationWarningLogged = false;
+
+function isAvatarInProfileScope(
+  profile: ChildAvatarProfileRow,
+  avatar: ChildAvatarRow
+): boolean {
+  return (
+    avatar.profile_id === profile.id ||
+    (profile.is_default && avatar.profile_id === null)
+  );
+}
+
+/**
+ * Keeps the cross-service child-avatar relation consistent.
+ *
+ * The explicit profile pointer wins when it still points at an avatar owned by
+ * this user and in this profile's scope. Otherwise, the oldest avatar already
+ * marked as a child becomes the deterministic replacement. Legacy avatars
+ * without a profile may only be claimed by the default profile.
+ */
+async function reconcileChildAvatarsForUser(userId: string): Promise<void> {
+  const profiles = await userDB.queryAll<ChildAvatarProfileRow>`
+    SELECT id, name, child_avatar_id, is_default
+    FROM child_profiles
+    WHERE user_id = ${userId}
+      AND is_archived = FALSE
+    ORDER BY is_default DESC, created_at ASC, id ASC
+  `;
+
+  if (profiles.length === 0) {
+    return;
+  }
+
+  const avatars = await avatarDB.queryAll<ChildAvatarRow>`
+    SELECT id, name, profile_id, avatar_role, is_public, created_at
+    FROM avatars
+    WHERE user_id = ${userId}
+    ORDER BY created_at ASC, id ASC
+  `;
+  const avatarsById = new Map(avatars.map((avatar) => [avatar.id, avatar]));
+
+  // Release stale pointer reservations up front. Otherwise a wrong pointer on
+  // an earlier profile could block the correct profile's unique link update.
+  for (const profile of profiles) {
+    if (!profile.child_avatar_id) {
+      continue;
+    }
+    const pointedAvatar = avatarsById.get(profile.child_avatar_id);
+    if (pointedAvatar && isAvatarInProfileScope(profile, pointedAvatar)) {
+      continue;
+    }
+
+    const staleAvatarId = profile.child_avatar_id;
+    await userDB.exec`
+      UPDATE child_profiles
+      SET child_avatar_id = NULL,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${profile.id}
+        AND user_id = ${userId}
+        AND child_avatar_id = ${staleAvatarId}
+    `;
+    profile.child_avatar_id = null;
+  }
+
+  for (const profile of profiles) {
+    const pointedAvatar = profile.child_avatar_id
+      ? avatarsById.get(profile.child_avatar_id)
+      : undefined;
+    const validPointedAvatar =
+      pointedAvatar && isAvatarInProfileScope(profile, pointedAvatar)
+        ? pointedAvatar
+        : undefined;
+    const selectedAvatar =
+      validPointedAvatar ||
+      avatars.find(
+        (avatar) =>
+          avatar.avatar_role === "child" &&
+          isAvatarInProfileScope(profile, avatar)
+      );
+
+    if (!selectedAvatar) {
+      continue;
+    }
+
+    const hasConflictingChildRole = avatars.some(
+      (avatar) =>
+        avatar.id !== selectedAvatar.id &&
+        avatar.avatar_role === "child" &&
+        isAvatarInProfileScope(profile, avatar)
+    );
+
+    // Demote conflicting child roles first so the partial unique index can
+    // never reject the subsequent promotion of the authoritative avatar.
+    if (hasConflictingChildRole) {
+      await avatarDB.exec`
+        UPDATE avatars
+        SET avatar_role = 'companion',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${userId}
+          AND id <> ${selectedAvatar.id}
+          AND avatar_role = 'child'
+          AND (
+            profile_id = ${profile.id}
+            OR (${profile.is_default}::BOOLEAN AND profile_id IS NULL)
+          )
+      `;
+    }
+
+    const avatarNeedsRepair =
+      selectedAvatar.profile_id !== profile.id ||
+      selectedAvatar.avatar_role !== "child" ||
+      selectedAvatar.is_public ||
+      selectedAvatar.name !== profile.name;
+    if (avatarNeedsRepair) {
+      await avatarDB.exec`
+        UPDATE avatars
+        SET profile_id = ${profile.id},
+            avatar_role = 'child',
+            is_public = FALSE,
+            name = ${profile.name},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${selectedAvatar.id}
+          AND user_id = ${userId}
+      `;
+    }
+
+    if (profile.child_avatar_id !== selectedAvatar.id) {
+      await userDB.exec`
+        UPDATE child_profiles
+        SET child_avatar_id = ${selectedAvatar.id},
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${profile.id}
+          AND user_id = ${userId}
+          AND child_avatar_id IS DISTINCT FROM ${selectedAvatar.id}
+          AND child_avatar_id IS NOT DISTINCT FROM ${profile.child_avatar_id}
+      `;
+    }
+  }
+}
+
+async function reconcileChildAvatarsSafely(userId: string): Promise<void> {
+  try {
+    await reconcileChildAvatarsForUser(userId);
+    childAvatarReconciliationWarningLogged = false;
+  } catch {
+    // During rolling deploys the user and avatar migrations can become ready
+    // at slightly different times. Profile reads must stay available; the next
+    // read retries this idempotent repair automatically.
+    if (!childAvatarReconciliationWarningLogged) {
+      console.warn(
+        "[user.profiles] Child-avatar reconciliation deferred until the avatar schema is ready."
+      );
+      childAvatarReconciliationWarningLogged = true;
+    }
+  }
+}
 
 type ProfileUsage = {
   profileId: string;
@@ -205,6 +379,7 @@ export const listProfiles = api<void, ListProfilesResponse>(
     const auth = getAuthData()!;
     await ensureUserExists(auth.userID, auth.email);
     await ensureDefaultProfileForUser(auth.userID);
+    await reconcileChildAvatarsSafely(auth.userID);
     const profiles = await listProfilesForUser(auth.userID);
     const { limit } = await getProfileLimitForCurrentUser(auth.userID, auth.clerkToken);
     return {
@@ -220,6 +395,7 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
     const auth = getAuthData()!;
     await ensureUserExists(auth.userID, auth.email);
     await ensureDefaultProfileForUser(auth.userID);
+    await reconcileChildAvatarsSafely(auth.userID);
 
     const { limit } = await getProfileLimitForCurrentUser(auth.userID, auth.clerkToken);
     const currentCount = await countProfilesForUser(auth.userID);
@@ -232,6 +408,12 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
     const id = crypto.randomUUID();
     const now = new Date();
     const name = (req.name || "").trim();
+    if (req.childAvatarId !== undefined) {
+      throw APIError.invalidArgument(
+        "Assign the child avatar through the avatar screen so ownership and profile scope can be validated."
+      );
+    }
+
     if (!name) {
       throw APIError.invalidArgument("Profile name is required");
     }
@@ -266,7 +448,7 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
         ${cleanTextArray(req.interests)},
         ${cleanTextArray(req.noGoTopics)},
         ${cleanTextArray(req.learningGoals)},
-        ${req.childAvatarId ?? null},
+        NULL,
         ${JSON.stringify(req.competencyState ?? {})}::jsonb,
         ${cleanTextArray(req.preferredAvatarIds)},
         ${JSON.stringify(req.quizSettings ?? {})}::jsonb,
@@ -292,6 +474,14 @@ export const updateProfile = api<UpdateProfileRequest, ChildProfile>(
     const auth = getAuthData()!;
     await ensureUserExists(auth.userID, auth.email);
     await assertProfilesBelongToUser(auth.userID, [req.profileId]);
+    if (req.childAvatarId !== undefined) {
+      throw APIError.invalidArgument(
+        "Assign the child avatar through the avatar screen so ownership and profile scope can be validated."
+      );
+    }
+
+    // Attach any legacy default-profile child before a possible default switch.
+    await reconcileChildAvatarsSafely(auth.userID);
 
     const now = new Date();
     if (req.isDefault === true) {
@@ -323,6 +513,8 @@ export const updateProfile = api<UpdateProfileRequest, ChildProfile>(
         AND user_id = ${auth.userID}
     `;
 
+    // Also synchronizes the dedicated child avatar's display name.
+    await reconcileChildAvatarsSafely(auth.userID);
     const profiles = await listProfilesForUser(auth.userID);
     const updated = profiles.find((entry) => entry.id === req.profileId);
     if (!updated) {
@@ -338,6 +530,7 @@ export const deleteProfile = api<DeleteProfileParams, DeleteProfileResponse>(
     const auth = getAuthData()!;
     await ensureUserExists(auth.userID, auth.email);
     await assertProfilesBelongToUser(auth.userID, [profileId]);
+    await reconcileChildAvatarsSafely(auth.userID);
 
     const profiles = await listProfilesForUser(auth.userID);
     if (profiles.length <= 1) {
@@ -349,6 +542,7 @@ export const deleteProfile = api<DeleteProfileParams, DeleteProfileResponse>(
       profileId,
     });
 
+    await reconcileChildAvatarsSafely(auth.userID);
     const remaining = await listProfilesForUser(auth.userID);
     const hasDefault = remaining.some((entry) => entry.isDefault);
     if (!hasDefault && remaining.length > 0) {
@@ -360,6 +554,7 @@ export const deleteProfile = api<DeleteProfileParams, DeleteProfileResponse>(
         WHERE user_id = ${auth.userID}
           AND is_archived = FALSE
       `;
+      await reconcileChildAvatarsSafely(auth.userID);
       return {
         success: true,
         newDefaultProfileId: newDefault.id,
@@ -376,6 +571,7 @@ export const getProfilesOverview = api<void, ProfilesOverviewResponse>(
     const auth = getAuthData()!;
     await ensureUserExists(auth.userID, auth.email);
     await ensureDefaultProfileForUser(auth.userID);
+    await reconcileChildAvatarsSafely(auth.userID);
 
     const [{ plan, limit }, profiles, reserve] = await Promise.all([
       getProfileLimitForCurrentUser(auth.userID, auth.clerkToken),

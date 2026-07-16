@@ -1,10 +1,12 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { translateVisualProfile } from "./translate";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { getAuthData } from "~encore/auth";
+import { claimMeteredUsage } from "../helpers/billing";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -33,15 +35,26 @@ export interface AnalyzeAvatarImageResponse {
 
 // PRODUCTION-READY SOLUTION: Nur basic analysis, 100% stabil
 export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarImageResponse>(
-  { expose: true, method: "POST", path: "/ai/analyze-avatar-image" },
+  { expose: true, method: "POST", path: "/ai/analyze-avatar-image", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (!req.imageUrl || req.imageUrl.length > 8_000) {
+      throw APIError.invalidArgument("Invalid image URL.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
+
     const startTime = Date.now();
     console.log("🔬 Analyzing avatar image with STABLE analysis...");
 
     // Resolve bucket:// URLs to HTTP URLs before sending to OpenAI
     const resolvedImageUrl = await resolveImageUrlForClient(req.imageUrl);
     if (!resolvedImageUrl) {
-      console.error("❌ Could not resolve image URL:", req.imageUrl);
+      console.error("[ai.avatar-analysis] Could not resolve image URL");
       return {
         success: false,
         visualProfile: null,
@@ -71,6 +84,7 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
 
 ### Regeln
 - Antworte streng nur als JSON im untenstehenden Schema, ohne zusätzlichen Text.
+- Schreibe ausnahmslos alle JSON-Stringwerte auf Englisch; Eigennamen gehören nicht in das visuelle Profil.
 - Beschreibe sichtbare Merkmale exakt: Haut/Fell/Federn/Schuppen/Metall/Fruchtoberfläche (Farbe, Muster, Besonderheiten), Haare/Mähne, Augen, Gesichtsform, Hörner, Schnauze usw.
 - Kleidung nur beschreiben, wenn klar sichtbar; ansonsten leer lassen.
 - Accessories (z. B. Brille, Schmuck, Rucksack) immer angeben, wenn vorhanden, sonst [].
@@ -138,14 +152,11 @@ Schema:
 }`;
 
     const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
-${req.hints.name ? `- Name des Avatars: ${req.hints.name}` : ""}
 ${req.hints.physicalTraits ? `- Physische Eigenschaften vom Ersteller: ${JSON.stringify(req.hints.physicalTraits, null, 2)}` : ""}
-${req.hints.personalityTraits ? `- Persönlichkeitsmerkmale: ${JSON.stringify(req.hints.personalityTraits, null, 2)}` : ""}
 ${req.hints.expectedType ? `- Erwarteter Charakter-Typ: ${req.hints.expectedType}` : ""}
-${req.hints.culturalContext ? `- Kultureller Kontext: ${req.hints.culturalContext}` : ""}
 ${req.hints.stylePreference ? `- Stil-Präferenz: ${req.hints.stylePreference}` : ""}
 
-Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild übereinstimmen oder es sinnvoll ergänzen.` : "";
+Nutze nur visuell relevante Hinweise und übernimm nichts, das dem Bild widerspricht.` : "";
 
     const payload = {
       model: "gpt-5.4-mini",
@@ -160,10 +171,18 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         }
       ],
       response_format: { type: "json_object" },
-    	max_completion_tokens: 12000,
+      max_completion_tokens: 4000,
     };
 
-    console.log("📤 Sending request to OpenAI with gpt-5.4-mini...");
+    const analysisRequestLog = {
+      model: payload.model,
+      hasImage: true,
+      hasPhysicalHints: Boolean(req.hints?.physicalTraits),
+      expectedType: req.hints?.expectedType ?? null,
+      stylePreference: req.hints?.stylePreference ?? null,
+      maxTokens: payload.max_completion_tokens,
+    };
+    console.info("[ai.avatar-analysis] Sending vision request", analysisRequestLog);
 
     let res;
     try {
@@ -176,98 +195,61 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
         body: JSON.stringify(payload),
       });
     } catch (fetchError: any) {
-      console.error("❌ Network error calling OpenAI:", fetchError.message);
+      console.error("[ai.avatar-analysis] Vision provider network error", { errorName: fetchError?.name });
 
       // Log network errors
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          resolvedImageUrl: resolvedImageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
+        request: analysisRequestLog,
         response: {
           success: false,
           errorType: 'network_error',
-          errorMessage: fetchError.message,
           processingTimeMs: Date.now() - startTime
         },
       });
 
-      throw new Error(`Network error: ${fetchError.message}`);
+      throw new Error("Avatar image analysis provider is temporarily unavailable.");
     }
 
     if (!res.ok) {
-      const errorText = await res.text();
-      console.error("❌ OpenAI API error:", res.status, errorText);
+      console.error("[ai.avatar-analysis] Vision provider API error", { status: res.status });
 
       // Log API errors
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          resolvedImageUrl: resolvedImageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
+        request: analysisRequestLog,
         response: {
           success: false,
           errorType: 'openai_api_error',
-          errorMessage: errorText,
           httpStatus: res.status,
           processingTimeMs: Date.now() - startTime
         },
       });
 
-      throw new Error(`OpenAI API error: ${res.status} - ${errorText}`);
+      throw new Error(`Avatar image analysis failed with status ${res.status}.`);
     }
 
     let data: any;
     try {
       data = await res.json();
     } catch (jsonError: any) {
-      console.error("❌ Failed to parse OpenAI response as JSON:", jsonError.message);
+      console.error("[ai.avatar-analysis] Invalid provider response envelope", { errorName: jsonError?.name });
 
       // Log JSON parsing errors
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          resolvedImageUrl: resolvedImageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
+        request: analysisRequestLog,
         response: {
           success: false,
           errorType: 'json_parse_error',
-          errorMessage: jsonError.message,
           processingTimeMs: Date.now() - startTime
         },
       });
 
-      throw new Error(`JSON parse error: ${jsonError.message}`);
+      throw new Error("Avatar image analysis returned an invalid response.");
     }
 
     console.log("📥 OpenAI response received:", {
@@ -280,29 +262,16 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     const content = (data as any).choices?.[0]?.message?.content;
     if (!content || content.trim() === "") {
       console.error("❌ Empty content from OpenAI");
-      console.error("Full response:", JSON.stringify(data, null, 2));
 
       // Log empty content errors
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          resolvedImageUrl: resolvedImageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
+        request: analysisRequestLog,
         response: {
           success: false,
           errorType: 'empty_content',
           errorMessage: "OpenAI returned empty content",
-          fullOpenAIResponse: data,
           processingTimeMs: Date.now() - startTime
         },
       });
@@ -313,7 +282,6 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
     let parsed: any;
     try {
       const clean = content.replace(/```json\s*|\s*```/g, "").trim();
-      console.log("🔍 Parsing JSON response (first 200 chars):", clean.substring(0, 200) + "...");
       parsed = JSON.parse(clean);
       console.log("✅ Successfully parsed visual profile");
       
@@ -323,75 +291,41 @@ Integriere diese Informationen in deine visuelle Analyse, wenn sie mit dem Bild 
       }
       
     } catch (parseError: any) {
-      console.error("❌ JSON parse error:", parseError.message);
-      console.error("Raw content from OpenAI:", content.substring(0, 500));
+      console.error("[ai.avatar-analysis] Invalid visual profile JSON", { errorName: parseError?.name });
 
       // Log analysis parsing errors
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
-        request: {
-          model: (payload as any).model,
-          imageUrl: req.imageUrl,
-          resolvedImageUrl: resolvedImageUrl,
-          hints: req.hints,
-          systemPrompt: system,
-          userPrompt: userText,
-          hintsText: hintsText,
-          hasImage: true,
-          hintsProvided: !!req.hints,
-          maxTokens: (payload as any).max_completion_tokens
-        },
+        request: analysisRequestLog,
         response: {
           success: false,
           errorType: 'analysis_parse_error',
-          errorMessage: parseError.message,
-          rawContent: content,
           processingTimeMs: Date.now() - startTime
         },
       });
 
-      throw new Error(`Failed to parse analysis result: ${parseError.message}`);
+      throw new Error("Avatar image analysis returned invalid profile JSON.");
     }
 
     const processingTime = Date.now() - startTime;
-    console.log(`✅ Analysis completed successfully in ${processingTime}ms`);
 
-    // CRITICAL: Translate visual profile to English using OpenAI for Runware compatibility
-    console.log(`🌐 Translating visual profile to English using OpenAI...`);
+    // The vision prompt requests English. Translation is a defensive fallback for localized fields only.
     const translatedProfile = await translateVisualProfile(parsed);
-    console.log(`✅ Visual profile fully translated to English`);
+    console.info("[ai.avatar-analysis] Analysis completed", {
+      processingTimeMs: processingTime,
+      totalTokens: data.usage?.total_tokens ?? 0,
+    });
 
     // Erweiterte Logs für bessere Analyse
     await publishWithTimeout(logTopic, {
       source: 'openai-avatar-analysis-stable',
       timestamp: new Date(),
-      request: {
-        model: (payload as any).model,
-        imageUrl: req.imageUrl,
-        hints: req.hints,
-        systemPrompt: system,
-        userPrompt: userText,
-        hintsText: hintsText,
-        hasImage: true,
-        hintsProvided: !!req.hints,
-        maxTokens: (payload as any).max_completion_tokens
-      },
+      request: analysisRequestLog,
       response: {
         tokensUsed: data.usage,
         success: true,
-        visualProfileOriginal: parsed,
-        visualProfileTranslated: translatedProfile,
-        rawContent: content,
-        processingTimeMs: processingTime,
-        fullOpenAIResponse: {
-          choices: data.choices,
-          usage: data.usage,
-          model: data.model,
-          id: data.id,
-          created: data.created,
-          object: data.object
-        }
+        processingTimeMs: processingTime
       },
     });
 

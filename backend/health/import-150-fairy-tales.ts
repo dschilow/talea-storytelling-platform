@@ -45,7 +45,7 @@ interface FairyTaleImport {
  * Returns number of tales imported successfully
  */
 export const import150FairyTales = api(
-  { expose: true, method: "POST", path: "/health/import-150-fairy-tales" },
+  { expose: false, method: "POST", path: "/health/import-150-fairy-tales" },
   async (): Promise<{ success: boolean; imported: number; skipped: number; details: string[] }> => {
     console.log("Starting import of 150 fairy tales...");
     

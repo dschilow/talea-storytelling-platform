@@ -6,7 +6,7 @@ import { fairytalesDB } from "./db";
  * This forces Encore to run pending migrations
  */
 export const triggerMigrations = api(
-  { expose: true, method: "GET", path: "/fairytales/trigger-migrations", auth: false },
+  { expose: false, method: "GET", path: "/fairytales/trigger-migrations", auth: false },
   async (): Promise<{ success: boolean; taleCount: number; message: string }> => {
     try {
       console.log("🔄 Triggering fairy tales migrations by accessing database...");

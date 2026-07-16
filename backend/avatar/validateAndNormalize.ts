@@ -41,7 +41,7 @@ async function translateToEnglish(text: string): Promise<string> {
     return text;
   }
 
-  console.log(`[validateAndNormalize] Translating to English: "${text.substring(0, 50)}..."`);
+  console.info("[validateAndNormalize] Translating localized visual field", { inputLength: text.length });
 
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -66,7 +66,7 @@ Return ONLY the translated text, no explanations.`
           }
         ],
         temperature: 0.3, // Low temperature for consistent translations
-        max_tokens: 100,
+        max_completion_tokens: 300,
       }),
     });
 
@@ -78,11 +78,16 @@ Return ONLY the translated text, no explanations.`
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const translated = data.choices?.[0]?.message?.content?.trim() || text;
 
-    console.log(`[validateAndNormalize] Translated: "${text}" → "${translated}"`);
+    console.info("[validateAndNormalize] Visual field translated", {
+      inputLength: text.length,
+      outputLength: translated.length,
+    });
 
     return translated;
-  } catch (error) {
-    console.error('[validateAndNormalize] Translation failed:', error);
+  } catch (error: any) {
+    console.error("[validateAndNormalize] Translation failed", {
+      errorName: error?.name,
+    });
     return text; // Fallback to original text
   }
 }

@@ -1,4 +1,6 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
+import { claimMeteredUsage } from "../helpers/billing";
 import type { InvariantFeature } from "../avatar/avatar";
 
 /**
@@ -243,11 +245,27 @@ function getHeightDescription(height: number, age: number): string {
  * and used in image generation, solving the Adrian/Alexander age consistency issue.
  */
 export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateVisualProfileResponse>(
-  { expose: true, method: "POST", path: "/ai/generate-visual-profile" },
+  { expose: true, method: "POST", path: "/ai/generate-visual-profile", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (JSON.stringify(req).length > 50_000) {
+      throw APIError.invalidArgument("Visual profile request is too large.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
+
     const { avatarData } = req;
 
-    console.log(`🎨 Generating visual profile for ${avatarData.name}...`);
+    console.info("[ai.visual-profile] Building structured profile", {
+      characterType: avatarData.characterType,
+      hasAge: Number.isFinite(avatarData.age),
+      hasHeight: Number.isFinite(avatarData.height),
+      specialFeatureCount: avatarData.specialFeatures?.length ?? 0,
+    });
 
     const charType = avatarData.characterType;
     const isHumanChar = isHuman(charType);
@@ -376,8 +394,9 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
       }
     }
 
-    console.log(`🎯 Built ${mustIncludeFeatures.length} invariant features for ${avatarData.name}:`,
-      mustIncludeFeatures.map(f => f.mustIncludeToken));
+    console.info("[ai.visual-profile] Invariants prepared", {
+      invariantCount: mustIncludeFeatures.length,
+    });
 
     // Build the visual profile
     const visualProfile = {
@@ -513,11 +532,10 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
 
     const englishDescription = descriptionParts.join(", ");
 
-    console.log(`✅ Visual profile generated for ${avatarData.name}:`);
-    console.log(`   - Age: ${avatarData.age} years (${ageDesc})`);
-    console.log(`   - Height: ${avatarData.height || "N/A"}cm`);
-    console.log(`   - Character: ${characterTypeEn}`);
-    console.log(`   - Description: ${englishDescription.substring(0, 100)}...`);
+    console.info("[ai.visual-profile] Structured profile ready", {
+      descriptorCount: visualProfile.consistentDescriptors.length,
+      descriptionLength: englishDescription.length,
+    });
 
     return {
       visualProfile,

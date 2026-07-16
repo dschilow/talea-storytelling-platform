@@ -11,7 +11,7 @@ export interface DirectSQLResponse {
  * Direct SQL test endpoint to create fairy_tales table
  */
 export const createFairyTalesTable = api(
-  { expose: true, method: "POST", path: "/health/create-fairy-tales-table", auth: false },
+  { expose: false, method: "POST", path: "/health/create-fairy-tales-table", auth: false },
   async (): Promise<DirectSQLResponse> => {
     try {
       console.log("Creating fairy_tales table...");

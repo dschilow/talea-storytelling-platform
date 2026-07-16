@@ -4,8 +4,7 @@ import type { Avatar } from "./avatar";
 import { avatarDB } from "./db";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
-import { resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, linkAvatarToProfile } from "./profile-links";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 type CloneAvatarParams = {
@@ -89,7 +88,6 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
   async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarColumns();
-    await ensureAvatarProfileLinksTable();
     const targetProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.targetProfileId,
@@ -138,55 +136,36 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
     }
 
     const ownAvatar = source.user_id === auth.userID;
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     if (!ownAvatar && !source.is_public) {
       throw APIError.permissionDenied("Avatar is not available for cloning");
     }
 
-    if (ownAvatar) {
-      if (normalizeAvatarRole(source.avatar_role) === "child" && source.profile_id !== targetProfileId) {
-        throw APIError.failedPrecondition("The dedicated child avatar cannot be linked to another child profile.");
-      }
+    if (normalizeAvatarRole(source.avatar_role) === "child") {
+      throw APIError.failedPrecondition("A dedicated child avatar cannot be copied to another profile.");
+    }
 
-      if (source.profile_id !== targetProfileId) {
-        await linkAvatarToProfile({
-          avatarId: source.id,
-          userId: auth.userID,
-          profileId: targetProfileId,
-        });
-      }
+    if (ownAvatar && (source.profile_id || defaultProfile.id) === targetProfileId) {
+      throw APIError.failedPrecondition("This avatar already belongs to the selected child profile.");
+    }
 
-      const existing = await avatarDB.queryRow<{
-        id: string;
-        user_id: string;
-        profile_id: string | null;
-        name: string;
-        description: string | null;
-        physical_traits: string;
-        personality_traits: string;
-        image_url: string | null;
-        visual_profile: string | null;
-        creation_type: "ai-generated" | "photo-upload";
-        is_public: boolean;
-        source_type: string | null;
-        avatar_role: string | null;
-        source_avatar_id: string | null;
-        original_avatar_id: string | null;
-        created_at: Date;
-        updated_at: Date;
-        inventory: string | null;
-        skills: string | null;
-      }>`
-        SELECT *
-        FROM avatars
-        WHERE id = ${source.id}
-        LIMIT 1
-      `;
+    const rootAvatarId = source.original_avatar_id || source.source_avatar_id || source.id;
+    const existingCopy = await avatarDB.queryRow<any>`
+      SELECT *
+      FROM avatars
+      WHERE user_id = ${auth.userID}
+        AND profile_id = ${targetProfileId}
+        AND avatar_role <> 'child'
+        AND (
+          source_avatar_id = ${source.id}
+          OR original_avatar_id = ${rootAvatarId}
+        )
+      ORDER BY created_at ASC
+      LIMIT 1
+    `;
 
-      if (!existing) {
-        throw APIError.internal("Failed to load shared avatar");
-      }
-
-      return mapAvatarRow(existing);
+    if (existingCopy) {
+      return mapAvatarRow(existingCopy);
     }
 
     const cloneId = crypto.randomUUID();
@@ -207,6 +186,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         creation_type,
         is_public,
         source_type,
+        avatar_role,
         source_avatar_id,
         original_avatar_id,
         created_at,
@@ -227,6 +207,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         ${source.creation_type},
         FALSE,
         'clone',
+        'companion',
         ${source.id},
         ${source.original_avatar_id || source.id},
         ${now},
@@ -371,6 +352,7 @@ export const adoptPoolTemplate = api<AdoptPoolParams, Avatar>(
         'ai-generated',
         FALSE,
         'pool',
+        'companion',
         ${template.id},
         NULL,
         ${now},

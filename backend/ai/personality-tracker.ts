@@ -1,7 +1,23 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 
 // Railway uses self-signed certificates, so we disable SSL verification
+const avatarDB = SQLDatabase.named("avatar");
+
+async function assertOwnedAvatar(avatarId: string): Promise<void> {
+  const auth = getAuthData()!;
+  const avatar = await avatarDB.queryRow<{ user_id: string }>`
+    SELECT user_id FROM avatars WHERE id = ${avatarId}
+  `;
+  if (!avatar) {
+    throw APIError.notFound("Avatar not found");
+  }
+  if (avatar.user_id !== auth.userID && auth.role !== "admin") {
+    throw APIError.permissionDenied("You do not have access to this avatar");
+  }
+}
+
 const personalityDB = new SQLDatabase("personality_tracking", {
   migrations: "./migrations",
 });
@@ -28,8 +44,9 @@ export interface CheckPersonalityUpdateRequest {
 
 // Track that an avatar received personality updates from content
 export const trackPersonalityUpdate = api<TrackPersonalityUpdateRequest, { success: boolean }>(
-  { expose: true, method: "POST", path: "/ai/track-personality-update" },
+  { expose: true, method: "POST", path: "/ai/track-personality-update", auth: true },
   async (req) => {
+    await assertOwnedAvatar(req.avatarId);
     try {
       const now = new Date();
       const updateId = crypto.randomUUID();
@@ -56,8 +73,9 @@ export const trackPersonalityUpdate = api<TrackPersonalityUpdateRequest, { succe
 
 // Check if avatar already received updates from this content
 export const checkPersonalityUpdate = api<CheckPersonalityUpdateRequest, { hasUpdates: boolean; lastUpdate?: Date }>(
-  { expose: true, method: "GET", path: "/ai/check-personality-update" },
+  { expose: true, method: "GET", path: "/ai/check-personality-update", auth: true },
   async (req) => {
+    await assertOwnedAvatar(req.avatarId);
     const { avatarId, contentId, contentType } = req;
     try {
       const existing = await personalityDB.queryRow<{
@@ -105,8 +123,9 @@ export const getPersonalityHistory = api<{ avatarId: string }, {
     createdAt: Date;
   }>
 }>(
-  { expose: true, method: "GET", path: "/ai/personality-history/:avatarId" },
+  { expose: true, method: "GET", path: "/ai/personality-history/:avatarId", auth: true },
   async (req) => {
+    await assertOwnedAvatar(req.avatarId);
     try {
       const updates = await personalityDB.queryAll<{
         id: string;

@@ -5,9 +5,11 @@ import { ArrowLeft, RefreshCw, Save, Scan, Sparkles } from 'lucide-react';
 
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { AvatarForm } from '../../components/avatar-form';
 import { PersonalityRadarChart } from '../../components/avatar/PersonalityRadarChart';
 import {
+  AvatarVisualProfileRecord,
   AvatarFormData,
   BODY_BUILDS,
   CHARACTER_TYPES,
@@ -17,10 +19,11 @@ import {
   HAIR_COLORS,
   HAIR_STYLES,
   SKIN_TONES_HUMAN,
-  SPECIAL_FEATURES,
   CharacterTypeId,
   formDataToDescription,
-  formDataToVisualProfile,
+  getAvatarVisualPromptSignature,
+  inferSpecialFeaturesFromVisualProfile,
+  mergeVisualProfileWithForm,
   isHumanCharacter,
   isAnimalCharacter,
 } from '../../types/avatarForm';
@@ -72,6 +75,13 @@ function parseHeightFromText(text: string | undefined): number | undefined {
   if (height < 50 || height > 250) return undefined;
   return height;
 }
+function isInternalVisualDescription(value?: string | null) {
+  if (!value) return false;
+  const normalized = value.toLowerCase();
+  const visualTokens = ['average height', 'human,', 'build,', 'skin,', ' eyes,', ' hair,'];
+  return visualTokens.filter((token) => normalized.includes(token)).length >= 3;
+}
+
 
 function avatarToFormData(avatar: any): Partial<AvatarFormData> {
   const formData: Partial<AvatarFormData> = {
@@ -88,8 +98,15 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
     const characterType = String(
       visualProfile.characterType || physicalTraits.characterType || ''
     ).toLowerCase();
-    const matchedType = CHARACTER_TYPES.find((type) => characterType.includes(type.id) || characterType.includes(type.labelEn));
-    formData.characterType = matchedType?.id || 'human';
+    const matchedType = CHARACTER_TYPES
+      .filter((type) => type.id !== 'other')
+      .find((type) => characterType.includes(type.id) || characterType.includes(type.labelEn));
+    if (matchedType) {
+      formData.characterType = matchedType.id;
+    } else {
+      formData.characterType = characterType ? 'other' : 'human';
+      formData.customCharacterType = characterType || undefined;
+    }
 
     const genderValue = String(visualProfile.gender || '').toLowerCase();
     if (genderValue.includes('female')) {
@@ -101,7 +118,7 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
     const explicitAge = Number(visualProfile.ageNumeric);
     const parsedAge = parseAgeFromText(String(visualProfile.ageApprox || ''));
     formData.age =
-      Number.isFinite(explicitAge) && explicitAge >= 1 && explicitAge <= 150
+      Number.isFinite(explicitAge) && explicitAge >= 0 && explicitAge <= 150
         ? explicitAge
         : parsedAge ?? fallbackAge ?? 8;
 
@@ -140,17 +157,7 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
       formData.skinTone = matchedFur?.id || 'brown';
     }
 
-    const accessoryFeatures = Array.isArray(visualProfile.accessories)
-      ? visualProfile.accessories
-          .map((accessory: string) =>
-            SPECIAL_FEATURES.find((feature) =>
-              accessory.toLowerCase().includes(feature.labelEn.toLowerCase())
-            )?.id
-          )
-          .filter(Boolean)
-      : [];
-
-    formData.specialFeatures = accessoryFeatures as any;
+    formData.specialFeatures = inferSpecialFeaturesFromVisualProfile(visualProfile);
   }
 
   if (!visualProfile && avatar.physicalTraits) {
@@ -182,28 +189,39 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
     }
   }
 
-  if (avatar.description) {
-    formData.additionalDescription = avatar.description;
+  const visualNotes = typeof visualProfile?.additionalNotes === 'string'
+    ? visualProfile.additionalNotes.trim()
+    : '';
+  if (visualNotes) {
+    formData.additionalDescription = visualNotes;
+  } else if (avatar.description && !isInternalVisualDescription(avatar.description)) {
+    formData.additionalDescription = String(avatar.description);
   }
 
   return formData;
 }
 
-function formDataToBackendFormat(formData: AvatarFormData) {
+function formDataToBackendFormat(
+  formData: AvatarFormData,
+  isChildAvatar: boolean,
+  existingVisualProfile?: AvatarVisualProfileRecord
+) {
   const characterType = CHARACTER_TYPES.find((entry) => entry.id === formData.characterType);
   const description = formDataToDescription(formData);
 
   return {
     name: formData.name,
-    description: formData.additionalDescription || description,
+    description: formData.additionalDescription?.trim() || (isChildAvatar
+      ? `${formData.name} ist der persönliche Kind-Avatar und erlebt seine eigene Reise.`
+      : `${formData.name} begleitet dich in Geschichten und Dokus.`),
     physicalTraits: {
       characterType:
         formData.characterType === 'other' && formData.customCharacterType
           ? formData.customCharacterType
-          : characterType?.labelDe || 'Mensch',
+          : characterType?.labelEn || 'human',
       appearance: description,
     },
-    visualProfile: formDataToVisualProfile(formData),
+    visualProfile: mergeVisualProfileWithForm(existingVisualProfile, formData),
   };
 }
 
@@ -211,6 +229,8 @@ const EditAvatarScreen: React.FC = () => {
   const { avatarId } = useParams<{ avatarId: string }>();
   const navigate = useNavigate();
   const backend = useBackend();
+  const childProfiles = useOptionalChildProfiles();
+  const activeProfileId = childProfiles?.activeProfileId || undefined;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
@@ -233,12 +253,15 @@ const EditAvatarScreen: React.FC = () => {
     const loadAvatar = async () => {
       try {
         setLoading(true);
-        const avatarData = await backend.avatar.get({ id: avatarId });
+        const avatarData = await backend.avatar.get({ id: avatarId, profileId: activeProfileId });
 
         if (!alive) return;
         setAvatar(avatarData);
         setPreviewUrl((avatarData as any).imageUrl);
         const converted = avatarToFormData(avatarData);
+        if ((avatarData as any).avatarRole === 'child') {
+          converted.characterType = 'human';
+        }
         setFormData((previous) => ({ ...previous, ...converted }));
       } catch (error) {
         console.error('Could not load avatar for editing:', error);
@@ -255,7 +278,7 @@ const EditAvatarScreen: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, [avatarId, backend.avatar, navigate]);
+  }, [activeProfileId, avatarId, backend.avatar, navigate]);
 
   const handleFormChange = useCallback((data: AvatarFormData) => {
     setFormData(data);
@@ -281,27 +304,7 @@ const EditAvatarScreen: React.FC = () => {
 
       setPreviewUrl(result.imageUrl);
 
-      try {
-        const analysis = await backend.ai.analyzeAvatarImage({
-          imageUrl: result.imageUrl,
-          hints: {
-            name: data.name,
-            expectedType: isHumanCharacter(data.characterType) ? 'human' : 'animal',
-          },
-        });
-
-        setAvatar((previous: any) => ({
-          ...previous,
-          imageUrl: result.imageUrl,
-          visualProfile: analysis.visualProfile,
-        }));
-      } catch (analysisError) {
-        console.error('Preview image analysis failed:', analysisError);
-        setAvatar((previous: any) => ({
-          ...previous,
-          imageUrl: result.imageUrl,
-        }));
-      }
+      setAvatar((previous: any) => ({ ...previous, imageUrl: result.imageUrl }));
 
       const { showSuccessToast } = await import('../../utils/toastUtils');
       showSuccessToast('Neues Avatar-Bild generiert.');
@@ -350,6 +353,7 @@ const EditAvatarScreen: React.FC = () => {
       await backend.avatar.update({
         id: avatarId,
         visualProfile: mergedVisualProfile,
+        profileId: activeProfileId,
       });
 
       setAvatar((previous: any) => ({
@@ -375,12 +379,13 @@ const EditAvatarScreen: React.FC = () => {
 
     try {
       setSaving(true);
-      const payload = formDataToBackendFormat(formData);
+      const payload = formDataToBackendFormat(formData, avatar?.avatarRole === 'child');
 
       await backend.avatar.update({
         id: avatarId,
         ...payload,
         imageUrl: previewUrl,
+        profileId: activeProfileId,
       });
 
       const { showSuccessToast } = await import('../../utils/toastUtils');
@@ -503,6 +508,7 @@ const EditAvatarScreen: React.FC = () => {
               previewUrl={previewUrl}
               isGeneratingPreview={regeneratingImage}
               mode="edit"
+              childMode={avatar?.avatarRole === 'child'}
             />
           </section>
 

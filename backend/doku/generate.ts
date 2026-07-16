@@ -10,10 +10,10 @@ import { claimGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import {
   assertProfilesBelongToUser,
+  ensureDefaultProfileForUser,
   getProfileForUser,
   resolveRequestedProfileId,
 } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import {
   assertParentalDailyLimit,
   buildGenerationGuidanceFromControls,
@@ -209,6 +209,50 @@ function uniqueTrimmed(values: string[]): string[] {
   );
 }
 
+async function resolveProfileAvatarIds(params: {
+  userId: string;
+  profileIds: string[];
+  defaultProfileId: string;
+}): Promise<Map<string, string[]>> {
+  const profiles = await Promise.all(
+    params.profileIds.map((profileId) =>
+      getProfileForUser({ userId: params.userId, profileId })
+    )
+  );
+  const candidatesByProfile = new Map(
+    profiles.map((profile) => [
+      profile.id,
+      uniqueTrimmed([
+        ...(profile.childAvatarId ? [profile.childAvatarId] : []),
+        ...profile.preferredAvatarIds,
+      ]),
+    ])
+  );
+  const candidateIds = uniqueTrimmed(Array.from(candidatesByProfile.values()).flat());
+  const result = new Map(params.profileIds.map((profileId) => [profileId, [] as string[]]));
+  if (candidateIds.length === 0) return result;
+
+  const rows = await avatarDB.queryAll<{ id: string; profile_id: string | null }>`
+    SELECT id, profile_id
+    FROM avatars
+    WHERE user_id = ${params.userId}
+      AND id = ANY(${candidateIds})
+  `;
+  const rowsById = new Map(rows.map((row) => [row.id, row]));
+
+  for (const profileId of params.profileIds) {
+    const selected = (candidatesByProfile.get(profileId) || []).find((avatarId) => {
+      const row = rowsById.get(avatarId);
+      if (!row) return false;
+      const ownerProfileId = row.profile_id || params.defaultProfileId;
+      return ownerProfileId === profileId;
+    });
+    if (selected) result.set(profileId, [selected]);
+  }
+
+  return result;
+}
+
 function normalizeKeyFact(value: unknown): DokuKeyFact | null {
   if (typeof value === "string") {
     const fact = value.replace(/\s+/g, " ").trim();
@@ -334,6 +378,10 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       userId: currentUserId,
       profileId: primaryProfileId,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(
+      currentUserId,
+      auth?.email ?? undefined,
+    );
     const requestedParticipants = extractParticipantProfileIds(req);
     const participantProfileIds = uniqueTrimmed([
       primaryProfileId,
@@ -343,11 +391,15 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
           : []
       ),
     ]);
+    const profileAvatarIds = await resolveProfileAvatarIds({
+      userId: currentUserId,
+      profileIds: participantProfileIds,
+      defaultProfileId: defaultProfile.id,
+    });
     const inferredAgeGroup = ageToAgeGroup(primaryProfile.age);
     const personalizationPrompt = buildDokuProfilePrompt(primaryProfile);
     config.ageGroup = config.ageGroup || inferredAgeGroup || "6-8";
     config.personalizationPrompt = personalizationPrompt || config.personalizationPrompt;
-    await ensureAvatarProfileLinksTable();
     await reserveDokuGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
@@ -383,10 +435,11 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
             ${crypto.randomUUID()},
             ${id},
             ${participantProfileId},
-            '[]'::jsonb,
+            ${JSON.stringify(profileAvatarIds.get(participantProfileId) || [])}::jsonb,
             ${now}
           )
-          ON CONFLICT (doku_id, profile_id) DO NOTHING
+          ON CONFLICT (doku_id, profile_id) DO UPDATE
+          SET avatar_ids = EXCLUDED.avatar_ids
         `;
 
         await dokuDB.exec`

@@ -97,6 +97,15 @@ export async function syncChildAvatarLink(params: {
   if (params.role !== "child") {
     return;
   }
+  await userDB.exec`
+    UPDATE child_profiles
+    SET child_avatar_id = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE user_id = ${params.userId}
+      AND child_avatar_id = ${params.avatarId}
+      AND id <> ${params.profileId}
+  `;
+
 
   await userDB.exec`
     UPDATE child_profiles

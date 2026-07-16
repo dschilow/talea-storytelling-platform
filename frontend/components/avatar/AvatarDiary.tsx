@@ -12,11 +12,13 @@ import {
 } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
+import ConceptHelp from './ConceptHelp';
 import type { AvatarMemory } from '../../types/avatar';
 
 type DiaryFilter = 'all' | 'story' | 'doku';
 
 interface AvatarDiaryProps {
+  avatarName: string;
   memories: AvatarMemory[];
   loading: boolean;
   error?: string | null;
@@ -44,6 +46,11 @@ const sourceMeta = (type?: AvatarMemory['contentType']) => {
   if (type === 'activity') return { label: 'Aktivit\u00e4t', icon: Heart, color: '#a45f7a', soft: '#f6e6ed' };
   return { label: 'Geschichte', icon: BookOpen, color: '#5f78a0', soft: '#e7ecf5' };
 };
+const memoryTierMeta = (tier?: AvatarMemory['memoryTier']) => {
+  if (tier === 'core') return { label: 'Bleibt wichtig', explanation: 'Diese Erinnerung gehört zum Langzeitgedächtnis und darf spätere Geschichten prägen.' };
+  if (tier === 'episodic') return { label: 'Im Tagebuch', explanation: 'Dieses Erlebnis bleibt als wichtige Episode erhalten.' };
+  return { label: 'Gerade erlebt', explanation: 'Diese frische Erinnerung hilft vor allem bei den nächsten Abenteuern.' };
+};
 
 const formatDate = (value: string) => {
   const date = new Date(value);
@@ -56,6 +63,7 @@ const formatDate = (value: string) => {
 };
 
 const AvatarDiary: React.FC<AvatarDiaryProps> = ({
+  avatarName,
   memories,
   loading,
   error,
@@ -119,9 +127,12 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>Erinnerungen</p>
-            <h2 className="mt-1 text-2xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Mein Tagebuch</h2>
+            <div className="mt-1 flex items-center gap-1.5">
+              <h2 className="text-2xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Tagebuch von {avatarName}</h2>
+              <ConceptHelp title={"So merkt sich " + avatarName + " etwas"} align="left"><p>Frische Erlebnisse helfen zuerst bei den nächsten Geschichten. Wichtiges wandert ins Tagebuch oder ins Langzeitgedächtnis. So erinnert sich dein Avatar, ohne jede Kleinigkeit mitzuschleppen.</p></ConceptHelp>
+            </div>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
-              Hier steht, was dein Avatar erlebt hat und welche St&auml;rken dabei gewachsen sind.
+              Hier steht, was {avatarName} erlebt hat und welche St&auml;rken dabei gewachsen sind.
             </p>
           </div>
           <span className="inline-flex w-fit rounded-full border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: isDark ? '#40576d' : '#d9cdbf', color: isDark ? '#c2d0df' : '#536a81' }}>
@@ -163,6 +174,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
             const SourceIcon = meta.icon;
             const confirming = confirmingId === memory.id;
             const deleting = deletingId === memory.id;
+            const tier = memoryTierMeta(memory.memoryTier);
             return (
               <li key={memory.id}>
                 <article className="rounded-[24px] border p-4 sm:p-5" style={panel}>
@@ -181,11 +193,12 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                           {formatDate(memory.createdAt || memory.timestamp || '')}
                         </time>
                       </div>
+                        <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold" title={tier.explanation} style={{ borderColor: isDark ? '#466057' : '#c4d9cf', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#b8d3ca' : '#45695d' }}>{tier.label}</span>
                       <h3 className="mt-1 text-lg font-semibold leading-snug" style={{ color: isDark ? '#edf4ff' : '#203449' }}>{memory.storyTitle}</h3>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>{memory.experience}</p>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>{memory.summary || memory.experience}</p>
 
                   {memory.personalityChanges?.length > 0 ? (
                     <div className="mt-4">
@@ -212,7 +225,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                     <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc' }}>
                       {confirming ? (
                         <div className="flex flex-wrap items-center justify-end gap-2" role="group" aria-label="L&ouml;schen best&auml;tigen">
-                          <span className="mr-1 text-xs font-semibold" style={{ color: isDark ? '#d4bdc2' : '#8d5863' }}>Erinnerung wirklich l&ouml;schen?</span>
+                          <span className="mr-1 max-w-sm text-xs font-semibold" style={{ color: isDark ? '#d4bdc2' : '#8d5863' }}>Eintrag wirklich löschen? Deine gesammelten Stärkepunkte und der Lesestatus bleiben erhalten.</span>
                           <button
                             type="button"
                             onClick={() => setConfirmingId(null)}
@@ -232,7 +245,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                             className="inline-flex min-h-9 items-center gap-1 rounded-full bg-[#9b5966] px-3 text-xs font-semibold text-white disabled:opacity-60"
                           >
                             {deleting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                            L&ouml;schen
+                            Löschen
                           </button>
                         </div>
                       ) : (
@@ -243,7 +256,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                           style={{ color: isDark ? '#c9a7ae' : '#945764' }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Erinnerung l&ouml;schen
+                          Eintrag löschen
                         </button>
                       )}
                     </div>

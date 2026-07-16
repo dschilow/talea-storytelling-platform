@@ -14,6 +14,7 @@ import {
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import { claimMeteredUsage } from "../helpers/billing";
 import {
   assertCanAssignChildAvatar,
   ensureAvatarColumns,
@@ -30,10 +31,17 @@ export const create = api(
     path: "/avatar",
   },
   async (req: CreateAvatarRequest): Promise<Avatar> => {
-    console.log("Received request to create avatar:", req);
-
     const auth = getAuthData()!;
     const userId = auth.userID;
+    if (JSON.stringify(req).length > 100_000) {
+      throw APIError.invalidArgument("Avatar request is too large.");
+    }
+    await claimMeteredUsage({
+      userId,
+      kind: "chat",
+      units: 1,
+      clerkToken: auth.clerkToken,
+    });
     const avatarId = crypto.randomUUID();
     await ensureAvatarColumns();
     const profileId = await resolveRequestedProfileId({
@@ -41,8 +49,6 @@ export const create = api(
       requestedProfileId: req.profileId,
     });
     const avatarRole = normalizeAvatarRole(req.avatarRole);
-
-    console.log(`Generated avatarId: ${avatarId} for userId: ${userId}`);
 
     // Überschreibe personality traits mit Standardwerten (alle beginnen bei 0)
     const defaultPersonalityTraits = getDefaultPersonalityTraits();
@@ -118,18 +124,14 @@ export const create = api(
     const personalityTraitsJson = JSON.stringify(defaultPersonalityTraits);
     const visualProfileJson = normalizedVisualProfile ? JSON.stringify(normalizedVisualProfile) : null;
 
-    console.log("Data for DB insert:");
-    console.log(`- id: ${avatarId}`);
-    console.log(`- user_id: ${userId}`);
-    console.log(`- name: ${req.name}`);
-    console.log(`- profile_id: ${profileId}`);
-    console.log(`- avatar_role: ${avatarRole}`);
-    console.log(`- description: ${req.description || null}`);
-    console.log(`- physical_traits: ${physicalTraitsJson}`);
-    console.log(`- personality_traits: ${personalityTraitsJson}`);
-    console.log(`- image_url: ${finalImageUrl || null}`);
-    console.log(`- visual_profile: ${visualProfileJson}`);
-    console.log(`- creation_type: ${req.creationType}`);
+    console.info("[avatar.create] Persisting avatar", {
+      avatarId,
+      profileId,
+      avatarRole,
+      creationType: req.creationType,
+      hasImage: Boolean(finalImageUrl),
+      hasVisualProfile: Boolean(visualProfileJson),
+    });
 
     try {
       // INSERT including visual_profile column
@@ -164,16 +166,18 @@ export const create = api(
           '[]'
         )
       `;
-      console.log("Avatar created successfully in DB");
-      console.log(`- visual_profile saved: ${visualProfileJson ? 'YES' : 'NO'}`);
+      console.info("[avatar.create] Avatar persisted", { avatarId, profileId, avatarRole });
       await syncChildAvatarLink({
         userId,
         profileId,
         avatarId,
         role: avatarRole,
       });
-    } catch (e) {
-      console.error("Error inserting avatar into DB:", e);
+    } catch (e: any) {
+      console.error("[avatar.create] Database insert failed", {
+        avatarId,
+        errorName: e?.name,
+      });
       throw e; // re-throw the error to let encore handle it
     }
 

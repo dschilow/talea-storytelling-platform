@@ -6,8 +6,11 @@ import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
 import { claimGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
-import { assertProfilesBelongToUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, hasAvatarProfileLinkForAny } from "../avatar/profile-links";
+import {
+  assertProfilesBelongToUser,
+  ensureDefaultProfileForUser,
+  resolveRequestedProfileId,
+} from "../helpers/profiles";
 import crypto from "crypto";
 
 // =====================================================
@@ -58,7 +61,10 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
         ),
       ])
     );
-    await ensureAvatarProfileLinksTable();
+    const defaultProfile = await ensureDefaultProfileForUser(
+      currentUserId,
+      auth?.email ?? undefined
+    );
     const storyId = crypto.randomUUID();
 
     await claimGenerationUsage({
@@ -104,7 +110,7 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
 
     // 3. Validate character mappings against roles
     const errors: string[] = [];
-    const avatarIds = Object.values(req.characterMappings);
+    const avatarIds = Array.from(new Set(Object.values(req.characterMappings)));
 
     // Check required roles are mapped
     for (const role of roles) {
@@ -130,13 +136,13 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
           if (!avatar.is_public) {
             errors.push(`Avatar ${avatar.id} is not available. Copy it into your profile first.`);
           }
-        } else if (avatar.profile_id && !participantProfileIds.includes(String(avatar.profile_id))) {
-          const linkedToAnyParticipant = await hasAvatarProfileLinkForAny({
-            avatarId: avatar.id,
-            userId: currentUserId,
-            profileIds: participantProfileIds,
-          });
-          if (!linkedToAnyParticipant) {
+        } else {
+          // A mutable account avatar belongs to exactly one child profile.
+          // Legacy rows without profile_id are visible only in the default profile.
+          const ownerProfileId = avatar.profile_id
+            ? String(avatar.profile_id)
+            : defaultProfile.id;
+          if (!participantProfileIds.includes(ownerProfileId)) {
             errors.push(`Avatar ${avatar.id} belongs to another child profile`);
           }
         }

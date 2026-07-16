@@ -1,4 +1,4 @@
-﻿import { api } from "encore.dev/api";
+import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
 import type {
   StoryConfig,
@@ -466,10 +466,19 @@ async function getAvatarProfilesFromDB(avatarIds: string[]): Promise<McpAvatarPr
 
   return profiles;
 }
+function parseStoredTraitChanges(value: unknown): Array<{ trait: string; change: number }> {
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? normalizeTraitChanges(parsed) : [];
+  } catch {
+    return [];
+  }
+}
+
 
 async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Promise<McpAvatarMemory[]> {
-  // OPTIMIZED: Simple query with actual limit, no CTE overhead.
-  // Table is created by migrations, no need for CREATE TABLE IF NOT EXISTS on every call.
+  // Keep one fresh memory and one important long-term memory. This preserves
+  // continuity without sending the complete diary to the model.
   const memoryRowsGenerator = await avatarDB.query<{
     id: string;
     story_id: string;
@@ -479,10 +488,28 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Pro
     personality_changes: string;
     created_at: string;
   }>`
+    WITH ranked AS (
+      SELECT
+        id,
+        story_id,
+        story_title,
+        COALESCE(NULLIF(summary, ''), experience, '') AS experience,
+        emotional_impact,
+        personality_changes,
+        created_at,
+        ROW_NUMBER() OVER (ORDER BY created_at DESC) AS recent_rank,
+        ROW_NUMBER() OVER (
+          ORDER BY is_pinned DESC, importance DESC,
+            CASE memory_tier WHEN 'core' THEN 0 WHEN 'episodic' THEN 1 ELSE 2 END,
+            created_at DESC
+        ) AS important_rank
+      FROM avatar_memories
+      WHERE avatar_id = ${avatarId}
+    )
     SELECT id, story_id, story_title, experience, emotional_impact, personality_changes, created_at
-    FROM avatar_memories
-    WHERE avatar_id = ${avatarId}
-    ORDER BY created_at DESC
+    FROM ranked
+    WHERE recent_rank = 1 OR important_rank = 1
+    ORDER BY CASE WHEN recent_rank = 1 THEN 0 ELSE 1 END, important_rank
     LIMIT ${limit}
   `;
 
@@ -498,7 +525,7 @@ async function getAvatarMemoriesFromDB(avatarId: string, limit: number = 2): Pro
     storyTitle: row.story_title,
     experience: row.experience,
     emotionalImpact: row.emotional_impact,
-    personalityChanges: JSON.parse(row.personality_changes),
+    personalityChanges: parseStoredTraitChanges(row.personality_changes),
     createdAt: row.created_at,
   }));
 }
@@ -821,10 +848,12 @@ interface CoverImageDescription {
 }
 
 interface AvatarDevelopment {
+  avatarId: string;
   name: string;
   changedTraits: Array<{
     trait: string;
     change: number;
+    description?: string;
   }>;
 }
 
@@ -927,7 +956,7 @@ export const generateStoryContent = api<
   GenerateStoryContentRequest,
   GenerateStoryContentResponse
 >(
-  { expose: true, method: "POST", path: "/ai/generate-story" },
+  { expose: false, method: "POST", path: "/ai/generate-story" },
   async (req) => {
     const startTime = Date.now();
 
@@ -950,10 +979,10 @@ export const generateStoryContent = api<
         id: a.id,
         name: a.name,
       }));
-      
+
       const avatarIdsOrNames = req.avatarDetails.map((avatar) => avatar.id);
       let avatarIds: string[];
-      
+
       try {
         avatarIds = normalizeAvatarIds(avatarIdsOrNames, avatarIdMappings);
         console.log("[ai-generation] ✅ Avatar IDs normalized:", avatarIds.length, "IDs");
@@ -996,12 +1025,12 @@ export const generateStoryContent = api<
       // Keep chapters with at least a title, even if content is short
       if (storyOutcome.story.chapters) {
         const originalCount = storyOutcome.story.chapters.length;
-        storyOutcome.story.chapters = storyOutcome.story.chapters.filter((ch: any) => 
+        storyOutcome.story.chapters = storyOutcome.story.chapters.filter((ch: any) =>
           ch && (ch.title?.trim() || ch.content?.trim())
         );
         const removedCount = originalCount - storyOutcome.story.chapters.length;
         console.log(`[ai-generation] ✂️ Cleaned chapters: ${storyOutcome.story.chapters.length} valid, ${removedCount} removed`);
-        
+
         // Ensure all chapters have an 'order' field (validator requires it)
         storyOutcome.story.chapters = storyOutcome.story.chapters.map((ch: any, idx: number) => ({
           ...ch,
@@ -1045,7 +1074,7 @@ export const generateStoryContent = api<
 
       // KRITISCH: Prüfe ob ALLE Avatare ein visualProfile haben
       const missingProfiles = req.avatarDetails.filter((av: any) => !avatarProfilesByName[av.name]);
-      
+
       if (Object.keys(avatarProfilesByName).length === 0) {
         console.warn("[ai-generation] ⚠️ Keine Avatarprofile über Tool-Aufrufe erhalten – Fallback auf direkten DB-Aufruf.");
         const fallbackProfiles = await getAvatarProfilesFromDB(avatarIds);
@@ -1056,14 +1085,14 @@ export const generateStoryContent = api<
         });
       } else if (missingProfiles.length > 0) {
         console.warn(`[ai-generation] ${missingProfiles.length} Avatare ohne visualProfile erkannt:`, missingProfiles.map((a: any) => a.name));
-        
+
         // OPTIMIZATION v1.0: Use createFallbackProfile function
         missingProfiles.forEach((avatar: any) => {
           console.log(`[ai-generation] Erstelle Fallback-Profil für Avatar "${avatar.name}"`);
-          
+
           const fallbackProfile = createFallbackProfile(avatar);
           avatarProfilesByName[avatar.name] = fallbackProfile;
-          
+
           console.log(`[ai-generation] ✅ Fallback-Profil für "${avatar.name}" erstellt (v${fallbackProfile.version}, hash: ${fallbackProfile.hash.substring(0, 8)})`);
         });
       }
@@ -1394,7 +1423,7 @@ interface StoryToolOutcome {
 }
 
 // OPTIMIERT: Reduziert Memories von 3 auf 1 und Descriptors von 6 auf 4 für Token-Einsparung
-const MAX_TOOL_MEMORIES = 1;
+const MAX_TOOL_MEMORIES = 2;
 const MAX_DESCRIPTOR_COUNT = 4;
 
 function compressVisualProfile(profile: AvatarVisualProfile) {
@@ -1492,71 +1521,29 @@ function normalizeTraitChanges(changes: any): Array<{ trait: string; change: num
 
 function enforceAvatarDevelopments(
   story: any,
-  avatars: Array<{ name: string }>
+  avatars: Array<{ id: string; name: string }>
 ): void {
   if (!story || typeof story !== "object" || !Array.isArray(avatars)) {
     return;
   }
 
-  const requiredNames: string[] = [];
-  const seenNames = new Set<string>();
-  avatars.forEach((avatar) => {
-    if (typeof avatar?.name !== "string") {
-      return;
-    }
-    const trimmed = avatar.name.trim();
-    if (!trimmed) {
-      return;
-    }
-    const key = trimmed.toLowerCase();
-    if (seenNames.has(key)) {
-      return;
-    }
-    seenNames.add(key);
-    requiredNames.push(trimmed);
-  });
-
-  const provided = Array.isArray(story.avatarDevelopments)
-    ? story.avatarDevelopments
-    : [];
-
-  const byName = new Map<string, { name: string; changedTraits: Array<{ trait: string; change: number }> }>();
-
-  for (const entry of provided) {
-    if (!entry || typeof entry !== "object") continue;
-    const providedName =
-      typeof entry.name === "string" && entry.name.trim().length > 0
-        ? entry.name.trim()
-        : undefined;
-    if (!providedName) continue;
-
-    const key = providedName.toLowerCase();
-    if (byName.has(key)) {
-      continue;
-    }
-    byName.set(key, {
-      name: providedName,
-      changedTraits: normalizeTraitChanges(entry.changedTraits),
-    });
-  }
-
-  const enforced = requiredNames.map((name) => {
-    const key = name.toLowerCase();
-    const existing = byName.get(key);
-    if (existing) {
-      return {
-        name,
-        changedTraits: existing.changedTraits,
-      };
-    }
-    return {
-      name,
+  const assignedById = new Map(
+    assignAvatarDevelopmentIds(story.avatarDevelopments, avatars)
+      .map((development) => [development.avatarId, development]),
+  );
+  const enforced = avatars.map((avatar) =>
+    assignedById.get(avatar.id) ?? {
+      avatarId: avatar.id,
+      name: avatar.name,
       changedTraits: [],
-    };
-  });
+    },
+  );
 
   story.avatarDevelopments = enforced;
-  console.log("[ai-generation] Enforced avatar developments:", enforced);
+  console.log("[ai-generation] Enforced avatar developments:", {
+    avatarCount: avatars.length,
+    developmentCount: enforced.filter((entry) => entry.changedTraits.length > 0).length,
+  });
 }
 
 interface StoryValidationResult {
@@ -2128,7 +2115,7 @@ You MUST implement this style consistently in ALL chapters!`
     '  ],',
     '  "coverImageDescription": same structure as imageDescription,',
     '  "avatarDevelopments": [',
-    '    { "name": string, "changedTraits": [ { "trait": string, "change": number, "description": string } ] }',
+    '    { "avatarId": string, "name": string, "changedTraits": [ { "trait": string, "change": number, "description": string } ] }',
     '  ],',
     '  "learningOutcomes": [',
     '    { "subject": string, "newConcepts": string[], "reinforcedSkills": string[], "difficulty_mastered": string, "practical_applications": string[] }',
@@ -2141,6 +2128,7 @@ You MUST implement this style consistently in ALL chapters!`
     ...avatars.map((avatar, index) => {
       const lines = [
         "  {",
+        '    "avatarId": "' + avatar.id + '",',
         '    "name": "' + avatar.name + '",',
         '    "changedTraits": [',
         '      { "trait": "courage", "change": ' + (index === 0 ? "3" : "2") + ', "description": "earned through teamwork in the adventure" },',
@@ -2622,3 +2610,4 @@ You MUST implement this style consistently in ALL chapters!`
   };
 }
 
+import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";

@@ -299,14 +299,62 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 8rem 2rem 5rem;
+  padding: 6.5rem 2rem 4.5rem;
   overflow: hidden;
+}
+
+/* Cinematic opening shot — hero backdrop */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+}
+
+.hero-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  animation: heroKenBurns 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom,
+      rgba(6, 6, 8, 0.78) 0%,
+      rgba(6, 6, 8, 0.42) 28%,
+      rgba(6, 6, 8, 0.5) 60%,
+      rgba(6, 6, 8, 0.94) 100%
+    ),
+    radial-gradient(ellipse 70% 58% at 50% 45%,
+      rgba(6, 6, 8, 0.55) 0%,
+      rgba(6, 6, 8, 0.2) 55%,
+      transparent 80%
+    );
+}
+
+@keyframes heroKenBurns {
+  0%   { transform: scale(1.05) translateY(0); }
+  100% { transform: scale(1.17) translateY(-20px); }
+}
+
+.hero-scene > .hero-kicker,
+.hero-scene > .hero-title,
+.hero-scene > .hero-sub,
+.hero-scene > .hero-actions {
+  position: relative;
+  z-index: 3;
 }
 
 /* Ambient explosion rings */
 .hero-ambient {
   position: absolute;
   inset: 0;
+  z-index: 1;
   pointer-events: none;
   overflow: hidden;
 }
@@ -360,6 +408,7 @@
   top: 50%; left: 50%;
   width: 100%; height: 100%;
   transform: translate(-50%, -50%);
+  z-index: 1;
   pointer-events: none;
   animation: burstFade 3.5s var(--ease-expo) forwards;
 }
@@ -391,26 +440,28 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 1.2rem;
-  background: rgba(232, 168, 56, 0.06);
-  border: 1px solid rgba(232, 168, 56, 0.15);
+  background: rgba(10, 8, 4, 0.5);
+  border: 1px solid rgba(232, 168, 56, 0.22);
   font-size: 0.65rem;
   font-weight: 600;
   color: var(--c-amber);
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.8rem;
   backdrop-filter: blur(10px);
 }
 
-/* ── Hero Title ── */
+/* ── Hero Title ──
+   Sizing rule: title + sub + CTA must fit one ~900px viewport together.
+   Keep the drama in the reveal, not in raw font size. */
 .hero-title {
   font-family: var(--font-display);
-  font-size: clamp(3.2rem, 9vw, 8.5rem);
+  font-size: clamp(2.5rem, 5.4vw, 4.8rem);
   font-weight: 800;
-  line-height: 0.9;
-  letter-spacing: -0.045em;
-  margin-bottom: 2.5rem;
-  max-width: 1050px;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  margin-bottom: 1.7rem;
+  max-width: 950px;
 }
 
 .hero-title .word {
@@ -447,13 +498,14 @@
 /* Hero Sub */
 .hero-sub {
   font-size: clamp(1rem, 1.25vw, 1.12rem);
-  color: var(--c-text-dim);
-  max-width: 520px;
-  margin: 0 auto 2.8rem;
-  line-height: 1.8;
+  color: rgba(238, 232, 224, 0.78);
+  max-width: 540px;
+  margin: 0 auto 2.3rem;
+  line-height: 1.75;
   opacity: 0;
   font-weight: 300;
   letter-spacing: 0.01em;
+  text-shadow: 0 2px 24px rgba(6, 6, 8, 0.8);
 }
 
 /* Hero Actions */
@@ -531,33 +583,38 @@
 }
 
 /* ═══════════════════════════════════════
-   CHARACTER PARADE
+   CHARACTER PARADE — own scene after the hero
    ═══════════════════════════════════════ */
 
-.hero-characters {
+.parade-section {
   position: relative;
-  margin-top: 5rem;
-  width: 100%;
-  max-width: 960px;
-  opacity: 0;
+  padding: 5.5rem 2rem 4rem;
+  text-align: center;
+  overflow: hidden;
 }
 
-.hero-characters::before,
-.hero-characters::after {
+.parade-section::before {
   content: '';
   position: absolute;
-  top: 0; bottom: 0;
-  width: 100px;
-  z-index: 2;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(232, 168, 56, 0.04) 0%, transparent 60%);
   pointer-events: none;
 }
-.hero-characters::before {
-  left: 0;
-  background: linear-gradient(to right, var(--c-void), transparent);
+
+.parade-kicker {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(1.05rem, 1.7vw, 1.4rem);
+  color: var(--c-cream);
+  opacity: 0;
+  margin-bottom: 2.4rem;
+  letter-spacing: 0.02em;
 }
-.hero-characters::after {
-  right: 0;
-  background: linear-gradient(to left, var(--c-void), transparent);
+
+.parade-section .character-strip {
+  flex-wrap: wrap;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .character-strip {
@@ -632,6 +689,7 @@
   position: absolute;
   bottom: 3rem;
   left: 50%;
+  z-index: 3;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -736,8 +794,8 @@
 .cine-scene-content {
   position: relative;
   z-index: 3;
-  padding: 4rem clamp(3rem, 8vw, 8rem);
-  max-width: 640px;
+  padding: 4rem clamp(2.5rem, 6vw, 6rem);
+  max-width: 760px;
 }
 
 .cine-scene:nth-child(even) .cine-scene-content {
@@ -782,7 +840,7 @@
 
 .cine-scene-title {
   font-family: var(--font-display);
-  font-size: clamp(2.2rem, 4.2vw, 3.6rem);
+  font-size: clamp(2rem, 3.6vw, 3.2rem);
   font-weight: 800;
   line-height: 1.0;
   letter-spacing: -0.035em;
@@ -837,20 +895,60 @@
   font-weight: 300;
 }
 
-/* Scene Character */
-.scene-character {
-  position: absolute;
-  z-index: 4;
-  pointer-events: none;
-  opacity: 0;
+/* ═══════════════════════════════════════
+   JOURNEY MAP — die Welt von Talea
+   ═══════════════════════════════════════ */
+
+.journey-section {
+  position: relative;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 4.5rem;
+  align-items: center;
+  max-width: 1250px;
+  margin: 0 auto;
+  padding: 7rem 2rem 6rem;
 }
 
-.scene-character img {
-  width: clamp(70px, 9vw, 115px);
-  border-radius: 50%;
-  filter: drop-shadow(0 8px 30px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 25px var(--glow-warm));
-  border: 2px solid rgba(232, 168, 56, 0.15);
-  animation: charFloat 7s ease-in-out infinite;
+.journey-copy {
+  text-align: left;
+}
+
+.journey-copy .section-title {
+  margin-bottom: 1.5rem;
+}
+
+.journey-copy .section-sub {
+  margin: 0;
+  max-width: 470px;
+}
+
+.journey-visual {
+  position: relative;
+  animation: journeyFloat 9s ease-in-out infinite;
+}
+
+.journey-visual img {
+  width: 100%;
+  display: block;
+  border: 1px solid rgba(232, 168, 56, 0.1);
+  box-shadow:
+    0 35px 90px rgba(0, 0, 0, 0.55),
+    0 0 70px rgba(136, 200, 232, 0.05);
+  filter: saturate(0.92);
+}
+
+.journey-glow {
+  position: absolute;
+  inset: -14%;
+  background: radial-gradient(ellipse at center, rgba(136, 200, 232, 0.09) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes journeyFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
 }
 
 /* ═══════════════════════════════════════
@@ -1065,13 +1163,201 @@
   font-weight: 300;
 }
 
+/* ── Island Cards — features as floating worlds ── */
+.island-card {
+  width: 340px;
+  padding: 0;
+}
+
+.island-visual {
+  position: relative;
+  height: 195px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(232, 168, 56, 0.08);
+  transition: transform 0.55s var(--ease-spring);
+}
+
+.island-card:hover .island-visual {
+  transform: scale(1.045);
+}
+
+.island-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.85) brightness(0.9);
+  transition: filter 0.5s;
+  /* Bob the framing, not the element — no transform conflicts */
+  animation: islandBob 7s ease-in-out infinite;
+  animation-delay: var(--bob-delay, 0s);
+}
+
+.island-card:hover .island-visual img {
+  filter: saturate(1.05) brightness(1);
+}
+
+@keyframes islandBob {
+  0%, 100% { object-position: 50% 55%; }
+  50%      { object-position: 50% 45%; }
+}
+
+.island-sparkle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s;
+  background:
+    radial-gradient(circle 2px at 22% 30%, rgba(240, 216, 168, 0.95), transparent 60%),
+    radial-gradient(circle 1.5px at 70% 20%, rgba(136, 200, 232, 0.9), transparent 60%),
+    radial-gradient(circle 2px at 84% 56%, rgba(240, 216, 168, 0.85), transparent 60%),
+    radial-gradient(circle 1.5px at 38% 66%, rgba(255, 255, 255, 0.75), transparent 60%),
+    radial-gradient(circle 1px at 55% 38%, rgba(240, 216, 168, 0.8), transparent 60%);
+  animation: sparkleTwinkle 2.2s ease-in-out infinite;
+}
+
+.island-card:hover .island-sparkle {
+  opacity: 1;
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(2); }
+}
+
+.island-card-body {
+  padding: 1.6rem 1.8rem 2rem;
+}
+
+.island-card-body .tilt-card-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 1.1rem;
+}
+
+/* ═══════════════════════════════════════
+   SHOWCASE — echte Charaktere aus der App
+   ═══════════════════════════════════════ */
+
+.showcase-section {
+  position: relative;
+  padding: 6rem 0 7rem;
+  text-align: center;
+  overflow: hidden;
+  animation: showcaseFadeIn 1s ease-out;
+}
+
+@keyframes showcaseFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.showcase-section .section-sub {
+  margin-bottom: 3rem;
+  padding: 0 2rem;
+}
+
+.showcase-marquee {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.showcase-track {
+  display: flex;
+  width: max-content;
+  padding: 1rem 0;
+  animation: showcaseScroll 60s linear infinite;
+}
+
+.showcase-marquee:hover .showcase-track {
+  animation-play-state: paused;
+}
+
+@keyframes showcaseScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.showcase-card {
+  width: 195px;
+  flex-shrink: 0;
+  margin-right: 1.4rem;
+  padding: 0.7rem 0.7rem 1rem;
+  background: rgba(232, 168, 56, 0.02);
+  border: 1px solid rgba(232, 168, 56, 0.08);
+  transition: border-color 0.4s, transform 0.4s var(--ease-spring), box-shadow 0.4s;
+  cursor: none;
+}
+
+.showcase-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(232, 168, 56, 0.3);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45), 0 0 40px rgba(232, 168, 56, 0.08);
+}
+
+.showcase-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  filter: saturate(0.9);
+  margin-bottom: 0.85rem;
+  transition: filter 0.4s;
+}
+
+.showcase-card:hover img {
+  filter: saturate(1.05);
+}
+
+.showcase-card figcaption strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.2rem;
+}
+
+.showcase-card figcaption span {
+  font-size: 0.58rem;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
 /* ═══════════════════════════════════════
    PRICING
    ═══════════════════════════════════════ */
 
 .pricing-section {
+  position: relative;
   padding: 6rem 2rem 7rem;
   text-align: center;
+  overflow: hidden;
+}
+
+.pricing-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pricing-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.1;
+  filter: saturate(0.7);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 72%, transparent 100%);
+}
+
+.pricing-section > *:not(.pricing-backdrop) {
+  position: relative;
+  z-index: 1;
 }
 
 .pricing-grid {
@@ -1309,6 +1595,52 @@
   text-align: center;
 }
 
+.trust-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 4.5rem;
+  align-items: center;
+  max-width: 1150px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.trust-main .section-sub {
+  margin: 0;
+}
+
+.trust-main .trust-grid {
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+  margin: 2.5rem 0 0;
+  max-width: none;
+}
+
+.family-visual {
+  position: relative;
+  margin: 0;
+}
+
+.family-visual img {
+  width: 100%;
+  display: block;
+  border: 1px solid rgba(232, 168, 56, 0.12);
+  box-shadow:
+    0 35px 90px rgba(0, 0, 0, 0.55),
+    0 0 80px rgba(232, 168, 56, 0.06);
+  filter: saturate(0.95);
+}
+
+.family-visual figcaption {
+  margin-top: 1.1rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.78rem;
+  color: var(--c-text-dim);
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+
 .trust-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1495,6 +1827,13 @@
   .trust-grid { grid-template-columns: 1fr 1fr; }
   .landing-nav { padding: 1rem 2rem; }
   .landing-nav.scrolled { padding: 0.65rem 2rem; }
+  .journey-section { grid-template-columns: 1fr; gap: 3rem; padding: 5rem 2rem 4rem; }
+  .journey-copy { text-align: center; }
+  .journey-copy .section-sub { margin: 0 auto; }
+  .trust-layout { grid-template-columns: 1fr; gap: 3rem; text-align: center; }
+  .trust-main .section-sub { margin: 0 auto; }
+  .trust-main .trust-grid { text-align: left; }
+  .family-visual { max-width: 540px; margin: 0 auto; }
 }
 
 @media (max-width: 768px) {
@@ -1502,10 +1841,16 @@
   .cursor-dot, .cursor-ring, .cursor-glow { display: none; }
   .landing-links { gap: 1.2rem; }
   .landing-links a { font-size: 0.75rem; letter-spacing: 0.04em; }
-  .hero-scene { padding: 7rem 1.5rem 3.5rem; min-height: 92vh; }
-  .hero-title { font-size: clamp(2.6rem, 11vw, 4.5rem); }
+  .hero-scene { padding: 6rem 1.5rem 4.5rem; min-height: 92vh; }
+  .hero-title { font-size: clamp(2.2rem, 9vw, 3.4rem); }
   .character-strip { gap: 0.5rem; flex-wrap: wrap; }
   .character-figure { width: 60px; }
+  .parade-section { padding: 4rem 1.2rem 3rem; }
+  .journey-section { padding: 4rem 1.5rem 3rem; }
+  .island-card { width: 300px; }
+  .island-visual { height: 165px; }
+  .showcase-card { width: 160px; margin-right: 1rem; }
+  .showcase-section { padding: 4.5rem 0 5rem; }
   .cine-scene { align-items: flex-end; }
   .cine-scene-overlay,
   .cine-scene:nth-child(even) .cine-scene-overlay {
@@ -1526,7 +1871,7 @@
 @media (max-width: 480px) {
   .landing-nav { padding: 0.8rem 1.2rem; }
   .landing-links a:not(.nav-cta) { display: none; }
-  .hero-title { font-size: clamp(2.2rem, 12vw, 3.2rem); }
+  .hero-title { font-size: clamp(1.9rem, 9.6vw, 2.8rem); }
   .hero-sub { font-size: 0.85rem; }
   .comparison-table { font-size: 0.72rem; }
   .comparison-table th, .comparison-table td { padding: 0.7rem 0.8rem; }
@@ -1546,7 +1891,7 @@
   .particle-canvas { display: none; }
   .film-grain { display: none; }
   .hero-title .word { opacity: 1; transform: none; }
-  .hero-sub, .hero-actions, .hero-characters { opacity: 1; }
+  .hero-sub, .hero-actions, .hero-bg, .parade-kicker { opacity: 1; }
   .scroll-cue { opacity: 0.5; }
 }
 

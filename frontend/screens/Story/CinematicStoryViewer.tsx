@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { motion, useScroll, useSpring, useInView } from 'framer-motion';
-import { ArrowLeft, ChevronDown, Sparkles, Volume2, BookOpen } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Sparkles, Volume2, BookOpen, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
@@ -113,8 +113,13 @@ const CinematicStoryViewer: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [storyCompleted, setStoryCompleted] = useState(false);
+  const [completionPending, setCompletionPending] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [activeChapter, setActiveChapter] = useState(0);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
 
   const [artifactQueue, setArtifactQueue] = useState<Array<{ item: InventoryItem; isUpgrade: boolean }>>([]);
   const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
@@ -136,7 +141,22 @@ const CinematicStoryViewer: React.FC = () => {
   const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
 
   useEffect(() => {
-    if (storyId) void loadStory();
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    setStoryCompleted(false);
+    setCompletionPending(false);
+    setCompletionError(null);
+    setParticipants([]);
+    if (storyId) void loadStory(requestId);
+
+    return () => {
+      if (loadRequestRef.current === requestId) {
+        loadRequestRef.current += 1;
+      }
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+    };
   }, [storyId, activeProfileId, isAdmin]);
 
   useEffect(() => {
@@ -147,7 +167,7 @@ const CinematicStoryViewer: React.FC = () => {
     }
   }, [currentArtifact, artifactQueue]);
 
-  const loadStory = async () => {
+  const loadStory = async (requestId: number) => {
     if (!storyId) return;
     try {
       setLoading(true);
@@ -155,8 +175,10 @@ const CinematicStoryViewer: React.FC = () => {
       let rawStory: any = isAdmin || isCharacterLifeRoute ? null : await getOfflineStory(storyId);
       if (!rawStory) {
         const storyData = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
+        if (loadRequestRef.current !== requestId) return;
         rawStory = storyData as any;
       }
+      if (loadRequestRef.current !== requestId) return;
       setStory(rawStory as Story);
       if (rawStory?.avatarParticipants?.length) {
         setParticipants(rawStory.avatarParticipants);
@@ -165,8 +187,12 @@ const CinematicStoryViewer: React.FC = () => {
       } else if (Array.isArray(rawStory?.config?.avatarIds) && rawStory.config.avatarIds.length > 0) {
         try {
           const avatars = await Promise.all(
-            rawStory.config.avatarIds.map((id: string) => backend.avatar.get({ id }))
+            rawStory.config.avatarIds.map((id: string) => backend.avatar.get({
+              id,
+              profileId: activeProfileId || undefined,
+            }))
           );
+          if (loadRequestRef.current !== requestId) return;
           setParticipants(avatars.filter(Boolean));
         } catch (e) {
           console.error('Error loading participants:', e);
@@ -175,10 +201,11 @@ const CinematicStoryViewer: React.FC = () => {
         setParticipants([]);
       }
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading story:', err);
       setError('Geschichte konnte nicht geladen werden.');
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -191,10 +218,19 @@ const CinematicStoryViewer: React.FC = () => {
   };
 
   const handleStoryCompletion = async () => {
-    if (!story || !storyId || storyCompleted) return;
-    try {
+    if (!story || !storyId || storyCompleted || completionInFlightRef.current) return;
+    if (isCharacterLifeStory) {
+      setCompletionError(null);
       setStoryCompleted(true);
-      if (isCharacterLifeStory) return;
+      return;
+    }
+
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
+    setCompletionPending(true);
+    setCompletionError(null);
+
+    try {
       const token = await getToken();
       const { getBackendUrl } = await import('../../config');
       const target = getBackendUrl();
@@ -216,15 +252,16 @@ const CinematicStoryViewer: React.FC = () => {
         })()),
       });
 
-      const { showSuccessToast, showPersonalityUpdateToast } = await import('../../utils/toastUtils');
-
+      const result = await response.json().catch(() => null);
       if (!response.ok) {
-        showSuccessToast('Geschichte abgeschlossen.');
-        emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
-        return;
+        throw new Error(`Story completion failed with status ${response.status}`);
       }
-
-      const result = await response.json();
+      if (result?.success !== true) {
+        throw new Error('Story completion was not confirmed by the server.');
+      }
+      if (completionAttemptRef.current !== attemptId) return;
+      setStoryCompleted(true);
+      const { showSuccessToast, showPersonalityUpdateToast } = await import('../../utils/toastUtils');
       window.dispatchEvent(
         new CustomEvent('personalityUpdated', {
           detail: {
@@ -269,9 +306,13 @@ const CinematicStoryViewer: React.FC = () => {
         showSuccessToast('Geschichte abgeschlossen.');
       }
 
-      // Show contextual agent result cards (memory saved, quiz, artifact, next adventure)
+      const hasConfirmedMemory =
+        result?.memorySaved === true ||
+        (typeof result?.memoriesCreated === 'number' && result.memoriesCreated > 0);
+
+      // Only claim a memory when the server explicitly confirms that it was stored.
       showCompletionResults({
-        hasMemory: true,
+        hasMemory: hasConfirmedMemory,
         artifactName: collectedArtifacts.length > 0 ? collectedArtifacts[0].item.name : undefined,
         storyId,
       });
@@ -279,9 +320,16 @@ const CinematicStoryViewer: React.FC = () => {
       emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
     } catch (error) {
       console.error('Error completing story:', error);
-      const { showSuccessToast } = await import('../../utils/toastUtils');
-      showSuccessToast('Geschichte abgeschlossen.');
-      emitMapProgress({ avatarId: mapAvatarId, source: 'story' });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Fortschritt konnte noch nicht gespeichert werden. Bitte versuche es erneut.';
+      setCompletionError(message);
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+        setCompletionPending(false);
+      }
     }
   };
 
@@ -445,6 +493,8 @@ const CinematicStoryViewer: React.FC = () => {
             palette={palette}
             onComplete={index === chapters.length - 1 ? handleStoryCompletion : undefined}
             isCompleted={storyCompleted}
+            isCompleting={completionPending}
+            completionError={completionError}
             onBecomeActive={() => setActiveChapter(index)}
           />
         ))}
@@ -565,8 +615,10 @@ const ChapterSection: React.FC<{
   palette: StoryPalette;
   onComplete?: () => void;
   isCompleted?: boolean;
+  isCompleting?: boolean;
+  completionError?: string | null;
   onBecomeActive: () => void;
-}> = ({ chapter, index, palette, onComplete, isCompleted, onBecomeActive }) => {
+}> = ({ chapter, index, palette, onComplete, isCompleted, isCompleting, completionError, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
   const paragraphs = useMemo(() => buildChapterTextSegments(
@@ -657,12 +709,28 @@ const ChapterSection: React.FC<{
             <button
               type="button"
               onClick={onComplete}
-              disabled={isCompleted}
+              disabled={isCompleted || isCompleting}
+              aria-busy={isCompleting}
               className={cn('sr-complete-btn', isCompleted ? 'sr-complete-btn--done' : 'sr-complete-btn--default')}
             >
-              <Sparkles className="h-4 w-4" />
-              {isCompleted ? 'Abgeschlossen' : 'Geschichte abschliessen'}
+              {isCompleting ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+              )}
+              {isCompleted
+                ? 'Abgeschlossen'
+                : isCompleting
+                  ? 'Fortschritt wird gespeichert ...'
+                  : completionError
+                    ? 'Speichern erneut versuchen'
+                    : 'Geschichte abschliessen'}
             </button>
+            {completionError && !isCompleted && (
+              <p role="alert" className="mt-3 text-center text-sm" style={{ color: palette.body }}>
+                {completionError}
+              </p>
+            )}
           </motion.div>
         )}
       </div>

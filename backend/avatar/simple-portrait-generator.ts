@@ -52,7 +52,7 @@ export function generatePortraitPrompt(
   }
 
   return `
-Axel Scheffler watercolor character portrait illustration with gentle gouache textures.
+Hand-inked European children's storybook watercolor portrait with gentle gouache textures.
 
 CHARACTER: ${avatar}
 
@@ -65,7 +65,7 @@ EMOTION: ${emotions[emotion]}
 POSE: ${poses[pose]}
 
 STYLE:
-- Axel Scheffler watercolor illustration
+- Original hand-inked watercolor illustration
 - Soft gouache textures
 - Hand-drawn quality
 - Warm pastel colors

@@ -295,7 +295,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
 
   const copyToAnotherProfile = async () => {
     if (!targetProfileId || !selectedTargetProfile) {
-      toast.error("Bitte waehle ein Zielprofil aus.");
+      toast.error("Bitte wähle ein Zielprofil aus.");
       return;
     }
 
@@ -309,10 +309,10 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
         }
       );
 
-      toast.success(`"${response.name || avatarName}" wurde fuer "${selectedTargetProfile.name}" freigegeben.`);
+      toast.success(`„${response.name || avatarName}“ wurde als eigene Profilkopie für ${selectedTargetProfile.name} übernommen.`);
     } catch (error) {
       console.error("Failed to copy avatar to profile:", error);
-      toast.error("Profil-Freigabe konnte nicht erstellt werden.");
+      toast.error("Profilkopie konnte nicht erstellt werden.");
     } finally {
       setCopyingProfile(false);
     }
@@ -369,7 +369,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
             Avatar teilen
           </h2>
           <p className="mt-1 text-sm" style={{ color: isDark ? "#9eb1ca" : "#697d95" }}>
-            Innerhalb deines Accounts wird "{avatarName}" profiluebergreifend geteilt (gleiche Instanz).
+            Übernimm „{avatarName}“ in weitere Profile oder sende eine unabhängige Kopie an vertraute Personen.
           </p>
         </div>
         <button
@@ -387,15 +387,15 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
         style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
       >
         <h3 className="text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>
-          Zwischen Kinderprofilen teilen
+          Für ein anderes Kinderprofil übernehmen
         </h3>
         <p className="mt-1 text-xs" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
-          Dieser Avatar wird im Zielprofil direkt freigegeben. Aenderungen wirken in allen freigegebenen Profilen.
+          Gleiches Aussehen, aber eigene Punkte, Erinnerungen und Schätze. Das Bild muss nicht neu erzeugt werden.
         </p>
 
         {targetProfiles.length === 0 ? (
           <p className="mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: isDark ? "#40566f" : "#d8cbbb", color: isDark ? "#a9bdd6" : "#6e839d" }}>
-            Du brauchst mindestens zwei Kinderprofile, um zwischen Profilen zu teilen.
+            Du brauchst mindestens zwei Kinderprofile, um eine Profilkopie anzulegen.
           </p>
         ) : (
           <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -425,7 +425,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
               }}
             >
               {copyingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />}
-              In Profil freigeben
+              Als Profilkopie übernehmen
             </button>
           </div>
         )}

@@ -9,6 +9,8 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { ensureCosmosTrackingSchema } from "./cosmos-schema";
+import { assertAvatarOwnedByCurrentUser } from "./authz";
+import { getProfileForUser } from "../helpers/profiles";
 
 interface CosmosStateRequest {
   avatarId: string;
@@ -33,11 +35,18 @@ interface CosmosStateResponse {
 const BASE_DOMAINS = ['nature', 'space', 'history', 'tech', 'body', 'earth', 'art', 'logic'];
 
 export const getCosmosState = api<CosmosStateRequest, CosmosStateResponse>(
-  { expose: true, method: "GET", path: "/avatar/cosmos-state" },
+  { expose: true, method: "GET", path: "/avatar/cosmos-state", auth: true },
   async (req) => {
     const auth = getAuthData();
     if (!auth) throw APIError.unauthenticated("Unauthorized");
     if (!req.avatarId) throw APIError.invalidArgument("avatarId is required");
+    await assertAvatarOwnedByCurrentUser(req.avatarId);
+    if (req.profileId) {
+      await getProfileForUser({
+        userId: auth!.userID,
+        profileId: req.profileId,
+      });
+    }
     await ensureCosmosTrackingSchema().catch((schemaError) => {
       console.warn("[avatar] cosmos schema ensure skipped in state endpoint", schemaError);
     });

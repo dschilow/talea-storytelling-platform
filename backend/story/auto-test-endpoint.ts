@@ -33,7 +33,7 @@ interface AutoTestResponse {
  * For automated optimization testing only
  */
 export const autoTest = api<AutoTestRequest, AutoTestResponse>(
-  { expose: true, method: "POST", path: "/story/auto-test", auth: false },
+  { expose: false, method: "POST", path: "/story/auto-test", auth: false },
   async (req): Promise<AutoTestResponse> => {
     const testId = req.testId || `autotest-${Date.now()}`;
     const userId = `test-user-${testId}`;

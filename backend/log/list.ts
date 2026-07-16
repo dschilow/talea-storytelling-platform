@@ -1,4 +1,5 @@
 import { api } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { logDB } from "./db";
 import type { LogRow } from "./db";
 import { getLogTableInfo } from "./table-resolver";
@@ -13,6 +14,7 @@ export interface LogEntry {
     | "openai-avatar-analysis-stable"
     | "openai-doku-generation"
     | "openai-tavi-chat"
+    | "openrouter-tavi-chat"
     | "openai-story-generation-mcp"
     | "dev-mode-generation"
     | "dev-mode-generation-stage";
@@ -35,9 +37,10 @@ interface ListLogsResponse {
 
 // Lists log entries from the database.
 export const list = api<ListLogsRequest, ListLogsResponse>(
-  { expose: true, method: "GET", path: "/log/list" },
+  { expose: true, method: "GET", path: "/log/list", auth: true },
   async (req) => {
-    const limit = req.limit || 50;
+    ensureAdmin();
+    const limit = Math.min(Math.max(req.limit || 50, 1), 200);
     const sourceFilter = req.source;
     const dateFilter = req.date;
 

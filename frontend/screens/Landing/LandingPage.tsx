@@ -4,6 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
+import { getBackendUrl } from '../../config';
 import {
   ArrowRight,
   AudioLines,
@@ -50,8 +51,6 @@ const cineScenes = [
     desc: 'Dein Kind öffnet ein magisches Buch und taucht ein in eine Welt, die nur für sie geschaffen wurde. Jede Geschichte ist einzigartig.',
     points: ['KI-generierte Geschichten in Sekunden', 'Genre, Stimmung & Alter frei wählbar', 'Eigene Avatare als Hauptfiguren'],
     image: '/landing-assets/cine_1_book.png',
-    charImg: '/landing-assets/generated/characters/detektive.webp',
-    charPos: { bottom: '15%', right: '8%' },
   },
   {
     num: '02',
@@ -61,8 +60,6 @@ const cineScenes = [
     desc: 'Aus Worten werden Welten. Der cineastische Lesemodus verwandelt jede Geschichte in ein visuelles Erlebnis — Szene für Szene, wie ein Film.',
     points: ['3 Lesemodi: Cinematic, Klassisch, Scroll', 'Automatisch generierte Szenenbilder', 'Audio-Erzählung zuschaltbar'],
     image: '/landing-assets/cine_2_magic.png',
-    charImg: '/landing-assets/generated/characters/drache.webp',
-    charPos: { top: '20%', right: '5%' },
   },
   {
     num: '03',
@@ -72,8 +69,6 @@ const cineScenes = [
     desc: 'Avatare entwickeln Persönlichkeit, sammeln Erinnerungen, verdienen Perks und meistern Quests. Jede Story macht sie stärker.',
     points: ['Avatar-Wizard mit eigenem Profil', 'Persönlichkeit, Tagebuch & Schatzkammer', 'Quest- & Perk-System für Motivation'],
     image: '/landing-assets/cine_3_avatars.png',
-    charImg: '/landing-assets/generated/characters/goblin.webp',
-    charPos: { bottom: '10%', left: '5%' },
   },
   {
     num: '04',
@@ -83,8 +78,6 @@ const cineScenes = [
     desc: 'Verzauberte Wälder, Rätsel und Schätze. Jedes Abenteuer ist einzigartig und auf dein Kind zugeschnitten.',
     points: ['50+ Story-Vorlagen aus Märchen & Sagen', 'Artefakte & Schätze zum Sammeln', 'Langfristige Questlinien & Fortschritt'],
     image: '/landing-assets/cine_4_stories.png',
-    charImg: '/landing-assets/generated/characters/wilhelm.webp',
-    charPos: { top: '15%', left: '6%' },
   },
   {
     num: '05',
@@ -94,19 +87,26 @@ const cineScenes = [
     desc: 'Von Dinosauriern bis Raumfahrt — Audio-Dokus verbinden Quiz und Struktur zu einer Lernstrecke, die Kinder lieben.',
     points: ['Audio-Dokus für unterwegs & Schlafenszeit', 'Quiz direkt verknüpft mit Erklärungen', 'Didaktische Struktur mit Lernzielen'],
     image: '/landing-assets/cine_5_dokus.png',
-    charImg: '/landing-assets/generated/characters/oma.webp',
-    charPos: { bottom: '18%', right: '6%' },
   },
 ];
 
 const features = [
-  { icon: Wand2, title: 'Story-Wizard', desc: 'Erstelle in 5 Schritten eine perfekte Geschichte mit KI-Unterstützung.' },
-  { icon: Headphones, title: 'Audio-Erlebnis', desc: 'Alle Inhalte als Hörgeschichte — perfekt für Autofahrten und Schlafenszeit.' },
-  { icon: MessageCircleMore, title: 'Tavi KI-Assistent', desc: 'Stelle Fragen, starte Stories und lass dir Funktionen erklären — direkt aus dem Chat.' },
-  { icon: AudioLines, title: 'Quiz & Fakten', desc: 'Interaktive Quiz-Bereiche direkt in jeder Doku — Wissen spielerisch prüfen.' },
-  { icon: ShieldCheck, title: 'Eltern-Dashboard', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern mit PIN-Schutz.' },
-  { icon: Sparkles, title: 'Cinematic Reading', desc: 'Liest sich wie ein Film. Szene für Szene, mit generierten Bildern und Übergängen.' },
+  { icon: Wand2, title: 'Story-Wizard', desc: 'Erstelle in 5 Schritten eine perfekte Geschichte mit KI-Unterstützung.', island: '/landing-assets/generated/story-engine-island.webp' },
+  { icon: Users, title: 'Avatar-Atelier', desc: 'Gestalte eigene Helden mit Aussehen, Persönlichkeit und Geschichte — sie wachsen mit jedem Abenteuer.', island: '/landing-assets/generated/avatar-atelier-island.webp' },
+  { icon: Sparkles, title: 'Cinematic Reading', desc: 'Liest sich wie ein Film. Szene für Szene, mit generierten Bildern und Übergängen.', island: '/landing-assets/generated/reading-theater.webp' },
+  { icon: Headphones, title: 'Audio-Erlebnis', desc: 'Alle Inhalte als Hörgeschichte — perfekt für Autofahrten und Schlafenszeit.', island: '/landing-assets/generated/audio-wave-garden.webp' },
+  { icon: AudioLines, title: 'Quiz & Fakten', desc: 'Interaktive Quiz-Bereiche direkt in jeder Doku — Wissen spielerisch prüfen.', island: '/landing-assets/generated/doku-studio-island.webp' },
+  { icon: MessageCircleMore, title: 'Tavi KI-Assistent', desc: 'Stelle Fragen, starte Stories und lass dir Funktionen erklären — direkt aus dem Chat.', island: '/landing-assets/generated/tavi-copilot-orbit.webp' },
+  { icon: ShieldCheck, title: 'Eltern-Dashboard', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern mit PIN-Schutz.', island: '/landing-assets/generated/trust-guardian-arch.webp' },
 ];
+
+interface ShowcaseCharacter {
+  id: string;
+  name: string;
+  role: string;
+  archetype: string;
+  imageUrl: string;
+}
 
 const pricingPlans = [
   {
@@ -202,7 +202,28 @@ const LandingPage: React.FC = () => {
   const [navScrolled, setNavScrolled] = useState(false);
   const [activeScene, setActiveScene] = useState(-1);
   const [showStoryArc, setShowStoryArc] = useState(false);
+  const [showcase, setShowcase] = useState<ShowcaseCharacter[]>([]);
   const storyArcRef = useRef<HTMLDivElement>(null);
+
+  /* ── Real characters from the app (public endpoint, graceful fallback) ── */
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${getBackendUrl()}/story/character-showcase`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : { characters: [] }))
+      .then((data: { characters?: ShowcaseCharacter[] }) => {
+        const chars = (data.characters ?? []).filter((c) => c.imageUrl);
+        if (chars.length >= 4) setShowcase(chars);
+      })
+      .catch(() => { /* landing page must never fail on this */ });
+    return () => controller.abort();
+  }, []);
+
+  /* Showcase section mounts async and changes page height → recalc pins */
+  useEffect(() => {
+    if (showcase.length > 0) {
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+    }
+  }, [showcase]);
 
   /* ── Lenis + GSAP ScrollTrigger ── */
   useEffect(() => {
@@ -235,17 +256,58 @@ const LandingPage: React.FC = () => {
         });
       }
 
-      /* Hero entrance — dramatic stagger */
-      const heroTl = gsap.timeline({ delay: 0.3 });
+      /* Hero entrance — cinematic opening shot */
+      const heroTl = gsap.timeline({ delay: 0.25 });
       heroTl
+        .to('.hero-bg', { opacity: 1, duration: 1.6, ease: 'power2.out' }, 0)
         .to('.hero-title .word', {
           opacity: 1, y: 0, rotateX: 0, skewX: 0,
           duration: 0.85, stagger: 0.1, ease: 'expo.out',
-        })
+        }, 0.35)
         .to('.hero-sub', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.4')
         .to('.hero-actions', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, '-=0.25')
-        .to('.hero-characters', { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.35')
         .to('.scroll-cue', { opacity: 1, duration: 0.5 }, '-=0.2');
+
+      /* Character parade — heroes assemble on scroll */
+      gsap.fromTo('.parade-section .character-figure',
+        { opacity: 0, y: 45, scale: 0.75 },
+        {
+          opacity: 1, y: 0, scale: 1, duration: 0.65, stagger: 0.09, ease: 'back.out(1.5)',
+          scrollTrigger: { trigger: '.parade-section', start: 'top 78%' },
+        }
+      );
+      gsap.fromTo('.parade-kicker',
+        { opacity: 0, y: 20 },
+        {
+          opacity: 1, y: 0, duration: 0.6, ease: 'power3.out',
+          scrollTrigger: { trigger: '.parade-section', start: 'top 82%' },
+        }
+      );
+
+      /* Journey map — the world reveals itself */
+      gsap.fromTo('.journey-visual img',
+        { opacity: 0, scale: 1.12, y: 40 },
+        {
+          opacity: 1, scale: 1, y: 0, duration: 1.1, ease: 'power3.out',
+          scrollTrigger: { trigger: '.journey-section', start: 'top 70%' },
+        }
+      );
+      gsap.fromTo('.journey-copy > *',
+        { opacity: 0, y: 30 },
+        {
+          opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out',
+          scrollTrigger: { trigger: '.journey-section', start: 'top 75%' },
+        }
+      );
+
+      /* Family visual (parents section) */
+      gsap.fromTo('.family-visual',
+        { opacity: 0, y: 50, rotate: 1.5 },
+        {
+          opacity: 1, y: 0, rotate: 0, duration: 0.9, ease: 'power3.out',
+          scrollTrigger: { trigger: '.family-visual', start: 'top 80%' },
+        }
+      );
 
       /* Cinematic scenes – pinned with parallax scrub */
       mm.add('(min-width: 769px)', () => {
@@ -256,7 +318,6 @@ const LandingPage: React.FC = () => {
           const desc = scene.querySelector('.cine-scene-desc') as HTMLElement;
           const points = scene.querySelectorAll('.cine-scene-points li');
           const tag = scene.querySelector('.cine-scene-tag') as HTMLElement;
-          const charEl = scene.querySelector('.scene-character') as HTMLElement;
 
           const tl = gsap.timeline({
             scrollTrigger: {
@@ -282,15 +343,6 @@ const LandingPage: React.FC = () => {
             .fromTo(desc, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35 }, 0.5)
             /* Points slide in one by one */
             .fromTo(points, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.08 }, 0.6);
-
-          /* Character pops in with dramatic entrance */
-          if (charEl) {
-            tl.fromTo(charEl,
-              { opacity: 0, scale: 0.3, rotate: -25, y: 30 },
-              { opacity: 0.8, scale: 1, rotate: 0, y: 0, duration: 0.5, ease: 'back.out(1.6)' },
-              0.7
-            );
-          }
         });
       });
 
@@ -618,6 +670,11 @@ const LandingPage: React.FC = () => {
       <main>
         {/* ═══════════ HERO ═══════════ */}
         <section ref={heroRef} className="hero-scene">
+          {/* Cinematic opening shot */}
+          <div className="hero-bg" aria-hidden="true">
+            <img src="/landing-assets/hero.png" alt="" loading="eager" fetchPriority="high" />
+            <div className="hero-bg-overlay" />
+          </div>
           <div className="hero-ambient" />
 
           {/* Burst lines */}
@@ -664,24 +721,25 @@ const LandingPage: React.FC = () => {
             </a>
           </div>
 
-          {/* Character parade */}
-          <div className="hero-characters gsap-hidden" style={{ transform: 'translateY(30px)' }}>
-            <div className="character-strip">
-              {characters.map((c) => (
-                <figure key={c.name} className="character-figure" style={{ '--float-delay': c.delay } as React.CSSProperties}>
-                  <img src={c.image} alt={c.name} loading="eager" />
-                  <figcaption>
-                    {c.name}
-                    <span className="char-mood">{c.mood}</span>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          </div>
-
           <div className="scroll-cue" style={{ opacity: 0 }}>
             <span className="scroll-cue-line" />
             Scrollen
+          </div>
+        </section>
+
+        {/* ═══════════ CHARACTER PARADE ═══════════ */}
+        <section className="parade-section">
+          <p className="parade-kicker">Deine Helden warten schon auf dich</p>
+          <div className="character-strip">
+            {characters.map((c) => (
+              <figure key={c.name} className="character-figure" style={{ '--float-delay': c.delay } as React.CSSProperties}>
+                <img src={c.image} alt={c.name} loading="lazy" />
+                <figcaption>
+                  {c.name}
+                  <span className="char-mood">{c.mood}</span>
+                </figcaption>
+              </figure>
+            ))}
           </div>
         </section>
 
@@ -736,13 +794,27 @@ const LandingPage: React.FC = () => {
                     {scene.points.map((pt) => <li key={pt}>{pt}</li>)}
                   </ul>
                 </div>
-                <div className="scene-character" style={scene.charPos}>
-                  <img src={scene.charImg} alt="Character" />
-                </div>
               </section>
             </React.Fragment>
           );
         })}
+
+        {/* ═══════════ JOURNEY MAP — die Welt von Talea ═══════════ */}
+        <section className="journey-section">
+          <div className="journey-copy">
+            <span className="section-badge"><Rocket size={11} /> Die Welt von Talea</span>
+            <h2 className="section-title">Eine Welt.<br /><em>Unendliche</em> Wege.</h2>
+            <p className="section-sub">
+              Geschichten, Dokus, Audio und Quiz sind keine getrennten Apps — sie sind
+              Inseln einer Welt, verbunden durch die Reise deines Kindes. Jeder Weg
+              führt zu neuem Wissen, jede Insel zu neuen Abenteuern.
+            </p>
+          </div>
+          <div className="journey-visual">
+            <img src="/landing-assets/generated/journey-map.webp" alt="Die Talea-Weltkarte: Inseln für Geschichten, Audio, Wissen und Quiz — verbunden durch Lernpfade" loading="lazy" />
+            <div className="journey-glow" aria-hidden="true" />
+          </div>
+        </section>
 
         {/* ═══════════ DIVIDER ═══════════ */}
         <div className="cine-divider">
@@ -759,22 +831,53 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
           <div ref={trackRef} className="features-track">
-            {features.map((feat) => {
+            {features.map((feat, fi) => {
               const FIcon = feat.icon;
               return (
-                <div key={feat.title} className="tilt-card"
+                <div key={feat.title} className="tilt-card island-card"
                   onMouseMove={handleTilt} onMouseLeave={handleTiltReset}>
                   <div className="tilt-card-shine" />
                   <div className="tilt-card-inner">
-                    <div className="tilt-card-icon"><FIcon size={21} /></div>
-                    <h3>{feat.title}</h3>
-                    <p>{feat.desc}</p>
+                    <div className="island-visual" style={{ '--bob-delay': `${fi * 0.7}s` } as React.CSSProperties}>
+                      <img src={feat.island} alt="" loading="lazy" />
+                      <span className="island-sparkle" aria-hidden="true" />
+                    </div>
+                    <div className="island-card-body">
+                      <div className="tilt-card-icon"><FIcon size={19} /></div>
+                      <h3>{feat.title}</h3>
+                      <p>{feat.desc}</p>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         </section>
+
+        {/* ═══════════ REAL CHARACTERS — live aus der App ═══════════ */}
+        {showcase.length >= 4 && (
+          <section className="showcase-section">
+            <span className="section-badge"><Users size={11} /> Live aus der App</span>
+            <h2 className="section-title">Diese Helden <em>leben</em> schon in Talea</h2>
+            <p className="section-sub">
+              Echte Charaktere aus dem Talea-Universum — sie warten darauf,
+              mit deinem Kind ihr nächstes Abenteuer zu erleben.
+            </p>
+            <div className="showcase-marquee">
+              <div className="showcase-track">
+                {[...showcase, ...showcase].map((c, i) => (
+                  <figure key={`${c.id}-${i}`} className="showcase-card" aria-hidden={i >= showcase.length}>
+                    <img src={c.imageUrl} alt={i < showcase.length ? `${c.name} — ${c.role}` : ''} loading="lazy" />
+                    <figcaption>
+                      <strong>{c.name}</strong>
+                      <span>{c.role}</span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ═══════════ DIVIDER ═══════════ */}
         <div className="cine-divider">
@@ -783,6 +886,9 @@ const LandingPage: React.FC = () => {
 
         {/* ═══════════ PRICING ═══════════ */}
         <section id="pricing" className="pricing-section">
+          <div className="pricing-backdrop" aria-hidden="true">
+            <img src="/landing-assets/generated/final-panorama.webp" alt="" loading="lazy" />
+          </div>
           <span className="section-badge"><Crown size={11} /> Preise</span>
           <h2 className="section-title">Wähle dein Abenteuer-Paket</h2>
           <p className="section-sub">Starte mit dem Starter-Plan und upgrade jederzeit. Monatlich kündbar.</p>
@@ -837,22 +943,30 @@ const LandingPage: React.FC = () => {
 
         {/* ═══════════ TRUST ═══════════ */}
         <section id="trust" className="trust-section">
-          <span className="section-badge"><ShieldCheck size={11} /> Für Eltern</span>
-          <h2 className="section-title">Volle Kontrolle, volle Magie</h2>
-          <p className="section-sub">
-            Talea gibt Eltern echte Werkzeuge — nicht nur einen Kindermodus-Schalter.
-          </p>
-          <div className="trust-grid">
-            {trustPoints.map((tp) => {
-              const TIcon = tp.icon;
-              return (
-                <div key={tp.title} className="trust-card">
-                  <div className="trust-card-icon"><TIcon size={19} /></div>
-                  <h4>{tp.title}</h4>
-                  <p>{tp.desc}</p>
-                </div>
-              );
-            })}
+          <div className="trust-layout">
+            <div className="trust-main">
+              <span className="section-badge"><ShieldCheck size={11} /> Für Eltern</span>
+              <h2 className="section-title">Volle Kontrolle, volle Magie</h2>
+              <p className="section-sub">
+                Talea gibt Eltern echte Werkzeuge — nicht nur einen Kindermodus-Schalter.
+              </p>
+              <div className="trust-grid">
+                {trustPoints.map((tp) => {
+                  const TIcon = tp.icon;
+                  return (
+                    <div key={tp.title} className="trust-card">
+                      <div className="trust-card-icon"><TIcon size={19} /></div>
+                      <h4>{tp.title}</h4>
+                      <p>{tp.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <figure className="family-visual">
+              <img src="/landing-assets/idea.png" alt="Ein Kind erlebt staunend seine eigene Talea-Geschichte auf dem Tablet" loading="lazy" />
+              <figcaption>Große Augen garantiert — jede Geschichte gehört deinem Kind.</figcaption>
+            </figure>
           </div>
         </section>
 

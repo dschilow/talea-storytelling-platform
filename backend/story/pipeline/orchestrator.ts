@@ -628,17 +628,31 @@ export class StoryPipelineOrchestrator {
         : 2;
 
       // ─── Fetch avatar memories for story continuity ─────────────────────
-      // OPTIMIZED: Only 1 memory per avatar - keeps prompt small for reasoning models
+      // One fresh and one important memory per avatar keeps continuity useful and bounded.
       const avatarMemories = new Map<string, AvatarMemoryCompressed[]>();
       try {
         for (const avatar of input.avatars) {
-          const rows: Array<{ story_title: string; emotional_impact: string }> = [];
-          const gen = await avatarDB.query<{ story_title: string; emotional_impact: string }>`
-            SELECT story_title, emotional_impact
-            FROM avatar_memories
-            WHERE avatar_id = ${avatar.id}
-            ORDER BY created_at DESC
-            LIMIT 1
+          const rows: Array<{ story_title: string; emotional_impact: string; summary: string | null }> = [];
+          const gen = await avatarDB.query<{ story_title: string; emotional_impact: string; summary: string | null }>`
+            WITH ranked AS (
+              SELECT
+                story_title,
+                emotional_impact,
+                summary,
+                ROW_NUMBER() OVER (ORDER BY created_at DESC) AS recent_rank,
+                ROW_NUMBER() OVER (
+                  ORDER BY is_pinned DESC, importance DESC,
+                    CASE memory_tier WHEN 'core' THEN 0 WHEN 'episodic' THEN 1 ELSE 2 END,
+                    created_at DESC
+                ) AS important_rank
+              FROM avatar_memories
+              WHERE avatar_id = ${avatar.id}
+            )
+            SELECT story_title, emotional_impact, summary
+            FROM ranked
+            WHERE recent_rank = 1 OR important_rank = 1
+            ORDER BY CASE WHEN recent_rank = 1 THEN 0 ELSE 1 END, important_rank
+            LIMIT 2
           `;
           for await (const row of gen) {
             rows.push(row);
@@ -647,7 +661,7 @@ export class StoryPipelineOrchestrator {
             const compactMemories = rows
               .map(r => ({
                 storyTitle: sanitizeMemoryTitleForPrompt(r.story_title || ""),
-                experience: "",
+                experience: sanitizeMemoryExperienceForPrompt(r.summary || ""),
                 emotionalImpact: (r.emotional_impact as any) || 'neutral',
               }))
               .filter(memory => Boolean(memory.storyTitle));
@@ -2825,6 +2839,15 @@ function sanitizeMemoryTitleForPrompt(value?: string): string {
   if (lastWord.length <= 1) return "";
   if (/\b(?:warum|wieso|weshalb|why)\s+[a-z]$/i.test(normalized)) return "";
   return normalized.length <= 120 ? normalized : `${normalized.slice(0, 117).trimEnd()}...`;
+}
+
+function sanitizeMemoryExperienceForPrompt(value?: string): string {
+  const normalized = String(value || "")
+    .replace(/["']/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+  return normalized.length <= 160 ? normalized : `${normalized.slice(0, 157).trimEnd()}...`;
 }
 
 function withPipelineStoryCostControls(

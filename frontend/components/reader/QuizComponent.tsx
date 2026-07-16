@@ -343,6 +343,11 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
         console.warn('[QuizComponent] cosmos quiz submit failed', cosmosError);
       }
     }
+    // Avatar growth is awarded once by the trusted Doku completion endpoint.
+    // Keeping quiz feedback deterministic avoids a paid AI call and prevents
+    // the browser from writing arbitrary personality points or duplicate memories.
+    setIsSubmitting(false);
+    return;
 
     if (!effectiveAvatarId || !dokuTitle || !dokuId) {
       setIsSubmitting(false);

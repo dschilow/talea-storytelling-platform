@@ -1,5 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import type { Avatar, PhysicalTraits, PersonalityTraits, AvatarVisualProfile } from "./avatar";
+import type { Avatar, PhysicalTraits, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import {
@@ -12,9 +12,11 @@ import {
   normalizeImageUrlForStorage,
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
-import { resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, hasAvatarProfileLink } from "./profile-links";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
+import { claimMeteredUsage } from "../helpers/billing";
 import {
+  assertCanAssignChildAvatar,
+  clearChildAvatarLink,
   ensureAvatarColumns,
   isHumanAvatarInput,
   normalizeAvatarRole,
@@ -27,10 +29,10 @@ interface UpdateAvatarRequest {
   name?: string;
   description?: string;
   physicalTraits?: PhysicalTraits;
-  personalityTraits?: PersonalityTraits;
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
   isPublic?: boolean;
+  avatarRole?: "child" | "companion";
 }
 
 // Updates an existing avatar.
@@ -39,12 +41,12 @@ export const update = api<UpdateAvatarRequest, Avatar>(
   async (req) => {
     const auth = getAuthData()!;
     await ensureAvatarColumns();
-    await ensureAvatarProfileLinksTable();
     const { id, ...updates } = req;
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.profileId,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     
     const existingAvatar = await avatarDB.queryRow<{
       id: string;
@@ -76,24 +78,25 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       throw APIError.permissionDenied("You do not have permission to update this avatar.");
     }
 
-    if (
-      existingAvatar.user_id === auth.userID &&
-      existingAvatar.profile_id &&
-      existingAvatar.profile_id !== activeProfileId &&
-      auth.role !== "admin"
-    ) {
-      const linkedToActive = await hasAvatarProfileLink({
-        avatarId: id,
+    const ownerProfileId = existingAvatar.profile_id || defaultProfile.id;
+    if (existingAvatar.user_id === auth.userID && ownerProfileId !== activeProfileId && auth.role !== "admin") {
+      throw APIError.permissionDenied("Avatar belongs to another child profile.");
+    }
+
+
+    if (JSON.stringify(req).length > 100_000) {
+      throw APIError.invalidArgument("Avatar update request is too large.");
+    }
+    if (updates.physicalTraits || updates.visualProfile) {
+      await claimMeteredUsage({
         userId: auth.userID,
-        profileId: activeProfileId,
+        kind: "chat",
+        units: 1,
+        clerkToken: auth.clerkToken,
       });
-      if (!linkedToActive) {
-        throw APIError.permissionDenied("Avatar belongs to another child profile.");
-      }
     }
 
     const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
-    const currentPersonalityTraits = JSON.parse(existingAvatar.personality_traits);
     const currentVisualProfile: AvatarVisualProfile | undefined = existingAvatar.visual_profile ? JSON.parse(existingAvatar.visual_profile) : undefined;
 
     let updatedPhysicalTraits = updates.physicalTraits
@@ -109,10 +112,6 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       }
       console.log('[update] ✅ PhysicalTraits normalized to English');
     }
-
-    const updatedPersonalityTraits = updates.personalityTraits
-      ? { ...currentPersonalityTraits, ...updates.personalityTraits }
-      : currentPersonalityTraits;
 
     let updatedVisualProfile = updates.visualProfile ?? currentVisualProfile;
 
@@ -130,7 +129,25 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       }
     }
 
-    const avatarRole = normalizeAvatarRole(existingAvatar.avatar_role);
+    const previousAvatarRole = normalizeAvatarRole(existingAvatar.avatar_role);
+    const avatarRole = updates.avatarRole
+      ? normalizeAvatarRole(updates.avatarRole)
+      : previousAvatarRole;
+
+    if (avatarRole === "child" && updates.isPublic === true) {
+      throw APIError.invalidArgument(
+        "A dedicated child avatar is private and cannot be made public.",
+      );
+    }
+    if (
+      avatarRole === "child" &&
+      existingAvatar.profile_id &&
+      existingAvatar.profile_id !== activeProfileId
+    ) {
+      throw APIError.failedPrecondition(
+        "A child avatar must belong directly to the selected child profile. Create a separate profile copy first."
+      );
+    }
     if (
       avatarRole === "child" &&
       !isHumanAvatarInput({
@@ -139,6 +156,14 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       })
     ) {
       throw APIError.invalidArgument("The dedicated child avatar must remain human.");
+    }
+
+    if (avatarRole === "child" && previousAvatarRole !== "child") {
+      await assertCanAssignChildAvatar({
+        userId: auth.userID,
+        profileId: existingAvatar.profile_id || activeProfileId,
+        avatarId: id,
+      });
     }
 
     const normalizedImageUrl = updates.imageUrl !== undefined
@@ -158,26 +183,37 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       : (uploadedImage?.url ?? normalizedImageUrl);
 
     const now = new Date();
+    const avatarProfileId = avatarRole === "child"
+      ? existingAvatar.profile_id || activeProfileId
+      : existingAvatar.profile_id;
 
     await avatarDB.exec`
       UPDATE avatars SET
         name = ${updates.name ?? existingAvatar.name},
+        profile_id = ${avatarProfileId},
         description = ${updates.description ?? existingAvatar.description},
         physical_traits = ${JSON.stringify(updatedPhysicalTraits)},
-        personality_traits = ${JSON.stringify(updatedPersonalityTraits)},
         image_url = ${finalImageUrl ?? existingAvatar.image_url},
         visual_profile = ${updatedVisualProfile ? JSON.stringify(updatedVisualProfile) : null},
-        is_public = ${typeof updates.isPublic === 'boolean' ? updates.isPublic : existingAvatar.is_public},
+        is_public = ${avatarRole === "child" ? false : (typeof updates.isPublic === 'boolean' ? updates.isPublic : existingAvatar.is_public)},
+        avatar_role = ${avatarRole},
         updated_at = ${now}
       WHERE id = ${id}
     `;
 
     await syncChildAvatarLink({
       userId: auth.userID,
-      profileId: existingAvatar.profile_id || activeProfileId,
+      profileId: avatarProfileId || activeProfileId,
       avatarId: id,
       role: avatarRole,
     });
+
+    if (previousAvatarRole === "child" && avatarRole !== "child") {
+      await clearChildAvatarLink({
+        userId: auth.userID,
+        avatarId: id,
+      });
+    }
 
     const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
     const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated?.image_url || undefined);
@@ -198,8 +234,8 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       sourceType: (updated.source_type as Avatar["sourceType"]) || "profile",
       sourceAvatarId: updated.source_avatar_id || undefined,
       originalAvatarId: updated.original_avatar_id || undefined,
-      createdAt: updated.created_at,
-      updatedAt: updated.updated_at,
+      createdAt: new Date(updated.created_at).toISOString(),
+      updatedAt: new Date(updated.updated_at).toISOString(),
       inventory: updated.inventory ? JSON.parse(updated.inventory) : [],
       skills: updated.skills ? JSON.parse(updated.skills) : [],
     };

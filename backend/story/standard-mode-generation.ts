@@ -40,6 +40,7 @@ import { avatarDB } from "../avatar/db";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
+import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
 const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
@@ -88,6 +89,7 @@ export interface StandardModeGenerationInput {
 }
 
 export interface StandardModeAvatarDevelopment {
+  avatarId: string;
   name: string;
   changedTraits: Array<{ trait: string; change: number; description?: string }>;
 }
@@ -235,11 +237,6 @@ export async function generateStoryStandardMode(
       storyId,
       pipeline: STANDARD_MODE_PIPELINE_ID,
       avatarNames: input.avatars.map((a) => a.name),
-      memoryAnchors: Object.fromEntries(
-        input.avatars
-          .filter((a) => memoryAnchors.has(a.id))
-          .map((a) => [a.name, memoryAnchors.get(a.id)])
-      ),
       poolCharacterNames: poolCharacters.map((c) => c.name),
     },
     response: {
@@ -340,10 +337,25 @@ async function loadAvatarMemoryAnchors(
       story_title: string | null;
       content_type: string | null;
     }>`
+      WITH ranked AS (
+        SELECT
+          avatar_id,
+          story_title,
+          content_type,
+          ROW_NUMBER() OVER (PARTITION BY avatar_id ORDER BY created_at DESC) AS recent_rank,
+          ROW_NUMBER() OVER (
+            PARTITION BY avatar_id
+            ORDER BY is_pinned DESC, importance DESC,
+              CASE memory_tier WHEN 'core' THEN 0 WHEN 'episodic' THEN 1 ELSE 2 END,
+              created_at DESC
+          ) AS important_rank
+        FROM avatar_memories
+        WHERE avatar_id = ANY(${ids})
+      )
       SELECT avatar_id, story_title, content_type
-      FROM avatar_memories
-      WHERE avatar_id = ANY(${ids})
-      ORDER BY (CASE WHEN content_type = 'story' THEN 0 ELSE 1 END), created_at DESC
+      FROM ranked
+      WHERE recent_rank = 1 OR important_rank = 1
+      ORDER BY avatar_id, CASE WHEN recent_rank = 1 THEN 0 ELSE 1 END, important_rank
       LIMIT 60
     `;
 
@@ -442,6 +454,9 @@ function buildDevelopmentPrompts(input: {
   const avatarLines = input.avatars
     .map((a, idx) => `${idx + 1}. ${a.name} — current traits: ${summarizeTraitSnapshot(a.personalityTraits)}`)
     .join("\n");
+  const avatarIdentityLines = input.avatars
+    .map((avatar) => `avatarId=${avatar.id}; name=${avatar.name}`)
+    .join("\n");
 
   const systemPrompt = [
     "You are the character-growth analyst of a children's storytelling platform.",
@@ -451,6 +466,8 @@ function buildDevelopmentPrompts(input: {
 
   const userPrompt = [
     `HERO AVATARS (only these may appear in the output):`,
+    avatarIdentityLines,
+    "CURRENT TRAITS:",
     avatarLines,
     "",
     `STORY TITLE: ${input.title}`,
@@ -462,14 +479,14 @@ function buildDevelopmentPrompts(input: {
     `- Knowledge subcategories (ONLY when the story genuinely teaches that subject): ${KNOWLEDGE_SUBCATEGORY_IDS.join(", ")}`,
     "",
     "RULES:",
-    "1. Exactly one entry per hero avatar, name spelled exactly as listed above.",
+    "1. Exactly one entry per hero avatar. Copy avatarId and name exactly as listed above.",
     "2. 1-3 changedTraits per avatar. Pick only traits clearly supported by that avatar's own actions/decisions in the text.",
     "3. change is an integer: 1-3 for base traits, 1-5 for knowledge.* subcategories. Small story-sized steps; 3+ only for a defining moment.",
     `4. description: ONE short sentence in language "${language}" naming the concrete story moment that caused the growth (the WHY). Never a generic sentence like "developed through reading".`,
     "5. Prefer base traits. Use a knowledge.* subcategory only when the avatar demonstrably learned facts of that subject in the story.",
     "",
     "OUTPUT JSON SHAPE:",
-    '{ "avatarDevelopments": [ { "name": "<avatar name>", "changedTraits": [ { "trait": "<trait id>", "change": <int>, "description": "<one sentence>" } ] } ] }',
+    '{ "avatarDevelopments": [ { "avatarId": "<avatar id>", "name": "<avatar name>", "changedTraits": [ { "trait": "<trait id>", "change": <int>, "description": "<one sentence>" } ] } ] }',
   ].join("\n");
 
   return { systemPrompt, userPrompt };
@@ -502,38 +519,23 @@ function sanitizeDevelopments(
   avatars: StandardModeAvatarInput[]
 ): StandardModeAvatarDevelopment[] {
   const rawList = Array.isArray(parsed?.avatarDevelopments) ? parsed.avatarDevelopments : [];
-  const avatarByName = new Map(avatars.map((a) => [a.name.trim().toLowerCase(), a.name]));
-  const seen = new Set<string>();
-  const result: StandardModeAvatarDevelopment[] = [];
-
-  for (const entry of rawList) {
-    const requestedName = String(entry?.name || "").trim().toLowerCase();
-    const canonicalName = avatarByName.get(requestedName);
-    if (!canonicalName || seen.has(canonicalName)) continue;
-
-    const traits: StandardModeAvatarDevelopment["changedTraits"] = [];
-    const usedTraits = new Set<string>();
-    const rawTraits = Array.isArray(entry?.changedTraits) ? entry.changedTraits : [];
-    for (const rawTrait of rawTraits) {
-      const traitId = String(rawTrait?.trait || "").trim();
-      if (!ALLOWED_TRAIT_IDS.has(traitId) || usedTraits.has(traitId)) continue;
-      const isKnowledgeSub = traitId.startsWith("knowledge.");
-      const maxChange = isKnowledgeSub ? 5 : 3;
-      const rawChange = Number(rawTrait?.change);
-      if (!Number.isFinite(rawChange) || rawChange <= 0) continue;
-      const change = Math.max(1, Math.min(maxChange, Math.round(rawChange)));
-      const description = String(rawTrait?.description || "").trim().slice(0, 220) || undefined;
-      traits.push({ trait: traitId, change, description });
-      usedTraits.add(traitId);
-      if (traits.length >= 3) break;
-    }
-
-    if (traits.length === 0) continue;
-    seen.add(canonicalName);
-    result.push({ name: canonicalName, changedTraits: traits });
-  }
-
-  return result;
+  return assignAvatarDevelopmentIds(rawList, avatars)
+    .map((development) => ({
+      avatarId: development.avatarId,
+      name: development.name,
+      changedTraits: development.changedTraits
+        .filter((change) => ALLOWED_TRAIT_IDS.has(change.trait))
+        .map((change) => ({
+          ...change,
+          change: Math.min(
+            change.trait.startsWith("knowledge.") ? 5 : 3,
+            change.change,
+          ),
+          description: change.description.slice(0, 220),
+        }))
+        .slice(0, 3),
+    }))
+    .filter((development) => development.changedTraits.length > 0);
 }
 
 /**

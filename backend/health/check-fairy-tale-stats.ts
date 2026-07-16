@@ -3,7 +3,7 @@ import { api } from "encore.dev/api";
 import { fairytalesDB } from "../fairytales/db";
 
 export const checkFairyTaleStats = api(
-  { expose: true, method: "GET", path: "/health/check-fairy-tale-stats" },
+  { expose: false, method: "GET", path: "/health/check-fairy-tale-stats" },
   async (): Promise<{ 
     tableExists: boolean; 
     columnNames: string[];

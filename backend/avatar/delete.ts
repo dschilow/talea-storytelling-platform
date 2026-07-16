@@ -1,8 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
-import { resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, hasAvatarProfileLink, unlinkAvatarFromProfile } from "./profile-links";
+import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { clearChildAvatarLink, ensureAvatarColumns, normalizeAvatarRole } from "./schema";
 
 interface DeleteAvatarParams {
@@ -16,11 +15,11 @@ export const deleteAvatar = api<DeleteAvatarParams, void>(
   async ({ id, profileId }) => {
     const auth = getAuthData()!;
     await ensureAvatarColumns();
-    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: profileId,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     const existingAvatar = await avatarDB.queryRow<{
       user_id: string;
       profile_id: string | null;
@@ -37,27 +36,9 @@ export const deleteAvatar = api<DeleteAvatarParams, void>(
       throw APIError.permissionDenied("You do not have permission to delete this avatar.");
     }
 
-    if (
-      existingAvatar.user_id === auth.userID &&
-      existingAvatar.profile_id &&
-      existingAvatar.profile_id !== activeProfileId &&
-      auth.role !== "admin"
-    ) {
-      const linkedToActive = await hasAvatarProfileLink({
-        avatarId: id,
-        userId: auth.userID,
-        profileId: activeProfileId,
-      });
-      if (!linkedToActive) {
-        throw APIError.permissionDenied("Avatar belongs to another child profile.");
-      }
-
-      await unlinkAvatarFromProfile({
-        avatarId: id,
-        userId: auth.userID,
-        profileId: activeProfileId,
-      });
-      return;
+    const ownerProfileId = existingAvatar.profile_id || defaultProfile.id;
+    if (existingAvatar.user_id === auth.userID && ownerProfileId !== activeProfileId && auth.role !== "admin") {
+      throw APIError.permissionDenied("Avatar belongs to another child profile.");
     }
 
     await avatarDB.exec`

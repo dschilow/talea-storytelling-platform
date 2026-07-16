@@ -18,7 +18,7 @@ interface ClerkHealthResponse {
  * Use this endpoint to diagnose authentication issues
  */
 export const testClerk = api<void, ClerkHealthResponse>(
-  { expose: true, method: "GET", path: "/health/test-clerk", auth: false },
+  { expose: false, method: "GET", path: "/health/test-clerk", auth: false },
   async (): Promise<ClerkHealthResponse> => {
     console.log("🔍 Testing Clerk API connectivity...");
 

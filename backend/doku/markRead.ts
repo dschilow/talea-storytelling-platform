@@ -2,16 +2,39 @@ import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
-import { assertProfilesBelongToUser, getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
+import {
+  assertProfilesBelongToUser,
+  ensureDefaultProfileForUser,
+  getProfileForUser,
+  resolveRequestedProfileId,
+} from "../helpers/profiles";
 import {
   buildTopicId,
   inferDomainFromDokuTopic,
   trackCosmosReadEvent,
 } from "../helpers/cosmos-tracking";
+import { runWithCompletionClaim } from "../helpers/completion-claim";
 
 const avatarDB = SQLDatabase.named("avatar");
 const dokuDB = SQLDatabase.named("doku");
+async function claimDokuProgression(avatarId: string, dokuId: string): Promise<boolean> {
+  const claim = await avatarDB.queryRow<{ id: string }>`
+    INSERT INTO avatar_completion_reward_claims (avatar_id, content_type, content_id)
+    VALUES (${avatarId}, 'doku', ${dokuId})
+    ON CONFLICT (avatar_id, content_type, content_id) DO NOTHING
+    RETURNING id
+  `;
+  return Boolean(claim);
+}
+
+async function releaseDokuProgressionClaim(avatarId: string, dokuId: string): Promise<void> {
+  await avatarDB.exec`
+    DELETE FROM avatar_completion_reward_claims
+    WHERE avatar_id = ${avatarId}
+      AND content_type = 'doku'
+      AND content_id = ${dokuId}
+  `;
+}
 
 interface MarkDokuReadRequest {
   dokuId: string;
@@ -77,17 +100,95 @@ function normalizeDomainId(value: string | null | undefined): string {
     .slice(0, 40);
 }
 
+interface ProfileScopedAvatar {
+  id: string;
+  name: string;
+  profileId: string;
+}
+
+function uniqueAvatarIds(values: unknown[]): string[] {
+  return Array.from(
+    new Set(
+      values
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
+function extractStoredAvatarIds(value: unknown): string[] {
+  let decoded = value;
+  if (typeof decoded === "string") {
+    try {
+      decoded = JSON.parse(decoded);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(decoded)) return [];
+
+  return uniqueAvatarIds(
+    decoded.map((entry) => {
+      if (typeof entry === "string") return entry;
+      if (entry && typeof entry === "object" && typeof (entry as { id?: unknown }).id === "string") {
+        return (entry as { id: string }).id;
+      }
+      return undefined;
+    })
+  );
+}
+
+async function loadProfileScopedAvatars(params: {
+  userId: string;
+  avatarIds: string[];
+  targetProfileIds: string[];
+  defaultProfileId: string;
+}): Promise<ProfileScopedAvatar[]> {
+  if (params.avatarIds.length === 0) return [];
+
+  const includeLegacyUnscoped = params.targetProfileIds.includes(params.defaultProfileId);
+  const rows = await avatarDB.queryAll<{
+    id: string;
+    name: string;
+    profile_id: string | null;
+  }>`
+    SELECT id, name, profile_id
+    FROM avatars
+    WHERE user_id = ${params.userId}
+      AND id = ANY(${params.avatarIds})
+      AND (
+        profile_id = ANY(${params.targetProfileIds})
+        OR (${includeLegacyUnscoped} AND profile_id IS NULL)
+      )
+  `;
+  const rowsById = new Map(rows.map((row) => [row.id, row]));
+
+  return params.avatarIds.flatMap((avatarId) => {
+    const row = rowsById.get(avatarId);
+    if (!row) return [];
+    return [{
+      id: row.id,
+      name: row.name,
+      profileId: row.profile_id || params.defaultProfileId,
+    }];
+  });
+}
+
 export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
   { expose: true, method: "POST", path: "/doku/mark-read", auth: true },
   async (req) => {
     const auth = getAuthData()!;
     const userId = auth.userID;
-    await ensureAvatarProfileLinksTable();
     const activeProfileId = await resolveRequestedProfileId({
       userId,
       requestedProfileId: req.profileId,
       fallbackName: auth.email ?? undefined,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(
+      userId,
+      auth.email ?? undefined,
+    );
     const extraProfiles = Array.from(
       new Set(
         (req.participantProfileIds || [])
@@ -100,7 +201,6 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       ? await assertProfilesBelongToUser(userId, extraProfiles)
       : [];
     const targetProfileIds = Array.from(new Set([activeProfileId, ...validatedProfiles]));
-    const profileIdsForAvatarSelection = targetProfileIds;
 
     const dokuOwner = await dokuDB.queryRow<{
       user_id: string;
@@ -111,26 +211,30 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       WHERE id = ${req.dokuId}
       LIMIT 1
     `;
+    if (!dokuOwner) {
+      throw APIError.notFound("Doku not found.");
+    }
     if (dokuOwner && dokuOwner.user_id !== userId && auth.role !== "admin" && !dokuOwner.is_public) {
       throw APIError.permissionDenied("You do not have permission to update this doku.");
     }
-    if (dokuOwner && dokuOwner.user_id === userId && auth.role !== "admin" && !dokuOwner.is_public) {
-      const participant = await dokuDB.queryRow<{ profile_id: string }>`
-        SELECT profile_id
-        FROM doku_participants
-        WHERE doku_id = ${req.dokuId}
-          AND profile_id = ${activeProfileId}
-        LIMIT 1
-      `;
-      const hasParticipants = await dokuDB.queryRow<{ has_any: boolean }>`
-        SELECT EXISTS (
-          SELECT 1 FROM doku_participants WHERE doku_id = ${req.dokuId}
-        ) AS has_any
-      `;
-      if (hasParticipants?.has_any && !participant) {
+    const participantRows = dokuOwner.user_id === userId
+      ? await dokuDB.queryAll<{ profile_id: string; avatar_ids: unknown }>`
+          SELECT profile_id, avatar_ids
+          FROM doku_participants
+          WHERE doku_id = ${req.dokuId}
+        `
+      : [];
+
+    if (dokuOwner.user_id === userId && auth.role !== "admin" && !dokuOwner.is_public && participantRows.length > 0) {
+      const allowedProfileIds = new Set(participantRows.map((row) => row.profile_id));
+      if (targetProfileIds.some((profileId) => !allowedProfileIds.has(profileId))) {
         throw APIError.permissionDenied("Doku belongs to another child profile.");
       }
     }
+
+    const participantAvatarIds = participantRows
+      .filter((row) => targetProfileIds.includes(row.profile_id))
+      .flatMap((row) => extractStoredAvatarIds(row.avatar_ids));
 
     const dokuDomainRow = await dokuDB.queryRow<{ domain_id: string | null; topic: string | null }>`
       SELECT
@@ -149,82 +253,42 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       normalizeDomainId(req.domainId) ||
       inferDomainFromDokuTopic(resolvedTopicTitle, req.perspective);
 
-    let userAvatars: { id: string; name: string }[] = [];
-    const requestedAvatarIds = Array.from(
-      new Set((req.avatarIds || []).filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0))
-    );
+    let userAvatars: ProfileScopedAvatar[] = [];
+    const requestedAvatarIds = uniqueAvatarIds([
+      ...(req.avatarIds || []),
+      req.avatarId,
+    ]);
+    const completionAvatarIds = requestedAvatarIds.length > 0
+      ? requestedAvatarIds
+      : uniqueAvatarIds(participantAvatarIds);
 
-    if (requestedAvatarIds.length > 0) {
-      userAvatars = await avatarDB.queryAll<{ id: string; name: string }>`
-        SELECT a.id, a.name
-        FROM avatars a
-        WHERE a.user_id = ${userId}
-          AND a.id = ANY(${requestedAvatarIds})
-          AND (
-            a.profile_id IS NULL
-            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
-            OR EXISTS (
-              SELECT 1
-              FROM avatar_profile_links apl
-              WHERE apl.avatar_id = a.id
-                AND apl.user_id = ${userId}
-                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
-            )
-          )
-      `;
-    } else if (req.avatarId) {
-      const specificAvatar = await avatarDB.queryRow<{ id: string; name: string; user_id: string }>`
-        SELECT a.id, a.name, a.user_id
-        FROM avatars a
-        WHERE a.id = ${req.avatarId}
-          AND a.user_id = ${userId}
-          AND (
-            a.profile_id IS NULL
-            OR a.profile_id = ANY(${profileIdsForAvatarSelection})
-            OR EXISTS (
-              SELECT 1
-              FROM avatar_profile_links apl
-              WHERE apl.avatar_id = a.id
-                AND apl.user_id = ${userId}
-                AND apl.profile_id = ANY(${profileIdsForAvatarSelection})
-            )
-          )
-      `;
+    if (completionAvatarIds.length > 0) {
+      userAvatars = await loadProfileScopedAvatars({
+        userId,
+        avatarIds: completionAvatarIds,
+        targetProfileIds,
+        defaultProfileId: defaultProfile.id,
+      });
+    }
 
-      if (!specificAvatar) {
-        return {
-          success: false,
-          updatedAvatars: 0,
-          personalityChanges: [],
-        };
-      }
+    if (requestedAvatarIds.length > 0 && userAvatars.length !== requestedAvatarIds.length) {
+      throw APIError.permissionDenied("Avatar belongs to another child profile.");
+    }
 
-      userAvatars = [{ id: specificAvatar.id, name: specificAvatar.name }];
-    } else {
+    if (userAvatars.length === 0) {
       const activeProfile = await getProfileForUser({ userId, profileId: activeProfileId });
-      const fallbackAvatarId = activeProfile.childAvatarId || activeProfile.preferredAvatarIds[0];
-      if (fallbackAvatarId) {
-        const fallbackAvatar = await avatarDB.queryRow<{ id: string; name: string }>`
-          SELECT a.id, a.name
-          FROM avatars a
-          WHERE a.id = ${fallbackAvatarId}
-            AND a.user_id = ${userId}
-            AND (
-              a.profile_id IS NULL
-              OR a.profile_id = ${activeProfileId}
-              OR EXISTS (
-                SELECT 1
-                FROM avatar_profile_links apl
-                WHERE apl.avatar_id = a.id
-                  AND apl.user_id = ${userId}
-                  AND apl.profile_id = ${activeProfileId}
-              )
-            )
-          LIMIT 1
-        `;
-        if (fallbackAvatar) {
-          userAvatars = [fallbackAvatar];
-        }
+      const fallbackAvatarIds = uniqueAvatarIds([
+        activeProfile.childAvatarId,
+        ...activeProfile.preferredAvatarIds,
+      ]);
+      const fallbackAvatars = await loadProfileScopedAvatars({
+        userId,
+        avatarIds: fallbackAvatarIds,
+        targetProfileIds: [activeProfileId],
+        defaultProfileId: defaultProfile.id,
+      });
+      if (fallbackAvatars.length > 0) {
+        userAvatars = [fallbackAvatars[0]];
       }
     }
 
@@ -262,30 +326,45 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
           continue;
         }
 
-        const personalityResult = await avatar.updatePersonality({
-          id: userAvatar.id,
-          changes,
-          storyId: req.dokuId,
-          contentTitle: req.dokuTitle,
-          contentType: "doku",
+        const progression = await runWithCompletionClaim({
+          claim: () => claimDokuProgression(userAvatar.id, req.dokuId),
+          apply: () =>
+            avatar.updatePersonality({
+              id: userAvatar.id,
+              changes,
+              storyId: req.dokuId,
+              contentTitle: req.dokuTitle,
+              contentType: "doku",
+            }),
+          release: () => releaseDokuProgressionClaim(userAvatar.id, req.dokuId),
         });
 
-        await avatar.addMemory({
-          id: userAvatar.id,
-          storyId: req.dokuId,
-          storyTitle: req.dokuTitle,
-          experience: `Ich habe die Doku "${req.dokuTitle}" gelesen. Thema: ${req.topic}.`,
-          emotionalImpact: "positive",
-          personalityChanges: changes,
-          developmentDescription: `Wissensentwicklung: ${changes.map((item) => item.description).join(", ")}`,
-          contentType: "doku",
-        });
+        if (progression.status === "duplicate") {
+          continue;
+        }
+
+        const personalityResult = progression.value;
 
         await avatarDB.exec`
           INSERT INTO avatar_doku_read (avatar_id, doku_id, doku_title)
           VALUES (${userAvatar.id}, ${req.dokuId}, ${req.dokuTitle})
           ON CONFLICT (avatar_id, doku_id) DO NOTHING
         `;
+
+        try {
+          await avatar.addMemory({
+            id: userAvatar.id,
+            storyId: req.dokuId,
+            storyTitle: req.dokuTitle,
+            experience: `Ich habe die Doku "${req.dokuTitle}" gelesen. Thema: ${req.topic}.`,
+            emotionalImpact: "positive",
+            personalityChanges: changes,
+            developmentDescription: `Wissensentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+            contentType: "doku",
+          });
+        } catch (memoryError) {
+          console.warn(`Failed to store doku memory for ${userAvatar.name}`, memoryError);
+        }
 
         try {
           const topicId = buildTopicId({
@@ -296,7 +375,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
           });
           await trackCosmosReadEvent({
             avatarId: userAvatar.id,
-            profileId: activeProfileId,
+            profileId: userAvatar.profileId,
             sourceContentId: req.dokuId,
             sourceContentType: "doku",
             domainId: resolvedDomainId,

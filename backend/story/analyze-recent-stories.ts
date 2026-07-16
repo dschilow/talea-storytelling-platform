@@ -41,7 +41,7 @@ interface AnalysisResponse {
 }
 
 export const analyzeRecentStories = api<AnalysisRequest, AnalysisResponse>(
-  { expose: true, method: "GET", path: "/story/analyze-recent", auth: false },
+  { expose: false, method: "GET", path: "/story/analyze-recent", auth: false },
   async (req): Promise<AnalysisResponse> => {
     const limit = Math.min(req.limit || 5, 20);
 

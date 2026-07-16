@@ -28,6 +28,11 @@ export interface AvatarMemory {
   experience: string;
   emotionalImpact: 'positive' | 'negative' | 'neutral';
   contentType?: 'story' | 'doku' | 'quiz' | 'activity';
+  memoryTier?: 'working' | 'episodic' | 'core';
+  importance?: number;
+  summary?: string;
+  tags?: string[];
+  isPinned?: boolean;
   personalityChanges: Array<{
     trait: string;
     change: number;
@@ -147,6 +152,9 @@ export interface Avatar {
   isOwnedByCurrentUser?: boolean;
   sharedBy?: AvatarSharedBy;
   sharedWithCount?: number;
+  sourceType?: 'profile' | 'pool' | 'family' | 'clone';
+  sourceAvatarId?: string;
+  originalAvatarId?: string;
   activeShareRecipients?: AvatarShareRecipient[];
   avatarRole?: 'child' | 'companion';
 

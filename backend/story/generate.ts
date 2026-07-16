@@ -3,7 +3,6 @@ import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
 import { generateStoryStandardMode } from "./standard-mode-generation";
-import { convertAvatarDevelopmentsToPersonalityChanges } from "./traitMapping";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
@@ -12,7 +11,8 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
 import { upgradePersonalityTraits } from "../avatar/upgradePersonalityTraits";
 import { getAuthData } from "~encore/auth";
-import { addAvatarMemoryViaMcp, validateAvatarDevelopments } from "../helpers/mcpClient";
+import { validateAvatarDevelopments } from "../helpers/mcpClient";
+import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { updateStoryInstanceStatus } from "./pipeline/repository";
@@ -24,13 +24,6 @@ import {
   getParentalControlsForUser,
   sanitizeTextWithBlockedTerms,
 } from "../helpers/parental-controls";
-import {
-  createStructuredMemory,
-  filterPersonalityChangesWithCooldown,
-  loadPersonalityShiftCooldowns,
-  summarizeMemoryCategory,
-  type PersonalityShiftCooldown,
-} from "./memory-categorization";
 import { StoryPipelineOrchestrator } from "./pipeline/orchestrator";
 import { buildImageCostEntry, buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
 import { GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
@@ -42,10 +35,10 @@ import {
 import { normalizeOpenRouterModel } from "./openrouter-generation";
 import {
   assertProfilesBelongToUser,
+  ensureDefaultProfileForUser,
   getProfileForUser,
   resolveRequestedProfileId,
 } from "../helpers/profiles";
-import { ensureAvatarProfileLinksTable, hasAvatarProfileLinkForAny } from "../avatar/profile-links";
 import type {
   StorySoulKey,
   EmotionalFlavorKey,
@@ -99,76 +92,6 @@ export type StoryTone =
   | "wonder";
 
 export type StoryLanguage = "de" | "en" | "fr" | "es" | "it" | "nl" | "ru";
-
-/** Returns a localized phrase for how the avatar engaged with the story. */
-function localizedModeText(lang: StoryLanguage | undefined, participating: boolean): string {
-  const l = lang ?? "de";
-  const modes: Record<StoryLanguage, [string, string]> = {
-    de: ["aktive Teilnahme", "Lesen"],
-    en: ["active participation", "reading"],
-    fr: ["participation active", "lecture"],
-    es: ["participación activa", "lectura"],
-    it: ["partecipazione attiva", "lettura"],
-    nl: ["actieve deelname", "lezen"],
-    ru: ["активное участие", "чтение"],
-  };
-  return modes[l][participating ? 0 : 1];
-}
-
-/** Builds a personality-change description in the story's language. */
-function localizedTraitDescription(
-  lang: StoryLanguage | undefined,
-  trait: string,
-  points: number,
-  modeText: string,
-  genre: string,
-  storyTitle: string,
-): string {
-  const l = lang ?? "de";
-  if (trait.startsWith("knowledge.")) {
-    const subject = trait.split(".")[1];
-    const templates: Record<StoryLanguage, string> = {
-      de: `+${points} ${subject} durch ${modeText} der ${genre}-Geschichte "${storyTitle}"`,
-      en: `+${points} ${subject} through ${modeText} of ${genre} story "${storyTitle}"`,
-      fr: `+${points} ${subject} grâce à ${modeText} de l'histoire ${genre} "${storyTitle}"`,
-      es: `+${points} ${subject} mediante ${modeText} de la historia ${genre} "${storyTitle}"`,
-      it: `+${points} ${subject} attraverso ${modeText} della storia ${genre} "${storyTitle}"`,
-      nl: `+${points} ${subject} via ${modeText} van ${genre}-verhaal "${storyTitle}"`,
-      ru: `+${points} ${subject} через ${modeText} истории ${genre} "${storyTitle}"`,
-    };
-    return templates[l];
-  }
-  const templates: Record<StoryLanguage, string> = {
-    de: `+${points} ${trait} durch ${modeText} in "${storyTitle}" entwickelt`,
-    en: `+${points} ${trait} developed through ${modeText} in "${storyTitle}"`,
-    fr: `+${points} ${trait} développé via ${modeText} dans "${storyTitle}"`,
-    es: `+${points} ${trait} desarrollado mediante ${modeText} en "${storyTitle}"`,
-    it: `+${points} ${trait} sviluppato attraverso ${modeText} in "${storyTitle}"`,
-    nl: `+${points} ${trait} ontwikkeld via ${modeText} in "${storyTitle}"`,
-    ru: `+${points} ${trait} развито через ${modeText} в "${storyTitle}"`,
-  };
-  return templates[l];
-}
-
-/** Builds an experience description in the story's language. */
-function localizedExperienceDescription(
-  lang: StoryLanguage | undefined,
-  participating: boolean,
-  genre: string,
-  storyTitle: string,
-): string {
-  const l = lang ?? "de";
-  const templates: Record<StoryLanguage, [string, string]> = {
-    de: [`Ich war aktiver Teilnehmer in der Geschichte "${storyTitle}". Genre: ${genre}.`, `Ich habe die Geschichte "${storyTitle}" gelesen. Genre: ${genre}.`],
-    en: [`I was an active participant in the story "${storyTitle}". Genre: ${genre}.`, `I read the story "${storyTitle}". Genre: ${genre}.`],
-    fr: [`J'ai participé activement à l'histoire "${storyTitle}". Genre: ${genre}.`, `J'ai lu l'histoire "${storyTitle}". Genre: ${genre}.`],
-    es: [`Participé activamente en la historia "${storyTitle}". Género: ${genre}.`, `Leí la historia "${storyTitle}". Género: ${genre}.`],
-    it: [`Ho partecipato attivamente alla storia "${storyTitle}". Genere: ${genre}.`, `Ho letto la storia "${storyTitle}". Genere: ${genre}.`],
-    nl: [`Ik nam actief deel aan het verhaal "${storyTitle}". Genre: ${genre}.`, `Ik las het verhaal "${storyTitle}". Genre: ${genre}.`],
-    ru: [`Я активно участвовал в истории "${storyTitle}". Жанр: ${genre}.`, `Я прочитал историю "${storyTitle}". Жанр: ${genre}.`],
-  };
-  return templates[l][participating ? 0 : 1];
-}
 
 export type StoryPacing = "slow" | "balanced" | "fast";
 export type StoryPOV = "ich" | "personale";
@@ -502,6 +425,10 @@ export const generate = api<GenerateStoryRequest, Story>(
       userId: currentUserId,
       profileId: primaryProfileId,
     });
+    const defaultProfile = await ensureDefaultProfileForUser(
+      currentUserId,
+      auth?.email ?? undefined,
+    );
     const requestedParticipants = extractParticipantProfileIds(req);
     const participantProfileIds = uniqueTrimmed([
       primaryProfileId,
@@ -527,7 +454,6 @@ export const generate = api<GenerateStoryRequest, Story>(
         ? req.config.customPrompt
         : mergePromptBlocks(req.config.customPrompt, profilePrompt),
     };
-    await ensureAvatarProfileLinksTable();
     const mcpApiKey = mcpServerApiKey();
 
     console.log("[story.generate] Incoming request:", {
@@ -685,13 +611,9 @@ export const generate = api<GenerateStoryRequest, Story>(
           if (!row.is_public) {
             throw APIError.permissionDenied("Avatar is not available. Copy it into your profile first.");
           }
-        } else if (row.profile_id && !participantProfileIds.includes(row.profile_id)) {
-          const linkedToAnyParticipant = await hasAvatarProfileLinkForAny({
-            avatarId: row.id,
-            userId: currentUserId,
-            profileIds: participantProfileIds,
-          });
-          if (!linkedToAnyParticipant) {
+        } else {
+          const ownerProfileId = row.profile_id || defaultProfile.id;
+          if (!participantProfileIds.includes(ownerProfileId)) {
             throw APIError.permissionDenied("Avatar belongs to another child profile.");
           }
         }
@@ -983,7 +905,14 @@ export const generate = api<GenerateStoryRequest, Story>(
         tokens: generatedStory?.metadata?.tokensUsed,
       });
 
-      let validatedDevelopments = generatedStory.avatarDevelopments ?? [];
+      const developmentAvatars = avatarDetails.map(({ id: avatarId, name }) => ({
+        id: avatarId,
+        name,
+      }));
+      let validatedDevelopments = assignAvatarDevelopmentIds(
+        generatedStory.avatarDevelopments ?? [],
+        developmentAvatars,
+      );
       if (!config.developerMode) {
         try {
           const validation = await validateAvatarDevelopments(
@@ -1000,7 +929,10 @@ export const generate = api<GenerateStoryRequest, Story>(
             for (const dev of validatedDevelopments) {
               for (const traitChange of (Array.isArray(dev?.changedTraits) ? dev.changedTraits : [])) {
                 if (typeof traitChange?.description === "string" && traitChange.description.trim()) {
-                  originalDescriptions.set(`${String(dev?.name || "").toLowerCase()}|${traitChange.trait}`, traitChange.description);
+                  originalDescriptions.set(
+                    `${String(dev?.avatarId || dev?.name || "").toLowerCase()}|${traitChange.trait}`,
+                    traitChange.description,
+                  );
                 }
               }
             }
@@ -1010,7 +942,9 @@ export const generate = api<GenerateStoryRequest, Story>(
                 ? dev.changedTraits.map((traitChange: any) => ({
                     ...traitChange,
                     description: traitChange?.description
-                      || originalDescriptions.get(`${String(dev?.name || "").toLowerCase()}|${traitChange?.trait}`),
+                      || originalDescriptions.get(
+                        `${String(dev?.avatarId || dev?.name || "").toLowerCase()}|${traitChange?.trait}`,
+                      ),
                   }))
                 : dev?.changedTraits,
             }));
@@ -1019,6 +953,10 @@ export const generate = api<GenerateStoryRequest, Story>(
           console.warn("[story.generate] Avatar development validation warning:", validationError);
         }
       }
+      validatedDevelopments = assignAvatarDevelopmentIds(
+        validatedDevelopments,
+        developmentAvatars,
+      );
 
       let parentalFilterReplacements = 0;
       if (blockedTerms.length > 0) {
@@ -1357,181 +1295,13 @@ export const generate = api<GenerateStoryRequest, Story>(
         console.log("[story.generate] 🧪 Developer mode — skipping TTS enrichment.");
       }
 
-      // NEW AI-DRIVEN SYSTEM: Apply personality updates only to participating avatars.
-      // Developer mode does NOT mutate avatar state (no personality, no memory, no read marker).
-      if (config.developerMode) {
-        console.log("[story.generate] 🧪 Developer mode — skipping personality/memory updates.");
-      }
-      console.log("[AI-DRIVEN SYSTEM] Applying trait updates to selected avatars...");
-      const selectedAvatarIds = config.developerMode ? [] : uniqueTrimmed(config.avatarIds || []);
-      const selectedAvatarRows = selectedAvatarIds.length > 0
-        ? await avatarDB.queryAll<{ id: string; name: string }>`
-            SELECT id, name
-            FROM avatars
-            WHERE id = ANY(${selectedAvatarIds})
-          `
-        : [];
-      const selectedAvatarMap = new Map(selectedAvatarRows.map((row) => [row.id, row]));
-      const selectedAvatars = selectedAvatarIds
-        .map((avatarId) => selectedAvatarMap.get(avatarId))
-        .filter((row): row is { id: string; name: string } => Boolean(row));
-
-      console.log(`[story.generate] Found ${selectedAvatars.length} participating avatars for story ${id}`);
-
-      if (validatedDevelopments.length > 0 && selectedAvatars.length > 0) {
-        // Convert AI-generated avatar developments to personality changes
-        const convertedDevelopments = convertAvatarDevelopmentsToPersonalityChanges(validatedDevelopments);
-
-        // RULE: only the avatars that actively participated in this story
-        // (config.avatarIds → selectedAvatars) receive trait updates. There is
-        // no reduced "reader" reward — non-participating avatars are untouched.
-        const modeText = localizedModeText(config.language, true);
-        for (const userAvatar of selectedAvatars) {
-          // Find AI-generated development for this avatar
-          const aiDevelopment = convertedDevelopments.find(dev => dev.name === userAvatar.name);
-
-          let changes: any[] = [];
-          let experienceDescription = "";
-
-          if (aiDevelopment && aiDevelopment.changedTraits && aiDevelopment.changedTraits.length > 0) {
-            // AI-generated specific trait changes for this avatar with detailed descriptions
-            changes = aiDevelopment.changedTraits.map((change: any) => {
-              // Prefer the AI's story-specific reason ("WHY did this trait
-              // grow") over the generic template sentence.
-              const aiDescription = typeof change.description === "string" && change.description.trim().length > 0
-                ? change.description.trim()
-                : undefined;
-              const description = aiDescription
-                ?? localizedTraitDescription(config.language, change.trait, change.change, modeText, config.genre, generatedStory.title);
-              return { trait: change.trait, change: change.change, description };
-            });
-            experienceDescription = localizedExperienceDescription(config.language, true, config.genre, generatedStory.title);
-          } else {
-            // Fallback: Genre-based updates when AI doesn't provide specific developments
-            const baseTraits = config.genre === 'adventure' ? ['courage', 'curiosity'] :
-              config.genre === 'educational' ? ['logic', 'curiosity'] :
-                config.genre === 'mystery' ? ['curiosity', 'logic'] :
-                  config.genre === 'friendship' ? ['empathy', 'teamwork'] :
-                    ['empathy', 'curiosity'];
-            changes = baseTraits.map(trait => {
-              const points = 2;
-              const description = localizedTraitDescription(config.language, trait, points, modeText, config.genre, generatedStory.title);
-              return { trait, change: points, description };
-            });
-            experienceDescription = localizedExperienceDescription(config.language, true, config.genre, generatedStory.title);
-          }
-
-          if (changes.length > 0) {
-            console.log(`[story.generate] Updating ${userAvatar.name} (participant):`, changes);
-
-            try {
-              // OPTIMIZATION v1.0: Create structured memory with categorization
-              const structuredMemory = createStructuredMemory(
-                experienceDescription,
-                changes,
-                id,
-                generatedStory.title,
-                'story',
-                'positive'
-              );
-
-              console.log(`[story.generate] 📝 Memory category: ${structuredMemory.category} (${summarizeMemoryCategory(structuredMemory.category)})`);
-
-              // Reconstruct this avatar's recent per-trait shifts from its
-              // stored memories so the cooldown actually enforces the 24h/72h
-              // windows (previously this was an empty stub → cooldown never fired).
-              let lastShifts: PersonalityShiftCooldown[] = [];
-              try {
-                lastShifts = await loadPersonalityShiftCooldowns(avatarDB, userAvatar.id);
-              } catch (cooldownLoadError) {
-                console.warn(
-                  `[story.generate] Failed to load cooldown history for ${userAvatar.name}; applying without cooldown`,
-                  cooldownLoadError
-                );
-              }
-
-              const { allowedChanges, blockedChanges } = filterPersonalityChangesWithCooldown(
-                structuredMemory.category,
-                changes,
-                lastShifts
-              );
-
-              if (blockedChanges.length > 0) {
-                console.warn(`[story.generate] ⏳ ${blockedChanges.length} personality shifts blocked by cooldown:`,
-                  blockedChanges.map(b => `${b.trait} (${b.remainingHours}h remaining)`)
-                );
-              }
-
-              // Apply only allowed personality updates
-              if (allowedChanges.length > 0) {
-                await avatar.updatePersonality({
-                  id: userAvatar.id,
-                  changes: allowedChanges,
-                  storyId: id,
-                  contentTitle: generatedStory.title,
-                  contentType: 'story'
-                });
-
-                console.log(`[story.generate] ✅ Applied ${allowedChanges.length} personality changes (${blockedChanges.length} blocked)`);
-              }
-
-              // Add memory with categorization info
-              await avatar.addMemory({
-                id: userAvatar.id,
-                storyId: id,
-                storyTitle: generatedStory.title,
-                experience: experienceDescription,
-                emotionalImpact: structuredMemory.emotionalImpact as "positive" | "negative" | "neutral",
-                personalityChanges: allowedChanges, // Only allowed changes
-                developmentDescription: structuredMemory.developmentDescription,
-                contentType: 'story'
-              });
-
-              try {
-                await addAvatarMemoryViaMcp(userAvatar.id, clerkToken, mcpApiKey, {
-                  storyId: id,
-                  storyTitle: generatedStory.title,
-                  experience: experienceDescription,
-                  emotionalImpact: structuredMemory.emotionalImpact as "positive" | "negative" | "neutral",
-                  personalityChanges: allowedChanges.map((change: any) => ({
-                    trait: change.trait,
-                    change: change.change,
-                  })),
-                });
-              } catch (mcpMemoryError) {
-                console.warn("[story.generate] Failed to sync memory to MCP", {
-                  avatarId: userAvatar.id,
-                  error: mcpMemoryError,
-                });
-              }
-
-              console.log(`[story.generate] Updated personality and memory for ${userAvatar.name}`);
-              
-              // Mark story as read by this avatar (prevents duplicate rewards in mark-read)
-              try {
-                await avatarDB.exec`
-                  INSERT INTO avatar_story_read (avatar_id, story_id, story_title)
-                  VALUES (${userAvatar.id}, ${id}, ${generatedStory.title})
-                  ON CONFLICT (avatar_id, story_id) DO NOTHING
-                `;
-                console.log(`[story.generate] ✅ Marked story as read for ${userAvatar.name}`);
-              } catch (markReadError) {
-                console.warn(`[story.generate] Failed to mark story as read:`, markReadError);
-              }
-              
-              // Note: Artifacts are created during Phase 4.5/4.6 with thematic AI-generated content
-              // The old evaluateStoryRewards system (generic artifacts) is disabled
-              console.log(`[story.generate] 📦 Artifact generation handled by Phase 4.5/4.6 (AI-themed artifacts)`);
-            } catch (updateError) {
-              console.error(`[story.generate] Failed to update ${userAvatar.name}:`, updateError);
-            }
-          }
-        }
-
-        console.log(`[story.generate] Applied AI-driven trait updates to ${selectedAvatars.length} participating avatars`);
-      } else {
-        console.log("[story.generate] No AI-generated avatar developments to apply or no participating avatars found");
-      }
+      // Generation only prepares and stores proposed avatar developments.
+      // Progression is awarded after the reader explicitly completes the story
+      // via /story/mark-read; generating or previewing content never mutates an avatar.
+      console.log("[story.generate] Avatar progression deferred until story completion", {
+        storyId: id,
+        developmentCount: validatedDevelopments.length,
+      });
 
       // Return the complete story
       console.log("[story.generate] Loading full story payload to return...");

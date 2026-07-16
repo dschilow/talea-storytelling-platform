@@ -15,7 +15,7 @@ export interface ResetDokuHistoryResponse {
 
 // Reset doku reading history for an avatar (allows re-reading dokus)
 export const resetDokuHistory = api(
-  { expose: true, method: "POST", path: "/avatar/:avatarId/reset-doku-history", auth: true },
+  { expose: false, method: "POST", path: "/avatar/:avatarId/reset-doku-history", auth: true },
   async (req: ResetDokuHistoryRequest): Promise<ResetDokuHistoryResponse> => {
     const auth = getAuthData()!;
     const { avatarId, dokuId } = req;

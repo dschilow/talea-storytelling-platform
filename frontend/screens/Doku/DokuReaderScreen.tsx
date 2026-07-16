@@ -72,6 +72,10 @@ const DokuReaderScreen: React.FC = () => {
   const { isOpen: showGrowthCelebration, data: growthData, triggerCelebration, closeCelebration } = useGrowthCelebration();
 
   const contentRef = useRef<HTMLDivElement>(null);
+  const loadRequestRef = useRef(0);
+  const completionAttemptRef = useRef(0);
+  const completionInFlightRef = useRef(false);
+  const completionConfirmedRef = useRef(false);
 
   // PDF Export state
   const [isExportingPDF, setIsExportingPDF] = useState(false);
@@ -104,12 +108,22 @@ const DokuReaderScreen: React.FC = () => {
   }, [doku]);
 
   useEffect(() => {
-    if (dokuId) {
-      loadDoku();
-    }
+    const requestId = ++loadRequestRef.current;
+    completionAttemptRef.current += 1;
+    completionInFlightRef.current = false;
+    completionConfirmedRef.current = false;
+    setDoku(null);
+    setIsReading(false);
+    setCurrentIndex(0);
+    if (dokuId) void loadDoku(requestId);
 
-    // Removed test toast - was showing duplicate notifications
-  }, [dokuId]);
+    return () => {
+      if (loadRequestRef.current === requestId) loadRequestRef.current += 1;
+      completionAttemptRef.current += 1;
+      completionInFlightRef.current = false;
+      completionConfirmedRef.current = false;
+    };
+  }, [dokuId, activeProfileId]);
 
   // Keine Avatar-Auswahl mehr erforderlich – Updates erfolgen serverseitig
 
@@ -132,7 +146,7 @@ const DokuReaderScreen: React.FC = () => {
     return () => contentEl.removeEventListener('scroll', handleScroll);
   }, [currentIndex, isReading]);
 
-  const loadDoku = async () => {
+  const loadDoku = async (requestId: number) => {
     if (!dokuId) return;
     try {
       setLoading(true);
@@ -143,17 +157,22 @@ const DokuReaderScreen: React.FC = () => {
 
       // If not found offline, fetch from backend
       if (!dokuData) {
-        dokuData = await backend.doku.getDoku({ id: dokuId });
+        dokuData = await backend.doku.getDoku({
+          id: dokuId,
+          profileId: activeProfileId || undefined,
+        });
       } else {
         console.log('[DokuReaderScreen] Loaded doku from offline storage');
       }
 
+      if (loadRequestRef.current !== requestId) return;
       setDoku(dokuData as unknown as Doku);
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       console.error('Error loading doku:', err);
       setError((err as Error).message || t('errors.generic'));
     } finally {
-      setLoading(false);
+      if (loadRequestRef.current === requestId) setLoading(false);
     }
   };
 
@@ -225,7 +244,9 @@ const DokuReaderScreen: React.FC = () => {
 
   // WICHTIG: Backend-Call für Persönlichkeitsentwicklung beim Doku-Lesen
   const handleDokuCompletion = async () => {
-    if (!doku || !dokuId) return;
+    if (!doku || !dokuId || completionConfirmedRef.current || completionInFlightRef.current) return;
+    const attemptId = ++completionAttemptRef.current;
+    completionInFlightRef.current = true;
 
     console.log('📖 Doku completed - updating its selected avatar');
 
@@ -256,8 +277,16 @@ const DokuReaderScreen: React.FC = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(`Doku completion failed with status ${response.status}`);
+      }
+      if (result?.success !== true) {
+        throw new Error('Doku completion was not confirmed by the server.');
+      }
+      if (completionAttemptRef.current !== attemptId) return;
+
+      completionConfirmedRef.current = true;
         console.log('✅ Personality updates applied:', result);
 
         window.dispatchEvent(
@@ -335,10 +364,9 @@ const DokuReaderScreen: React.FC = () => {
 
           return names[mainTrait.toLowerCase()] || trait;
         }
-      } else {
+      if (!response.ok) {
         const errorText = await response.text();
         console.warn('⚠️ Failed to apply personality updates:', response.statusText, errorText);
-        emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
 
         // Show error notification
         import('../../utils/toastUtils').then(({ showErrorToast }) => {
@@ -347,12 +375,14 @@ const DokuReaderScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ Error applying personality updates:', error);
-      emitMapProgress({ avatarId: mapAvatarId, source: 'doku' });
-
-      // Show error notification
-      import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast(t('errors.networkError'));
-      });
+      if (completionAttemptRef.current !== attemptId) return;
+      const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Kehre kurz zurueck und versuche es erneut.';
+      const { showErrorToast } = await import('../../utils/toastUtils');
+      showErrorToast(message);
+    } finally {
+      if (completionAttemptRef.current === attemptId) {
+        completionInFlightRef.current = false;
+      }
     }
   };
 

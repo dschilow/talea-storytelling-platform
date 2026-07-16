@@ -15,6 +15,7 @@ import {
 import { storyDB } from "./db";
 
 const avatarDB = SQLDatabase.named("avatar");
+const MAX_PROXY_IMAGE_BYTES = 15 * 1024 * 1024;
 
 interface ProxyImageRequest {
   imageUrl: string;
@@ -61,7 +62,9 @@ export const proxyImage = api<ProxyImageRequest, ProxyImageResponse>(
       let isAllowed = false;
       try {
         const url = new URL(imageUrl);
-        isAllowed = allowedDomains.some(domain => url.hostname.includes(domain));
+        isAllowed =
+          url.protocol === "https:" &&
+          allowedDomains.includes(url.hostname.toLowerCase());
       } catch {
         return {
           success: false,
@@ -77,7 +80,7 @@ export const proxyImage = api<ProxyImageRequest, ProxyImageResponse>(
       }
 
       // Fetch the image
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, { redirect: "error" });
 
       if (!response.ok) {
         return {
@@ -86,12 +89,22 @@ export const proxyImage = api<ProxyImageRequest, ProxyImageResponse>(
         };
       }
 
-      // Get content type
+      // Get content type and reject non-images or oversized responses.
       const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const contentLength = Number(response.headers.get("content-length") || "0");
+      if (!contentType.toLowerCase().startsWith("image/")) {
+        return { success: false, error: "Upstream response is not an image" };
+      }
+      if (Number.isFinite(contentLength) && contentLength > MAX_PROXY_IMAGE_BYTES) {
+        return { success: false, error: "Image is too large" };
+      }
 
       // Convert to base64
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+      if (buffer.length > MAX_PROXY_IMAGE_BYTES) {
+        return { success: false, error: "Image is too large" };
+      }
       const base64 = buffer.toString('base64');
       const dataUrl = `data:${contentType};base64,${base64}`;
 
@@ -262,8 +275,19 @@ async function streamFromSignedUrl(signedUrl: string): Promise<StreamResult> {
   }
 
   const contentType = response.headers.get("content-type") || "application/octet-stream";
+  const contentLength = Number(response.headers.get("content-length") || "0");
+  if (!contentType.toLowerCase().startsWith("image/")) {
+    return { status: 415, message: "Stored object is not an image" };
+  }
+  if (Number.isFinite(contentLength) && contentLength > MAX_PROXY_IMAGE_BYTES) {
+    return { status: 413, message: "Image is too large" };
+  }
+
   const arrayBuffer = await response.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  if (buffer.length > MAX_PROXY_IMAGE_BYTES) {
+    return { status: 413, message: "Image is too large" };
+  }
 
   return {
     status: 200,

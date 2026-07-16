@@ -4,6 +4,7 @@
 
 import { storyDB } from "./db";
 import type { ArtifactTemplate, ArtifactRequirement, ArtifactCategory, ArtifactRarity } from "./types";
+import { extractPendingArtifactReference } from "./artifact-reward-utils";
 
 /**
  * Converts database row to ArtifactTemplate
@@ -463,13 +464,13 @@ export class ArtifactMatcher {
   /**
    * Generates a fallback artifact when pool is empty or no match found
    */
-  private generateFallbackArtifact(requirement: ArtifactRequirement, genre: string): ArtifactTemplate {
+  private async generateFallbackArtifact(requirement: ArtifactRequirement, genre: string): Promise<ArtifactTemplate> {
     console.log("[ArtifactMatcher] Generating fallback artifact...");
 
-    const category = requirement.preferredCategory || 'magic';
-    const id = `fallback_${Date.now()}`;
+    const category: ArtifactCategory = 'magic';
+    const id = 'fallback_lucky_charm';
 
-    return {
+    const fallback: ArtifactTemplate = {
       id,
       name: {
         de: 'Magischer Glücksbringer',
@@ -499,6 +500,46 @@ export class ArtifactMatcher {
       totalUsageCount: 0,
       isActive: true,
     };
+
+    // story_artifacts has a foreign key to artifact_pool. A transient fallback
+    // could be shown in the story but could never be unlocked. Keep one stable,
+    // idempotent pool row so even an empty seed database still awards a treasure.
+    await storyDB.exec`
+      INSERT INTO artifact_pool (
+        id,
+        name_de,
+        name_en,
+        description_de,
+        description_en,
+        category,
+        rarity,
+        story_role,
+        discovery_scenarios,
+        usage_scenarios,
+        emoji,
+        visual_keywords,
+        genre_adventure,
+        genre_fantasy,
+        genre_mystery,
+        genre_nature,
+        genre_friendship,
+        genre_courage,
+        genre_learning,
+        is_active
+      ) VALUES (
+        ${id}, ${fallback.name.de}, ${fallback.name.en},
+        ${fallback.description.de}, ${fallback.description.en},
+        ${fallback.category}, ${fallback.rarity}, ${fallback.storyRole},
+        ${fallback.discoveryScenarios}, ${fallback.usageScenarios},
+        ${fallback.emoji || null}, ${fallback.visualKeywords},
+        0.7, 0.9, 0.6, 0.5, 0.5, 0.6, 0.5, TRUE
+      )
+      ON CONFLICT (id) DO UPDATE
+      SET is_active = TRUE,
+          updated_at = CURRENT_TIMESTAMP
+    `;
+    await this.incrementUsageCounter(id);
+    return fallback;
   }
 }
 
@@ -559,7 +600,7 @@ export async function unlockStoryArtifact(storyId: string): Promise<ArtifactTemp
     // The assignment belongs to the story, while ownership belongs to an avatar.
     // Return the artifact even if another reader already unlocked the story marker;
     // markRead performs the per-avatar duplicate check.
-    const rows = await storyDB.queryAll<any>`
+    let rows = await storyDB.queryAll<any>`
       SELECT ap.*, sa.discovery_chapter, sa.usage_chapter
       FROM story_artifacts sa
       JOIN artifact_pool ap ON sa.artifact_id = ap.id
@@ -569,8 +610,50 @@ export async function unlockStoryArtifact(storyId: string): Promise<ArtifactTemp
     `;
 
     if (rows.length === 0) {
-      console.log("[ArtifactMatcher] No artifact assignment found for story:", storyId);
-      return null;
+      // Assignment persistence is best-effort during generation. If that write
+      // failed while the story succeeded, metadata still contains the server-
+      // generated pending reward. Repair the junction on first completion.
+      const story = await storyDB.queryRow<{ metadata: unknown }>`
+        SELECT metadata
+        FROM stories
+        WHERE id = ${storyId}
+        LIMIT 1
+      `;
+      const pending = extractPendingArtifactReference(story?.metadata);
+      if (!pending) {
+        console.log("[ArtifactMatcher] No artifact assignment or pending reward found for story:", storyId);
+        return null;
+      }
+
+      const recovered = await storyDB.queryRow<any>`
+        SELECT *
+        FROM artifact_pool
+        WHERE id = ${pending.artifactId}
+        LIMIT 1
+      `;
+      if (!recovered) {
+        console.warn("[ArtifactMatcher] Pending artifact is missing:", {
+          storyId,
+          artifactId: pending.artifactId,
+        });
+        return null;
+      }
+
+      await recordStoryArtifact(
+        storyId,
+        pending.artifactId,
+        pending.discoveryChapter,
+        pending.usageChapter
+      );
+      rows = [{
+        ...recovered,
+        discovery_chapter: pending.discoveryChapter,
+        usage_chapter: pending.usageChapter,
+      }];
+      console.log("[ArtifactMatcher] Recovered missing story artifact assignment:", {
+        storyId,
+        artifactId: pending.artifactId,
+      });
     }
 
     const row = rows[0];

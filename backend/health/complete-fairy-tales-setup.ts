@@ -5,7 +5,7 @@ import { api } from "encore.dev/api";
 import { fairytalesDB } from "../fairytales/db";
 
 export const completeFairyTalesSetup = api(
-  { expose: true, method: "POST", path: "/health/complete-fairy-tales-setup" },
+  { expose: false, method: "POST", path: "/health/complete-fairy-tales-setup" },
   async (): Promise<{ success: boolean; message: string; details?: any }> => {
     try {
       console.log("Starting complete fairy tales database setup...");

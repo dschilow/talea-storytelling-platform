@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 import { logDB } from "./db";
 import { getLogTableInfo, listAvailableLogSchemas } from "./table-resolver";
+import { ensureAdmin } from "../admin/authz";
 
 interface DebugResponse {
   tableExists: boolean;
@@ -16,6 +17,7 @@ interface DebugResponse {
 export const debug = api<void, DebugResponse>(
   { expose: true, method: "GET", path: "/log/debug", auth: true },
   async () => {
+    ensureAdmin();
     try {
       const dbNameRow = await logDB.rawQueryRow<{ current_database: string }>(
         `SELECT current_database() AS current_database`

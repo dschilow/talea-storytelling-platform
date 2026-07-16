@@ -21,6 +21,7 @@ import {
 
 import { useTheme } from '../../contexts/ThemeContext';
 import type { AvatarProgression } from '../../types/avatar';
+import ConceptHelp from "./ConceptHelp";
 
 export interface GrowthTrait {
   id: string;
@@ -254,7 +255,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
               className="text-xs font-bold uppercase tracking-[0.16em]"
               style={{ color: isDark ? '#9bc4b9' : '#527b70' }}
             >
-              {strongest.length > 0 ? 'Deine Entwicklung' : 'Deine Reise beginnt'}
+              {strongest.length > 0 ? 'Entwicklung von ' + avatarName : 'Die Reise von ' + avatarName + ' beginnt'}
             </p>
             <h2
               className="mt-2 text-2xl font-semibold leading-tight"
@@ -286,13 +287,46 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
               <p className="text-2xl font-semibold" style={{ color: isDark ? '#f2f6fc' : '#203449' }}>
                 {progression?.overallLevel || 1}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#9eb1c7' : '#6b7d90' }}>
-                Reisestufe
-              </p>
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#9eb1c7' : '#6b7d90' }}>
+                  Reisestufe
+                </p>
+                <ConceptHelp title="Was ist die Reisestufe?">
+                  Sie fasst alle Abenteuer, Erinnerungen und St&auml;rken zusammen. Sie ist keine Schulnote.
+                </ConceptHelp>
+              </div>
             </div>
           </div>
         </div>
       </motion.section>
+
+      <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>So funktioniert es</p>
+            <h3 className="mt-1 text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>So w&auml;chst dein Avatar</h3>
+          </div>
+          <ConceptHelp title="Was bedeuten die Punkte?">
+            Punkte zeigen, was der Avatar in abgeschlossenen Geschichten und Dokus oft erlebt hat. Sie bewerten niemals das Kind.
+          </ConceptHelp>
+        </div>
+        <ol className="mt-4 grid gap-2 md:grid-cols-3">
+          {[
+            { step: '1', title: 'Abenteuer abschlie&szlig;en', text: 'Eine Geschichte oder Doku wird wirklich bis zum Ende erlebt.' },
+            { step: '2', title: 'Passende St&auml;rke w&auml;chst', text: 'Mutige, kluge oder einf&uuml;hlsame Momente geben passende Punkte.' },
+            { step: '3', title: 'Neues entdecken', text: 'Mit genug Punkten steigen Stufen und Talente werden sichtbar.' },
+          ].map((item) => (
+            <li key={item.step} className="flex gap-3 rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#3a5066' : '#e0d5c8', background: isDark ? 'rgba(27,41,57,0.58)' : '#fffdfa' }}>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#527b70] text-sm font-bold text-white">{item.step}</span>
+              <div>
+                <p className="font-semibold" style={{ color: isDark ? '#e9f0f8' : '#263a4f' }} dangerouslySetInnerHTML={{ __html: item.title }} />
+                <p className="mt-0.5 text-xs leading-relaxed" style={{ color: isDark ? '#9fb2c8' : '#687d93' }} dangerouslySetInnerHTML={{ __html: item.text }} />
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>Wichtig: Das sind Story-St&auml;rken des Avatars &ndash; keine Bewertung des Kindes.</p>
+      </section>
 
       {nextGoal ? (
         <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
@@ -509,7 +543,10 @@ const StrengthCard: React.FC<{ card: TraitCard; place: number; isDark: boolean }
         <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: isDark ? `${meta.color}33` : meta.soft, color: isDark ? '#dce8f4' : meta.color }}>
           <Icon className="h-5 w-5" />
         </span>
-        <span className="text-xs font-bold" style={{ color: isDark ? '#849ab2' : '#8996a3' }}>#{place}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-bold" style={{ color: isDark ? '#849ab2' : '#8996a3' }}>#{place}</span>
+          <ConceptHelp title={`Was bedeutet ${card.label}?`}>{meta.hint} Die Punkte stammen nur aus abgeschlossenen Inhalten.</ConceptHelp>
+        </div>
       </div>
       <h4 className="mt-3 font-semibold" style={{ color: isDark ? '#e9f0f8' : '#263a4f' }}>{card.label}</h4>
       <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>{card.rankName} &middot; {card.value} Punkte</p>
@@ -529,7 +566,10 @@ const TraitRow: React.FC<{ card: TraitCard; isDark: boolean }> = ({ card, isDark
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <h4 className="font-semibold" style={{ color: isDark ? '#e7eef7' : '#2b3e52' }}>{card.label}</h4>
-            <span className="text-sm font-semibold" style={{ color: isDark ? '#b2c2d3' : '#536980' }}>{card.value}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-sm font-semibold" style={{ color: isDark ? '#b2c2d3' : '#536980' }}>{card.value}</span>
+              <ConceptHelp title={`Was bedeutet ${card.label}?`}>{meta.hint} Punkte sind keine Schulnoten.</ConceptHelp>
+            </div>
           </div>
           <p className="text-xs" style={{ color: isDark ? '#91a6bd' : '#718399' }}>
             {card.value === 0 ? 'Noch unentdeckt' : card.rankName}

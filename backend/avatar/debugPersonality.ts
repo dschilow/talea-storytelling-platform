@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 import type { PersonalityTraits } from "./avatar";
@@ -29,6 +30,7 @@ export interface DebugPersonalityResponse {
 export const debugPersonality = api(
   { expose: true, method: "GET", path: "/avatar/:id/debug-personality", auth: true },
   async (req: DebugPersonalityRequest): Promise<DebugPersonalityResponse> => {
+    const auth = getAuthData()!;
     const { id } = req;
 
     console.log(`🔍 Debugging personality for avatar ${id}`);
@@ -36,15 +38,20 @@ export const debugPersonality = api(
     // Get current stored personality traits
     const avatarRow = await avatarDB.queryRow<{
       id: string;
+      user_id: string;
       personality_traits: string;
     }>`
-      SELECT id, personality_traits FROM avatars WHERE id = ${id}
+      SELECT id, user_id, personality_traits FROM avatars WHERE id = ${id}
     `;
 
     if (!avatarRow) {
       throw APIError.notFound("Avatar not found");
     }
 
+
+    if (avatarRow.user_id !== auth.userID && auth.role !== "admin") {
+      throw APIError.permissionDenied("You do not have permission to inspect this avatar.");
+    }
     const storedTraits = JSON.parse(avatarRow.personality_traits);
     console.log(`📦 Stored traits:`, JSON.stringify(storedTraits, null, 2));
 

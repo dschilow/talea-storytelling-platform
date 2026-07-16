@@ -188,6 +188,15 @@ const RouterContent = () => {
   const { isLoaded, isSignedIn } = useUser();
   const userAccess = useOptionalUserAccess();
   const location = useLocation();
+
+  // If Clerk never loads (outage, ad-blocker, wrong domain), fall through to
+  // the signed-out routes after a grace period instead of a blank page.
+  const [clerkTimedOut, setClerkTimedOut] = useState(false);
+  useEffect(() => {
+    if (isLoaded) return;
+    const timer = window.setTimeout(() => setClerkTimedOut(true), 3000);
+    return () => window.clearTimeout(timer);
+  }, [isLoaded]);
   const deferredUntilRaw =
     typeof window !== 'undefined' ? window.localStorage.getItem('talea.parentalOnboardingDeferredUntil') : null;
   const deferredUntil = deferredUntilRaw ? Number(deferredUntilRaw) : 0;
@@ -198,7 +207,7 @@ const RouterContent = () => {
     (!isSignedIn && location.pathname === '/');
   const isCosmosFullscreenRoute = location.pathname.startsWith('/cosmos');
 
-  if (!isLoaded) {
+  if (!isLoaded && !clerkTimedOut) {
     return null;
   }
 

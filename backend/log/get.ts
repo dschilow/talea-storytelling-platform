@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { logDB } from "./db";
 import type { LogRow } from "./db";
 import type { LogEntry } from "./list";
@@ -10,8 +11,9 @@ interface GetLogRequest {
 
 // Retrieves a specific log entry by ID from the database.
 export const get = api<GetLogRequest, LogEntry>(
-  { expose: true, method: "GET", path: "/log/get/:id" },
+  { expose: true, method: "GET", path: "/log/get/:id", auth: true },
   async ({ id }) => {
+    ensureAdmin();
     try {
       const { qualifiedName: logTable } = await getLogTableInfo();
       const row = await logDB.rawQueryRow<LogRow>(

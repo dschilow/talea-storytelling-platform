@@ -1,5 +1,4 @@
 import { api, APIError } from "encore.dev/api";
-import { getAuthData } from "~encore/auth";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { avatarDB } from "../avatar/db";
 
@@ -18,7 +17,7 @@ interface EvaluateRewardsResponse {
 }
 
 export const evaluateStoryRewards = api(
-    { expose: true, auth: true, method: "POST", path: "/gamification/evaluate-rewards" },
+    { expose: false, auth: true, method: "POST", path: "/gamification/evaluate-rewards" },
     async (req: EvaluateRewardsRequest): Promise<EvaluateRewardsResponse> => {
         const { avatarId, storyId, storyTags, storyTitle } = req;
         console.log(`[Gamification] Evaluating rewards for avatar ${avatarId} from story ${storyId}`);
@@ -162,7 +161,7 @@ interface AddArtifactResponse {
 }
 
 export const addArtifactToInventory = api(
-    { expose: true, auth: true, method: "POST", path: "/gamification/add-artifact" },
+    { expose: false, auth: true, method: "POST", path: "/gamification/add-artifact" },
     async (req: AddArtifactRequest): Promise<AddArtifactResponse> => {
         const { avatarId, artifact } = req;
         console.log(`[Gamification] 🎁 Adding artifact "${artifact.name}" to avatar ${avatarId}`);

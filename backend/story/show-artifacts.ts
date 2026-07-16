@@ -27,7 +27,7 @@ interface ArtifactSummary {
  * Public endpoint (no auth) to verify database contents
  */
 export const showArtifacts = api<void, ArtifactSummary>(
-  { expose: true, method: "GET", path: "/story/show-artifacts", auth: false },
+  { expose: false, method: "GET", path: "/story/show-artifacts", auth: false },
   async () => {
     try {
       // Total count

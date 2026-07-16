@@ -84,6 +84,15 @@ export interface BatchGenerationResponse {
   };
 }
 
+function summarizeImageProviderResponse(value: any): Record<string, unknown> {
+  const itemCount = Array.isArray(value)
+    ? value.length
+    : Array.isArray(value?.data)
+      ? value.data.length
+      : Array.isArray(value?.results) ? value.results.length : undefined;
+  return { responseType: Array.isArray(value) ? "array" : typeof value, itemCount, hasError: Boolean(value?.error) };
+}
+
 // Internal helper that actually calls Runware and returns the parsed image with retry logic
 // Use this helper for intra-service calls to avoid HTTP overhead.
 // OPTIMIZATION v4.0: Now supports MULTIPLE reference images for runware:400@4
@@ -142,13 +151,22 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     const retryInfo = retryCount > 0 ? ` (retry ${retryCount}/${maxRetries})` : '';
     console.log(`[Runware] Generating image ${hasReferences ? `WITH ${refImages.length}` : 'without'} reference images${retryInfo}`);
     
-    // Sanitize request for logging (don't log full URLs)
-    const sanitizedRequest = {
-      ...requestBody,
-      inputs: requestBody.inputs ? { referenceImages: `[${refImages.length} refs]` } : undefined,
+    // Never persist prompts or reference URLs in logs/debug responses.
+    const requestLog = {
+      taskUUID: requestBody.taskUUID,
+      model: requestBody.model,
+      width: requestBody.width,
+      height: requestBody.height,
+      steps: requestBody.steps,
+      cfgScale: requestBody.CFGScale,
+      outputFormat: requestBody.outputFormat,
+      promptLength: requestBody.positivePrompt.length,
+      negativePromptLength: requestBody.negativePrompt?.length ?? 0,
+      referenceCount: refImages.length,
+      retryCount,
     };
-    debugInfo.requestSent = sanitizedRequest;
-    console.log("[Runware] Request (sanitized):", JSON.stringify(sanitizedRequest, null, 2));
+    debugInfo.requestSent = requestLog;
+    console.info("[Runware] Image request prepared", requestLog);
 
     // Extended timeout for complex image generation (3 minutes)
     const controller = new AbortController();
@@ -173,14 +191,19 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       try {
         data = JSON.parse(responseText);
       } catch (e) {
-        data = { error: "Failed to parse JSON response", response: responseText };
+        data = { error: "Failed to parse JSON response" };
       }
 
+      const responseLog = {
+        httpStatus: res.status,
+        responseType: Array.isArray(data) ? "array" : typeof data,
+        itemCount: Array.isArray(data) ? data.length : Array.isArray(data?.data) ? data.data.length : undefined,
+      };
       await publishWithTimeout(logTopic, {
         source: 'runware-single-image',
         timestamp: new Date(),
-        request: requestBody,
-        response: data,
+        request: requestLog,
+        response: responseLog,
         metadata: req.logContext ?? null,
       });
 
@@ -193,9 +216,9 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       }
 
       if (!res.ok) {
-        debugInfo.errorMessage = `HTTP ${res.status}: ${responseText}`;
+        debugInfo.errorMessage = `Image provider returned HTTP ${res.status}`;
         debugInfo.processingTime = Date.now() - startTime;
-        console.error("[Runware] API error:", debugInfo.errorMessage);
+        console.error("[Runware] API error", { status: res.status });
         return {
           imageUrl: "",
           seed: requestBody.seed,
@@ -213,7 +236,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       throw abortErr;
     }
 
-    debugInfo.responseReceived = data;
+    debugInfo.responseReceived = { responseType: Array.isArray(data) ? "array" : typeof data };
     debugInfo.processingTime = Date.now() - startTime;
 
     const extracted = extractRunwareImage(data);
@@ -260,10 +283,9 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     }
 
     debugInfo.success = true;
-    console.log("[Runware] Image generated:", {
+    console.info("[Runware] Image generated", {
       contentType,
       fromPath,
-      urlPreview: imageUrl.substring(0, 120),
       processingTime: debugInfo.processingTime
     });
 
@@ -273,10 +295,10 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       debugInfo,
     };
   } catch (err: any) {
-    console.error("[Runware] Call failed:", err);
+    console.error("[Runware] Call failed", { errorName: err?.name });
     const dbg: DebugInfo = {
       ...debugInfo,
-      errorMessage: err?.message || String(err),
+      errorMessage: "Image generation request failed",
       processingTime: Date.now() - startTime,
     };
     return {
@@ -323,12 +345,20 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       return { images: [], debug: { processingTime: 0, ok: true, status: 200, errorMessage: "" } };
     }
 
-    console.log(`[Runware] Generating ${tasks.length} images in batch`);
-    const sanitized = tasks.map((t) => ({
-      ...t,
-      inputs: (t as any).inputs ? { referenceImages: `[${(t as any).inputs.referenceImages.length} refs]` } : undefined,
+    const requestLogs = tasks.map((task, index) => ({
+      taskUUID: task.taskUUID,
+      model: task.model,
+      width: task.width,
+      height: task.height,
+      steps: task.steps,
+      cfgScale: task.CFGScale,
+      outputFormat: task.outputFormat,
+      promptLength: task.positivePrompt.length,
+      negativePromptLength: task.negativePrompt?.length ?? 0,
+      referenceCount: (task as any).inputs?.referenceImages?.length ?? 0,
+      index,
     }));
-    console.log("[Runware] Batch request (sanitized):", JSON.stringify(sanitized, null, 2));
+    console.info("[Runware] Batch image request prepared", { batchSize: tasks.length });
 
     const res = await fetch("https://api.runware.ai/v1", {
       method: "POST",
@@ -342,35 +372,35 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     try {
       data = JSON.parse(responseText);
     } catch (e) {
-      data = { error: "Failed to parse JSON response", response: responseText };
+      data = { error: "Failed to parse JSON response" };
     }
 
     await publishWithTimeout(logTopic, {
       source: 'runware-batch-image',
       timestamp: new Date(),
-      request: tasks,
-      response: data,
+      request: { batchSize: tasks.length, items: requestLogs },
+      response: { httpStatus: res.status, ...summarizeImageProviderResponse(data) },
     });
 
     if (!res.ok) {
-      console.error("[Runware] Batch API error:", responseText);
+      console.error("[Runware] Batch API error", { status: res.status });
       return {
         images: req.images.map((img, i) => ({
           imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
-            requestSent: sanitized[i],
+            requestSent: requestLogs[i],
             responseReceived: null,
             processingTime,
             success: false,
-            errorMessage: `HTTP ${res.status}: ${responseText}`,
+            errorMessage: `Image provider returned HTTP ${res.status}`,
             contentType: "",
             extractedFromPath: "",
             responseStatus: res.status,
             referencesCount: img.referenceImages?.length ?? 0,
           },
         })),
-        debug: { processingTime, ok: false, status: res.status, errorMessage: responseText },
+        debug: { processingTime, ok: false, status: res.status, errorMessage: `Image provider returned HTTP ${res.status}` },
       };
     }
 
@@ -391,8 +421,8 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
           imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
-            requestSent: sanitized[idx],
-            responseReceived: item,
+            requestSent: requestLogs[idx],
+            responseReceived: summarizeImageProviderResponse(item),
             processingTime,
             success: false,
             errorMessage: "No image data found in Runware batch response item",
@@ -418,8 +448,8 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
           imageUrl: "",
           seed: img.seed ?? 0,
           debugInfo: {
-            requestSent: sanitized[idx],
-            responseReceived: item,
+            requestSent: requestLogs[idx],
+            responseReceived: summarizeImageProviderResponse(item),
             processingTime,
             success: false,
             errorMessage: "No image payload in Runware batch response item",
@@ -445,8 +475,8 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
         imageUrl,
         seed: seed ?? (tasks[idx]?.seed ?? img.seed ?? 0),
         debugInfo: {
-          requestSent: sanitized[idx],
-          responseReceived: item,
+          requestSent: requestLogs[idx],
+          responseReceived: summarizeImageProviderResponse(item),
           processingTime,
           success: true,
           errorMessage: "",
@@ -466,7 +496,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
     };
   } catch (err: any) {
     const processingTime = Date.now() - start;
-    console.error("[Runware] Batch call failed:", err);
+    console.error("[Runware] Batch call failed", { errorName: err?.name });
     return {
       images: (req.images ?? []).map((img) => ({
         imageUrl: "",
@@ -476,14 +506,14 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
           responseReceived: null,
           processingTime,
           success: false,
-          errorMessage: err?.message || String(err),
+          errorMessage: "Batch image generation request failed",
           contentType: "",
           extractedFromPath: "",
           responseStatus: 0,
           referencesCount: img.referenceImages?.length ?? 0,
         },
       })),
-      debug: { processingTime, ok: false, status: 0, errorMessage: err?.message || String(err) },
+      debug: { processingTime, ok: false, status: 0, errorMessage: "Batch image generation request failed" },
     };
   }
 }
@@ -503,7 +533,7 @@ function normalizeToMultiple64(value: number): number {
 
 // Public API endpoint wrapper that calls the internal helper.
 export const generateImage = api<ImageGenerationRequest, ImageGenerationResponse>(
-  { expose: true, method: "POST", path: "/ai/generate-image" },
+  { expose: false, method: "POST", path: "/ai/generate-image" },
   async (req) => {
     return await runwareGenerateImage(req);
   }
@@ -511,7 +541,7 @@ export const generateImage = api<ImageGenerationRequest, ImageGenerationResponse
 
 // Public API endpoint for batch generation.
 export const generateImagesBatch = api<BatchGenerationRequest, BatchGenerationResponse>(
-  { expose: true, method: "POST", path: "/ai/generate-images-batch" },
+  { expose: false, method: "POST", path: "/ai/generate-images-batch" },
   async (req) => {
     return await runwareGenerateImagesBatch(req);
   }

@@ -11,7 +11,7 @@ interface ResetPersonalityTraitsResponse {
 
 // Resets all personality traits of user's avatars to start at 0 (new system)
 export const resetPersonalityTraits = api(
-  { expose: true, method: "POST", path: "/avatar/reset-personality-traits", auth: true },
+  { expose: false, method: "POST", path: "/avatar/reset-personality-traits", auth: true },
   async (): Promise<ResetPersonalityTraitsResponse> => {
     const auth = getAuthData()!;
     const userId = auth.userID;

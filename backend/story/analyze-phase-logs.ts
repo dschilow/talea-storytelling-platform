@@ -332,6 +332,7 @@ async function enrichFromStoryMetadata(storyId: string, phaseLogs: PhaseLogData)
  */
 import { api } from "encore.dev/api";
 import { generateOverallReport } from "./phase-scorer";
+import { ensureAdmin } from "../admin/authz";
 
 export const analyzeStory = api(
   { expose: true, method: "GET", path: "/story/analyze/:storyId", auth: true },
@@ -340,6 +341,8 @@ export const analyzeStory = api(
     phaseLogs: PhaseLogData;
     report: any;
   }> => {
+    ensureAdmin();
+
     console.log(`[Analyze Story] Analyzing story: ${req.storyId}`);
 
     const phaseLogs = await extractPhaseLogsFromDatabase(req.storyId);

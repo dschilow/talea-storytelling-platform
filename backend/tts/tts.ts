@@ -1,6 +1,8 @@
-﻿import { api, APIError } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 import { splitTextIntoChunks } from "../helpers/ttsChunking";
+import { getAuthData } from "~encore/auth";
+import { claimMeteredUsage } from "../helpers/billing";
 import {
   xaiGenerateSpeech,
   xaiGenerateSpeechBatch,
@@ -1647,8 +1649,23 @@ async function runpodListVoicesRequest(): Promise<QwenVoicesResponse> {
 // API Endpoints
 
 export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
-  { expose: true, method: "POST", path: "/tts/generate" },
+  { expose: true, method: "POST", path: "/tts/generate", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    const text = (req.text || "").trim();
+    if (!text) {
+      throw APIError.invalidArgument("Text is required.");
+    }
+    if (text.length > 20_000) {
+      throw APIError.invalidArgument("Text is too long for one TTS request.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "tts",
+      units: text.length,
+      clerkToken: auth.clerkToken,
+    });
+
     if (req.provider === "xai") {
       try {
         const result = await xaiGenerateSpeech({
@@ -1802,8 +1819,27 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
 }
 
 export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchResponse>(
-  { expose: true, method: "POST", path: "/tts/batch" },
+  { expose: true, method: "POST", path: "/tts/batch", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    if (!Array.isArray(req.items) || req.items.length > 100) {
+      throw APIError.invalidArgument("A TTS batch may contain at most 100 items.");
+    }
+    const totalCharacters = req.items.reduce(
+      (sum, item) => sum + String(item.text || "").trim().length,
+      0
+    );
+    if (totalCharacters > 100_000) {
+      throw APIError.invalidArgument("TTS batch text is too large.");
+    }
+    if (totalCharacters > 0) {
+      await claimMeteredUsage({
+        userId: auth.userID,
+        kind: "tts",
+        units: totalCharacters,
+        clerkToken: auth.clerkToken,
+      });
+    }
     return await generateSpeechBatchInternal(req);
   }
 );
@@ -1944,8 +1980,20 @@ function decodeAudioResult(audio: string, fallbackMimeType: string): { buffer: B
 }
 
 export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwenDialogueResponse>(
-  { expose: true, method: "POST", path: "/tts/qwen/dialogue" },
+  { expose: true, method: "POST", path: "/tts/qwen/dialogue", auth: true },
   async (req) => {
+    const auth = getAuthData()!;
+    const scriptLength = String(req.script || "").trim().length;
+    if (!scriptLength || scriptLength > 100_000) {
+      throw APIError.invalidArgument("Dialogue script is empty or too large.");
+    }
+    await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "tts",
+      units: scriptLength,
+      clerkToken: auth.clerkToken,
+    });
+
     if (!req.speakerVoiceMap || Object.keys(req.speakerVoiceMap).length === 0) {
       throw APIError.invalidArgument("speakerVoiceMap is required.");
     }
@@ -2050,7 +2098,7 @@ async function listRunpodVoicesOrThrow(providerLabel: string): Promise<QwenVoice
 }
 
 export const listQwenVoices = api<void, QwenVoicesResponse>(
-  { expose: true, method: "GET", path: "/tts/qwen/voices" },
+  { expose: true, method: "GET", path: "/tts/qwen/voices", auth: true },
   async () => {
     return await listRunpodVoicesOrThrow("Qwen");
   }
@@ -2058,21 +2106,21 @@ export const listQwenVoices = api<void, QwenVoicesResponse>(
 
 // Temporary alias until the generated frontend client is refreshed.
 export const listCosyVoiceVoices = api<void, QwenVoicesResponse>(
-  { expose: true, method: "GET", path: "/tts/cosyvoice/voices" },
+  { expose: true, method: "GET", path: "/tts/cosyvoice/voices", auth: true },
   async () => {
     return await listRunpodVoicesOrThrow("Qwen");
   }
 );
 
 export const listXaiVoices = api<void, XaiVoicesResponse>(
-  { expose: true, method: "GET", path: "/tts/xai/voices" },
+  { expose: true, method: "GET", path: "/tts/xai/voices", auth: true },
   async () => {
     return xaiListVoices();
   }
 );
 
 export const getAvailableTtsProviders = api<void, { providers: Array<{ id: TTSProvider; name: string; configured: boolean }> }>(
-  { expose: true, method: "GET", path: "/tts/providers" },
+  { expose: true, method: "GET", path: "/tts/providers", auth: true },
   async () => {
     return {
       providers: [

@@ -10,7 +10,7 @@ interface FixResponse {
 
 // GET endpoint (easier to call from browser for quick testing)
 export const fixUsageCount = api(
-  { expose: true, method: "GET", path: "/health/fix-usage-count" },
+  { expose: false, method: "GET", path: "/health/fix-usage-count" },
   async (): Promise<FixResponse> => {
     try {
       console.log("[fix-usage-count] Starting emergency fix...");

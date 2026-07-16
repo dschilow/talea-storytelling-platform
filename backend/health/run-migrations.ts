@@ -4,6 +4,7 @@ import { avatarDB } from "../avatar/db";
 import { fairytalesDB } from "../fairytales/db";
 import fs from "fs";
 import path from "path";
+import { compareMigrationFiles, splitMigrationStatements } from "./migration-order";
 
 export interface MigrationResponse {
   success: boolean;
@@ -18,7 +19,7 @@ export interface MigrationResponse {
  * URL: POST /health/run-migrations
  */
 export const runMigrations = api(
-  { expose: true, method: "POST", path: "/health/run-migrations", auth: false },
+  { expose: false, method: "POST", path: "/health/run-migrations", auth: false },
   async (): Promise<MigrationResponse> => {
     const migrationsRun: string[] = [];
     const errors: string[] = [];
@@ -31,11 +32,8 @@ export const runMigrations = api(
         try {
           const sql = fs.readFileSync(filePath, "utf-8");
           
-          // Split SQL file into individual statements and execute them
-          const statements = sql
-            .split(";")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0 && !s.startsWith("--"));
+          // Preserve PostgreSQL dollar blocks and statements preceded by comments.
+          const statements = splitMigrationStatements(sql);
 
           for (const statement of statements) {
             if (statement.length > 0) {
@@ -67,7 +65,7 @@ export const runMigrations = api(
         const userFiles = fs
           .readdirSync(userMigrationsPath)
           .filter((f) => f.endsWith(".up.sql"))
-          .sort();
+          .sort(compareMigrationFiles);
         for (const file of userFiles) {
           await runSqlFile(path.join(userMigrationsPath, file), avatarDB);
         }
@@ -80,7 +78,7 @@ export const runMigrations = api(
         const avatarFiles = fs
           .readdirSync(avatarMigrationsPath)
           .filter((f) => f.endsWith(".up.sql"))
-          .sort();
+          .sort(compareMigrationFiles);
         for (const file of avatarFiles) {
           await runSqlFile(path.join(avatarMigrationsPath, file), avatarDB);
         }
@@ -93,7 +91,7 @@ export const runMigrations = api(
         const storyFiles = fs
           .readdirSync(storyMigrationsPath)
           .filter((f) => f.endsWith(".up.sql"))
-          .sort();
+          .sort(compareMigrationFiles);
         for (const file of storyFiles) {
           await runSqlFile(path.join(storyMigrationsPath, file), storyDB);
         }
@@ -110,7 +108,7 @@ export const runMigrations = api(
         const fairytalesFiles = fs
           .readdirSync(fairytalesMigrationsPath)
           .filter((f) => f.endsWith(".up.sql"))
-          .sort();
+          .sort(compareMigrationFiles);
         for (const file of fairytalesFiles) {
           await runSqlFile(
             path.join(fairytalesMigrationsPath, file),

@@ -20,7 +20,7 @@ interface RunMigrationResponse {
  * POST /story/run-migration-sql
  */
 export const runMigrationSql = api(
-  { expose: true, method: "POST", path: "/story/run-migration-sql", auth: false },
+  { expose: false, method: "POST", path: "/story/run-migration-sql", auth: false },
   async (req: RunMigrationRequest): Promise<RunMigrationResponse> => {
     const { sql, migrationName } = req;
 

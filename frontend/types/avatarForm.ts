@@ -143,6 +143,8 @@ export interface AvatarFormData {
   additionalDescription?: string;
 }
 
+export type AvatarVisualProfileRecord = Record<string, any>;
+
 // Default values for new avatar
 export const DEFAULT_AVATAR_FORM_DATA: AvatarFormData = {
   name: '',
@@ -281,7 +283,7 @@ export function formDataToDescription(data: AvatarFormData): string {
 }
 
 // Convert form data to structured visual profile for backend
-export function formDataToVisualProfile(data: AvatarFormData): any {
+function buildBaseVisualProfile(data: AvatarFormData): any {
   const characterType = CHARACTER_TYPES.find(t => t.id === data.characterType);
   const gender = GENDERS.find(g => g.id === data.gender);
   const hairColor = HAIR_COLORS.find(h => h.id === data.hairColor);
@@ -401,3 +403,480 @@ export function formDataToVisualProfile(data: AvatarFormData): any {
     consistentDescriptors: consistentDescriptors.slice(0, 10),
   };
 }
+type ManagedInvariantKey =
+  | SpecialFeatureId
+  | 'tooth_gap'
+  | 'prominent_ears'
+  | 'birthmark'
+  | 'dimples';
+
+type ManagedInvariantDefinition = {
+  category: 'facial' | 'body' | 'accessory' | 'clothing' | 'distinctive';
+  promptDescription: string;
+  mustIncludeToken: string;
+  forbiddenAlternative?: string;
+  priority: 1 | 2 | 3;
+  labelDe: string;
+};
+
+const MANAGED_INVARIANT_DEFINITIONS: Record<ManagedInvariantKey, ManagedInvariantDefinition> = {
+  glasses: {
+    category: 'accessory',
+    promptDescription: 'wearing glasses',
+    mustIncludeToken: 'wearing glasses',
+    priority: 1,
+    labelDe: 'Brille',
+  },
+  hat: {
+    category: 'accessory',
+    promptDescription: 'wearing a hat',
+    mustIncludeToken: 'wearing a hat',
+    priority: 2,
+    labelDe: 'Hut',
+  },
+  crown: {
+    category: 'accessory',
+    promptDescription: 'wearing a crown',
+    mustIncludeToken: 'wearing a crown',
+    priority: 1,
+    labelDe: 'Krone',
+  },
+  scarf: {
+    category: 'accessory',
+    promptDescription: 'wearing a scarf',
+    mustIncludeToken: 'wearing a scarf',
+    priority: 2,
+    labelDe: 'Schal',
+  },
+  bow: {
+    category: 'accessory',
+    promptDescription: 'wearing a bow',
+    mustIncludeToken: 'wearing a bow',
+    priority: 2,
+    labelDe: 'Schleife',
+  },
+  wings: {
+    category: 'body',
+    promptDescription: 'clearly visible wings',
+    mustIncludeToken: 'wings visible',
+    priority: 1,
+    labelDe: 'FlÅgel',
+  },
+  tail: {
+    category: 'body',
+    promptDescription: 'clearly visible tail',
+    mustIncludeToken: 'tail visible',
+    priority: 2,
+    labelDe: 'Schwanz',
+  },
+  horns: {
+    category: 'body',
+    promptDescription: 'clearly visible horns',
+    mustIncludeToken: 'horns visible',
+    priority: 1,
+    labelDe: 'Hîrner',
+  },
+  freckles: {
+    category: 'facial',
+    promptDescription: 'scattered freckles across nose and cheeks',
+    mustIncludeToken: 'freckles on face',
+    priority: 2,
+    labelDe: 'Sommersprossen',
+  },
+  scar: {
+    category: 'facial',
+    promptDescription: 'small scar visible on face',
+    mustIncludeToken: 'small scar on face',
+    priority: 1,
+    labelDe: 'Narbe',
+  },
+  beard: {
+    category: 'facial',
+    promptDescription: 'clearly visible beard',
+    mustIncludeToken: 'beard visible',
+    priority: 2,
+    labelDe: 'Bart',
+  },
+  earrings: {
+    category: 'accessory',
+    promptDescription: 'wearing earrings',
+    mustIncludeToken: 'wearing earrings',
+    priority: 2,
+    labelDe: 'Ohrringe',
+  },
+  tooth_gap: {
+    category: 'facial',
+    promptDescription: 'prominent gap between the front teeth, visible when smiling',
+    mustIncludeToken: 'large tooth gap in front teeth',
+    forbiddenAlternative: 'complete teeth, no gap',
+    priority: 1,
+    labelDe: 'ZahnlÅcke vorne',
+  },
+  prominent_ears: {
+    category: 'facial',
+    promptDescription: 'noticeably protruding ears, standing out from the head',
+    mustIncludeToken: 'prominent protruding ears',
+    forbiddenAlternative: 'flat ears against head',
+    priority: 1,
+    labelDe: 'Abstehende Ohren',
+  },
+  birthmark: {
+    category: 'facial',
+    promptDescription: 'small birthmark visible on the face',
+    mustIncludeToken: 'birthmark on face',
+    priority: 1,
+    labelDe: 'Muttermal',
+  },
+  dimples: {
+    category: 'facial',
+    promptDescription: 'dimples on the cheeks when smiling',
+    mustIncludeToken: 'dimples on cheeks',
+    priority: 2,
+    labelDe: 'GrÅbchen',
+  },
+};
+
+const MANAGED_FEATURE_TOKENS: Record<ManagedInvariantKey, string[]> = {
+  glasses: ['wearing glasses', 'round glasses', 'square glasses', 'brille'],
+  hat: ['wearing a hat', 'wearing hat', 'hut'],
+  crown: ['wearing a crown', 'crown visible', 'krone'],
+  scarf: ['wearing a scarf', 'scarf visible', 'schal'],
+  bow: ['wearing a bow', 'bow visible', 'schleife'],
+  wings: ['wings visible', 'has wings', 'flugel'],
+  tail: ['tail visible', 'has a tail', 'schwanz'],
+  horns: ['horns visible', 'has horns', 'horner'],
+  freckles: ['freckles', 'sommersprossen'],
+  scar: ['scar visible', 'scar on', 'narbe'],
+  beard: ['beard visible', 'has a beard', 'bart'],
+  earrings: ['wearing earrings', 'earrings visible', 'ohrringe'],
+  tooth_gap: ['tooth gap', 'gap in front teeth', 'zahnlucke'],
+  prominent_ears: ['protruding ears', 'prominent ears', 'abstehende ohren'],
+  birthmark: ['birthmark', 'muttermal'],
+  dimples: ['dimples', 'grubchen'],
+};
+
+function normalizeVisualText(value: unknown): string {
+  return String(value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/·/g, 'ss');
+}
+
+function getManagedFeatureKey(value: unknown): ManagedInvariantKey | undefined {
+  const normalized = normalizeVisualText(value);
+  if (!normalized) return undefined;
+
+  for (const key of Object.keys(MANAGED_FEATURE_TOKENS) as ManagedInvariantKey[]) {
+    if (
+      normalized === key ||
+      normalized.startsWith(`${key}_`) ||
+      normalized.startsWith(`form_${key}`) ||
+      MANAGED_FEATURE_TOKENS[key].some((token) => normalized.includes(token))
+    ) {
+      return key;
+    }
+  }
+
+  return undefined;
+}
+
+function uniqueStrings(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  values.forEach((value) => {
+    if (typeof value !== 'string' || !value.trim()) return;
+    const normalized = normalizeVisualText(value.trim());
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    result.push(value.trim());
+  });
+
+  return result;
+}
+
+function buildManagedInvariants(data: AvatarFormData): Array<Record<string, any>> {
+  const activeKeys = new Set<ManagedInvariantKey>(data.specialFeatures);
+  const notes = normalizeVisualText(data.additionalDescription);
+
+  if (notes.includes('tooth gap') || notes.includes('zahnlucke')) activeKeys.add('tooth_gap');
+  if (notes.includes('protruding ears') || notes.includes('abstehende ohren')) activeKeys.add('prominent_ears');
+  if (notes.includes('birthmark') || notes.includes('muttermal')) activeKeys.add('birthmark');
+  if (notes.includes('dimples') || notes.includes('grubchen')) activeKeys.add('dimples');
+
+  return [...activeKeys].map((key) => ({
+    id: `form_${key}`,
+    ...MANAGED_INVARIANT_DEFINITIONS[key],
+  }));
+}
+
+function mergeManagedStringList(
+  existingValues: unknown,
+  generatedValues: unknown,
+  activeKeys: Set<ManagedInvariantKey>
+): string[] {
+  const existing = Array.isArray(existingValues) ? existingValues : [];
+  const generated = Array.isArray(generatedValues) ? generatedValues : [];
+  const preserved = existing.filter((value) => {
+    const key = getManagedFeatureKey(value);
+    return !key || activeKeys.has(key);
+  });
+
+  return uniqueStrings([...preserved, ...generated]);
+}
+
+function isManagedCoreDescriptor(value: string): boolean {
+  const normalized = normalizeVisualText(value);
+  const characterTokens = CHARACTER_TYPES.flatMap((character) => [
+    normalizeVisualText(character.id),
+    normalizeVisualText(character.labelEn),
+  ]);
+
+  return (
+    /\b(years old|baby|toddler|young child|child|teenager|young adult|adult|elderly|ancient)\b/.test(normalized) ||
+    /\b(hair|eyes|human|natural skin|quadruped|four paws)\b/.test(normalized) ||
+    characterTokens.some((token) => normalized === token)
+  );
+}
+
+function referenceFingerprint(referenceImageUrl?: string): string | null {
+  if (!referenceImageUrl) return null;
+  return `${referenceImageUrl.length}:${referenceImageUrl.slice(0, 48)}:${referenceImageUrl.slice(-48)}`;
+}
+
+export function getAvatarVisualPromptSignature(
+  data: AvatarFormData,
+  referenceImageUrl?: string
+): string {
+  return JSON.stringify({
+    characterType: data.characterType,
+    customCharacterType: data.customCharacterType?.trim() || null,
+    age: data.age,
+    gender: data.gender,
+    height: data.height,
+    bodyBuild: data.bodyBuild,
+    hairColor: data.hairColor,
+    hairStyle: data.hairStyle,
+    eyeColor: data.eyeColor,
+    skinTone: data.skinTone,
+    specialFeatures: [...data.specialFeatures].sort(),
+    additionalDescription: data.additionalDescription?.trim() || null,
+    reference: referenceFingerprint(referenceImageUrl),
+  });
+}
+
+export function inferSpecialFeaturesFromVisualProfile(
+  visualProfile: AvatarVisualProfileRecord | null | undefined
+): SpecialFeatureId[] {
+  if (!visualProfile) return [];
+
+  const candidates: unknown[] = [
+    ...(Array.isArray(visualProfile.accessories) ? visualProfile.accessories : []),
+    ...(Array.isArray(visualProfile.bodyFeatures) ? visualProfile.bodyFeatures : []),
+    ...(Array.isArray(visualProfile.skin?.distinctiveFeatures)
+      ? visualProfile.skin.distinctiveFeatures
+      : []),
+    ...(Array.isArray(visualProfile.face?.otherFeatures)
+      ? visualProfile.face.otherFeatures
+      : []),
+    ...(Array.isArray(visualProfile.mustIncludeFeatures)
+      ? visualProfile.mustIncludeFeatures.flatMap((feature: any) => [
+          feature?.id,
+          feature?.promptDescription,
+          feature?.mustIncludeToken,
+        ])
+      : []),
+  ];
+
+  if (visualProfile.face?.freckles) candidates.push('freckles');
+
+  const selected = new Set<SpecialFeatureId>();
+  candidates.forEach((candidate) => {
+    const key = getManagedFeatureKey(candidate);
+    if (key && SPECIAL_FEATURES.some((feature) => feature.id === key)) {
+      selected.add(key as SpecialFeatureId);
+    }
+  });
+
+  return [...selected];
+}
+
+export function formDataToVisualProfile(data: AvatarFormData): AvatarVisualProfileRecord {
+  const base = buildBaseVisualProfile(data) as AvatarVisualProfileRecord;
+  const invariants = buildManagedInvariants(data);
+  const selected = new Set<SpecialFeatureId>(data.specialFeatures);
+  const selectedLabels = (category: string) =>
+    SPECIAL_FEATURES
+      .filter((feature) => feature.category === category && selected.has(feature.id))
+      .map((feature) => feature.labelEn);
+
+  const accessories = SPECIAL_FEATURES
+    .filter((feature) => feature.category === 'accessory' && selected.has(feature.id))
+    .map((feature) => feature.labelEn);
+  const bodyFeatures = selectedLabels('body');
+  const facialFeatures = selectedLabels('face');
+  const descriptorTokens = invariants.map((feature) => feature.mustIncludeToken);
+
+  return {
+    ...base,
+    ageDescription: getAgeDescription(data.age, data.characterType),
+    bodyFeatures,
+    skin: {
+      ...base.skin,
+      distinctiveFeatures: facialFeatures.filter((feature) =>
+        /freckles|scar/i.test(feature)
+      ),
+    },
+    face: {
+      ...base.face,
+      freckles: selected.has('freckles'),
+      otherFeatures: facialFeatures.filter((feature) => !/freckles/i.test(feature)),
+    },
+    accessories,
+    consistentDescriptors: uniqueStrings([
+      ...(Array.isArray(base.consistentDescriptors) ? base.consistentDescriptors : []),
+      ...descriptorTokens,
+    ]).slice(0, 10),
+    mustIncludeFeatures: invariants.length > 0 ? invariants : undefined,
+    forbiddenFeatures: uniqueStrings(
+      invariants.map((feature) => feature.forbiddenAlternative)
+    ),
+    additionalNotes: data.additionalDescription?.trim() || undefined,
+  };
+}
+
+export function mergeVisualProfileWithForm(
+  existingProfile: AvatarVisualProfileRecord | null | undefined,
+  data: AvatarFormData
+): AvatarVisualProfileRecord {
+  const existing = existingProfile && typeof existingProfile === 'object'
+    ? existingProfile
+    : {};
+  const generated = formDataToVisualProfile(data);
+  const generatedInvariants = Array.isArray(generated.mustIncludeFeatures)
+    ? generated.mustIncludeFeatures
+    : [];
+  const activeKeys = new Set<ManagedInvariantKey>(
+    generatedInvariants
+      .map((feature: any) => getManagedFeatureKey(feature?.id))
+      .filter(Boolean) as ManagedInvariantKey[]
+  );
+
+  const existingInvariants = Array.isArray(existing.mustIncludeFeatures)
+    ? existing.mustIncludeFeatures
+    : [];
+  const preservedInvariants = existingInvariants.filter((feature: any) => {
+    const key = getManagedFeatureKey(
+      [feature?.id, feature?.promptDescription, feature?.mustIncludeToken].join(' ')
+    );
+    return !key || activeKeys.has(key);
+  });
+  const mergedInvariants = [...preservedInvariants, ...generatedInvariants].filter(
+    (feature, index, all) => {
+      const token = normalizeVisualText(feature?.mustIncludeToken || feature?.id);
+      return token && all.findIndex((candidate) =>
+        normalizeVisualText(candidate?.mustIncludeToken || candidate?.id) === token
+      ) === index;
+    }
+  );
+
+  const existingForbidden = Array.isArray(existing.forbiddenFeatures)
+    ? existing.forbiddenFeatures
+    : [];
+  const preservedForbidden = existingForbidden.filter((feature: string) => {
+    const key = getManagedFeatureKey(feature);
+    return !key || activeKeys.has(key);
+  });
+
+  const preservedDescriptors = (Array.isArray(existing.consistentDescriptors)
+    ? existing.consistentDescriptors
+    : []
+  ).filter((descriptor: string) => {
+    const key = getManagedFeatureKey(descriptor);
+    if (key) return activeKeys.has(key);
+    return !isManagedCoreDescriptor(descriptor);
+  });
+
+  const existingClothing =
+    existing.clothingCanonical && typeof existing.clothingCanonical === 'object'
+      ? existing.clothingCanonical
+      : {};
+  const existingPalette =
+    existing.palette && typeof existing.palette === 'object'
+      ? existing.palette
+      : {};
+
+  return {
+    ...existing,
+    ...generated,
+    skin: {
+      ...(generated.skin || {}),
+      ...(existing.skin || {}),
+      tone: generated.skin?.tone,
+      distinctiveFeatures: mergeManagedStringList(
+        existing.skin?.distinctiveFeatures,
+        generated.skin?.distinctiveFeatures,
+        activeKeys
+      ),
+    },
+    hair: {
+      ...(existing.hair || {}),
+      ...(generated.hair || {}),
+    },
+    eyes: {
+      ...(generated.eyes || {}),
+      ...(existing.eyes || {}),
+      color: generated.eyes?.color,
+    },
+    face: {
+      ...(generated.face || {}),
+      ...(existing.face || {}),
+      freckles: generated.face?.freckles,
+      otherFeatures: mergeManagedStringList(
+        existing.face?.otherFeatures,
+        generated.face?.otherFeatures,
+        activeKeys
+      ),
+    },
+    accessories: mergeManagedStringList(
+      existing.accessories,
+      generated.accessories,
+      activeKeys
+    ),
+    bodyFeatures: mergeManagedStringList(
+      existing.bodyFeatures,
+      generated.bodyFeatures,
+      activeKeys
+    ),
+    clothingCanonical: {
+      ...(generated.clothingCanonical || {}),
+      ...existingClothing,
+    },
+    palette: {
+      ...(generated.palette || {}),
+      ...existingPalette,
+      primary: uniqueStrings([
+        ...(Array.isArray(generated.palette?.primary) ? generated.palette.primary : []),
+        ...(Array.isArray(existingPalette.primary) ? existingPalette.primary : []),
+      ]),
+      secondary: uniqueStrings([
+        ...(Array.isArray(existingPalette.secondary) ? existingPalette.secondary : []),
+        ...(Array.isArray(generated.palette?.secondary) ? generated.palette.secondary : []),
+      ]),
+    },
+    consistentDescriptors: uniqueStrings([
+      ...(Array.isArray(generated.consistentDescriptors)
+        ? generated.consistentDescriptors
+        : []),
+      ...preservedDescriptors,
+    ]).slice(0, 14),
+    mustIncludeFeatures: mergedInvariants.length > 0 ? mergedInvariants : undefined,
+    forbiddenFeatures: uniqueStrings([
+      ...preservedForbidden,
+      ...(Array.isArray(generated.forbiddenFeatures) ? generated.forbiddenFeatures : []),
+    ]),
+    additionalNotes: generated.additionalNotes,
+  };
+}
+

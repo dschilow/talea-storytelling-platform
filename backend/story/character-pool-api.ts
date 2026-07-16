@@ -2,6 +2,7 @@
 // Endpoints for managing the character pool
 
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { storyDB } from "./db";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
@@ -248,6 +249,7 @@ interface AddCharacterRequest {
 export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
   { expose: true, method: "POST", path: "/story/character-pool", auth: true },
   async (req): Promise<CharacterTemplate> => {
+    ensureAdmin();
     const id = crypto.randomUUID();
     const now = new Date();
 
@@ -326,6 +328,7 @@ interface UpdateCharacterRequest {
 export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
   { expose: true, method: "PUT", path: "/story/character-pool/:id", auth: true },
   async (req): Promise<CharacterTemplate> => {
+    ensureAdmin();
     console.log("[CharacterPool] Updating character:", req.id);
 
     await ensureImageUrlColumn();
@@ -423,6 +426,7 @@ interface GenerateCharacterImageResponse {
 export const generateCharacterImage = api<GenerateCharacterImageRequest, GenerateCharacterImageResponse>(
   { expose: true, method: "POST", path: "/story/character-pool/:id/generate-image", auth: true },
   async (req): Promise<GenerateCharacterImageResponse> => {
+    ensureAdmin();
     console.log("[CharacterPool] Generating image for character:", req.id);
 
     const character = await getCharacter({ id: req.id });
@@ -504,6 +508,7 @@ async function runWithConcurrency<T, R>(
 export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesResponse>(
   { expose: true, method: "POST", path: "/story/character-pool/batch-regenerate-images", auth: true },
   async (): Promise<BatchRegenerateImagesResponse> => {
+    ensureAdmin();
     console.log("[CharacterPool] Starting batch regeneration of all character images");
 
     const characters = await fetchAllCharacters();
@@ -599,6 +604,7 @@ interface DeleteCharacterRequest {
 export const deleteCharacter = api<DeleteCharacterRequest, { success: boolean }>(
   { expose: true, method: "DELETE", path: "/story/character-pool/:id", auth: true },
   async (req): Promise<{ success: boolean }> => {
+    ensureAdmin();
     console.log("[CharacterPool] Soft deleting character:", req.id);
 
     await storyDB.exec`
@@ -677,6 +683,7 @@ export const getCharacterStats = api<GetCharacterStatsRequest, CharacterStats>(
 export const resetRecentUsage = api(
   { expose: true, method: "POST", path: "/story/character-pool/reset-usage", auth: true },
   async (): Promise<{ success: boolean; resetCount: number }> => {
+    ensureAdmin();
     console.log("[CharacterPool] Resetting recent usage counts");
 
     const result = await storyDB.exec`
@@ -699,6 +706,7 @@ export const resetRecentUsage = api(
 export const seedPool = api(
   { expose: true, method: "POST", path: "/story/character-pool/seed", auth: true },
   async (): Promise<{ success: boolean; count: number }> => {
+    ensureAdmin();
     console.log("[CharacterPool] Seeding character pool...");
 
     try {
@@ -719,6 +727,7 @@ export const seedPool = api(
 export const exportCharacters = api(
   { expose: true, method: "GET", path: "/story/character-pool/export", auth: true },
   async (): Promise<{ characters: CharacterTemplate[] }> => {
+    ensureAdmin();
     console.log("[CharacterPool] Exporting all characters");
     const characters = await fetchAllCharacters();
     console.log(`[CharacterPool] Export payload size: ${characters.length} characters`);
@@ -734,6 +743,7 @@ interface ImportCharactersRequest {
 export const importCharacters = api<ImportCharactersRequest, { success: boolean; imported: number }>(
   { expose: true, method: "POST", path: "/story/character-pool/import", auth: true },
   async (req): Promise<{ success: boolean; imported: number }> => {
+    ensureAdmin();
     console.log("[CharacterPool] Importing characters");
 
     if (!Array.isArray(req.characters) || req.characters.length === 0) {

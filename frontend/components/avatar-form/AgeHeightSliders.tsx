@@ -9,6 +9,7 @@ interface AgeHeightSlidersProps {
   onAgeChange: (age: number) => void;
   onHeightChange: (height: number) => void;
   darkMode?: boolean;
+  ageReadOnly?: boolean;
 }
 
 export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
@@ -18,6 +19,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
   onAgeChange,
   onHeightChange,
   darkMode = false,
+  ageReadOnly = false,
 }) => {
   const isHuman = isHumanCharacter(characterType);
   const ageDescription = getAgeDescription(age, characterType);
@@ -66,7 +68,9 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {/* Age Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Alter</label>
+          <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
+            {ageReadOnly ? 'Alter aus dem Kinderprofil' : 'Alter'}
+          </label>
           <div className="flex items-center gap-2">
             <span className="text-2xl">{getAgeEmoji(age, characterType)}</span>
             <span className={`text-lg font-bold ${darkMode ? 'text-[#2DD4BF]' : 'text-amber-600'}`}>
@@ -82,12 +86,14 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             <motion.button
               key={preset.label}
               type="button"
+              disabled={ageReadOnly}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleAgePresetClick(preset.value)}
               className={`
                 px-3 py-2 rounded-lg text-sm font-medium transition-all
                 flex items-center gap-1.5
+                disabled:cursor-not-allowed disabled:opacity-45
                 ${Math.abs(age - preset.value) < 1
                   ? darkMode
                     ? 'bg-[#2DD4BF] text-white shadow-md shadow-[#2DD4BF]/30'
@@ -112,8 +118,9 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             max={isHuman ? 150 : 20}
             step={isHuman ? 1 : 0.5}
             value={age}
+            disabled={ageReadOnly}
             onChange={(e) => onAgeChange(Number(e.target.value))}
-            className={`w-full h-2 rounded-full appearance-none cursor-pointer ${
+            className={`w-full h-2 rounded-full appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
               darkMode ? 'slider-thumb-dark' : 'slider-thumb'
             }`}
             style={{
@@ -127,6 +134,11 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             <span>{isHuman ? '150' : '20'} Jahre</span>
           </div>
         </div>
+        {ageReadOnly && (
+          <p className={`rounded-lg border px-3 py-2 text-xs ${darkMode ? 'border-emerald-800/70 bg-emerald-950/25 text-emerald-100/80' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
+            Das Alter bleibt mit dem ausgew„hlten Kinderprofil verbunden und wird dort ge„ndert.
+          </p>
+        )}
       </div>
 
       {/* Height Section (only for humans) */}

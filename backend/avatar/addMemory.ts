@@ -1,5 +1,7 @@
 import { api, APIError } from "encore.dev/api";
+import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { classifyMemory } from "./memory-ranking";
 
 type MemoryContentType = "story" | "doku" | "quiz" | "activity";
 
@@ -33,12 +35,13 @@ function normalizeContentType(value?: string): MemoryContentType {
 }
 
 export const addMemory = api(
-  { expose: true, method: "POST", path: "/avatar/memory", auth: true },
+  { expose: false, method: "POST", path: "/avatar/memory", auth: true },
   async (req: AddMemoryRequest): Promise<AddMemoryResponse> => {
+    const auth = getAuthData()!;
     const { id, storyId, storyTitle, experience, emotionalImpact, personalityChanges } = req;
     const contentType = normalizeContentType(req.contentType);
 
-    console.log("Adding memory entry", { id, storyId, storyTitle, emotionalImpact, contentType });
+    console.log("Adding memory entry", { avatarId: id, contentId: storyId, emotionalImpact, contentType });
 
     try {
       await avatarDB.exec`
@@ -51,27 +54,51 @@ export const addMemory = api(
           emotional_impact TEXT CHECK (emotional_impact IN ('positive', 'negative', 'neutral')),
           personality_changes TEXT,
           content_type TEXT NOT NULL DEFAULT 'story',
+          profile_id TEXT,
+          memory_tier TEXT NOT NULL DEFAULT 'episodic',
+          importance SMALLINT NOT NULL DEFAULT 2,
+          summary TEXT,
+          tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+          last_recalled_at TIMESTAMP,
+          recall_count INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (avatar_id) REFERENCES avatars(id) ON DELETE CASCADE
         )
       `;
-
-      await avatarDB.exec`
-        ALTER TABLE avatar_memories
-        ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'story'
-      `;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'story'`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS profile_id TEXT`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS memory_tier TEXT NOT NULL DEFAULT 'episodic'`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS importance SMALLINT NOT NULL DEFAULT 2`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS summary TEXT`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS tags JSONB NOT NULL DEFAULT '[]'::jsonb`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS last_recalled_at TIMESTAMP`;
+      await avatarDB.exec`ALTER TABLE avatar_memories ADD COLUMN IF NOT EXISTS recall_count INTEGER NOT NULL DEFAULT 0`;
     } catch (tableError) {
       console.error("Error preparing avatar_memories table", tableError);
+      throw APIError.internal("Avatar memory storage is not ready.");
     }
 
-    const existingAvatar = await avatarDB.queryRow<{ id: string }>`
-      SELECT id FROM avatars WHERE id = ${id}
+    const existingAvatar = await avatarDB.queryRow<{ id: string; user_id: string; profile_id: string | null }>`
+      SELECT id, user_id, profile_id FROM avatars WHERE id = ${id}
     `;
 
     if (!existingAvatar) {
       throw APIError.notFound("Avatar not found");
     }
 
+
+    if (existingAvatar.user_id !== auth.userID && auth.role !== "admin") {
+      throw APIError.permissionDenied("You do not have permission to add memories to this avatar.");
+    }
+
+    const classification = classifyMemory({
+      storyTitle,
+      experience,
+      emotionalImpact,
+      personalityChanges,
+      developmentDescription: req.developmentDescription,
+      contentType,
+    });
     const existingMemory = await avatarDB.queryRow<{ id: string }>`
       SELECT id
       FROM avatar_memories
@@ -98,7 +125,12 @@ export const addMemory = api(
         experience,
         emotional_impact,
         personality_changes,
-        content_type
+        content_type,
+        profile_id,
+        memory_tier,
+        importance,
+        summary,
+        tags
       )
       VALUES (
         ${memoryId},
@@ -108,7 +140,12 @@ export const addMemory = api(
         ${experience},
         ${emotionalImpact},
         ${JSON.stringify(personalityChanges)},
-        ${contentType}
+        ${contentType},
+        ${existingAvatar.profile_id},
+        ${classification.tier},
+        ${classification.importance},
+        ${classification.summary},
+        ${JSON.stringify(classification.tags)}::jsonb
       )
     `;
 
