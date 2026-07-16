@@ -235,7 +235,7 @@ function isAntagonisticCharacter(character: CharacterRow): boolean {
   return /(antagon|villain|obstacle|boese|böse|dunkel|grausam|gleichgueltig|gleichgültig)/u.test(signal);
 }
 
-function buildCanonicalPrompt(character: CharacterRow): string {
+function buildCanonicalPrompt(character: CharacterRow, ageGroup: LifeStoryAgeGroup): string {
   const visual = parseJsonObject(character.visual_profile);
   const emotional = parseJsonObject(character.emotional_nature);
   const settings = (character.canon_settings || []).join(", ") || "eine passende Talea-Welt";
@@ -248,12 +248,23 @@ function buildCanonicalPrompt(character: CharacterRow): string {
     ? "Die Hauptfigur darf Fehler machen und Schaden verursachen. Zeige ihre Menschlichkeit, ohne ihr Verhalten zu entschuldigen und ohne plötzliche Läuterung."
     : "Die Hauptfigur soll glaubwürdig scheitern, entscheiden und wachsen; ihre Ecken und Eigenarten bleiben sichtbar.";
 
+  const readerGuidance = ageGroup === "6-8"
+    ? [
+        "ZIELGRUPPE: Kinder von 6 bis 8 Jahren. Schreibe klar, konkret und gut vorlesbar.",
+        "Nutze kurze, aktive Saetze und verstaendliche Woerter. Erklaere ungewohnte Woerter direkt durch die Handlung. Vermeide abstrakte Gedanken, lange Vergleiche und verschachtelte Saetze.",
+        "Beginne innerhalb der ersten zwei Absaetze mit einem sichtbaren Raetsel, einer Gefahr oder einem Problem. Jede Seite braucht einen neuen, klaren Hindernis-, Ueberraschungs- oder Entscheidungsmoment.",
+        "Steigere die Spannung in drei einfachen Stufen: Erst stimmt etwas nicht, dann wird der Preis groesser, dann muss die Hauptfigur handeln. Das Finale braucht Zeitdruck, eine mutige aktive Tat und eine sichtbare Folge.",
+        "Wiederholungen nur als kurzer, merkbarer Refrain. Wiederhole nicht dieselbe Angeberei, Reaktion oder Regel mehrere Absaetze lang.",
+      ]
+    : ["Passe Satzlaenge, Wortwahl und Spannung genau an die angegebene Altersgruppe an."];
+
   return [
     "REDAKTIONSAUFTRAG: Schreibe die kanonische, illustrierte Lebensgeschichte dieser Talea-Figur.",
     "Dies ist eine echte literarische Ursprungsgeschichte, keine Biografie, kein Steckbrief, keine Aufzählung und keine Erklärung an das Publikum.",
     "Erzähle ausschließlich aus dem Leben der unten definierten Hauptfigur. Andere Figuren dürfen nur als notwendige Nebenfiguren auftreten und keine bekannten Nutzer-Avatare ersetzen.",
     "Form: exakt 5 Kapitel, insgesamt 1400 bis 1500 deutsche Wörter, mit klarer Ursache-Wirkung-Kette und einem vollständigen emotionalen Bogen.",
     "Dramaturgie: Kapitel 1 etabliert Alltag und inneres Bedürfnis; Kapitel 2 löst einen unwiderruflichen Bruch aus; Kapitel 3 verschärft den Preis; Kapitel 4 erzwingt eine schwierige Entscheidung; Kapitel 5 zeigt deren konkrete Folge und das Bild, das bis heute von der Figur bleibt.",
+    ...readerGuidance,
     "Der vorhandene Backstory-Kanon ist verbindlich. Verwandle ihn in erlebte Szenen mit Handlung, Dialog, Sinneseindrücken und Subtext, statt ihn nachzuerzählen.",
     "Zeige organisch, wie mindestens eine heutige Eigenschaft, Eigenart oder Haltung entstand. Der Charakter bleibt am Ende eindeutig dieselbe wiedererkennbare Figur.",
     character.catchphrase
@@ -423,11 +434,11 @@ export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest,
         stylePreset: isAntagonisticCharacter(character) ? "quirky_dark_sweet" : "classic_fantasy",
         tone: isAntagonisticCharacter(character) ? "wonder" : "warm",
         language: "de",
-        suspenseLevel: ageGroup === "3-5" ? 1 : 2,
+        suspenseLevel: ageGroup === "3-5" ? 1 : ageGroup === "6-8" ? 3 : 2,
         humorLevel: isAntagonisticCharacter(character) ? 1 : 2,
         pacing: "balanced",
         pov: "personale",
-        customPrompt: buildCanonicalPrompt(character),
+        customPrompt: buildCanonicalPrompt(character, ageGroup),
         aiModel: req.aiModel || "gpt-5.4",
         aiProvider: req.aiProvider || "native",
         openRouterModel: req.openRouterModel,
