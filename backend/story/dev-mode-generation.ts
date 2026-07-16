@@ -6656,7 +6656,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   // vague mood-only loss ("verliert Kontrolle", "wird ruhig"), and the
   // personalObject.risk / finalPayoff.plantedDetail must reference the same
   // named object so the cost is planted and paid off — not just asserted.
-  if ((input.qualityMode || "premium") === "premium") {
+  if ((input.qualityMode || "premium") === "premium" && !isCharacterLifeStory) {
     issues.push(...validatePersonalCostContract(beatSheet));
   }
   const helper = String(beatSheet?.act2?.helperComplicates || "");
