@@ -58,6 +58,15 @@ type OpenRouterReasoningOptions = {
   enabled?: boolean;
 };
 
+export type OpenRouterTool = {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
 export function normalizeOpenRouterModel(model?: string | null): string {
   const normalized = String(model || "").trim();
   return normalized.length > 0 ? normalized : DEFAULT_OPENROUTER_STORY_MODEL;
@@ -112,6 +121,8 @@ export async function callOpenRouterChatCompletion(input: {
   signal?: AbortSignal;
   reasoning?: OpenRouterReasoningOptions | false;
   includeReasoning?: boolean;
+  tools?: readonly OpenRouterTool[];
+  toolChoice?: "auto" | "none" | "required";
   /**
    * Optional: attach images to the FINAL user message for vision-capable
    * models (Gemini, GPT-4V, Claude 3, etc.). When set, the last user
@@ -152,6 +163,11 @@ export async function callOpenRouterChatCompletion(input: {
 
   if (input.responseFormat === "json_object") {
     payload.response_format = { type: "json_object" };
+  }
+
+  if (input.tools && input.tools.length > 0) {
+    payload.tools = input.tools;
+    payload.tool_choice = input.toolChoice || "auto";
   }
 
   if (input.reasoning !== false) {

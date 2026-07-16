@@ -12,7 +12,6 @@ import {
   Wand2,
   ExternalLink,
 } from 'lucide-react';
-import { useAuth } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -148,6 +147,35 @@ const ChatList: React.FC<{
   </motion.div>
 );
 
+const ChoiceButtons: React.FC<{
+  options: NonNullable<TaviChatAction['options']>;
+  onSelect: (value: string) => void;
+  disabled: boolean;
+}> = ({ options, onSelect, disabled }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: 0.18 }}
+    className="mt-2 flex flex-wrap gap-2"
+    role="group"
+    aria-label="Antwortmöglichkeiten"
+  >
+    {options.map((option) => (
+      <motion.button
+        key={option.id}
+        type="button"
+        whileHover={disabled ? undefined : { scale: 1.02, y: -1 }}
+        whileTap={disabled ? undefined : { scale: 0.98 }}
+        disabled={disabled}
+        onClick={() => onSelect(option.value)}
+        className="rounded-xl border border-[var(--talea-text-tertiary)]/25 bg-[var(--talea-text-tertiary)]/10 px-3 py-2 text-left text-xs font-semibold text-foreground transition-colors hover:bg-[var(--talea-text-tertiary)]/20 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {option.label}
+      </motion.button>
+    ))}
+  </motion.div>
+);
+
 // Action button for created content or navigation
 const ActionButton: React.FC<{
   action: TaviChatAction;
@@ -214,8 +242,10 @@ const ActionButton: React.FC<{
 const MessageBubble: React.FC<{
   message: Message;
   onAction: (route: string, action: TaviChatAction) => void;
+  onChoice: (value: string) => void;
+  choicesDisabled: boolean;
   t: TranslateWithFallback;
-}> = ({ message, onAction, t }) => {
+}> = ({ message, onAction, onChoice, choicesDisabled, t }) => {
   const isTavi = message.sender === 'tavi';
 
   return (
@@ -262,6 +292,17 @@ const MessageBubble: React.FC<{
                 key={`list-${idx}`}
                 items={action.items}
                 onNavigate={(route) => onAction(route, action)}
+              />
+            );
+          }
+
+          if (action.type === 'choice' && action.options && action.options.length > 0) {
+            return (
+              <ChoiceButtons
+                key={`choice-${idx}`}
+                options={action.options}
+                onSelect={onChoice}
+                disabled={choicesDisabled}
               />
             );
           }
@@ -322,7 +363,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const backend = useBackend();
-  const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
   const activeProfile = useOptionalChildProfiles()?.activeProfile ?? null;
   const translate = (key: string, fallback?: string): string => {
@@ -394,13 +434,15 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   };
 
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading || wordCount > 100) return;
+    const messageText = text.trim();
+    const sentWordCount = messageText.split(/\s+/).filter(Boolean).length;
+    if (!messageText || isLoading || sentWordCount > 100) return;
     setShowSuggestions(false);
 
     const userMessage: Message = {
       id: Date.now().toString(),
       sender: 'user',
-      text: text.trim(),
+      text: messageText,
       timestamp: new Date(),
     };
 
@@ -410,34 +452,15 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const backendClient = backend as any;
-      const baseUrl = backendClient.target || 'http://localhost:4005';
-
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      const token = await getToken();
-      if (token) headers.Authorization = `Bearer ${token}`;
-
       const history = buildHistory();
-
-      const response = await fetch(`${baseUrl}/tavi/chat`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: userMessage.text,
-          history,
-          context: {
-            language: i18n.language,
-            profileId: activeProfile?.id,
-          },
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data: TaviChatResponse = await response.json();
+      const data = await backend.tavi.taviChat({
+        message: userMessage.text,
+        history,
+        context: {
+          language: i18n.language,
+          profileId: activeProfile?.id,
+        },
+      }) as TaviChatResponse;
 
       const taviMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -569,6 +592,8 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     key={message.id}
                     message={message}
                     onAction={handleAction}
+                    onChoice={sendMessage}
+                    choicesDisabled={isLoading}
                     t={tWithFallback}
                   />
                 ))}

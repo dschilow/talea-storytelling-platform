@@ -1,6 +1,5 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
-import { secret } from "encore.dev/config";
 import { ai } from "~encore/clients";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -26,16 +25,15 @@ import {
   buildDokuProfilePrompt,
 } from "../helpers/child-profile-personalization";
 import { mapWithConcurrency } from "../helpers/asyncPool";
+import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
 import { reserveDokuGenerationCapacity } from "./generation-capacity";
 
 const dokuDB = SQLDatabase.named("doku");
 const avatarDB = SQLDatabase.named("avatar");
-const openAIKey = secret("OpenAIKey");
-
-// Pricing & model (align with stories)
-const MODEL = "gpt-5.4-mini";
-const INPUT_COST_PER_1M = 0.75;
-const OUTPUT_COST_PER_1M = 4.50;
+// Pricing & model (shared with Tavi)
+const MODEL = "google/gemini-3.1-flash-lite";
+const INPUT_COST_PER_1M = 0.25;
+const OUTPUT_COST_PER_1M = 1.5;
 const IMAGE_COST_PER_ITEM = 0.0008;
 const DEFAULT_DOKU_SECTION_IMAGE_CONCURRENCY = 2;
 
@@ -203,7 +201,7 @@ function uniqueTrimmed(values: string[]): string[] {
   );
 }
 
-function resolveDokuOpenAITimeoutMs(length?: DokuConfig["length"]): number {
+function resolveDokuGenerationTimeoutMs(length?: DokuConfig["length"]): number {
   if (length === "long") return 240_000;
   if (length === "medium") return 180_000;
   return 120_000;
@@ -352,48 +350,41 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         `;
       }
 
-      const payload = buildOpenAIPayload(config);
-      const dokuTimeoutMs = resolveDokuOpenAITimeoutMs(config.length);
+      const payload = buildOpenRouterPayload(config);
+      const dokuTimeoutMs = resolveDokuGenerationTimeoutMs(config.length);
       const abortController = new AbortController();
       const timeoutHandle = setTimeout(() => abortController.abort(), dokuTimeoutMs);
-      let res: Response;
+      let data: any;
 
       try {
-        res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openAIKey()}`,
-          },
-          body: JSON.stringify(payload),
+        const result = await callOpenRouterChatCompletion({
+          model: MODEL,
+          messages: payload.messages,
+          responseFormat: "json_object",
+          maxTokens: payload.maxTokens,
           signal: abortController.signal,
+          reasoning: false,
         });
+        data = result.data;
       } catch (error) {
         if ((error as any)?.name === "AbortError") {
-          throw new Error(`OpenAI request timed out after ${Math.round(dokuTimeoutMs / 1000)}s`);
+          throw new Error(`OpenRouter request timed out after ${Math.round(dokuTimeoutMs / 1000)}s`);
         }
         throw error;
       } finally {
         clearTimeout(timeoutHandle);
       }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`OpenAI error ${res.status}: ${errText}`);
-      }
-
-      const data = await res.json() as any;
-
       await publishWithTimeout(logTopic, {
-        source: "openai-doku-generation",
+        source: "openrouter-doku-generation",
         timestamp: new Date(),
-        request: payload,
+        request: { model: MODEL, ...payload },
         response: data,
       });
 
       const choice = data.choices?.[0];
       if (!choice?.message?.content) {
-        throw new Error("OpenAI returned no content");
+        throw new Error("OpenRouter returned no content");
       }
       const clean = choice.message.content.replace(/```json\s*|\s*```/g, "").trim();
       const parsed = JSON.parse(clean) as {
@@ -590,7 +581,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
   }
 );
 
-function buildOpenAIPayload(config: DokuConfig) {
+function buildOpenRouterPayload(config: DokuConfig) {
   const sectionsCount =
     config.length === "short" ? 3 : config.length === "long" ? 7 : 5;
   const quizCount = Math.max(0, Math.min(config.quizQuestions ?? 3, 10));
@@ -609,13 +600,11 @@ function buildOpenAIPayload(config: DokuConfig) {
   const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${parentalSection}${personalizationSection}`;
 
   return {
-    model: MODEL,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
-    response_format: { type: "json_object" },
-    max_completion_tokens: 16000,
+    maxTokens: 16000,
   };
 }
 

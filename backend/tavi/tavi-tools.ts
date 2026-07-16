@@ -176,6 +176,37 @@ export const TAVI_TOOLS: TaviTool[] = [
   {
     type: "function",
     function: {
+      name: "ask_for_choice",
+      description:
+        "Ask one focused Story or Doku configuration question with 2 to 4 tappable answer options. Use this instead of a free-text question whenever a setting needs clarification.",
+      parameters: {
+        type: "object",
+        properties: {
+          question: {
+            type: "string",
+            description: "A short child-friendly question in the user's language",
+          },
+          options: {
+            type: "array",
+            minItems: 2,
+            maxItems: 4,
+            items: {
+              type: "object",
+              properties: {
+                label: { type: "string", description: "Short button label" },
+                value: { type: "string", description: "Full answer to send back to the assistant" },
+              },
+              required: ["label", "value"],
+            },
+          },
+        },
+        required: ["question", "options"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_image",
       description:
         "Generate an image/illustration and show it in the chat. Use when the user asks to draw, paint, create a picture, or wants to see something visualized. The image uses the Flux model.",

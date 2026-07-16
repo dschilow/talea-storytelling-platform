@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { BookOpen, LoaderCircle, Quote, RefreshCw, Sparkles, Tag, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -50,35 +50,60 @@ const CharacterProfilesPanel: React.FC = () => {
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadRequestId = useRef(0);
 
   const loadProfiles = useCallback(async () => {
+    const requestId = ++loadRequestId.current;
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setLoading(false);
+      setError("Du bist offline. Sobald die Verbindung wiederhergestellt ist, laden wir die Charakterprofile automatisch.");
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
       const characterResponse = await backend.story.listCharacters();
+      if (requestId !== loadRequestId.current) return;
       setCharacters(((characterResponse.characters || []) as CharacterProfile[]).filter((character) => character.isActive !== false));
 
       try {
         const originResponse = await backend.story.listPublishedCharacterLifeStories();
+        if (requestId !== loadRequestId.current) return;
         const nextOrigins: Record<string, string> = {};
         for (const origin of (originResponse.stories || []) as PublishedOrigin[]) {
           nextOrigins[origin.characterId] = origin.id;
         }
         setOriginsByCharacterId(nextOrigins);
-      } catch (originError) {
-        console.warn("[CharacterProfiles] Origins could not be loaded", originError);
+      } catch {
+        if (requestId !== loadRequestId.current) return;
         setOriginsByCharacterId({});
       }
-    } catch (loadError) {
-      console.error("[CharacterProfiles] Profile load failed", loadError);
-      setError("Die Charakterprofile konnten nicht geladen werden.");
+    } catch {
+      if (requestId !== loadRequestId.current) return;
+      setError(
+        "Die Charakterprofile konnten gerade nicht geladen werden. Bitte prüfe deine Internetverbindung und versuche es erneut."
+      );
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) {
+        setLoading(false);
+      }
     }
   }, [backend]);
 
   useEffect(() => {
     void loadProfiles();
+
+    const retryWhenOnline = () => {
+      void loadProfiles();
+    };
+    window.addEventListener("online", retryWhenOnline);
+
+    return () => {
+      loadRequestId.current += 1;
+      window.removeEventListener("online", retryWhenOnline);
+    };
   }, [loadProfiles]);
 
   const visibleCharacters = useMemo(

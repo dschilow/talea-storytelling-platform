@@ -1,5 +1,4 @@
 import { api } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
 import { ai, avatar, doku, story } from "~encore/clients";
 import { logTopic } from "../log/logger";
@@ -18,8 +17,7 @@ import {
 } from "../helpers/child-profile-personalization";
 import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { TAVI_TOOLS } from "./tavi-tools";
-
-const openAIKey = secret("OpenAIKey");
+import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,6 +49,7 @@ type TaviActionType =
   | "wizard_prefill"
   | "image"
   | "list"
+  | "choice"
   | "navigate";
 
 interface TaviListItem {
@@ -60,6 +59,12 @@ interface TaviListItem {
   imageUrl?: string;
   type?: string;
   description?: string;
+}
+
+interface TaviChoiceOption {
+  id: string;
+  label: string;
+  value: string;
 }
 
 interface TaviChatAction {
@@ -75,6 +80,8 @@ interface TaviChatAction {
   imagePrompt?: string;
   // list
   items?: TaviListItem[];
+  // choice
+  options?: TaviChoiceOption[];
 }
 
 interface TaviChatResponse {
@@ -88,14 +95,8 @@ interface TaviChatResponse {
 }
 
 interface OpenAIMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content: string | null;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string };
-  }>;
-  tool_call_id?: string;
+  role: "system" | "user" | "assistant";
+  content: string;
 }
 
 interface OpenAIChatResponse {
@@ -123,6 +124,7 @@ interface OpenAIChatResponse {
 
 const SUPPORTED_LANGUAGES: SupportedLanguage[] = ["de", "en", "fr", "es", "it", "nl", "ru"];
 const MAX_HISTORY_MESSAGES = 10;
+const TAVI_OPENROUTER_MODEL = "google/gemini-3.1-flash-lite";
 
 // ---------------------------------------------------------------------------
 // System prompt
@@ -177,14 +179,20 @@ Du kannst folgende Aktionen ausfuehren. Nutze die passenden Funktionen:
 
 6. INHALTE AUFLISTEN (list_content): Zeige Avatare, Geschichten oder Dokus des Nutzers.
 
-7. NAVIGATION (navigate_to): Leite zu bestimmten Seiten weiter.
+7. AUSWAHLFRAGEN (ask_for_choice):
+   - Wenn eine Eigenschaft fuer eine Story oder Doku noch geklaert werden soll, stelle genau eine kurze Frage mit 2 bis 4 Auswahloptionen.
+   - Nutze diese Funktion statt einer Freitextfrage, damit Kinder direkt auf einen Button tippen koennen.
+
+8. NAVIGATION (navigate_to): Leite zu bestimmten Seiten weiter.
 
 Regeln:
 - Halte Antworten kurz und praegnant (max 200 Woerter)
 - Sei positiv und ermutigend, verwende "du" statt "Sie"
 - Wenn du eine Aktion ausfuehrst, erklaere kurz was du machst
 - Bei laengeren Aktionen (Story/Doku generieren) informiere den Nutzer ueber die Wartezeit
-- Wenn der Nutzer etwas will das unklar ist, frage nach - rufe NICHT sofort eine Funktion auf
+- Wenn Thema oder besonderer Wunsch noch unklar ist, frage kurz offen danach - rufe NICHT sofort eine Erstellungsfunktion auf
+- Wenn eine konkrete Eigenschaft wie Laenge, Ton, Tiefe, Perspektive oder Interaktivitaet noch geklaert werden soll, frage mit ask_for_choice nach
+- Wenn der Nutzer eine Auswahl beantwortet, nutze die Antwort zusammen mit dem bisherigen Chat-Kontext und frage nur dann die naechste wirklich noetige Eigenschaft als Auswahlfrage nach
 - Fuer Geschichten: Nutze immer die Avatare des Nutzers wenn verfuegbar
 - Basiere Altersgruppe und Inhalt auf dem aktiven Kinderprofil
 - Bei Bildgenerierung: Erstelle immer einen detaillierten englischen Prompt
@@ -320,7 +328,8 @@ async function handleCreateStory(params: {
     hasTwist: args.hasTwist ?? false,
     customPrompt: mergePromptBlocks(args.customPrompt, profilePrompt),
     language,
-    aiModel: "gemini-3-flash-preview",
+    aiProvider: "openrouter",
+    openRouterModel: TAVI_OPENROUTER_MODEL,
     preferences: {
       useFairyTaleTemplate:
         args.genre === "fairy_tales" || args.genre === "magic",
@@ -473,10 +482,19 @@ async function handleListContent(params: {
       image_url: string | null;
       avatar_role: string | null;
     }>`
-      SELECT id, name, image_url, avatar_role
-      FROM avatars
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      SELECT a.id, a.name, a.image_url, a.avatar_role
+      FROM avatars a
+      WHERE a.user_id = ${userId}
+        AND (
+          a.profile_id = ${profileId}
+          OR EXISTS (
+            SELECT 1 FROM avatar_profile_links apl
+            WHERE apl.avatar_id = a.id
+              AND apl.user_id = ${userId}
+              AND apl.profile_id = ${profileId}
+          )
+        )
+      ORDER BY a.created_at DESC
       LIMIT ${limit}
     `;
     for (const row of rows) {
@@ -495,11 +513,18 @@ async function handleListContent(params: {
       cover_image_url: string | null;
       genre: string | null;
     }>`
-      SELECT id, title, cover_image_url,
-        config->>'genre' as genre
-      FROM stories
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      SELECT s.id, s.title, s.cover_image_url,
+        s.config->>'genre' as genre
+      FROM stories s
+      WHERE s.user_id = ${userId}
+        AND (
+          s.primary_profile_id = ${profileId}
+          OR EXISTS (
+            SELECT 1 FROM story_participants sp
+            WHERE sp.story_id = s.id AND sp.profile_id = ${profileId}
+          )
+        )
+      ORDER BY s.created_at DESC
       LIMIT ${limit}
     `;
     for (const row of rows) {
@@ -518,10 +543,17 @@ async function handleListContent(params: {
       topic: string;
       cover_image_url: string | null;
     }>`
-      SELECT id, title, topic, cover_image_url
-      FROM dokus
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+      SELECT d.id, d.title, d.topic, d.cover_image_url
+      FROM dokus d
+      WHERE d.user_id = ${userId}
+        AND (
+          d.primary_profile_id = ${profileId}
+          OR EXISTS (
+            SELECT 1 FROM doku_participants dp
+            WHERE dp.doku_id = d.id AND dp.profile_id = ${profileId}
+          )
+        )
+      ORDER BY d.created_at DESC
       LIMIT ${limit}
     `;
     for (const row of rows) {
@@ -536,6 +568,26 @@ async function handleListContent(params: {
   }
 
   return { type: "list", items };
+}
+
+function handleAskForChoice(args: Record<string, any>): TaviChatAction {
+  const question = typeof args.question === "string" ? args.question.trim() : "";
+  const rawOptions = Array.isArray(args.options) ? args.options : [];
+  const options = rawOptions
+    .slice(0, 4)
+    .map((option, index): TaviChoiceOption | null => {
+      const source = option && typeof option === "object" ? option as Record<string, unknown> : {};
+      const label = typeof source.label === "string" ? source.label.trim() : "";
+      const value = typeof source.value === "string" ? source.value.trim() : label;
+      return label && value ? { id: `choice-${index + 1}`, label, value } : null;
+    })
+    .filter((option): option is TaviChoiceOption => option !== null);
+
+  if (!question || options.length < 2) {
+    throw new Error("INVALID_CHOICE_PROMPT");
+  }
+
+  return { type: "choice", options };
 }
 
 function handleWizardPrefill(
@@ -662,32 +714,16 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     );
 
     try {
-      // Call OpenAI with function calling
-      const payload = {
-        model: "gpt-5.4-mini",
+      const openRouterResult = await callOpenRouterChatCompletion({
+        model: TAVI_OPENROUTER_MODEL,
         messages,
         tools: TAVI_TOOLS,
-        tool_choice: "auto",
-        max_completion_tokens: 4000,
-        reasoning_effort: "low" as const,
-      };
-
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${openAIKey()}`,
-        },
-        body: JSON.stringify(payload),
+        toolChoice: "auto",
+        maxTokens: 1400,
+        temperature: 0.55,
+        reasoning: false,
       });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Tavi OpenAI error ${response.status}:`, errorText);
-        throw new Error(`OpenAI API error: ${response.status}`);
-      }
-
-      const data = (await response.json()) as OpenAIChatResponse;
+      const data = openRouterResult.data as OpenAIChatResponse;
       const choice = data.choices?.[0];
       const tokensUsed = {
         prompt: data.usage?.prompt_tokens || 0,
@@ -697,7 +733,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
 
       // Log interaction
       await publishWithTimeout(logTopic, {
-        source: "openai-tavi-chat",
+        source: "openrouter-tavi-chat",
         timestamp: new Date(),
         request: { message, historyLength: history?.length || 0 },
         response: {
@@ -707,6 +743,8 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         metadata: {
           userId: auth.userID,
           tokens: tokensUsed.total,
+          provider: "openrouter",
+          model: TAVI_OPENROUTER_MODEL,
         },
       });
 
@@ -804,6 +842,14 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
                 }
                 break;
               }
+              case "ask_for_choice": {
+                const action = handleAskForChoice(args);
+                actions.push(action);
+                if (!textResponse) {
+                  textResponse = typeof args.question === "string" ? args.question : "Waehle bitte eine Option aus.";
+                }
+                break;
+              }
               case "open_story_wizard": {
                 const action = handleWizardPrefill("story", args, avatars);
                 actions.push(action);
@@ -877,6 +923,24 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       console.error("Tavi chat error:", error);
 
       if (error instanceof Error) {
+        if (error.message.includes("not configured")) {
+          return {
+            response: "Tavi ist gerade noch nicht mit OpenRouter verbunden. Bitte richte den OpenRouter-API-Schluessel ein.",
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          };
+        }
+        if (error.message.includes("401") || error.message.includes("403")) {
+          return {
+            response: "Tavi kann sich gerade nicht bei OpenRouter anmelden. Bitte pruefe den API-Schluessel.",
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          };
+        }
+        if (error.message.includes("404") && error.message.toLowerCase().includes("model")) {
+          return {
+            response: "Tavis Modell Gemini 3.1 Flash Lite ist bei OpenRouter gerade nicht verfuegbar. Bitte versuche es in einem Moment erneut.",
+            tokensUsed: { prompt: 0, completion: 0, total: 0 },
+          };
+        }
         if (error.message.includes("rate limit") || error.message.includes("429")) {
           return {
             response:

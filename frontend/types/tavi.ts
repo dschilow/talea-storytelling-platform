@@ -5,6 +5,7 @@ export type TaviActionType =
   | "wizard_prefill"
   | "image"
   | "list"
+  | "choice"
   | "navigate";
 
 export interface TaviListItem {
@@ -14,6 +15,12 @@ export interface TaviListItem {
   imageUrl?: string;
   type?: string;
   description?: string;
+}
+
+export interface TaviChoiceOption {
+  id: string;
+  label: string;
+  value: string;
 }
 
 export interface TaviChatAction {
@@ -29,6 +36,8 @@ export interface TaviChatAction {
   imagePrompt?: string;
   // list
   items?: TaviListItem[];
+  // choice
+  options?: TaviChoiceOption[];
 }
 
 export interface TaviHistoryMessage {
