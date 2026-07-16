@@ -10,6 +10,7 @@ export interface LogEvent {
     | "openai-avatar-analysis"
     | "openai-avatar-analysis-stable"
     | "openai-doku-generation"
+    | "openrouter-doku-generation"
     | "openai-audio-doku-topics"
     | "openai-audio-doku-script"
     | "openai-audio-doku-sound-cues"

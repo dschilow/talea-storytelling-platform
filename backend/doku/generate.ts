@@ -102,6 +102,12 @@ async function registerGeneratedDomainForProfiles(domainIdRaw: string | undefine
 export type DokuDepth = "basic" | "standard" | "deep";
 export type DokuAgeGroup = "3-5" | "6-8" | "9-12" | "13+";
 
+export interface DokuKeyFact {
+  title: string;
+  fact: string;
+  whyItMatters?: string;
+}
+
 export interface DokuInteractive {
   quiz?: {
     enabled: boolean;
@@ -110,6 +116,8 @@ export interface DokuInteractive {
       options: string[];
       answerIndex: number;
       explanation?: string;
+      skillType?: "REMEMBER" | "UNDERSTAND" | "COMPARE" | "TRANSFER" | "EXPLAIN";
+      difficulty?: number;
     }[];
   };
   activities?: {
@@ -126,7 +134,7 @@ export interface DokuInteractive {
 export interface DokuSection {
   title: string;
   content: string; // markdown/text
-  keyFacts: string[];
+  keyFacts: DokuKeyFact[];
   imageIdea?: string; // textual idea for possible image
   sectionImagePrompt?: string; // English Runware-optimized prompt (AI-generated)
   imageUrl?: string; // generated section image URL
@@ -199,6 +207,60 @@ function uniqueTrimmed(values: string[]): string[] {
         .filter((value) => value.length > 0)
     )
   );
+}
+
+function normalizeKeyFact(value: unknown): DokuKeyFact | null {
+  if (typeof value === "string") {
+    const fact = value.replace(/\s+/g, " ").trim();
+    return fact ? { title: "Aha!", fact } : null;
+  }
+  if (!value || typeof value !== "object") return null;
+
+  const source = value as Record<string, unknown>;
+  const fact = String(source.fact ?? source.text ?? source.description ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!fact) return null;
+
+  const title = String(source.title ?? source.label ?? "Aha!")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 70) || "Aha!";
+  const whyItMatters = String(source.whyItMatters ?? source.why ?? source.context ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 220);
+
+  return {
+    title,
+    fact: fact.slice(0, 360),
+    ...(whyItMatters ? { whyItMatters } : {}),
+  };
+}
+
+function normalizeGeneratedSections(value: unknown): DokuSection[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((section): section is Record<string, unknown> => Boolean(section) && typeof section === "object")
+    .map((section) => ({
+      ...(section as unknown as DokuSection),
+      title: String(section.title ?? "").trim(),
+      content: String(section.content ?? "").trim(),
+      keyFacts: Array.isArray(section.keyFacts)
+        ? section.keyFacts.map(normalizeKeyFact).filter((fact): fact is DokuKeyFact => Boolean(fact))
+        : [],
+    }))
+    .filter((section) => section.title.length > 0 && section.content.length > 0);
+}
+
+function sanitizeKeyFact(fact: DokuKeyFact, blockedTerms: string[]): DokuKeyFact {
+  const title = sanitizeTextWithBlockedTerms(fact.title, blockedTerms).text;
+  const text = sanitizeTextWithBlockedTerms(fact.fact, blockedTerms).text;
+  const whyItMatters = fact.whyItMatters
+    ? sanitizeTextWithBlockedTerms(fact.whyItMatters, blockedTerms).text
+    : undefined;
+  return { title, fact: text, ...(whyItMatters ? { whyItMatters } : {}) };
 }
 
 function resolveDokuGenerationTimeoutMs(length?: DokuConfig["length"]): number {
@@ -401,6 +463,11 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         coverImagePrompt: string;
       };
 
+      parsed.sections = normalizeGeneratedSections(parsed.sections);
+      if (parsed.sections.length === 0) {
+        throw new Error("The doku generator returned no usable sections");
+      }
+
       if (blockedTerms.length > 0) {
         const titleSanitized = sanitizeTextWithBlockedTerms(parsed.title, blockedTerms);
         const summarySanitized = sanitizeTextWithBlockedTerms(parsed.summary, blockedTerms);
@@ -409,7 +476,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         parsed.sections = parsed.sections.map((section) => {
           const sectionTitle = sanitizeTextWithBlockedTerms(section.title, blockedTerms);
           const sectionContent = sanitizeTextWithBlockedTerms(section.content, blockedTerms);
-          const keyFacts = section.keyFacts.map((fact) => sanitizeTextWithBlockedTerms(fact, blockedTerms).text);
+          const keyFacts = section.keyFacts.map((fact) => sanitizeKeyFact(fact, blockedTerms));
           return {
             ...section,
             title: sectionTitle.text,
@@ -597,42 +664,84 @@ function buildOpenRouterPayload(config: DokuConfig) {
   const personalizationSection = config.personalizationPrompt
     ? `\n\nCHILD PROFILE CONTEXT (USE FOR PERSONALIZATION):\n${config.personalizationPrompt}\n`
     : "";
-  const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${parentalSection}${personalizationSection}`;
+  const editorialContract = buildDokuEditorialContract({ sectionsCount, quizCount, activitiesCount });
+  const user = `${prompts.user(config, sectionsCount, quizCount, activitiesCount)}${editorialContract}${parentalSection}${personalizationSection}`;
 
   return {
     messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
+      { role: "system" as const, content: system },
+      { role: "user" as const, content: user },
     ],
     maxTokens: 16000,
   };
 }
 
+function buildDokuEditorialContract(params: {
+  sectionsCount: number;
+  quizCount: number;
+  activitiesCount: number;
+}): string {
+  return `
+
+EDITORIAL QUALITY CONTRACT (MUST FOLLOW):
+- Create the energy of a modern children’s discovery show: a curious reporter’s eye, real questions, tiny experiments or observations, and a warm, playful sense of "let’s find out". Do not imitate any real presenter or use catchphrases.
+- Every chapter needs a clear mini-question, one concrete scene the child can picture, one surprising but relevant discovery, and a forward-looking final sentence. Vary the rhythm: question, observation, explanation, comparison, reveal.
+- Make the core answer unfold step by step. Do not give away every answer in the opening. Put a genuine, well-supported surprise in the middle or final third.
+- Use only well-established factual claims. Never invent quotes, studies, dates, measurements, rankings, sources, or record claims. If a detail is uncertain or varies, use careful wording or leave it out.
+- Explain every necessary technical word immediately in everyday language. Prefer one accurate, memorable comparison over a list of loose facts.
+
+KEY FACT CARDS:
+- Each of the ${params.sectionsCount} sections needs exactly 2 or 3 keyFacts.
+- Each keyFact MUST be an object with: title (a short curiosity label), fact (one precise, independently understandable claim), whyItMatters (one short sentence explaining why this changes what we understand or notice).
+- Do not repeat the paragraph word-for-word. No filler such as "This is important".
+
+QUIZ CONTRACT:
+- The whole documentary contains exactly ${params.quizCount} quiz question(s), spread across at most two fitting sections. All other sections must use {"enabled": false, "questions": []}.
+- Every quiz item has exactly four plausible answer options, exactly one correct answerIndex, a kind explanation, skillType (REMEMBER, UNDERSTAND, COMPARE, TRANSFER, or EXPLAIN), and difficulty from 1 to 5.
+- Vary the thinking, not the widget: include recall, cause-and-effect, comparison, or a simple "what would happen if" question. Never use trick questions, "all of the above", or answers that are obviously silly.
+
+ACTIVITY CONTRACT:
+- The whole documentary contains exactly ${params.activitiesCount} safe activity/activities. All other sections must use {"enabled": false, "items": []}.
+- Activities must be doable in 5–15 minutes with common household materials, make the child observe or test a real idea, and include a clear safety-friendly instruction.
+
+OUTPUT CONTRACT:
+- All reader-facing text is in the requested document language. English is allowed only for image prompts.
+- Return valid JSON only. Keep the section count exactly ${params.sectionsCount}.
+`;
+}
 function getLanguagePrompts(language: DokuLanguage) {
   // Shared JSON schema for sections (language-independent structure)
   const sectionSchema = `{
-      "title": "Section title",
-      "content": "Flowing text (120-220 words)",
-      "keyFacts": ["Fact 1", "Fact 2", "Fact 3"],
+      "title": "Curiosity-sparking chapter title",
+      "content": "Flowing, vivid discovery-show text (130-220 words)",
+      "keyFacts": [
+        {
+          "title": "Short Aha label",
+          "fact": "One precise, memorable fact",
+          "whyItMatters": "Why this helps us understand or notice something"
+        }
+      ],
       "imageIdea": "Short description for illustration (in document language)",
       "sectionImagePrompt": "English prompt for image generation: Kid-friendly watercolor illustration of [concrete visual scene from this section]. Axel Scheffler style, bright warm colors, educational, no text.",
       "interactive": {
         "quiz": {
-          "enabled": true,
+          "enabled": false,
           "questions": [
             {
-              "question": "Question?",
+              "question": "Thoughtful four-option question",
               "options": ["A", "B", "C", "D"],
               "answerIndex": 0,
-              "explanation": "Why is this correct?"
+              "explanation": "Warm, clear explanation of the answer",
+              "skillType": "UNDERSTAND",
+              "difficulty": 2
             }
           ]
         },
         "activities": {
-          "enabled": true,
+          "enabled": false,
           "items": [
             {
-              "title": "Activity title",
+              "title": "Safe mini-discovery",
               "description": "Child-friendly instructions",
               "materials": ["Paper", "Pens"],
               "durationMinutes": 10
@@ -771,8 +880,9 @@ ${config.includeInteractive && quizCount > 0 ? `Mischung aus:
 - 2-3 Erinnern-Fragen (Fakten aus der Doku)
 - 2-3 Verstehen-Fragen (Zusammenhaenge erklaeren)
 - 1-2 Transfer-Fragen ("Was wuerde passieren wenn...?")
-Nutze verschiedene Typen: Multiple Choice, Richtig/Falsch, Reihenfolge ordnen, Ursache/Wirkung.
-KEINE langweiligen oder offensichtlich trivialen Fragen.` : "Keine Quizfragen."}
+Jede Frage hat genau vier plausible Antwortoptionen und genau eine richtige Antwort.
+Mische Erinnern, Verstehen, Vergleichen und einfache Was-waere-wenn-Fragen.
+KEINE Trickfragen, albernen Ablenker oder offensichtlich trivialen Fragen.` : "Keine Quizfragen."}
 
 AKTIVITAETEN: ${config.includeInteractive ? activitiesCount : 0}
 ${config.includeInteractive && activitiesCount > 0 ? "Kreative Mitmach-Ideen mit Alltagsmaterialien, passend zum Thema." : ""}

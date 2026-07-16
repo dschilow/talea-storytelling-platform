@@ -816,6 +816,20 @@ export async function exportDokuAsPDF(
           doc.setFont('helvetica', 'normal');
 
           section.keyFacts.forEach((fact) => {
+            // Keep exports readable for both older string facts and the richer fact cards.
+            const source = fact as unknown;
+            const factText = typeof source === 'string'
+              ? source
+              : source && typeof source === 'object'
+                ? [
+                    (source as Record<string, unknown>).title,
+                    (source as Record<string, unknown>).fact,
+                    (source as Record<string, unknown>).whyItMatters
+                      ? `Warum das zählt: ${(source as Record<string, unknown>).whyItMatters}`
+                      : '',
+                  ].filter(Boolean).join(' – ')
+                : String(source ?? '');
+
             // Check if we need a new page
             if (yPos > pageHeight - 20) {
               doc.addPage();
@@ -823,7 +837,7 @@ export async function exportDokuAsPDF(
             }
 
             doc.text('• ', margin, yPos);
-            yPos = addWrappedText(doc, fact, margin + 5, yPos, contentWidth - 5, 6);
+            yPos = addWrappedText(doc, factText, margin + 5, yPos, contentWidth - 5, 6);
             yPos += 3;
           });
         }

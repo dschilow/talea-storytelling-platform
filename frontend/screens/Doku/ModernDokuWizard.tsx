@@ -890,10 +890,11 @@ export default function ModernDokuWizard() {
 
                       {/* Topic input */}
                       <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                        <label htmlFor="doku-topic" className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
                           Dein Thema
                         </label>
                         <input
+                          id="doku-topic"
                           type="text"
                           value={state.topic}
                           onChange={(e) => updateState({ topic: e.target.value })}
@@ -938,39 +939,45 @@ export default function ModernDokuWizard() {
                         </div>
                       )}
 
-                      {/* AI suggestions */}
+                      {/* Gemini ideas */}
                       {suggestionDomainId && (
-                        <div
+                        <section
                           className="rounded-2xl border p-4"
+                          aria-labelledby="doku-ideas-heading"
                           style={{
                             borderColor: 'var(--talea-border-light)',
                             background: 'var(--talea-surface-inset)',
                           }}
                         >
-                          <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
+                              <p id="doku-ideas-heading" className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]">
                                 Ideen für dich
                               </p>
-                              <p className="text-xs text-[var(--talea-text-muted)]">
-                                {topicSuggestions?.items?.length || 0} Vorschläge in{' '}
-                                {selectedCategory?.label || 'dieser Kategorie'}
+                              <p className="text-xs text-[var(--talea-text-muted)]" role="status" aria-live="polite">
+                                {isSuggestionsLoading
+                                  ? 'Gemini findet gerade spannende Fragen für dich ...'
+                                  : `${Math.min(topicSuggestions?.items?.length || 0, 12)} Vorschläge in ${selectedCategory?.label || 'dieser Kategorie'}`}
                               </p>
                             </div>
                             <button
                               type="button"
                               onClick={() => void refreshOneSuggestion()}
-                              disabled={isSuggestionsRefreshing}
-                              className="inline-flex items-center gap-1 rounded-full border bg-[var(--talea-surface-primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--talea-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                              disabled={isSuggestionsLoading || isSuggestionsRefreshing}
+                              className="inline-flex min-h-11 items-center gap-1.5 rounded-full border bg-[var(--talea-surface-primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-inset)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
                               style={{ borderColor: 'var(--talea-border-light)' }}
                             >
-                              <Compass className="h-3 w-3" />
-                              {isSuggestionsRefreshing ? 'Denke nach...' : 'Neue Idee'}
+                              {isSuggestionsRefreshing ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <Compass className="h-3.5 w-3.5" aria-hidden="true" />
+                              )}
+                              {isSuggestionsRefreshing ? 'Neue Idee kommt ...' : 'Neue Idee'}
                             </button>
                           </div>
 
                           {suggestionsError && (
-                            <div className="mb-2 rounded-lg border border-red-300/35 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-200">
+                            <div role="alert" className="mb-2 rounded-lg border border-red-300/35 bg-red-500/10 px-2.5 py-1.5 text-[11px] text-red-700 dark:text-red-200">
                               {suggestionsError}
                             </div>
                           )}
@@ -980,11 +987,12 @@ export default function ModernDokuWizard() {
                               items={topicSuggestions?.items || []}
                               isLoading={isSuggestionsLoading}
                               lastInsertedSuggestionId={lastInsertedSuggestionId}
-                              maxItems={18}
+                              maxItems={12}
+                              variant="talea"
                               onSelect={handleSelectSuggestion}
                             />
                           </div>
-                        </div>
+                        </section>
                       )}
                     </div>
                   )}

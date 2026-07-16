@@ -1,3 +1,9 @@
+export interface DokuKeyFact {
+  title: string;
+  fact: string;
+  whyItMatters?: string;
+}
+
 export interface DokuInteractive {
   quiz?: {
     enabled: boolean;
@@ -6,6 +12,8 @@ export interface DokuInteractive {
       options: string[];
       answerIndex: number;
       explanation?: string;
+      skillType?: "REMEMBER" | "UNDERSTAND" | "COMPARE" | "TRANSFER" | "EXPLAIN";
+      difficulty?: number;
     }[];
   };
   activities?: {
@@ -22,7 +30,7 @@ export interface DokuInteractive {
 export interface DokuSection {
   title: string;
   content: string; // markdown/text
-  keyFacts: string[];
+  keyFacts: DokuKeyFact[];
   imageIdea?: string; // textual idea for possible image
   sectionImagePrompt?: string; // English Runware-optimized prompt (AI-generated)
   imageUrl?: string; // generated section image URL
