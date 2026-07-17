@@ -15,6 +15,8 @@ import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
+import ArtifactCelebrationModal, { type UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
+import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../components/gamification/TreasureRewardsOverlay';
 
 const StoryScrollReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -40,6 +42,9 @@ const StoryScrollReaderScreen: React.FC = () => {
   const [storyCompleted, setStoryCompleted] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
+  const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
+  const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+  const [treasureRewards, setTreasureRewards] = useState<TreasureRewardsPayload | null>(null);
   const loadRequestRef = useRef(0);
   const completionAttemptRef = useRef(0);
   const completionInFlightRef = useRef(false);
@@ -135,6 +140,15 @@ const StoryScrollReaderScreen: React.FC = () => {
         }
         if (completionAttemptRef.current !== attemptId) return;
         setStoryCompleted(true);
+
+        // Schatzkammer: freshly found pool artifact + Fundstück/journey rewards.
+        if (result?.unlockedArtifact) {
+          setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
+          setTimeout(() => setShowPoolArtifactModal(true), 260);
+        }
+        if (result?.treasureRewards) {
+          setTreasureRewards(result.treasureRewards as TreasureRewardsPayload);
+        }
 
         console.log('✅ Personality updates applied:', result);
         window.dispatchEvent(
@@ -425,6 +439,19 @@ const StoryScrollReaderScreen: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Schatzkammer: neues Artefakt (Bild + Beschreibung) */}
+      <ArtifactCelebrationModal
+        artifact={poolArtifact}
+        isVisible={showPoolArtifactModal}
+        onClose={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); }}
+      />
+
+      {/* Schatzkammer 2.0: Reise-/Level-Karten, Set-Krönungen, Fundstück-Toast */}
+      <TreasureRewardsOverlay
+        rewards={treasureRewards}
+        active={!showPoolArtifactModal}
+      />
     </div>
   );
 };

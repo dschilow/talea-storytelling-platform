@@ -26,17 +26,17 @@ function isExpectedIdempotencyError(error: unknown): boolean {
 }
 
 /**
- * Manual migration trigger endpoint
- * Call this URL to create all database tables
- * URL: POST /health/run-migrations
+ * Runs every numbered `.up.sql` migration file (user, avatar, story, fairy
+ * tales) idempotently against the respective service database. This is the
+ * canonical way schema changes reach Railway prod: the container does NOT run
+ * Encore auto-migrations, so /health invokes this once per process boot.
  */
-export const runMigrations = api(
-  { expose: false, method: "POST", path: "/health/run-migrations", auth: false },
-  async (): Promise<MigrationResponse> => {
+export async function runAllNumberedMigrationFiles(): Promise<MigrationResponse> {
+  {
     const migrationsRun: string[] = [];
     const errors: string[] = [];
 
-    console.log("🔄 Starting manual migrations...");
+    console.log("🔄 Starting numbered migration file run...");
 
     try {
       // Helper function to run SQL file
@@ -153,4 +153,14 @@ export const runMigrations = api(
       throw APIError.internal(`Migration failed: ${err.message}`);
     }
   }
+}
+
+/**
+ * Manual migration trigger endpoint
+ * Call this URL to create all database tables
+ * URL: POST /health/run-migrations
+ */
+export const runMigrations = api(
+  { expose: false, method: "POST", path: "/health/run-migrations", auth: false },
+  async (): Promise<MigrationResponse> => runAllNumberedMigrationFiles()
 );

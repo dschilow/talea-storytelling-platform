@@ -2226,10 +2226,12 @@ async function generateDevModeImages(
   }
   console.log(`[dev-mode-generation] Reference images resolved: ${resolvedCast.length} (avatars=${resolvedCast.filter(c => c.kind === "avatar").length}, pool=${resolvedCast.filter(c => c.kind === "pool").length})`);
 
-  // Two independent portrait references are the reliable ceiling for this
-  // checkpoint. Larger casts still work generically: the deterministic frame
-  // selector rotates them across reading pages instead of blending identities.
-  const maxNativeReferences = 2;
+  // Three independent portrait references so a supporting-cast member (the
+  // common "2 avatars + 1 helper" scene) still gets an identity anchor. With
+  // only 2 refs the third on-stage figure had no reference and the model
+  // duplicated an anchored identity instead (two Adrians / two Tildas in
+  // story 7b17ddbd). Scenes with fewer on-stage names still send fewer refs.
+  const maxNativeReferences = 3;
   const collagePositions: Array<{ index: number; name: string; colorName: string; colorHex: string; kind: "avatar" | "pool" }> = [];
 
   // -----------------------------------------------------------------------

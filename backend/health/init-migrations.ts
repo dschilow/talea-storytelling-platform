@@ -1,6 +1,7 @@
 import { api } from "encore.dev/api";
 
 let migrationsRun = false;
+let numberedMigrationFilesRunThisBoot = false;
 
 // All migration SQL statements - executed in order
 const MIGRATION_STATEMENTS = [
@@ -509,6 +510,26 @@ const MIGRATION_STATEMENTS = [
   )`,
   `ALTER TABLE story_artifacts ADD COLUMN IF NOT EXISTS presence TEXT NOT NULL DEFAULT 'central'`,
   `ALTER TABLE story_artifacts ADD COLUMN IF NOT EXISTS brought_by_avatar_id TEXT`,
+
+  // 28. Completion reward claims - mirrors
+  // avatar/migrations/16_add_completion_reward_claims. Without this table
+  // every story/doku completion fails before personality + treasury rewards.
+  `CREATE TABLE IF NOT EXISTS avatar_completion_reward_claims (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    avatar_id TEXT NOT NULL REFERENCES avatars(id) ON DELETE CASCADE,
+    content_type TEXT NOT NULL CHECK (content_type IN ('story', 'doku')),
+    content_id TEXT NOT NULL,
+    claimed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (avatar_id, content_type, content_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_avatar_completion_reward_claims_content
+    ON avatar_completion_reward_claims(content_type, content_id)`,
+  `INSERT INTO avatar_completion_reward_claims (avatar_id, content_type, content_id, claimed_at)
+    SELECT avatar_id, 'story', story_id, read_at FROM avatar_story_read
+    ON CONFLICT (avatar_id, content_type, content_id) DO NOTHING`,
+  `INSERT INTO avatar_completion_reward_claims (avatar_id, content_type, content_id, claimed_at)
+    SELECT avatar_id, 'doku', doku_id, read_at FROM avatar_doku_read
+    ON CONFLICT (avatar_id, content_type, content_id) DO NOTHING`,
 ];
 
 /**
@@ -555,12 +576,20 @@ export const initializeDatabaseMigrations = api(
           AND table_name = 'artifact_sets'
         );
       `;
+      const completionClaimsResult = await storyDB.queryRow<{ exists: boolean }>`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_schema = 'public'
+          AND table_name = 'avatar_completion_reward_claims'
+        );
+      `;
 
       const characterPoolExists = Boolean(characterPoolResult?.exists);
       const studioTablesExist = Boolean(studioScenesResult?.exists);
       const meteredUsageExists = Boolean(meteredUsageResult?.exists);
       const artifactSetsExist = Boolean(artifactSetsResult?.exists);
-      const tablesExist = characterPoolExists && studioTablesExist && meteredUsageExists && artifactSetsExist;
+      const completionClaimsExist = Boolean(completionClaimsResult?.exists);
+      const tablesExist = characterPoolExists && studioTablesExist && meteredUsageExists && artifactSetsExist && completionClaimsExist;
 
       if (tablesExist) {
         console.log("[Init] Latest schema already present (including Talea Studio tables) - skipping table migrations");
@@ -609,6 +638,24 @@ export const initializeDatabaseMigrations = api(
         }
 
         console.log(`[Init] Base table migrations completed! ${successCount}/${MIGRATION_STATEMENTS.length} statements executed successfully`);
+      }
+
+      // Numbered migration files (user/avatar/story/fairytales) are the
+      // canonical schema source, but the Railway container never runs Encore
+      // auto-migrations. Run them idempotently once per process boot so every
+      // deploy converges the schema (fixes e.g. the missing
+      // avatar_completion_reward_claims table breaking story completion).
+      if (!numberedMigrationFilesRunThisBoot) {
+        numberedMigrationFilesRunThisBoot = true;
+        try {
+          console.log("\n=== Running numbered migration files (once per boot) ===");
+          const { runAllNumberedMigrationFiles } = await import("./run-migrations");
+          const result = await runAllNumberedMigrationFiles();
+          console.log(`[Init] Numbered migration files: ${result.migrationsRun.length} ok, ${result.errors.length} failed`);
+          for (const err of result.errors) console.error(`[Init] Numbered migration failure: ${err}`);
+        } catch (numberedErr: any) {
+          console.error("[Init] Numbered migration file run failed:", numberedErr?.message || numberedErr);
+        }
       }
 
       // Now run fairy tales migrations using the fairy tales database directly
