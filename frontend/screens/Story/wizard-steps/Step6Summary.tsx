@@ -17,6 +17,14 @@ interface Props {
     happyEnd: boolean;
     surpriseEnd: boolean;
     customWish: string;
+    broughtArtifact?: {
+      name: string;
+      avatarName: string;
+      emoji?: string;
+      imageUrl?: string;
+      journeysUntilNextLevel?: number;
+      nextLevel?: number;
+    } | null;
   };
   onGenerate: () => void;
   storyCredits?: {
@@ -109,6 +117,32 @@ export default function Step6Summary({
             </motion.div>
           );
         })}
+
+        {state.broughtArtifact && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-start gap-3 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4"
+          >
+            {state.broughtArtifact.imageUrl ? (
+              <img src={state.broughtArtifact.imageUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+            ) : (
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/20 text-lg">
+                {state.broughtArtifact.emoji || '🎁'}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mitgenommener Schatz</p>
+              <p className="mt-0.5 text-sm text-foreground">
+                {state.broughtArtifact.name} reist mit ({state.broughtArtifact.avatarName})
+                {state.broughtArtifact.journeysUntilNextLevel
+                  ? ` — noch ${state.broughtArtifact.journeysUntilNextLevel} ${state.broughtArtifact.journeysUntilNextLevel === 1 ? 'Reise' : 'Reisen'} bis Stufe ${state.broughtArtifact.nextLevel}`
+                  : ''}
+              </p>
+            </div>
+            <CheckCircle2 className="mt-1 h-4 w-4 text-amber-600" />
+          </motion.div>
+        )}
 
         {(activeWishes.length > 0 || state.customWish) && (
           <div className="rounded-2xl border border-border bg-card/70 p-4">

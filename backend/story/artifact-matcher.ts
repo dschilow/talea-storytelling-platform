@@ -9,7 +9,7 @@ import { extractPendingArtifactReference } from "./artifact-reward-utils";
 /**
  * Converts database row to ArtifactTemplate
  */
-function rowToArtifactTemplate(row: any): ArtifactTemplate {
+export function rowToArtifactTemplate(row: any): ArtifactTemplate {
   return {
     id: row.id,
     name: {
@@ -60,7 +60,8 @@ export class ArtifactMatcher {
     requirement: ArtifactRequirement,
     genre: string,
     recentStoryIds: string[] = [],
-    userLanguage: string = 'de'
+    userLanguage: string = 'de',
+    options: { excludeArtifactIds?: Set<string> } = {}
   ): Promise<ArtifactTemplate> {
     console.log("[ArtifactMatcher] Starting artifact matching...", {
       preferredCategory: requirement.preferredCategory,
@@ -68,11 +69,26 @@ export class ArtifactMatcher {
       genre,
       discoveryChapter: requirement.discoveryChapter,
       usageChapter: requirement.usageChapter,
+      excludedCount: options.excludeArtifactIds?.size || 0,
     });
 
     // 1. Load artifact pool from database
-    const pool = await this.loadArtifactPool();
+    let pool = await this.loadArtifactPool();
     console.log("[ArtifactMatcher] Loaded artifact pool:", { totalArtifacts: pool.length });
+
+    // Treasury rules: artifacts the participating avatars already own (no
+    // duplicates) and set-crown rewards (only earned via set completion)
+    // never get cast as a story reward. If exclusion would empty the pool,
+    // fall back to the unfiltered pool rather than failing generation.
+    const exclude = options.excludeArtifactIds;
+    if (exclude && exclude.size > 0) {
+      const filtered = pool.filter(artifact => !exclude.has(artifact.id));
+      if (filtered.length > 0) {
+        pool = filtered;
+      } else {
+        console.warn("[ArtifactMatcher] Exclusion list would empty the pool; ignoring exclusions.");
+      }
+    }
 
     if (pool.length === 0) {
       console.warn("[ArtifactMatcher] No artifacts in pool! Using fallback...");

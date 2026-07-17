@@ -38,6 +38,7 @@ import {
 } from '@/components/talea/TaleaPastelPrimitives';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
+import type { BroughtArtifactSelection } from './wizard-steps/ArtifactCompanionPicker';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
 import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
 import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
@@ -74,6 +75,8 @@ interface WizardState {
   aiProvider: AIProvider;
   openRouterModel: OpenRouterStoryModel;
   developerMode: boolean;
+  /** Schatzkammer: owned artifact taken along into this story (Mitnehmen-Loop). */
+  broughtArtifact: BroughtArtifactSelection | null;
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
@@ -242,6 +245,9 @@ export default function TaleaStoryWizard() {
   const VALID_CATEGORIES = ['fairy-tales', 'adventure', 'magic', 'animals', 'scifi', 'modern'] as const;
   const tagParam = searchParams.get('tags');
   const mapAvatarId = searchParams.get('mapAvatarId');
+  // Deep link from the Schatzkammer: "In eine neue Geschichte mitnehmen".
+  const bringArtifactId = searchParams.get('bringArtifact');
+  const bringAvatarId = searchParams.get('bringAvatar');
 
   const tagList = tagParam ? tagParam.split(',').map(s => s.trim()) : [];
   const initialCategory = VALID_CATEGORIES.find(c => tagList.includes(c as any)) as WizardState['mainCategory'] || null;
@@ -264,7 +270,7 @@ export default function TaleaStoryWizard() {
   );
 
   const [state, setState] = useState<WizardState>({
-    selectedAvatars: mapAvatarId ? [mapAvatarId] : [],
+    selectedAvatars: mapAvatarId ? [mapAvatarId] : bringAvatarId ? [bringAvatarId] : [],
     mainCategory: initialCategory || (isMapAutoFill ? 'adventure' : null),
     subCategory: null,
     ageGroup: isMapAutoFill ? '6-8' : null,
@@ -285,8 +291,44 @@ export default function TaleaStoryWizard() {
     aiProvider: 'openrouter',
     openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
     developerMode: false,
+    broughtArtifact: null,
   });
   const lastAppliedProfileRef = React.useRef<string | null>(null);
+  const bringDeepLinkAppliedRef = React.useRef(false);
+
+  // Resolve the Schatzkammer deep link ("mitnehmen") into a full selection.
+  useEffect(() => {
+    if (!bringArtifactId || !bringAvatarId || bringDeepLinkAppliedRef.current) return;
+    bringDeepLinkAppliedRef.current = true;
+    (async () => {
+      try {
+        const result = await backend.story.bringableArtifacts({ avatarIds: [bringAvatarId] });
+        const match = (result?.artifacts || []).find((entry: any) => entry.artifactId === bringArtifactId);
+        if (match) {
+          setState((prev) => ({
+            ...prev,
+            selectedAvatars: prev.selectedAvatars.includes(bringAvatarId)
+              ? prev.selectedAvatars
+              : [...prev.selectedAvatars, bringAvatarId],
+            broughtArtifact: {
+              artifactId: match.artifactId,
+              avatarId: match.avatarId,
+              avatarName: match.avatarName,
+              name: match.name,
+              emoji: match.emoji,
+              imageUrl: match.imageUrl,
+              level: match.level,
+              journeys: match.journeys,
+              journeysUntilNextLevel: match.journeysUntilNextLevel,
+              nextLevel: match.nextLevel,
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn('[StoryWizard] Failed to resolve brought artifact deep link:', err);
+      }
+    })();
+  }, [backend, bringArtifactId, bringAvatarId]);
 
   useEffect(() => {
     if (i18n.language) setUserLanguage(i18n.language);
@@ -764,5 +806,12 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
+    broughtArtifact:
+      state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)
+        ? {
+            artifactId: state.broughtArtifact.artifactId,
+            avatarId: state.broughtArtifact.avatarId,
+          }
+        : undefined,
   } as any;
 }

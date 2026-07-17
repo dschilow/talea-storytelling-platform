@@ -3,14 +3,26 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
-import { unlockStoryArtifact } from "./artifact-matcher";
+import { recordStoryArtifact } from "./artifact-matcher";
 import {
-  appendArtifactReward,
-  buildArtifactInventoryItem,
+  extractPendingArtifactReference,
   extractStoredAvatarIds,
   extractStoryConfigAvatarIds,
   resolveCompletionAvatarIds,
 } from "./artifact-reward-utils";
+import {
+  SHARDS_PER_CHOICE,
+  addJournalEntry,
+  countJourneys,
+  findCompletedSetGrants,
+  getOwnedPoolIdsByAvatar,
+  getStoryArtifactState,
+  grantArtifactToAvatar,
+  grantShardsForStory,
+  journeysUntilNextLevel,
+  levelForJourneys,
+  setInventoryArtifactLevel,
+} from "./artifact-treasury";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import {
   assertProfilesBelongToUser,
@@ -106,6 +118,47 @@ interface MarkStoryReadResponse {
     emoji?: string;
     visualKeywords: string[];
     imageUrl?: string;
+  };
+  /**
+   * Schatzkammer 2.0 economy: per-avatar treasure outcome of this completion.
+   * Exactly one of the reward shapes applies per avatar and story:
+   * a fresh artifact (see unlockedArtifact), a Fundstück (shard), or — for
+   * brought artifacts — a journey entry that can level the artifact up.
+   */
+  treasureRewards?: {
+    shardsForChoice: number;
+    perAvatar: Array<{
+      avatarId: string;
+      avatarName: string;
+      shardsEarned: number;
+      shardBalance: number;
+      choiceReady: boolean;
+      journey?: {
+        artifactId: string;
+        artifactName: string;
+        emoji?: string;
+        imageUrl?: string;
+        journeys: number;
+        level: number;
+        leveledUp: boolean;
+        journeysUntilNextLevel?: number;
+        nextLevel?: number;
+      };
+      completedSets: Array<{
+        setId: string;
+        setName: string;
+        setEmoji?: string;
+        crown: {
+          id: string;
+          name: string;
+          description: string;
+          category: string;
+          rarity: string;
+          emoji?: string;
+          imageUrl?: string;
+        };
+      }>;
+    }>;
   };
 }
 
@@ -516,12 +569,174 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       };
     }
 
+    let treasureRewards: MarkStoryReadResponse["treasureRewards"];
     try {
-      const artifact = await unlockStoryArtifact(req.storyId);
+      // 1) Resolve the story's artifact assignment (with the historical
+      //    metadata-recovery path for stories whose junction write failed).
+      let artifactState = await getStoryArtifactState(req.storyId);
+      if (!artifactState) {
+        const storyMeta = await storyDB.queryRow<{ metadata: unknown }>`
+          SELECT metadata FROM stories WHERE id = ${req.storyId} LIMIT 1
+        `;
+        const pending = extractPendingArtifactReference(storyMeta?.metadata);
+        if (pending) {
+          await recordStoryArtifact(
+            req.storyId,
+            pending.artifactId,
+            pending.discoveryChapter,
+            pending.usageChapter
+          );
+          artifactState = await getStoryArtifactState(req.storyId);
+        }
+      }
 
-      if (artifact) {
-        const resolvedArtifactImageUrl = await buildArtifactImageUrlForClient(artifact.id, artifact.imageUrl);
-        const artifactPayload: NonNullable<MarkStoryReadResponse["unlockedArtifact"]> = {
+      const ownedBefore = await getOwnedPoolIdsByAvatar(userAvatars.map((entry) => entry.id));
+      const perAvatar: NonNullable<MarkStoryReadResponse["treasureRewards"]>["perAvatar"] = [];
+
+      const artifact = artifactState?.artifact;
+      const broughtBy = artifactState?.broughtByAvatarId || null;
+      const resolvedArtifactImageUrl = artifact
+        ? (await buildArtifactImageUrlForClient(artifact.id, artifact.imageUrl)) ?? artifact.imageUrl
+        : undefined;
+
+      // 2) Mitnehmen-Loop: the journey counts for the owner's artifact even
+      //    when someone else finishes the story first (idempotent journal).
+      let journeyReward: { journeys: number; level: number; leveledUp: boolean } | null = null;
+      if (artifact && broughtBy) {
+        const journeyAdded = await addJournalEntry({
+          avatarId: broughtBy,
+          artifactId: artifact.id,
+          storyId: req.storyId,
+          storyTitle: req.storyTitle,
+          event: "journey",
+          note: `Reiste mit durch "${req.storyTitle}".`,
+        });
+        const journeys = await countJourneys(broughtBy, artifact.id);
+        const level = levelForJourneys(journeys);
+        const updatedItem = await setInventoryArtifactLevel(broughtBy, artifact.id, level);
+        if (updatedItem) {
+          await addJournalEntry({
+            avatarId: broughtBy,
+            artifactId: artifact.id,
+            storyId: req.storyId,
+            storyTitle: req.storyTitle,
+            event: "levelup",
+            note: `Nach ${journeys} Reisen auf Stufe ${level} gestiegen!`,
+          });
+        }
+        journeyReward = { journeys, level, leveledUp: Boolean(updatedItem) };
+        void journeyAdded;
+      }
+
+      // 3) Per-avatar reward: fresh artifact (only when the story genuinely
+      //    embraced it and it was not brought along), otherwise a Fundstück.
+      let grantedToAtLeastOneAvatar = false;
+      for (const userAvatar of userAvatars) {
+        const alreadyOwns = ownedBefore.get(userAvatar.id)?.has(artifact?.id || "") ?? false;
+        const shouldAwardArtifact = Boolean(artifact) && !broughtBy && !alreadyOwns;
+
+        let shardsEarned = 0;
+        let shardBalance = 0;
+
+        if (shouldAwardArtifact && artifact) {
+          try {
+            const added = await grantArtifactToAvatar({
+              artifact,
+              avatarId: userAvatar.id,
+              storyId: req.storyId,
+              storyTitle: req.storyTitle,
+              imageUrl: resolvedArtifactImageUrl,
+              journalEvent: "found",
+              journalNote: `Gefunden in "${req.storyTitle}".`,
+            });
+            if (added) grantedToAtLeastOneAvatar = true;
+          } catch (inventoryError) {
+            console.error(`Failed to add unlocked artifact for ${userAvatar.name}`, inventoryError);
+          }
+        } else {
+          // Fundstück: idempotent per (avatar, story).
+          const grant = await grantShardsForStory(userAvatar.id, req.storyId, 1);
+          shardsEarned = grant.granted ? 1 : 0;
+          shardBalance = grant.shards;
+        }
+
+        perAvatar.push({
+          avatarId: userAvatar.id,
+          avatarName: userAvatar.name,
+          shardsEarned,
+          shardBalance,
+          choiceReady: shardBalance >= SHARDS_PER_CHOICE,
+          journey:
+            broughtBy === userAvatar.id && artifact && journeyReward
+              ? {
+                  artifactId: artifact.id,
+                  artifactName: artifact.name.de || artifact.name.en,
+                  emoji: artifact.emoji,
+                  imageUrl: resolvedArtifactImageUrl,
+                  journeys: journeyReward.journeys,
+                  level: journeyReward.level,
+                  leveledUp: journeyReward.leveledUp,
+                  ...(journeysUntilNextLevel(journeyReward.journeys)
+                    ? {
+                        journeysUntilNextLevel: journeysUntilNextLevel(journeyReward.journeys)!.missing,
+                        nextLevel: journeysUntilNextLevel(journeyReward.journeys)!.nextLevel,
+                      }
+                    : {}),
+                }
+              : undefined,
+          completedSets: [],
+        });
+      }
+
+      // 4) Set completion: crowns are granted when every other member of a
+      //    set is owned. Checked AFTER the awards above.
+      const ownedAfter = await getOwnedPoolIdsByAvatar(userAvatars.map((entry) => entry.id));
+      for (const entry of perAvatar) {
+        const owned = ownedAfter.get(entry.avatarId);
+        if (!owned || owned.size === 0) continue;
+        const setGrants = await findCompletedSetGrants(owned);
+        for (const setGrant of setGrants) {
+          const crownImageUrl =
+            (await buildArtifactImageUrlForClient(setGrant.crown.id, setGrant.crown.imageUrl)) ??
+            setGrant.crown.imageUrl;
+          const added = await grantArtifactToAvatar({
+            artifact: setGrant.crown,
+            avatarId: entry.avatarId,
+            storyId: req.storyId,
+            storyTitle: req.storyTitle,
+            imageUrl: crownImageUrl,
+            journalEvent: "set_crown",
+            journalNote: `Belohnung für das vollendete Set "${setGrant.setNameDe}".`,
+          });
+          if (!added) continue;
+          entry.completedSets.push({
+            setId: setGrant.setId,
+            setName: setGrant.setNameDe,
+            setEmoji: setGrant.setEmoji,
+            crown: {
+              id: setGrant.crown.id,
+              name: setGrant.crown.name.de || setGrant.crown.name.en,
+              description: setGrant.crown.description.de || setGrant.crown.description.en,
+              category: setGrant.crown.category,
+              rarity: setGrant.crown.rarity,
+              emoji: setGrant.crown.emoji,
+              imageUrl: crownImageUrl,
+            },
+          });
+        }
+      }
+
+      // 5) Mark the story artifact as unlocked (display state).
+      if (artifactState && !artifactState.isUnlocked) {
+        await storyDB.exec`
+          UPDATE story_artifacts
+          SET is_unlocked = TRUE, unlocked_at = NOW()
+          WHERE story_id = ${req.storyId} AND is_unlocked = FALSE
+        `;
+      }
+
+      if (grantedToAtLeastOneAvatar && artifact) {
+        unlockedArtifact = {
           id: artifact.id,
           name: artifact.name.de,
           description: artifact.description.de,
@@ -529,54 +744,13 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           rarity: artifact.rarity,
           emoji: artifact.emoji,
           visualKeywords: artifact.visualKeywords,
-          imageUrl: resolvedArtifactImageUrl ?? artifact.imageUrl,
+          imageUrl: resolvedArtifactImageUrl,
         };
-        let grantedToAtLeastOneAvatar = false;
-
-        for (const userAvatar of userAvatars) {
-          try {
-            const inventoryItem = buildArtifactInventoryItem({
-              artifact,
-              avatarId: userAvatar.id,
-              storyId: req.storyId,
-              imageUrl: artifactPayload.imageUrl,
-            });
-            await using inventoryTx = await avatarDB.begin();
-            const avatarRow = await inventoryTx.queryRow<{ inventory: string }>`
-              SELECT inventory
-              FROM avatars
-              WHERE id = ${userAvatar.id}
-              FOR UPDATE
-            `;
-
-            if (!avatarRow) {
-              continue;
-            }
-
-            const currentInventory: InventoryItem[] = JSON.parse(avatarRow.inventory || "[]");
-            const reward = appendArtifactReward(currentInventory, inventoryItem);
-
-            if (reward.added) {
-              await inventoryTx.exec`
-                UPDATE avatars
-                SET inventory = ${JSON.stringify(reward.inventory)},
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ${userAvatar.id}
-              `;
-              grantedToAtLeastOneAvatar = true;
-            }
-            await inventoryTx.commit();
-          } catch (inventoryError) {
-            console.error(`Failed to add unlocked artifact for ${userAvatar.name}`, inventoryError);
-          }
-        }
-
-        if (grantedToAtLeastOneAvatar) {
-          unlockedArtifact = artifactPayload;
-        }
       }
+
+      treasureRewards = { shardsForChoice: SHARDS_PER_CHOICE, perAvatar };
     } catch (artifactError) {
-      console.error("Failed to unlock artifact", artifactError);
+      console.error("Failed to process treasure rewards", artifactError);
     }
 
     for (const profileId of targetProfileIds) {
@@ -610,6 +784,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       updatedAvatars: updatedCount,
       personalityChanges,
       unlockedArtifact,
+      treasureRewards,
       memorySaved: memoriesCreated > 0,
       memoriesCreated,
     };

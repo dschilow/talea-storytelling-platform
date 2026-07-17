@@ -19,7 +19,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import AvatarDiary from '../../components/avatar/AvatarDiary';
 import AvatarGrowthDashboard, { type GrowthTrait } from '../../components/avatar/AvatarGrowthDashboard';
 import AvatarSharePanel from '../../components/avatar/AvatarSharePanel';
-import AvatarTreasureRoom from '../../components/gamification/AvatarTreasureRoom';
+import TreasureMuseum from '../../components/gamification/TreasureMuseum';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBackend } from '../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
@@ -451,7 +451,7 @@ const AvatarProfileScreen: React.FC = () => {
 
           {activeTab === 'treasure' ? (
             <div id="avatar-treasure-panel" role="tabpanel" aria-label="Schatzkammer">
-              <AvatarTreasureRoom avatarName={avatar.name} items={avatar.inventory || []} />
+              <TreasureMuseum avatarId={avatar.id} avatarName={avatar.name} />
             </div>
           ) : null}
         </main>

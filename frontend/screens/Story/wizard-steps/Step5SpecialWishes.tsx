@@ -4,9 +4,11 @@ import { AlertCircle, BookHeart, Music, Shuffle, Smile, Star } from 'lucide-reac
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import ArtifactCompanionPicker, { type BroughtArtifactSelection } from './ArtifactCompanionPicker';
 
 interface Props {
   state: {
+    selectedAvatars: string[];
     rhymes: boolean;
     moral: boolean;
     avatarIsHero: boolean;
@@ -14,6 +16,7 @@ interface Props {
     happyEnd: boolean;
     surpriseEnd: boolean;
     customWish: string;
+    broughtArtifact: BroughtArtifactSelection | null;
   };
   updateState: (updates: any) => void;
 }
@@ -81,6 +84,12 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
           );
         })}
       </div>
+
+      <ArtifactCompanionPicker
+        selectedAvatars={state.selectedAvatars}
+        broughtArtifact={state.broughtArtifact}
+        onSelect={(selection) => updateState({ broughtArtifact: selection })}
+      />
 
       <section>
         <label className="mb-2 block text-sm font-semibold text-foreground/85">{t('wizard.common.customWish')}</label>

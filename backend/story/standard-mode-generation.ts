@@ -32,15 +32,23 @@ import {
   pickDevModePoolCharacters,
   recordDevModePoolCharacterUsage,
 } from "./dev-mode-generation";
-import type { DevModeAvatar, DevModeGeneratedStory } from "./dev-mode-generation";
+import type { DevModeAvatar, DevModeGeneratedStory, DevModeMatchedArtifact } from "./dev-mode-generation";
 import { callOpenRouterChatCompletion } from "./openrouter-generation";
 import type { StoryConfig, StoryLanguage } from "./generate";
+import type { ArtifactCategory, ArtifactRequirement, ArtifactTemplate } from "./types";
 import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
+import { artifactMatcher } from "./artifact-matcher";
+import {
+  getOwnedPoolIdsUnion,
+  loadArtifactTemplateById,
+  loadCrownArtifactIds,
+  recordBroughtArtifact,
+} from "./artifact-treasury";
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
 const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
@@ -130,6 +138,28 @@ export async function generateStoryStandardMode(
 ): Promise<StandardModeGeneratedStory> {
   const { config, userId, storyId } = input;
 
+  // 0) Treasury casting: pre-select the story artifact BEFORE the engine runs.
+  //    Either the artifact a participating avatar brings along from their
+  //    Schatzkammer (Mitnehmen-Loop) or a fresh pool pick that excludes
+  //    everything the participating avatars already own plus all set-crown
+  //    rewards. Passing `matchedArtifact` makes the engine skip its own
+  //    selection while its exposure/suppression logic stays untouched.
+  const artifactCasting = await preselectStoryArtifact({
+    config,
+    userId,
+    storyId,
+    avatarIds: input.avatars.map((a) => a.id).filter((id): id is string => Boolean(id)),
+  });
+
+  const engineConfig: StoryConfig = artifactCasting.broughtPromptHint
+    ? {
+        ...config,
+        customPrompt: [config.customPrompt, artifactCasting.broughtPromptHint]
+          .filter(Boolean)
+          .join("\n"),
+      }
+    : config;
+
   // 1) Memory continuity anchors (best-effort).
   const memoryAnchors = await loadAvatarMemoryAnchors(
     input.avatars.map((a) => a.id),
@@ -169,7 +199,7 @@ export async function generateStoryStandardMode(
   //    silently turning a completed book into a text-only result.
   const devResult = await generateStoryDevMode({
     config: {
-      ...config,
+      ...engineConfig,
       strictQualityGates: false,
       strictReleaseGateMode: "warn",
     },
@@ -179,7 +209,19 @@ export async function generateStoryStandardMode(
     poolCharacters,
     primaryProfileAge: input.primaryProfileAge,
     qualityMode: "premium",
+    matchedArtifact: artifactCasting.matchedArtifact,
   });
+
+  // Mitnehmen-Loop: persist who brought the artifact regardless of how deeply
+  // the engine wove it in — the journey must count for the travel journal.
+  if (artifactCasting.broughtBy && artifactCasting.matchedArtifact) {
+    await recordBroughtArtifact({
+      storyId,
+      artifactId: artifactCasting.matchedArtifact.id,
+      avatarId: artifactCasting.broughtBy,
+      chapterCount: devResult.chapters.length,
+    });
+  }
 
   await recordDevModePoolCharacterUsage({
     storyId,
@@ -199,11 +241,15 @@ export async function generateStoryStandardMode(
 
   // 5) Pending artifact payload for the unlock-after-reading flow. The engine
   //    already recorded `story_artifacts`; this hydrates the display payload.
-  const pendingArtifact = await buildPendingArtifact(
-    devResult.metadata?.matchedArtifact?.id,
-    config.language,
-    devResult.chapters.length
-  );
+  //    Brought artifacts are NOT a pending reward — the reader already owns
+  //    them; their payoff is the journal entry + level track in markRead.
+  const pendingArtifact = artifactCasting.broughtBy
+    ? undefined
+    : await buildPendingArtifact(
+        devResult.metadata?.matchedArtifact?.id,
+        config.language,
+        devResult.chapters.length
+      );
 
   type StageUsageEntry = {
     stage: string;
@@ -617,6 +663,174 @@ async function deriveAvatarDevelopments(input: {
   } catch (err) {
     console.warn("[standard-mode-generation] Avatar development stage failed (fallback to genre defaults):", err);
     return empty;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Treasury casting (pre-selection before the engine runs)
+// ---------------------------------------------------------------------------
+
+interface StoryArtifactCasting {
+  matchedArtifact?: DevModeMatchedArtifact;
+  /** Avatar id when the artifact comes from a Schatzkammer (Mitnehmen-Loop). */
+  broughtBy?: string;
+  /** Extra custom-prompt line so a brought artifact is carried from page 1. */
+  broughtPromptHint?: string;
+}
+
+function templateToMatchedArtifact(
+  template: ArtifactTemplate,
+  language: StoryLanguage | undefined
+): DevModeMatchedArtifact {
+  const useEnglish = String(language || "de").toLowerCase().startsWith("en");
+  const localizedName = useEnglish
+    ? template.name?.en || template.name?.de
+    : template.name?.de || template.name?.en;
+  return {
+    id: template.id,
+    name: String(localizedName || "").trim(),
+    nameEn: template.name?.en,
+    category: template.category,
+    rarity: template.rarity,
+    storyRole: template.storyRole,
+    visualKeywords: Array.isArray(template.visualKeywords) ? template.visualKeywords : [],
+    emoji: template.emoji,
+    imageUrl: template.imageUrl,
+  };
+}
+
+/**
+ * Mirrors the engine's genre→category bias (pickDevModeArtifactCategory in the
+ * frozen dev-mode engine) so pre-selected artifacts feel identical to
+ * engine-selected ones.
+ */
+function pickStandardModeArtifactCategory(config: StoryConfig): ArtifactCategory | undefined {
+  const genre = String(config.genre || "").toLowerCase();
+  if (/mystery|detective|krim/.test(genre)) return "tool";
+  if (/learning|education|lern/.test(genre)) return "book";
+  if (/nature|tier|animal|wald|forest/.test(genre)) return "nature";
+  if (/friendship|freund/.test(genre)) return "jewelry";
+  if (/fantasy|magic|magie|maerchen|märchen/.test(genre)) return "magic";
+  if (/adventure|abenteuer|quest/.test(genre)) return "map";
+  return undefined;
+}
+
+function buildBroughtArtifactPromptHint(
+  artifact: DevModeMatchedArtifact,
+  language: StoryLanguage | undefined
+): string {
+  const rule = String(artifact.storyRole || "").trim();
+  if (String(language || "de").toLowerCase().startsWith("de")) {
+    return [
+      `WICHTIG — MITGEBRACHTES ARTEFAKT: Die Kinder haben "${artifact.name}" von früheren Abenteuern dabei (von Anfang an im Gepäck, es wird NICHT neu entdeckt).`,
+      rule ? `So funktioniert es: ${rule}` : "",
+      "Es hilft höchstens einmal an einer entscheidenden Stelle; die Kinder treffen alle Entscheidungen selbst.",
+    ].filter(Boolean).join(" ");
+  }
+  return [
+    `IMPORTANT — BROUGHT ARTIFACT: The children carry "${artifact.name}" from earlier adventures (with them from page 1, it is NOT newly discovered).`,
+    rule ? `How it works: ${rule}` : "",
+    "It may help at most once at a decisive moment; the children still make every decision themselves.",
+  ].filter(Boolean).join(" ");
+}
+
+async function loadRecentStoryIdsForUser(userId: string, storyId: string, limit: number): Promise<string[]> {
+  try {
+    const rows = await storyDB.queryAll<{ id: string }>`
+      SELECT id FROM stories
+      WHERE user_id = ${userId} AND id <> ${storyId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+    return rows.map((row) => row.id).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Selects the story artifact before the engine runs. Never throws — on any
+ * failure the engine simply falls back to its own internal selection.
+ */
+async function preselectStoryArtifact(input: {
+  config: StoryConfig;
+  userId: string;
+  storyId: string;
+  avatarIds: string[];
+}): Promise<StoryArtifactCasting> {
+  const { config, userId, storyId, avatarIds } = input;
+
+  // Mitnehmen-Loop: a participating avatar carries an owned artifact along.
+  // Ownership is verified server-side — the client only sends ids.
+  const brought = config.broughtArtifact;
+  if (brought?.artifactId && brought?.avatarId && avatarIds.includes(brought.avatarId)) {
+    try {
+      const ownedByBringer = (await getOwnedPoolIdsUnion([brought.avatarId]));
+      if (!ownedByBringer.has(brought.artifactId)) {
+        console.warn("[standard-mode-generation] Brought artifact is not owned by avatar; ignoring.", {
+          storyId,
+          artifactId: brought.artifactId,
+          avatarId: brought.avatarId,
+        });
+        throw new Error("brought-artifact-not-owned");
+      }
+      const template = await loadArtifactTemplateById(brought.artifactId);
+      if (template) {
+        const matched = templateToMatchedArtifact(template, config.language);
+        console.log("[standard-mode-generation] Using brought artifact from Schatzkammer:", {
+          storyId,
+          artifactId: matched.id,
+          artifactName: matched.name,
+          broughtBy: brought.avatarId,
+        });
+        return {
+          matchedArtifact: matched,
+          broughtBy: brought.avatarId,
+          broughtPromptHint: buildBroughtArtifactPromptHint(matched, config.language),
+        };
+      }
+      console.warn("[standard-mode-generation] Brought artifact not found in pool:", brought.artifactId);
+    } catch (err) {
+      console.warn("[standard-mode-generation] Brought artifact loading failed:", err);
+    }
+  }
+
+  // Fresh pick with treasury exclusions (owned + set crowns).
+  try {
+    const [ownedIds, crownIds, recentIds] = await Promise.all([
+      getOwnedPoolIdsUnion(avatarIds),
+      loadCrownArtifactIds(),
+      loadRecentStoryIdsForUser(userId, storyId, 12),
+    ]);
+    const excludeArtifactIds = new Set<string>([...ownedIds, ...crownIds]);
+
+    const requirement: ArtifactRequirement = {
+      placeholder: "{{ARTIFACT_REWARD}}",
+      preferredCategory: pickStandardModeArtifactCategory(config),
+      requiredAbility: undefined,
+      contextHint: "Standard mode: prefer a graspable child-readable prop usable as a red-thread object.",
+      discoveryChapter: 2,
+      usageChapter: 4,
+      importance: "medium",
+    };
+    const genreKey = String(config.genre || "adventure").toLowerCase();
+    const languageCode = String(config.language || "de").toLowerCase().startsWith("en") ? "en" : "de";
+
+    const template = await artifactMatcher.match(requirement, genreKey, recentIds, languageCode, {
+      excludeArtifactIds,
+    });
+    if (!template?.id) return {};
+
+    console.log("[standard-mode-generation] Pre-selected pool artifact:", {
+      storyId,
+      artifactId: template.id,
+      ownedExcluded: ownedIds.size,
+      crownsExcluded: crownIds.size,
+    });
+    return { matchedArtifact: templateToMatchedArtifact(template, config.language) };
+  } catch (err) {
+    console.warn("[standard-mode-generation] Artifact pre-selection failed (engine will self-select):", err);
+    return {};
   }
 }
 

@@ -8,6 +8,7 @@ import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
+import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../components/gamification/TreasureRewardsOverlay';
 import type { Story, Chapter } from '../../types/story';
 import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
@@ -128,6 +129,7 @@ const CinematicStoryViewer: React.FC = () => {
   const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
   const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
   const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+  const [treasureRewards, setTreasureRewards] = useState<TreasureRewardsPayload | null>(null);
   const { showCompletionResults } = usePostStoryFlow();
   const isCharacterLifeStory = isCharacterLifeRoute || story?.config.contentType === 'character_life';
   const returnPath = isCharacterLifeStory && isAdmin ? '/characters' : '/stories';
@@ -295,6 +297,11 @@ const CinematicStoryViewer: React.FC = () => {
       if (result?.unlockedArtifact) {
         setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
         setTimeout(() => setShowPoolArtifactModal(true), 260);
+      }
+
+      // Schatzkammer 2.0: Fundstücke, Reisen/Level-Ups und Set-Krönungen.
+      if (result?.treasureRewards) {
+        setTreasureRewards(result.treasureRewards as TreasureRewardsPayload);
       }
 
       const collectedArtifacts = collectArtifactsFromChanges(result?.personalityChanges ?? []);
@@ -622,6 +629,12 @@ const CinematicStoryViewer: React.FC = () => {
         isVisible={showPoolArtifactModal}
         onClose={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); }}
         onViewTreasureRoom={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); navigate('/treasure-room'); }}
+      />
+
+      {/* Schatzkammer 2.0: Reise-/Level-Karten, Set-Krönungen, Fundstück-Toast */}
+      <TreasureRewardsOverlay
+        rewards={treasureRewards}
+        active={!showPoolArtifactModal && !currentArtifact}
       />
     </div>
   );

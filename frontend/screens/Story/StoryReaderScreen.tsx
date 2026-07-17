@@ -12,6 +12,7 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
 import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
+import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../components/gamification/TreasureRewardsOverlay';
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
@@ -80,6 +81,7 @@ const StoryReaderScreen: React.FC = () => {
   // NEW: Pool artifact celebration (from artifact_pool system)
   const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
   const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
+  const [treasureRewards, setTreasureRewards] = useState<TreasureRewardsPayload | null>(null);
 
   // Growth celebration modal
   const { isOpen: showGrowthCelebration, data: growthData, triggerCelebration, closeCelebration } = useGrowthCelebration();
@@ -312,6 +314,11 @@ const StoryReaderScreen: React.FC = () => {
           }, 250);
         } else {
           console.log('⚠️ [DEPLOY-CHECK] No unlockedArtifact in response!');
+        }
+
+        // Schatzkammer 2.0: Fundstücke, Reisen/Level-Ups und Set-Krönungen.
+        if (result.treasureRewards) {
+          setTreasureRewards(result.treasureRewards as TreasureRewardsPayload);
         }
 
         // Process Rewards
@@ -850,6 +857,12 @@ const StoryReaderScreen: React.FC = () => {
         masteryEvents={growthData.masteryEvents}
         source={growthData.source}
         sourceTitle={growthData.sourceTitle}
+      />
+
+      {/* Schatzkammer 2.0: Reise-/Level-Karten, Set-Krönungen, Fundstück-Toast */}
+      <TreasureRewardsOverlay
+        rewards={treasureRewards}
+        active={!showPoolArtifactModal && !currentArtifact}
       />
 
     </div>

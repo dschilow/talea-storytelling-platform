@@ -19,6 +19,8 @@ interface ArtifactCelebrationModalProps {
   isVisible: boolean;
   onClose: () => void;
   onViewTreasureRoom?: () => void;
+  /** When set, the modal celebrates a completed set whose crown reward this artifact is. */
+  setName?: string;
 }
 
 const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
@@ -26,8 +28,11 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
   isVisible,
   onClose,
   onViewTreasureRoom,
+  setName,
 }) => {
   if (!artifact) return null;
+
+  const isCrownCelebration = Boolean(setName);
 
   // Get colors based on rarity
   const getRarityColors = () => {
@@ -191,7 +196,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                         <Sparkles className="w-6 h-6 text-yellow-400" />
                       </motion.div>
                       <h2 className={`text-2xl font-bold bg-gradient-to-r ${rarityConfig.gradient} bg-clip-text text-transparent`}>
-                        Schatz entdeckt!
+                        {isCrownCelebration ? 'Set vollendet!' : 'Schatz entdeckt!'}
                       </h2>
                       <motion.div
                         animate={{ rotate: [0, -360] }}
@@ -200,7 +205,11 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                         <Sparkles className="w-6 h-6 text-yellow-400" />
                       </motion.div>
                     </div>
-                    <p className="text-white/60 text-sm">Du hast ein neues Artefakt freigeschaltet!</p>
+                    <p className="text-white/60 text-sm">
+                      {isCrownCelebration
+                        ? `Das Set „${setName}" ist komplett — hier ist dein Kronen-Schatz!`
+                        : 'Du hast ein neues Artefakt freigeschaltet!'}
+                    </p>
                   </motion.div>
                 </div>
 

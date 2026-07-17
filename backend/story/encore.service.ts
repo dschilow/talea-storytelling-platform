@@ -10,6 +10,7 @@ import "./character-pool-api";
 import "./character-showcase";
 import "./character-life-story-api";
 import "./artifact-pool-api";
+import "./artifact-treasury-api";
 import "./test-story-generation";
 import "./analyze-phase-logs";
 // REMOVED for security: analyze-recent-stories, auto-test-endpoint, test-artifacts, show-artifacts

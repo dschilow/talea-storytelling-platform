@@ -217,6 +217,16 @@ export interface StoryConfig {
   // user-story progression system.
   contentType?: "standard" | "character_life";
   characterId?: string;
+
+  // Schatzkammer / Mitnehmen-Loop: take an artifact a participating avatar
+  // already owns along into the story. The artifact is woven in as a carried
+  // companion prop; the story does NOT award a new artifact — instead the
+  // journey is written into the artifact's travel journal and counts toward
+  // its level track.
+  broughtArtifact?: {
+    artifactId: string;
+    avatarId: string;
+  };
 }
 
 export interface LearningMode {
