@@ -724,13 +724,15 @@ function buildBroughtArtifactPromptHint(
     return [
       `WICHTIG — MITGEBRACHTES ARTEFAKT: Die Kinder haben "${artifact.name}" von früheren Abenteuern dabei (von Anfang an im Gepäck, es wird NICHT neu entdeckt).`,
       rule ? `So funktioniert es: ${rule}` : "",
-      "Es hilft höchstens einmal an einer entscheidenden Stelle; die Kinder treffen alle Entscheidungen selbst.",
+      "Es hilft höchstens einmal an einer entscheidenden Stelle und darf nur zeigen oder warnen, nie lösen.",
+      "Im Finale handeln und entscheiden ausschließlich die Kinder selbst — die letzte Aktion gehört ihnen, nicht dem Artefakt und keinem Helfer.",
     ].filter(Boolean).join(" ");
   }
   return [
     `IMPORTANT — BROUGHT ARTIFACT: The children carry "${artifact.name}" from earlier adventures (with them from page 1, it is NOT newly discovered).`,
     rule ? `How it works: ${rule}` : "",
-    "It may help at most once at a decisive moment; the children still make every decision themselves.",
+    "It may help at most once at a decisive moment and may only reveal or warn, never solve.",
+    "In the finale the children alone act and decide — the last action belongs to them, not to the artifact or any helper.",
   ].filter(Boolean).join(" ");
 }
 

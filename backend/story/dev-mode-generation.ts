@@ -6780,6 +6780,47 @@ function repairBeatSheetDeterministically(
     };
   }
 
+  // Children-as-actors selfheal (2026-07-17): a central or brought-along
+  // artifact often pushes the support model into "the artifact/helper resolves
+  // the finale". The children-agency gates (act3.finalChoice,
+  // finalPayoff.childAction, act2.helperComplicates) then hard-fail the run
+  // before any prose exists. Rewrite those beats onto the named avatars
+  // deterministically instead of aborting the whole story — same pattern as
+  // the scene-card and logline selfheals.
+  const plural = protagonist.give === "geben";
+  if (issues.some((issue) => /helperComplicates looks like helperExplains/i.test(issue))) {
+    const helperName = helper || "Eine Nebenfigur";
+    repaired = {
+      ...repaired,
+      act2: {
+        ...(repaired.act2 || {}),
+        helperComplicates: `${helperName} will helfen, bringt dabei aber ${objectName} durcheinander und macht den Weg der Kinder sichtbar schwerer.`,
+      },
+    };
+  }
+  if (issues.some((issue) => /finalChoice is not clearly executed by the children/i.test(issue))) {
+    const existingChoice = String(repaired?.act3?.finalChoice || "").trim();
+    const choiceTail = existingChoice
+      ? ` ${existingChoice}`
+      : ` ${objectName} an den entscheidenden Platz zu bringen.`;
+    repaired = {
+      ...repaired,
+      act3: {
+        ...(repaired.act3 || {}),
+        finalChoice: `${protagonist.subject} ${protagonist.recognize} den Preis und ${plural ? "entscheiden" : "entscheidet"} selbst:${choiceTail}`,
+      },
+    };
+  }
+  if (issues.some((issue) => /finalPayoff\.childAction is (not clearly executed|performed by a helper)/i.test(issue))) {
+    repaired = {
+      ...repaired,
+      finalPayoff: {
+        ...(repaired.finalPayoff || {}),
+        childAction: `${protagonist.subject} ${protagonist.place} ${objectName} eigenhaendig an den vorbereiteten Platz und ${plural ? "sprechen" : "spricht"} die letzte Entscheidung selbst aus.`,
+      },
+    };
+  }
+
   return repaired;
 }
 
