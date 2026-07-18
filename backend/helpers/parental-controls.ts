@@ -134,7 +134,9 @@ function escapeRegExp(value: string): string {
 }
 
 const BLOCKED_TERM_SAFE_REPLACEMENTS: Record<string, string> = {
-  gewalt: "Konflikt",
+  // "Kraft" reads naturally in child dialogue ("Mit Gewalt?" -> "Mit Kraft?");
+  // the previous "Konflikt" produced adult-abstract lines in shipped prose.
+  gewalt: "Kraft",
   kampf: "Wettstreit",
   waffe: "Werkzeug",
   blut: "Farbfleck",

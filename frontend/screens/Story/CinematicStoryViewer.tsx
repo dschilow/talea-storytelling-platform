@@ -653,6 +653,25 @@ const ChapterSection: React.FC<{
 }> = ({ chapter, index, palette, onComplete, isCompleted, isCompleting, completionError, onBecomeActive }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const isInView = useInView(sectionRef, { amount: 0.3 });
+  // Auto-completion: when the child scrolls to the end of the LAST chapter,
+  // save the progress and show the rewards without requiring a button tap —
+  // kids simply do not press "Geschichte abschließen". The button stays as a
+  // visible status + manual retry fallback (e.g. after a network error).
+  const completionZoneRef = useRef<HTMLDivElement>(null);
+  const completionZoneInView = useInView(completionZoneRef, { amount: 0.6 });
+  const autoCompleteFiredRef = useRef(false);
+  const autoCompleteTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (autoCompleteTimerRef.current !== null) window.clearTimeout(autoCompleteTimerRef.current);
+  }, []);
+  useEffect(() => {
+    if (!onComplete || isCompleted || isCompleting) return;
+    if (!completionZoneInView || autoCompleteFiredRef.current) return;
+    // Fire exactly once; the timer must survive unrelated parent re-renders,
+    // so it is only cleared on unmount (onComplete itself is idempotent).
+    autoCompleteFiredRef.current = true;
+    autoCompleteTimerRef.current = window.setTimeout(() => onComplete(), 700);
+  }, [completionZoneInView, onComplete, isCompleted, isCompleting]);
   const paragraphs = useMemo(() => buildChapterTextSegments(
     String(chapter.content || ""),
     Boolean(chapter.imageUrl),
@@ -732,6 +751,7 @@ const ChapterSection: React.FC<{
 
         {onComplete && (
           <motion.div
+            ref={completionZoneRef}
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}

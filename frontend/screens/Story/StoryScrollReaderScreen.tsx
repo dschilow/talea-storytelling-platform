@@ -48,11 +48,14 @@ const StoryScrollReaderScreen: React.FC = () => {
   const loadRequestRef = useRef(0);
   const completionAttemptRef = useRef(0);
   const completionInFlightRef = useRef(false);
+  const completionZoneRef = useRef<HTMLDivElement>(null);
+  const autoCompleteFiredRef = useRef(false);
 
   useEffect(() => {
     const requestId = ++loadRequestRef.current;
     completionAttemptRef.current += 1;
     completionInFlightRef.current = false;
+    autoCompleteFiredRef.current = false;
     setStory(null);
     setStoryCompleted(false);
     setCompletionPending(false);
@@ -196,6 +199,28 @@ const StoryScrollReaderScreen: React.FC = () => {
       }
     }
   };
+
+  // Auto-completion: when the child scrolls to the end of the story, save the
+  // progress and show the rewards automatically — kids do not press the
+  // "Geschichte abschließen" button. It stays as a status/manual-retry fallback.
+  useEffect(() => {
+    if (!isReading || !story || storyCompleted) return;
+    const node = completionZoneRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !autoCompleteFiredRef.current) {
+            autoCompleteFiredRef.current = true;
+            window.setTimeout(() => { void handleStoryCompletion(); }, 700);
+          }
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isReading, story, storyCompleted]);
 
   function getTraitDisplayName(trait: string): string {
     const parts = trait.split('.');
@@ -397,7 +422,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                   ))}
 
                   {/* Completion Button */}
-                  <div className="flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <div ref={completionZoneRef} className="flex flex-col items-center justify-center py-16 border-t-2 border-dashed border-gray-300 dark:border-gray-600">
                     <motion.button
                       onClick={handleStoryCompletion}
                       disabled={storyCompleted || completionPending}

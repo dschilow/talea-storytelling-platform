@@ -3059,7 +3059,13 @@ async function generateDevModeImages(
       missing: missingImageJobs.map((job) => `${job.kind}${job.order ? `:${job.order}` : ""}`),
     });
     const retryResults = await mapWithConcurrency(missingImageJobs, 2, async (job) => {
-      const retrySceneNames = onStageForJob({ ...job, prompt: fallbackImagePrompt(job) });
+      // Keep the ORIGINAL scene prompt on retry whenever it is usable: primary
+      // failures are usually transient provider errors, and swapping in the
+      // generic fallback discards all per-character visual specifics — run
+      // 1b0c9363 shipped an off-model cover Adrian exactly because the retry
+      // rebuilt the cover from the generic fallback line.
+      const retrySceneSource = looksLikeEnglishPrompt(job.prompt) ? job.prompt : fallbackImagePrompt(job);
+      const retrySceneNames = onStageForJob({ ...job, prompt: retrySceneSource });
       const retrySelection = filterReferencesForScene({
         onStageNames: retrySceneNames,
         availableRefs: referenceEntries.map((entry) => ({
@@ -3077,7 +3083,7 @@ async function generateDevModeImages(
       const retryIdentityContract = retryEntries.map((entry, index) =>
         `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Preserve the exact canonical entity type, species/material, anatomy, locomotion, apparent age, gender presentation, face/head shape, hair/fur/skin, markings, colors, clothing, and accessories. Never swap or transfer attributes.`
       ).join("\n");
-      const retryScenePrompt = stripModelCastCountClaims(sanitizeImagePrompt(fallbackImagePrompt(job))).prompt;
+      const retryScenePrompt = stripModelCastCountClaims(sanitizeImagePrompt(retrySceneSource)).prompt;
       const retryPrompt = [retryIdentityContract, retryCastContract, retryComposition, retryScenePrompt, retryManifest, styleSuffix].filter(Boolean).join("\n");
       try {
         imageCalls += 1;
@@ -13919,8 +13925,11 @@ export async function generateStoryDevMode(
           }
           try {
             const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, targets);
+            // maxTokens raised: a broad multi-page rebalance emits ~500+
+            // tokens per rewritten page; run 1b0c9363 hit the old 2600 cap
+            // mid-JSON and the whole (length-preserving) pass was discarded.
             const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-              maxTokens: targetLimit > 2 ? (input.config.length === "long" ? 3200 : 2600) : 1800,
+              maxTokens: targetLimit > 2 ? (input.config.length === "long" ? 5200 : 4200) : 2600,
               temperature: 0.22,
               timeoutMs: targetLimit > 2 ? (input.config.length === "long" ? 220_000 : 180_000) : 120_000,
               modelRole: "selected-story",
@@ -13942,7 +13951,12 @@ export async function generateStoryDevMode(
             const hardOk = rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount + (dialogJumped ? 1 : 0);
             const severityOk = diagnosticsSeverityScore(rebalancedDiagnostics, chapterCount, input.config)
               <= diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config) + 180;
-            const improved = dialogNudged && hardOk && severityOk;
+            // Never trade the word-count hard gate for the dialogue gate: a
+            // rebalance that compresses the story below the hard minimum is a
+            // net regression even when dialogPct jumps.
+            const loopWordBounds = getStoryWordBounds(input.config);
+            const wordFloorOk = rebalancedDiagnostics.totalWords >= Math.min(loopWordBounds.min, finalDiagnostics.totalWords);
+            const improved = dialogNudged && hardOk && severityOk && wordFloorOk;
             repairSelfReflections.push({
               attempt: repairAttempt,
               modelUsed: rebalanceStage.provider.modelUsed,
@@ -14798,7 +14812,7 @@ export async function generateStoryDevMode(
 
               const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
               const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-                maxTokens: input.config.length === "long" ? 3200 : 2600,
+                maxTokens: input.config.length === "long" ? 5200 : 4200,
                 temperature: 0.22,
                 timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
                 modelRole: "selected-story",
@@ -14811,9 +14825,11 @@ export async function generateStoryDevMode(
                   : undefined
               );
               const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
+              const postPolishWordBounds = getStoryWordBounds(input.config);
               const rebalanceImproved =
                 rebalancedDiagnostics.dialogPct >= Math.max(DEV_MODE_DIALOG_REBALANCE_MIN_DIALOG_PCT, finalDiagnostics.dialogPct + 1)
                 && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount + 1
+                && rebalancedDiagnostics.totalWords >= Math.min(postPolishWordBounds.min, finalDiagnostics.totalWords)
                 && diagnosticsSeverityScore(rebalancedDiagnostics, chapterCount, input.config)
                   <= diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config) + 180;
 
@@ -15049,23 +15065,33 @@ export async function generateStoryDevMode(
           targetCount: rebalanceTargets.length,
         });
         const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
+          // maxTokens raised from 2600/3200: a 5-page rebalance needs ~2600+
+          // completion tokens and run 1b0c9363 truncated mid-JSON at exactly
+          // the old budget, voiding the whole pass.
           const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-            maxTokens: input.config.length === "long" ? 3200 : 2600,
+            maxTokens: input.config.length === "long" ? 5200 : 4200,
             temperature: 0.22,
             timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
             modelRole: "selected-story",
           });
+          const emergencyWordBounds = getStoryWordBounds(input.config);
           const rebalancedParsed = parseDialogueRebalanceResult(
             rebalanceStage.provider.content,
             finalParsed,
-            finalDiagnostics.totalWords <= getStoryWordBounds(input.config).targetMin
+            finalDiagnostics.totalWords <= emergencyWordBounds.targetMin
               ? { minKeepRatio: 0.95 }
-              : undefined
+              : finalDiagnostics.totalWords <= emergencyWordBounds.targetMin + 120
+                ? { minKeepRatio: 0.9 }
+                : undefined
           );
           const rebalancedDiagnostics = analyzeDevModeStoryQuality(rebalancedParsed, input, chapterCount);
+          // Word floor: dialogue-dense page rewrites tend to compress; a pass
+          // that lifts dialogue but drops the story under the hard word
+          // minimum just swaps one hard gate for another.
           const acceptable =
             rebalancedDiagnostics.dialogPct > finalDiagnostics.dialogPct
-            && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount;
+            && rebalancedDiagnostics.hardIssueCount <= finalDiagnostics.hardIssueCount
+            && rebalancedDiagnostics.totalWords >= Math.min(emergencyWordBounds.min, finalDiagnostics.totalWords);
           if (acceptable) {
             console.log("[dev-mode-generation] Emergency dialogue rebalance accepted", {
               dialogPctBefore: finalDiagnostics.dialogPct,
@@ -15228,11 +15254,15 @@ export async function generateStoryDevMode(
     // describe the ACTUAL story returned to the child, not the pre-polish
     // draft. This specifically prevents stale 7.x validator feedback from
     // surviving after a final story-polish pass.
+    // NOTE: this refresh must ALSO run when a hard gate is still open. It used
+    // to require hardIssueCount === 0, which starved exactly the repaired
+    // stories (open dialogue gate) of a fresh verdict — the stale pre-repair
+    // snapshot then stayed the only validated candidate and won the restore
+    // above (run 1b0c9363).
     if (
       finalParsed
       && finalDiagnostics
       && !finalValidatorFindings
-      && (finalDiagnostics.hardIssueCount ?? 0) === 0
     ) {
       try {
         const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
@@ -15274,14 +15304,48 @@ export async function generateStoryDevMode(
     }
 
     if (bestValidatedSnapshot) {
-      finalParsed = bestValidatedSnapshot.story;
-      finalDiagnostics = bestValidatedSnapshot.diagnostics;
-      finalValidatorFindings = bestValidatedSnapshot.findings;
-      rawQualityScore = bestValidatedSnapshot.rawScore;
-      localGateScore = bestValidatedSnapshot.localScore;
-      finalQualityScore = bestValidatedSnapshot.finalScore;
-      finalModelUsed = bestValidatedSnapshot.modelUsed;
-      console.log("[dev-mode-generation] Selected best validated story snapshot", bestValidatedSnapshot.signals);
+      // Regression guard, not a blind restore: the snapshot exists to protect a
+      // validated-good story from LATE passes making it worse. It must NEVER
+      // undo deliberate post-validation repairs that are deterministically at
+      // least as good — run 1b0c9363 shipped the UNREPAIRED draft (14.8%
+      // dialogue, "Wilfred" name break, moralizing ending) because the only
+      // validated snapshot was the pre-repair draft and this restore threw away
+      // three accepted chapter rescues. Restore only when the snapshot is
+      // strictly better on hard gates, or clearly better on severity.
+      const snapshotIsCurrentStory = finalParsed === bestValidatedSnapshot.story;
+      const snapshotHard = bestValidatedSnapshot.diagnostics.hardIssueCount ?? 0;
+      const currentHard = finalDiagnostics?.hardIssueCount ?? Number.POSITIVE_INFINITY;
+      const snapshotSeverity = diagnosticsSeverityScore(bestValidatedSnapshot.diagnostics, chapterCount, input.config);
+      const currentSeverity = finalParsed && finalDiagnostics
+        ? diagnosticsSeverityScore(finalDiagnostics, chapterCount, input.config)
+        : Number.POSITIVE_INFINITY;
+      const snapshotStrictlyBetter =
+        snapshotHard < currentHard
+        || (snapshotHard === currentHard && snapshotSeverity + 250 < currentSeverity);
+      if (snapshotIsCurrentStory || snapshotStrictlyBetter) {
+        finalParsed = bestValidatedSnapshot.story;
+        finalDiagnostics = bestValidatedSnapshot.diagnostics;
+        finalValidatorFindings = bestValidatedSnapshot.findings;
+        rawQualityScore = bestValidatedSnapshot.rawScore;
+        localGateScore = bestValidatedSnapshot.localScore;
+        finalQualityScore = bestValidatedSnapshot.finalScore;
+        finalModelUsed = bestValidatedSnapshot.modelUsed;
+        console.log("[dev-mode-generation] Selected best validated story snapshot", bestValidatedSnapshot.signals);
+      } else {
+        console.log("[dev-mode-generation] Keeping post-repair story over older validated snapshot", {
+          snapshotHardIssueCount: snapshotHard,
+          currentHardIssueCount: currentHard,
+          snapshotSeverity,
+          currentSeverity,
+          snapshotScore: bestValidatedSnapshot.finalScore ?? bestValidatedSnapshot.rawScore,
+        });
+        if (localGateScore === undefined && finalDiagnostics) {
+          localGateScore = calculateLocalGateScore(finalDiagnostics, { qualityMode: input.qualityMode });
+        }
+        if (finalQualityScore === undefined && finalDiagnostics) {
+          finalQualityScore = applyHardCaps(rawQualityScore, finalDiagnostics, { qualityMode: input.qualityMode });
+        }
+      }
     }
 
     // v11 §1 + §13: derive a STRICT release score. If hard gates are still
