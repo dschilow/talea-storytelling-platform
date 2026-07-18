@@ -127,6 +127,10 @@ export const CANONICAL_NEGATIVE_PACK = [
   "no labels", "no logos",
   "no extra characters", "no duplicate characters", "no unlisted people",
   "no unlisted animals", "no unlisted creatures", "no extra faces",
+  // Same-child-twice guard: 3-figure scenes with a prompt-only pool adult kept
+  // rendering one avatar twice (run 1b0c9363 Leseseite 4: a second small boy).
+  "no two copies of the same child", "no twin of a listed character",
+  "no additional children beyond the listed cast",
   "no identity swap", "no face swap", "no species swap", "no age shift",
   "no gender-presentation swap", "do not swap outfits or accessories",
   "do not transfer hair, fur, skin, markings, wings, horns, tails, clothing, or colors between characters",
