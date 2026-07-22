@@ -135,6 +135,26 @@ export default function Step5Preview({
           </div>
         )}
       </div>
+        {(formData.dominantPersonality || formData.characterTraits.length > 0 || formData.quirk) && (
+          <div className="rounded-xl border border-[#2DD4BF]/20 bg-[#2DD4BF]/[0.06] p-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#168d84]">Charakterprofil</p>
+            {formData.dominantPersonality ? (
+              <p className="mt-1 text-sm font-semibold text-foreground capitalize">{formData.dominantPersonality}</p>
+            ) : null}
+            {formData.characterTraits.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {formData.characterTraits.map((trait) => (
+                  <span key={trait} className="rounded-full border border-border bg-card/70 px-2 py-0.5 text-xs text-muted-foreground capitalize">
+                    {trait}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {formData.quirk ? (
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground"><span className="font-semibold text-foreground/85">Besonderheit:</span> {formData.quirk}</p>
+            ) : null}
+          </div>
+        )}
 
       {/* Preview Image */}
       <div className="flex flex-col items-center gap-4">

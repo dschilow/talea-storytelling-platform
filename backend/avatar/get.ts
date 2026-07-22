@@ -1,5 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import type { Avatar, AvatarVisualProfile } from "./avatar";
+import type { Avatar, AvatarNarrativeProfile, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
@@ -37,6 +37,7 @@ export const get = api<GetAvatarParams, Avatar>(
         personality_traits: string;
         image_url: string | null;
         visual_profile: string | null;
+        narrative_profile: string | null;
         creation_type: "ai-generated" | "photo-upload";
         is_public: boolean;
         source_type: string | null;
@@ -116,6 +117,13 @@ export const get = api<GetAvatarParams, Avatar>(
         parsedVisualProfile = undefined;
       }
 
+      let parsedNarrativeProfile: AvatarNarrativeProfile | undefined;
+      try {
+        parsedNarrativeProfile = row.narrative_profile ? (JSON.parse(row.narrative_profile) as AvatarNarrativeProfile) : undefined;
+      } catch {
+        parsedNarrativeProfile = undefined;
+      }
+
       const imageUrl = await buildAvatarImageUrlForClient(row.id, row.image_url || undefined);
 
       const progressionStats = await avatarDB.queryRow<{
@@ -170,6 +178,7 @@ export const get = api<GetAvatarParams, Avatar>(
         personalityTraits: upgradedPersonalityTraits,
         imageUrl,
         visualProfile: parsedVisualProfile,
+        narrativeProfile: parsedNarrativeProfile,
         creationType: row.creation_type,
         isPublic: row.is_public,
         isShared: isOwner ? activeShareRows.length > 0 : false,

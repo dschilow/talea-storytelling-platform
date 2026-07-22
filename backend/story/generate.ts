@@ -597,13 +597,14 @@ export const generate = api<GenerateStoryRequest, Story>(
         personality_traits: string;
         image_url: string | null;
         visual_profile: string | null;
+        narrative_profile: string | null;
         creation_type: "ai-generated" | "photo-upload";
         is_public: boolean;
         inventory: string | null;
         skills: string | null;
       };
       const avatarRows = await avatarDB.queryAll<AvatarRow>`
-        SELECT id, user_id, profile_id, name, description, physical_traits, personality_traits, image_url, visual_profile, creation_type, is_public, inventory, skills
+        SELECT id, user_id, profile_id, name, description, physical_traits, personality_traits, image_url, visual_profile, narrative_profile, creation_type, is_public, inventory, skills
         FROM avatars
         WHERE id = ANY(${config.avatarIds})
       `;
@@ -675,6 +676,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             personalityTraits: upgradedPersonalityTraits,
             imageUrl: row.image_url || undefined,
             visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
+            narrativeProfile: row.narrative_profile ? JSON.parse(row.narrative_profile) : undefined,
             creationType: row.creation_type,
             isPublic: row.is_public,
             inventory,

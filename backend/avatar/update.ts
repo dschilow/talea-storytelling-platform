@@ -1,5 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import type { Avatar, PhysicalTraits, AvatarVisualProfile } from "./avatar";
+import { normalizeAvatarNarrativeProfile, type Avatar, type AvatarNarrativeProfile, type PhysicalTraits, type AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import {
@@ -31,6 +31,7 @@ interface UpdateAvatarRequest {
   physicalTraits?: PhysicalTraits;
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
+  narrativeProfile?: AvatarNarrativeProfile;
   isPublic?: boolean;
   avatarRole?: "child" | "companion";
 }
@@ -58,6 +59,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       personality_traits: string;
       image_url: string | null;
       visual_profile: string | null;
+      narrative_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
@@ -99,6 +101,10 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
     const currentVisualProfile: AvatarVisualProfile | undefined = existingAvatar.visual_profile ? JSON.parse(existingAvatar.visual_profile) : undefined;
 
+    const currentNarrativeProfile: AvatarNarrativeProfile | undefined = existingAvatar.narrative_profile ? JSON.parse(existingAvatar.narrative_profile) : undefined;
+    const updatedNarrativeProfile = updates.narrativeProfile === undefined
+      ? currentNarrativeProfile
+      : normalizeAvatarNarrativeProfile(updates.narrativeProfile);
     let updatedPhysicalTraits = updates.physicalTraits
       ? { ...currentPhysicalTraits, ...updates.physicalTraits }
       : currentPhysicalTraits;
@@ -195,6 +201,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
         physical_traits = ${JSON.stringify(updatedPhysicalTraits)},
         image_url = ${finalImageUrl ?? existingAvatar.image_url},
         visual_profile = ${updatedVisualProfile ? JSON.stringify(updatedVisualProfile) : null},
+        narrative_profile = ${updatedNarrativeProfile ? JSON.stringify(updatedNarrativeProfile) : null},
         is_public = ${avatarRole === "child" ? false : (typeof updates.isPublic === 'boolean' ? updates.isPublic : existingAvatar.is_public)},
         avatar_role = ${avatarRole},
         updated_at = ${now}
@@ -228,6 +235,7 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       personalityTraits: JSON.parse(updated.personality_traits),
       imageUrl: resolvedImageUrl,
       visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
+      narrativeProfile: updated.narrative_profile ? JSON.parse(updated.narrative_profile) : undefined,
       creationType: updated.creation_type,
       isPublic: updated.is_public,
       avatarRole,

@@ -11,6 +11,7 @@ import {
   AvatarVisualProfileRecord,
   AvatarFormData,
   AvatarFormField,
+  AVATAR_NARRATIVE_FORM_FIELDS,
   AVATAR_VISUAL_FORM_FIELDS,
   BODY_BUILDS,
   CHARACTER_TYPES,
@@ -22,6 +23,7 @@ import {
   SKIN_TONES_HUMAN,
   CharacterTypeId,
   formDataToDescription,
+  formDataToNarrativeProfile,
   inferSpecialFeaturesFromVisualProfile,
   mergeVisualProfileForEditor,
   isHumanCharacter,
@@ -198,12 +200,22 @@ function avatarToFormData(avatar: any): Partial<AvatarFormData> {
     formData.additionalDescription = String(avatar.description);
   }
 
+  const narrativeProfile = avatar.narrativeProfile;
+  if (narrativeProfile && typeof narrativeProfile === 'object') {
+    formData.dominantPersonality = String(narrativeProfile.dominantPersonality || '');
+    formData.characterTraits = Array.isArray(narrativeProfile.traits) ? narrativeProfile.traits.map(String) : [];
+    formData.quirk = String(narrativeProfile.quirk || '');
+    formData.catchphrase = String(narrativeProfile.catchphrase || '');
+    formData.backstory = String(narrativeProfile.backstory || '');
+  }
+
   return formData;
 }
 
 const EDITABLE_FORM_FIELDS: readonly AvatarFormField[] = [
   'name',
   ...AVATAR_VISUAL_FORM_FIELDS,
+  ...AVATAR_NARRATIVE_FORM_FIELDS,
 ];
 
 function toCompleteFormData(data: Partial<AvatarFormData>): AvatarFormData {
@@ -489,6 +501,9 @@ const EditAvatarScreen: React.FC = () => {
   const hasVisualChanges = AVATAR_VISUAL_FORM_FIELDS.some((field) =>
     dirtyFields.has(field)
   );
+  const hasNarrativeChanges = AVATAR_NARRATIVE_FORM_FIELDS.some((field) =>
+    dirtyFields.has(field)
+  );
   const hasImageChanges = previewUrl !== initialImageUrlRef.current;
   const hasChanges = dirtyFields.size > 0 || hasImageChanges;
 
@@ -624,6 +639,10 @@ const EditAvatarScreen: React.FC = () => {
           updateRequest.description = payload.description;
         }
       }
+      if (hasNarrativeChanges) {
+        updateRequest.narrativeProfile = formDataToNarrativeProfile(formData);
+      }
+
       if (hasImageChanges) {
         updateRequest.imageUrl = previewUrl;
       }

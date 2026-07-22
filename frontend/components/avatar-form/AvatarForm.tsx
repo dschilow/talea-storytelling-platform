@@ -23,6 +23,7 @@ import {
 } from './ColorSelector';
 import { GenderSelector } from './GenderSelector';
 import { ImageUploadCamera } from './ImageUploadCamera';
+import { NarrativeProfileFields } from './NarrativeProfileFields';
 import { SpecialFeaturesSelector } from './SpecialFeaturesSelector';
 
 interface AvatarFormProps {
@@ -39,7 +40,7 @@ interface AvatarFormProps {
   onPreviewInvalidated?: () => void;
 }
 
-type SectionKey = 'identity' | 'body' | 'reference' | 'appearance' | 'features' | 'notes' | 'preview';
+type SectionKey = 'identity' | 'character' | 'body' | 'reference' | 'appearance' | 'features' | 'notes' | 'preview';
 
 function enforceChildIdentity(
   data: AvatarFormData,
@@ -85,6 +86,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   const [showDescription, setShowDescription] = useState(false);
   const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
     identity: true,
+    character: !compact,
     body: true,
     reference: true,
     appearance: true,
@@ -214,6 +216,17 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         ) : (
           <CharacterTypeSelector value={formData.characterType} onChange={handleCharacterTypeChange} customValue={formData.customCharacterType} onCustomChange={(value) => updateFormData({ customCharacterType: value })} darkMode={isDark} />
         )}
+      </FormSection>
+
+      <FormSection
+        title="Charakter und Stimme"
+        icon="Ich"
+        isExpanded={expanded.character}
+        onToggle={() => toggleSection('character')}
+        optional
+        isDark={isDark}
+      >
+        <NarrativeProfileFields formData={formData} updateFormData={updateFormData} compact />
       </FormSection>
 
       <FormSection

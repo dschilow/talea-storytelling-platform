@@ -8,6 +8,7 @@ import {
   AvatarFormData,
   DEFAULT_AVATAR_FORM_DATA,
   formDataToVisualProfile,
+  formDataToNarrativeProfile,
   getAvatarVisualPromptSignature,
   formDataToDescription,
   CHARACTER_TYPES,
@@ -21,6 +22,7 @@ import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import Step1Basics from './wizard-steps/Step1Basics';
 import Step2AgeBody from './wizard-steps/Step2AgeBody';
 import Step3Appearance from './wizard-steps/Step3Appearance';
+import Step4Character from './wizard-steps/Step4Character';
 import Step4Details from './wizard-steps/Step4Details';
 import Step5Preview from './wizard-steps/Step5Preview';
 
@@ -66,12 +68,12 @@ const WizardBackground: React.FC<{ palette: WizardPalette }> = ({ palette }) => 
 );
 
 const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette; steps: { key: string; label: string }[] }> = ({ activeStep, palette, steps }) => (
-  <div className="flex items-center justify-center gap-2.5 mb-5 px-2">
+  <div className="flex items-center justify-center gap-1.5 mb-5 px-1 sm:gap-2.5 sm:px-2">
     {steps.map((step, i) => (
       <React.Fragment key={step.key}>
         <div className="flex flex-col items-center gap-1.5">
           <div
-            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all duration-300 sm:h-8 sm:w-8 sm:text-xs"
             style={
               i < activeStep
                 ? { background: ACCENT, color: '#0e1520' }
@@ -83,7 +85,7 @@ const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette; step
             {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
           </div>
           <span
-            className="text-[10px] font-medium"
+            className="hidden text-[10px] font-medium sm:inline"
             style={{ color: i <= activeStep ? palette.text : palette.muted }}
           >
             {step.label}
@@ -91,7 +93,7 @@ const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette; step
         </div>
         {i < steps.length - 1 && (
           <div
-            className="w-7 h-px rounded-full -mt-4"
+            className="w-4 h-px rounded-full -mt-3.5 sm:w-7 sm:-mt-4"
             style={{ background: i < activeStep ? ACCENT : palette.border }}
           />
         )}
@@ -138,7 +140,8 @@ const AvatarWizardScreen: React.FC = () => {
     { key: 'basics', label: t('avatar.wizard.steps.who', 'Wer?') },
     { key: 'age-body', label: t('avatar.wizard.steps.body', 'Körper') },
     { key: 'appearance', label: t('avatar.wizard.steps.look', 'Aussehen') },
-    { key: 'details', label: t('avatar.wizard.steps.extras', 'Extras') },
+    { key: 'character', label: t('avatar.wizard.steps.character', 'Charakter') },
+    { key: 'details', label: t('avatar.wizard.steps.extras', 'Bild-Extras') },
     { key: 'preview', label: t('avatar.wizard.steps.done', 'Fertig!') },
   ], [t]);
   const childMode = searchParams.get('mode') === 'child';
@@ -340,6 +343,7 @@ const AvatarWizardScreen: React.FC = () => {
       const description = formDataToDescription(createFormData);
       const characterType = CHARACTER_TYPES.find((t) => t.id === createFormData.characterType);
       const visualProfile = formDataToVisualProfile(createFormData);
+      const narrativeProfile = formDataToNarrativeProfile(createFormData);
 
       const neutralPersonality = {
         knowledge: { value: 0 },
@@ -367,6 +371,7 @@ const AvatarWizardScreen: React.FC = () => {
         personalityTraits: neutralPersonality,
         imageUrl: previewUrl,
         visualProfile,
+        narrativeProfile,
         creationType: 'ai-generated' as const,
         avatarRole: effectiveChildMode ? ('child' as const) : ('companion' as const),
       };
@@ -460,6 +465,8 @@ const AvatarWizardScreen: React.FC = () => {
       case 2:
         return <Step3Appearance formData={formData} updateFormData={updateFormData} />;
       case 3:
+        return <Step4Character formData={formData} updateFormData={updateFormData} />;
+      case 4:
         return (
           <Step4Details
             formData={formData}
@@ -468,7 +475,7 @@ const AvatarWizardScreen: React.FC = () => {
             onReferenceImageChange={setReferenceImageUrl}
           />
         );
-      case 4:
+      case 5:
         return (
           <Step5Preview
             formData={formData}

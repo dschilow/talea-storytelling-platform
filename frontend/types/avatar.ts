@@ -9,6 +9,14 @@ export interface AvatarConfig {
   backstory?: string;
 }
 
+export interface AvatarNarrativeProfile {
+  dominantPersonality?: string;
+  traits?: string[];
+  quirk?: string;
+  catchphrase?: string;
+  backstory?: string;
+}
+
 export interface PersonalityTrait {
   trait: string;
   value: number; // 0-100
@@ -142,6 +150,7 @@ export interface Avatar {
   creationType?: 'ai-generated' | 'photo-upload';
   status?: 'generating' | 'complete' | 'error';
   personalityTraits?: any; // Backend hierarchical personality traits
+  narrativeProfile?: AvatarNarrativeProfile;
 
   // Personality development system
   personality?: {

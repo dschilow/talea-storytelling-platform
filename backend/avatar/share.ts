@@ -122,6 +122,7 @@ type AvatarOwnerRow = {
   personality_traits: string;
   image_url: string | null;
   visual_profile: string | null;
+  narrative_profile: string | null;
   creation_type: "ai-generated" | "photo-upload";
   avatar_role: string | null;
   source_type: string | null;
@@ -160,6 +161,7 @@ async function loadOwnedAvatarForCopy(avatarId: string, ownerUserId: string): Pr
       personality_traits,
       image_url,
       visual_profile,
+      narrative_profile,
       creation_type,
       avatar_role,
       source_type,
@@ -580,6 +582,7 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
           personality_traits,
           image_url,
           visual_profile,
+          narrative_profile,
           creation_type,
           is_public,
           source_type,
@@ -600,6 +603,7 @@ export const shareAvatarWithContact = api<ShareAvatarParams & ShareAvatarRequest
           ${JSON.stringify(defaultTraits)},
           ${sourceAvatar.image_url},
           ${sourceAvatar.visual_profile},
+          ${sourceAvatar.narrative_profile},
           ${sourceAvatar.creation_type},
           FALSE,
           'clone',

@@ -86,6 +86,7 @@ export interface StandardModeAvatarInput {
   imageUrl?: string;
   visualProfile?: any;
   personalityTraits?: any;
+  narrativeProfile?: any;
 }
 
 export interface StandardModeGenerationInput {
@@ -173,6 +174,7 @@ export async function generateStoryStandardMode(
     imageUrl: a.imageUrl,
     visualProfile: a.visualProfile,
     personalityTraits: a.personalityTraits,
+    narrativeProfile: a.narrativeProfile,
   }));
 
   // 2) Supporting cast from character_pool (same auto-cast as dev mode).

@@ -73,6 +73,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'minimax/minimax-m3', title: 'MiniMax M3 (neu, eher Agent/Multimodal)', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },
   { id: 'minimax/minimax-m2.7', title: 'MiniMax M2.7 — günstig', provider: 'MiniMax', cost: '$0.18 in / $0.72 out' },
   { id: 'qwen/qwen3.7-max', title: 'Qwen 3.7 Max (neu, eher Reasoning/Coding)', provider: 'Qwen', cost: '$1.25 in / $3.75 out' },
+  { id: 'qwen/qwen3.6-flash', title: 'Qwen 3.6 Flash - Test', provider: 'Qwen', cost: '$0.1875 in / $1.125 out' },
   { id: 'qwen/qwen3.7-plus', title: 'Qwen 3.7 Plus (neu)', provider: 'Qwen', cost: '$0.32 in / $1.28 out' },
   { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro (eher Coding/Algorithmik)', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
   { id: 'x-ai/grok-4.5', title: 'Grok 4.5 - Test (Frontier, teuer)', provider: 'xAI', cost: '$2 in / $6 out' },

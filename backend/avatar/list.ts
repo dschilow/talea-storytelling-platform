@@ -1,5 +1,5 @@
 import { api } from "encore.dev/api";
-import type { Avatar, AvatarVisualProfile } from "./avatar";
+import type { Avatar, AvatarNarrativeProfile, AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
@@ -26,6 +26,7 @@ type AvatarListRow = {
   personality_traits: string;
   image_url: string | null;
   visual_profile: string | null;
+  narrative_profile: string | null;
   creation_type: "ai-generated" | "photo-upload";
   is_public: boolean;
   source_type: string | null;
@@ -66,6 +67,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.personality_traits,
         a.image_url,
         a.visual_profile,
+        a.narrative_profile,
         a.creation_type,
         a.is_public,
         a.source_type,
@@ -94,6 +96,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         a.personality_traits,
         a.image_url,
         a.visual_profile,
+        a.narrative_profile,
         a.creation_type,
         a.is_public,
         a.source_type,
@@ -118,6 +121,7 @@ export const list = api<ListAvatarsRequest, ListAvatarsResponse>(
         personalityTraits: JSON.parse(row.personality_traits),
         imageUrl: await buildAvatarImageUrlForClient(row.id, row.image_url || undefined),
         visualProfile: row.visual_profile ? (JSON.parse(row.visual_profile) as AvatarVisualProfile) : undefined,
+        narrativeProfile: row.narrative_profile ? (JSON.parse(row.narrative_profile) as AvatarNarrativeProfile) : undefined,
         creationType: row.creation_type,
         isPublic: row.is_public,
         isShared: (row.share_count ?? 0) > 0,

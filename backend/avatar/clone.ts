@@ -49,6 +49,7 @@ async function mapAvatarRow(row: {
   personality_traits: string;
   image_url: string | null;
   visual_profile: string | null;
+  narrative_profile: string | null;
   creation_type: "ai-generated" | "photo-upload";
   is_public: boolean;
   source_type: string | null;
@@ -70,6 +71,7 @@ async function mapAvatarRow(row: {
     personalityTraits: JSON.parse(row.personality_traits),
     imageUrl: await buildAvatarImageUrlForClient(row.id, row.image_url || undefined),
     visualProfile: row.visual_profile ? JSON.parse(row.visual_profile) : undefined,
+  narrativeProfile: row.narrative_profile ? JSON.parse(row.narrative_profile) : undefined,
     creationType: row.creation_type,
     isPublic: row.is_public,
     avatarRole: normalizeAvatarRole(row.avatar_role),
@@ -103,6 +105,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
       personality_traits: string;
       image_url: string | null;
       visual_profile: string | null;
+      narrative_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
@@ -120,6 +123,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         personality_traits,
         image_url,
         visual_profile,
+        narrative_profile,
         creation_type,
         is_public,
         source_type,
@@ -191,6 +195,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         personality_traits,
         image_url,
         visual_profile,
+        narrative_profile,
         creation_type,
         is_public,
         source_type,
@@ -212,6 +217,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
         ${JSON.stringify(defaultTraits)},
         ${source.image_url},
         ${source.visual_profile},
+        ${source.narrative_profile},
         ${source.creation_type},
         FALSE,
         'clone',
@@ -235,6 +241,7 @@ export const cloneToProfile = api<CloneAvatarParams, Avatar>(
       personality_traits: string;
       image_url: string | null;
       visual_profile: string | null;
+      narrative_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;
@@ -381,6 +388,7 @@ export const adoptPoolTemplate = api<AdoptPoolParams, Avatar>(
       personality_traits: string;
       image_url: string | null;
       visual_profile: string | null;
+      narrative_profile: string | null;
       creation_type: "ai-generated" | "photo-upload";
       is_public: boolean;
       source_type: string | null;

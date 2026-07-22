@@ -117,6 +117,17 @@ export const SPECIAL_FEATURES = [
 
 export type SpecialFeatureId = typeof SPECIAL_FEATURES[number]['id'];
 
+export const NARRATIVE_TRAIT_OPTIONS = [
+  { id: 'kreativ', label: 'Kreativ' },
+  { id: 'neugierig', label: 'Neugierig' },
+  { id: 'mutig', label: 'Mutig' },
+  { id: 'warmherzig', label: 'Warmherzig' },
+  { id: 'clever', label: 'Clever' },
+  { id: 'humorvoll', label: 'Humorvoll' },
+  { id: 'geduldig', label: 'Geduldig' },
+  { id: 'abenteuerlustig', label: 'Abenteuerlustig' },
+] as const;
+
 // Main Avatar Form Data structure
 export interface AvatarFormData {
   // Basic info
@@ -141,6 +152,11 @@ export interface AvatarFormData {
 
   // Optional description for fine-tuning
   additionalDescription?: string;
+  dominantPersonality: string;
+  characterTraits: string[];
+  quirk: string;
+  catchphrase: string;
+  backstory: string;
 }
 
 export type AvatarVisualProfileRecord = Record<string, any>;
@@ -159,6 +175,11 @@ export const DEFAULT_AVATAR_FORM_DATA: AvatarFormData = {
   skinTone: 'medium',
   specialFeatures: [],
   additionalDescription: '',
+  dominantPersonality: '',
+  characterTraits: [],
+  quirk: '',
+  catchphrase: '',
+  backstory: '',
 };
 
 // Helper function to check if character type is human
@@ -666,6 +687,23 @@ export function getAvatarVisualPromptSignature(
   });
 }
 
+export function formDataToNarrativeProfile(data: AvatarFormData) {
+  const text = (value: string, maximum: number) => value.trim().replace(/\s+/g, ' ').slice(0, maximum);
+  const dominantPersonality = text(data.dominantPersonality, 48);
+  const traits = Array.from(new Set(data.characterTraits.map((trait) => text(trait, 32)).filter(Boolean))).slice(0, 5);
+  const quirk = text(data.quirk, 180);
+  const catchphrase = text(data.catchphrase, 120);
+  const backstory = text(data.backstory, 520);
+  const profile = {
+    ...(dominantPersonality ? { dominantPersonality } : {}),
+    ...(traits.length > 0 ? { traits } : {}),
+    ...(quirk ? { quirk } : {}),
+    ...(catchphrase ? { catchphrase } : {}),
+    ...(backstory ? { backstory } : {}),
+  };
+  return Object.keys(profile).length > 0 ? profile : undefined;
+}
+
 export function inferSpecialFeaturesFromVisualProfile(
   visualProfile: AvatarVisualProfileRecord | null | undefined
 ): SpecialFeatureId[] {
@@ -895,6 +933,14 @@ export const AVATAR_VISUAL_FORM_FIELDS: readonly AvatarFormField[] = [
   'skinTone',
   'specialFeatures',
   'additionalDescription',
+] as const;
+
+export const AVATAR_NARRATIVE_FORM_FIELDS: readonly AvatarFormField[] = [
+  'dominantPersonality',
+  'characterTraits',
+  'quirk',
+  'catchphrase',
+  'backstory',
 ] as const;
 
 function hasOwnVisualField(source: AvatarVisualProfileRecord, key: string): boolean {

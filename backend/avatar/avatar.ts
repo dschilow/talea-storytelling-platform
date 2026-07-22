@@ -110,6 +110,62 @@ export interface AvatarVisualProfile {
   consistentDescriptors: string[];
 }
 
+/**
+ * Creator-defined story identity. This deliberately stays separate from the
+ * visual profile (image consistency) and the progression traits (earned).
+ */
+export interface AvatarNarrativeProfile {
+  dominantPersonality?: string;
+  traits?: string[];
+  quirk?: string;
+  catchphrase?: string;
+  backstory?: string;
+}
+
+const NARRATIVE_PROFILE_LIMITS = {
+  dominantPersonality: 48,
+  trait: 32,
+  traits: 5,
+  quirk: 180,
+  catchphrase: 120,
+  backstory: 520,
+} as const;
+
+function trimNarrativeText(value: unknown, maximum: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.replace(/\s+/g, " ").trim().slice(0, maximum);
+  return trimmed || undefined;
+}
+
+export function normalizeAvatarNarrativeProfile(
+  profile?: AvatarNarrativeProfile | null,
+): AvatarNarrativeProfile | undefined {
+  if (!profile || typeof profile !== "object") return undefined;
+
+  const dominantPersonality = trimNarrativeText(profile.dominantPersonality, NARRATIVE_PROFILE_LIMITS.dominantPersonality);
+  const traits = Array.from(
+    new Set(
+      (Array.isArray(profile.traits) ? profile.traits : [])
+        .map((trait) => trimNarrativeText(trait, NARRATIVE_PROFILE_LIMITS.trait))
+        .filter((trait): trait is string => Boolean(trait))
+        .map((trait) => trait.toLocaleLowerCase("de-DE")),
+    ),
+  ).slice(0, NARRATIVE_PROFILE_LIMITS.traits);
+  const quirk = trimNarrativeText(profile.quirk, NARRATIVE_PROFILE_LIMITS.quirk);
+  const catchphrase = trimNarrativeText(profile.catchphrase, NARRATIVE_PROFILE_LIMITS.catchphrase);
+  const backstory = trimNarrativeText(profile.backstory, NARRATIVE_PROFILE_LIMITS.backstory);
+
+  const normalized = {
+    ...(dominantPersonality ? { dominantPersonality } : {}),
+    ...(traits.length > 0 ? { traits } : {}),
+    ...(quirk ? { quirk } : {}),
+    ...(catchphrase ? { catchphrase } : {}),
+    ...(backstory ? { backstory } : {}),
+  };
+
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
 export interface AvatarSharedBy {
   userId: string;
   name?: string;
@@ -135,6 +191,7 @@ export interface Avatar {
   personalityTraits: PersonalityTraits;
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
+  narrativeProfile?: AvatarNarrativeProfile;
   creationType: "ai-generated" | "photo-upload";
   isPublic: boolean;
   isShared?: boolean;
@@ -183,6 +240,7 @@ export interface CreateAvatarRequest {
   personalityTraits: PersonalityTraits;
   imageUrl?: string;
   visualProfile?: AvatarVisualProfile;
+  narrativeProfile?: AvatarNarrativeProfile;
   creationType: "ai-generated" | "photo-upload";
   avatarRole?: "child" | "companion";
   sourceType?: "profile" | "pool" | "family" | "clone";

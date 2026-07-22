@@ -141,6 +141,8 @@ const AvatarCard: React.FC<{
       ? "Familienkopie mit eigener Entwicklung"
       : `Begleiter nur f\u00fcr ${profileName || "dieses Profil"}`;
 
+  const narrativeProfile = avatar.narrativeProfile;
+  const profileTrait = narrativeProfile?.dominantPersonality || narrativeProfile?.traits?.[0];
   return (
     <motion.article
       initial={{ opacity: 0, y: 14 }}
@@ -209,6 +211,24 @@ const AvatarCard: React.FC<{
               ? "Gleiches Aussehen wie die Familienfigur, aber eigene Punkte, Erinnerungen und Sch\u00e4tze."
               : `Dieser Avatar erlebt nur die Reise von ${profileName || "diesem Kinderprofil"}.`}
         </p>
+
+        {profileTrait || narrativeProfile?.quirk ? (
+          <div
+            className="rounded-2xl border px-3 py-2.5"
+            style={{ borderColor: palette.border, background: palette.soft }}
+          >
+            {profileTrait ? (
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: palette.textMuted }}>
+                Pers\u00f6nlichkeit <span className="ml-1 capitalize tracking-normal" style={{ color: palette.text }}>{profileTrait}</span>
+              </p>
+            ) : null}
+            {narrativeProfile?.quirk ? (
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed" style={{ color: palette.text }}>
+                <span className="font-semibold">Besonderheit:</span> {narrativeProfile.quirk}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {canBecomeChild ? (
           <button

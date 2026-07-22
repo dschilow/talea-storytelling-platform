@@ -28,6 +28,10 @@ export async function ensureAvatarColumns(): Promise<void> {
     ALTER TABLE avatars
     ADD COLUMN IF NOT EXISTS avatar_role TEXT NOT NULL DEFAULT 'companion'
   `;
+  await avatarDB.exec`
+    ALTER TABLE avatars
+    ADD COLUMN IF NOT EXISTS narrative_profile TEXT
+  `;
 
   avatarColumnsEnsured = true;
 }

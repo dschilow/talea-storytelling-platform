@@ -232,6 +232,14 @@ const AvatarProfileScreen: React.FC = () => {
       : `Begleiter in ${profileName}s Geschichten`;
   const publicDescription = !isInternalVisualDescription(avatar?.description) ? avatar?.description : null;
 
+  const narrativeProfile = avatar?.narrativeProfile;
+  const hasNarrativeProfile = Boolean(
+    narrativeProfile?.dominantPersonality ||
+    narrativeProfile?.traits?.length ||
+    narrativeProfile?.quirk ||
+    narrativeProfile?.catchphrase ||
+    narrativeProfile?.backstory,
+  );
   const pageBackground = isDark
 
     ? 'radial-gradient(900px 500px at 5% -10%, rgba(82,123,112,0.20), transparent 58%), radial-gradient(800px 520px at 100% 5%, rgba(109,91,130,0.18), transparent 60%), #131d2b'
@@ -367,6 +375,60 @@ const AvatarProfileScreen: React.FC = () => {
           </div>
         </motion.section>
 
+        {hasNarrativeProfile ? (
+          <section
+            className="rounded-[28px] border p-4 shadow-[0_10px_30px_rgba(35,47,61,0.07)] sm:p-5"
+            style={panel}
+            aria-labelledby="avatar-character-profile"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>
+                  Charakterprofil
+                </p>
+                <h2 id="avatar-character-profile" className="mt-1 text-xl font-semibold" style={{ color: isDark ? '#eaf2fb' : '#263a4f' }}>
+                  Was {avatar.name} unverwechselbar macht
+                </h2>
+              </div>
+              {narrativeProfile?.dominantPersonality ? (
+                <span className="rounded-full border px-3 py-1.5 text-sm font-semibold capitalize" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#c3ddd5' : '#41675a' }}>
+                  Pers\u00f6nlichkeit: {narrativeProfile.dominantPersonality}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {narrativeProfile?.quirk ? (
+                <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Besonderheit</p>
+                  <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.quirk}</p>
+                </div>
+              ) : null}
+              {narrativeProfile?.backstory ? (
+                <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Vorgeschichte</p>
+                  <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.backstory}</p>
+                </div>
+              ) : null}
+            </div>
+
+            {narrativeProfile?.traits?.length ? (
+              <div className="mt-3 flex flex-wrap gap-2" aria-label="Charaktereigenschaften">
+                {narrativeProfile.traits.map((trait) => (
+                  <span key={trait} className="rounded-full border px-2.5 py-1 text-xs font-semibold capitalize" style={{ borderColor: isDark ? '#40566a' : '#d9cfc2', color: isDark ? '#bfd0e0' : '#60758b' }}>
+                    {trait}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {narrativeProfile?.catchphrase ? (
+              <blockquote className="mt-4 rounded-2xl border-l-4 px-4 py-3 text-sm italic leading-relaxed" style={{ borderColor: isDark ? '#9bc4b9' : '#78a899', background: isDark ? 'rgba(82,123,112,0.14)' : '#edf7f2', color: isDark ? '#c8d9e8' : '#587086' }}>
+                &bdquo;{narrativeProfile.catchphrase}&ldquo;
+              </blockquote>
+            ) : null}
+          </section>
+        ) : null}
         {canManage && !isChildAvatar ? (
           <details className="group rounded-2xl border" style={panel}>
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]">

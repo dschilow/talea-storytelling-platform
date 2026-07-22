@@ -1,6 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { Avatar, CreateAvatarRequest } from "./avatar";
+import { Avatar, CreateAvatarRequest, normalizeAvatarNarrativeProfile } from "./avatar";
 import { getDefaultPersonalityTraits } from "../constants/personalityTraits";
 import { avatarDB } from "./db";
 import {
@@ -51,6 +51,7 @@ export const create = api(
     const avatarRole = normalizeAvatarRole(req.avatarRole);
 
     // Überschreibe personality traits mit Standardwerten (alle beginnen bei 0)
+    const narrativeProfile = normalizeAvatarNarrativeProfile(req.narrativeProfile);
     const defaultPersonalityTraits = getDefaultPersonalityTraits();
 
     // VALIDATION & TRANSLATION: Normalize PhysicalTraits to English
@@ -108,6 +109,7 @@ export const create = api(
       personalityTraits: defaultPersonalityTraits, // Standardwerte mit allen 0
       imageUrl: resolvedImageUrl,
       visualProfile: normalizedVisualProfile, // Use normalized (English) profile
+      narrativeProfile,
       creationType: req.creationType,
       isPublic: false,
       avatarRole,
@@ -123,6 +125,7 @@ export const create = api(
     const physicalTraitsJson = JSON.stringify(normalizedPhysicalTraits || req.physicalTraits);
     const personalityTraitsJson = JSON.stringify(defaultPersonalityTraits);
     const visualProfileJson = normalizedVisualProfile ? JSON.stringify(normalizedVisualProfile) : null;
+    const narrativeProfileJson = narrativeProfile ? JSON.stringify(narrativeProfile) : null;
 
     console.info("[avatar.create] Persisting avatar", {
       avatarId,
@@ -140,7 +143,7 @@ export const create = api(
           id, user_id, name, description,
           profile_id, avatar_role, source_type, source_avatar_id,
           physical_traits, personality_traits, image_url,
-          visual_profile,
+          visual_profile, narrative_profile,
           creation_type, is_public, original_avatar_id,
           created_at, updated_at,
           inventory, skills
@@ -156,7 +159,7 @@ export const create = api(
           ${physicalTraitsJson},
           ${personalityTraitsJson},
           ${finalImageUrl || null},
-          ${visualProfileJson},
+          ${visualProfileJson}, ${narrativeProfileJson},
           ${req.creationType},
           false,
           null,

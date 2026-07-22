@@ -71,7 +71,11 @@ function getParticipants(story: Story): StoryParticipant[] {
       participant.description ||
       participant.physicalTraits?.appearance ||
       `${participant.name} erlebt dieses Abenteuer als Avatar mit.`,
-    traits: [] as string[],
+    backstory: participant.narrativeProfile?.backstory,
+    dominantPersonality: participant.narrativeProfile?.dominantPersonality,
+    traits: uniqueStrings(participant.narrativeProfile?.traits || []),
+    catchphrase: participant.narrativeProfile?.catchphrase,
+    quirk: participant.narrativeProfile?.quirk,
   }));
 
   const characters = (story.config?.characters || []).map((participant) => ({

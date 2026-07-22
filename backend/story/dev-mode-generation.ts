@@ -470,6 +470,8 @@ export interface DevModeAvatar {
   physicalTraits?: any;
   /** Avatar personality traits (9 base values, optionally with subcategories). Free-form JSON. */
   personalityTraits?: any;
+  /** Creator-defined story identity (voice, quirk and optional signature line). */
+  narrativeProfile?: any;
 }
 
 /**
@@ -1553,6 +1555,28 @@ function summarizePersonalityTraits(pt: any): { baseLine: string; subLines: stri
   return { baseLine: baseParts.join(", "), subLines };
 }
 
+function avatarNarrativeProfileLines(avatar: DevModeAvatar): string[] {
+  const profile = avatar.narrativeProfile && typeof avatar.narrativeProfile === "object"
+    ? avatar.narrativeProfile
+    : undefined;
+  if (!profile) return [];
+
+  const lines: string[] = [];
+  const dominant = compactExcerpt(String(profile.dominantPersonality || ""), 48);
+  if (dominant) lines.push(`   Creator-defined personality: ${dominant}`);
+  const traits = Array.isArray(profile.traits)
+    ? profile.traits.map((trait: unknown) => compactExcerpt(String(trait || ""), 32)).filter(Boolean).slice(0, 5)
+    : [];
+  if (traits.length > 0) lines.push(`   Character facets: ${traits.join(", ")}`);
+  const quirk = compactExcerpt(String(profile.quirk || ""), 180);
+  if (quirk) lines.push(`   Distinctive quirk: ${quirk}`);
+  const catchphrase = compactExcerpt(String(profile.catchphrase || ""), 120);
+  if (catchphrase) lines.push(`   Signature line (use at most once): "${catchphrase}"`);
+  const backstory = compactExcerpt(String(profile.backstory || ""), 280);
+  if (backstory) lines.push(`   Backstory: ${backstory}`);
+  return lines;
+}
+
 function buildAvatarBlock(avatars: DevModeAvatar[]): string {
   if (!avatars || avatars.length === 0) return "";
   const lines: string[] = ["MAIN CHARACTERS (use them as described — appearance and character must stay consistent throughout the whole story):"];
@@ -1571,6 +1595,7 @@ function buildAvatarBlock(avatars: DevModeAvatar[]): string {
     if (visual.length > 0) {
       lines.push(`   Appearance: ${visual}`);
     }
+    lines.push(...avatarNarrativeProfileLines(avatar));
 
     const { baseLine, subLines } = summarizePersonalityTraits(avatar.personalityTraits);
     if (baseLine.length > 0) {
@@ -1721,6 +1746,7 @@ function buildIdeaAvatarBlock(avatars: DevModeAvatar[]): string {
     if (avatar.description && avatar.description.trim()) {
       lines.push(`   Short description: ${compactExcerpt(avatar.description.trim(), 180)}`);
     }
+    lines.push(...avatarNarrativeProfileLines(avatar));
   });
   return lines.join("\n");
 }

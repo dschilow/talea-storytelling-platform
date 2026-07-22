@@ -18,6 +18,7 @@ export type OpenRouterStoryModel =
   | 'moonshotai/kimi-k2.5'
   | 'minimax/minimax-m2.7'
   | 'minimax/minimax-m3'
+  | 'qwen/qwen3.6-flash'
   | 'z-ai/glm-5.2'
   | 'qwen/qwen3.7-max'
   | 'qwen/qwen3.7-plus'
@@ -61,6 +62,13 @@ export interface Avatar {
     appearance?: string;
   };
   visualProfile?: Record<string, unknown>;
+  narrativeProfile?: {
+    dominantPersonality?: string;
+    traits?: string[];
+    quirk?: string;
+    catchphrase?: string;
+    backstory?: string;
+  };
 }
 
 export interface Character {
