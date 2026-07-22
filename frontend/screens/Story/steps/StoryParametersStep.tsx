@@ -170,6 +170,7 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     { key: '~moonshotai/kimi-latest', label: 'Kimi Latest', description: 'Moonshot AI - $0.75 in / $3.50 out' },
     { key: 'aion-labs/aion-3.0-mini', label: 'Aion 3.0 Mini', description: 'AionLabs - Story/Roleplay - $0.70 in / $1.40 out' },
     { key: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Moonshot AI - $0.44 in / $2.00 out' },
+    { key: 'aion-labs/aion-3.0', label: 'Aion 3.0', description: 'AionLabs - Premium Story/Roleplay - $3 in / $6 out' },
     { key: 'minimax/minimax-m2.7', label: 'MiniMax M2.7', description: 'MiniMax - $0.30 in / $1.20 out' },
     { key: 'x-ai/grok-4.3', label: 'Grok 4.3', description: 'xAI - $1.25 in / $2.50 out' },
     { key: 'x-ai/grok-4.5', label: 'Grok 4.5', description: 'xAI - $2 in / $6 out' },

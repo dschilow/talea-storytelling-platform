@@ -21,6 +21,7 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "~moonshotai/kimi-latest": { inputCostPer1M: 0.65, outputCostPer1M: 3.41 },
   "aion-labs/aion-3.0-mini": { inputCostPer1M: 0.7, outputCostPer1M: 1.4 },
   "moonshotai/kimi-k2.5": { inputCostPer1M: 0.375, outputCostPer1M: 2.025 },
+  "aion-labs/aion-3.0": { inputCostPer1M: 3.0, outputCostPer1M: 6.0 },
   "minimax/minimax-m2.7": { inputCostPer1M: 0.18, outputCostPer1M: 0.72 },
   "x-ai/grok-4.3": { inputCostPer1M: 1.25, outputCostPer1M: 2.5 },
   "openrouter/owl-alpha": { inputCostPer1M: 0, outputCostPer1M: 0 },

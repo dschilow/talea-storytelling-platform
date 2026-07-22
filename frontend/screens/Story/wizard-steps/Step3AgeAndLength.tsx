@@ -67,6 +67,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'z-ai/glm-5.2', title: 'GLM-5.2 — sehr gute Story-Qualität', provider: 'Z.ai', cost: '$0.90 in / $3.08 out' },
   { id: 'aion-labs/aion-3.0-mini', title: 'Aion 3.0 Mini - Story/Roleplay Test', provider: 'AionLabs', cost: '$0.70 in / $1.40 out' },
   { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest — Top-Qualität, teuer', provider: 'Anthropic', cost: '$2 in / $10 out' },
+  { id: 'aion-labs/aion-3.0', title: 'Aion 3.0 - Premium Story/Roleplay Test', provider: 'AionLabs', cost: '$3 in / $6 out' },
   { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
   { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.38 in / $2.03 out' },
   { id: 'minimax/minimax-m3', title: 'MiniMax M3 (neu, eher Agent/Multimodal)', provider: 'MiniMax', cost: '$0.30 in / $1.20 out' },

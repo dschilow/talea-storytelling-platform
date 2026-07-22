@@ -14,6 +14,7 @@ export type OpenRouterStoryModel =
   | 'moonshotai/kimi-k2.6'
   | 'aion-labs/aion-3.0-mini'
   | '~moonshotai/kimi-latest'
+  | 'aion-labs/aion-3.0'
   | 'moonshotai/kimi-k2.5'
   | 'minimax/minimax-m2.7'
   | 'minimax/minimax-m3'
