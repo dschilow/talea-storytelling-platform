@@ -21,6 +21,7 @@ export type OpenRouterStoryModel =
   | 'qwen/qwen3.7-plus'
   | 'deepseek/deepseek-v4-pro'
   | 'deepseek/deepseek-v4-flash'
+  | 'x-ai/grok-4.5'
   | 'x-ai/grok-4.3'
   | 'openrouter/owl-alpha'
   | 'google/gemini-3.5-flash'

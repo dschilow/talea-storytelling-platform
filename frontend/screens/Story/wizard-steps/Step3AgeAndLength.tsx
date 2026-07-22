@@ -73,6 +73,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'qwen/qwen3.7-max', title: 'Qwen 3.7 Max (neu, eher Reasoning/Coding)', provider: 'Qwen', cost: '$1.25 in / $3.75 out' },
   { id: 'qwen/qwen3.7-plus', title: 'Qwen 3.7 Plus (neu)', provider: 'Qwen', cost: '$0.32 in / $1.28 out' },
   { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro (eher Coding/Algorithmik)', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
+  { id: 'x-ai/grok-4.5', title: 'Grok 4.5 - Test (Frontier, teuer)', provider: 'xAI', cost: '$2 in / $6 out' },
   { id: 'deepseek/deepseek-v4-flash', title: 'DeepSeek V4 Flash (neu, sehr günstig)', provider: 'DeepSeek', cost: '$0.09 in / $0.18 out' },
   { id: 'x-ai/grok-4.3', title: 'Grok 4.3', provider: 'xAI', cost: '$1.25 in / $2.50 out' },
   { id: 'google/gemini-3.5-flash', title: 'Gemini 3.5 Flash', provider: 'Google', cost: '$1.50 in / $9 out' },

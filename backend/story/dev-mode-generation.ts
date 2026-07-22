@@ -105,7 +105,11 @@ const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
 const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-blocking-quality-gates-2026-05-20";
 const DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE = 7.9;
 const DEV_MODE_SCENE_CARD_COUNT = 5;
-const DEV_MODE_MAX_IDEA_ROUNDS = 3;
+// Two bounded rounds are enough to prove whether the current creative lane is
+// viable. A third full idea batch + semantic judge cost about $0.010 in run
+// 28f9275a while still ending on an 8.1 story. Premium quality is better served
+// by spending that budget on the actual prose and copy check.
+const DEV_MODE_MAX_IDEA_ROUNDS = 2;
 const DEV_MODE_MIN_DIALOG_PCT = 25;
 // Premium hard floor for measured dialogue share. Re-calibrated 27 → 25 to
 // match real published read-aloud picture books (Gruffalo / Schule der
@@ -183,7 +187,11 @@ const DEV_MODE_MIN_SUPPORTING_CAST = 0;
 const DEV_MODE_MAX_SUPPORTING_CAST = 2;
 const DEV_MODE_PREFERRED_SUPPORTING_CAST = 1;
 const DEV_MODE_MAX_IDEA_POOL_CANDIDATES = 8;
-const DEV_MODE_IDEA_STRUCTURE_CARD_LIMIT = 4;
+// Three genuinely different structure pressures preserve breadth without
+// flooding a 4-candidate request with four miniature writing manuals. The old
+// four-card block diluted the novelty constraints near the top of a ~29k-char
+// prompt and was re-sent for every idea retry.
+const DEV_MODE_IDEA_STRUCTURE_CARD_LIMIT = 3;
 // v12 §R — spec allows 8–12 surgical line replacements. Raised from 8 to 12
 // so a release-near story with multiple weak dialogue beats can still be
 // fixed in one punchup pass without the writer cherry-picking which lines
@@ -313,7 +321,8 @@ type DevModePipelineStage =
   // v12 §4 + §11: page-count + expansion repair logging.
   | "page-count-repair"
   | "expansion-repair"
-  | "text-autofix";
+  | "text-autofix"
+  | "validator-copy-corrections";
 
 interface DevModeStageLog {
   stage: DevModePipelineStage;
@@ -5162,10 +5171,14 @@ function buildDevModePremiseSeedLibraryBlock(
 function buildIdeaCandidatePrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
-  options: { round?: number; previousPotentialFailures?: string[] } = {}
+  options: { round?: number; previousPotentialFailures?: string[]; candidateCount?: number } = {}
 ): { systemPrompt: string; userPrompt: string } {
-  const candidateCount = countIdeaCandidates(input.config);
+  const candidateCount = Math.max(2, options.candidateCount ?? countIdeaCandidates(input.config));
   const languageName = localizedLanguageName(input.config.language);
+  const hardAvoidMotifs = (input.noveltyBrief?.hardAvoidMotifs || [])
+    .map((motif) => String(motif || "").trim())
+    .filter(Boolean)
+    .slice(0, 16);
   const systemPrompt = qualitySystemPrompt(
     languageName,
     [
@@ -5206,6 +5219,15 @@ function buildIdeaCandidatePrompts(
   const userPrompt = [
     `IDEA LAB CALL${options.round ? ` ROUND ${options.round}` : ""}: Generate exactly ${candidateCount} short children's-book premises before any blueprint writing.`,
     "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
+    hardAvoidMotifs.length > 0
+      ? `TOP-PRIORITY NOVELTY EXCLUSION: NONE of these word families, close synonyms, object functions, or emotional mechanics may appear in any candidate: ${hardAvoidMotifs.join(", ")}. Check title, hook, object, rule, conflict, and ending potential before emitting JSON.`
+      : null,
+    options.previousPotentialFailures?.length
+      ? [
+          "TOP-PRIORITY RETRY CORRECTIONS (the previous batch failed these exact gates; do not repeat or cosmetically rename them):",
+          ...options.previousPotentialFailures.slice(0, 8).map((failure) => `- ${compactExcerpt(failure, 220)}`),
+        ].join("\n")
+      : null,
     "COMPLETION BUDGET IS BINDING: output complete valid JSON. Keep every string compact. Do not exceed 1200 characters per candidate. Preserve the complete cause-and-effect rule; shorten decorative wording first and never truncate the JSON.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
     "CHILD-SCALE AGENCY: for ages 3-8, the main problem must be something a child can understand, touch, test, play, or change immediately. The child heroes act because they want something concrete now, not because an institution assigns them adult responsibility.",
@@ -5215,12 +5237,6 @@ function buildIdeaCandidatePrompts(
     "Use either one pool character as the antagonist OR a non-speaking environmental pressure inherent in the central object. Do not invent an additional magical ruler/creature when a separate supporting character is already selected.",
     "Every distinctive word promised by the title or premise-seed mutation must become part of the wonder rule, conflict escalation, or final image. Do not use big shelf words (seasons, dreams, courage, moods, gravity, weather) as decoration only.",
     "Score potentialScores honestly from 0-10. Scores below 8.5 on emotional engine, personal cost, irreversible middle, or conflict escalation mean the premise should probably be replaced before output.",
-    options.previousPotentialFailures?.length
-      ? [
-          "PREVIOUS POTENTIAL FILTER REJECTIONS (do not repeat these mechanics):",
-          ...options.previousPotentialFailures.slice(0, 12).map((failure) => `- ${failure}`),
-        ].join("\n")
-      : null,
     "No generic fantasy quests. No recycled sound/bell/silence premises unless the user explicitly asked for them.",
     "Hard-avoid motifs are word families, not exact words. If a motif like 'spiegel' is in the novelty brief, do not use spiegelt, Spiegelung, Spiegelwasser, mirror-rule, or a title/chapter built around that idea.",
     "",
@@ -7612,6 +7628,11 @@ function buildCompactWholeStoryDraftPrompts(
     "- no-refund payoff: a sacrificed object/status may become useful in a new place, but cannot simply be handed back unchanged by a helper",
     "- final decision performed by the named main avatars, not by helpers",
     "- helpers may complicate, pressure, ask sharp questions — they may NOT explain the solution",
+    "- SUPPORTING-CHARACTER AGENCY: every named supporting figure needs a want, choice, refusal, useful action, or comic agenda of their own. Never use a servant, worker, shy child, or helper merely as labor, a praise target, or a device that teaches the hero a lesson.",
+    "- EARN THE CHARACTER TURN in three visible beats: the hero wants/does the old thing, resists the costly better choice, then chooses and acts differently under pressure. No sudden personality flip after one explanatory sentence.",
+    "- The final exchange must PROVE changed behavior toward another character (listen, ask, help, share credit, repair harm). Do not end with a promise such as 'next time I will...' when the story can show the better action now.",
+    "- The person affected by the hero's mistake must react and influence the resolution; gratitude alone is not an arc.",
+    "- DESCRIPTION is a natural 12-25-word shelf hook: concrete want + obstacle, no moral summary, no 'must learn that', and no explanation of the entire magic mechanism.",
     "- finale uses a detail planted earlier",
     "- CONTINUITY: no object, place, or magic effect may appear at the moment it is needed without being introduced earlier. Plant everything the finale uses; pay off everything you plant (a planted object that never returns confuses the child).",
     "- ORIENTATION: after every scene change, the first sentence must let a listening 6-year-old know WHERE the heroes are and WHAT they want right now. Never jump locations between paragraphs without a visible transition (a door, a path, a fall, a pull).",
@@ -7661,6 +7682,8 @@ function buildCompactWholeStoryDraftPrompts(
     `2. COUNT the quoted lines („…“) in your draft. Fewer than ${minQuotedLines}? Go back through the scene plan's dialogue beats and convert every unrealized beat into a quoted exchange. Percentages lie — count the lines.`,
     "3. Confirm the refrain appears 3 times and shifts meaning in the finale.",
     "4. Confirm every quoted line could be attributed WITHOUT its speaker tag (distinct voices).",
+    "5. Copy-edit word by word: spelling, verb conjugation, subject-verb agreement, cases, articles, punctuation, and idiomatic compounds. Fix every visible error before emitting.",
+    "6. Confirm the ending shows changed behavior and leaves the supporting character with agency, not only gratitude.",
     "",
     plainTextDraftMode
       ? [
@@ -9746,6 +9769,100 @@ function buildChapterRepairPrompts(
   return { systemPrompt, userPrompt };
 }
 
+function buildValidatorBatchChapterRepairPrompts(
+  input: DevModeGenerationInput,
+  chapterCount: number,
+  story: DevModeRawStory,
+  targets: DevModeChapterDiagnostic[],
+  storyDiagnostics: DevModeStoryDiagnostics,
+  blueprint: any,
+  critique: any,
+): { systemPrompt: string; userPrompt: string } {
+  const languageName = localizedLanguageName(input.config.language);
+  const reviewedBlueprint = getReviewedBlueprint(blueprint, critique);
+  const targetOrders = targets.map((target) => Number(target.order));
+  const targetChapters = story.chapters.filter((chapter) => targetOrders.includes(Number(chapter.order)));
+  const systemPrompt = [
+    `You are the selected children\'s-story writer performing one surgical multi-page repair in ${languageName}.`,
+    "Return valid JSON only. Rewrite only the requested reading pages; preserve the rest of the story exactly.",
+    "Schema:",
+    "{",
+    '  "repairedChapters": [{ "order": number, "title": string, "paragraphs": string[] }],',
+    '  "selfReflection": { "fixedIssues": string[], "continuityPreserved": boolean, "copyCheckPassed": boolean }',
+    "}",
+  ].join("\n");
+  const userPrompt = [
+    "BATCH CHAPTER REPAIR: fix every named issue across the requested pages in ONE response.",
+    "Do not rewrite unaffected pages. Do not add a subplot, character, magic rule, object, location, lesson, or new ending mechanism.",
+    "Keep each requested page\'s order and technical reading-page title. Output every requested page exactly once.",
+    "",
+    buildLeanRepairPromptContext(input, chapterCount, { readingPageMode: story.displayMode === "reading_pages" }),
+    "",
+    "QUALITY REPAIR PRIORITIES:",
+    "- Fix the validator findings at their causal location, not by explaining them in dialogue.",
+    "- Earn the hero\'s change through resistance, choice, and visible action; never patch it with a moral sentence.",
+    "- Give every named supporting character agency: a want, reaction, refusal, choice, useful action, or comic agenda. Gratitude alone is not agency.",
+    "- The ending must show changed behavior now and land on a concrete image; do not promise what the hero will do next time.",
+    "- Preserve distinct voices, the recurring refrain, the magic rule, the planted payoff, and whole-story word/dialogue budgets.",
+    "- Copy-edit every returned sentence for spelling, conjugation, agreement, cases, punctuation, and natural age-appropriate wording.",
+    "- Keep the story continuous across page seams. Do not repeat the previous page\'s final sentence at the next page opening.",
+    "",
+    "VALIDATOR AND LOCAL FINDINGS (binding):",
+    promptJson({
+      validatorFindings: compactCritiqueForDraft(critique).validatorFindings,
+      hardIssues: storyDiagnostics.hardIssues.slice(0, 10),
+      softIssues: storyDiagnostics.softIssues.slice(0, 10),
+      targetDiagnostics: targets,
+    }),
+    "",
+    "RELEVANT LOCKED BLUEPRINT:",
+    promptJson(targetOrders.map((order) => buildChapterRepairBlueprintContext(reviewedBlueprint, order))),
+    "",
+    "FULL COMPACT STORY FOR CONTINUITY (reference only):",
+    promptJson(buildCompactPromptStory(story)),
+    "",
+    "PAGES TO REPAIR (return full replacement paragraphs for these only):",
+    promptJson(targetChapters),
+    "",
+    `FINAL: repairedChapters must contain exactly orders ${targetOrders.join(", ")}. All prose in ${languageName}. JSON only.`,
+  ].join("\n");
+  return { systemPrompt, userPrompt };
+}
+
+function parseValidatorBatchChapterRepairResult(
+  content: string,
+  story: DevModeRawStory,
+  targetOrders: number[],
+): { chapters: DevModeChapter[]; selfReflection?: any; parsed: any } {
+  const parsed = tryParseJson(content);
+  const rawChapters = Array.isArray(parsed?.repairedChapters)
+    ? parsed.repairedChapters
+    : Array.isArray(parsed?.chapters)
+      ? parsed.chapters
+      : [];
+  const chapters: DevModeChapter[] = [];
+  for (const order of targetOrders) {
+    const fallback = story.chapters.find((chapter) => Number(chapter.order) === Number(order));
+    if (!fallback) continue;
+    const raw = rawChapters.find((chapter: any) => Number(chapter?.order) === Number(order));
+    if (!raw) continue;
+    const parsedChapter = parseChapterFromModel(raw, Math.max(0, order - 1), fallback.title);
+    chapters.push({
+      ...parsedChapter,
+      order: fallback.order,
+      title: story.displayMode === "reading_pages" ? fallback.title : (parsedChapter.title || fallback.title),
+    });
+  }
+  if (chapters.length !== targetOrders.length) {
+    throw new Error(`Batch chapter repair returned ${chapters.length}/${targetOrders.length} requested pages.`);
+  }
+  return {
+    chapters,
+    selfReflection: parsed?.selfReflection || parsed?.selfCheck || null,
+    parsed,
+  };
+}
+
 function buildValidationPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -9781,13 +9898,15 @@ function buildValidationPrompts(
     '    "pageTurnDrive": number,',
     '    "rereadValue": number,',
     '    "chapterEndPull": number,',
+    '    "languageCorrectness": number,',
     '    "jsonValidity": number',
     '  },',
     '  "errors": string[],',
     '  "warnings": string[],',
     '  "publishabilityBlockers": string[],',
     '  "continuityBreaks": string[],',
-    '  "mustFixBefore95": string[]',
+    '  "mustFixBefore95": string[],',
+    '  "exactTextCorrections": [{ "chapterOrder": number, "original": string, "replacement": string, "reason": "orthography" | "grammar" | "punctuation" | "idiom" }]',
     "}",
   ].join("\n");
   const code = languageCodeFromName(languageName);
@@ -9851,6 +9970,11 @@ function buildValidationPrompts(
     "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
     "LANGUAGE AUTHENTICITY CHECK (mandatory): scan the prose for invented/non-existent words, malformed compounds, or unidiomatic phrasing in the target language (e.g. a made-up German adjective like 'apfelscharf'). Each such word is a mustFixBefore95 entry quoting the exact word and a real-word replacement; 2+ occurrences cap marketQualityScore at 8.4.",
+    "COPY-DESK CHECK (mandatory, word by word - this is separate from literary scoring):",
+    "- Scan every sentence for spelling, wrong conjugation, subject-verb disagreement, wrong case/article, malformed punctuation, and unidiomatic wording. Do not assume fluent-looking prose is correct.",
+    "- Put each objectively safe local fix in exactTextCorrections with the exact source substring, its page/chapter order, and the minimal replacement. Never use this field for creative rewrites, plot changes, or stylistic preference.",
+    "- Obvious copy errors (for example German \"pfeiff\" instead of \"pfiff\" or singular subject + plural verb) must appear in errors and mustFixBefore95 as well as exactTextCorrections.",
+    "- One visible copy error caps languageCorrectness and marketQualityScore at 8.4; three or more cap both at 7.9. A release-ready printed children\'s book has zero such errors.",
     "Be honest. A truthful 7.8 beats a flattering 9.2. Self-inflating the score would be a pipeline error.",
     "",
     "VALIDATION TARGET:",
@@ -11775,6 +11899,74 @@ function applySafeValidatorCorrectedTitle(story: DevModeRawStory, validatorFindi
   return { ...story, title: candidate };
 }
 
+type ValidatorTextCorrectionReason = "orthography" | "grammar" | "punctuation" | "idiom";
+
+function applySafeValidatorTextCorrections(
+  story: DevModeRawStory,
+  validatorFindings: any,
+): { story: DevModeRawStory; applied: string[] } {
+  const rawCorrections = Array.isArray(validatorFindings?.exactTextCorrections)
+    ? validatorFindings.exactTextCorrections
+    : [];
+  if (rawCorrections.length === 0) return { story, applied: [] };
+
+  const allowedReasons = new Set<ValidatorTextCorrectionReason>([
+    "orthography",
+    "grammar",
+    "punctuation",
+    "idiom",
+  ]);
+  let chapters = story.chapters.slice();
+  const applied: string[] = [];
+
+  for (const raw of rawCorrections.slice(0, 8)) {
+    const original = String(raw?.original || "");
+    const replacement = String(raw?.replacement || "");
+    const reason = String(raw?.reason || "") as ValidatorTextCorrectionReason;
+    if (!allowedReasons.has(reason)) continue;
+    if (!original || !replacement || original === replacement) continue;
+    if (original.length > 180 || replacement.length > 180) continue;
+    if (/[\r\n]/.test(original) || /[\r\n]/.test(replacement)) continue;
+    if (/\[object Object\]/i.test(replacement)) continue;
+
+    const originalWords = original.trim().split(/\s+/).filter(Boolean).length;
+    const replacementWords = replacement.trim().split(/\s+/).filter(Boolean).length;
+    if (Math.abs(originalWords - replacementWords) > 2) continue;
+    const allowedDistance = Math.max(3, Math.ceil(Math.max(original.length, replacement.length) * 0.35));
+    if (titleEditDistance(original, replacement) > allowedDistance) continue;
+
+    const requestedOrder = Number(raw?.chapterOrder);
+    let chapterIndex = Number.isFinite(requestedOrder)
+      ? chapters.findIndex((chapter) => Number(chapter.order) === requestedOrder)
+      : -1;
+    if (chapterIndex < 0) {
+      const matchingIndices = chapters
+        .map((chapter, index) => chapter.content.includes(original) ? index : -1)
+        .filter((index) => index >= 0);
+      if (matchingIndices.length !== 1) continue;
+      chapterIndex = matchingIndices[0];
+    }
+
+    const content = chapters[chapterIndex].content;
+    if (content.split(original).length - 1 !== 1) continue;
+    chapters[chapterIndex] = {
+      ...chapters[chapterIndex],
+      content: content.replace(original, replacement),
+    };
+    applied.push(`page ${chapters[chapterIndex].order}: ${reason}: "${original}" -> "${replacement}"`);
+  }
+
+  if (applied.length === 0) return { story, applied };
+  const corrected = { ...story, chapters };
+  return {
+    story: story.displayMode === "reading_pages"
+      ? markStoryAsReadingPages(corrected, story)
+      : corrected,
+    applied,
+  };
+}
+
+
 
 function releaseDimensionFailures(validatorFindings: any, opts?: { mode?: DevModeQualityMode }): string[] {
   const scores = validatorFindings?.dimensionScores;
@@ -11807,6 +11999,7 @@ function releaseDimensionFailures(validatorFindings: any, opts?: { mode?: DevMod
       ["voiceDistinctiveness", 8.2],
       ["endingPayoff", 8.5],
       ["keyMomentPayoff", 8.5],
+      ["languageCorrectness", 9.5],
     ];
     for (const [dim, floor] of premiumPerDim) {
       const raw = Number(scores[dim] ?? NaN);
@@ -11872,9 +12065,10 @@ function releaseBlockingValidatorMustFixes(
   ].map((fix) => fix.trim()).filter(Boolean))].slice(0, 24);
   if (mustFixes.length === 0) return [];
   const materialIssuePattern = /final|ending|schluss|finale|dialog|wonder\s*rule|wunder|regel|color|farbe|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme|continuity|location|teleport|holder|possession|reunion|separat|object\s*state|anschluss|ortssprung|besitz|wiedervereinig|unplanted|setup/i;
+  const copyIssuePattern = /spell|orthograph|grammar|conjug|agreement|case|article|punctuation|idiom|typo|copy|rechtschreib|grammatik|beug|kongruenz|kasus|artikel|zeichensetz|komma|wortfehler/i;
   const structuralIssuePattern = /final|ending|schluss|finale|wonder\s*rule|wunder|regel|didactic|lehre|moral|premise|seed|mutation|red\s*thread|roter\s*faden|causal|payoff|helper|deus|agency|agentur|voice|stimme|continuity|location|teleport|holder|possession|reunion|separat|object\s*state|anschluss|ortssprung|besitz|wiedervereinig|unplanted|setup/i;
   return mustFixes
-    .filter((fix) => materialIssuePattern.test(fix))
+    .filter((fix) => materialIssuePattern.test(fix) || copyIssuePattern.test(fix))
     // Validators repeatedly invented a 32%+ dialogue release threshold even
     // when measured prose already sat inside the published-book range. Treat
     // a dialogue-only quota as advisory once the deterministic 25% floor is
@@ -12803,6 +12997,10 @@ export async function generateStoryDevMode(
           const retryIdeaPrompts = buildIdeaCandidatePrompts(input, chapterCount, {
             round: ideaRound,
             previousPotentialFailures: potentialFailureSummaries,
+            // The retry is informed by exact rejection reasons. Three fresh
+            // lanes are enough and save ~25% of the high-priced completion
+            // tokens compared with regenerating four full candidates.
+            candidateCount: Math.max(3, countIdeaCandidates(input.config) - 1),
           });
           const retryIdeaStage = await runStage("idea-candidates", retryIdeaPrompts, {
             maxTokens: devModeIdeaCandidateMaxTokens(input.config, true),
@@ -14307,6 +14505,53 @@ export async function generateStoryDevMode(
             finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
             console.log("[dev-mode-generation] Applied validator mechanical title correction", { title: finalParsed.title });
           }
+          const copyCorrectionResult = applySafeValidatorTextCorrections(finalParsed!, validatorFindings);
+          if (copyCorrectionResult.applied.length > 0) {
+            finalParsed = copyCorrectionResult.story;
+            finalDiagnostics = analyzeDevModeStoryQuality(finalParsed, input, chapterCount);
+            recordLocalStage("validator-copy-corrections", {
+              count: copyCorrectionResult.applied.length,
+              applied: copyCorrectionResult.applied,
+            });
+            console.log("[dev-mode-generation] Applied validator copy corrections", {
+              applied: copyCorrectionResult.applied,
+            });
+            // The validator scored the pre-fix manuscript. Once every safe
+            // copy correction has been applied, do not pay for a Kimi prose
+            // rewrite solely to remove an error that no longer exists. Keep
+            // all literary dimension scores and any unapplied correction.
+            const rawCopyCorrections = Array.isArray(validatorFindings?.exactTextCorrections)
+              ? validatorFindings.exactTextCorrections
+              : [];
+            const appliedSources = rawCopyCorrections
+              .map((correction: any) => String(correction?.original || ""))
+              .filter((original: string) => original && copyCorrectionResult.applied.some((line) => line.includes(`"${original}" ->`)));
+            const remainingCopyCorrections = rawCopyCorrections.filter((correction: any) =>
+              !appliedSources.includes(String(correction?.original || ""))
+            );
+            const keepFinding = (finding: any) => {
+              const normalized = String(finding || "").toLocaleLowerCase();
+              return !appliedSources.some((source: string) => normalized.includes(source.toLocaleLowerCase()));
+            };
+            const remainingDimensions = { ...(validatorFindings?.dimensionScores || {}) };
+            if (remainingCopyCorrections.length === 0) delete remainingDimensions.languageCorrectness;
+            validatorFindings = {
+              ...validatorFindings,
+              dimensionScores: remainingDimensions,
+              errors: Array.isArray(validatorFindings?.errors) ? validatorFindings.errors.filter(keepFinding) : [],
+              warnings: Array.isArray(validatorFindings?.warnings) ? validatorFindings.warnings.filter(keepFinding) : [],
+              mustFixBefore95: Array.isArray(validatorFindings?.mustFixBefore95) ? validatorFindings.mustFixBefore95.filter(keepFinding) : [],
+              exactTextCorrections: remainingCopyCorrections,
+            };
+            finalValidatorFindings = validatorFindings;
+            const unaffectedDimensionScores = Object.entries(remainingDimensions)
+              .filter(([key, value]) => key !== "jsonValidity" && Number.isFinite(Number(value)))
+              .map(([, value]) => Number(value));
+            if (remainingCopyCorrections.length === 0 && unaffectedDimensionScores.length > 0) {
+              const conservativePostCopyScore = Math.min(...unaffectedDimensionScores);
+              rawQualityScore = Math.max(rawQualityScore ?? 0, conservativePostCopyScore);
+            }
+          }
         } catch (validationError) {
           console.warn("[dev-mode-generation] Final validation failed; using deterministic local gate score", {
             error: validationError instanceof Error ? validationError.message : String(validationError),
@@ -14467,7 +14712,58 @@ export async function generateStoryDevMode(
           let qualityDiagnostics: DevModeStoryDiagnostics = currentDiagnostics;
           let repairedAnyChapter = false;
 
-          for (const chapterDiagnostic of validatorQualityRepairChapters) {
+          if (validatorQualityRepairChapters.length > 1) {
+            try {
+              const batchPrompts = buildValidatorBatchChapterRepairPrompts(
+                input,
+                chapterCount,
+                qualityParsed,
+                validatorQualityRepairChapters,
+                qualityDiagnostics,
+                blueprint,
+                {
+                  ...critique,
+                  validatorFindings,
+                  polishReason: "validator-quality-batch-chapter-rescue",
+                },
+              );
+              const batchStage = await runChapterRepairStage(batchPrompts, {
+                maxTokens: input.config.length === "long" ? 5000 : input.config.length === "short" ? 3000 : 3600,
+                temperature: 0.28,
+                timeoutMs: input.config.length === "long" ? 240_000 : 180_000,
+              });
+              const batchResult = parseValidatorBatchChapterRepairResult(
+                batchStage.provider.content,
+                qualityParsed,
+                validatorQualityRepairChapters.map((chapter) => Number(chapter.order)),
+              );
+              for (const repairedChapter of batchResult.chapters) {
+                qualityParsed = replaceStoryChapter(qualityParsed, repairedChapter);
+                repairSelfReflections.push({
+                  attempt: validationAttempt + 1,
+                  order: repairedChapter.order,
+                  title: repairedChapter.title,
+                  modelUsed: batchStage.provider.modelUsed,
+                  selfReflection: batchResult.selfReflection,
+                  reason: "validator-quality-batch-chapter-rescue",
+                });
+              }
+              qualityModelUsed = batchStage.provider.modelUsed;
+              qualityDiagnostics = analyzeDevModeStoryQuality(qualityParsed, input, chapterCount);
+              repairedAnyChapter = true;
+              console.log("[dev-mode-generation] Batched validator chapter repairs into one writer call", {
+                targetOrders: batchResult.chapters.map((chapter) => chapter.order),
+                hardIssueCount: qualityDiagnostics.hardIssueCount,
+                dialogPct: qualityDiagnostics.dialogPct,
+              });
+            } catch (batchRepairError) {
+              console.warn("[dev-mode-generation] Batched validator chapter repair failed; falling back to individual repairs", {
+                error: batchRepairError instanceof Error ? batchRepairError.message : String(batchRepairError),
+              });
+            }
+          }
+
+          for (const chapterDiagnostic of (repairedAnyChapter ? [] : validatorQualityRepairChapters)) {
             const currentChapter = qualityParsed.chapters.find((chapter) => Number(chapter.order) === Number(chapterDiagnostic.order));
             if (!currentChapter) continue;
 
