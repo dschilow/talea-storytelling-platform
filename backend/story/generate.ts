@@ -3,6 +3,7 @@ import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
 import { generateStoryStandardMode } from "./standard-mode-generation";
+import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
@@ -1363,6 +1364,11 @@ export const generate = api<GenerateStoryRequest, Story>(
 
       if (error instanceof APIError) {
         throw error;
+      }
+      if (isOpenRouterCreditLimitError(error)) {
+        throw APIError.resourceExhausted(
+          "Die KI-Generierung ist voruebergehend nicht verfuegbar, weil das OpenRouter-Guthabenlimit des API-Keys zu niedrig ist. Bitte das Monatslimit bzw. Guthaben in OpenRouter erhoehen und die Geschichte erneut starten."
+        );
       }
       if (errorMessage.startsWith("Story quality gates failed:")) {
         const failedCodes = errorMessage.replace("Story quality gates failed:", "").trim();

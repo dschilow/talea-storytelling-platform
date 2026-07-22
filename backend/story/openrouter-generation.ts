@@ -53,6 +53,18 @@ export interface OpenRouterChatCompletionResult {
   model: string;
 }
 
+/**
+ * Identifies OpenRouter's spend-cap response without exposing its raw payload
+ * (which can contain the API-key management URL) to an end user.
+ */
+export function isOpenRouterCreditLimitError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return (
+    /^OpenRouter API error 402:/i.test(message) &&
+    /(more credits|fewer max_tokens|can only afford|monthly limit)/i.test(message)
+  );
+}
+
 type OpenRouterReasoningOptions = {
   effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
   max_tokens?: number;
