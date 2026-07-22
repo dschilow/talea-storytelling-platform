@@ -32,6 +32,32 @@ type StoryMetadataRecord = Record<string, any> & {
   }>;
 };
 
+interface StoryAvatarParticipant {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  description?: string;
+  physicalTraits?: Record<string, any>;
+  visualProfile?: Record<string, any>;
+}
+
+interface StoryCharacterParticipant {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  role?: string;
+  archetype?: string;
+  visualProfile?: Record<string, any>;
+  emotionalNature?: Record<string, any>;
+  physicalDescription?: string;
+  backstory?: string;
+  dominantPersonality?: string;
+  secondaryTraits?: string[];
+  personalityKeywords?: string[];
+  catchphrase?: string;
+  quirk?: string;
+}
+
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 50;
 
@@ -237,8 +263,11 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           id: string;
           name: string;
           image_url: string | null;
+          description: string | null;
+          physical_traits: string | null;
+          visual_profile: string | null;
         }>`
-          SELECT id, name, image_url
+          SELECT id, name, image_url, description, physical_traits, visual_profile
           FROM avatars
           WHERE id = ANY(${avatarIds})
         `
@@ -250,10 +279,13 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           id: avatar.id,
           name: avatar.name,
           imageUrl: (await buildAvatarImageUrlForClient(avatar.id, avatar.image_url || undefined)) || null,
+          description: avatar.description || undefined,
+          physicalTraits: parseJsonObject(avatar.physical_traits) || undefined,
+          visualProfile: parseJsonObject(avatar.visual_profile) || undefined,
         },
       ] as const)
     );
-    const avatarMap = new Map<string, { id: string; name: string; imageUrl: string | null }>(avatarEntries);
+    const avatarMap = new Map<string, StoryAvatarParticipant>(avatarEntries);
 
     const baseMetadataByIndex = storyRows.map((row) => parseJsonObject<StoryMetadataRecord>(row.metadata));
     const castRows = storyIds.length > 0
@@ -305,8 +337,33 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           id: string;
           name: string;
           image_url: string | null;
+          role: string | null;
+          archetype: string | null;
+          visual_profile: string | null;
+          emotional_nature: string | null;
+          physical_description: string | null;
+          backstory: string | null;
+          dominant_personality: string | null;
+          secondary_traits: string[] | null;
+          personality_keywords: string[] | null;
+          catchphrase: string | null;
+          quirk: string | null;
         }>`
-          SELECT id, name, image_url
+          SELECT
+            id,
+            name,
+            image_url,
+            role,
+            archetype,
+            visual_profile,
+            emotional_nature,
+            physical_description,
+            backstory,
+            dominant_personality,
+            secondary_traits,
+            personality_keywords,
+            catchphrase,
+            quirk
           FROM character_pool
           WHERE id = ANY(${characterIds})
         `
@@ -318,10 +375,21 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           id: character.id,
           name: character.name,
           imageUrl: (await resolveImageUrlForClient(character.image_url || undefined)) || null,
+          role: character.role || undefined,
+          archetype: character.archetype || undefined,
+          visualProfile: parseJsonObject(character.visual_profile) || undefined,
+          emotionalNature: parseJsonObject(character.emotional_nature) || undefined,
+          physicalDescription: character.physical_description || undefined,
+          backstory: character.backstory || undefined,
+          dominantPersonality: character.dominant_personality || undefined,
+          secondaryTraits: character.secondary_traits || undefined,
+          personalityKeywords: character.personality_keywords || undefined,
+          catchphrase: character.catchphrase || undefined,
+          quirk: character.quirk || undefined,
         },
       ] as const)
     );
-    const characterMap = new Map<string, { id: string; name: string; imageUrl: string | null }>(characterEntries);
+    const characterMap = new Map<string, StoryCharacterParticipant>(characterEntries);
 
     const stories: StorySummary[] = await Promise.all(
       storyRows.map(async (storyRow, index) => {
@@ -333,7 +401,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
         const avatars = normalizeAvatarIds(config)
           .map((avatarId) => avatarMap.get(avatarId))
           .filter(
-            (avatar): avatar is { id: string; name: string; imageUrl: string | null } =>
+            (avatar): avatar is StoryAvatarParticipant =>
               Boolean(avatar)
           );
         const characters = characterPoolUsed
@@ -341,7 +409,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           .filter((characterId: string | undefined): characterId is string => typeof characterId === "string")
           .map((characterId: string) => characterMap.get(characterId))
           .filter(
-            (character): character is { id: string; name: string; imageUrl: string | null } =>
+            (character): character is StoryCharacterParticipant =>
               Boolean(character)
           );
         const profileState = profileStateByStoryId.get(storyRow.id);

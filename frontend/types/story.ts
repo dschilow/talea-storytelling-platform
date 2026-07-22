@@ -51,12 +51,36 @@ export interface Avatar {
   id: string;
   name: string;
   imageUrl?: string;
+  description?: string;
+  physicalTraits?: {
+    characterType?: string;
+    appearance?: string;
+  };
+  visualProfile?: Record<string, unknown>;
 }
 
 export interface Character {
   id: string;
   name: string;
   imageUrl?: string;
+  role?: string;
+  archetype?: string;
+  visualProfile?: {
+    description?: string;
+    species?: string;
+    colorPalette?: string[];
+  };
+  emotionalNature?: {
+    dominant?: string;
+    secondary?: string[];
+  };
+  physicalDescription?: string;
+  backstory?: string;
+  dominantPersonality?: string;
+  secondaryTraits?: string[];
+  personalityKeywords?: string[];
+  catchphrase?: string;
+  quirk?: string;
 }
 
 export interface Chapter {
