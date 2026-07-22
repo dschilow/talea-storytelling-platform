@@ -168,11 +168,13 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
   const openRouterModelOptions = [
     { key: 'moonshotai/kimi-k2.6', label: 'Kimi K2.6', description: 'Moonshot AI - $0.15 in / $0.45 out' },
     { key: '~moonshotai/kimi-latest', label: 'Kimi Latest', description: 'Moonshot AI - $0.75 in / $3.50 out' },
+    { key: 'aion-labs/aion-3.0-mini', label: 'Aion 3.0 Mini', description: 'AionLabs - Story/Roleplay - $0.70 in / $1.40 out' },
     { key: 'moonshotai/kimi-k2.5', label: 'Kimi K2.5', description: 'Moonshot AI - $0.44 in / $2.00 out' },
     { key: 'minimax/minimax-m2.7', label: 'MiniMax M2.7', description: 'MiniMax - $0.30 in / $1.20 out' },
     { key: 'x-ai/grok-4.3', label: 'Grok 4.3', description: 'xAI - $1.25 in / $2.50 out' },
     { key: 'x-ai/grok-4.5', label: 'Grok 4.5', description: 'xAI - $2 in / $6 out' },
     { key: 'openrouter/owl-alpha', label: 'Owl Alpha', description: 'OpenRouter - Free' },
+    { key: 'google/gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: 'Google - $1.50 in / $7.50 out' },
     { key: 'google/gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'Google - $1.50 in / $9 out' },
     { key: '~google/gemini-pro-latest', label: 'Gemini Pro Latest', description: 'Google - $2 in / $12 out' },
     { key: '~google/gemini-flash-latest', label: 'Gemini Flash Latest', description: 'Google - $0.50 in / $3 out' },

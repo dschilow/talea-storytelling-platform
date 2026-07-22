@@ -65,6 +65,7 @@ const MODEL_CONFIGS: ModelConfig[] = [
 const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'moonshotai/kimi-k2.6', title: '⭐ Kimi K2.6 — Empfohlen (beste Story-Qualität/Preis)', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
   { id: 'z-ai/glm-5.2', title: 'GLM-5.2 — sehr gute Story-Qualität', provider: 'Z.ai', cost: '$0.90 in / $3.08 out' },
+  { id: 'aion-labs/aion-3.0-mini', title: 'Aion 3.0 Mini - Story/Roleplay Test', provider: 'AionLabs', cost: '$0.70 in / $1.40 out' },
   { id: '~anthropic/claude-sonnet-latest', title: 'Claude Sonnet Latest — Top-Qualität, teuer', provider: 'Anthropic', cost: '$2 in / $10 out' },
   { id: '~moonshotai/kimi-latest', title: 'Kimi Latest', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
   { id: 'moonshotai/kimi-k2.5', title: 'Kimi K2.5', provider: 'Moonshot AI', cost: '$0.38 in / $2.03 out' },
@@ -75,6 +76,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   { id: 'deepseek/deepseek-v4-pro', title: 'DeepSeek V4 Pro (eher Coding/Algorithmik)', provider: 'DeepSeek', cost: '$0.44 in / $0.87 out' },
   { id: 'x-ai/grok-4.5', title: 'Grok 4.5 - Test (Frontier, teuer)', provider: 'xAI', cost: '$2 in / $6 out' },
   { id: 'deepseek/deepseek-v4-flash', title: 'DeepSeek V4 Flash (neu, sehr günstig)', provider: 'DeepSeek', cost: '$0.09 in / $0.18 out' },
+  { id: 'google/gemini-3.6-flash', title: 'Gemini 3.6 Flash - Test', provider: 'Google', cost: '$1.50 in / $7.50 out' },
   { id: 'x-ai/grok-4.3', title: 'Grok 4.3', provider: 'xAI', cost: '$1.25 in / $2.50 out' },
   { id: 'google/gemini-3.5-flash', title: 'Gemini 3.5 Flash', provider: 'Google', cost: '$1.50 in / $9 out' },
   { id: '~google/gemini-pro-latest', title: 'Gemini Pro Latest', provider: 'Google', cost: '$2 in / $12 out' },

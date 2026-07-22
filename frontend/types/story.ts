@@ -12,6 +12,7 @@ export type AIProvider = 'native' | 'openrouter';
 
 export type OpenRouterStoryModel =
   | 'moonshotai/kimi-k2.6'
+  | 'aion-labs/aion-3.0-mini'
   | '~moonshotai/kimi-latest'
   | 'moonshotai/kimi-k2.5'
   | 'minimax/minimax-m2.7'
@@ -22,6 +23,7 @@ export type OpenRouterStoryModel =
   | 'deepseek/deepseek-v4-pro'
   | 'deepseek/deepseek-v4-flash'
   | 'x-ai/grok-4.5'
+  | 'google/gemini-3.6-flash'
   | 'x-ai/grok-4.3'
   | 'openrouter/owl-alpha'
   | 'google/gemini-3.5-flash'
