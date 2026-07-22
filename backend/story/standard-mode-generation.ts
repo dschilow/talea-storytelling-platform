@@ -51,7 +51,7 @@ import {
 } from "./artifact-treasury";
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
-const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
+const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
 const MAX_STORY_CHARS_FOR_DEVELOPMENT = 9_000;
 const MAX_MEMORY_ANCHOR_TITLES = 2;
 

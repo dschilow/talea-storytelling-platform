@@ -595,7 +595,7 @@ export class StoryPipelineOrchestrator {
       const criticModel = resolveCriticModelForPipeline({
         selectedStoryModel,
         explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
-        defaultModel: String(pipelineConfig.criticModel || "gemini-3.1-flash-lite-preview"),
+        defaultModel: String(pipelineConfig.criticModel || "google/gemini-3.5-flash-lite"),
       });
       // Soul-aware: wenn Soul approved, senken wir die Surgery-Schwelle, damit
       // Critic-Ergebnisse im 7.2–8.2-Band noch repariert werden. Ohne Soul

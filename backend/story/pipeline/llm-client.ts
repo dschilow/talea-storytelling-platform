@@ -668,6 +668,7 @@ export function calculateTokenCosts(usage: {
 function inputPricePerMillion(model: string): number {
   if (isOpenRouterFamilyModel(model)) return getOpenRouterModelPricing(model).inputCostPer1M;
   if (model.includes("claude-sonnet-4-6")) return 3.0;
+  if (model.includes("gemini-3.5-flash-lite")) return 0.3;
   if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
@@ -694,6 +695,7 @@ function normalizeReasoningEffort(
 function outputPricePerMillion(model: string): number {
   if (isOpenRouterFamilyModel(model)) return getOpenRouterModelPricing(model).outputCostPer1M;
   if (model.includes("claude-sonnet-4-6")) return 15.0;
+  if (model.includes("gemini-3.5-flash-lite")) return 2.5;
   if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;

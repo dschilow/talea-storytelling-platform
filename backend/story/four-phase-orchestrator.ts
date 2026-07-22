@@ -2302,6 +2302,7 @@ ${repairRule}`;
    * Get input token pricing per million tokens for model
    */
   private getInputPricePerMillion(model: string): number {
+    if (model.includes("gemini-3.5-flash-lite")) return 0.30; // $0.30 per 1M
     if (model.includes("gemini-3.1-flash-lite")) return 0.25; // $0.25 per 1M
     if (model.includes("gemini-3-flash")) return 0.50; // $0.50 per 1M
     if (model.includes("gpt-5.4-nano")) return 0.20; // $0.20 per 1M
@@ -2317,6 +2318,7 @@ ${repairRule}`;
    * Get output token pricing per million tokens for model
    */
   private getOutputPricePerMillion(model: string): number {
+    if (model.includes("gemini-3.5-flash-lite")) return 2.50; // $2.50 per 1M
     if (model.includes("gemini-3.1-flash-lite")) return 1.50; // $1.50 per 1M
     if (model.includes("gemini-3-flash")) return 3.00; // $3.00 per 1M
     if (model.includes("gpt-5.4-nano")) return 1.25; // $1.25 per 1M

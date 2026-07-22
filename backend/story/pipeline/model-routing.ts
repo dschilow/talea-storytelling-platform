@@ -1,5 +1,5 @@
 export const GEMINI_MAIN_STORY_MODEL = "gemini-3-flash-preview";
-export const GEMINI_SUPPORT_MODEL = "gemini-3.1-flash-lite-preview";
+export const GEMINI_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
 export const CLAUDE_SONNET_46_WIZARD_MODEL = "claude-sonnet-4-6";
 export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 export const MINIMAX_M27_MODEL = "minimax-m2.7";

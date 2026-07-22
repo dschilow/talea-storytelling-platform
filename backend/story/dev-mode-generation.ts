@@ -94,7 +94,7 @@ import { selectAdaptiveVisualQaCandidates } from "./dev-mode-visual-qa-selection
 const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
-const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
+const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
 // The 9B variant regressed badly with multiple portrait references (merged
 // bodies, missing heads and duplicated scenes). The proven 4B checkpoint is
 // more reliable for this four-step illustrated-book workflow.
