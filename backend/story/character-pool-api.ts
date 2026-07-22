@@ -15,6 +15,22 @@ import {
 
 let characterPoolColumnsEnsured = false;
 
+/**
+ * PostgreSQL JSONB values may arrive as decoded objects or JSON strings,
+ * depending on the database driver version.
+ */
+function parseCharacterJson<T>(value: unknown, field: string): T {
+  if (typeof value === "string") {
+    return JSON.parse(value) as T;
+  }
+
+  if (value !== null && typeof value === "object") {
+    return value as T;
+  }
+
+  throw new Error(`Character pool field ${field} has an invalid JSON value`);
+}
+
 async function ensureImageUrlColumn(): Promise<void> {
   if (characterPoolColumnsEnsured) {
     return;
@@ -56,8 +72,8 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     name: string;
     role: string;
     archetype: string;
-    emotional_nature: string;
-    visual_profile: string;
+    emotional_nature: unknown;
+    visual_profile: unknown;
     image_url: string | null;
     max_screen_time: number;
     available_chapters: number[];
@@ -94,8 +110,8 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     name: row.name,
     role: row.role,
     archetype: row.archetype,
-    emotionalNature: JSON.parse(row.emotional_nature),
-    visualProfile: JSON.parse(row.visual_profile),
+    emotionalNature: parseCharacterJson(row.emotional_nature, "emotional_nature"),
+    visualProfile: parseCharacterJson(row.visual_profile, "visual_profile"),
     imageUrl: row.image_url || undefined,
     maxScreenTime: row.max_screen_time,
     availableChapters: row.available_chapters,
@@ -164,8 +180,8 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       name: string;
       role: string;
       archetype: string;
-      emotional_nature: string;
-      visual_profile: string;
+      emotional_nature: unknown;
+      visual_profile: unknown;
       image_url: string | null;
       max_screen_time: number;
       available_chapters: number[];
@@ -206,8 +222,8 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       name: row.name,
       role: row.role,
       archetype: row.archetype,
-      emotionalNature: JSON.parse(row.emotional_nature),
-      visualProfile: JSON.parse(row.visual_profile),
+      emotionalNature: parseCharacterJson(row.emotional_nature, "emotional_nature"),
+      visualProfile: parseCharacterJson(row.visual_profile, "visual_profile"),
       imageUrl: row.image_url || undefined,
       maxScreenTime: row.max_screen_time,
       availableChapters: row.available_chapters,
