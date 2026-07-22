@@ -53,6 +53,8 @@ console.log("\n[visual-qa] attachment numbering and adaptive risk selection");
   check("generated illustration fixed to attachment #1", /Attachment #1 is the generated illustration/.test(prompt));
   check("first identity maps to attachment #2", /canonical reference #1 = attachment #2/.test(prompt), prompt);
   check("second identity maps to attachment #3", /canonical reference #2 = attachment #3/.test(prompt), prompt);
+  check("QA requires explicit figure count", /observedCharacterCount/.test(prompt), prompt);
+  check("QA requires OCR transcription", /visibleTextStrings/.test(prompt) && /OCR sweep/.test(prompt), prompt);
 
   const selected = selectAdaptiveVisualQaCandidates([
     { id: "cover", kind: "cover" as const, expectedCharacterCount: 2, referenceCount: 2, scenePrompt: "Two portraits." },
@@ -89,6 +91,7 @@ console.log("\n[prompt-quality] English detection and entity-neutral framing");
     { name: "Momo", entityType: "orange tabby cat", sourceKind: "pool", referenceIndex: 2 },
     { name: "Whirl", entityType: "sentient wind without head face neck or limbs", sourceKind: "story" },
   ]);
+  check("three-figure left-center-right lock emitted", /exactly three visible characters only/.test(composition) && /Ari, Momo, Whirl/.test(composition), composition);
   check("canonical identity region remains in frame", /canonical identity-defining region fully inside/.test(composition), composition);
   check("non-human full body explicitly required", /complete body[^:]*: Momo/i.test(composition), composition);
   check("canonical joint cropping is forbidden", /Never crop through a canonical head, neck, torso, limb, major joint/.test(composition), composition);

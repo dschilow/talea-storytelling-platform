@@ -23,6 +23,8 @@ import {
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
   diversifyRepeatedSceneCardFields,
+  extractTaggedDraftControlField,
+  detectAdultSystemPremiseTerms,
 } from "../../dev-mode-sanitizers";
 
 import {
@@ -269,6 +271,22 @@ console.log("\n[3] Visual QA parser tolerates garbage");
 // -----------------------------------------------------------------------------
 // Test 4 — Metadata-only repair routes to deterministic fix (§14.4)
 // -----------------------------------------------------------------------------
+console.log("\n[3b] Plain-text story control fields keep internal commas");
+{
+  const source = [
+    "TITLE: Adrian und die ehrliche Feder",
+    "DESCRIPTION: Ein Junge muss lernen, dass die Wahrheit Mut braucht, auch wenn sie unbequem ist.",
+    "STORY:",
+    "Adrian setzte die Feder an.",
+  ].join("\n");
+  const title = extractTaggedDraftControlField(source, ["title", "titel"]);
+  const description = extractTaggedDraftControlField(title.body, ["description", "beschreibung"]);
+  check("tagged title extracted", title.value === "Adrian und die ehrliche Feder", title.value);
+  check("description retains all commas", description.value === "Ein Junge muss lernen, dass die Wahrheit Mut braucht, auch wenn sie unbequem ist.", description.value);
+  check("description remainder does not leak into story", !description.body.includes("dass die Wahrheit"), description.body);
+  check("adult civic premise is rejected for 6-8", detectAdultSystemPremiseTerms("A mayor asks for a council budget report", "6-8").length >= 2);
+  check("child-playable premise stays clean", detectAdultSystemPremiseTerms("Two children chase a runaway paintbrush through the playground", "6-8").length === 0);
+}
 console.log("\n[4] Repair router picks metadata_sanitize for description-only novelty fail");
 {
   const diag: any = {
@@ -421,11 +439,13 @@ console.log("\n[9] Visual QA catches type drift, extra cast, and attribute bleed
     missingCharacterNames: [],
     unexpectedCharacterDescriptions: ["unlisted third human child"],
     duplicateCharacterNames: [],
+    observedCharacterCount: 3,
     typeMismatches: ["Keks rendered as a human child instead of an orange tabby cat"],
     appearanceMismatches: ["Mina's round glasses are missing"],
     extraCharacters: 1,
     attributeBleed: true,
-    textVisible: false,
+    textVisible: true,
+    visibleTextStrings: ["ERDENAMA KIND"],
     speechBubbleVisible: false,
     anatomyClean: true,
     furnitureIntersection: false,
@@ -435,11 +455,13 @@ console.log("\n[9] Visual QA catches type drift, extra cast, and attribute bleed
     failureReasons: ["wrong entity type and one unlisted character"],
   });
   const parsed = parseVisualQaReport(reportJson);
-  const decision = shouldRegenerateImage(parsed);
+  const decision = shouldRegenerateImage(parsed, 2);
   check("regenerate=true", decision.regenerate, decision.reasons.join(","));
   check("type mismatch retained", decision.reasons.some((reason) => reason.startsWith("typeMismatch=")), decision.reasons.join(","));
   check("extra cast retained", decision.reasons.includes("extraCharacters=1"), decision.reasons.join(","));
   check("attribute bleed retained", decision.reasons.includes("attributeBleed"), decision.reasons.join(","));
+  check("observed cast count mismatch retained", decision.reasons.includes("characterCount=3/2"), decision.reasons.join(","));
+  check("visible cover lettering retained", decision.reasons.some((reason) => reason.startsWith("visibleText=")), decision.reasons.join(","));
 }
 
 // -----------------------------------------------------------------------------
@@ -511,9 +533,11 @@ console.log("\n[11] Cast contract is mixed-entity and count safe");
 {
   const merged = mergeNegativePrompt("custom token, no rain");
   check("custom token preserved", /custom token/.test(merged));
-  check("generic identity-swap guard included", /no identity swap/.test(merged));
-  check("generic attribute-transfer guard included", /do not transfer hair, fur, skin/i.test(merged));
-  check("dedup applied", (merged.match(/no text/g) || []).length === 1);
+  check("generic identity-swap guard included", /identity swap/.test(merged));
+  check("generic attribute-transfer guard included", /transferred hair/.test(merged));
+  check("semantic negation normalized", /(?:^|, )rain(?:,|$)/.test(merged) && !/(?:^|, )no rain(?:,|$)/.test(merged));
+  check("text concept dedup applied", (merged.match(/(?:^|, )text(?:,|$)/g) || []).length === 1);
+  check("negative pack uses concepts, not no/do-not instructions", CANONICAL_NEGATIVE_PACK.every((token) => !/^(?:no|do not|without|avoid|never)\b/i.test(token)));
   check("negative pack has no sample names", CANONICAL_NEGATIVE_PACK.every((token) => !/Mina|Keks|R0|Adrian|Alexander|Rosalie/i.test(token)));
 
   const childType = deriveVisualEntityType({

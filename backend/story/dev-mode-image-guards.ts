@@ -123,32 +123,18 @@ export function renderCharacterManifest(manifests: CharacterManifest[]): string 
  * cross-character contamination and unplanned entities.
  */
 export const CANONICAL_NEGATIVE_PACK = [
-  "no text", "no captions", "no speech bubbles", "no letters", "no signs",
-  "no labels", "no logos",
-  "no extra characters", "no duplicate characters", "no unlisted people",
-  "no unlisted animals", "no unlisted creatures", "no extra faces",
-  // Same-child-twice guard: 3-figure scenes with a prompt-only pool adult kept
-  // rendering one avatar twice (run 1b0c9363 Leseseite 4: a second small boy).
-  "no two copies of the same child", "no twin of a listed character",
-  "no additional children beyond the listed cast",
-  "no identity swap", "no face swap", "no species swap", "no age shift",
-  "no gender-presentation swap", "do not swap outfits or accessories",
-  "do not transfer hair, fur, skin, markings, wings, horns, tails, clothing, or colors between characters",
-  "do not merge two characters into one body",
-  // v12 §13D/F: log-runware-single-image-3b8eedfe contained raw JSON +
-  // false fairy permission. Add explicit guards so even when the positive
-  // prompt accidentally leaks an object stringification or generic
-  // "wings"/"forest" language, the diffusion model is told not to render
-  // those tokens. Per-scene location/character permissions still go in the
-  // positive prompt (see image-prompt-builder.ts buildSceneSpecificPrompt).
-  "no JSON fragments", "no raw JSON", "no accessories array",
-  "no stringified character profile",
-  "no unlisted wings, horns, tails, crowns, clothing, or accessories",
-  "no forest unless the scene is outdoors",
-  "no character not listed in the scene",
-  "no floating unrelated props",
-  // Entity-generic anatomy guards: preserve the limb/body-part count visible in
-  // each canonical reference instead of assuming every figure is human.
+  "text", "readable typography", "letters", "words", "captions", "speech bubbles",
+  "signage", "labels", "logos", "watermarks",
+  "extra character", "duplicate character", "unlisted person", "unlisted animal",
+  "unlisted creature", "extra face", "same child twice", "twin copy of a listed character",
+  "additional child", "identity swap", "face swap", "species swap", "age shift",
+  "gender-presentation swap", "outfit swap", "accessory swap", "cross-character attribute transfer",
+  "transferred hair", "transferred fur", "transferred skin", "transferred markings",
+  "transferred wings", "transferred horns", "transferred tails", "transferred clothing",
+  "transferred colors", "merged characters", "two characters in one body",
+  "JSON fragments", "raw JSON", "accessories array", "stringified character profile",
+  "unlisted wings", "unlisted horns", "unlisted tails", "unlisted crowns",
+  "unlisted clothing", "unlisted accessories", "unplanned forest", "unlisted prop",
   "wrong limb count for the referenced species", "extra body parts", "missing body parts",
   "fused body parts", "distorted anatomy", "bad anatomy", "disproportionate anatomy",
   "floating limbs", "detached limbs", "extra human fingers", "malformed human hands",
@@ -183,22 +169,32 @@ export const COLLAGE_STRIP_NEGATIVES = [
   "colored shape behind head", "multiple images", "inset portraits",
 ];
 
+function normalizeNegativeConcept(value: string): string {
+  return String(value || "")
+    .trim()
+    .replace(/^(?:no|without|avoid|do not|don't|never|must not|should not)\s+/i, "")
+    .trim();
+}
+
 export function mergeNegativePrompt(
   existing: string | undefined | null,
   options?: { collageMode?: boolean }
 ): string {
-  const tokens = new Set<string>();
+  const tokens = new Map<string, string>();
+  const add = (raw: string) => {
+    const concept = normalizeNegativeConcept(raw);
+    if (!concept) return;
+    const key = concept.toLocaleLowerCase("en-US");
+    if (!tokens.has(key)) tokens.set(key, concept);
+  };
   if (existing) {
-    for (const part of existing.split(/,\s*/)) {
-      const cleaned = part.trim();
-      if (cleaned) tokens.add(cleaned);
-    }
+    for (const part of existing.split(/,\s*/)) add(part);
   }
-  for (const token of CANONICAL_NEGATIVE_PACK) tokens.add(token);
+  for (const token of CANONICAL_NEGATIVE_PACK) add(token);
   if (options?.collageMode) {
-    for (const token of COLLAGE_STRIP_NEGATIVES) tokens.add(token);
+    for (const token of COLLAGE_STRIP_NEGATIVES) add(token);
   }
-  return [...tokens].join(", ");
+  return [...tokens.values()].join(", ");
 }
 
 // ---------------------------------------------------------------------------

@@ -59,6 +59,8 @@ import {
   detectStorySerializationArtifacts,
   detectRepeatedSceneCardFields,
   diversifyRepeatedSceneCardFields,
+  extractTaggedDraftControlField,
+  detectAdultSystemPremiseTerms,
 } from "./dev-mode-sanitizers";
 import {
   unwrapJsonPrompt,
@@ -2632,7 +2634,7 @@ async function generateDevModeImages(
   // ip-adapter handles identity via the collage reference, so we describe style
   // generically and append hard constraints against text, extra characters, and
   // duplicate characters. These constraints guard text, ghost figures, type drift, and identity drift.
-  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characterization, soft ink outlines, cozy lighting, child-friendly, single cohesive scene, entity-appropriate anatomy, no readable text, no captions, no speech bubbles, no signs, no labels, no logos, blank unreadable paper only if required by the scene, no extra or duplicate characters of any type";
+  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characterization, soft ink outlines, cozy lighting, child-friendly, pure unlettered artwork, blank non-symbolic surfaces, single cohesive scene, entity-appropriate anatomy, each listed character appearing once in a separate clear silhouette";
 
   // Generic per-scene manifest: source kind never implies entity type. The
   // manifest carries canonical per-character attributes and is added before
@@ -2851,7 +2853,7 @@ async function generateDevModeImages(
       const coverNames = (avatarNamesOnly.length > 0 ? avatarNamesOnly : cast.map((e) => e.name))
         .slice(0, maxNativeReferences)
         .join(", ") || "the primary characters";
-      return `Single picture-book cover scene with ${coverNames}, centered on ${storyAnchor} in ${settingHint}. Show one specific magical problem, warm child-friendly tension, exactly the named characters, no text.`;
+      return `Single square frontispiece illustration with ${coverNames}, centered on ${storyAnchor} in ${settingHint}. Show one specific magical problem and warm child-friendly tension. Fill the frame with pictorial scenery; every surface stays blank, unlettered and non-symbolic.`;
     }
     const sceneNames = ((job.order ? sceneCharsByChapter.get(job.order) : undefined) || avatarNamesOnly).slice(0, maxNativeReferences);
     const chapterNames = sceneNames.join(", ") || "the environment";
@@ -2938,6 +2940,11 @@ async function generateDevModeImages(
       // model still slipped in, plus any "in the style of X" pattern, and
       // unwrap any leftover JSON envelope. Deterministic guardrails.
       let sanitizedPrompt = sanitizeImagePrompt(job.prompt);
+      if (job.kind === "cover") {
+        sanitizedPrompt = sanitizedPrompt
+          .replace(/\b(?:picture-book|storybook|book)\s+cover\b/gi, "frontispiece illustration")
+          .replace(/\bcover\s+(?:art|artwork|illustration)\b/gi, "frontispiece illustration");
+      }
       if (!looksLikeEnglishPrompt(sanitizedPrompt)) {
         console.warn("[dev-mode-generation] image prompt rejected after sanitizer; using deterministic fallback", {
           job: `${job.kind}${job.order ? `:ch${job.order}` : ""}`,
@@ -2984,16 +2991,28 @@ async function generateDevModeImages(
       const directReferenceNames = directEntries.map((entry) => entry.name);
       const sceneCastCharacters = buildSceneCastCharacters(sceneNames, directEntries);
       const castContract = renderSceneCastContract(sceneCastCharacters);
-      const identityContract = directEntries.map((entry, index) => {
+      const appearanceContract = sceneCastCharacters.map((character) => {
+        const canonical = resolveUniqueNamedEntry(character.name, cast);
+        const visual = compactCharacterDescription(
+          canonical?.description,
+          `${character.entityType}; preserve this same appearance across every page`,
+        ).slice(0, 190);
+        return `${character.name} APPEARANCE LOCK: ${visual}. Render this figure once only; keep every listed trait attached to this figure.`;
+      }).join("\n");      const identityContract = directEntries.map((entry, index) => {
         const canonical = resolveUniqueNamedEntry(entry.name, cast);
         const knownVisual = compactCharacterDescription(canonical?.description, "match the attached reference exactly").slice(0, 150);
         return `REFERENCE ${index + 1} is ${entry.name} only: match the same face, head, hair/fur/skin, age, body type, clothing and colors. Do not borrow traits from another reference. Cue: ${knownVisual}.`;
       }).join("\n");
+      const artworkOnlyContract = job.kind === "cover"
+        ? "PURE FRONTISPIECE ILLUSTRATION: fill the square with pictorial scenery. Every surface is blank, unlettered and non-symbolic. Use only the exact cast below."
+        : "PURE STORY ILLUSTRATION: every paper, wall, object and clothing surface is blank, unlettered and non-symbolic. Use only the exact cast below.";
       const fullPrompt = [
+        artworkOnlyContract,
         "SCENE TO ILLUSTRATE:",
         sanitizedPrompt,
         "CAST AND REFERENCE LOCK:",
         castContract,
+        appearanceContract,
         identityContract,
         buildEntityNeutralCompositionPrompt(sceneCastCharacters),
         styleSuffix,
@@ -3203,7 +3222,7 @@ async function generateDevModeImages(
         promptTokenUsage.total += Number(qaUsage.total_tokens || 0);
         const qaContent = qaRes.data?.choices?.[0]?.message?.content || "";
         const report = parseVisualQaReport(String(qaContent));
-        const { regenerate, reasons } = shouldRegenerateImage(report);
+        const { regenerate, reasons } = shouldRegenerateImage(report, expectedSceneNames.length);
         return { result: r, report, regenerate, reasons };
       } catch (err) {
         console.warn(`[dev-mode-generation] §12H visual-QA call failed`, {
@@ -3242,8 +3261,13 @@ async function generateDevModeImages(
       const r = entry.result;
       try {
         imageCalls += 1;
+        const correctionPass = entry.reasons.map((reason) => {
+          if (/textVisible|visibleText/i.test(reason)) return "make every surface blank, unlettered and non-symbolic";
+          if (/characterCount|extraCharacters|duplicates/i.test(reason)) return "show the exact listed cast count, each figure once in its assigned position";
+          return reason;
+        }).join(", ");
         const regen = await ai.generateImage({
-          prompt: `${r.fullPrompt}\nCORRECTION PASS: ${entry.reasons.join(", ")}. Fix every named issue while preserving the canonical reference identities and exact cast count.`,
+          prompt: `${r.fullPrompt}\nCORRECTION PASS: ${correctionPass}. Preserve the canonical reference identities and exact cast count.`,
           model: DEV_MODE_IMAGE_MODEL,
           negativePrompt: mergeNegativePrompt(undefined, { collageMode: false }),
           width: 1024,
@@ -3512,6 +3536,8 @@ function buildFullPotentialAudit(
     candidate.emotionalEngine,
     candidate.coreConflict,
   ].join(" ").toLowerCase();
+  const adultSystemHits = detectAdultSystemPremiseTerms(text, input.config.ageGroup);
+  const adultSystemDominates = adultSystemHits.length >= 2;
   const hasPersonalObject = PERSONAL_OBJECT_HINTS.some((hint) => text.includes(hint));
   const fallbackScores: CandidatePotentialScores = {
     childRetellableHook: Math.max(7.5, legacy.childRetellableHook ?? (candidate.oneLineHook.length > 70 ? 8.6 : 8.1)),
@@ -3544,6 +3570,9 @@ function buildFullPotentialAudit(
   const magicEngines = detectMultipleMagicEngines(candidate.wonderRule);
   const rejectReasons = [
     ...potentialGateFailures(merged, input.qualityMode),
+    ...(adultSystemDominates
+      ? ["adult-system conflict dominates an age-3-8 premise; replace bureaucracy with a concrete child-playable problem"]
+      : []),
     ...(magicEngines.length > 1
       ? [`multiple magic engines in wonderRule (${magicEngines.join(", ")}); keep exactly one supernatural device/system`]
       : []),
@@ -5179,6 +5208,8 @@ function buildIdeaCandidatePrompts(
     "Do NOT write story prose. Do NOT write chapters. Generate only premise candidates strong enough to deserve a full story.",
     "COMPLETION BUDGET IS BINDING: output complete valid JSON. Keep every string compact. Do not exceed 1200 characters per candidate. Preserve the complete cause-and-effect rule; shorten decorative wording first and never truncate the JSON.",
     "Every candidate must feel like a real book a child would pull from a library shelf: concrete, visual, memorable, emotionally playable, and different from the recent stories.",
+    "CHILD-SCALE AGENCY: for ages 3-8, the main problem must be something a child can understand, touch, test, play, or change immediately. The child heroes act because they want something concrete now, not because an institution assigns them adult responsibility.",
+    "Reject adult-system premises whose core action is council politics, budgets, taxes, official reports, inspections, administration, or exposing civic corruption. A mayor or council may be comic background pressure, but the playable child problem and solution must stay in the foreground.",
     "Every candidate must be capable of a visible irreversible middle and a concrete personal cost. If you cannot name those potentials, do not include the candidate.",
     "ONE-MAGIC-ENGINE RULE: wonderRule may contain exactly one supernatural device/system. A second object may be an ordinary keepsake or visual prop, but it must not store, redirect, restore, amplify, or control the magic. Reject premises with two magical artifacts (for example a magic hourglass plus a magic crown).",
     "Use either one pool character as the antagonist OR a non-speaking environmental pressure inherent in the central object. Do not invent an additional magical ruler/creature when a separate supporting character is already selected.",
@@ -5359,6 +5390,7 @@ function buildPotentialFilterPrompts(
     `- similarityToRecentEmotionalMechanics <= ${t.similarityToRecentEmotionalMechanicsMax}`,
     "Reject cute but structurally soft ideas. Reject any idea whose core emotional mechanic is another version of waiting/listening/letting go unless the user explicitly requested that mechanic.",
     "For ages 6-8, concrete child-play beats poetic abstraction: a physical comic engine/object game outranks a beautiful metaphor if both pass.",
+    "For ages 3-8, reject premises driven by adult bureaucracy (council procedure, municipal budgets, taxes, reports, inspections, administrative corruption). The central conflict must remain physically playable and solvable through child-scale observation and action.",
     "If two candidates are close, choose the one a child can retell and play immediately (funny rule, visible object, escalating mess), not the one with the deepest abstract emotional wording.",
     "If no candidate passes, set passingCandidateIds=[] and roundRecommendation='regenerate'. Do not choose the best weak candidate.",
     `If a candidate passes, choose the strongest one for exactly ${chapterCount} display chapters later and keep only supporting cast that creates a complication, clue, pressure, joke, or payoff.`,
@@ -7514,16 +7546,29 @@ function buildCompactWholeStoryDraftPrompts(
   const wordBounds = getStoryWordBounds(input.config);
   const ageGroup = input.config.ageGroup || "6-8";
   const titleWords = extractTitleContentWords(String(input.selectedIdea?.title || "")).slice(0, 4);
+  const plainTextDraftMode = shouldUsePlainTextWholeStoryDraft(input.config);
 
   const compactStoryBible = buildCompactStoryBibleForDraft(input, chapterCount);
   const compactScenePlan = compactScreenplayPlanForDraft(screenplayPlan);
 
+  const outputContract = plainTextDraftMode
+    ? [
+        "Output plain text in exactly this line-based format:",
+        "TITLE: <one story title>",
+        "DESCRIPTION: <one complete sentence; internal commas are allowed>",
+        "STORY:",
+        "<blank-line-separated story paragraphs>",
+        "No JSON, arrays, braces, markdown, chapters, headings, or reading-page labels.",
+      ].join("\n")
+    : [
+        "Output schema (NO chapters, NO headings, NO reading-page labels):",
+        '{ "title": string, "description": string, "paragraphs": string[] }',
+        "Emit the \"paragraphs\" key EXACTLY ONCE. Do not restart it per scene; append every paragraph to the same flat array in reading order.",
+        "Do not output: chapters, reading-page labels, markdown, raw JSON inside the prose, explanation notes.",
+      ].join("\n");
   const systemPrompt = [
     `You write children's storybook prose in ${languageName} for ages ${ageGroup}.`,
-    "Output schema (NO chapters, NO headings, NO reading-page labels):",
-    '{ "title": string, "description": string, "paragraphs": string[] }',
-    "Emit the \"paragraphs\" key EXACTLY ONCE. Do not restart it per scene; append every paragraph to the same flat array in reading order.",
-    "Do not output: chapters, reading-page labels, markdown, raw JSON inside the prose, explanation notes.",
+    outputContract,
     "",
     getReferenceFewshotBlock(languageCodeFromName(languageName)),
   ].join("\n");
@@ -7581,7 +7626,8 @@ function buildCompactWholeStoryDraftPrompts(
     "- It must appear at least 3 times: introduced early → repeated under pressure in the middle → TRANSFORMED in the finale (same shape, new meaning).",
     "- The refrain belongs to a character's voice, not the narrator. Each return should land on its own short line so the page invites the child to say it aloud.",
     "",
-    "LEVITY BEAT (mandatory, at least one): plant one genuinely funny moment that grows out of character — a helper's silly logic, a comic mishap with the magic object, a witty mismatch between what a child says and does. Warmth and humour, never sarcasm or a character being mocked. The humour must not derail the emotional through-line.",
+    "LEVITY AND WARMTH (mandatory): at least 4 of the 5 scene movements contain one brief child-readable smile beat: character-specific silly logic, a physical comic aftershock, playful wording, or a warm say/do mismatch. Never mock a character, explain the joke, or interrupt real emotion.",
+    "VOICE CONTRAST: The main avatars must not sound interchangeable. Give each one a repeatable sentence rhythm, favorite kind of comparison, and different way of reacting under pressure; quoted lines should usually be attributable without speaker tags.",
     "",
     "LENGTH AND DIALOGUE (both budgets are HARD and apply TOGETHER — never fix one by breaking the other):",
     `- ${wordBounds.targetMin}–${wordBounds.targetMax} words total (hard min ${wordBounds.min}, hard max ${wordBounds.max}).`,
@@ -7616,7 +7662,16 @@ function buildCompactWholeStoryDraftPrompts(
     "3. Confirm the refrain appears 3 times and shifts meaning in the finale.",
     "4. Confirm every quoted line could be attributed WITHOUT its speaker tag (distinct voices).",
     "",
-    `FINAL REMINDER: ONE JSON object with title, description, ONE paragraphs[] array only. Never emit duplicate \"paragraphs\" keys. All prose in ${languageName}.`,
+    plainTextDraftMode
+      ? [
+          "FINAL REMINDER: plain text only, exactly:",
+          "TITLE: one story title",
+          "DESCRIPTION: one complete sentence",
+          "STORY:",
+          "story paragraphs separated by blank lines",
+          `No JSON, braces, arrays, markdown, chapters, or headings. All prose in ${languageName}.`,
+        ].join("\n")
+      : `FINAL REMINDER: ONE JSON object with title, description, ONE paragraphs[] array only. Never emit duplicate \"paragraphs\" keys. All prose in ${languageName}.`,
   ].filter(Boolean).join("\n");
 
   return { systemPrompt, userPrompt };
@@ -7858,17 +7913,17 @@ function extractProseFallback(
   if (!body) return null;
   let title = "";
   let titleSource: "field" | "first-paragraph" | "synthetic" = "synthetic";
-  const titleFieldMatch = body.match(/(?:^|\n)\s*[*_#>\-]*\s*(?:"?title"?|titel)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
-  if (titleFieldMatch) {
-    title = titleFieldMatch[1].trim();
+  const titleField = extractTaggedDraftControlField(body, ["title", "titel"]);
+  if (titleField.found) {
+    title = titleField.value;
     titleSource = "field";
-    body = body.replace(titleFieldMatch[0], "\n").trim();
+    body = titleField.body;
   }
   let description = "";
-  const descFieldMatch = body.match(/(?:^|\n)\s*[*_#>\-]*\s*(?:"?description"?|beschreibung)\s*[:=]\s*"?([^"\n]+?)"?\s*(?:,|\n|$)/i);
-  if (descFieldMatch) {
-    description = descFieldMatch[1].trim();
-    body = body.replace(descFieldMatch[0], "\n").trim();
+  const descriptionField = extractTaggedDraftControlField(body, ["description", "beschreibung"]);
+  if (descriptionField.found) {
+    description = descriptionField.value;
+    body = descriptionField.body;
   }
   body = body
     .replace(/^\s*[*_#>\-]*\s*(?:story|geschichte|prose|text)\s*[:=]\s*/im, "\n")
@@ -14508,7 +14563,11 @@ export async function generateStoryDevMode(
               localGateScore = undefined;
               finalQualityScore = undefined;
               finalValidatorFindings = undefined;
-              continue;
+              // The final refresh validates the actual post-layout story once. A
+              // second in-loop validation here only re-sends the full manuscript
+              // before deterministic page balancing and caused a third identical
+              // validation call in production.
+              break;
             }
 
             console.warn("[dev-mode-generation] Validator-driven chapter repair rejected by deterministic diagnostics", {

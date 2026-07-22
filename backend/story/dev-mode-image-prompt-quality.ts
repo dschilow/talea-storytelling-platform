@@ -63,9 +63,17 @@ export function buildEntityNeutralCompositionPrompt(
   const completeBodyRule = completeBodyNames.length > 0
     ? `Show the complete body or full canonical silhouette of: ${completeBodyNames.join(", ")}.`
     : "Keep every body readable with anatomically connected limbs.";
+  const positionRule = characters.length === 1
+    ? `POSITION LOCK: exactly one visible character, ${characters[0].name}, centered in a single clear silhouette.`
+    : characters.length === 2
+      ? `POSITION LOCK: exactly two visible characters only — ${characters[0].name} on the viewer's left and ${characters[1].name} on the viewer's right, with open air between them.`
+      : characters.length === 3
+        ? `POSITION LOCK: exactly three visible characters only — from viewer's left to right: ${characters[0].name}, ${characters[1].name}, ${characters[2].name}. Each appears once in its own non-overlapping zone.`
+        : `POSITION LOCK: exactly ${characters.length} visible characters, each appearing once in a separate non-overlapping zone.`;
 
   return [
     "COMPOSITION: one coherent moment, medium-wide or wider framing sized to the cast and action.",
+    positionRule,
     "Keep each character's complete canonical identity-defining region fully inside the frame and unobstructed; for entities that canonically have them, this includes the head, face and neck.",
     completeBodyRule,
     "Never crop through a canonical head, neck, torso, limb, major joint, articulation, or identity-defining feature; preserve the full silhouette of entities without those parts.",

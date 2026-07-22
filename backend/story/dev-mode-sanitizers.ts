@@ -107,6 +107,60 @@ export interface StoryHeaderSanitizeResult {
   fixes: string[];
 }
 
+const ADULT_SYSTEM_PREMISE_TERM = /\b(?:council|mayor|municipal|budget|tax|committee|inspection|official report|treasury|stadtrat|buergermeister|gemeinderat|haushalt|steuer|ausschuss|behoerde|reparaturgeld|berichtspflicht)\b/g;
+
+/** Returns the distinct adult-system terms that dominate a young premise. */
+export function detectAdultSystemPremiseTerms(text: string, ageGroup?: string): string[] {
+  if (ageGroup !== "3-5" && ageGroup !== "6-8") return [];
+  const matches = String(text || "").toLowerCase().match(ADULT_SYSTEM_PREMISE_TERM) || [];
+  return [...new Set(matches)];
+}
+export interface TaggedDraftControlFieldResult {
+  value: string;
+  body: string;
+  found: boolean;
+}
+
+/**
+ * Extract one line-based control field from the plain-text story protocol.
+ *
+ * The old fallback parser treated a comma as the end of DESCRIPTION. A valid
+ * line such as `DESCRIPTION: Ein Junge muss lernen, dass ...` was therefore
+ * split after "lernen" and the remainder leaked into the first story page.
+ * Control fields are line based, so commas belong to the value; only a final
+ * JSON-style comma after the complete line is discarded.
+ */
+export function extractTaggedDraftControlField(
+  source: string,
+  aliases: string[]
+): TaggedDraftControlFieldResult {
+  const body = String(source || "");
+  const labelPattern = aliases
+    .map((alias) => String(alias || "").trim())
+    .filter(Boolean)
+    .map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  if (!labelPattern) return { value: "", body, found: false };
+
+  const fieldPattern = new RegExp(
+    `(?:^|\\n)\\s*[*_#>\\-]*\\s*(?:"?(?:${labelPattern})"?)\\s*[:=]\\s*(.+?)\\s*(?=\\n|$)`,
+    "i"
+  );
+  const match = body.match(fieldPattern);
+  if (!match) return { value: "", body, found: false };
+
+  const value = String(match[1] || "")
+    .trim()
+    .replace(/,\s*$/, "")
+    .replace(/^["\u201c\u201d]|["\u201c\u201d]$/g, "")
+    .trim();
+  return {
+    value,
+    body: body.replace(match[0], "\n").trim(),
+    found: Boolean(value),
+  };
+}
+
 /**
  * Keeps user-facing story headers printable and renderer-safe. In particular,
  * generated emoji and broken JSON wrappers must never become visible content.

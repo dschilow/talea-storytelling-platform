@@ -25,11 +25,13 @@ export interface VisualQaReport {
   missingCharacterNames: string[];
   unexpectedCharacterDescriptions: string[];
   duplicateCharacterNames: string[];
+  observedCharacterCount: number;
   typeMismatches: string[];
   appearanceMismatches: string[];
   extraCharacters: number;
   attributeBleed: boolean;
   textVisible: boolean;
+  visibleTextStrings: string[];
   speechBubbleVisible: boolean;
   anatomyClean: boolean;
   furnitureIntersection: boolean;
@@ -53,6 +55,8 @@ The cast may contain any mix of human children, human adults, animals, fantasy b
 Compare each referenced character's face or head shape, species/anatomy, apparent age, hair/fur/skin/material, markings, colors, clothing, and accessories against the matching canonical reference. Detect attributes copied from one character onto another.
 Report only what is visibly present. Do not infer correctness from the text prompt alone.
 
+FIRST inspect attachment #1 by itself. Count every visible character-shaped figure, including partial, background, repeated, reflected, or tiny figures. Then make a deliberate OCR sweep across the top, center, bottom, objects, walls, paper, signs, and clothing. Record every word-like glyph string you can see, even if misspelled or nonsensical. Only after count and OCR should you compare identities with the references.
+
 Expected visible cast — exactly ${input.expectedCharacters.length} named characters:
 ${expectedCast}
 
@@ -65,11 +69,13 @@ Return STRICT JSON in this exact shape, no commentary:
   "missingCharacterNames": [string],
   "unexpectedCharacterDescriptions": [string],
   "duplicateCharacterNames": [string],
+  "observedCharacterCount": number,
   "typeMismatches": [string],
   "appearanceMismatches": [string],
   "extraCharacters": number,
   "attributeBleed": boolean,
   "textVisible": boolean,
+  "visibleTextStrings": [string],
   "speechBubbleVisible": boolean,
   "anatomyClean": boolean,
   "furnitureIntersection": boolean,
@@ -79,7 +85,7 @@ Return STRICT JSON in this exact shape, no commentary:
   "failureReasons": [string]
 }
 
-Set pass=true only if every expected character appears exactly once, no unlisted character appears, entity types and canonical appearances match, attributes do not bleed between figures, anatomy is appropriate for each entity, nobody intersects furniture, no readable text is visible, identityConfidence >= 0.75, and sceneMatchesPrompt >= 0.75.`;
+Set pass=true only if observedCharacterCount exactly equals ${input.expectedCharacters.length}, every expected character appears exactly once, no unlisted character appears, entity types and canonical appearances match, attributes do not bleed between figures, anatomy is appropriate for each entity, nobody intersects furniture, visibleTextStrings is empty, no readable text is visible, identityConfidence >= 0.75, and sceneMatchesPrompt >= 0.75.`;
 }
 
 function stringList(value: unknown): string[] {
@@ -92,11 +98,13 @@ export function parseVisualQaReport(raw: string): VisualQaReport {
     missingCharacterNames: [],
     unexpectedCharacterDescriptions: [],
     duplicateCharacterNames: [],
+    observedCharacterCount: -1,
     typeMismatches: [],
     appearanceMismatches: [],
     extraCharacters: 0,
     attributeBleed: false,
     textVisible: false,
+    visibleTextStrings: [],
     speechBubbleVisible: false,
     anatomyClean: false,
     furnitureIntersection: false,
@@ -121,11 +129,15 @@ export function parseVisualQaReport(raw: string): VisualQaReport {
       missingCharacterNames: stringList(parsed.missingCharacterNames),
       unexpectedCharacterDescriptions: stringList(parsed.unexpectedCharacterDescriptions),
       duplicateCharacterNames: stringList(parsed.duplicateCharacterNames),
+      observedCharacterCount: Number.isFinite(Number(parsed.observedCharacterCount))
+        ? Math.max(0, Math.round(Number(parsed.observedCharacterCount)))
+        : -1,
       typeMismatches: stringList(parsed.typeMismatches),
       appearanceMismatches: stringList(parsed.appearanceMismatches),
       extraCharacters: Math.max(0, Number(parsed.extraCharacters ?? 0)),
       attributeBleed: Boolean(parsed.attributeBleed),
       textVisible: Boolean(parsed.textVisible),
+      visibleTextStrings: stringList(parsed.visibleTextStrings),
       speechBubbleVisible: Boolean(parsed.speechBubbleVisible),
       anatomyClean: Boolean(parsed.anatomyClean),
       furnitureIntersection: Boolean(parsed.furnitureIntersection),
@@ -144,8 +156,16 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export function shouldRegenerateImage(report: VisualQaReport): { regenerate: boolean; reasons: string[] } {
+export function shouldRegenerateImage(
+  report: VisualQaReport,
+  expectedCharacterCount?: number
+): { regenerate: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  if (
+    typeof expectedCharacterCount === "number"
+    && report.observedCharacterCount >= 0
+    && report.observedCharacterCount !== expectedCharacterCount
+  ) reasons.push(`characterCount=${report.observedCharacterCount}/${expectedCharacterCount}`);
   if (report.missingCharacterNames.length > 0) reasons.push(`missing=${report.missingCharacterNames.join("|")}`);
   if (report.unexpectedCharacterDescriptions.length > 0) reasons.push(`unexpected=${report.unexpectedCharacterDescriptions.join("|")}`);
   if (report.duplicateCharacterNames.length > 0) reasons.push(`duplicates=${report.duplicateCharacterNames.join("|")}`);
@@ -154,6 +174,7 @@ export function shouldRegenerateImage(report: VisualQaReport): { regenerate: boo
   if (report.extraCharacters > 0) reasons.push(`extraCharacters=${report.extraCharacters}`);
   if (report.attributeBleed) reasons.push("attributeBleed");
   if (report.textVisible) reasons.push("textVisible");
+  if (report.visibleTextStrings.length > 0) reasons.push(`visibleText=${report.visibleTextStrings.join("|")}`);
   if (report.speechBubbleVisible) reasons.push("speechBubbleVisible");
   if (!report.anatomyClean) reasons.push("anatomyNotClean");
   if (report.furnitureIntersection) reasons.push("furnitureIntersection");
