@@ -5,10 +5,29 @@ import { useBackend } from "../hooks/useBackend";
 type UserRole = "admin" | "user";
 type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
 
+export type CreditUsage = {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  costPerGeneration: number;
+};
+
+export type BillingSnapshot = {
+  plan: SubscriptionPlan;
+  periodStart: string | Date;
+  storyCredits: CreditUsage;
+  dokuCredits: CreditUsage;
+  audioCredits: CreditUsage;
+  chatCredits: CreditUsage;
+  imageCredits: CreditUsage;
+  ttsCharacterCredits: CreditUsage;
+};
+
 type UserAccessState = {
   isLoading: boolean;
   role: UserRole | null;
   subscription: SubscriptionPlan | null;
+  billing: BillingSnapshot | null;
   isAdmin: boolean;
   parentalOnboardingCompleted: boolean | null;
   hasParentalPin: boolean;
@@ -21,6 +40,7 @@ const defaultState: UserAccessState = {
   isLoading: false,
   role: null,
   subscription: null,
+  billing: null,
   isAdmin: false,
   parentalOnboardingCompleted: null,
   hasParentalPin: false,
@@ -34,6 +54,7 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = useState(true);
   const [role, setRole] = useState<UserRole | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionPlan | null>(null);
+  const [billing, setBilling] = useState<BillingSnapshot | null>(null);
   const [parentalOnboardingCompleted, setParentalOnboardingCompleted] = useState<boolean | null>(null);
   const [hasParentalPin, setHasParentalPin] = useState(false);
 
@@ -45,6 +66,7 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (!isSignedIn) {
       setRole(null);
       setSubscription(null);
+      setBilling(null);
       setParentalOnboardingCompleted(null);
       setHasParentalPin(false);
       setIsLoading(false);
@@ -55,6 +77,7 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setIsLoading(true);
       const profile = await backend.user.me();
       const parentalControls = (profile as any).parentalControls;
+      const profileBilling = (profile as { billing?: BillingSnapshot | null }).billing ?? null;
       const onboardingCompleted =
         typeof parentalControls?.onboardingCompleted === "boolean"
           ? parentalControls.onboardingCompleted
@@ -62,12 +85,14 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setRole((profile.role as UserRole) ?? "user");
       setSubscription((profile.subscription as SubscriptionPlan) ?? "free");
+      setBilling(profileBilling);
       setParentalOnboardingCompleted(onboardingCompleted);
       setHasParentalPin(Boolean(parentalControls?.hasPin));
     } catch (error) {
       console.error("Failed to load user access profile", error);
       setRole(null);
       setSubscription(null);
+      setBilling(null);
       setParentalOnboardingCompleted(null);
       setHasParentalPin(false);
     } finally {
@@ -84,12 +109,13 @@ export const UserAccessProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isLoading,
       role,
       subscription,
+      billing,
       isAdmin: role === "admin",
       parentalOnboardingCompleted,
       hasParentalPin,
       refresh: loadProfile,
     }),
-    [hasParentalPin, isLoading, loadProfile, parentalOnboardingCompleted, role, subscription]
+    [billing, hasParentalPin, isLoading, loadProfile, parentalOnboardingCompleted, role, subscription]
   );
 
   return <UserAccessContext.Provider value={value}>{children}</UserAccessContext.Provider>;

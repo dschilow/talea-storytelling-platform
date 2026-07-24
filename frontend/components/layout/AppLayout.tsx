@@ -112,6 +112,7 @@ const AppLayout: React.FC = () => {
     location.pathname.startsWith("/quiz") ||
     location.pathname.startsWith("/community") ||
     location.pathname.startsWith("/map") ||
+    location.pathname.startsWith("/settings") ||
     location.pathname.startsWith("/fairytales") ||
     location.pathname.startsWith("/characters") ||
     location.pathname.startsWith("/artifacts") ||

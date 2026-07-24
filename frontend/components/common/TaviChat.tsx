@@ -25,6 +25,7 @@ import type {
   TaviListItem,
 } from '../../types/tavi';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,7 +264,7 @@ const MessageBubble: React.FC<{
 
       <div className="flex flex-col gap-1">
         <div
-          className={`whitespace-pre-wrap px-4 py-2.5 text-sm leading-relaxed ${
+          className={`whitespace-pre-wrap break-words px-4 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere] ${
             isTavi
               ? 'rounded-2xl rounded-bl-sm border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md'
               : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/20'
@@ -365,6 +366,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const backend = useBackend();
   const { resolvedTheme } = useTheme();
   const activeProfile = useOptionalChildProfiles()?.activeProfile ?? null;
+  const { billing, refresh: refreshUserAccess } = useOptionalUserAccess();
   const translate = (key: string, fallback?: string): string => {
     const translator = t as unknown as (
       query: string,
@@ -378,7 +380,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
     if (!activeProfile) {
       return translate('chat.welcome', 'Hi, ich bin Tavi.');
     }
-    return `Hi ${activeProfile.name}, ich bin Tavi! Ich kann Geschichten, Dokus, Avatare und Bilder fuer dich erstellen. Was moechtest du machen?`;
+    return `Hi ${activeProfile.name}, ich bin Tavi! Ich kann Geschichten, Dokus, Avatare und Bilder f\u00fcr dich erstellen. Was m\u00f6chtest du machen?`;
   }, [activeProfile, translate]);
 
   const [messages, setMessages] = useState<Message[]>([
@@ -412,8 +414,9 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 260);
+      void refreshUserAccess();
     }
-  }, [isOpen]);
+  }, [isOpen, refreshUserAccess]);
 
   // Build history for API from current messages
   const buildHistory = (): TaviHistoryMessage[] => {
@@ -436,7 +439,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const sendMessage = async (text: string) => {
     const messageText = text.trim();
     const sentWordCount = messageText.split(/\s+/).filter(Boolean).length;
-    if (!messageText || isLoading || sentWordCount > 100) return;
+    if (!messageText || isLoading || isOutOfChatCredits || sentWordCount > 100) return;
     setShowSuggestions(false);
 
     const userMessage: Message = {
@@ -471,6 +474,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
       };
 
       setMessages((prev) => [...prev, taviMessage]);
+      void refreshUserAccess();
     } catch (error) {
       console.error('Tavi chat error:', error);
 
@@ -516,7 +520,12 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   };
 
   const isOverLimit = wordCount > 100;
-  const canSend = !isLoading && inputMessage.trim().length > 0 && !isOverLimit;
+  const remainingChatCredits = billing?.chatCredits.remaining;
+  const chatQuotaLabel = remainingChatCredits === undefined
+    ? '-'
+    : remainingChatCredits === null ? '\u221e' : remainingChatCredits;
+  const isOutOfChatCredits = remainingChatCredits !== undefined && remainingChatCredits !== null && remainingChatCredits <= 0;
+  const canSend = !isLoading && !isOutOfChatCredits && inputMessage.trim().length > 0 && !isOverLimit;
 
   return (
     <AnimatePresence>
@@ -555,8 +564,8 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
             <div className="relative flex items-center justify-between border-b border-border px-5 py-4">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--talea-text-tertiary)] via-[var(--primary)] to-[var(--talea-text-tertiary)]" />
 
-              <div className="flex items-center gap-3">
-                <div className="relative">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative shrink-0">
                   <div
                     className="h-11 w-11 rounded-full border-[2.5px] border-[var(--talea-text-tertiary)]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
                     style={{ backgroundImage: 'url(/tavi.png)' }}
@@ -564,12 +573,15 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                   <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
                 </div>
 
-                <div>
+                <div className="min-w-0">
                   <h3 className="font-[Fredoka] text-base font-bold text-foreground">
                     {t('chat.title')}
                   </h3>
                   <p className="text-[11px] font-medium text-muted-foreground">
                     {t('chat.subtitle')}
+                  </p>
+                  <p className="mt-1 inline-flex max-w-full truncate rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    {chatQuotaLabel} Anfragen &uuml;brig
                   </p>
                 </div>
               </div>
@@ -593,7 +605,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     message={message}
                     onAction={handleAction}
                     onChoice={sendMessage}
-                    choicesDisabled={isLoading}
+                    choicesDisabled={isLoading || isOutOfChatCredits}
                     t={tWithFallback}
                   />
                 ))}
@@ -622,8 +634,8 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                     value={inputMessage}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder={t('chat.placeholder')}
-                    disabled={isLoading}
+                    placeholder={isOutOfChatCredits ? 'Chat-Kontingent aufgebraucht' : t('chat.placeholder')}
+                    disabled={isLoading || isOutOfChatCredits}
                     maxLength={600}
                     className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-[var(--talea-text-tertiary)]/50 focus:ring-2 focus:ring-[var(--talea-text-tertiary)]/20"
                   />

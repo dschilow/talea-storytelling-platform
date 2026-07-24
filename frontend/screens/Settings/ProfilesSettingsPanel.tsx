@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { formatKeywordInput, parseKeywordInput } from "@/lib/child-profile-defaults";
 import { cn } from "@/lib/utils";
+import { taleaDisplayFont } from "@/components/talea/TaleaPastelPrimitives";
 
 type ProfileDraft = {
   name: string; avatarColor: string; age: string; readingLevel: string;
@@ -361,43 +362,43 @@ const ProfilesSettingsPanel: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="p-6" role="status" aria-live="polite">
-        <div className="h-28 animate-pulse rounded-3xl border border-border bg-card/70" />
+      <div className="talea-settings-panel p-4 sm:p-6 lg:p-8" role="status" aria-live="polite">
+        <div className="h-28 animate-pulse rounded-[1.5rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]" />
         <span className="sr-only">Kinderprofile werden geladen …</span>
       </div>
     );
   }
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <header className="overflow-hidden rounded-3xl border border-border bg-card/80 shadow-sm">
-        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+    <div className="talea-settings-panel space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="border-b border-[var(--talea-border-light)] pb-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex items-start gap-4">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.15rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--primary)] shadow-[0_8px_24px_rgba(91,72,59,0.06)]">
               <Users className="h-6 w-6" aria-hidden="true" />
             </span>
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">Familienprofile</p>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-tertiary)]">Familienprofile</p>
+              <h2 className="mt-1 text-[1.75rem] font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-[2rem]" style={{ fontFamily: taleaDisplayFont }}>
                 Jedes Kind bekommt seine eigene Welt
               </h2>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--talea-text-secondary)]">
                 Interessen, Lernziele, Fortschritt und Kind-Avatar bleiben dem ausgewählten Profil eindeutig zugeordnet.
               </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
-            <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <div className="rounded-[1.15rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Plan</p>
               <p className="mt-0.5 text-sm font-bold text-foreground">{planLabel}</p>
             </div>
-            <div className="rounded-2xl border border-border bg-background/70 px-4 py-3">
+            <div className="rounded-[1.15rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Profile</p>
               <p className="mt-0.5 text-sm font-bold text-foreground">{profiles.length} von {profileLimit}</p>
             </div>
           </div>
         </div>
         {activeProfileName ? (
-          <div className="border-t border-border bg-primary/[0.055] px-5 py-3 text-sm text-foreground sm:px-6">
+          <div className="mt-5 rounded-[1.15rem] border border-[var(--talea-border-light)] bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-inset))] px-4 py-3 text-sm text-[var(--talea-text-primary)]">
             <span className="font-semibold">Gerade ausgewählt:</span> {activeProfileName}
           </div>
         ) : null}

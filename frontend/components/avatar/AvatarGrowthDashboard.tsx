@@ -460,7 +460,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
       )}
 
       {(activeGoals.length > 1 || completedGoals.length > 0) && (
-        <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
+        <section className="overflow-hidden rounded-[24px] border p-4 sm:p-5" style={panel}>
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5" style={{ color: isDark ? '#a9bdd5' : '#5d7897' }} />
             <div>
@@ -472,7 +472,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
             {[...completedGoals, ...activeGoals.filter((goal) => goal.id !== nextGoal?.id)].map((goal) => (
               <div
                 key={goal.id}
-                className="flex items-center gap-3 rounded-2xl border px-3.5 py-3"
+                className="flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border px-3.5 py-3"
                 style={{
                   borderColor: goal.status === 'completed' ? (isDark ? '#476656' : '#b9d5c6') : (isDark ? '#3a4f65' : '#dfd4c6'),
                   background: goal.status === 'completed' ? (isDark ? 'rgba(48,78,63,0.22)' : '#edf7f1') : 'transparent',
@@ -481,9 +481,9 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
                 <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style={{ borderColor: isDark ? '#496079' : '#d2c5b6', color: isDark ? '#c4d2e1' : '#50667d' }}>
                   {goal.status === 'completed' ? <Check className="h-4 w-4" /> : `${goal.progress}/${goal.target}`}
                 </span>
-                <div className="min-w-0">
-                  <p className="truncate font-semibold" style={{ color: isDark ? '#e5edf7' : '#263a4f' }}>{germanize(goal.title)}</p>
-                  <p className="truncate text-xs" style={{ color: isDark ? '#95a9c0' : '#718399' }}>{goal.status === 'completed' ? 'Geschafft!' : germanize(goal.description)}</p>
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="break-words font-semibold" style={{ color: isDark ? '#e5edf7' : '#263a4f' }}>{germanize(goal.title)}</p>
+                  <p className="line-clamp-2 break-words text-xs leading-relaxed" style={{ color: isDark ? '#95a9c0' : '#718399' }}>{goal.status === 'completed' ? 'Geschafft!' : germanize(goal.description)}</p>
                 </div>
               </div>
             ))}

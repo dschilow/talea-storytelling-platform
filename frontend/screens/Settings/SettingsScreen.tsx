@@ -39,7 +39,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProfilesSettingsPanel from './ProfilesSettingsPanel';
-import CharacterOriginsScreen from '../CharacterPool/CharacterOriginsScreen';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import {
   getAllOfflineGeneratedAudios,
@@ -49,6 +48,11 @@ import {
   saveStoryOffline,
 } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
+import {
+  TaleaPageBackground,
+  taleaDisplayFont,
+  taleaPageShellClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 type ThemeOption = 'light' | 'dark' | 'system';
 type SubscriptionPlan = 'free' | 'starter' | 'familie' | 'premium';
@@ -215,35 +219,40 @@ const PLAN_META: Record<
   },
 };
 
-const SettingsBackground: React.FC = () => {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+const settingsPanelClass = 'talea-settings-panel space-y-6 p-4 sm:p-6 lg:p-8';
 
+function SettingsPanelHeader(props: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-      <motion.div
-        className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-20"
-        style={{
-          background: isDark
-            ? 'radial-gradient(circle, rgba(94,128,166,0.42) 0%, rgba(34,56,82,0.26) 55%, transparent 76%)'
-            : 'radial-gradient(circle, rgba(227,213,202,0.55) 0%, rgba(214,204,194,0.28) 52%, transparent 74%)',
-        }}
-        animate={{ scale: [1, 1.15, 1], x: [0, 20, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute -bottom-32 -left-32 w-[420px] h-[420px] rounded-full opacity-20"
-        style={{
-          background: isDark
-            ? 'radial-gradient(circle, rgba(83,118,152,0.35) 0%, rgba(20,34,52,0.3) 56%, transparent 76%)'
-            : 'radial-gradient(circle, rgba(245,235,224,0.6) 0%, rgba(213,189,175,0.22) 55%, transparent 75%)',
-        }}
-        animate={{ scale: [1, 1.2, 1], y: [0, -20, 0] }}
-        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
-      />
-    </div>
+    <header className="flex flex-col gap-5 border-b border-[var(--talea-border-light)] pb-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 items-start gap-4">
+        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.15rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--primary)] shadow-[0_8px_24px_rgba(91,72,59,0.06)]">
+          {props.icon}
+        </span>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-tertiary)]">
+            {props.eyebrow}
+          </p>
+          <h2
+            className="mt-1 text-[1.75rem] font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-[2rem]"
+            style={{ fontFamily: taleaDisplayFont }}
+          >
+            {props.title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--talea-text-secondary)]">
+            {props.subtitle}
+          </p>
+        </div>
+      </div>
+      {props.action ? <div className="shrink-0">{props.action}</div> : null}
+    </header>
   );
-};
+}
 
 function LanguageSelector() {
   const { t, i18n } = useTranslation();
@@ -299,40 +308,34 @@ function LanguageSelector() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#A989F2] to-[#FF6B9D] flex items-center justify-center shadow-md">
-            <Globe className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              {t('settings.language')}
-            </h2>
-            <p className="text-xs text-muted-foreground">{t('settings.languageDescription')}</p>
-          </div>
-        </div>
-      </div>
+    <div className={settingsPanelClass}>
+      <SettingsPanelHeader
+        eyebrow="Sprache & Region"
+        title={t('settings.language')}
+        subtitle={t('settings.languageDescription')}
+        icon={<Globe className="h-5 w-5" />}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {SUPPORTED_LANGUAGES.map((lang) => (
           <motion.button
             key={lang.code}
-            whileHover={{ scale: 1.02, y: -2 }}
+            whileHover={{ y: -2 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => handleLanguageChange(lang.code)}
             disabled={isSaving}
-            className={`relative p-4 rounded-2xl border-2 transition-all ${
+            aria-pressed={selectedLanguage === lang.code}
+            className={`relative min-h-24 rounded-[1.4rem] border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/15 ${
               selectedLanguage === lang.code
-                ? 'border-[#A989F2] bg-[#A989F2]/10 shadow-lg shadow-[#A989F2]/10'
-                : 'border-border bg-card/70 hover:border-[#A989F2]/40 hover:shadow-md hover:bg-accent/70'
+                ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,var(--talea-surface-primary))] shadow-[0_12px_28px_rgba(91,72,59,0.08)]'
+                : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] hover:border-[var(--talea-border-soft)] hover:bg-[var(--talea-surface-primary)]'
             } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {selectedLanguage === lang.code && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="absolute top-2 right-2 w-6 h-6 bg-[#A989F2] rounded-full flex items-center justify-center shadow-sm"
+                className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] shadow-sm"
               >
                 <Check className="w-4 h-4 text-white" />
               </motion.div>
@@ -340,8 +343,8 @@ function LanguageSelector() {
             <div className="flex items-center gap-3">
               <span className="text-3xl">{lang.flag}</span>
               <div className="text-left">
-                <div className="font-bold text-foreground">{lang.nativeName}</div>
-                <div className="text-sm text-muted-foreground">{lang.name}</div>
+                <div className="font-semibold text-[var(--talea-text-primary)]">{lang.nativeName}</div>
+                <div className="text-sm text-[var(--talea-text-secondary)]">{lang.name}</div>
               </div>
             </div>
           </motion.button>
@@ -372,20 +375,13 @@ function ThemeSelector() {
   ];
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D] flex items-center justify-center shadow-md">
-            <Sun className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              {t('settings.themeTitle')}
-            </h2>
-            <p className="text-xs text-muted-foreground">{t('settings.themeDescription')}</p>
-          </div>
-        </div>
-      </div>
+    <div className={settingsPanelClass}>
+      <SettingsPanelHeader
+        eyebrow="Darstellung"
+        title={t('settings.themeTitle')}
+        subtitle={t('settings.themeDescription')}
+        icon={<Sun className="h-5 w-5" />}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {themeOptions.map((option, i) => {
@@ -396,29 +392,32 @@ function ThemeSelector() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              whileHover={{ scale: 1.03, y: -2 }}
+              whileHover={{ y: -2 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => handleThemeChange(option.value)}
-              className={`relative p-5 rounded-2xl border-2 transition-all ${
+              aria-pressed={theme === option.value}
+              className={`relative min-h-40 rounded-[1.4rem] border p-5 transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/15 ${
                 theme === option.value
-                  ? 'border-[#FF9B5C] bg-[#FF9B5C]/10 shadow-lg shadow-[#FF9B5C]/10'
-                  : 'border-border bg-card/70 hover:border-[#FF9B5C]/40 hover:shadow-md hover:bg-accent/70'
+                  ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,var(--talea-surface-primary))] shadow-[0_12px_28px_rgba(91,72,59,0.08)]'
+                  : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] hover:border-[var(--talea-border-soft)] hover:bg-[var(--talea-surface-primary)]'
               }`}
             >
               {theme === option.value && (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute top-2 right-2 w-6 h-6 bg-[#FF9B5C] rounded-full flex items-center justify-center shadow-sm"
+                  className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] shadow-sm"
                 >
                   <Check className="w-4 h-4 text-white" />
                 </motion.div>
               )}
               <div className="flex flex-col items-center gap-3">
-                <Icon className="w-8 h-8 text-foreground/80" />
+                <span className="flex h-12 w-12 items-center justify-center rounded-[1rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-secondary)]">
+                  <Icon className="h-6 w-6" />
+                </span>
                 <div className="text-center">
-                  <div className="font-bold text-foreground">{option.label}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
+                  <div className="font-semibold text-[var(--talea-text-primary)]">{option.label}</div>
+                  <div className="mt-1 text-xs leading-5 text-[var(--talea-text-secondary)]">{option.description}</div>
                 </div>
               </div>
             </motion.button>
@@ -732,20 +731,13 @@ function ParentalDashboardPanel() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-full overflow-x-hidden">
-      <div className="flex items-center gap-3">
-        <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--primary)] via-[var(--talea-border-light)] to-[var(--talea-border-soft)] text-[#2f4058]">
-          <Shield className="h-5 w-5" />
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-            {t('settings.parentalTitle', 'Eltern-Dashboard')}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.parentalSubtitle', 'Sicherheit, Lernziele und Tageslimits für Storys und Dokus.')}
-          </p>
-        </div>
-      </div>
+    <div className={`${settingsPanelClass} max-w-full overflow-x-hidden`}>
+      <SettingsPanelHeader
+        eyebrow="Familie & Schutz"
+        title={t('settings.parentalTitle', 'Eltern-Dashboard')}
+        subtitle={t('settings.parentalSubtitle', 'Sicherheit, Lernziele und Tageslimits für Storys und Dokus.')}
+        icon={<Shield className="h-5 w-5" />}
+      />
 
       {controls.hasPin && !unlocked && (
         <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-4 dark:border-[#4b5f79] dark:bg-[#17263a]">
@@ -1333,21 +1325,19 @@ function AudioLibraryPanel() {
   );
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div>
-          <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-            {t('settings.audioLibraryTitle', 'Audio-Bibliothek')}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {t('settings.audioLibrarySubtitle', 'Persistente Story- und Doku-Audios aus dem Player (geräteübergreifend).')}
-          </p>
-        </div>
-        <Button type="button" variant="outline" onClick={loadItems} disabled={loading}>
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          {t('settings.audioLibraryRefresh', 'Aktualisieren')}
-        </Button>
-      </div>
+    <div className={settingsPanelClass}>
+      <SettingsPanelHeader
+        eyebrow="Hören & Offline"
+        title={t('settings.audioLibraryTitle', 'Audio-Bibliothek')}
+        subtitle={t('settings.audioLibrarySubtitle', 'Deine Story- und Doku-Audios – auf allen Geräten und auf Wunsch offline.')}
+        icon={<Headphones className="h-5 w-5" />}
+        action={
+          <Button type="button" variant="outline" onClick={loadItems} disabled={loading} className="rounded-[1.1rem]">
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            {t('settings.audioLibraryRefresh', 'Aktualisieren')}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <input
@@ -1469,26 +1459,19 @@ function SignOutPanel() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--talea-border-light)] flex items-center justify-center shadow-md">
-            <LogOut className="w-5 h-5 text-[#2f4058]" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              {t('settings.signOut', 'Abmelden')}
-            </h2>
-            <p className="text-xs text-muted-foreground">{t('settings.signOutDescription', 'Sichere Abmeldung von deinem Talea Konto.')}</p>
-          </div>
-        </div>
-      </div>
+    <div className={settingsPanelClass}>
+      <SettingsPanelHeader
+        eyebrow="Sitzung"
+        title={t('settings.signOut', 'Abmelden')}
+        subtitle={t('settings.signOutDescription', 'Beende deine aktuelle Talea-Sitzung sicher.')}
+        icon={<LogOut className="h-5 w-5" />}
+      />
 
-      <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-5 dark:border-[#4b5f79] dark:bg-[#17263a]">
-        <p className="text-sm text-muted-foreground mb-4">
+      <div className="rounded-[1.5rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-5 sm:p-6">
+        <p className="mb-4 text-sm leading-6 text-[var(--talea-text-secondary)]">
           {t('settings.signOutConfirm', 'Du kannst dich jederzeit abmelden und später mit demselben Konto wieder einloggen.')}
         </p>
-        <Button type="button" onClick={handleSignOut} disabled={isSigningOut} className="bg-[#c68d8d] hover:bg-[#b87878] text-white">
+        <Button type="button" onClick={handleSignOut} disabled={isSigningOut} className="rounded-[1.1rem] bg-[var(--talea-accent-rose)] text-white hover:opacity-90">
           <LogOut className="mr-2 h-4 w-4" />
           {isSigningOut ? t('settings.signingOut', 'Abmeldung...') : t('settings.signOutButton', 'Jetzt abmelden')}
         </Button>
@@ -1529,27 +1512,19 @@ function BillingPanel() {
   }, [billing?.periodStart]);
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9] flex items-center justify-center shadow-md">
-            <CreditCard className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-              {t('settings.billingTitle', 'Abo & Credits')}
-            </h2>
-            <p className="text-xs text-muted-foreground">{t('settings.billingSubtitle', 'Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.')}</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={loadBilling}>
-            <RefreshCcw className="w-4 h-4 mr-2" />
+    <div className={settingsPanelClass}>
+      <SettingsPanelHeader
+        eyebrow="Plan & Nutzung"
+        title={t('settings.billingTitle', 'Abo & Credits')}
+        subtitle={t('settings.billingSubtitle', 'Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.')}
+        icon={<CreditCard className="h-5 w-5" />}
+        action={
+          <Button type="button" variant="outline" onClick={loadBilling} className="rounded-[1.1rem]">
+            <RefreshCcw className="mr-2 h-4 w-4" />
             {t('settings.billingRefresh', 'Aktualisieren')}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {isLoading ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
@@ -1694,6 +1669,7 @@ function BillingPanel() {
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const location = useLocation();
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (!location.search.includes('section=billing')) return;
@@ -1704,54 +1680,87 @@ export default function SettingsScreen() {
   }, [location.search]);
 
   return (
-    <div className="min-h-screen relative pb-28 bg-[linear-gradient(180deg,var(--talea-surface-inset)_0%,#edede9_100%)] dark:bg-[linear-gradient(180deg,#111b29_0%,#152235_100%)]">
-      <SettingsBackground />
+    <div className="relative min-h-screen pb-32 pt-5 md:pb-12 md:pt-8">
+      <TaleaPageBackground isDark={resolvedTheme === 'dark'} />
 
-      <div className="relative z-10 pt-6">
+      <div className={`${taleaPageShellClass} relative z-10`}>
         <motion.div
-          initial={{ opacity: 0, y: -15 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="mb-6 px-2 sm:mb-8 sm:px-1"
         >
-          <div className="flex items-center gap-4">
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--primary)] via-[var(--talea-border-light)] to-[var(--talea-border-soft)] flex items-center justify-center shadow-xl shadow-[var(--primary)]/35"
-            >
-              <Settings className="w-7 h-7 text-[#2f4058]" />
-            </motion.div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="mt-1 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-xl">
+                <Settings className="h-5 w-5" />
+              </span>
+              <div>
+                <span className="inline-flex rounded-full border border-[var(--talea-border-light)] bg-white/65 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-secondary)] dark:bg-[var(--talea-surface-inset)]">
+                  Dein Talea
+                </span>
+                <h1
+                  className="mt-3 text-[2.35rem] font-semibold leading-[0.98] tracking-[-0.035em] text-[var(--talea-text-primary)] sm:text-[3.15rem]"
+                  style={{ fontFamily: taleaDisplayFont }}
+                >
                 {t('settings.title')}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{t('settings.subtitle')}</p>
+                </h1>
+                <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-[var(--talea-text-secondary)] sm:text-base">
+                  {t('settings.subtitle')}
+                </p>
+              </div>
+            </div>
+            <div className="hidden items-center gap-2 pb-1 lg:flex" aria-hidden="true">
+              {['Konto', 'Familie', 'Nutzung'].map((label) => (
+                <span key={label} className="rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--talea-text-tertiary)]">
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
         </motion.div>
 
-        <div className="rounded-3xl bg-card/70 backdrop-blur-xl border border-border shadow-xl overflow-visible md:overflow-hidden min-h-[72vh] md:min-h-[calc(100vh-170px)]">
+        <div className="relative min-h-[72vh] overflow-visible rounded-[2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:bg-white/80 md:min-h-[calc(100vh-220px)] md:overflow-hidden dark:before:bg-white/10">
           <UserProfile
             appearance={{
               baseTheme: undefined,
+              variables: {
+                colorPrimary: 'var(--primary)',
+                colorText: 'var(--talea-text-primary)',
+                colorTextSecondary: 'var(--talea-text-secondary)',
+                colorBackground: 'transparent',
+                colorInputBackground: 'var(--talea-surface-primary)',
+                colorInputText: 'var(--talea-text-primary)',
+                fontFamily: '"Manrope", "Sora", sans-serif',
+                fontFamilyButtons: '"Manrope", "Sora", sans-serif',
+                borderRadius: '1.1rem',
+              },
               elements: {
                 rootBox: 'talea-settings-profile w-full !max-w-none !min-w-0',
-                cardBox: '!w-full !max-w-none !min-w-0 !h-auto md:!h-[calc(100vh-170px)]',
+                cardBox: '!w-full !max-w-none !min-w-0 !h-auto md:!min-h-[calc(100vh-220px)]',
                 card: '!h-auto md:!h-full !w-full !max-w-none !min-w-0 shadow-none bg-transparent',
-                navbar: 'bg-card/70 backdrop-blur-lg border-b md:border-b-0 md:border-r border-[var(--talea-border-soft)] dark:border-[#4a5f78] !w-full !max-w-none',
-                navbarButtons: '!flex !flex-col !gap-1.5 !w-full',
-                navbarButton: 'text-foreground/70 hover:bg-accent/70 rounded-xl transition-all',
-                navbarButtonActive: 'bg-[var(--talea-surface-inset)] text-[#425b78] dark:bg-[#223850] dark:text-[#c9dbf1] font-semibold',
+                navbar: '!w-full !max-w-none border-b border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]/82 backdrop-blur-xl md:border-b-0 md:border-r',
+                navbarButtons: '!flex !w-full !flex-col !gap-1.5',
+                navbarButton: '!min-h-11 rounded-[1.15rem] !px-3 text-[var(--talea-text-secondary)] transition-all hover:bg-[var(--talea-surface-primary)] hover:text-[var(--talea-text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--primary)]',
+                navbarButtonActive: '!bg-[var(--talea-surface-primary)] !font-semibold !text-[var(--talea-text-primary)] shadow-[0_8px_22px_rgba(91,72,59,0.07)]',
+                navbarButtonIcon: '!text-[var(--talea-text-tertiary)]',
+                navbarButtonText: '!text-[13px] !font-medium',
                 navbarMobileMenuRow:
-                  'hidden md:flex items-center justify-between px-3 py-2 border-b border-[var(--talea-border-soft)] dark:border-[#4a5f78] bg-card/70',
+                  'hidden md:flex items-center justify-between px-3 py-2 border-b border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]',
                 navbarMobileMenuButton:
-                  'hidden md:inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--talea-border-soft)] dark:border-[#4a5f78] bg-[var(--talea-surface-inset)] dark:bg-[#223850] text-[#425b78] dark:text-[#c9dbf1]',
+                  'hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-secondary)]',
                 pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
-                page: '!h-auto md:!h-full !min-w-0 bg-transparent',
-                formButtonPrimary: 'bg-gradient-to-r from-[var(--primary)] via-[var(--talea-border-light)] to-[#d5e3cf] hover:opacity-90 text-[#22344c] rounded-xl shadow-lg',
-                formFieldInput: 'rounded-xl border-[var(--talea-border-soft)] dark:border-[#4a617a] bg-card/70 backdrop-blur-lg',
+                page: '!h-auto md:!h-full !min-w-0 !w-full bg-transparent',
+                profilePage: '!w-full !max-w-none',
+                headerTitle: '!font-serif !text-3xl !font-semibold !tracking-tight !text-[var(--talea-text-primary)]',
+                headerSubtitle: '!text-sm !font-medium !leading-6 !text-[var(--talea-text-secondary)]',
+                profileSection: 'rounded-[1.5rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] !p-4 sm:!p-5',
+                profileSectionTitleText: '!font-semibold !text-[var(--talea-text-primary)]',
+                profileSectionSubtitleText: '!text-[var(--talea-text-secondary)]',
+                profileSectionPrimaryButton: 'rounded-[1rem] !font-semibold !text-[var(--primary)] hover:!bg-[var(--talea-surface-primary)]',
+                formButtonPrimary: 'rounded-[1.05rem] bg-[linear-gradient(135deg,var(--primary),var(--talea-accent-sky))] !font-semibold !text-white shadow-[0_10px_26px_rgba(123,168,156,0.22)] hover:opacity-90',
+                formFieldInput: 'rounded-[1.05rem] border-[var(--talea-border-soft)] bg-[var(--talea-surface-primary)] backdrop-blur-lg focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/12',
+                formFieldLabel: '!font-semibold !text-[var(--talea-text-secondary)]',
               },
             }}
           >
@@ -1791,13 +1800,6 @@ export default function SettingsScreen() {
               <ProfilesSettingsPanel />
             </UserProfile.Page>
 
-            <UserProfile.Page
-              label={t('settings.characterOriginsPanel', 'Charaktergeschichten')}
-              labelIcon={<BookOpen className="w-4 h-4" />}
-              url="characters"
-            >
-              <CharacterOriginsScreen />
-            </UserProfile.Page>
             <UserProfile.Page
               label={t('settings.audioLibraryPanel', 'Audio-Bibliothek')}
               labelIcon={<Headphones className="w-4 h-4" />}

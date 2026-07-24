@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Plus, Star, Users } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useChildProfiles } from "@/contexts/ChildProfilesContext";
+import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
+import { useBackend } from "@/hooks/useBackend";
 
 function profileInitials(name: string): string {
   const clean = name.trim();
@@ -11,8 +12,55 @@ function profileInitials(name: string): string {
   return parts.map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
+type ProfileAvatarBadgeProps = {
+  profile: Pick<ProfileDetails, "name" | "avatarColor">;
+  imageUrl: string | null | undefined;
+  isLoading: boolean;
+  isDark: boolean;
+  className: string;
+};
+
+const ProfileAvatarBadge: React.FC<ProfileAvatarBadgeProps> = ({
+  profile,
+  imageUrl,
+  isLoading,
+  isDark,
+  className,
+}) => {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageUrl]);
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center overflow-hidden font-bold text-white ${className}`}
+      style={{ background: profile.avatarColor || (isDark ? "#506d91" : "var(--primary)") }}
+      aria-hidden="true"
+    >
+      {imageUrl && !imageFailed ? (
+        <img
+          src={imageUrl}
+          alt=""
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          onError={() => setImageFailed(true)}
+        />
+      ) : isLoading ? (
+        <span className="h-full w-full animate-pulse bg-white/25" />
+      ) : (
+        profileInitials(profile.name)
+      )}
+    </span>
+  );
+};
+
 const ProfileSwitcher: React.FC = () => {
+  const [profileImageUrls, setProfileImageUrls] = useState<Record<string, string | null>>({});
   const navigate = useNavigate();
+  const backend = useBackend();
   const { resolvedTheme } = useTheme();
   const { isLoading, profiles, profileLimit, activeProfileId, activeProfile, setActiveProfileId } =
     useChildProfiles();
@@ -32,6 +80,35 @@ const ProfileSwitcher: React.FC = () => {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setProfileImageUrls({});
+
+    void Promise.all(
+      profiles.map(async (profile): Promise<[string, string | null]> => {
+        if (!profile.childAvatarId) return [profile.id, null];
+
+        try {
+          const avatar = await backend.avatar.get({
+            id: profile.childAvatarId,
+            profileId: profile.id,
+          }) as { imageUrl?: string };
+          return [profile.id, avatar.imageUrl || null];
+        } catch (error) {
+          console.warn(`Profilbild fuer ${profile.name} konnte nicht geladen werden.`, error);
+          return [profile.id, null];
+        }
+      })
+    ).then((entries) => {
+      if (!active) return;
+      setProfileImageUrls(Object.fromEntries(entries));
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [backend, profiles]);
+
   const hasProfiles = profiles.length > 0;
   const selected = useMemo(
     () => activeProfile || profiles.find((entry) => entry.id === activeProfileId) || null,
@@ -45,7 +122,7 @@ const ProfileSwitcher: React.FC = () => {
   return (
     <div
       ref={rootRef}
-      className="fixed left-1/2 top-3 z-[97] -translate-x-1/2 md:left-auto md:right-5 md:top-4 md:translate-x-0"
+      className="fixed bottom-[5.75rem] left-3 z-[97] md:bottom-auto md:left-auto md:right-5 md:top-4"
     >
       <button
         type="button"
@@ -59,15 +136,13 @@ const ProfileSwitcher: React.FC = () => {
           color: "var(--talea-text-primary)",
         }}
       >
-        <span
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
-          style={{
-            background: selected.avatarColor || (isDark ? "#506d91" : "var(--primary)"),
-            color: "#fff",
-          }}
-        >
-          {profileInitials(selected.name)}
-        </span>
+        <ProfileAvatarBadge
+          profile={selected}
+          imageUrl={profileImageUrls[selected.id]}
+          isLoading={Boolean(selected.childAvatarId && profileImageUrls[selected.id] === undefined)}
+          isDark={isDark}
+          className="h-8 w-8 rounded-full text-[11px] shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
+        />
         {/* Name only on desktop — mobile stays icon-only to save space */}
         <span className="hidden max-w-[112px] truncate font-semibold md:inline">{selected.name}</span>
         <ChevronDown className={`hidden h-4 w-4 transition-transform md:inline ${open ? "rotate-180" : ""}`} />
@@ -75,7 +150,7 @@ const ProfileSwitcher: React.FC = () => {
 
       {open && (
         <div
-          className="mt-2 w-[292px] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
+          className="absolute bottom-full left-0 mb-2 w-[292px] max-w-[calc(100vw-1.5rem)] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl md:bottom-auto md:left-auto md:right-0 md:top-full md:mb-0 md:mt-2"
           style={{
             borderColor: "var(--talea-border-light)",
             background: isDark ? "rgba(19,27,37,0.96)" : "rgba(255,251,247,0.96)",
@@ -110,12 +185,13 @@ const ProfileSwitcher: React.FC = () => {
                       : "rgba(255,255,255,0.64)",
                   }}
                 >
-                  <span
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[11px] font-bold text-white"
-                    style={{ background: profile.avatarColor || (isDark ? "#506d91" : "var(--primary)") }}
-                  >
-                    {profileInitials(profile.name)}
-                  </span>
+                  <ProfileAvatarBadge
+                    profile={profile}
+                    imageUrl={profileImageUrls[profile.id]}
+                    isLoading={Boolean(profile.childAvatarId && profileImageUrls[profile.id] === undefined)}
+                    isDark={isDark}
+                    className="h-8 w-8 rounded-xl text-[11px]"
+                  />
 
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{profile.name}</span>

@@ -41,16 +41,16 @@ export function NarrativeProfileFields({
           <div>
             <p className="text-sm font-bold text-foreground">So wird die Figur in Geschichten lebendig</p>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              Diese Angaben beschreiben Charakter und Stimme. Sie ver\u00e4ndern nicht das Avatar-Bild.
+              Diese Angaben beschreiben Charakter und Stimme. Sie ver&auml;ndern nicht das Avatar-Bild.
             </p>
           </div>
         </div>
       </div>
 
       <fieldset>
-        <legend className="text-sm font-semibold text-foreground/85">Kern der Pers\u00f6nlichkeit</legend>
-        <p className="mt-1 text-xs text-muted-foreground">W\u00e4hle den Zug, der diese Figur am st\u00e4rksten pr\u00e4gt.</p>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Kern der Pers\u00f6nlichkeit">
+        <legend className="text-sm font-semibold text-foreground/85">Kern der Pers&ouml;nlichkeit</legend>
+        <p className="mt-1 text-xs text-muted-foreground">W&auml;hle den Zug, der diese Figur am st&auml;rksten pr&auml;gt.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={"Kern der Pers\u00f6nlichkeit"}>
           {NARRATIVE_TRAIT_OPTIONS.map((option) => {
             const selected = formData.dominantPersonality === option.id;
             return (
@@ -127,7 +127,7 @@ export function NarrativeProfileFields({
             <Quote className="h-3.5 w-3.5 text-[#168d84]" aria-hidden="true" />
             Lieblingssatz <span className="font-normal text-muted-foreground">(optional)</span>
           </span>
-          <span className="block text-xs text-muted-foreground">Ein Satz, der h\u00f6chstens einmal pro Geschichte auftaucht.</span>
+          <span className="block text-xs text-muted-foreground">Ein Satz, der h&ouml;chstens einmal pro Geschichte auftaucht.</span>
           <input
             value={formData.catchphrase}
             onChange={(event) => updateFormData({ catchphrase: event.target.value })}
@@ -142,13 +142,13 @@ export function NarrativeProfileFields({
         <summary className="cursor-pointer text-sm font-semibold text-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2DD4BF]/30">
           Kleine Vorgeschichte <span className="font-normal text-muted-foreground">(optional)</span>
         </summary>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Nur ein Detail, das in einer Geschichte wichtig werden k\u00f6nnte.</p>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Nur ein Detail, das in einer Geschichte wichtig werden k&ouml;nnte.</p>
         <textarea
           value={formData.backstory}
           onChange={(event) => updateFormData({ backstory: event.target.value })}
           maxLength={520}
           rows={3}
-          placeholder="z. B. H\u00fctet eine Schachtel mit Fundst\u00fccken aus jedem Abenteuer."
+          placeholder={"z. B. H\u00fctet eine Schachtel mit Fundst\u00fccken aus jedem Abenteuer."}
           className="mt-3 w-full resize-none rounded-xl border border-border bg-card/70 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/65 focus:border-[#2DD4BF]/50 focus:outline-none focus:ring-1 focus:ring-[#2DD4BF]/30"
         />
       </details>

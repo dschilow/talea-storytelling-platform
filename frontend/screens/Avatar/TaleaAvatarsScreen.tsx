@@ -219,7 +219,7 @@ const AvatarCard: React.FC<{
           >
             {profileTrait ? (
               <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: palette.textMuted }}>
-                Pers\u00f6nlichkeit <span className="ml-1 capitalize tracking-normal" style={{ color: palette.text }}>{profileTrait}</span>
+                Pers&ouml;nlichkeit <span className="ml-1 capitalize tracking-normal" style={{ color: palette.text }}>{profileTrait}</span>
               </p>
             ) : null}
             {narrativeProfile?.quirk ? (

@@ -586,7 +586,7 @@ const TaleaDokusScreen: React.FC = () => {
   const audioPlayer = useAudioPlayer();
   const { isSignedIn, isLoaded, user } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
-  const { isAdmin } = useOptionalUserAccess();
+  const { isAdmin, billing, refresh: refreshUserAccess } = useOptionalUserAccess();
   const { canUseOffline, isAudioDokuSaved, isSaving, toggleAudioDoku } = useOffline();
   const { resolvedTheme } = useTheme();
   const reduceMotion = useReducedMotion();
@@ -754,9 +754,10 @@ const TaleaDokusScreen: React.FC = () => {
       return;
     }
     void loadMyDokus();
+    void refreshUserAccess();
     void loadPublicDokus();
     void loadAudioDokus();
-  }, [isLoaded, isSignedIn, backend, activeProfileId, user?.id]);
+  }, [isLoaded, isSignedIn, backend, activeProfileId, user?.id, refreshUserAccess]);
 
   useEffect(() => {
     if (!isSignedIn || activeTab !== 'mine') return;
@@ -1035,6 +1036,10 @@ const TaleaDokusScreen: React.FC = () => {
     discover: totalPublic,
     audio: totalAudio,
   };
+  const remainingDokuLabel = billing?.dokuCredits.remaining === undefined
+    ? '-'
+    : billing.dokuCredits.remaining === null ? '\u221e' : billing.dokuCredits.remaining;
+
 
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
@@ -1106,10 +1111,37 @@ const TaleaDokusScreen: React.FC = () => {
             </div>
           </motion.header>
 
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
+            className="grid grid-cols-2 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]"
+          >
+            {[
+              { label: t('common.total', 'Gesamt'), value: totalMy, dot: 'var(--primary)' },
+              { label: 'Dokus \u00fcbrig', value: remainingDokuLabel, dot: '#34d399' },
+            ].map((item) => (
+              <div key={item.label} className="flex min-w-0 items-center justify-center gap-2 px-2 py-3">
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: item.dot }}
+                  aria-hidden="true"
+                />
+                <span className="text-sm font-bold tabular-nums" style={{ color: palette.text }}>
+                  {item.value}
+                </span>
+                <span className="truncate text-[11px] font-medium sm:text-xs" style={{ color: palette.muted }}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </motion.div>
+
           {/* Segmented Tab Control */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
+
             transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
             className="rounded-[1.5rem] border p-1.5 shadow-[0_8px_24px_rgba(33,44,62,0.08)]"
             style={{

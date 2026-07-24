@@ -503,8 +503,7 @@ type StoriesSignedInContentProps = {
   contentTab: ContentTab;
   setContentTab: (value: ContentTab) => void;
   total: number;
-  completeCount: number;
-  generatingCount: number;
+  remainingStoryCredits: number | null | undefined;
   searchQuery: string;
   setSearchQuery: (value: string) => void;
   viewMode: ViewMode;
@@ -549,8 +548,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   contentTab,
   setContentTab,
   total,
-  completeCount,
-  generatingCount,
+  remainingStoryCredits,
   searchQuery,
   setSearchQuery,
   viewMode,
@@ -592,6 +590,10 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 }) => {
   const { t } = useTranslation();
   const featuredStory = filteredStories[0];
+  const remainingStoryLabel = remainingStoryCredits === undefined
+    ? "-"
+    : remainingStoryCredits === null ? "\u221e" : remainingStoryCredits;
+
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
   const showFilterPanel = isDesktop || showFilters;
   const isStudioTabActive = isAdmin && contentTab === "studio";
@@ -637,11 +639,10 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             ) : null}
           </div>
 
-          <div className="grid grid-cols-3 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] dark:border-white/10">
+          <div className="grid grid-cols-2 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] dark:border-white/10">
             {[
               { label: t("common.total"), value: total, dot: "bg-[var(--primary)]" },
-              { label: t("storiesScreen.status.complete"), value: completeCount, dot: "bg-emerald-400" },
-              { label: t("storiesScreen.status.generating"), value: generatingCount, dot: "bg-amber-400" },
+              { label: "Storys \u00fcbrig", value: remainingStoryLabel, dot: "bg-emerald-400" },
             ].map((item) => (
               <div key={item.label} className="flex min-w-0 items-center justify-center gap-1.5 px-2 py-2.5">
                 <span className={cn("h-2 w-2 rounded-full", item.dot)} aria-hidden />
@@ -826,7 +827,7 @@ const TaleaStoriesScreen: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
-  const { isAdmin } = useOptionalUserAccess();
+  const { isAdmin, billing, refresh: refreshUserAccess } = useOptionalUserAccess();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
@@ -901,12 +902,14 @@ const TaleaStoriesScreen: React.FC = () => {
       return;
     }
 
+    void refreshUserAccess();
+
     if (contentTab === "stories") {
       void loadStories();
     } else {
       setLoading(false);
     }
-  }, [authLoaded, isSignedIn, contentTab, loadStories, activeProfileId]);
+  }, [authLoaded, isSignedIn, contentTab, loadStories, activeProfileId, refreshUserAccess]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -984,8 +987,6 @@ const TaleaStoriesScreen: React.FC = () => {
     return [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [stories, searchQuery, genreFilter, ageGroupFilter, lengthFilter, avatarFilter, sortMode]);
 
-  const completeCount = stories.filter((story) => story.status === "complete").length;
-  const generatingCount = stories.filter((story) => story.status === "generating").length;
   const hasActiveFilters = searchQuery.trim().length > 0 || genreFilter !== "all" || ageGroupFilter !== "all" || lengthFilter !== "all" || avatarFilter !== "all";
 
   return (
@@ -1001,8 +1002,7 @@ const TaleaStoriesScreen: React.FC = () => {
           contentTab={contentTab}
           setContentTab={setContentTab}
           total={total}
-          completeCount={completeCount}
-          generatingCount={generatingCount}
+          remainingStoryCredits={billing?.storyCredits.remaining}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           viewMode={viewMode}

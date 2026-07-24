@@ -735,37 +735,61 @@
   z-index: 5002 !important;
 }
 
-/* Settings: Clerk user profile full-height, flat mobile navigation and stable layout */
+/* Talea settings shell: Clerk stays functional, but visually belongs to the app. */
+.talea-settings-profile {
+  color: var(--talea-text-primary);
+  font-family: 'Manrope', 'Sora', sans-serif;
+}
+
 .talea-settings-profile .cl-cardBox,
-.talea-settings-profile .cl-card {
+.talea-settings-profile .cl-card,
+.talea-settings-profile .cl-pageScrollBox,
+.talea-settings-profile .cl-page {
   width: 100% !important;
   max-width: none !important;
   min-width: 0 !important;
-  overflow-x: hidden !important;
 }
 
 .talea-settings-profile .cl-card {
+  overflow: hidden !important;
+  border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  border: 0 !important;
 }
 
 .talea-settings-profile .cl-navbar {
-  background: rgba(255, 255, 255, 0.8) !important;
-  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+  flex: 0 0 17rem !important;
+  width: 17rem !important;
+  padding: 1.25rem 1rem !important;
+  border-color: var(--talea-border-light) !important;
+  background: var(--talea-surface-inset) !important;
 }
 
-.dark .talea-settings-profile .cl-navbar {
-  background: rgba(26, 29, 36, 0.85) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+.talea-settings-profile .cl-navbarButtons {
+  gap: 0.3rem !important;
+}
+
+.talea-settings-profile .cl-navbarButton {
+  justify-content: flex-start !important;
+  gap: 0.7rem !important;
+  min-height: 2.8rem !important;
+  border: 1px solid transparent !important;
+}
+
+.talea-settings-profile .cl-navbarButton[data-active="true"],
+.talea-settings-profile .cl-navbarButton[aria-current="page"] {
+  border-color: var(--talea-border-light) !important;
 }
 
 .talea-settings-profile .cl-pageScrollBox,
 .talea-settings-profile .cl-page {
-  background: transparent !important;
-  min-width: 0 !important;
-  width: 100% !important;
   overflow-x: hidden !important;
+  background: transparent !important;
+}
+
+.talea-settings-profile .cl-pageScrollBox {
+  scrollbar-color: var(--talea-border-soft) transparent;
+  scrollbar-width: thin;
 }
 
 .talea-settings-profile .cl-scrollBox {
@@ -773,6 +797,55 @@
   overflow-x: hidden !important;
 }
 
+.talea-settings-profile .cl-profilePage:not(:has(.talea-settings-panel)) {
+  width: 100% !important;
+  max-width: 58rem !important;
+  padding: 1.5rem !important;
+}
+
+.talea-settings-profile .cl-headerTitle {
+  font-family: 'Fraunces', 'Cormorant Garamond', serif !important;
+  letter-spacing: -0.025em !important;
+}
+
+.talea-settings-profile .cl-headerSubtitle {
+  line-height: 1.65 !important;
+}
+
+.talea-settings-profile .cl-profileSection {
+  margin-top: 1rem !important;
+  border-color: var(--talea-border-light) !important;
+  background: var(--talea-surface-inset) !important;
+  box-shadow: 0 8px 24px rgba(91, 72, 59, 0.045) !important;
+}
+
+.talea-settings-profile .cl-profileSectionItem {
+  border-color: var(--talea-border-light) !important;
+}
+
+.talea-settings-profile :is(.cl-formFieldInput, .cl-selectButton) {
+  min-height: 2.75rem !important;
+  border-color: var(--talea-border-soft) !important;
+  background: var(--talea-surface-primary) !important;
+  color: var(--talea-text-primary) !important;
+}
+
+.talea-settings-profile :is(.cl-formButtonPrimary, .cl-profileSectionPrimaryButton, .cl-formButtonReset):focus-visible,
+.talea-settings-profile .cl-navbarButton:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px !important;
+}
+
+.talea-settings-panel {
+  color: var(--talea-text-primary);
+}
+
+.talea-settings-panel :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Clerk's own billing page is hidden because Talea provides the credit-aware page. */
 .talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-page="billing"],
 .talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-localization-key*="billing"],
 .talea-settings-profile .cl-navbarButtons > .cl-navbarButton[data-localization-key*="subscription"] {
@@ -783,26 +856,21 @@
   .talea-settings-profile .cl-card {
     display: flex !important;
     flex-direction: column !important;
-    width: 100% !important;
-    max-width: none !important;
+    overflow: visible !important;
   }
 
   .talea-settings-profile .cl-navbar {
-    display: block !important;
     position: sticky !important;
     top: 0 !important;
     z-index: 20 !important;
+    display: block !important;
     width: 100% !important;
     max-width: none !important;
+    padding: 0.65rem !important;
     border-right: 0 !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-    background: rgba(255, 255, 255, 0.92) !important;
-    backdrop-filter: blur(16px) !important;
-  }
-
-  .dark .talea-settings-profile .cl-navbar {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-    background: rgba(26, 29, 36, 0.92) !important;
+    border-bottom: 1px solid var(--talea-border-light) !important;
+    background: color-mix(in srgb, var(--talea-surface-primary) 94%, transparent) !important;
+    backdrop-filter: blur(22px) !important;
   }
 
   .talea-settings-profile .cl-navbarMobileMenuRow,
@@ -811,25 +879,31 @@
   }
 
   .talea-settings-profile .cl-navbarButtons {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 0.375rem !important;
-    padding: 0.5rem !important;
+    display: flex !important;
     width: 100% !important;
     max-height: none !important;
-    overflow: visible !important;
+    flex-direction: row !important;
+    gap: 0.4rem !important;
+    overflow-x: auto !important;
+    padding: 0 !important;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+  }
+
+  .talea-settings-profile .cl-navbarButtons::-webkit-scrollbar {
+    display: none;
   }
 
   .talea-settings-profile .cl-navbarButton {
-    width: 100% !important;
-    min-height: 2.5rem !important;
+    width: auto !important;
+    min-width: max-content !important;
+    min-height: 2.75rem !important;
+    flex: 0 0 auto !important;
+    scroll-snap-align: start;
+    padding-inline: 0.85rem !important;
   }
 
-  .talea-settings-profile .cl-cardBox,
-  .talea-settings-profile .cl-pageScrollBox,
-  .talea-settings-profile .cl-page {
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
+  .talea-settings-profile .cl-profilePage:not(:has(.talea-settings-panel)) {
+    padding: 1rem !important;
   }
 }

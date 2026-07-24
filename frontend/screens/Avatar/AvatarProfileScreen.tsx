@@ -295,7 +295,7 @@ const AvatarProfileScreen: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: pageBackground }}>
+    <div className="min-h-screen overflow-x-hidden pb-24" style={{ background: pageBackground }}>
       <div className="mx-auto w-full max-w-6xl space-y-4 px-3 py-3 sm:px-5 sm:py-5">
         <header className="sticky top-2 z-30 flex items-center justify-between gap-3 rounded-2xl border px-2.5 py-2 backdrop-blur-xl" style={{ ...panel, background: isDark ? 'rgba(20,31,45,0.82)' : 'rgba(255,252,247,0.86)' }}>
           <button
@@ -355,7 +355,7 @@ const AvatarProfileScreen: React.FC = () => {
                 {isChildAvatar ? <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> : isProfileCopy ? <Share2 className="h-3.5 w-3.5" aria-hidden="true" /> : <User className="h-3.5 w-3.5" aria-hidden="true" />}
                 {roleLabel}
               </span>
-              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed md:mx-0" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
+              <p className="mx-auto mt-2 max-w-2xl break-words text-sm leading-relaxed [overflow-wrap:anywhere] md:mx-0" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
                 {publicDescription || (isChildAvatar
                   ? `${avatar.name} ist der persönliche Kind-Avatar dieses Profils. Er erlebt Geschichten mit und entwickelt dabei seine eigene Reise.`
                   : 'Jedes abgeschlossene Abenteuer hinterlässt Erinnerungen, stärkt Fähigkeiten und kann neue Schätze bringen.')}
@@ -391,8 +391,8 @@ const AvatarProfileScreen: React.FC = () => {
                 </h2>
               </div>
               {narrativeProfile?.dominantPersonality ? (
-                <span className="rounded-full border px-3 py-1.5 text-sm font-semibold capitalize" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#c3ddd5' : '#41675a' }}>
-                  Pers\u00f6nlichkeit: {narrativeProfile.dominantPersonality}
+                <span className="max-w-full break-words rounded-full border px-3 py-1.5 text-sm font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#c3ddd5' : '#41675a' }}>
+                  Pers&ouml;nlichkeit: {narrativeProfile.dominantPersonality}
                 </span>
               ) : null}
             </div>
@@ -401,13 +401,13 @@ const AvatarProfileScreen: React.FC = () => {
               {narrativeProfile?.quirk ? (
                 <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
                   <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Besonderheit</p>
-                  <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.quirk}</p>
+                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.quirk}</p>
                 </div>
               ) : null}
               {narrativeProfile?.backstory ? (
                 <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
                   <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Vorgeschichte</p>
-                  <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.backstory}</p>
+                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.backstory}</p>
                 </div>
               ) : null}
             </div>
@@ -415,7 +415,7 @@ const AvatarProfileScreen: React.FC = () => {
             {narrativeProfile?.traits?.length ? (
               <div className="mt-3 flex flex-wrap gap-2" aria-label="Charaktereigenschaften">
                 {narrativeProfile.traits.map((trait) => (
-                  <span key={trait} className="rounded-full border px-2.5 py-1 text-xs font-semibold capitalize" style={{ borderColor: isDark ? '#40566a' : '#d9cfc2', color: isDark ? '#bfd0e0' : '#60758b' }}>
+                  <span key={trait} className="max-w-full break-words rounded-full border px-2.5 py-1 text-xs font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#40566a' : '#d9cfc2', color: isDark ? '#bfd0e0' : '#60758b' }}>
                     {trait}
                   </span>
                 ))}
@@ -423,7 +423,7 @@ const AvatarProfileScreen: React.FC = () => {
             ) : null}
 
             {narrativeProfile?.catchphrase ? (
-              <blockquote className="mt-4 rounded-2xl border-l-4 px-4 py-3 text-sm italic leading-relaxed" style={{ borderColor: isDark ? '#9bc4b9' : '#78a899', background: isDark ? 'rgba(82,123,112,0.14)' : '#edf7f2', color: isDark ? '#c8d9e8' : '#587086' }}>
+              <blockquote className="mt-4 break-words rounded-2xl border-l-4 px-4 py-3 text-sm italic leading-relaxed [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#9bc4b9' : '#78a899', background: isDark ? 'rgba(82,123,112,0.14)' : '#edf7f2', color: isDark ? '#c8d9e8' : '#587086' }}>
                 &bdquo;{narrativeProfile.catchphrase}&ldquo;
               </blockquote>
             ) : null}
