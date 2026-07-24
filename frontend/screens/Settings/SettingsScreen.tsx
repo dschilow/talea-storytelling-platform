@@ -218,7 +218,7 @@ const PLAN_META: Record<
   },
 };
 
-const settingsPanelClass = 'talea-settings-panel space-y-6 p-4 sm:p-6 lg:p-8';
+const settingsPanelClass = 'talea-settings-panel max-w-full min-w-0 overflow-x-hidden space-y-6 p-4 sm:p-6 lg:p-8';
 
 function SettingsPanelHeader(props: {
   eyebrow: string;
@@ -1343,12 +1343,12 @@ function AudioLibraryPanel() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('settings.audioLibrarySearch', 'Titel suchen...')}
-          className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none placeholder:text-[#93a3b8] focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd] dark:placeholder:text-[#8ea3bf]"
+          className="h-9 w-full min-w-0 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none placeholder:text-[#93a3b8] focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd] dark:placeholder:text-[#8ea3bf]"
         />
         <select
           value={sourceFilter}
           onChange={(event) => setSourceFilter(event.target.value as 'all' | 'story' | 'doku')}
-          className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
+          className="h-9 w-full min-w-0 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
         >
           <option value="all">{t('settings.audioLibraryAllTypes', 'Alle Typen')}</option>
           <option value="story">Story</option>
@@ -1357,7 +1357,7 @@ function AudioLibraryPanel() {
         <select
           value={sort}
           onChange={(event) => setSort(event.target.value as 'newest' | 'oldest')}
-          className="h-9 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
+          className="h-9 w-full min-w-0 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm text-[#2a3a4d] outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#47607c] dark:bg-[#20324a] dark:text-[#e6effd]"
         >
           <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
           <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
@@ -1388,7 +1388,7 @@ function AudioLibraryPanel() {
               group.items.map((item) => `${item.itemOrder ?? ''}:${(item.itemTitle || '').trim()}`),
             ).size;
             return (
-              <div key={group.key} className="rounded-2xl border border-border bg-card/70 p-4">
+              <div key={group.key} className="min-w-0 rounded-2xl border border-border bg-card/70 p-4">
                 <div className="flex items-start gap-3">
                   <div className="h-14 w-14 rounded-xl overflow-hidden bg-muted shrink-0">
                     {group.coverImageUrl ? (
@@ -1410,28 +1410,34 @@ function AudioLibraryPanel() {
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={() => void handlePlayGroup(group)} disabled={isPlayBusy}>
-                    <Headphones className="mr-2 h-4 w-4" />
-                    {isPlayBusy ? t('settings.audioLibraryPlayBusy', 'Bereite vor...') : t('settings.audioLibraryPlayBtn', 'Im Player abspielen')}
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                  <Button type="button" variant="outline" onClick={() => void handlePlayGroup(group)} disabled={isPlayBusy} className="w-full sm:w-auto">
+                    <Headphones className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {isPlayBusy ? t('settings.audioLibraryPlayBusy', 'Bereite vor...') : t('settings.audioLibraryPlayBtn', 'Im Player abspielen')}
+                    </span>
                   </Button>
                   <Button
                     type="button"
                     variant={isOfflineSaved ? 'default' : 'outline'}
-                    className={isOfflineSaved ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : undefined}
+                    className={`w-full sm:w-auto ${isOfflineSaved ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
                     onClick={() => void handleToggleOffline(group)}
                     disabled={isBusyOffline}
                   >
-                    {isOfflineSaved ? <Check className="mr-2 h-4 w-4" /> : null}
-                    {isBusyOffline
-                      ? t('settings.audioLibraryOfflineSaving', 'Speichere...')
-                      : isOfflineSaved
-                      ? t('settings.audioLibraryOfflineRemove', 'Offline entfernen')
-                      : t('settings.audioLibraryOfflineSave', 'Offline speichern')}
+                    {isOfflineSaved ? <Check className="mr-2 h-4 w-4 shrink-0" /> : null}
+                    <span className="truncate">
+                      {isBusyOffline
+                        ? t('settings.audioLibraryOfflineSaving', 'Speichere...')
+                        : isOfflineSaved
+                        ? t('settings.audioLibraryOfflineRemove', 'Offline entfernen')
+                        : t('settings.audioLibraryOfflineSave', 'Offline speichern')}
+                    </span>
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => void handleDeleteGroup(group)} disabled={isDeleting}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {isDeleting ? t('settings.audioLibraryDeleting', 'Lösche...') : t('settings.audioLibraryDelete', 'Löschen')}
+                  <Button type="button" variant="outline" onClick={() => void handleDeleteGroup(group)} disabled={isDeleting} className="w-full sm:w-auto">
+                    <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                    <span className="truncate">
+                      {isDeleting ? t('settings.audioLibraryDeleting', 'Lösche...') : t('settings.audioLibraryDelete', 'Löschen')}
+                    </span>
                   </Button>
                 </div>
               </div>
