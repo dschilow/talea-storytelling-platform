@@ -13,11 +13,15 @@ import {
   isAnimalCharacter,
   CharacterTypeId,
 } from '../../types/avatarForm';
+import { WizardImage } from './WizardImage';
+import { useWizardAssets } from '../../hooks/useWizardAssets';
 
 interface ColorChipProps {
   color: string;
   label: string;
   icon?: string;
+  /** Optional pre-generated Talea illustration; overrides the color swatch. */
+  imageUrl?: string;
   isSelected: boolean;
   onClick: () => void;
   size?: 'sm' | 'md' | 'lg';
@@ -28,6 +32,7 @@ const ColorChip: React.FC<ColorChipProps> = ({
   color,
   label,
   icon,
+  imageUrl,
   isSelected,
   onClick,
   size = 'md',
@@ -48,7 +53,7 @@ const ColorChip: React.FC<ColorChipProps> = ({
       whileTap={{ scale: 0.9 }}
       onClick={onClick}
       className={`
-        ${sizeClasses[size]} rounded-full relative flex items-center justify-center
+        ${sizeClasses[size]} rounded-full relative flex items-center justify-center overflow-hidden
         transition-all duration-200 border-4
         ${isSelected
           ? darkMode
@@ -60,11 +65,17 @@ const ColorChip: React.FC<ColorChipProps> = ({
         }
       `}
       style={{
+        // When a generated illustration exists we let it fill the chip; the
+        // color swatch stays as the background/fallback underneath.
         background: isGradient ? color : color,
       }}
       title={label}
     >
-      {icon && <span className="text-lg drop-shadow-md">{icon}</span>}
+      {imageUrl ? (
+        <WizardImage url={imageUrl} fallback={icon ?? ''} alt={label} className="h-full w-full object-cover" fallbackClassName="text-lg drop-shadow-md" />
+      ) : (
+        icon && <span className="text-lg drop-shadow-md">{icon}</span>
+      )}
 
       {/* Selection checkmark */}
       {isSelected && (
@@ -92,6 +103,7 @@ interface HairColorSelectorProps {
 }
 
 export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onChange, darkMode = false }) => {
+  const { assetUrl } = useWizardAssets();
   return (
     <div className="space-y-2">
       <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Haarfarbe</label>
@@ -102,6 +114,7 @@ export const HairColorSelector: React.FC<HairColorSelectorProps> = ({ value, onC
               color={color.color}
               label={color.labelDe}
               icon={color.icon}
+              imageUrl={assetUrl('hairColor', color.id)}
               isSelected={value === color.id}
               onClick={() => onChange(color.id)}
               darkMode={darkMode}
@@ -128,34 +141,40 @@ interface HairStyleSelectorProps {
 }
 
 export const HairStyleSelector: React.FC<HairStyleSelectorProps> = ({ value, onChange, darkMode = false }) => {
+  const { assetUrl } = useWizardAssets();
   return (
     <div className="space-y-2">
       <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Frisur</label>
       <div className="flex flex-wrap gap-2">
-        {HAIR_STYLES.map((style) => (
-          <motion.button
-            key={style.id}
-            type="button"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onChange(style.id)}
-            className={`
-              px-4 py-2 rounded-xl flex items-center gap-2
-              transition-all duration-200 border-2
-              ${value === style.id
-                ? darkMode
-                  ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
-                  : 'border-amber-500 bg-amber-50 text-amber-700'
-                : darkMode
-                  ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                  : 'border-gray-100 bg-white text-gray-600 hover:border-amber-200 hover:bg-amber-50/50'
-              }
-            `}
-          >
-            <span className="text-lg">{style.icon}</span>
-            <span className="text-sm font-medium">{style.labelDe}</span>
-          </motion.button>
-        ))}
+        {HAIR_STYLES.map((style) => {
+          const img = assetUrl('hairStyle', style.id);
+          return (
+            <motion.button
+              key={style.id}
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => onChange(style.id)}
+              className={`
+                px-4 py-2 rounded-xl flex items-center gap-2
+                transition-all duration-200 border-2
+                ${value === style.id
+                  ? darkMode
+                    ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
+                    : 'border-amber-500 bg-amber-50 text-amber-700'
+                  : darkMode
+                    ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
+                    : 'border-gray-100 bg-white text-gray-600 hover:border-amber-200 hover:bg-amber-50/50'
+                }
+              `}
+            >
+              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md">
+                <WizardImage url={img} fallback={style.icon} alt={style.labelDe} fallbackClassName="text-lg" />
+              </span>
+              <span className="text-sm font-medium">{style.labelDe}</span>
+            </motion.button>
+          );
+        })}
       </div>
     </div>
   );
@@ -169,6 +188,7 @@ interface EyeColorSelectorProps {
 }
 
 export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onChange, darkMode = false }) => {
+  const { assetUrl } = useWizardAssets();
   return (
     <div className="space-y-2">
       <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Augenfarbe</label>
@@ -179,6 +199,7 @@ export const EyeColorSelector: React.FC<EyeColorSelectorProps> = ({ value, onCha
               color={color.color}
               label={color.labelDe}
               icon={color.icon}
+              imageUrl={assetUrl('eyeColor', color.id)}
               isSelected={value === color.id}
               onClick={() => onChange(color.id)}
               darkMode={darkMode}

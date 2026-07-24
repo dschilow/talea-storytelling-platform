@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { BODY_BUILDS, BodyBuildId } from '../../types/avatarForm';
+import { useWizardAssets } from '../../hooks/useWizardAssets';
 
 interface BodyBuildSelectorProps {
   value: BodyBuildId;
@@ -9,6 +10,7 @@ interface BodyBuildSelectorProps {
 }
 
 export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onChange, darkMode = false }) => {
+  const { assetUrl } = useWizardAssets();
   // Body silhouettes for visual representation
   const BodySilhouette: React.FC<{ build: BodyBuildId; isSelected: boolean }> = ({ build, isSelected }) => {
     const width = build === 'slim' ? 16 : build === 'normal' ? 20 : 28;
@@ -30,7 +32,7 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
   };
 
   return (
-    <div className="flex gap-3">
+    <div className="grid grid-cols-3 gap-3">
       {BODY_BUILDS.map((build) => (
         <motion.button
           key={build.id}
@@ -39,7 +41,7 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
           whileTap={{ scale: 0.95 }}
           onClick={() => onChange(build.id)}
           className={`
-            flex-1 py-4 px-3 rounded-xl flex flex-col items-center justify-center
+            min-w-0 py-4 px-2 rounded-xl flex flex-col items-center justify-center
             transition-all duration-200 border-2
             ${value === build.id
               ? darkMode
@@ -51,7 +53,16 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
             }
           `}
         >
-          <BodySilhouette build={build.id} isSelected={value === build.id} />
+          {assetUrl('bodyBuild', build.id) ? (
+            <img
+              src={assetUrl('bodyBuild', build.id)}
+              alt={build.labelDe}
+              loading="lazy"
+              className="mb-2 h-[60px] w-[40px] object-contain"
+            />
+          ) : (
+            <BodySilhouette build={build.id} isSelected={value === build.id} />
+          )}
           <span className={`text-sm font-medium ${
             value === build.id
               ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'

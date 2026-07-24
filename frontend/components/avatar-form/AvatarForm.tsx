@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Eye, Wand2 } from 'lucide-react';
+import { AnimatePresence, motion, PanInfo } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Check, Eye, Wand2 } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
 import {
@@ -40,7 +40,16 @@ interface AvatarFormProps {
   onPreviewInvalidated?: () => void;
 }
 
-type SectionKey = 'identity' | 'character' | 'body' | 'reference' | 'appearance' | 'features' | 'notes' | 'preview';
+/** One wizard step = one screen the user clicks/swipes through. */
+type StepId = 'identity' | 'character' | 'body' | 'appearance' | 'features' | 'reference' | 'notes' | 'preview';
+
+interface StepDef {
+  id: StepId;
+  title: string;
+  subtitle?: string;
+  /** Hidden entirely in child mode (identity is locked to human). */
+  hiddenInChildMode?: boolean;
+}
 
 function enforceChildIdentity(
   data: AvatarFormData,
@@ -84,16 +93,59 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   );
   const [referenceImageUrl, setReferenceImageUrl] = useState<string | undefined>();
   const [showDescription, setShowDescription] = useState(false);
-  const [expanded, setExpanded] = useState<Record<SectionKey, boolean>>({
-    identity: true,
-    character: !compact,
-    body: true,
-    reference: true,
-    appearance: true,
-    features: !compact,
-    notes: false,
-    preview: true,
-  });
+
+  /* ── Wizard steps ─────────────────────────────────────────────
+     One screen per step, navigated via Weiter/Zurück or swipe. */
+  const allSteps = useMemo<StepDef[]>(
+    () => [
+      { id: 'identity', title: 'Charaktertyp', subtitle: 'Was für ein Wesen soll dein Avatar sein?', hiddenInChildMode: true },
+      { id: 'character', title: 'Charakter & Stimme', subtitle: 'Wie tickt dein Avatar? (optional)' },
+      { id: 'body', title: 'Alter & Körper', subtitle: 'Größe, Alter und Statur' },
+      { id: 'appearance', title: 'Aussehen', subtitle: 'Haare, Augen und Farben' },
+      { id: 'features', title: 'Besondere Merkmale', subtitle: 'Accessoires & Details (optional)' },
+      { id: 'reference', title: 'Referenzbild', subtitle: 'Optionales Foto als Vorlage' },
+      { id: 'notes', title: 'Zusatzbeschreibung', subtitle: 'Bleibende Details (optional)' },
+      { id: 'preview', title: 'Vorschau', subtitle: 'Bild generieren & prüfen' },
+    ],
+    []
+  );
+
+  const steps = useMemo(
+    () => allSteps.filter((step) => !(childMode && step.hiddenInChildMode)),
+    [allSteps, childMode]
+  );
+
+  const [stepIndex, setStepIndex] = useState(0);
+  const [direction, setDirection] = useState(1); // 1 = forward, -1 = back
+  const clampedIndex = Math.min(stepIndex, steps.length - 1);
+  const currentStep = steps[clampedIndex];
+  const isFirst = clampedIndex === 0;
+  const isLast = clampedIndex === steps.length - 1;
+
+  const goToStep = useCallback(
+    (next: number) => {
+      const target = Math.max(0, Math.min(next, steps.length - 1));
+      setDirection(target >= clampedIndex ? 1 : -1);
+      setStepIndex(target);
+    },
+    [clampedIndex, steps.length]
+  );
+  const goNext = useCallback(() => goToStep(clampedIndex + 1), [clampedIndex, goToStep]);
+  const goBack = useCallback(() => goToStep(clampedIndex - 1), [clampedIndex, goToStep]);
+
+  const handleSwipe = useCallback(
+    (_event: unknown, info: PanInfo) => {
+      const swipe = info.offset.x;
+      const velocity = info.velocity.x;
+      // Require a decent horizontal gesture to change step.
+      if (swipe < -70 || velocity < -450) {
+        if (!isLast) goNext();
+      } else if (swipe > 70 || velocity > 450) {
+        if (!isFirst) goBack();
+      }
+    },
+    [goBack, goNext, isFirst, isLast]
+  );
 
   const promptSignature = useMemo(
     () => getAvatarVisualPromptSignature(formData, referenceImageUrl),
@@ -165,16 +217,204 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
     [updateFormData]
   );
 
-  const toggleSection = (key: SectionKey) => {
-    setExpanded((previous) => ({ ...previous, [key]: !previous[key] }));
-  };
-
   const generatedDescription = formDataToDescription(formData);
   const isHuman = isHumanCharacter(formData.characterType as CharacterTypeId);
   const isAnimal = isAnimalCharacter(formData.characterType as CharacterTypeId);
 
+  const renderStep = (stepId: StepId): React.ReactNode => {
+    switch (stepId) {
+      case 'identity':
+        return childMode ? (
+          <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: isDark ? '#416057' : '#c5d9d0', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#c6ddd5' : '#45695d' }}>
+            <p className="font-semibold">Privater Kind-Avatar</p>
+            <p className="mt-1 text-xs leading-relaxed">Dieser Avatar stellt das Kind selbst dar. Deshalb bleibt der Charaktertyp Mensch.</p>
+          </div>
+        ) : (
+          <CharacterTypeSelector value={formData.characterType} onChange={handleCharacterTypeChange} customValue={formData.customCharacterType} onCustomChange={(value) => updateFormData({ customCharacterType: value })} darkMode={isDark} />
+        );
+
+      case 'character':
+        return <NarrativeProfileFields formData={formData} updateFormData={updateFormData} compact />;
+
+      case 'body':
+        return (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+                Geschlecht
+              </label>
+              <GenderSelector value={formData.gender} onChange={(gender) => updateFormData({ gender })} darkMode={isDark} />
+            </div>
+
+            <AgeHeightSliders
+              age={formData.age}
+              height={formData.height}
+              characterType={formData.characterType}
+              onAgeChange={(age) => updateFormData({ age })}
+              onHeightChange={(height) => updateFormData({ height })}
+              ageReadOnly={childMode}
+              darkMode={isDark}
+            />
+
+            {isHuman && (
+              <div className="space-y-2">
+                <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+                  Koerperbau
+                </label>
+                <BodyBuildSelector value={formData.bodyBuild} onChange={(bodyBuild) => updateFormData({ bodyBuild })} darkMode={isDark} />
+              </div>
+            )}
+          </div>
+        );
+
+      case 'appearance':
+        return (
+          <div className="space-y-5">
+            {!isAnimal && (
+              <>
+                <HairColorSelector value={formData.hairColor} onChange={(hairColor) => updateFormData({ hairColor })} darkMode={isDark} />
+                <HairStyleSelector value={formData.hairStyle} onChange={(hairStyle) => updateFormData({ hairStyle })} darkMode={isDark} />
+              </>
+            )}
+
+            <EyeColorSelector value={formData.eyeColor} onChange={(eyeColor) => updateFormData({ eyeColor })} darkMode={isDark} />
+            <SkinFurColorSelector
+              value={formData.skinTone}
+              onChange={(skinTone) => updateFormData({ skinTone })}
+              characterType={formData.characterType}
+              darkMode={isDark}
+            />
+          </div>
+        );
+
+      case 'features':
+        return (
+          <SpecialFeaturesSelector
+            value={formData.specialFeatures}
+            onChange={(specialFeatures) => updateFormData({ specialFeatures })}
+            darkMode={isDark}
+          />
+        );
+
+      case 'reference':
+        return (
+          <ImageUploadCamera
+            onImageSelected={(imageDataUrl) => setReferenceImageUrl(imageDataUrl)}
+            currentImage={referenceImageUrl}
+            onClearImage={() => setReferenceImageUrl(undefined)}
+            darkMode={isDark}
+          />
+        );
+
+      case 'notes':
+        return (
+          <>
+            <p className="mb-2 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+              Beschreibe nur bleibende sichtbare Details. Sie werden für konsistente Bilder gespeichert.
+            </p>
+            <textarea
+              value={formData.additionalDescription || ''}
+              onChange={(event) => updateFormData({ additionalDescription: event.target.value })}
+              placeholder="Beispiel: kleine Zahnlücke vorne, roter Schal und ein Muttermal auf der Wange."
+              rows={4}
+              className="w-full resize-none rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2"
+              style={{
+                borderColor: isDark ? '#3a5068' : '#d7c9b8',
+                background: isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)',
+                color: isDark ? '#e9f0fb' : '#24364b',
+                boxShadow: 'none',
+              }}
+            />
+          </>
+        );
+
+      case 'preview':
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+                Aktuelles Prompt-Preview
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowDescription((previous) => !previous)}
+                className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                style={{
+                  borderColor: isDark ? '#415972' : '#d7c9b8',
+                  color: isDark ? '#c4d6ec' : '#6f6258',
+                }}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {showDescription ? 'Ausblenden' : 'Einblenden'}
+              </button>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {showDescription && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden rounded-xl border p-3 text-xs leading-relaxed"
+                  style={{
+                    borderColor: isDark ? '#3a5068' : '#d7c9b8',
+                    background: isDark ? 'rgba(31,44,61,0.7)' : 'rgba(255,255,255,0.72)',
+                    color: isDark ? '#d3e1f4' : '#3a516a',
+                  }}
+                >
+                  {generatedDescription}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-full max-w-[240px] overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3a5068' : '#d7c9b8' }}>
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Avatar Vorschau" className="h-48 w-full object-cover" />
+                ) : (
+                  <div className="flex h-48 w-full items-center justify-center text-sm font-medium" style={{ background: isDark ? 'rgba(31,44,61,0.8)' : '#efe6db', color: isDark ? '#b8cbe2' : '#4f6580' }}>
+                    Noch kein Bild
+                  </div>
+                )}
+              </div>
+
+              {onPreview && (
+                <button
+                  type="button"
+                  onClick={() => onPreview(formData, referenceImageUrl)}
+                  disabled={isGeneratingPreview || !formData.name.trim()}
+                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
+                  style={{
+                    borderColor: 'transparent',
+                    background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
+                    color: '#3a322d',
+                  }}
+                >
+                  {isGeneratingPreview ? (
+                    <>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-transparent border-t-white border-r-white" />
+                      Generiere...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4" />
+                      Bild generieren
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Name (always visible above the steps) */}
       <div className="space-y-2">
         <label htmlFor="avatar-name" className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
           {childMode ? 'Name aus dem Kinderprofil' : 'Name des Avatars'}
@@ -196,315 +436,114 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         />
         {childMode && (
           <p className="text-xs leading-relaxed" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
-            Name und Alter werden im Kinderprofil gepflegt und bleiben hier gesch�tzt.
+            Name und Alter werden im Kinderprofil gepflegt und bleiben hier geschützt.
           </p>
         )}
       </div>
 
-      <FormSection
-        title={childMode ? "Rolle im Profil" : "Charaktertyp"}
-        icon="Typ"
-        isExpanded={expanded.identity}
-        onToggle={() => toggleSection('identity')}
-        isDark={isDark}
-      >
-        {childMode ? (
-          <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: isDark ? '#416057' : '#c5d9d0', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#c6ddd5' : '#45695d' }}>
-            <p className="font-semibold">Privater Kind-Avatar</p>
-            <p className="mt-1 text-xs leading-relaxed">Dieser Avatar stellt das Kind selbst dar. Deshalb bleibt der Charaktertyp Mensch.</p>
-          </div>
-        ) : (
-          <CharacterTypeSelector value={formData.characterType} onChange={handleCharacterTypeChange} customValue={formData.customCharacterType} onCustomChange={(value) => updateFormData({ customCharacterType: value })} darkMode={isDark} />
-        )}
-      </FormSection>
-
-      <FormSection
-        title="Charakter und Stimme"
-        icon="Ich"
-        isExpanded={expanded.character}
-        onToggle={() => toggleSection('character')}
-        optional
-        isDark={isDark}
-      >
-        <NarrativeProfileFields formData={formData} updateFormData={updateFormData} compact />
-      </FormSection>
-
-      <FormSection
-        title="Alter und Koerper"
-        icon="Bio"
-        isExpanded={expanded.body}
-        onToggle={() => toggleSection('body')}
-        isDark={isDark}
-      >
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
-              Geschlecht
-            </label>
-            <GenderSelector value={formData.gender} onChange={(gender) => updateFormData({ gender })} darkMode={isDark} />
-          </div>
-
-          <AgeHeightSliders
-            age={formData.age}
-            height={formData.height}
-            characterType={formData.characterType}
-            onAgeChange={(age) => updateFormData({ age })}
-            onHeightChange={(height) => updateFormData({ height })}
-            ageReadOnly={childMode}
-            darkMode={isDark}
-          />
-
-          {isHuman && (
-            <div className="space-y-2">
-              <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
-                Koerperbau
-              </label>
-              <BodyBuildSelector value={formData.bodyBuild} onChange={(bodyBuild) => updateFormData({ bodyBuild })} darkMode={isDark} />
-            </div>
-          )}
+      {/* ── Wizard progress header ── */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs font-medium" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+          <span>Schritt {clampedIndex + 1} von {steps.length}</span>
+          <span className="truncate">{currentStep?.title}</span>
         </div>
-      </FormSection>
-
-      <FormSection
-        title="Referenzbild"
-        icon="Ref"
-        isExpanded={expanded.reference}
-        onToggle={() => toggleSection('reference')}
-        optional
-        isDark={isDark}
-      >
-        <ImageUploadCamera
-          onImageSelected={(imageDataUrl) => setReferenceImageUrl(imageDataUrl)}
-          currentImage={referenceImageUrl}
-          onClearImage={() => setReferenceImageUrl(undefined)}
-          darkMode={isDark}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Aussehen"
-        icon="Look"
-        isExpanded={expanded.appearance}
-        onToggle={() => toggleSection('appearance')}
-        isDark={isDark}
-      >
-        <div className="space-y-5">
-          {!isAnimal && (
-            <>
-              <HairColorSelector value={formData.hairColor} onChange={(hairColor) => updateFormData({ hairColor })} darkMode={isDark} />
-              <HairStyleSelector value={formData.hairStyle} onChange={(hairStyle) => updateFormData({ hairStyle })} darkMode={isDark} />
-            </>
-          )}
-
-          <EyeColorSelector value={formData.eyeColor} onChange={(eyeColor) => updateFormData({ eyeColor })} darkMode={isDark} />
-          <SkinFurColorSelector
-            value={formData.skinTone}
-            onChange={(skinTone) => updateFormData({ skinTone })}
-            characterType={formData.characterType}
-            darkMode={isDark}
-          />
-        </div>
-      </FormSection>
-
-      <FormSection
-        title="Besondere Merkmale"
-        icon="Plus"
-        isExpanded={expanded.features}
-        onToggle={() => toggleSection('features')}
-        badge={formData.specialFeatures.length > 0 ? String(formData.specialFeatures.length) : undefined}
-        isDark={isDark}
-      >
-        <SpecialFeaturesSelector
-          value={formData.specialFeatures}
-          onChange={(specialFeatures) => updateFormData({ specialFeatures })}
-          darkMode={isDark}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Zusatzbeschreibung"
-        icon="Text"
-        isExpanded={expanded.notes}
-        onToggle={() => toggleSection('notes')}
-        optional
-        isDark={isDark}
-      >
-        <p className="mb-2 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
-          Beschreibe nur bleibende sichtbare Details. Sie werden f�r konsistente Bilder gespeichert.
-        </p>
-        <textarea
-          value={formData.additionalDescription || ''}
-          onChange={(event) => updateFormData({ additionalDescription: event.target.value })}
-          placeholder="Beispiel: kleine Zahnl�cke vorne, roter Schal und ein Muttermal auf der Wange."
-          rows={3}
-          className="w-full resize-none rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2"
-          style={{
-            borderColor: isDark ? '#3a5068' : '#d7c9b8',
-            background: isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)',
-            color: isDark ? '#e9f0fb' : '#24364b',
-            boxShadow: 'none',
-          }}
-        />
-      </FormSection>
-
-      <FormSection
-        title="Vorschau und Prompt"
-        icon="Preview"
-        isExpanded={expanded.preview}
-        onToggle={() => toggleSection('preview')}
-        isDark={isDark}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
-              Aktuelles Prompt-Preview
-            </p>
+        <div className="flex gap-1.5">
+          {steps.map((step, index) => (
             <button
+              key={step.id}
               type="button"
-              onClick={() => setShowDescription((previous) => !previous)}
-              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+              aria-label={step.title}
+              onClick={() => goToStep(index)}
+              className="h-1.5 flex-1 rounded-full transition-colors"
               style={{
-                borderColor: isDark ? '#415972' : '#d7c9b8',
-                color: isDark ? '#c4d6ec' : '#6f6258',
+                background:
+                  index < clampedIndex
+                    ? 'var(--primary)'
+                    : index === clampedIndex
+                    ? (isDark ? '#2DD4BF' : 'var(--primary)')
+                    : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
               }}
-            >
-              <Eye className="h-3.5 w-3.5" />
-              {showDescription ? 'Ausblenden' : 'Einblenden'}
-            </button>
-          </div>
+            />
+          ))}
+        </div>
+      </div>
 
-          <AnimatePresence initial={false}>
-            {showDescription && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden rounded-xl border p-3 text-xs leading-relaxed"
-                style={{
-                  borderColor: isDark ? '#3a5068' : '#d7c9b8',
-                  background: isDark ? 'rgba(31,44,61,0.7)' : 'rgba(255,255,255,0.72)',
-                  color: isDark ? '#d3e1f4' : '#3a516a',
-                }}
-              >
-                {generatedDescription}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-full max-w-[240px] overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3a5068' : '#d7c9b8' }}>
-              {previewUrl ? (
-                <img src={previewUrl} alt="Avatar Vorschau" className="h-48 w-full object-cover" />
-              ) : (
-                <div className="flex h-48 w-full items-center justify-center text-sm font-medium" style={{ background: isDark ? 'rgba(31,44,61,0.8)' : '#efe6db', color: isDark ? '#b8cbe2' : '#4f6580' }}>
-                  Noch kein Bild
-                </div>
+      {/* ── Current step (swipeable) ── */}
+      <div className="relative overflow-hidden">
+        <AnimatePresence initial={false} mode="wait" custom={direction}>
+          <motion.section
+            key={currentStep?.id}
+            custom={direction}
+            drag="x"
+            dragElastic={0.12}
+            dragConstraints={{ left: 0, right: 0 }}
+            onDragEnd={handleSwipe}
+            initial={{ opacity: 0, x: direction > 0 ? 60 : -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: direction > 0 ? -60 : 60 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="rounded-2xl border p-4 min-h-[220px] touch-pan-y"
+            style={{
+              borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
+              background: isDark ? 'rgba(24,35,50,0.85)' : 'rgba(255,251,245,0.88)',
+            }}
+          >
+            <div className="mb-3">
+              <h3 className="text-base font-semibold" style={{ color: isDark ? '#e8f0fb' : '#223347' }}>
+                {currentStep?.title}
+              </h3>
+              {currentStep?.subtitle && (
+                <p className="mt-0.5 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+                  {currentStep.subtitle}
+                </p>
               )}
             </div>
+            {currentStep && renderStep(currentStep.id)}
+          </motion.section>
+        </AnimatePresence>
+      </div>
 
-            {onPreview && (
-              <button
-                type="button"
-                onClick={() => onPreview(formData, referenceImageUrl)}
-                disabled={isGeneratingPreview || !formData.name.trim()}
-                className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
-                style={{
-                  borderColor: 'transparent',
-                  background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
-                  color: '#3a322d',
-                }}
-              >
-                {isGeneratingPreview ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-transparent border-t-white border-r-white" />
-                    Generiere...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4" />
-                    Bild generieren
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-      </FormSection>
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={goBack}
+          disabled={isFirst}
+          className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+          style={{
+            borderColor: isDark ? '#3a5068' : '#d7c9b8',
+            color: isDark ? '#c4d6ec' : '#6f6258',
+            background: isDark ? 'rgba(31,44,61,0.5)' : 'rgba(255,255,255,0.6)',
+          }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Zurück
+        </button>
+
+        <span className="text-[11px]" style={{ color: isDark ? '#7b90a9' : '#9aa7b3' }}>
+          Wischen zum Blättern
+        </span>
+
+        {isLast ? (
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: isDark ? '#2DD4BF' : 'var(--primary)' }}>
+            <Check className="h-4 w-4" />
+            Fertig
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={goNext}
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
+            style={{ background: isDark ? '#2DD4BF' : 'var(--primary)' }}
+          >
+            Weiter
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
-
-interface FormSectionProps {
-  title: string;
-  icon: string;
-  isExpanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-  badge?: string;
-  optional?: boolean;
-  isDark: boolean;
-}
-
-const FormSection: React.FC<FormSectionProps> = ({
-  title,
-  icon,
-  isExpanded,
-  onToggle,
-  children,
-  badge,
-  optional,
-  isDark,
-}) => (
-  <section
-    className="overflow-hidden rounded-2xl border"
-    style={{
-      borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-      background: isDark ? 'rgba(24,35,50,0.85)' : 'rgba(255,251,245,0.88)',
-    }}
-  >
-    <button
-      type="button"
-      onClick={onToggle}
-      className="flex w-full items-center justify-between px-3.5 py-3 text-left"
-      style={{ color: isDark ? '#e8f0fb' : '#223347' }}
-    >
-      <div className="flex items-center gap-2">
-        <span className="rounded-lg border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]" style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#a6bad4' : '#7d6e62' }}>
-          {icon}
-        </span>
-        <span className="text-sm font-semibold">{title}</span>
-        {optional && (
-          <span className="text-[11px] font-medium" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
-            optional
-          </span>
-        )}
-        {badge && (
-          <span className="rounded-full border px-2 py-0.5 text-[11px] font-semibold" style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#c4d6ec' : '#6f6258' }}>
-            {badge}
-          </span>
-        )}
-      </div>
-
-      <motion.span animate={{ rotate: isExpanded ? 180 : 0 }}>
-        <ChevronDown className="h-4 w-4" style={{ color: isDark ? '#9db2cc' : '#6d8198' }} />
-      </motion.span>
-    </button>
-
-    <AnimatePresence initial={false}>
-      {isExpanded && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="overflow-hidden border-t px-3.5 pb-3.5 pt-3"
-          style={{ borderColor: isDark ? '#31445c' : '#dfd1c1' }}
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </section>
-);
 
 export default AvatarForm;
 

@@ -722,9 +722,10 @@ const EditAvatarScreen: React.FC = () => {
           : 'radial-gradient(980px 520px at 100% 0%, var(--talea-border-light) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, var(--talea-surface-inset) 0%, transparent 62%), #edede9',
       }}
     >
-      <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pt-3 sm:px-5">
+      {/* pt clears the fixed ProfileSwitcher pill (centered on mobile, right on desktop). */}
+      <div className="mx-auto w-full max-w-7xl space-y-5 px-3 pt-16 sm:px-5 sm:pt-3">
         <header
-          className="sticky top-2 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl"
+          className="sticky top-16 z-20 flex items-center justify-between rounded-2xl border px-3 py-2.5 backdrop-blur-xl sm:top-3"
           style={{
             borderColor: isDark ? '#33485f' : 'var(--talea-border-soft)',
             background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',

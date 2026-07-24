@@ -7,5 +7,6 @@ import "./analyze-avatar";
 import "./avatar-generation";
 import "./image-generation";
 import "./generate-visual-profile";
+import "./wizard-assets";
 
 export default new Service("ai");

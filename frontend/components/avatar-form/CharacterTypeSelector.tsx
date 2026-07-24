@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CHARACTER_TYPES, CharacterTypeId } from '../../types/avatarForm';
+import { WizardImage } from './WizardImage';
+import { useWizardAssets } from '../../hooks/useWizardAssets';
 
 interface CharacterTypeSelectorProps {
   value: CharacterTypeId;
@@ -135,6 +137,7 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
   onClick,
   darkMode = false,
 }) => {
+  const { assetUrl } = useWizardAssets();
   return (
     <motion.button
       type="button"
@@ -154,7 +157,9 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
         }
       `}
     >
-      <span className="text-2xl mb-1">{type.icon}</span>
+      <span className="mb-1 flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg">
+        <WizardImage url={assetUrl('character', type.id)} fallback={type.icon} alt={type.labelDe} fallbackClassName="text-2xl" />
+      </span>
       <span className={`text-xs font-medium ${
         isSelected
           ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'

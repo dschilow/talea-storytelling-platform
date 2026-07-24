@@ -1,6 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SPECIAL_FEATURES, SpecialFeatureId } from '../../types/avatarForm';
+import { WizardImage } from './WizardImage';
+import { useWizardAssets } from '../../hooks/useWizardAssets';
 
 interface SpecialFeaturesSelectorProps {
   value: SpecialFeatureId[];
@@ -15,6 +17,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
   maxSelections = 5,
   darkMode = false,
 }) => {
+  const { assetUrl } = useWizardAssets();
   const toggleFeature = (featureId: SpecialFeatureId) => {
     if (value.includes(featureId)) {
       onChange(value.filter((id) => id !== featureId));
@@ -133,7 +136,9 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                       }
                     `}
                   >
-                    <span className="text-lg">{feature.icon}</span>
+                    <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md">
+                      <WizardImage url={assetUrl('specialFeature', feature.id)} fallback={feature.icon} alt={feature.labelDe} fallbackClassName="text-lg" />
+                    </span>
                     <span className="text-sm font-medium">{feature.labelDe}</span>
 
                     {isSelected && (
