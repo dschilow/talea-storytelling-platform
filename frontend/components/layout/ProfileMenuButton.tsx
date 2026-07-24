@@ -281,34 +281,34 @@ const ProfileMenuButton: React.FC = () => {
               <span className="text-sm font-semibold">Einstellungen</span>
             </button>
 
-            {playlist.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  togglePlaylistDrawer();
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                togglePlaylistDrawer();
+              }}
+              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
+              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
+            >
+              <span
+                className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
+                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
                 }}
-                className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
-                style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
               >
-                <span
-                  className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                  style={{
-                    background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
-                    color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-                  }}
-                >
-                  <Headphones className="h-4 w-4" />
+                <Headphones className="h-4 w-4" />
+                {playlist.length > 0 && (
                   <span
                     className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
                     style={{ background: "var(--primary)" }}
                   >
                     {playlist.length}
                   </span>
-                </span>
-                <span className="text-sm font-semibold">Wiedergabeliste</span>
-              </button>
-            )}
+                )}
+              </span>
+              <span className="text-sm font-semibold">Wiedergabeliste</span>
+            </button>
           </div>
         </div>
       )}
