@@ -67,10 +67,10 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               )}
               style={{ borderColor: selected ? `${tone}66` : 'var(--color-border)' }}
             >
-              <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${tone}1f` }}>
+              <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `${tone}1f` }}>
                 <WizardImage
                   url={assetUrl('storyFeeling', id)}
-                  fallback={<Icon className="h-5 w-5" style={{ color: tone }} />}
+                  fallback={<Icon className="h-7 w-7" style={{ color: tone }} />}
                   alt={t(`wizard.feelings.${id}.title`)}
                   fallbackClassName="flex h-full w-full items-center justify-center"
                 />

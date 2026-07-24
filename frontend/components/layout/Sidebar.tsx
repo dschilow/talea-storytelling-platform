@@ -116,7 +116,7 @@ const Sidebar: React.FC = () => {
 
         <div
           className={cn(
-            "relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border transition-colors",
+            "relative flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-colors",
             active
               ? "border-white/70 bg-white/80 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6"
               : "border-transparent bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)] group-hover:bg-white/75 group-hover:text-[var(--talea-text-secondary)] dark:group-hover:bg-white/6"
@@ -125,12 +125,12 @@ const Sidebar: React.FC = () => {
           {item.imageId ? (
             <WizardImage
               url={assetUrl("navTab", item.imageId)}
-              fallback={<Icon className="h-[18px] w-[18px] transition-colors" />}
+              fallback={<Icon className="h-[20px] w-[20px] transition-colors" />}
               alt={labelOf(item)}
               fallbackClassName="flex h-full w-full items-center justify-center"
             />
           ) : (
-            <Icon className="h-[18px] w-[18px] transition-colors" />
+            <Icon className="h-[20px] w-[20px] transition-colors" />
           )}
         </div>
 

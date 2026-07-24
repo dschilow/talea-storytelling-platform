@@ -129,7 +129,7 @@ const BottomNav: React.FC = () => {
 
         <div
           className={cn(
-            'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[0.95rem] border transition-colors duration-200',
+            'relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-[1.05rem] border transition-colors duration-200',
             active
               ? 'border-white/70 bg-white/82 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6'
               : 'border-transparent bg-transparent text-[var(--talea-text-tertiary)]',
@@ -137,7 +137,7 @@ const BottomNav: React.FC = () => {
         >
           <WizardImage
             url={assetUrl('navTab', item.imageId)}
-            fallback={<Icon className="h-[18px] w-[18px]" />}
+            fallback={<Icon className="h-[20px] w-[20px]" />}
             alt={labelOf(item)}
             fallbackClassName="flex h-full w-full items-center justify-center"
           />

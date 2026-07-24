@@ -348,12 +348,12 @@ function Choice({
       )}
     >
       {(imageUrl || emoji) && (
-        <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg">
+        <span className="mb-0.5 inline-flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl">
           <WizardImage
             url={imageUrl}
             fallback={emoji ?? ''}
             alt={title}
-            fallbackClassName="text-2xl leading-none"
+            fallbackClassName="text-3xl leading-none"
           />
         </span>
       )}
@@ -891,12 +891,12 @@ export default function ModernDokuWizard() {
                                     : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-soft)]'
                                 )}
                               >
-                                <span className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg">
+                                <span className="mb-0.5 inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl">
                                   <WizardImage
                                     url={dokuDomainAssetUrl('dokuDomain', preset.id)}
                                     fallback={preset.emoji}
                                     alt={preset.label}
-                                    fallbackClassName="text-xl leading-none"
+                                    fallbackClassName="text-2xl leading-none"
                                   />
                                 </span>
                                 <p

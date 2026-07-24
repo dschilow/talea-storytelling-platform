@@ -60,14 +60,14 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
               )}
               style={{ borderColor: selected ? `${category.tone}60` : 'var(--color-border)' }}
             >
-              <div className="mb-3 flex items-start gap-3">
+              <div className="mb-3 flex items-center gap-3.5">
                 <div
-                  className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+                  className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
                   style={{ background: `${category.tone}1f` }}
                 >
                   <WizardImage
                     url={assetUrl('storyCategory', category.id)}
-                    fallback={<Icon className="h-6 w-6" style={{ color: category.tone }} />}
+                    fallback={<Icon className="h-9 w-9" style={{ color: category.tone }} />}
                     alt={title}
                     fallbackClassName="flex h-full w-full items-center justify-center"
                   />

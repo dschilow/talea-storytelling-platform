@@ -145,10 +145,10 @@ export default function Step3AgeAndLength({
                 )}
                 style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
               >
-                <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${item.tone}1f` }}>
+                <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `${item.tone}1f` }}>
                   <WizardImage
                     url={assetUrl('dokuAge', item.id)}
-                    fallback={<Icon className="h-5 w-5" style={{ color: item.tone }} />}
+                    fallback={<Icon className="h-7 w-7" style={{ color: item.tone }} />}
                     alt={t(`wizard.ageGroups.${item.id}.title`)}
                     fallbackClassName="flex h-full w-full items-center justify-center"
                   />
@@ -184,12 +184,12 @@ export default function Step3AgeAndLength({
                 style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
               >
                 <div
-                  className="mx-auto mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg"
+                  className="mx-auto mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl"
                   style={{ background: `${item.tone}1f` }}
                 >
                   <WizardImage
                     url={assetUrl('storyLength', item.id)}
-                    fallback={<Icon className="h-5 w-5" style={{ color: item.tone }} />}
+                    fallback={<Icon className="h-7 w-7" style={{ color: item.tone }} />}
                     alt={t(`wizard.lengths.${item.id}.title`)}
                     fallbackClassName="flex h-full w-full items-center justify-center"
                   />

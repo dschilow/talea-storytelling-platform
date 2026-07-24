@@ -65,10 +65,10 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
               )}
               style={{ borderColor: selected ? `${wish.tone}66` : 'var(--color-border)' }}
             >
-              <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${wish.tone}1f` }}>
+              <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `${wish.tone}1f` }}>
                 <WizardImage
                   url={assetUrl('storyWish', wish.id)}
-                  fallback={<Icon className="h-5 w-5" style={{ color: wish.tone }} />}
+                  fallback={<Icon className="h-7 w-7" style={{ color: wish.tone }} />}
                   alt={t(`wizard.wishes.${wish.id}.title`)}
                   fallbackClassName="flex h-full w-full items-center justify-center"
                 />
