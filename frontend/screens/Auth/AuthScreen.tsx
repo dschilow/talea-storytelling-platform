@@ -75,8 +75,13 @@ const AuthScreen: React.FC = () => {
     const wrap = wrapRef.current;
     if (!wrap) return;
 
+    /* Wait for Clerk's actual interactive content (inputs or social buttons),
+       not just the root shell, so the loader hides only when the form is up. */
     const check = () => {
-      if (wrap.querySelector(".cl-rootBox, .cl-card")) {
+      const ready = wrap.querySelector(
+        ".cl-formButtonPrimary, .cl-socialButtonsBlockButton, .cl-formFieldInput"
+      );
+      if (ready) {
         setClerkReady(true);
         return true;
       }
@@ -87,7 +92,7 @@ const AuthScreen: React.FC = () => {
     const observer = new MutationObserver(() => { check(); });
     observer.observe(wrap, { childList: true, subtree: true });
     // Safety fallback in case class names change in a future Clerk version.
-    const fallback = window.setTimeout(() => setClerkReady(true), 4000);
+    const fallback = window.setTimeout(() => setClerkReady(true), 5000);
 
     return () => { observer.disconnect(); window.clearTimeout(fallback); };
   }, [mode]);
@@ -129,7 +134,7 @@ const AuthScreen: React.FC = () => {
           </p>
         </div>
 
-        <div className="auth-clerk-wrap" ref={wrapRef}>
+        <div className={`auth-clerk-wrap${clerkReady ? " is-ready" : ""}`} ref={wrapRef}>
           {/* Branded loader — visible until Clerk's widget mounts */}
           <div className={`auth-loading${clerkReady ? " is-hidden" : ""}`} aria-hidden={clerkReady}>
             <div className="auth-spinner" />

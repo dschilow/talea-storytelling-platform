@@ -263,6 +263,8 @@ const SectionHeading: React.FC<{
 
 const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => {
   const { t } = useTranslation();
+  if (status === "complete") return null;
+
   const label = t(`homeScreen.status.${status}`, status);
   return (
     <motion.span
@@ -270,7 +272,6 @@ const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => {
       animate={{ scale: 1 }}
       className={cn(
         "absolute right-5 top-5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm z-20",
-        status === "complete" && "border-transparent bg-[#dcf4e8] text-slate-900 dark:bg-[#173629] dark:text-white",
         status === "generating" && "border-transparent bg-[#fde9cf] text-slate-900 dark:bg-[#493419] dark:text-white",
         status === "error" && "border-transparent bg-[#f9d8dd] text-slate-900 dark:bg-[#4d1f29] dark:text-white"
       )}
@@ -780,9 +781,9 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     className={cn(taleaPageShellClass, "space-y-5 pt-2 sm:space-y-6 sm:pt-3")}
   >
     {/* -- Compact Hero -- */}
-    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
+    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-3 sm:p-5")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={() => goTo("/settings")}
@@ -792,33 +793,29 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <ProfileHeaderBadge name={userName} imageUrl={profileImageUrl} color={profileColor} />
           </button>
           <h1
-            className="text-lg font-semibold text-[var(--talea-text-primary)] sm:text-xl md:text-2xl"
+            className="min-w-0 text-lg font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-xl md:text-2xl"
             style={{ fontFamily: headingFont }}
           >
             {greeting},{" "}
-            <span className="bg-gradient-to-r from-[var(--talea-accent-rose)] via-[var(--primary)] to-[var(--talea-accent-sky)] bg-clip-text text-transparent">
+            <span className="text-[var(--primary)]">
               {userName || t("homeScreen.defaultUser")}
             </span>
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-[repeat(3,minmax(0,1fr))_auto] items-center divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-1 py-2 sm:w-auto sm:min-w-[25rem]">
           {[
-            { label: t("homeScreen.statsStories"), value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" />, tone: "from-[#f8dde8] to-[#fbead1] dark:from-[rgba(109,84,114,0.35)] dark:to-[rgba(92,76,55,0.25)]" },
-            { label: t("homeScreen.statsAvatars"), value: avatars.length, icon: <Swords className="h-3.5 w-3.5" />, tone: "from-[#dff0ff] to-[#e2f4ec] dark:from-[rgba(65,98,130,0.32)] dark:to-[rgba(47,89,79,0.22)]" },
-            { label: t("homeScreen.statsDokus"), value: dokusTotal, icon: <Library className="h-3.5 w-3.5" />, tone: "from-[#fbe9cf] to-[#efe5fb] dark:from-[rgba(92,77,52,0.32)] dark:to-[rgba(88,69,123,0.22)]" },
+            { label: t("homeScreen.statsStories"), value: storiesTotal, icon: <ScrollText className="h-3.5 w-3.5" /> },
+            { label: t("homeScreen.statsAvatars"), value: avatars.length, icon: <Swords className="h-3.5 w-3.5" /> },
+            { label: t("homeScreen.statsDokus"), value: dokusTotal, icon: <Library className="h-3.5 w-3.5" /> },
           ].map((stat) => (
             <motion.span
               key={stat.label}
-              whileHover={{ scale: 1.06, y: -1 }}
-              className={cn(
-                "inline-flex cursor-default items-center gap-1.5 rounded-full border border-[var(--talea-border-light)] bg-gradient-to-r px-3 py-1.5 text-xs font-medium shadow-sm transition-shadow hover:shadow-md",
-                stat.tone
-              )}
+              className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1.5 text-center sm:flex-row sm:gap-1.5"
             >
               <span className="text-[var(--talea-text-secondary)]">{stat.icon}</span>
-              <span className="font-bold text-[var(--talea-text-primary)]">{stat.value}</span>
-              <span className="text-[var(--talea-text-tertiary)]">{stat.label}</span>
+              <span className="text-sm font-bold tabular-nums text-[var(--talea-text-primary)]">{stat.value}</span>
+              <span className="max-w-full truncate text-[10px] font-medium text-[var(--talea-text-tertiary)] sm:text-xs">{stat.label}</span>
             </motion.span>
           ))}
           <motion.button
@@ -827,7 +824,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             type="button"
             onClick={onRefresh}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-secondary)] shadow-sm transition-colors hover:bg-white/90 dark:bg-[var(--talea-surface-inset)]"
+            className="mx-1 inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--talea-text-secondary)] transition-colors hover:bg-white/80 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/14"
             aria-label={t("common.refresh")}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
@@ -835,8 +832,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--talea-border-light)] pt-3">
-        <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--talea-border-light)] pt-3 sm:grid-cols-3">
+        <TaleaActionButton className="col-span-2 sm:col-span-1" icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
           {t("homeScreen.newStory")}
         </TaleaActionButton>
         <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
@@ -852,7 +849,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:p-6")}
+      className={cn(taleaSurfaceClass, "p-2.5 sm:p-5 md:p-6")}
     >
       <div className="relative z-10 space-y-6">
       <TaleaSectionHeading

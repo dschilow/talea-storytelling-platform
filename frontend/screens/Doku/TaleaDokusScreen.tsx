@@ -1054,7 +1054,7 @@ const TaleaDokusScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
-        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-6 pt-4')}>
+        <div className={cn(taleaPageShellClass, 'relative z-10 space-y-5 pt-2 sm:space-y-6 sm:pt-4')}>
           {/* Header */}
           <motion.header
             initial={{ opacity: 0, y: -8 }}
@@ -1128,7 +1128,7 @@ const TaleaDokusScreen: React.FC = () => {
                     onClick={() => setActiveTab(tab.key)}
                     whileHover={reduceMotion ? undefined : { scale: 1.01 }}
                     whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-                    className="relative flex items-center justify-center gap-2 rounded-[1.1rem] px-3 py-3 text-sm font-semibold transition-colors sm:gap-2.5 sm:px-4"
+                    className="relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.1rem] px-1.5 py-2.5 text-xs font-semibold transition-colors sm:flex-row sm:gap-2.5 sm:px-4 sm:py-3 sm:text-sm"
                     style={{ color: active ? 'white' : palette.muted }}
                     aria-pressed={active}
                   >
@@ -1142,12 +1142,13 @@ const TaleaDokusScreen: React.FC = () => {
                         }}
                       />
                     )}
-                    <Icon className="relative z-10 h-4 w-4 shrink-0" />
-                    <span className="relative z-10 hidden truncate sm:inline">{tab.label}</span>
-                    <span className="relative z-10 inline truncate sm:hidden">{tab.label}</span>
+                    <span className="relative z-10 flex min-w-0 items-center justify-center gap-1.5">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="whitespace-nowrap">{tab.label}</span>
+                    </span>
                     <span
                       className={cn(
-                        'relative z-10 inline-flex h-5 min-w-[1.4rem] items-center justify-center rounded-full px-1.5 text-[10px] font-bold',
+                        'relative z-10 inline-flex h-4 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[9px] font-bold sm:h-5 sm:min-w-[1.4rem] sm:text-[10px]',
                         active ? 'bg-white/25 text-white' : ''
                       )}
                       style={

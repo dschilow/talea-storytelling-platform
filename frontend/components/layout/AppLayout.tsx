@@ -121,8 +121,8 @@ const AppLayout: React.FC = () => {
   const shellStyle = isCosmosFullScreenRoute || isReaderRoute
     ? undefined
     : {
-        paddingLeft: "max(env(safe-area-inset-left), 0.85rem)",
-        paddingRight: "max(env(safe-area-inset-right), 0.85rem)",
+        paddingLeft: "max(env(safe-area-inset-left), 0.375rem)",
+        paddingRight: "max(env(safe-area-inset-right), 0.375rem)",
       };
   const contentClassName =
     isCosmosFullScreenRoute || isReaderRoute

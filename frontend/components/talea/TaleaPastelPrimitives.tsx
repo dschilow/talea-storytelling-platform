@@ -14,7 +14,7 @@ export const taleaInsetSurfaceClass =
   "relative overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] shadow-[0_8px_24px_rgba(91,72,59,0.06)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/65 dark:before:bg-white/8";
 
 export const taleaPageShellClass =
-  "mx-auto w-full max-w-[1600px] px-3 sm:px-5 md:px-6 lg:px-8 xl:px-10";
+  "mx-auto w-full max-w-[1600px] px-1.5 sm:px-4 md:px-6 lg:px-8 xl:px-10";
 
 export const taleaGlassPanelClass =
   "relative overflow-hidden rounded-[1.8rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl";

@@ -16,19 +16,20 @@
 
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  overflow: hidden;
+  padding: 5.5rem 1.5rem 2.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--a-void);
   color: var(--a-text);
   font-family: 'Space Grotesk', system-ui, sans-serif;
 }
 
-/* ── Ambient background ── */
+/* Fixed background layers so they cover the whole scrollable area */
+/* ── Ambient background (fixed so it covers the scrollable area) ── */
 .auth-bg {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
@@ -60,7 +61,7 @@
 
 /* Soft floating glow orbs */
 .auth-orb {
-  position: absolute;
+  position: fixed;
   border-radius: 50%;
   filter: blur(70px);
   z-index: 0;
@@ -91,6 +92,7 @@
   z-index: 2;
   width: 100%;
   max-width: 440px;
+  margin: auto;
   padding: 2.6rem 2.4rem 2.2rem;
   background: rgba(13, 13, 20, 0.72);
   border: 1px solid rgba(232, 168, 56, 0.18);
@@ -187,26 +189,64 @@
 .auth-clerk-wrap {
   display: flex;
   justify-content: center;
-  min-height: 260px;
   position: relative;
+  width: 100%;
 }
 
-/* Branded loader shown until Clerk's widget mounts */
+/* While loading, reserve space so the overlaid loader has room.
+   Once ready, height is driven purely by Clerk's real widget → adapts. */
+.auth-clerk-wrap:not(.is-ready) {
+  min-height: 300px;
+}
+
+/* Make Clerk's widget span the card and never overflow horizontally */
+.auth-clerk-wrap .cl-rootBox,
+.auth-clerk-wrap .cl-card,
+.auth-clerk-wrap .cl-cardBox {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Dark-theme Clerk inputs reliably (appearance.variables can be overridden by
+   Clerk's baseline on some versions — enforce via CSS as the safety net). */
+.auth-clerk-wrap .cl-formFieldInput,
+.auth-clerk-wrap input.cl-formFieldInput {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #eee8e0 !important;
+}
+.auth-clerk-wrap .cl-formFieldInput::placeholder {
+  color: rgba(238, 232, 224, 0.4) !important;
+}
+.auth-clerk-wrap .cl-formFieldLabel,
+.auth-clerk-wrap .cl-dividerText,
+.auth-clerk-wrap .cl-footerActionText {
+  color: rgba(238, 232, 224, 0.75) !important;
+}
+.auth-clerk-wrap .cl-formFieldInputShowPasswordButton,
+.auth-clerk-wrap .cl-formFieldAction {
+  color: var(--a-amber) !important;
+}
+
+/* Branded loader — absolute overlay over the (initially empty) mount area */
 .auth-loading {
   position: absolute;
   inset: 0;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1rem;
   color: var(--a-text-dim);
+  background: rgba(13, 13, 20, 0.85);
   animation: authFadeIn 0.4s ease both;
 }
 .auth-loading.is-hidden {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
 }
 .auth-spinner {
   width: 42px;

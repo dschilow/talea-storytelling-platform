@@ -236,6 +236,8 @@ const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; opt
 
 const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
   const { t } = useTranslation();
+  if (status === "complete") return null;
+
   return (
     <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm", statusMeta[status].className)}>
       {t(`storiesScreen.status.${status}`, status)}
@@ -595,8 +597,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const isStudioTabActive = isAdmin && contentTab === "studio";
 
   return (
-    <div className={cn(taleaPageShellClass, "flex flex-col gap-5 pb-6 pt-4 sm:gap-6 sm:pb-8 sm:pt-6")}>
-      <div className={cn(taleaSurfaceClass, "p-4 sm:p-5 md:px-7 md:py-6")}>
+    <div className={cn(taleaPageShellClass, "flex flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pb-8 sm:pt-6")}>
+      <div className={cn(taleaSurfaceClass, "p-3 sm:p-5 md:px-7 md:py-6")}>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-tertiary)]">
@@ -620,31 +622,31 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10">
-          <div className="flex rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
-            <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+        <div className="mt-4 grid gap-3 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10 lg:grid-cols-[auto_1fr] lg:items-center">
+          <div className="grid grid-flow-col auto-cols-fr rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
+            <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
               {t("storiesScreen.storiesTab")}
             </button>
-            <button type="button" role="tab" aria-selected={contentTab === "characters"} onClick={() => setContentTab("characters")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "characters" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+            <button type="button" role="tab" aria-selected={contentTab === "characters"} onClick={() => setContentTab("characters")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "characters" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
               Charaktere
             </button>
             {isAdmin ? (
-              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-full px-4 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
+              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
                 {t("storiesScreen.studioTab")}
               </button>
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-3 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] dark:border-white/10">
             {[
               { label: t("common.total"), value: total, dot: "bg-[var(--primary)]" },
               { label: t("storiesScreen.status.complete"), value: completeCount, dot: "bg-emerald-400" },
               { label: t("storiesScreen.status.generating"), value: generatingCount, dot: "bg-amber-400" },
             ].map((item) => (
-              <div key={item.label} className="inline-flex items-center gap-2 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1.5 dark:border-white/10">
+              <div key={item.label} className="flex min-w-0 items-center justify-center gap-1.5 px-2 py-2.5">
                 <span className={cn("h-2 w-2 rounded-full", item.dot)} aria-hidden />
                 <span className="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{item.value}</span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{item.label}</span>
+                <span className="truncate text-[10px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">{item.label}</span>
               </div>
             ))}
           </div>
