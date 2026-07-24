@@ -23,20 +23,24 @@ import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
+import { WizardImage } from "@/components/avatar-form/WizardImage";
+import { useWizardAssets } from "@/hooks/useWizardAssets";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
+  imageId?: string;
   path: string;
   labelKey?: string;
   label?: string;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
-  { icon: Home, labelKey: "navigation.home", path: "/" },
-  { icon: BookOpen, labelKey: "navigation.stories", path: "/stories" },
-  { icon: User, labelKey: "navigation.avatars", path: "/avatar" },
-  { icon: FlaskConical, label: "Dokus", path: "/doku" },
-  { icon: Brain, label: "Quiz", path: "/quiz" },
+  { icon: Home, imageId: "home", labelKey: "navigation.home", path: "/" },
+  { icon: BookOpen, imageId: "stories", labelKey: "navigation.stories", path: "/stories" },
+  { icon: User, imageId: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
+  { icon: FlaskConical, imageId: "dokus", label: "Dokus", path: "/doku" },
+  { icon: Brain, imageId: "quiz", label: "Quiz", path: "/quiz" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -83,6 +87,8 @@ const Sidebar: React.FC = () => {
     }
   };
 
+  const { assetUrl } = useWizardAssets();
+
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path);
     const Icon = item.icon;
@@ -110,13 +116,22 @@ const Sidebar: React.FC = () => {
 
         <div
           className={cn(
-            "relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[1rem] border transition-colors",
+            "relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-[1rem] border transition-colors",
             active
               ? "border-white/70 bg-white/80 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6"
               : "border-transparent bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)] group-hover:bg-white/75 group-hover:text-[var(--talea-text-secondary)] dark:group-hover:bg-white/6"
           )}
         >
-          <Icon className="h-[18px] w-[18px] transition-colors" />
+          {item.imageId ? (
+            <WizardImage
+              url={assetUrl("navTab", item.imageId)}
+              fallback={<Icon className="h-[18px] w-[18px] transition-colors" />}
+              alt={labelOf(item)}
+              fallbackClassName="flex h-full w-full items-center justify-center"
+            />
+          ) : (
+            <Icon className="h-[18px] w-[18px] transition-colors" />
+          )}
         </div>
 
         <motion.span

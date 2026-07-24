@@ -25,6 +25,8 @@ import { fetchCosmosState, type TopicSuggestionItemDTO } from '../Cosmos/apiCosm
 import { resolveCosmosDomains } from '../Cosmos/CosmosAssetsRegistry';
 import { ageToAgeGroup } from '@/lib/child-profile-defaults';
 import { cn } from '@/lib/utils';
+import { WizardImage } from '../../components/avatar-form/WizardImage';
+import { useWizardAssets, type WizardAssetGroup } from '../../hooks/useWizardAssets';
 import {
   TaleaActionButton,
   TaleaPageBackground,
@@ -316,14 +318,21 @@ function Choice({
   title,
   description,
   emoji,
+  imageGroup,
+  imageId,
 }: {
   selected: boolean;
   onClick: () => void;
   title: string;
   description: string;
   emoji?: string;
+  /** When set together with imageId, renders a pre-generated Talea illustration instead of the raw emoji. */
+  imageGroup?: WizardAssetGroup;
+  imageId?: string;
 }) {
   const reduceMotion = useReducedMotion();
+  const { assetUrl } = useWizardAssets();
+  const imageUrl = imageGroup && imageId ? assetUrl(imageGroup, imageId) : undefined;
 
   return (
     <motion.button
@@ -338,7 +347,16 @@ function Choice({
           : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-soft)] hover:bg-[var(--talea-surface-inset)]'
       )}
     >
-      {emoji && <span className="text-2xl leading-none">{emoji}</span>}
+      {(imageUrl || emoji) && (
+        <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg">
+          <WizardImage
+            url={imageUrl}
+            fallback={emoji ?? ''}
+            alt={title}
+            fallbackClassName="text-2xl leading-none"
+          />
+        </span>
+      )}
       <p
         className="text-sm font-semibold leading-tight"
         style={{ color: 'var(--talea-text-primary)' }}
@@ -420,6 +438,7 @@ function Counter({
 export default function ModernDokuWizard() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { assetUrl: dokuDomainAssetUrl } = useWizardAssets();
   const [searchParams] = useSearchParams();
   const backend = useBackend();
   const { userId, getToken } = useAuth();
@@ -872,7 +891,14 @@ export default function ModernDokuWizard() {
                                     : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-soft)]'
                                 )}
                               >
-                                <span className="text-xl leading-none">{preset.emoji}</span>
+                                <span className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg">
+                                  <WizardImage
+                                    url={dokuDomainAssetUrl('dokuDomain', preset.id)}
+                                    fallback={preset.emoji}
+                                    alt={preset.label}
+                                    fallbackClassName="text-xl leading-none"
+                                  />
+                                </span>
                                 <p
                                   className="text-xs font-semibold leading-tight"
                                   style={{ color: 'var(--talea-text-primary)' }}
@@ -1019,6 +1045,8 @@ export default function ModernDokuWizard() {
                               title={item.label}
                               description={item.desc}
                               emoji={item.emoji}
+                              imageGroup="dokuAge"
+                              imageId={item.value}
                             />
                           ))}
                         </div>
@@ -1037,6 +1065,8 @@ export default function ModernDokuWizard() {
                               title={item.label}
                               description={item.desc}
                               emoji={item.emoji}
+                              imageGroup="dokuDepth"
+                              imageId={item.value}
                             />
                           ))}
                         </div>
@@ -1066,6 +1096,8 @@ export default function ModernDokuWizard() {
                               title={item.label}
                               description={item.desc}
                               emoji={item.emoji}
+                              imageGroup="dokuPerspective"
+                              imageId={item.value}
                             />
                           ))}
                         </div>
@@ -1084,6 +1116,8 @@ export default function ModernDokuWizard() {
                               title={item.label}
                               description={item.desc}
                               emoji={item.emoji}
+                              imageGroup="dokuTone"
+                              imageId={item.value}
                             />
                           ))}
                         </div>
@@ -1113,6 +1147,8 @@ export default function ModernDokuWizard() {
                               title={item.label}
                               description={item.desc}
                               emoji={item.emoji}
+                              imageGroup="dokuLength"
+                              imageId={item.value}
                             />
                           ))}
                         </div>

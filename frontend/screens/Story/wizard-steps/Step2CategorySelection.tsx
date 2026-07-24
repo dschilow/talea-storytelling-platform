@@ -4,6 +4,8 @@ import { Dog, Home, Mountain, Rocket, Sparkles, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { WizardImage } from '../../../components/avatar-form/WizardImage';
+import { useWizardAssets } from '../../../hooks/useWizardAssets';
 
 type MainCategory = 'fairy-tales' | 'adventure' | 'magic' | 'animals' | 'scifi' | 'modern' | null;
 
@@ -23,6 +25,7 @@ const categories = [
 
 export default function Step2CategorySelection({ state, updateState }: Props) {
   const { t } = useTranslation();
+  const { assetUrl } = useWizardAssets();
 
   return (
     <div className="space-y-6">
@@ -59,10 +62,15 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
             >
               <div className="mb-3 flex items-start gap-3">
                 <div
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl"
+                  className="inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
                   style={{ background: `${category.tone}1f` }}
                 >
-                  <Icon className="h-5 w-5" style={{ color: category.tone }} />
+                  <WizardImage
+                    url={assetUrl('storyCategory', category.id)}
+                    fallback={<Icon className="h-6 w-6" style={{ color: category.tone }} />}
+                    alt={title}
+                    fallbackClassName="flex h-full w-full items-center justify-center"
+                  />
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-base font-semibold text-foreground">{title}</h3>

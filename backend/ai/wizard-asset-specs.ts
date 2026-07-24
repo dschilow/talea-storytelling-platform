@@ -23,7 +23,18 @@ export type WizardAssetGroup =
   | "hairColor"
   | "hairStyle"
   | "eyeColor"
-  | "specialFeature";
+  | "specialFeature"
+  | "storyCategory"
+  | "storyLength"
+  | "storyFeeling"
+  | "storyWish"
+  | "dokuDomain"
+  | "dokuAge"
+  | "dokuDepth"
+  | "dokuPerspective"
+  | "dokuTone"
+  | "dokuLength"
+  | "navTab";
 
 export interface WizardAssetSpec {
   group: WizardAssetGroup;
@@ -106,6 +117,86 @@ export const WIZARD_ASSET_SPECS: WizardAssetSpec[] = [
   { group: "specialFeature", id: "scar", prompt: "a friendly child's face with a small brave scar, close-up" },
   { group: "specialFeature", id: "beard", prompt: "a small friendly beard, single object icon" },
   { group: "specialFeature", id: "earrings", prompt: "a pair of sparkly little earrings, single object icon" },
+
+  // ── Story Wizard: Kategorie ───────────────────────────────────
+  { group: "storyCategory", id: "fairy-tales", prompt: "an enchanted storybook castle with a king and princess silhouette, magical fairy tale scene" },
+  { group: "storyCategory", id: "adventure", prompt: "a treasure chest on a mountain path with a compass, adventure scene" },
+  { group: "storyCategory", id: "magic", prompt: "a sparkling magic wand casting stars, wizard hat, magical spell scene" },
+  { group: "storyCategory", id: "animals", prompt: "a group of happy forest animals together, friendly animal world scene" },
+  { group: "storyCategory", id: "scifi", prompt: "a cute rounded spaceship flying past a friendly planet, sci-fi scene" },
+  { group: "storyCategory", id: "modern", prompt: "a cheerful house with a family silhouette, everyday modern life scene" },
+
+  // ── Story Wizard: Länge (length) ───────────────────────────────
+  { group: "storyLength", id: "short", prompt: "a single small open storybook with one page, short story icon" },
+  { group: "storyLength", id: "medium", prompt: "a medium stack of two storybooks, medium story icon" },
+  { group: "storyLength", id: "long", prompt: "a tall stack of three storybooks, long story icon" },
+
+  // ── Story Wizard: Gefühle (mood) ───────────────────────────────
+  { group: "storyFeeling", id: "funny", prompt: "a big laughing smiley face with stars, funny mood icon" },
+  { group: "storyFeeling", id: "warm", prompt: "a glowing warm heart with soft sparkles, heartwarming mood icon" },
+  { group: "storyFeeling", id: "exciting", prompt: "a bright lightning bolt with motion lines, exciting mood icon" },
+  { group: "storyFeeling", id: "crazy", prompt: "a swirl of colorful confetti and stars, crazy playful mood icon" },
+  { group: "storyFeeling", id: "meaningful", prompt: "a thought bubble with a glowing lightbulb, thoughtful mood icon" },
+
+  // ── Story Wizard: Wünsche (special wishes) ─────────────────────
+  { group: "storyWish", id: "rhymes", prompt: "a musical note paired with a quill pen, rhyming poem icon" },
+  { group: "storyWish", id: "moral", prompt: "an open storybook with a glowing heart above it, lesson and moral icon" },
+  { group: "storyWish", id: "avatarIsHero", prompt: "a small hero character wearing a golden star badge, hero icon" },
+  { group: "storyWish", id: "famousCharacters", prompt: "two storybook character silhouettes shaking hands, famous characters icon" },
+  { group: "storyWish", id: "happyEnd", prompt: "a bright rainbow with a smiling sun, happy ending icon" },
+  { group: "storyWish", id: "surpriseEnd", prompt: "a wrapped gift box popping open with sparkles, surprise ending icon" },
+
+  // ── Doku Wizard: Themen-Welten (domains) ────────────────────────
+  { group: "dokuDomain", id: "nature", prompt: "a friendly leaf and a small forest animal together, nature and animals icon" },
+  { group: "dokuDomain", id: "space", prompt: "a cute rocket flying past a ringed planet and stars, outer space icon" },
+  { group: "dokuDomain", id: "history", prompt: "an ancient stone temple column with a scroll, history and cultures icon" },
+  { group: "dokuDomain", id: "tech", prompt: "a friendly rounded robot with gears, technology and inventions icon" },
+  { group: "dokuDomain", id: "body", prompt: "a glowing friendly brain with a heartbeat line, human body icon" },
+  { group: "dokuDomain", id: "earth", prompt: "a cheerful cartoon planet earth with clouds, earth and climate icon" },
+  { group: "dokuDomain", id: "arts", prompt: "a paintbrush with colorful paint splashes and a musical note, arts and music icon" },
+  { group: "dokuDomain", id: "logic", prompt: "colorful jigsaw puzzle pieces fitting together, logic and puzzles icon" },
+  { group: "dokuDomain", id: "dinosaurs", prompt: "a friendly cartoon dinosaur with a long neck, dinosaurs icon" },
+  { group: "dokuDomain", id: "oceans", prompt: "a cheerful wave with a small fish and bubbles, oceans and deep sea icon" },
+  { group: "dokuDomain", id: "myths", prompt: "a small friendly dragon curled around a glowing gem, myths and legends icon" },
+  { group: "dokuDomain", id: "coding", prompt: "a friendly computer screen with colorful code blocks, coding icon" },
+  { group: "dokuDomain", id: "chemistry", prompt: "a bubbling colorful test tube with sparkles, everyday chemistry icon" },
+  { group: "dokuDomain", id: "sports_science", prompt: "a bouncing ball with motion lines, sports and movement icon" },
+
+  // ── Doku Wizard: Alter (audience age) ───────────────────────────
+  { group: "dokuAge", id: "3-5", prompt: "a tiny cute baby chick hatching from an egg, youngest age icon" },
+  { group: "dokuAge", id: "6-8", prompt: "a small sprouting green plant, young age growing icon" },
+  { group: "dokuAge", id: "9-12", prompt: "a cute rocket ready to launch, curious explorer age icon" },
+  { group: "dokuAge", id: "13+", prompt: "a graduation cap with a small sparkle, teen expert age icon" },
+
+  // ── Doku Wizard: Tiefe (depth) ──────────────────────────────────
+  { group: "dokuDepth", id: "basic", prompt: "a single bright lightning bolt, quick short explanation icon" },
+  { group: "dokuDepth", id: "standard", prompt: "an open storybook with a glowing page, standard explanation icon" },
+  { group: "dokuDepth", id: "deep", prompt: "a magnifying glass examining a glowing gem, deep detailed exploration icon" },
+
+  // ── Doku Wizard: Erklärweise (perspective) ───────────────────────
+  { group: "dokuPerspective", id: "science", prompt: "a friendly magnifying glass over a bubbling test tube, scientist perspective icon" },
+  { group: "dokuPerspective", id: "history", prompt: "a glowing hourglass with a small clock, time traveler perspective icon" },
+  { group: "dokuPerspective", id: "technology", prompt: "a friendly wrench and gear together, inventor perspective icon" },
+  { group: "dokuPerspective", id: "nature", prompt: "a small compass resting on a green leaf, explorer perspective icon" },
+  { group: "dokuPerspective", id: "culture", prompt: "a small globe with a little airplane circling it, world traveler perspective icon" },
+
+  // ── Doku Wizard: Stimmung (tone) ────────────────────────────────
+  { group: "dokuTone", id: "fun", prompt: "a big laughing smiley face, fun playful tone icon" },
+  { group: "dokuTone", id: "curious", prompt: "a magnifying glass with a curious sparkle, curious tone icon" },
+  { group: "dokuTone", id: "neutral", prompt: "a calm gentle glowing star, calm clear tone icon" },
+
+  // ── Doku Wizard: Länge (content length) ─────────────────────────
+  { group: "dokuLength", id: "short", prompt: "a single small page of paper, short content icon" },
+  { group: "dokuLength", id: "medium", prompt: "a small folded newspaper, medium content icon" },
+  { group: "dokuLength", id: "long", prompt: "a thick stack of books, long content icon" },
+
+  // ── Bottom navigation tabs ───────────────────────────────────────
+  { group: "navTab", id: "home", prompt: "a cozy little cottage house with a heart-shaped window, home navigation icon" },
+  { group: "navTab", id: "stories", prompt: "an open storybook with glowing pages, stories library navigation icon" },
+  { group: "navTab", id: "avatars", prompt: "a small friendly character face with a star, avatars navigation icon" },
+  { group: "navTab", id: "dokus", prompt: "a glowing lightbulb next to an open book, knowledge dokus navigation icon" },
+  { group: "navTab", id: "quiz", prompt: "a friendly question mark with a checkmark, quiz navigation icon" },
+  { group: "navTab", id: "tavi", prompt: "a small friendly round robot assistant waving, chat assistant navigation icon" },
 ];
 
 /** Shared style suffix so every generated tile matches the Talea look. */

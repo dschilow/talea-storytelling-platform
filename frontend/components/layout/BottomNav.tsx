@@ -23,9 +23,13 @@ import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
 import { PlaylistDrawer } from '@/components/audio/PlaylistDrawer';
 import { WaveformEqualizer } from '@/components/audio/WaveformEqualizer';
 import { AudioPlaybackControls } from '@/components/audio/AudioPlaybackControls';
+import { WizardImage } from '@/components/avatar-form/WizardImage';
+import { useWizardAssets } from '@/hooks/useWizardAssets';
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
+  imageId: string;
   path?: string;
   labelKey?: string;
   label?: string;
@@ -33,13 +37,14 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: Home, labelKey: 'navigation.home', path: '/' },
-  { icon: BookOpen, labelKey: 'navigation.stories', path: '/stories' },
-  { icon: User, labelKey: 'navigation.avatars', path: '/avatar' },
-  { icon: FlaskConical, label: 'Dokus', path: '/doku' },
-  { icon: Brain, label: 'Quiz', path: '/quiz' },
+  { icon: Home, imageId: 'home', labelKey: 'navigation.home', path: '/' },
+  { icon: BookOpen, imageId: 'stories', labelKey: 'navigation.stories', path: '/stories' },
+  { icon: User, imageId: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
+  { icon: FlaskConical, imageId: 'dokus', label: 'Dokus', path: '/doku' },
+  { icon: Brain, imageId: 'quiz', label: 'Quiz', path: '/quiz' },
   {
     icon: Bot,
+    imageId: 'tavi',
     label: 'Tavi',
     onClick: () => {
       window.dispatchEvent(new Event('tavi:open'));
@@ -99,6 +104,7 @@ const BottomNav: React.FC = () => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
+  const { assetUrl } = useWizardAssets();
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : '');
 
   const renderNavItem = (item: NavItem) => {
@@ -123,13 +129,18 @@ const BottomNav: React.FC = () => {
 
         <div
           className={cn(
-            'relative flex h-9 w-9 items-center justify-center rounded-[0.95rem] border transition-colors duration-200',
+            'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[0.95rem] border transition-colors duration-200',
             active
               ? 'border-white/70 bg-white/82 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6'
               : 'border-transparent bg-transparent text-[var(--talea-text-tertiary)]',
           )}
         >
-          <Icon className="h-[18px] w-[18px]" />
+          <WizardImage
+            url={assetUrl('navTab', item.imageId)}
+            fallback={<Icon className="h-[18px] w-[18px]" />}
+            alt={labelOf(item)}
+            fallbackClassName="flex h-full w-full items-center justify-center"
+          />
         </div>
 
         <span

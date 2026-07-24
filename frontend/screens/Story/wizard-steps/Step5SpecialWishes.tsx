@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
 import ArtifactCompanionPicker, { type BroughtArtifactSelection } from './ArtifactCompanionPicker';
+import { WizardImage } from '../../../components/avatar-form/WizardImage';
+import { useWizardAssets } from '../../../hooks/useWizardAssets';
 
 interface Props {
   state: {
@@ -32,6 +34,7 @@ const wishes = [
 
 export default function Step5SpecialWishes({ state, updateState }: Props) {
   const { t } = useTranslation();
+  const { assetUrl } = useWizardAssets();
 
   const toggleWish = (id: (typeof wishes)[number]['id']) => {
     updateState({ [id]: !state[id] });
@@ -62,8 +65,13 @@ export default function Step5SpecialWishes({ state, updateState }: Props) {
               )}
               style={{ borderColor: selected ? `${wish.tone}66` : 'var(--color-border)' }}
             >
-              <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${wish.tone}1f` }}>
-                <Icon className="h-4 w-4" style={{ color: wish.tone }} />
+              <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${wish.tone}1f` }}>
+                <WizardImage
+                  url={assetUrl('storyWish', wish.id)}
+                  fallback={<Icon className="h-5 w-5" style={{ color: wish.tone }} />}
+                  alt={t(`wizard.wishes.${wish.id}.title`)}
+                  fallbackClassName="flex h-full w-full items-center justify-center"
+                />
               </div>
               <p className="text-sm font-semibold text-foreground">{t(`wizard.wishes.${wish.id}.title`)}</p>
               <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.wishes.${wish.id}.description`)}</p>

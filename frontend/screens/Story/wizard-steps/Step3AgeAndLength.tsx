@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Baby, Clock3, GraduationCap, Sparkles, UserCheck, Users } from 'lucide-react';
+import { Baby, BookOpen, Clock3, GraduationCap, Library, Sparkles, UserCheck, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import {
   type AIProvider,
   type OpenRouterStoryModel,
 } from '@/types/story';
+import { WizardImage } from '../../../components/avatar-form/WizardImage';
+import { useWizardAssets } from '../../../hooks/useWizardAssets';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
@@ -37,9 +39,9 @@ const ageGroups = [
 ] as const;
 
 const lengths = [
-  { id: 'short', tone: 'var(--talea-text-tertiary)' },
-  { id: 'medium', tone: '#be8f55' },
-  { id: 'long', tone: '#c5828c' },
+  { id: 'short', icon: BookOpen, tone: 'var(--talea-text-tertiary)' },
+  { id: 'medium', icon: Library, tone: '#be8f55' },
+  { id: 'long', icon: Library, tone: '#c5828c' },
 ] as const;
 
 type ModelConfig = { id: AIModel; title: string; subtitleKey: string; cost: string; tone: string; recommended?: boolean };
@@ -109,6 +111,7 @@ export default function Step3AgeAndLength({
   showModelSelection = true,
 }: Props) {
   const { t } = useTranslation();
+  const { assetUrl } = useWizardAssets();
   const activeProvider = state.aiProvider ?? 'native';
   const activeOpenRouterModel = state.openRouterModel || DEFAULT_OPENROUTER_STORY_MODEL;
 
@@ -142,8 +145,13 @@ export default function Step3AgeAndLength({
                 )}
                 style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
               >
-                <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${item.tone}1f` }}>
-                  <Icon className="h-4 w-4" style={{ color: item.tone }} />
+                <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${item.tone}1f` }}>
+                  <WizardImage
+                    url={assetUrl('dokuAge', item.id)}
+                    fallback={<Icon className="h-5 w-5" style={{ color: item.tone }} />}
+                    alt={t(`wizard.ageGroups.${item.id}.title`)}
+                    fallbackClassName="flex h-full w-full items-center justify-center"
+                  />
                 </div>
                 <p className="text-sm font-semibold text-foreground">{t(`wizard.ageGroups.${item.id}.title`)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.ageGroups.${item.id}.description`)}</p>
@@ -162,6 +170,7 @@ export default function Step3AgeAndLength({
         <div className="grid grid-cols-3 gap-3">
           {lengths.map((item) => {
             const selected = state.length === item.id;
+            const Icon = item.icon;
 
             return (
               <button
@@ -174,6 +183,17 @@ export default function Step3AgeAndLength({
                 )}
                 style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
               >
+                <div
+                  className="mx-auto mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg"
+                  style={{ background: `${item.tone}1f` }}
+                >
+                  <WizardImage
+                    url={assetUrl('storyLength', item.id)}
+                    fallback={<Icon className="h-5 w-5" style={{ color: item.tone }} />}
+                    alt={t(`wizard.lengths.${item.id}.title`)}
+                    fallbackClassName="flex h-full w-full items-center justify-center"
+                  />
+                </div>
                 <p className="text-sm font-semibold text-foreground">{t(`wizard.lengths.${item.id}.title`)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.lengths.${item.id}.duration`)}</p>
                 <p className="text-[11px] text-muted-foreground/80">{t(`wizard.lengths.${item.id}.chapters`)}</p>

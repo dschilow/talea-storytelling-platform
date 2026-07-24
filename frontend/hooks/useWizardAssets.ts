@@ -20,7 +20,18 @@ export type WizardAssetGroup =
   | 'hairColor'
   | 'hairStyle'
   | 'eyeColor'
-  | 'specialFeature';
+  | 'specialFeature'
+  | 'storyCategory'
+  | 'storyLength'
+  | 'storyFeeling'
+  | 'storyWish'
+  | 'dokuDomain'
+  | 'dokuAge'
+  | 'dokuDepth'
+  | 'dokuPerspective'
+  | 'dokuTone'
+  | 'dokuLength'
+  | 'navTab';
 
 type WizardAssetEntry = { group: string; id: string; key: string; url: string };
 type WizardAssetMap = Record<string, string>; // "group/id" -> url

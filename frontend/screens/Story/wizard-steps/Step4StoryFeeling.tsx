@@ -4,6 +4,8 @@ import { Heart, MessageCircle, Smile, Sparkles, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { WizardImage } from '../../../components/avatar-form/WizardImage';
+import { useWizardAssets } from '../../../hooks/useWizardAssets';
 
 type Feeling = 'funny' | 'warm' | 'exciting' | 'crazy' | 'meaningful';
 
@@ -22,6 +24,7 @@ const feelingMeta: Record<Feeling, { icon: React.ComponentType<any>; tone: strin
 
 export default function Step4StoryFeeling({ state, updateState }: Props) {
   const { t } = useTranslation();
+  const { assetUrl } = useWizardAssets();
 
   const toggleFeeling = (id: Feeling) => {
     const selected = state.feelings.includes(id);
@@ -64,8 +67,13 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               )}
               style={{ borderColor: selected ? `${tone}66` : 'var(--color-border)' }}
             >
-              <div className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${tone}1f` }}>
-                <Icon className="h-4 w-4" style={{ color: tone }} />
+              <div className="mb-2 inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg" style={{ background: `${tone}1f` }}>
+                <WizardImage
+                  url={assetUrl('storyFeeling', id)}
+                  fallback={<Icon className="h-5 w-5" style={{ color: tone }} />}
+                  alt={t(`wizard.feelings.${id}.title`)}
+                  fallbackClassName="flex h-full w-full items-center justify-center"
+                />
               </div>
               <p className="text-sm font-semibold text-foreground">{t(`wizard.feelings.${id}.title`)}</p>
               <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.feelings.${id}.description`)}</p>
