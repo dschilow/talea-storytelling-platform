@@ -50,7 +50,9 @@ const ProfileSwitcher: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-[1.35rem] border px-3 py-2 text-sm backdrop-blur-2xl shadow-[var(--talea-shadow-soft)]"
+        aria-label={selected.name}
+        title={selected.name}
+        className="inline-flex items-center gap-2 rounded-full border p-1.5 text-sm backdrop-blur-2xl shadow-[var(--talea-shadow-soft)] md:rounded-[1.35rem] md:py-2 md:pl-2 md:pr-3"
         style={{
           borderColor: "var(--talea-border-light)",
           background: isDark ? "rgba(19,27,37,0.88)" : "rgba(255,251,247,0.88)",
@@ -58,7 +60,7 @@ const ProfileSwitcher: React.FC = () => {
         }}
       >
         <span
-          className="inline-flex h-8 w-8 items-center justify-center rounded-[0.95rem] text-[11px] font-bold shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
           style={{
             background: selected.avatarColor || (isDark ? "#506d91" : "var(--primary)"),
             color: "#fff",
@@ -66,8 +68,9 @@ const ProfileSwitcher: React.FC = () => {
         >
           {profileInitials(selected.name)}
         </span>
-        <span className="max-w-[112px] truncate font-semibold">{selected.name}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        {/* Name only on desktop — mobile stays icon-only to save space */}
+        <span className="hidden max-w-[112px] truncate font-semibold md:inline">{selected.name}</span>
+        <ChevronDown className={`hidden h-4 w-4 transition-transform md:inline ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (

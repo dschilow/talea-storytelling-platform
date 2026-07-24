@@ -690,6 +690,8 @@ type HomeSignedInContentProps = {
   isDark: boolean;
   greeting: string;
   userName?: string | null;
+  profileImageUrl?: string;
+  profileColor?: string;
   stories: Story[];
   storiesTotal: number;
   avatars: Avatar[];
@@ -709,10 +711,48 @@ type HomeSignedInContentProps = {
   cosmosState: ReturnType<typeof useCosmosState>["cosmosState"];
 };
 
+function badgeInitials(name?: string | null): string {
+  const clean = (name || "").trim();
+  if (!clean) return "K";
+  return clean
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+/** Round identity badge for the active child profile: avatar image if linked, else colored initials. */
+const ProfileHeaderBadge: React.FC<{
+  name?: string | null;
+  imageUrl?: string;
+  color?: string;
+}> = ({ name, imageUrl, color }) => {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name || "Profil"}
+        className="h-10 w-10 rounded-full object-cover shadow-[0_8px_18px_rgba(91,72,59,0.14)]"
+      />
+    );
+  }
+  return (
+    <span
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white shadow-[0_8px_18px_rgba(91,72,59,0.14)]"
+      style={{ background: color || "var(--primary)" }}
+      aria-hidden="true"
+    >
+      {badgeInitials(name)}
+    </span>
+  );
+};
+
 const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
   isDark,
   greeting,
   userName,
+  profileImageUrl,
+  profileColor,
   stories,
   storiesTotal,
   avatars,
@@ -743,14 +783,14 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
     <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-4 sm:p-5")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className={cn(taleaInsetSurfaceClass, "shrink-0 rounded-full p-1.5")}>
-            <UserButton
-              afterSignOutUrl="/"
-              userProfileMode="navigation"
-              userProfileUrl="/settings"
-              appearance={{ elements: { avatarBox: "h-10 w-10" } }}
-            />
-          </div>
+          <button
+            type="button"
+            onClick={() => goTo("/settings")}
+            className={cn(taleaInsetSurfaceClass, "shrink-0 rounded-full p-1.5 transition-transform hover:scale-105")}
+            aria-label={t("homeScreen.statsAvatars")}
+          >
+            <ProfileHeaderBadge name={userName} imageUrl={profileImageUrl} color={profileColor} />
+          </button>
           <h1
             className="text-lg font-semibold text-[var(--talea-text-primary)] sm:text-xl md:text-2xl"
             style={{ fontFamily: headingFont }}
@@ -1003,6 +1043,14 @@ const TaleaHomeScreen: React.FC = () => {
     if (hour < 18) return t("homeScreen.greeting.day");
     return t("homeScreen.greeting.evening");
   }, [t]);
+
+  // Header identity follows the ACTIVE CHILD PROFILE (not the Clerk parent account).
+  // Falls back to the account first name only when no profile is active.
+  const profileDisplayName = activeProfile?.name || user?.firstName || null;
+  const profileImageUrl = useMemo(() => {
+    if (!activeProfile?.childAvatarId) return undefined;
+    return avatars.find((a) => a.id === activeProfile.childAvatarId)?.imageUrl;
+  }, [activeProfile?.childAvatarId, avatars]);
   const createAvatarPath = useMemo(() => {
     if (!activeProfile || activeProfile.childAvatarId) {
       return "/avatar/create";
@@ -1170,7 +1218,9 @@ const TaleaHomeScreen: React.FC = () => {
         <HomeSignedInContent
           isDark={isDark}
           greeting={greeting}
-          userName={user?.firstName}
+          userName={profileDisplayName}
+          profileImageUrl={profileImageUrl}
+          profileColor={activeProfile?.avatarColor}
           stories={stories}
           storiesTotal={storiesTotal}
           avatars={avatars}
