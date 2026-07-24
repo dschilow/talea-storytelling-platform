@@ -4,6 +4,7 @@ import { runwareGenerateImage } from "./image-generation";
 import {
   bucketObjectExists,
   resolveObjectKeyUrlForClient,
+  resolveObjectUrlForClient,
   uploadBufferToBucketKey,
 } from "../helpers/bucket-storage";
 import {
@@ -64,20 +65,41 @@ function manifestKey(spec: Pick<WizardAssetSpec, "group" | "id">): string {
   return `${spec.group}/${spec.id}`;
 }
 
-async function dataUrlToBuffer(imageUrl: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+async function imageUrlToBuffer(
+  imageUrl: string
+): Promise<{ buffer: Buffer; contentType: string } | null> {
+  // Inline base64 payload — decode directly.
   if (imageUrl.startsWith("data:")) {
     const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
     if (!match) return null;
     return { contentType: match[1], buffer: Buffer.from(match[2], "base64") };
   }
-  // Runware returned a hosted URL (or it was already uploaded to our bucket).
+
+  // runwareGenerateImage may have already uploaded the result to our bucket and
+  // returned a `bucket://…` reference — that is NOT directly fetchable, so
+  // resolve it to a real HTTP(S) URL (public or signed) first.
+  let fetchUrl = imageUrl;
+  if (!/^https?:\/\//i.test(imageUrl)) {
+    const resolved = await resolveObjectUrlForClient(imageUrl);
+    if (!resolved || !/^https?:\/\//i.test(resolved)) {
+      console.warn("[wizard-assets] Could not resolve image URL for fetch:", imageUrl.slice(0, 24));
+      return null;
+    }
+    fetchUrl = resolved;
+  }
+
   try {
-    const res = await fetch(imageUrl);
-    if (!res.ok) return null;
+    const res = await fetch(fetchUrl);
+    if (!res.ok) {
+      console.warn(`[wizard-assets] Image fetch returned HTTP ${res.status}`);
+      return null;
+    }
     const contentType = res.headers.get("content-type") || "image/webp";
     const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength === 0) return null;
     return { contentType, buffer: Buffer.from(arrayBuffer) };
-  } catch {
+  } catch (error) {
+    console.warn("[wizard-assets] Image fetch failed:", error instanceof Error ? error.message : error);
     return null;
   }
 }
@@ -154,7 +176,7 @@ export const generateWizardAssets = api<GenerateWizardAssetsRequest, GenerateWiz
           continue;
         }
 
-        const payload = await dataUrlToBuffer(result.imageUrl);
+        const payload = await imageUrlToBuffer(result.imageUrl);
         if (!payload) {
           failed.push({ id: manifestId, reason: "could not read generated image payload" });
           continue;
