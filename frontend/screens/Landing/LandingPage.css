@@ -14,8 +14,8 @@
   --c-border:  rgba(255, 255, 255, 0.06);
 
   --c-text:    #eee8e0;
-  --c-text-dim: rgba(238, 232, 224, 0.5);
-  --c-text-muted: rgba(238, 232, 224, 0.25);
+  --c-text-dim: rgba(238, 232, 224, 0.72);
+  --c-text-muted: rgba(238, 232, 224, 0.42);
 
   /* Cinematic warm palette */
   --c-amber:   #e8a838;
@@ -860,14 +860,15 @@
 }
 
 .cine-scene-desc {
-  color: var(--c-text-dim);
-  font-size: 0.88rem;
-  line-height: 1.85;
+  color: rgba(240, 234, 226, 0.9);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.8;
   margin-bottom: 2rem;
-  max-width: 440px;
-  border-left: 2px solid rgba(232, 168, 56, 0.2);
+  max-width: 460px;
+  border-left: 2px solid rgba(232, 168, 56, 0.35);
   padding-left: 1.2rem;
-  font-weight: 300;
+  font-weight: 400;
+  text-shadow: 0 1px 12px rgba(6, 6, 8, 0.9);
 }
 
 .cine-scene-points {
@@ -881,9 +882,10 @@
   display: flex;
   align-items: flex-start;
   gap: 0.8rem;
-  font-size: 0.82rem;
-  color: var(--c-text-dim);
+  font-size: clamp(0.85rem, 1vw, 0.95rem);
+  color: rgba(238, 232, 224, 0.85);
   font-weight: 400;
+  text-shadow: 0 1px 10px rgba(6, 6, 8, 0.85);
 }
 
 .cine-scene-points li::before {
@@ -2170,4 +2172,51 @@
   .chapter-card { min-height: 30vh; padding: 4rem 1.5rem; }
   .chapter-title { font-size: clamp(2rem, 7vw, 3rem); }
   .scene-counter { display: none; }
+}
+
+/* ═══════════════════════════════════════
+   LAZY IMAGE — skeleton shimmer + fade-in
+   Wraps <img> so large assets fade in
+   gracefully instead of popping in.
+   ═══════════════════════════════════════ */
+
+.lazy-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Shimmer skeleton sits ON TOP of the image and fades out once decoded.
+   This keeps the image's own opacity/filter untouched (e.g. faint backdrops),
+   while still giving a smooth reveal instead of a hard pop-in. */
+.lazy-img-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(26, 20, 14, 0.55) 20%,
+      rgba(232, 168, 56, 0.1) 40%,
+      rgba(26, 20, 14, 0.55) 60%
+    ),
+    var(--c-ink);
+  background-size: 200% 100%, 100% 100%;
+  animation: lazyShimmer 1.6s linear infinite;
+  transition: opacity 0.6s var(--ease-smooth);
+  pointer-events: none;
+}
+
+.lazy-img.is-loaded .lazy-img-skeleton {
+  opacity: 0;
+}
+
+@keyframes lazyShimmer {
+  0%   { background-position: 150% 0, 0 0; }
+  100% { background-position: -150% 0, 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lazy-img-skeleton { animation: none; }
 }

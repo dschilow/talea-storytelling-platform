@@ -23,6 +23,7 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
+import LazyImage from './LazyImage';
 import './LandingPage.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -776,9 +777,7 @@ const LandingPage: React.FC = () => {
                   <span><span className="scene-counter-current">{scene.num}</span> / 05</span>
                 </div>
 
-                <div className="cine-scene-bg">
-                  <img src={scene.image} alt={`Szene ${scene.num}`} loading="lazy" />
-                </div>
+                <LazyImage wrapperClassName="cine-scene-bg" src={scene.image} alt={`Szene ${scene.num}`} />
                 <div className="cine-scene-overlay" />
                 <div className="spotlight" />
                 <div className="cine-scene-content">
@@ -811,7 +810,7 @@ const LandingPage: React.FC = () => {
             </p>
           </div>
           <div className="journey-visual">
-            <img src="/landing-assets/generated/journey-map.webp" alt="Die Talea-Weltkarte: Inseln für Geschichten, Audio, Wissen und Quiz — verbunden durch Lernpfade" loading="lazy" />
+            <LazyImage src="/landing-assets/generated/journey-map.webp" alt="Die Talea-Weltkarte: Inseln für Geschichten, Audio, Wissen und Quiz — verbunden durch Lernpfade" />
             <div className="journey-glow" aria-hidden="true" />
           </div>
         </section>
@@ -839,7 +838,7 @@ const LandingPage: React.FC = () => {
                   <div className="tilt-card-shine" />
                   <div className="tilt-card-inner">
                     <div className="island-visual" style={{ '--bob-delay': `${fi * 0.7}s` } as React.CSSProperties}>
-                      <img src={feat.island} alt="" loading="lazy" />
+                      <LazyImage src={feat.island} alt="" />
                       <span className="island-sparkle" aria-hidden="true" />
                     </div>
                     <div className="island-card-body">
@@ -887,7 +886,7 @@ const LandingPage: React.FC = () => {
         {/* ═══════════ PRICING ═══════════ */}
         <section id="pricing" className="pricing-section">
           <div className="pricing-backdrop" aria-hidden="true">
-            <img src="/landing-assets/generated/final-panorama.webp" alt="" loading="lazy" />
+            <LazyImage src="/landing-assets/generated/final-panorama.webp" alt="" />
           </div>
           <span className="section-badge"><Crown size={11} /> Preise</span>
           <h2 className="section-title">Wähle dein Abenteuer-Paket</h2>
@@ -964,7 +963,7 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
             <figure className="family-visual">
-              <img src="/landing-assets/idea.png" alt="Ein Kind erlebt staunend seine eigene Talea-Geschichte auf dem Tablet" loading="lazy" />
+              <LazyImage src="/landing-assets/idea.png" alt="Ein Kind erlebt staunend seine eigene Talea-Geschichte auf dem Tablet" />
               <figcaption>Große Augen garantiert — jede Geschichte gehört deinem Kind.</figcaption>
             </figure>
           </div>
