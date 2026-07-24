@@ -21,7 +21,6 @@ import {
   Headphones,
   Info,
   KeyRound,
-  Languages,
   Lock,
   Monitor,
   Moon,
@@ -1746,9 +1745,9 @@ export default function SettingsScreen() {
                 navbarButtonIcon: '!text-[var(--talea-text-tertiary)]',
                 navbarButtonText: '!text-[13px] !font-medium',
                 navbarMobileMenuRow:
-                  'hidden md:flex items-center justify-between px-3 py-2 border-b border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]',
+                  'hidden items-center justify-between px-3 py-2 border-b border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]',
                 navbarMobileMenuButton:
-                  'hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-secondary)]',
+                  'hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-secondary)]',
                 pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 page: '!h-auto md:!h-full !min-w-0 !w-full bg-transparent',
                 profilePage: '!w-full !max-w-none',
@@ -1764,14 +1763,7 @@ export default function SettingsScreen() {
               },
             }}
           >
-            <UserProfile.Page
-              label={t('settings.language')}
-              labelIcon={<Languages className="w-4 h-4" />}
-              url="language"
-            >
-              <LanguageSelector />
-            </UserProfile.Page>
-
+            {/* Language switcher hidden for now — only German is supported. */}
             <UserProfile.Page
               label={t('settings.appearance')}
               labelIcon={<Sun className="w-4 h-4" />}

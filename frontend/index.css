@@ -906,4 +906,47 @@
   .talea-settings-profile .cl-profilePage:not(:has(.talea-settings-panel)) {
     padding: 1rem !important;
   }
+
+  /* Clerk's internal page/section/footer containers (hashed classnames we
+     can't target individually) default to a fixed desktop-ish width and
+     don't shrink on their own, which pushed content and the "Secured by
+     Clerk" footer past the viewport edge on phones. Force every descendant
+     of the profile root to respect the mobile container width. */
+  .talea-settings-profile,
+  .talea-settings-profile * {
+    max-width: 100% !important;
+  }
+
+  .talea-settings-profile {
+    overflow-x: hidden !important;
+  }
+
+  .talea-settings-profile .cl-rootBox,
+  .talea-settings-profile .cl-cardBox,
+  .talea-settings-profile .cl-card,
+  .talea-settings-profile .cl-pageScrollBox,
+  .talea-settings-profile .cl-scrollBox,
+  .talea-settings-profile .cl-page,
+  .talea-settings-profile .cl-profilePage,
+  .talea-settings-profile .cl-footer,
+  .talea-settings-profile .cl-footerAction {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .talea-settings-profile .cl-profileSection,
+  .talea-settings-profile .cl-profileSectionItem,
+  .talea-settings-profile .cl-userPreviewMainIdentifier,
+  .talea-settings-profile .cl-userPreviewSecondaryIdentifier,
+  .talea-settings-profile .cl-formFieldRow,
+  .talea-settings-profile .cl-formFieldInput {
+    min-width: 0 !important;
+    word-break: break-word !important;
+  }
+
+  .talea-settings-profile .cl-badge {
+    white-space: normal !important;
+  }
 }
