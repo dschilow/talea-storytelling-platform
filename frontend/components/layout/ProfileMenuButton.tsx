@@ -1,9 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Plus, Star, Users } from "lucide-react";
+import { Headphones, Plus, Settings, Star, Users } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useBackend } from "@/hooks/useBackend";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+
+/**
+ * ProfileMenuButton
+ * -----------------
+ * Single combined entry point (top-right) for: switching the active child
+ * profile, opening Settings, and opening the audio playlist. Replaces the
+ * previous separate ProfileSwitcher pill (bottom-left) and Settings gear
+ * button — one icon, one place, fewer floating buttons on screen.
+ *
+ * Visual: the active profile's picture/initials badge, with a small gear
+ * overlaid bottom-right so it still reads as "this is also Settings".
+ */
 
 function profileInitials(name: string): string {
   const clean = name.trim();
@@ -57,13 +70,14 @@ const ProfileAvatarBadge: React.FC<ProfileAvatarBadgeProps> = ({
   );
 };
 
-const ProfileSwitcher: React.FC = () => {
+const ProfileMenuButton: React.FC = () => {
   const [profileImageUrls, setProfileImageUrls] = useState<Record<string, string | null>>({});
   const navigate = useNavigate();
   const backend = useBackend();
   const { resolvedTheme } = useTheme();
   const { isLoading, profiles, profileLimit, activeProfileId, activeProfile, setActiveProfileId } =
     useChildProfiles();
+  const { playlist, togglePlaylistDrawer } = useAudioPlayer();
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -89,10 +103,10 @@ const ProfileSwitcher: React.FC = () => {
         if (!profile.childAvatarId) return [profile.id, null];
 
         try {
-          const avatar = await backend.avatar.get({
+          const avatar = (await backend.avatar.get({
             id: profile.childAvatarId,
             profileId: profile.id,
-          }) as { imageUrl?: string };
+          })) as { imageUrl?: string };
           return [profile.id, avatar.imageUrl || null];
         } catch (error) {
           console.warn(`Profilbild fuer ${profile.name} konnte nicht geladen werden.`, error);
@@ -120,20 +134,16 @@ const ProfileSwitcher: React.FC = () => {
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="fixed bottom-[5.75rem] left-3 z-[97] md:bottom-auto md:left-auto md:right-5 md:top-4"
-    >
+    <div ref={rootRef} className="fixed right-3 top-3 z-[97]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        aria-label={selected.name}
+        aria-label={`${selected.name} — Profil, Einstellungen und Wiedergabeliste`}
         title={selected.name}
-        className="inline-flex items-center gap-2 rounded-full border p-1.5 text-sm backdrop-blur-2xl shadow-[var(--talea-shadow-soft)] md:rounded-[1.35rem] md:py-2 md:pl-2 md:pr-3"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl transition-colors"
         style={{
           borderColor: "var(--talea-border-light)",
           background: isDark ? "rgba(19,27,37,0.88)" : "rgba(255,251,247,0.88)",
-          color: "var(--talea-text-primary)",
         }}
       >
         <ProfileAvatarBadge
@@ -141,16 +151,26 @@ const ProfileSwitcher: React.FC = () => {
           imageUrl={profileImageUrls[selected.id]}
           isLoading={Boolean(selected.childAvatarId && profileImageUrls[selected.id] === undefined)}
           isDark={isDark}
-          className="h-8 w-8 rounded-full text-[11px] shadow-[0_8px_18px_rgba(91,72,59,0.1)]"
+          className="h-full w-full rounded-2xl text-[12px]"
         />
-        {/* Name only on desktop — mobile stays icon-only to save space */}
-        <span className="hidden max-w-[112px] truncate font-semibold md:inline">{selected.name}</span>
-        <ChevronDown className={`hidden h-4 w-4 transition-transform md:inline ${open ? "rotate-180" : ""}`} />
+
+        {/* Small gear overlay so the same icon still reads as "Settings, too". */}
+        <span
+          className="absolute -bottom-1 -right-1 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border shadow-sm"
+          style={{
+            borderColor: "var(--talea-border-light)",
+            background: isDark ? "rgba(31,44,61,0.95)" : "rgba(255,255,255,0.95)",
+            color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
+          }}
+          aria-hidden="true"
+        >
+          <Settings className="h-[11px] w-[11px]" />
+        </span>
       </button>
 
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-2 w-[292px] max-w-[calc(100vw-1.5rem)] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl md:bottom-auto md:left-auto md:right-0 md:top-full md:mb-0 md:mt-2"
+          className="absolute right-0 top-full mt-2 w-[292px] max-w-[calc(100vw-1.5rem)] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
           style={{
             borderColor: "var(--talea-border-light)",
             background: isDark ? "rgba(19,27,37,0.96)" : "rgba(255,251,247,0.96)",
@@ -230,12 +250,65 @@ const ProfileSwitcher: React.FC = () => {
               }}
               className="inline-flex items-center justify-center gap-2 rounded-[1rem] px-3 py-2 text-xs font-semibold text-white"
               style={{
-                background: "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 70%, white) 100%)",
+                background:
+                  "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 70%, white) 100%)",
               }}
             >
               <Plus className="h-3.5 w-3.5" />
               Neu
             </button>
+          </div>
+
+          <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: "var(--talea-border-light)" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                navigate("/settings");
+              }}
+              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
+              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
+            >
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
+                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
+                }}
+              >
+                <Settings className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold">Einstellungen</span>
+            </button>
+
+            {playlist.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  togglePlaylistDrawer();
+                }}
+                className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
+                style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
+              >
+                <span
+                  className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
+                    color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
+                  }}
+                >
+                  <Headphones className="h-4 w-4" />
+                  <span
+                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
+                    style={{ background: "var(--primary)" }}
+                  >
+                    {playlist.length}
+                  </span>
+                </span>
+                <span className="text-sm font-semibold">Wiedergabeliste</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -243,4 +316,4 @@ const ProfileSwitcher: React.FC = () => {
   );
 };
 
-export default ProfileSwitcher;
+export default ProfileMenuButton;

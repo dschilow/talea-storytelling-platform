@@ -116,28 +116,28 @@ const BottomNav: React.FC = () => {
         key={item.path ?? item.label ?? item.labelKey ?? 'tavi'}
         type="button"
         onClick={() => (item.onClick ? item.onClick() : item.path ? navigate(item.path) : undefined)}
-        className="relative flex flex-1 flex-col items-center gap-1 rounded-[1.2rem] px-1.5 py-2"
+        className="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[1.1rem] px-0.5 py-1.5"
         aria-label={labelOf(item)}
       >
         {active ? (
           <motion.span
             layoutId="talea-mobile-active"
-            className="absolute inset-0 rounded-[1.2rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
+            className="absolute inset-0 rounded-[1.1rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           />
         ) : null}
 
         <div
           className={cn(
-            'relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-[1.05rem] border transition-colors duration-200',
+            'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[0.9rem] border transition-colors duration-200',
             active
-              ? 'border-white/70 bg-white/82 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6'
+              ? 'border-white/70 bg-white/82 text-[var(--primary)] shadow-[0_6px_16px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6'
               : 'border-transparent bg-transparent text-[var(--talea-text-tertiary)]',
           )}
         >
           <WizardImage
             url={assetUrl('navTab', item.imageId)}
-            fallback={<Icon className="h-[20px] w-[20px]" />}
+            fallback={<Icon className="h-[17px] w-[17px]" />}
             alt={labelOf(item)}
             fallbackClassName="flex h-full w-full items-center justify-center"
           />
@@ -145,7 +145,7 @@ const BottomNav: React.FC = () => {
 
         <span
           className={cn(
-            'relative text-[9px] font-medium leading-none tracking-[0.04em] transition-colors duration-200',
+            'relative max-w-full truncate text-[8.5px] font-medium leading-none tracking-[0.02em] transition-colors duration-200',
             active ? 'font-semibold text-[var(--primary)]' : 'text-[var(--talea-text-tertiary)]',
           )}
         >
@@ -159,7 +159,7 @@ const BottomNav: React.FC = () => {
     <>
       <AnimatePresence>{isPlaylistDrawerOpen ? <PlaylistDrawer variant="mobile" /> : null}</AnimatePresence>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-2.5 md:hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-2.5 md:hidden">
         <div
           className="pointer-events-auto overflow-hidden rounded-[2rem] border shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
           style={{
@@ -350,8 +350,8 @@ const BottomNav: React.FC = () => {
             ) : null}
           </AnimatePresence>
 
-          <nav className={cn('px-2', isVisible ? 'pb-1 pt-0.5' : 'py-1.5')} aria-label="Mobile Navigation">
-            <div className="flex items-center">{NAV_ITEMS.map(renderNavItem)}</div>
+          <nav className={cn('px-1.5', isVisible ? 'pb-1 pt-0.5' : 'py-1.5')} aria-label="Mobile Navigation">
+            <div className="flex items-center gap-0.5">{NAV_ITEMS.map(renderNavItem)}</div>
           </nav>
         </div>
       </div>

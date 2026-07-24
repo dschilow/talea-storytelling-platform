@@ -1,15 +1,12 @@
 import React from "react";
-import { useLocation, useNavigate, Outlet } from "react-router-dom";
+import { useLocation, Outlet } from "react-router-dom";
 import { SignedIn } from "@clerk/clerk-react";
-import { Headphones, Settings } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import Sidebar from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
-import ProfileSwitcher from "./ProfileSwitcher";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import ProfileMenuButton from "./ProfileMenuButton";
 import { cn } from "@/lib/utils";
 
 type RouteMeta = {
@@ -91,13 +88,8 @@ function getRouteMeta(pathname: string): RouteMeta {
 }
 
 const AppLayout: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
-  const { resolvedTheme } = useTheme();
-  const { playlist, togglePlaylistDrawer, track, waitingForConversion } = useAudioPlayer();
-  const isDark = resolvedTheme === "dark";
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
-  const showSettingsButton = location.pathname !== "/settings";
   const isSettingsRoute = location.pathname.startsWith("/settings");
   const isReaderRoute =
     location.pathname.startsWith("/story-reader") ||
@@ -117,8 +109,6 @@ const AppLayout: React.FC = () => {
     location.pathname.startsWith("/characters") ||
     location.pathname.startsWith("/artifacts") ||
     location.pathname.startsWith("/logs");
-  const hasPlaylistItems = playlist.length > 0;
-  const playerIsVisible = Boolean(track) || waitingForConversion;
   const shellStyle = isCosmosFullScreenRoute || isReaderRoute
     ? undefined
     : {
@@ -189,60 +179,10 @@ const AppLayout: React.FC = () => {
       </main>
 
       <SignedIn>
-        {!isCosmosFullScreenRoute && <ProfileSwitcher />}
-        {showSettingsButton && !isCosmosFullScreenRoute && (
-          <button
-            type="button"
-            onClick={() => navigate("/settings")}
-            className="fixed right-3 top-3 z-[95] inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl md:hidden transition-colors"
-            aria-label="Einstellungen"
-            style={{
-              borderColor: "var(--talea-border-light)",
-              color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-              background: isDark ? "rgba(19,27,37,0.86)" : "rgba(255,251,247,0.86)",
-            }}
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-        )}
+        {!isCosmosFullScreenRoute && <ProfileMenuButton />}
       </SignedIn>
 
       <GlobalAudioPlayer />
-
-      {/* Floating playlist button */}
-      <SignedIn>
-        <AnimatePresence>
-          {hasPlaylistItems && !playerIsVisible && (
-            !isCosmosFullScreenRoute && (
-              <motion.button
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0, opacity: 0 }}
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.94 }}
-                type="button"
-                onClick={togglePlaylistDrawer}
-                className="fixed z-[96] inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl left-3 top-3 md:left-auto md:top-auto md:right-5 md:bottom-5 transition-colors"
-                aria-label="Wiedergabeliste"
-                style={{
-                  borderColor: 'var(--talea-border-light)',
-                  color: isDark ? 'var(--talea-text-primary)' : 'var(--talea-text-secondary)',
-                  background: isDark ? 'rgba(19,27,37,0.86)' : 'rgba(255,251,247,0.86)',
-                }}
-              >
-                <Headphones className="h-4 w-4" />
-                {playlist.length > 0 && (
-                  <span
-                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold bg-[var(--primary)] text-white"
-                  >
-                    {playlist.length}
-                  </span>
-                )}
-              </motion.button>
-            )
-          )}
-        </AnimatePresence>
-      </SignedIn>
 
       <SignedIn>
         {!isCosmosFullScreenRoute && <BottomNav />}
