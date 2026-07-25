@@ -310,6 +310,7 @@ import {
   recoverDuplicateWholeStoryParagraphs,
   stripReasoningPreamble,
 } from "./provider-output-recovery";
+import { buildPersonalObjectStemMatcher } from "./personal-object-anchor";
 
 
 /**
@@ -6745,24 +6746,9 @@ function validatePersonalCostContract(beatSheet: any): string[] {
     return issues;
   }
 
-  const folded = (text: string) => text
-    .toLowerCase()
-    .replace(/ä/g, "a")
-    .replace(/ö/g, "o")
-    .replace(/ü/g, "u")
-    .replace(/ß/g, "ss");
-  const stems = (text: string) => folded(text)
-    .split(/[^a-z]+/)
-    .filter((w) => w.length >= 4)
-    .map((w) => w.slice(0, 4));
-  const objectStems = new Set(stems(objectName));
-  if (objectStems.size === 0) return issues;
-  const shareStem = (text: string): boolean => {
-    for (const s of stems(text)) {
-      if (objectStems.has(s)) return true;
-    }
-    return false;
-  };
+  const matcher = buildPersonalObjectStemMatcher(objectName);
+  if (!matcher.hasStems) return issues;
+  const shareStem = matcher.sharesStem;
 
   if (!shareStem(personalCost)) {
     issues.push("act2.personalCost does not name the personalObject.object (no shared stem)");
@@ -6845,6 +6831,68 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   return issues;
 }
 
+/**
+ * Rewrites every field the personal-object contract checks so that it literally
+ * names the object. Unconditional — no "keep the model's wording if it looks
+ * close enough" branch, because that judgement is exactly what leaves a
+ * residual issue behind and turns a wording problem into a failed generation.
+ *
+ * Deliberately blunt: these sentences are plan scaffolding for the writer
+ * model, not prose that ships to a reader.
+ */
+function forcePersonalObjectAnchors(beatSheet: any, input: DevModeGenerationInput): any {
+  if (!beatSheet || typeof beatSheet !== "object") return beatSheet;
+
+  const protagonist = germanMainAvatarSubject(input);
+  const artifactName = String(input.matchedArtifact?.name || "").trim();
+  const motif = String(beatSheet?.recurringMotif || artifactName || "das kleine Zeichen").trim();
+  const objectDetails = extractPersonalObjectDetails(beatSheet?.personalObject, artifactName || motif);
+  const objectName = firstSceneText(objectDetails.object, artifactName, motif, "der persoenliche Gegenstand");
+
+  const matcher = buildPersonalObjectStemMatcher(objectName);
+  const anchored = (value: unknown, fallback: string): string => {
+    const text = String(value || "").trim();
+    return text && matcher.hasStems && matcher.sharesStem(text) ? text : fallback;
+  };
+
+  const currentPersonalObject = beatSheet.personalObject && typeof beatSheet.personalObject === "object"
+    ? beatSheet.personalObject
+    : {};
+  const concreteCost = `${protagonist.subject} ${protagonist.give} ${objectName} her und ${protagonist.leave} den Gegenstand sichtbar zurueck.`;
+
+  return {
+    ...beatSheet,
+    personalObject: {
+      ...currentPersonalObject,
+      object: objectName,
+      whyPersonal: firstSceneText(
+        currentPersonalObject.whyPersonal,
+        objectDetails.whyPersonal,
+        `${objectName} ist fuer die Kinder persoenlich unersetzlich.`,
+      ),
+      risk: anchored(
+        currentPersonalObject.risk,
+        `${objectName} kann dabei sichtbar beschaedigt werden oder endgueltig zurueckbleiben.`,
+      ),
+    },
+    act2: {
+      ...(beatSheet.act2 || {}),
+      personalCost: anchored(beatSheet?.act2?.personalCost, concreteCost),
+    },
+    irreversibleMiddle: {
+      ...(beatSheet.irreversibleMiddle || {}),
+      personalCost: anchored(beatSheet?.irreversibleMiddle?.personalCost, concreteCost),
+    },
+    finalPayoff: {
+      ...(beatSheet.finalPayoff || {}),
+      plantedDetail: anchored(
+        beatSheet?.finalPayoff?.plantedDetail,
+        `${objectName} mit seinem schon frueh sichtbaren Merkmal.`,
+      ),
+    },
+  };
+}
+
 function repairBeatSheetDeterministically(
   beatSheet: any,
   input: DevModeGenerationInput,
@@ -6867,14 +6915,11 @@ function repairBeatSheetDeterministically(
     /midpointIrreversibleTurn is not visibly irreversible/i.test(issue)
   );
   if (personalContractIssue || midpointIrreversibilityIssue) {
-    const objectTokens = normalizeNoveltyText(objectName)
-      .split(/[^a-z0-9]+/)
-      .filter((token) => token.length >= 4)
-      .map((token) => token.slice(0, 4));
-    const referencesObject = (value: unknown): boolean => {
-      const normalized = normalizeNoveltyText(String(value || ""));
-      return objectTokens.length === 0 || objectTokens.some((token) => normalized.includes(token));
-    };
+    // Must be the SAME matcher the gate uses, or the repair "fixes" text the
+    // validator still rejects and the run throws instead of self-healing.
+    const objectMatcher = buildPersonalObjectStemMatcher(objectName);
+    const referencesObject = (value: unknown): boolean =>
+      !objectMatcher.hasStems || objectMatcher.sharesStem(String(value || ""));
     const keepAnchored = (value: unknown, fallback: string): string => {
       const text = String(value || "").trim();
       return text && referencesObject(text) ? text : fallback;
@@ -13255,7 +13300,10 @@ export async function generateStoryDevMode(
     if (beatSheetIssues.length > 0) {
       const repairedBeatSheet = repairBeatSheetDeterministically(beatSheet, input, beatSheetIssues);
       const repairedIssues = validateBeatSheet(repairedBeatSheet, input);
-      if (repairedIssues.length < beatSheetIssues.length) {
+      // "<=" not "<": a repair that trades one issue for another still leaves a
+      // better-anchored sheet, and discarding it used to send the ORIGINAL
+      // straight into the throw below.
+      if (repairedIssues.length <= beatSheetIssues.length) {
         console.warn("[dev-mode-generation] beat-sheet deterministic repair applied after support-model repair", {
           originalIssues: beatSheetIssues,
           remainingIssues: repairedIssues,
@@ -13263,6 +13311,26 @@ export async function generateStoryDevMode(
         });
         beatSheet = applySuppressedArtifactSanitizer("beat-sheet-deterministic-repair", repairedBeatSheet);
         beatSheetIssues = repairedIssues;
+      }
+
+      // Last-resort anchor selfheal. Every remaining personal-object issue is,
+      // by definition, "this field does not name the object" — which we can
+      // always satisfy by writing a sentence that names it. Aborting the whole
+      // run instead (story 42a63cca) fails the user for a fixable wording
+      // problem, before a single line of prose has been written. Same pattern
+      // as the scene-card and logline selfheals.
+      const anchorIssuePattern = /personalCost|personalObject\.risk|finalPayoff\.plantedDetail|personalObject\.object is empty/i;
+      if (beatSheetIssues.some((issue) => anchorIssuePattern.test(issue))) {
+        const anchored = forcePersonalObjectAnchors(beatSheet, input);
+        const anchoredIssues = validateBeatSheet(anchored, input);
+        if (anchoredIssues.length < beatSheetIssues.length) {
+          console.warn("[dev-mode-generation] beat-sheet personal-object anchors forced deterministically", {
+            before: beatSheetIssues,
+            after: anchoredIssues,
+          });
+          beatSheet = applySuppressedArtifactSanitizer("beat-sheet-forced-anchors", anchored);
+          beatSheetIssues = anchoredIssues;
+        }
       }
     }
     if (beatSheetIssues.length > 0) {
