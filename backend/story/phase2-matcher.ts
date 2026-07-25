@@ -9,6 +9,33 @@ import type { FairyTaleRoleRequirement } from "./enhanced-character-matcher";
 import { saveGeneratedCharacterToPool } from "./save-generated-character";
 import crypto from "crypto";
 
+/**
+ * Reads a JSONB column from `character_pool`.
+ *
+ * These columns are JSONB, and the Postgres driver returns them as decoded
+ * objects on some versions and as JSON text on others — character-pool-api.ts
+ * already accounts for that. This loader did not: it called JSON.parse()
+ * directly, so on a driver that decodes, JSON.parse(anObject) stringifies to
+ * "[object Object]" and throws. Because the parse happened inside .map() over
+ * every active row, a single unreadable value took down the ENTIRE character
+ * pool, and every story silently lost its whole supporting cast.
+ *
+ * One bad row should cost one character, not all of them.
+ */
+function parseCharacterPoolJson<T>(value: unknown, field: string, fallback: T): T {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "object") return value as T;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      console.warn(`[phase2-matcher] character_pool.${field} holds unparseable JSON; using fallback.`);
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 export class Phase2CharacterMatcher {
   /**
    * Main matching function
@@ -445,8 +472,11 @@ export class Phase2CharacterMatcher {
       name: string;
       role: string;
       archetype: string;
-      emotional_nature: string;
-      visual_profile: string;
+      // JSONB columns: the driver hands these back already decoded on some
+      // versions and as raw JSON text on others, so they are not reliably
+      // `string` (see parseCharacterPoolJson below).
+      emotional_nature: unknown;
+      visual_profile: unknown;
       max_screen_time: number;
       available_chapters: number[];
       canon_settings: string[];
@@ -476,8 +506,16 @@ export class Phase2CharacterMatcher {
       name: row.name,
       role: row.role,
       archetype: row.archetype,
-      emotionalNature: JSON.parse(row.emotional_nature),
-      visualProfile: JSON.parse(row.visual_profile),
+      emotionalNature: parseCharacterPoolJson<CharacterTemplate["emotionalNature"]>(
+        row.emotional_nature,
+        "emotional_nature",
+        { dominant: "neutral", secondary: [] },
+      ),
+      visualProfile: parseCharacterPoolJson<CharacterTemplate["visualProfile"]>(
+        row.visual_profile,
+        "visual_profile",
+        { description: "", species: "unknown", colorPalette: [] },
+      ),
       maxScreenTime: row.max_screen_time,
       availableChapters: row.available_chapters,
       canonSettings: row.canon_settings,

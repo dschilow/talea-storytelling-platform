@@ -1,4 +1,5 @@
 import type { PersonalityTraits } from "./avatar";
+import { rollUpBaseTraitValue } from "../constants/personalityTraits";
 
 export type BaseTraitKey =
   | "knowledge"
@@ -433,7 +434,9 @@ export function getTraitNumericValue(traits: PersonalityTraits, trait: string): 
       subcategories as Record<string, unknown>
     ).reduce<number>((total, entry) => total + normalizeNumber(entry), 0);
 
-    return Math.max(valueFromObject, subcategoryTotal);
+    // Same ceiling the writer applies, so a stored value and a freshly rolled-up
+    // one can never disagree about which mastery tier the avatar is in.
+    return rollUpBaseTraitValue(trait, valueFromObject, subcategoryTotal);
   }
 
   return 0;

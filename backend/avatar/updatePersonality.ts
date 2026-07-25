@@ -4,6 +4,11 @@ import type { PersonalityTraits } from "./avatar";
 import { upgradePersonalityTraits } from "./upgradePersonalityTraits";
 import { avatarDB } from "./db";
 import {
+  SUBCATEGORY_MAX_VALUE,
+  baseTraitMaxValue,
+  rollUpBaseTraitValue,
+} from "../constants/personalityTraits";
+import {
   evaluateProgressionEvents,
   type AvatarProgressionSummary,
   type MasteryTier,
@@ -176,10 +181,9 @@ export const updatePersonality = api(
           0,
           baseTraitObject.subcategories[subcategory] || 0
         );
-        const maxValue = 1000;
         const nextSubcategoryValue = Math.max(
           0,
-          Math.min(maxValue, currentSubcategoryValue + change.change)
+          Math.min(SUBCATEGORY_MAX_VALUE, currentSubcategoryValue + change.change)
         );
 
         baseTraitObject.subcategories[subcategory] = nextSubcategoryValue;
@@ -188,7 +192,14 @@ export const updatePersonality = api(
           (sum, value) => sum + Math.max(0, value),
           0
         );
-        baseTraitObject.value = Math.max(baseTraitObject.value || 0, subcategoryTotal);
+        // Must respect the same ceiling as a direct change to this trait —
+        // otherwise awarding `courage.public_speaking` raises `courage` past a
+        // limit that awarding `courage` itself could never cross.
+        baseTraitObject.value = rollUpBaseTraitValue(
+          baseKey,
+          baseTraitObject.value,
+          subcategoryTotal,
+        );
 
         const actualChange = nextSubcategoryValue - currentSubcategoryValue;
         if (actualChange !== 0) {
@@ -209,7 +220,7 @@ export const updatePersonality = api(
         mutableTraits[traitId]
       );
       const effectiveChange = applyDiminishingReturns(currentTraitValue, change.change);
-      const maxValue = traitId === "knowledge" ? 1000 : 250;
+      const maxValue = baseTraitMaxValue(traitId);
       const nextValue = Math.max(
         0,
         Math.min(maxValue, currentTraitValue + effectiveChange)

@@ -20,6 +20,26 @@ export interface PersonalityTraitDefinition {
   };
 }
 
+/**
+ * Ceiling for a BASE trait value (the number shown on the trait ring), and the
+ * single source of truth for it.
+ *
+ * There used to be three disagreeing answers: the `maxValue` fields above said
+ * 100 for non-knowledge traits, updatePersonality clamped direct changes to
+ * 250, and the subcategory rollup (`base.value = max(value, sum(subcategories))`)
+ * clamped nothing at all — so the same trait had a different ceiling depending
+ * on whether the AI awarded `courage` or `courage.public_speaking`. The mastery
+ * tiers in avatar/progression.ts are the tie-breaker: they run to 250 at tier 8
+ * with tier 9 open-ended, so 250 is the real rule for non-knowledge traits.
+ */
+export const BASE_TRAIT_MAX_VALUE = 250;
+export const KNOWLEDGE_TRAIT_MAX_VALUE = 1000;
+export const SUBCATEGORY_MAX_VALUE = 1000;
+
+export function baseTraitMaxValue(traitId: string): number {
+  return isKnowledgeTrait(traitId) ? KNOWLEDGE_TRAIT_MAX_VALUE : BASE_TRAIT_MAX_VALUE;
+}
+
 // DIE 9 HAUPTKATEGORIEN - Alle starten bei 0!
 export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
   {
@@ -38,7 +58,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'creativity',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Kreativität', en: 'Creativity' },
     description: { de: 'Kreative Problemlösung und Fantasie', en: 'Creative problem solving and imagination' }
   },
@@ -48,7 +68,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'vocabulary',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Wortschatz', en: 'Vocabulary' },
     description: { de: 'Sprachlicher Ausdruck und Kommunikation', en: 'Linguistic expression and communication' }
   },
@@ -58,7 +78,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'courage',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Mut', en: 'Courage' },
     description: { de: 'Bereitschaft Risiken einzugehen', en: 'Willingness to take risks' }
   },
@@ -68,7 +88,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'curiosity',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Neugier', en: 'Curiosity' },
     description: { de: 'Wissensdurst und Entdeckergeist', en: 'Thirst for knowledge and exploration' }
   },
@@ -78,7 +98,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'teamwork',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Teamgeist', en: 'Teamwork' },
     description: { de: 'Zusammenarbeit und Kooperation', en: 'Collaboration and cooperation' }
   },
@@ -88,7 +108,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'empathy',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Empathie', en: 'Empathy' },
     description: { de: 'Mitgefühl und Verständnis für andere', en: 'Compassion and understanding for others' }
   },
@@ -98,7 +118,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'persistence',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Ausdauer', en: 'Persistence' },
     description: { de: 'Durchhaltevermögen und Beharrlichkeit', en: 'Endurance and perseverance' }
   },
@@ -108,7 +128,7 @@ export const BASE_PERSONALITY_TRAITS: PersonalityTraitDefinition[] = [
     baseKey: 'logic',
     defaultValue: 0,
     minValue: 0,
-    maxValue: 100,
+    maxValue: BASE_TRAIT_MAX_VALUE,
     displayNames: { de: 'Logik', en: 'Logic' },
     description: { de: 'Analytisches Denken und Schlussfolgerung', en: 'Analytical thinking and reasoning' }
   }
@@ -237,6 +257,21 @@ export function getBaseTraitIds(): string[] {
 
 export function isKnowledgeTrait(traitId: string): boolean {
   return traitId.startsWith('knowledge');
+}
+
+
+/**
+ * Rolls a base trait's value up from its subcategories, respecting the base
+ * ceiling. Subcategories individually cap at 1000, so an uncapped sum could
+ * push a base trait far past any tier the progression system defines.
+ */
+export function rollUpBaseTraitValue(
+  traitId: string,
+  currentValue: number,
+  subcategoryTotal: number,
+): number {
+  const raw = Math.max(currentValue || 0, subcategoryTotal || 0);
+  return Math.max(0, Math.min(baseTraitMaxValue(traitId), raw));
 }
 
 export function parseKnowledgeTrait(traitId: string): { baseKey: string; subcategory?: string } {

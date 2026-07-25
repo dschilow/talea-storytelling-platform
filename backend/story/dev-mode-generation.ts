@@ -104,7 +104,48 @@ const DEV_MODE_IMAGE_MODEL = "runware:400@4";
 const DEV_MODE_PIPELINE_ID = "screenplay-first-v12";
 const DEV_MODE_RUNTIME_HOTFIX = "dev-mode-blocking-quality-gates-2026-05-20";
 const DEV_MODE_PREMIUM_QUALITY_SCORE_CAP_ON_HARD_GATE = 7.9;
-const DEV_MODE_SCENE_CARD_COUNT = 5;
+// Dramatic movements the screenplay stages plan for. These are cinematic story
+// FUNCTIONS, not display pages — reading pages come from deriveChapterCount()
+// and stay independent, so shortening this list does not change how many pages
+// or images a story gets.
+//
+// This used to be a five-beat feature-film shape (hook, false_attempt,
+// complication, irreversible_middle, final_payoff) squeezed into a 900-1200
+// word budget: ~180 words per beat. Nothing could breathe, so finished stories
+// read like a synopsis of a good story rather than the story itself — every
+// movement had just enough room to state its function and move on.
+//
+// Three movements over the same budget gives each roughly 330 words. The two
+// dropped beats are not lost: a wrong first move and a rising complication are
+// still REQUIRED, but now as texture inside the movements that need them
+// instead of standing as separate scenes with their own setup cost.
+const DEV_MODE_SCENE_PURPOSES = ["hook", "irreversible_middle", "final_payoff"] as const;
+const DEV_MODE_SCENE_CARD_COUNT = DEV_MODE_SCENE_PURPOSES.length;
+
+// Dialogue beats planned per scene card. Fewer, longer movements must not mean
+// less dialogue: the old shape planned 5 scenes x 4 beats = 20, so 3 scenes now
+// carry 6-8 each to hold total speech volume roughly constant. The whole-story
+// prompt derives its quoted-line floor from the ACTUAL planned beat count
+// (see plannedDialogueBeats), so these two stay in sync automatically.
+const DEV_MODE_SCENE_DIALOGUE_BEAT_MIN = 6;
+const DEV_MODE_SCENE_DIALOGUE_BEAT_MAX = 8;
+
+/**
+ * 1-based scene number for a dramatic purpose, so prompts can name the right
+ * card ("Scene 2 must contain the personal cost") without hardcoding a number
+ * that silently points at the wrong scene when the beat list changes.
+ */
+function sceneNumberOf(purpose: (typeof DEV_MODE_SCENE_PURPOSES)[number]): number {
+  const index = DEV_MODE_SCENE_PURPOSES.indexOf(purpose);
+  return index < 0 ? DEV_MODE_SCENE_CARD_COUNT : index + 1;
+}
+// Five fully-specified scene cards with per-speaker dialogue beats are ~4.5-5k
+// completion tokens. The previous 3400 cap truncated the payload in 4 out of 4
+// audited runs (completions landed at 3267/3273/3276/3396 — i.e. flush against
+// the ceiling), which silently swapped real dramaturgy for the deterministic
+// mad-libs fallback. The stage runs on the cheap support model, so headroom
+// here costs a fraction of a cent and is only billed when actually used.
+const DEV_MODE_SCENE_CARD_MAX_TOKENS = 6500;
 // Two bounded rounds are enough to prove whether the current creative lane is
 // viable. A third full idea batch + semantic judge cost about $0.010 in run
 // 28f9275a while still ending on an 8.1 story. Premium quality is better served
@@ -253,6 +294,23 @@ import {
   buildPremiseSeedPromptBlock,
   selectPremiseSeedsForIdeaLab,
 } from "./pipeline/content-library/premise-seeds";
+import {
+  stripJsonFence,
+  sliceToOuterObject,
+  repairLooseJson,
+  escapeInnerQuotesInStringValues,
+  stripLineCommentsOutsideStrings,
+  tryParseJson,
+  recoverCompleteObjectsFromArrayProperty,
+  recoverTruncatedIdeaCandidatePayload,
+  recoverTruncatedSceneCardPayload,
+  readJsonStringLiteral,
+  findMatchingJsonBracket,
+  recoverTopLevelStringArrayProperties,
+  recoverDuplicateWholeStoryParagraphs,
+  stripReasoningPreamble,
+} from "./provider-output-recovery";
+
 
 /**
  * Back-compat alias. Existing code reads `DEV_MODE_POTENTIAL_THRESHOLDS.<key>`
@@ -4574,7 +4632,7 @@ function buildReadingPageContinuityContract(pageCount: number): string {
     "CONTINUOUS-STORY / READING-PAGE CONTRACT:",
     `- Write ONE fluent read-aloud story that the app displays as exactly ${pageCount} technical reading pages.`,
     "- Reading pages are display containers only. Do not add chapter titles, chapter arcs, recaps, page labels, or mini-endings.",
-    "- The five scene movements should flow by cause/effect: hook and false impulse -> first wrong try -> irreversible middle -> discovery by observation -> final choice and closing image.",
+    `- The ${DEV_MODE_SCENE_CARD_COUNT} scene movements should flow by cause/effect: hook plus the first wrong try -> rising complication into the irreversible middle -> discovery, final choice and closing image.`,
     "- Every page boundary must read like a natural paragraph break inside one story, not like the end of a small episode.",
     "- Preserve forward pull through unresolved cause/effect, not through cheap cliffhangers or title-shaped chapter endings.",
   ].join("\n");
@@ -6085,7 +6143,7 @@ function buildSceneCardPrompts(
       '      "titleHint": string,',
       '      "location": string,',
       '      "timePressureOrQuestion": string,',
-      '      "scenePurpose": "hook" | "false_attempt" | "complication" | "irreversible_middle" | "final_payoff",',
+      `      "scenePurpose": ${DEV_MODE_SCENE_PURPOSES.map((purpose) => `"${purpose}"`).join(" | ")},`,
       '      "visibleGoal": string,',
       '      "emotionalGoal": string,',
       '      "obstacle": string,',
@@ -6118,23 +6176,31 @@ function buildSceneCardPrompts(
       ? "CALL 5R: REPAIR SCENE CARDS BEFORE PROSE. Do not write prose."
       : "CALL 5: SCENE CARDS / DREHBUCHKARTEN. Do not write prose.",
     `Create exactly ${DEV_MODE_SCENE_CARD_COUNT} scene cards. These are cinematic story functions, not display chapters.`,
-    "Required purposes, in order: hook, false_attempt, complication, irreversible_middle, final_payoff.",
+    `Required purposes, in order: ${DEV_MODE_SCENE_PURPOSES.join(", ")}.`,
+    // The wrong first move and the rising complication used to be separate
+    // cards. They are still mandatory dramaturgy — a hero who never tries the
+    // easy wrong thing is passive — but they now live INSIDE the movements so
+    // each scene has room to play instead of merely announcing its function.
+    `This is a ${DEV_MODE_SCENE_CARD_COUNT}-movement shape, so each card is a LONG scene with internal development, not a single beat.`,
+    `- Scene ${sceneNumberOf("hook")} (hook) must contain, in order: the visible want, the FIRST WRONG MOVE the hero takes because it is easier, and the first visible consequence of that move.`,
+    `- Scene ${sceneNumberOf("irreversible_middle")} (irreversible middle) must contain a RISING COMPLICATION that makes the easy path fail again, and only then the irreversible damage and personal cost.`,
+    `- Scene ${sceneNumberOf("final_payoff")} (final payoff) must contain the recognition, a last temptation to take the old way, the final choice, and the closing image.`,
     "Every scene needs a visible goal, obstacle, wrong action or pressure, visible consequence, changed state, plant/payoff logic, and an end pull.",
     `Use characterDriver as one of ${driverOptions}, or "shared". characterActions must contain one entry for EVERY named main avatar: ${heroNames.join(", ") || "the named main protagonist"}. Never invent a second protagonist.`,
-    "Scene 3 or 4 must contain both irreversibleChange and personalCost.",
+    `Scene ${sceneNumberOf("irreversible_middle")} must contain both irreversibleChange and personalCost.`,
     "personalCost must name a PHYSICAL object, place, or privilege that is visibly given up, used up, broken, or left behind — NEVER an abstract feeling. Forbidden: 'verliert Zuversicht', 'muss Scham überwinden', 'loses hope'. Required shape: 'gibt den letzten X her', 'lässt Y zurück', 'Z zerbricht und bleibt zerbrochen'.",
     "The red-thread object/place must stay consistent from beat sheet to scene cards: visibleDamage, personalCost, plant, payoffLater, childDiscovery, and childDecision may not swap in a different main object.",
     "Scene progression must be specific: visibleGoal, obstacle, wrongAction, visibleConsequence, and endPull must change from scene to scene. Never copy the same sentence into three cards.",
     // v12 §I additive gates.
-    "Scene 3 or 4 (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.",
-    "Scene 4 must include childDiscovery — the children find the structural connection. helperFunction must NOT explain the answer.",
+    `Scene ${sceneNumberOf("irreversible_middle")} (the irreversible middle) must include visibleDamage (a concrete visible change), emotionalTurn, and cannotGoBackReason.`,
+    `Scene ${sceneNumberOf("irreversible_middle")} or ${sceneNumberOf("final_payoff")} must include childDiscovery — the children find the structural connection. helperFunction must NOT explain the answer.`,
     "The last scene must include childDecision — the resolving action is executed by a named child.",
-    "recurringMotifState must progress across the 5 scenes: introduced → (misused | lost) → reinterpreted → payoff. Pick the value that matches the scene's role.",
+    `recurringMotifState must progress across the ${DEV_MODE_SCENE_CARD_COUNT} scenes: introduced → (misused | lost) → payoff. Pick the value that matches the scene's role.`,
     "Each card needs at least 4 dialogueBeats; the next pass will expand to 4-6. Each beat must carry an actionCarried (a body action, object exchange, or pause) — never filler.",
     "Helpers must not explain the solution. helperFunction must be one of: complicates, misreads, provides tool, creates pressure, creates comic obstacle, witnesses choice. helperAction is the in-scene line/move.",
     "Non-final endPull must not be a calm conclusion.",
     isPremium
-      ? "PREMIUM MODE: visibleDamage on the middle scene, childDiscovery on scene 4, childDecision on the final scene, and recurringMotifState on every scene are HARD REQUIRED. Incomplete cards trigger scene_card_repair_then_rewrite."
+      ? `PREMIUM MODE: visibleDamage on the middle scene, childDiscovery from scene ${sceneNumberOf("irreversible_middle")} onward, childDecision on the final scene, and recurringMotifState on every scene are HARD REQUIRED. Incomplete cards trigger scene_card_repair_then_rewrite.`
       : "EFFICIENT MODE: the new fields are preferred but the legacy fields (irreversibleChange, personalCost) remain the hard floor.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
     "",
@@ -6177,7 +6243,7 @@ function buildDialogueIntentPrompts(
       ? "CALL 6R: REPAIR DIALOGUE INTENT BEFORE PROSE. Do not write prose."
       : "CALL 6: DIALOGUE INTENT PASS. Do not write prose.",
     "Plan dialogue function before drafting. This is not a quota pass; every beat must carry action, relationship, tension, humor, or subtext.",
-    "For each of the 5 scenes, produce 4-6 dialogue beats. Hard minimum is 4 beats per scene.",
+    `For each of the ${DEV_MODE_SCENE_CARD_COUNT} scenes, produce ${DEV_MODE_SCENE_DIALOGUE_BEAT_MIN}-${DEV_MODE_SCENE_DIALOGUE_BEAT_MAX} dialogue beats. Hard minimum is ${DEV_MODE_SCENE_DIALOGUE_BEAT_MIN} beats per scene. Spread them across DIFFERENT speakers — a scene where only the hero speaks is a failed card.`,
     mainAvatarVoiceInstruction(input),
     "No filler acknowledgements. No helper explaining the magic rule or final answer.",
     repairIssues.length > 0 ? `Repair these gate issues: ${repairIssues.join(" | ")}` : null,
@@ -6322,15 +6388,23 @@ function hasClosedSceneEndPull(value: unknown): boolean {
 function ensureSceneDialogueBeats(card: any, input: DevModeGenerationInput): any[] {
   const heroNames = getMainAvatarNames(input);
   const speakers = heroNames.length > 0 ? heroNames : ['Hauptfigur'];
-  const existing = Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.slice(0, 6) : [];
+  const existing = Array.isArray(card?.dialogueBeats) ? card.dialogueBeats.slice(0, DEV_MODE_SCENE_DIALOGUE_BEAT_MAX) : [];
   const templates = [
     { intent: 'want', subtext: 'will das sichtbare Ziel erreichen', actionCarried: card?.visibleGoal || card?.plant || 'zeigt auf den nächsten Schritt' },
     { intent: 'observe', subtext: 'bemerkt die Regel oder Gefahr', actionCarried: card?.obstacle || card?.visibleConsequence || 'hält kurz inne und prüft die Spur' },
     { intent: 'resist', subtext: 'will den einfachen Weg nehmen', actionCarried: card?.wrongAction || 'greift zu schnell nach der falschen Lösung' },
+    { intent: 'push_back', subtext: 'widerspricht und setzt eigenes Interesse dagegen', actionCarried: card?.obstacle || 'stellt sich sichtbar in den Weg' },
+    { intent: 'react', subtext: 'reagiert körperlich auf die Folge', actionCarried: card?.visibleConsequence || card?.visibleDamage || 'weicht einen Schritt zurück' },
     { intent: 'decide', subtext: 'lenkt zur nächsten Handlung', actionCarried: card?.endPull || card?.childDecision || 'setzt eine konkrete Entscheidung in Bewegung' },
   ];
-  for (let index = existing.length; index < 4; index += 1) {
-    existing.push({ speaker: speakers[index % speakers.length], ...templates[index] });
+  // Round-robin the speakers so the fallback never produces a monologue: the
+  // old version padded every scene with the same four beats all assigned to the
+  // first hero, which left supporting characters without a single planned line.
+  for (let index = existing.length; index < DEV_MODE_SCENE_DIALOGUE_BEAT_MIN; index += 1) {
+    existing.push({
+      speaker: speakers[index % speakers.length],
+      ...templates[index % templates.length],
+    });
   }
   return existing;
 }
@@ -6339,7 +6413,7 @@ function repairSceneCardsDeterministically(
   beatSheet: any,
   input: DevModeGenerationInput,
 ): { sceneCards: any[]; changed: boolean; fixes: string[] } {
-  const purposes = ["hook", "false_attempt", "complication", "irreversible_middle", "final_payoff"];
+  const purposes = [...DEV_MODE_SCENE_PURPOSES];
   const motif = firstSceneText(beatSheet?.recurringMotif, beatSheet?.wonderRule, input.selectedIdea?.centralObjectOrPlace, "das wiederkehrende Zeichen");
   const middle = beatSheet?.irreversibleMiddle || {};
   const finalPayoff = beatSheet?.finalPayoff || {};
@@ -6476,15 +6550,23 @@ function repairSceneCardsDeterministically(
       || !referencesPersonalObject(original.personalCost)
       ? ""
       : original.personalCost;
-    if (scenePurpose === "irreversible_middle" || index === 2 || index === 3) {
+    // The cost beat belongs to the irreversible middle. This used to also fire
+    // on the raw indices 2 and 3, which only lined up with the middle under the
+    // old five-movement shape — on a shorter list those indices land on the
+    // finale and would stamp the damage/cost onto the payoff scene instead.
+    // Key off the purpose, and treat everything after the middle as "already
+    // paid" so the finale still knows what was lost.
+    const middleIndex = Math.max(0, purposes.indexOf("irreversible_middle"));
+    if (scenePurpose === "irreversible_middle") {
       next.visibleDamage = firstSceneText(original.visibleDamage, visibleDamage, next.visibleConsequence);
       next.personalCost = firstSceneText(safeOriginalCost, personalCost, concretePersonalCost);
       next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, cannotGoBack, "Der alte Zustand ist sichtbar verändert und kann nicht durch Warten zurückkehren.");
       next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise, beatSheet?.mainNeed, "Die Kinder merken, was ihr falscher Weg kostet.");
     } else {
+      const afterMiddle = index > middleIndex;
       next.visibleDamage = firstSceneText(original.visibleDamage, index > 0 ? next.visibleConsequence : "");
-      next.personalCost = firstSceneText(safeOriginalCost, index > 1 ? personalCost : "");
-      next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, index > 1 ? cannotGoBack : "");
+      next.personalCost = firstSceneText(safeOriginalCost, afterMiddle ? personalCost : "");
+      next.cannotGoBackReason = firstSceneText(original.cannotGoBackReason, afterMiddle ? cannotGoBack : "");
       next.emotionalTurn = firstSceneText(original.emotionalTurn, beatSheet?.emotionalPremise);
     }
 
@@ -6505,7 +6587,7 @@ function repairSceneCardsDeterministically(
     finalCard.helperAction = `${finalAntagonist.name} tries the old order reflex once, sees its visible consequence, and takes over a specific useful task in a new way.`;
     const existingOnStage = Array.isArray(finalCard.onStage) ? finalCard.onStage : [];
     finalCard.onStage = [...new Set([...existingOnStage, finalAntagonist.name])].slice(0, 4);
-    const beats = Array.isArray(finalCard.dialogueBeats) ? finalCard.dialogueBeats.slice(0, 6) : [];
+    const beats = Array.isArray(finalCard.dialogueBeats) ? finalCard.dialogueBeats.slice(0, DEV_MODE_SCENE_DIALOGUE_BEAT_MAX) : [];
     if (!beats.some((beat: any) => normalizePoolName(String(beat?.speaker || "")) === normalizePoolName(finalAntagonist.name))) {
       const antagonistBeat = {
         speaker: finalAntagonist.name,
@@ -6933,12 +7015,12 @@ function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): strin
   if (sceneCards.length !== DEV_MODE_SCENE_CARD_COUNT) {
     issues.push(`expected ${DEV_MODE_SCENE_CARD_COUNT} scene cards, got ${sceneCards.length}`);
   }
-  const purposes = ["hook", "false_attempt", "complication", "irreversible_middle", "final_payoff"];
+  const purposes = [...DEV_MODE_SCENE_PURPOSES];
   // v12 §I: bump dialogue-beat floor from 3 to 4 in premium; efficient keeps
   // the looser legacy minimum so it does not stall the repair loop on every
   // narrowly-three-beat card.
   const isPremium = (mode || "premium") === "premium";
-  const minBeats = isPremium ? 4 : 3;
+  const minBeats = isPremium ? DEV_MODE_SCENE_DIALOGUE_BEAT_MIN : DEV_MODE_SCENE_DIALOGUE_BEAT_MIN - 2;
   sceneCards.forEach((card, index) => {
     const n = Number(card?.scene || index + 1);
     if (card?.scenePurpose !== purposes[index]) issues.push(`scene ${n} purpose should be ${purposes[index]}`);
@@ -6993,20 +7075,34 @@ function validateSceneCards(sceneCards: any[], mode?: DevModeQualityMode): strin
       issues.push(`scene ${n} helperAction explains the solution`);
     }
   });
-  const irreversibleMiddle = sceneCards.slice(2, 4).some((card) =>
+  // Locate the turn by PURPOSE, not by slice(2, 4): those indices described a
+  // five-card plan and, on a shorter one, point at the finale instead of the
+  // middle — so the gate would demand the damage on the wrong scene entirely.
+  const turnCardIndex = sceneCards.findIndex(
+    (card) => String(card?.scenePurpose || "") === "irreversible_middle"
+  );
+  const turnCards = turnCardIndex >= 0
+    ? [sceneCards[turnCardIndex]]
+    : sceneCards.slice(Math.max(0, sceneNumberOf("irreversible_middle") - 1), sceneNumberOf("irreversible_middle") + 1);
+  const irreversibleMiddle = turnCards.some((card) =>
     String(card?.irreversibleChange || "").trim().length > 0 && String(card?.personalCost || "").trim().length > 0
   );
-  if (!irreversibleMiddle) issues.push("scene 3 or 4 must contain irreversibleChange plus personalCost");
+  if (!irreversibleMiddle) {
+    issues.push(`scene ${sceneNumberOf("irreversible_middle")} must contain irreversibleChange plus personalCost`);
+  }
   // Abstract-cost gate: a personalCost that names only a feeling ("verliert
   // Zuversicht", "muss Scham überwinden") produces a story with no visible
   // sacrifice — the premium release gate then fails on personalCost AFTER the
   // expensive prose stages (log 0e8c0a4e). Catch it here where repair is cheap.
   if (isPremium) {
-    sceneCards.slice(2, 4).forEach((card, idx) => {
+    // Checked on every card that carries a cost rather than at fixed offsets:
+    // slice(2, 4) assumed a five-card plan, and an abstract sacrifice is just
+    // as damaging on whichever scene happens to hold it.
+    sceneCards.forEach((card, idx) => {
       const cost = String(card?.personalCost || "").trim();
       if (cost && ABSTRACT_PERSONAL_COST_PATTERN.test(cost)) {
         issues.push(
-          `scene ${idx + 3} personalCost is an abstract feeling ("${cost.slice(0, 60)}") — it must name a physical object, place, or privilege that is visibly given up, used up, broken, or left behind`
+          `scene ${idx + 1} personalCost is an abstract feeling ("${cost.slice(0, 60)}") — it must name a physical object, place, or privilege that is visibly given up, used up, broken, or left behind`
         );
       }
     });
@@ -7275,7 +7371,7 @@ function compactScreenplayPlanForDraft(plan?: DevModeScreenplayPlan): any {
           : {}),
       },
       dialogueBeats: Array.isArray(card.dialogueBeats)
-        ? card.dialogueBeats.slice(0, 6).map((beat: any) => ({
+        ? card.dialogueBeats.slice(0, DEV_MODE_SCENE_DIALOGUE_BEAT_MAX).map((beat: any) => ({
             speaker: beat?.speaker,
             intent: compactExcerpt(beat?.intent || "", 40),
             subtext: compactExcerpt(beat?.subtext || "", 80),
@@ -7502,7 +7598,7 @@ function screenplayCritiqueForDraft(gateIssues: string[]): any {
     draftInstructions: [
       "Follow the beat sheet and scene cards exactly; do not invent a new plot.",
       "Use dialogue beats as action-bearing exchanges, not filler.",
-      "Scene 3 or 4 must land the irreversible middle and concrete personal cost on the page.",
+      `Scene ${sceneNumberOf("irreversible_middle")} must land the irreversible middle and concrete personal cost on the page.`,
       "The final choice comes from the children and pays off an early plant.",
       "End on a closing image, not a moral sentence.",
     ],
@@ -7615,7 +7711,11 @@ function buildCompactWholeStoryDraftPrompts(
     getReferenceFewshotBlock(languageCodeFromName(languageName)),
   ].join("\n");
 
-  const wordsPerMovement = Math.round(wordBounds.targetMin / Math.max(1, chapterCount));
+  // Per SCENE MOVEMENT, not per display page. These two used to be the same
+  // number by coincidence (5 scene cards, 5 reading pages); dividing by
+  // chapterCount now understates the budget and tells the model to write ~180
+  // words for a movement that is supposed to run ~300.
+  const wordsPerMovement = Math.round(wordBounds.targetMin / Math.max(1, DEV_MODE_SCENE_CARD_COUNT));
   // Countable dialogue contract: gpt-tier models ignore percentage targets
   // (three production drafts measured 16.6-17.2% against a "30-38%" rule) but
   // comply with concrete counts. Derive the minimum quoted-line count from the
@@ -7673,7 +7773,7 @@ function buildCompactWholeStoryDraftPrompts(
     "- It must appear at least 3 times: introduced early → repeated under pressure in the middle → TRANSFORMED in the finale (same shape, new meaning).",
     "- The refrain belongs to a character's voice, not the narrator. Each return should land on its own short line so the page invites the child to say it aloud.",
     "",
-    "LEVITY AND WARMTH (mandatory): at least 4 of the 5 scene movements contain one brief child-readable smile beat: character-specific silly logic, a physical comic aftershock, playful wording, or a warm say/do mismatch. Never mock a character, explain the joke, or interrupt real emotion.",
+    `LEVITY AND WARMTH (mandatory): EVERY one of the ${DEV_MODE_SCENE_CARD_COUNT} scene movements contains at least one brief child-readable smile beat: character-specific silly logic, a physical comic aftershock, playful wording, or a warm say/do mismatch. Never mock a character, explain the joke, or interrupt real emotion.`,
     "VOICE CONTRAST: The main avatars must not sound interchangeable. Give each one a repeatable sentence rhythm, favorite kind of comparison, and different way of reacting under pressure; quoted lines should usually be attributable without speaker tags.",
     "",
     "LENGTH AND DIALOGUE (both budgets are HARD and apply TOGETHER — never fix one by breaking the other):",
@@ -8357,14 +8457,26 @@ function applyReadingBreaksToDraft(
 ): DevModeRawStory & { balanceRatio?: number } {
   const plan = balancedDeterministicSplit(draft, pageCount);
   const sceneCards = screenplayPlan?.sceneCards || [];
+  // Reading pages and scene cards are different units — display pagination vs
+  // dramatic movements — and indexing one by the other only worked while both
+  // happened to be 5. Map each page onto the movement that covers it instead,
+  // so a page never ends up without a scene purpose.
+  const sceneCardForPage = (pageIndex: number): any => {
+    if (sceneCards.length === 0) return undefined;
+    const scaled = Math.floor((pageIndex * sceneCards.length) / Math.max(1, pageCount));
+    return sceneCards[Math.min(sceneCards.length - 1, Math.max(0, scaled))];
+  };
   const readingBreaks: DevModeReadingBreak[] = plan.map((slice, index) => {
-    const sceneCard = sceneCards[index];
+    const sceneCard = sceneCardForPage(index);
     return {
       afterParagraph: slice.end + 1,
+      // The page's own closing paragraph comes FIRST: several pages can now
+      // share one scene card, and taking the card's titleHint would hand those
+      // pages an identical illustration prompt.
       imagePromptScene: String(
+        draft.paragraphs[slice.end] ||
         sceneCard?.titleHint ||
         sceneCard?.visibleConsequence ||
-        draft.paragraphs[slice.end] ||
         `Reading page ${index + 1}`
       ).slice(0, 220),
       scenePurpose: sceneCard?.scenePurpose,
@@ -8884,7 +8996,7 @@ function buildStoryPolishPrompts(
     "- Do NOT add filler chatter. Every dialogue line must change action, relationship, tension, or comic timing.",
     "- Keep the same title idea, central conflict, recurring motif, and closing image.",
     "- Keep the locked central object/place as the story's causal red thread. If you remove a repeated/forbidden motif, rewrite its function; do NOT merely rename the old object (e.g. backpack -> clasp) while keeping the same backpack-like logic.",
-    readingPageMode ? "- Strengthen the five scene movements through cause/effect; do not turn reading breaks into cliffhanger chapter endings." : "- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.",
+    readingPageMode ? `- Strengthen the ${DEV_MODE_SCENE_CARD_COUNT} scene movements through cause/effect; do not turn reading breaks into cliffhanger chapter endings.` : `- Strengthen chapter endings with concrete danger, decision, question, new rule, or funny aftershock.`,
     "- Preserve child agency: replace helper/adult explanations with child noticing, child choice, and a concrete action.",
     "- If the ending sounds like a lesson sentence, trade it for an image, joke, or small unfinished motion from the story world.",
     "",
@@ -9526,11 +9638,31 @@ function asStringArray(value: any, limit = 6): string[] {
   return [];
 }
 
+/**
+ * Head + " … " + tail splicing used to cut through the middle of words, which
+ * turned single-sentence plan fields into unreadable fragments before they were
+ * handed to the writer as BINDING instructions — e.g. the scene goal
+ * "Am Anfang will Alexander Das plötzliche Rascheln und Zusammenzu … de-Atlas.
+ * am Ausgangsort untersuchen." A model asked to dramatize that either invents
+ * around it or renders the noise. Cut on word boundaries so both halves stay
+ * readable, and prefer a clean single truncation for short fields where the
+ * spliced tail carries no extra information anyway.
+ */
 function compactExcerpt(text: string, maxChars = 360): string {
   const normalized = String(text || "").replace(/\s+/g, " ").trim();
   if (normalized.length <= maxChars) return normalized;
-  const head = normalized.slice(0, Math.floor(maxChars * 0.58)).trim();
-  const tail = normalized.slice(-Math.floor(maxChars * 0.34)).trim();
+
+  const cutAtWordEnd = (value: string): string => value.replace(/\s+\S*$/, "").trim() || value.trim();
+  const cutAtWordStart = (value: string): string => value.replace(/^\S*\s+/, "").trim() || value.trim();
+
+  // Short fields (single sentences: goals, obstacles, beats) read as nonsense
+  // when spliced. Truncate once at a word boundary instead.
+  if (maxChars <= 200) {
+    return `${cutAtWordEnd(normalized.slice(0, maxChars - 1))}…`;
+  }
+
+  const head = cutAtWordEnd(normalized.slice(0, Math.floor(maxChars * 0.58)));
+  const tail = cutAtWordStart(normalized.slice(-Math.floor(maxChars * 0.34)));
   return `${head} … ${tail}`;
 }
 
@@ -10085,483 +10217,6 @@ function validatorAnchorBlock(languageCode: string): string {
     "Anchor 6.0: labels not scenes, forbidden moral-summary phrases.",
     "Anchor 4.0: claims without scenes, turn explained in one sentence.",
   ].join("\n");
-}
-
-function stripJsonFence(content: string): string {
-  const trimmed = content.trim();
-  if (trimmed.startsWith("```")) {
-    return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-  }
-  return trimmed;
-}
-
-function sliceToOuterObject(content: string): string {
-  const firstBrace = content.indexOf("{");
-  const lastBrace = content.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    return content.slice(firstBrace, lastBrace + 1);
-  }
-  return content;
-}
-
-/**
- * Best-effort JSON repair. Models sometimes emit:
- *   - // line comments or /* block *\/ comments
- *   - trailing commas before } or ]
- *   - unescaped " inside string values (typical when the story uses German
- *     typographic dialog like „Ja" — model writes regular " inside the value
- *     and doesn't escape it).
- *   - single quotes instead of doubles (rarer; we don't auto-fix this).
- * We fix what we safely can without breaking valid JSON.
- */
-function repairLooseJson(input: string): string {
-  let s = input;
-  // Strip /* ... */ block comments
-  s = s.replace(/\/\*[\s\S]*?\*\//g, "");
-  // Strip // line comments (but not inside strings — best-effort: only outside quotes via simple state machine)
-  s = stripLineCommentsOutsideStrings(s);
-  // Remove trailing commas before } or ]
-  s = s.replace(/,(\s*[}\]])/g, "$1");
-  return s;
-}
-
-/**
- * Heuristic recovery for the most common dev-mode failure: a model emits
- * a JSON object whose string values contain unescaped " characters from
- * dialog. We walk the input, treat every `"key":` token as a property
- * boundary, then re-quote the value by detecting where the value ends
- * (next `,\n  "key":` or `\n]` or `\n}` at a reasonable indent).
- *
- * This is a fallback for when JSON.parse keeps throwing "Expected
- * double-quoted property name" — meaning the parser has miscounted
- * quotes inside a value. Only attempt this when normal repair already
- * failed; the cost is correctness loss in edge cases vs. the alternative
- * of "story generation failed entirely".
- */
-function escapeInnerQuotesInStringValues(raw: string): string {
-  // Find the top-level object body.
-  const first = raw.indexOf("{");
-  const last = raw.lastIndexOf("}");
-  if (first < 0 || last <= first) return raw;
-  const before = raw.slice(0, first);
-  const body = raw.slice(first, last + 1);
-  const after = raw.slice(last + 1);
-
-  // Property-name pattern: a key followed by colon. We use a state machine.
-  // For each string-value start (after `":` or `: `), scan forward and
-  // collect characters; whenever we see a `"` decide whether it terminates
-  // the value (next non-space is `,`, `}`, `]`, or newline+key) or is an
-  // inner quote that must be escaped.
-  let out = "";
-  let i = 0;
-  let depth = 0;
-  while (i < body.length) {
-    const ch = body[i];
-    out += ch;
-    if (ch === "{" || ch === "[") depth++;
-    else if (ch === "}" || ch === "]") depth--;
-
-    // Detect a property `"key":` or array-element string start.
-    // Approach: when we hit `"`, scan the string. If the string is a
-    // "value" string (preceded by `:` ignoring whitespace), parse with
-    // tolerant rules.
-    if (ch === '"') {
-      // Check whether this " opens a VALUE string (preceded by `:` after ws)
-      // or a KEY string (preceded by `{` or `,` after ws).
-      let look = out.length - 2;
-      while (look >= 0 && /\s/.test(out[look])) look--;
-      const prevNonWs = look >= 0 ? out[look] : "";
-      const isValueString = prevNonWs === ":";
-      const isKeyOrSimple = prevNonWs === "{" || prevNonWs === "," || prevNonWs === "[";
-
-      // Scan forward, copying characters, handling escapes.
-      let j = i + 1;
-      let valueAcc = "";
-      while (j < body.length) {
-        const c = body[j];
-        if (c === "\\") {
-          // Pass through escape sequence verbatim.
-          valueAcc += c;
-          if (j + 1 < body.length) {
-            valueAcc += body[j + 1];
-            j += 2;
-            continue;
-          }
-          j++;
-          continue;
-        }
-        if (c === '"') {
-          // Decide: terminator or inner quote?
-          // Peek ahead skipping whitespace.
-          let k = j + 1;
-          while (k < body.length && /[ \t]/.test(body[k])) k++;
-          const peek = body[k];
-          // Terminator if followed by , } ] : or end-of-line that leads to one of these.
-          // For a KEY string the next non-ws must be `:`. For a VALUE string the next
-          // non-ws should be `,` `}` `]` or newline+`"key":` pattern.
-          let isTerminator = false;
-          if (isKeyOrSimple && !isValueString) {
-            // It's a key string — terminator must be `:`.
-            isTerminator = peek === ":";
-          } else if (isValueString) {
-            if (peek === "," || peek === "}" || peek === "]") {
-              isTerminator = true;
-            } else if (peek === "\n" || peek === "\r") {
-              // Look further: skip whitespace then expect `,` `}` `]` or `"key":` shape.
-              let m = k;
-              while (m < body.length && /\s/.test(body[m])) m++;
-              const nextChar = body[m];
-              if (nextChar === "," || nextChar === "}" || nextChar === "]") {
-                isTerminator = true;
-              } else if (nextChar === '"') {
-                // Possible key — look for `":` after a non-quote run.
-                let n = m + 1;
-                while (n < body.length && body[n] !== '"') {
-                  if (body[n] === "\\") n += 2;
-                  else n++;
-                }
-                let o = n + 1;
-                while (o < body.length && /[ \t]/.test(body[o])) o++;
-                if (body[o] === ":") isTerminator = true;
-              }
-            } else {
-              // Inner quote inside a value — escape it.
-              isTerminator = false;
-            }
-          } else {
-            // Bare string somewhere (e.g., inside an array of strings).
-            isTerminator = peek === "," || peek === "}" || peek === "]" || peek === "\n" || peek === "\r";
-          }
-
-          if (isTerminator) {
-            valueAcc += c;
-            j++;
-            break;
-          } else {
-            valueAcc += "\\\"";
-            j++;
-            continue;
-          }
-        }
-        // Escape raw control characters that JSON doesn't allow inside strings.
-        if (c === "\n") {
-          valueAcc += "\\n";
-          j++;
-          continue;
-        }
-        if (c === "\r") {
-          valueAcc += "\\r";
-          j++;
-          continue;
-        }
-        if (c === "\t") {
-          valueAcc += "\\t";
-          j++;
-          continue;
-        }
-        valueAcc += c;
-        j++;
-      }
-      out += valueAcc;
-      i = j;
-      continue;
-    }
-    i++;
-  }
-  return before + out + after;
-}
-
-function stripLineCommentsOutsideStrings(s: string): string {
-  let out = "";
-  let inString = false;
-  let escape = false;
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (inString) {
-      out += ch;
-      if (escape) {
-        escape = false;
-      } else if (ch === "\\") {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      out += ch;
-      continue;
-    }
-    if (ch === "/" && s[i + 1] === "/") {
-      // Skip until end-of-line
-      while (i < s.length && s[i] !== "\n") i++;
-      if (i < s.length) out += s[i]; // preserve the newline
-      continue;
-    }
-    out += ch;
-  }
-  return out;
-}
-
-function tryParseJson(raw: string): any {
-  const trimmed = stripReasoningPreamble(raw.trim());
-  const fenced = stripJsonFence(trimmed);
-  const sliced = sliceToOuterObject(fenced);
-  const looseRepaired = repairLooseJson(sliced);
-  const aggressiveRepaired = escapeInnerQuotesInStringValues(looseRepaired);
-
-  const attempts: Array<{ label: string; text: string }> = [
-    { label: "raw", text: trimmed },
-    { label: "fence-stripped", text: fenced },
-    { label: "outer-sliced", text: sliced },
-    { label: "loose-repaired", text: looseRepaired },
-    { label: "aggressive-quote-repair", text: aggressiveRepaired },
-  ];
-
-  let lastError: unknown = null;
-  for (const attempt of attempts) {
-    try {
-      const parsed = JSON.parse(attempt.text);
-      if (attempt.label !== "raw") {
-        console.log(`[dev-mode-generation] JSON parsed via "${attempt.label}" repair stage.`);
-      }
-      return parsed;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "unknown JSON parse failure"));
-}
-
-function recoverCompleteObjectsFromArrayProperty(content: string, propertyName: string): any[] {
-  const propertyIndex = content.indexOf(`"${propertyName}"`);
-  if (propertyIndex < 0) return [];
-  const arrayStart = content.indexOf("[", propertyIndex);
-  if (arrayStart < 0) return [];
-
-  const objects: any[] = [];
-  let depth = 0;
-  let objectStart = -1;
-  let inString = false;
-  let escape = false;
-
-  for (let i = arrayStart + 1; i < content.length; i += 1) {
-    const ch = content[i];
-
-    if (inString) {
-      if (escape) {
-        escape = false;
-      } else if (ch === "\\") {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = true;
-      continue;
-    }
-
-    if (ch === "{") {
-      if (depth === 0) objectStart = i;
-      depth += 1;
-      continue;
-    }
-
-    if (ch === "}" && depth > 0) {
-      depth -= 1;
-      if (depth === 0 && objectStart >= 0) {
-        const objectText = content.slice(objectStart, i + 1);
-        try {
-          objects.push(tryParseJson(objectText));
-        } catch {
-          // A single malformed completed object should not prevent recovery of
-          // earlier/later completed candidates.
-        }
-        objectStart = -1;
-      }
-      continue;
-    }
-
-    if (ch === "]" && depth === 0) break;
-  }
-
-  return objects;
-}
-
-function recoverTruncatedIdeaCandidatePayload(content: string): any | null {
-  const candidates = recoverCompleteObjectsFromArrayProperty(content, "candidates");
-  if (candidates.length === 0) return null;
-  return {
-    candidates,
-    recoveredFromTruncatedJson: true,
-    recoveredCandidateCount: candidates.length,
-  };
-}
-
-function readJsonStringLiteral(source: string, start: number): { value: string; end: number } | null {
-  if (source[start] !== '"') return null;
-  let escape = false;
-  for (let i = start + 1; i < source.length; i += 1) {
-    const ch = source[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch === "\\") {
-      escape = true;
-      continue;
-    }
-    if (ch === '"') {
-      const literal = source.slice(start, i + 1);
-      try {
-        return { value: JSON.parse(literal), end: i + 1 };
-      } catch {
-        return { value: literal.slice(1, -1), end: i + 1 };
-      }
-    }
-  }
-  return null;
-}
-
-function findMatchingJsonBracket(source: string, start: number): number {
-  const open = source[start];
-  const close = open === "[" ? "]" : open === "{" ? "}" : "";
-  if (!close) return -1;
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-  for (let i = start; i < source.length; i += 1) {
-    const ch = source[i];
-    if (inString) {
-      if (escape) {
-        escape = false;
-      } else if (ch === "\\") {
-        escape = true;
-      } else if (ch === '"') {
-        inString = false;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inString = true;
-      continue;
-    }
-    if (ch === open) {
-      depth += 1;
-    } else if (ch === close) {
-      depth -= 1;
-      if (depth === 0) return i;
-    }
-  }
-  return -1;
-}
-
-function recoverTopLevelStringArrayProperties(content: string, propertyName: string): string[][] {
-  const trimmed = stripReasoningPreamble(String(content || "").trim());
-  const source = repairLooseJson(sliceToOuterObject(stripJsonFence(trimmed)));
-  const arrays: string[][] = [];
-  let braceDepth = 0;
-  let arrayDepth = 0;
-
-  for (let i = 0; i < source.length; i += 1) {
-    const ch = source[i];
-
-    if (ch === '"') {
-      const token = readJsonStringLiteral(source, i);
-      if (!token) continue;
-      let afterToken = token.end;
-      while (afterToken < source.length && /\s/.test(source[afterToken])) afterToken += 1;
-
-      if (
-        braceDepth === 1
-        && arrayDepth === 0
-        && token.value === propertyName
-        && source[afterToken] === ":"
-      ) {
-        let valueStart = afterToken + 1;
-        while (valueStart < source.length && /\s/.test(source[valueStart])) valueStart += 1;
-        if (source[valueStart] === "[") {
-          const arrayEnd = findMatchingJsonBracket(source, valueStart);
-          if (arrayEnd > valueStart) {
-            const arrayText = source.slice(valueStart, arrayEnd + 1);
-            try {
-              const parsedArray = JSON.parse(repairLooseJson(arrayText));
-              if (Array.isArray(parsedArray)) {
-                const paragraphs = parsedArray
-                  .map((item: any) => String(item || "").trim())
-                  .filter(Boolean);
-                if (paragraphs.length > 0) arrays.push(paragraphs);
-              }
-            } catch {
-              // Ignore one malformed duplicate array and keep scanning. A later
-              // complete array can still rescue usable prose.
-            }
-            i = arrayEnd;
-            continue;
-          }
-        }
-      }
-
-      i = token.end - 1;
-      continue;
-    }
-
-    if (ch === "{") braceDepth += 1;
-    else if (ch === "}" && braceDepth > 0) braceDepth -= 1;
-    else if (ch === "[") arrayDepth += 1;
-    else if (ch === "]" && arrayDepth > 0) arrayDepth -= 1;
-  }
-
-  return arrays;
-}
-
-function recoverDuplicateWholeStoryParagraphs(
-  content: string,
-  parsed: any
-): { paragraphs: string[]; arrayCount: number; parsedParagraphCount: number } | null {
-  if (Array.isArray(parsed?.chapters)) return null;
-  const arrays = recoverTopLevelStringArrayProperties(content, "paragraphs");
-  if (arrays.length <= 1) return null;
-  const paragraphs = arrays.flat().map((p) => p.trim()).filter(Boolean);
-  const parsedParagraphCount = Array.isArray(parsed?.paragraphs)
-    ? parsed.paragraphs.map((p: any) => String(p || "").trim()).filter(Boolean).length
-    : 0;
-  if (paragraphs.length <= parsedParagraphCount) return null;
-  return { paragraphs, arrayCount: arrays.length, parsedParagraphCount };
-}
-
-function stripReasoningPreamble(content: string): string {
-  const text = String(content || "").trim();
-  if (!text) return text;
-
-  const markerPatterns = [
-    /\n\s*```(?:json)?\s*\{/i,
-    /(?:^|\n)\s*\{/,
-    /(?:^|\n)\s*(?:TITLE|TITEL)\s*[:=]/i,
-    /(?:^|\n)\s*(?:DESCRIPTION|BESCHREIBUNG)\s*[:=]/i,
-    /(?:^|\n)\s*(?:STORY|GESCHICHTE)\s*[:=]/i,
-  ];
-
-  const markerIndex = markerPatterns
-    .map((pattern) => {
-      const match = text.match(pattern);
-      return match?.index ?? -1;
-    })
-    .filter((index) => index >= 0)
-    .sort((a, b) => a - b)[0];
-
-  if (!markerIndex || markerIndex <= 0) return text;
-  const prefix = text.slice(0, markerIndex);
-  const looksLikeReasoning =
-    /\*\*[^*\n]{3,80}\*\*/.test(prefix) ||
-    /\bI'm\s+(?:now|currently|focusing|exploring|integrating|refining|drafting|counting)\b/i.test(prefix) ||
-    /\b(?:reasoning|thinking|drafting|refining|structuring|integrating|developing|finalizing)\b/i.test(prefix);
-
-  return looksLikeReasoning ? text.slice(markerIndex).trim() : text;
 }
 
 function splitParagraphs(text: string): string[] {
@@ -11694,6 +11349,16 @@ function parseStageObject(content: string, stage?: DevModePipelineStage): { pars
         };
       }
     }
+    if (stage === "scene-cards" || stage === "scene-cards-repair") {
+      const recovered = recoverTruncatedSceneCardPayload(content);
+      if (recovered) {
+        const originalError = err instanceof Error ? err.message : String(err);
+        return {
+          parsed: recovered,
+          parseError: `${originalError}; recovered ${recovered.recoveredSceneCardCount} complete scene card(s) from truncated JSON`,
+        };
+      }
+    }
     return {
       parseError: err instanceof Error ? err.message : String(err),
     };
@@ -12363,6 +12028,22 @@ interface ProviderResult {
   content: string;
   usage: { prompt: number; completion: number; total: number };
   modelUsed: string;
+  /**
+   * Raw provider finish reason. Truncation used to be invisible: finish_reason
+   * was only inspected when the completion came back EMPTY, so a stage that
+   * returned PARTIAL content with finish_reason="length" looked like a success.
+   * Downstream that surfaced only as a JSON parse error, which the repair paths
+   * quietly absorbed — the scene-card stage truncated in 4 of 4 audited runs
+   * and nothing in the logs said so. Carrying it through makes the failure mode
+   * nameable at the stage that caused it.
+   */
+  finishReason?: string;
+}
+
+/** True when the provider stopped because it ran out of completion budget. */
+function isTruncatedFinishReason(finishReason?: string): boolean {
+  const normalized = String(finishReason || "").toLowerCase();
+  return normalized === "length" || normalized === "max_tokens";
 }
 
 interface ProviderCallOptions {
@@ -12651,6 +12332,7 @@ async function callProvider(
         total: Number(usage.total_tokens || 0),
       },
       modelUsed: orModel,
+      finishReason: choice?.finish_reason,
     };
   }
 
@@ -12771,6 +12453,13 @@ export async function generateStoryDevMode(
   const poolNames = (input.poolCharacters || []).map((c) => c.name);
   const stageLogs: DevModeStageLog[] = [];
   const providerResults: ProviderResult[] = [];
+  /** Stages whose output was cut off by the completion ceiling this run. */
+  const truncatedStages: Array<{
+    stage: DevModePipelineStage;
+    maxTokens?: number;
+    completionTokens: number;
+    modelUsed: string;
+  }> = [];
   const startedAt = Date.now();
   const supportProvider = resolveDevModeSupportProvider(input.config);
   const supportModel = resolveDevModeSupportModel(input.config);
@@ -12896,6 +12585,31 @@ export async function generateStoryDevMode(
         { ...options, stage }
       );
       providerResults.push(provider);
+
+      // A stage that ran out of completion budget produces PARTIAL output that
+      // still looks like a normal success. Downstream it degrades into a parse
+      // error which the repair paths absorb, so the real cause never appears
+      // anywhere. Name it here, at the stage that caused it.
+      if (isTruncatedFinishReason(provider.finishReason)) {
+        truncatedStages.push({
+          stage,
+          maxTokens: options.maxTokens,
+          completionTokens: provider.usage.completion,
+          modelUsed: provider.modelUsed,
+        });
+        console.warn(
+          `[dev-mode-generation] stage "${stage}" hit its completion ceiling — output is TRUNCATED`,
+          {
+            stage,
+            modelUsed: provider.modelUsed,
+            maxTokens: options.maxTokens,
+            completionTokens: provider.usage.completion,
+            finishReason: provider.finishReason,
+            hint: "Raise this stage's maxTokens; recovery/fallback below will only salvage part of the payload.",
+          },
+        );
+      }
+
       const parsedStage = parseStageObject(provider.content, stage);
 
       logEntry.rawContent = provider.content;
@@ -13574,7 +13288,7 @@ export async function generateStoryDevMode(
 
     const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
     const sceneCardStage = await runStage("scene-cards", sceneCardPrompts, {
-      maxTokens: 3400,
+      maxTokens: DEV_MODE_SCENE_CARD_MAX_TOKENS,
       temperature: 0.34,
       timeoutMs: 120_000,
       ...supportCallOptions,
@@ -13598,7 +13312,7 @@ export async function generateStoryDevMode(
     if (sceneCardIssues.length > 0) {
       const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, sceneCardIssues);
       const repairedSceneCardStage = await runStage("scene-cards-repair", repairPrompts, {
-        maxTokens: 3400,
+        maxTokens: DEV_MODE_SCENE_CARD_MAX_TOKENS,
         temperature: 0.22,
         timeoutMs: 120_000,
         ...supportCallOptions,
@@ -13722,15 +13436,20 @@ export async function generateStoryDevMode(
     // shot scene-cards-repair; if still missing after repair, raise.
     {
       const turnIndexByPurpose = sceneCards.findIndex((card: any) => String(card?.scenePurpose || "") === "irreversible_middle");
-      const candidateTurnIndices = [...new Set([turnIndexByPurpose, 2, 3, Math.floor(sceneCards.length / 2)])]
-        .filter((index) => index >= 0 && index < sceneCards.length);
+      // The literal 2/3 here were positions in a five-card plan. Anchor the
+      // fallback on where the middle actually sits in the configured beat list
+      // so a shorter plan does not nominate the FINALE as its turning point.
+      const plannedTurnIndex = sceneNumberOf("irreversible_middle") - 1;
+      const candidateTurnIndices = [
+        ...new Set([turnIndexByPurpose, plannedTurnIndex, Math.floor(sceneCards.length / 2)]),
+      ].filter((index) => index >= 0 && index < sceneCards.length);
       const successfulTurnIndex = candidateTurnIndices.find((index) => {
         const card: any = sceneCards[index];
         return !!(card?.visibleDamage || card?.irreversibleChange) && !!card?.personalCost;
       });
       const turnIndex = successfulTurnIndex ?? (turnIndexByPurpose >= 0
         ? turnIndexByPurpose
-        : Math.max(2, Math.min(sceneCards.length - 2, Math.floor(sceneCards.length / 2))));
+        : Math.min(sceneCards.length - 1, Math.max(0, plannedTurnIndex)));
       const turnCard: any = sceneCards[turnIndex] || sceneCards[Math.floor(sceneCards.length / 2)];
       const hasVisibleDamage = !!(turnCard?.visibleDamage || turnCard?.irreversibleChange);
       const hasPersonalCost = !!turnCard?.personalCost;
@@ -13751,7 +13470,7 @@ export async function generateStoryDevMode(
         ].filter((line): line is string => Boolean(line));
         const repairPrompts = buildSceneCardPrompts(input, { ...beatSheet, previousSceneCards: sceneCards }, repairIssues);
         const repairedSceneCardStage = await runStage("scene-cards-repair", repairPrompts, {
-          maxTokens: 3400,
+          maxTokens: DEV_MODE_SCENE_CARD_MAX_TOKENS,
           temperature: 0.22,
           timeoutMs: 120_000,
           ...supportCallOptions,
@@ -15908,6 +15627,11 @@ export async function generateStoryDevMode(
       literaryValidation: finalValidatorFindings,
       qualityGateFailureReason,
       returnedWithQualityGateWarnings: Boolean(qualityGateFailureReason),
+      // Empty on a healthy run. A non-empty list means some stage silently lost
+      // part of its output to the token ceiling and the story was built from
+      // whatever survived — the single most damaging failure mode this pipeline
+      // has, and previously invisible in the exported logs.
+      truncatedStages,
       usage: totalUsage,
       durationMs: Date.now() - startedAt,
     },

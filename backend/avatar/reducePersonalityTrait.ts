@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
+import { rollUpBaseTraitValue } from "../constants/personalityTraits";
 
 export interface ReducePersonalityTraitRequest {
   avatarId: string;
@@ -77,9 +78,10 @@ export const reducePersonalityTrait = api(
         console.log(`  🗑️ Removed empty subcategory: ${baseKey}.${subcategory}`);
       }
 
-      // Update main category value (sum of subcategories)
+      // Update main category value (sum of subcategories), under the same
+      // ceiling the increase path uses.
       const subcategorySum = Object.values(updatedTraits[baseKey].subcategories).reduce((sum: number, val: any) => sum + val, 0);
-      updatedTraits[baseKey].value = subcategorySum;
+      updatedTraits[baseKey].value = rollUpBaseTraitValue(baseKey, 0, subcategorySum);
 
       console.log(`  📉 ${baseKey}.${subcategory}: ${oldValue} → ${newValue} (reduced by ${actualReduction})`);
       console.log(`  📊 ${baseKey} total: ${updatedTraits[baseKey].value}`);

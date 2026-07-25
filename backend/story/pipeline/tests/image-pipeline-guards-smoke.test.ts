@@ -137,7 +137,25 @@ console.log("\n[retry] unusable provider results consume the retry budget instea
     buildReferenceImages: () => [],
     selectReferenceSlots: () => [],
   }));
+  // bun's mock.module registry is process-wide and persists across test FILES.
+  // Replacing the module wholesale left every later file importing
+  // "../cost-ledger" with a stub that had only this one export, which is why
+  // tts-cost-accounting-smoke.test.ts failed with "buildImageCostEntry is not a
+  // function" in a full suite run but passed on its own. Keep the real module
+  // and override only the function under test.
+  // cost-ledger -> llm-client reaches for the Encore runtime, so stub that edge
+  // before pulling the real module in.
+  mock.module("../llm-client", () => ({
+    calculateTokenCosts: () => ({
+      cachedInputCostUSD: 0,
+      inputCostUSD: 0,
+      outputCostUSD: 0,
+      totalCostUSD: 0,
+    }),
+  }));
+  const actualCostLedger = await import("../cost-ledger");
   mock.module("../cost-ledger", () => ({
+    ...actualCostLedger,
     extractRunwareCostMetrics: (payload: any) => {
       const cost = Number(payload?.data?.[0]?.cost);
       return {
