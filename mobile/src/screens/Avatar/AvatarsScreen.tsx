@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { useTranslation } from 'react-i18next';
 import { Eye, Pencil, Plus, Sparkles, Trash2, UserPlus, Wand2 } from 'lucide-react-native';
 
@@ -12,7 +12,7 @@ import { useAvatars, useDeleteAvatar } from '@/hooks/queries';
 import { useToast } from '@/providers/ToastProvider';
 import { Screen, TAB_BAR_CLEARANCE } from '@/components/ui/Screen';
 import { Chip } from '@/components/ui/Chip';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
@@ -37,7 +37,7 @@ export function AvatarsScreen() {
   const [filter, setFilter] = useState<RoleFilter>('all');
   const [selected, setSelected] = useState<Avatar | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Avatar | null>(null);
-  const actionSheetRef = useRef<BottomSheet>(null);
+  const actionSheetRef = useRef<SheetRef>(null);
 
   const avatars = avatarsQuery.data ?? [];
 

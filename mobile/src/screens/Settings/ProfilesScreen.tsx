@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { Check, Plus, Star, Trash2, Users } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -13,7 +13,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -43,7 +43,7 @@ export function ProfilesScreen() {
     reserve,
   } = useChildProfiles();
 
-  const editorRef = useRef<BottomSheet>(null);
+  const editorRef = useRef<SheetRef>(null);
   const [editing, setEditing] = useState<ProfileDetails | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ProfileDetails | null>(null);
 

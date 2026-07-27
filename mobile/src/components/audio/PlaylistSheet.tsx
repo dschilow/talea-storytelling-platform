@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+import type { SheetRef } from '@/components/ui/Sheet';
 import { AlertCircle, Loader2, Play, Trash2, Volume2 } from 'lucide-react-native';
 
 import { useAudioPlayer } from '@/providers/AudioPlayerProvider';
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
  * Chunks are grouped visually by their parent story/doku so a 40-chunk story
  * reads as one item with parts, not as 40 unrelated rows.
  */
-export const PlaylistSheet = forwardRef<BottomSheet>(function PlaylistSheet(_props, ref) {
+export const PlaylistSheet = forwardRef<SheetRef>(function PlaylistSheet(_props, ref) {
   const { colors, spacing, radius } = useTheme();
   const {
     playlist,

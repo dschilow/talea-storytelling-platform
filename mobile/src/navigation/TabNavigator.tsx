@@ -20,10 +20,13 @@ export function TabNavigator() {
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        // Blurred tabs stay mounted but stop re-rendering, so scroll position
-        // and query state survive a tab switch without the background screens
-        // costing frames while another tab animates.
-        freezeOnBlur: true,
+        // NOTE: `freezeOnBlur` is deliberately NOT enabled.
+        //
+        // It suspends blurred subtrees via react-freeze, which is a nice
+        // optimisation — but a frozen subtree renders its last frame and stops
+        // responding to touch entirely. That failure mode is indistinguishable
+        // from a crash ("the app is a static image"), and the win is small for a
+        // five-tab app. Not worth the risk.
       }}
       backBehavior="history"
     >

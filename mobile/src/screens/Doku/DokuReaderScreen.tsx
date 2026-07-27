@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { useKeepAwake } from 'expo-keep-awake';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Download, Headphones, Lightbulb, List, Sparkles, Wrench } from 'lucide-react-native';
@@ -19,7 +19,7 @@ import { Chip } from '@/components/ui/Chip';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonText } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -47,7 +47,7 @@ export function DokuReaderScreen() {
   const dokuQuery = useDoku(dokuId);
   const offline = useOffline();
   const { startDokuConversion, hasDokuInPlaylist } = useAudioPlayer();
-  const sectionSheetRef = useRef<BottomSheet>(null);
+  const sectionSheetRef = useRef<SheetRef>(null);
 
   useKeepAwake('talea-doku-reader');
 

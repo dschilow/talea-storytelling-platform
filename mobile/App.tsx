@@ -1,10 +1,11 @@
 import 'react-native-gesture-handler';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreenModule from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -23,6 +24,7 @@ import { ToastProvider } from '@/providers/ToastProvider';
 import { LanguageSync } from '@/providers/LanguageSync';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { RootNavigator } from '@/navigation/RootNavigator';
+import { SplashScreen } from '@/screens/Auth/SplashScreen';
 import { linking } from '@/navigation/linking';
 import { restoreStoredLanguage } from '@/i18n';
 import '@/i18n';
@@ -33,6 +35,9 @@ void SplashScreenModule.preventAutoHideAsync().catch(() => {});
 
 /** Upper bound on the startup gate, so first paint is guaranteed. */
 const STARTUP_TIMEOUT_MS = 4000;
+
+/** How long to wait for Clerk before showing a reachability error. */
+const CLERK_TIMEOUT_MS = 15000;
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,7 +108,8 @@ export default function App() {
             <ThemeProvider>
               <ErrorBoundary>
                 <ToastProvider>
-                  <ClerkLoaded>
+                  <BottomSheetModalProvider>
+                  <ClerkGate>
                     <UserAccessProvider>
                       <ChildProfilesProvider>
                         <OfflineProvider>
@@ -114,7 +120,8 @@ export default function App() {
                         </OfflineProvider>
                       </ChildProfilesProvider>
                     </UserAccessProvider>
-                  </ClerkLoaded>
+                  </ClerkGate>
+                  </BottomSheetModalProvider>
                 </ToastProvider>
               </ErrorBoundary>
             </ThemeProvider>
@@ -123,6 +130,66 @@ export default function App() {
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/**
+ * Waits for Clerk to initialise, visibly.
+ *
+ * Clerk's own `<ClerkLoaded>` renders `null` until its session resolves. If that
+ * never completes — unreachable Frontend API, DNS, a captive portal — the user
+ * is left staring at a blank window with no way to tell a hang from a crash.
+ * This shows the splash while waiting and, past a deadline, an actionable error
+ * naming the host that is not responding.
+ */
+function ClerkGate({ children }: { children: ReactNode }) {
+  const { isLoaded } = useAuth();
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) return;
+    const deadline = setTimeout(() => setTimedOut(true), CLERK_TIMEOUT_MS);
+    return () => clearTimeout(deadline);
+  }, [isLoaded]);
+
+  if (isLoaded) return <>{children}</>;
+  if (timedOut) return <ClerkErrorScreen />;
+  return <SplashScreen message="Anmeldung wird vorbereitet …" />;
+}
+
+/** Shown when Clerk cannot be reached within the deadline. */
+function ClerkErrorScreen() {
+  // `clerkHost` is encoded in the publishable key, so the message can name the
+  // exact host to check instead of a generic "no connection".
+  const clerkHost = decodeClerkHost(CLERK_PUBLISHABLE_KEY);
+
+  return (
+    <View style={styles.configError}>
+      <Text style={styles.configErrorTitle}>Keine Verbindung zur Anmeldung</Text>
+      <Text style={styles.configErrorBody}>
+        Talea konnte den Anmeldedienst nicht erreichen.
+        {'\n\n'}
+        Prüfe deine Internetverbindung. Bleibt es dabei, ist{' '}
+        <Text style={styles.configErrorCode}>{clerkHost ?? 'der Clerk-Dienst'}</Text> nicht erreichbar.
+      </Text>
+    </View>
+  );
+}
+
+/**
+ * Clerk publishable keys are `pk_(test|live)_<base64 of "host$">`.
+ * Returns null rather than throwing on anything unexpected — this only feeds a
+ * diagnostic message.
+ */
+function decodeClerkHost(key: string): string | null {
+  try {
+    const encoded = key.replace(/^pk_(test|live)_/, '');
+    if (encoded === key) return null;
+    const decoded = globalThis.atob(encoded);
+    const host = decoded.replace(/\$$/, '');
+    return /^[a-z0-9.-]+$/i.test(host) ? host : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Bridges the Talea theme into React Navigation's own theming. */

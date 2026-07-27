@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { Check, Plus, Users } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +10,7 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { useToast } from '@/providers/ToastProvider';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -37,7 +37,7 @@ export function ProfileSwitcher() {
   const { profiles, activeProfileId, setActiveProfileId, profileLimit } = useChildProfiles();
   const navigation = useNavigation<Nav>();
   const toast = useToast();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetRef>(null);
 
   if (profiles.length === 0) return null;
 

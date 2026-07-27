@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { PartyPopper, TrendingUp } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { Button } from '@/components/ui/Button';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import type { TraitChange } from '@/lib/personality';
 
@@ -30,7 +30,7 @@ interface GrowthSheetProps {
  */
 export function GrowthSheet({ open, storyTitle, developments, onClose }: GrowthSheetProps) {
   const { colors, spacing, radius } = useTheme();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetRef>(null);
 
   useEffect(() => {
     if (open) sheetRef.current?.expand();

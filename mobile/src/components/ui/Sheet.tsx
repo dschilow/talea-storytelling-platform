@@ -1,18 +1,30 @@
-import React, { forwardRef, useCallback, useMemo, type ReactNode } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import BottomSheet, {
+import {
   BottomSheetBackdrop,
+  BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetView,
   type BottomSheetBackdropProps,
-  type BottomSheetProps,
+  type BottomSheetModalProps,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from './Text';
 
-interface SheetProps extends Partial<Omit<BottomSheetProps, 'children' | 'snapPoints'>> {
+/**
+ * The subset of the BottomSheet imperative API the app uses. Kept as its own
+ * type so callers keep working after the switch from BottomSheet to
+ * BottomSheetModal, whose methods are `present`/`dismiss` rather than
+ * `expand`/`close`.
+ */
+export interface SheetRef {
+  expand: () => void;
+  close: () => void;
+}
+
+interface SheetProps extends Partial<Omit<BottomSheetModalProps, 'children' | 'snapPoints'>> {
   children: ReactNode;
   snapPoints?: (string | number)[];
   title?: string;
@@ -29,13 +41,31 @@ interface SheetProps extends Partial<Omit<BottomSheetProps, 'children' | 'snapPo
  * reachable one-handed, dismissible by gesture, and keep the underlying context
  * visible — which matters when a sheet is filtering or selecting from the list
  * behind it.
+ *
+ * Built on `BottomSheetModal`, not `BottomSheet`, and this matters: a plain
+ * `BottomSheet` renders inline wherever it sits in the tree. Placed inside a
+ * screen's ScrollView it becomes ordinary page content — the sheet's list shows
+ * up in the middle of the article instead of overlaying it. The modal variant
+ * renders through a portal at the root, so a sheet can be declared next to the
+ * content it belongs to without leaking into the layout.
  */
-export const Sheet = forwardRef<BottomSheet, SheetProps>(function Sheet(
+export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
   { children, snapPoints, title, subtitle, scrollable = true, onClose, ...rest },
   ref
 ) {
   const { colors, spacing, radius } = useTheme();
   const insets = useSafeAreaInsets();
+  const modalRef = useRef<BottomSheetModal>(null);
+
+  // Callers say `expand()`/`close()`; the modal speaks `present()`/`dismiss()`.
+  useImperativeHandle(
+    ref,
+    () => ({
+      expand: () => modalRef.current?.present(),
+      close: () => modalRef.current?.dismiss(),
+    }),
+    []
+  );
 
   const resolvedSnapPoints = useMemo(() => snapPoints ?? ['62%'], [snapPoints]);
 
@@ -49,13 +79,12 @@ export const Sheet = forwardRef<BottomSheet, SheetProps>(function Sheet(
   const Container = scrollable ? BottomSheetScrollView : BottomSheetView;
 
   return (
-    <BottomSheet
-      ref={ref}
-      index={-1}
+    <BottomSheetModal
+      ref={modalRef}
       snapPoints={resolvedSnapPoints}
       enablePanDownToClose
       backdropComponent={renderBackdrop}
-      onClose={onClose}
+      onDismiss={onClose}
       backgroundStyle={{
         backgroundColor: colors.pageSolid,
         borderTopLeftRadius: radius.xxl,
@@ -68,9 +97,7 @@ export const Sheet = forwardRef<BottomSheet, SheetProps>(function Sheet(
       <Container
         style={styles.flex}
         contentContainerStyle={
-          scrollable
-            ? { paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl }
-            : undefined
+          scrollable ? { paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl } : undefined
         }
       >
         {!scrollable ? (
@@ -85,7 +112,7 @@ export const Sheet = forwardRef<BottomSheet, SheetProps>(function Sheet(
           </>
         )}
       </Container>
-    </BottomSheet>
+    </BottomSheetModal>
   );
 });
 

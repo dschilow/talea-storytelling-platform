@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View } from 'react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { Button } from './Button';
-import { Sheet } from './Sheet';
+import { Sheet, type SheetRef } from './Sheet';
 import { Text } from './Text';
 
 interface ConfirmSheetProps {
@@ -38,7 +38,7 @@ export function ConfirmSheet({
   onCancel,
 }: ConfirmSheetProps) {
   const { spacing } = useTheme();
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<SheetRef>(null);
 
   useEffect(() => {
     if (open) {

@@ -5,14 +5,16 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { BookOpen, Brain, FlaskConical, Home, User } from 'lucide-react-native';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
+import { useAudioPlayer } from '@/providers/AudioPlayerProvider';
 import { MiniPlayer } from '@/components/audio/MiniPlayer';
 import { PlaylistSheet } from '@/components/audio/PlaylistSheet';
 import type { TabParamList } from './types';
+import type { SheetRef } from '@/components/ui/Sheet';
 
 const ICONS: Record<keyof TabParamList, typeof Home> = {
   Home: Home,
@@ -41,7 +43,8 @@ const FALLBACK_LABELS: Record<keyof TabParamList, string> = {
 export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, spacing, radius, shadows, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const playlistSheetRef = useRef<BottomSheet>(null);
+  const playlistSheetRef = useRef<SheetRef>(null);
+  const { playlist } = useAudioPlayer();
 
   const openQueue = useCallback(() => playlistSheetRef.current?.expand(), []);
 
@@ -129,7 +132,11 @@ export function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         </Animated.View>
       </View>
 
-      <PlaylistSheet ref={playlistSheetRef} />
+      {/* Mounted only when there is a queue to show. A bottom sheet left
+          mounted at index -1 still renders its container and backdrop, which
+          can intercept touches for the whole screen — and this one lives in the
+          tab bar, so it would take the entire app down with it. */}
+      {playlist.length > 0 ? <PlaylistSheet ref={playlistSheetRef} /> : null}
     </>
   );
 }

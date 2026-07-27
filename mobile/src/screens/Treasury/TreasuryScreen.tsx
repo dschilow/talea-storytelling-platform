@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { Crown, Gem, Sparkles, Wand2 } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -17,7 +17,7 @@ import { Chip } from '@/components/ui/Chip';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -69,7 +69,7 @@ export function TreasuryScreen() {
   );
 
   const [selectedArtifact, setSelectedArtifact] = useState<Artifact | null>(null);
-  const detailRef = useRef<BottomSheet>(null);
+  const detailRef = useRef<SheetRef>(null);
 
   const treasuryQuery = useQuery<TreasuryOverview>({
     queryKey: queryKeys.treasury(activeAvatar?.id),

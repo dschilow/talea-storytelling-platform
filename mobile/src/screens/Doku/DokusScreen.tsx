@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { BookOpen, Download, FlaskConical, Headphones, Plus, Trash2 } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -17,7 +17,7 @@ import { Chip } from '@/components/ui/Chip';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
@@ -39,7 +39,7 @@ export function DokusScreen() {
   const [tab, setTab] = useState<Tab>('mine');
   const [selected, setSelected] = useState<Doku | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Doku | null>(null);
-  const actionSheetRef = useRef<BottomSheet>(null);
+  const actionSheetRef = useRef<SheetRef>(null);
 
   const myDokus = useDokus();
   const publicDokus = usePublicDokus();

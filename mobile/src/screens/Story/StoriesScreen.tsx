@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { useTranslation } from 'react-i18next';
 import { ArrowUpDown, BookOpen, Download, Headphones, Plus, Search, Trash2, X } from 'lucide-react-native';
 
@@ -17,7 +17,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -66,7 +66,7 @@ export function StoriesScreen() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Story | null>(null);
 
-  const actionSheetRef = useRef<BottomSheet>(null);
+  const actionSheetRef = useRef<SheetRef>(null);
 
   const stories = storiesQuery.data ?? [];
 

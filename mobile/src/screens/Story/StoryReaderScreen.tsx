@@ -3,7 +3,7 @@ import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type BottomSheet from '@gorhom/bottom-sheet';
+
 import { useKeepAwake } from 'expo-keep-awake';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Check, ChevronLeft, ChevronRight, Download, Headphones, List, Sparkles, Type, X } from 'lucide-react-native';
@@ -21,7 +21,7 @@ import { PageBackground } from '@/components/ui/PageBackground';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonText } from '@/components/ui/Skeleton';
@@ -67,7 +67,7 @@ export function StoryReaderScreen() {
   const [showGrowth, setShowGrowth] = useState(false);
 
   const pagerRef = useRef<ScrollView>(null);
-  const chapterSheetRef = useRef<BottomSheet>(null);
+  const chapterSheetRef = useRef<SheetRef>(null);
   const hasMarkedRead = useRef(false);
 
   useKeepAwake('talea-reader');
@@ -246,15 +246,21 @@ export function StoryReaderScreen() {
               paddingHorizontal: spacing.lg,
             }}
             showsVerticalScrollIndicator={false}
+            scrollEventThrottle={32}
+            // Chrome gets out of the way while reading and comes back the moment
+            // the reader stops — no tap target competing with the scroll.
+            onScrollBeginDrag={() => setChromeVisible(false)}
+            onMomentumScrollEnd={() => setChromeVisible(true)}
+            onScrollEndDrag={() => setChromeVisible(true)}
           >
-            <Touchable
-              onPress={() => setChromeVisible((value) => !value)}
-              hapticIntent={null}
-              pressScale={1}
-              pressOpacity={1}
-              style={{ gap: spacing.lg }}
-              accessibilityLabel="Bedienelemente ein- oder ausblenden"
-            >
+            {/* Plain View, deliberately.
+                Wrapping the chapter in a Pressable to toggle the chrome made it
+                the touch responder for the whole page, which starved both this
+                vertical ScrollView and the horizontal pager — the reader
+                rendered but neither scrolled nor turned pages. The chrome now
+                hides on scroll instead, which is the better reader behaviour
+                anyway. */}
+            <View style={{ gap: spacing.lg }}>
               {entry.imageUrl ? (
                 <CoverImage
                   uri={offline.resolveImage(entry.imageUrl)}
@@ -300,7 +306,7 @@ export function StoryReaderScreen() {
                   />
                 </View>
               ) : null}
-            </Touchable>
+            </View>
           </ScrollView>
         ))}
       </ScrollView>
