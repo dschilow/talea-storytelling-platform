@@ -1,0 +1,81 @@
+/**
+ * Ported verbatim from frontend/types/ttsVoice.ts.
+ *
+ * The cache-key builders must produce byte-identical keys to the web app: the
+ * backend audio library is shared, so a drift here would make every mobile
+ * playback miss the server-side cache and re-synthesise audio that already exists.
+ */
+
+export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
+export type TTSProviderType = 'qwen' | 'xai';
+
+export interface TTSVoiceSettings {
+  mode: TTSVoiceMode;
+  speakerId?: string;
+  dialogueSpeakerIds?: string[];
+  provider?: TTSProviderType;
+}
+
+export interface TTSRequestOptions {
+  promptText?: string;
+  referenceAudioDataUrl?: string;
+  speaker?: string;
+  provider?: TTSProviderType;
+}
+
+export const DEFAULT_TTS_VOICE_SETTINGS: TTSVoiceSettings = { mode: 'default' };
+
+export function buildTTSRequestOptions(settings?: TTSVoiceSettings): TTSRequestOptions {
+  if (!settings || settings.mode === 'default') {
+    return settings?.provider ? { provider: settings.provider } : {};
+  }
+
+  const base: TTSRequestOptions = {};
+  if (settings.provider) {
+    base.provider = settings.provider;
+  }
+
+  const speaker = settings.speakerId?.trim();
+  if (speaker) {
+    return { ...base, speaker };
+  }
+
+  if (settings.mode === 'dialogue') {
+    const fallbackDialogueSpeaker = (settings.dialogueSpeakerIds || []).map((entry) => entry.trim()).find(Boolean);
+    return fallbackDialogueSpeaker ? { ...base, speaker: fallbackDialogueSpeaker } : base;
+  }
+
+  return base;
+}
+
+function hashString(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+export function buildTTSRequestCacheSuffix(request?: TTSRequestOptions): string {
+  if (!request) return 'voice-default';
+
+  const providerPart = request.provider || 'qwen';
+  const speakerPart = request.speaker?.trim().toLowerCase() || 'default';
+  const promptPart = request.promptText?.trim() ? `prompt-${hashString(request.promptText.trim())}` : 'prompt-none';
+  const refPart = request.referenceAudioDataUrl?.trim()
+    ? `ref-${hashString(request.referenceAudioDataUrl.trim())}`
+    : 'ref-none';
+
+  return `${providerPart}-voice-${speakerPart}-${promptPart}-${refPart}`;
+}
+
+function normalizeChunkTextForCache(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+export function buildTTSChunkCacheKey(itemId: string, chunkText: string, cacheSuffix: string): string {
+  const normalizedSuffix = cacheSuffix?.trim() || 'voice-default';
+  const textHash = hashString(normalizeChunkTextForCache(chunkText));
+  return `${itemId}:${normalizedSuffix}:text-${textHash}`;
+}

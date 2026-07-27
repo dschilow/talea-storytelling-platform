@@ -1,0 +1,1586 @@
+{
+  "common": {
+    "loading": "Lädt...",
+    "close": "Schließen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "confirm": "Bestätigen",
+    "search": "Suchen",
+    "yes": "Ja",
+    "no": "Nein",
+    "examples": "BEISPIELE:",
+    "note": "💡 Hinweis:",
+    "categoryNote": "Jede Kategorie erstellt eine komplett neue Geschichte speziell für deine Avatare. Es wird keine vorgeschriebene Geschichte erzählt, sondern eine individuelle Geschichte erschaffen!",
+    "wishesNote": "Alle Wünsche sind optional. Die KI wird ihr Bestes tun, deine Wünsche einzubauen, aber die Geschichte bleibt immer spannend und logisch!",
+    "summaryNote": "Die KI erstellt eine komplett neue Geschichte basierend auf deinen Wünschen. Das dauert ca. 60-90 Sekunden. Mit Bildern insgesamt 2-3 Minuten.",
+    "selected": "ausgewählt",
+    "customWish": "💬 Eigener Wunsch (optional):",
+    "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
+    "chars": "Zeichen",
+    "all": "Alle",
+    "noResults": "Keine Treffer",
+    "noResultsDesc": "Kein Eintrag passt zur Suche.",
+    "readMore": "Weiterlesen",
+    "inFocus": "Im Fokus",
+    "new": "Neu",
+    "refresh": "Aktualisieren",
+    "deleteConfirm": "Wirklich löschen?",
+    "sharedBy": "Geteilt von {{name}}",
+    "noDescription": "Keine Beschreibung",
+    "ready": "Bereit",
+    "missing": "Fehlt",
+    "total": "Gesamt",
+    "visible": "Sichtbar",
+    "shared": "Geteilt",
+    "own": "Eigene",
+    "child": "Kind",
+    "childAvatar": "Kind-Avatar",
+    "childAvatarMissing": "Kind-Avatar fehlt",
+    "newHero": "Neuer Held",
+    "sort": "Sortierung",
+    "retry": "Erneut versuchen",
+    "min": "Min",
+    "select": "Auswählen"
+  },
+  "navigation": {
+    "home": "Start",
+    "avatars": "Avatare",
+    "stories": "Geschichten",
+    "doku": "Wissens-Dokus",
+    "chat": "Tavi Chat",
+    "settings": "Einstellungen",
+    "characters": "Charaktere",
+    "artifacts": "Artefakte",
+    "fairytales": "Märchen",
+    "logs": "Logs",
+    "admin": "Admin",
+    "logout": "Abmelden"
+  },
+  "homePage": {
+    "landingTitle": "Willkommen bei Talea",
+    "landingSubtitle": "Erschaffe magische Geschichten und lehrreiche Dokus mit deinen eigenen, einzigartigen Avataren.",
+    "ctaStart": "Jetzt starten",
+    "featureAvatarTitle": "Avatare erstellen",
+    "featureAvatarDesc": "Kreiere einzigartige Charaktere",
+    "featureStoryTitle": "Geschichten erzählen",
+    "featureStoryDesc": "Magische Abenteuer erleben",
+    "featureDokuTitle": "Lernen und Entdecken",
+    "featureDokuDesc": "Spannende Dokus erkunden",
+    "loading": "Lade deine magische Welt...",
+    "greeting": "Hallo!",
+    "greetingSubtitle": "Bereit für neue Abenteuer?",
+    "statAvatars": "Avatare",
+    "statStories": "Geschichten",
+    "statDokus": "Dokus",
+    "statBadges": "Abzeichen",
+    "quickActionsTitle": "Schnellaktionen",
+    "quickActionsDesc": "Starte dein nächstes Abenteuer",
+    "quickCreateAvatar": "Avatar erstellen",
+    "quickCreateStory": "Geschichte schreiben",
+    "quickCreateDoku": "Doku erstellen",
+    "sectionAvatars": "Deine Avatare",
+    "viewAll": "Alle anzeigen",
+    "emptyAvatarsTitle": "Noch keine Avatare",
+    "emptyAvatarsDesc": "Erstelle deinen ersten Avatar und starte dein Abenteuer.",
+    "badgeAi": "KI",
+    "badgePhoto": "Foto"
+  },
+  "auth": {
+    "welcome": "Willkommen bei Talea",
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "signOut": "Abmelden",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "noAccount": "Noch kein Konto?",
+    "hasAccount": "Bereits ein Konto?",
+    "continue": "Weiter"
+  },
+  "home": {
+    "welcome": "Willkommen zurück!",
+    "subtitle": "Was möchtest du heute entdecken?",
+    "createStory": "Neue Geschichte",
+    "createDoku": "Neue Doku",
+    "myAvatars": "Meine Avatare",
+    "recentStories": "Letzte Geschichten",
+    "recentDokus": "Letzte Dokus",
+    "noStories": "Noch keine Geschichten erstellt",
+    "noDokus": "Noch keine Dokus erstellt",
+    "getStarted": "Leg los und erstelle deine erste Geschichte!"
+  },
+  "avatar": {
+    "title": "Avatare",
+    "subtitle": "Erstelle und verwalte deine Charaktere",
+    "create": "Avatar erstellen",
+    "createNew": "Neuen Avatar erstellen",
+    "myAvatars": "Meine Avatare",
+    "publicAvatars": "Öffentliche Avatare",
+    "name": "Name",
+    "description": "Beschreibung",
+    "physicalTraits": "Äußere Merkmale",
+    "personality": "Persönlichkeit",
+    "image": "Bild",
+    "generateImage": "Bild zaubern",
+    "uploadPhoto": "Foto hochladen",
+    "makePublic": "Öffentlich machen",
+    "deleteConfirm": "Bist du sicher, dass du diesen Avatar löschen möchtest?",
+    "personalityTraits": {
+      "knowledge": "Wissen",
+      "creativity": "Kreativität",
+      "vocabulary": "Wortschatz",
+      "courage": "Mut",
+      "curiosity": "Neugier",
+      "teamwork": "Teamwork",
+      "empathy": "Empathie",
+      "persistence": "Ausdauer",
+      "logic": "Logik"
+    },
+    "stats": {
+      "level": "Level",
+      "stories": "Geschichten",
+      "dokus": "Dokus",
+      "totalTraits": "Gesamt-Traits"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Modus wählen",
+        "basic": "Grundangaben",
+        "appearance": "Aussehen",
+        "style": "Stil",
+        "background": "Herkunft",
+        "create": "Erstellen",
+        "who": "Wer?",
+        "body": "Körper",
+        "look": "Aussehen",
+        "extras": "Extras",
+        "done": "Fertig!"
+      },
+      "createTitle": "Avatar erstellen",
+      "createChildTitle": "Kind-Avatar erstellen",
+      "stepOf": "Schritt {{current}} von {{total}}",
+      "creating": "{{name}} wird gezaubert...",
+      "creatingSubtitle": "Gleich ist dein Avatar fertig!",
+      "previewSuccess": "Dein Avatar-Bild ist fertig!",
+      "previewError": "Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!",
+      "nameRequired": "Dein Avatar braucht noch einen Namen!",
+      "createSuccess": "{{name}} ist da! Viel Spaß mit deinem Avatar!",
+      "createError": "Das hat leider nicht geklappt. Versuch es nochmal!",
+      "back": "Zurück",
+      "next": "Weiter",
+      "mode": {
+        "title": "Wie möchtest du deinen Avatar erstellen?",
+        "simple": {
+          "title": "Einfach & Spaßig",
+          "description": "Klicke dich durch bunte Optionen. Perfekt für Kinder!"
+        },
+        "advanced": {
+          "title": "Kreativ & Frei",
+          "description": "Beschreibe deinen Avatar mit eigenen Worten. Für Kreative!"
+        }
+      },
+      "basic": {
+        "title": "Grundangaben",
+        "subtitle": "Erzähl uns von deinem Charakter",
+        "name": "Name",
+        "namePlaceholder": "Wie soll dein Avatar heißen?",
+        "type": "Typ",
+        "age": "Alter",
+        "gender": "Geschlecht",
+        "description": "Beschreibe deinen Avatar",
+        "descriptionPlaceholder": "z.B. Luna - Ein neugieriges Mädchen, 8 Jahre alt..."
+      },
+      "appearance": {
+        "title": "Aussehen",
+        "subtitle": "Wie sieht dein Avatar aus?",
+        "eyeColor": "Augenfarbe",
+        "hairColor": "Haarfarbe",
+        "specialFeatures": "Besonderheiten",
+        "descriptionPlaceholder": "Beschreibe das Aussehen..."
+      },
+      "style": {
+        "title": "Stil & Ausdruck",
+        "subtitle": "Wie kleidet sich dein Avatar?",
+        "clothing": "Kleidungsstil",
+        "voice": "Stimme"
+      },
+      "background": {
+        "title": "Herkunft & Geschichte",
+        "subtitle": "Woher kommt dein Avatar?",
+        "world": "Welt",
+        "backstory": "Hintergrundgeschichte"
+      },
+      "create": {
+        "title": "Dein Avatar ist bereit!",
+        "info": "Die Persönlichkeit deines Avatars wächst mit jedem Abenteuer!",
+        "generateImage": "Bild zaubern",
+        "generatingImage": "Bild wird gezaubert...",
+        "createAvatar": "Avatar erstellen",
+        "creatingAvatar": "Avatar wird erstellt...",
+        "imageGeneratedSuccess": "Super, dein Avatar-Bild ist fertig!",
+        "imageGenerationError": "Das Bild konnte leider nicht erstellt werden. Versuch es nochmal!",
+        "avatarCreatedSuccess": "Dein Avatar ist da!",
+        "avatarCreationError": "Das hat leider nicht geklappt. Versuch es nochmal!"
+      },
+      "options": {
+        "types": {
+          "human": "Mensch",
+          "animal": "Tier",
+          "fantasy": "Fantasie-Wesen",
+          "robot": "Roboter",
+          "plant": "Pflanze",
+          "other": "Anderes"
+        },
+        "ages": {
+          "baby": "Baby",
+          "child": "Kind",
+          "teen": "Jugendlich",
+          "adult": "Erwachsen",
+          "old": "Alt"
+        },
+        "genders": {
+          "boy": "Junge",
+          "girl": "Mädchen",
+          "diverse": "Divers",
+          "none": "Nicht angegeben"
+        },
+        "eyes": {
+          "blue": "Blau",
+          "green": "Grün",
+          "brown": "Braun",
+          "gray": "Grau",
+          "colorful": "Bunt"
+        },
+        "hair": {
+          "blonde": "Blond",
+          "brown": "Braun",
+          "black": "Schwarz",
+          "red": "Rot",
+          "bald": "Glatze"
+        },
+        "features": {
+          "glasses": "Brille",
+          "wings": "Flügel",
+          "horns": "Hörner",
+          "tail": "Schwanz",
+          "scar": "Narbe",
+          "tattoo": "Tattoo"
+        },
+        "clothing": {
+          "modern": "Modern",
+          "medieval": "Mittelalter",
+          "fairytale": "Märchen",
+          "future": "Zukunft",
+          "armor": "Rüstung",
+          "magic": "Magisch"
+        },
+        "voice": {
+          "high": "Hoch",
+          "normal": "Normal",
+          "deep": "Tief",
+          "funny": "Lustig",
+          "mysterious": "Geheimnisvoll"
+        },
+        "world": {
+          "forest": "Wald",
+          "city": "Stadt",
+          "castle": "Schloss",
+          "future": "Zukunft",
+          "underwater": "Unterwasser",
+          "space": "Weltraum"
+        },
+        "backstory": {
+          "lost": "Verloren gegangen und sucht den Weg nach Hause",
+          "adventurer": "Ein mutiger Abenteurer auf großer Reise",
+          "wizard": "Ein Lehrling der Magie mit großem Potenzial",
+          "talent": "Hat ein besonderes Talent entdeckt",
+          "normal": "Ein ganz normales Kind mit viel Neugier"
+        }
+      }
+    }
+  },
+  "story": {
+    "title": "Geschichten",
+    "subtitle": "Erstelle personalisierte KI-Geschichten",
+    "create": "Geschichte erstellen",
+    "myStories": "Meine Geschichten",
+    "generating": "Geschichte wird generiert...",
+    "reader": {
+      "loading": "Geschichte wird geladen...",
+      "notFound": "Geschichte nicht gefunden",
+      "chapter": "Kapitel",
+      "read": "Lesen",
+      "finish": "Geschichte abschließen",
+      "completed": "Abgeschlossen",
+      "scene": "Szene",
+      "environment": "Umgebung",
+      "personalityGrowth": "Persönlichkeit entwickelt sich",
+      "avatarsUpdated": "{{count}} Avatar(e) aktualisiert",
+      "toast": {
+        "completed": "{{count}} Avatar(e) aktualisiert",
+        "error": "Fehler beim Anwenden der Persönlichkeits-Updates.",
+        "networkError": "Netzwerkfehler beim Abschließen der Geschichte."
+      }
+    },
+    "wizard": {
+      "title": "Geschichte erstellen",
+      "subtitle": "Erschaffe eine magische Geschichte mit deinen Avataren",
+      "steps": {
+        "avatar": "Avatare",
+        "genre": "Genre & Welt",
+        "soul": "Story-Seele & Stil",
+        "experience": "Emotion & Tempo",
+        "parameters": "Parameter",
+        "learning": "Lernmodus",
+        "generation": "Erstellen"
+      },
+      "stepCounter": "Schritt {{current}} von {{total}}",
+      "next": "Weiter",
+      "back": "Zurück",
+      "alerts": {
+        "loginRequired": "Bitte melde dich an, um eine Geschichte zu erstellen.",
+        "selectAvatar": "Bitte wähle mindestens einen Avatar für die Geschichte aus.",
+        "success": "Geschichte \"{{title}}\" wurde erfolgreich generiert! 🎉",
+        "error": "Die Geschichte konnte nicht erstellt werden. Bitte versuche es erneut.",
+        "tooLong": "Die Anfrage ist zu groß. Bitte versuche es erneut.",
+        "timeout": "Die Generierung dauert zu lange. Bitte wähle eine kürzere Geschichte."
+      },
+      "genre": {
+        "title": "Genre wählen",
+        "subtitle": "Welche Art von Geschichte soll es werden?",
+        "options": {
+          "fairytale": "Klassische Märchen",
+          "fairytaleDesc": "Nutze originale Märchen als Inspirationsquelle",
+          "magic": "Märchenwelten & Magie",
+          "magicDesc": "Freie Märchenwelten mit magischem Remix",
+          "adventure": "Abenteuer",
+          "adventureDesc": "Spannende Reisen und Entdeckungen",
+          "fantasy": "Fantasy",
+          "fantasyDesc": "Magische Welten und Zauberei",
+          "mystery": "Geheimnis",
+          "mysteryDesc": "Rätsel und geheimnisvolle Ereignisse",
+          "friendship": "Freundschaft",
+          "friendshipDesc": "Geschichten über Zusammenhalt",
+          "learning": "Lernen",
+          "learningDesc": "Bildende und lehrreiche Inhalte",
+          "comedy": "Komödie",
+          "comedyDesc": "Lustige und humorvolle Geschichten"
+        }
+      },
+      "setting": {
+        "title": "Schauplatz wählen",
+        "subtitle": "Wo soll deine Geschichte stattfinden?",
+        "options": {
+          "forest": "Zauberwald",
+          "forestDesc": "Mystische Wälder voller Geheimnisse",
+          "castle": "Schloss",
+          "castleDesc": "Königliche Paläste und Burgen",
+          "ocean": "Unterwasserwelt",
+          "oceanDesc": "Tiefen des Ozeans erkunden",
+          "space": "Weltraum",
+          "spaceDesc": "Abenteuer zwischen den Sternen",
+          "city": "Moderne Stadt",
+          "cityDesc": "Urbane Abenteuer und Entdeckungen",
+          "village": "Märchendorf",
+          "villageDesc": "Gemütliche Dorfgemeinschaften"
+        }
+      },
+      "parameters": {
+        "length": {
+          "title": "Geschichtenlänge",
+          "subtitle": "Wie lang soll deine Geschichte werden?",
+          "options": {
+            "short": "Kurz",
+            "shortDesc": "3-5 Kapitel, ~10 Min.",
+            "medium": "Mittel",
+            "mediumDesc": "5-8 Kapitel, ~20 Min.",
+            "long": "Lang",
+            "longDesc": "8-12 Kapitel, ~30 Min."
+          }
+        },
+        "complexity": {
+          "title": "Komplexität",
+          "subtitle": "Wie komplex soll die Handlung sein?",
+          "options": {
+            "simple": "Einfach",
+            "simpleDesc": "Leichte Sprache, einfache Handlung",
+            "medium": "Mittel",
+            "mediumDesc": "Ausgewogene Komplexität",
+            "complex": "Komplex",
+            "complexDesc": "Vielschichtige Handlung"
+          }
+        },
+        "ageGroup": {
+          "title": "Altersgruppe",
+          "subtitle": "Für welche Altersgruppe ist die Geschichte?",
+          "options": {
+            "3-5": "3-5 Jahre",
+            "3-5Desc": "Vorschulkinder",
+            "6-8": "6-8 Jahre",
+            "6-8Desc": "Grundschulkinder",
+            "9-12": "9-12 Jahre",
+            "9-12Desc": "Schulkinder",
+            "13+": "13+ Jahre",
+            "13+Desc": "Jugendliche"
+          }
+        },
+        "aiModel": {
+          "title": "AI Model",
+          "subtitle": "Wähle das KI-Modell für die Story-Generierung",
+          "options": {
+            "nano": "Schnell & günstig",
+            "mini": "Empfohlen",
+            "standard": "Beste Qualität",
+            "premium": "Premium"
+          }
+        }
+      },
+      "soul": {
+        "title": "Story-Seele wählen",
+        "subtitle": "Die Grundstimmung deiner Geschichte",
+        "options": {
+          "maerchenzauber": {
+            "label": "Märchenzauber",
+            "tagline": "Zeitlos-magisch und herzlich",
+            "description": "Es-war-einmal Stimmung, warme Atmosphäre, sanfte Spannung."
+          },
+          "lieder_reime": {
+            "label": "Lieder & Reime",
+            "tagline": "Verspielt und rhythmisch",
+            "description": "Eingängige Verse, singbare Passagen, poetische Sprache."
+          },
+          "wilder_ritt": {
+            "label": "Wilder Ritt",
+            "tagline": "Rasant und aufregend",
+            "description": "Actiongeladen, unerwartete Wendungen, schnelles Tempo."
+          },
+          "traeumerei": {
+            "label": "Träumerei",
+            "tagline": "Sanft und fantasievoll",
+            "description": "Verträumte Bilder, ruhiger Fluss, magische Momente."
+          },
+          "heldenmut": {
+            "label": "Heldenmut",
+            "tagline": "Mutig und inspirierend",
+            "description": "Überwindung von Ängsten, wachsende Stärke, triumphales Ende."
+          },
+          "entdeckergeist": {
+            "label": "Entdeckergeist",
+            "tagline": "Neugierig und lehrreich",
+            "description": "Neue Welten erkunden, Wissen sammeln, Staunen erleben."
+          }
+        }
+      },
+      "style": {
+        "title": "Erzählstil",
+        "subtitle": "Optionaler spezifischer Stil für deine Geschichte",
+        "auto": "Automatisch (basierend auf Story-Seele)",
+        "allowRhymes": "Reime und Verse erlauben",
+        "footer": "Der Erzählstil wird automatisch zur gewählten Story-Seele angepasst, falls nicht anders gewählt.",
+        "options": {
+          "rhymed_playful": {
+            "label": "Gereimt & Verspielt",
+            "description": "Fröhliche Reime wie bei Dr. Seuss"
+          },
+          "gentle_minimal": {
+            "label": "Sanft & Minimal",
+            "description": "Ruhige, einfache Sprache mit Tiefe"
+          },
+          "wild_imaginative": {
+            "label": "Wild & Fantasievoll",
+            "description": "Überbordende Fantasie und verrückte Ideen"
+          },
+          "philosophical_warm": {
+            "label": "Philosophisch & Warm",
+            "description": "Nachdenkliche Geschichten mit Herz"
+          },
+          "mischief_empowering": {
+            "label": "Frech & Stärkend",
+            "description": "Schabernack mit positivem Ausgang"
+          },
+          "adventure_epic": {
+            "label": "Abenteuer & Episch",
+            "description": "Große Questen und heldenhafte Reisen"
+          },
+          "quirky_dark_sweet": {
+            "label": "Skurril & Bitter-Süß",
+            "description": "Ungewöhnlich mit emotionaler Tiefe"
+          },
+          "cozy_friendly": {
+            "label": "Gemütlich & Freundlich",
+            "description": "Warme, behagliche Atmosphäre"
+          },
+          "classic_fantasy": {
+            "label": "Klassische Fantasy",
+            "description": "Zeitlose Märchenelemente"
+          },
+          "whimsical_logic": {
+            "label": "Wunderlich & Logisch",
+            "description": "Verrückte Welten mit eigenen Regeln"
+          },
+          "mythic_allegory": {
+            "label": "Mythisch & Allegorisch",
+            "description": "Tiefgründige Symbolik und Legenden"
+          },
+          "road_fantasy": {
+            "label": "Reise-Fantasy",
+            "description": "Abenteuer unterwegs durch magische Länder"
+          },
+          "imaginative_meta": {
+            "label": "Imaginativ & Meta",
+            "description": "Kreative Erzählweise, die mit Konventionen spielt"
+          },
+          "pastoral_heart": {
+            "label": "Ländlich & Herzlich",
+            "description": "Naturnahe Geschichten voller Wärme"
+          },
+          "bedtime_soothing": {
+            "label": "Einschlaf-Geschichte",
+            "description": "Beruhigend und entspannend für die Nacht"
+          }
+        }
+      },
+      "common": {
+        "selected": "Ausgewählt"
+      },
+      "flavor": {
+        "title": "Emotionale Zutaten",
+        "subtitle": "Welche Gefühle soll die Geschichte vermitteln?",
+        "max": "Maximal {{count}} auswählen",
+        "options": {
+          "warmherzigkeit": {
+            "label": "Warmherzigkeit",
+            "description": "Liebevolle Momente und Fürsorge",
+            "effect": "Erzeugt Geborgenheit und Verbundenheit"
+          },
+          "lachfreude": {
+            "label": "Lachfreude",
+            "description": "Humor und witzige Situationen",
+            "effect": "Lockert auf und macht Spaß"
+          },
+          "prickeln": {
+            "label": "Prickeln",
+            "description": "Spannung und Nervenkitzel",
+            "effect": "Hält die Aufmerksamkeit und erzeugt Aufregung"
+          },
+          "geborgenheit": {
+            "label": "Geborgenheit",
+            "description": "Sicherheit und Behaglichkeit",
+            "effect": "Vermittelt Ruhe und Entspannung"
+          },
+          "uebermut": {
+            "label": "Übermut",
+            "description": "Freche Abenteuer und Schabernack",
+            "effect": "Ermutigt zu Kreativität und Selbstvertrauen"
+          },
+          "staunen": {
+            "label": "Staunen",
+            "description": "Wunder und Magie entdecken",
+            "effect": "Weckt Neugier und Fantasie"
+          },
+          "zusammenhalt": {
+            "label": "Zusammenhalt",
+            "description": "Freundschaft und Teamwork",
+            "effect": "Zeigt den Wert von Gemeinschaft"
+          }
+        }
+      },
+      "tempo": {
+        "title": "Erzähltempo",
+        "subtitle": "Wie schnell soll die Geschichte voranschreiten?",
+        "options": {
+          "cozy": {
+            "label": "Gemütlich",
+            "description": "Langsam und entspannt, viel Atmosphäre"
+          },
+          "balanced": {
+            "label": "Ausgewogen",
+            "description": "Wechsel zwischen ruhigen und spannenden Momenten"
+          },
+          "fast": {
+            "label": "Rasant",
+            "description": "Schnell voranschreitend, viel Action"
+          }
+        }
+      },
+      "ingredients": {
+        "title": "Spezialzutaten",
+        "subtitle": "Optionale besondere Elemente für deine Geschichte",
+        "options": {
+          "surprise": {
+            "label": "Überraschung",
+            "description": "Unerwartete Wendungen und Plot-Twists"
+          },
+          "mystery": {
+            "label": "Geheimnis",
+            "description": "Rätsel und versteckte Hinweise"
+          },
+          "transformation": {
+            "label": "Verwandlung",
+            "description": "Charaktere die sich entwickeln und verändern"
+          },
+          "magic": {
+            "label": "Magie",
+            "description": "Zauberhafte Elemente und übernatürliche Kräfte"
+          },
+          "trial": {
+            "label": "Prüfung",
+            "description": "Herausforderungen die gemeistert werden müssen"
+          },
+          "aha": {
+            "label": "Aha-Moment",
+            "description": "Wichtige Erkenntnisse und Lernmomente"
+          }
+        }
+      }
+    },
+    "selectAvatars": "Avatare auswählen",
+    "selectAvatarsSubtitle": "Wähle bis zu 3 Avatare für die Geschichte",
+    "ageGroup": "Altersgruppe",
+    "genre": "Genre",
+    "length": "Länge",
+    "complexity": "Komplexität",
+    "tone": "Ton",
+    "settings": "Einstellungen",
+    "advanced": "Erweitert",
+    "customPrompt": "Eigener Wunsch",
+    "customPromptPlaceholder": "Beschreibe deine Wunsch-Geschichte...",
+    "generateStory": "Geschichte zaubern",
+    "ageGroups": {
+      "3-5": "3-5 Jahre",
+      "6-8": "6-8 Jahre",
+      "9-12": "9-12 Jahre",
+      "13+": "13+ Jahre"
+    },
+    "genres": {
+      "adventure": "Abenteuer",
+      "fantasy": "Fantasy",
+      "mystery": "Krimi/Rätsel",
+      "scifi": "Science Fiction",
+      "friendship": "Freundschaft",
+      "nature": "Natur",
+      "fairytale": "Märchen",
+      "comedy": "Komödie"
+    },
+    "lengths": {
+      "short": "Kurz (3-5 Min.)",
+      "medium": "Mittel (8-12 Min.)",
+      "long": "Lang (15-20 Min.)"
+    },
+    "complexities": {
+      "simple": "Einfach",
+      "medium": "Mittel",
+      "complex": "Komplex"
+    },
+    "tones": {
+      "fun": "Spaßig",
+      "neutral": "Neutral",
+      "curious": "Neugierig"
+    }
+  },
+  "doku": {
+    "title": "Wissens-Dokus",
+    "subtitle": "Deine Dokus und die Community-Bibliothek",
+    "myDokus": "Meine Dokus",
+    "myDokusSubtitle": "Von dir erstellte Dokus",
+    "publicDokus": "Community-Dokus",
+    "publicDokusSubtitle": "Öffentliche Dokus von allen Nutzern",
+    "noDokus": "Noch keine Dokus",
+    "noDokusQuery": "Keine Doku passt zum Suchbegriff.",
+    "noPublicDokus": "Noch keine öffentlichen Dokus",
+    "noPublicDokusQuery": "Keine Entdecken-Doku passt zum Suchbegriff.",
+    "audioDokus": "Audio-Dokus",
+    "audioDokusSubtitle": "Höre Dokus als Audio",
+    "noAudioDokus": "Noch keine Audio-Dokus verfügbar",
+    "noAudioDokusQuery": "Keine Audio-Doku passt zum Suchbegriff.",
+    "audioPlay": "Abspielen",
+    "audioLoading": "Audio wird erstellt...",
+    "audioCreateButton": "Audio-Doku erstellen",
+    "audioPlayAll": "Alle abspielen",
+    "noAudioFile": "Keine Audio-Datei verfügbar",
+    "loadingMore": "Weitere Dokus werden geladen...",
+    "loadingMorePublic": "Weitere Entdecken-Dokus werden geladen...",
+    "discoverTitle": "Entdecken",
+    "discoverSubtitle": "Geteilte Dokus aus der Community",
+    "audioWorldTitle": "Hörwelt",
+    "audioWorldSubtitle": "Dokus zum Anhören",
+    "myDokusMetric": "Meine",
+    "discoverMetric": "Entdecken",
+    "audioMetric": "Audio",
+    "tabMine": "Meine",
+    "tabDiscover": "Entdecken",
+    "tabAudio": "Hörwelt",
+    "searchPlaceholderText": "Dokus durchsuchen...",
+    "searchPlaceholderAudio": "Audio durchsuchen...",
+    "filterAllTopics": "Alle Themen",
+    "filterAllAges": "Alle Altersgruppen",
+    "filterAllDepths": "Alle Tiefen",
+    "filterAllAudio": "Alle Audio",
+    "filterMyAudio": "Meine Audio",
+    "filterPublicAudio": "Öffentliche Audio",
+    "sortNewest": "Neueste zuerst",
+    "sortOldest": "Älteste zuerst",
+    "sortTitle": "Titel A-Z",
+    "filterReset": "Filter zurücksetzen",
+    "filterTopic": "Thema filtern",
+    "filterAge": "Altersgruppe filtern",
+    "filterDepth": "Tiefe filtern",
+    "filterAudioScope": "Audio Bereich filtern",
+    "depthBasic": "Basis",
+    "depthStandard": "Standard",
+    "depthDeep": "Tief",
+    "depthUnknown": "Unbekannt",
+    "topicUnknown": "Unbekannt",
+    "ageLabel": "Alter {{age}}",
+    "saveOffline": "Offline speichern",
+    "removeOffline": "Offline-Speicherung entfernen",
+    "editAudioDoku": "Audio-Doku bearbeiten",
+    "deleteAudioDoku": "Audio-Doku löschen",
+    "addToQueue": "Zur Warteschlange hinzufügen",
+    "closeModal": "Audio Modal schließen",
+    "publicAccessError": "Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfügbar.",
+    "audioAccessError": "Audio-Dokus sind in deinem aktuellen Plan nicht verfügbar.",
+    "audioCreate": {
+      "title": "Audio-Doku erstellen",
+      "subtitle": "Audio hochladen und Cover automatisch generieren",
+      "signInRequired": "Bitte melde dich an, um eine Audio-Doku zu erstellen.",
+      "uploadTitle": "Audio hochladen",
+      "uploadDescription": "Ziehe eine Audiodatei hierher oder klicke zum Auswählen",
+      "titleLabel": "Titel (optional)",
+      "titlePlaceholder": "Gib der Audio-Doku einen Titel",
+        "coverLabel": "Cover-Beschreibung",
+        "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
+        "generateCover": "Cover generieren",
+        "generatingCover": "Cover wird generiert...",
+        "coverReady": "Cover bereit",
+        "descriptionLabel": "Audio-Doku Beschreibung",
+        "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
+      "createButton": "Audio-Doku erstellen",
+      "creating": "Wird erstellt...",
+      "previewTitle": "Cover-Vorschau",
+      "previewDescription": "Das Cover wird aus deiner Beschreibung generiert.",
+      "previewReady": "Cover bereit",
+      "previewDescriptionReady": "Deine Audio-Doku wurde gespeichert.",
+      "goToDokus": "Zu den Dokus",
+      "createAnother": "Noch eine erstellen",
+        "errors": {
+          "missingAudio": "Bitte lade eine Audiodatei hoch.",
+          "missingCover": "Bitte beschreibe das Cover.",
+          "missingDescription": "Bitte füge eine Beschreibung hinzu.",
+          "coverFailed": "Cover-Generierung fehlgeschlagen. Bitte erneut versuchen.",
+          "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+        }
+      },
+    "createNew": "Neue Doku",
+    "wizard": {
+      "title": "Neue Wissens-Doku",
+      "subtitle": "Lerne etwas Spannendes!",
+      "loginRequired": "Bitte melde dich an, um eine Wissens-Doku zu erstellen.",
+      "createTitle": "Was möchtest du entdecken?",
+      "topicLabel": "Thema",
+      "topicPlaceholder": "Was interessiert dich? (z.B. Vulkane, Dinosaurier, Wale...)",
+      "ageGroup": "Wie alt bist du?",
+      "age": {
+        "3_5": "3-5 Jahre",
+        "6_8": "6-8 Jahre",
+        "9_12": "9-12 Jahre",
+        "13_plus": "13+ Jahre"
+      },
+      "depth": {
+        "title": "Wie viel möchtest du erfahren?",
+        "basic": "Kurz erklärt",
+        "standard": "Normal",
+        "deep": "Alles genau wissen"
+      },
+      "perspective": {
+        "title": "Wie soll es erklärt werden?",
+        "science": "Wie ein Forscher",
+        "history": "Wie ein Zeitreisender",
+        "technology": "Wie ein Erfinder",
+        "nature": "Wie ein Entdecker",
+        "culture": "Wie ein Weltreisender"
+      },
+      "length": {
+        "title": "Wie lang?",
+        "short": "Kurz",
+        "medium": "Mittel",
+        "long": "Lang"
+      },
+      "tone": {
+        "title": "Wie soll es sich anfühlen?",
+        "fun": "Lustig",
+        "neutral": "Ruhig und klar",
+        "curious": "Neugierig"
+      },
+      "interactive": "Mitmach-Elemente",
+      "quizQuestions": "Quiz-Fragen",
+      "activities": "Mitmach-Aktionen",
+      "generate": "Doku zaubern",
+      "generating": "Doku wird erstellt...",
+      "errors": {
+        "missingTopic": "Such dir ein Thema aus!",
+        "generationFailed": "Das hat leider nicht geklappt. Versuch es nochmal!"
+      },
+      "steps": {
+        "topic": "Thema",
+        "ageGroup": "Alter",
+        "depth": "Wie viel?",
+        "perspective": "Wie?",
+        "review": "Fertig!"
+      },
+      "placeholders": {
+        "topic": "Was interessiert dich? (z.B. Vulkane, Dinosaurier, Wale...)"
+      },
+      "depths": {
+        "basic": "Kurz erklärt",
+        "standard": "Normal",
+        "deep": "Alles genau wissen"
+      },
+      "perspectives": {
+        "science": "Wie ein Forscher",
+        "history": "Wie ein Zeitreisender",
+        "technology": "Wie ein Erfinder",
+        "nature": "Wie ein Entdecker",
+        "culture": "Wie ein Weltreisender"
+      },
+      "tones": {
+        "fun": "Lustig",
+        "neutral": "Ruhig und klar",
+        "curious": "Neugierig"
+      }
+    }
+  },
+  "chat": {
+    "title": "Tavi",
+    "subtitle": "Dein magischer Assistent",
+    "placeholder": "Frag Tavi etwas...",
+    "words": "Wörter",
+    "welcome": "Hi, ich bin Tavi!",
+    "error": "Entschuldige, etwas ist schiefgelaufen. Versuche es gleich nochmal.",
+    "newConversation": "Neue Unterhaltung",
+    "deleteConversation": "Unterhaltung löschen",
+    "openStory": "Story öffnen",
+    "openDoku": "Doku öffnen",
+    "openAvatar": "Avatar ansehen",
+    "openWizard": "Story-Wizard öffnen",
+    "openAvatarWizard": "Avatar-Wizard öffnen",
+    "openDokuWizard": "Doku-Wizard öffnen",
+    "navigate": "Seite öffnen",
+    "open": "Öffnen",
+    "suggestion_story": "Erzähl mir eine Geschichte",
+    "suggestion_doku": "Erstelle eine Doku",
+    "suggestion_avatar": "Neuen Avatar erstellen",
+    "suggestion_image": "Male mir ein Bild",
+    "suggestion_list": "Zeig mir meine Avatare"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "subtitle": "Passe deine Präferenzen an",
+    "account": "Konto",
+    "profile": "Profil",
+    "language": "Sprache",
+    "languageDescription": "Wähle deine bevorzugte Sprache für die Benutzeroberfläche und generierte Inhalte",
+    "selectLanguage": "Sprache auswählen",
+    "currentLanguage": "Aktuelle Sprache",
+    "appearance": "Erscheinungsbild",
+    "theme": "Theme",
+    "themeTitle": "Darstellung",
+    "themeDescription": "Wähle zwischen hellem, dunklem oder automatischem Modus",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "lightDescription": "Helles Theme",
+    "darkDescription": "Dunkles Theme",
+    "systemDescription": "Automatisch",
+    "notifications": "Benachrichtigungen",
+    "privacy": "Datenschutz",
+    "subscription": "Abonnement",
+    "billing": "Abrechnung",
+    "support": "Support",
+    "about": "Über",
+    "version": "Version",
+    "subscriptionPlans": {
+      "free": "Kostenlos",
+      "starter": "Starter",
+      "familie": "Familie",
+      "premium": "Premium"
+    },
+    "saved": "Einstellungen gespeichert",
+    "saveFailed": "Speichern fehlgeschlagen",
+    "billingPanel": "Zahlung",
+    "parentalPanel": "Eltern Dashboard",
+    "profilesPanel": "Kinderprofile",
+    "audioLibraryPanel": "Audio-Bibliothek",
+    "signOut": "Abmelden",
+    "signOutDescription": "Sichere Abmeldung von deinem Talea Konto.",
+    "signOutConfirm": "Du kannst dich jederzeit abmelden und später mit demselben Konto wieder einloggen.",
+    "signOutButton": "Jetzt abmelden",
+    "signingOut": "Abmeldung...",
+    "parentalTitle": "Eltern-Dashboard",
+    "parentalSubtitle": "Sicherheit, Lernziele und Tageslimits für Storys und Dokus.",
+    "parentalLoading": "Lade Eltern-Dashboard...",
+    "parentalUnavailable": "Eltern-Dashboard nicht verfügbar.",
+    "parentalUnlock": "Entsperren",
+    "parentalPinActive": "PIN-Schutz aktiv",
+    "parentalPinDescription": "Bitte Eltern-PIN eingeben, um Regeln und Limits zu bearbeiten.",
+    "parentalChildProtection": "Kinderschutz aktivieren",
+    "parentalChildProtectionDesc": "Aktiv steuert Tabu-Themen, Lernziele und Tageslimits in Story- und Doku-Prompts.",
+    "parentalSave": "Speichern",
+    "parentalSaving": "Speichere...",
+    "parentalReload": "Neu laden",
+    "parentalPin": "Eltern-PIN",
+    "parentalNewPin": "Neuer PIN (4-8 Ziffern)",
+    "parentalConfirmPin": "PIN bestätigen",
+    "parentalNewPinOptional": "Neuer PIN (optional)",
+    "parentalConfirmNewPin": "Neuer PIN bestätigen",
+    "parentalBlockedThemes": "Tabu-Themen",
+    "parentalBlockedThemesDesc": "Diese Themen sollen in Storys und Dokus vermieden werden.",
+    "parentalBlockedWords": "Tabu-Wörter",
+    "parentalBlockedWordsDesc": "Diese Begriffe werden in neu generierten Texten geblockt.",
+    "parentalLearningGoals": "Lernziele",
+    "parentalLearningGoalsDesc": "Diese Ziele werden bei neuen Storys und Dokus bevorzugt.",
+    "parentalProfileKeywords": "Profil-/Pfad-Schlagwörter",
+    "parentalProfileKeywordsDesc": "Zusatz-Keywords für die inhaltliche Ausrichtung.",
+    "parentalDailyLimits": "Tageslimits (unabhängig vom Abo)",
+    "parentalDailyLimitsDesc": "Schützt Credits davor, an einem einzigen Tag komplett verbraucht zu werden.",
+    "parentalStoriesPerDay": "Storys pro Tag",
+    "parentalDokusPerDay": "Dokus pro Tag",
+    "parentalUnlimited": "Unbegrenzt",
+    "parentalNoEntries": "Noch keine Einträge.",
+    "parentalAdd": "Hinzufügen",
+    "parentalLoadFailed": "Eltern-Dashboard konnte nicht geladen werden.",
+    "parentalSaveFailed": "Speichern fehlgeschlagen.",
+    "parentalPinRequired": "Bitte zuerst Eltern-PIN eingeben.",
+    "parentalPinMismatch": "Neuer PIN und Bestätigung stimmen nicht überein.",
+    "parentalPinInvalid": "PIN muss 4 bis 8 Ziffern haben.",
+    "parentalPinMismatch2": "PIN und Bestätigung stimmen nicht überein.",
+    "parentalPinInvalid2": "Bitte einen PIN mit 4 bis 8 Ziffern setzen.",
+    "parentalUnlocked": "Eltern-Dashboard entsperrt.",
+    "parentalPinEmpty": "Bitte PIN eingeben.",
+    "parentalPinInvalidVerify": "PIN ungültig.",
+    "parentalPinVerifyFailed": "PIN konnte nicht geprüft werden.",
+    "parentalRulesInfo": "Regeln greifen bei neuen Generierungen. Bestehende Inhalte bleiben unverändert.",
+    "audioLibraryTitle": "Audio-Bibliothek",
+    "audioLibrarySubtitle": "Persistente Story- und Doku-Audios aus dem Player (geräteübergreifend).",
+    "audioLibraryRefresh": "Aktualisieren",
+    "audioLibrarySearch": "Titel suchen...",
+    "audioLibraryAllTypes": "Alle Typen",
+    "audioLibraryLoading": "Lade Audio-Bibliothek...",
+    "audioLibraryEmpty": "Keine gespeicherten Audios gefunden.",
+    "audioLibraryPlayBtn": "Im Player abspielen",
+    "audioLibraryPlayBusy": "Bereite vor...",
+    "audioLibraryOfflineSave": "Offline speichern",
+    "audioLibraryOfflineRemove": "Offline entfernen",
+    "audioLibraryOfflineSaving": "Speichere...",
+    "audioLibraryDelete": "Löschen",
+    "audioLibraryDeleting": "Lösche...",
+    "audioLibraryChapters": "Kapitel/Teile",
+    "audioLibraryPlayedInPlayer": "Wird im Player kapitelweise abgespielt.",
+    "audioLibraryLoadFailed": "Audio-Bibliothek konnte nicht geladen werden.",
+    "audioLibraryDeleteFailed": "Titel konnte nicht gelöscht werden.",
+    "audioLibraryPlayFailed": "Titel konnte nicht im Player gestartet werden.",
+    "audioLibraryOfflineRemoved": "Offline-Audio entfernt.",
+    "audioLibraryOfflineSaved": "Audio + zugehöriger Inhalt offline gespeichert.",
+    "audioLibraryOfflineFailed": "Offline-Speicherung fehlgeschlagen.",
+    "audioLibraryDeleted": "Titel entfernt.",
+    "audioLibraryNoAudio": "Keine gespeicherten Audiodateien vorhanden.",
+    "billingTitle": "Abo & Credits",
+    "billingSubtitle": "Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.",
+    "billingRefresh": "Aktualisieren",
+    "billingLoading": "Lade Billing-Daten...",
+    "billingLoadFailed": "Billing-Daten konnten nicht geladen werden.",
+    "billingCurrentPlan": "Aktueller Plan",
+    "billingPeriod": "Abrechnungsmonat",
+    "billingCommunityActive": "Community: aktiv",
+    "billingCommunityLocked": "Community: gesperrt",
+    "billingAudioActive": "Audio: aktiv",
+    "billingAudioLocked": "Audio: gesperrt",
+    "billingPlanActive": "Aktiv",
+    "billingRemaining": "verbleibend",
+    "billingUsedLimit": "verbraucht / limit",
+    "billingCostPerGen": "Kosten: {{cost}} Credit pro Generierung",
+    "billingTrialActive": "Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.",
+    "billingTrialExpired": "Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.",
+    "billingPlanSwitchTitle": "Plan in Clerk Billing wechseln",
+    "billingPlanSwitchDesc": "Der Checkout öffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf 'Aktualisieren' klicken.",
+    "billingMonthly": "Monatlich wechselbar"
+  },
+  "admin": {
+    "title": "Admin-Dashboard",
+    "users": "Benutzer",
+    "avatars": "Avatare",
+    "stories": "Geschichten",
+    "dokus": "Dokus",
+    "logs": "Logs",
+    "statistics": "Statistiken",
+    "totalUsers": "Gesamt-Benutzer",
+    "totalAvatars": "Gesamt-Avatare",
+    "totalStories": "Gesamt-Geschichten",
+    "totalDokus": "Gesamt-Dokus"
+  },
+  "errors": {
+    "generic": "Ein Fehler ist aufgetreten",
+    "networkError": "Netzwerkfehler. Bitte überprüfe deine Internetverbindung.",
+    "wishes": "Wünsche",
+    "summary": "Zusammenfassung",
+    "unauthorized": "Bitte melde dich an"
+  },
+  "titles": {
+    "avatars": "Wer spielt in der Geschichte mit?",
+    "category": "Was für eine Geschichte soll es werden?",
+    "ageLength": "Für welches Alter & wie lang?",
+    "feeling": "Welches Gefühl soll die Geschichte haben?",
+    "wishes": "Besondere Wünsche? (Optional)",
+    "summary": "Alles bereit!"
+  },
+  "subtitles": {
+    "avatars": "Wähle 1-4 Avatare aus, die Teil der Geschichte werden sollen.",
+    "category": "Wähle eine Kategorie aus - deine Avatare werden Teil einer einzigartigen Geschichte!",
+    "ageLength": "Passe die Geschichte an das Alter und die verfügbare Zeit an.",
+    "feeling": "Wähle 1-3 Stimmungen aus, die die Geschichte prägen sollen.",
+    "wishes": "Füge besondere Features hinzu oder überspringe diesen Schritt.",
+    "summary": "Überprüfe deine Auswahl und erstelle die Geschichte."
+  },
+  "categories": {
+    "fairy_tales": {
+      "title": "Klassische Märchen",
+      "description": "Verwunschene Welten, Könige & Prinzessinnen, magische Wesen",
+      "examples": "Hänsel & Gretel, Rotkäppchen, Bremer Stadtmusikanten"
+    },
+    "adventure": {
+      "title": "Abenteuer & Schätze",
+      "description": "Spannende Reisen, versteckte Schätze, mutige Helden",
+      "examples": "Schatzsuche, Geheime Höhlen, Wilde Expeditionen"
+    },
+    "magic": {
+      "title": "Märchenwelten & Magie",
+      "description": "Zaubersprüche, fliegende Teppiche, magische Kräfte",
+      "examples": "Zauberer, Feen, Magische Gegenstände"
+    },
+    "animals": {
+      "title": "Tierwelten",
+      "description": "Sprechende Tiere, Waldabenteuer, Tierfreundschaften",
+      "examples": "Im Wald, Auf dem Bauernhof, In der Wildnis"
+    },
+    "scifi": {
+      "title": "Sci-Fi & Zukunft",
+      "description": "Raumschiffe, fremde Planeten, futuristische Welten",
+      "examples": "Weltraumabenteuer, Roboter, Zeitreisen"
+    },
+    "modern": {
+      "title": "Modern & Realität",
+      "description": "Alltag, Schule, Familie, echte Erlebnisse",
+      "examples": "Heute & Hier, Realistische Geschichten"
+    }
+  },
+  "ageGroups": {
+    "3-5": {
+      "title": "3-5 Jahre",
+      "description": "Ganz einfach, mit vielen Bildern"
+    },
+    "6-8": {
+      "title": "6-8 Jahre",
+      "description": "Spannende Abenteuer zum Mitfiebern"
+    },
+    "9-12": {
+      "title": "9-12 Jahre",
+      "description": "Geschichten mit mehr Überraschungen"
+    },
+    "13+": {
+      "title": "13+ Jahre",
+      "description": "Geschichten zum Nachdenken"
+    }
+  },
+  "lengths": {
+    "short": {
+      "title": "Kurz",
+      "duration": "Wie ein Gute-Nacht-Lied",
+      "chapters": "3-4 Kapitel"
+    },
+    "medium": {
+      "title": "Mittel",
+      "duration": "Wie eine Schulpause",
+      "chapters": "5-6 Kapitel"
+    },
+    "long": {
+      "title": "Lang",
+      "duration": "Für einen gemütlichen Nachmittag",
+      "chapters": "7-9 Kapitel"
+    }
+  },
+  "feelings": {
+    "funny": {
+      "title": "Lustig",
+      "description": "Zum Lachen und Kichern"
+    },
+    "warm": {
+      "title": "Herzlich",
+      "description": "Zum Wohlfühlen und Kuscheln"
+    },
+    "exciting": {
+      "title": "Spannend",
+      "description": "Spannung und Abenteuer!"
+    },
+    "crazy": {
+      "title": "Verrückt",
+      "description": "Wilde und überraschende Ideen"
+    },
+    "loading": {
+      "title": "Deine Geschichte wird erstellt!",
+      "subtitle": "Das kann 2-3 Minuten dauern. Bitte nicht schließen!"
+    },
+    "summary": {
+      "avatars": "Avatare",
+      "category": "Kategorie",
+      "age": "Alter",
+      "length": "Länge",
+      "feelings": "Gefühle",
+      "extras": "Extras",
+      "ready": "Deine einzigartige Geschichte wird jetzt erstellt!"
+    }
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Wer ist dabei?",
+      "category": "Was für eine Geschichte soll es werden?",
+      "ageLength": "Wie alt bist du & wie lang soll die Geschichte sein?",
+      "feeling": "Wie soll sich die Geschichte anfühlen?",
+      "wishes": "Hast du besondere Wünsche?",
+      "summary": "Alles bereit!"
+    },
+    "subtitles": {
+      "avatars": "Wähle 1-4 Avatare aus, die in der Geschichte mitspielen.",
+      "category": "Wähle aus, was für ein Abenteuer du erleben möchtest!",
+      "ageLength": "Damit die Geschichte perfekt zu dir passt.",
+      "feeling": "Wähle bis zu 3 Stimmungen, die deine Geschichte besonders machen.",
+      "wishes": "Hier kannst du dir etwas Besonderes wünschen - oder einfach weitergehen.",
+      "summary": "Schau nochmal drüber und dann geht's los!"
+    },
+    "buttons": {
+      "back": "Zurück",
+      "next": "Weiter",
+      "create": "Erstellen",
+      "generate": "Geschichte zaubern!"
+    },
+    "common": {
+      "examples": "BEISPIELE:",
+      "note": "Gut zu wissen:",
+      "categoryNote": "Jede Kategorie erschafft eine ganz neue Geschichte nur für deine Avatare. Keine Geschichte ist wie die andere!",
+      "wishesNote": "Alle Wünsche sind freiwillig. Die Geschichte bleibt immer spannend und macht Spaß!",
+      "summaryNote": "Deine Geschichte wird jetzt geschrieben und mit Bildern versehen. Das dauert ungefähr 2-3 Minuten.",
+      "selected": "ausgewählt",
+      "notSelected": "Nicht gewählt",
+      "customWish": "Eigener Wunsch (wenn du magst):",
+      "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
+      "chars": "Zeichen",
+      "createChildAvatar": "Kind-Avatar erstellen",
+      "childAvatar": "Kind-Avatar",
+      "sharedBy": "Geteilt von {{name}}"
+    },
+    "aiModel": {
+      "title": "KI-Modell",
+      "subtitle": "Wähle das Modell für die Story-Generierung.",
+      "recommended": "Empfohlen",
+      "models": {
+        "claude_sonnet": "Anthropic, starke Prosa",
+        "gemini3_pro": "Google AI",
+        "gemini31_pro": "Beste Kinderbuch-Qualität",
+        "gemini3_flash": "Schnell & kostenlos",
+        "gpt54": "Beste Qualität",
+        "gpt54_mini": "Stark & günstiger",
+        "minimax_m27": "MiniMax via Runware, schnell",
+        "openrouter": "OpenRouter API-Key, viele Modellfamilien"
+      },
+      "openrouterModelLabel": "OpenRouter Modell",
+      "openrouterHint": "Der Backend-Service nutzt den OpenRouter-Key aus Railway. Die bisherigen Modelle bleiben unverändert."
+    },
+    "credits": {
+      "title": "Geschichten-Münzen",
+      "unlimited": "unbegrenzt",
+      "remaining": "noch übrig",
+      "usedTotal": "benutzt / gesamt",
+      "costPerGen": "Jede Geschichte kostet {{count}} Münze",
+      "notAvailable": "Gerade nicht möglich",
+      "coin": "Münze"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Klassische Märchen",
+        "description": "Verwunschene Welten, Könige & Prinzessinnen",
+        "examples": "Hänsel & Gretel, Rotkäppchen"
+      },
+      "adventure": {
+        "title": "Abenteuer & Schätze",
+        "description": "Spannende Reisen, versteckte Schätze",
+        "examples": "Schatzsuche, Geheime Höhlen"
+      },
+      "magic": {
+        "title": "Märchenwelten & Magie",
+        "description": "Zaubersprüche, magische Kräfte",
+        "examples": "Zauberer, Feen"
+      },
+      "animals": {
+        "title": "Tierwelten",
+        "description": "Sprechende Tiere, Tierfreundschaften",
+        "examples": "Im Wald, Auf dem Bauernhof"
+      },
+      "scifi": {
+        "title": "Sci-Fi & Zukunft",
+        "description": "Raumschiffe, fremde Planeten",
+        "examples": "Weltraumabenteuer, Roboter"
+      },
+      "modern": {
+        "title": "Modern & Realität",
+        "description": "Alltag, Schule, Familie",
+        "examples": "Heute & Hier"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Jahre",
+        "description": "Ganz einfach, mit vielen Bildern"
+      },
+      "6-8": {
+        "title": "6-8 Jahre",
+        "description": "Spannende Abenteuer zum Mitfiebern"
+      },
+      "9-12": {
+        "title": "9-12 Jahre",
+        "description": "Geschichten mit mehr Überraschungen"
+      },
+      "13+": {
+        "title": "13+ Jahre",
+        "description": "Geschichten zum Nachdenken"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Kurz",
+        "duration": "Wie ein Gute-Nacht-Lied",
+        "chapters": "3 Kapitel"
+      },
+      "medium": {
+        "title": "Mittel",
+        "duration": "Wie eine Schulpause",
+        "chapters": "5 Kapitel"
+      },
+      "long": {
+        "title": "Lang",
+        "duration": "Für einen gemütlichen Nachmittag",
+        "chapters": "7 Kapitel"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Lustig",
+        "description": "Zum Lachen und Kichern"
+      },
+      "warm": {
+        "title": "Herzerwärmend",
+        "description": "Zum Wohlfühlen und Kuscheln"
+      },
+      "exciting": {
+        "title": "Aufregend",
+        "description": "Spannung und Abenteuer!"
+      },
+      "crazy": {
+        "title": "Verrückt",
+        "description": "Wilde und überraschende Ideen"
+      },
+      "meaningful": {
+        "title": "Zum Nachdenken",
+        "description": "Mit einer besonderen Botschaft"
+      }
+    },
+    "summary": {
+      "avatars": "Avatare",
+      "age": "Alter",
+      "category": "Kategorie",
+      "length": "Länge",
+      "feelings": "Gefühle",
+      "wishes": "Wünsche",
+      "ready": "Deine Geschichte wird jetzt erstellt!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Mit Reimen",
+        "description": "Die Geschichte reimt sich wie ein Gedicht"
+      },
+      "moral": {
+        "title": "Mit einer Lektion",
+        "description": "Du lernst etwas Wichtiges fürs Leben"
+      },
+      "avatarIsHero": {
+        "title": "Ich bin der Held!",
+        "description": "Dein Avatar ist die Hauptfigur"
+      },
+      "famousCharacters": {
+        "title": "Bekannte Figuren",
+        "description": "Triff Rotkäppchen, Rapunzel & Co."
+      },
+      "happyEnd": {
+        "title": "Happy End",
+        "description": "Am Ende wird alles gut!"
+      },
+      "surpriseEnd": {
+        "title": "Überraschung!",
+        "description": "Das Ende wird ganz anders als erwartet"
+      }
+    },
+    "steps": {
+      "avatars": "Avatare",
+      "category": "Kategorie",
+      "ageLength": "Alter & Länge",
+      "feeling": "Gefühle",
+      "wishes": "Wünsche",
+      "summary": "Zusammenfassung"
+    },
+    "loading": {
+      "title": "Deine Geschichte wird geschrieben...",
+      "subtitle": "Bitte warte einen Moment"
+    }
+  },
+  "fairytales": {
+    "loading": "Märchen werden geladen...",
+    "loadError": "Fehler beim Laden der Märchen. Bitte versuche es erneut.",
+    "selectionTitle": "Wähle ein Märchen",
+    "selectionSubtitle": "Personalisiere klassische Geschichten mit deinen Avataren",
+    "ageYears": "{{age}}+ Jahre"
+  },
+  "homeScreen": {
+    "loadingTitle": "Talea richtet die Startseite neu ein",
+    "loadingSubtitle": "Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert.",
+    "greeting": {
+      "morning": "Guten Morgen",
+      "day": "Guten Tag",
+      "evening": "Guten Abend"
+    },
+    "defaultUser": "Entdecker",
+    "statsStories": "Stories",
+    "statsAvatars": "Avatare",
+    "statsDokus": "Dokus",
+    "newStory": "Neue Story",
+    "library": "Bibliothek",
+    "knowledgeJourney": "Wissensreise",
+    "yourStories": "Deine Geschichten",
+    "yourStoriesEyebrow": "Weiterlesen",
+    "yourStoriesSubtitle": "Die wichtigsten Abenteuer stehen sofort bereit.",
+    "allStories": "Alle Geschichten",
+    "yourAvatars": "Avatare",
+    "yourAvatarsEyebrow": "Deine Figuren",
+    "yourAvatarsSubtitle": "Alle Helden, Begleiter und Kinderprofile an einem Ort.",
+    "allAvatars": "Alle Avatare",
+    "yourDokus": "Doku Highlights",
+    "yourDokusEyebrow": "Wissenswelt",
+    "yourDokusSubtitle": "Neue Themen entdecken, weiterlesen und direkt in Audio wechseln.",
+    "allDokus": "Alle Dokus",
+    "noStoriesTitle": "Hier erscheint eure erste Geschichte",
+    "noStoriesDesc": "Sobald eine Story angelegt ist, kannst du sie hier direkt wieder öffnen.",
+    "createFirstStory": "Erste Story erstellen",
+    "noAvatarsTitle": "Der erste Held darf den neuen Kartenstil eröffnen",
+    "noAvatarsDesc": "Lege einen Avatar an, damit Home zu einer echten Charaktergalerie wird.",
+    "createAvatar": "Avatar erstellen",
+    "noDokusTitle": "Hier wächst bald eine kleine Wissensbibliothek",
+    "noDokusDesc": "Sobald die erste Doku erstellt ist, erscheint sie in derselben Kartenlogik wie die Stories.",
+    "createFirstDoku": "Erste Doku erstellen",
+    "status": {
+      "complete": "Fertig",
+      "generating": "In Arbeit",
+      "error": "Fehler"
+    },
+    "noSummary": "Noch keine Zusammenfassung verfügbar.",
+    "offlineSave": "Offline speichern",
+    "offlineRemove": "Offline-Speicherung entfernen",
+    "deleteStory": "Story löschen",
+    "deleteDoku": "Doku löschen",
+    "deleteAvatar": "Avatar löschen",
+    "signedOutTitle": "Geschichten, Figuren und Wissen an einem Ort.",
+    "signedOutSubtitle": "Entdecke neue Geschichten, wechsle zwischen Avataren und starte Dokus oder Audio ohne Umwege.",
+    "signedOutCta": "Zum Familienzugang",
+    "signedOutCtaSecondary": "Geschichten entdecken",
+    "featureContinue": "Weiterhören",
+    "featureContinueDesc": "Stories und Audio bleiben griffbereit und können direkt fortgesetzt werden.",
+    "featureWorld": "Eigene Welt",
+    "featureWorldDesc": "Avatare, Geschichten und Dokus stehen in einer gemeinsamen Familienbibliothek.",
+    "featureForKids": "Für Kinder gemacht",
+    "featureForKidsDesc": "Große Karten, klare Wege und ruhige Motion machen die App einfacher zu benutzen.",
+    "childProfileLabel": "Kinderprofil",
+    "aiFigureLabel": "AI-Figur",
+    "photoFigureLabel": "Fotofigur",
+    "newHero": "Neuer Held",
+    "adventureBegins": "Das Abenteuer beginnt",
+    "discoverWorld": "ENTDECKE DEINE WELT",
+    "featureStreams": "Story-Streams mit Teilnehmern",
+    "featureAvatarAccess": "Schneller Zugriff auf Avatare",
+    "featureDokuStyle": "Dokus im gleichen Stil"
+  },
+  "avatarScreen": {
+    "title": "Avatare",
+    "chipLabel": "Avatare",
+    "searchPlaceholder": "Avatare durchsuchen...",
+    "metricTotal": "Gesamt",
+    "metricVisible": "Sichtbar",
+    "metricShared": "Geteilt",
+    "metricOwn": "Eigene",
+    "metricChild": "Kind",
+    "childAvatarMissing": "Kind-Avatar fehlt",
+    "childAvatarReady": "Bereit",
+    "createChildAvatar": "Kind-Avatar",
+    "createChildAvatarEmpty": "Kind-Avatar erstellen",
+    "childAvatarMissingTitle": "Kind-Avatar fehlt",
+    "childAvatarMissingDesc": "Lege zuerst den festen Kind-Avatar an. Danach kannst du beliebige Zusatz-Avatare für Geschichten erstellen.",
+    "noResults": "Keine Treffer",
+    "noResultsDesc": "Kein Avatar passt zu \"{{query}}\".",
+    "sharedLabel": "Geteilt",
+    "sharedByLabel": "Geteilt von {{name}}",
+    "noDescriptionLabel": "Avatar ohne Beschreibung",
+    "childLabel": "Kind",
+    "editLabel": "{{name}} bearbeiten",
+    "deleteLabel": "{{name}} löschen",
+    "cannotDeleteShared": "Geteilte Avatare können nicht gelöscht werden."
+  },
+  "storiesScreen": {
+    "loadingTitle": "Die Bibliothek ordnet ihre Geschichten",
+    "loadingSubtitle": "Einen Moment, die Story-Regale werden sortiert und die Filter vorbereitet.",
+    "status": {
+      "complete": "Fertig",
+      "generating": "In Arbeit",
+      "error": "Fehler"
+    },
+    "genre": {
+      "fairy_tales": "Märchen",
+      "adventure": "Abenteuer",
+      "magic": "Magie",
+      "animals": "Tiere",
+      "scifi": "Sci-Fi",
+      "modern": "Modern",
+      "unknown": "Unbekannt"
+    },
+    "length": {
+      "short": "Kurz",
+      "medium": "Mittel",
+      "long": "Lang",
+      "unknown": "Unbekannt"
+    },
+    "noSummary": "Noch keine Zusammenfassung verfügbar.",
+    "filterAll": "Alle {{label}}",
+    "sortNewest": "Neueste",
+    "sortOldest": "Älteste",
+    "sortTitle": "Titel (A–Z)",
+    "filterGenre": "Genre",
+    "filterAge": "Altersgruppe",
+    "filterLength": "Länge",
+    "filterAvatar": "Avatar",
+    "viewGrid": "Rasteransicht",
+    "viewList": "Listenansicht",
+    "noStories": "Noch keine Geschichten",
+    "noStoriesDesc": "Erstelle deine erste Geschichte und erlebe magische Abenteuer!",
+    "createFirstStory": "Erste Geschichte erstellen",
+    "noFilterResults": "Keine Treffer",
+    "noFilterResultsDesc": "Ändere die Filter, um Geschichten zu finden.",
+    "readStory": "Geschichte lesen",
+    "deleteStory": "Geschichte löschen",
+    "downloadPdf": "Als PDF herunterladen",
+    "offlineSave": "Offline speichern",
+    "offlineRemove": "Offline entfernen",
+    "studioTab": "Studio",
+    "storiesTab": "Geschichten"
+  },
+  "landing": {
+    "nav": {
+      "start": "Jetzt starten"
+    },
+    "hero": {
+      "tagline": "Magische Geschichten für dein Kind",
+      "page1": "Es war einmal...",
+      "page2": "...ein Kind voller Träume.",
+      "page3": "Deine Reise beginnt hier.",
+      "coverTitle": "Deine Geschichte",
+      "scrollHint": "Scroll zum Öffnen"
+    },
+    "features": {
+      "title": "Entdecke die Welt von Talea",
+      "stories": {
+        "title": "Personalisierte Geschichten",
+        "subtitle": "Der Storywald",
+        "description": "Dein Kind wird zur Hauptfigur in magischen Märchen, Abenteuern und Dokumentationen."
+      },
+      "avatars": {
+        "title": "Einzigartige Avatare",
+        "subtitle": "Die Avatar-Werkstatt",
+        "description": "Erstelle einen digitalen Zwilling deines Kindes."
+      },
+      "learning": {
+        "title": "Spielend Lernen",
+        "subtitle": "Die Wissensberge",
+        "description": "Bildungsinhalte verpackt in spannende Geschichten."
+      },
+      "memory": {
+        "title": "Wachsendes Gedächtnis",
+        "subtitle": "Der Erinnerungsbaum",
+        "description": "Talea merkt sich alles und baut auf vorherigen Abenteuern auf."
+      },
+      "values": {
+        "title": "Werte vermitteln",
+        "subtitle": "Der Werte-Garten",
+        "description": "Freundschaft, Mut und Mitgefühl – kindgerecht in Geschichten eingebettet."
+      },
+      "parents": {
+        "title": "Volle Kontrolle",
+        "subtitle": "Die Eltern-Lounge",
+        "description": "Du bestimmst Themen, Länge und Inhalte. 100% kindersicher."
+      }
+    },
+    "pricing": {
+      "title": "Wähle deinen Plan",
+      "popular": "Beliebt",
+      "starter": {
+        "name": "Starter",
+        "price": "Kostenlos",
+        "features": [
+          "3 Geschichten pro Monat",
+          "1 Avatar",
+          "Standard-Qualität"
+        ],
+        "cta": "Kostenlos starten"
+      },
+      "family": {
+        "name": "Familie",
+        "price": "€9,99",
+        "period": "/Monat",
+        "features": [
+          "Unbegrenzte Geschichten",
+          "5 Avatare",
+          "HD-Qualität",
+          "Gedächtnis-Funktion",
+          "Keine Werbung"
+        ],
+        "cta": "Jetzt starten"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19,99",
+        "period": "/Monat",
+        "features": [
+          "Alles aus Familie",
+          "Unbegrenzte Avatare",
+          "4K-Qualität",
+          "Prioritäts-Support",
+          "Frühzugang zu Features"
+        ],
+        "cta": "Premium wählen"
+      }
+    },
+    "footer": {
+      "copyright": "Magische Geschichten für Kinder © 2025",
+      "privacy": "Datenschutz",
+      "terms": "AGB",
+      "contact": "Kontakt"
+    }
+  }
+}

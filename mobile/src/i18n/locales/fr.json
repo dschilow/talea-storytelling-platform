@@ -1,0 +1,756 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "close": "Fermer",
+    "back": "Retour",
+    "appName": "Talea",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "SuccÃ¨s",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "CrÃ©er",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "close": "Fermer",
+    "confirm": "Confirmer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "new": "Nouveau",
+    "yes": "Oui",
+    "no": "Non"
+  },
+  "navigation": {
+    "home": "Accueil",
+    "avatars": "Avatars",
+    "stories": "Histoires",
+    "doku": "Documentation",
+    "chat": "Chat Tavi",
+    "settings": "ParamÃ¨tres",
+    "characters": "Personnages",
+    "artifacts": "Artefacts",
+    "fairytales": "Contes",
+    "logs": "Journaux",
+    "admin": "Admin",
+    "logout": "DÃ©connexion"
+  },
+  "homePage": {
+    "landingTitle": "Welcome to Talea",
+    "landingSubtitle": "Create magical stories and educational docs with your own unique avatars.",
+    "ctaStart": "Get started",
+    "featureAvatarTitle": "Create avatars",
+    "featureAvatarDesc": "Craft unique characters",
+    "featureStoryTitle": "Tell stories",
+    "featureStoryDesc": "Experience magical adventures",
+    "featureDokuTitle": "Learn and explore",
+    "featureDokuDesc": "Dive into exciting docs",
+    "loading": "Loading your world...",
+    "greeting": "Hello!",
+    "greetingSubtitle": "Ready for new adventures?",
+    "statAvatars": "Avatars",
+    "statStories": "Stories",
+    "statDokus": "Docs",
+    "statBadges": "Badges",
+    "quickActionsTitle": "Quick actions",
+    "quickActionsDesc": "Start your next adventure",
+    "quickCreateAvatar": "Create avatar",
+    "quickCreateStory": "Write story",
+    "quickCreateDoku": "Create doc",
+    "sectionAvatars": "Your avatars",
+    "viewAll": "View all",
+    "emptyAvatarsTitle": "No avatars yet",
+    "emptyAvatarsDesc": "Create your first avatar and start your adventure.",
+    "badgeAi": "AI",
+    "badgePhoto": "Photo"
+  },
+  "auth": {
+    "welcome": "Bienvenue sur Talea",
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "signOut": "Se dÃ©connecter",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "forgotPassword": "Mot de passe oubliÃ© ?",
+    "noAccount": "Pas encore de compte ?",
+    "hasAccount": "Vous avez dÃ©jÃ  un compte ?",
+    "continue": "Continuer"
+  },
+  "home": {
+    "welcome": "Bon retour !",
+    "subtitle": "Que souhaitez-vous dÃ©couvrir aujourd'hui ?",
+    "createStory": "Nouvelle histoire",
+    "createDoku": "Nouvelle doc",
+    "myAvatars": "Mes avatars",
+    "recentStories": "Histoires rÃ©centes",
+    "recentDokus": "Docs rÃ©cents",
+    "noStories": "Aucune histoire crÃ©Ã©e",
+    "noDokus": "Aucun document crÃ©Ã©",
+    "getStarted": "Commencez et crÃ©ez votre premiÃ¨re histoire !"
+  },
+  "avatar": {
+    "title": "Avatars",
+    "subtitle": "CrÃ©ez et gÃ©rez vos personnages",
+    "create": "CrÃ©er un avatar",
+    "createNew": "CrÃ©er un nouvel avatar",
+    "myAvatars": "Mes avatars",
+    "publicAvatars": "Avatars publics",
+    "name": "Nom",
+    "description": "Description",
+    "physicalTraits": "Traits physiques",
+    "personality": "PersonnalitÃ©",
+    "image": "Image",
+    "generateImage": "GÃ©nÃ©rer une image",
+    "uploadPhoto": "TÃ©lÃ©charger une photo",
+    "makePublic": "Rendre public",
+    "deleteConfirm": "ÃŠtes-vous sÃ»r de vouloir supprimer cet avatar ?",
+    "personalityTraits": {
+      "knowledge": "Connaissance",
+      "creativity": "CrÃ©ativitÃ©",
+      "vocabulary": "Vocabulaire",
+      "courage": "Courage",
+      "curiosity": "CuriositÃ©",
+      "teamwork": "Travail d'Ã©quipe",
+      "empathy": "Empathie",
+      "persistence": "PersÃ©vÃ©rance",
+      "logic": "Logique"
+    },
+    "stats": {
+      "level": "Niveau",
+      "stories": "Histoires",
+      "dokus": "Docs",
+      "totalTraits": "Total traits"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Choisir le Mode",
+        "basic": "Informations de Base",
+        "appearance": "Apparence",
+        "style": "Style",
+        "background": "Origine",
+        "create": "CrÃ©er"
+      },
+      "mode": {
+        "title": "Comment voulez-vous crÃ©er votre avatar?",
+        "simple": {
+          "title": "Simple et Amusant",
+          "description": "Cliquez sur des options colorÃ©es. Parfait pour les enfants!"
+        },
+        "advanced": {
+          "title": "CrÃ©atif et Libre",
+          "description": "DÃ©crivez votre avatar avec vos propres mots."
+        }
+      },
+      "basic": {
+        "title": "Informations de Base",
+        "subtitle": "Parlez-nous de votre personnage",
+        "name": "Nom",
+        "namePlaceholder": "Comment s'appellera votre avatar?",
+        "type": "Type",
+        "age": "Ã‚ge",
+        "gender": "Genre",
+        "description": "DÃ©crivez votre avatar",
+        "descriptionPlaceholder": "ex. Luna - Une fille curieuse, 8 ans..."
+      },
+      "appearance": {
+        "title": "Apparence",
+        "subtitle": "Ã€ quoi ressemble votre avatar?",
+        "eyeColor": "Couleur des Yeux",
+        "hairColor": "Couleur des Cheveux",
+        "specialFeatures": "CaractÃ©ristiques SpÃ©ciales",
+        "descriptionPlaceholder": "DÃ©crivez l'apparence..."
+      },
+      "style": {
+        "title": "Style et Expression",
+        "subtitle": "Comment s'habille votre avatar?",
+        "clothing": "Style Vestimentaire",
+        "voice": "Voix"
+      },
+      "background": {
+        "title": "Origine et Histoire",
+        "subtitle": "D'oÃ¹ vient votre avatar?",
+        "world": "Monde",
+        "backstory": "Histoire de Fond"
+      },
+      "create": {
+        "title": "Votre avatar est prÃªt!",
+        "info": "Les traits de personnalitÃ© se dÃ©veloppent Ã  travers les histoires!",
+        "generateImage": "GÃ©nÃ©rer l'Image",
+        "generatingImage": "GÃ©nÃ©ration de l'Image...",
+        "createAvatar": "CrÃ©er l'Avatar",
+        "creatingAvatar": "CrÃ©ation de l'Avatar...",
+        "imageGeneratedSuccess": "ðŸŽ¨ Image de l'avatar gÃ©nÃ©rÃ©e!",
+        "imageGenerationError": "Erreur de gÃ©nÃ©ration d'image.",
+        "avatarCreatedSuccess": "Avatar prÃªt!",
+        "avatarCreationError": "Impossible de crÃ©er l'avatar."
+      },
+      "options": {
+        "types": {
+          "human": "Humain",
+          "animal": "Animal",
+          "fantasy": "CrÃ©ature Fantastique",
+          "robot": "Robot",
+          "plant": "Plante",
+          "other": "Autre"
+        },
+        "ages": {
+          "baby": "BÃ©bÃ©",
+          "child": "Enfant",
+          "teen": "Ado",
+          "adult": "Adulte",
+          "old": "Ã‚gÃ©"
+        },
+        "genders": {
+          "boy": "GarÃ§on",
+          "girl": "Fille",
+          "diverse": "Divers",
+          "none": "Non spÃ©cifiÃ©"
+        },
+        "eyes": {
+          "blue": "Bleu",
+          "green": "Vert",
+          "brown": "Marron",
+          "gray": "Gris",
+          "colorful": "ColorÃ©"
+        },
+        "hair": {
+          "blonde": "Blond",
+          "brown": "Brun",
+          "black": "Noir",
+          "red": "Roux",
+          "bald": "Chauve"
+        },
+        "features": {
+          "glasses": "Lunettes",
+          "wings": "Ailes",
+          "horns": "Cornes",
+          "tail": "Queue",
+          "scar": "Cicatrice",
+          "tattoo": "Tatouage"
+        },
+        "clothing": {
+          "modern": "Moderne",
+          "medieval": "MÃ©diÃ©val",
+          "fairytale": "Conte",
+          "future": "Futuriste",
+          "armor": "Armure",
+          "magic": "Magique"
+        },
+        "voice": {
+          "high": "AiguÃ«",
+          "normal": "Normale",
+          "deep": "Grave",
+          "funny": "DrÃ´le",
+          "mysterious": "MystÃ©rieuse"
+        },
+        "world": {
+          "forest": "ForÃªt",
+          "city": "Ville",
+          "castle": "ChÃ¢teau",
+          "future": "Futur",
+          "underwater": "Sous-marin",
+          "space": "Espace"
+        },
+        "backstory": {
+          "lost": "Perdu cherchant le chemin du retour",
+          "adventurer": "Un brave aventurier en grand voyage",
+          "wizard": "Un apprenti magicien avec un grand potentiel",
+          "talent": "A dÃ©couvert un talent spÃ©cial",
+          "normal": "Un enfant normal plein de curiositÃ©"
+        }
+      }
+    }
+  },
+  "story": {
+    "title": "Histoires",
+    "subtitle": "CrÃ©ez des histoires IA personnalisÃ©es",
+    "create": "CrÃ©er une histoire",
+    "myStories": "Mes histoires",
+    "generating": "GÃ©nÃ©ration de l'histoire...",
+    "selectAvatars": "SÃ©lectionner les avatars",
+    "selectAvatarsSubtitle": "Choisissez jusqu'Ã  3 avatars pour l'histoire",
+    "ageGroup": "Groupe d'Ã¢ge",
+    "genre": "Genre",
+    "length": "Longueur",
+    "complexity": "ComplexitÃ©",
+    "tone": "Ton",
+    "settings": "ParamÃ¨tres",
+    "advanced": "AvancÃ©",
+    "customPrompt": "Demande personnalisÃ©e",
+    "customPromptPlaceholder": "DÃ©crivez votre histoire souhaitÃ©e...",
+    "generateStory": "GÃ©nÃ©rer l'histoire",
+    "ageGroups": {
+      "3-5": "3-5 ans",
+      "6-8": "6-8 ans",
+      "9-12": "9-12 ans",
+      "13+": "13+ ans"
+    },
+    "genres": {
+      "adventure": "Aventure",
+      "fantasy": "Fantasy",
+      "mystery": "MystÃ¨re",
+      "scifi": "Science-fiction",
+      "friendship": "AmitiÃ©",
+      "nature": "Nature",
+      "fairytale": "Conte de fÃ©es",
+      "comedy": "ComÃ©die"
+    },
+    "lengths": {
+      "short": "Court (3-5 min)",
+      "medium": "Moyen (8-12 min)",
+      "long": "Long (15-20 min)"
+    },
+    "complexities": {
+      "simple": "Simple",
+      "medium": "Moyen",
+      "complex": "Complexe"
+    },
+    "tones": {
+      "warm": "Chaleureux",
+      "witty": "Spirituel",
+      "epic": "Ã‰pique",
+      "soothing": "Apaisant",
+      "mischievous": "EspiÃ¨gle",
+      "wonder": "Merveilleux"
+    },
+    "options": {
+      "rhymes": "Avec des rimes",
+      "twist": "Fin surprise",
+      "fairyTale": "ModÃ¨le de conte",
+      "suspenseLevel": "Niveau de suspense",
+      "humorLevel": "Niveau d'humour"
+    },
+    "readStory": "Lire l'histoire",
+    "chapters": "Chapitres",
+    "noStories": "Aucune histoire",
+    "generationError": "Erreur de gÃ©nÃ©ration"
+  },
+  "doku": {
+    "title": "Docs de connaissances",
+    "subtitle": "Tes docs et la bibliothÃ¨que de la communautÃ©",
+    "myDokus": "Mes docs",
+    "myDokusSubtitle": "Docs que tu as crÃ©Ã©s",
+    "publicDokus": "Docs publics",
+    "publicDokusSubtitle": "Docs publics gÃ©nÃ©rÃ©s par tous",
+    "noDokus": "Aucun doc",
+    "noPublicDokus": "Aucun doc public pour l'instant",
+    "audioDokus": "Docs audio",
+    "audioDokusSubtitle": "Ã‰coute les docs en audio",
+    "noAudioDokus": "Aucun doc audio disponible",
+    "audioPlay": "Lire",
+    
+        "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+        "coverLabel": "Cover description",
+        "coverPlaceholder": "Describe the cover image you want...",
+        "generateCover": "Generate cover",
+        "generatingCover": "Generating cover...",
+        "coverReady": "Cover ready",
+        "descriptionLabel": "Audio doc description",
+        "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+        "errors": {
+          "missingAudio": "Please upload an audio file.",
+          "missingCover": "Please describe the cover.",
+          "missingDescription": "Please add a description.",
+          "coverFailed": "Cover generation failed. Please try again.",
+          "uploadFailed": "Upload failed. Please try again."
+        }
+    },"createNew": "Nouveau Doc",
+    "create": "CrÃ©er un document",
+    "generating": "GÃ©nÃ©ration du document...",
+    "topic": "Sujet",
+    "topicPlaceholder": "Sur quoi souhaitez-vous apprendre ?",
+    "depth": "Profondeur",
+    "ageGroup": "Groupe d'Ã¢ge",
+    "perspective": "Perspective",
+    "tone": "Ton",
+    "length": "Longueur",
+    "interactive": "Ã‰lÃ©ments interactifs",
+    "quizQuestions": "Questions quiz",
+    "activities": "ActivitÃ©s pratiques",
+    "generateDoku": "GÃ©nÃ©rer le document",
+    "depths": {
+      "basic": "Basique",
+      "standard": "Standard",
+      "deep": "Approfondi"
+    },
+    "perspectives": {
+      "science": "Science",
+      "history": "Histoire",
+      "technology": "Technologie",
+      "nature": "Nature",
+      "culture": "Culture"
+    },
+    "tones": {
+      "fun": "Amusant",
+      "neutral": "Neutre",
+      "curious": "Curieux"
+    },
+    "readDoku": "Lire le document",
+    "sections": "Sections",
+    "keyFacts": "Faits clÃ©s",
+    "generationError": "Erreur de gÃ©nÃ©ration"
+  },
+  "chat": {
+    "title": "Chat Tavi",
+    "subtitle": "Discutez avec votre assistant IA",
+    "placeholder": "Ã‰crivez un message...",
+    "send": "Envoyer",
+    "thinking": "RÃ©flexion...",
+    "newConversation": "Nouvelle conversation",
+    "deleteConversation": "Supprimer la conversation"
+  },
+  "settings": {
+    "title": "ParamÃ¨tres",
+    "subtitle": "Personnalisez vos prÃ©fÃ©rences",
+    "account": "Compte",
+    "profile": "Profil",
+    "language": "Langue",
+    "languageDescription": "Choisissez votre langue prÃ©fÃ©rÃ©e pour l'interface et le contenu gÃ©nÃ©rÃ©",
+    "selectLanguage": "SÃ©lectionner la langue",
+    "currentLanguage": "Langue actuelle",
+    "appearance": "Apparence",
+    "theme": "ThÃ¨me",
+    "themeTitle": "Apparence",
+    "themeDescription": "Choisissez entre le mode clair, sombre ou automatique",
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "SystÃ¨me",
+    "lightDescription": "ThÃ¨me clair",
+    "darkDescription": "ThÃ¨me sombre",
+    "systemDescription": "Automatique",
+    "notifications": "Notifications",
+    "privacy": "ConfidentialitÃ©",
+    "subscription": "Abonnement",
+    "billing": "Facturation",
+    "support": "Support",
+    "about": "Ã€ propos",
+    "version": "Version",
+    "subscriptionPlans": {
+      "free": "Gratuit",
+      "starter": "Starter",
+      "familie": "Famille",
+      "premium": "Premium"
+    },
+    "saved": "ParamÃ¨tres enregistrÃ©s",
+    "saveFailed": "Ã‰chec de l'enregistrement"
+  },
+  "admin": {
+    "title": "Tableau de bord admin",
+    "users": "Utilisateurs",
+    "avatars": "Avatars",
+    "stories": "Histoires",
+    "dokus": "Documents",
+    "logs": "Journaux",
+    "statistics": "Statistiques",
+    "totalUsers": "Total utilisateurs",
+    "totalAvatars": "Total avatars",
+    "totalStories": "Total histoires",
+    "totalDokus": "Total documents"
+  },
+  "errors": {
+    "generic": "Une erreur s'est produite",
+    "networkError": "Erreur rÃ©seau. VÃ©rifiez votre connexion Internet.",
+    "unauthorized": "Non autorisÃ©. Veuillez vous connecter.",
+    "notFound": "Non trouvÃ©",
+    "serverError": "Erreur serveur. RÃ©essayez plus tard.",
+    "validationError": "EntrÃ©e invalide",
+    "formIncomplete": "Veuillez remplir tous les champs requis",
+    "avatarRequired": "Veuillez sÃ©lectionner au moins un avatar",
+    "topicRequired": "Veuillez entrer un sujet"
+  },
+  "validation": {
+    "required": "Requis",
+    "email": "Adresse e-mail invalide",
+    "minLength": "Au moins {{count}} caractÃ¨res",
+    "maxLength": "Maximum {{count}} caractÃ¨res",
+    "nameRequired": "Le nom est requis",
+    "descriptionRequired": "La description est requise"
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Qui est dans l'histoire?",
+      "category": "Quel type d'histoire?",
+      "ageLength": "Pour quel Ã¢ge et durÃ©e?",
+      "feeling": "Quelle ambiance?",
+      "wishes": "Souhaits spÃ©ciaux? (Optionnel)",
+      "summary": "Tout est prÃªt!"
+    },
+    "subtitles": {
+      "avatars": "SÃ©lectionnez 1-4 avatars pour l'histoire.",
+      "category": "Choisissez une catÃ©gorie - vos avatars feront partie d'une histoire unique!",
+      "ageLength": "Ajustez l'histoire Ã  l'Ã¢ge et au temps disponible.",
+      "feeling": "SÃ©lectionnez 1-3 ambiances.",
+      "wishes": "Ajoutez des caractÃ©ristiques ou passez cette Ã©tape.",
+      "summary": "VÃ©rifiez votre sÃ©lection et crÃ©ez l'histoire."
+    },
+    "buttons": {
+      "back": "Retour",
+      "next": "Suivant",
+      "create": "CrÃ©er",
+      "generate": "âœ¨ CrÃ©er l'Histoire! âœ¨"
+    },
+    "common": {
+      "examples": "EXEMPLES:",
+      "note": "ðŸ’¡ Note:",
+      "categoryNote": "Chaque catÃ©gorie crÃ©e une histoire complÃ¨tement nouvelle!",
+      "wishesNote": "Tous les souhaits sont optionnels. L'IA fera de son mieux!",
+      "summaryNote": "L'IA crÃ©e une histoire basÃ©e sur vos souhaits. Cela prend 60-90 secondes.",
+      "selected": "sÃ©lectionnÃ©",
+      "notSelected": "Non sÃ©lectionnÃ©",
+      "customWish": "ðŸ’¬ Souhait personnalisÃ© (optionnel):",
+      "customWishPlaceholder": "ex. 'L'histoire doit se passer dans l'espace'",
+      "chars": "caractÃ¨res"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Contes Classiques",
+        "description": "Mondes enchantÃ©s, rois et princesses",
+        "examples": "Hansel et Gretel, Petit Chaperon Rouge"
+      },
+      "adventure": {
+        "title": "Aventure et TrÃ©sors",
+        "description": "Voyages passionnants, trÃ©sors cachÃ©s",
+        "examples": "Chasse au TrÃ©sor"
+      },
+      "magic": {
+        "title": "Mondes Magiques",
+        "description": "Sorts, pouvoirs magiques",
+        "examples": "Sorciers, FÃ©es"
+      },
+      "animals": {
+        "title": "Monde Animal",
+        "description": "Animaux qui parlent",
+        "examples": "Dans la ForÃªt"
+      },
+      "scifi": {
+        "title": "Science-Fiction",
+        "description": "Vaisseaux spatiaux, planÃ¨tes",
+        "examples": "Aventures Spatiales"
+      },
+      "modern": {
+        "title": "Moderne",
+        "description": "Vie quotidienne, Ã©cole, famille",
+        "examples": "Ici et Maintenant"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Ans",
+        "description": "Histoires courtes et simples"
+      },
+      "6-8": {
+        "title": "6-8 Ans",
+        "description": "Aventures passionnantes"
+      },
+      "9-12": {
+        "title": "9-12 Ans",
+        "description": "Intrigues plus complexes"
+      },
+      "13+": {
+        "title": "13+ Ans",
+        "description": "Histoires profondes"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Court",
+        "duration": "3-5 Min",
+        "chapters": "3 chapitres"
+      },
+      "medium": {
+        "title": "Moyen",
+        "duration": "8-12 Min",
+        "chapters": "5 chapitres"
+      },
+      "long": {
+        "title": "Long",
+        "duration": "15-20 Min",
+        "chapters": "7 chapitres"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "DrÃ´le",
+        "description": "Pour rire"
+      },
+      "warm": {
+        "title": "Chaleureux",
+        "description": "Moments tendres"
+      },
+      "exciting": {
+        "title": "Passionnant",
+        "description": "Action palpitante"
+      },
+      "crazy": {
+        "title": "Fou",
+        "description": "Surprises folles"
+      },
+      "meaningful": {
+        "title": "Significatif",
+        "description": "Avec un message important"
+      }
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "age": "Ã‚ge",
+      "category": "CatÃ©gorie",
+      "length": "DurÃ©e",
+      "feelings": "Sentiments",
+      "wishes": "Souhaits",
+      "ready": "Votre histoire va Ãªtre crÃ©Ã©e!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Rimes",
+        "description": "L'histoire est racontÃ©e en rimes"
+      },
+      "moral": {
+        "title": "Morale",
+        "description": "L'histoire transmet une leÃ§on"
+      },
+      "avatarIsHero": {
+        "title": "Avatar est HÃ©ros",
+        "description": "Votre avatar est le protagoniste"
+      },
+      "famousCharacters": {
+        "title": "Personnages CÃ©lÃ¨bres",
+        "description": "Rencontrez des personnages de contes"
+      },
+      "happyEnd": {
+        "title": "Fin Heureuse",
+        "description": "L'histoire se termine bien"
+      },
+      "surpriseEnd": {
+        "title": "Fin Surprise",
+        "description": "Une fin inattendue"
+      }
+    },
+    "steps": {
+      "avatars": "Avatars",
+      "category": "CatÃ©gorie",
+      "ageLength": "Ã‚ge et DurÃ©e",
+      "feeling": "Sentiments",
+      "wishes": "Souhaits",
+      "summary": "RÃ©sumÃ©"
+    },
+    "loading": {
+      "title": "Votre histoire s'Ã©crit...",
+      "subtitle": "Veuillez patienter"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Commencer"
+    },
+    "hero": {
+      "tagline": "Histoires magiques pour votre enfant",
+      "page1": "Il Ã©tait une fois...",
+      "page2": "...un enfant plein de rÃªves.",
+      "page3": "Votre voyage commence ici.",
+      "coverTitle": "Votre Histoire",
+      "scrollHint": "Faites dÃ©filer pour Ouvrir"
+    },
+    "features": {
+      "title": "DÃ©couvrez le Monde de Talea",
+      "stories": {
+        "title": "Histoires PersonnalisÃ©es",
+        "subtitle": "La ForÃªt des Histoires",
+        "description": "Votre enfant devient le personnage principal des contes magiques."
+      },
+      "avatars": {
+        "title": "Avatars Uniques",
+        "subtitle": "L'Atelier d'Avatars",
+        "description": "CrÃ©ez un jumeau numÃ©rique de votre enfant."
+      },
+      "learning": {
+        "title": "Apprendre en Jouant",
+        "subtitle": "Les Montagnes du Savoir",
+        "description": "Contenu Ã©ducatif dans des histoires passionnantes."
+      },
+      "memory": {
+        "title": "MÃ©moire Croissante",
+        "subtitle": "L'Arbre des Souvenirs",
+        "description": "Talea se souvient de tout et construit sur les aventures prÃ©cÃ©dentes."
+      },
+      "values": {
+        "title": "Transmettre des Valeurs",
+        "subtitle": "Le Jardin des Valeurs",
+        "description": "AmitiÃ©, courage et compassion â€“ dans des histoires pour enfants."
+      },
+      "parents": {
+        "title": "ContrÃ´le Total",
+        "subtitle": "Le Salon des Parents",
+        "description": "Vous dÃ©cidez des thÃ¨mes, durÃ©e et contenu. 100% sÃ»r."
+      }
+    },
+    "pricing": {
+      "title": "Choisissez Votre Plan",
+      "popular": "Populaire",
+      "starter": {
+        "name": "DÃ©butant",
+        "price": "Gratuit",
+        "features": [
+          "3 histoires par mois",
+          "1 Avatar",
+          "QualitÃ© standard"
+        ],
+        "cta": "Commencer Gratuit"
+      },
+      "family": {
+        "name": "Famille",
+        "price": "â‚¬9,99",
+        "period": "/mois",
+        "features": [
+          "Histoires illimitÃ©es",
+          "5 Avatars",
+          "QualitÃ© HD",
+          "Fonction mÃ©moire",
+          "Sans pub"
+        ],
+        "cta": "Commencer"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "â‚¬19,99",
+        "period": "/mois",
+        "features": [
+          "Tout de Famille",
+          "Avatars illimitÃ©s",
+          "QualitÃ© 4K",
+          "Support prioritaire",
+          "AccÃ¨s anticipÃ©"
+        ],
+        "cta": "Choisir Premium"
+      }
+    },
+    "footer": {
+      "copyright": "Histoires Magiques pour Enfants Â© 2025",
+      "privacy": "ConfidentialitÃ©",
+      "terms": "Conditions",
+      "contact": "Contact"
+    }
+  }
+}
+
+
+

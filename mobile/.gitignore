@@ -1,0 +1,18 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.env
+.env.local
+
+# Native build output (the android/ project itself stays tracked)
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+ios/build/
+ios/Pods/
+
+# Generated: mirrored from ../frontend by `bun run sync-*`
+# (kept in git so CI can build without the web workspace)

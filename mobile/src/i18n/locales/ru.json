@@ -1,0 +1,799 @@
+{
+  "common": {
+    "loading": "Загрузка...",
+    "close": "Закрыть",
+    "back": "Назад",
+    "appName": "Talea",
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успешно",
+    "save": "Сохранить",
+    "cancel": "Отменить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "back": "Назад",
+    "next": "Далее",
+    "finish": "Завершить",
+    "close": "Закрыть",
+    "confirm": "Подтвердить",
+    "search": "Поиск",
+    "filter": "Фильтр",
+    "sort": "Сортировка",
+    "new": "Новый",
+    "yes": "Да",
+    "no": "Нет"
+  },
+  "navigation": {
+    "home": "Главная",
+    "avatars": "Аватары",
+    "stories": "Истории",
+    "doku": "Документация",
+    "chat": "Чат с Тави",
+    "settings": "Настройки",
+    "characters": "Персонажи",
+    "artifacts": "Артефакты",
+    "fairytales": "Сказки",
+    "logs": "Логи",
+    "admin": "Админ",
+    "logout": "Выйти"
+  },
+  "homePage": {
+    "landingTitle": "Welcome to Talea",
+    "landingSubtitle": "Create magical stories and educational docs with your own unique avatars.",
+    "ctaStart": "Get started",
+    "featureAvatarTitle": "Create avatars",
+    "featureAvatarDesc": "Craft unique characters",
+    "featureStoryTitle": "Tell stories",
+    "featureStoryDesc": "Experience magical adventures",
+    "featureDokuTitle": "Learn and explore",
+    "featureDokuDesc": "Dive into exciting docs",
+    "loading": "Loading your world...",
+    "greeting": "Hello!",
+    "greetingSubtitle": "Ready for new adventures?",
+    "statAvatars": "Avatars",
+    "statStories": "Stories",
+    "statDokus": "Docs",
+    "statBadges": "Badges",
+    "quickActionsTitle": "Quick actions",
+    "quickActionsDesc": "Start your next adventure",
+    "quickCreateAvatar": "Create avatar",
+    "quickCreateStory": "Write story",
+    "quickCreateDoku": "Create doc",
+    "sectionAvatars": "Your avatars",
+    "viewAll": "View all",
+    "emptyAvatarsTitle": "No avatars yet",
+    "emptyAvatarsDesc": "Create your first avatar and start your adventure.",
+    "badgeAi": "AI",
+    "badgePhoto": "Photo"
+  },
+  "auth": {
+    "welcome": "Добро пожаловать в Talea",
+    "signIn": "Войти",
+    "signUp": "Регистрация",
+    "signOut": "Выйти",
+    "email": "Email",
+    "password": "Пароль",
+    "forgotPassword": "Забыли пароль?",
+    "noAccount": "Нет аккаунта?",
+    "hasAccount": "Уже есть аккаунт?",
+    "continue": "Продолжить"
+  },
+  "home": {
+    "welcome": "С возвращением!",
+    "subtitle": "Что бы вы хотели открыть сегодня?",
+    "createStory": "Новая история",
+    "createDoku": "Новый документ",
+    "myAvatars": "Мои аватары",
+    "recentStories": "Недавние истории",
+    "recentDokus": "Недавние документы",
+    "noStories": "Нет созданных историй",
+    "noDokus": "Нет созданных документов",
+    "getStarted": "Начните и создайте свою первую историю!"
+  },
+  "avatar": {
+    "title": "Аватары",
+    "subtitle": "Создавайте и управляйте своими персонажами",
+    "create": "Создать аватар",
+    "createNew": "Создать нового аватара",
+    "myAvatars": "Мои аватары",
+    "publicAvatars": "Публичные аватары",
+    "name": "Имя",
+    "description": "Описание",
+    "physicalTraits": "Физические характеристики",
+    "personality": "Личность",
+    "image": "Изображение",
+    "generateImage": "Сгенерировать изображение",
+    "uploadPhoto": "Загрузить фото",
+    "makePublic": "Сделать публичным",
+    "deleteConfirm": "Вы уверены, что хотите удалить этого аватара?",
+    "personalityTraits": {
+      "knowledge": "Знание",
+      "creativity": "Креативность",
+      "vocabulary": "Словарный запас",
+      "courage": "Смелость",
+      "curiosity": "Любознательность",
+      "teamwork": "Командная работа",
+      "empathy": "Эмпатия",
+      "persistence": "Настойчивость",
+      "logic": "Логика"
+    },
+    "stats": {
+      "level": "Уровень",
+      "stories": "Истории",
+      "dokus": "Документы",
+      "totalTraits": "Всего черт"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Выбор Режима",
+        "basic": "Основная Инфо",
+        "appearance": "Внешность",
+        "style": "Стиль",
+        "background": "Происхождение",
+        "create": "Создать"
+      },
+      "mode": {
+        "title": "Как вы хотите создать аватар?",
+        "simple": {
+          "title": "Просто и Весело",
+          "description": "Выбирайте яркие опции. Идеально для детей!"
+        },
+        "advanced": {
+          "title": "Творчески и Свободно",
+          "description": "Опишите аватар своими словами."
+        }
+      },
+      "basic": {
+        "title": "Основная Инфо",
+        "subtitle": "Расскажите о персонаже",
+        "name": "Имя",
+        "namePlaceholder": "Как будут звать вашего аватара?",
+        "type": "Тип",
+        "age": "Возраст",
+        "gender": "Пол",
+        "description": "Опишите аватара",
+        "descriptionPlaceholder": "напр. Луна - Любопытная девочка, 8 лет..."
+      },
+      "appearance": {
+        "title": "Внешность",
+        "subtitle": "Как выглядит ваш аватар?",
+        "eyeColor": "Цвет Глаз",
+        "hairColor": "Цвет Волос",
+        "specialFeatures": "Особые Черты",
+        "descriptionPlaceholder": "Опишите внешность..."
+      },
+      "style": {
+        "title": "Стиль и Выражение",
+        "subtitle": "Как одевается ваш аватар?",
+        "clothing": "Стиль Одежды",
+        "voice": "Голос"
+      },
+      "background": {
+        "title": "Происхождение и История",
+        "subtitle": "Откуда ваш аватар?",
+        "world": "Мир",
+        "backstory": "Предыстория"
+      },
+      "create": {
+        "title": "Ваш аватар готов!",
+        "info": "Черты личности развиваются через истории!",
+        "generateImage": "Сгенерировать Изображение",
+        "generatingImage": "Генерация Изображения...",
+        "createAvatar": "Создать Аватар",
+        "creatingAvatar": "Создание Аватара...",
+        "imageGeneratedSuccess": "🎨 Изображение аватара сгенерировано!",
+        "imageGenerationError": "Ошибка генерации изображения.",
+        "avatarCreatedSuccess": "Аватар готов!",
+        "avatarCreationError": "Не удалось создать аватар."
+      },
+      "options": {
+        "types": {
+          "human": "Человек",
+          "animal": "Животное",
+          "fantasy": "Фантазийное Существо",
+          "robot": "Робот",
+          "plant": "Растение",
+          "other": "Другое"
+        },
+        "ages": {
+          "baby": "Малыш",
+          "child": "Ребенок",
+          "teen": "Подросток",
+          "adult": "Взрослый",
+          "old": "Пожилой"
+        },
+        "genders": {
+          "boy": "Мальчик",
+          "girl": "Девочка",
+          "diverse": "Разный",
+          "none": "Не указан"
+        },
+        "eyes": {
+          "blue": "Голубой",
+          "green": "Зеленый",
+          "brown": "Карий",
+          "gray": "Серый",
+          "colorful": "Разноцветный"
+        },
+        "hair": {
+          "blonde": "Блонд",
+          "brown": "Каштановый",
+          "black": "Черный",
+          "red": "Рыжий",
+          "bald": "Лысый"
+        },
+        "features": {
+          "glasses": "Очки",
+          "wings": "Крылья",
+          "horns": "Рога",
+          "tail": "Хвост",
+          "scar": "Шрам",
+          "tattoo": "Татуировка"
+        },
+        "clothing": {
+          "modern": "Современный",
+          "medieval": "Средневековый",
+          "fairytale": "Сказочный",
+          "future": "Футуристический",
+          "armor": "Доспехи",
+          "magic": "Магический"
+        },
+        "voice": {
+          "high": "Высокий",
+          "normal": "Обычный",
+          "deep": "Низкий",
+          "funny": "Смешной",
+          "mysterious": "Загадочный"
+        },
+        "world": {
+          "forest": "Лес",
+          "city": "Город",
+          "castle": "Замок",
+          "future": "Будущее",
+          "underwater": "Подводный",
+          "space": "Космос"
+        },
+        "backstory": {
+          "lost": "Потерялся и ищет путь домой",
+          "adventurer": "Храбрый искатель приключений",
+          "wizard": "Ученик мага с большим потенциалом",
+          "talent": "Обнаружил особый талант",
+          "normal": "Обычный ребенок, полный любопытства"
+        }
+      }
+    }
+  },
+  "story": {
+    "title": "Истории",
+    "subtitle": "Создавайте персонализированные истории с ИИ",
+    "create": "Создать историю",
+    "myStories": "Мои истории",
+    "generating": "Генерация истории...",
+    "selectAvatars": "Выбрать аватаров",
+    "selectAvatarsSubtitle": "Выберите до 3 аватаров для истории",
+    "ageGroup": "Возрастная группа",
+    "genre": "Жанр",
+    "length": "Длительность",
+    "complexity": "Сложность",
+    "tone": "Тон",
+    "settings": "Настройки",
+    "advanced": "Расширенные",
+    "customPrompt": "Пользовательский запрос",
+    "customPromptPlaceholder": "Опишите желаемую историю...",
+    "generateStory": "Сгенерировать историю",
+    "ageGroups": {
+      "3-5": "3-5 лет",
+      "6-8": "6-8 лет",
+      "9-12": "9-12 лет",
+      "13+": "13+ лет"
+    },
+    "genres": {
+      "adventure": "Приключение",
+      "fantasy": "Фэнтези",
+      "mystery": "Детектив",
+      "scifi": "Научная фантастика",
+      "friendship": "Дружба",
+      "nature": "Природа",
+      "fairytale": "Сказка",
+      "comedy": "Комедия"
+    },
+    "lengths": {
+      "short": "Короткая (3-5 мин)",
+      "medium": "Средняя (8-12 мин)",
+      "long": "Длинная (15-20 мин)"
+    },
+    "complexities": {
+      "simple": "Простая",
+      "medium": "Средняя",
+      "complex": "Сложная"
+    },
+    "tones": {
+      "warm": "Теплый",
+      "witty": "Остроумный",
+      "epic": "Эпический",
+      "soothing": "Успокаивающий",
+      "mischievous": "Озорной",
+      "wonder": "Чудесный"
+    },
+    "options": {
+      "rhymes": "С рифмами",
+      "twist": "Неожиданный финал",
+      "fairyTale": "Шаблон сказки",
+      "suspenseLevel": "Уровень напряжения",
+      "humorLevel": "Уровень юмора"
+    },
+    "readStory": "Читать историю",
+    "chapters": "Главы",
+    "noStories": "Нет историй",
+    "generationError": "Ошибка генерации"
+  },
+  "doku": {
+    "title": "Документы знаний",
+    "subtitle": "Твои документы и библиотека сообщества",
+    "myDokus": "Мои документы",
+    "myDokusSubtitle": "Документы, созданные тобой",
+    "publicDokus": "Публичные документы",
+    "publicDokusSubtitle": "Публичные документы, созданные всеми",
+    "noDokus": "Нет документов",
+    "noPublicDokus": "Публичных документов пока нет",
+    "audioDokus": "Аудио-документы",
+    "audioDokusSubtitle": "Слушай документы в аудио-формате",
+    "noAudioDokus": "Аудио-документов пока нет",
+    "audioPlay": "Слушать",
+    
+        "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+        "coverLabel": "Cover description",
+        "coverPlaceholder": "Describe the cover image you want...",
+        "generateCover": "Generate cover",
+        "generatingCover": "Generating cover...",
+        "coverReady": "Cover ready",
+        "descriptionLabel": "Audio doc description",
+        "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+        "errors": {
+          "missingAudio": "Please upload an audio file.",
+          "missingCover": "Please describe the cover.",
+          "missingDescription": "Please add a description.",
+          "coverFailed": "Cover generation failed. Please try again.",
+          "uploadFailed": "Upload failed. Please try again."
+        }
+    },"createNew": "Новый Документ",
+    "create": "Создать документ",
+    "generating": "Генерация документа...",
+    "topic": "Тема",
+    "topicPlaceholder": "О чем вы хотите узнать?",
+    "depth": "Глубина",
+    "ageGroup": "Возрастная группа",
+    "perspective": "Перспектива",
+    "tone": "Тон",
+    "length": "Длительность",
+    "interactive": "Интерактивные элементы",
+    "quizQuestions": "Вопросы викторины",
+    "activities": "Практические активности",
+    "generateDoku": "Сгенерировать документ",
+    "depths": {
+      "basic": "Базовая",
+      "standard": "Стандартная",
+      "deep": "Глубокая"
+    },
+    "perspectives": {
+      "science": "Наука",
+      "history": "История",
+      "technology": "Технология",
+      "nature": "Природа",
+      "culture": "Культура"
+    },
+    "tones": {
+      "fun": "Веселый",
+      "neutral": "Нейтральный",
+      "curious": "Любознательный"
+    },
+    "readDoku": "Читать документ",
+    "sections": "Разделы",
+    "keyFacts": "Ключевые факты",
+    "generationError": "Ошибка генерации",
+    "wizard": {
+      "depth": {
+        "title": "Глубина",
+        "basic": "Базовая",
+        "standard": "Стандартная",
+        "deep": "Глубокая"
+      },
+      "perspective": {
+        "title": "Перспектива",
+        "science": "Наука",
+        "history": "История",
+        "technology": "Технология",
+        "nature": "Природа",
+        "culture": "Культура"
+      },
+      "length": {
+        "title": "Длительность"
+      },
+      "tone": {
+        "title": "Тон",
+        "fun": "Веселый",
+        "neutral": "Нейтральный",
+        "curious": "Любознательный"
+      },
+      "topicLabel": "Тема",
+      "topicPlaceholder": "О чем вы хотите узнать?",
+      "ageGroup": "Возрастная группа",
+      "interactive": "Интерактивные элементы",
+      "quizQuestions": "Вопросы викторины",
+      "activities": "Практические активности",
+      "generate": "Сгенерировать документ",
+      "generating": "Генерация документа...",
+      "errors": {
+        "missingTopic": "Пожалуйста, введите тему",
+        "generationFailed": "Ошибка генерации"
+      },
+      "age": {
+        "3_5": "3-5 лет",
+        "6_8": "6-8 лет",
+        "9_12": "9-12 лет",
+        "13_plus": "13+ лет"
+      }
+    }
+  },
+  "chat": {
+    "title": "Чат с Тави",
+    "subtitle": "Общайтесь со своим ИИ-помощником",
+    "placeholder": "Напишите сообщение...",
+    "send": "Отправить",
+    "thinking": "Думаю...",
+    "newConversation": "Новый разговор",
+    "deleteConversation": "Удалить разговор"
+  },
+  "settings": {
+    "title": "Настройки",
+    "subtitle": "Настройте свои предпочтения",
+    "account": "Аккаунт",
+    "profile": "Профиль",
+    "language": "Язык",
+    "languageDescription": "Выберите предпочитаемый язык для интерфейса и создаваемого контента",
+    "selectLanguage": "Выбрать язык",
+    "currentLanguage": "Текущий язык",
+    "appearance": "Внешний вид",
+    "theme": "Тема",
+    "themeTitle": "Внешний вид",
+    "themeDescription": "Выберите между светлым, темным или автоматическим режимом",
+    "light": "Светлый",
+    "dark": "Темный",
+    "system": "Системный",
+    "lightDescription": "Светлая тема",
+    "darkDescription": "Темная тема",
+    "systemDescription": "Автоматически",
+    "notifications": "Уведомления",
+    "privacy": "Конфиденциальность",
+    "subscription": "Подписка",
+    "billing": "Биллинг",
+    "support": "Поддержка",
+    "about": "О приложении",
+    "version": "Версия",
+    "subscriptionPlans": {
+      "free": "Бесплатно",
+      "starter": "Начальный",
+      "familie": "Семейный",
+      "premium": "Премиум"
+    },
+    "saved": "Настройки сохранены",
+    "saveFailed": "Не удалось сохранить"
+  },
+  "admin": {
+    "title": "Панель администратора",
+    "users": "Пользователи",
+    "avatars": "Аватары",
+    "stories": "Истории",
+    "dokus": "Документы",
+    "logs": "Логи",
+    "statistics": "Статистика",
+    "totalUsers": "Всего пользователей",
+    "totalAvatars": "Всего аватаров",
+    "totalStories": "Всего историй",
+    "totalDokus": "Всего документов"
+  },
+  "errors": {
+    "generic": "Произошла ошибка",
+    "networkError": "Ошибка сети. Проверьте подключение к интернету.",
+    "unauthorized": "Не авторизован. Пожалуйста, войдите.",
+    "notFound": "Не найдено",
+    "serverError": "Ошибка сервера. Попробуйте позже.",
+    "validationError": "Неверный ввод",
+    "formIncomplete": "Пожалуйста, заполните все обязательные поля",
+    "avatarRequired": "Пожалуйста, выберите хотя бы одного аватара",
+    "topicRequired": "Пожалуйста, введите тему"
+  },
+  "validation": {
+    "required": "Обязательное поле",
+    "email": "Неверный адрес email",
+    "minLength": "Минимум {{count}} символов",
+    "maxLength": "Максимум {{count}} символов",
+    "nameRequired": "Имя обязательно",
+    "descriptionRequired": "Описание обязательно"
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Кто участвует в истории?",
+      "category": "Какого типа история?",
+      "ageLength": "Для какого возраста и длины?",
+      "feeling": "Какое настроение?",
+      "wishes": "Особые пожелания? (Опционально)",
+      "summary": "Все готово!"
+    },
+    "subtitles": {
+      "avatars": "Выберите 1-4 аватаров для истории.",
+      "category": "Выберите категорию - ваши аватары станут частью уникальной истории!",
+      "ageLength": "Настройте историю под возраст и доступное время.",
+      "feeling": "Выберите 1-3 настроения.",
+      "wishes": "Добавьте особые функции или пропустите этот шаг.",
+      "summary": "Проверьте выбор и создайте историю."
+    },
+    "buttons": {
+      "back": "Назад",
+      "next": "Далее",
+      "create": "Создать",
+      "generate": "✨ Создать Историю! ✨"
+    },
+    "common": {
+      "examples": "ПРИМЕРЫ:",
+      "note": "💡 Примечание:",
+      "categoryNote": "Каждая категория создает совершенно новую историю!",
+      "wishesNote": "Все пожелания опциональны. ИИ постарается!",
+      "summaryNote": "ИИ создает историю на основе ваших пожеланий. Это займет 60-90 секунд.",
+      "selected": "выбрано",
+      "notSelected": "Не выбрано",
+      "customWish": "💬 Свое пожелание (опционально):",
+      "customWishPlaceholder": "Например: 'История должна происходить в космосе'",
+      "chars": "символов"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Классические Сказки",
+        "description": "Зачарованные миры, короли и принцессы",
+        "examples": "Гензель и Гретель, Красная Шапочка"
+      },
+      "adventure": {
+        "title": "Приключения и Сокровища",
+        "description": "Захватывающие путешествия",
+        "examples": "Поиск Сокровищ"
+      },
+      "magic": {
+        "title": "Волшебные Миры",
+        "description": "Заклинания, магические силы",
+        "examples": "Волшебники, Феи"
+      },
+      "animals": {
+        "title": "Мир Животных",
+        "description": "Говорящие животные",
+        "examples": "В Лесу"
+      },
+      "scifi": {
+        "title": "Фантастика",
+        "description": "Космические корабли, чужие планеты",
+        "examples": "Космические Приключения"
+      },
+      "modern": {
+        "title": "Современность",
+        "description": "Повседневная жизнь, школа, семья",
+        "examples": "Здесь и Сейчас"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Лет",
+        "description": "Короткие простые истории"
+      },
+      "6-8": {
+        "title": "6-8 Лет",
+        "description": "Увлекательные приключения"
+      },
+      "9-12": {
+        "title": "9-12 Лет",
+        "description": "Сложные сюжеты"
+      },
+      "13+": {
+        "title": "13+ Лет",
+        "description": "Глубокие истории"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Короткая",
+        "duration": "3-5 Мин",
+        "chapters": "3 главы"
+      },
+      "medium": {
+        "title": "Средняя",
+        "duration": "8-12 Мин",
+        "chapters": "5 глав"
+      },
+      "long": {
+        "title": "Длинная",
+        "duration": "15-20 Мин",
+        "chapters": "7 глав"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Смешная",
+        "description": "Для смеха"
+      },
+      "warm": {
+        "title": "Теплая",
+        "description": "Душевные моменты"
+      },
+      "exciting": {
+        "title": "Захватывающая",
+        "description": "Динамичное действие"
+      },
+      "crazy": {
+        "title": "Безумная",
+        "description": "Дикие сюрпризы"
+      },
+      "meaningful": {
+        "title": "Глубокая",
+        "description": "С важным посланием"
+      }
+    },
+    "summary": {
+      "avatars": "Аватары",
+      "age": "Возраст",
+      "category": "Категория",
+      "length": "Длина",
+      "feelings": "Чувства",
+      "wishes": "Пожелания",
+      "ready": "Ваша история будет создана!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Рифмы",
+        "description": "История рассказывается в стихах"
+      },
+      "moral": {
+        "title": "Мораль",
+        "description": "История преподает урок"
+      },
+      "avatarIsHero": {
+        "title": "Аватар - Герой",
+        "description": "Ваш аватар - главный герой"
+      },
+      "famousCharacters": {
+        "title": "Известные Персонажи",
+        "description": "Встреча с героями сказок"
+      },
+      "happyEnd": {
+        "title": "Счастливый Конец",
+        "description": "История хорошо заканчивается"
+      },
+      "surpriseEnd": {
+        "title": "Неожиданный Конец",
+        "description": "Неожиданная развязка"
+      }
+    },
+    "steps": {
+      "avatars": "Аватары",
+      "category": "Категория",
+      "ageLength": "Возраст и Длина",
+      "feeling": "Чувства",
+      "wishes": "Пожелания",
+      "summary": "Итог"
+    },
+    "loading": {
+      "title": "Ваша история пишется...",
+      "subtitle": "Пожалуйста, подождите"
+    }
+  },
+  "landing": {
+    "nav": {
+      "start": "Начать"
+    },
+    "hero": {
+      "tagline": "Волшебные истории для вашего ребенка",
+      "page1": "Жил-был когда-то...",
+      "page2": "...ребенок, полный мечтаний.",
+      "page3": "Здесь начинается твое путешествие.",
+      "coverTitle": "Твоя история",
+      "scrollHint": "Прокрутите для открытия"
+    },
+    "features": {
+      "title": "Откройте мир Talea",
+      "stories": {
+        "title": "Персонализированные истории",
+        "subtitle": "Лес историй",
+        "description": "Ваш ребенок становится главным героем в волшебных сказках."
+      },
+      "avatars": {
+        "title": "Уникальные аватары",
+        "subtitle": "Мастерская аватаров",
+        "description": "Создайте цифрового близнеца вашего ребенка."
+      },
+      "learning": {
+        "title": "Обучение через игру",
+        "subtitle": "Горы знаний",
+        "description": "Образовательный контент в захватывающих историях."
+      },
+      "memory": {
+        "title": "Растущая память",
+        "subtitle": "Дерево воспоминаний",
+        "description": "Talea помнит все и строит на предыдущих приключениях."
+      },
+      "values": {
+        "title": "Передача ценностей",
+        "subtitle": "Сад ценностей",
+        "description": "Дружба, мужество и сострадание – в детских историях."
+      },
+      "parents": {
+        "title": "Полный контроль",
+        "subtitle": "Комната родителей",
+        "description": "Вы определяете темы, длину и содержание. 100% безопасно."
+      }
+    },
+    "pricing": {
+      "title": "Выберите свой план",
+      "popular": "Популярный",
+      "starter": {
+        "name": "Стартовый",
+        "price": "Бесплатно",
+        "features": [
+          "3 истории в месяц",
+          "1 Аватар",
+          "Стандартное качество"
+        ],
+        "cta": "Начать бесплатно"
+      },
+      "family": {
+        "name": "Семейный",
+        "price": "€9.99",
+        "period": "/месяц",
+        "features": [
+          "Неограниченные истории",
+          "5 Аватаров",
+          "HD качество",
+          "Функция памяти",
+          "Без рекламы"
+        ],
+        "cta": "Начать"
+      },
+      "premium": {
+        "name": "Премиум",
+        "price": "€19.99",
+        "period": "/месяц",
+        "features": [
+          "Все из Семейного",
+          "Неограниченные аватары",
+          "4K качество",
+          "Приоритетная поддержка",
+          "Ранний доступ"
+        ],
+        "cta": "Выбрать Премиум"
+      }
+    },
+    "footer": {
+      "copyright": "Волшебные истории для детей © 2025",
+      "privacy": "Конфиденциальность",
+      "terms": "Условия",
+      "contact": "Контакты"
+    }
+  }
+}
+
+
+

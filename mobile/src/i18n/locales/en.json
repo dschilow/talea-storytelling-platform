@@ -1,0 +1,1586 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "confirm": "Confirm",
+    "search": "Search",
+    "yes": "Yes",
+    "no": "No",
+    "examples": "EXAMPLES:",
+    "note": "💡 Note:",
+    "categoryNote": "Each category creates a completely new story specifically for your avatars. No pre-written story is told, but an individual story is created!",
+    "wishesNote": "All wishes are optional. The AI will do its best to include your wishes, but the story will always remain exciting and logical!",
+    "summaryNote": "The AI creates a completely new story based on your wishes. This takes about 60-90 seconds. With images a total of 2-3 minutes.",
+    "selected": "selected",
+    "customWish": "💬 Custom wish (optional):",
+    "customWishPlaceholder": "e.g. 'The story should take place in space' or 'With a talking dragon'",
+    "chars": "chars",
+    "all": "All",
+    "noResults": "No results",
+    "noResultsDesc": "No entry matches the search.",
+    "readMore": "Read more",
+    "inFocus": "Featured",
+    "new": "New",
+    "refresh": "Refresh",
+    "deleteConfirm": "Really delete?",
+    "sharedBy": "Shared by {{name}}",
+    "noDescription": "No description",
+    "ready": "Ready",
+    "missing": "Missing",
+    "total": "Total",
+    "visible": "Visible",
+    "shared": "Shared",
+    "own": "Own",
+    "child": "Child",
+    "childAvatar": "Child avatar",
+    "childAvatarMissing": "Child avatar missing",
+    "newHero": "New hero",
+    "sort": "Sort",
+    "retry": "Try again",
+    "min": "min",
+    "select": "Select"
+  },
+  "navigation": {
+    "home": "Home",
+    "avatars": "Avatars",
+    "stories": "Stories",
+    "doku": "Knowledge Docs",
+    "chat": "Tavi Chat",
+    "settings": "Settings",
+    "characters": "Characters",
+    "artifacts": "Artifacts",
+    "fairytales": "Fairy tales",
+    "logs": "Logs",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "homePage": {
+    "landingTitle": "Welcome to Talea",
+    "landingSubtitle": "Create magical stories and educational docs with your own unique avatars.",
+    "ctaStart": "Get started",
+    "featureAvatarTitle": "Create avatars",
+    "featureAvatarDesc": "Craft unique characters",
+    "featureStoryTitle": "Tell stories",
+    "featureStoryDesc": "Experience magical adventures",
+    "featureDokuTitle": "Learn and explore",
+    "featureDokuDesc": "Dive into exciting docs",
+    "loading": "Loading your world...",
+    "greeting": "Hello!",
+    "greetingSubtitle": "Ready for new adventures?",
+    "statAvatars": "Avatars",
+    "statStories": "Stories",
+    "statDokus": "Docs",
+    "statBadges": "Badges",
+    "quickActionsTitle": "Quick actions",
+    "quickActionsDesc": "Start your next adventure",
+    "quickCreateAvatar": "Create avatar",
+    "quickCreateStory": "Write story",
+    "quickCreateDoku": "Create doc",
+    "sectionAvatars": "Your avatars",
+    "viewAll": "View all",
+    "emptyAvatarsTitle": "No avatars yet",
+    "emptyAvatarsDesc": "Create your first avatar and start your adventure.",
+    "badgeAi": "AI",
+    "badgePhoto": "Photo"
+  },
+  "auth": {
+    "welcome": "Welcome to Talea",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "continue": "Continue"
+  },
+  "home": {
+    "welcome": "Welcome back!",
+    "subtitle": "What would you like to discover today?",
+    "createStory": "New Story",
+    "createDoku": "New Doc",
+    "myAvatars": "My Avatars",
+    "recentStories": "Recent Stories",
+    "recentDokus": "Recent Docs",
+    "noStories": "No stories created yet",
+    "noDokus": "No docs created yet",
+    "getStarted": "Get started and create your first story!"
+  },
+  "avatar": {
+    "title": "Avatars",
+    "subtitle": "Create and manage your characters",
+    "create": "Create Avatar",
+    "createNew": "Create New Avatar",
+    "myAvatars": "My Avatars",
+    "publicAvatars": "Public Avatars",
+    "name": "Name",
+    "description": "Description",
+    "physicalTraits": "Physical Traits",
+    "personality": "Personality",
+    "image": "Image",
+    "generateImage": "Generate Image",
+    "uploadPhoto": "Upload Photo",
+    "makePublic": "Make Public",
+    "deleteConfirm": "Are you sure you want to delete this avatar?",
+    "personalityTraits": {
+      "knowledge": "Knowledge",
+      "creativity": "Creativity",
+      "vocabulary": "Vocabulary",
+      "courage": "Courage",
+      "curiosity": "Curiosity",
+      "teamwork": "Teamwork",
+      "empathy": "Empathy",
+      "persistence": "Persistence",
+      "logic": "Logic"
+    },
+    "stats": {
+      "level": "Level",
+      "stories": "Stories",
+      "dokus": "Docs",
+      "totalTraits": "Total Traits"
+    },
+    "wizard": {
+      "steps": {
+        "mode": "Choose Mode",
+        "basic": "Basic Info",
+        "appearance": "Appearance",
+        "style": "Style",
+        "background": "Background",
+        "create": "Create",
+        "who": "Who?",
+        "body": "Body",
+        "look": "Appearance",
+        "extras": "Extras",
+        "done": "Done!"
+      },
+      "createTitle": "Create avatar",
+      "createChildTitle": "Create child avatar",
+      "stepOf": "Step {{current}} of {{total}}",
+      "creating": "Creating {{name}}...",
+      "creatingSubtitle": "Your avatar will be ready soon!",
+      "previewSuccess": "Your avatar image is ready!",
+      "previewError": "The image could not be created. Please try again!",
+      "nameRequired": "Your avatar still needs a name!",
+      "createSuccess": "{{name}} is here! Have fun with your avatar!",
+      "createError": "Something went wrong. Please try again!",
+      "back": "Back",
+      "next": "Next",
+      "mode": {
+        "title": "How would you like to create your avatar?",
+        "simple": {
+          "title": "Simple & Fun",
+          "description": "Click through colorful options. Perfect for kids!"
+        },
+        "advanced": {
+          "title": "Creative & Free",
+          "description": "Describe your avatar in your own words. For creatives!"
+        }
+      },
+      "basic": {
+        "title": "Basic Info",
+        "subtitle": "Tell us about your character",
+        "name": "Name",
+        "namePlaceholder": "What should your avatar be called?",
+        "type": "Type",
+        "age": "Age",
+        "gender": "Gender",
+        "description": "Describe your avatar",
+        "descriptionPlaceholder": "e.g. Luna - A curious girl, 8 years old..."
+      },
+      "appearance": {
+        "title": "Appearance",
+        "subtitle": "What does your avatar look like?",
+        "eyeColor": "Eye Color",
+        "hairColor": "Hair Color",
+        "specialFeatures": "Special Features",
+        "descriptionPlaceholder": "Describe the appearance..."
+      },
+      "style": {
+        "title": "Style & Expression",
+        "subtitle": "How does your avatar dress?",
+        "clothing": "Clothing Style",
+        "voice": "Voice"
+      },
+      "background": {
+        "title": "Origin & Story",
+        "subtitle": "Where does your avatar come from?",
+        "world": "World",
+        "backstory": "Background Story"
+      },
+      "create": {
+        "title": "Your avatar is ready!",
+        "info": "Personality traits develop through stories!",
+        "generateImage": "Generate Image",
+        "generatingImage": "Generating Image...",
+        "createAvatar": "Create Avatar",
+        "creatingAvatar": "Creating Avatar...",
+        "imageGeneratedSuccess": "🎨 Avatar image generated successfully!",
+        "imageGenerationError": "Error generating image.",
+        "avatarCreatedSuccess": "Avatar ready!",
+        "avatarCreationError": "Could not create avatar."
+      },
+      "options": {
+        "types": {
+          "human": "Human",
+          "animal": "Animal",
+          "fantasy": "Fantasy Creature",
+          "robot": "Robot",
+          "plant": "Plant",
+          "other": "Other"
+        },
+        "ages": {
+          "baby": "Baby",
+          "child": "Child",
+          "teen": "Teen",
+          "adult": "Adult",
+          "old": "Senior"
+        },
+        "genders": {
+          "boy": "Boy",
+          "girl": "Girl",
+          "diverse": "Diverse",
+          "none": "Not specified"
+        },
+        "eyes": {
+          "blue": "Blue",
+          "green": "Green",
+          "brown": "Brown",
+          "gray": "Gray",
+          "colorful": "Colorful"
+        },
+        "hair": {
+          "blonde": "Blonde",
+          "brown": "Brown",
+          "black": "Black",
+          "red": "Red",
+          "bald": "Bald"
+        },
+        "features": {
+          "glasses": "Glasses",
+          "wings": "Wings",
+          "horns": "Horns",
+          "tail": "Tail",
+          "scar": "Scar",
+          "tattoo": "Tattoo"
+        },
+        "clothing": {
+          "modern": "Modern",
+          "medieval": "Medieval",
+          "fairytale": "Fairy Tale",
+          "future": "Futuristic",
+          "armor": "Armor",
+          "magic": "Magical"
+        },
+        "voice": {
+          "high": "High",
+          "normal": "Normal",
+          "deep": "Deep",
+          "funny": "Funny",
+          "mysterious": "Mysterious"
+        },
+        "world": {
+          "forest": "Forest",
+          "city": "City",
+          "castle": "Castle",
+          "future": "Future",
+          "underwater": "Underwater",
+          "space": "Space"
+        },
+        "backstory": {
+          "lost": "Lost and searching for the way home",
+          "adventurer": "A brave adventurer on a great journey",
+          "wizard": "An apprentice of magic with great potential",
+          "talent": "Discovered a special talent",
+          "normal": "A normal child full of curiosity"
+        }
+      }
+    }
+  },
+  "story": {
+    "title": "Stories",
+    "subtitle": "Create personalized AI stories",
+    "create": "Create Story",
+    "myStories": "My Stories",
+    "generating": "Generating story...",
+    "reader": {
+      "loading": "Loading story...",
+      "notFound": "Story not found",
+      "chapter": "Chapter",
+      "read": "Read",
+      "finish": "Complete Story",
+      "completed": "Completed",
+      "scene": "Scene",
+      "environment": "Environment",
+      "personalityGrowth": "Personality is growing",
+      "avatarsUpdated": "{{count}} avatar(s) updated",
+      "toast": {
+        "completed": "{{count}} avatar(s) updated",
+        "error": "Error applying personality updates.",
+        "networkError": "Network error while completing the story."
+      }
+    },
+    "wizard": {
+      "title": "Create Story",
+      "subtitle": "Create a magical story with your avatars",
+      "steps": {
+        "avatar": "Avatars",
+        "genre": "Genre & World",
+        "soul": "Story Soul & Style",
+        "experience": "Emotion & Tempo",
+        "parameters": "Parameters",
+        "learning": "Learning Mode",
+        "generation": "Create"
+      },
+      "stepCounter": "Step {{current}} of {{total}}",
+      "next": "Next",
+      "back": "Back",
+      "alerts": {
+        "loginRequired": "Please sign in to create a story.",
+        "selectAvatar": "Please select at least one avatar for the story.",
+        "success": "Story \"{{title}}\" was successfully generated! 🎉",
+        "error": "The story could not be created. Please try again.",
+        "tooLong": "The request is too large. Please try again.",
+        "timeout": "Generation is taking too long. Please choose a shorter story."
+      },
+      "genre": {
+        "title": "Select Genre",
+        "subtitle": "What kind of story should it be?",
+        "options": {
+          "fairytale": "Classic Fairy Tales",
+          "fairytaleDesc": "Use original fairy tales as inspiration",
+          "magic": "Fairy Tale Worlds & Magic",
+          "magicDesc": "Free fairy tale worlds with a magical remix",
+          "adventure": "Adventure",
+          "adventureDesc": "Exciting journeys and discoveries",
+          "fantasy": "Fantasy",
+          "fantasyDesc": "Magical worlds and wizardry",
+          "mystery": "Mystery",
+          "mysteryDesc": "Puzzles and mysterious events",
+          "friendship": "Friendship",
+          "friendshipDesc": "Stories about togetherness",
+          "learning": "Learning",
+          "learningDesc": "Educational and instructional content",
+          "comedy": "Comedy",
+          "comedyDesc": "Funny and humorous stories"
+        }
+      },
+      "setting": {
+        "title": "Select Setting",
+        "subtitle": "Where should your story take place?",
+        "options": {
+          "forest": "Magic Forest",
+          "forestDesc": "Mystical forests full of secrets",
+          "castle": "Castle",
+          "castleDesc": "Royal palaces and castles",
+          "ocean": "Underwater World",
+          "oceanDesc": "Explore the depths of the ocean",
+          "space": "Space",
+          "spaceDesc": "Adventures among the stars",
+          "city": "Modern City",
+          "cityDesc": "Urban adventures and discoveries",
+          "village": "Fairy Tale Village",
+          "villageDesc": "Cozy village communities"
+        }
+      },
+      "parameters": {
+        "length": {
+          "title": "Story Length",
+          "subtitle": "How long should your story be?",
+          "options": {
+            "short": "Short",
+            "shortDesc": "3-5 Chapters, ~10 Min.",
+            "medium": "Medium",
+            "mediumDesc": "5-8 Chapters, ~20 Min.",
+            "long": "Long",
+            "longDesc": "8-12 Chapters, ~30 Min."
+          }
+        },
+        "complexity": {
+          "title": "Complexity",
+          "subtitle": "How complex should the plot be?",
+          "options": {
+            "simple": "Simple",
+            "simpleDesc": "Easy language, simple plot",
+            "medium": "Medium",
+            "mediumDesc": "Balanced complexity",
+            "complex": "Complex",
+            "complexDesc": "Multi-layered plot"
+          }
+        },
+        "ageGroup": {
+          "title": "Age Group",
+          "subtitle": "For which age group is the story?",
+          "options": {
+            "3-5": "3-5 years",
+            "3-5Desc": "Preschoolers",
+            "6-8": "6-8 years",
+            "6-8Desc": "Primary school children",
+            "9-12": "9-12 years",
+            "9-12Desc": "School children",
+            "13+": "13+ years",
+            "13+Desc": "Teenagers"
+          }
+        },
+        "aiModel": {
+          "title": "AI Model",
+          "subtitle": "Select the AI model for story generation",
+          "options": {
+            "nano": "Fast & cheap",
+            "mini": "Recommended",
+            "standard": "Best quality",
+            "premium": "Premium"
+          }
+        }
+      },
+      "soul": {
+        "title": "Choose Story Soul",
+        "subtitle": "The core mood of your story",
+        "options": {
+          "maerchenzauber": {
+            "label": "Fairy Tale Magic",
+            "tagline": "Timeless and heartwarming",
+            "description": "Once-upon-a-time atmosphere, warm and cozy, gentle tension."
+          },
+          "lieder_reime": {
+            "label": "Songs & Rhymes",
+            "tagline": "Playful and rhythmic",
+            "description": "Catchy verses, singable passages, poetic language."
+          },
+          "wilder_ritt": {
+            "label": "Wild Ride",
+            "tagline": "Fast and exciting",
+            "description": "Action-packed, unexpected twists, quick pace."
+          },
+          "traeumerei": {
+            "label": "Daydreaming",
+            "tagline": "Gentle and imaginative",
+            "description": "Dreamy imagery, calm flow, magical moments."
+          },
+          "heldenmut": {
+            "label": "Heroic Courage",
+            "tagline": "Brave and inspiring",
+            "description": "Overcoming fears, growing strength, triumphant ending."
+          },
+          "entdeckergeist": {
+            "label": "Explorer Spirit",
+            "tagline": "Curious and educational",
+            "description": "Exploring new worlds, gathering knowledge, experiencing wonder."
+          }
+        }
+      },
+      "style": {
+        "title": "Narrative Style",
+        "subtitle": "Optional specific style for your story",
+        "auto": "Automatic (based on Story Soul)",
+        "allowRhymes": "Allow rhymes and verses",
+        "footer": "The narrative style automatically adapts to the chosen Story Soul, unless specified otherwise.",
+        "options": {
+          "rhymed_playful": {
+            "label": "Rhymed & Playful",
+            "description": "Joyful rhymes like Dr. Seuss"
+          },
+          "gentle_minimal": {
+            "label": "Gentle & Minimal",
+            "description": "Calm, simple language with depth"
+          },
+          "wild_imaginative": {
+            "label": "Wild & Imaginative",
+            "description": "Overflowing fantasy and crazy ideas"
+          },
+          "philosophical_warm": {
+            "label": "Philosophical & Warm",
+            "description": "Thoughtful stories with heart"
+          },
+          "mischief_empowering": {
+            "label": "Mischievous & Empowering",
+            "description": "Playful pranks with positive outcomes"
+          },
+          "adventure_epic": {
+            "label": "Adventure & Epic",
+            "description": "Grand quests and heroic journeys"
+          },
+          "quirky_dark_sweet": {
+            "label": "Quirky & Bittersweet",
+            "description": "Unusual with emotional depth"
+          },
+          "cozy_friendly": {
+            "label": "Cozy & Friendly",
+            "description": "Warm, comfortable atmosphere"
+          },
+          "classic_fantasy": {
+            "label": "Classic Fantasy",
+            "description": "Timeless fairy tale elements"
+          },
+          "whimsical_logic": {
+            "label": "Whimsical & Logical",
+            "description": "Crazy worlds with their own rules"
+          },
+          "mythic_allegory": {
+            "label": "Mythic & Allegorical",
+            "description": "Deep symbolism and legends"
+          },
+          "road_fantasy": {
+            "label": "Road Fantasy",
+            "description": "Adventures traveling through magical lands"
+          },
+          "imaginative_meta": {
+            "label": "Imaginative & Meta",
+            "description": "Creative storytelling that plays with conventions"
+          },
+          "pastoral_heart": {
+            "label": "Pastoral & Heartfelt",
+            "description": "Nature-close stories full of warmth"
+          },
+          "bedtime_soothing": {
+            "label": "Bedtime Story",
+            "description": "Calming and relaxing for the night"
+          }
+        }
+      },
+      "common": {
+        "selected": "Selected"
+      },
+      "flavor": {
+        "title": "Emotional Flavors",
+        "subtitle": "What feelings should the story convey?",
+        "max": "Select up to {{count}}",
+        "options": {
+          "warmherzigkeit": {
+            "label": "Warmth",
+            "description": "Loving moments and care",
+            "effect": "Creates comfort and connection"
+          },
+          "lachfreude": {
+            "label": "Joy & Laughter",
+            "description": "Humor and funny situations",
+            "effect": "Lightens up and brings fun"
+          },
+          "prickeln": {
+            "label": "Thrill",
+            "description": "Suspense and excitement",
+            "effect": "Keeps attention and creates excitement"
+          },
+          "geborgenheit": {
+            "label": "Security",
+            "description": "Safety and coziness",
+            "effect": "Provides calm and relaxation"
+          },
+          "uebermut": {
+            "label": "Boldness",
+            "description": "Cheeky adventures and mischief",
+            "effect": "Encourages creativity and confidence"
+          },
+          "staunen": {
+            "label": "Wonder",
+            "description": "Discovering magic and marvels",
+            "effect": "Awakens curiosity and imagination"
+          },
+          "zusammenhalt": {
+            "label": "Togetherness",
+            "description": "Friendship and teamwork",
+            "effect": "Shows the value of community"
+          }
+        }
+      },
+      "tempo": {
+        "title": "Story Pace",
+        "subtitle": "How fast should the story progress?",
+        "options": {
+          "cozy": {
+            "label": "Cozy",
+            "description": "Slow and relaxed, lots of atmosphere"
+          },
+          "balanced": {
+            "label": "Balanced",
+            "description": "Mix of calm and exciting moments"
+          },
+          "fast": {
+            "label": "Fast-Paced",
+            "description": "Quick progression, lots of action"
+          }
+        }
+      },
+      "ingredients": {
+        "title": "Special Ingredients",
+        "subtitle": "Optional special elements for your story",
+        "options": {
+          "surprise": {
+            "label": "Surprise",
+            "description": "Unexpected twists and plot turns"
+          },
+          "mystery": {
+            "label": "Mystery",
+            "description": "Puzzles and hidden clues"
+          },
+          "transformation": {
+            "label": "Transformation",
+            "description": "Characters who develop and change"
+          },
+          "magic": {
+            "label": "Magic",
+            "description": "Magical elements and supernatural powers"
+          },
+          "trial": {
+            "label": "Trial",
+            "description": "Challenges that must be mastered"
+          },
+          "aha": {
+            "label": "Aha Moment",
+            "description": "Important insights and learning moments"
+          }
+        }
+      }
+    },
+    "selectAvatars": "Select Avatars",
+    "selectAvatarsSubtitle": "Choose up to 3 avatars for the story",
+    "ageGroup": "Age Group",
+    "genre": "Genre",
+    "length": "Length",
+    "complexity": "Complexity",
+    "tone": "Tone",
+    "settings": "Settings",
+    "advanced": "Advanced",
+    "customPrompt": "Custom Request",
+    "customPromptPlaceholder": "Describe your desired story...",
+    "generateStory": "Generate Story",
+    "ageGroups": {
+      "3-5": "3-5 years",
+      "6-8": "6-8 years",
+      "9-12": "9-12 years",
+      "13+": "13+ years"
+    },
+    "genres": {
+      "adventure": "Adventure",
+      "fantasy": "Fantasy",
+      "mystery": "Mystery",
+      "scifi": "Science Fiction",
+      "friendship": "Friendship",
+      "nature": "Nature",
+      "fairytale": "Fairy Tale",
+      "comedy": "Comedy"
+    },
+    "lengths": {
+      "short": "Short (3-5 min)",
+      "medium": "Medium (8-12 min)",
+      "long": "Long (15-20 min)"
+    },
+    "complexities": {
+      "simple": "Simple",
+      "medium": "Medium",
+      "complex": "Complex"
+    },
+    "tones": {
+      "fun": "Fun",
+      "neutral": "Neutral",
+      "curious": "Curious"
+    }
+  },
+  "doku": {
+    "title": "Knowledge Docs",
+    "subtitle": "Your docs and the community library",
+    "myDokus": "My Docs",
+    "myDokusSubtitle": "Docs you've created",
+    "publicDokus": "Community Docs",
+    "publicDokusSubtitle": "Public docs generated by everyone",
+    "noDokus": "No docs yet",
+    "noDokusQuery": "No doc matches your search.",
+    "noPublicDokus": "No public docs yet",
+    "noPublicDokusQuery": "No community doc matches your search.",
+    "audioDokus": "Audio Docs",
+    "audioDokusSubtitle": "Listen to docs in audio format",
+    "noAudioDokus": "No audio docs available yet",
+    "noAudioDokusQuery": "No audio doc matches your search.",
+    "audioPlay": "Play",
+    "audioLoading": "Generating audio...",
+    "audioCreateButton": "Create Audio Doc",
+    "audioPlayAll": "Play all",
+    "noAudioFile": "No audio file available",
+    "loadingMore": "Loading more docs...",
+    "loadingMorePublic": "Loading more community docs...",
+    "discoverTitle": "Discover",
+    "discoverSubtitle": "Shared docs from the community",
+    "audioWorldTitle": "Audio World",
+    "audioWorldSubtitle": "Listen to docs",
+    "myDokusMetric": "Mine",
+    "discoverMetric": "Discover",
+    "audioMetric": "Audio",
+    "tabMine": "Mine",
+    "tabDiscover": "Discover",
+    "tabAudio": "Audio World",
+    "searchPlaceholderText": "Search docs...",
+    "searchPlaceholderAudio": "Search audio...",
+    "filterAllTopics": "All Topics",
+    "filterAllAges": "All Age Groups",
+    "filterAllDepths": "All Depths",
+    "filterAllAudio": "All Audio",
+    "filterMyAudio": "My Audio",
+    "filterPublicAudio": "Public Audio",
+    "sortNewest": "Newest first",
+    "sortOldest": "Oldest first",
+    "sortTitle": "Title A-Z",
+    "filterReset": "Reset filters",
+    "filterTopic": "Filter by topic",
+    "filterAge": "Filter by age group",
+    "filterDepth": "Filter by depth",
+    "filterAudioScope": "Filter audio scope",
+    "depthBasic": "Basic",
+    "depthStandard": "Standard",
+    "depthDeep": "Deep",
+    "depthUnknown": "Unknown",
+    "topicUnknown": "Unknown",
+    "ageLabel": "Age {{age}}",
+    "saveOffline": "Save offline",
+    "removeOffline": "Remove from offline",
+    "editAudioDoku": "Edit audio doc",
+    "deleteAudioDoku": "Delete audio doc",
+    "addToQueue": "Add to queue",
+    "closeModal": "Close audio modal",
+    "publicAccessError": "Community content is not available in your current plan.",
+    "audioAccessError": "Audio docs are not available in your current plan.",
+    "audioCreate": {
+      "title": "Create Audio Doc",
+      "subtitle": "Upload an audio doc and generate a cover",
+      "signInRequired": "Please sign in to create an audio doc.",
+      "uploadTitle": "Upload audio",
+      "uploadDescription": "Drag & drop your audio file here",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "Give your audio doc a title",
+        "coverLabel": "Cover description",
+        "coverPlaceholder": "Describe the cover image you want...",
+        "generateCover": "Generate cover",
+        "generatingCover": "Generating cover...",
+        "coverReady": "Cover ready",
+        "descriptionLabel": "Audio doc description",
+        "descriptionPlaceholder": "This description will appear next to the player",
+      "createButton": "Create Audio Doc",
+      "creating": "Creating...",
+      "previewTitle": "Cover preview",
+      "previewDescription": "The cover will be generated from your description.",
+      "previewReady": "Cover ready",
+      "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
+      "goToDokus": "Go to Dokus",
+      "createAnother": "Create another",
+        "errors": {
+          "missingAudio": "Please upload an audio file.",
+          "missingCover": "Please describe the cover.",
+          "missingDescription": "Please add a description.",
+          "coverFailed": "Cover generation failed. Please try again.",
+          "uploadFailed": "Upload failed. Please try again."
+        }
+      },
+    "createNew": "New Doc",
+    "wizard": {
+      "title": "New Knowledge Doc",
+      "subtitle": "Create an exciting doc with Tavi",
+      "loginRequired": "Please sign in to create a knowledge doc.",
+      "createTitle": "Create a new knowledge doc",
+      "topicLabel": "Topic",
+      "topicPlaceholder": "What do you want to learn about? (e.g. Volcanoes, Romans, Whales...)",
+      "ageGroup": "Age Group",
+      "age": {
+        "3_5": "3-5 years",
+        "6_8": "6-8 years",
+        "9_12": "9-12 years",
+        "13_plus": "13+ years"
+      },
+      "depth": {
+        "title": "Depth",
+        "basic": "Basic",
+        "standard": "Standard",
+        "deep": "Expert"
+      },
+      "perspective": {
+        "title": "Perspective",
+        "science": "Scientific",
+        "history": "Historical",
+        "technology": "Technological",
+        "nature": "Nature",
+        "culture": "Cultural"
+      },
+      "length": {
+        "title": "Length",
+        "short": "Short",
+        "medium": "Medium",
+        "long": "Long"
+      },
+      "tone": {
+        "title": "Tone",
+        "fun": "Fun",
+        "neutral": "Neutral",
+        "curious": "Curious"
+      },
+      "interactive": "Interactive Elements",
+      "quizQuestions": "Quiz Questions",
+      "activities": "Hands-on Activities",
+      "generate": "Generate Doc",
+      "generating": "Generating doc...",
+      "errors": {
+        "missingTopic": "Please enter a topic.",
+        "generationFailed": "The doc could not be created. Please try again."
+      },
+      "steps": {
+        "topic": "Topic",
+        "ageGroup": "Age Group",
+        "depth": "Depth",
+        "perspective": "Perspective",
+        "review": "Review"
+      },
+      "placeholders": {
+        "topic": "What do you want to learn about? (e.g. Volcanoes, Romans, Whales...)"
+      },
+      "depths": {
+        "basic": "Basic",
+        "standard": "Standard",
+        "deep": "Expert"
+      },
+      "perspectives": {
+        "science": "Scientific",
+        "history": "Historical",
+        "technology": "Technological",
+        "nature": "Nature",
+        "culture": "Cultural"
+      },
+      "tones": {
+        "fun": "Fun",
+        "neutral": "Neutral",
+        "curious": "Curious"
+      }
+    }
+  },
+  "chat": {
+    "title": "Tavi",
+    "subtitle": "Your magical assistant",
+    "placeholder": "Ask Tavi something...",
+    "words": "Words",
+    "welcome": "Hi, I'm Tavi!",
+    "error": "Sorry, something went wrong. Try again in a moment.",
+    "newConversation": "New Conversation",
+    "deleteConversation": "Delete Conversation",
+    "openStory": "Open story",
+    "openDoku": "Open doku",
+    "openAvatar": "View avatar",
+    "openWizard": "Open story wizard",
+    "openAvatarWizard": "Open avatar wizard",
+    "openDokuWizard": "Open doku wizard",
+    "navigate": "Open page",
+    "open": "Open",
+    "suggestion_story": "Tell me a story",
+    "suggestion_doku": "Create a knowledge doc",
+    "suggestion_avatar": "Create a new avatar",
+    "suggestion_image": "Draw me a picture",
+    "suggestion_list": "Show me my avatars"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Customize your preferences",
+    "account": "Account",
+    "profile": "Profile",
+    "language": "Language",
+    "languageDescription": "Choose your preferred language for the user interface and generated content",
+    "selectLanguage": "Select Language",
+    "currentLanguage": "Current Language",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "themeTitle": "Appearance",
+    "themeDescription": "Choose between light, dark, or automatic mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "lightDescription": "Light theme",
+    "darkDescription": "Dark theme",
+    "systemDescription": "Automatic",
+    "notifications": "Notifications",
+    "privacy": "Privacy",
+    "subscription": "Subscription",
+    "billing": "Billing",
+    "support": "Support",
+    "about": "About",
+    "version": "Version",
+    "subscriptionPlans": {
+      "free": "Free",
+      "starter": "Starter",
+      "familie": "Family",
+      "premium": "Premium"
+    },
+    "saved": "Settings saved",
+    "saveFailed": "Save failed",
+    "billingPanel": "Billing",
+    "parentalPanel": "Parental Dashboard",
+    "profilesPanel": "Child Profiles",
+    "audioLibraryPanel": "Audio Library",
+    "signOut": "Sign Out",
+    "signOutDescription": "Securely sign out of your Talea account.",
+    "signOutConfirm": "You can sign out at any time and sign back in with the same account later.",
+    "signOutButton": "Sign out now",
+    "signingOut": "Signing out...",
+    "parentalTitle": "Parental Dashboard",
+    "parentalSubtitle": "Safety, learning goals and daily limits for stories and docs.",
+    "parentalLoading": "Loading parental dashboard...",
+    "parentalUnavailable": "Parental dashboard unavailable.",
+    "parentalUnlock": "Unlock",
+    "parentalPinActive": "PIN protection active",
+    "parentalPinDescription": "Please enter the parental PIN to edit rules and limits.",
+    "parentalChildProtection": "Enable child protection",
+    "parentalChildProtectionDesc": "When active, controls blocked themes, learning goals and daily limits in story and doc prompts.",
+    "parentalSave": "Save",
+    "parentalSaving": "Saving...",
+    "parentalReload": "Reload",
+    "parentalPin": "Parental PIN",
+    "parentalNewPin": "New PIN (4-8 digits)",
+    "parentalConfirmPin": "Confirm PIN",
+    "parentalNewPinOptional": "New PIN (optional)",
+    "parentalConfirmNewPin": "Confirm new PIN",
+    "parentalBlockedThemes": "Blocked Themes",
+    "parentalBlockedThemesDesc": "These themes should be avoided in stories and docs.",
+    "parentalBlockedWords": "Blocked Words",
+    "parentalBlockedWordsDesc": "These terms will be blocked in newly generated text.",
+    "parentalLearningGoals": "Learning Goals",
+    "parentalLearningGoalsDesc": "These goals will be prioritized in new stories and docs.",
+    "parentalProfileKeywords": "Profile/Path Keywords",
+    "parentalProfileKeywordsDesc": "Additional keywords for content direction.",
+    "parentalDailyLimits": "Daily Limits (independent of subscription)",
+    "parentalDailyLimitsDesc": "Prevents credits from being fully consumed in a single day.",
+    "parentalStoriesPerDay": "Stories per day",
+    "parentalDokusPerDay": "Docs per day",
+    "parentalUnlimited": "Unlimited",
+    "parentalNoEntries": "No entries yet.",
+    "parentalAdd": "Add",
+    "parentalLoadFailed": "Could not load parental dashboard.",
+    "parentalSaveFailed": "Save failed.",
+    "parentalPinRequired": "Please enter the parental PIN first.",
+    "parentalPinMismatch": "New PIN and confirmation do not match.",
+    "parentalPinInvalid": "PIN must be 4 to 8 digits.",
+    "parentalPinMismatch2": "PIN and confirmation do not match.",
+    "parentalPinInvalid2": "Please set a PIN with 4 to 8 digits.",
+    "parentalUnlocked": "Parental dashboard unlocked.",
+    "parentalPinEmpty": "Please enter your PIN.",
+    "parentalPinInvalidVerify": "Invalid PIN.",
+    "parentalPinVerifyFailed": "PIN could not be verified.",
+    "parentalRulesInfo": "Rules apply to new generations. Existing content remains unchanged.",
+    "audioLibraryTitle": "Audio Library",
+    "audioLibrarySubtitle": "Persistent story and doc audio from the player (cross-device).",
+    "audioLibraryRefresh": "Refresh",
+    "audioLibrarySearch": "Search titles...",
+    "audioLibraryAllTypes": "All types",
+    "audioLibraryLoading": "Loading audio library...",
+    "audioLibraryEmpty": "No saved audio found.",
+    "audioLibraryPlayBtn": "Play in player",
+    "audioLibraryPlayBusy": "Preparing...",
+    "audioLibraryOfflineSave": "Save offline",
+    "audioLibraryOfflineRemove": "Remove offline",
+    "audioLibraryOfflineSaving": "Saving...",
+    "audioLibraryDelete": "Delete",
+    "audioLibraryDeleting": "Deleting...",
+    "audioLibraryChapters": "chapters/parts",
+    "audioLibraryPlayedInPlayer": "Played chapter by chapter in the player.",
+    "audioLibraryLoadFailed": "Could not load audio library.",
+    "audioLibraryDeleteFailed": "Could not delete title.",
+    "audioLibraryPlayFailed": "Could not start title in player.",
+    "audioLibraryOfflineRemoved": "Offline audio removed.",
+    "audioLibraryOfflineSaved": "Audio + associated content saved offline.",
+    "audioLibraryOfflineFailed": "Offline save failed.",
+    "audioLibraryDeleted": "Title removed.",
+    "audioLibraryNoAudio": "No saved audio files available.",
+    "billingTitle": "Subscription & Credits",
+    "billingSubtitle": "Monthly credits, usage and plan changes in one place.",
+    "billingRefresh": "Refresh",
+    "billingLoading": "Loading billing data...",
+    "billingLoadFailed": "Billing data could not be loaded.",
+    "billingCurrentPlan": "Current Plan",
+    "billingPeriod": "Billing month",
+    "billingCommunityActive": "Community: active",
+    "billingCommunityLocked": "Community: locked",
+    "billingAudioActive": "Audio: active",
+    "billingAudioLocked": "Audio: locked",
+    "billingPlanActive": "Active",
+    "billingRemaining": "remaining",
+    "billingUsedLimit": "used / limit",
+    "billingCostPerGen": "Cost: {{cost}} credit per generation",
+    "billingTrialActive": "Free trial active: {{days}} days remaining. After that no generation, no community docs and no audio docs.",
+    "billingTrialExpired": "Free trial expired. Upgrade to Starter, Family or Premium to continue generating.",
+    "billingPlanSwitchTitle": "Switch plan in Clerk Billing",
+    "billingPlanSwitchDesc": "Checkout opens in its own window. After a successful switch click 'Refresh' here.",
+    "billingMonthly": "Changeable monthly"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "users": "Users",
+    "avatars": "Avatars",
+    "stories": "Stories",
+    "dokus": "Docs",
+    "logs": "Logs",
+    "statistics": "Statistics",
+    "totalUsers": "Total Users",
+    "totalAvatars": "Total Avatars",
+    "totalStories": "Total Stories",
+    "totalDokus": "Total Docs"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "networkError": "Network error. Please check your internet connection.",
+    "wishes": "Wishes",
+    "summary": "Summary",
+    "unauthorized": "Please sign in"
+  },
+  "titles": {
+    "avatars": "Who is in the story?",
+    "category": "What kind of story should it be?",
+    "ageLength": "For which age & how long?",
+    "feeling": "What feeling should the story have?",
+    "wishes": "Special wishes? (Optional)",
+    "summary": "All ready!"
+  },
+  "subtitles": {
+    "avatars": "Select 1-4 avatars to be part of the story.",
+    "category": "Choose a category - your avatars will be part of a unique story!",
+    "ageLength": "Adjust the story to the age and available time.",
+    "feeling": "Select 1-3 moods that should shape the story.",
+    "wishes": "Add special features or skip this step.",
+    "summary": "Check your selection and create the story."
+  },
+  "categories": {
+    "fairy_tales": {
+      "title": "Classic Fairy Tales",
+      "description": "Enchanted worlds, kings & princesses, magical creatures",
+      "examples": "Hansel & Gretel, Little Red Riding Hood, Bremen Town Musicians"
+    },
+    "adventure": {
+      "title": "Adventure & Treasures",
+      "description": "Exciting journeys, hidden treasures, brave heroes",
+      "examples": "Treasure Hunt, Secret Caves, Wild Expeditions"
+    },
+    "magic": {
+      "title": "Fairy Tale Worlds & Magic",
+      "description": "Spells, flying carpets, magical powers",
+      "examples": "Wizards, Fairies, Magical Objects"
+    },
+    "animals": {
+      "title": "Animal Worlds",
+      "description": "Talking animals, forest adventures, animal friendships",
+      "examples": "In the Forest, On the Farm, In the Wild"
+    },
+    "scifi": {
+      "title": "Sci-Fi & Future",
+      "description": "Spaceships, alien planets, futuristic worlds",
+      "examples": "Space Adventures, Robots, Time Travel"
+    },
+    "modern": {
+      "title": "Modern & Reality",
+      "description": "Daily life, school, family, real experiences",
+      "examples": "Here & Now, Realistic Stories"
+    }
+  },
+  "ageGroups": {
+    "3-5": {
+      "title": "3-5 Years",
+      "description": "Simple words, short sentences, many pictures"
+    },
+    "6-8": {
+      "title": "6-8 Years",
+      "description": "Exciting adventures, easy to follow"
+    },
+    "9-12": {
+      "title": "9-12 Years",
+      "description": "More complex plot, more details"
+    },
+    "13+": {
+      "title": "13+ Years",
+      "description": "Profound themes, demanding"
+    }
+  },
+  "lengths": {
+    "short": {
+      "title": "Short",
+      "duration": "5-10 Min",
+      "chapters": "3-4 Chapters"
+    },
+    "medium": {
+      "title": "Medium",
+      "duration": "10-15 Min",
+      "chapters": "5-6 Chapters"
+    },
+    "long": {
+      "title": "Long",
+      "duration": "15-25 Min",
+      "chapters": "7-9 Chapters"
+    }
+  },
+  "feelings": {
+    "funny": {
+      "title": "Funny",
+      "description": "Laughable, humorous, witty"
+    },
+    "warm": {
+      "title": "Heartwarming",
+      "description": "Warm, cozy, loving"
+    },
+    "exciting": {
+      "title": "Exciting",
+      "description": "Action, adventure, thrilling"
+    },
+    "crazy": {
+      "title": "Crazy",
+      "description": "Whimsical, imaginative, surprising"
+    },
+    "loading": {
+      "title": "Your story is being created!",
+      "subtitle": "This may take 2-3 minutes. Please do not close!"
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "category": "Category",
+      "age": "Age",
+      "length": "Length",
+      "feelings": "Feelings",
+      "extras": "Extras",
+      "ready": "Your unique story is being created now!"
+    }
+  },
+  "wizard": {
+    "titles": {
+      "avatars": "Who is in the story?",
+      "category": "What kind of story?",
+      "ageLength": "For which age & how long?",
+      "feeling": "What feeling should the story have?",
+      "wishes": "Special wishes? (Optional)",
+      "summary": "All ready!"
+    },
+    "subtitles": {
+      "avatars": "Select 1-4 avatars to be part of the story.",
+      "category": "Choose a category - your avatars will be part of a unique story!",
+      "ageLength": "Adjust the story to the age and available time.",
+      "feeling": "Select 1-3 moods that should shape the story.",
+      "wishes": "Add special features or skip this step.",
+      "summary": "Check your selection and create the story."
+    },
+    "buttons": {
+      "back": "Back",
+      "next": "Next",
+      "create": "Create",
+      "generate": "✨ Create Story! ✨"
+    },
+    "common": {
+      "examples": "EXAMPLES:",
+      "note": "💡 Note:",
+      "categoryNote": "Each category creates a completely new story specifically for your avatars!",
+      "wishesNote": "All wishes are optional. The AI will do its best to include your wishes!",
+      "summaryNote": "The AI creates a story based on your wishes. This takes about 60-90 seconds.",
+      "selected": "selected",
+      "notSelected": "Not selected",
+      "customWish": "💬 Custom wish (optional):",
+      "customWishPlaceholder": "e.g. 'The story should take place in space'",
+      "chars": "chars",
+      "createChildAvatar": "Create Child Avatar",
+      "childAvatar": "Child Avatar",
+      "sharedBy": "Shared by {{name}}"
+    },
+    "aiModel": {
+      "title": "AI Model",
+      "subtitle": "Choose the model for story generation.",
+      "recommended": "Recommended",
+      "models": {
+        "claude_sonnet": "Anthropic, strong prose",
+        "gemini3_pro": "Google AI",
+        "gemini31_pro": "Best children's book quality",
+        "gemini3_flash": "Fast & free",
+        "gpt54": "Best quality",
+        "gpt54_mini": "Strong & cheaper",
+        "minimax_m27": "MiniMax via Runware, fast",
+        "openrouter": "OpenRouter API key, many model families"
+      },
+      "openrouterModelLabel": "OpenRouter model",
+      "openrouterHint": "The backend uses the OpenRouter key from Railway. Existing models stay unchanged."
+    },
+    "credits": {
+      "title": "Story Coins",
+      "unlimited": "unlimited",
+      "remaining": "remaining",
+      "usedTotal": "used / total",
+      "costPerGen": "Each story costs {{count}} coin",
+      "notAvailable": "Not available right now",
+      "coin": "Coin"
+    },
+    "categories": {
+      "fairy_tales": {
+        "title": "Classic Fairy Tales",
+        "description": "Enchanted worlds, kings & princesses",
+        "examples": "Hansel & Gretel, Little Red Riding Hood"
+      },
+      "adventure": {
+        "title": "Adventure & Treasures",
+        "description": "Exciting journeys, hidden treasures",
+        "examples": "Treasure Hunt, Secret Caves"
+      },
+      "magic": {
+        "title": "Fairy Tale Worlds & Magic",
+        "description": "Spells, magical powers",
+        "examples": "Wizards, Fairies"
+      },
+      "animals": {
+        "title": "Animal Worlds",
+        "description": "Talking animals, animal friendships",
+        "examples": "In the Forest, On the Farm"
+      },
+      "scifi": {
+        "title": "Sci-Fi & Future",
+        "description": "Spaceships, alien planets",
+        "examples": "Space Adventures, Robots"
+      },
+      "modern": {
+        "title": "Modern & Reality",
+        "description": "Everyday life, school, family",
+        "examples": "Here & Now"
+      }
+    },
+    "ageGroups": {
+      "3-5": {
+        "title": "3-5 Years",
+        "description": "Short, simple stories"
+      },
+      "6-8": {
+        "title": "6-8 Years",
+        "description": "Exciting adventures"
+      },
+      "9-12": {
+        "title": "9-12 Years",
+        "description": "More complex plots"
+      },
+      "13+": {
+        "title": "13+ Years",
+        "description": "Profound stories"
+      }
+    },
+    "lengths": {
+      "short": {
+        "title": "Short",
+        "duration": "3-5 Min",
+        "chapters": "3 chapters"
+      },
+      "medium": {
+        "title": "Medium",
+        "duration": "8-12 Min",
+        "chapters": "5 chapters"
+      },
+      "long": {
+        "title": "Long",
+        "duration": "15-20 Min",
+        "chapters": "7 chapters"
+      }
+    },
+    "feelings": {
+      "funny": {
+        "title": "Funny",
+        "description": "Laugh out loud"
+      },
+      "warm": {
+        "title": "Heartwarming",
+        "description": "Loving moments"
+      },
+      "exciting": {
+        "title": "Exciting",
+        "description": "Thrilling action"
+      },
+      "crazy": {
+        "title": "Crazy",
+        "description": "Wild surprises"
+      },
+      "meaningful": {
+        "title": "Meaningful",
+        "description": "With important message"
+      }
+    },
+    "summary": {
+      "avatars": "Avatars",
+      "age": "Age",
+      "category": "Category",
+      "length": "Length",
+      "feelings": "Feelings",
+      "wishes": "Wishes",
+      "ready": "Your story will be created now!"
+    },
+    "wishes": {
+      "rhymes": {
+        "title": "Rhymes & Verses",
+        "description": "The story is told in rhymes"
+      },
+      "moral": {
+        "title": "Moral & Values",
+        "description": "The story conveys an important lesson"
+      },
+      "avatarIsHero": {
+        "title": "Avatar is Hero",
+        "description": "Your avatar plays the main role"
+      },
+      "famousCharacters": {
+        "title": "Famous Characters",
+        "description": "Meet characters from famous fairy tales"
+      },
+      "happyEnd": {
+        "title": "Happy End",
+        "description": "The story ends well"
+      },
+      "surpriseEnd": {
+        "title": "Surprise Ending",
+        "description": "An unexpected ending"
+      }
+    },
+    "steps": {
+      "avatars": "Avatars",
+      "category": "Category",
+      "ageLength": "Age & Length",
+      "feeling": "Feelings",
+      "wishes": "Wishes",
+      "summary": "Summary"
+    },
+    "loading": {
+      "title": "Your story is being written...",
+      "subtitle": "Please wait a moment"
+    }
+  },
+  "fairytales": {
+    "loading": "Loading fairy tales...",
+    "loadError": "Error loading fairy tales. Please try again.",
+    "selectionTitle": "Choose a Fairy Tale",
+    "selectionSubtitle": "Personalize classic stories with your avatars",
+    "ageYears": "{{age}}+ years"
+  },
+  "homeScreen": {
+    "loadingTitle": "Talea is rearranging the home screen",
+    "loadingSubtitle": "Stories, heroes and docs are being sorted into their new sections.",
+    "greeting": {
+      "morning": "Good morning",
+      "day": "Good day",
+      "evening": "Good evening"
+    },
+    "defaultUser": "Explorer",
+    "statsStories": "Stories",
+    "statsAvatars": "Avatars",
+    "statsDokus": "Docs",
+    "newStory": "New story",
+    "library": "Library",
+    "knowledgeJourney": "Knowledge journey",
+    "yourStories": "Your stories",
+    "yourStoriesEyebrow": "Continue reading",
+    "yourStoriesSubtitle": "The most important adventures are ready right away.",
+    "allStories": "All stories",
+    "yourAvatars": "Avatars",
+    "yourAvatarsEyebrow": "Your characters",
+    "yourAvatarsSubtitle": "All heroes, companions and child profiles in one place.",
+    "allAvatars": "All avatars",
+    "yourDokus": "Doc highlights",
+    "yourDokusEyebrow": "Knowledge world",
+    "yourDokusSubtitle": "Discover new topics, keep reading and switch directly to audio.",
+    "allDokus": "All docs",
+    "noStoriesTitle": "Your first story will appear here",
+    "noStoriesDesc": "Once a story is created, you can open it directly here.",
+    "createFirstStory": "Create first story",
+    "noAvatarsTitle": "The first hero can open the new card style",
+    "noAvatarsDesc": "Create an avatar so Home becomes a real character gallery.",
+    "createAvatar": "Create avatar",
+    "noDokusTitle": "A small knowledge library is growing here soon",
+    "noDokusDesc": "Once the first doc is created, it will appear with the same card logic as stories.",
+    "createFirstDoku": "Create first doc",
+    "status": {
+      "complete": "Done",
+      "generating": "In progress",
+      "error": "Error"
+    },
+    "noSummary": "No summary available yet.",
+    "offlineSave": "Save offline",
+    "offlineRemove": "Remove offline storage",
+    "deleteStory": "Delete story",
+    "deleteDoku": "Delete doc",
+    "deleteAvatar": "Delete avatar",
+    "signedOutTitle": "Stories, characters and knowledge in one place.",
+    "signedOutSubtitle": "Discover new stories, switch between avatars and start docs or audio without detours.",
+    "signedOutCta": "Family access",
+    "signedOutCtaSecondary": "Discover stories",
+    "featureContinue": "Continue listening",
+    "featureContinueDesc": "Stories and audio stay accessible and can be continued directly.",
+    "featureWorld": "Your own world",
+    "featureWorldDesc": "Avatars, stories and docs are in a shared family library.",
+    "featureForKids": "Made for children",
+    "featureForKidsDesc": "Large cards, clear paths and calm motion make the app easier to use.",
+    "childProfileLabel": "Child profile",
+    "aiFigureLabel": "AI character",
+    "photoFigureLabel": "Photo character",
+    "newHero": "New hero",
+    "adventureBegins": "The adventure begins",
+    "discoverWorld": "DISCOVER YOUR WORLD",
+    "featureStreams": "Story streams with participants",
+    "featureAvatarAccess": "Quick access to avatars",
+    "featureDokuStyle": "Docs in the same style"
+  },
+  "avatarScreen": {
+    "title": "Avatars",
+    "chipLabel": "Avatars",
+    "searchPlaceholder": "Search avatars...",
+    "metricTotal": "Total",
+    "metricVisible": "Visible",
+    "metricShared": "Shared",
+    "metricOwn": "Own",
+    "metricChild": "Child",
+    "childAvatarMissing": "Child avatar missing",
+    "childAvatarReady": "Ready",
+    "createChildAvatar": "Child avatar",
+    "createChildAvatarEmpty": "Create child avatar",
+    "childAvatarMissingTitle": "Child avatar missing",
+    "childAvatarMissingDesc": "First create the fixed child avatar. Then you can create any additional avatars for stories.",
+    "noResults": "No results",
+    "noResultsDesc": "No avatar matches \"{{query}}\".",
+    "sharedLabel": "Shared",
+    "sharedByLabel": "Shared by {{name}}",
+    "noDescriptionLabel": "Avatar without description",
+    "childLabel": "Child",
+    "editLabel": "Edit {{name}}",
+    "deleteLabel": "Delete {{name}}",
+    "cannotDeleteShared": "Shared avatars cannot be deleted."
+  },
+  "storiesScreen": {
+    "loadingTitle": "The library is sorting its stories",
+    "loadingSubtitle": "One moment, the story shelves are being sorted and filters prepared.",
+    "status": {
+      "complete": "Done",
+      "generating": "In progress",
+      "error": "Error"
+    },
+    "genre": {
+      "fairy_tales": "Fairy tales",
+      "adventure": "Adventure",
+      "magic": "Magic",
+      "animals": "Animals",
+      "scifi": "Sci-Fi",
+      "modern": "Modern",
+      "unknown": "Unknown"
+    },
+    "length": {
+      "short": "Short",
+      "medium": "Medium",
+      "long": "Long",
+      "unknown": "Unknown"
+    },
+    "noSummary": "No summary available yet.",
+    "filterAll": "All {{label}}",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "sortTitle": "Title (A–Z)",
+    "filterGenre": "Genre",
+    "filterAge": "Age group",
+    "filterLength": "Length",
+    "filterAvatar": "Avatar",
+    "viewGrid": "Grid view",
+    "viewList": "List view",
+    "noStories": "No stories yet",
+    "noStoriesDesc": "Create your first story and experience magical adventures!",
+    "createFirstStory": "Create first story",
+    "noFilterResults": "No results",
+    "noFilterResultsDesc": "Change the filters to find stories.",
+    "readStory": "Read story",
+    "deleteStory": "Delete story",
+    "downloadPdf": "Download as PDF",
+    "offlineSave": "Save offline",
+    "offlineRemove": "Remove offline",
+    "studioTab": "Studio",
+    "storiesTab": "Stories"
+  },
+  "landing": {
+    "nav": {
+      "start": "Get Started"
+    },
+    "hero": {
+      "tagline": "Magical stories for your child",
+      "page1": "Once upon a time...",
+      "page2": "...a child full of dreams.",
+      "page3": "Your journey begins here.",
+      "coverTitle": "Your Story",
+      "scrollHint": "Scroll to Open"
+    },
+    "features": {
+      "title": "Discover the World of Talea",
+      "stories": {
+        "title": "Personalized Stories",
+        "subtitle": "The Story Forest",
+        "description": "Your child becomes the main character in magical fairy tales and adventures."
+      },
+      "avatars": {
+        "title": "Unique Avatars",
+        "subtitle": "The Avatar Workshop",
+        "description": "Create a digital twin of your child."
+      },
+      "learning": {
+        "title": "Learning Through Play",
+        "subtitle": "The Mountains of Knowledge",
+        "description": "Educational content wrapped in exciting stories."
+      },
+      "memory": {
+        "title": "Growing Memory",
+        "subtitle": "The Memory Tree",
+        "description": "Talea remembers everything and builds on previous adventures."
+      },
+      "values": {
+        "title": "Conveying Values",
+        "subtitle": "The Values Garden",
+        "description": "Friendship, courage and compassion – embedded in stories for children."
+      },
+      "parents": {
+        "title": "Full Control",
+        "subtitle": "The Parents Lounge",
+        "description": "You determine topics, length and content. 100% child-safe."
+      }
+    },
+    "pricing": {
+      "title": "Choose Your Plan",
+      "popular": "Popular",
+      "starter": {
+        "name": "Starter",
+        "price": "Free",
+        "features": [
+          "3 stories per month",
+          "1 Avatar",
+          "Standard quality"
+        ],
+        "cta": "Start Free"
+      },
+      "family": {
+        "name": "Family",
+        "price": "€9.99",
+        "period": "/month",
+        "features": [
+          "Unlimited stories",
+          "5 Avatars",
+          "HD quality",
+          "Memory function",
+          "Ad-free"
+        ],
+        "cta": "Get Started"
+      },
+      "premium": {
+        "name": "Premium",
+        "price": "€19.99",
+        "period": "/month",
+        "features": [
+          "Everything in Family",
+          "Unlimited Avatars",
+          "4K quality",
+          "Priority support",
+          "Early access to features"
+        ],
+        "cta": "Choose Premium"
+      }
+    },
+    "footer": {
+      "copyright": "Magical Stories for Children © 2025",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "contact": "Contact"
+    }
+  }
+}
