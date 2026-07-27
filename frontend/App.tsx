@@ -22,6 +22,7 @@ import { getLastOfflineScope } from './utils/offlineDb';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
+import { useWelcomeTour } from './hooks/useWelcomeTour';
 
 const HomeScreen = React.lazy(() => import('./screens/Home/TaleaHomeScreen'));
 const ModernHomeScreen = React.lazy(() => import('./screens/Home/ModernHomeScreen'));
@@ -57,6 +58,7 @@ const AdminDashboard = React.lazy(() => import('./screens/Admin/AdminDashboard')
 const OfflineContentScreen = React.lazy(() => import('./screens/Offline/OfflineContentScreen'));
 const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
 const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
+const WelcomeTour = React.lazy(() => import('./screens/Onboarding/WelcomeTour'));
 
 // Reactive online/offline detection.
 // navigator.onLine is unreliable (returns true when connected to a local network
@@ -209,6 +211,21 @@ const RouterContent = () => {
     (!isSignedIn && location.pathname === '/');
   const isCosmosFullscreenRoute = location.pathname.startsWith('/cosmos');
 
+  // The feature guide waits until the parental setup is out of the way, so the
+  // two never stack. Readers stay uninterrupted — nobody wants a tour opening
+  // over a story their child is in the middle of.
+  const welcomeTour = useWelcomeTour();
+  const isReaderRoute =
+    location.pathname.includes('-reader') || location.pathname.startsWith('/character-life-story');
+  const showWelcomeTour =
+    isSignedIn &&
+    !userAccess.isLoading &&
+    userAccess.parentalOnboardingCompleted === true &&
+    welcomeTour.hasCompleted === false &&
+    !isLandingRoute &&
+    !isCosmosFullscreenRoute &&
+    !isReaderRoute;
+
   if (!isLoaded && !clerkTimedOut) {
     return null;
   }
@@ -277,6 +294,11 @@ const RouterContent = () => {
         </Routes>
       </React.Suspense>
       {isSignedIn && !isLandingRoute && !isCosmosFullscreenRoute && <TaviButton showLauncher={false} />}
+      {showWelcomeTour && (
+        <React.Suspense fallback={null}>
+          <WelcomeTour onFinish={welcomeTour.markCompleted} onDismiss={welcomeTour.close} />
+        </React.Suspense>
+      )}
       <Toaster
         position="top-right"
         richColors

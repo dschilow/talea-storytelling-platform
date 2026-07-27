@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Headphones, Plus, Settings, Star, Users } from "lucide-react";
+import { Compass, Headphones, Plus, Settings, Star, Users } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useBackend } from "@/hooks/useBackend";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
+import { useWelcomeTour } from "@/hooks/useWelcomeTour";
 
 /**
  * ProfileMenuButton
@@ -78,6 +79,7 @@ const ProfileMenuButton: React.FC = () => {
   const { isLoading, profiles, profileLimit, activeProfileId, activeProfile, setActiveProfileId } =
     useChildProfiles();
   const { playlist, togglePlaylistDrawer } = useAudioPlayer();
+  const { reset: restartWelcomeTour } = useWelcomeTour();
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -279,6 +281,27 @@ const ProfileMenuButton: React.FC = () => {
                 <Settings className="h-4 w-4" />
               </span>
               <span className="text-sm font-semibold">Einstellungen</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                restartWelcomeTour();
+              }}
+              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
+              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
+            >
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
+                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
+                }}
+              >
+                <Compass className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-semibold">Rundgang starten</span>
             </button>
 
             <button
