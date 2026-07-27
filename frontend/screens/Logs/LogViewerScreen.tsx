@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Calendar, Code, Clock, Zap, Activity, Filter, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -9,7 +9,7 @@ import FadeInView from '../../components/animated/FadeInView';
 import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows } from '../../utils/constants/spacing';
-import { getBackendUrl } from '../../config';
+import { useBackend } from '../../hooks/useBackend';
 
 interface LogEntry {
   id: string;
@@ -24,7 +24,7 @@ interface LogEntry {
     | 'dev-mode-generation'
     | 'dev-mode-generation-stage'
     | string;
-  timestamp: string;
+  timestamp: string | Date;
   request: any;
   response: any;
   metadata?: any;
@@ -49,50 +49,68 @@ interface DevModeStageSummary {
 interface LogSource {
   name: string;
   count: number;
-  lastActivity: string | null;
+  lastActivity: string | Date | null;
 }
 
 const LogViewerScreen: React.FC = () => {
   const navigate = useNavigate();
+  const backend = useBackend();
+  const { isLoaded, isSignedIn } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [sources, setSources] = useState<LogSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>('');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
+    // Wait for Clerk before calling: /log/* are auth:true + admin-only, so firing
+    // early guarantees a 401 whose body has no `logs`/`sources` field.
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      setLogs([]);
+      setSources([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     loadData();
-  }, [selectedSource, selectedDate]);
+  }, [isLoaded, isSignedIn, selectedSource, selectedDate]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
 
-      // Use the same backend URL as other API calls
-      const { getBackendUrl } = await import('../../config');
-      const baseUrl = getBackendUrl();
-      
+      // Use the authenticated client — a bare fetch() sends no Clerk token.
       const [logsResponse, sourcesResponse] = await Promise.all([
-        fetch(`${baseUrl}/log/list?${new URLSearchParams({
-          ...(selectedSource && { source: selectedSource }),
-          ...(selectedDate && { date: selectedDate }),
-          limit: '50'
-        }).toString()}`).then(r => r.json()),
-        fetch(`${baseUrl}/log/getSources`).then(r => r.json())
+        backend.log.list({
+          ...(selectedSource ? { source: selectedSource } : {}),
+          ...(selectedDate ? { date: selectedDate } : {}),
+          limit: 50,
+        }),
+        backend.log.getSources(),
       ]);
 
-      setLogs(logsResponse.logs as any);
-      setSources(sourcesResponse.sources as any);
+      // Never trust the payload shape: an error body would otherwise put `undefined`
+      // into state and crash the render on .map().
+      setLogs(Array.isArray(logsResponse?.logs) ? (logsResponse.logs as LogEntry[]) : []);
+      setSources(Array.isArray(sourcesResponse?.sources) ? (sourcesResponse.sources as LogSource[]) : []);
     } catch (error) {
       console.error('Error loading logs:', error);
+      setLogs([]);
+      setSources([]);
+      setLoadError(
+        error instanceof Error ? error.message : 'Logs konnten nicht geladen werden.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string | Date) => {
     return new Date(timestamp).toLocaleString('de-DE', {
       day: '2-digit',
       month: '2-digit',
@@ -453,6 +471,19 @@ const LogViewerScreen: React.FC = () => {
         </SignedOut>
 
         <SignedIn>
+          {loadError && (
+            <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px`, textAlign: 'center' }}>
+              <div style={{ fontSize: '40px', marginBottom: `${spacing.sm}px` }}>⚠️</div>
+              <div style={{ ...typography.textStyles.headingMd, color: colors.text.primary, marginBottom: `${spacing.sm}px` }}>
+                Logs konnten nicht geladen werden
+              </div>
+              <div style={{ ...typography.textStyles.body, color: colors.text.secondary, marginBottom: `${spacing.lg}px` }}>
+                {loadError}
+              </div>
+              <Button title="Erneut versuchen" onPress={() => loadData()} variant="outline" />
+            </Card>
+          )}
+
           {/* Source Statistics */}
           <FadeInView delay={100}>
             <Card variant="glass" style={{ marginBottom: `${spacing.xl}px`, padding: `${spacing.xl}px` }}>

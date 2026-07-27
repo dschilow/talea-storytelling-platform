@@ -429,6 +429,94 @@ const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) 
   </div>
 );
 
+// Shown when a screen crashes for reasons that have nothing to do with auth.
+// Kept visually distinct from AuthUnavailableScreen so a component bug is never
+// misread as "you are logged out" / "auth is down".
+const AppCrashScreen: React.FC<{ message?: string; onRetry?: () => void }> = ({ message, onRetry }) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100vh',
+    background: colors.gradients.background,
+    padding: '2rem',
+    textAlign: 'center',
+    fontFamily: '"Nunito", system-ui, sans-serif',
+  }}>
+    <div style={{
+      maxWidth: '640px',
+      padding: '2.5rem',
+      borderRadius: '24px',
+      background: colors.glass.backgroundAlt,
+      border: `2px solid ${colors.border.light}`,
+      boxShadow: '0 20px 60px rgba(44, 57, 75, 0.12)',
+    }}>
+      <div style={{ fontSize: '56px', marginBottom: '1.25rem' }}>😵</div>
+      <h1 style={{
+        fontSize: '28px',
+        fontWeight: '700',
+        color: colors.text.primary,
+        marginBottom: '1rem',
+        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
+      }}>
+        Diese Seite ist abgestuerzt
+      </h1>
+      <p style={{ color: colors.text.secondary, marginBottom: '1rem', fontSize: '16px', lineHeight: 1.6 }}>
+        Du bist weiterhin angemeldet und online — in dieser Ansicht ist ein Fehler aufgetreten.
+      </p>
+      {message && (
+        <pre style={{
+          color: colors.text.secondary,
+          background: 'rgba(107, 112, 136, 0.12)',
+          borderRadius: '12px',
+          padding: '0.75rem 1rem',
+          marginBottom: '1.75rem',
+          fontSize: '13px',
+          textAlign: 'left',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          maxHeight: '160px',
+          overflow: 'auto',
+        }}>
+          {message}
+        </pre>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={onRetry ?? (() => window.location.reload())}
+          style={{
+            border: 'none',
+            borderRadius: '999px',
+            padding: '0.9rem 1.35rem',
+            background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-sky))',
+            color: '#fff',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Erneut laden
+        </button>
+        <button
+          type="button"
+          onClick={() => { window.location.href = '/'; }}
+          style={{
+            border: `2px solid ${colors.border.light}`,
+            borderRadius: '999px',
+            padding: '0.9rem 1.35rem',
+            background: 'transparent',
+            color: colors.text.primary,
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Zur Startseite
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 // Offline app shell: renders without real Clerk when browser is offline
 // OfflineClerkProvider mocks Clerk's internal contexts (useAuth, useUser etc.)
 // OfflineThemeProvider uses localStorage only (no backend API)
@@ -494,24 +582,39 @@ function reloadForStaleChunks(): boolean {
   return true;
 }
 
-// Error boundary that catches Clerk load failures and falls back to offline mode
+// Distinguishes a genuine Clerk/auth bootstrap failure from any other render crash.
+// Only the former may claim "authentication unavailable" — otherwise an ordinary
+// component bug (e.g. a screen calling .map on an undefined API payload) gets
+// reported to the user as an auth outage and the real defect stays invisible.
+function isClerkFailure(error: unknown): boolean {
+  const msg = String(
+    (error as { message?: string })?.message ?? error ?? ''
+  ).toLowerCase();
+  return msg.includes('clerk') || msg.includes('publishablekey');
+}
+
+// Error boundary that catches Clerk load failures and falls back to offline mode.
+// Non-auth render errors get their own, honestly-labelled crash screen.
 class ClerkErrorBoundary extends React.Component<
   { children: React.ReactNode; fallback: React.ReactNode },
-  { hasError: boolean }
+  { kind: 'none' | 'auth' | 'crash'; message?: string }
 > {
   constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { kind: 'none' };
   }
 
   static getDerivedStateFromError(error: Error) {
     // A failed lazy chunk is a stale-build problem, not an auth failure. Don't flip
-    // into the error state (which shows AuthUnavailableScreen) — reloadForStaleChunks
+    // into an error state (which shows AuthUnavailableScreen) — reloadForStaleChunks
     // in componentDidCatch handles recovery via a single hard reload.
     if (isChunkLoadError(error)) {
-      return { hasError: false };
+      return { kind: 'none' as const };
     }
-    return { hasError: true };
+    if (isClerkFailure(error)) {
+      return { kind: 'auth' as const };
+    }
+    return { kind: 'crash' as const, message: error?.message };
   }
 
   componentDidCatch(error: Error) {
@@ -519,13 +622,25 @@ class ClerkErrorBoundary extends React.Component<
       reloadForStaleChunks();
       return;
     }
-    // Log but don't crash - we'll show the offline fallback
-    console.warn('[Talea] Clerk failed to load, switching to offline mode:', error.message);
+    if (isClerkFailure(error)) {
+      // Log but don't crash - we'll show the offline fallback
+      console.warn('[Talea] Clerk failed to load, switching to offline mode:', error.message);
+      return;
+    }
+    console.error('[Talea] Render error (not an auth problem):', error);
   }
 
   render() {
-    if (this.state.hasError) {
+    if (this.state.kind === 'auth') {
       return this.props.fallback;
+    }
+    if (this.state.kind === 'crash') {
+      return (
+        <AppCrashScreen
+          message={this.state.message}
+          onRetry={() => window.location.reload()}
+        />
+      );
     }
     return this.props.children;
   }
