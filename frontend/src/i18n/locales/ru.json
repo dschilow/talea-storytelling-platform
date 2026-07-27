@@ -4,7 +4,6 @@
     "close": "Закрыть",
     "back": "Назад",
     "appName": "Talea",
-    "loading": "Загрузка...",
     "error": "Ошибка",
     "success": "Успешно",
     "save": "Сохранить",
@@ -12,10 +11,8 @@
     "delete": "Удалить",
     "edit": "Редактировать",
     "create": "Создать",
-    "back": "Назад",
     "next": "Далее",
     "finish": "Завершить",
-    "close": "Закрыть",
     "confirm": "Подтвердить",
     "search": "Поиск",
     "filter": "Фильтр",
@@ -341,8 +338,7 @@
     "audioDokusSubtitle": "Слушай документы в аудио-формате",
     "noAudioDokus": "Аудио-документов пока нет",
     "audioPlay": "Слушать",
-    
-        "audioLoading": "Generating audio...",
+    "audioLoading": "Generating audio...",
     "audioCreateButton": "Create Audio Doc",
     "audioCreate": {
       "title": "Create Audio Doc",
@@ -352,13 +348,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-        "coverLabel": "Cover description",
-        "coverPlaceholder": "Describe the cover image you want...",
-        "generateCover": "Generate cover",
-        "generatingCover": "Generating cover...",
-        "coverReady": "Cover ready",
-        "descriptionLabel": "Audio doc description",
-        "descriptionPlaceholder": "This description will appear next to the player",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "generateCover": "Generate cover",
+      "generatingCover": "Generating cover...",
+      "coverReady": "Cover ready",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -367,14 +363,15 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-        "errors": {
-          "missingAudio": "Please upload an audio file.",
-          "missingCover": "Please describe the cover.",
-          "missingDescription": "Please add a description.",
-          "coverFailed": "Cover generation failed. Please try again.",
-          "uploadFailed": "Upload failed. Please try again."
-        }
-    },"createNew": "Новый Документ",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "coverFailed": "Cover generation failed. Please try again.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
+    "createNew": "Новый Документ",
     "create": "Создать документ",
     "generating": "Генерация документа...",
     "topic": "Тема",
@@ -536,7 +533,8 @@
       "ageLength": "Для какого возраста и длины?",
       "feeling": "Какое настроение?",
       "wishes": "Особые пожелания? (Опционально)",
-      "summary": "Все готово!"
+      "summary": "Все готово!",
+      "learning": "Должна ли история чему-то научить?"
     },
     "subtitles": {
       "avatars": "Выберите 1-4 аватаров для истории.",
@@ -544,7 +542,8 @@
       "ageLength": "Настройте историю под возраст и доступное время.",
       "feeling": "Выберите 1-3 настроения.",
       "wishes": "Добавьте особые функции или пропустите этот шаг.",
-      "summary": "Проверьте выбор и создайте историю."
+      "summary": "Проверьте выбор и создайте историю.",
+      "learning": "По желанию — это прежде всего история."
     },
     "buttons": {
       "back": "Назад",
@@ -560,6 +559,8 @@
       "summaryNote": "ИИ создает историю на основе ваших пожеланий. Это займет 60-90 секунд.",
       "selected": "выбрано",
       "notSelected": "Не выбрано",
+      "avatarSingular": "аватар",
+      "avatarMaxReached": "это максимум",
       "customWish": "💬 Свое пожелание (опционально):",
       "customWishPlaceholder": "Например: 'История должна происходить в космосе'",
       "chars": "символов"
@@ -694,11 +695,61 @@
       "ageLength": "Возраст и Длина",
       "feeling": "Чувства",
       "wishes": "Пожелания",
-      "summary": "Итог"
+      "summary": "Итог",
+      "learning": "Обучение"
     },
     "loading": {
       "title": "Ваша история пишется...",
       "subtitle": "Пожалуйста, подождите"
+    },
+    "learning": {
+      "toggleTitle": "Включить режим обучения",
+      "toggleDescription": "Знания вплетаются в сюжет, а не добавляются в конце.",
+      "subjectsTitle": "Какие предметы?",
+      "subjectsHint": "Выбери хотя бы один предмет.",
+      "difficultyTitle": "Насколько глубоко?",
+      "assessmentTitle": "Как учиться?",
+      "objectivesTitle": "Твои учебные цели",
+      "objectivesHint": "До 3 конкретных целей (по желанию).",
+      "objectivePlaceholder": "напр. понять дроби",
+      "addObjective": "Добавить цель",
+      "removeObjective": "Убрать цель",
+      "subjects": {
+        "math": "Математика",
+        "science": "Естественные науки",
+        "language": "Язык",
+        "history": "История",
+        "geography": "География",
+        "social": "Социальное обучение"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "Первые шаги",
+          "description": "Освоить основы"
+        },
+        "intermediate": {
+          "title": "Углубиться",
+          "description": "Связать знания"
+        },
+        "advanced": {
+          "title": "Испытать себя",
+          "description": "Сложные понятия"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "В приключении",
+          "description": "Герои пробуют сами"
+        },
+        "quiz": {
+          "title": "С викториной",
+          "description": "Несколько вопросов в конце"
+        },
+        "discussion": {
+          "title": "Для разговора",
+          "description": "Открытый вопрос в конце"
+        }
+      }
     }
   },
   "landing": {
@@ -794,6 +845,3 @@
     }
   }
 }
-
-
-

@@ -1,10 +1,9 @@
 {
   "common": {
-    "loading": "Bezig met laden...",
+    "loading": "Laden...",
     "close": "Sluiten",
     "back": "Terug",
     "appName": "Talea",
-    "loading": "Laden...",
     "error": "Fout",
     "success": "Succes",
     "save": "Opslaan",
@@ -12,10 +11,8 @@
     "delete": "Verwijderen",
     "edit": "Bewerken",
     "create": "Aanmaken",
-    "back": "Terug",
     "next": "Volgende",
     "finish": "Voltooien",
-    "close": "Sluiten",
     "confirm": "Bevestigen",
     "search": "Zoeken",
     "filter": "Filteren",
@@ -341,8 +338,7 @@
     "audioDokusSubtitle": "Luister naar documenten als audio",
     "noAudioDokus": "Nog geen audio-documenten beschikbaar",
     "audioPlay": "Afspelen",
-    
-        "audioLoading": "Generating audio...",
+    "audioLoading": "Generating audio...",
     "audioCreateButton": "Create Audio Doc",
     "audioCreate": {
       "title": "Create Audio Doc",
@@ -352,13 +348,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-        "coverLabel": "Cover description",
-        "coverPlaceholder": "Describe the cover image you want...",
-        "generateCover": "Generate cover",
-        "generatingCover": "Generating cover...",
-        "coverReady": "Cover ready",
-        "descriptionLabel": "Audio doc description",
-        "descriptionPlaceholder": "This description will appear next to the player",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "generateCover": "Generate cover",
+      "generatingCover": "Generating cover...",
+      "coverReady": "Cover ready",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -367,14 +363,15 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-        "errors": {
-          "missingAudio": "Please upload an audio file.",
-          "missingCover": "Please describe the cover.",
-          "missingDescription": "Please add a description.",
-          "coverFailed": "Cover generation failed. Please try again.",
-          "uploadFailed": "Upload failed. Please try again."
-        }
-    },"createNew": "Nieuw Document",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "coverFailed": "Cover generation failed. Please try again.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
+    "createNew": "Nieuw Document",
     "create": "Document aanmaken",
     "generating": "Document genereren...",
     "topic": "Onderwerp",
@@ -493,7 +490,8 @@
       "ageLength": "Voor welke leeftijd en duur?",
       "feeling": "Welk gevoel?",
       "wishes": "Speciale wensen? (Optioneel)",
-      "summary": "Alles klaar!"
+      "summary": "Alles klaar!",
+      "learning": "Moet het verhaal iets leren?"
     },
     "subtitles": {
       "avatars": "Selecteer 1-4 avatars voor het verhaal.",
@@ -501,7 +499,8 @@
       "ageLength": "Pas het verhaal aan de leeftijd en beschikbare tijd aan.",
       "feeling": "Selecteer 1-3 stemmingen.",
       "wishes": "Voeg speciale kenmerken toe of sla deze stap over.",
-      "summary": "Controleer je selectie en maak het verhaal."
+      "summary": "Controleer je selectie en maak het verhaal.",
+      "learning": "Optioneel — het blijft vooral een verhaal."
     },
     "buttons": {
       "back": "Terug",
@@ -517,6 +516,8 @@
       "summaryNote": "De AI maakt een verhaal op basis van je wensen. Dit duurt 60-90 seconden.",
       "selected": "geselecteerd",
       "notSelected": "Niet geselecteerd",
+      "avatarSingular": "avatar",
+      "avatarMaxReached": "dat is het maximum",
       "customWish": "ðŸ’¬ Aangepaste wens (optioneel):",
       "customWishPlaceholder": "bijv. 'Het verhaal moet in de ruimte spelen'",
       "chars": "tekens"
@@ -651,11 +652,61 @@
       "ageLength": "Leeftijd en Duur",
       "feeling": "Gevoelens",
       "wishes": "Wensen",
-      "summary": "Samenvatting"
+      "summary": "Samenvatting",
+      "learning": "Leren"
     },
     "loading": {
       "title": "Je verhaal wordt geschreven...",
       "subtitle": "Even geduld"
+    },
+    "learning": {
+      "toggleTitle": "Leermodus aanzetten",
+      "toggleDescription": "Kennis wordt in het verhaal geweven, niet erachter geplakt.",
+      "subjectsTitle": "Welke vakken?",
+      "subjectsHint": "Kies minstens één vak.",
+      "difficultyTitle": "Hoe diep?",
+      "assessmentTitle": "Hoe wordt er geleerd?",
+      "objectivesTitle": "Jouw leerdoelen",
+      "objectivesHint": "Maximaal 3 concrete doelen (optioneel).",
+      "objectivePlaceholder": "bijv. breuken begrijpen",
+      "addObjective": "Doel toevoegen",
+      "removeObjective": "Doel verwijderen",
+      "subjects": {
+        "math": "Wiskunde",
+        "science": "Natuurwetenschappen",
+        "language": "Taal",
+        "history": "Geschiedenis",
+        "geography": "Aardrijkskunde",
+        "social": "Sociaal leren"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "Eerste stappen",
+          "description": "De basis leren"
+        },
+        "intermediate": {
+          "title": "Verdiepen",
+          "description": "Kennis verbinden"
+        },
+        "advanced": {
+          "title": "Uitdagen",
+          "description": "Complexe concepten"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "In het avontuur",
+          "description": "De personages proberen het"
+        },
+        "quiz": {
+          "title": "Met een quiz",
+          "description": "Een paar vragen aan het eind"
+        },
+        "discussion": {
+          "title": "Om over te praten",
+          "description": "Een open vraag aan het eind"
+        }
+      }
     }
   },
   "landing": {
@@ -751,6 +802,3 @@
     }
   }
 }
-
-
-

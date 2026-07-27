@@ -166,7 +166,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <p className={`text-sm font-medium ${darkMode ? 'text-white/50' : 'text-gray-600'}`}>
+        <p className={`text-sm font-medium text-[var(--talea-text-secondary)]`}>
           Optional: Foto hochladen oder aufnehmen
         </p>
       </div>
@@ -180,9 +180,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             whileTap={{ scale: 0.98 }}
             onClick={() => fileInputRef.current?.click()}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
-              darkMode
-                ? 'bg-white/[0.08] text-[#A989F2] border border-white/10 hover:bg-white/[0.12]'
-                : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+              'border border-[var(--talea-border-light)] bg-[var(--primary)]/12 text-[var(--primary)] hover:bg-[var(--primary)]/20'
             }`}
           >
             <Upload className="w-5 h-5" />
@@ -195,9 +193,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             whileTap={{ scale: 0.98 }}
             onClick={startCamera}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
-              darkMode
-                ? 'bg-white/[0.08] text-[#FF6B9D] border border-white/10 hover:bg-white/[0.12]'
-                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+              'border border-[var(--talea-border-light)] bg-[var(--talea-accent-peach)]/30 text-[var(--talea-text-primary)] hover:bg-[var(--talea-accent-peach)]/45'
             }`}
           >
             <Camera className="w-5 h-5" />
@@ -241,7 +237,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 whileTap={{ scale: 0.98 }}
                 onClick={capturePhoto}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-semibold"
-                style={{ background: 'linear-gradient(135deg, #A989F2, #FF6B9D)' }}
+                style={{ background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-rose))' }}
               >
                 <Camera className="w-5 h-5" />
                 <span>Foto aufnehmen</span>
@@ -252,9 +248,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
                 whileTap={{ scale: 0.98 }}
                 onClick={stopCamera}
                 className={`px-4 py-3 rounded-xl transition-colors ${
-                  darkMode
-                    ? 'bg-white/10 text-white/70 hover:bg-white/15'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  'bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-primary)]'
                 }`}
               >
                 <X className="w-5 h-5" />
@@ -273,9 +267,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             exit={{ opacity: 0, scale: 0.9 }}
             className="relative"
           >
-            <div className={`relative rounded-2xl overflow-hidden border-4 ${
-              darkMode ? 'border-white/10 bg-white/[0.04]' : 'border-amber-200 bg-white'
-            }`}>
+            <div className={`relative rounded-2xl overflow-hidden border-4 border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)]`}>
               <img
                 src={currentImage}
                 alt="Referenzbild"
@@ -294,14 +286,12 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
               </div>
             </div>
             <div className={`mt-2 flex items-center gap-2 text-xs rounded-lg p-2 ${
-              darkMode
-                ? 'text-white/40 bg-white/[0.04]'
-                : 'text-gray-500 bg-amber-50'
+              'bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)]'
             }`}>
-              <ImageIcon className={`w-4 h-4 ${darkMode ? 'text-[#A989F2]' : 'text-amber-500'}`} />
+              <ImageIcon className={`w-4 h-4 text-[var(--primary)]`} />
               <div className="flex-1">
                 <div>Dieses Foto wird als Referenz fuer die AI-Bildgenerierung verwendet</div>
-                <div className={`font-medium mt-0.5 ${darkMode ? 'text-[#2DD4BF]' : 'text-amber-600'}`}>
+                <div className={`font-medium mt-0.5 text-[var(--primary)]`}>
                   Optimiert: max. 1024px, JPEG-Komprimierung
                 </div>
               </div>

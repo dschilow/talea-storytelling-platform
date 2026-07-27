@@ -146,6 +146,12 @@ export interface StoryConfig {
   pov?: StoryPOV;
   hooks?: PlotHookKey[];
   hasTwist?: boolean;
+  // Wizard step "Besondere Wünsche". Each one is a promise the summary screen
+  // makes to the child, so each one has to reach the prompt.
+  requireMoral?: boolean;
+  avatarIsHero?: boolean;
+  allowFamousCharacters?: boolean;
+  requireHappyEnd?: boolean;
   customPrompt?: string;
   storySoul?: StorySoulKey;
   emotionalFlavors?: EmotionalFlavorKey[];

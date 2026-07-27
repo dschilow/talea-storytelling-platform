@@ -3,6 +3,13 @@ import { motion } from 'framer-motion';
 import { CHARACTER_TYPES, CharacterTypeId } from '../../types/avatarForm';
 import { WizardImage } from './WizardImage';
 import { useWizardAssets } from '../../hooks/useWizardAssets';
+import { cn } from '@/lib/utils';
+import {
+  TaleaSelectedBadge,
+  taleaInputClass,
+  taleaSelectableClass,
+  taleaSelectableLabelClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 interface CharacterTypeSelectorProps {
   value: CharacterTypeId;
@@ -51,7 +58,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
       {/* Animals */}
       {categories.animal.length > 0 && (
         <div>
-          <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Tiere</p>
+          <p className="mb-2 text-xs font-medium text-[var(--talea-text-tertiary)]">Tiere</p>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {categories.animal.map((type) => (
               <CharacterTypeButton
@@ -69,7 +76,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
       {/* Fantasy */}
       {categories.fantasy.length > 0 && (
         <div>
-          <p className={`text-xs mb-2 font-medium ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>Fantasiewesen</p>
+          <p className="mb-2 text-xs font-medium text-[var(--talea-text-tertiary)]">Fantasiewesen</p>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             {categories.fantasy.map((type) => (
               <CharacterTypeButton
@@ -112,11 +119,7 @@ export const CharacterTypeSelector: React.FC<CharacterTypeSelectorProps> = ({
             value={customValue || ''}
             onChange={(e) => onCustomChange(e.target.value)}
             placeholder="Beschreibe deinen Charakter (z.B. sprechender Baum, Geist)"
-            className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-colors ${
-              darkMode
-                ? 'border-white/10 bg-white/[0.06] text-white placeholder-white/30 focus:border-[#2DD4BF]/50'
-                : 'border-amber-200 focus:border-amber-400 bg-white text-gray-700 placeholder-gray-400'
-            }`}
+            className={cn(taleaInputClass, 'h-auto py-3')}
           />
         </motion.div>
       )}
@@ -135,55 +138,26 @@ const CharacterTypeButton: React.FC<CharacterTypeButtonProps> = ({
   type,
   isSelected,
   onClick,
-  darkMode = false,
 }) => {
   const { assetUrl } = useWizardAssets();
   return (
     <motion.button
       type="button"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.04 }}
+      whileTap={{ scale: 0.96 }}
       onClick={onClick}
-      className={`
-        relative flex flex-col items-center justify-center p-3 rounded-xl
-        transition-all duration-200 border-2
-        ${isSelected
-          ? darkMode
-            ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-            : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
-          : darkMode
-            ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-            : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
-        }
-      `}
+      aria-pressed={isSelected}
+      className={cn(
+        taleaSelectableClass(isSelected),
+        'flex flex-col items-center justify-center p-3 !rounded-xl'
+      )}
     >
       <span className="mb-1 flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg">
         <WizardImage url={assetUrl('character', type.id)} fallback={type.icon} alt={type.labelDe} fallbackClassName="text-2xl" />
       </span>
-      <span className={`text-xs font-medium ${
-        isSelected
-          ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
-          : darkMode ? 'text-white/60' : 'text-gray-600'
-      }`}>
-        {type.labelDe}
-      </span>
+      <span className={cn('text-xs', taleaSelectableLabelClass(isSelected))}>{type.labelDe}</span>
 
-      {/* Selection indicator */}
-      {isSelected && (
-        <motion.div
-          layoutId="character-type-indicator"
-          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${
-            darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
-          }`}
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-        >
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-          </svg>
-        </motion.div>
-      )}
+      {isSelected && <TaleaSelectedBadge className="-right-1 -top-1 h-5 w-5" label={type.labelDe} />}
     </motion.button>
   );
 };

@@ -68,15 +68,15 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {/* Age Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>
+          <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>
             {ageReadOnly ? 'Alter aus dem Kinderprofil' : 'Alter'}
           </label>
           <div className="flex items-center gap-2">
             <span className="text-2xl">{getAgeEmoji(age, characterType)}</span>
-            <span className={`text-lg font-bold ${darkMode ? 'text-[#2DD4BF]' : 'text-amber-600'}`}>
+            <span className={`text-lg font-bold text-[var(--primary)]`}>
               {age < 1 ? `${Math.round(age * 12)} Monate` : `${age} Jahre`}
             </span>
-            <span className={`text-sm ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>({ageDescription})</span>
+            <span className={`text-sm text-[var(--talea-text-tertiary)]`}>({ageDescription})</span>
           </div>
         </div>
 
@@ -95,12 +95,8 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 flex items-center gap-1.5
                 disabled:cursor-not-allowed disabled:opacity-45
                 ${Math.abs(age - preset.value) < 1
-                  ? darkMode
-                    ? 'bg-[#2DD4BF] text-white shadow-md shadow-[#2DD4BF]/30'
-                    : 'bg-amber-500 text-white shadow-md'
-                  : darkMode
-                    ? 'bg-white/[0.08] text-white/60 hover:bg-white/[0.15] hover:text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-amber-100 hover:text-amber-700'
+                  ? 'bg-[var(--primary)] text-white shadow-md'
+                  : 'bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] hover:bg-[var(--primary)]/12 hover:text-[var(--talea-text-primary)]'
                 }
               `}
             >
@@ -129,14 +125,14 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 : 'linear-gradient(to right, #E9D5FF, #C084FC, #A855F7)',
             }}
           />
-          <div className={`flex justify-between text-xs mt-1 ${darkMode ? 'text-white/30' : 'text-gray-400'}`}>
+          <div className={`flex justify-between text-xs mt-1 text-[var(--talea-text-muted)]`}>
             <span>{isHuman ? '1' : '0.5'}</span>
             <span>{isHuman ? '150' : '20'} Jahre</span>
           </div>
         </div>
         {ageReadOnly && (
-          <p className={`rounded-lg border px-3 py-2 text-xs ${darkMode ? 'border-emerald-800/70 bg-emerald-950/25 text-emerald-100/80' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}>
-            Das Alter bleibt mit dem ausgewÑhlten Kinderprofil verbunden und wird dort geÑndert.
+          <p className={`rounded-lg border px-3 py-2 text-xs border-[var(--talea-success)]/35 bg-[var(--talea-success-soft)] text-[var(--talea-text-primary)]`}>
+            Das Alter bleibt mit dem ausgewÔøΩhlten Kinderprofil verbunden und wird dort geÔøΩndert.
           </p>
         )}
       </div>
@@ -145,18 +141,16 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {isHuman && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Groesse</label>
+            <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>Groesse</label>
             <div className="flex items-center gap-2">
               <span className="text-2xl">üìè</span>
-              <span className={`text-lg font-bold ${darkMode ? 'text-[#2DD4BF]' : 'text-amber-600'}`}>{height} cm</span>
-              <span className={`text-sm ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>({getHeightComparison(height, age)})</span>
+              <span className={`text-lg font-bold text-[var(--primary)]`}>{height} cm</span>
+              <span className={`text-sm text-[var(--talea-text-tertiary)]`}>({getHeightComparison(height, age)})</span>
             </div>
           </div>
 
           {/* Visual Height Indicator */}
-          <div className={`flex items-end gap-4 py-4 px-6 rounded-xl ${
-            darkMode ? 'bg-white/[0.04] border border-white/[0.06]' : 'bg-gradient-to-r from-amber-50 to-orange-50'
-          }`}>
+          <div className={`flex items-end gap-4 py-4 px-6 rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]`}>
             <HeightVisualization height={height} age={age} darkMode={darkMode} />
             <div className="flex-1">
               <input
@@ -175,7 +169,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                     : 'linear-gradient(to right, #BFDBFE, #C084FC, #F9A8D4)',
                 }}
               />
-              <div className={`flex justify-between text-xs mt-1 ${darkMode ? 'text-white/30' : 'text-gray-400'}`}>
+              <div className={`flex justify-between text-xs mt-1 text-[var(--talea-text-muted)]`}>
                 <span>50 cm</span>
                 <span>220 cm</span>
               </div>
@@ -188,9 +182,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onHeightChange(getRecommendedHeight(age))}
-            className={`text-sm font-medium flex items-center gap-1 ${
-              darkMode ? 'text-[#A989F2] hover:text-[#C4B5FD]' : 'text-amber-600 hover:text-amber-700'
-            }`}
+            className={`text-sm font-medium flex items-center gap-1 text-[var(--primary)] hover:opacity-80`}
           >
             <span>üîÑ</span>
             <span>Altersgerechte Groesse setzen (~{getRecommendedHeight(age)} cm)</span>
@@ -227,7 +219,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
           appearance: none;
           width: 24px;
           height: 24px;
-          background: linear-gradient(135deg, #2DD4BF, #A989F2);
+          background: linear-gradient(135deg, var(--primary), var(--primary));
           border-radius: 50%;
           cursor: pointer;
           box-shadow: 0 2px 8px rgba(45, 212, 191, 0.5);
@@ -240,7 +232,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
         .slider-thumb-dark::-moz-range-thumb {
           width: 24px;
           height: 24px;
-          background: linear-gradient(135deg, #2DD4BF, #A989F2);
+          background: linear-gradient(135deg, var(--primary), var(--primary));
           border-radius: 50%;
           cursor: pointer;
           border: none;
@@ -305,19 +297,14 @@ const HeightVisualization: React.FC<{ height: number; age: number; darkMode?: bo
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         className="w-8 rounded-t-full relative"
         style={{
-          background: darkMode
-            ? 'linear-gradient(to top, #2DD4BF, #A989F2)'
-            : 'linear-gradient(to top, #A855F7, #EC4899)',
+          background:
+            'linear-gradient(to top, var(--primary), color-mix(in srgb, var(--talea-accent-sky) 70%, white))',
         }}
       >
         {/* Head */}
-        <div className={`absolute -top-4 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2 ${
-          darkMode
-            ? 'bg-gradient-to-br from-[#2DD4BF]/60 to-[#A989F2]/60 border-[#2DD4BF]/40'
-            : 'bg-gradient-to-br from-amber-200 to-amber-300 border-amber-400'
-        }`} />
+        <div className="absolute -top-4 left-1/2 h-6 w-6 -translate-x-1/2 rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/60" />
       </motion.div>
-      <div className={`w-10 h-1 rounded-full mt-1 ${darkMode ? 'bg-white/20' : 'bg-gray-300'}`} />
+      <div className={`w-10 h-1 rounded-full mt-1 bg-[var(--talea-surface-inset)]`} />
     </div>
   );
 };

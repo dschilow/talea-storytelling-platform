@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { WizardImage } from '../../../components/avatar-form/WizardImage';
 import { useWizardAssets } from '../../../hooks/useWizardAssets';
+import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
 
 type MainCategory = 'fairy-tales' | 'adventure' | 'magic' | 'animals' | 'scifi' | 'modern' | null;
 
@@ -54,6 +55,7 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => updateState({ mainCategory: category.id })}
+              aria-pressed={selected}
               className={cn(
                 'relative rounded-2xl border p-4 text-left transition-colors',
                 selected ? 'bg-accent/55 shadow-[0_10px_24px_rgba(41,56,77,0.14)]' : 'bg-card/70 hover:bg-accent/35'
@@ -80,19 +82,7 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
 
               <p className="line-clamp-2 text-xs text-foreground/75">{examples}</p>
 
-              <AnimatePresence>
-                {selected && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    className="absolute right-3 top-3 rounded-full px-2 py-0.5 text-[11px] font-bold text-white"
-                    style={{ background: 'var(--talea-text-tertiary)' }}
-                  >
-                    OK
-                  </motion.span>
-                )}
-              </AnimatePresence>
+              <AnimatePresence>{selected && <TaleaSelectedBadge className="right-3 top-3" label={title} />}</AnimatePresence>
             </motion.button>
           );
         })}

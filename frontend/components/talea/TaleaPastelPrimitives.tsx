@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, useReducedMotion, type MotionProps } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -30,6 +30,60 @@ export const taleaInputClass =
 
 export const taleaChipClass =
   "inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/72 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-secondary)] shadow-[0_4px_14px_rgba(91,72,59,0.05)] dark:bg-[var(--talea-surface-inset)]";
+
+/**
+ * One visual language for "this option is picked".
+ *
+ * Before this existed, "selected" was amber in the avatar wizard's light mode,
+ * teal in its dark mode, sage in the story wizard and a separate teal in the
+ * step rail — four colours for one meaning. These helpers resolve through the
+ * theme tokens, so a component never needs a `darkMode` prop to style itself.
+ */
+export function taleaSelectableClass(selected: boolean, disabled = false): string {
+  return cn(
+    "relative rounded-2xl border text-left transition-colors duration-200",
+    "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/18",
+    selected
+      ? "border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] shadow-[0_8px_22px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
+      : "border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-strong)] hover:bg-[var(--talea-surface-inset)]",
+    disabled && "cursor-not-allowed opacity-45 hover:border-[var(--talea-border-light)]"
+  );
+}
+
+/** Label colour that pairs with `taleaSelectableClass`. */
+export function taleaSelectableLabelClass(selected: boolean): string {
+  return selected
+    ? "text-[var(--talea-text-primary)] font-semibold"
+    : "text-[var(--talea-text-secondary)]";
+}
+
+/**
+ * The corner check for a picked card. Replaces the literal text "OK" badge,
+ * which read as a button rather than a state and did not survive translation.
+ */
+export const TaleaSelectedBadge: React.FC<{ className?: string; label?: string }> = ({
+  className,
+  label = "Ausgewählt",
+}) => {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.span
+      initial={reduceMotion ? undefined : { scale: 0 }}
+      animate={reduceMotion ? undefined : { scale: 1 }}
+      exit={reduceMotion ? undefined : { scale: 0 }}
+      transition={{ type: "spring", stiffness: 520, damping: 30 }}
+      className={cn(
+        "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-sm",
+        className
+      )}
+      title={label}
+    >
+      <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+      <span className="sr-only">{label}</span>
+    </motion.span>
+  );
+};
 
 const enterEase = [0.25, 0.1, 0.25, 1] as const;
 

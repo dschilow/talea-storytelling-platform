@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useBackend } from '../../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import { getPreferredAvatarIds } from '@/lib/child-profile-defaults';
+import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
 
 interface Avatar {
   id: string;
@@ -25,8 +26,7 @@ interface Props {
   updateState: (updates: any) => void;
 }
 
-const accent = 'var(--talea-text-tertiary)';
-const success = 'var(--talea-text-tertiary)';
+const accent = 'var(--primary)';
 
 export default function Step1AvatarSelection({ state, updateState }: Props) {
   const backend = useBackend();
@@ -68,12 +68,17 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     }
   };
 
-  const toggleAvatar = (id: string) => {
-    const selected = state.selectedAvatars.includes(id)
-      ? state.selectedAvatars.filter((item) => item !== id)
-      : [...state.selectedAvatars, id];
+  // The step header promises "Wähle 1-4 Avatare" — enforce it instead of
+  // letting the child pick every avatar they own and blow up the cast.
+  const MAX_AVATARS = 4;
 
-    updateState({ selectedAvatars: selected });
+  const toggleAvatar = (id: string) => {
+    if (state.selectedAvatars.includes(id)) {
+      updateState({ selectedAvatars: state.selectedAvatars.filter((item) => item !== id) });
+      return;
+    }
+    if (state.selectedAvatars.length >= MAX_AVATARS) return;
+    updateState({ selectedAvatars: [...state.selectedAvatars, id] });
   };
 
   const selectedCount = state.selectedAvatars.length;
@@ -115,7 +120,9 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
   const selectedLabel = useMemo(() => {
     if (selectedCount === 0) return t('wizard.subtitles.avatars');
-    return `${selectedCount} ${t('wizard.summary.avatars')} ${t('common.selected')}`;
+    const noun = selectedCount === 1 ? t('wizard.common.avatarSingular') : t('wizard.summary.avatars');
+    const suffix = selectedCount >= MAX_AVATARS ? ` — ${t('wizard.common.avatarMaxReached')}` : '';
+    return `${selectedCount} ${noun} ${t('common.selected')}${suffix}`;
   }, [selectedCount, t]);
 
   if (loading) {
@@ -162,18 +169,22 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {orderedAvatars.map((avatar, index) => {
             const isSelected = state.selectedAvatars.includes(avatar.id);
+            const isBlocked = !isSelected && selectedCount >= MAX_AVATARS;
             return (
               <motion.button
                 key={avatar.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={isBlocked ? undefined : { y: -3 }}
+                whileTap={isBlocked ? undefined : { scale: 0.98 }}
                 onClick={() => toggleAvatar(avatar.id)}
+                aria-pressed={isSelected}
+                disabled={isBlocked}
                 className={cn(
                   'relative overflow-hidden rounded-2xl border p-3 text-left transition-colors',
-                  isSelected ? 'bg-accent/55' : 'bg-card/70'
+                  isSelected ? 'bg-accent/55' : 'bg-card/70',
+                  isBlocked && 'cursor-not-allowed opacity-45'
                 )}
                 style={{
                   borderColor: isSelected ? `${accent}66` : 'var(--color-border)',
@@ -195,24 +206,14 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 ) : null}
                 {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
                   <p className="mt-0.5 text-xs text-[#6f8cab]">{t('wizard.common.sharedBy', { name: avatar.sharedByLabel })}</p>
-                ) : (
+                ) : avatar.age > 0 ? (
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {avatar.age > 0 ? `${avatar.age} ${t('wizard.summary.age')}` : t('wizard.common.notSelected')}
+                    {`${avatar.age} ${t('wizard.summary.age')}`}
                   </p>
-                )}
+                ) : null}
 
                 <AnimatePresence>
-                  {isSelected && (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white"
-                      style={{ background: success }}
-                    >
-                      OK
-                    </motion.span>
-                  )}
+                  {isSelected && <TaleaSelectedBadge label={avatar.name} />}
                 </AnimatePresence>
               </motion.button>
             );

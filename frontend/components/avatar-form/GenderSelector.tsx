@@ -3,6 +3,12 @@ import { motion } from 'framer-motion';
 import { GENDERS, GenderId } from '../../types/avatarForm';
 import { WizardImage } from './WizardImage';
 import { useWizardAssets } from '../../hooks/useWizardAssets';
+import { cn } from '@/lib/utils';
+import {
+  taleaSelectableClass,
+  taleaSelectableLabelClass,
+} from '@/components/talea/TaleaPastelPrimitives';
+import { Check } from 'lucide-react';
 
 interface GenderSelectorProps {
   value: GenderId;
@@ -10,7 +16,7 @@ interface GenderSelectorProps {
   darkMode?: boolean;
 }
 
-export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange, darkMode = false }) => {
+export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange }) => {
   const { assetUrl } = useWizardAssets();
 
   return (
@@ -25,18 +31,11 @@ export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange,
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onChange(gender.id)}
-            className={`
-              flex min-w-0 flex-col items-center justify-center gap-2 rounded-2xl px-3 py-4
-              transition-all duration-200 border-2 text-center
-              ${selected
-                ? darkMode
-                  ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-                  : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
-                : darkMode
-                  ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                  : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
-              }
-            `}
+            aria-pressed={selected}
+            className={cn(
+              taleaSelectableClass(selected),
+              'flex min-w-0 flex-col items-center justify-center gap-2 px-3 py-4 text-center'
+            )}
           >
             <span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl">
               <WizardImage
@@ -47,27 +46,22 @@ export const GenderSelector: React.FC<GenderSelectorProps> = ({ value, onChange,
               />
             </span>
             <span
-              className={`w-full break-words text-sm font-medium leading-tight ${
-                selected
-                  ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
-                  : darkMode ? 'text-white/60' : 'text-gray-600'
-              }`}
+              className={cn(
+                'w-full break-words text-sm leading-tight',
+                taleaSelectableLabelClass(selected)
+              )}
             >
               {gender.labelDe}
             </span>
 
             {selected && (
-              <motion.div
+              <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                  darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
-                }`}
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)]"
               >
-                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              </motion.div>
+                <Check className="h-4 w-4 text-white" strokeWidth={3} aria-hidden />
+              </motion.span>
             )}
           </motion.button>
         );

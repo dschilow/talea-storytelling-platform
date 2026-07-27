@@ -4,7 +4,6 @@
     "close": "Fermer",
     "back": "Retour",
     "appName": "Talea",
-    "loading": "Chargement...",
     "error": "Erreur",
     "success": "SuccÃ¨s",
     "save": "Enregistrer",
@@ -12,10 +11,8 @@
     "delete": "Supprimer",
     "edit": "Modifier",
     "create": "CrÃ©er",
-    "back": "Retour",
     "next": "Suivant",
     "finish": "Terminer",
-    "close": "Fermer",
     "confirm": "Confirmer",
     "search": "Rechercher",
     "filter": "Filtrer",
@@ -341,8 +338,7 @@
     "audioDokusSubtitle": "Ã‰coute les docs en audio",
     "noAudioDokus": "Aucun doc audio disponible",
     "audioPlay": "Lire",
-    
-        "audioLoading": "Generating audio...",
+    "audioLoading": "Generating audio...",
     "audioCreateButton": "Create Audio Doc",
     "audioCreate": {
       "title": "Create Audio Doc",
@@ -352,13 +348,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-        "coverLabel": "Cover description",
-        "coverPlaceholder": "Describe the cover image you want...",
-        "generateCover": "Generate cover",
-        "generatingCover": "Generating cover...",
-        "coverReady": "Cover ready",
-        "descriptionLabel": "Audio doc description",
-        "descriptionPlaceholder": "This description will appear next to the player",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "generateCover": "Generate cover",
+      "generatingCover": "Generating cover...",
+      "coverReady": "Cover ready",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -367,14 +363,15 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-        "errors": {
-          "missingAudio": "Please upload an audio file.",
-          "missingCover": "Please describe the cover.",
-          "missingDescription": "Please add a description.",
-          "coverFailed": "Cover generation failed. Please try again.",
-          "uploadFailed": "Upload failed. Please try again."
-        }
-    },"createNew": "Nouveau Doc",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "coverFailed": "Cover generation failed. Please try again.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
+    "createNew": "Nouveau Doc",
     "create": "CrÃ©er un document",
     "generating": "GÃ©nÃ©ration du document...",
     "topic": "Sujet",
@@ -493,7 +490,8 @@
       "ageLength": "Pour quel Ã¢ge et durÃ©e?",
       "feeling": "Quelle ambiance?",
       "wishes": "Souhaits spÃ©ciaux? (Optionnel)",
-      "summary": "Tout est prÃªt!"
+      "summary": "Tout est prÃªt!",
+      "learning": "L'histoire doit-elle enseigner quelque chose ?"
     },
     "subtitles": {
       "avatars": "SÃ©lectionnez 1-4 avatars pour l'histoire.",
@@ -501,7 +499,8 @@
       "ageLength": "Ajustez l'histoire Ã  l'Ã¢ge et au temps disponible.",
       "feeling": "SÃ©lectionnez 1-3 ambiances.",
       "wishes": "Ajoutez des caractÃ©ristiques ou passez cette Ã©tape.",
-      "summary": "VÃ©rifiez votre sÃ©lection et crÃ©ez l'histoire."
+      "summary": "VÃ©rifiez votre sÃ©lection et crÃ©ez l'histoire.",
+      "learning": "Optionnel — cela reste avant tout une histoire."
     },
     "buttons": {
       "back": "Retour",
@@ -517,6 +516,8 @@
       "summaryNote": "L'IA crÃ©e une histoire basÃ©e sur vos souhaits. Cela prend 60-90 secondes.",
       "selected": "sÃ©lectionnÃ©",
       "notSelected": "Non sÃ©lectionnÃ©",
+      "avatarSingular": "avatar",
+      "avatarMaxReached": "c'est le maximum",
       "customWish": "ðŸ’¬ Souhait personnalisÃ© (optionnel):",
       "customWishPlaceholder": "ex. 'L'histoire doit se passer dans l'espace'",
       "chars": "caractÃ¨res"
@@ -651,11 +652,61 @@
       "ageLength": "Ã‚ge et DurÃ©e",
       "feeling": "Sentiments",
       "wishes": "Souhaits",
-      "summary": "RÃ©sumÃ©"
+      "summary": "RÃ©sumÃ©",
+      "learning": "Apprendre"
     },
     "loading": {
       "title": "Votre histoire s'Ã©crit...",
       "subtitle": "Veuillez patienter"
+    },
+    "learning": {
+      "toggleTitle": "Activer le mode apprentissage",
+      "toggleDescription": "Le savoir est tissé dans l'intrigue, pas ajouté à la fin.",
+      "subjectsTitle": "Quelles matières ?",
+      "subjectsHint": "Choisis au moins une matière.",
+      "difficultyTitle": "Quelle profondeur ?",
+      "assessmentTitle": "Comment apprendre ?",
+      "objectivesTitle": "Tes objectifs",
+      "objectivesHint": "Jusqu'à 3 objectifs concrets (optionnel).",
+      "objectivePlaceholder": "ex. comprendre les fractions",
+      "addObjective": "Ajouter un objectif",
+      "removeObjective": "Retirer l'objectif",
+      "subjects": {
+        "math": "Mathématiques",
+        "science": "Sciences",
+        "language": "Langue",
+        "history": "Histoire",
+        "geography": "Géographie",
+        "social": "Apprentissage social"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "Premiers pas",
+          "description": "Découvrir les bases"
+        },
+        "intermediate": {
+          "title": "Approfondir",
+          "description": "Relier les savoirs"
+        },
+        "advanced": {
+          "title": "Défier",
+          "description": "Concepts complexes"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "Dans l'aventure",
+          "description": "Les personnages essaient"
+        },
+        "quiz": {
+          "title": "Avec un quiz",
+          "description": "Quelques questions à la fin"
+        },
+        "discussion": {
+          "title": "Pour en parler",
+          "description": "Une question ouverte à la fin"
+        }
+      }
     }
   },
   "landing": {
@@ -751,6 +802,3 @@
     }
   }
 }
-
-
-

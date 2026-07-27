@@ -753,13 +753,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-        "coverLabel": "Cover description",
-        "coverPlaceholder": "Describe the cover image you want...",
-        "generateCover": "Generate cover",
-        "generatingCover": "Generating cover...",
-        "coverReady": "Cover ready",
-        "descriptionLabel": "Audio doc description",
-        "descriptionPlaceholder": "This description will appear next to the player",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "generateCover": "Generate cover",
+      "generatingCover": "Generating cover...",
+      "coverReady": "Cover ready",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -768,14 +768,14 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-        "errors": {
-          "missingAudio": "Please upload an audio file.",
-          "missingCover": "Please describe the cover.",
-          "missingDescription": "Please add a description.",
-          "coverFailed": "Cover generation failed. Please try again.",
-          "uploadFailed": "Upload failed. Please try again."
-        }
-      },
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "coverFailed": "Cover generation failed. Please try again.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
     "createNew": "New Doc",
     "wizard": {
       "title": "New Knowledge Doc",
@@ -1151,7 +1151,8 @@
       "ageLength": "For which age & how long?",
       "feeling": "What feeling should the story have?",
       "wishes": "Special wishes? (Optional)",
-      "summary": "All ready!"
+      "summary": "All ready!",
+      "learning": "Should the story teach something?"
     },
     "subtitles": {
       "avatars": "Select 1-4 avatars to be part of the story.",
@@ -1159,7 +1160,8 @@
       "ageLength": "Adjust the story to the age and available time.",
       "feeling": "Select 1-3 moods that should shape the story.",
       "wishes": "Add special features or skip this step.",
-      "summary": "Check your selection and create the story."
+      "summary": "Check your selection and create the story.",
+      "learning": "Optional — it stays a story first."
     },
     "buttons": {
       "back": "Back",
@@ -1175,6 +1177,8 @@
       "summaryNote": "The AI creates a story based on your wishes. This takes about 60-90 seconds.",
       "selected": "selected",
       "notSelected": "Not selected",
+      "avatarSingular": "avatar",
+      "avatarMaxReached": "that is the maximum",
       "customWish": "💬 Custom wish (optional):",
       "customWishPlaceholder": "e.g. 'The story should take place in space'",
       "chars": "chars",
@@ -1338,11 +1342,61 @@
       "ageLength": "Age & Length",
       "feeling": "Feelings",
       "wishes": "Wishes",
-      "summary": "Summary"
+      "summary": "Summary",
+      "learning": "Learning"
     },
     "loading": {
       "title": "Your story is being written...",
       "subtitle": "Please wait a moment"
+    },
+    "learning": {
+      "toggleTitle": "Enable learning mode",
+      "toggleDescription": "Knowledge is woven into the plot, not bolted on.",
+      "subjectsTitle": "Which subjects?",
+      "subjectsHint": "Pick at least one subject.",
+      "difficultyTitle": "How deep?",
+      "assessmentTitle": "How should it be learned?",
+      "objectivesTitle": "Your learning goals",
+      "objectivesHint": "Up to 3 concrete goals (optional).",
+      "objectivePlaceholder": "e.g. understand fractions",
+      "addObjective": "Add goal",
+      "removeObjective": "Remove goal",
+      "subjects": {
+        "math": "Maths",
+        "science": "Science",
+        "language": "Language",
+        "history": "History",
+        "geography": "Geography",
+        "social": "Social learning"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "First steps",
+          "description": "Learn the basics"
+        },
+        "intermediate": {
+          "title": "Go deeper",
+          "description": "Connect knowledge"
+        },
+        "advanced": {
+          "title": "Challenge",
+          "description": "Complex concepts"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "In the adventure",
+          "description": "Characters try it out"
+        },
+        "quiz": {
+          "title": "With a quiz",
+          "description": "A few questions at the end"
+        },
+        "discussion": {
+          "title": "To talk about",
+          "description": "An open question at the end"
+        }
+      }
     }
   },
   "fairytales": {

@@ -4782,6 +4782,24 @@ function hookGuidance(hooks?: StoryConfig["hooks"]): string | null {
   return hooks.map((hook) => labels[hook] || hook).join("; ");
 }
 
+/**
+ * How the requested learning content should surface in the prose. Previously
+ * `assessmentType` was collected by the wizard and only ever logged.
+ */
+function learningAssessmentGuidance(
+  assessmentType?: NonNullable<StoryConfig["learningMode"]>["assessmentType"]
+): string {
+  switch (assessmentType) {
+    case "quiz":
+      return "close the final chapter with 2-3 short in-world questions a character asks the reader about what happened. Keep them playful, never school-like.";
+    case "discussion":
+      return "end with an open question a character wonders about aloud, inviting the child and the adult reading along to talk about it.";
+    case "interactive":
+    default:
+      return "let the characters discover and test the knowledge inside the plot itself — through trying, failing and retrying — with no quiz block at the end.";
+  }
+}
+
 function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, compact = false): string {
   const experience = buildStoryExperienceContext(config);
   const lines: string[] = [
@@ -4821,11 +4839,24 @@ function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, com
   if (config.hasTwist) {
     lines.push("- Surprise wish: include an earned surprise/twist. Plant it early; do not make it random or confusing.");
   }
+  if (config.requireMoral) {
+    lines.push("- Lesson wish: the story must carry one clear, age-appropriate life lesson (courage, honesty, friendship, patience...). Let the characters live it through their choices and consequences; never state it as a closing moral sentence.");
+  }
+  if (config.avatarIsHero) {
+    lines.push("- Hero wish: the reader's own avatar is the undisputed protagonist. The avatar drives the decisive actions and resolves the climax; supporting characters may help but must never take over the solution.");
+  }
+  if (config.allowFamousCharacters) {
+    lines.push("- Famous-character wish: weave in well-known public-domain fairy-tale figures (Little Red Riding Hood, Rapunzel, Hansel & Gretel, Puss in Boots, ...) as guests. Public domain only — never trademarked/modern franchise characters. They support the plot; the avatar stays the protagonist.");
+  }
+  if (config.requireHappyEnd) {
+    lines.push("- Happy-end wish: the story must end safely, warmly and hopefully. Tension is welcome, but every open conflict is resolved and the avatar ends the story better off than they started.");
+  }
   if (config.learningMode?.enabled && config.learningMode.subjects?.length) {
     const objectives = config.learningMode.learningObjectives?.length
       ? ` Objectives: ${config.learningMode.learningObjectives.join(", ")}.`
       : "";
     lines.push(`- Learning mode: ${config.learningMode.subjects.join(", ")} (${config.learningMode.difficulty}). Weave in gently through action/dialogue, never as a lesson block.${objectives}`);
+    lines.push(`- Learning delivery: ${learningAssessmentGuidance(config.learningMode.assessmentType)}`);
   }
   if (config.parentalGuidance?.trim()) {
     lines.push(`- Parent/safety guidance: ${compactExcerpt(config.parentalGuidance, compact ? 260 : 520)}`);

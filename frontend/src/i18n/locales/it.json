@@ -11,7 +11,6 @@
     "delete": "Elimina",
     "edit": "Modifica",
     "create": "Crea",
-    "back": "Indietro",
     "next": "Avanti",
     "finish": "Fine",
     "confirm": "Conferma",
@@ -339,8 +338,7 @@
     "audioDokusSubtitle": "Ascolta i documenti in audio",
     "noAudioDokus": "Nessun documento audio disponibile",
     "audioPlay": "Riproduci",
-    
-        "audioLoading": "Generating audio...",
+    "audioLoading": "Generating audio...",
     "audioCreateButton": "Create Audio Doc",
     "audioCreate": {
       "title": "Create Audio Doc",
@@ -350,13 +348,13 @@
       "uploadDescription": "Drag & drop your audio file here",
       "titleLabel": "Title (optional)",
       "titlePlaceholder": "Give your audio doc a title",
-        "coverLabel": "Cover description",
-        "coverPlaceholder": "Describe the cover image you want...",
-        "generateCover": "Generate cover",
-        "generatingCover": "Generating cover...",
-        "coverReady": "Cover ready",
-        "descriptionLabel": "Audio doc description",
-        "descriptionPlaceholder": "This description will appear next to the player",
+      "coverLabel": "Cover description",
+      "coverPlaceholder": "Describe the cover image you want...",
+      "generateCover": "Generate cover",
+      "generatingCover": "Generating cover...",
+      "coverReady": "Cover ready",
+      "descriptionLabel": "Audio doc description",
+      "descriptionPlaceholder": "This description will appear next to the player",
       "createButton": "Create Audio Doc",
       "creating": "Creating...",
       "previewTitle": "Cover preview",
@@ -365,14 +363,15 @@
       "previewDescriptionReady": "Your audio doc is saved with the generated cover.",
       "goToDokus": "Go to Dokus",
       "createAnother": "Create another",
-        "errors": {
-          "missingAudio": "Please upload an audio file.",
-          "missingCover": "Please describe the cover.",
-          "missingDescription": "Please add a description.",
-          "coverFailed": "Cover generation failed. Please try again.",
-          "uploadFailed": "Upload failed. Please try again."
-        }
-    },"createNew": "Nuovo documento",
+      "errors": {
+        "missingAudio": "Please upload an audio file.",
+        "missingCover": "Please describe the cover.",
+        "missingDescription": "Please add a description.",
+        "coverFailed": "Cover generation failed. Please try again.",
+        "uploadFailed": "Upload failed. Please try again."
+      }
+    },
+    "createNew": "Nuovo documento",
     "generating": "Generazione documento...",
     "topic": "Argomento",
     "topicPlaceholder": "Su cosa vorresti imparare?",
@@ -490,7 +489,8 @@
       "ageLength": "Per quale etÃ  e durata?",
       "feeling": "Che atmosfera?",
       "wishes": "Desideri speciali? (Opzionale)",
-      "summary": "Tutto pronto!"
+      "summary": "Tutto pronto!",
+      "learning": "La storia deve insegnare qualcosa?"
     },
     "subtitles": {
       "avatars": "Seleziona 1-4 avatar per la storia.",
@@ -498,7 +498,8 @@
       "ageLength": "Adatta la storia all'etÃ  e al tempo disponibile.",
       "feeling": "Seleziona 1-3 atmosfere.",
       "wishes": "Aggiungi caratteristiche speciali o salta questo passaggio.",
-      "summary": "Controlla la tua selezione e crea la storia."
+      "summary": "Controlla la tua selezione e crea la storia.",
+      "learning": "Facoltativo — resta prima di tutto una storia."
     },
     "buttons": {
       "back": "Indietro",
@@ -514,6 +515,8 @@
       "summaryNote": "L'IA crea una storia basata sui tuoi desideri. Ci vogliono 60-90 secondi.",
       "selected": "selezionato",
       "notSelected": "Non selezionato",
+      "avatarSingular": "avatar",
+      "avatarMaxReached": "è il massimo",
       "customWish": "ðŸ’¬ Desiderio personalizzato (opzionale):",
       "customWishPlaceholder": "es. 'La storia deve svolgersi nello spazio'",
       "chars": "caratteri"
@@ -648,11 +651,61 @@
       "ageLength": "EtÃ  e Durata",
       "feeling": "Sentimenti",
       "wishes": "Desideri",
-      "summary": "Riepilogo"
+      "summary": "Riepilogo",
+      "learning": "Imparare"
     },
     "loading": {
       "title": "La tua storia si sta scrivendo...",
       "subtitle": "Attendi un momento"
+    },
+    "learning": {
+      "toggleTitle": "Attiva la modalità apprendimento",
+      "toggleDescription": "Il sapere si intreccia nella trama, non si aggiunge alla fine.",
+      "subjectsTitle": "Quali materie?",
+      "subjectsHint": "Scegli almeno una materia.",
+      "difficultyTitle": "Quanto a fondo?",
+      "assessmentTitle": "Come si impara?",
+      "objectivesTitle": "I tuoi obiettivi",
+      "objectivesHint": "Fino a 3 obiettivi concreti (facoltativo).",
+      "objectivePlaceholder": "es. capire le frazioni",
+      "addObjective": "Aggiungi obiettivo",
+      "removeObjective": "Rimuovi obiettivo",
+      "subjects": {
+        "math": "Matematica",
+        "science": "Scienze",
+        "language": "Lingua",
+        "history": "Storia",
+        "geography": "Geografia",
+        "social": "Apprendimento sociale"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "Primi passi",
+          "description": "Conoscere le basi"
+        },
+        "intermediate": {
+          "title": "Approfondire",
+          "description": "Collegare le conoscenze"
+        },
+        "advanced": {
+          "title": "Sfidare",
+          "description": "Concetti complessi"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "Nell'avventura",
+          "description": "I personaggi provano"
+        },
+        "quiz": {
+          "title": "Con un quiz",
+          "description": "Qualche domanda alla fine"
+        },
+        "discussion": {
+          "title": "Per parlarne",
+          "description": "Una domanda aperta alla fine"
+        }
+      }
     }
   },
   "landing": {
@@ -748,6 +801,3 @@
     }
   }
 }
-
-
-

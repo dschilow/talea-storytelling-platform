@@ -48,8 +48,8 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <label className={`text-sm font-semibold ${darkMode ? 'text-white/70' : 'text-gray-700'}`}>Besondere Merkmale</label>
-        <span className={`text-xs ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
+        <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>Besondere Merkmale</label>
+        <span className={`text-xs text-[var(--talea-text-tertiary)]`}>
           {value.length} / {maxSelections} ausgewaehlt
         </span>
       </div>
@@ -61,11 +61,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className={`flex flex-wrap gap-2 p-3 rounded-xl border ${
-              darkMode
-                ? 'bg-[#2DD4BF]/[0.06] border-[#2DD4BF]/20'
-                : 'bg-amber-50 border-amber-100'
-            }`}
+            className="flex flex-wrap gap-2 rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/[0.06] p-3"
           >
             {value.map((featureId) => {
               const feature = SPECIAL_FEATURES.find((f) => f.id === featureId);
@@ -80,11 +76,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => toggleFeature(featureId)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium shadow-md transition-colors ${
-                    darkMode
-                      ? 'bg-[#2DD4BF] text-white hover:bg-[#2DD4BF]/80'
-                      : 'bg-amber-500 text-white hover:bg-amber-600'
-                  }`}
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-white shadow-md transition-colors hover:bg-[var(--primary)]/80"
                 >
                   <span>{feature.icon}</span>
                   <span>{feature.labelDe}</span>
@@ -102,7 +94,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
       <div className="space-y-4">
         {Object.entries(categories).map(([categoryId, category]) => (
           <div key={categoryId} className="space-y-2">
-            <p className={`text-xs font-medium flex items-center gap-1 ${darkMode ? 'text-white/40' : 'text-gray-500'}`}>
+            <p className={`text-xs font-medium flex items-center gap-1 text-[var(--talea-text-tertiary)]`}>
               <span>{category.icon}</span>
               <span>{category.label}</span>
             </p>
@@ -123,16 +115,10 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                       px-3 py-2 rounded-xl flex items-center gap-2
                       transition-all duration-200 border-2
                       ${isSelected
-                        ? darkMode
-                          ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 text-[#2DD4BF]'
-                          : 'border-amber-500 bg-amber-100 text-amber-700'
+                        ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--talea-text-primary)] font-semibold'
                         : isDisabled
-                          ? darkMode
-                            ? 'border-white/5 bg-white/[0.02] text-white/20 cursor-not-allowed opacity-50'
-                            : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed opacity-50'
-                          : darkMode
-                            ? 'border-white/10 bg-white/[0.06] text-white/60 hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                            : 'border-gray-100 bg-white text-gray-600 hover:border-amber-200 hover:bg-amber-50/50'
+                          ? 'border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-muted)] cursor-not-allowed opacity-50'
+                          : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] text-[var(--talea-text-secondary)] hover:border-[var(--talea-border-strong)] hover:bg-[var(--talea-surface-inset)]'
                       }
                     `}
                   >
@@ -145,9 +131,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className={`ml-1 w-4 h-4 rounded-full flex items-center justify-center ${
-                          darkMode ? 'bg-[#2DD4BF]' : 'bg-amber-500'
-                        }`}
+                        className={`ml-1 w-4 h-4 rounded-full flex items-center justify-center bg-[var(--primary)]`}
                       >
                         <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

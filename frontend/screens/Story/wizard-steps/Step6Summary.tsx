@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, CheckCircle2, Clock3, Heart, Sparkles, Users2 } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock3, GraduationCap, Heart, Sparkles, Users2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -17,6 +17,12 @@ interface Props {
     happyEnd: boolean;
     surpriseEnd: boolean;
     customWish: string;
+    learningMode?: {
+      enabled: boolean;
+      subjects: string[];
+      difficulty: string;
+      learningObjectives: string[];
+    };
     broughtArtifact?: {
       name: string;
       avatarName: string;
@@ -141,6 +147,36 @@ export default function Step6Summary({
               </p>
             </div>
             <CheckCircle2 className="mt-1 h-4 w-4 text-amber-600" />
+          </motion.div>
+        )}
+
+        {state.learningMode?.enabled && state.learningMode.subjects.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-start gap-3 rounded-2xl border border-border bg-card/70 p-4"
+          >
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: '#7ba89c1f' }}>
+              <GraduationCap className="h-4 w-4" style={{ color: '#7ba89c' }} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('wizard.steps.learning')}
+              </p>
+              <p className="mt-0.5 text-sm text-foreground">
+                {state.learningMode.subjects
+                  .map((subject) => t(`wizard.learning.subjects.${subject}`))
+                  .join(', ')}
+                {' · '}
+                {t(`wizard.learning.difficulties.${state.learningMode.difficulty}.title`)}
+              </p>
+              {state.learningMode.learningObjectives.length > 0 && (
+                <p className="mt-0.5 text-xs italic text-muted-foreground">
+                  {state.learningMode.learningObjectives.join(' · ')}
+                </p>
+              )}
+            </div>
+            <CheckCircle2 className="mt-1 h-4 w-4 text-[var(--talea-text-tertiary)]" />
           </motion.div>
         )}
 

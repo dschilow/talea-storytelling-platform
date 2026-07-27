@@ -753,13 +753,13 @@
       "uploadDescription": "Ziehe eine Audiodatei hierher oder klicke zum Auswählen",
       "titleLabel": "Titel (optional)",
       "titlePlaceholder": "Gib der Audio-Doku einen Titel",
-        "coverLabel": "Cover-Beschreibung",
-        "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
-        "generateCover": "Cover generieren",
-        "generatingCover": "Cover wird generiert...",
-        "coverReady": "Cover bereit",
-        "descriptionLabel": "Audio-Doku Beschreibung",
-        "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
+      "coverLabel": "Cover-Beschreibung",
+      "coverPlaceholder": "Beschreibe das Cover, das generiert werden soll...",
+      "generateCover": "Cover generieren",
+      "generatingCover": "Cover wird generiert...",
+      "coverReady": "Cover bereit",
+      "descriptionLabel": "Audio-Doku Beschreibung",
+      "descriptionPlaceholder": "Diese Beschreibung erscheint neben dem Player",
       "createButton": "Audio-Doku erstellen",
       "creating": "Wird erstellt...",
       "previewTitle": "Cover-Vorschau",
@@ -768,14 +768,14 @@
       "previewDescriptionReady": "Deine Audio-Doku wurde gespeichert.",
       "goToDokus": "Zu den Dokus",
       "createAnother": "Noch eine erstellen",
-        "errors": {
-          "missingAudio": "Bitte lade eine Audiodatei hoch.",
-          "missingCover": "Bitte beschreibe das Cover.",
-          "missingDescription": "Bitte füge eine Beschreibung hinzu.",
-          "coverFailed": "Cover-Generierung fehlgeschlagen. Bitte erneut versuchen.",
-          "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
-        }
-      },
+      "errors": {
+        "missingAudio": "Bitte lade eine Audiodatei hoch.",
+        "missingCover": "Bitte beschreibe das Cover.",
+        "missingDescription": "Bitte füge eine Beschreibung hinzu.",
+        "coverFailed": "Cover-Generierung fehlgeschlagen. Bitte erneut versuchen.",
+        "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+      }
+    },
     "createNew": "Neue Doku",
     "wizard": {
       "title": "Neue Wissens-Doku",
@@ -1151,7 +1151,8 @@
       "ageLength": "Wie alt bist du & wie lang soll die Geschichte sein?",
       "feeling": "Wie soll sich die Geschichte anfühlen?",
       "wishes": "Hast du besondere Wünsche?",
-      "summary": "Alles bereit!"
+      "summary": "Alles bereit!",
+      "learning": "Soll die Geschichte etwas beibringen?"
     },
     "subtitles": {
       "avatars": "Wähle 1-4 Avatare aus, die in der Geschichte mitspielen.",
@@ -1159,7 +1160,8 @@
       "ageLength": "Damit die Geschichte perfekt zu dir passt.",
       "feeling": "Wähle bis zu 3 Stimmungen, die deine Geschichte besonders machen.",
       "wishes": "Hier kannst du dir etwas Besonderes wünschen - oder einfach weitergehen.",
-      "summary": "Schau nochmal drüber und dann geht's los!"
+      "summary": "Schau nochmal drüber und dann geht's los!",
+      "learning": "Optional — die Geschichte bleibt zuerst eine Geschichte."
     },
     "buttons": {
       "back": "Zurück",
@@ -1175,6 +1177,8 @@
       "summaryNote": "Deine Geschichte wird jetzt geschrieben und mit Bildern versehen. Das dauert ungefähr 2-3 Minuten.",
       "selected": "ausgewählt",
       "notSelected": "Nicht gewählt",
+      "avatarSingular": "Avatar",
+      "avatarMaxReached": "mehr geht nicht",
       "customWish": "Eigener Wunsch (wenn du magst):",
       "customWishPlaceholder": "z.B. 'Die Geschichte soll im Weltall spielen' oder 'Mit einem sprechenden Drachen'",
       "chars": "Zeichen",
@@ -1338,11 +1342,61 @@
       "ageLength": "Alter & Länge",
       "feeling": "Gefühle",
       "wishes": "Wünsche",
-      "summary": "Zusammenfassung"
+      "summary": "Zusammenfassung",
+      "learning": "Lernen"
     },
     "loading": {
       "title": "Deine Geschichte wird geschrieben...",
       "subtitle": "Bitte warte einen Moment"
+    },
+    "learning": {
+      "toggleTitle": "Lernmodus aktivieren",
+      "toggleDescription": "Wissen wird in die Handlung eingewoben, nicht angehängt.",
+      "subjectsTitle": "Welche Fächer?",
+      "subjectsHint": "Wähle mindestens ein Fach aus.",
+      "difficultyTitle": "Wie tief?",
+      "assessmentTitle": "Wie soll gelernt werden?",
+      "objectivesTitle": "Eigene Lernziele",
+      "objectivesHint": "Bis zu 3 Ziele, ganz konkret formuliert (optional).",
+      "objectivePlaceholder": "z.B. Bruchrechnen verstehen",
+      "addObjective": "Lernziel hinzufügen",
+      "removeObjective": "Lernziel entfernen",
+      "subjects": {
+        "math": "Mathematik",
+        "science": "Naturwissenschaften",
+        "language": "Sprache",
+        "history": "Geschichte",
+        "geography": "Geografie",
+        "social": "Soziales Lernen"
+      },
+      "difficulties": {
+        "beginner": {
+          "title": "Erste Schritte",
+          "description": "Grundlagen kennenlernen"
+        },
+        "intermediate": {
+          "title": "Vertiefen",
+          "description": "Wissen verknüpfen"
+        },
+        "advanced": {
+          "title": "Herausfordern",
+          "description": "Komplexe Zusammenhänge"
+        }
+      },
+      "assessments": {
+        "interactive": {
+          "title": "Im Abenteuer",
+          "description": "Die Figuren probieren es aus"
+        },
+        "quiz": {
+          "title": "Mit Quiz",
+          "description": "Ein paar Fragen am Ende"
+        },
+        "discussion": {
+          "title": "Zum Reden",
+          "description": "Eine offene Frage zum Schluss"
+        }
+      }
     }
   },
   "fairytales": {

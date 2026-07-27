@@ -478,6 +478,18 @@ function enforceMixRules(items: TopicSuggestionItem[]): TopicSuggestionItem[] {
   return adjusted;
 }
 
+/** German label for a Bloom skill focus — the raw keys leaked into the UI. */
+function skillFocusLabel(focus: SkillFocus): string {
+  const labels: Record<SkillFocus, string> = {
+    understand: "das Verstehen",
+    compare: "das Vergleichen",
+    apply: "das Anwenden",
+    transfer: "das Übertragen",
+    remember: "das Merken",
+  };
+  return labels[focus] || "das Verstehen";
+}
+
 function fallbackSkillByIndex(index: number): SkillFocus {
   const order: SkillFocus[] = ["understand", "compare", "apply", "transfer", "remember"];
   return order[index % order.length];
@@ -508,9 +520,14 @@ function buildFallbackItem(params: {
     topicSlug,
     kind: fallbackKindByIndex(params.index, params.allowRetention),
     difficulty: Math.min(5, Math.max(1, 1 + (params.index % 4))),
-    teaserKid: trimText(`Was steckt hinter "${topicTitle}"?`, 90, "Lass uns etwas Neues entdecken."),
+    teaserKid: trimText(
+      // The title is usually already a question — do not append a second "?".
+      /[?!.]$/.test(topicTitle) ? `Was steckt dahinter: ${topicTitle}` : `Was steckt hinter "${topicTitle}"?`,
+      90,
+      "Lass uns etwas Neues entdecken."
+    ),
     reasonParent: trimText(
-      `Passt zu ${label} und staerkt besonders ${skillFocus}.`,
+      `Passt zu ${label} und stärkt besonders ${skillFocusLabel(skillFocus)}.`,
       140,
       "Passt zum Lernstand und erweitert den Horizont."
     ),
@@ -661,6 +678,54 @@ async function logSuggestionEvent(params: {
   `;
 }
 
+/**
+ * Pull every complete `{...}` object out of a truncated suggestion payload.
+ * Scans with a brace/string-aware counter so braces inside strings and
+ * escaped quotes do not confuse the boundaries.
+ */
+function salvageSuggestionItems(content: string): Record<string, unknown>[] {
+  const items: Record<string, unknown>[] = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < content.length; i += 1) {
+    const char = content[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try {
+          const parsed = JSON.parse(content.slice(start, i + 1));
+          // Skip the outer wrapper object; we only want the item objects.
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && !("items" in parsed)) {
+            items.push(parsed as Record<string, unknown>);
+          }
+        } catch {
+          // Incomplete object — ignore and keep scanning.
+        }
+        start = -1;
+      }
+      if (depth < 0) depth = 0;
+    }
+  }
+
+  return items;
+}
+
 async function callSuggestionLlm(params: {
   userPrompt: string;
   maxCompletionTokens: number;
@@ -701,7 +766,20 @@ async function callSuggestionLlm(params: {
     if (!content) {
       throw new Error("Gemini returned an empty suggestion payload");
     }
-    return JSON.parse(content) as Record<string, unknown>;
+    try {
+      return JSON.parse(content) as Record<string, unknown>;
+    } catch (parseError) {
+      // A truncated response used to discard every item. Salvage the objects
+      // that did arrive complete instead of falling back to static titles.
+      const salvaged = salvageSuggestionItems(content);
+      if (salvaged.length > 0) {
+        console.warn(
+          `[suggestions] recovered ${salvaged.length} item(s) from malformed JSON payload (${(parseError as Error).message})`
+        );
+        return { items: salvaged };
+      }
+      throw parseError;
+    }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`Gemini suggestion request timed out after ${timeoutMs}ms`);
@@ -814,7 +892,10 @@ async function generateInitialSuggestions(params: {
   try {
     const raw = await callSuggestionLlm({
       userPrompt: buildInitialPrompt({ ...params, strict: true }),
-      maxCompletionTokens: 1000,
+      // 12 items x 7 fields of German prose needs ~1300 tokens. The old 1000
+      // budget truncated every single response mid-string, so the parse threw
+      // and the endpoint silently served 100% static fallback titles.
+      maxCompletionTokens: 3000,
       timeoutMs: INITIAL_SUGGESTION_TIMEOUT_MS,
     });
     const rawItems = Array.isArray(raw.items) ? raw.items : [];
@@ -866,7 +947,8 @@ async function generateOneSuggestion(params: {
   try {
     const raw = await callSuggestionLlm({
       userPrompt: buildRefreshPrompt({ ...params, strict: true }),
-      maxCompletionTokens: 220,
+      // One item is ~110 tokens of German prose; 220 left no headroom.
+      maxCompletionTokens: 500,
       timeoutMs: REFRESH_SUGGESTION_TIMEOUT_MS,
     });
     const candidate = normalizeSuggestionItem({

@@ -12,6 +12,7 @@ import {
 } from '@/types/story';
 import { WizardImage } from '../../../components/avatar-form/WizardImage';
 import { useWizardAssets } from '../../../hooks/useWizardAssets';
+import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
 
 type AgeGroup = '3-5' | '6-8' | '9-12' | '13+' | null;
 type Length = 'short' | 'medium' | 'long' | null;
@@ -93,16 +94,7 @@ const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
 ];
 
 function SelectionBadge() {
-  return (
-    <motion.span
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      exit={{ scale: 0 }}
-      className="absolute right-2 top-2 rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[11px] font-bold text-white"
-    >
-      OK
-    </motion.span>
-  );
+  return <TaleaSelectedBadge />;
 }
 
 export default function Step3AgeAndLength({

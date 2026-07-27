@@ -77,7 +77,7 @@ const cineScenes = [
     tagIcon: Rocket,
     title: ['In jedem', 'Wald steckt', 'ein Geheimnis.'],
     desc: 'Verzauberte Wälder, Rätsel und Schätze. Jedes Abenteuer ist einzigartig und auf dein Kind zugeschnitten.',
-    points: ['50+ Story-Vorlagen aus Märchen & Sagen', 'Artefakte & Schätze zum Sammeln', 'Langfristige Questlinien & Fortschritt'],
+    points: ['Sechs Story-Welten von Märchen bis Sci-Fi', 'Artefakte & Schätze zum Sammeln', 'Langfristige Questlinien & Fortschritt'],
     image: '/landing-assets/cine_4_stories.png',
   },
   {

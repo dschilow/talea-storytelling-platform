@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { WizardImage } from '../../../components/avatar-form/WizardImage';
 import { useWizardAssets } from '../../../hooks/useWizardAssets';
+import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
 
 type Feeling = 'funny' | 'warm' | 'exciting' | 'crazy' | 'meaningful';
 
@@ -59,6 +60,7 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               key={id}
               type="button"
               disabled={blocked}
+              aria-pressed={selected}
               onClick={() => toggleFeeling(id)}
               className={cn(
                 'relative rounded-2xl border p-4 text-left transition-colors',
@@ -79,16 +81,7 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               <p className="mt-1 text-xs text-muted-foreground">{t(`wizard.feelings.${id}.description`)}</p>
 
               <AnimatePresence>
-                {selected && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                    className="absolute right-2 top-2 rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[11px] font-bold text-white"
-                  >
-                    OK
-                  </motion.span>
-                )}
+                {selected && <TaleaSelectedBadge label={t(`wizard.feelings.${id}.title`)} />}
               </AnimatePresence>
             </button>
           );

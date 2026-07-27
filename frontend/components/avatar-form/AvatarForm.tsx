@@ -460,7 +460,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                   index < clampedIndex
                     ? 'var(--primary)'
                     : index === clampedIndex
-                    ? (isDark ? '#2DD4BF' : 'var(--primary)')
+                    ? (isDark ? 'var(--primary)' : 'var(--primary)')
                     : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
               }}
             />
@@ -525,7 +525,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </span>
 
         {isLast ? (
-          <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: isDark ? '#2DD4BF' : 'var(--primary)' }}>
+          <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: isDark ? 'var(--primary)' : 'var(--primary)' }}>
             <Check className="h-4 w-4" />
             Fertig
           </span>
@@ -534,7 +534,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             type="button"
             onClick={goNext}
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
-            style={{ background: isDark ? '#2DD4BF' : 'var(--primary)' }}
+            style={{ background: isDark ? 'var(--primary)' : 'var(--primary)' }}
           >
             Weiter
             <ArrowRight className="h-4 w-4" />

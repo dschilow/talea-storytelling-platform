@@ -18,6 +18,16 @@ import {
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
+import { cn } from '@/lib/utils';
+import {
+  TaleaActionButton,
+  TaleaPageBackground,
+  TaleaProgressSteps,
+  taleaChipClass,
+  taleaDisplayFont,
+  taleaPageShellClass,
+  taleaSurfaceClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 import Step1Basics from './wizard-steps/Step1Basics';
 import Step2AgeBody from './wizard-steps/Step2AgeBody';
@@ -27,11 +37,14 @@ import Step4Details from './wizard-steps/Step4Details';
 import Step5Preview from './wizard-steps/Step5Preview';
 
 
-const ACCENT = '#2DD4BF';
-const headingFont = '"Cormorant Garamond", serif';
+const headingFont = taleaDisplayFont;
 
+/**
+ * Kept as a thin shim so the step components below can stay untouched: every
+ * value now resolves through the shared Talea theme tokens instead of the
+ * wizard's own hard-coded teal/beige palette.
+ */
 type WizardPalette = {
-  pageGradient: string;
   border: string;
   panel: string;
   text: string;
@@ -39,83 +52,28 @@ type WizardPalette = {
   stepIdle: string;
 };
 
-function paletteFor(isDark: boolean): WizardPalette {
-  if (isDark) {
-    return {
-      pageGradient:
-        'radial-gradient(960px 540px at 100% 0%, rgba(94,129,160,0.26) 0%, transparent 56%), radial-gradient(980px 520px at 0% 18%, rgba(78,120,110,0.24) 0%, transparent 62%), linear-gradient(180deg,#111a25 0%, #0e1722 100%)',
-      border: '#32455d',
-      panel: 'rgba(24,35,49,0.92)',
-      text: '#e6eef9',
-      muted: '#9db0c8',
-      stepIdle: 'rgba(39,53,72,0.92)',
-    };
-  }
+const PALETTE: WizardPalette = {
+  border: 'var(--talea-border-light)',
+  panel: 'var(--talea-surface-primary)',
+  text: 'var(--talea-text-primary)',
+  muted: 'var(--talea-text-secondary)',
+  stepIdle: 'var(--talea-surface-inset)',
+};
 
-  return {
-    pageGradient:
-      'radial-gradient(980px 560px at 100% 0%, #f2dfdc 0%, transparent 56%), radial-gradient(980px 540px at 0% 18%, #dbe8de 0%, transparent 61%), linear-gradient(180deg,#f8f1e8 0%, #f6efe4 100%)',
-    border: '#dfcfbb',
-    panel: 'rgba(255,250,243,0.93)',
-    text: '#1b2838',
-    muted: '#627487',
-    stepIdle: 'rgba(237,226,209,0.85)',
-  };
-}
-
-const WizardBackground: React.FC<{ palette: WizardPalette }> = ({ palette }) => (
-  <div className="fixed inset-0 pointer-events-none -z-10" style={{ background: palette.pageGradient }} />
-);
-
-const StepIndicator: React.FC<{ activeStep: number; palette: WizardPalette; steps: { key: string; label: string }[] }> = ({ activeStep, palette, steps }) => (
-  <div className="flex items-center justify-center gap-1.5 mb-5 px-1 sm:gap-2.5 sm:px-2">
-    {steps.map((step, i) => (
-      <React.Fragment key={step.key}>
-        <div className="flex flex-col items-center gap-1.5">
-          <div
-            className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold transition-all duration-300 sm:h-8 sm:w-8 sm:text-xs"
-            style={
-              i < activeStep
-                ? { background: ACCENT, color: '#0e1520' }
-                : i === activeStep
-                ? { background: `${ACCENT}26`, border: `2px solid ${ACCENT}`, color: ACCENT }
-                : { background: palette.stepIdle, border: `1px solid ${palette.border}`, color: palette.muted }
-            }
-          >
-            {i < activeStep ? <Check className="w-3.5 h-3.5" /> : i + 1}
-          </div>
-          <span
-            className="hidden text-[10px] font-medium sm:inline"
-            style={{ color: i <= activeStep ? palette.text : palette.muted }}
-          >
-            {step.label}
-          </span>
-        </div>
-        {i < steps.length - 1 && (
-          <div
-            className="w-4 h-px rounded-full -mt-3.5 sm:w-7 sm:-mt-4"
-            style={{ background: i < activeStep ? ACCENT : palette.border }}
-          />
-        )}
-      </React.Fragment>
-    ))}
-  </div>
-);
-
-const CreatingAnimation: React.FC<{ name: string; palette: WizardPalette }> = ({ name, palette }) => {
+const CreatingAnimation: React.FC<{ name: string; isDark: boolean }> = ({ name, isDark }) => {
   const { t } = useTranslation();
   return (
     <div className="relative min-h-screen">
-      <WizardBackground palette={palette} />
+      <TaleaPageBackground isDark={isDark} />
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 px-6">
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
-          <Loader2 className="w-10 h-10" style={{ color: ACCENT }} />
+          <Loader2 className="h-10 w-10 text-[var(--primary)]" />
         </motion.div>
         <div className="text-center">
-          <h2 className="text-xl font-semibold" style={{ color: palette.text }}>
+          <h2 className="text-2xl text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>
             {t('avatar.wizard.creating', '{{name}} wird gezaubert...', { name })}
           </h2>
-          <p className="text-sm mt-1" style={{ color: palette.muted }}>
+          <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">
             {t('avatar.wizard.creatingSubtitle', 'Gleich ist dein Avatar fertig!')}
           </p>
         </div>
@@ -134,7 +92,7 @@ const AvatarWizardScreen: React.FC = () => {
   const activeProfile = childProfiles?.activeProfile ?? null;
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
-  const palette = useMemo(() => paletteFor(isDark), [isDark]);
+  const palette = PALETTE;
 
   const WIZARD_STEPS = useMemo(() => [
     { key: 'basics', label: t('avatar.wizard.steps.who', 'Wer?') },
@@ -409,14 +367,11 @@ const AvatarWizardScreen: React.FC = () => {
   if (isResolvingProfile || isProfileUnavailable || isProfileIncomplete) {
     return (
       <div className="relative min-h-screen">
-        <WizardBackground palette={palette} />
+        <TaleaPageBackground isDark={isDark} />
         <div className="relative z-10 flex min-h-screen items-center justify-center px-5">
-          <div
-            className="w-full max-w-md rounded-3xl border p-6 text-center"
-            style={{ background: palette.panel, borderColor: palette.border }}
-          >
+          <div className={cn(taleaSurfaceClass, 'w-full max-w-md p-6 text-center')}>
             {isResolvingProfile ? (
-              <Loader2 className="mx-auto h-8 w-8 animate-spin" style={{ color: ACCENT }} />
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-[var(--primary)]" />
             ) : (
               <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-sm font-bold" style={{ borderColor: palette.border, color: palette.muted }}>
                 !
@@ -433,18 +388,17 @@ const AvatarWizardScreen: React.FC = () => {
               {isResolvingProfile
                 ? 'Einen Moment bitte. Der Avatar wird gleich dem richtigen Profil zugeordnet.'
                 : isProfileIncomplete
-                  ? `Bitte ergaenze zuerst das Alter von ${targetProfile?.name || 'dem Kind'}. Name und Alter des Kind-Avatars kommen immer direkt aus diesem Profil.`
+                  ? `Bitte ergänze zuerst das Alter von ${targetProfile?.name || 'dem Kind'}. Name und Alter des Kind-Avatars kommen immer direkt aus diesem Profil.`
                   : 'Der Avatar kann ohne ein eindeutiges Kinderprofil nicht angelegt werden.'}
             </p>
             {!isResolvingProfile && (
-              <button
-                type="button"
+              <TaleaActionButton
+                variant="secondary"
+                className="mt-5"
                 onClick={() => navigate(isProfileIncomplete ? '/settings' : backTarget)}
-                className="mt-5 rounded-full border px-4 py-2 text-sm font-semibold"
-                style={{ borderColor: palette.border, color: palette.text }}
               >
-                {isProfileIncomplete ? 'Kinderprofil bearbeiten' : 'Zur Avatar-Uebersicht'}
-              </button>
+                {isProfileIncomplete ? 'Kinderprofil bearbeiten' : 'Zur Avatar-Übersicht'}
+              </TaleaActionButton>
             )}
           </div>
         </div>
@@ -453,7 +407,7 @@ const AvatarWizardScreen: React.FC = () => {
   }
 
   if (isCreating) {
-    return <CreatingAnimation name={formData.name} palette={palette} />;
+    return <CreatingAnimation name={formData.name} isDark={isDark} />;
   }
 
   const renderStep = () => {
@@ -493,72 +447,90 @@ const AvatarWizardScreen: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen pb-6">
-      <WizardBackground palette={palette} />
+    <div className="relative min-h-screen pb-10 pt-2">
+      <TaleaPageBackground isDark={isDark} />
 
-      <div className="relative z-10 pt-4">
-        <div className="flex items-center gap-3 px-3 pb-3">
-          <button
-            onClick={() => navigate(backTarget)}
-            className="p-2 rounded-lg transition-all"
-            style={{ color: palette.muted, background: palette.panel, border: `1px solid ${palette.border}` }}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1">
-            <h1 className="text-3xl leading-none" style={{ color: palette.text, fontFamily: headingFont }}>
-              {effectiveChildMode ? t('avatar.wizard.createChildTitle', 'Kind-Avatar erstellen') : t('avatar.wizard.createTitle', 'Avatar erstellen')}
+      <div className={cn(taleaPageShellClass, 'relative z-10')}>
+        <motion.header
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(taleaSurfaceClass, 'mb-4 flex flex-wrap items-end justify-between gap-4 px-4 py-4 md:px-5')}
+        >
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={taleaChipClass}>Avatar Wizard</span>
+              <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
+                {t('avatar.wizard.stepOf', 'Schritt {{current}} von {{total}}', {
+                  current: activeStep + 1,
+                  total: WIZARD_STEPS.length,
+                })}
+              </span>
+            </div>
+            <h1
+              className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]"
+              style={{ fontFamily: headingFont }}
+            >
+              {effectiveChildMode
+                ? t('avatar.wizard.createChildTitle', 'Kind-Avatar erstellen')
+                : t('avatar.wizard.createTitle', 'Avatar erstellen')}
             </h1>
-            <p className="text-xs mt-1" style={{ color: palette.muted }}>
-              {t('avatar.wizard.stepOf', 'Schritt {{current}} von {{total}}', { current: activeStep + 1, total: WIZARD_STEPS.length })}
-            </p>
           </div>
+
+          <TaleaActionButton
+            variant="secondary"
+            onClick={() => navigate(backTarget)}
+            icon={<ArrowLeft className="h-4 w-4" />}
+          >
+            {t('avatar.wizard.toOverview', 'Zur Übersicht')}
+          </TaleaActionButton>
+        </motion.header>
+
+        <div className={cn(taleaSurfaceClass, 'mb-4 px-3 py-3')}>
+          <TaleaProgressSteps
+            steps={WIZARD_STEPS.map((step) => ({ id: step.key, label: step.label }))}
+            activeIndex={activeStep}
+          />
         </div>
 
-        <StepIndicator activeStep={activeStep} palette={palette} steps={WIZARD_STEPS} />
-
-        <div className="mx-3 sm:mx-auto sm:max-w-2xl">
-          <div
-            className="rounded-3xl p-5"
-            style={{ background: palette.panel, border: `1px solid ${palette.border}` }}
+        <div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(taleaSurfaceClass, 'p-5 md:p-7')}
           >
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeStep}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.22 }}
               >
                 {renderStep()}
               </motion.div>
             </AnimatePresence>
-          </div>
+          </motion.div>
 
-          <div className="flex items-center justify-between mt-4 gap-3">
-            {activeStep > 0 ? (
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
-                style={{ color: palette.text, background: palette.panel, border: `1px solid ${palette.border}` }}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t('avatar.wizard.back', 'Zurück')}
-              </button>
-            ) : (
-              <div />
-            )}
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <TaleaActionButton
+              variant="secondary"
+              onClick={activeStep === 0 ? () => navigate(backTarget) : handleBack}
+              icon={<ArrowLeft className="h-4 w-4" />}
+            >
+              {t('avatar.wizard.back', 'Zurück')}
+            </TaleaActionButton>
 
             {activeStep < WIZARD_STEPS.length - 1 && (
-              <button
-                onClick={handleNext}
-                disabled={!canProceed}
-                className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ background: canProceed ? ACCENT : palette.stepIdle, color: canProceed ? '#0f1a28' : palette.muted }}
-              >
-                {t('avatar.wizard.next', 'Weiter')}
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="flex min-w-0 items-center gap-3">
+                {!canProceed && activeStep === 0 && (
+                  <p className="min-w-0 text-right text-xs text-[var(--talea-text-secondary)]">
+                    {t('avatar.wizard.nameRequiredHint', 'Dein Avatar braucht noch einen Namen.')}
+                  </p>
+                )}
+                <TaleaActionButton onClick={handleNext} disabled={!canProceed}>
+                  {t('avatar.wizard.next', 'Weiter')}
+                </TaleaActionButton>
+              </div>
             )}
           </div>
         </div>

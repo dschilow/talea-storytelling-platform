@@ -2,6 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { BODY_BUILDS, BodyBuildId } from '../../types/avatarForm';
 import { useWizardAssets } from '../../hooks/useWizardAssets';
+import { cn } from '@/lib/utils';
+import {
+  taleaSelectableClass,
+  taleaSelectableLabelClass,
+} from '@/components/talea/TaleaPastelPrimitives';
 
 interface BodyBuildSelectorProps {
   value: BodyBuildId;
@@ -9,14 +14,12 @@ interface BodyBuildSelectorProps {
   darkMode?: boolean;
 }
 
-export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onChange, darkMode = false }) => {
+export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onChange }) => {
   const { assetUrl } = useWizardAssets();
   // Body silhouettes for visual representation
   const BodySilhouette: React.FC<{ build: BodyBuildId; isSelected: boolean }> = ({ build, isSelected }) => {
     const width = build === 'slim' ? 16 : build === 'normal' ? 20 : 28;
-    const color = isSelected
-      ? darkMode ? '#2DD4BF' : '#A855F7'
-      : darkMode ? 'rgba(255,255,255,0.3)' : '#D1D5DB';
+    const color = isSelected ? 'var(--primary)' : 'var(--talea-border-strong)';
 
     return (
       <svg width="40" height="60" viewBox="0 0 40 60" className="mb-2">
@@ -40,18 +43,11 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => onChange(build.id)}
-          className={`
-            min-w-0 py-4 px-2 rounded-xl flex flex-col items-center justify-center
-            transition-all duration-200 border-2
-            ${value === build.id
-              ? darkMode
-                ? 'border-[#2DD4BF] bg-[#2DD4BF]/10 shadow-lg shadow-[#2DD4BF]/20'
-                : 'border-amber-500 bg-amber-50 shadow-lg shadow-amber-200/50'
-              : darkMode
-                ? 'border-white/10 bg-white/[0.06] hover:border-[#A989F2]/30 hover:bg-white/[0.1]'
-                : 'border-gray-100 bg-white hover:border-amber-200 hover:bg-amber-50/50'
-            }
-          `}
+          aria-pressed={value === build.id}
+          className={cn(
+            taleaSelectableClass(value === build.id),
+            'flex min-w-0 flex-col items-center justify-center px-2 py-4 !rounded-xl'
+          )}
         >
           {assetUrl('bodyBuild', build.id) ? (
             <img
@@ -63,11 +59,7 @@ export const BodyBuildSelector: React.FC<BodyBuildSelectorProps> = ({ value, onC
           ) : (
             <BodySilhouette build={build.id} isSelected={value === build.id} />
           )}
-          <span className={`text-sm font-medium ${
-            value === build.id
-              ? darkMode ? 'text-[#2DD4BF]' : 'text-amber-700'
-              : darkMode ? 'text-white/60' : 'text-gray-600'
-          }`}>
+          <span className={cn('text-sm', taleaSelectableLabelClass(value === build.id))}>
             {build.labelDe}
           </span>
         </motion.button>

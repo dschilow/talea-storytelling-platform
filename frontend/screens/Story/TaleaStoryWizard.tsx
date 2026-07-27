@@ -22,6 +22,7 @@ import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
+import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { ageToAgeGroup, getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 import { useStoryAgentFlow, ActiveAgentStack } from '../../agents';
@@ -43,6 +44,10 @@ import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
 import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
 import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
 import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
+import Step6LearningMode, {
+  DEFAULT_LEARNING_MODE,
+  type LearningModeValue,
+} from './wizard-steps/Step6LearningMode';
 import Step6Summary from './wizard-steps/Step6Summary';
 import {
   createStoryGenerationId,
@@ -71,6 +76,7 @@ interface WizardState {
   happyEnd: boolean;
   surpriseEnd: boolean;
   customWish: string;
+  learningMode: LearningModeValue;
   aiModel: AIModel;
   aiProvider: AIProvider;
   openRouterModel: OpenRouterStoryModel;
@@ -80,6 +86,16 @@ interface WizardState {
 }
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
+
+type StepKey =
+  | 'mode'
+  | 'avatars'
+  | 'category'
+  | 'ageLength'
+  | 'feeling'
+  | 'learning'
+  | 'wishes'
+  | 'summary';
 
 type StoryCredits = {
   limit: number | null;
@@ -224,6 +240,7 @@ export default function TaleaStoryWizard() {
   const backend = useBackend();
   const { userId } = useAuth();
   const childProfiles = useOptionalChildProfiles();
+  const { isAdmin } = useOptionalUserAccess();
   const activeProfileId = childProfiles?.activeProfileId;
   const activeProfile = childProfiles?.activeProfile ?? null;
   const { t, i18n } = useTranslation();
@@ -232,15 +249,39 @@ export default function TaleaStoryWizard() {
   const isDark = resolvedTheme === 'dark';
   const palette = useMemo(() => getPalette(isDark), [isDark]);
 
-  const labels = [
-    'Modus',
-    t('wizard.steps.avatars'),
-    t('wizard.steps.category'),
-    t('wizard.steps.ageLength'),
-    t('wizard.steps.feeling'),
-    t('wizard.steps.wishes'),
-    t('wizard.steps.summary'),
-  ];
+  // The "Modus" step (Normal vs. Developer pipeline) and the raw AI-model
+  // picker are internal engineering controls: they expose pipeline internals,
+  // vendor names and per-token purchase prices. Customers only ever see the
+  // product steps; admins keep the full instrument panel.
+  const showEngineControls = isAdmin === true;
+
+  const stepKeys = useMemo(
+    () =>
+      [
+        ...(showEngineControls ? (['mode'] as const) : []),
+        'avatars',
+        'category',
+        'ageLength',
+        'feeling',
+        'learning',
+        'wishes',
+        'summary',
+      ] as StepKey[],
+    [showEngineControls]
+  );
+
+  const stepLabels: Record<StepKey, string> = {
+    mode: 'Modus',
+    avatars: t('wizard.steps.avatars'),
+    category: t('wizard.steps.category'),
+    ageLength: t('wizard.steps.ageLength'),
+    feeling: t('wizard.steps.feeling'),
+    learning: t('wizard.steps.learning'),
+    wishes: t('wizard.steps.wishes'),
+    summary: t('wizard.steps.summary'),
+  };
+
+  const labels = stepKeys.map((key) => stepLabels[key]);
 
   const VALID_CATEGORIES = ['fairy-tales', 'adventure', 'magic', 'animals', 'scifi', 'modern'] as const;
   const tagParam = searchParams.get('tags');
@@ -254,7 +295,7 @@ export default function TaleaStoryWizard() {
   const isMapAutoFill = Boolean(mapAvatarId && tagParam);
   const customTags = tagList.filter(t => !VALID_CATEGORIES.includes(t as any)).join(', ');
 
-  const [activeStep, setActiveStep] = useState(isMapAutoFill ? 6 : 0);
+  const [activeStep, setActiveStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<GenerationStep>('profiles');
   const { onPhaseChange, onStoryReady } = useStoryAgentFlow();
@@ -283,6 +324,7 @@ export default function TaleaStoryWizard() {
     happyEnd: true,
     surpriseEnd: false,
     customWish: customTags ? `Thema: ${customTags}` : '',
+    learningMode: DEFAULT_LEARNING_MODE,
     aiModel: 'gemini-3.1-pro-preview',
     // Release default: OpenRouter + Kimi K2.6 — best measured story
     // quality/cost writer (run a75b53af: $0.010 writer cost, 997 words,
@@ -334,6 +376,19 @@ export default function TaleaStoryWizard() {
     if (i18n.language) setUserLanguage(i18n.language);
   }, [i18n.language]);
 
+  // The step list depends on the admin flag, which resolves asynchronously.
+  // Jump the map deep link straight to the summary and never leave the user
+  // stranded on an index that no longer exists once the flag arrives.
+  const mapAutoFillAppliedRef = React.useRef(false);
+  useEffect(() => {
+    if (isMapAutoFill && !mapAutoFillAppliedRef.current) {
+      mapAutoFillAppliedRef.current = true;
+      setActiveStep(stepKeys.length - 1);
+      return;
+    }
+    setActiveStep((prev) => Math.min(prev, stepKeys.length - 1));
+  }, [isMapAutoFill, stepKeys.length]);
+
   useEffect(() => {
     if (!activeProfile || isMapAutoFill || lastAppliedProfileRef.current === activeProfile.id) {
       return;
@@ -384,25 +439,29 @@ export default function TaleaStoryWizard() {
     if (activeStep > 0) setActiveStep((prev) => prev - 1);
   };
 
-  const canProceed = () => {
-    switch (activeStep) {
-      case 0:
-        return true; // Mode step: developerMode defaults to false (Normal Mode)
-      case 1:
-        return state.selectedAvatars.length > 0;
-      case 2:
-        return state.mainCategory !== null;
-      case 3:
-        return state.ageGroup !== null && state.length !== null;
-      case 4:
-        return state.feelings.length > 0;
-      case 5:
-      case 6:
-        return true;
+  /** Why "Weiter" is blocked — shown to the user instead of a dead button. */
+  const blockedReason = (): string | null => {
+    switch (stepKeys[activeStep]) {
+      case 'avatars':
+        return state.selectedAvatars.length > 0 ? null : 'Wähle mindestens einen Avatar aus.';
+      case 'category':
+        return state.mainCategory !== null ? null : 'Wähle eine Art von Geschichte aus.';
+      case 'ageLength':
+        if (state.ageGroup === null) return 'Wähle noch ein Alter aus.';
+        if (state.length === null) return 'Wähle noch eine Länge aus.';
+        return null;
+      case 'feeling':
+        return state.feelings.length > 0 ? null : 'Wähle mindestens eine Stimmung aus.';
+      case 'learning':
+        return state.learningMode.enabled && state.learningMode.subjects.length === 0
+          ? 'Wähle mindestens ein Fach aus — oder schalte den Lernmodus wieder aus.'
+          : null;
       default:
-        return false;
+        return null;
     }
   };
+
+  const canProceed = () => blockedReason() === null;
 
   const openGeneratedStory = (story: any) => {
     const newArtifact = story.newArtifact || story.metadata?.newArtifact;
@@ -541,20 +600,28 @@ export default function TaleaStoryWizard() {
         : 'Geschichten-Münzen für diesen Monat aufgebraucht.'
       : undefined;
 
-    switch (activeStep) {
-      case 0:
+    switch (stepKeys[activeStep]) {
+      case 'mode':
         return <Step0ModeSelection state={state} updateState={updateState} />;
-      case 1:
+      case 'avatars':
         return <Step1AvatarSelection state={state} updateState={updateState} />;
-      case 2:
+      case 'category':
         return <Step2CategorySelection state={state} updateState={updateState} />;
-      case 3:
-        return <Step3AgeAndLength state={state} updateState={updateState} showModelSelection />;
-      case 4:
+      case 'ageLength':
+        return (
+          <Step3AgeAndLength
+            state={state}
+            updateState={updateState}
+            showModelSelection={showEngineControls}
+          />
+        );
+      case 'feeling':
         return <Step4StoryFeeling state={state} updateState={updateState} />;
-      case 5:
+      case 'learning':
+        return <Step6LearningMode state={state} updateState={updateState} />;
+      case 'wishes':
         return <Step5SpecialWishes state={state} updateState={updateState} />;
-      case 6:
+      case 'summary':
         return (
           <Step6Summary
             state={state}
@@ -644,7 +711,7 @@ export default function TaleaStoryWizard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="mt-5 flex items-center justify-between"
+          className="mt-5 flex items-center justify-between gap-4"
         >
           <TaleaActionButton
             type="button"
@@ -656,9 +723,16 @@ export default function TaleaStoryWizard() {
           </TaleaActionButton>
 
           {activeStep < labels.length - 1 && (
-            <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()}>
-              Weiter
-            </TaleaActionButton>
+            <div className="flex min-w-0 items-center gap-3">
+              {blockedReason() && (
+                <p className="min-w-0 text-right text-xs text-[var(--talea-text-secondary)]">
+                  {blockedReason()}
+                </p>
+              )}
+              <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()}>
+                Weiter
+              </TaleaActionButton>
+            </div>
           )}
         </motion.div>
       </div>
@@ -782,6 +856,18 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
   else if (state.feelings.includes('meaningful')) tone = 'soothing';
   else if (state.mainCategory === 'magic') tone = 'wonder';
 
+  // `tone` can only ever carry ONE feeling. The wizard lets the child pick up
+  // to three, so the full selection is forwarded as emotionalFlavors — the
+  // engine blends all of them into humor/suspense/pacing and the style block.
+  const flavorMap: Record<string, string> = {
+    funny: 'lachfreude',
+    warm: 'warmherzigkeit',
+    exciting: 'prickeln',
+    crazy: 'uebermut',
+    meaningful: 'zusammenhalt',
+  };
+  const emotionalFlavors = state.feelings.map((feeling) => flavorMap[feeling]).filter(Boolean);
+
   const genre = state.mainCategory ? genreMap[state.mainCategory] || 'adventure' : 'adventure';
 
   return {
@@ -794,9 +880,28 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     suspenseLevel: state.feelings.includes('exciting') ? 2 : 1,
     humorLevel: state.feelings.includes('funny') ? 2 : 1,
     tone,
+    emotionalFlavors,
     pacing: (state.feelings.includes('exciting') ? 'fast' : 'balanced') as 'fast' | 'balanced' | 'slow',
     allowRhymes: state.rhymes,
     hasTwist: state.surpriseEnd,
+    // Step "Besondere Wünsche" — every toggle the wizard shows and the summary
+    // confirms back to the child has to reach the prompt.
+    requireMoral: state.moral,
+    avatarIsHero: state.avatarIsHero,
+    allowFamousCharacters: state.famousCharacters,
+    requireHappyEnd: state.happyEnd,
+    // Only send a learning mode the user actually configured — an enabled mode
+    // without subjects would produce an empty guidance block in the prompt.
+    learningMode:
+      state.learningMode.enabled && state.learningMode.subjects.length > 0
+        ? {
+            enabled: true,
+            subjects: state.learningMode.subjects,
+            difficulty: state.learningMode.difficulty,
+            learningObjectives: state.learningMode.learningObjectives,
+            assessmentType: state.learningMode.assessmentType,
+          }
+        : undefined,
     customPrompt: state.customWish || undefined,
     language: userLanguage as 'de' | 'en' | 'fr' | 'es' | 'it' | 'nl' | 'ru',
     aiModel: state.aiModel,
