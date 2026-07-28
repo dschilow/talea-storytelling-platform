@@ -96,43 +96,76 @@ gleich — unterschieden wird über die `environmentId`.
 - Eigene interne Domains (`*.railway.internal`) pro Umgebung.
 - Eigene NSQ-Instanz.
 
+Verifiziert am 2026-07-28: Test- und Production-Postgres haben unterschiedliche
+`DATABASE_URL`, unterschiedliche Passwörter, eigene Volumes und eigene
+TCP-Proxys. Das Test-Frontend liefert zur Laufzeit
+`window.ENV.BACKEND_URL = https://backend-2-test.up.railway.app`.
+
+> Hinweis: `frontend/config.ts` enthält die Production-Backend-URL als
+> hardcodierten Fallback. Der greift nur, wenn `window.ENV.BACKEND_URL` fehlt
+> *und* der Hostname `talea.website` ist — auf der Test-Domain also nie.
+
 **Was mit Production geteilt wird** (bewusst)
 
 - API-Keys: OpenAI, Gemini, Anthropic, OpenRouter, Runware, ElevenLabs, RunPod.
-  → Test-Läufe verursachen echte API-Kosten.
+  → Test-Läufe verursachen echte API-Kosten. Bei RunPod/ElevenLabs teilen sich
+  Test und Production außerdem die Concurrency-Limits — ein großer Test-Lauf
+  kann Production-TTS ausbremsen.
 - Der Railway-Storage-Bucket (`BUCKET_*`). Test-Bilder landen im selben Bucket
-  wie Production. Das ist rein additiv, überschreibt also nichts.
+  wie Production. Rein additiv (Keys sind UUID-basiert), überschreibt nichts.
 
 ## GitHub Secrets
-
-Gesetzt und einsatzbereit:
 
 | Secret | Zweck |
 |---|---|
 | `RAILWAY_API_TOKEN` | Railway GraphQL API |
 | `RAILWAY_ENVIRONMENT_ID_TEST` | Test-Environment |
 | `RAILWAY_SERVICE_ID_TEST` | Backend-Service im Test |
-| `RAILWAY_ENVIRONMENT_ID` | Production-Environment |
-| `RAILWAY_SERVICE_ID` | Backend-Service in Production |
 
-## Offener Punkt: Clerk
+### Production deployt weiterhin *nicht* automatisch
 
-Die Test-Umgebung nutzt aktuell dieselben **Clerk-Live-Keys** wie Production
+`scripts/trigger-railway-deploy.mjs` braucht `RAILWAY_API_TOKEN`,
+`RAILWAY_ENVIRONMENT_ID` und `RAILWAY_SERVICE_ID`. `RAILWAY_ENVIRONMENT_ID` ist
+bewusst **nicht** gesetzt, deshalb überspringt der Production-Workflow seinen
+Railway-Schritt — genau wie vorher. Ein Push auf `main` baut also weiterhin nur
+das `:latest`-Image; den Production-Redeploy löst du selbst im Railway-Dashboard
+aus.
+
+Wenn du Production später doch automatisch deployen willst, reicht ein Secret:
+
+```
+RAILWAY_ENVIRONMENT_ID = 7a7f74fa-422e-45a4-aeb4-f51f20eaad05
+```
+
+## ⚠️ Offener Punkt: Clerk-Login
+
+**Der Login auf der Test-URL funktioniert noch nicht.** Alles andere läuft.
+
+Die Test-Umgebung nutzt dieselben Clerk-Live-Keys wie Production
 (`pk_live_…` für `clerk.talea.website`). Clerk-Production-Instanzen erlauben nur
-konfigurierte Domains — der Login auf
-`frontend-test-d2a1.up.railway.app` schlägt daher voraussichtlich fehl.
+konfigurierte Domains. Verifiziert am 2026-07-28:
 
-Zwei Möglichkeiten:
+```
+GET https://clerk.talea.website/v1/environment
+Origin: https://frontend-test-d2a1.up.railway.app
+→ HTTP 400 (abgelehnt)
+```
 
-1. **Test-Domain in Clerk erlauben** — Clerk Dashboard → Domains →
-   `frontend-test-d2a1.up.railway.app` als Satellite-Domain hinzufügen.
-2. **Clerk-Development-Instanz nutzen** — in der Railway-Test-Umgebung
-   `VITE_CLERK_PUBLISHABLE_KEY` auf `pk_test_…` und `CLERK_SECRET_KEY` auf
-   `sk_test_…` setzen. Dann hat Test eigene Nutzerkonten, komplett getrennt von
-   Production.
+Zwei Möglichkeiten, beide brauchen das Clerk-Dashboard:
 
-Variante 2 ist die sauberere Trennung, Variante 1 ist schneller und lässt dich
-mit deinem echten Account testen.
+**Variante 1 — Test-Domain erlauben** (schnell, du testest mit deinem echten Account)
+Clerk Dashboard → deine Production-Instanz → Domains → Satellite-Domain
+`frontend-test-d2a1.up.railway.app` hinzufügen.
+Test und Production teilen sich dann den Nutzer-Pool. Die *Daten* bleiben
+trotzdem getrennt, weil die Datenbanken getrennt sind.
+
+**Variante 2 — eigene Clerk-Development-Instanz** (saubere Trennung)
+In Railway → Environment `test`:
+- Service `frontend`: `VITE_CLERK_PUBLISHABLE_KEY` = `pk_test_…`
+- Service `backend 2`: `CLERK_SECRET_KEY` = `sk_test_…`
+
+Danach das Frontend neu deployen (der Key wird beim Container-Start in
+`/config.js` geschrieben). Test hat dann eigene Nutzerkonten.
 
 ## Troubleshooting
 
