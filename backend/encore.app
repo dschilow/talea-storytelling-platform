@@ -9,7 +9,8 @@
       "https://talea-storytelling-platform-d2okv1482vjjq7d7fpi0.lp.dev",
       "https://frontend-production-0b44.up.railway.app",
       "https://www.talea.website",
-      "https://talea.website"
+      "https://talea.website",
+      "https://frontend-test-d2a1.up.railway.app"
     ],
     "debug": true
   }
