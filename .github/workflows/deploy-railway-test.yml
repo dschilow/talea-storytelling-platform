@@ -1,0 +1,240 @@
+name: Build and Deploy to Railway (Test)
+
+on:
+  push:
+    branches: [ test-main ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      # Best-effort disable update checks in CI to avoid flaky failures.
+      ENCORE_DISABLE_UPDATE_CHECK: "1"
+      ENCORE_NO_UPDATE_CHECK: "1"
+      ENCORE_SKIP_UPDATE_CHECK: "1"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Bun (primary)
+        id: setup-bun
+        continue-on-error: true
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.2.21"
+
+      - name: Setup Bun (fallback installer)
+        if: steps.setup-bun.outcome == 'failure'
+        run: |
+          echo "⚠️ setup-bun failed, using fallback installer"
+          curl -fsSL https://bun.sh/install | bash -s -- bun-v1.2.21
+          echo "$HOME/.bun/bin" >> $GITHUB_PATH
+
+      - name: Verify Bun
+        run: bun --version
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+            backend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install workspace dependencies
+        env:
+          BUN_INSTALL_REGISTRY: https://registry.npmjs.org
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: bun run --cwd frontend build -- --outDir=../backend/frontend/dist
+
+      - name: Install Encore CLI
+        run: |
+          # Install Encore CLI using official script with retry logic
+          set -euo pipefail
+          INSTALL_OK=0
+          for i in 1 2 3; do
+            echo "Attempt $i to install Encore CLI..."
+            if curl -L https://encore.dev/install.sh | bash; then
+              echo "Installation successful!"
+              INSTALL_OK=1
+              break
+            fi
+            echo "Installation failed, retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ "$INSTALL_OK" -ne 1 ]; then
+            echo "❌ Encore CLI installation failed after 3 attempts."
+            exit 1
+          fi
+
+          # Add Encore to PATH for subsequent steps
+          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+
+          # Verify installation (in current shell)
+          export PATH="$HOME/.encore/bin:$PATH"
+          encore version || true
+
+      - name: Verify Encore CLI
+        run: encore version || true
+
+      - name: Warm Encore daemon
+        run: |
+          set -euo pipefail
+          encore telemetry disable || true
+          encore daemon || true
+
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            echo "Checking Encore daemon readiness (attempt $i/10)..."
+            if encore daemon env >/tmp/encore-daemon-env.txt 2>&1; then
+              cat /tmp/encore-daemon-env.txt
+              echo "✅ Encore daemon is ready."
+              exit 0
+            fi
+            cat /tmp/encore-daemon-env.txt || true
+            encore daemon || true
+            sleep 3
+          done
+
+          echo "❌ Encore daemon did not become ready."
+          exit 1
+
+      - name: Build Encore Docker image (TEST)
+        env:
+          MCP_SERVER_API_KEY: "mcp_sk_build_placeholder"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          cd backend
+          set -u
+
+          for attempt in 1 2; do
+            echo "Encore Docker build attempt $attempt/2..."
+            encore daemon || true
+
+            set +e
+            OUTPUT=$(encore build --config infra.config.railway.json docker myapp --verbose 2>&1)
+            STATUS=$?
+            set -e
+
+            echo "$OUTPUT"
+
+            if [ $STATUS -eq 0 ]; then
+              exit 0
+            fi
+
+            if echo "$OUTPUT" | grep -q "could not check for update"; then
+              echo "⚠️  Ignoring Encore update-check failure (build may still be valid)."
+              if docker image inspect myapp >/dev/null 2>&1; then
+                echo "✅ Docker image exists. Continuing."
+                exit 0
+              fi
+              echo "❌ Docker image not found; failing build."
+            fi
+
+            if echo "$OUTPUT" | grep -Eq "dialing daemon|context deadline exceeded"; then
+              if [ "$attempt" -lt 2 ]; then
+                echo "⚠️  Encore daemon timed out. Restarting daemon and retrying once..."
+                encore daemon || true
+                sleep 8
+                continue
+              fi
+            fi
+
+            exit $STATUS
+          done
+
+      - name: Add audio runtime tools
+        run: |
+          docker build \
+            -f Dockerfile.encore-runtime-audio \
+            --build-arg BASE_IMAGE=myapp \
+            -t myapp-audio \
+            .
+
+      - name: Verify audio runtime tools
+        run: |
+          docker run --rm --entrypoint /usr/bin/ffmpeg myapp-audio -version
+          docker run --rm --entrypoint /usr/bin/ffprobe myapp-audio -version
+
+      - name: Tag Docker image for GitHub Container Registry (TEST)
+        run: |
+          docker tag myapp-audio ghcr.io/${{ github.repository }}:test-main
+          docker tag myapp-audio ghcr.io/${{ github.repository }}:test-${{ github.sha }}
+
+      - name: Push Docker images (TEST)
+        run: |
+          set -u
+
+          # Retry wrapper: ghcr.io occasionally returns "context deadline
+          # exceeded" on the manifest PUT even when all layers are already
+          # uploaded. Retrying the same push picks up the cached layers and
+          # only re-attempts the manifest, which usually succeeds quickly.
+          push_with_retry() {
+            local ref="$1"
+            local attempt
+            for attempt in 1 2 3 4 5; do
+              echo "::group::docker push $ref (attempt $attempt/5)"
+              if docker push "$ref"; then
+                echo "::endgroup::"
+                echo "✅ pushed $ref"
+                return 0
+              fi
+              echo "::endgroup::"
+              echo "⚠️  push failed for $ref (attempt $attempt). Sleeping before retry..."
+              sleep $((attempt * 10))
+            done
+            echo "❌ docker push $ref failed after 5 attempts."
+            return 1
+          }
+
+          push_with_retry "ghcr.io/${{ github.repository }}:test-main"
+          push_with_retry "ghcr.io/${{ github.repository }}:test-${{ github.sha }}"
+
+      - name: Set up Node for Railway trigger
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Trigger Railway deployment to TEST (skips if secrets missing)
+        continue-on-error: true
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_ENVIRONMENT_ID_TEST: ${{ secrets.RAILWAY_ENVIRONMENT_ID_TEST }}
+          RAILWAY_SERVICE_ID_TEST: ${{ secrets.RAILWAY_SERVICE_ID_TEST }}
+        run: node scripts/trigger-railway-deploy-test.mjs
+
+      - name: Deployment Summary
+        run: |
+          echo "🧪 TEST DEPLOYMENT"
+          echo "Docker image built and pushed successfully"
+          echo "  Image: ghcr.io/${{ github.repository }}:test-main"
+          echo "  SHA: ghcr.io/${{ github.repository }}:test-${{ github.sha }}"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Check Railway dashboard for test-backend service"
+          echo "  2. Verify deployment status at https://talea-test.up.railway.app"
+          echo "  3. Test features before merging to main"
