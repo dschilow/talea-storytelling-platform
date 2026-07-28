@@ -94,7 +94,18 @@ import { selectAdaptiveVisualQaCandidates } from "./dev-mode-visual-qa-selection
 const openAIKey = secret("OpenAIKey");
 
 const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
-const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
+// Support model = every stage that plans, critiques or validates but writes no
+// prose (idea lab, logline, beat sheet, scene cards, final validation). The
+// 2026-07-28 cost audit measured ~40k input / 9.3k output tokens per story on
+// this role — 37% of a story's bill — while gemini-3.5-flash-lite bills output
+// at $2.50/1M, i.e. close to the writer model's $3.41. gemini-3.1-flash-lite
+// ($0.25/$1.50) does the same structured-JSON work for ~32% less.
+const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
+// Vision QA stays on 3.5-flash-lite: it is the only support call that needs
+// image input, its share of the bill is ~$0.003, and downgrading a capability
+// we have not verified would risk the illustration checks to save a rounding
+// error.
+const DEV_MODE_VISION_QA_MODEL = "google/gemini-3.5-flash-lite";
 // The 9B variant regressed badly with multiple portrait references (merged
 // bodies, missing heads and duplicated scenes). The proven 4B checkpoint is
 // more reliable for this four-step illustrated-book workflow.
@@ -312,6 +323,11 @@ import {
   stripReasoningPreamble,
 } from "./provider-output-recovery";
 import { buildPersonalObjectStemMatcher } from "./personal-object-anchor";
+import {
+  analyzeStoryCraft,
+  buildCraftRepairBrief,
+  type CraftIssue,
+} from "./pipeline/craft-diagnostics";
 
 
 /**
@@ -361,6 +377,7 @@ type DevModePipelineStage =
   | "dialogue-intent"
   | "dialogue-intent-repair"
   | "dialogue-rebalance"
+  | "craft-diagnostics"
   | "blueprint"
   | "blueprint-repair"
   | "dramaturgy-check"
@@ -3284,7 +3301,7 @@ async function generateDevModeImages(
       ? allQaCandidates.map(({ result }) => ({ result }))
       : selectAdaptiveVisualQaCandidates(allQaCandidates, 2).map(({ result }) => ({ result }));
 
-    const qaModel = DEV_MODE_SUPPORT_MODEL; // Gemini Flash supports vision
+    const qaModel = DEV_MODE_VISION_QA_MODEL; // Gemini Flash supports vision
     const qaSeen = await mapWithConcurrency(qaJobs, 2, async ({ result: r }) => {
       try {
         const expectedSceneNames = onStageForJob({ ...r.job, prompt: r.fullPrompt });
@@ -8901,6 +8918,47 @@ function buildCompactStoryDraftPrompts(
   return { systemPrompt, userPrompt };
 }
 
+/**
+ * Deterministic craft findings for the story as it currently stands: is the
+ * refrain the beat sheet locked actually planted, is the recurring motif
+ * recurring, does the finale belong to the heroes.
+ *
+ * These never trigger a repair pass of their own — the whole point is that they
+ * cost nothing. They ride along in the `critique` bag of a pass that was going
+ * to run anyway, so that pass spends its tokens on craft instead of only on
+ * dialogue percentages. See pipeline/craft-diagnostics.ts for the calibration.
+ */
+function collectCraftIssues(
+  input: DevModeGenerationInput,
+  story: DevModeRawStory,
+  beatSheet: any
+): CraftIssue[] {
+  try {
+    const lockedNames = new Set(
+      (input.selectedIdea?.selectedSupportingCast || [])
+        .map((name) => String(name || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+    const supportingCast = (input.poolCharacters || [])
+      .filter((character) => lockedNames.has(String(character.name || "").trim().toLowerCase()))
+      .map((character) => ({ name: character.name, catchphrase: character.catchphrase }));
+
+    return analyzeStoryCraft({
+      chapters: (story.chapters || []).map((chapter) => ({
+        order: Number(chapter.order),
+        content: String(chapter.content || ""),
+      })),
+      refrainLine: beatSheet?.refrainLine,
+      recurringMotif: beatSheet?.recurringMotif,
+      supportingCast,
+    });
+  } catch (err) {
+    // Craft diagnostics are advisory. They must never break a generation.
+    console.warn("[dev-mode-generation] craft diagnostics skipped:", err);
+    return [];
+  }
+}
+
 function buildStoryPolishPrompts(
   input: DevModeGenerationInput,
   chapterCount: number,
@@ -8957,6 +9015,9 @@ function buildStoryPolishPrompts(
         ...validatorWarnings.map((issue) => `- WATCH: ${issue}`),
       ].join("\n")
     : "";
+  const craftBlock = buildCraftRepairBrief(
+    Array.isArray(critique?.craftIssues) ? critique.craftIssues : []
+  );
   const validatorText = [...validatorMustFixes, ...validatorWarnings].join(" ");
   const hasTitlePromiseIssue = diagnostics.hardIssues.some((issue) => /Titel-Versprechen unerfuellt/i.test(issue));
   const hasEndingImageIssue = diagnostics.softIssues.some((issue) => /Finale endet eher mit Erkl/i.test(issue))
@@ -9032,6 +9093,11 @@ function buildStoryPolishPrompts(
     buildLeanRepairPromptContext(input, chapterCount, { readingPageMode }),
     validatorBlock || null,
     validatorBlock ? "" : null,
+    // Craft brief rides in front of the locked summary so the model reads it
+    // together with the validator's must-fixes rather than as an afterthought.
+    // Costs no extra call: this pass was already paid for.
+    craftBlock || null,
+    craftBlock ? "" : null,
     "LOCKED STORY SUMMARY TO PRESERVE:",
     promptJson({
       selectedIdea: compactStoryBible.selectedIdea,
@@ -9441,6 +9507,11 @@ function buildLinePunchupPrompts(
     "- DO NOT introduce new characters, settings, or plot beats.",
     `- Maximum ${DEV_MODE_LINE_PUNCHUP_MAX_REPLACEMENTS} replacements across the whole story.`,
     "- Prefer 1-2 replacements per chapter, not all in one chapter.",
+    "",
+    // Craft findings outrank the generic "weakest sentence" hunt: a dropped
+    // refrain or a finale the heroes do not own is a bigger gap to a shelf book
+    // than any single flat sentence, and the punchup budget is the same either way.
+    buildCraftRepairBrief(Array.isArray(critique?.craftIssues) ? critique.craftIssues : []) || null,
     "",
     "PRIORITY HINTS FROM DIAGNOSTICS:",
     promptJson(compactDiagnosticsForPrompt(diagnostics)),
@@ -14542,6 +14613,20 @@ export async function generateStoryDevMode(
 
       const currentParsed: DevModeRawStory = finalParsed;
       const currentDiagnostics: DevModeStoryDiagnostics = finalDiagnostics;
+      // Measured once per repair round, free, and handed to whichever pass runs
+      // below. This is the whole of the "craft gets a seat at the repair table"
+      // change: no extra call, the pass just stops being only about form.
+      const currentCraftIssues = collectCraftIssues(input, currentParsed, beatSheet);
+      if (currentCraftIssues.length > 0) {
+        console.warn("[dev-mode-generation] craft findings handed to this repair pass", {
+          validationAttempt: validationAttempt + 1,
+          issues: currentCraftIssues.map((issue) => issue.code),
+        });
+        recordLocalStage("craft-diagnostics", {
+          attempt: validationAttempt + 1,
+          issues: currentCraftIssues.map((issue) => ({ code: issue.code, message: issue.message })),
+        });
+      }
       const currentSeverity = diagnosticsSeverityScore(currentDiagnostics, chapterCount, input.config);
       const polishReason =
         currentDiagnostics.hardIssueCount > 0
@@ -14807,6 +14892,7 @@ export async function generateStoryDevMode(
               ...critique,
               validatorFindings,
               polishReason,
+              craftIssues: currentCraftIssues,
             }
           );
           const punchupStage = await runStage("line-punchup", punchupPrompts, {
@@ -14888,6 +14974,7 @@ export async function generateStoryDevMode(
             ...critique,
             validatorFindings,
             polishReason,
+            craftIssues: currentCraftIssues,
             rejectedPolishFeedback: lastRejectedPolishFeedback || undefined,
           }
         );

@@ -51,7 +51,10 @@ import {
 } from "./artifact-treasury";
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
-const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
+// Kept in step with DEV_MODE_SUPPORT_MODEL — same structured-JSON support role,
+// same 2026-07-28 cost rationale (gemini-3.5-flash-lite bills output at
+// $2.50/1M vs $1.50 here for equivalent extraction work).
+const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
 const MAX_STORY_CHARS_FOR_DEVELOPMENT = 9_000;
 const MAX_MEMORY_ANCHOR_TITLES = 2;
 
