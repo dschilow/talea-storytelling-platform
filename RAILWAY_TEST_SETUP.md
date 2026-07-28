@@ -170,9 +170,36 @@ werden — sonst weist das Backend gültige Tokens zurück.
 **Konsequenz:** Test hat einen eigenen Nutzer-Pool. Dein Production-Account
 existiert dort nicht; du legst dir im Test einmalig einen Account an.
 
-**Wenn sich die Test-Frontend-Domain jemals ändert**, müssen beide Stellen
-nachgezogen werden: `RAW_AUTHORIZED_PARTIES` in `auth.ts` und ggf. die
-Clerk-Dashboard-Einstellungen.
+## Zwei Allowlists — beide brauchen jede Frontend-Domain
+
+Eine neue Frontend-Domain muss an **zwei** Stellen eingetragen werden. Fehlt
+eine davon, wirkt die App kaputt, obwohl Backend, Datenbank und KI laufen.
+
+| Datei | Prüft | Symptom, wenn die Domain fehlt |
+|---|---|---|
+| `backend/encore.app` → `global_cors.allow_origins_with_credentials` | wer überhaupt Requests schicken darf | Browser blockt den Preflight: `No 'Access-Control-Allow-Origin' header`, `net::ERR_FAILED`. Der Request erreicht das Backend **nie**. |
+| `backend/auth/auth.ts` → `RAW_AUTHORIZED_PARTIES` | wer Clerk-Tokens für dieses Backend ausstellen darf | Request kommt an, wird aber als nicht autorisiert abgewiesen. |
+
+Beide greifen nur bei *credentialed* Requests — das Frontend schickt den
+Clerk-Token im `Authorization`-Header, also gilt das für praktisch jeden Aufruf.
+
+Am 2026-07-28 fehlte die Test-Domain in `encore.app`. Das sah nach defekter
+Bildgenerierung aus (`/ai/generate-avatar` schlug fehl), war aber reines CORS:
+kein einziger Aufruf erreichte das Backend.
+
+Verifizieren lässt sich das ohne Browser:
+
+```bash
+curl -si -X OPTIONS https://backend-2-test.up.railway.app/avatars \
+  -H "Origin: https://frontend-test-d2a1.up.railway.app" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: authorization" | grep -i access-control
+```
+
+Kommt `access-control-allow-origin` mit der erwarteten Domain zurück, ist CORS in
+Ordnung und der Fehler liegt woanders.
+
+Beide Änderungen landen im Docker-Image, brauchen also einen Actions-Durchlauf.
 
 ## Troubleshooting
 
