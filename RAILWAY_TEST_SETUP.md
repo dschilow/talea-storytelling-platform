@@ -103,6 +103,30 @@ gleich — unterschieden wird über die `environmentId`.
 > Test-Datenbank wurde nachträglich angelegt (`postgres-volume-shqm`). Wer die
 > Umgebung neu aufbaut, muss diesen Schritt einplanen.
 
+> **Gefährlich: `volumeCreate` an einem Service, den es in beiden Umgebungen
+> gibt.** Ein Railway-Service ist ein Objekt pro *Projekt* mit einer Instanz je
+> Umgebung. Legt man ein zweites Volume mit demselben `mountPath` an diesem
+> Service an, löst Railway die vorhandene Zuordnung — das Volume der anderen
+> Umgebung steht danach auf `serviceId = null`.
+>
+> Genau das passierte am 2026-07-28: Das Anlegen des Test-Volumes hängte das
+> **Production**-Volume ab. Der laufende Prod-Container merkte nichts; der
+> Ausfall trat erst beim nächsten Production-Deploy auf ("Postgres kann nicht
+> gebaut werden"). Eine Kontrolle direkt nach der Änderung zeigte noch die alte,
+> korrekte Zuordnung und war damit wertlos.
+>
+> Prüfen (`serviceId: null` ist der Alarm):
+> ```graphql
+> project { volumes { edges { node { name volumeInstances { edges { node {
+>   environmentId serviceId state mountPath } } } } } } }
+> ```
+> Reparieren ohne Datenverlust — **nie `volumeDelete` benutzen**:
+> ```graphql
+> volumeInstanceUpdate(volumeId: "…", environmentId: "…",
+>   input: { serviceId: "…", mountPath: "/var/lib/postgresql/data" })
+> ```
+> danach `serviceInstanceDeployV2`.
+
 Verifiziert am 2026-07-28: Test- und Production-Postgres haben unterschiedliche
 `DATABASE_URL`, unterschiedliche Passwörter, eigene Volumes und eigene
 TCP-Proxys. Das Test-Frontend liefert zur Laufzeit
